@@ -30,6 +30,7 @@ from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
+from apps.log_search.constants import IndexSetDataType
 from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
@@ -2087,7 +2088,6 @@ class TestSqlAndGrepApi(TestCase):
             index_set_id=index_set.index_set_id,
             sort_list=[],
             alias_mappings={},
-            bk_biz_id=handler.bk_biz_id,
         )
         self.assertTrue(order_by_clause.startswith(" ORDER BY"), f"应生成 ORDER BY，实际: {order_by_clause}")
         # 默认排序应包含时间字段
@@ -2146,3 +2146,210 @@ class TestSqlAndGrepApi(TestCase):
         index_set = self._build_es_doris_index_set()
         handler = self._build_uq_handler(index_set)
         self.assertEqual(handler.table_id, f"bklog_index_set_{index_set.index_set_id}_analysis")
+
+    # ==================================================================
+    # 索引组分析模式优先级
+    # ==================================================================
+
+    def _build_legacy_doris_group(self) -> LogIndexSet:
+        """场景1（legacy Doris 索引组）：父组 support_doris=True + doris_table_id 非空，
+        子索引为普通 ES（无 Doris 能力）。组级分析应开启，走 _analysis 路由。"""
+        # 创建一个 ES 子索引
+        child_cc = CollectorConfig.objects.create(
+            table_id="591_child",
+            bk_biz_id=2,
+            collector_config_name="child_es_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        child_index_set = LogIndexSet.objects.create(
+            index_set_name="child_es",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=child_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        child_cc.index_set_id = child_index_set.index_set_id
+        child_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child_index_set.index_set_id,
+            result_table_id="591_child",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        # 创建父组（legacy Doris）
+        parent = LogIndexSet.objects.create(
+            index_set_name="legacy_doris_group",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+            support_doris=True,
+            doris_table_id="db.legacy_doris_table",
+            collector_config_id=None,
+        )
+        # 关联子索引到父组
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child_index_set.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        return parent
+
+    def _build_all_native_doris_group(self) -> LogIndexSet:
+        """场景2（全原生 Doris 索引组）：所有子索引 storage_cluster_type 均为 doris，
+        组级分析应开启，走默认路由（无 _analysis）。"""
+        child_cc = CollectorConfig.objects.create(
+            table_id="591_native_child",
+            bk_biz_id=2,
+            collector_config_name="child_native_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        child_index_set = LogIndexSet.objects.create(
+            index_set_name="child_native",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=child_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        child_cc.index_set_id = child_index_set.index_set_id
+        child_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child_index_set.index_set_id,
+            result_table_id="591_native_child",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        parent = LogIndexSet.objects.create(
+            index_set_name="all_native_doris_group",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+            support_doris=False,
+            doris_table_id=None,
+            collector_config_id=None,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child_index_set.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        return parent
+
+    def _build_mixed_group(self) -> LogIndexSet:
+        """场景3（混合索引组）：部分子索引为原生 Doris、部分为 ES。
+        组级分析应关闭（is_support_doris=False）。"""
+        # Doris 子索引
+        doris_cc = CollectorConfig.objects.create(
+            table_id="591_mix_doris",
+            bk_biz_id=2,
+            collector_config_name="mix_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        child_doris = LogIndexSet.objects.create(
+            index_set_name="child_mix_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=doris_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        doris_cc.index_set_id = child_doris.index_set_id
+        doris_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child_doris.index_set_id,
+            result_table_id="591_mix_doris",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        # ES 子索引
+        es_cc = CollectorConfig.objects.create(
+            table_id="591_mix_es",
+            bk_biz_id=2,
+            collector_config_name="mix_es_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        child_es = LogIndexSet.objects.create(
+            index_set_name="child_mix_es",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=es_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        es_cc.index_set_id = child_es.index_set_id
+        es_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child_es.index_set_id,
+            result_table_id="591_mix_es",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        parent = LogIndexSet.objects.create(
+            index_set_name="mixed_group",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+            support_doris=False,
+            doris_table_id=None,
+            collector_config_id=None,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child_doris.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child_es.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        return parent
+
+    def test_legacy_doris_group_support(self):
+        """Legacy Doris 索引组：support_doris=True + doris_table_id 非空 → 分析开启，走 _analysis"""
+        group = self._build_legacy_doris_group()
+        handler = self._build_uq_handler(group)
+        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(
+            handler.table_id.endswith("_analysis"), f"Legacy Doris 组应走 _analysis，实际: {handler.table_id}"
+        )
+
+    def test_all_native_doris_group_support(self):
+        """全原生 Doris 索引组：所有子索引均为原生 Doris → 分析开启，走默认路由"""
+        group = self._build_all_native_doris_group()
+        handler = self._build_uq_handler(group)
+        self.assertTrue(handler.is_support_doris)
+        self.assertFalse(
+            handler.table_id.endswith("_analysis"), f"全原生 Doris 组应走默认路由，实际: {handler.table_id}"
+        )
+
+    def test_mixed_group_not_supported(self):
+        """混合索引组：部分 Doris + 部分 ES → 分析关闭"""
+        group = self._build_mixed_group()
+        handler = self._build_uq_handler(group)
+        self.assertFalse(handler.is_support_doris)

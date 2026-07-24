@@ -18,6 +18,7 @@ from django.conf import settings
 from apps.api import UnifyQueryApi
 from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
 from apps.log_search.exceptions import IndexSetDorisQueryException
+from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
@@ -27,13 +28,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         self.table_id = None
         super().__init__(params)
         self.index_set_obj = self.index_info_list[0]["index_set_obj"]
-        self.is_support_doris = False
-        if self.index_set_obj:
-            self.is_support_doris = (
-                self.index_set_obj.support_doris
-                if self.index_set_obj.support_doris
-                else self.index_set_obj.is_native_doris()
-            )
+        self.is_support_sql_and_grep = LogIndexSet.is_support_sql_and_grep(self.index_set_ids[0], self.index_set_obj)
 
     def init_base_dict(self):
         # 拼接查询参数列表
@@ -69,7 +64,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def get_chart_data(self):
-        if not self.is_support_doris:
+        if not self.is_support_sql_and_grep:
             raise IndexSetDorisQueryException()
 
         start_time = time.time()
@@ -91,7 +86,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def generate_sql(self):
-        if not self.is_support_doris:
+        if not self.is_support_sql_and_grep:
             raise IndexSetDorisQueryException()
 
         search_dict = copy.deepcopy(self.base_dict)
@@ -106,9 +101,6 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def export_chart_data(self):
-        if not self.is_support_doris:
-            raise IndexSetDorisQueryException()
-
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
         max_result_count = MAX_ASYNC_COUNT

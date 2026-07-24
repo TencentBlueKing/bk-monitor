@@ -65,6 +65,7 @@ from apps.log_search.exceptions import (
     AsyncExportTaskNotDownloadableException,
     AsyncExportTaskNotFoundException,
     BaseSearchIndexSetException,
+    IndexSetDorisQueryException,
 )
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
@@ -2052,6 +2053,8 @@ class SearchViewSet(APIViewSet):
         params["bk_biz_id"] = bk_biz_id
 
         query_handler = UnifyQueryChartHandler(params)
+        if not query_handler.is_support_sql_and_grep:
+            raise IndexSetDorisQueryException()
         file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
         response = StreamingHttpResponse(
             query_handler.export_chart_data(),

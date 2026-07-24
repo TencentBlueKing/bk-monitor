@@ -707,6 +707,21 @@ class LogIndexSet(SoftDeleteModel):
         fields["usable_reason"] = str(fields.get("usable_reason", ""))
         return fields
 
+    @staticmethod
+    def is_support_sql_and_grep(index_set_id, index_set_obj=None) -> bool:
+        index_set_obj = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+
+        if not index_set_obj:
+            return False
+
+        if index_set_obj.support_doris and index_set_obj.doris_table_id:
+            return True
+
+        if index_set_obj.is_native_doris():
+            return True
+
+        return False
+
     def is_native_doris(self) -> bool:
         return self.check_is_native_doris(self)
 
@@ -857,23 +872,27 @@ class LogIndexSet(SoftDeleteModel):
         index_set_obj = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
 
         default_sort_list = []
-        time_field = None
 
         if index_set_obj:
+            time_field = None
+
             if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:
                 time_field = "dtEventTimeStamp"
             elif index_set_obj.time_field:
                 time_field = index_set_obj.time_field
-            if not time_field:
+            else:
                 # 遍历 index_set_data 取任意一个不为空的时间字段
-                time_field_list = LogIndexSetData.objects.filter(index_set_id=index_set_id).values_list(
+                time_fields = LogIndexSetData.objects.filter(index_set_id=index_set_id).values_list(
                     "time_field", flat=True
                 )
-                for time_field in time_field_list:
-                    if time_field:
-                        time_field = time_field
+                for t_f in time_fields:
+                    if t_f:
+                        time_field = t_f
 
             if time_field:
+                if index_set_obj.sort_fields:
+                    return [[field, "desc"] for field in index_set_obj.sort_fields]
+
                 if index_set_obj.scenario_id == Scenario.BKDATA:
                     default_sort_list = [[time_field, "desc"], ["gseindex", "desc"], ["_iteration_idx", "desc"]]
                 elif index_set_obj.scenario_id == Scenario.LOG:

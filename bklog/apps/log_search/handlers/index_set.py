@@ -215,11 +215,12 @@ class IndexSetHandler(APIModel):
         is_id_to_is_native_doris_map = LogIndexSet.batch_get_is_native_doris(index_set_ids)
         for index_set in index_sets:
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
-            index_set["support_doris"] = (
-                index_set["support_doris"]
-                if index_set["support_doris"]
-                else is_id_to_is_native_doris_map.get(index_set["index_set_id"], False)
-            )
+            is_support_sql_and_grep = False
+            if index_set["support_doris"] and index_set["doris_table_id"]:
+                is_support_sql_and_grep = True
+            if is_id_to_is_native_doris_map.get(index_set["index_set_id"], False):
+                is_support_sql_and_grep = True
+            index_set["support_doris"] = is_support_sql_and_grep
         # 不分组，直接返回
         if not is_group:
             return index_sets
@@ -1933,13 +1934,14 @@ class BaseIndexSetHandler:
         effective_alias_settings = (
             parent_index_set.query_alias_settings if parent_index_set else index_set.query_alias_settings
         )
-        # Doris路由或图表分析路由
+        # Doris 路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids)
-        doris_table_id = index_set.doris_table_id
         if is_doris or is_analysis:
-            if not doris_table_id:
+            db_doris_table_id = index_set.doris_table_id
+            is_manual_connect_doris = True if index_set.support_doris and db_doris_table_id else False
+            if not is_manual_connect_doris:
                 return table_info_list
-            for doris_table_id in doris_table_id.split(","):
+            for doris_table_id in db_doris_table_id.split(","):
                 doris_table_info = {
                     "storage_type": "doris",
                     "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],

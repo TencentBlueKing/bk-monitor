@@ -325,7 +325,6 @@ class TestGrepLogic(TestCase):
                 sort_list=param["sort_list"],
                 index_set_id=param["index_set_id"],
                 alias_mappings=param["alias_mappings"],
-                bk_biz_id=instance.bk_biz_id,
             )
             self.assertEqual(result, param["excepted"])
 

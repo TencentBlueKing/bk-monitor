@@ -80,9 +80,7 @@ class ChartHandler:
             raise BaseSearchIndexSetException(
                 BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id)
             )
-        self.space_uid = self.data.space_uid
-        self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
-        self.is_support_doris = self.data.support_doris if self.data.support_doris else self.data.is_native_doris()
+        self.is_support_sql_and_grep = LogIndexSet.is_support_sql_and_grep(self.index_set_id, self.data)
 
     @classmethod
     def get_instance(cls, index_set_id, mode):
@@ -415,13 +413,12 @@ class ChartHandler:
         return field_name
 
     @classmethod
-    def get_order_by_clause(cls, index_set_id, sort_list, alias_mappings, bk_biz_id):
+    def get_order_by_clause(cls, index_set_id, sort_list, alias_mappings):
         """
         获取排序条件
         :param index_set_id: 索引集ID
         :param sort_list: 排序字段
         :param alias_mappings: 别名
-        :param bk_biz_id: 业务ID
         """
         if not sort_list:
             sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
@@ -641,7 +638,6 @@ class SQLChartHandler(ChartHandler):
                 index_set_id=self.index_set_id,
                 sort_list=params.get("sort_list", []),
                 alias_mappings=alias_mappings,
-                bk_biz_id=self.bk_biz_id,
             )
             sql_str += order_by_clause
         if with_pagination:
@@ -654,8 +650,9 @@ class SQLChartHandler(ChartHandler):
         """
         :param params: 查询相关参数
         """
-        if not self.is_support_doris:
+        if not self.is_support_sql_and_grep:
             raise IndexSetDorisQueryException()
+
         alias_mappings = params["alias_mappings"]
         grep_field = params.get("grep_field")
         grep_query = params.get("grep_query")
@@ -699,8 +696,9 @@ class SQLChartHandler(ChartHandler):
         :param params: 查询相关参数
         :return: dict，包含总数和耗时
         """
-        if not self.is_support_doris:
+        if not self.is_support_sql_and_grep:
             raise IndexSetDorisQueryException()
+
         sql = self.generate_grep_query_sql(
             params,
             select_clause="COUNT(*) AS total",
