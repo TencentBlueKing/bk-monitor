@@ -446,7 +446,7 @@ export default defineComponent({
       return (
         !this.loadingList.summary && (
           <MarkdownViewer
-            class='markdown-viewer-has-link'
+            class='trouble-shooting-markdown-viewer'
             value={replaceEntityInText(this.contentList?.summary, this.extractedInfoList?.summary)}
           />
         )
