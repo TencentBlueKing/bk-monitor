@@ -64,3 +64,14 @@ test('策略描述提示使用纯文本并保留多行内容', () => {
     extCls: 'strategy-item-description-tooltips',
   });
 });
+
+test('仪表盘搜索结果标题使用纯文本片段展示', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/grafana/dashboard-container/dashboard-aside.tsx'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(source, /domPropsInnerHTML/);
+  assert.match(source, /splitHighlightFragments\(item\.title,\s*this\.keywork\)/);
+  assert.match(source, /\{fragment\.text\}/);
+});
