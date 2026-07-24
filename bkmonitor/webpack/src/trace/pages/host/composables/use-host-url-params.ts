@@ -29,6 +29,8 @@ import { computed } from 'vue';
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
 
+import { HOST_FILTER_FIELDS, NUMBER_METHODS } from '../constants/host-list';
+import { EFieldType } from '@/components/retrieval-filter/typing';
 import { useHostStore } from '@/store/modules/host';
 
 import type { EHostQuickCategory } from '../types/host-list';
@@ -51,7 +53,7 @@ export const useHostUrlParams = () => {
     };
   });
 
-  function setUrlParams(otherParams = {} as Record<string, unknown>) {
+  function setUrlParams(otherParams: Record<string, unknown> = {}) {
     const queryParams = {
       ...route.query,
       ...urlParams.value,
@@ -68,12 +70,83 @@ export const useHostUrlParams = () => {
     }
   }
 
+  /**
+   * 从 URL query 参数恢复主机列表过滤状态到 store
+   *
+   * 支持两种 URL 格式：
+   * 1. 新版格式：where 参数（JSON 编码的 IWhereItem[]）
+   * 2. 旧版格式：search 参数（旧版搜索条件），自动转换为 where 格式以保持向后兼容
+   *
+   * 同时支持 panelKey → activeCategory 的映射兼容（旧版面板 key 到新版快捷分类）
+   */
   function getUrlParams() {
-    const { where, filterExpanded, activeCategory, keyword, from, to, timezone, refreshInterval } = route.query;
-    hostStore.where = tryURLDecodeParse(where as string, []);
-    hostStore.filterExpanded = filterExpanded === 'true';
-    hostStore.activeCategory = (activeCategory || '') as '' | EHostQuickCategory;
-    hostStore.keyword = (keyword || '') as string;
+    const {
+      where,
+      filterExpanded,
+      activeCategory,
+      panelKey,
+      queryString,
+      keyword,
+      from,
+      to,
+      timezone,
+      refreshInterval,
+      search,
+    } = route.query;
+    if (where) {
+      hostStore.where = tryURLDecodeParse(where as string, []);
+    } else {
+      // 兼容旧版本
+      const keyWordFields = HOST_FILTER_FIELDS.filter(f => f.type === EFieldType.keyword).map(f => f.name);
+      const textFields = HOST_FILTER_FIELDS.filter(f => f.type === EFieldType.text).map(f => f.name);
+      const numberInputFields = HOST_FILTER_FIELDS.filter(f => f.type === EFieldType.numberInput).map(f => f.name);
+      const searchWhere = tryURLDecodeParse(search as string, []);
+      const newWhere = [];
+      for (const w of searchWhere) {
+        if ([...textFields, ...keyWordFields].includes(w.id)) {
+          newWhere.push({
+            key: w.id,
+            condition: 'and',
+            value: typeof w.value === 'string' ? [w.value] : w.value,
+            method: textFields.includes(w.id) ? 'include' : 'eq',
+          });
+        } else if (numberInputFields.includes(w.id)) {
+          for (const v of w.value) {
+            newWhere.push({
+              key: w.id,
+              condition: 'and',
+              value: typeof v.value === 'string' ? [v.value] : v.value,
+              method: NUMBER_METHODS.find(m => m.alias === v.condition)?.value || 'eq',
+            });
+          }
+        } else if (w.id === 'cluster_module') {
+          newWhere.push({
+            key: w.id,
+            condition: 'and',
+            value: w.value.map(v => JSON.stringify(v)),
+            method: 'eq',
+          });
+        } else {
+          newWhere.push({
+            key: w.id,
+            condition: 'and',
+            value: typeof w.value === 'string' ? [w.value] : w.value,
+            method: 'eq',
+          });
+        }
+      }
+      hostStore.where = newWhere;
+    }
+    hostStore.keyword = (keyword || queryString || '') as string;
+    hostStore.filterExpanded = filterExpanded === 'true' || !!hostStore.where.length;
+    // 兼容旧版本面板key
+    const panelKeyMap = {
+      unresolveData: 'alarm',
+      cpuData: 'cpu',
+      menmoryData: 'mem',
+      diskData: 'disk',
+    };
+    hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
     hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
     hostStore.timezone = (timezone as string) || window.timezone;
     hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
