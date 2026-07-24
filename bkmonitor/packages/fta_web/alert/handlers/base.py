@@ -63,6 +63,11 @@ def build_es_terms_query(field: str, values: list, chunk_size: int = ES_TERMS_QU
     return reduce(operator.or_, queries)
 
 
+def build_case_insensitive_wildcard_query(field: str, value) -> Q:
+    """构造保持子串语义的大小写不敏感 wildcard 查询。"""
+    return Q("wildcard", **{field: {"value": f"*{value}*", "case_insensitive": True}})
+
+
 class QueryField:
     def __init__(
         self,
@@ -513,10 +518,10 @@ class BaseQueryHandler:
 
         处理逻辑:
         1. 包含查询(include):
-            - 单值转换为通配符查询(*value*)
+            - 单值转换为大小写不敏感的通配符查询(*value*)
             - 多值生成多个通配符查询并通过OR组合
         2. 排除查询(exclude):
-            - 单值转换为取反的通配符查询
+            - 单值转换为取反的大小写不敏感通配符查询
             - 多值生成多个通配符查询后整体取反
         3. 范围查询(gte/gt/lte/lt):
             - 支持大于等于、大于、小于等于、小于的范围比较
@@ -526,15 +531,19 @@ class BaseQueryHandler:
         if condition["method"] == "include":
             # 显式字段「包含」保持基线 *value* 子串语义，勿与全字段检索策略耦合
             if isinstance(condition["value"], list):
-                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                queries = [
+                    build_case_insensitive_wildcard_query(condition["key"], value) for value in condition["value"]
+                ]
                 return queries[0] if len(queries) == 1 else Q("bool", should=queries)
-            return Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+            return build_case_insensitive_wildcard_query(condition["key"], condition["value"])
 
         elif condition["method"] == "exclude":
             if isinstance(condition["value"], list):
-                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                queries = [
+                    build_case_insensitive_wildcard_query(condition["key"], value) for value in condition["value"]
+                ]
                 return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
-            return ~Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+            return ~build_case_insensitive_wildcard_query(condition["key"], condition["value"])
 
         elif condition["method"] in ["gte", "gt", "lte", "lt"]:
             # 范围查询：支持大于、大于等于、小于、小于等于操作

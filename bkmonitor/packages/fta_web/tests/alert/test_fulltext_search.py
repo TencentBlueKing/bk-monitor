@@ -218,35 +218,40 @@ class TestFulltextHelpers:
 
 
 class TestExplicitIncludeExcludeBaseline:
-    """显式字段 include/exclude 须保持基线 *value* 子串，与全字段检索策略解耦。"""
+    """显式字段 include/exclude 保持 *value* 子串，并统一忽略大小写。"""
 
     def _handler(self):
         return BaseQueryHandler.__new__(BaseQueryHandler)
 
     def test_include_digit_is_substring_wildcard(self):
         q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["123"]})
-        assert q.to_dict() == {"wildcard": {"labels": "*123*"}}
+        assert q.to_dict() == {"wildcard": {"labels": {"value": "*123*", "case_insensitive": True}}}
 
     def test_include_short_ascii_is_substring_wildcard(self):
         q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["ab"]})
-        assert q.to_dict() == {"wildcard": {"labels": "*ab*"}}
+        assert q.to_dict() == {"wildcard": {"labels": {"value": "*ab*", "case_insensitive": True}}}
 
     def test_include_single_char_is_substring_wildcard(self):
         q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["a"]})
-        assert q.to_dict() == {"wildcard": {"labels": "*a*"}}
+        assert q.to_dict() == {"wildcard": {"labels": {"value": "*a*", "case_insensitive": True}}}
 
     def test_include_mid_string_pattern(self):
         q = self._handler().parse_condition_item({"method": "include", "key": "alert_name", "value": "中间"})
-        assert q.to_dict() == {"wildcard": {"alert_name": "*中间*"}}
+        assert q.to_dict() == {"wildcard": {"alert_name": {"value": "*中间*", "case_insensitive": True}}}
 
     def test_exclude_digit_uses_substring_wildcard(self):
         q = self._handler().parse_condition_item({"method": "exclude", "key": "labels", "value": ["123"]})
-        assert q.to_dict() == {"bool": {"must_not": [{"wildcard": {"labels": "*123*"}}]}}
+        assert q.to_dict() == {
+            "bool": {"must_not": [{"wildcard": {"labels": {"value": "*123*", "case_insensitive": True}}}]}
+        }
 
     def test_include_multi_value_or(self):
         q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["a", "b"]})
         body = q.to_dict()
-        assert body["bool"]["should"] == [{"wildcard": {"labels": "*a*"}}, {"wildcard": {"labels": "*b*"}}]
+        assert body["bool"]["should"] == [
+            {"wildcard": {"labels": {"value": "*a*", "case_insensitive": True}}},
+            {"wildcard": {"labels": {"value": "*b*", "case_insensitive": True}}},
+        ]
 
 
 class TestFulltextSearchSerializerLimits:
