@@ -244,3 +244,232 @@ def test_graph_relation_sync_dry_run_rejects_non_dry_run():
                 "params": {"bk_biz_id": 100, "dry_run": False},
             }
         )
+
+
+# ── get_report_token 上报凭证回显（prometheus aes256 算 + json DataSource.token 读）──
+
+
+def _mock_ds_token(mocker, token="UUID_TOK", found=True):
+    """mock metadata DataSource：filter(bk_data_id=...).first() → 带 .token 的对象或 None。"""
+    from types import SimpleNamespace
+
+    fake_ds_cls = mocker.MagicMock()
+    fake_ds_cls.objects.filter.return_value.first.return_value = SimpleNamespace(token=token) if found else None
+    mocker.patch("metadata.models.data_source.DataSource", fake_ds_cls)
+    return fake_ds_cls
+
+
+def test_get_report_token_format_all_returns_both(mocker):
+    """默认 format=all：prometheus(aes256 算) + json(DataSource.token 读) 两个 token 都回显。"""
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="AES_TOK")
+    _mock_ds_token(mocker, token="UUID_TOK")
+    result = run_readonly_command(
+        {"command_id": "get_report_token", "params": {"metric_data_id": 575975, "bk_biz_id": 555}}
+    )
+    assert result["command_id"] == "get_report_token"
+    assert result["format"] == "all"
+    assert result["tokens"] == {"prometheus": "AES_TOK", "json": "UUID_TOK"}
+    transform.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=-1, log_data_id=-1, bk_biz_id=555, app_name=""
+    )
+
+
+def test_get_report_token_format_prometheus_only(mocker):
+    """format=prometheus：只出 aes256 token、不读 DataSource；非默认 dataid/app_name 透传。"""
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="AES_TOK")
+    result = run_readonly_command(
+        {
+            "command_id": "get_report_token",
+            "params": {
+                "format": "prometheus",
+                "metric_data_id": 575975,
+                "trace_data_id": 111,
+                "log_data_id": 222,
+                "bk_biz_id": 555,
+                "app_name": "app",
+            },
+        }
+    )
+    assert result["format"] == "prometheus"
+    assert result["tokens"] == {"prometheus": "AES_TOK"}
+    transform.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=111, log_data_id=222, bk_biz_id=555, app_name="app"
+    )
+
+
+def test_get_report_token_format_json_reads_datasource(mocker):
+    """format=json：token=DataSource.token（uuid），按 metric_data_id 读取，不算 aes256。"""
+    ds = _mock_ds_token(mocker, token="UUID_TOK")
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token")
+    result = run_readonly_command(
+        {"command_id": "get_report_token", "params": {"format": "json", "metric_data_id": 575975}}
+    )
+    assert result["tokens"] == {"json": "UUID_TOK"}
+    ds.objects.filter.assert_called_once_with(bk_data_id=575975)
+    transform.assert_not_called()
+
+
+def test_get_report_token_format_alias(mocker):
+    """format 别名：otlp→prometheus、proxy→json。"""
+    mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="AES_TOK")
+    r1 = run_readonly_command({"command_id": "get_report_token", "params": {"format": "otlp", "metric_data_id": 1}})
+    assert r1["format"] == "prometheus"
+    assert "prometheus" in r1["tokens"]
+    _mock_ds_token(mocker, token="UUID_TOK")
+    r2 = run_readonly_command({"command_id": "get_report_token", "params": {"format": "proxy", "metric_data_id": 1}})
+    assert r2["format"] == "json"
+    assert r2["tokens"] == {"json": "UUID_TOK"}
+
+
+def test_get_report_token_json_requires_metric_data_id():
+    with pytest.raises(CustomException, match="metric_data_id is required for json"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"format": "json", "trace_data_id": 1}})
+
+
+def test_get_report_token_json_datasource_not_found(mocker):
+    _mock_ds_token(mocker, found=False)
+    with pytest.raises(CustomException, match="json/proxy token unavailable"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"format": "json", "metric_data_id": 999}})
+
+
+def test_get_report_token_json_empty_token_strict(mocker):
+    """format=json + DataSource.token 为空串（系统/内建源）→ 严格失败，不回显空 token。"""
+    _mock_ds_token(mocker, token="", found=True)
+    with pytest.raises(CustomException, match="empty token"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"format": "json", "metric_data_id": 1001}})
+
+
+def test_get_report_token_all_best_effort_when_no_datasource(mocker):
+    """format=all 且 DataSource 查不到：prometheus 照常给出，json 置 null + notes，不丢弃 prometheus。"""
+    mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="AES_TOK")
+    _mock_ds_token(mocker, found=False)
+    result = run_readonly_command(
+        {"command_id": "get_report_token", "params": {"metric_data_id": 999, "bk_biz_id": 555}}
+    )
+    assert result["tokens"]["prometheus"] == "AES_TOK"
+    assert result["tokens"]["json"] is None
+    assert any("json token unavailable" in n for n in result.get("notes", []))
+
+
+def test_get_report_token_all_best_effort_when_empty_token(mocker):
+    """format=all 且 DataSource.token 为空串：json 置 null + notes，prometheus 照常。"""
+    mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="AES_TOK")
+    _mock_ds_token(mocker, token="", found=True)
+    result = run_readonly_command(
+        {"command_id": "get_report_token", "params": {"metric_data_id": 1001, "bk_biz_id": 555}}
+    )
+    assert result["tokens"]["prometheus"] == "AES_TOK"
+    assert result["tokens"]["json"] is None
+    assert any("empty token" in n for n in result.get("notes", []))
+
+
+def test_get_report_token_all_requires_metric_data_id(mocker):
+    """format=all（默认）即便 prometheus 有 trace dataid 可算，json 仍需 metric_data_id。"""
+    mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="AES_TOK")
+    with pytest.raises(CustomException, match="metric_data_id is required for json"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"trace_data_id": 111}})
+
+
+def test_get_report_token_all_v1_both_tokens(mocker):
+    """format=all + token_version=v1：prometheus 走 v1_token，json 读 DataSource，两者都出。"""
+    mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_v1_token", return_value="AES_V1")
+    _mock_ds_token(mocker, token="UUID_TOK")
+    result = run_readonly_command(
+        {
+            "command_id": "get_report_token",
+            "params": {"metric_data_id": 575975, "profile_data_id": 7, "token_version": "v1"},
+        }
+    )
+    assert result["tokens"] == {"prometheus": "AES_V1", "json": "UUID_TOK"}
+    assert result["profile_data_id"] == 7
+
+
+def test_get_report_token_prometheus_defaults_absent_ids(mocker):
+    """format=prometheus 只传 metric_data_id：其余 dataid 落 -1、app_name 落 ""。"""
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="T")
+    run_readonly_command(
+        {"command_id": "get_report_token", "params": {"format": "prometheus", "metric_data_id": 575975}}
+    )
+    transform.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=-1, log_data_id=-1, bk_biz_id=-1, app_name=""
+    )
+
+
+def test_get_report_token_prometheus_rejects_no_data_id():
+    with pytest.raises(CustomException, match="required for prometheus format"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"format": "prometheus", "bk_biz_id": 555}})
+
+
+def test_get_report_token_prometheus_accepts_trace_only(mocker):
+    """prometheus trace-only（metric 缺省）也可算，不被 metric 必填误伤。"""
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="T")
+    result = run_readonly_command(
+        {"command_id": "get_report_token", "params": {"format": "prometheus", "trace_data_id": 888}}
+    )
+    assert result["tokens"]["prometheus"] == "T"
+    transform.assert_called_once_with(
+        metric_data_id=-1, trace_data_id=888, log_data_id=-1, bk_biz_id=-1, app_name=""
+    )
+
+
+def test_get_report_token_rejects_non_int_metric_data_id():
+    with pytest.raises(CustomException, match="metric_data_id must be an integer"):
+        run_readonly_command(
+            {"command_id": "get_report_token", "params": {"format": "prometheus", "metric_data_id": "abc"}}
+        )
+
+
+def test_get_report_token_v1_dispatches_v1_token(mocker):
+    """format=prometheus + token_version=v1 走 transform_data_id_to_v1_token，回显 profile_data_id。"""
+    transform_v1 = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_v1_token", return_value="AES_V1")
+    result = run_readonly_command(
+        {
+            "command_id": "get_report_token",
+            "params": {
+                "format": "prometheus",
+                "metric_data_id": 575975,
+                "bk_biz_id": 555,
+                "profile_data_id": 123,
+                "token_version": "v1",
+            },
+        }
+    )
+    assert result["tokens"]["prometheus"] == "AES_V1"
+    assert result["token_version"] == "v1"
+    assert result["profile_data_id"] == 123
+    transform_v1.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=-1, log_data_id=-1, profile_data_id=123, bk_biz_id=555, app_name=""
+    )
+
+
+def test_get_report_token_normalizes_token_version(mocker):
+    """token_version 大小写/空白归一：'  V1 ' → v1。"""
+    transform_v1 = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_v1_token", return_value="T")
+    result = run_readonly_command(
+        {
+            "command_id": "get_report_token",
+            "params": {"format": "prometheus", "metric_data_id": 1, "token_version": "  V1 "},
+        }
+    )
+    assert result["token_version"] == "v1"
+    transform_v1.assert_called_once()
+
+
+def test_get_report_token_rejects_profile_data_id_without_v1():
+    """非（prometheus+v1）却传 profile_data_id → 显式拒绝，不静默丢弃。"""
+    with pytest.raises(CustomException, match="profile_data_id is only valid"):
+        run_readonly_command(
+            {"command_id": "get_report_token", "params": {"format": "prometheus", "metric_data_id": 1, "profile_data_id": 2}}
+        )
+
+
+def test_get_report_token_rejects_bad_token_version():
+    with pytest.raises(CustomException, match="token_version must be 'v0' or 'v1'"):
+        run_readonly_command(
+            {"command_id": "get_report_token", "params": {"format": "prometheus", "metric_data_id": 1, "token_version": "v2"}}
+        )
+
+
+def test_get_report_token_rejects_bad_format():
+    with pytest.raises(CustomException, match="format must be"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"metric_data_id": 1, "format": "xml"}})
