@@ -44,6 +44,7 @@ import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
+import { splitHighlightFragments } from '../../text-display-utils';
 import FavList, { type IFavListItem } from './fav-list';
 import IconBtn, { type IIconBtnOptions } from './icon-btn';
 import TreeMenu from './tree-menu';
@@ -362,11 +363,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   handleSelectedGrafana(item: TreeMenuItem) {
     this.checked = item.uid;
     return item;
-  }
-
-  handleSearchHit(item: TreeMenuItem): string {
-    const keywork = this.keywork.toLocaleLowerCase();
-    return item.title.replace(new RegExp(`(${keywork})`, 'i'), '<span class="highlight">$1</span>');
   }
 
   /**
@@ -709,10 +705,20 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                     onClick={() => this.handleSelectedGrafana(item)}
                   >
                     <span class='search-icon' />
-                    <span
-                      class='search-content'
-                      domPropsInnerHTML={this.handleSearchHit(item)}
-                    />
+                    <span class='search-content'>
+                      {splitHighlightFragments(item.title, this.keywork).map(fragment =>
+                        fragment.highlight ? (
+                          <span
+                            key={fragment.start}
+                            class='highlight'
+                          >
+                            {fragment.text}
+                          </span>
+                        ) : (
+                          fragment.text
+                        )
+                      )}
+                    </span>
                   </div>
                 ))
               ) : (
