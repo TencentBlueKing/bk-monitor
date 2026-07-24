@@ -70,9 +70,9 @@ def convert_notices(
     5. 配置写入 save
     """
 
-    user_groups = UserGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
+    user_groups = UserGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
     path_user_groups = {user_group.path: user_group for user_group in user_groups.filter(app=app)}
-    name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups}
+    name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups} if overwrite else {}
 
     parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules, overwrite=overwrite)
     records = []
@@ -143,9 +143,9 @@ def convert_actions(
     动作配置转换导入
     """
 
-    actions = ActionConfig.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
+    actions = ActionConfig.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
     path_actions = {action.path: action for action in actions.filter(app=app)}
-    name_actions = {action.name.lower(): action for action in actions}
+    name_actions = {action.name.lower(): action for action in actions} if overwrite else {}
 
     parser = ActionConfigParser(bk_biz_id=bk_biz_id, action_plugins=ActionPlugin.objects.all())
 
@@ -203,26 +203,14 @@ def convert_actions(
     return records
 
 
-def convert_rules(
+def _load_cmdb_target_mappings(
     bk_biz_id: int,
-    app: str,
-    configs: dict[str, dict],
-    snippets: dict[str, dict],
-    notice_group_ids: dict[str, int],
-    action_ids: dict[str, int],
-    overwrite: bool = False,
-) -> list[dict]:
+) -> tuple[dict[str, dict], dict[str, dict], dict[str, dict], dict[str, dict]]:
     """
-    1. 渲染snippet配置, sort_keys，计算xxhash (path, snippet, md5, config)
-    2. db查询，对应path的md5差异比对
-    3. 配置检查 check
-    4. 配置转换 convert
-    5. 配置写入 save
-    """
-    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
-    path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
-    name_strategies = {strategy.name.lower(): strategy for strategy in strategies}
+    拉取策略 target 解析所需的 CMDB 映射。
 
+    包含拓扑节点、服务模板、集群模板、动态分组，均为远程调用，应仅在确有变更配置时执行。
+    """
     topo_nodes: dict[str, dict] = {}
     for topo_link in api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).convert_to_topo_link().values():
         topo_link = list(reversed(topo_link[:-1]))
@@ -244,17 +232,31 @@ def convert_rules(
         dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
         for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
     }
-    parser = StrategyConfigParser(
-        bk_biz_id=bk_biz_id,
-        notice_group_ids=notice_group_ids,
-        action_ids=action_ids,
-        topo_nodes=topo_nodes,
-        service_templates=service_templates,
-        set_templates=set_templates,
-        dynamic_groups=dynamic_groups,
-    )
+    return topo_nodes, service_templates, set_templates, dynamic_groups
 
-    records = []
+
+def convert_rules(
+    bk_biz_id: int,
+    app: str,
+    configs: dict[str, dict],
+    snippets: dict[str, dict],
+    notice_group_ids: dict[str, int],
+    action_ids: dict[str, int],
+    overwrite: bool = False,
+) -> list[dict]:
+    """
+    1. 渲染snippet配置, sort_keys，计算xxhash (path, snippet, md5, config)
+    2. db查询，对应path的md5差异比对
+    3. 配置检查 check
+    4. 配置转换 convert
+    5. 配置写入 save
+    """
+    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
+    path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
+    name_strategies = {strategy.name.lower(): strategy for strategy in strategies} if overwrite else {}
+
+    # 先完成 snippet 渲染与 hash 比对；全部未变更时跳过 CMDB 远程调用
+    pending: list[tuple[str, dict, str, str, StrategyModel | None]] = []
     for path, config in configs.items():
         snippet = snippets.get(config.pop("snippet", ""), "")
         if snippet:
@@ -266,6 +268,24 @@ def convert_rules(
         if old_strategy and hash_str == old_strategy.hash:
             continue
 
+        pending.append((path, config, snippet, hash_str, old_strategy))
+
+    if not pending:
+        return []
+
+    topo_nodes, service_templates, set_templates, dynamic_groups = _load_cmdb_target_mappings(bk_biz_id)
+    parser = StrategyConfigParser(
+        bk_biz_id=bk_biz_id,
+        notice_group_ids=notice_group_ids,
+        action_ids=action_ids,
+        topo_nodes=topo_nodes,
+        service_templates=service_templates,
+        set_templates=set_templates,
+        dynamic_groups=dynamic_groups,
+    )
+
+    records = []
+    for path, config, snippet, hash_str, old_strategy in pending:
         schema_error = parse_error = validate_error = obj = None
         try:
             config = parser.check(config)
@@ -391,9 +411,9 @@ def convert_assign_groups(
     4. 配置转换 convert
     5. 配置写入 save
     """
-    rule_groups = AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
+    rule_groups = AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
     path_rule_groups = {rule_group.path: rule_group for rule_group in rule_groups.filter(app=app)}
-    name_rule_groups = {rule_group.name.lower(): rule_group for rule_group in rule_groups}
+    name_rule_groups = {rule_group.name.lower(): rule_group for rule_group in rule_groups} if overwrite else {}
 
     parser = AssignGroupRuleParser(bk_biz_id=bk_biz_id, notice_group_ids=notice_group_ids, action_ids=action_ids)
 
@@ -457,9 +477,9 @@ def convert_duty_rules(
     """
     转换轮值规则
     """
-    duty_rules = DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "code_hash", "name")
+    duty_rules = DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "code_hash", "name", "app")
     path_duty_rules = {rule.path: rule for rule in duty_rules.filter(app=app)}
-    name_rules = {duty_rule.name.lower(): duty_rule for duty_rule in duty_rules}
+    name_rules = {duty_rule.name.lower(): duty_rule for duty_rule in duty_rules} if overwrite else {}
     parser = DutyRuleParser(bk_biz_id)
     records = []
     for path, config in configs.items():
@@ -519,6 +539,24 @@ def get_errors(records) -> dict[str, str]:
 
         errors[record["path"]] = str(record["schema_error"] or record["parse_error"] or record["validate_error"])
     return errors
+
+
+def save_notice_and_action_records(records, app: str) -> None:
+    """保存通知组/套餐，并用 update 补写 as_code 元数据。
+
+    序列化器在 save 时会强制清空 hash/snippet（兼容 UI 编辑路径），因此业务字段与
+    as_code 元数据需分两步写入。业务 save 已通过 auto_now 刷新修改时间，元数据
+    update 不再二次刷新时间戳。
+    """
+    for record in records:
+        slz = record["obj"]
+        slz.save()
+        type(slz.instance).objects.filter(pk=slz.instance.pk).update(
+            path=record["path"],
+            app=app,
+            hash=record["hash"],
+            snippet=record["snippet"],
+        )
 
 
 def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwrite: bool = False, incremental=False):
@@ -583,7 +621,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         record["obj"].save()
 
     duty_rules = {}
-    for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("name", "id", "path"):
+    for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("name", "id", "path", "app"):
         if duty_rule.path and duty_rule.app == app:
             duty_rules[duty_rule.path] = duty_rule.id
         duty_rules[duty_rule.name] = duty_rule.id
@@ -607,17 +645,11 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     if errors:
         return errors
 
-    for record in chain(notice_records, action_records):
-        record["obj"].save()
-        record["obj"].instance.path = record["path"]
-        record["obj"].instance.app = app
-        record["obj"].instance.hash = record["hash"]
-        record["obj"].instance.snippet = record["snippet"]
-        record["obj"].instance.save()
+    save_notice_and_action_records(chain(notice_records, action_records), app)
 
     # 策略关联通知组及动作配置
     notice_group_ids = {}
-    all_user_groups = UserGroup.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
+    all_user_groups = UserGroup.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name", "app")
     for user_group in all_user_groups:
         if user_group.path and user_group.app == app:
             notice_group_ids[user_group.path] = user_group.id
@@ -631,7 +663,9 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     except ActionPlugin.DoesNotExist:
         # 如果不存在直接忽略
         itsm_plugin_id = 0
-    all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name", "plugin_id")
+    all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only(
+        "id", "path", "name", "plugin_id", "app"
+    )
     for action in all_actions:
         if action.path and action.app == app:
             action_ids[action.path] = action.id

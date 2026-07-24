@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+import xxhash
 import yaml
 from schema import SchemaError
 
@@ -22,7 +24,7 @@ from bkmonitor.as_code.parse_yaml import StrategyConfigParser
 from bkmonitor.as_code.schema import StrategySchema
 from bkmonitor.strategy.new_strategy import Strategy
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DATA_PATH = "bkmonitor/as_code/tests/data/"
 
@@ -44,39 +46,72 @@ def make_parser(notice_group_ids=None, action_ids=None):
     )
 
 
-def patch_cmdb_apis():
-    get_topo_tree = mock.patch("bkmonitor.as_code.parse.api.cmdb.get_topo_tree").start()
-    get_topo_tree.side_effect = lambda *args, **kwargs: TopoTree(
-        {
-            "bk_inst_id": 2,
-            "bk_inst_name": "blueking",
-            "bk_obj_id": "biz",
-            "bk_obj_name": "business",
-            "child": [
-                {
-                    "bk_inst_id": 3,
-                    "bk_inst_name": "job",
-                    "bk_obj_id": "set",
-                    "bk_obj_name": "set",
-                    "child": [
-                        {
-                            "bk_inst_id": 5,
-                            "bk_inst_name": "job",
-                            "bk_obj_id": "module",
-                            "bk_obj_name": "module",
-                            "child": [],
-                        }
-                    ],
-                }
-            ],
-        }
-    )
+_CMDB_TOPO_TREE = TopoTree(
+    {
+        "bk_inst_id": 2,
+        "bk_inst_name": "blueking",
+        "bk_obj_id": "biz",
+        "bk_obj_name": "business",
+        "child": [
+            {
+                "bk_inst_id": 3,
+                "bk_inst_name": "job",
+                "bk_obj_id": "set",
+                "bk_obj_name": "set",
+                "child": [
+                    {
+                        "bk_inst_id": 5,
+                        "bk_inst_name": "job",
+                        "bk_obj_id": "module",
+                        "bk_obj_name": "module",
+                        "child": [],
+                    }
+                ],
+            }
+        ],
+    }
+)
 
-    get_dynamic_query = mock.patch("bkmonitor.as_code.parse.api.cmdb.get_dynamic_query").start()
-    get_dynamic_query.side_effect = lambda *args, **kwargs: {"children": []}
 
-    search_dynamic_group = mock.patch("bkmonitor.as_code.parse.api.cmdb.search_dynamic_group").start()
-    search_dynamic_group.side_effect = lambda *args, **kwargs: []
+@pytest.fixture
+def cmdb_apis():
+    """隔离 CMDB 远程调用，用例结束自动清理 patch。"""
+    with (
+        mock.patch("bkmonitor.as_code.parse.api.cmdb.get_topo_tree") as get_topo_tree,
+        mock.patch("bkmonitor.as_code.parse.api.cmdb.get_dynamic_query") as get_dynamic_query,
+        mock.patch("bkmonitor.as_code.parse.api.cmdb.search_dynamic_group") as search_dynamic_group,
+    ):
+        get_topo_tree.side_effect = lambda *args, **kwargs: _CMDB_TOPO_TREE
+        get_dynamic_query.side_effect = lambda *args, **kwargs: {"children": []}
+        search_dynamic_group.side_effect = lambda *args, **kwargs: []
+        yield get_topo_tree, get_dynamic_query, search_dynamic_group
+
+
+def _config_hash(config: dict) -> str:
+    return xxhash.xxh3_128_hexdigest(json.dumps(config))
+
+
+def _mock_strategies(strategies: list | None = None):
+    """mock StrategyModel 查询，避免 convert_rules 前置查库受多库限制影响。"""
+    strategies = strategies or []
+    strategies_qs = mock.MagicMock()
+    strategies_qs.filter.return_value = strategies
+    strategies_qs.__iter__.side_effect = lambda: iter(strategies)
+    filter_qs = mock.MagicMock()
+    filter_qs.only.return_value = strategies_qs
+    return mock.patch("bkmonitor.as_code.parse.StrategyModel.objects.filter", return_value=filter_qs)
+
+
+def _assert_cmdb_loaded(get_topo_tree, get_dynamic_query, search_dynamic_group, bk_biz_id=2):
+    get_topo_tree.assert_called_once_with(bk_biz_id=bk_biz_id)
+    assert get_dynamic_query.call_count == 2
+    search_dynamic_group.assert_called_once_with(bk_biz_id=bk_biz_id, bk_obj_id="host")
+
+
+def _assert_cmdb_skipped(get_topo_tree, get_dynamic_query, search_dynamic_group):
+    get_topo_tree.assert_not_called()
+    get_dynamic_query.assert_not_called()
+    search_dynamic_group.assert_not_called()
 
 
 def test_strategy_parse_issue_config():
@@ -107,18 +142,20 @@ def test_strategy_parse_issue_config_absent_and_null():
     assert config_with_null_issue["issue_config"] is None
 
 
-def test_convert_rules_passes_issue_config():
-    patch_cmdb_apis()
+def test_convert_rules_loads_cmdb_when_config_changed(cmdb_apis):
+    """存在待处理配置时拉取 CMDB，并完成 issue_config 转换。"""
+    get_topo_tree, get_dynamic_query, search_dynamic_group = cmdb_apis
     code_config = load_rule_config("issue_config.yaml")
 
-    records = convert_rules(
-        bk_biz_id=2,
-        app="app1",
-        configs={"issue_config.yaml": code_config},
-        snippets={},
-        notice_group_ids={"ops.yaml": 1},
-        action_ids={},
-    )
+    with _mock_strategies():
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"issue_config.yaml": code_config},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
 
     assert len(records) == 1
     assert records[0]["validate_error"] is None
@@ -133,6 +170,76 @@ def test_convert_rules_passes_issue_config():
         ],
         "alert_levels": [1, 2],
     }
+    _assert_cmdb_loaded(get_topo_tree, get_dynamic_query, search_dynamic_group)
+
+
+def test_convert_rules_skips_cmdb_when_hash_unchanged(cmdb_apis):
+    """全部策略 hash 未变更时，不应发起 CMDB 远程调用。"""
+    get_topo_tree, get_dynamic_query, search_dynamic_group = cmdb_apis
+    code_config = load_rule_config("cpu_simple.yaml")
+    old_strategy = SimpleNamespace(
+        id=1,
+        path="cpu_simple.yaml",
+        hash=_config_hash(code_config),
+        name="CPU单核使用率",
+        app="app1",
+    )
+
+    with _mock_strategies([old_strategy]):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"cpu_simple.yaml": deepcopy(code_config)},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
+
+    assert records == []
+    _assert_cmdb_skipped(get_topo_tree, get_dynamic_query, search_dynamic_group)
+
+
+def test_convert_rules_loads_cmdb_once_on_partial_change(cmdb_apis):
+    """部分策略变更时仍拉取一次 CMDB，且仅返回变更项。"""
+    get_topo_tree, get_dynamic_query, search_dynamic_group = cmdb_apis
+    unchanged_config = load_rule_config("cpu_simple.yaml")
+    changed_config = load_rule_config("issue_config.yaml")
+    old_strategies = [
+        SimpleNamespace(
+            id=1,
+            path="cpu_simple.yaml",
+            hash=_config_hash(unchanged_config),
+            name="CPU单核使用率",
+            app="app1",
+        ),
+        SimpleNamespace(
+            id=2,
+            path="issue_config.yaml",
+            hash="outdated-hash",
+            name="issue_config",
+            app="app1",
+        ),
+    ]
+
+    with _mock_strategies(old_strategies):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={
+                "cpu_simple.yaml": deepcopy(unchanged_config),
+                "issue_config.yaml": deepcopy(changed_config),
+            },
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
+
+    assert len(records) == 1
+    assert records[0]["path"] == "issue_config.yaml"
+    assert records[0]["validate_error"] is None
+    assert records[0]["obj"] is not None
+    assert records[0]["obj"].id == 2
+    _assert_cmdb_loaded(get_topo_tree, get_dynamic_query, search_dynamic_group)
 
 
 def test_strategy_unparse_issue_config_round_trip():
