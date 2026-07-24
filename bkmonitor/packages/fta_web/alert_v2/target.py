@@ -10,14 +10,15 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import copy
+import logging
 import time
 from functools import cached_property
 from typing import Any
 
 from apm_web.handlers.host_handler import HostHandler
-from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
 from apm_web.log.resources import log_relation_list
+from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.topo.handle.relation.define import (
     Relation,
     Source,
@@ -32,7 +33,6 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
-from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
     get_alert_dimensions,
@@ -41,8 +41,32 @@ from bkmonitor.utils.alert_drilling import (
     get_log_clustering_info,
     get_log_clustering_time_range,
 )
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, EventTargetType, K8S_RESOURCE_TYPE, K8STargetType
 from constants.data_source import DataSourceLabel
+from monitor_web.scene_view.resources.log import HostIndexQueryMixin
+
+
+logger = logging.getLogger(__name__)
+
+
+def merge_log_targets(*target_groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """按来源优先级合并日志目标。
+
+    :param target_groups: 日志目标分组，靠左分组优先级更高
+    :return: 按索引集 ID 去重后的日志目标列表
+    """
+    merged_target_map: dict[str, dict[str, Any]] = {}
+    for target_group in target_groups:
+        for target in target_group:
+            index_set_id: str = str(target["index_set_id"])
+            if index_set_id in merged_target_map:
+                logger.info("忽略重复的关联日志索引集，index_set_id=%s", index_set_id)
+                continue
+
+            merged_target_map[index_set_id] = target
+
+    return list(merged_target_map.values())
 
 
 class BaseTarget(abc.ABC):
@@ -81,6 +105,14 @@ class BaseTarget(abc.ABC):
                 continue
             dimensions[d["key"]] = d["value"]
         return dimensions
+
+    @cached_property
+    def _biz_index_set_map(self) -> dict[str, dict[str, Any]]:
+        """获取当前业务的日志索引集映射。"""
+        return {
+            str(index_set["index_set_id"]): index_set
+            for index_set in get_biz_index_sets_with_cache(bk_biz_id=self._alert.event.bk_biz_id)
+        }
 
     def _get_dimension_value(self, possible_keys: list[str], default: Any = None) -> Any:
         """获取可能存在的维度值
@@ -170,6 +202,86 @@ class BaseTarget(abc.ABC):
                 end_time=end_time,
             )
         )
+
+    def _query_host_collector_log_targets(self, host_target: dict[str, Any]) -> list[dict[str, Any]]:
+        """查询单台主机关联采集项的日志索引集。
+
+        :param host_target: 主机目标信息
+        :return: 主机关联采集项的日志目标列表
+        """
+        bk_host_id: int | str | None = host_target.get("bk_host_id")
+        bk_target_ip: str | None = host_target.get("bk_target_ip")
+        bk_cloud_id: int | None = host_target.get("bk_cloud_id")
+        query_params: dict[str, Any] = {"bk_biz_id": self._alert.event.bk_biz_id}
+        if bk_host_id:
+            query_params["bk_host_id"] = bk_host_id
+        elif bk_target_ip and bk_cloud_id is not None:
+            query_params.update({"bk_host_innerip": bk_target_ip, "bk_cloud_id": bk_cloud_id})
+        else:
+            return []
+
+        try:
+            index_infos: list[dict[str, Any]] = HostIndexQueryMixin.query_indexes(query_params)
+        except Exception:
+            logger.exception(
+                "查询主机关联采集项索引失败，bk_biz_id=%s，host_target=%s",
+                self._alert.event.bk_biz_id,
+                host_target,
+            )
+            return []
+
+        if not index_infos:
+            return []
+
+        try:
+            index_set_map: dict[str, dict[str, Any]] = self._biz_index_set_map
+        except Exception:
+            logger.exception(
+                "获取主机关联采集项的索引集元信息失败，bk_biz_id=%s，host_target=%s",
+                self._alert.event.bk_biz_id,
+                host_target,
+            )
+            return []
+
+        log_targets: list[dict[str, Any]] = []
+        for index_info in index_infos:
+            index_set_id: int | str | None = index_info.get("index_set_id")
+            if index_set_id is None:
+                continue
+
+            index_set_info: dict[str, Any] | None = index_set_map.get(str(index_set_id))
+            if not index_set_info:
+                continue
+
+            log_target: dict[str, Any] = copy.deepcopy(index_set_info)
+            log_target["addition"] = []
+            if bk_target_ip:
+                log_target["addition"].append({"field": "serverIp", "operator": "=", "value": [bk_target_ip]})
+            log_targets.append(log_target)
+
+        return log_targets
+
+    def _list_related_host_collector_log_targets(
+        self,
+        host_targets: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """并发查询多台主机关联采集项的日志索引集。
+
+        :param host_targets: 主机目标列表
+        :return: 按主机输入顺序去重合并后的日志目标列表
+        """
+        if not host_targets:
+            return []
+
+        if len(host_targets) == 1:
+            return merge_log_targets(self._query_host_collector_log_targets(host_targets[0]))
+
+        with ThreadPool(min(len(host_targets), 8)) as pool:
+            target_groups: list[list[dict[str, Any]]] = list(
+                pool.imap(self._query_host_collector_log_targets, host_targets)
+            )
+
+        return merge_log_targets(*target_groups)
 
     @abc.abstractmethod
     def _get_k8s_resource_type(self) -> str:
@@ -471,18 +583,22 @@ class BaseK8STarget(BaseTarget):
     def list_related_log_targets(self) -> list[dict[str, Any]]:
         """获取容器类告警关联的日志目标信息。
 
-        并发查询 K8S 路径和 APM 路径的日志索引集，最后按 index_set_id 去重合并。
+        并发查询 K8S、APM 和主机关联采集项路径的日志索引集，并按来源优先级去重合并。
         """
-        with ThreadPool(2) as pool:
+        host_targets: list[dict[str, Any]] = self.list_related_host_targets()
+        with ThreadPool(3) as pool:
             k8s_future = pool.apply_async(self._k8s_related_log_targets)
             apm_future = pool.apply_async(self._apm_related_log_targets)
+            host_collector_future = pool.apply_async(
+                self._list_related_host_collector_log_targets,
+                args=(host_targets,),
+            )
 
             k8s_log_targets: list[dict[str, Any]] = k8s_future.get() or []
             apm_log_targets: list[dict[str, Any]] = apm_future.get() or []
+            host_collector_log_targets: list[dict[str, Any]] = host_collector_future.get() or []
 
-        # 去重
-        existing_index_set_ids: set[int] = {target["index_set_id"] for target in k8s_log_targets}
-        return k8s_log_targets + [t for t in apm_log_targets if t["index_set_id"] not in existing_index_set_ids]
+        return merge_log_targets(k8s_log_targets, apm_log_targets, host_collector_log_targets)
 
 
 class K8SPodTarget(BaseK8STarget):
@@ -655,18 +771,8 @@ class HostTarget(DefaultTarget):
             }
         ]
 
-    def list_related_log_targets(self) -> list[dict[str, Any]]:
-        """获取主机告警关联的日志目标信息。
-
-        日志类 HOST 告警优先使用原始日志策略配置，命中后直接返回策略内的索引集、查询语句和维度过滤条件；未命中时再回退到原有主机关系日志查询。
-        """
-        origin_log_targets: list[dict[str, Any]] = super().list_related_log_targets()
-        if origin_log_targets:
-            return origin_log_targets
-
-        if not self._alert.event.ip:
-            return []
-
+    def _host_relation_log_targets(self) -> list[dict[str, Any]]:
+        """获取主机关系图关联的日志目标。"""
         start_time, end_time = self._get_time_range()
         qs: list[dict[str, Any]] = []
         for path in [SourceK8sPod, SourceK8sNode]:
@@ -689,6 +795,31 @@ class HostTarget(DefaultTarget):
             related_log_target.setdefault("addition", []).extend(addition)
             related_log_targets.append(related_log_target)
         return related_log_targets
+
+    def list_related_log_targets(self) -> list[dict[str, Any]]:
+        """获取主机告警关联的日志目标信息。
+
+        日志类 HOST 告警优先使用原始日志策略配置；未命中时并发查询主机关系日志和主机关联采集项日志。
+        """
+        origin_log_targets: list[dict[str, Any]] = super().list_related_log_targets()
+        if origin_log_targets:
+            return origin_log_targets
+
+        if not self._alert.event.ip:
+            return []
+
+        host_targets: list[dict[str, Any]] = self.list_related_host_targets()
+        with ThreadPool(2) as pool:
+            host_relation_future = pool.apply_async(self._host_relation_log_targets)
+            host_collector_future = pool.apply_async(
+                self._list_related_host_collector_log_targets,
+                args=(host_targets,),
+            )
+
+            host_relation_log_targets: list[dict[str, Any]] = host_relation_future.get() or []
+            host_collector_log_targets: list[dict[str, Any]] = host_collector_future.get() or []
+
+        return merge_log_targets(host_relation_log_targets, host_collector_log_targets)
 
 
 _TARGET_TYPE_MAP: dict[str, type[BaseTarget]] = {
