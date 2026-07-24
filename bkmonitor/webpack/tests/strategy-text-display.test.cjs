@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -49,4 +50,15 @@ test('策略描述提示使用纯文本并保留多行内容', () => {
     content: 'sum(rate(metric[5m]))\n<metric data-kind="sample">cpu</metric>',
     extCls: 'strategy-item-description-tooltips',
   });
+});
+
+test('仪表盘搜索结果标题使用纯文本片段展示', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/grafana/dashboard-container/dashboard-aside.tsx'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(source, /domPropsInnerHTML/);
+  assert.match(source, /splitHighlightFragments\(item\.title,\s*this\.keywork\)/);
+  assert.match(source, /\{fragment\.text\}/);
 });
