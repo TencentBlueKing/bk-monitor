@@ -17,7 +17,6 @@ from metadata.models.data_link.data_link_configs import (
     DataIdConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
-    GraphRelationBindingConfig,
 )
 from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_transfer_consumer_group
 from metadata.models.result_table import GraphRelationV4DataLinkOption, LogV4DataLinkOption
@@ -129,9 +128,9 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
                 f"apply_graph_relation_v4_datalink: tenant({bk_tenant_id}) {table_id} surrealdb storage not found"
             )
 
-    # 4. 优先复用该 RT 已有的普通 VM 或 Graph V4 DataLink，避免双写时额外创建
-    # 一条并行 VM 链路。带 GraphRelationBindingConfig 的旧 CMDB 链路不属于 V4，
-    # 即使 strategy 相同也不能认领。
+    # 4. 优先复用该 RT 已有的普通 VM 或 Graph DataLink，避免双写时额外创建
+    # 一条并行 VM 链路。旧配置生成的 Graph DataLink 也可以直接认领；
+    # ResultTableOption 会让复用后的链路在本次 apply 中进入 V4 compose。
     configured_rt = None
     candidates = BkBaseResultTable.objects.filter(
         bk_tenant_id=bk_tenant_id,
@@ -146,16 +145,7 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             .values_list("data_link_strategy", flat=True)
             .first()
         )
-        is_legacy_graph_relation = (
-            strategy == DataLink.GRAPH_RELATION_TIME_SERIES
-            and GraphRelationBindingConfig.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                data_link_name=candidate.data_link_name,
-            ).exists()
-        )
-        if strategy in {DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES} and not (
-            is_legacy_graph_relation
-        ):
+        if strategy in {DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES}:
             configured_rt = candidate
             break
 

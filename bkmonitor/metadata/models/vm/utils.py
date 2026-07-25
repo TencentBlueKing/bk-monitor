@@ -90,19 +90,10 @@ def _get_configured_bkbase_result_table(
         DataLink.GRAPH_RELATION_TIME_SERIES: DataLink.BK_STANDARD_V2_TIME_SERIES,
     }.get(data_link_strategy)
     if compatible_strategy:
-        from metadata.models.data_link.data_link_configs import GraphRelationBindingConfig
-
-        legacy_graph_data_link_names = set(
-            GraphRelationBindingConfig.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                data_link_name__in=data_link_names,
-            ).values_list("data_link_name", flat=True)
-        )
         compatible_candidates = [
             candidate
             for candidate in candidates
             if data_link_strategies.get(candidate.data_link_name) == compatible_strategy
-            and candidate.data_link_name not in legacy_graph_data_link_names
         ]
         if len(compatible_candidates) == 1:
             return compatible_candidates[0]
