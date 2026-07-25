@@ -68,6 +68,7 @@ from .entity_relation import (
 from .result_table import (
     CMDBLevelRecord,
     ESFieldQueryAliasOption,
+    GraphRelationV4DataLinkOption,
     ResultTable,
     ResultTableField,
     ResultTableFieldOption,
@@ -117,6 +118,7 @@ __all__ = [
     "ResultTableOption",
     "ResultTableFieldOption",
     "ESFieldQueryAliasOption",
+    "GraphRelationV4DataLinkOption",
     # storage
     "ClusterInfo",
     "KafkaTopicInfo",

@@ -8,17 +8,194 @@ from pydantic import ValidationError
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from constants.common import DEFAULT_TENANT_ID
-from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
+from metadata.models import AccessVMRecord, DataSource, DataSourceResultTable, ResultTable, ResultTableOption
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
-from metadata.models.data_link.utils import compose_transfer_consumer_group
-from metadata.models.result_table import LogV4DataLinkOption
-from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
+from metadata.models.data_link.data_link_configs import DataIdConfig, DorisStorageBindingConfig, ESStorageBindingConfig
+from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_transfer_consumer_group
+from metadata.models.result_table import GraphRelationV4DataLinkOption, LogV4DataLinkOption
+from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_graph_relation_vm_cluster(rt: ResultTable) -> ClusterInfo:
+    vm_record = AccessVMRecord.objects.filter(
+        bk_tenant_id=rt.bk_tenant_id,
+        result_table_id=rt.table_id,
+    ).last()
+    if vm_record:
+        cluster = ClusterInfo.objects.filter(
+            bk_tenant_id=rt.bk_tenant_id,
+            cluster_id=vm_record.vm_cluster_id,
+            cluster_type=ClusterInfo.TYPE_VM,
+        ).first()
+        if cluster:
+            return cluster
+
+    from metadata.models import Space
+    from metadata.models.vm.utils import get_vm_cluster_id_name
+
+    space_data = {}
+    try:
+        space_data = Space.objects.get_space_info_by_biz_id(int(rt.get_target_bk_biz_id()))
+    except Exception as error:  # pylint: disable=broad-except
+        logger.warning(
+            "resolve_graph_relation_vm_cluster: get space failed, tenant(%s) table(%s), error=%s",
+            rt.bk_tenant_id,
+            rt.table_id,
+            error,
+        )
+    vm_cluster = get_vm_cluster_id_name(
+        bk_tenant_id=rt.bk_tenant_id,
+        space_type=space_data.get("space_type", ""),
+        space_id=space_data.get("space_id", ""),
+    )
+    return ClusterInfo.objects.get(
+        bk_tenant_id=rt.bk_tenant_id,
+        cluster_id=vm_cluster["cluster_id"],
+        cluster_type=ClusterInfo.TYPE_VM,
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
+    """根据 ResultTableOption 创建或更新统一 Graph Relation V4 DataLink。"""
+    rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+    option_record = ResultTableOption.objects.get(
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+        name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+    )
+    option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
+    dsrt = DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
+    if dsrt is None:
+        raise ValueError(f"apply_graph_relation_v4_datalink: tenant({bk_tenant_id}) {table_id} datasource not found")
+    data_source = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id)
+    target_bk_biz_id = rt.get_target_bk_biz_id()
+
+    consumer_group = None
+    data_source_created_from = data_source.created_from
+    data_id_name = compose_bkdata_data_id_name(data_source.data_name)
+    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        consumer_group = compose_transfer_consumer_group(data_source)
+        data_source.register_to_bkbase(
+            bk_biz_id=target_bk_biz_id,
+            namespace="bkmonitor",
+            bkbase_data_name=data_id_name,
+        )
+    elif not DataIdConfig.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        namespace="bkmonitor",
+        name=data_id_name,
+    ).exists():
+        data_source.register_to_bkbase(
+            bk_biz_id=target_bk_biz_id,
+            namespace="bkmonitor",
+            bkbase_data_name=data_id_name,
+        )
+
+    vm_cluster = _resolve_graph_relation_vm_cluster(rt) if option.should_write_vm else None
+    surrealdb_storage = None
+    if option.should_write_surrealdb:
+        surrealdb_storage = SurrealDBStorage.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+        ).first()
+        if surrealdb_storage is None:
+            raise ValueError(
+                f"apply_graph_relation_v4_datalink: tenant({bk_tenant_id}) {table_id} surrealdb storage not found"
+            )
+
+    configured_rt = None
+    candidates = BkBaseResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        monitor_table_id=table_id,
+    ).order_by("-last_modify_time", "-create_time")
+    for candidate in candidates:
+        strategy = (
+            DataLink.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=candidate.data_link_name,
+            )
+            .values_list("data_link_strategy", flat=True)
+            .first()
+        )
+        if strategy in {
+            DataLink.BK_STANDARD_V2_TIME_SERIES,
+            DataLink.GRAPH_RELATION_V4_TIME_SERIES,
+        }:
+            configured_rt = candidate
+            break
+
+    data_link_name = configured_rt.data_link_name if configured_rt else data_id_name
+    datalink = DataLink.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+    ).first()
+    if datalink is None:
+        datalink = DataLink.objects.create(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=data_link_name,
+            namespace="bkmonitor",
+            data_link_strategy=DataLink.GRAPH_RELATION_V4_TIME_SERIES,
+            bk_data_id=data_source.bk_data_id,
+            table_ids=[table_id],
+        )
+    else:
+        datalink.namespace = "bkmonitor"
+        datalink.data_link_strategy = DataLink.GRAPH_RELATION_V4_TIME_SERIES
+        datalink.bk_data_id = data_source.bk_data_id
+        datalink.table_ids = [table_id]
+        datalink.save(update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"])
+
+    storage_type = ClusterInfo.TYPE_VM if option.should_write_vm else ClusterInfo.TYPE_SURREALDB
+    datalink.apply_data_link(
+        bk_biz_id=target_bk_biz_id,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name=vm_cluster.cluster_name if vm_cluster else "",
+        storage_type=storage_type,
+        consumer_group=consumer_group,
+    )
+    primary_cluster = vm_cluster if vm_cluster else surrealdb_storage.storage_cluster
+    datalink.sync_metadata(table_id=table_id, storage_cluster_id=primary_cluster.cluster_id)
+
+    if option.should_write_vm and vm_cluster:
+        bkbase_rt = BkBaseResultTable.objects.get(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=datalink.data_link_name,
+        )
+        vm_record = AccessVMRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            result_table_id=table_id,
+        ).last()
+        vm_record_values = {
+            "bk_base_data_id": data_source.bk_data_id,
+            "bk_base_data_name": bkbase_rt.bkbase_data_name or data_id_name,
+            "vm_cluster_id": vm_cluster.cluster_id,
+            "vm_result_table_id": bkbase_rt.bkbase_table_id,
+        }
+        if vm_record:
+            for field, value in vm_record_values.items():
+                setattr(vm_record, field, value)
+            vm_record.save(update_fields=list(vm_record_values))
+        else:
+            AccessVMRecord.objects.create(
+                bk_tenant_id=bk_tenant_id,
+                result_table_id=table_id,
+                **vm_record_values,
+            )
+    else:
+        AccessVMRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            result_table_id=table_id,
+        ).delete()
+
+    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        data_source.delete_consul_config()
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

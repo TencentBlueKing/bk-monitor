@@ -874,6 +874,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
         transform_options: dict[str, Any] | None = None,
+        transforms: list[dict[str, Any]] | None = None,
+        auto_offset_reset: str | None = None,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -884,6 +886,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
         @param transform_name: 转换名称
         @param transform_format: 转换格式
         @param transform_options: 转换额外配置
+        @param transforms: 完整转换列表；传入时覆盖单个预定义转换参数
+        @param auto_offset_reset: Kafka 初始消费位置
         """
         tpl = """
         {
@@ -917,20 +921,23 @@ class DataBusConfig(DataLinkResourceConfigBase):
                         "namespace": "{{namespace}}"
                     }
                 ],
-                "transforms": [
-                    {{transform}}
-                ]
+                "transforms": {{transforms}}
+                {% if auto_offset_reset %},
+                "autoOffsetReset": "{{auto_offset_reset}}"
+                {% endif %}
             }
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-        transform = {
-            "kind": transform_kind,
-            "name": transform_name,
-            "format": transform_format,
-        }
-        if transform_options:
-            transform.update(transform_options)
+        if transforms is None:
+            transform = {
+                "kind": transform_kind,
+                "name": transform_name,
+                "format": transform_format,
+            }
+            if transform_options:
+                transform.update(transform_options)
+            transforms = [transform]
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -938,7 +945,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
-            "transform": json.dumps(transform),
+            "transforms": json.dumps(transforms),
+            "auto_offset_reset": auto_offset_reset,
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
             "data_link_strategy": self.data_link_strategy,
