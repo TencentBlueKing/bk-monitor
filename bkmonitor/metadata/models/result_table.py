@@ -592,6 +592,7 @@ class ResultTable(models.Model):
     def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
         from metadata.models.data_link.data_link import DataLink
+        from metadata.models.data_link.data_link_configs import GraphRelationBindingConfig
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import (
             apply_event_group_datalink,
@@ -620,11 +621,21 @@ class ResultTable(models.Model):
             bk_tenant_id=self.bk_tenant_id,
             monitor_table_id=self.table_id,
         ).values_list("data_link_name", flat=True)
-        has_existing_graph_relation_v4_datalink = DataLink.objects.filter(
+        legacy_graph_data_link_names = GraphRelationBindingConfig.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
             data_link_name__in=existing_data_link_names,
-            data_link_strategy=DataLink.GRAPH_RELATION_V4_TIME_SERIES,
-        ).exists()
+        ).values_list("data_link_name", flat=True)
+        has_existing_graph_relation_v4_datalink = (
+            DataLink.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                data_link_name__in=existing_data_link_names,
+                data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+            )
+            .exclude(
+                data_link_name__in=legacy_graph_data_link_names,
+            )
+            .exists()
+        )
 
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路

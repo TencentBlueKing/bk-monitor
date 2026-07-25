@@ -102,7 +102,7 @@ def graph_relation_v4_records():
         bk_tenant_id="system",
         data_link_name="bkm_graph_relation_v4_metric",
         namespace="bkmonitor",
-        data_link_strategy=DataLink.GRAPH_RELATION_V4_TIME_SERIES,
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
         bk_data_id=data_source.bk_data_id,
         table_ids=[table_id],
     )
@@ -113,6 +113,50 @@ def graph_relation_v4_records():
         "vm_cluster": vm_cluster,
         "data_link": data_link,
     }
+
+
+def test_graph_relation_strategy_dispatches_by_result_table_option(mocker, graph_relation_v4_records):
+    ctx = graph_relation_v4_records
+    legacy_compose = mocker.patch.object(
+        ctx["data_link"],
+        "compose_graph_relation_time_series_configs",
+        return_value=[],
+    )
+    v4_compose = mocker.patch.object(
+        ctx["data_link"],
+        "compose_graph_relation_v4_time_series_configs",
+        return_value=[],
+    )
+
+    ctx["data_link"].compose_configs(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+    )
+
+    legacy_compose.assert_called_once()
+    v4_compose.assert_not_called()
+
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["vm"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    legacy_compose.reset_mock()
+
+    ctx["data_link"].compose_configs(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+    )
+
+    legacy_compose.assert_not_called()
+    v4_compose.assert_called_once()
+    assert ctx["data_link"].data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
+    assert not hasattr(DataLink, "GRAPH_RELATION_V4_TIME_SERIES")
 
 
 @pytest.mark.parametrize(
@@ -211,6 +255,13 @@ def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, 
         data_link_name=ctx["data_link"].data_link_name,
         sink_names__icontains="SurrealDBBinding:",
     ).exists()
+    assert (
+        models.BkBaseResultTable.objects.get(
+            bk_tenant_id="system",
+            data_link_name=ctx["data_link"].data_link_name,
+        ).storage_type
+        == models.ClusterInfo.TYPE_VM
+    )
 
 
 def test_switch_from_surrealdb_only_to_standard_vm_reuses_datalink_and_cleans_graph(
@@ -380,7 +431,7 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
     apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
 
     data_link = DataLink.objects.get(data_link_name="bkm_graph_relation_v4_metric")
-    assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_V4_TIME_SERIES
+    assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     mock_apply.assert_called_once()
     assert mock_apply.call_args.kwargs["storage_type"] == models.ClusterInfo.TYPE_SURREALDB
     assert mock_apply.call_args.kwargs["storage_cluster_name"] == ""

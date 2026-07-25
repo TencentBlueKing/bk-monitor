@@ -72,7 +72,6 @@ REUSE_ENABLED_STRATEGIES: set[str] = {
     "bk_standard_v2_time_series",
     "bk_standard_v2_event",
     "bk_log",
-    "graph_relation_v4_time_series",
 }
 
 

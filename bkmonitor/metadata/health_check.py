@@ -246,7 +246,7 @@ def get_bkdata_status(bk_tenant_id: str, data_link_name: str, with_detail: bool 
     # 检查组件配置
     status_ok = True
     graph_binding = None
-    if datalink.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+    if datalink.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES and not datalink.is_graph_relation_v4():
         graph_binding = GraphRelationBindingConfig.objects.filter(
             bk_tenant_id=bk_tenant_id,
             namespace=datalink.namespace,

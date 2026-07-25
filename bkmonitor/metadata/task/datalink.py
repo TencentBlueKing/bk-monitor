@@ -13,7 +13,12 @@ from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.data_link_configs import DataIdConfig, DorisStorageBindingConfig, ESStorageBindingConfig
+from metadata.models.data_link.data_link_configs import (
+    DataIdConfig,
+    DorisStorageBindingConfig,
+    ESStorageBindingConfig,
+    GraphRelationBindingConfig,
+)
 from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_transfer_consumer_group
 from metadata.models.result_table import GraphRelationV4DataLinkOption, LogV4DataLinkOption
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
@@ -62,7 +67,17 @@ def _resolve_graph_relation_vm_cluster(rt: ResultTable) -> ClusterInfo:
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
-    """根据 ResultTableOption 创建或更新统一 Graph Relation V4 DataLink。"""
+    """根据 ResultTableOption 创建或更新统一 Graph Relation V4 DataLink。
+
+    VM 与 SurrealDB 共用一条 DataLink，具体写入目标由
+    ``graph_relation_v4_data_link`` Option 决定。该任务只负责准备接入参数和
+    回填监控侧元数据，组件的完整期望状态及分支清理由 Graph V4 compose/apply 负责。
+
+    Args:
+        bk_tenant_id: 结果表所属租户。
+        table_id: 需要接入 Graph V4 链路的监控结果表。
+    """
+    # 1. 读取并校验写入目标，同时定位当前 RT 唯一的数据源。
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
     option_record = ResultTableOption.objects.get(
         bk_tenant_id=bk_tenant_id,
@@ -76,6 +91,8 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
     data_source = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id)
     target_bk_biz_id = rt.get_target_bk_biz_id()
 
+    # 2. 沿用普通 VM 接入的数据源注册规则。非 BKData 数据源需要保留
+    # Transfer consumer group，后续由两组普通 DataBusConfig 共用。
     consumer_group = None
     data_source_created_from = data_source.created_from
     data_id_name = compose_bkdata_data_id_name(data_source.data_name)
@@ -97,6 +114,8 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             bkbase_data_name=data_id_name,
         )
 
+    # 3. 只解析 Option 实际启用分支的依赖：
+    # SurrealDB-only 不要求 AccessVMRecord/VM 集群，VM-only 不要求 SurrealDBStorage。
     vm_cluster = _resolve_graph_relation_vm_cluster(rt) if option.should_write_vm else None
     surrealdb_storage = None
     if option.should_write_surrealdb:
@@ -109,6 +128,9 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
                 f"apply_graph_relation_v4_datalink: tenant({bk_tenant_id}) {table_id} surrealdb storage not found"
             )
 
+    # 4. 优先复用该 RT 已有的普通 VM 或 Graph V4 DataLink，避免双写时额外创建
+    # 一条并行 VM 链路。带 GraphRelationBindingConfig 的旧 CMDB 链路不属于 V4，
+    # 即使 strategy 相同也不能认领。
     configured_rt = None
     candidates = BkBaseResultTable.objects.filter(
         bk_tenant_id=bk_tenant_id,
@@ -123,10 +145,16 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             .values_list("data_link_strategy", flat=True)
             .first()
         )
-        if strategy in {
-            DataLink.BK_STANDARD_V2_TIME_SERIES,
-            DataLink.GRAPH_RELATION_V4_TIME_SERIES,
-        }:
+        is_legacy_graph_relation = (
+            strategy == DataLink.GRAPH_RELATION_TIME_SERIES
+            and GraphRelationBindingConfig.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=candidate.data_link_name,
+            ).exists()
+        )
+        if strategy in {DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES} and not (
+            is_legacy_graph_relation
+        ):
             configured_rt = candidate
             break
 
@@ -140,17 +168,20 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             bk_tenant_id=bk_tenant_id,
             data_link_name=data_link_name,
             namespace="bkmonitor",
-            data_link_strategy=DataLink.GRAPH_RELATION_V4_TIME_SERIES,
+            data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
             bk_data_id=data_source.bk_data_id,
             table_ids=[table_id],
         )
     else:
         datalink.namespace = "bkmonitor"
-        datalink.data_link_strategy = DataLink.GRAPH_RELATION_V4_TIME_SERIES
+        datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
         datalink.bk_data_id = data_source.bk_data_id
         datalink.table_ids = [table_id]
         datalink.save(update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"])
 
+    # 5. Graph V4 复用原 graph_relation_time_series strategy；ResultTableOption
+    # 决定 compose 走普通组件路径。包含 VM 时 VM 是查询主存储，SurrealDB-only
+    # 才将 SurrealDB 记录为主存储。
     storage_type = ClusterInfo.TYPE_VM if option.should_write_vm else ClusterInfo.TYPE_SURREALDB
     datalink.apply_data_link(
         bk_biz_id=target_bk_biz_id,
@@ -163,6 +194,8 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
     primary_cluster = vm_cluster if vm_cluster else surrealdb_storage.storage_cluster
     datalink.sync_metadata(table_id=table_id, storage_cluster_id=primary_cluster.cluster_id)
 
+    # 6. AccessVMRecord 只描述 VM 接入结果：VM 单写/双写时回填，切换为
+    # SurrealDB-only 时删除旧记录，避免后续流程误判该 RT 仍有 VM 主链路。
     if option.should_write_vm and vm_cluster:
         bkbase_rt = BkBaseResultTable.objects.get(
             bk_tenant_id=bk_tenant_id,
@@ -194,6 +227,8 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             result_table_id=table_id,
         ).delete()
 
+    # 7. 非 BKData 数据源已经切换到 BKBase DataBus 消费，清理旧 Transfer
+    # Consul 配置，保持与普通 VM V4 接入流程一致。
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         data_source.delete_consul_config()
 

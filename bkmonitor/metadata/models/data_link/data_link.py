@@ -153,7 +153,6 @@ class DataLink(models.Model):
     BCS_FEDERAL_SUBSET_TIME_SERIES = "bcs_federal_subset_time_series"  # 联邦集群（子集群）时序链路
     BASEREPORT_TIME_SERIES_V1 = "basereport_time_series_v1"  # 主机基础数据上报时序链路
     GRAPH_RELATION_TIME_SERIES = "graph_relation_time_series"  # 图关系时序链路
-    GRAPH_RELATION_V4_TIME_SERIES = "graph_relation_v4_time_series"  # ResultTable Option 驱动的图关系链路
     SYSTEM_PROC_PERF = "system_proc_perf"  # 系统进程性能链路
     SYSTEM_PROC_PORT = "system_proc_port"  # 系统进程端口链路
     BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
@@ -167,7 +166,6 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
         (BASEREPORT_TIME_SERIES_V1, "主机基础采集时序数据链路"),
         (GRAPH_RELATION_TIME_SERIES, "图关系时序数据链路"),
-        (GRAPH_RELATION_V4_TIME_SERIES, "图关系V4时序数据链路"),
         (BASE_EVENT_V1, "基础事件链路"),
         (SYSTEM_PROC_PERF, "系统进程性能链路"),
         (SYSTEM_PROC_PORT, "系统进程端口链路"),
@@ -197,12 +195,6 @@ class DataLink(models.Model):
             GraphRelationConfig,
             GraphRelationBindingConfig,
         ],
-        GRAPH_RELATION_V4_TIME_SERIES: [
-            ResultTableConfig,
-            VMStorageBindingConfig,
-            SurrealDBBindingConfig,
-            DataBusConfig,
-        ],
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
@@ -224,7 +216,6 @@ class DataLink(models.Model):
         BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASEREPORT_TIME_SERIES_V1: ClusterInfo.TYPE_VM,
         GRAPH_RELATION_TIME_SERIES: ClusterInfo.TYPE_SURREALDB,
-        GRAPH_RELATION_V4_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASE_EVENT_V1: ClusterInfo.TYPE_ES,
         SYSTEM_PROC_PERF: ClusterInfo.TYPE_VM,
         SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
@@ -247,10 +238,10 @@ class DataLink(models.Model):
         # compose 只会认领当前生效的绑定，因此旧绑定不应被视为脏数据。
         (BK_LOG, ESStorageBindingConfig): "keep",
         (BK_LOG, DorisStorageBindingConfig): "keep",
-        (GRAPH_RELATION_V4_TIME_SERIES, ResultTableConfig): "delete",
-        (GRAPH_RELATION_V4_TIME_SERIES, VMStorageBindingConfig): "delete",
-        (GRAPH_RELATION_V4_TIME_SERIES, SurrealDBBindingConfig): "delete",
-        (GRAPH_RELATION_V4_TIME_SERIES, DataBusConfig): "delete",
+        (GRAPH_RELATION_TIME_SERIES, ResultTableConfig): "delete",
+        (GRAPH_RELATION_TIME_SERIES, VMStorageBindingConfig): "delete",
+        (GRAPH_RELATION_TIME_SERIES, SurrealDBBindingConfig): "delete",
+        (GRAPH_RELATION_TIME_SERIES, DataBusConfig): "delete",
     }
 
     bk_data_id = models.IntegerField(verbose_name="关联数据源ID", default=0)
@@ -327,6 +318,14 @@ class DataLink(models.Model):
             ).delete()
 
     def get_related_component_classes(self, write_mode: str | None = None) -> list[type["DataLinkResourceConfigBase"]]:
+        if self.is_graph_relation_v4():
+            return [
+                ResultTableConfig,
+                VMStorageBindingConfig,
+                SurrealDBBindingConfig,
+                DataBusConfig,
+            ]
+
         if write_mode is None and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
             graph_binding = self._get_graph_relation_binding()
             if graph_binding:
@@ -341,7 +340,25 @@ class DataLink(models.Model):
         return list(dict.fromkeys(component_classes))
 
     def get_delete_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
+        if self.is_graph_relation_v4():
+            return self.get_related_component_classes()
         return self.STRATEGY_DELETE_COMPONENTS.get(self.data_link_strategy) or self.get_related_component_classes()
+
+    def is_graph_relation_v4(self, table_id: str | None = None) -> bool:
+        """判断当前 Graph strategy 是否由 ResultTableOption 驱动。"""
+        if self.data_link_strategy != self.GRAPH_RELATION_TIME_SERIES:
+            return False
+
+        from metadata.models.result_table import ResultTableOption
+
+        table_ids = [table_id] if table_id else self.table_ids
+        if not table_ids:
+            return False
+        return ResultTableOption.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id__in=table_ids,
+            name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        ).exists()
 
     def compose_configs(
         self,
@@ -358,6 +375,8 @@ class DataLink(models.Model):
         透传给尚未改造的 strategy。
         """
 
+        is_graph_relation_v4 = self.is_graph_relation_v4(kwargs.get("table_id"))
+
         # 类似switch的形式，选择对应的组装方式
         switcher = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs,
@@ -366,8 +385,11 @@ class DataLink(models.Model):
             DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_bcs_federal_proxy_time_series_configs,
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
             DataLink.BASEREPORT_TIME_SERIES_V1: self.compose_basereport_time_series_configs,
-            DataLink.GRAPH_RELATION_TIME_SERIES: self.compose_graph_relation_time_series_configs,
-            DataLink.GRAPH_RELATION_V4_TIME_SERIES: self.compose_graph_relation_v4_time_series_configs,
+            DataLink.GRAPH_RELATION_TIME_SERIES: (
+                self.compose_graph_relation_v4_time_series_configs
+                if is_graph_relation_v4
+                else self.compose_graph_relation_time_series_configs
+            ),
             DataLink.BASE_EVENT_V1: self.compose_base_event_configs,
             DataLink.SYSTEM_PROC_PERF: partial(
                 self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PERF
@@ -380,7 +402,7 @@ class DataLink(models.Model):
         }
         method = switcher[self.data_link_strategy]
         kwargs["consumer_group"] = consumer_group
-        if existing_context is not None and is_reuse_supported_for(self.data_link_strategy):
+        if existing_context is not None and (is_graph_relation_v4 or is_reuse_supported_for(self.data_link_strategy)):
             return method(*args, existing_context=existing_context, **kwargs)
         return method(*args, **kwargs)
 
@@ -2197,9 +2219,11 @@ class DataLink(models.Model):
         existing_databus = (
             existing_context.claim(
                 DataBusConfig,
-                lambda component: not any(
-                    sink_name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
-                    for sink_name in component.sink_names
+                lambda component: (
+                    not any(
+                        sink_name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
+                        for sink_name in component.sink_names
+                    )
                 ),
             )
             if existing_context is not None
@@ -2447,10 +2471,28 @@ class DataLink(models.Model):
         consumer_group: str | None = kwargs.pop("consumer_group", None)
         persist_graph_write_mode = kwargs.pop("persist_graph_write_mode", True)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
-        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+        is_graph_relation_v4 = self.is_graph_relation_v4(kwargs.get("table_id"))
+        is_legacy_graph_relation = (
+            self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and not is_graph_relation_v4
+        )
+        if is_legacy_graph_relation:
             self._clear_graph_relation_apply_state()
-        storage_type = kwargs.pop("storage_type", self.STORAGE_TYPE_MAP[self.data_link_strategy])
-        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+        storage_type = kwargs.pop("storage_type", None)
+        if storage_type is None:
+            storage_type = self.STORAGE_TYPE_MAP[self.data_link_strategy]
+            if is_graph_relation_v4:
+                from metadata.models.result_table import GraphRelationV4DataLinkOption, ResultTableOption
+
+                option_record = ResultTableOption.objects.get(
+                    bk_tenant_id=self.bk_tenant_id,
+                    table_id=kwargs.get("table_id"),
+                    name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+                )
+                graph_relation_option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
+                storage_type = (
+                    ClusterInfo.TYPE_VM if graph_relation_option.should_write_vm else ClusterInfo.TYPE_SURREALDB
+                )
+        if is_legacy_graph_relation:
             storage_type = self._resolve_graph_relation_storage_type(kwargs.get("write_mode"))
 
         try:
@@ -2471,13 +2513,9 @@ class DataLink(models.Model):
                 },
             )
             should_update_bkbase_rt_storage_type = (
-                self.data_link_strategy
-                in {
-                    self.GRAPH_RELATION_TIME_SERIES,
-                    self.GRAPH_RELATION_V4_TIME_SERIES,
-                }
+                self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
                 and bkbase_rt_record.storage_type != storage_type
-                and (self.data_link_strategy == self.GRAPH_RELATION_V4_TIME_SERIES or persist_graph_write_mode)
+                and (is_graph_relation_v4 or persist_graph_write_mode)
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -2494,13 +2532,11 @@ class DataLink(models.Model):
         )
         existing_context: ExistingComponentContext | None = (
             ExistingComponentContext.from_datalink(self)
-            if enable_reuse
-            or self.data_link_strategy == self.GRAPH_RELATION_V4_TIME_SERIES
-            or force_cleanup_absent_components
+            if enable_reuse or is_graph_relation_v4 or force_cleanup_absent_components
             else None
         )
 
-        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+        if is_legacy_graph_relation:
             kwargs["persist_write_mode"] = persist_graph_write_mode
             return self._apply_graph_relation_data_link_in_transaction(
                 args=args,
@@ -2544,12 +2580,12 @@ class DataLink(models.Model):
                 self.data_link_name,
                 e,
             )
-            if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            if is_legacy_graph_relation:
                 self._clear_graph_relation_apply_state()
             raise
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
-            if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            if is_legacy_graph_relation:
                 self._clear_graph_relation_apply_state()
             raise e
 
@@ -2569,13 +2605,13 @@ class DataLink(models.Model):
             response = self.apply_data_link_with_retry(configs)
         except RetryError as e:
             logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
-            if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            if is_legacy_graph_relation:
                 self._clear_graph_relation_apply_state()
             # 抛出底层错误原因，而非直接RetryError
             raise e.__cause__ if e.__cause__ else e
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
-            if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            if is_legacy_graph_relation:
                 self._clear_graph_relation_apply_state()
             raise e
 
@@ -2589,7 +2625,7 @@ class DataLink(models.Model):
         graph_transition_cleanup = None
         graph_write_mode_after_apply = None
         graph_binding_update_after_apply = None
-        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+        if is_legacy_graph_relation:
             graph_transition_cleanup = getattr(self, "_graph_transition_cleanup_after_apply", None)
             graph_write_mode_after_apply = getattr(self, "_graph_write_mode_after_apply", None)
             graph_binding_update_after_apply = getattr(self, "_graph_binding_update_after_apply", None)
@@ -2624,7 +2660,7 @@ class DataLink(models.Model):
                 if graph_transition_cleanup_succeeded:
                     GraphRelationBindingConfig.objects.filter(pk=graph_binding_pk).update(write_mode=target_write_mode)
         finally:
-            if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            if is_legacy_graph_relation:
                 self._clear_graph_relation_apply_state()
         if should_update_bkbase_rt_storage_type and graph_transition_cleanup_succeeded:
             bkbase_rt_record.storage_type = storage_type
@@ -3095,9 +3131,10 @@ class DataLink(models.Model):
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
+        is_graph_relation_v4 = self.is_graph_relation_v4(table_id)
         rt_name: str | None = None
         databus_class: type[DataBusConfig | GraphDataBusConfig] = DataBusConfig
-        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and not is_graph_relation_v4:
             graph_binding = self._get_graph_relation_binding()
             if graph_binding:
                 if graph_binding.should_write_vm:
@@ -3140,7 +3177,7 @@ class DataLink(models.Model):
         )
         if rt_name:
             rt_queryset = rt_queryset.filter(name=rt_name)
-        elif self.data_link_strategy == self.GRAPH_RELATION_V4_TIME_SERIES:
+        elif is_graph_relation_v4:
             rt_queryset = rt_queryset.filter(
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
@@ -3169,7 +3206,7 @@ class DataLink(models.Model):
             data_link_name=self.data_link_name,
         )
         databus_name = rt_name
-        if rt_name and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+        if rt_name and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and not is_graph_relation_v4:
             graph_binding = self._get_graph_relation_binding()
             if graph_binding:
                 if databus_class is GraphDataBusConfig and rt_name == graph_binding.graph_result_table_name:
@@ -3178,7 +3215,7 @@ class DataLink(models.Model):
                     databus_name = graph_binding.vm_databus_component_name
         if databus_name:
             databus_queryset = databus_queryset.filter(name=databus_name)
-        elif self.data_link_strategy == self.GRAPH_RELATION_V4_TIME_SERIES:
+        elif is_graph_relation_v4:
             sink_kind = (
                 DataLinkKind.SURREALDBBINDING.value
                 if resolved_storage_type == ClusterInfo.TYPE_SURREALDB

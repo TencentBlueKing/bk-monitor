@@ -1014,7 +1014,7 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     components = [component for component in components if component is not models.GraphRelationBindingConfig]
     graph_binding = None
     all_components_ok = True
-    if data_link_strategy == models.DataLink.GRAPH_RELATION_TIME_SERIES:
+    if data_link_strategy == models.DataLink.GRAPH_RELATION_TIME_SERIES and not data_link_ins.is_graph_relation_v4():
         graph_binding = models.GraphRelationBindingConfig.objects.filter(
             bk_tenant_id=bk_tenant_id,
             namespace=namespace,
