@@ -27,7 +27,10 @@ from metadata.task.sync_cmdb_relation import (
     enable_relation_surrealdb_dual_write,
 )
 
-pytestmark = pytest.mark.django_db(databases="__all__")
+pytestmark = [
+    pytest.mark.django_db(databases="__all__"),
+    pytest.mark.skip(reason="legacy GraphRelationBindingConfig entry is disabled"),
+]
 
 
 def _create_graph_relation_child_components(

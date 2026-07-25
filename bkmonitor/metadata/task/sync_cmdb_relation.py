@@ -949,7 +949,6 @@ def sync_relation_redis_data():
     existing_time_series_groups_dict = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
-    enabled_graph_dual_write_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
     for field, value in redis_data.items():
         try:
             # 将json解析放在try中，确保value是有效的JSON字符串
@@ -1016,8 +1015,6 @@ def sync_relation_redis_data():
                 value_dict["token"] = builtin_token
                 value_dict["modifyTime"] = new_modify_time
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
-                    _enable_relation_surrealdb_dual_write_best_effort(ds, bk_tenant_id, biz_id)
                 logger.info(
                     "sync_relation_redis_data: Update Data For Field->[%s],has completed,value->[%s]", key, value_dict
                 )
@@ -1074,8 +1071,6 @@ def sync_relation_redis_data():
                 value_dict["token"] = builtin_token
                 value_dict["modifyTime"] = int(ts_group.last_modify_time.timestamp())
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
-                    _enable_relation_surrealdb_dual_write_best_effort(ds, bk_tenant_id, biz_id)
                 logger.info(
                     "sync_relation_redis_data: Create Data For Field->[%s],has completed,value->[%s]",
                     key,

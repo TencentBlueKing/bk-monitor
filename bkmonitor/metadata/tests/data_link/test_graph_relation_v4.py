@@ -115,7 +115,7 @@ def graph_relation_v4_records():
     }
 
 
-def test_graph_relation_strategy_dispatches_by_result_table_option(mocker, graph_relation_v4_records):
+def test_graph_relation_strategy_only_dispatches_v4_compose(mocker, graph_relation_v4_records):
     ctx = graph_relation_v4_records
     legacy_compose = mocker.patch.object(
         ctx["data_link"],
@@ -134,29 +134,27 @@ def test_graph_relation_strategy_dispatches_by_result_table_option(mocker, graph
         table_id=ctx["table_id"],
     )
 
-    legacy_compose.assert_called_once()
-    v4_compose.assert_not_called()
-
-    models.ResultTableOption.objects.create(
-        bk_tenant_id="system",
-        table_id=ctx["table_id"],
-        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
-        value=json.dumps({"write_targets": ["vm"]}),
-        value_type=models.ResultTableOption.TYPE_STRING,
-        creator="system",
-    )
-    legacy_compose.reset_mock()
-
-    ctx["data_link"].compose_configs(
-        bk_biz_id=2,
-        data_source=ctx["data_source"],
-        table_id=ctx["table_id"],
-    )
-
     legacy_compose.assert_not_called()
     v4_compose.assert_called_once()
     assert ctx["data_link"].data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     assert not hasattr(DataLink, "GRAPH_RELATION_V4_TIME_SERIES")
+
+
+def test_graph_relation_apply_rejects_legacy_entry_without_option(graph_relation_v4_records):
+    ctx = graph_relation_v4_records
+
+    with pytest.raises(ValueError, match="legacy graph relation entry is disabled"):
+        ctx["data_link"].apply_data_link(
+            bk_biz_id=2,
+            data_source=ctx["data_source"],
+            table_id=ctx["table_id"],
+            storage_cluster_name=ctx["vm_cluster"].cluster_name,
+        )
+
+    assert not models.BkBaseResultTable.objects.filter(
+        bk_tenant_id="system",
+        data_link_name=ctx["data_link"].data_link_name,
+    ).exists()
 
 
 @pytest.mark.parametrize(
@@ -184,6 +182,12 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
+    expected_component_classes = [ResultTableConfig]
+    if "vm" in write_targets:
+        expected_component_classes.append(VMStorageBindingConfig)
+    if "surrealdb" in write_targets:
+        expected_component_classes.append(SurrealDBBindingConfig)
+    expected_component_classes.append(DataBusConfig)
 
     configs = ctx["data_link"].compose_graph_relation_v4_time_series_configs(
         bk_biz_id=2,
@@ -193,6 +197,7 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
         existing_context=ExistingComponentContext.from_datalink(ctx["data_link"]),
     )
 
+    assert ctx["data_link"].get_related_component_classes() == expected_component_classes
     assert [config["kind"] for config in configs] == expected_kinds
     assert not GraphRelationBindingConfig.objects.filter(data_link_name=ctx["data_link"].data_link_name).exists()
     if "surrealdb" in write_targets:

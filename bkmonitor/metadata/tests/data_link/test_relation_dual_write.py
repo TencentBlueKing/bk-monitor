@@ -28,7 +28,10 @@ from metadata.models.data_link.data_link_configs import (
 from metadata.models.storage import StorageClusterRecord, SurrealDBStorage
 from metadata.models.space.constants import EtlConfigs
 
-pytestmark = pytest.mark.django_db(databases="__all__")
+pytestmark = [
+    pytest.mark.django_db(databases="__all__"),
+    pytest.mark.skip(reason="legacy GraphRelationBindingConfig entry is disabled"),
+]
 
 
 @pytest.fixture(autouse=True)

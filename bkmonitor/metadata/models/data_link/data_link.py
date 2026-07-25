@@ -49,10 +49,8 @@ from metadata.models.data_link.data_link_configs import (
     DataIdConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
-    ExpandableGroup,
     GraphDataBusConfig,
     GraphRelationBindingConfig,
-    GraphRelationConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -192,20 +190,16 @@ class DataLink(models.Model):
             DataBusConfig,
         ],
         GRAPH_RELATION_TIME_SERIES: [
-            GraphRelationConfig,
-            GraphRelationBindingConfig,
+            ResultTableConfig,
+            VMStorageBindingConfig,
+            SurrealDBBindingConfig,
+            DataBusConfig,
         ],
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
-    }
-
-    # 删除链路时使用的入口组件。
-    # 图关系链路的实际子资源由 GraphRelationBindingConfig.delete_config 按写入模式清理。
-    STRATEGY_DELETE_COMPONENTS: dict[str, list[type["DataLinkResourceConfigBase"]]] = {
-        GRAPH_RELATION_TIME_SERIES: [GraphRelationBindingConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -215,7 +209,7 @@ class DataLink(models.Model):
         BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASEREPORT_TIME_SERIES_V1: ClusterInfo.TYPE_VM,
-        GRAPH_RELATION_TIME_SERIES: ClusterInfo.TYPE_SURREALDB,
+        GRAPH_RELATION_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASE_EVENT_V1: ClusterInfo.TYPE_ES,
         SYSTEM_PROC_PERF: ClusterInfo.TYPE_VM,
         SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
@@ -232,6 +226,7 @@ class DataLink(models.Model):
     # key   : (data_link_strategy, component kind)
     # value : "strict" 表示 compose 完成后该 kind 的未消费组件视为脏数据，直接报错；
     #         "keep"   表示允许既有组件残留（既不报错也不删除，也不参与本次下发）。
+    #         "delete" 表示 apply 成功后删除未被本次 compose 返回的组件。
     # 未声明的 (strategy, kind) 默认按 "strict" 处理。
     REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep", "delete"]] = {
         # 日志在 ES / Doris 间切换时，需要保留旧存储绑定以支持历史分段查询；
@@ -264,20 +259,6 @@ class DataLink(models.Model):
         """删除数据链路"""
         logger.info("delete_data_link: data_link_name->[%s]", self.data_link_name)
         component_classes = self.get_delete_component_classes()
-        graph_orphan_surrealdb_table_ids: list[str] = []
-        if (
-            self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
-            and component_classes == [GraphRelationBindingConfig]
-            and not GraphRelationBindingConfig.objects.filter(data_link_name=self.data_link_name).exists()
-        ):
-            graph_orphan_surrealdb_table_ids = list(
-                SurrealDBBindingConfig.objects.filter(data_link_name=self.data_link_name).values_list(
-                    "table_id", flat=True
-                )
-            )
-            component_classes = self.get_related_component_classes(
-                write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
-            )
         for component_class in reversed(component_classes):
             components = component_class.objects.filter(data_link_name=self.data_link_name)
             for component in components:
@@ -288,77 +269,31 @@ class DataLink(models.Model):
                     component.name,
                 )
                 component.delete_config()
-        if graph_orphan_surrealdb_table_ids:
-            self._delete_graph_surrealdb_storage_records(graph_orphan_surrealdb_table_ids)
         self.delete()
 
-    def _delete_graph_surrealdb_storage_records(self, table_ids: list[str]) -> None:
-        """Clean local SurrealDB storage metadata when graph binding anchor is already missing."""
-        if not table_ids:
-            return
-        from metadata.models.storage import ClusterInfo, StorageClusterRecord
+    def get_related_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            from metadata.models.result_table import GraphRelationV4DataLinkOption, ResultTableOption
 
-        storages = SurrealDBStorage.objects.filter(
-            table_id__in=table_ids,
-            bk_tenant_id=self.bk_tenant_id,
-        )
-        storage_cluster_ids = set(storages.values_list("storage_cluster_id", flat=True))
-        storage_cluster_ids.update(
-            ClusterInfo.objects.filter(
+            option_record = ResultTableOption.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                cluster_type=ClusterInfo.TYPE_SURREALDB,
-            ).values_list("cluster_id", flat=True)
-        )
-        storages.delete()
-        if storage_cluster_ids:
-            StorageClusterRecord.objects.filter(
-                table_id__in=table_ids,
-                bk_tenant_id=self.bk_tenant_id,
-                cluster_id__in=storage_cluster_ids,
-            ).delete()
+                table_id__in=self.table_ids,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            ).first()
+            if option_record is not None:
+                option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
+                component_classes = [ResultTableConfig]
+                if option.should_write_vm:
+                    component_classes.append(VMStorageBindingConfig)
+                if option.should_write_surrealdb:
+                    component_classes.append(SurrealDBBindingConfig)
+                component_classes.append(DataBusConfig)
+                return component_classes
 
-    def get_related_component_classes(self, write_mode: str | None = None) -> list[type["DataLinkResourceConfigBase"]]:
-        if self.is_graph_relation_v4():
-            return [
-                ResultTableConfig,
-                VMStorageBindingConfig,
-                SurrealDBBindingConfig,
-                DataBusConfig,
-            ]
-
-        if write_mode is None and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
-            graph_binding = self._get_graph_relation_binding()
-            if graph_binding:
-                write_mode = graph_binding.write_mode
-
-        component_classes: list[type[DataLinkResourceConfigBase]] = []
-        for cls in self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]:
-            if isinstance(cls, type) and issubclass(cls, ExpandableGroup):
-                component_classes.extend(cls.expand(write_mode))
-            else:
-                component_classes.append(cls)
-        return list(dict.fromkeys(component_classes))
+        return list(dict.fromkeys(self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]))
 
     def get_delete_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
-        if self.is_graph_relation_v4():
-            return self.get_related_component_classes()
-        return self.STRATEGY_DELETE_COMPONENTS.get(self.data_link_strategy) or self.get_related_component_classes()
-
-    def is_graph_relation_v4(self, table_id: str | None = None) -> bool:
-        """判断当前 Graph strategy 是否由 ResultTableOption 驱动。"""
-        if self.data_link_strategy != self.GRAPH_RELATION_TIME_SERIES:
-            return False
-
-        from metadata.models.result_table import ResultTableOption
-
-        table_ids = [table_id] if table_id else self.table_ids
-        if not table_ids:
-            return False
-        return ResultTableOption.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            table_id__in=table_ids,
-            name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
-        ).exists()
+        return self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
 
     def compose_configs(
         self,
@@ -375,8 +310,6 @@ class DataLink(models.Model):
         透传给尚未改造的 strategy。
         """
 
-        is_graph_relation_v4 = self.is_graph_relation_v4(kwargs.get("table_id"))
-
         # 类似switch的形式，选择对应的组装方式
         switcher = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs,
@@ -385,11 +318,7 @@ class DataLink(models.Model):
             DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_bcs_federal_proxy_time_series_configs,
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
             DataLink.BASEREPORT_TIME_SERIES_V1: self.compose_basereport_time_series_configs,
-            DataLink.GRAPH_RELATION_TIME_SERIES: (
-                self.compose_graph_relation_v4_time_series_configs
-                if is_graph_relation_v4
-                else self.compose_graph_relation_time_series_configs
-            ),
+            DataLink.GRAPH_RELATION_TIME_SERIES: self.compose_graph_relation_v4_time_series_configs,
             DataLink.BASE_EVENT_V1: self.compose_base_event_configs,
             DataLink.SYSTEM_PROC_PERF: partial(
                 self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PERF
@@ -402,7 +331,7 @@ class DataLink(models.Model):
         }
         method = switcher[self.data_link_strategy]
         kwargs["consumer_group"] = consumer_group
-        if existing_context is not None and (is_graph_relation_v4 or is_reuse_supported_for(self.data_link_strategy)):
+        if existing_context is not None and is_reuse_supported_for(self.data_link_strategy):
             return method(*args, existing_context=existing_context, **kwargs)
         return method(*args, **kwargs)
 
@@ -2472,31 +2401,31 @@ class DataLink(models.Model):
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         consumer_group: str | None = kwargs.pop("consumer_group", None)
-        persist_graph_write_mode = kwargs.pop("persist_graph_write_mode", True)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
-        is_graph_relation_v4 = self.is_graph_relation_v4(kwargs.get("table_id"))
-        is_legacy_graph_relation = (
-            self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and not is_graph_relation_v4
-        )
-        if is_legacy_graph_relation:
-            self._clear_graph_relation_apply_state()
+        graph_relation_option = None
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            from metadata.models.result_table import GraphRelationV4DataLinkOption, ResultTableOption
+
+            option_record = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=kwargs.get("table_id"),
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            ).first()
+            if option_record is None:
+                raise ValueError(
+                    "apply_data_link: legacy graph relation entry is disabled, "
+                    f"table_id({kwargs.get('table_id')}) requires "
+                    f"{ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK} option"
+                )
+            graph_relation_option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
+
         storage_type = kwargs.pop("storage_type", None)
         if storage_type is None:
             storage_type = self.STORAGE_TYPE_MAP[self.data_link_strategy]
-            if is_graph_relation_v4:
-                from metadata.models.result_table import GraphRelationV4DataLinkOption, ResultTableOption
-
-                option_record = ResultTableOption.objects.get(
-                    bk_tenant_id=self.bk_tenant_id,
-                    table_id=kwargs.get("table_id"),
-                    name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
-                )
-                graph_relation_option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
+            if graph_relation_option is not None:
                 storage_type = (
                     ClusterInfo.TYPE_VM if graph_relation_option.should_write_vm else ClusterInfo.TYPE_SURREALDB
                 )
-        if is_legacy_graph_relation:
-            storage_type = self._resolve_graph_relation_storage_type(kwargs.get("write_mode"))
 
         try:
             # NOTE:新链路下，data_link_name和bkbase_data_name一致
@@ -2518,7 +2447,6 @@ class DataLink(models.Model):
             should_update_bkbase_rt_storage_type = (
                 self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
                 and bkbase_rt_record.storage_type != storage_type
-                and (is_graph_relation_v4 or persist_graph_write_mode)
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -2535,21 +2463,11 @@ class DataLink(models.Model):
         )
         existing_context: ExistingComponentContext | None = (
             ExistingComponentContext.from_datalink(self)
-            if enable_reuse or is_graph_relation_v4 or force_cleanup_absent_components
+            if enable_reuse
+            or self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
+            or force_cleanup_absent_components
             else None
         )
-
-        if is_legacy_graph_relation:
-            kwargs["persist_write_mode"] = persist_graph_write_mode
-            return self._apply_graph_relation_data_link_in_transaction(
-                args=args,
-                kwargs=kwargs,
-                existing_context=existing_context,
-                bkbase_rt_record=bkbase_rt_record,
-                storage_type=storage_type,
-                should_update_bkbase_rt_storage_type=should_update_bkbase_rt_storage_type,
-                consumer_group=consumer_group,
-            )
 
         # 把 compose（含内部 update_or_create）和 leftover 校验放进同一个外层事务：
         #
@@ -2583,13 +2501,9 @@ class DataLink(models.Model):
                 self.data_link_name,
                 e,
             )
-            if is_legacy_graph_relation:
-                self._clear_graph_relation_apply_state()
             raise
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
-            if is_legacy_graph_relation:
-                self._clear_graph_relation_apply_state()
             raise e
 
         configs = self.merge_existing_component_configs(configs)
@@ -2608,14 +2522,10 @@ class DataLink(models.Model):
             response = self.apply_data_link_with_retry(configs)
         except RetryError as e:
             logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
-            if is_legacy_graph_relation:
-                self._clear_graph_relation_apply_state()
             # 抛出底层错误原因，而非直接RetryError
             raise e.__cause__ if e.__cause__ else e
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
-            if is_legacy_graph_relation:
-                self._clear_graph_relation_apply_state()
             raise e
 
         logger.info(
@@ -2625,47 +2535,7 @@ class DataLink(models.Model):
             response,
         )
         self._cleanup_absent_components(components_to_delete)
-        graph_transition_cleanup = None
-        graph_write_mode_after_apply = None
-        graph_binding_update_after_apply = None
-        if is_legacy_graph_relation:
-            graph_transition_cleanup = getattr(self, "_graph_transition_cleanup_after_apply", None)
-            graph_write_mode_after_apply = getattr(self, "_graph_write_mode_after_apply", None)
-            graph_binding_update_after_apply = getattr(self, "_graph_binding_update_after_apply", None)
-        graph_transition_cleanup_succeeded = True
-        try:
-            if graph_transition_cleanup:
-                cleanup_graph_binding, cleanup_write_mode = graph_transition_cleanup
-                try:
-                    cleanup_graph_binding.transition_write_mode(cleanup_write_mode)
-                except Exception as e:  # pylint: disable=broad-except
-                    graph_transition_cleanup_succeeded = False
-                    logger.warning(
-                        "apply_data_link: data_link_name->[%s] cleanup graph write_mode transition failed, "
-                        "write_mode->[%s], error->[%s]",
-                        self.data_link_name,
-                        cleanup_write_mode,
-                        e,
-                    )
-                    raise
-            if graph_binding_update_after_apply and graph_transition_cleanup_succeeded:
-                graph_binding_lookup, graph_binding_defaults = graph_binding_update_after_apply
-                graph_binding_defaults = {
-                    **graph_binding_defaults,
-                    "status": DataLinkResourceStatus.INITIALIZING.value,
-                }
-                GraphRelationBindingConfig.objects.update_or_create(
-                    **graph_binding_lookup,
-                    defaults=graph_binding_defaults,
-                )
-            if graph_write_mode_after_apply:
-                graph_binding_pk, target_write_mode = graph_write_mode_after_apply
-                if graph_transition_cleanup_succeeded:
-                    GraphRelationBindingConfig.objects.filter(pk=graph_binding_pk).update(write_mode=target_write_mode)
-        finally:
-            if is_legacy_graph_relation:
-                self._clear_graph_relation_apply_state()
-        if should_update_bkbase_rt_storage_type and graph_transition_cleanup_succeeded:
+        if should_update_bkbase_rt_storage_type:
             bkbase_rt_record.storage_type = storage_type
             bkbase_rt_record.save(update_fields=["storage_type"])
 
@@ -2972,8 +2842,8 @@ class DataLink(models.Model):
     def _check_leftover_or_raise(self, ctx: "ExistingComponentContext") -> None:
         """基于 leftover 策略判定是否抛出 :class:`ComponentReuseError`。
 
-        只把 ``strict`` 策略对应 kind 的残留视作违规；``keep`` 策略的残留会被忽略
-        （既不删除、也不本次复用），用于兼容短期脏数据场景。
+        只把 ``strict`` 策略对应 kind 的残留视作违规；``keep`` 和 ``delete`` 都允许
+        compose 继续，后者会在 BKBase apply 成功后由期望状态收敛逻辑删除。
         """
         leftover_map = ctx.leftover()
         if not leftover_map:
@@ -3134,22 +3004,6 @@ class DataLink(models.Model):
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
-        is_graph_relation_v4 = self.is_graph_relation_v4(table_id)
-        rt_name: str | None = None
-        databus_class: type[DataBusConfig | GraphDataBusConfig] = DataBusConfig
-        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and not is_graph_relation_v4:
-            graph_binding = self._get_graph_relation_binding()
-            if graph_binding:
-                if graph_binding.should_write_vm:
-                    rt_name = graph_binding.bkbase_result_table_name
-                    storage_cluster_name = graph_binding.vm_cluster_name or storage_cluster_name
-                    storage_type = ClusterInfo.TYPE_VM
-                elif graph_binding.should_write_surrealdb:
-                    rt_name = graph_binding.graph_result_table_name or self.compose_surrealdb_table_name(table_id)
-                    storage_cluster_name = graph_binding.surrealdb_cluster_name or storage_cluster_name
-                    storage_type = ClusterInfo.TYPE_SURREALDB
-                    databus_class = GraphDataBusConfig
-
         try:
             if storage_cluster_id is not None:
                 cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=storage_cluster_id)
@@ -3178,9 +3032,7 @@ class DataLink(models.Model):
             data_link_name=self.data_link_name,
             table_id=table_id,
         )
-        if rt_name:
-            rt_queryset = rt_queryset.filter(name=rt_name)
-        elif is_graph_relation_v4:
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
             rt_queryset = rt_queryset.filter(
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
@@ -3203,22 +3055,12 @@ class DataLink(models.Model):
                 rt.name if rt else "",
             )
 
-        databus_queryset = databus_class.objects.filter(
+        databus_queryset = DataBusConfig.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
             namespace=self.namespace,
             data_link_name=self.data_link_name,
         )
-        databus_name = rt_name
-        if rt_name and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and not is_graph_relation_v4:
-            graph_binding = self._get_graph_relation_binding()
-            if graph_binding:
-                if databus_class is GraphDataBusConfig and rt_name == graph_binding.graph_result_table_name:
-                    databus_name = graph_binding.graph_databus_component_name
-                elif databus_class is DataBusConfig and rt_name == graph_binding.bkbase_result_table_name:
-                    databus_name = graph_binding.vm_databus_component_name
-        if databus_name:
-            databus_queryset = databus_queryset.filter(name=databus_name)
-        elif is_graph_relation_v4:
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
             sink_kind = (
                 DataLinkKind.SURREALDBBINDING.value
                 if resolved_storage_type == ClusterInfo.TYPE_SURREALDB

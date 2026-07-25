@@ -168,7 +168,7 @@ def test_sync_relation_redis_data_skips_graph_dual_write_when_whitelist_empty(cr
 
 @pytest.mark.django_db(databases="__all__")
 @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
-def test_sync_relation_redis_data_calls_graph_dual_write_for_whitelisted_biz(create_and_delete_records):
+def test_sync_relation_redis_data_does_not_enter_legacy_graph_dual_write(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -182,13 +182,12 @@ def test_sync_relation_redis_data_calls_graph_dual_write_for_whitelisted_biz(cre
     ):
         sync_relation_redis_data()
 
-    assert [call_args.args[0].bk_data_id for call_args in mock_enable_dual_write.call_args_list] == [50010]
-    assert [call_args.args[2] for call_args in mock_enable_dual_write.call_args_list] == [2]
+    mock_enable_dual_write.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")
 @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST="2, invalid, 3")
-def test_sync_relation_redis_data_accepts_comma_separated_whitelist(create_and_delete_records):
+def test_sync_relation_redis_data_ignores_legacy_graph_dual_write_whitelist(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -202,7 +201,7 @@ def test_sync_relation_redis_data_accepts_comma_separated_whitelist(create_and_d
     ):
         sync_relation_redis_data()
 
-    assert [call_args.args[2] for call_args in mock_enable_dual_write.call_args_list] == [2, 3]
+    mock_enable_dual_write.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")

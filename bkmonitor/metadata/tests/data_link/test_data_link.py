@@ -78,6 +78,8 @@ from metadata.task.tasks import (
 )
 from metadata.tests.common_utils import consul_client
 
+LEGACY_GRAPH_RELATION_TEST = pytest.mark.skip(reason="legacy GraphRelationBindingConfig entry is disabled")
+
 
 def _create_simple_rebuild_result_table(
     table_id: str,
@@ -7031,6 +7033,7 @@ def test_sync_metadata_storage_type_mismatch_skips(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_compose_rejects_empty_definitions(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7089,6 +7092,7 @@ def test_graph_relation_compose_rejects_empty_definitions(create_or_delete_recor
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_compose_uses_synced_non_default_surrealdb_cluster(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7125,6 +7129,7 @@ def test_graph_relation_compose_uses_synced_non_default_surrealdb_cluster(create
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_compose_preserves_existing_child_component_names(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7346,6 +7351,7 @@ def test_es_cluster_config_uses_cluster_schema(schema, expected_schema):
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7433,6 +7439,7 @@ def test_graph_databus_proxy_manager_filters_graph_records():
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_delete_graph_relation_data_link_falls_back_when_binding_missing(mocker):
     data_link = DataLink.objects.create(
         bk_tenant_id="system",
@@ -7728,6 +7735,7 @@ def test_graph_relation_transition_to_vm_keeps_vm_storage_cluster_record(create_
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_apply_failure_keeps_existing_write_mode(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7771,6 +7779,7 @@ def test_graph_relation_apply_failure_keeps_existing_write_mode(create_or_delete
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_apply_success_persists_deferred_binding_update(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7807,6 +7816,7 @@ def test_graph_relation_apply_success_persists_deferred_binding_update(create_or
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_apply_reuses_existing_short_binding_name(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7840,6 +7850,7 @@ def test_graph_relation_apply_reuses_existing_short_binding_name(create_or_delet
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_apply_transient_write_mode_keeps_desired_mode(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7882,6 +7893,7 @@ def test_graph_relation_apply_transient_write_mode_keeps_desired_mode(create_or_
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_apply_raises_post_apply_cleanup_error(mocker):
     datalink = DataLink.objects.create(
         data_link_name="graph_cleanup_test",
@@ -8051,6 +8063,7 @@ def test_surrealdb_cluster_in_bkbase_v4_storage_sync_configs():
 
 
 @pytest.mark.django_db(databases="__all__")
+@LEGACY_GRAPH_RELATION_TEST
 def test_graph_relation_apply_failure_clears_deferred_transition_state(mocker):
     datalink = DataLink.objects.create(
         data_link_name="graph_cleanup_failed_attempt",
