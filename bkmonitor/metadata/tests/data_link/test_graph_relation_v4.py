@@ -205,6 +205,69 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
         assert graph_databus["spec"]["autoOffsetReset"] == "earliest"
 
 
+def test_graph_relation_v4_transfer_consumer_group_only_applies_to_vm(graph_relation_v4_records):
+    ctx = graph_relation_v4_records
+    transfer_consumer_group = "bkmonitorv3_transfer_graph_relation_v4"
+    graph_databus_name = ctx["data_link"].compose_surrealdb_table_name(ctx["table_id"])
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["vm", "surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    DataBusConfig.objects.create(
+        name=graph_databus_name,
+        data_id_name="bkm_graph_relation_v4_metric",
+        data_link_name=ctx["data_link"].data_link_name,
+        namespace=ctx["data_link"].namespace,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        bk_data_id=ctx["data_source"].bk_data_id,
+        sink_names=[f"SurrealDBBinding:{graph_databus_name}"],
+        consumer_group=transfer_consumer_group,
+    )
+
+    configs = ctx["data_link"].compose_graph_relation_v4_time_series_configs(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+        storage_cluster_name=ctx["vm_cluster"].cluster_name,
+        existing_context=ExistingComponentContext.from_datalink(ctx["data_link"]),
+        consumer_group=transfer_consumer_group,
+    )
+
+    vm_databus = next(
+        config
+        for config in configs
+        if config["kind"] == "Databus" and config["spec"]["sinks"][0]["kind"] == "VmStorageBinding"
+    )
+    graph_databus = next(
+        config
+        for config in configs
+        if config["kind"] == "Databus" and config["spec"]["sinks"][0]["kind"] == "SurrealDBBinding"
+    )
+    assert vm_databus["spec"]["consumerGroup"] == transfer_consumer_group
+    assert "consumerGroup" not in graph_databus["spec"]
+    assert (
+        DataBusConfig.objects.get(
+            bk_tenant_id="system",
+            namespace=ctx["data_link"].namespace,
+            name=vm_databus["metadata"]["name"],
+        ).consumer_group
+        == transfer_consumer_group
+    )
+    assert (
+        DataBusConfig.objects.get(
+            bk_tenant_id="system",
+            namespace=ctx["data_link"].namespace,
+            name=graph_databus["metadata"]["name"],
+        ).consumer_group
+        == ""
+    )
+
+
 def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, graph_relation_v4_records):
     ctx = graph_relation_v4_records
     option_record = models.ResultTableOption.objects.create(

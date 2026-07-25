@@ -92,7 +92,8 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
     target_bk_biz_id = rt.get_target_bk_biz_id()
 
     # 2. 沿用普通 VM 接入的数据源注册规则。非 BKData 数据源需要保留
-    # Transfer consumer group，后续由两组普通 DataBusConfig 共用。
+    # Transfer consumer group，但它只传给 VM DataBus 承接原消费位点；
+    # SurrealDB DataBus 使用独立消费组，避免双写时与 VM 竞争 Kafka 分区。
     consumer_group = None
     data_source_created_from = data_source.created_from
     data_id_name = compose_bkdata_data_id_name(data_source.data_name)

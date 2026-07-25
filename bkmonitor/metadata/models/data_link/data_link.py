@@ -1153,10 +1153,13 @@ class DataLink(models.Model):
                     defaults={
                         "bk_data_id": data_source.bk_data_id,
                         "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
+                        # Transfer consumer group 只用于 VM 分支承接原消费位点。
+                        # SurrealDB 分支必须使用独立消费组，避免与 VM Databus
+                        # 竞争同一 Kafka 分区；同时清理早期错误写入的共享值。
+                        "consumer_group": "",
                         "data_link_strategy": self.data_link_strategy,
                     },
                 )
-                graph_databus.apply_consumer_group(consumer_group)
 
             configs.extend(
                 [
