@@ -43,6 +43,7 @@ interface IProps {
   type?: TimeRangeDisplayType;
   timezone?: string;
   needTimezone?: boolean;
+  maxDuration?: number;
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -55,6 +56,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
+  @Prop({ type: Number }) maxDuration?: number; // 最大可选时间跨度（毫秒），默认不限制
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
     if (v.every(item => typeof item === 'string')) {
@@ -93,6 +95,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           enableFormatClick={true}
           timezone={this.timezone}
           format={this.formatStr}
+          maxDuration={this.maxDuration}
           onChange={this.handleModelValueChange}
           onFormatChange={this.handleFormatChange}
           onTimezoneChange={this.handleTimezoneChange}

@@ -82,12 +82,18 @@ export default class App extends VuexModule implements IAppState {
             .split(',')
             .map(str => str.charAt(0))
             .join('');
-          return {
+          // freeze 退出 Vue 深度响应式，避免切换业务时 _traverse 遍历数十万业务对象
+          return Object.freeze({
             ...item,
             py_text: pyText,
             pyf_text: pyfText,
-          };
+            // 大列表搜索预计算，避免业务选择器循环内反复 toLocaleLowerCase / 模板字符串
+            space_name_lc: (item.space_name || '').toLocaleLowerCase(),
+            space_id_lc: `${item.space_id ?? ''}`.toLocaleLowerCase(),
+            id_str: `${item.id}`,
+          });
         });
+        this.bizList = Object.freeze(this.bizList);
         this.spaceUidMap = new Map(this.bizList.map(item => [item.space_uid, item]));
         this.bizIdMap = new Map(this.bizList.map(item => [item.bk_biz_id, item]));
         continue;

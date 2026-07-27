@@ -96,6 +96,14 @@ class AppStore extends VuexModule implements IAppState {
   @Mutation
   SET_APP_STATE(data: IAppState) {
     Object.keys(data).forEach(key => {
+      if (key === 'bizList') {
+        const value = data.bizList || [];
+        const list = Object.isFrozen(value) ? value : value.slice();
+        // 在写入 Vuex 前冻结根数组，阻止 Vue 2 深度观测海量业务对象
+        Object.freeze(list);
+        this.bizList = list;
+        return;
+      }
       this[key] = data[key];
     });
   }

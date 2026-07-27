@@ -127,7 +127,7 @@ export default defineComponent({
 
     const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
     const spaceUid = computed(() => store.getters.spaceUid); // 空间ID
-    const globalsData = computed(() => store.getters.globalsData);
+    const globalsData = computed(() => store.getters['globals/globalsData']);
     const authorityMapComputed = computed(() => authorityMap); // 权限映射
 
     // 从路由查询参数获取初始 tab 值
