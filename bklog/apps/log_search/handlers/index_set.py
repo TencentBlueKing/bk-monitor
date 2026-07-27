@@ -1397,27 +1397,27 @@ class IndexSetHandler(APIModel):
                 is_deleted=False, search_type="default", created_at__range=[start_time, end_time], created_by=username
             ).order_by("-created_at")
         history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
-        index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
-        detail_data = list(
-            LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
+        index_set_ids = [history["index_set_id"] for history in history_data]
+        detail_by_index_set_id = {
+            detail["index_set_id"]: detail
+            for detail in LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
                 "index_set_id", "index_set_name", "space_uid"
             )
-        )
+        }
         return_data = []
         for history in history_data:
-            for detail in detail_data:
-                if detail["index_set_id"] == history["index_set_id"]:
-                    if space_uid and space_uid != detail["space_uid"]:
-                        continue
-                    search_data = {
-                        "index_set_id": history["index_set_id"],
-                        "created_at": history["created_at"],
-                        "params": history["params"],
-                        "duration": history["duration"],
-                        "index_set_name": detail["index_set_name"],
-                        "space_uid": detail["space_uid"],
-                    }
-                    return_data.append(search_data)
+            detail = detail_by_index_set_id.get(history["index_set_id"])
+            if not detail or (space_uid and space_uid != detail["space_uid"]):
+                continue
+            search_data = {
+                "index_set_id": history["index_set_id"],
+                "created_at": history["created_at"],
+                "params": history["params"],
+                "duration": history["duration"],
+                "index_set_name": detail["index_set_name"],
+                "space_uid": detail["space_uid"],
+            }
+            return_data.append(search_data)
         return_data = return_data[: int(limit)]
         return return_data
 
