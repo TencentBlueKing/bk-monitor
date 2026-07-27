@@ -81,7 +81,7 @@ export interface IHostColumnConfig {
   /** 是否可排序 */
   sortable?: boolean;
   /** 单元格渲染类型，驱动表格 View 选择渲染器 */
-  type: 'alarm' | 'cluster' | 'ip' | 'metric' | 'module' | 'process' | 'status' | 'text' | 'checkbox';
+  type: 'alarm' | 'checkbox' | 'cluster' | 'ip' | 'metric' | 'module' | 'process' | 'status' | 'text';
   /** 列宽 */
   width?: number;
 }
@@ -112,7 +112,7 @@ export const HOST_LIST_COLUMNS: IHostColumnConfig[] = [
 ];
 
 /** 数值类指标过滤操作符（支持 > >= < <= =） */
-const NUMBER_METHODS = [
+export const NUMBER_METHODS = [
   { value: 'gt', alias: '>' },
   { value: 'gte', alias: '>=' },
   { value: 'lt', alias: '<' },

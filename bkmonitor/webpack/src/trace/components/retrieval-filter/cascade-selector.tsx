@@ -79,7 +79,7 @@ export default defineComponent({
 
       list.value = res.list;
       setTimeout(() => {
-        cascaderRef.value?.$el?.querySelector('.bk-cascader-name')?.click?.();
+        cascaderRef.value?.popover?.show?.();
       }, 200);
     });
 
@@ -103,6 +103,7 @@ export default defineComponent({
         popoverOptions={{
           boundary: 'parent',
         }}
+        checkAnyLevel={true}
         list={this.list}
         modelValue={this.modelValue}
         trigger='click'

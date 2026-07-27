@@ -33,6 +33,8 @@ export const useHostListFilter = (options: { filterOptionsMap: Ref<null | object
   const { filterOptionsMap } = options;
   /** 集群模块字段 id -> name 映射表，用于将级联值路径（每一级 id）还原为可读名称 */
   const clusterModuleOptionsMap = shallowRef(new Map());
+  /** 过滤选项刷新计数器，递增时触发 RetrievalFilter 组件强制重渲染（解决级联数据更新后 UI 不刷新问题） */
+  const refreshKey = shallowRef(0);
 
   /** 递归遍历集群模块选项树，构建 id -> name 映射 */
   const setClusterModuleOptionsMap = option => {
@@ -55,6 +57,7 @@ export const useHostListFilter = (options: { filterOptionsMap: Ref<null | object
             for (const item of filterOptionsMap.value[key]) {
               setClusterModuleOptionsMap(item);
             }
+            refreshKey.value += 1;
             break;
           }
         }
@@ -96,6 +99,7 @@ export const useHostListFilter = (options: { filterOptionsMap: Ref<null | object
     return val;
   };
   return {
+    refreshKey,
     tagValueDisplayFormatter,
   };
 };
