@@ -210,6 +210,51 @@ def test_sync_relation_redis_data_configures_graph_v4_for_whitelist(create_and_d
 
 
 @pytest.mark.django_db(databases="__all__")
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(create_and_delete_records):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    storage_config = {
+        "storage_cluster_id": 900002,
+        "table_type": "temporary",
+        "vertices": [{"name": "host"}],
+        "relations": [{"name": "host_service"}],
+    }
+    models.SurrealDBStorage.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        **storage_config,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_tenant_id="system",
+        bk_data_id=50010,
+        table_id=table_id,
+        creator="system",
+    )
+    models.ResultTableOption.create_option(
+        table_id=table_id,
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value={"write_targets": ["vm", "surrealdb"]},
+        creator="system",
+        bk_tenant_id="system",
+    )
+    redis_data = {b"bkcc__2": b'{"token":"testtokenxxxxxx","modifyTime":"1733132051"}'}
+    with (
+        patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=redis_data),
+        patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0),
+        patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
+        patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
+        patch(
+            "metadata.task.sync_cmdb_relation._compose_relation_graph_v4_storage_config",
+            return_value=storage_config,
+        ),
+        patch("metadata.models.ResultTable.modify", autospec=True) as mock_modify,
+    ):
+        sync_relation_redis_data()
+
+    mock_modify.assert_not_called()
+
+
+@pytest.mark.django_db(databases="__all__")
 @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST="2, invalid, 3")
 def test_sync_relation_redis_data_configures_each_graph_v4_whitelist_biz(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
@@ -500,8 +545,8 @@ def test_enable_relation_graph_v4_uses_result_table_modify(mocker):
     )
     mock_apply = mocker.patch("metadata.models.ResultTable.apply_datalink")
 
-    enable_relation_surrealdb_dual_write(data_source, "system", 2)
-    enable_relation_surrealdb_dual_write(data_source, "system", 2)
+    assert enable_relation_surrealdb_dual_write(data_source, "system", 2) is True
+    assert enable_relation_surrealdb_dual_write(data_source, "system", 2) is False
 
     storage = models.SurrealDBStorage.objects.get(bk_tenant_id="system", table_id=table_id)
     assert storage.storage_cluster_id == 910101
@@ -514,7 +559,7 @@ def test_enable_relation_graph_v4_uses_result_table_modify(mocker):
             "write_targets": ["vm", "surrealdb"],
         },
     }
-    assert mock_apply.call_count == 2
+    mock_apply.assert_called_once()
     assert not models.StorageClusterRecord.objects.filter(
         bk_tenant_id="system",
         table_id=table_id,
@@ -523,6 +568,30 @@ def test_enable_relation_graph_v4_uses_result_table_modify(mocker):
     assert not models.GraphRelationBindingConfig.objects.exists()
     assert not models.GraphDataBusConfig.objects.exists()
     assert not models.DataLink.objects.exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_enable_relation_graph_v4_reapplies_when_graph_definitions_change(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = _create_relation_graph_source(61004, "2_bkcc_built_in_time_series", "system", table_id)
+    _create_relation_graph_clusters("system")
+    query_definitions = mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "host"}], [{"name": "host_service"}]),
+    )
+    mock_apply = mocker.patch("metadata.models.ResultTable.apply_datalink")
+
+    assert enable_relation_surrealdb_dual_write(data_source, "system", 2) is True
+    query_definitions.return_value = (
+        [{"name": "host"}, {"name": "service"}],
+        [{"name": "host_service"}, {"name": "service_module"}],
+    )
+    assert enable_relation_surrealdb_dual_write(data_source, "system", 2) is True
+
+    storage = models.SurrealDBStorage.objects.get(bk_tenant_id="system", table_id=table_id)
+    assert storage.vertices == [{"name": "host"}, {"name": "service"}]
+    assert storage.relations == [{"name": "host_service"}, {"name": "service_module"}]
+    assert mock_apply.call_count == 2
 
 
 @pytest.mark.django_db(databases="__all__")

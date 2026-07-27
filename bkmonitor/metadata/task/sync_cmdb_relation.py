@@ -679,7 +679,7 @@ def _compose_relation_graph_v4_storage_config(bk_tenant_id: str, bk_biz_id: int)
 def _modify_relation_graph_v4_result_table(
     result_table: ResultTable,
     storage_config: dict[str, Any],
-) -> None:
+) -> bool:
     """通过普通 ResultTable 变更流程刷新 Graph V4 storage、option 和异步接入任务。"""
     # storage 和 option 必须原子提交；apply_datalink 内部通过 on_commit
     # 投递 Graph V4 任务，因此异步任务只会看到完整配置。
@@ -687,6 +687,53 @@ def _modify_relation_graph_v4_result_table(
         result_table = (
             ResultTable.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=result_table.pk)
         )
+        desired_graph_option = GraphRelationV4DataLinkOption(write_targets=["vm", "surrealdb"])
+        surrealdb_storage = (
+            SurrealDBStorage.objects.using(config.DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+            )
+            .first()
+        )
+        graph_option_record = (
+            ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            )
+            .first()
+        )
+        current_graph_option = None
+        if graph_option_record is not None:
+            try:
+                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
+            except (TypeError, ValueError):
+                # 非法旧值视为配置变化，交给普通 modify 流程覆盖修复。
+                pass
+
+        storage_unchanged = bool(
+            surrealdb_storage
+            and surrealdb_storage.storage_cluster_id == storage_config["storage_cluster_id"]
+            and surrealdb_storage.table_type == storage_config["table_type"]
+            and _canonical_graph_definitions(surrealdb_storage.vertices)
+            == _canonical_graph_definitions(storage_config["vertices"])
+            and _canonical_graph_definitions(surrealdb_storage.relations)
+            == _canonical_graph_definitions(storage_config["relations"])
+        )
+        option_unchanged = bool(
+            current_graph_option and current_graph_option.model_dump() == desired_graph_option.model_dump()
+        )
+        if storage_unchanged and option_unchanged:
+            logger.info(
+                "sync_relation_redis_data: graph relation config unchanged, skip ResultTable.modify, "
+                "bk_tenant_id->[%s], table_id->[%s]",
+                result_table.bk_tenant_id,
+                result_table.table_id,
+            )
+            return False
+
         options = {
             option.name: option.get_value()
             for option in ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME).filter(
@@ -694,14 +741,13 @@ def _modify_relation_graph_v4_result_table(
                 table_id=result_table.table_id,
             )
         }
-        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = GraphRelationV4DataLinkOption(
-            write_targets=["vm", "surrealdb"]
-        ).model_dump()
+        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump()
         result_table.modify(
             operator="system",
             external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},
             option=options,
         )
+        return True
 
 
 def enable_relation_surrealdb_dual_write(
@@ -709,7 +755,7 @@ def enable_relation_surrealdb_dual_write(
     bk_tenant_id: str,
     bk_biz_id: int,
     storage_config: dict[str, Any] | None = None,
-) -> None:
+) -> bool:
     """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路。"""
     table_ids = list(
         DataSourceResultTable.objects.filter(bk_data_id=ds.bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
@@ -726,7 +772,7 @@ def enable_relation_surrealdb_dual_write(
         table_id=table_ids[0],
     )
     storage_config = storage_config or _compose_relation_graph_v4_storage_config(bk_tenant_id, bk_biz_id)
-    _modify_relation_graph_v4_result_table(result_table, storage_config)
+    return _modify_relation_graph_v4_result_table(result_table, storage_config)
 
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
