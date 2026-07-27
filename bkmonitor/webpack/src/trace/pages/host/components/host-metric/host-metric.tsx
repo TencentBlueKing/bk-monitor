@@ -53,7 +53,10 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const aggregation = useMetricAggregation();
+    // 向下游图表（useEcharts）提供时间范围与刷新信号
+    const { timeRange, refreshImmediate, metricAggregationState } = storeToRefs(useHostStore());
+
+    const aggregation = useMetricAggregation(metricAggregationState.value);
     // 分组与指标数据：后端返回的 DashboardRow[]（展示）与 MetricGroupModel[]（管理）
     const groupsCtrl = useMetricGroups({
       keyword: () => aggregation.state.keyword,
@@ -71,8 +74,6 @@ export default defineComponent({
       return ['none', 'time'];
     });
 
-    // 向下游图表（useEcharts）提供时间范围与刷新信号
-    const { timeRange, refreshImmediate } = storeToRefs(useHostStore());
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
     provide('viewOptions', aggregation.viewOptions);

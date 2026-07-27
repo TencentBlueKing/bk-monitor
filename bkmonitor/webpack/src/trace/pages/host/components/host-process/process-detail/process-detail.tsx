@@ -31,6 +31,7 @@ import {
   defineComponent,
   onBeforeUnmount,
   provide,
+  reactive,
   shallowRef,
   watch,
 } from 'vue';
@@ -48,11 +49,12 @@ import MetricToolbar from '../../host-metric/metric-toolbar';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import TimeRange from '@/components/time-range/time-range';
 import { getDefaultTimezone } from '@/i18n/dayjs';
+import { DEFAULT_AGGREGATION_STATE } from '@/pages/host/constants/aggregation';
 
 import type { ProcessDetailTab } from '../../../constants/process';
 import type { ProcessItem } from '../../../types/process';
 import type { TimeRangeType } from '@/components/time-range/utils';
-import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode } from '@/pages/host/types';
+import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode, MetricAggregationState } from '@/pages/host/types';
 
 import './process-detail.scss';
 
@@ -112,7 +114,8 @@ export default defineComponent({
     onBeforeUnmount(clearRefreshTimer);
 
     // 汇聚 Toolbar 状态（与系统指标一致，受控分发给 Toolbar 与图表）
-    const aggregation = useMetricAggregation();
+    const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
+    const aggregation = useMetricAggregation(state);
     // 进程指标数据：取数走带缓存的 panel / order
     const metricCtrl = useProcessMetric({
       keyword: () => aggregation.state.keyword,

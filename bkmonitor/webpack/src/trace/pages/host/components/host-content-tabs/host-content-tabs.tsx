@@ -26,16 +26,16 @@
 
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
+import { useHostStore } from '../../../../store/modules/host';
 import { type HostContentTab, type HostPerspective, HOST_PERSPECTIVE_TAB_MAP } from '../../constants/constants';
 import { isHostNode } from '../../utils/topo-tree';
 import HostList from '../host-list/host-list';
 import HostMetric from '../host-metric/host-metric';
 import HostProcess from '../host-process/host-process';
-import { storeToRefs } from 'pinia';
-import { useHostStore } from '../../../../store/modules/host';
 
 import type { IHostTopoHostNode, IHostTopoTreeNode } from '../../types';
 
@@ -71,19 +71,17 @@ export default defineComponent({
     /** 当前激活 Tab */
     const activeTab = shallowRef<HostContentTab>((route.query.activeTab as HostContentTab) || tabList.value[0].value);
 
-    watch(
-      activeTab,
-      () => {
-        hostActiveTab.value = activeTab.value;
-      },
-      {
-        immediate: true,
-      }
-    );
+    watch(activeTab, () => {
+      hostActiveTab.value = activeTab.value;
+    });
 
-    // 切换视角时重置为该视角的第一个 Tab（host → 系统指标，topo → 主机列表）
+    // 切换视角时优先保持当前激活 Tab（若新视角支持该 Tab），否则回退到默认 Tab
     watch(perspective, () => {
-      activeTab.value = tabList.value[0].value;
+      if (tabList.value.map(tab => tab.value).includes(hostActiveTab.value)) {
+        activeTab.value = hostActiveTab.value as HostContentTab;
+      } else {
+        activeTab.value = tabList.value[0].value;
+      }
     });
 
     const handleTabChange = (value: HostContentTab) => {
