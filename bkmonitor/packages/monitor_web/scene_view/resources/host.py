@@ -533,6 +533,7 @@ class GetHostProcessListResource(Resource):
             "memRss": "mem_res",
             "memUsage": "mem_usage_pct",
             "fdNum": "fd_num",
+            "fdLimit": "fd_limit_soft",
         }
 
         return [
@@ -553,6 +554,12 @@ class GetHostProcessListResource(Resource):
                 "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
                 "uptime": host_uptime.get(process["name"]),
                 "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
+                "fdUsage": (
+                    round(fd_num / fd_limit * 100, 2)
+                    if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])) is not None
+                    and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))
+                    else None
+                ),
                 "instanceCount": instance_counts.get(process["name"], 1),
                 "startCommand": process.get("startCommand"),
             }

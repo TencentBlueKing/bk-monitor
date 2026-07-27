@@ -332,30 +332,31 @@ def get_process_runtime_metrics(
     查询进程运行时指标 (system.proc)
 
     返回各进程指标字段的运行时数据：
-    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num
+    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num, fd_limit_soft
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :return: 以 bk_host_id 为一级 key、进程 display_name（进程名）为二级 key 的运行时指标字典，
-        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/fd_num）
+        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/fd_num/fd_limit_soft）
         e.g.:
             {
                 11: {
-                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "fd_num": 64},
-                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "fd_num": 128}
+                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "fd_num": 64, "fd_limit_soft": 1024},
+                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "fd_num": 128, "fd_limit_soft": 65535}
                 }
             }
     """
     try:
         # system.proc 指标字段（SUM 聚合）
-        # - cpu_usage_pct: 进程 CPU 使用率（%）
-        # - mem_res:       进程使用的物理内存（字节）
-        # - mem_usage_pct: 进程内存使用率（%）
-        # - fd_num:        进程文件句柄数
+        # - cpu_usage_pct:  进程 CPU 使用率（%）
+        # - mem_res:        进程使用的物理内存（字节）
+        # - mem_usage_pct:  进程内存使用率（%）
+        # - fd_num:         进程文件句柄数
+        # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时 SUM 为总限制额度
         # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处 SUM
-        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num"]
+        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"]
 
         result = defaultdict(lambda: defaultdict(dict))
 
