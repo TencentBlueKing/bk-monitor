@@ -33,6 +33,11 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
     def init_base_dict(self):
         # 拼接查询参数列表
         query_list = []
+
+        native_doris_map = LogIndexSet.batch_get_is_native_doris(
+            [info["index_set_id"] for info in self.index_info_list]
+        )
+
         for index, index_info in enumerate(self.index_info_list):
             self.table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
 
@@ -42,7 +47,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 is_manual_connect_doris = (
                     True if index_set_obj.support_doris and index_set_obj.doris_table_id else False
                 )
-                if not is_manual_connect_doris and index_set_obj.is_native_doris():
+                if not is_manual_connect_doris and native_doris_map.get(index_info["index_set_id"], False):
                     self.table_id = f"bklog_index_set_{index_info['index_set_id']}"
 
             query_dict = {
