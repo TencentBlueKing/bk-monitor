@@ -195,7 +195,12 @@ def enable_relation_surrealdb_dual_write(
     bk_biz_id: int,
     storage_config: dict[str, Any] | None = None,
 ) -> bool:
-    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路。"""
+    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路。
+
+    此函数只适用于包含 VM 的接入，因此复用 TimeSeriesGroup 创建的 ResultTable。
+    如果未来改为 SurrealDB-only，应直接创建普通 ResultTable，不创建 TimeSeriesGroup，
+    并将 ResultTable.default_storage 设置为 SurrealDB，而不是继续沿用本双写流程。
+    """
     table_ids = list(
         DataSourceResultTable.objects.filter(bk_data_id=ds.bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
             "table_id", flat=True
