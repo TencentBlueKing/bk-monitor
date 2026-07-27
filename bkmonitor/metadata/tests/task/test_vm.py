@@ -19,13 +19,13 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 def test_check_access_vm_task(mocker, create_and_delete_record, table_id):
     # 移除掉已有的数据，然后进行创建
     models.AccessVMRecord.objects.filter(result_table_id=table_id).delete()
-    mocker.patch(
-        "metadata.models.vm.utils.access_vm_by_kafka",
-        return_value={"clean_rt_id": 1, "bk_data_id": 1, "cluster_id": ""},
-    )
+    mock_apply_datalink = mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)
 
     check_access_vm_task()
 
-    # 校验写入到 kafka 数据及访问 vm 的记录
-    assert models.KafkaStorage.objects.filter(table_id=table_id).exists()
-    assert models.AccessVMRecord.objects.filter(result_table_id=table_id).exists()
+    assert mock_apply_datalink.call_count > 0
+    assert all(call_args.kwargs == {"delay": False} for call_args in mock_apply_datalink.call_args_list)
+    target_calls = [
+        call_args for call_args in mock_apply_datalink.call_args_list if call_args.args[0].table_id == table_id
+    ]
+    assert len(target_calls) == 1

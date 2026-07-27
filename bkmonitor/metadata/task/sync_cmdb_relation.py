@@ -219,6 +219,30 @@ def enable_relation_surrealdb_dual_write(
     return _modify_relation_graph_v4_result_table(result_table, storage_config)
 
 
+def _enable_relation_surrealdb_dual_write_best_effort(
+    ds: DataSource,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_config: dict[str, Any],
+) -> None:
+    """尽力启用 Graph 双写，不影响 relation RT、token 和 Redis 的周期维护。"""
+    try:
+        enable_relation_surrealdb_dual_write(
+            ds,
+            bk_tenant_id,
+            bk_biz_id,
+            storage_config=storage_config,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning(
+            "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
+            "data_id->[%s], bk_biz_id->[%s], error->[%s]",
+            ds.bk_data_id,
+            bk_biz_id,
+            e,
+        )
+
+
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
     """
@@ -278,9 +302,18 @@ def sync_relation_redis_data():
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(biz_id)
         graph_storage_config = None
         if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
-            # 白名单业务必须先完成全部只读依赖检查。校验失败直接终止本次任务，
-            # 此前不能修改 relation RT、storage、option、数据源 token 或 Redis token。
-            graph_storage_config = _compose_relation_graph_v4_storage_config(bk_tenant_id, biz_id)
+            try:
+                graph_storage_config = _compose_relation_graph_v4_storage_config(bk_tenant_id, biz_id)
+            except Exception as e:  # pylint: disable=broad-except
+                # Graph 是 relation 周期任务中的附加能力。单业务依赖不完整时仅跳过
+                # 本轮 Graph 配置，普通 RT、token 和 Redis 修复仍需继续执行。
+                logger.warning(
+                    "sync_relation_redis_data: graph relation dependency check failed, "
+                    "bk_tenant_id->[%s], bk_biz_id->[%s], error->[%s]",
+                    bk_tenant_id,
+                    biz_id,
+                    e,
+                )
 
         token = value_dict.get("token")  # Redis缓存中的Token数据
 
@@ -288,20 +321,9 @@ def sync_relation_redis_data():
 
         rt = existing_rts_dict.get(table_id)
         if rt:
-            ds = None
-            if graph_storage_config is not None:
-                # Graph 配置失败需要直接向上抛出，不能被原有 Redis token
-                # 修复逻辑吞掉；ResultTable.modify 自身负责事务和同步接入。
-                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
-                enable_relation_surrealdb_dual_write(
-                    ds,
-                    bk_tenant_id,
-                    biz_id,
-                    storage_config=graph_storage_config,
-                )
             try:
                 new_modify_time = str(int(time.time()))
-                ds = ds or DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
+                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
                 generated_token = transform_data_id_to_token(
                     metric_data_id=ds.bk_data_id, bk_biz_id=biz_id, app_name=data_name
                 )
@@ -324,6 +346,13 @@ def sync_relation_redis_data():
                 value_dict["token"] = builtin_token
                 value_dict["modifyTime"] = new_modify_time
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
+                if graph_storage_config is not None:
+                    _enable_relation_surrealdb_dual_write_best_effort(
+                        ds,
+                        bk_tenant_id,
+                        biz_id,
+                        storage_config=graph_storage_config,
+                    )
                 logger.info(
                     "sync_relation_redis_data: Update Data For Field->[%s],has completed,value->[%s]", key, value_dict
                 )
@@ -368,13 +397,6 @@ def sync_relation_redis_data():
                         is_sync_db=graph_storage_config is None,
                     )
                     existing_time_series_groups_dict[(bk_tenant_id, table_id)] = ts_group
-                    if graph_storage_config is not None:
-                        enable_relation_surrealdb_dual_write(
-                            ds,
-                            bk_tenant_id,
-                            biz_id,
-                            storage_config=graph_storage_config,
-                        )
                 generated_token = transform_data_id_to_token(
                     metric_data_id=ds.bk_data_id,
                     bk_biz_id=biz_id,
@@ -390,6 +412,13 @@ def sync_relation_redis_data():
                 value_dict["token"] = builtin_token
                 value_dict["modifyTime"] = int(ts_group.last_modify_time.timestamp())
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
+                if graph_storage_config is not None:
+                    _enable_relation_surrealdb_dual_write_best_effort(
+                        ds,
+                        bk_tenant_id,
+                        biz_id,
+                        storage_config=graph_storage_config,
+                    )
                 logger.info(
                     "sync_relation_redis_data: Create Data For Field->[%s],has completed,value->[%s]",
                     key,
@@ -402,8 +431,6 @@ def sync_relation_redis_data():
                     value_dict,
                     e,
                 )
-                if graph_storage_config is not None:
-                    raise
 
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
