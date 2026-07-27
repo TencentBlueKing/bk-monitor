@@ -261,7 +261,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
     # 检查V4数据源是否存在对应的Consul配置，若存在则删除
-    ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
+    ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "0 1 * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
     # 刷新回溯配置
     ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),

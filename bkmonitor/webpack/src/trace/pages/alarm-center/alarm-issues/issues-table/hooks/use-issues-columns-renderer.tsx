@@ -30,6 +30,7 @@ import { get } from '@vueuse/core';
 import { Loading, Radio } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
+import VueJsonPretty from 'vue-json-pretty';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import {
@@ -37,6 +38,7 @@ import {
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
+import { isEllipsisActiveLine } from '../../../../trace-explore/components/trace-explore-table/utils/dom-helper';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
@@ -53,6 +55,8 @@ import type { TableColumnItem } from '../../../typings';
 import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem, TrendRangeType } from '../../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
+
+import 'vue-json-pretty/lib/styles.css';
 
 /** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 */
 export type IssuesColumnsRendererCtx = {
@@ -149,8 +153,44 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             <i class='icon-monitor icon-alert-line' />
             <span class='issues-alert-count-number'>{row.alert_count}</span>
           </span>
-          <span class={['issues-name-exception-text', renderCtx.isEnabledCellEllipsis(column)]}>
-            {row.anomaly_message}
+          <span
+            class='issues-name-exception-text'
+            onMouseenter={e => {
+              const el = e.target as HTMLElement;
+              const { isEllipsisActive, content } = isEllipsisActiveLine(el);
+              if (isEllipsisActive) {
+                let popoverConfigs: {
+                  content: Element | string;
+                  theme: string;
+                } = {
+                  content: content,
+                  theme: 'dart',
+                };
+                try {
+                  const parsed = JSON.parse(content);
+                  popoverConfigs = {
+                    content: (
+                      <div class='issues-json-popover-content'>
+                        <VueJsonPretty
+                          data={parsed}
+                          showDoubleQuotes={false}
+                          showLine={false}
+                        />
+                      </div>
+                    ) as unknown as Element,
+                    theme: 'light',
+                  };
+                } catch {
+                  // Not valid JSON, keep original text content
+                }
+                rendererCtx.hoverPopoverTools.showPopover(e, popoverConfigs.content, {
+                  theme: `${popoverConfigs.theme} issues-json-popover max-width-50vw text-wrap`,
+                });
+              }
+            }}
+            onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
+          >
+            {row.log_content || row.anomaly_message || '--'}
           </span>
         </div>
       </div>

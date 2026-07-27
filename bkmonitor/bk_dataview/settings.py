@@ -15,6 +15,7 @@ from django.utils.module_loading import import_string
 DEFAULTS = {
     # 由于 worker 没有 grafana 的配置，此处需要使用 settings.GRAFANA_URL 作为默认值
     "HOST": getattr(settings, "GRAFANA_URL", "http://127.0.0.1:3000"),
+    "TIMEOUT": 30,
     "PREFIX": "/",
     "ADMIN": ("admin", "admin"),
     "AUTHENTICATION_CLASSES": ["bk_dataview.authentication.SessionAuthentication"],

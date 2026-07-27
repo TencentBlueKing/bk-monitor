@@ -98,6 +98,9 @@ class UnifyQueryAsyncExportHandlers:
             ).exists():
                 raise DuplicateUnifyQueryExportException()
 
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user)
+
         # 判断字段是否支持排序
         if self.search_dict.get("sort_list"):
             fields_result = self.unify_query_handler.fields()
@@ -394,6 +397,9 @@ class UnifyQueryUnionAsyncExportHandlers:
                 export_status=ExportStatus.DOWNLOAD_LOG,
             ).exists():
                 raise DuplicateUnifyQueryExportException()
+
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user)
 
         # 判断字段是否支持排序
         if self.search_dict.get("sort_list"):

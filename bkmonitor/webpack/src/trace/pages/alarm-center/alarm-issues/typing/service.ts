@@ -27,6 +27,15 @@
 import type { CommonFilterParams, QuickFilterItem } from '../../typings';
 import type { IssueItem } from './table';
 
+/** Issue 日志内容请求参数 */
+export interface IssueLogContentParams {
+  bk_biz_ids: number[];
+  issue_ids: string[];
+}
+
+/** Issue 日志内容响应（key 为 issue_id，value 为日志内容字典） */
+export type IssueLogContentResponse = Record<string, { log_content: string }>;
+
 /** Issue 搜索请求参数 */
 export interface IssueSearchParams extends CommonFilterParams {
   /** 是否展示聚合 */
@@ -41,6 +50,16 @@ export interface IssueSearchParams extends CommonFilterParams {
   trend_start_time?: number;
 }
 
+/** Issue 搜索响应结果 */
+export interface IssueSearchResponse {
+  /** 聚合数据 */
+  aggs: QuickFilterItem[];
+  /** Issue 列表 */
+  issues: IssueItem[];
+  /** 总数 */
+  total: number;
+}
+
 /** Issue 趋势请求参数 */
 export interface IssueTrendParams {
   bk_biz_ids: number[];
@@ -51,13 +70,3 @@ export interface IssueTrendParams {
 
 /** Issue ID 到趋势序列的映射 */
 export type IssueTrendResponse = Record<string, [number, number][]>;
-
-/** Issue 搜索响应结果 */
-export interface IssueSearchResponse {
-  /** 聚合数据 */
-  aggs: QuickFilterItem[];
-  /** Issue 列表 */
-  issues: IssueItem[];
-  /** 总数 */
-  total: number;
-}

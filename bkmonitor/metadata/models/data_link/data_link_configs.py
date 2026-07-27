@@ -1729,6 +1729,7 @@ class ClusterConfig(models.Model):
             "spec": {
                 "host": "es.db",
                 "port": 9200,
+                "schema": "https",
                 "user": "xxxx",
                 "password": "xxx"
             },
@@ -1747,6 +1748,10 @@ class ClusterConfig(models.Model):
             dict[str, Any]: 集群配置
         """
 
+        schema = cluster.schema.strip().lower() if cluster.schema else "http"
+        if schema not in ("http", "https"):
+            schema = "http"
+
         config = {
             "kind": DataLinkKind.ELASTICSEARCH.value,
             "metadata": {
@@ -1756,6 +1761,7 @@ class ClusterConfig(models.Model):
             "spec": {
                 "host": cluster.domain_name,
                 "port": cluster.port,
+                "schema": schema,
                 "user": cluster.username,
                 "password": cluster.password,
             },
@@ -1780,7 +1786,7 @@ class ClusterConfig(models.Model):
                 "annotations": {}
             },
             "spec": {
-                "host": "21.92.51.33",
+                "host": "surrealdb.example.com",
                 "port": 8080,
                 "user": "root",
                 "password": "root",

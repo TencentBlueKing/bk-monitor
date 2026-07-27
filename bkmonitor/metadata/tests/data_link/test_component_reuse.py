@@ -17,9 +17,11 @@ import pytest
 from metadata.models.data_link.component_reuse import (
     ALL_DATA_LINK_COMPONENT_KINDS,
     REUSE_ENABLED_STRATEGIES,
+    ComponentReuseError,
     ExistingComponentContext,
     is_reuse_enabled_for,
 )
+from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
@@ -41,6 +43,45 @@ def _pool_with(overrides: dict | None = None):
     if overrides:
         pool.update(overrides)
     return pool
+
+
+class TestReuseLeftoverPolicy:
+    def test_bk_log_keeps_storage_bindings_but_other_components_remain_strict(self):
+        """ES / Doris 切换允许保留历史绑定，但不能放宽 RT、DataBus 等组件校验。"""
+        datalink = DataLink(data_link_name="bk_log_demo", data_link_strategy=DataLink.BK_LOG)
+        es_binding = SimpleNamespace(name="legacy_es_binding")
+        doris_binding = SimpleNamespace(name="legacy_doris_binding")
+        result_table = SimpleNamespace(name="unexpected_result_table")
+
+        storage_only_ctx = ExistingComponentContext(
+            data_link_name=datalink.data_link_name,
+            components_by_kind=_pool_with(
+                {
+                    ESStorageBindingConfig: [es_binding],
+                    DorisStorageBindingConfig: [doris_binding],
+                }
+            ),
+        )
+        datalink._check_leftover_or_raise(storage_only_ctx)
+
+        mixed_ctx = ExistingComponentContext(
+            data_link_name=datalink.data_link_name,
+            components_by_kind=_pool_with(
+                {
+                    ResultTableConfig: [result_table],
+                    ESStorageBindingConfig: [es_binding],
+                    DorisStorageBindingConfig: [doris_binding],
+                }
+            ),
+        )
+        with pytest.raises(ComponentReuseError) as exc_info:
+            datalink._check_leftover_or_raise(mixed_ctx)
+
+        assert datalink._leftover_policy(ESStorageBindingConfig) == "keep"
+        assert datalink._leftover_policy(DorisStorageBindingConfig) == "keep"
+        assert datalink._leftover_policy(ResultTableConfig) == "strict"
+        assert datalink._leftover_policy(DataBusConfig) == "strict"
+        assert exc_info.value.violations == {ResultTableConfig: [result_table]}
 
 
 class TestExistingComponentContextClaim:

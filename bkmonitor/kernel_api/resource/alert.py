@@ -14,7 +14,6 @@ import json
 from copy import deepcopy
 from typing import Any
 
-from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -623,24 +622,25 @@ class UpdateAlarmStrategyResource(Resource):
 
     def perform_request(self, validated_request_data):
         request_data = remove_confirm(validated_request_data)
-        with transaction.atomic():
-            try:
-                current_strategy = StrategyModel.objects.select_for_update().get(
-                    bk_biz_id=request_data["bk_biz_id"],
-                    id=request_data["id"],
-                )
-            except StrategyModel.DoesNotExist:
-                raise ValidationError({"id": f"业务 {request_data['bk_biz_id']} 下不存在策略: {request_data['id']}"})
-            current_strategy_obj = Strategy.from_models([current_strategy])[0]
-            current_strategy_obj.restore()
-            current_config = current_strategy_obj.to_dict(convert_dashboard=False)
-            if request_data["config_version"] != get_strategy_config_version(current_config):
-                raise ValidationError(
-                    {"config_version": "策略已被其他操作更新，请重新调用 get_alarm_strategy 后再修改"}
-                )
-            normalize_strategy_metric_ids(request_data, current_config)
-            ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
-            return resource.strategies.save_strategy_v2.request(**request_data)
+        # 并发控制只用 config_version 乐观锁，不用 select_for_update。
+        # kernel_api 启用 BackendRouter 后 StrategyModel 常落在 monitor_api 库，
+        # 而 transaction.atomic() 默认作用 default 库；二者不一致时会触发
+        # "select_for_update cannot be used outside of a transaction"。
+        try:
+            current_strategy = StrategyModel.objects.get(
+                bk_biz_id=request_data["bk_biz_id"],
+                id=request_data["id"],
+            )
+        except StrategyModel.DoesNotExist:
+            raise ValidationError({"id": f"业务 {request_data['bk_biz_id']} 下不存在策略: {request_data['id']}"})
+        current_strategy_obj = Strategy.from_models([current_strategy])[0]
+        current_strategy_obj.restore()
+        current_config = current_strategy_obj.to_dict(convert_dashboard=False)
+        if request_data["config_version"] != get_strategy_config_version(current_config):
+            raise ValidationError({"config_version": "策略已被其他操作更新，请重新调用 get_alarm_strategy 后再修改"})
+        normalize_strategy_metric_ids(request_data, current_config)
+        ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
+        return resource.strategies.save_strategy_v2.request(**request_data)
 
 
 class SearchAlarmShieldsResource(Resource):
