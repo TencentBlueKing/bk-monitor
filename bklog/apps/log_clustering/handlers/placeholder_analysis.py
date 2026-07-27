@@ -49,6 +49,12 @@ class ClusteringUnifyQueryChartHandler(UnifyQueryChartHandler):
         self.clustered_rt = clustered_rt
         super().__init__(params)
 
+    def check_support_sql_and_grep(self):
+        """
+        聚类查询不做校验
+        """
+        pass
+
     def init_base_dict(self):
         query_list = []
         for index, index_info in enumerate(self.index_info_list):

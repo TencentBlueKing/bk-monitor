@@ -19,9 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import re
-import time
-
 import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
@@ -42,9 +39,7 @@ from luqum.tree import (
 )
 from opentelemetry import trace
 
-from apps.api import BkDataQueryApi
 
-from apps.log_search import metrics
 from apps.log_search.constants import (
     SQL_CONDITION_MAPPINGS,
     SQL_PREFIX,
@@ -55,15 +50,13 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
-    SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils.grep_syntax_parse import grep_parser
-from apps.utils.local import get_request_app_code, get_request_username
-from apps.utils.log import logger
+from apps.utils.local import get_request_username
 from apps.utils.lucene import EnhanceLuceneAdapter
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -453,16 +446,16 @@ class ChartHandler:
         grep_where_clause = cls.convert_to_where_clause(origin_grep_field, grep_nodes)
         return grep_where_clause
 
-    def add_doris_query_trace(self, sql=None, total_records=None, time_taken=None, data_label=None):
+    def add_unify_doris_query_trace(self, sql=None, total_records=None, time_taken=None, data_label=None):
         """
-        添加doris查询的trace记录
+        添加 unify-query 查询 doris 的 trace 记录
         :param sql: 执行的SQL语句
         :param total_records: 总条数
         :param time_taken: 总耗时
         :param data_label: 数据标签
         """
         tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("bkdata_doris_query") as span:
+        with tracer.start_as_current_span("unify_doris_query") as span:
             span.set_attribute("index_set_id", self.index_set_id)
             span.set_attribute("user.username", get_request_username())
             span.set_attribute("space_uid", self.data.space_uid)
@@ -485,124 +478,9 @@ class UIChartHandler(ChartHandler):
 
 
 class SQLChartHandler(ChartHandler):
-    def get_chart_data(self, params) -> dict:
-        """
-        Sql模式获取图表相关信息
-        :param params: 图表参数
-        :return: 图表数据 dict
-        """
-        if not self.data.support_doris:
-            raise IndexSetDorisQueryException()
-        parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-        trace_params = {"sql": parsed_sql}
-        try:
-            # 执行doris查询
-            data = self.fetch_query_data(parsed_sql)
-            trace_params.update({"total_records": data["total_records"], "time_taken": data["time_taken"]})
-        finally:
-            self.add_doris_query_trace(**trace_params)
-        return data
-
-    def parse_sql_syntax(self, doris_table_id: str, params: dict):
-        """
-        解析sql语法
-        """
-        where_clause = self.generate_sql(
-            addition=params["addition"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-            keyword=params.get("keyword"),
-            action=SQLGenerateMode.WHERE_CLAUSE.value,
-            alias_mappings=params["alias_mappings"],
-        )
-        # 如果不存在FROM则添加,存在则覆盖
-        pattern = (
-            r"^\s*?(SELECT\s+?.+?)"
-            r"(?:\bFROM\b.+?)?"
-            r"(\bWHERE\b.+?)?"
-            r"(\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
-        )
-        matches = re.match(pattern, params["sql"], re.DOTALL | re.IGNORECASE)
-        if not matches:
-            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=_("缺少SQL查询的关键字")))
-        parsed_sql = matches.group(1) + f" FROM {doris_table_id}\n"
-        if matches.group(2):
-            where_condition = matches.group(2) + f" AND {where_clause}\n"
-        else:
-            where_condition = f"WHERE {where_clause}\n"
-        parsed_sql += where_condition
-
-        if matches.group(3):
-            parsed_sql += matches.group(3)
-        return parsed_sql
-
-    def fetch_query_data(self, sql: str) -> dict:
-        """
-        获取查询结果
-        :param sql: 查询sql
-        :return: 查询结果 dict
-        """
-        start_at = time.time()
-        exc = None
-        try:
-            result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
-            result = result_data.get("result")
-            if not result:
-                # SQL查询失败, 抛出异常
-                errors_message = result_data.get("message", "")
-                errors = result_data.get("errors", {}).get("error")
-                if errors:
-                    errors_message = errors_message + ":" + errors
-                exc = errors_message
-                logger.info(
-                    '[doris query] QUERY ERROR! username: %s, execute sql: "%s", error info: %s',
-                    get_request_username(),
-                    sql.replace("\n", " "),
-                    errors_message,
-                )
-                raise SQLQueryException(
-                    SQLQueryException.MESSAGE.format(name=errors_message),
-                    errors={"sql": sql},
-                )
-        finally:
-            labels = {
-                "index_set_id": self.index_set_id,
-                "result_table_id": self.data.doris_table_id,
-                "status": str(exc),
-                "source_app_code": get_request_app_code(),
-            }
-            metrics.DORIS_QUERY_LATENCY.labels(**labels).observe(time.time() - start_at)
-            metrics.DORIS_QUERY_COUNT.labels(**labels).inc()
-
-        data_list = result_data["data"]["list"]
-        result_schema = result_data["data"].get("result_schema", [])
-
-        data = {
-            "total_records": result_data["data"]["totalRecords"],
-            "time_taken": result_data["data"]["timetaken"],
-            "list": data_list,
-            "select_fields_order": result_data["data"]["select_fields_order"],
-            "result_schema": result_schema,
-        }
-        # 记录doris日志
-        if result_data["data"]["timetaken"] < 5:
-            logger.info(
-                '[doris query] username: %s, execute sql: "%s", total records: %s, time taken: %ss',
-                get_request_username(),
-                sql.replace("\n", " "),
-                result_data["data"]["totalRecords"],
-                result_data["data"]["timetaken"],
-            )
-        else:
-            # 大于 5s 的判定为慢查询
-            logger.info(
-                '[doris query] SLOW QUERY! username: %s, execute sql: "%s", total records: %s, time taken: %ss',
-                get_request_username(),
-                sql.replace("\n", " "),
-                result_data["data"]["totalRecords"],
-                result_data["data"]["timetaken"],
-            )
-        return data
+    """
+    SQL模式查询处理器，用于 grep_query / grep_query_total 入口
+    """
 
     def generate_grep_query_sql(self, params, select_clause="*", with_order_by=True, with_pagination=True):
         """
@@ -680,7 +558,7 @@ class SQLChartHandler(ChartHandler):
                 }
             )
         finally:
-            self.add_doris_query_trace(**trace_params)
+            self.add_unify_doris_query_trace(**trace_params)
         # 添加高亮标记
         log_list = add_highlight_mark(
             data_list=result["list"],
@@ -727,6 +605,6 @@ class SQLChartHandler(ChartHandler):
                 }
             )
         finally:
-            self.add_doris_query_trace(**trace_params)
+            self.add_unify_doris_query_trace(**trace_params)
 
         return {"total": total, "took": time_taken}

@@ -67,9 +67,15 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "is_merge_db": True,  # 多表查询会进行合并
         }
 
-    def get_chart_data(self):
+    def check_support_sql_and_grep(self):
+        """
+        校验是否支持 sql 分析与 grep 查询
+        """
         if not self.is_support_sql_and_grep:
             raise IndexSetDorisQueryException()
+
+    def get_chart_data(self):
+        self.check_support_sql_and_grep()
 
         start_time = time.time()
         result = UnifyQueryApi.query_ts_raw(self.base_dict)
@@ -90,8 +96,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def generate_sql(self):
-        if not self.is_support_sql_and_grep:
-            raise IndexSetDorisQueryException()
+        self.check_support_sql_and_grep()
 
         search_dict = copy.deepcopy(self.base_dict)
         search_dict["dry_run"] = True
