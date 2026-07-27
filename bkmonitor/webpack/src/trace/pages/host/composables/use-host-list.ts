@@ -40,6 +40,7 @@ import { useHostListWorker } from './use-host-list-worker';
 import { storeToRefs } from 'pinia';
 import { useHostStore } from '../../../store/modules/host';
 import { useHostUrlParams } from './use-host-url-params';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 import type {
   IGetValueFnParams,
@@ -121,8 +122,14 @@ export const useHostList = (options: IUseHostListOptions) => {
   const filterOptionsMap = shallowRef<Record<string, unknown>>({});
 
   let intervalTimer: ReturnType<typeof setTimeout> | null = null;
+  let baseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
 
-  watch([timeRange, timezone, refreshImmediate], () => {
+  watch([timeRange, timezone], () => {
+    setUrlParams();
+    loadMetricData();
+  });
+
+  watch(refreshImmediate, () => {
     setUrlParams();
     loadData();
   });
@@ -186,7 +193,6 @@ export const useHostList = (options: IUseHostListOptions) => {
   const loadData = async () => {
     loading.value = true;
     metricLoading.value = true;
-    let baseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
     try {
       baseList = await getHostInfoList();
       const initResult = await hostListWorker.initBaseData(baseList);
@@ -203,9 +209,34 @@ export const useHostList = (options: IUseHostListOptions) => {
     }
     try {
       const bk_host_ids = baseList.map(row => row.bk_host_id);
-      const metricListMap = await getHostMetricInfoList({ bk_host_ids });
+      const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
+      const metricListMap = await getHostMetricInfoList({
+        bk_host_ids,
+        start_time,
+        end_time,
+      });
       await hostListWorker.mergeMetrics(metricListMap);
       refreshList(true);
+    } finally {
+      metricLoading.value = false;
+    }
+  };
+
+  const loadMetricData = async () => {
+    if (!baseList.length) {
+      return;
+    }
+
+    try {
+      metricLoading.value = true;
+      const bk_host_ids = baseList.map(row => row.bk_host_id);
+      const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
+      const metricListMap = await getHostMetricInfoList({
+        bk_host_ids,
+        start_time,
+        end_time,
+      });
+      await hostListWorker.mergeMetrics(metricListMap);
     } finally {
       metricLoading.value = false;
     }

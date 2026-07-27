@@ -74,7 +74,7 @@ export default defineComponent({
             disabled={!props.hasSelection}
             onClick={() => emit('copyIp')}
           >
-            {t('复制IP')}
+            {t('复制 IP')}
           </Button>
         </div>
         <div class='host-list-toolbar__search'>

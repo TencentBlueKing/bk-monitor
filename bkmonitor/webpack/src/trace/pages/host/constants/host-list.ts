@@ -41,18 +41,18 @@ export const HOST_METRIC_OVER_THRESHOLD = 80;
 
 /** 采集状态 → 展示配置（圆点颜色 + 名称，和其他模块保持一致） */
 export const HOST_STATUS_MAP: Record<number, IHostStatusConfig> = {
-  [-1]: { name: '未知', color: '#c4c6cc', backgroundColor: '#979BA5' },
-  0: { name: '正常', color: '#2dcb56', backgroundColor: '#DAF6E5' },
-  2: { name: '无Agent', color: '#c4c6cc', backgroundColor: '#979ba529' },
-  3: { name: '无数据上报', color: '#ea3636', backgroundColor: '#FFEBEB' },
+  [-1]: { name: window.i18n.t('未知'), color: '#c4c6cc', backgroundColor: '#979ba529' },
+  0: { name: window.i18n.t('正常'), color: '#2dcb56', backgroundColor: '#DAF6E5' },
+  2: { name: window.i18n.t('无 Agent'), color: '#c4c6cc', backgroundColor: '#979ba529' },
+  3: { name: window.i18n.t('无数据上报'), color: '#ea3636', backgroundColor: '#FFEBEB' },
 };
 
 /** 快捷过滤卡片列表（点击整卡过滤，再次点击取消） */
 export const HOST_QUICK_CARD_LIST: IHostQuickCard[] = [
-  { key: 'alarm', name: '告警中的主机' },
-  { key: 'cpu', name: 'CPU使用率超80%' },
-  { key: 'mem', name: '应用内存使用率超80%' },
-  { key: 'disk', name: '磁盘空间使用率超80%' },
+  { key: 'alarm', name: window.i18n.t('告警中的主机') },
+  { key: 'cpu', name: window.i18n.t('CPU 使用率超 80 %') },
+  { key: 'mem', name: window.i18n.t('应用内存使用率超 80 %') },
+  { key: 'disk', name: window.i18n.t('磁盘空间使用率超 80 %') },
 ];
 
 /** 指标聚合方式列表（蓝字可点切换，参考容器监控） */
@@ -90,25 +90,53 @@ export interface IHostColumnConfig {
  * 主机列表全部列配置（默认勾选项对齐设计稿主视图，其余可在「字段设置」中开启）。
  */
 export const HOST_LIST_COLUMNS: IHostColumnConfig[] = [
-  { id: 'id', name: 'ID', type: 'checkbox', checked: true, disabled: true, width: 80 },
-  { id: 'host_display_name', name: '主机', type: 'ip', checked: true, disabled: true, minWidth: 140 },
-  { id: 'bk_host_innerip', name: '内网IP', type: 'text', checked: true, minWidth: 130 },
-  { id: 'bk_host_innerip_v6', name: '内网IPv6', type: 'text', checked: false, minWidth: 180 },
-  { id: 'bk_host_outerip', name: '外网IP', type: 'text', checked: false, minWidth: 130 },
-  { id: 'bk_host_name', name: '主机名', type: 'text', checked: false, minWidth: 140 },
-  { id: 'bk_os_name', name: 'OS名称', type: 'text', checked: false, minWidth: 120 },
-  { id: 'bk_cloud_name', name: '管控区域', type: 'text', checked: false, minWidth: 120 },
-  { id: 'status', name: '采集状态', type: 'status', checked: true, minWidth: 150 },
-  { id: 'bk_cluster', name: '集群名', type: 'cluster', checked: false, minWidth: 140 },
+  { id: 'id', name: 'ID', type: 'checkbox', checked: true, disabled: true, width: 65 },
+  { id: 'host_display_name', name: window.i18n.t('主机'), type: 'ip', checked: true, disabled: true, minWidth: 140 },
+  { id: 'bk_host_innerip', name: window.i18n.t('内网 IP'), type: 'text', checked: true, minWidth: 130 },
+  { id: 'bk_host_innerip_v6', name: window.i18n.t('内网 IPv6'), type: 'text', checked: false, minWidth: 180 },
+  { id: 'bk_host_outerip', name: window.i18n.t('外网 IP'), type: 'text', checked: false, minWidth: 130 },
+  { id: 'bk_host_name', name: window.i18n.t('主机名'), type: 'text', checked: false, minWidth: 140 },
+  { id: 'bk_os_name', name: window.i18n.t('OS 名称'), type: 'text', checked: false, minWidth: 120 },
+  { id: 'bk_cloud_name', name: window.i18n.t('管控区域'), type: 'text', checked: false, minWidth: 120 },
+  { id: 'status', name: window.i18n.t('采集状态'), type: 'status', checked: true, minWidth: 150 },
+  { id: 'bk_cluster', name: window.i18n.t('集群名'), type: 'cluster', checked: false, minWidth: 140 },
   { id: 'bk_inst_name', name: '模块名', type: 'module', checked: false, minWidth: 140 },
-  { id: 'alarm_count', name: '未恢复的告警', type: 'alarm', checked: true, sortable: true, minWidth: 120 },
-  { id: 'cpu_usage', name: 'CPU使用率', type: 'metric', checked: true, sortable: true, minWidth: 156 },
-  { id: 'mem_usage', name: '应用内存使用率', type: 'metric', checked: true, sortable: true, minWidth: 156 },
-  { id: 'disk_in_use', name: '磁盘空间使用率', type: 'metric', checked: true, sortable: true, minWidth: 156 },
-  { id: 'io_util', name: '磁盘IO使用率', type: 'metric', checked: false, sortable: true, minWidth: 156 },
-  { id: 'psc_mem_usage', name: '物理内存使用率', type: 'metric', checked: false, sortable: true, minWidth: 156 },
-  { id: 'cpu_load', name: 'CPU五分钟负载', type: 'text', checked: false, sortable: true, minWidth: 140 },
-  { id: 'display_name', name: '进程', type: 'process', checked: true, minWidth: 198 },
+  { id: 'alarm_count', name: '未恢复的告警', type: 'alarm', checked: true, sortable: true, minWidth: 140 },
+  { id: 'cpu_usage', name: window.i18n.t('CPU 使用率'), type: 'metric', checked: true, sortable: true, minWidth: 156 },
+  {
+    id: 'mem_usage',
+    name: window.i18n.t('应用内存使用率'),
+    type: 'metric',
+    checked: true,
+    sortable: true,
+    minWidth: 156,
+  },
+  {
+    id: 'disk_in_use',
+    name: window.i18n.t('磁盘空间使用率'),
+    type: 'metric',
+    checked: true,
+    sortable: true,
+    minWidth: 156,
+  },
+  { id: 'io_util', name: window.i18n.t('磁盘IO使用率'), type: 'metric', checked: false, sortable: true, minWidth: 156 },
+  {
+    id: 'psc_mem_usage',
+    name: window.i18n.t('物理内存使用率'),
+    type: 'metric',
+    checked: false,
+    sortable: true,
+    minWidth: 156,
+  },
+  {
+    id: 'cpu_load',
+    name: window.i18n.t('CPU 五分钟负载'),
+    type: 'text',
+    checked: false,
+    sortable: true,
+    minWidth: 140,
+  },
+  { id: 'display_name', name: window.i18n.t('进程'), type: 'process', checked: true, minWidth: 198 },
 ];
 
 /** 数值类指标过滤操作符（支持 > >= < <= =） */
@@ -142,28 +170,28 @@ export const HOST_FILTER_FIELDS: IFilterField[] = [
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostInnerIpV6,
-    alias: window.i18n.t('内网IPv6'),
+    alias: window.i18n.t('内网 IPv6'),
     type: EFieldType.text,
     methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostOuterIpV6,
-    alias: window.i18n.t('外网IPv6'),
+    alias: window.i18n.t('外网 IPv6'),
     type: EFieldType.text,
     methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostInnerIp,
-    alias: window.i18n.t('内网IP'),
+    alias: window.i18n.t('内网 IP'),
     type: EFieldType.text,
     methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostOuterIp,
-    alias: window.i18n.t('外网IP'),
+    alias: window.i18n.t('外网 IP'),
     type: EFieldType.text,
     methods: TEXT_METHODS,
     isEnableOptions: false,
@@ -184,7 +212,7 @@ export const HOST_FILTER_FIELDS: IFilterField[] = [
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkOsName,
-    alias: window.i18n.t('OS名称'),
+    alias: window.i18n.t('OS 名称'),
     type: EFieldType.keyword,
     methods: ENUM_METHODS,
     isEnableOptions: true,
@@ -226,14 +254,14 @@ export const HOST_FILTER_FIELDS: IFilterField[] = [
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.cpuLoad,
-    alias: window.i18n.t('CPU五分钟负载'),
+    alias: window.i18n.t('CPU 五分钟负载'),
     type: EFieldType.numberInput,
     methods: NUMBER_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.cpuUsage,
-    alias: window.i18n.t('CPU使用率'),
+    alias: window.i18n.t('CPU 使用率'),
     type: EFieldType.numberInput,
     methods: NUMBER_METHODS,
     isEnableOptions: false,
@@ -247,7 +275,7 @@ export const HOST_FILTER_FIELDS: IFilterField[] = [
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.ioUtil,
-    alias: window.i18n.t('磁盘IO使用率'),
+    alias: window.i18n.t('磁盘 IO 使用率'),
     type: EFieldType.numberInput,
     methods: NUMBER_METHODS,
     isEnableOptions: false,
