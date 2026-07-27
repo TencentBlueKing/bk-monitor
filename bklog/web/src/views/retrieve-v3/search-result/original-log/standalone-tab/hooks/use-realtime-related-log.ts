@@ -1,14 +1,21 @@
 import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue';
 
 import { messageSuccess } from '@/common/bkmagic';
+import useStore from '@/hooks/use-store';
 
 import { flattenLogParams, useCommonRelatedLog } from './use-common-related-log';
+import {
+  getRelatedLogIndexSetId,
+  getRelatedLogResolveOptions,
+  resolveRelatedLogTargetRow,
+} from './resolve-related-log-target-row';
 
 export const useRealtimeRelatedLog = (options: {
   indexSetId: Ref<number>;
   targetRow: Ref<Record<string, any>>;
   targetFields?: Ref<string[]>;
 }) => {
+  const store = useStore();
   const common = useCommonRelatedLog(options);
   const zero = ref(true);
   const isPolling = ref(false);
@@ -22,12 +29,17 @@ export const useRealtimeRelatedLog = (options: {
   let isScrollBottom = true;
   let requestSeq = 0;
 
+  const getDtEventTimeStamp = () => {
+    const params = flattenLogParams(options.targetRow.value);
+    return params.dtEventTimeStamp ?? options.targetRow.value?.dtEventTimeStamp;
+  };
+
   const requestRealTimeLog = async () => {
     if (common.loading.value) return;
     requestSeq += 1;
     const currentSeq = requestSeq;
     const params = flattenLogParams(options.targetRow.value);
-    const dtEventTimeStamp = params.dtEventTimeStamp ?? options.targetRow.value?.dtEventTimeStamp;
+    const dtEventTimeStamp = getDtEventTimeStamp();
     if (!options.indexSetId.value || dtEventTimeStamp === undefined || dtEventTimeStamp === null || dtEventTimeStamp === 'None') {
       return;
     }
@@ -126,8 +138,20 @@ export const useRealtimeRelatedLog = (options: {
     });
   };
 
-  const chooseRow = async (row: Record<string, any>) => {
-    options.targetRow.value = row;
+  const chooseRow = async (payload: Record<string, any> & { rowKey?: string }) => {
+    const { rowKey, ...fallbackRow } = payload;
+    if (rowKey) {
+      const resolved = await resolveRelatedLogTargetRow({
+        rowKey,
+        fallbackRow: Object.keys(fallbackRow).length ? fallbackRow : undefined,
+        ...getRelatedLogResolveOptions(store),
+      });
+      if (!resolved) return;
+      options.targetRow.value = resolved.row;
+      options.indexSetId.value = getRelatedLogIndexSetId(resolved.fullRow, store);
+    } else {
+      options.targetRow.value = payload;
+    }
     await init();
   };
 

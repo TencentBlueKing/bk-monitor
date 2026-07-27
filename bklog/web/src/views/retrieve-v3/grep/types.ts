@@ -5,4 +5,6 @@ export type GrepRequestResult = {
   has_more: boolean;
   is_error: boolean;
   exception_msg: string;
+  cache_scope?: string;
+  cached_count?: number;
 };

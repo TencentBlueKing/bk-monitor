@@ -128,7 +128,7 @@
   const sortList = ref<{ key: string; sorts: string[] }[]>([{ key: random(8), sorts: ['', ''] }]);
 
   const shadowSort = computed(() => sortList.value.map(e => e.sorts).filter(e => e[0] !== '' && e[1] !== ''));
-  const fieldList = computed(() => store.state.indexFieldInfo.fields);
+  const fieldList = computed(() => store.getters.filteredFieldList);
 
   const selectList = computed(() => {
     const filterFn = field => field.es_doc_values && field.field_type !== '__virtual__' && field.field_type !== 'flattened';

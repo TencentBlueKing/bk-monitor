@@ -182,7 +182,7 @@
   // 定义响应式数据
   const isLoading = ref(false);
   const fieldList = computed(() => {
-    return store.state.indexFieldInfo.fields;
+    return store.getters.filteredFieldList;
   });
 
   const filterFieldsList = computed(() => {
