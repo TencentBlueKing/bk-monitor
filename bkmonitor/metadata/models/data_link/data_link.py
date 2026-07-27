@@ -668,11 +668,7 @@ class DataLink(models.Model):
                 [
                     graph_rt.compose_config(),
                     graph_binding.compose_config(),
-                    graph_databus.compose_config(
-                        [graph_sink],
-                        transforms=[],
-                        auto_offset_reset="earliest",
-                    ),
+                    graph_databus.compose_config([graph_sink], transforms=[]),
                 ]
             )
 

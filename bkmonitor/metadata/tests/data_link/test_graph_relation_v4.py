@@ -201,7 +201,7 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
             if config["kind"] == "Databus" and config["spec"]["sinks"][0]["kind"] == "SurrealDBBinding"
         )
         assert graph_databus["spec"]["transforms"] == []
-        assert graph_databus["spec"]["autoOffsetReset"] == "earliest"
+        assert "autoOffsetReset" not in graph_databus["spec"]
 
 
 def test_graph_relation_v4_transfer_consumer_group_only_applies_to_vm(graph_relation_v4_records):
