@@ -102,29 +102,35 @@ const mutations = {
   [SET_BIZ_ID](state, id) {
     window.cc_biz_id = +id;
     window.bk_biz_id = +id;
-    window.space_uid = state.bizList.find(item => item.bk_biz_id === +id)?.space_uid;
+    const bizItem = state.bizIdMap.get(+id);
+    window.space_uid = bizItem?.space_uid;
     state.bizId = id;
-    const isDemo = state.bizList?.find(item => +item.id === +id)?.is_demo;
-    !isDemo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
+    !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
   },
   [SET_APP_STATE](state, data) {
     for (const [key, value] of Object.entries(data)) {
       if (key === 'bizList') {
-        state[key] = value.map(item => {
+        // freeze 退出 Vue 深度响应式，避免切换业务时 _traverse 遍历数十万业务对象
+        const list = value.map(item => {
           const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
           const pyText = pinyinStr.replace(/,/g, '');
           const pyfText = pinyinStr
             .split(',')
             .map(str => str.charAt(0))
             .join('');
-          return {
+          return Object.freeze({
             ...item,
             py_text: pyText,
             pyf_text: pyfText,
-          };
+            // 大列表搜索预计算，避免业务选择器循环内反复 toLocaleLowerCase / 模板字符串
+            space_name_lc: (item.space_name || '').toLocaleLowerCase(),
+            space_id_lc: `${item.space_id ?? ''}`.toLocaleLowerCase(),
+            id_str: `${item.id}`,
+          });
         });
-        state.spaceUidMap = new Map(state.bizList.map(item => [item.space_uid, item]));
-        state.bizIdMap = new Map(state.bizList.map(item => [item.bk_biz_id, item]));
+        state[key] = Object.freeze(list);
+        state.spaceUidMap = new Map(list.map(item => [item.space_uid, item]));
+        state.bizIdMap = new Map(list.map(item => [item.bk_biz_id, item]));
         continue;
       }
       state[key] = value;
@@ -161,9 +167,9 @@ const mutations = {
   handleChangeBizId(state, { bizId, ctx }) {
     window.cc_biz_id = +bizId;
     window.bk_biz_id = +bizId;
-    window.space_uid = state.bizList?.find(item => +item.id === +bizId)?.space_uid;
-    const isDemo = state.bizList?.find(item => +item.id === +bizId)?.is_demo;
-    !isDemo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${bizId}`);
+    const bizItem = state.bizIdMap.get(+bizId);
+    window.space_uid = bizItem?.space_uid;
+    !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${bizId}`);
     this.commit('app/SET_BIZ_ID', +bizId);
     const { navId } = ctx.$route.meta;
     const handleReload = () => {

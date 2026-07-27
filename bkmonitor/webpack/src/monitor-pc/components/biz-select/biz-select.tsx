@@ -108,8 +108,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   bizListFilter = [];
 
-  /* 当前分页数据 */
-  generalList: IListItem[] = [];
+  /* 当前过滤后的普通列表（存原始引用，分页时再物化） */
+  generalList: ISpaceItem[] = [];
   pagination: {
     count: number;
     current: number;
@@ -155,7 +155,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   /** 当前选中的业务 */
   get curentBizItem() {
-    return this.bizList.find(item => item.id === this.localValue);
+    return (
+      this.$store.getters.bizIdMap?.get?.(this.localValue) || this.bizList.find(item => item.id === this.localValue)
+    );
   }
   /** 业务名 */
   get bizName() {
@@ -208,7 +210,22 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.handleCacheBizId(id);
     return id;
   }
-  /** 业务列表 */
+  /** 仅对需要展示的项做字段物化，避免 20 万级全量拷贝 */
+  toListItem(item: ISpaceItem): IListItem {
+    const tags: IListItem['tags'] = [
+      { id: item.space_type_id, name: item.type_name, type: item.space_type_id as ETagsType },
+    ];
+    if (item.space_type_id === 'bkci' && item.space_code) {
+      tags.push({ id: 'bcs', name: this.$tc('容器项目'), type: ETagsType.BCS });
+    }
+    const listItem: IListItem = {
+      ...item,
+      name: item.space_name.replace(/\[.*?\]/, ''),
+      tags,
+    };
+    return listItem;
+  }
+  /** 业务列表过滤：热路径只收集原始引用，展示字段延迟到分页/置顶/常用物化 */
   getBizListFilter() {
     const stickyList: IListItem = {
       id: null,
@@ -226,22 +243,24 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
+    const stickySet = new Set(this.stickyList);
+    const commonSet = this.isShowCommon ? new Set(this.commonListIds) : null;
     const listTemp = {
       stickyList: {
-        preArr: [],
-        nextArr: [],
+        preArr: [] as ISpaceItem[],
+        nextArr: [] as ISpaceItem[],
       },
       commonList: {
-        preArr: [],
-        nextArr: [],
+        preArr: [] as ISpaceItem[],
+        nextArr: [] as ISpaceItem[],
       },
       generalList: {
-        preArr: [],
-        nextArr: [],
+        preArr: [] as ISpaceItem[],
+        nextArr: [] as ISpaceItem[],
       },
     };
-    const setListTemp = (key: keyof typeof listTemp, item: IListItem, preciseMatch: boolean) => {
-      // 如果是精准匹配将数据插入到临时变量的preArr，否则插入到nextArr
+    const setListTemp = (key: keyof typeof listTemp, item: ISpaceItem, preciseMatch: boolean) => {
+      // 精准匹配优先：插入 preArr，否则 nextArr
       if (preciseMatch) {
         listTemp[key].preArr.push(item);
       } else {
@@ -250,82 +269,78 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     };
     const concatListTemp = (key: keyof typeof listTemp) => {
       const { preArr, nextArr } = listTemp[key];
-      return [...preArr, ...nextArr];
+      return preArr.length ? (nextArr.length ? preArr.concat(nextArr) : preArr) : nextArr;
     };
 
     for (const item of this.bizList) {
       let preciseMatch = false;
-      let show = false;
+      // 类型筛选：不命中直接跳过
       if (this.searchTypeId) {
-        show =
+        const typeMatched =
           this.searchTypeId === 'bcs'
             ? item.space_type_id === 'bkci' && !!item.space_code
             : item.space_type_id === this.searchTypeId;
+        if (!typeMatched) continue;
       }
-      if ((show && keyword) || (!this.searchTypeId && !show)) {
+      // 无关键字时跳过字符串匹配（空串 indexOf 恒真，会误触发全量 toLocaleLowerCase）
+      if (keyword) {
+        const nameLc = item.space_name_lc ?? item.space_name?.toLocaleLowerCase() ?? '';
+        const spaceIdLc = item.space_id_lc ?? `${item.space_id ?? ''}`.toLocaleLowerCase();
+        const idStr = item.id_str ?? `${item.id}`;
         preciseMatch =
-          item.space_name?.toLocaleLowerCase() === keyword ||
+          nameLc === keyword ||
           item.py_text === keyword ||
           item.pyf_text === keyword ||
-          `${item.id}` === keyword ||
-          `${item.space_id}`.toLocaleLowerCase() === keyword;
-        show =
-          preciseMatch ||
-          item.space_name?.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text?.indexOf(keyword) > -1 ||
-          item.pyf_text?.indexOf(keyword) > -1 ||
-          `${item.id}`.includes(keyword) ||
-          `${item.space_id}`.toLocaleLowerCase().includes(keyword);
+          idStr === keyword ||
+          spaceIdLc === keyword;
+        if (
+          !(
+            preciseMatch ||
+            nameLc.indexOf(keyword) > -1 ||
+            item.py_text?.indexOf(keyword) > -1 ||
+            item.pyf_text?.indexOf(keyword) > -1 ||
+            idStr.includes(keyword) ||
+            spaceIdLc.includes(keyword)
+          )
+        ) {
+          continue;
+        }
       }
-      if (show) {
-        const tags = [{ id: item.space_type_id, name: item.type_name, type: item.space_type_id }];
-        if (item.space_type_id === 'bkci' && item.space_code) {
-          tags.push({ id: 'bcs', name: this.$tc('容器项目'), type: 'bcs' });
-        }
-        const newItem = {
-          ...item,
-          name: item.space_name.replace(/\[.*?\]/, ''),
-          tags,
-        };
-        if (this.stickyList.includes(item.space_uid)) {
-          setListTemp('stickyList', newItem as IListItem, preciseMatch);
-          /** 置顶数据 */
-        } else if (this.commonListIds.includes(item.id) && this.isShowCommon) {
-          /** 常用数据 */
-          setListTemp('commonList', newItem as IListItem, preciseMatch);
-        } else {
-          /** 普通列表 */
-          // list.children.push(newItem as IListItem);
-          setListTemp('generalList', newItem as IListItem, preciseMatch);
-        }
+      if (stickySet.has(item.space_uid)) {
+        setListTemp('stickyList', item, preciseMatch);
+      } else if (commonSet?.has(item.id)) {
+        setListTemp('commonList', item, preciseMatch);
+      } else {
+        setListTemp('generalList', item, preciseMatch);
       }
     }
+    // general 仅存原始引用，分页时再物化
     this.generalList = concatListTemp('generalList');
-    stickyList.children = concatListTemp('stickyList');
+    stickyList.children = concatListTemp('stickyList').map(item => this.toListItem(item));
     this.setPaginationData(true);
     list.children = this.pagination.data;
     const allList: IListItem[] = [];
     if (stickyList.children.length) {
       allList.push(stickyList);
     }
-    let preTemp = [];
-    let nextTemp = [];
+    let preTemp: IListItem[] = [];
+    let nextTemp: IListItem[] = [];
     if (listTemp.commonList.preArr.length) {
       preTemp = this.commonListIds.reduce((total, id) => {
         const item = listTemp.commonList.preArr.find(item => item.id === id);
-        if (item) total.push(item);
+        if (item) total.push(this.toListItem(item));
         return total;
-      }, []);
+      }, [] as IListItem[]);
     }
     if (listTemp.commonList.nextArr.length) {
       nextTemp = this.commonListIds.reduce((total, id) => {
         const item = listTemp.commonList.nextArr.find(item => item.id === id);
-        if (item) total.push(item);
+        if (item) total.push(this.toListItem(item));
         return total;
-      }, []);
+      }, [] as IListItem[]);
     }
     if (preTemp.length || nextTemp.length) {
-      commonList.children = [...preTemp, ...nextTemp];
+      commonList.children = preTemp.length ? (nextTemp.length ? preTemp.concat(nextTemp) : preTemp) : nextTemp;
       allList.push(commonList);
     }
     !!list.children.length && allList.push(list);
@@ -336,16 +351,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.pagination.count = showData.length;
     if (isInit) {
       this.pagination.current = 1;
-      this.pagination.data = showData.slice(0, this.pagination.limit);
-    } else {
-      if (this.pagination.current * this.pagination.limit < this.pagination.count) {
-        this.pagination.current += 1;
-        const temp = showData.slice(
-          (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit
-        );
-        this.pagination.data.push(...temp);
-      }
+      this.pagination.data = showData.slice(0, this.pagination.limit).map(item => this.toListItem(item));
+    } else if (this.pagination.current * this.pagination.limit < this.pagination.count) {
+      this.pagination.current += 1;
+      const temp = showData
+        .slice((this.pagination.current - 1) * this.pagination.limit, this.pagination.current * this.pagination.limit)
+        .map(item => this.toListItem(item));
+      this.pagination.data.push(...temp);
     }
   }
   getRandomColor() {
@@ -504,14 +516,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   /* 当前业务的tag颜色 多个tag取第一个 */
   getFirstCodeBgColor() {
-    let tags = [];
-    for (const item of this.bizList) {
-      if (item.id === this.localValue) {
-        tags = [item.space_type_id];
-        if (item.space_type_id === 'bkci' && item.space_code) {
-          tags.push('bcs');
-        }
-      }
+    const item =
+      this.$store.getters.bizIdMap?.get?.(this.localValue) || this.bizList.find(biz => biz.id === this.localValue);
+    const tags = item ? [item.space_type_id] : [];
+    if (item?.space_type_id === 'bkci' && item.space_code) {
+      tags.push('bcs');
     }
     this.firstCodeBgColor =
       SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';

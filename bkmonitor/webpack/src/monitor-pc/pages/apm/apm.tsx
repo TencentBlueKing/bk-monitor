@@ -39,6 +39,7 @@ Component.registerHooks(['beforeRouteLeave', 'deactivated']);
 export default class ApmPage extends tsc<object> {
   loading = false;
   appkey = 'apm';
+  unmountCallback: () => void;
   /** 微应用内注册的离开页面前回调（由 apm/index.ts 注册） */
   apmLeaveHandlers: Array<() => void> = [];
   // 侧栏详情信息
@@ -91,6 +92,9 @@ export default class ApmPage extends tsc<object> {
         parentRoute: '/apm/',
         $baseStore: this.$store,
         showDetailSlider: this.handleShowDetail,
+        setUnmountCallback: (callback: () => void) => {
+          this.unmountCallback = callback;
+        },
         registerApmLeaveHandler: (handler: () => void) => {
           this.apmLeaveHandlers.push(handler);
         },
@@ -110,6 +114,11 @@ export default class ApmPage extends tsc<object> {
       }
     }
   }
+  unmountApm() {
+    const callback = this.unmountCallback;
+    this.unmountCallback = undefined;
+    callback?.();
+  }
   beforeRouteLeave(_to, _from, next) {
     this.flushApmLeaveHandlers();
     next();
@@ -121,10 +130,12 @@ export default class ApmPage extends tsc<object> {
   deactivated() {
     this.flushApmLeaveHandlers();
     if (this.showGuidePage) return;
+    this.unmountApm();
     this.$route.name !== 'application-add' && deactivated(this.appkey);
   }
   beforeDestroy() {
     if (this.showGuidePage) return;
+    this.unmountApm();
     this.$route.name !== 'application-add' && deactivated(this.appkey);
   }
   /**
