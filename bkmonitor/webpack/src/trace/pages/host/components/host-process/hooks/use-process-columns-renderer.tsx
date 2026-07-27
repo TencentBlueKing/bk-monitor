@@ -28,12 +28,9 @@ import { useI18n } from 'vue-i18n';
 
 import {
   type IProcessColumnConfig,
-  formatCpuChange,
   formatMemRss,
-  getCpuBarColor,
-  getCpuChangeColor,
-  getFileHandleBarColor,
-  getMemBarColor,
+  formatUptime,
+  getProcessBarColor,
   PROCESS_PORT_STATUS_MAP,
 } from '../../../constants/process';
 
@@ -44,179 +41,6 @@ export type ProcessColumnsRendererCtx = {
   onRowClick: (row: ProcessItem) => void;
 };
 
-/** 根据进程名生成 LOGO 文本（多词取各首字母，单词取前两位大写） */
-const getLogoText = (name: string): string => {
-  const parts = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return parts
-      .slice(0, 2)
-      .map(p => p[0]?.toUpperCase() ?? '')
-      .join('');
-  }
-  return name.slice(0, 2).toUpperCase();
-};
-
-/**
- * @description 进程名列渲染（可点击触发详情）
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 进程名列 JSX
- */
-const renderNameCell = (row: ProcessItem, onClick: (row: ProcessItem) => void) => (
-  <div class='process-table-name'>
-    <div class='process-table-name__logo'>
-      <span class='process-table-name__logo-text'>{getLogoText(row.name)}</span>
-    </div>
-    <div class='process-table-name__info'>
-      <span
-        class='process-table-name__title'
-        onClick={() => onClick(row)}
-      >
-        {row.name || '--'}
-      </span>
-      {row.subtitle && <span class='process-table-name__subtitle'>{row.subtitle}</span>}
-    </div>
-  </div>
-);
-
-/**
- * @description 实例数列渲染
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 实例数列 JSX
- */
-const renderInstanceCountCell = (row: ProcessItem) => (
-  <span class='process-table-instance'>{row.instanceCount >= 0 ? row.instanceCount : '--'}</span>
-);
-
-/**
- * @description 端口列渲染（状态圆点 + 协议/地址文本）
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 端口列 JSX
- */
-const renderPortCell = (row: ProcessItem) => {
-  const config = PROCESS_PORT_STATUS_MAP[row.portStatus];
-  return (
-    <div class='process-table-port'>
-      <span
-        style={{ backgroundColor: config?.color || '#c4c6cc' }}
-        class='process-table-port__dot'
-      />
-      <span class='process-table-port__text'>{`${row.protocol} ${row.bindIp}:${row.port}`}</span>
-    </div>
-  );
-};
-
-/**
- * @description 主机列渲染
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 主机列 JSX
- */
-const renderHostCell = (row: ProcessItem) => <span class='process-table-link'>{row.hostIp || '--'}</span>;
-
-/**
- * @description CPU 占用列渲染（百分比 + 变化值 + 进度条）
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} CPU 列 JSX
- */
-const renderCpuCell = (row: ProcessItem) => {
-  if (!(row.cpuUsage >= 0)) {
-    return <span class='process-table-cpu__empty'>--</span>;
-  }
-  return (
-    <div class='process-table-cpu'>
-      <div class='process-table-cpu__row'>
-        <span class='process-table-cpu__value'>{`${row.cpuUsage}%`}</span>
-        <span
-          style={{ color: getCpuChangeColor(row.cpuChangeStatus) }}
-          class='process-table-cpu__change'
-        >
-          {formatCpuChange(row.cpuChangePercent, row.cpuChangeStatus)}
-        </span>
-      </div>
-      <div class='process-table-cpu__bar'>
-        <div
-          style={{
-            width: `${Math.min(row.cpuUsage, 100)}%`,
-            backgroundColor: getCpuBarColor(row.cpuUsage),
-          }}
-          class='process-table-cpu__bar-inner'
-        />
-      </div>
-    </div>
-  );
-};
-
-/**
- * @description 物理内存 RSS 列渲染（数值 + 使用率 + 进度条）
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 内存列 JSX
- */
-const renderMemoryCell = (row: ProcessItem) => {
-  if (!(row.memRss > 0)) {
-    return <span class='process-table-memory__empty'>--</span>;
-  }
-  return (
-    <div class='process-table-memory'>
-      <div class='process-table-memory__row'>
-        <span class='process-table-memory__value'>{formatMemRss(row.memRss)}</span>
-        <span class='process-table-memory__percent'>{`${row.memUsage}%`}</span>
-      </div>
-      <div class='process-table-memory__bar'>
-        <div
-          style={{
-            width: `${Math.min(row.memUsage, 100)}%`,
-            backgroundColor: getMemBarColor(row.cpuUsage),
-          }}
-          class='process-table-memory__bar-inner'
-        />
-      </div>
-    </div>
-  );
-};
-
-/**
- * @description 连接数列渲染
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 连接数列 JSX
- */
-const renderConnectionCountCell = (row: ProcessItem) => (
-  <span>{row.connectionCount >= 0 ? row.connectionCount : '--'}</span>
-);
-
-/**
- * @description 文件句柄列渲染（数值 + 使用率 + 进度条）
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 文件句柄列 JSX
- */
-const renderFileHandleCell = (row: ProcessItem) => {
-  if (!(row.fileHandleCount >= 0)) {
-    return <span class='process-table-file-handle__empty'>--</span>;
-  }
-  return (
-    <div class='process-table-file-handle'>
-      <div class='process-table-file-handle__row'>
-        <span class='process-table-file-handle__value'>{row.fileHandleCount.toLocaleString()}</span>
-        <span class='process-table-file-handle__percent'>{`${row.fileHandleUsagePercent}%`}</span>
-      </div>
-      <div class='process-table-file-handle__bar'>
-        <div
-          style={{
-            width: `${Math.min(row.fileHandleUsagePercent, 100)}%`,
-            backgroundColor: getFileHandleBarColor(row.cpuUsage),
-          }}
-          class='process-table-file-handle__bar-inner'
-        />
-      </div>
-    </div>
-  );
-};
-
-/**
- * @description 运行时长列渲染
- * @param {ProcessItem} row - 当前行进程数据
- * @returns {SlotReturnValue} 运行时长列 JSX
- */
-const renderUptimeCell = (row: ProcessItem) => <span>{row.uptimeRange || '--'}</span>;
-
 /**
  * @description 进程表格列渲染器 hook，负责将列配置与各列的自定义渲染逻辑合并
  * @param {ProcessColumnsRendererCtx} rendererCtx - 渲染上下文，包含行点击等交互回调
@@ -224,6 +48,182 @@ const renderUptimeCell = (row: ProcessItem) => <span>{row.uptimeRange || '--'}</
  */
 export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx) => {
   const { t } = useI18n();
+
+  /** 根据进程名生成 LOGO 文本（多词取各首字母，单词取前两位大写） */
+  const getLogoText = (name: string): string => {
+    const parts = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return parts
+        .slice(0, 2)
+        .map(p => p[0]?.toUpperCase() ?? '')
+        .join('');
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  /**
+   * @description 进程名列渲染（可点击触发详情）
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 进程名列 JSX
+   */
+  const renderNameCell = (row: ProcessItem, onClick: (row: ProcessItem) => void) => (
+    <div class='process-table-name'>
+      <div class='process-table-name__logo'>
+        <span class='process-table-name__logo-text'>{getLogoText(row.name)}</span>
+      </div>
+      <div class='process-table-name__info'>
+        <span
+          class='process-table-name__title'
+          v-overflow-tips={{
+            placement: 'top',
+          }}
+          onClick={() => onClick(row)}
+        >
+          {row.name || '--'}
+        </span>
+        <span
+          class='process-table-name__subtitle'
+          v-overflow-tips={{
+            placement: 'top',
+          }}
+        >{`${t('名称匹配')}：process.name=${row.name}`}</span>
+      </div>
+    </div>
+  );
+
+  /**
+   * @description 实例数列渲染
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 实例数列 JSX
+   */
+  const renderInstanceCountCell = (row: ProcessItem) => (
+    <span class='process-table-instance'>{row.instanceCount ?? '--'}</span>
+  );
+
+  /**
+   * @description 端口列渲染（状态圆点 + 协议/地址文本）
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 端口列 JSX
+   */
+  const renderPortCell = (row: ProcessItem) => {
+    const config = PROCESS_PORT_STATUS_MAP[row.portStatus];
+    return (
+      <div class='process-table-port'>
+        <span
+          style={{ backgroundColor: config?.color || '#c4c6cc' }}
+          class='process-table-port__dot'
+        />
+        <span class='process-table-port__text'>{`${row.protocol} ${row.bindIp}:${row.port}`}</span>
+      </div>
+    );
+  };
+
+  /**
+   * @description 主机列渲染
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 主机列 JSX
+   */
+  const renderHostCell = (row: ProcessItem) => <span class='process-table-link'>{row.hostIp || '--'}</span>;
+
+  /**
+   * @description CPU 占用列渲染（百分比 + 进度条）
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} CPU 列 JSX
+   */
+  const renderCpuCell = (row: ProcessItem) => {
+    if (!(row.cpuUsage >= 0)) {
+      return <span class='process-table-cpu__empty'>--</span>;
+    }
+    return (
+      <div class='process-table-cpu'>
+        <div class='process-table-cpu__row'>
+          <span class='process-table-cpu__value'>{`${row.cpuUsage}%`}</span>
+        </div>
+        <div class='process-table-cpu__bar'>
+          <div
+            style={{
+              width: `${Math.min(row.cpuUsage, 100)}%`,
+              backgroundColor: getProcessBarColor(row.cpuUsage),
+            }}
+            class='process-table-cpu__bar-inner'
+          />
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * @description 物理内存 RSS 列渲染（数值 + 使用率 + 进度条）
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 内存列 JSX
+   */
+  const renderMemoryCell = (row: ProcessItem) => {
+    if (!(row.memRss > 0)) {
+      return <span class='process-table-memory__empty'>--</span>;
+    }
+    return (
+      <div class='process-table-memory'>
+        <div class='process-table-memory__row'>
+          <span class='process-table-memory__value'>{formatMemRss(row.memRss)}</span>
+          <span class='process-table-memory__percent'>{`${row.memUsage}%`}</span>
+        </div>
+        <div class='process-table-memory__bar'>
+          <div
+            style={{
+              width: `${Math.min(row.memUsage, 100)}%`,
+              backgroundColor: getProcessBarColor(row.memUsage),
+            }}
+            class='process-table-memory__bar-inner'
+          />
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * @description 文件句柄列渲染（数值 + 使用率 + 进度条）
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 文件句柄列 JSX
+   */
+  const renderFileHandleCell = (row: ProcessItem) => {
+    if (!(row.fdNum >= 0)) {
+      return <span class='process-table-file-handle__empty'>--</span>;
+    }
+    const fdRate = parseFloat(row.fdUsageRate) || 0;
+    return (
+      <div class='process-table-file-handle'>
+        <div class='process-table-file-handle__row'>
+          <span class='process-table-file-handle__value'>{row.fdNum.toLocaleString()}</span>
+          <span class='process-table-file-handle__percent'>{`${row.fdUsageRate}%`}</span>
+        </div>
+        <div class='process-table-file-handle__bar'>
+          <div
+            style={{
+              width: `${Math.min(fdRate, 100)}%`,
+              backgroundColor: getProcessBarColor(fdRate),
+            }}
+            class='process-table-file-handle__bar-inner'
+          />
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * @description 运行时长列渲染
+   * @param {ProcessItem} row - 当前行进程数据
+   * @returns {SlotReturnValue} 运行时长列 JSX
+   */
+  const renderUptimeCell = (row: ProcessItem) => (
+    <span
+      class='process-table-uptime'
+      v-overflow-tips={{
+        placement: 'top',
+      }}
+    >
+      {formatUptime(row.uptime)}
+    </span>
+  );
 
   /**
    * @description 构建某一列的 tdesign 配置
@@ -233,10 +233,11 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
   const buildColumn = (config: IProcessColumnConfig) => {
     const base: Record<string, unknown> = {
       colKey: config.id,
-      title: t(config.name),
+      title: config.name,
       minWidth: config.minWidth,
       sorter: config.sortable,
-      ellipsis: config.type === 'text' || config.type === 'port',
+      align: config.align,
+      ellipsis: config.type === 'port',
     };
     /**
      * @description 单元格渲染函数
@@ -258,16 +259,21 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
           return renderCpuCell(row);
         case 'memory':
           return renderMemoryCell(row);
-        case 'connectionCount':
-          return renderConnectionCountCell(row);
         case 'fileHandle':
           return renderFileHandleCell(row);
         case 'uptime':
           return renderUptimeCell(row);
-        case 'uptimeRange':
-          return renderUptimeCell(row);
         default:
-          return <span>{(row[config.id as keyof ProcessItem] ?? '--') as string}</span>;
+          return (
+            <span
+              class='process-table-text'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
+              {(row[config.id as keyof ProcessItem] ?? '--') as string}
+            </span>
+          );
       }
     };
     return base;

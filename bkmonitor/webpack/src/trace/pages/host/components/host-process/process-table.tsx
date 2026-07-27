@@ -26,11 +26,13 @@
 
 import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
 
-import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
+import { type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
+import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { type IProcessColumnConfig, PROCESS_LIST_COLUMNS } from '../../constants/process';
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { PROCESS_LIST_COLUMNS } from '../../constants/process';
 import { useProcessColumnsRenderer } from './hooks/use-process-columns-renderer';
 
 import type { ProcessItem } from '../../types/process';
@@ -54,6 +56,16 @@ export default defineComponent({
     sort: {
       type: String,
       default: '',
+    },
+    /** 表格加载状态（展示骨架屏） */
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    /** 表格空数据配置：{ emptyText, type } 或自定义渲染函数 */
+    empty: {
+      type: [Object, Function] as PropType<(() => unknown) | { emptyText?: string; type?: 'empty' | 'search-empty' }>,
+      default: undefined,
     },
   },
   emits: {
@@ -81,28 +93,19 @@ export default defineComponent({
       return [{ sortBy: descending ? props.sort.slice(1) : props.sort, descending }];
     });
 
-    /** 字段设置：全部字段 + 当前展示字段 */
-    const tableSettings = computed<BkUiSettings>(() => ({
-      fields: PROCESS_LIST_COLUMNS.map(column => ({
-        label: t(column.name),
-        field: column.id,
-        disabled: column.disabled,
-      })),
-      checked: props.visibleColumns,
-    }));
-
     /** 列渲染器 hook（含各列单元格自定义渲染逻辑） */
     const { buildColumn } = useProcessColumnsRenderer({
       onRowClick: row => emit('rowClick', row),
     });
 
-    /** 当前可见列的完整 tdesign 列配置 */
-    const tableColumns = computed(() =>
-      props.visibleColumns
-        .map(id => PROCESS_LIST_COLUMNS.find(column => column.id === id))
-        .filter((column): column is IProcessColumnConfig => !!column)
-        .map(buildColumn)
-    );
+    /** 表格骨架屏展示相关配置（loading 时隐藏表体并覆盖骨架屏） */
+    const tableSkeletonConfig = computed(() => {
+      if (!props.loading) return null;
+      return {
+        tableClass: 'common-table-hidden-body',
+        skeletonClass: 'common-skeleton-show-body',
+      };
+    });
 
     /**
      * @description tdesign 排序变化回调，转换为 `-key` / `key` 字符串格式发出
@@ -114,10 +117,11 @@ export default defineComponent({
     };
 
     return {
+      t,
       bodyHeight,
-      tableSettings,
-      tableColumns,
+      buildColumn,
       tableSort,
+      tableSkeletonConfig,
       handleSortChange,
     };
   },
@@ -128,8 +132,26 @@ export default defineComponent({
         class='process-table'
       >
         <PrimaryTable
-          bkUiSettings={this.tableSettings}
-          columns={this.tableColumns}
+          class={`process-table__body ${this.tableSkeletonConfig?.tableClass}`}
+          v-slots={{
+            empty: () => (
+              <Exception
+                class='common-table-empty'
+                description={this.empty?.emptyText || this.t('暂无数据')}
+                scene='part'
+                type={this.empty?.type || 'search-empty'}
+              />
+            ),
+          }}
+          bkUiSettings={{
+            fields: PROCESS_LIST_COLUMNS.map(column => ({
+              label: this.t(column.name),
+              field: column.id,
+              disabled: column.disabled,
+            })),
+            checked: this.visibleColumns,
+          }}
+          columns={PROCESS_LIST_COLUMNS.map(this.buildColumn)}
           data={this.data}
           disableDataPage={true}
           hover={true}
@@ -145,6 +167,7 @@ export default defineComponent({
           onDisplayColumnsChange={(cols: string[]) => this.$emit('columnsChange', cols)}
           onSortChange={this.handleSortChange}
         />
+        <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
       </div>
     );
   },
