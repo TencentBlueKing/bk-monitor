@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 
 import TimeRange from '@/components/time-range/time-range';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { handleTransformToTimestamp, MAX_SEARCH_TIME_RANGE } from '@/components/time-range/utils';
 import useStore from '@/hooks/use-store';
 import { updateTimezone } from '@/language/dayjs';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -83,6 +83,7 @@ const handleFormatChange = (value) => {
 <template>
   <span class="query-params-wrap">
     <TimeRange
+      :max-duration="MAX_SEARCH_TIME_RANGE"
       :timezone="timezone"
       :value="timeRangValue"
       @change="handleTimeRangeChange"
