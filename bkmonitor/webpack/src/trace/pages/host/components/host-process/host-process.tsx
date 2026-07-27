@@ -26,7 +26,7 @@
 
 import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
 
-import { Input, Loading } from 'bkui-vue';
+import { Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useProcessList } from '../../composables/use-process-list';
@@ -91,14 +91,11 @@ export default defineComponent({
   },
   render() {
     return (
-      <Loading
-        class='host-process'
-        loading={this.loading}
-      >
+      <div class='host-process'>
         <div class='host-process__search'>
           <Input
             modelValue={this.keyword}
-            placeholder={this.t('输入 进程名 / PID')}
+            placeholder={this.t('输入 进程名')}
             type='search'
             clearable
             onClear={() => this.handleKeywordChange('')}
@@ -106,7 +103,13 @@ export default defineComponent({
           />
         </div>
         <ProcessTable
+          empty={
+            this.keyword
+              ? { type: 'search-empty', emptyText: this.t('搜索结果为空') }
+              : { type: 'empty', emptyText: this.t('暂无数据') }
+          }
           data={this.displayList}
+          loading={this.loading}
           sort={this.sortInfo}
           visibleColumns={this.visibleColumns}
           onColumnsChange={(cols: string[]) => (this.visibleColumns = cols)}
@@ -120,7 +123,7 @@ export default defineComponent({
           show={this.detailShow}
           onUpdate:show={(v: boolean) => (this.detailShow = v)}
         />
-      </Loading>
+      </div>
     );
   },
 });

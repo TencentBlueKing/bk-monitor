@@ -394,5 +394,5 @@ export default {
   '搜索 指标分组': 'Search Metric Group',
   请输入分组名称: 'Please enter group name',
   '搜索 IP / 主机名 / 节点名称': 'Search IP / Hostname / Node Name',
-  '输入 进程名 / PID': 'Enter Process Name / PID',
+  '输入 进程名': 'Enter Process Name',
 };

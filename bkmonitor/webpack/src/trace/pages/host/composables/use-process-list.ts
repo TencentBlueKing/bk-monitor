@@ -36,7 +36,7 @@ import type { ProcessItem } from '../types/process';
 import type { IHostTopoHostNode } from '../types/topo';
 
 /** 支持前端排序的数值列 key */
-const SORTABLE_KEYS = new Set<keyof ProcessItem>(['cpuUsage', 'memRss', 'uptime']);
+const SORTABLE_KEYS = new Set<keyof ProcessItem>(['cpuUsage', 'memRss', 'instanceCount', 'fdNum']);
 
 /**
  * @description 进程列表业务编排：按选中主机加载数据，并在前端完成关键字搜索与排序。
@@ -46,7 +46,7 @@ export const useProcessList = (options: { host: Ref<IHostTopoHostNode | null> })
   const { timeRangeTimestamp } = storeToRefs(useHostStore());
 
   const loading = shallowRef(false);
-  /** 原始进程数据（接口 / mock 原样数据） */
+  /** 原始进程数据（接口原样数据） */
   const rawList = shallowRef<ProcessItem[]>([]);
   /** 进程名 / PID 搜索关键字 */
   const keyword = shallowRef('');
@@ -78,7 +78,7 @@ export const useProcessList = (options: { host: Ref<IHostTopoHostNode | null> })
     if (!kw) {
       return rawList.value;
     }
-    return rawList.value.filter(item => item.name.toLowerCase().includes(kw) || String(item.pid).includes(kw));
+    return rawList.value.filter(item => item.name.toLowerCase().includes(kw));
   });
 
   /** 排序后的展示数据 */

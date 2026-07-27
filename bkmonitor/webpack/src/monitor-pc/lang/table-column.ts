@@ -215,4 +215,5 @@ export default {
   连接数: 'Connection Number',
   文件句柄: 'File Descriptor',
   运行时长范围: 'Running Time Range',
+  名称匹配: 'Name Match',
 };
