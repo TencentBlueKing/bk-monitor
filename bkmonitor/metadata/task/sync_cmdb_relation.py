@@ -22,17 +22,20 @@ from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
+from metadata import config
 from metadata.models import (
     ClusterInfo,
     DataLink,
     DataSource,
     DataSourceResultTable,
+    GraphRelationV4DataLinkOption,
     Label,
     ResultTable,
+    ResultTableOption,
     Space,
+    SurrealDBStorage,
     TimeSeriesGroup,
 )
-from metadata.models.data_link.data_link import SURREALDB_RT_SUFFIX
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -42,7 +45,6 @@ from metadata.models.data_link.data_link_configs import (
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
-from metadata.models.data_link.utils import compose_bkdata_table_id
 from metadata.models.entity_relation import EntityMeta, NAMESPACE_ALL
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
@@ -640,292 +642,91 @@ def sync_graph_definition_to_bkbase(
     return result
 
 
-def _apply_relation_graph_link_best_effort(
-    data_link: DataLink,
-    ds: DataSource,
-    bk_biz_id: int,
-    table_id: str,
-    vm_cluster_name: str,
-    effective_write_mode: str,
-    graph_binding: GraphRelationBindingConfig | None = None,
-    persist_graph_write_mode: bool = True,
-    surrealdb_auto_restore: bool = False,
-) -> bool:
-    """
-    Relation data must keep the historical VM/event path available.
-
-    SurrealDB graph link apply is best effort in this periodic sync path: failures are logged and retried by the next
-    run instead of rolling back the built-in relation RT/token refresh.
-    """
-    try:
-        data_link.apply_data_link(
-            bk_biz_id=bk_biz_id,
-            data_source=ds,
-            table_id=table_id,
-            storage_cluster_name=vm_cluster_name,
-            write_mode=effective_write_mode,
-            persist_graph_write_mode=persist_graph_write_mode,
-            surrealdb_auto_restore=surrealdb_auto_restore,
-        )
-        return True
-    except Exception as e:  # pylint: disable=broad-except
-        if graph_binding:
-            graph_binding.status = DataLinkResourceStatus.FAILED.value
-            graph_binding.save(update_fields=["status"])
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: best-effort graph link apply failed, data_id->[%s], "
-            "bk_biz_id->[%s], write_mode->[%s], error->[%s]",
-            ds.bk_data_id,
-            bk_biz_id,
-            effective_write_mode,
-            e,
-        )
-        return False
-
-
-def _is_graph_relation_binding_apply_config_unchanged(
-    graph_binding: GraphRelationBindingConfig,
-    effective_write_mode: str,
-    graph_binding_defaults: dict[str, Any],
-) -> bool:
-    if graph_binding.write_mode != effective_write_mode:
-        return False
-
-    for field, value in graph_binding_defaults.items():
-        current_value = getattr(graph_binding, field)
-        if field in {"vertices", "relations"}:
-            if _canonical_graph_definitions(current_value) != _canonical_graph_definitions(value):
-                return False
-            continue
-        if current_value != value:
-            return False
-    return True
-
-
-def _enable_relation_surrealdb_dual_write_best_effort(ds: DataSource, bk_tenant_id: str, bk_biz_id: int) -> None:
-    try:
-        enable_relation_surrealdb_dual_write(ds, bk_tenant_id, bk_biz_id)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning(
-            "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
-            "data_id->[%s], bk_biz_id->[%s], error->[%s]",
-            ds.bk_data_id,
-            bk_biz_id,
-            e,
-        )
-
-
 def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: set[int] | None = None) -> bool:
     enabled_biz_ids = enabled_biz_ids if enabled_biz_ids is not None else _get_graph_relation_bkbase_sync_biz_ids()
     return bk_biz_id in enabled_biz_ids
 
 
-def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_biz_id: int) -> None:
+def _compose_relation_graph_v4_storage_config(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    """校验 Graph V4 依赖，并生成普通 SurrealDB external storage 配置。"""
+    default_clusters = list(
+        ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=ClusterInfo.TYPE_SURREALDB,
+            is_default_cluster=True,
+        )
+    )
+    if len(default_clusters) != 1:
+        raise ValueError(
+            f"sync_relation_redis_data: tenant({bk_tenant_id}) requires exactly one default SurrealDB cluster, "
+            f"found {len(default_clusters)}"
+        )
+
+    vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
+    if not vertices:
+        raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph vertices are empty")
+    if not relations:
+        raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph relations are empty")
+
+    return {
+        "storage_cluster_id": default_clusters[0].cluster_id,
+        "table_type": SurrealDBStorage.TEMPORARY_TABLE_TYPE,
+        "vertices": vertices,
+        "relations": relations,
+    }
+
+
+def _modify_relation_graph_v4_result_table(
+    result_table: ResultTable,
+    storage_config: dict[str, Any],
+) -> None:
+    """通过普通 ResultTable 变更流程刷新 Graph V4 storage、option 和异步接入任务。"""
+    # storage 和 option 必须原子提交；apply_datalink 内部通过 on_commit
+    # 投递 Graph V4 任务，因此异步任务只会看到完整配置。
+    with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+        result_table = (
+            ResultTable.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=result_table.pk)
+        )
+        options = {
+            option.name: option.get_value()
+            for option in ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME).filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+            )
+        }
+        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = GraphRelationV4DataLinkOption(
+            write_targets=["vm", "surrealdb"]
+        ).model_dump()
+        result_table.modify(
+            operator="system",
+            external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},
+            option=options,
+        )
+
+
+def enable_relation_surrealdb_dual_write(
+    ds: DataSource,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_config: dict[str, Any] | None = None,
+) -> None:
+    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路。"""
     table_ids = list(
         DataSourceResultTable.objects.filter(bk_data_id=ds.bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
             "table_id", flat=True
         )
     )
-    if not table_ids:
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: data_id->[%s] has no result table, skip apply graph relation link",
-            ds.bk_data_id,
+    if len(table_ids) != 1:
+        raise ValueError(
+            f"enable_relation_surrealdb_dual_write: tenant({bk_tenant_id}) data_id({ds.bk_data_id}) "
+            f"requires exactly one result table, found {len(table_ids)}"
         )
-        return
-
-    table_id = table_ids[0]
-    data_link_name = compose_bkdata_table_id(f"{bk_tenant_id}_{ds.data_name}_graph_relation")
-    existed_graph_binding = GraphRelationBindingConfig.objects.filter(
+    result_table = ResultTable.objects.get(
         bk_tenant_id=bk_tenant_id,
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-        name=data_link_name,
-    ).first()
-    current_write_mode = (
-        existed_graph_binding.write_mode
-        if existed_graph_binding
-        else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+        table_id=table_ids[0],
     )
-    desired_write_mode = (
-        _graph_definition_sync_write_mode(existed_graph_binding) if existed_graph_binding else current_write_mode
-    )
-    apply_write_mode = desired_write_mode
-    is_auto_restoring_vm_binding = (
-        bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
-        and current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
-        and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
-    )
-    should_write_vm = desired_write_mode in (
-        GraphRelationBindingConfig.WRITE_MODE_VM,
-        GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-    )
-    should_write_surrealdb = desired_write_mode in (
-        GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-        GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-    )
-
-    vm_cluster = None
-    if should_write_vm:
-        vm_cluster_queryset = ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=ClusterInfo.TYPE_VM,
-        )
-        vm_cluster = (
-            vm_cluster_queryset.filter(cluster_name=existed_graph_binding.vm_cluster_name).first()
-            if existed_graph_binding and existed_graph_binding.vm_cluster_name
-            else vm_cluster_queryset.filter(is_default_cluster=True).first()
-        )
-    if should_write_vm and not vm_cluster:
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: data_id->[%s] has no vm cluster, skip apply graph relation link",
-            ds.bk_data_id,
-        )
-        return
-
-    surrealdb_cluster = None
-    if should_write_surrealdb:
-        surrealdb_cluster_queryset = ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=ClusterInfo.TYPE_SURREALDB,
-        )
-        surrealdb_cluster = (
-            surrealdb_cluster_queryset.filter(cluster_name=existed_graph_binding.surrealdb_cluster_name).first()
-            if existed_graph_binding and existed_graph_binding.surrealdb_cluster_name
-            else (
-                surrealdb_cluster_queryset.filter(is_default_cluster=True).first()
-                or surrealdb_cluster_queryset.order_by("cluster_id").first()
-            )
-        )
-    if should_write_surrealdb and not surrealdb_cluster:
-        if is_auto_restoring_vm_binding:
-            logger.warning(
-                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
-                "fallback to vm-only graph relation link",
-                ds.bk_data_id,
-            )
-            desired_write_mode = current_write_mode
-            apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
-            should_write_surrealdb = False
-        else:
-            logger.warning(
-                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
-                "skip apply graph relation link",
-                ds.bk_data_id,
-            )
-            return
-
-    vertices = []
-    relations = []
-    if should_write_surrealdb:
-        vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
-        if not vertices or not relations:
-            if desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_SURREALDB:
-                logger.warning(
-                    "enable_relation_surrealdb_dual_write: data_id->[%s] has empty graph definitions and "
-                    "surrealdb-only mode, skip apply graph relation link",
-                    ds.bk_data_id,
-                )
-                return
-            logger.warning(
-                "enable_relation_surrealdb_dual_write: data_id->[%s] has empty graph definitions, downgrade to vm-only",
-                ds.bk_data_id,
-            )
-            apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
-            should_write_surrealdb = False
-            if current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
-                desired_write_mode = current_write_mode
-
-    if not should_write_surrealdb and existed_graph_binding:
-        vertices = existed_graph_binding.vertices
-        relations = existed_graph_binding.relations
-    graph_table_id = table_id.replace(".__default__", f"{SURREALDB_RT_SUFFIX}.__default__", 1)
-    if graph_table_id == table_id:
-        graph_table_id = f"{table_id}{SURREALDB_RT_SUFFIX}"
-
-    data_link, _ = DataLink.objects.update_or_create(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_link_name,
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-        defaults={
-            "bk_data_id": ds.bk_data_id,
-            "table_ids": table_ids,
-            "data_link_strategy": DataLink.GRAPH_RELATION_TIME_SERIES,
-        },
-    )
-    vm_cluster_name = vm_cluster.cluster_name if vm_cluster else ""
-    surrealdb_cluster_name = surrealdb_cluster.cluster_name if surrealdb_cluster else ""
-    if existed_graph_binding:
-        vm_cluster_name = vm_cluster_name or existed_graph_binding.vm_cluster_name
-        surrealdb_cluster_name = surrealdb_cluster_name or existed_graph_binding.surrealdb_cluster_name
-
-    bkbase_result_table_name = DataLink.resolve_graph_relation_vm_result_table_name(
-        bk_tenant_id=bk_tenant_id,
-        table_id=table_id,
-        default_name=compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
-    )
-    graph_binding_defaults = {
-        "data_link_name": data_link.data_link_name,
-        "bk_biz_id": bk_biz_id,
-        "vm_cluster_name": vm_cluster_name,
-        "surrealdb_cluster_name": surrealdb_cluster_name,
-        "table_id": table_id,
-        "bkbase_result_table_name": bkbase_result_table_name,
-        "vm_storage_binding_name": bkbase_result_table_name,
-        "vm_databus_name": bkbase_result_table_name,
-        "graph_result_table_name": compose_bkdata_table_id(graph_table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
-        "table_type": existed_graph_binding.table_type if existed_graph_binding else "temporary",
-        "vertices": vertices,
-        "relations": relations,
-        "surrealdb_auto_restore": (
-            bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
-            and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
-        ),
-    }
-    graph_binding, created = GraphRelationBindingConfig.objects.get_or_create(
-        bk_tenant_id=bk_tenant_id,
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-        name=data_link.data_link_name,
-        defaults={
-            **graph_binding_defaults,
-            "write_mode": desired_write_mode,
-            "status": DataLinkResourceStatus.INITIALIZING.value,
-        },
-    )
-    if not created:
-        if (
-            apply_write_mode == desired_write_mode
-            and _graph_relation_binding_sync_healthy(graph_binding)
-            and _is_graph_relation_binding_apply_config_unchanged(
-                graph_binding=graph_binding,
-                effective_write_mode=desired_write_mode,
-                graph_binding_defaults=graph_binding_defaults,
-            )
-        ):
-            logger.info(
-                "enable_relation_surrealdb_dual_write: graph link unchanged, skip apply, data_id->[%s], "
-                "data_link->[%s], bk_biz_id->[%s]",
-                ds.bk_data_id,
-                data_link.data_link_name,
-                bk_biz_id,
-            )
-            return
-        for field, value in graph_binding_defaults.items():
-            setattr(graph_binding, field, value)
-        graph_binding.write_mode = desired_write_mode
-        graph_binding.status = DataLinkResourceStatus.INITIALIZING.value
-        update_fields = [*graph_binding_defaults, "write_mode", "status"]
-        graph_binding.save(update_fields=update_fields)
-
-    _apply_relation_graph_link_best_effort(
-        data_link=data_link,
-        ds=ds,
-        bk_biz_id=bk_biz_id,
-        table_id=table_id,
-        vm_cluster_name=vm_cluster_name,
-        effective_write_mode=apply_write_mode,
-        graph_binding=graph_binding,
-        persist_graph_write_mode=apply_write_mode == desired_write_mode,
-        surrealdb_auto_restore=graph_binding_defaults["surrealdb_auto_restore"],
-    )
+    storage_config = storage_config or _compose_relation_graph_v4_storage_config(bk_tenant_id, bk_biz_id)
+    _modify_relation_graph_v4_result_table(result_table, storage_config)
 
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
@@ -949,6 +750,7 @@ def sync_relation_redis_data():
     existing_time_series_groups_dict = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
+    enabled_graph_dual_write_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
     for field, value in redis_data.items():
         try:
             # 将json解析放在try中，确保value是有效的JSON字符串
@@ -983,16 +785,33 @@ def sync_relation_redis_data():
 
         table_id, data_name = TimeSeriesGroup.make_cmdb_relation_builtin_table_id_and_group_name(biz_id, space_type)
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(biz_id)
+        graph_storage_config = None
+        if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
+            # 白名单业务必须先完成全部只读依赖检查。校验失败直接终止本次任务，
+            # 此前不能修改 relation RT、storage、option、数据源 token 或 Redis token。
+            graph_storage_config = _compose_relation_graph_v4_storage_config(bk_tenant_id, biz_id)
+
         token = value_dict.get("token")  # Redis缓存中的Token数据
 
         logger.info("sync_relation_redis_data start sync builtin redis data, field=%s", key)
 
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(biz_id)
         rt = existing_rts_dict.get(table_id)
         if rt:
+            ds = None
+            if graph_storage_config is not None:
+                # Graph 配置失败需要直接向上抛出，不能被原有 Redis token
+                # 修复逻辑吞掉；ResultTable.modify 自身负责事务和 on_commit 投递。
+                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
+                enable_relation_surrealdb_dual_write(
+                    ds,
+                    bk_tenant_id,
+                    biz_id,
+                    storage_config=graph_storage_config,
+                )
             try:
                 new_modify_time = str(int(time.time()))
-                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
+                ds = ds or DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
                 generated_token = transform_data_id_to_token(
                     metric_data_id=ds.bk_data_id, bk_biz_id=biz_id, app_name=data_name
                 )
@@ -1032,7 +851,7 @@ def sync_relation_redis_data():
 
             try:
                 logger.info("sync_relation_redis_data: create builtin metadata for field->[%s]", key)
-                with transaction.atomic():
+                with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
                     # field下对应RT不存在且Token不存在，创建新DS与RT,使用事务保证实例同时成功创建
                     ds = DataSource.create_data_source(
                         bk_tenant_id=bk_tenant_id,
@@ -1054,8 +873,18 @@ def sync_relation_redis_data():
                         table_id=table_id,
                         is_builtin=True,
                         bk_tenant_id=bk_tenant_id,
+                        # 白名单业务需要先在同一事务内补齐 SurrealDB storage 和
+                        # Graph option，再由随后的 ResultTable.modify 单独投递 Graph V4。
+                        is_sync_db=graph_storage_config is None,
                     )
                     existing_time_series_groups_dict[(bk_tenant_id, table_id)] = ts_group
+                    if graph_storage_config is not None:
+                        enable_relation_surrealdb_dual_write(
+                            ds,
+                            bk_tenant_id,
+                            biz_id,
+                            storage_config=graph_storage_config,
+                        )
                 generated_token = transform_data_id_to_token(
                     metric_data_id=ds.bk_data_id,
                     bk_biz_id=biz_id,
@@ -1083,6 +912,8 @@ def sync_relation_redis_data():
                     value_dict,
                     e,
                 )
+                if graph_storage_config is not None:
+                    raise
 
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(

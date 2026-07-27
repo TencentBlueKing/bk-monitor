@@ -1001,7 +1001,11 @@ class ResultTable(models.Model):
                     raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(ex_storage_type))
 
                 ex_storage_config = dict(ex_storage_config)
-                if ex_storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+                if ex_storage_type in (
+                    ClusterInfo.TYPE_ES,
+                    ClusterInfo.TYPE_DORIS,
+                    ClusterInfo.TYPE_SURREALDB,
+                ):
                     ex_storage_config["create_storage_cluster_record"] = False
                 if ex_storage_type == ClusterInfo.TYPE_ES:
                     ex_storage_config["enable_create_index"] = False
@@ -1487,7 +1491,11 @@ class ResultTable(models.Model):
                 continue
 
             ex_storage_config = dict(ex_storage_config)
-            if ex_storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+            if ex_storage_type in (
+                ClusterInfo.TYPE_ES,
+                ClusterInfo.TYPE_DORIS,
+                ClusterInfo.TYPE_SURREALDB,
+            ):
                 # 新建配置不代表切换默认写入目标，current 由 ResultTable 统一推进。
                 ex_storage_config["create_storage_cluster_record"] = False
             ex_storage.create_table(

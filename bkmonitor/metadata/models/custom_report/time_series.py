@@ -754,6 +754,7 @@ class TimeSeriesGroup(CustomGroupBase):
         data_label: str | None = None,
         metric_group_dimensions: list[dict] | None = None,
         is_need_deploy_collector_config: bool = True,
+        is_sync_db: bool = True,
     ):
         """
         创建一个新的自定义分组记录
@@ -772,6 +773,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param bk_tenant_id: 租户ID
         :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
+        :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :return: group object
         """
         # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
@@ -791,6 +793,7 @@ class TimeSeriesGroup(CustomGroupBase):
             is_builtin=is_builtin,
             is_split_measurement=is_split_measurement,
             is_need_deploy_collector_config=is_need_deploy_collector_config,
+            is_sync_db=is_sync_db,
             default_storage_config=default_storage_config,
             additional_options=additional_options,
             data_label=data_label,
