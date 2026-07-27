@@ -2983,7 +2983,7 @@ class BkRumDataSource(BkApmTraceDataSource):
     PRE_CALCULATE_OBJECT_FIELDS: set[str] = {}
 
     def _fetch_black_list(self) -> list[str | int]:
-        return settings.RUM_UNIFY_QUERY_BLACK_BIZ_LIST
+        return []
 
 
 class BkRumTimeSeriesDataSource(BkRumDataSource):
