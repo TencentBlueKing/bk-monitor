@@ -182,13 +182,6 @@ class TimeSeriesGroup(CustomGroupBase):
     def is_cmdb_relation_builtin(self):
         return bool(self.CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX.match(self.time_series_group_name))
 
-    @classmethod
-    def make_cmdb_relation_builtin_table_id_and_group_name(cls, bk_biz_id, space_type):
-        return (
-            f"{bk_biz_id}_{space_type}_built_in_time_series.__default__",
-            f"{bk_biz_id}_{space_type}_built_in_time_series",
-        )
-
     # 组合一个默认的table_id
     @staticmethod
     def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):

@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
@@ -42,6 +43,25 @@ logger = logging.getLogger("metadata")
 GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST"
 
 
+@dataclass
+class _RelationSyncContext:
+    """单个 Redis field 对应的 CMDB relation 同步上下文。"""
+
+    field: bytes | str
+    key: str
+    value: dict[str, Any]
+    space_type: str
+    space_id: str
+    bk_biz_id: int
+    bk_tenant_id: str
+    table_id: str
+    data_name: str
+
+    @property
+    def redis_token(self) -> str:
+        return self.value.get("token") or ""
+
+
 def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
     raw_biz_ids = getattr(settings, GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST, [])
     if raw_biz_ids is None:
@@ -70,9 +90,23 @@ def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
 
 
 def _get_builtin_relation_token(
-    ds: DataSource, table_id: str, generated_token: str, time_series_group: TimeSeriesGroup | None = None
+    data_source: DataSource,
+    bk_biz_id: int,
+    data_name: str,
+    time_series_group: TimeSeriesGroup | None = None,
 ) -> str:
-    return time_series_group.token if time_series_group and time_series_group.token else generated_token
+    """获取 relation 上报 token。
+
+    正常链路以 TimeSeriesGroup.token 为准；仅在历史 RT 缺少 TimeSeriesGroup
+    记录时，使用可重复计算的 Prometheus token 作为兼容兜底。
+    """
+    if time_series_group and time_series_group.token:
+        return time_series_group.token
+    return transform_data_id_to_token(
+        metric_data_id=data_source.bk_data_id,
+        bk_biz_id=bk_biz_id,
+        app_name=data_name,
+    )
 
 
 def _canonical_graph_definitions(definitions: list) -> list[str]:
@@ -84,20 +118,32 @@ def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: s
     return bk_biz_id in enabled_biz_ids
 
 
-def _compose_relation_graph_v4_storage_config(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
-    """校验 Graph V4 依赖，并生成普通 SurrealDB external storage 配置。"""
-    default_clusters = list(
-        ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=ClusterInfo.TYPE_SURREALDB,
-            is_default_cluster=True,
+def _compose_relation_graph_v4_storage_config(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    table_id: str,
+) -> dict[str, Any]:
+    """校验 Graph V4 依赖，并生成保持已有集群稳定的 SurrealDB external storage 配置。"""
+    surrealdb_storage = SurrealDBStorage.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+    ).first()
+    if surrealdb_storage is not None:
+        storage_cluster_id = surrealdb_storage.storage_cluster_id
+    else:
+        default_clusters = list(
+            ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+                is_default_cluster=True,
+            )
         )
-    )
-    if len(default_clusters) != 1:
-        raise ValueError(
-            f"sync_relation_redis_data: tenant({bk_tenant_id}) requires exactly one default SurrealDB cluster, "
-            f"found {len(default_clusters)}"
-        )
+        if len(default_clusters) != 1:
+            raise ValueError(
+                f"sync_relation_redis_data: tenant({bk_tenant_id}) requires exactly one default SurrealDB cluster, "
+                f"found {len(default_clusters)}"
+            )
+        storage_cluster_id = default_clusters[0].cluster_id
 
     vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
     if not vertices:
@@ -106,7 +152,7 @@ def _compose_relation_graph_v4_storage_config(bk_tenant_id: str, bk_biz_id: int)
         raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph relations are empty")
 
     return {
-        "storage_cluster_id": default_clusters[0].cluster_id,
+        "storage_cluster_id": storage_cluster_id,
         "table_type": SurrealDBStorage.TEMPORARY_TABLE_TYPE,
         "vertices": vertices,
         "relations": relations,
@@ -195,12 +241,7 @@ def enable_relation_surrealdb_dual_write(
     bk_biz_id: int,
     storage_config: dict[str, Any] | None = None,
 ) -> bool:
-    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路。
-
-    此函数只适用于包含 VM 的接入，因此复用 TimeSeriesGroup 创建的 ResultTable。
-    如果未来改为 SurrealDB-only，应直接创建普通 ResultTable，不创建 TimeSeriesGroup，
-    并将 ResultTable.default_storage 设置为 SurrealDB，而不是继续沿用本双写流程。
-    """
+    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路"""
     table_ids = list(
         DataSourceResultTable.objects.filter(bk_data_id=ds.bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
             "table_id", flat=True
@@ -215,223 +256,271 @@ def enable_relation_surrealdb_dual_write(
         bk_tenant_id=bk_tenant_id,
         table_id=table_ids[0],
     )
-    storage_config = storage_config or _compose_relation_graph_v4_storage_config(bk_tenant_id, bk_biz_id)
+    storage_config = storage_config or _compose_relation_graph_v4_storage_config(
+        bk_tenant_id,
+        bk_biz_id,
+        result_table.table_id,
+    )
     return _modify_relation_graph_v4_result_table(result_table, storage_config)
 
 
-def _enable_relation_surrealdb_dual_write_best_effort(
-    ds: DataSource,
-    bk_tenant_id: str,
-    bk_biz_id: int,
-    storage_config: dict[str, Any],
-) -> None:
-    """尽力启用 Graph 双写，不影响 relation RT、token 和 Redis 的周期维护。"""
+def _parse_relation_redis_value(field: bytes | str, raw_value: bytes | str) -> dict[str, Any]:
+    """解析 Redis value；脏数据按空配置处理，由后续流程重新生成 token。"""
     try:
-        enable_relation_surrealdb_dual_write(
-            ds,
-            bk_tenant_id,
-            bk_biz_id,
-            storage_config=storage_config,
+        value = json.loads(raw_value)
+        if not isinstance(value, dict):
+            raise ValueError(f"value is not a dictionary: {value!r}")
+        return value
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "sync_relation_redis_data: invalid redis value, field->[%s], value->[%s], error->[%s]; "
+            "use empty value instead",
+            field,
+            raw_value,
+            e,
+        )
+        return {"token": None, "modifyTime": None}
+
+
+def _build_relation_sync_context(field: bytes | str, raw_value: bytes | str) -> _RelationSyncContext | None:
+    """解析 Redis field，并补齐单业务同步所需的租户、RT 和数据源标识。"""
+    value = _parse_relation_redis_value(field, raw_value)
+    try:
+        key = field.decode("utf-8") if isinstance(field, bytes) else field
+        space_type, space_id = key.split("__", maxsplit=1)
+        if not space_type or not space_id:
+            raise ValueError("space type or space id is empty")
+
+        if space_type == "bkcc":
+            bk_biz_id = int(space_id)
+        else:
+            bk_biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
+            if not bk_biz_id:
+                raise ValueError(f"space does not exist: {space_type}__{space_id}")
+
+        data_name = f"{bk_biz_id}_{space_type}_built_in_time_series"
+        table_id = f"{data_name}.__default__"
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning(
+            "sync_relation_redis_data: invalid redis field, field->[%s], error->[%s]",
+            field,
+            e,
+        )
+        return None
+
+    return _RelationSyncContext(
+        field=field,
+        key=key,
+        value=value,
+        space_type=space_type,
+        space_id=space_id,
+        bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+        data_name=data_name,
+    )
+
+
+def _sync_relation_metadata(
+    redis_key: str,
+    context: _RelationSyncContext,
+    result_table: ResultTable | None,
+    time_series_group: TimeSeriesGroup | None,
+    graph_storage_config: dict[str, Any] | None,
+) -> DataSource:
+    """创建或读取 relation 元数据，并统一回写 Redis token。"""
+    # 步骤 1：复用已有 DataSource，或在一个事务内创建完整的 relation 元数据。
+    if result_table is not None:
+        data_source = DataSource.objects.get(
+            bk_tenant_id=context.bk_tenant_id,
+            data_name=context.data_name,
+        )
+        modify_time: str | int = str(int(time.time()))
+    else:
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+            data_source = DataSource.create_data_source(
+                bk_tenant_id=context.bk_tenant_id,
+                data_name=context.data_name,
+                operator="system",
+                type_label="time_series",
+                source_label="bk_monitor",
+                etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+                space_type_id=context.space_type,
+                space_uid=context.key,
+                bk_biz_id=context.bk_biz_id,
+            )
+            time_series_group = TimeSeriesGroup.create_time_series_group(
+                bk_data_id=data_source.bk_data_id,
+                bk_biz_id=context.bk_biz_id,
+                time_series_group_name=context.data_name,
+                label=Label.RESULT_TABLE_LABEL_OTHER,
+                operator="system",
+                table_id=context.table_id,
+                is_builtin=True,
+                bk_tenant_id=context.bk_tenant_id,
+                # Graph 白名单业务先创建本地 RT，再由 ResultTable.modify 一次性
+                # 下发 VM + SurrealDB，避免提前创建一条普通 VM 链路。
+                is_sync_db=graph_storage_config is None,
+            )
+        modify_time = int(time_series_group.last_modify_time.timestamp())
+
+    # 步骤 2：计算并回写 relation 生产端使用的 Redis token。
+    # relation 生产端从 Redis 获取 TimeSeriesGroup token；DataSource.token
+    # 是另一套独立上报凭证，不在这个周期任务中修改。
+    context.value["token"] = _get_builtin_relation_token(
+        data_source,
+        context.bk_biz_id,
+        context.data_name,
+        time_series_group,
+    )
+    context.value["modifyTime"] = modify_time
+    RedisTools.hset_to_redis(
+        redis_key,
+        context.key,
+        json.dumps(context.value),
+    )
+    return data_source
+
+
+def _sync_relation_redis_item(
+    redis_key: str,
+    context: _RelationSyncContext,
+    result_table: ResultTable | None,
+    time_series_group: TimeSeriesGroup | None,
+    enabled_graph_biz_ids: set[int],
+) -> None:
+    """同步单个 relation field，并将异常隔离在当前业务。"""
+    logger.info("sync_relation_redis_data: start sync field->[%s]", context.key)
+
+    # 步骤 1：先处理不能安全自动修复的历史状态。
+    if result_table is None and context.redis_token:
+        # Redis 已有 token 说明生产端可能仍在使用历史链路。此时自动创建新
+        # DataSource 会生成新的 data_id/token，因此保守跳过，避免覆盖在线凭证。
+        logger.warning(
+            "sync_relation_redis_data: result table is missing but redis token exists, skip auto creation, "
+            "field->[%s], table_id->[%s]",
+            context.key,
+            context.table_id,
+        )
+        return
+
+    # 步骤 2：为白名单业务准备 Graph 配置。依赖异常时仅跳过本轮 Graph。
+    graph_storage_config = None
+    if _is_relation_surrealdb_dual_write_enabled(context.bk_biz_id, enabled_graph_biz_ids):
+        try:
+            graph_storage_config = _compose_relation_graph_v4_storage_config(
+                context.bk_tenant_id,
+                context.bk_biz_id,
+                context.table_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            # Graph 依赖异常只影响本轮 Graph 配置，普通 relation RT 和
+            # Redis token 仍按主流程维护。
+            logger.warning(
+                "sync_relation_redis_data: graph relation dependency check failed, "
+                "bk_tenant_id->[%s], bk_biz_id->[%s], error->[%s]",
+                context.bk_tenant_id,
+                context.bk_biz_id,
+                e,
+            )
+
+    # 步骤 3：创建或复用 relation 元数据，并完成 Redis token 回写。
+    # 失败只终止当前 field，后续业务继续处理。
+    action = "update" if result_table is not None else "create"
+    try:
+        data_source = _sync_relation_metadata(
+            redis_key,
+            context,
+            result_table,
+            time_series_group,
+            graph_storage_config,
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.warning(
-            "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
-            "data_id->[%s], bk_biz_id->[%s], error->[%s]",
-            ds.bk_data_id,
-            bk_biz_id,
+            "sync_relation_redis_data: %s relation metadata failed, field->[%s], value->[%s], error->[%s]",
+            action,
+            context.field,
+            context.value,
             e,
         )
+        return
+
+    # 步骤 4：Graph 接入作为附加能力 best-effort 执行。
+    # 接入失败只记录告警，并在下个
+    # 周期重试，不回滚已经完成的 RT 创建和 Redis token 更新。
+    if graph_storage_config is not None:
+        try:
+            enable_relation_surrealdb_dual_write(
+                data_source,
+                context.bk_tenant_id,
+                context.bk_biz_id,
+                storage_config=graph_storage_config,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
+                "data_id->[%s], bk_biz_id->[%s], error->[%s]",
+                data_source.bk_data_id,
+                context.bk_biz_id,
+                e,
+            )
+
+    logger.info(
+        "sync_relation_redis_data: %s relation metadata completed, field->[%s], value->[%s]",
+        action,
+        context.key,
+        context.value,
+    )
 
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
-    """
-    同步cmdb-relation内置数据
+    """按 Redis field 同步 CMDB relation 内置 RT、token 和 Graph V4 配置。
+
+    主流程只负责批量加载已有元数据和逐项调度。单业务的数据解析、创建/更新
+    以及 Graph best-effort 异常均在各自 helper 内隔离，避免影响后续业务。
     """
     logger.info("sync_relation_redis_data started")
     start_time = time.time()
-    # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_relation_redis_data", status=TASK_STARTED, process_target=None
     ).inc()
-    # 获取对应的Redis数据
+
+    # 步骤 1：读取 CMDB relation 生产端维护的全部空间配置。
     redis_key = settings.BUILTIN_DATA_RT_REDIS_KEY
     redis_data = RedisTools.hgetall(redis_key)
-    # 批量获取所有内置RT对象
-    existing_rts = ResultTable.objects.filter(is_builtin=True)
-    existing_rts_dict = {rt.table_id: rt for rt in existing_rts}
-    existing_time_series_groups = TimeSeriesGroup.objects.filter(table_id__in=existing_rts_dict.keys())
-    existing_time_series_groups_dict = {
+
+    # 步骤 2：预加载已有 relation 元数据，循环内只进行精确匹配和必要的写操作。
+    # 多租户下 table_id 可能相同，因此必须使用 tenant + table_id 作为身份。
+    existing_result_tables = list(ResultTable.objects.filter(is_builtin=True))
+    existing_result_table_map = {
+        (result_table.bk_tenant_id, result_table.table_id): result_table for result_table in existing_result_tables
+    }
+    existing_time_series_groups = TimeSeriesGroup.objects.filter(
+        table_id__in=[result_table.table_id for result_table in existing_result_tables]
+    )
+    existing_time_series_group_map = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
-    enabled_graph_dual_write_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
-    for field, value in redis_data.items():
-        try:
-            # 将json解析放在try中，确保value是有效的JSON字符串
-            value_dict: dict[str, str | None] = json.loads(value)
-            if not isinstance(value_dict, dict):
-                raise ValueError(
-                    "sync_relation_redis_data: Value->[%s] of field->[%s] is not a valid dictionary", value, field
-                )
+    enabled_graph_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
 
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "sync_relation_redis_data: error occurred, field->[%s], error->[%s]. Using default value_dict.",
-                field,
-                e,
-            )
-            value_dict = {"token": None, "modifyTime": None}  # 预期中的默认字典
+    # 步骤 3：逐个解析 Redis field 并同步，单 field 异常在内部隔离。
+    for field, raw_value in redis_data.items():
+        context = _build_relation_sync_context(field, raw_value)
+        if context is None:
+            continue
 
-        # 解码并解析field
-        key = field.decode("utf-8")
-        space_type, space_id = key.split("__")
+        identity = (context.bk_tenant_id, context.table_id)
+        _sync_relation_redis_item(
+            redis_key,
+            context,
+            existing_result_table_map.get(identity),
+            existing_time_series_group_map.get(identity),
+            enabled_graph_biz_ids,
+        )
 
-        # 转义业务ID，非业务类型ID为负数
-        if space_type == "bkcc":
-            biz_id = int(space_id)
-        else:
-            biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
-            if not biz_id:
-                logger.error(
-                    "sync_relation_redis_data: space not found, space_type->[%s], space_id->[%s]", space_type, space_id
-                )
-                continue
-
-        table_id, data_name = TimeSeriesGroup.make_cmdb_relation_builtin_table_id_and_group_name(biz_id, space_type)
-
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(biz_id)
-        graph_storage_config = None
-        if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
-            try:
-                graph_storage_config = _compose_relation_graph_v4_storage_config(bk_tenant_id, biz_id)
-            except Exception as e:  # pylint: disable=broad-except
-                # Graph 是 relation 周期任务中的附加能力。单业务依赖不完整时仅跳过
-                # 本轮 Graph 配置，普通 RT、token 和 Redis 修复仍需继续执行。
-                logger.warning(
-                    "sync_relation_redis_data: graph relation dependency check failed, "
-                    "bk_tenant_id->[%s], bk_biz_id->[%s], error->[%s]",
-                    bk_tenant_id,
-                    biz_id,
-                    e,
-                )
-
-        token = value_dict.get("token")  # Redis缓存中的Token数据
-
-        logger.info("sync_relation_redis_data start sync builtin redis data, field=%s", key)
-
-        rt = existing_rts_dict.get(table_id)
-        if rt:
-            try:
-                new_modify_time = str(int(time.time()))
-                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
-                generated_token = transform_data_id_to_token(
-                    metric_data_id=ds.bk_data_id, bk_biz_id=biz_id, app_name=data_name
-                )
-                time_series_group = existing_time_series_groups_dict.get((bk_tenant_id, table_id))
-                builtin_token = _get_builtin_relation_token(ds, table_id, generated_token, time_series_group)
-                # 兼容历史问题，如果DB中存储的Token和实际采集校验 Token 不一致，更新之
-                if ds.token != builtin_token:
-                    logger.info(
-                        "sync_relation_redis_data: data_id->[%s] ,token is not same,db_record->[%s],"
-                        "builtin_token->[%s]",
-                        ds.bk_data_id,
-                        ds.token,
-                        builtin_token,
-                    )
-                    ds.token = builtin_token
-                    ds.save(update_fields=["token"])
-                    ds.refresh_consul_config()
-
-                # 更新Redis中的数据
-                value_dict["token"] = builtin_token
-                value_dict["modifyTime"] = new_modify_time
-                RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if graph_storage_config is not None:
-                    _enable_relation_surrealdb_dual_write_best_effort(
-                        ds,
-                        bk_tenant_id,
-                        biz_id,
-                        storage_config=graph_storage_config,
-                    )
-                logger.info(
-                    "sync_relation_redis_data: Update Data For Field->[%s],has completed,value->[%s]", key, value_dict
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(
-                    "sync_relation_redis_data: update redis data failed, field->[%s], value->[%s],error->[%s]",
-                    field,
-                    value_dict,
-                    e,
-                )
-                continue
-        else:
-            if token:  # RT不存在，Token存在场景 -> 跳过创建
-                continue
-
-            try:
-                logger.info("sync_relation_redis_data: create builtin metadata for field->[%s]", key)
-                with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
-                    # field下对应RT不存在且Token不存在，创建新DS与RT,使用事务保证实例同时成功创建
-                    ds = DataSource.create_data_source(
-                        bk_tenant_id=bk_tenant_id,
-                        data_name=data_name,
-                        operator="system",
-                        type_label="time_series",
-                        source_label="bk_monitor",
-                        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
-                        space_type_id=space_type,
-                        space_uid=key,
-                        bk_biz_id=biz_id,
-                    )
-                    ts_group = TimeSeriesGroup.create_time_series_group(
-                        bk_data_id=ds.bk_data_id,
-                        bk_biz_id=biz_id,
-                        time_series_group_name=data_name,
-                        label=Label.RESULT_TABLE_LABEL_OTHER,
-                        operator="system",
-                        table_id=table_id,
-                        is_builtin=True,
-                        bk_tenant_id=bk_tenant_id,
-                        # 白名单业务先只创建本地 RT 配置，避免普通 VM 接入先于
-                        # 随后的 ResultTable.modify Graph V4 配置生效。
-                        is_sync_db=graph_storage_config is None,
-                    )
-                    existing_time_series_groups_dict[(bk_tenant_id, table_id)] = ts_group
-                generated_token = transform_data_id_to_token(
-                    metric_data_id=ds.bk_data_id,
-                    bk_biz_id=biz_id,
-                    app_name=data_name,
-                )
-                time_series_group = ts_group
-                builtin_token = _get_builtin_relation_token(ds, table_id, generated_token, time_series_group)
-                if ds.token != builtin_token:
-                    ds.token = builtin_token
-                    ds.save(update_fields=["token"])
-                    ds.refresh_consul_config()
-                # 更新Redis中的Token和modifyTime
-                value_dict["token"] = builtin_token
-                value_dict["modifyTime"] = int(ts_group.last_modify_time.timestamp())
-                RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if graph_storage_config is not None:
-                    _enable_relation_surrealdb_dual_write_best_effort(
-                        ds,
-                        bk_tenant_id,
-                        biz_id,
-                        storage_config=graph_storage_config,
-                    )
-                logger.info(
-                    "sync_relation_redis_data: Create Data For Field->[%s],has completed,value->[%s]",
-                    key,
-                    value_dict,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(
-                    "sync_relation_redis_data: create builtin metadata failed, field->[%s], value->[%s],error->[%s]",
-                    field,
-                    value_dict,
-                    e,
-                )
-
+    # 步骤 4：所有 field 处理完成后统一上报本轮任务指标。
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_relation_redis_data", status=TASK_FINISHED_SUCCESS, process_target=None
