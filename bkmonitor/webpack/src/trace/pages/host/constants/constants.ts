@@ -25,7 +25,7 @@
  */
 export const HOST_PAGE_HEADER_NAV_BAR_LIST = [
   {
-    label: '主机监控',
+    label: window.i18n.t('主机监控'),
     value: 'host',
   },
   // {
@@ -46,12 +46,12 @@ export type HostPerspective = 'host' | 'topo';
 /** 拓扑视角 Tab：主机列表、指标汇聚（label 为 i18n key，icon 为 icon-monitor 字体类名） */
 export const HOST_TOPO_TAB_LIST = [
   {
-    label: '主机列表',
+    label: window.i18n.t('主机列表'),
     value: 'list',
     icon: 'icon-mc-list',
   },
   {
-    label: '指标汇聚',
+    label: window.i18n.t('指标汇聚'),
     value: 'metric',
     icon: 'icon-zhibiaojiansuo',
   },
@@ -60,12 +60,12 @@ export const HOST_TOPO_TAB_LIST = [
 /** 主机视角 Tab：系统指标、进程 */
 export const HOST_DETAIL_TAB_LIST = [
   {
-    label: '系统指标',
+    label: window.i18n.t('系统指标'),
     value: 'system',
     icon: 'icon-zhibiaojiansuo',
   },
   {
-    label: '进程',
+    label: window.i18n.t('进程'),
     value: 'process',
     icon: 'icon-mc-process',
   },

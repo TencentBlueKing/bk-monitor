@@ -8,14 +8,25 @@
     flex: 1;
     min-height: 0;
 
-    .t-table__header {
-      font-family: 'Microsoft YaHei', sans-serif;
+    .t-table {
+      &__header {
+        font-family: 'Microsoft YaHei', sans-serif;
+      }
+
+      &__th-cpu_usage,
+      &__th-mem_usage,
+      &__th-disk_in_use {
+        .t-table__filter-icon-wrap {
+          margin-top: 20px;
+        }
+      }
     }
   }
 
   &__pagination {
     flex: 0 0 auto;
-    padding: 0 16px;
+    padding: 0;
+    margin-top: 12px;
     background: #fff;
 
     .bk-pagination-limit {

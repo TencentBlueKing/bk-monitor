@@ -30,8 +30,8 @@ import { EProcessPortStatus } from '../types/process';
 
 /** 端口状态 → 展示配置（圆点颜色 + 名称，与采集状态风格保持一致） */
 export const PROCESS_PORT_STATUS_MAP: Record<number, { color: string; name: string }> = {
-  [EProcessPortStatus.Normal]: { name: '正常', color: '#2dcb56' },
-  [EProcessPortStatus.Abnormal]: { name: '异常', color: '#ea3636' },
+  [EProcessPortStatus.Normal]: { name: window.i18n.t('正常'), color: '#2dcb56' },
+  [EProcessPortStatus.Abnormal]: { name: window.i18n.t('异常'), color: '#ea3636' },
 };
 
 /** 进程表格列定义 */
@@ -65,14 +65,22 @@ export interface IProcessColumnConfig {
 
 /** 进程列表全部列配置（对齐设计稿 8 列） */
 export const PROCESS_LIST_COLUMNS: IProcessColumnConfig[] = [
-  { id: 'name', name: '进程名', type: 'name', checked: true, disabled: true, minWidth: 220 },
-  { id: 'instanceCount', name: '实例数', type: 'instanceCount', checked: true, minWidth: 100 },
-  { id: 'user', name: '运行用户', type: 'text', checked: true, minWidth: 120 },
-  { id: 'cpuUsage', name: 'CPU 总占用', type: 'cpu', checked: true, sortable: true, minWidth: 160 },
-  { id: 'memRss', name: 'RSS 总内存', type: 'memory', checked: true, sortable: true, minWidth: 160 },
-  { id: 'connectionCount', name: '连接数', type: 'connectionCount', checked: true, minWidth: 100 },
-  { id: 'fileHandleCount', name: '文件句柄', type: 'fileHandle', checked: true, minWidth: 160 },
+  { id: 'name', name: window.i18n.t('进程名'), type: 'name', checked: true, disabled: true, minWidth: 220 },
+  { id: 'instanceCount', name: window.i18n.t('实例数'), type: 'instanceCount', checked: true, minWidth: 100 },
+  { id: 'user', name: window.i18n.t('运行用户'), type: 'text', checked: true, minWidth: 120 },
+  { id: 'cpuUsage', name: window.i18n.t('CPU 总占用'), type: 'cpu', checked: true, sortable: true, minWidth: 160 },
+  { id: 'memRss', name: window.i18n.t('RSS 总内存'), type: 'memory', checked: true, sortable: true, minWidth: 160 },
+  { id: 'connectionCount', name: window.i18n.t('连接数'), type: 'connectionCount', checked: true, minWidth: 100 },
+  { id: 'fileHandleCount', name: window.i18n.t('文件句柄'), type: 'fileHandle', checked: true, minWidth: 160 },
   { id: 'uptimeRange', name: '运行时长范围', type: 'uptimeRange', checked: true, sortable: true, minWidth: 140 },
+  {
+    id: 'uptimeRange',
+    name: window.i18n.t('运行时长范围'),
+    type: 'uptimeRange',
+    checked: true,
+    sortable: true,
+    minWidth: 140,
+  },
 ];
 
 /** 内存使用率进度条颜色阈值（与主机列表指标列一致） */

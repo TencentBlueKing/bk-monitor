@@ -56,17 +56,17 @@ export const METHOD_OPTIONS: SelectOption[] = [
 
 /** 对比方法选项：不对比 / 目标对比 / 时间对比 */
 export const COMPARE_TYPE_OPTIONS: { id: MetricCompareType; name: string }[] = [
-  { id: 'none', name: '不对比' },
-  { id: 'target', name: '目标对比' },
-  { id: 'time', name: '时间对比' },
+  { id: 'none', name: window.i18n.t('不对比') },
+  { id: 'target', name: window.i18n.t('目标对比') },
+  { id: 'time', name: window.i18n.t('时间对比') },
 ];
 
 /** 时间对比的时间偏移选项，与旧版一致 */
 export const TIME_SHIFT_OPTIONS: SelectOption[] = [
-  { id: '1h', name: '1 小时前' },
-  { id: '1d', name: '昨天' },
-  { id: '1w', name: '上周' },
-  { id: '1M', name: '一月前' },
+  { id: '1h', name: window.i18n.t('1 小时前') },
+  { id: '1d', name: window.i18n.t('昨天') },
+  { id: '1w', name: window.i18n.t('上周') },
+  { id: '1M', name: window.i18n.t('一月前') },
 ];
 
 /** 列数可选值 */
