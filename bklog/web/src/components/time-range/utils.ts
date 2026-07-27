@@ -33,6 +33,8 @@ import type { TimeRangeType } from './time-range';
 
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
+/** 日志检索最大时间跨度：半年（180 天） */
+export const MAX_SEARCH_TIME_RANGE = 180 * 24 * 60 * 60 * 1000;
 type TimestampsType = [number, number];
 
 /** 处理时间范围的对象 */
