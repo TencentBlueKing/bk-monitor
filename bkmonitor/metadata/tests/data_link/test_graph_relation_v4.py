@@ -117,11 +117,6 @@ def graph_relation_v4_records():
 
 def test_graph_relation_strategy_only_dispatches_v4_compose(mocker, graph_relation_v4_records):
     ctx = graph_relation_v4_records
-    legacy_compose = mocker.patch.object(
-        ctx["data_link"],
-        "compose_graph_relation_time_series_configs",
-        return_value=[],
-    )
     v4_compose = mocker.patch.object(
         ctx["data_link"],
         "compose_graph_relation_v4_time_series_configs",
@@ -134,7 +129,6 @@ def test_graph_relation_strategy_only_dispatches_v4_compose(mocker, graph_relati
         table_id=ctx["table_id"],
     )
 
-    legacy_compose.assert_not_called()
     v4_compose.assert_called_once()
     assert ctx["data_link"].data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     assert not hasattr(DataLink, "GRAPH_RELATION_V4_TIME_SERIES")

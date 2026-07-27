@@ -780,33 +780,6 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
                 cluster_id__in=storage_cluster_ids,
             ).delete()
 
-    def transition_write_mode(self, new_write_mode: str | None) -> None:
-        normalized_new_write_mode = self.normalize_write_mode(new_write_mode)
-        if normalized_new_write_mode == self.write_mode:
-            return
-
-        old_write_vm = self.write_mode_includes_vm(self.write_mode)
-        old_write_surrealdb = self.write_mode_includes_surrealdb(self.write_mode)
-        new_write_vm = self.write_mode_includes_vm(normalized_new_write_mode)
-        new_write_surrealdb = self.write_mode_includes_surrealdb(normalized_new_write_mode)
-
-        logger.info(
-            "transition_graph_relation_write_mode: data_link_name->[%s], old_write_mode->[%s], new_write_mode->[%s]",
-            self.data_link_name,
-            self.write_mode,
-            normalized_new_write_mode,
-        )
-        if old_write_vm and not new_write_vm:
-            self._delete_component(DataBusConfig, self.vm_databus_component_name)
-            self._delete_component(VMStorageBindingConfig, self.vm_binding_component_name)
-            self._delete_component(ResultTableConfig, self.bkbase_result_table_name)
-
-        if old_write_surrealdb and not new_write_surrealdb:
-            self._delete_component(GraphDataBusConfig, self.graph_databus_component_name)
-            self._delete_component(SurrealDBBindingConfig, self.surrealdb_binding_component_name)
-            self._delete_component(ResultTableConfig, self.graph_result_table_name)
-            self._delete_surrealdb_storage()
-
     def delete_config(self):
         if self.should_write_vm:
             self._delete_component(DataBusConfig, self.vm_databus_component_name)

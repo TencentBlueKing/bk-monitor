@@ -141,25 +141,6 @@ def refresh_custom_log_report_config(log_group_id=None):
     refresh_custom_log_config(log_group_id=log_group_id)
 
 
-@app.task(name="metadata.sync_graph_definition_to_bkbase", ignore_result=True, queue="celery_metadata_task_worker")
-def sync_graph_definition_to_bkbase(
-    namespace: str,
-    kind: str = "",
-    name: str = "",
-    generation: int | None = None,
-    action: str = "apply",
-):
-    logger.warning(
-        "sync_graph_definition_to_bkbase: legacy graph relation entry is disabled, "
-        "namespace->[%s], kind->[%s], name->[%s], generation->[%s], action->[%s]",
-        namespace,
-        kind,
-        name,
-        generation,
-        action,
-    )
-
-
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def refresh_entity_definition_to_redis():
     from metadata.task.entity_relation import refresh_entity_definition_to_redis as _refresh
@@ -891,26 +872,6 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
         task_name="bulk_refresh_data_link_status", process_target=None
     ).observe(cost_time)
     metrics.report_all()
-
-
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def refresh_data_link_status_by_name(bk_tenant_id: str, data_link_name: str):
-    """
-    定向刷新单条数据链路状态。
-    """
-    bkbase_rt_record = BkBaseResultTable.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_link_name,
-    ).first()
-    if not bkbase_rt_record:
-        logger.warning(
-            "refresh_data_link_status_by_name: data_link_name->[%s],bk_tenant_id->[%s] not found, skip",
-            data_link_name,
-            bk_tenant_id,
-        )
-        return
-
-    _refresh_data_link_status(bkbase_rt_record)
 
 
 def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
