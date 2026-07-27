@@ -8,6 +8,11 @@ def migrate_index_set_user_tags(apps, schema_editor):
     IndexSetTag = apps.get_model("log_search", "IndexSetTag")
     LogIndexSet = apps.get_model("log_search", "LogIndexSet")
 
+    user_tags = list(
+        IndexSetTag.objects.filter(tag_type=TAG_TYPE_USER).values("tag_id", "space_uid", "name", "value", "color")
+    )
+    user_tags_by_id = {str(tag["tag_id"]): tag for tag in user_tags}
+
     index_sets = LogIndexSet.objects.filter(is_deleted=False).exclude(space_uid="")
     for index_set in index_sets.iterator(chunk_size=500):
         old_tag_ids = [str(tag_id) for tag_id in index_set.tag_ids if tag_id]
@@ -17,17 +22,17 @@ def migrate_index_set_user_tags(apps, schema_editor):
         new_tag_ids = []
         changed = False
         for tag_id in old_tag_ids:
-            tag = IndexSetTag.objects.filter(tag_id=tag_id, tag_type=TAG_TYPE_USER).first()
-            if not tag or tag.space_uid == index_set.space_uid:
+            tag = user_tags_by_id.get(tag_id)
+            if not tag or tag["space_uid"] == index_set.space_uid:
                 new_tag_ids.append(tag_id)
                 continue
 
             target_tag, _ = IndexSetTag.objects.get_or_create(
                 space_uid=index_set.space_uid,
-                name=tag.name,
-                value=tag.value,
+                name=tag["name"],
+                value=tag["value"],
                 tag_type=TAG_TYPE_USER,
-                defaults={"color": tag.color},
+                defaults={"color": tag["color"]},
             )
             new_tag_ids.append(str(target_tag.tag_id))
             changed = True
