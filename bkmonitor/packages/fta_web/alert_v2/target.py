@@ -61,7 +61,6 @@ def merge_log_targets(*target_groups: list[dict[str, Any]]) -> list[dict[str, An
         for target in target_group:
             index_set_id: str = str(target["index_set_id"])
             if index_set_id in merged_target_map:
-                logger.info("忽略重复的关联日志索引集，index_set_id=%s", index_set_id)
                 continue
 
             merged_target_map[index_set_id] = target
@@ -224,7 +223,7 @@ class BaseTarget(abc.ABC):
             index_infos: list[dict[str, Any]] = HostIndexQueryMixin.query_indexes(query_params)
         except Exception:
             logger.exception(
-                "查询主机关联采集项索引失败，bk_biz_id=%s，host_target=%s",
+                "Failed to query host collector indexes, bk_biz_id=%s, host_target=%s",
                 self._alert.event.bk_biz_id,
                 host_target,
             )
@@ -233,15 +232,7 @@ class BaseTarget(abc.ABC):
         if not index_infos:
             return []
 
-        try:
-            index_set_map: dict[str, dict[str, Any]] = self._biz_index_set_map
-        except Exception:
-            logger.exception(
-                "获取主机关联采集项的索引集元信息失败，bk_biz_id=%s，host_target=%s",
-                self._alert.event.bk_biz_id,
-                host_target,
-            )
-            return []
+        index_set_map: dict[str, dict[str, Any]] = self._biz_index_set_map
 
         log_targets: list[dict[str, Any]] = []
         for index_info in index_infos:

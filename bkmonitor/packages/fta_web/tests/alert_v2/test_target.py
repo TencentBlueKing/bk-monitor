@@ -445,7 +445,7 @@ def test_host_collector_query_failure_does_not_break_log_targets(
         result: list[dict[str, Any]] = target.list_related_log_targets()
 
     assert sorted(queried_host_ids) == [1, 2]
-    assert "查询主机关联采集项索引失败" in caplog.text
+    assert "Failed to query host collector indexes" in caplog.text
     assert result == [
         {"index_set_id": 100, "source": "relation"},
         {
@@ -456,10 +456,7 @@ def test_host_collector_query_failure_does_not_break_log_targets(
     ]
 
 
-def test_host_collector_index_set_query_failure_does_not_break_log_targets(
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_host_collector_index_set_query_failure_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
     alert: Any = SimpleNamespace(
         strategy={},
         event=SimpleNamespace(bk_biz_id=2, bk_host_id=1, ip="127.0.0.1", bk_cloud_id=0),
@@ -477,21 +474,16 @@ def test_host_collector_index_set_query_failure_does_not_break_log_targets(
     monkeypatch.setattr(target_module.HostIndexQueryMixin, "query_indexes", classmethod(query_indexes))
     monkeypatch.setattr(target_module, "get_biz_index_sets_with_cache", query_index_sets)
 
-    with caplog.at_level(logging.ERROR, logger=target_module.__name__):
-        result: list[dict[str, Any]] = target.list_related_log_targets()
-
-    assert "获取主机关联采集项的索引集元信息失败" in caplog.text
-    assert result == [{"index_set_id": 100, "source": "relation"}]
+    with pytest.raises(RuntimeError, match="index set query failed"):
+        target.list_related_log_targets()
 
 
-def test_merge_log_targets_keeps_highest_priority_group(caplog: pytest.LogCaptureFixture) -> None:
+def test_merge_log_targets_keeps_highest_priority_group() -> None:
     highest_priority_target: dict[str, Any] = {"index_set_id": 100, "source": "relation"}
 
-    with caplog.at_level(logging.INFO, logger=target_module.__name__):
-        result: list[dict[str, Any]] = merge_log_targets(
-            [highest_priority_target],
-            [{"index_set_id": "100", "source": "collector"}, {"index_set_id": 200, "source": "collector"}],
-        )
+    result: list[dict[str, Any]] = merge_log_targets(
+        [highest_priority_target],
+        [{"index_set_id": "100", "source": "collector"}, {"index_set_id": 200, "source": "collector"}],
+    )
 
     assert result == [highest_priority_target, {"index_set_id": 200, "source": "collector"}]
-    assert "index_set_id=100" in caplog.text
