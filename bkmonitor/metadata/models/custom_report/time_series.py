@@ -793,11 +793,11 @@ class TimeSeriesGroup(CustomGroupBase):
             is_builtin=is_builtin,
             is_split_measurement=is_split_measurement,
             is_need_deploy_collector_config=is_need_deploy_collector_config,
-            is_sync_db=is_sync_db,
             default_storage_config=default_storage_config,
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
+            is_sync_db=is_sync_db,
         )
 
         # 写入 metric_group_dimensions 模型字段

@@ -206,11 +206,11 @@ class CustomGroupBase(models.Model):
         is_builtin=False,
         is_split_measurement=False,
         is_need_deploy_collector_config: bool = True,
-        is_sync_db: bool = True,
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
         bk_biz_id_alias: str | None = None,
+        is_sync_db: bool = True,
         **kwargs,
     ):
         """
@@ -225,12 +225,12 @@ class CustomGroupBase(models.Model):
         :param is_builtin: 是否为内置指标
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
-        :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :param default_storage_config: 默认存储的配置
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
         :param bk_biz_id_alias: 业务ID别名
+        :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :return: group object
         """
         # 创建流程：pre_check -> _create -> create_result_table -> 配置更新

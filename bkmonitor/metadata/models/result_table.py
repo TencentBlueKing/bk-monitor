@@ -591,7 +591,6 @@ class ResultTable(models.Model):
 
     def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
-        from metadata.models.data_link.data_link import DataLink
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import (
             apply_event_group_datalink,
@@ -600,31 +599,25 @@ class ResultTable(models.Model):
         )
         from metadata.task.tasks import access_bkdata_vm
 
-        # 获取数据源ID
-        datasource = self.get_related_datasource()
-
-        # 获取目标业务ID
-        target_bk_biz_id = self.get_target_bk_biz_id()
-
         # 获取结果表配置项
         options = {
             option.name: option.get_value()
             for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         }
-        graph_relation_option = None
         if ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK in options:
-            graph_relation_option = GraphRelationV4DataLinkOption.from_option_value(
+            # Graph Relation V4 与日志链路一样由专用 option 独立选择。
+            # 校验通过后直接同步应用并返回，不进入普通自定义指标的 VM 接入判断。
+            GraphRelationV4DataLinkOption.from_option_value(
                 options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK]
             )
-        existing_data_link_names = BkBaseResultTable.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            monitor_table_id=self.table_id,
-        ).values_list("data_link_name", flat=True)
-        has_existing_graph_relation_v4_datalink = DataLink.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            data_link_name__in=existing_data_link_names,
-            data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-        ).exists()
+            apply_graph_relation_v4_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            return
+
+        # 获取数据源ID
+        datasource = self.get_related_datasource()
+
+        # 获取目标业务ID
+        target_bk_biz_id = self.get_target_bk_biz_id()
 
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
@@ -640,26 +633,14 @@ class ResultTable(models.Model):
 
             # 如果存在指标组维度配置或开启插件V4链路，则强制将数据链路更新为V4链路
             consumer_group = None
-            if (
-                ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS in options
-                or options.get(ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False)
-                or graph_relation_option is not None
-                or has_existing_graph_relation_v4_datalink
+            if ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS in options or options.get(
+                ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
             ):
                 is_v4_datalink_etl_config = True
 
-            if (
-                graph_relation_option is not None
-                or has_existing_graph_relation_v4_datalink
-                or not settings.ENABLE_INFLUXDB_STORAGE
-                or (settings.ENABLE_V2_VM_DATA_LINK and is_v4_datalink_etl_config)
-            ):
+            if not settings.ENABLE_INFLUXDB_STORAGE or (settings.ENABLE_V2_VM_DATA_LINK and is_v4_datalink_etl_config):
                 # 如果datasource是gse创建的，则需要注册到BKBASE并且设置consumer_group
-                if (
-                    graph_relation_option is None
-                    and datasource.created_from == DataIdCreatedFromSystem.BKGSE.value
-                    and is_v4_datalink_etl_config
-                ):
+                if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value and is_v4_datalink_etl_config:
                     logger.info(
                         "apply_datalink: datasource created_from is BKGSE, register to bkbase, bk_data_id->[%s], table_id->[%s]",
                         datasource.bk_data_id,
@@ -673,15 +654,7 @@ class ResultTable(models.Model):
                 bk_data_id = datasource.bk_data_id
                 bk_tenant_id = self.bk_tenant_id
                 table_id = self.table_id
-                if graph_relation_option is not None:
-                    if delay:
-                        on_commit(
-                            func=lambda: apply_graph_relation_v4_datalink.delay(bk_tenant_id, table_id),
-                            using=config.DATABASE_CONNECTION_NAME,
-                        )
-                    else:
-                        apply_graph_relation_v4_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
-                elif delay:
+                if delay:
                     try:
                         on_commit(
                             func=lambda: access_bkdata_vm.delay(

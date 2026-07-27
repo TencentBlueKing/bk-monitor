@@ -493,7 +493,7 @@ def _create_relation_graph_clusters(bk_tenant_id: str, cluster_id_offset: int = 
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_time_series_group_can_defer_initial_datalink_apply(mocker):
+def test_time_series_group_create_forwards_is_sync_db(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     custom_group = Mock(
         bk_data_id=61000,
@@ -559,6 +559,7 @@ def test_enable_relation_graph_v4_uses_result_table_modify(mocker):
         },
     }
     mock_apply.assert_called_once()
+    assert mock_apply.call_args.kwargs == {"force_update": True}
     assert not models.StorageClusterRecord.objects.filter(
         bk_tenant_id="system",
         table_id=table_id,

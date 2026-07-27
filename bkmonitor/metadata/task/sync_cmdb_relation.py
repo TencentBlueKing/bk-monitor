@@ -117,9 +117,9 @@ def _modify_relation_graph_v4_result_table(
     result_table: ResultTable,
     storage_config: dict[str, Any],
 ) -> bool:
-    """通过普通 ResultTable 变更流程刷新 Graph V4 storage、option 和异步接入任务。"""
-    # storage 和 option 必须原子提交；apply_datalink 内部通过 on_commit
-    # 投递 Graph V4 任务，因此异步任务只会看到完整配置。
+    """通过普通 ResultTable 变更流程同步刷新 Graph V4 storage、option 和接入链路。"""
+    # storage、option 和 Graph V4 接入必须处于同一事务；同步 apply 失败时由
+    # ResultTable.modify 回滚本地配置。
     with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
         result_table = (
             ResultTable.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=result_table.pk)
@@ -171,6 +171,8 @@ def _modify_relation_graph_v4_result_table(
             )
             return False
 
+        # ResultTable.modify 会以传入 option 为完整期望状态，因此先合并当前全部
+        # ResultTableOption，仅覆盖 Graph V4 配置，避免丢失已有查询或清洗选项。
         options = {
             option.name: option.get_value()
             for option in ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME).filter(
@@ -284,7 +286,7 @@ def sync_relation_redis_data():
             ds = None
             if graph_storage_config is not None:
                 # Graph 配置失败需要直接向上抛出，不能被原有 Redis token
-                # 修复逻辑吞掉；ResultTable.modify 自身负责事务和 on_commit 投递。
+                # 修复逻辑吞掉；ResultTable.modify 自身负责事务和同步接入。
                 ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
                 enable_relation_surrealdb_dual_write(
                     ds,
@@ -356,8 +358,8 @@ def sync_relation_redis_data():
                         table_id=table_id,
                         is_builtin=True,
                         bk_tenant_id=bk_tenant_id,
-                        # 白名单业务需要先在同一事务内补齐 SurrealDB storage 和
-                        # Graph option，再由随后的 ResultTable.modify 单独投递 Graph V4。
+                        # 白名单业务先只创建本地 RT 配置，避免普通 VM 接入先于
+                        # 随后的 ResultTable.modify Graph V4 配置生效。
                         is_sync_db=graph_storage_config is None,
                     )
                     existing_time_series_groups_dict[(bk_tenant_id, table_id)] = ts_group

@@ -420,6 +420,7 @@ def test_result_table_apply_datalink_dispatches_only_graph_v4_task(
 ):
     ctx = graph_relation_v4_records
     settings.ENABLE_INFLUXDB_STORAGE = False
+    ctx["result_table"].default_storage = models.ClusterInfo.TYPE_ES
     models.ResultTableOption.objects.create(
         bk_tenant_id="system",
         table_id=ctx["table_id"],
@@ -431,13 +432,13 @@ def test_result_table_apply_datalink_dispatches_only_graph_v4_task(
     mock_graph_apply = mocker.patch("metadata.task.datalink.apply_graph_relation_v4_datalink")
     mock_vm_apply = mocker.patch("metadata.task.tasks.access_bkdata_vm")
 
-    ctx["result_table"].apply_datalink(delay=False)
+    ctx["result_table"].apply_datalink()
 
     mock_graph_apply.assert_called_once_with(bk_tenant_id="system", table_id=ctx["table_id"])
     mock_vm_apply.assert_not_called()
 
 
-def test_removing_graph_option_dispatches_standard_v4_on_same_datalink(
+def test_removing_graph_option_follows_standard_metric_datalink_rules(
     mocker,
     settings,
     graph_relation_v4_records,
@@ -458,10 +459,7 @@ def test_removing_graph_option_dispatches_standard_v4_on_same_datalink(
     ctx["result_table"].apply_datalink(delay=False, force_update=True)
 
     mock_graph_apply.assert_not_called()
-    mock_vm_apply.assert_called_once()
-    assert mock_vm_apply.call_args.args[:4] == ("system", 2, ctx["table_id"], ctx["data_source"].bk_data_id)
-    assert mock_vm_apply.call_args.args[4] is True
-    assert mock_vm_apply.call_args.kwargs["force_update"] is True
+    mock_vm_apply.assert_not_called()
 
 
 def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
