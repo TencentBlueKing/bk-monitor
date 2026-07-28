@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -136,7 +137,7 @@ class FeatureFlag(models.Model):
         # 设置变更人
         self.updater = operator
         if kwargs.get("update_fields") is not None:
-            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"updater"}
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"updater", "updated_at"}
 
         # 2. 调用父类的 save 方法
         super().save(*args, **kwargs)
@@ -825,6 +826,31 @@ class FeatureFlagConfig:
         # Redis 中没有，尝试从 Consul 读取
         return cls.get_all_consul_feature_flag_config()
 
+    @staticmethod
+    def _select_percentage_variation(
+        flag_name: str,
+        evaluation_key: str,
+        percentage: dict,
+        variations: dict,
+    ) -> tuple[bool, Any]:
+        """按稳定哈希桶选择百分比分配，保证同一评估 Key 的结果稳定。"""
+        digest = hashlib.sha256(f"{flag_name}:{evaluation_key}".encode()).digest()
+        bucket = int.from_bytes(digest[:8], byteorder="big") % 10000 / 100
+        upper_bound = 0.0
+
+        for variation_name, raw_weight in percentage.items():
+            try:
+                weight = float(raw_weight)
+            except (TypeError, ValueError):
+                continue
+            if weight <= 0:
+                continue
+            upper_bound += weight
+            if bucket < upper_bound:
+                return True, variations.get(variation_name)
+
+        return False, None
+
     @classmethod
     def get_feature_flag_value(
         cls, flag_name: str, table_id: str | None = None, prefer_redis: bool = True
@@ -875,17 +901,14 @@ class FeatureFlagConfig:
 
                         # 如果 table_id 在列表中，根据 percentage 返回对应的值
                         if table_id in table_list:
-                            # 根据 percentage 分配（简化实现，实际可能需要更复杂的逻辑）
-                            # 这里假设 percentage["true"] 为 100 时返回 "true" 对应的值
-                            if percentage.get("true", 0) == 100:
-                                return variations.get("true")
-                            elif percentage.get("false", 0) == 100:
-                                return variations.get("false")
-                            # 如果有其他百分比分配逻辑，可以在这里扩展
-                            # 如果 percentage 中没有明确的 true/false，返回第一个非 Default 的 variation
-                            for variation_name, variation_value in variations.items():
-                                if variation_name != "Default" and percentage.get(variation_name, 0) == 100:
-                                    return variation_value
+                            selected, variation = cls._select_percentage_variation(
+                                flag_name,
+                                table_id,
+                                percentage,
+                                variations,
+                            )
+                            if selected:
+                                return variation
 
         # 如果没有匹配到规则，返回默认值
         default_variation = default_rule.get("variation", "Default")

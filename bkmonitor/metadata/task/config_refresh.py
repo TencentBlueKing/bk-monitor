@@ -33,7 +33,7 @@ from metadata.task.tasks import (
     clean_disable_es_storage,
     manage_es_storage,
 )
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -62,6 +62,7 @@ def refresh_consul_storage():
         task_name="refresh_consul_storage", status=TASK_STARTED, process_target=None
     ).inc()
     start_time = time.time()
+    failed_targets = []
     for backend, refresher in (
         ("consul", models.ClusterInfo.refresh_consul_storage_config),
         ("redis", models.ClusterInfo.refresh_redis_storage_config),
@@ -70,12 +71,21 @@ def refresh_consul_storage():
             logger.info("start to refresh metadata storage info to %s", backend)
             refresher()
         except Exception:
+            failed_targets.append(f"storage:{backend}")
             logger.exception("refresh metadata storage to %s failed", backend)
+
+    try:
+        logger.info("start to reconcile metadata feature flag config")
+        models.FeatureFlagConfig.force_refresh_feature_flag_config()
+    except Exception:
+        failed_targets.append("feature_flag")
+        logger.exception("refresh metadata feature flag config failed")
 
     cost_time = time.time() - start_time
 
+    task_status = TASK_FINISHED_FAILURE if failed_targets else TASK_FINISHED_SUCCESS
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="refresh_consul_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+        task_name="refresh_consul_storage", status=task_status, process_target=None
     ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_storage", process_target=None).observe(
@@ -83,6 +93,8 @@ def refresh_consul_storage():
     )
     metrics.report_all()
     logger.info(f"refresh_consul_storage:task finished, cost time: {cost_time}")
+    if failed_targets:
+        raise RuntimeError(f"metadata config refresh failed for targets: {','.join(failed_targets)}")
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")

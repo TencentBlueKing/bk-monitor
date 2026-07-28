@@ -555,6 +555,9 @@ class ClusterInfo(models.Model):
         refresh_dict = {}
         for storage_info in info_list:
             refresh_dict[storage_info.cluster_id] = storage_info
+        expected_paths = {
+            "/".join([cls.CONSUL_PREFIX_PATH, str(cluster_id)]) for cluster_id in refresh_dict
+        }
 
         # 3. 遍历所有的字典信息并写入至consul
         for cluster_id, storage_info in list(refresh_dict.items()):
@@ -573,6 +576,16 @@ class ClusterInfo(models.Model):
                 },
             )
             logger.debug(f"consul path->[{consul_path}] is refresh with value->[{refresh_dict}] success.")
+
+        # 4. 清理数据库中已不存在的 Storage Key，避免 UQ 继续读取孤儿配置。
+        _, consul_items = hash_consul.list(cls.CONSUL_PREFIX_PATH)
+        for item in consul_items or []:
+            key = item.get("Key")
+            if isinstance(key, bytes):
+                key = key.decode("utf-8")
+            if key and key.startswith(f"{cls.CONSUL_PREFIX_PATH}/") and key not in expected_paths:
+                hash_consul.delete(key)
+                logger.info("deleted stale storage consul key: %s", key)
 
         hash_consul.put(key=cls.CONSUL_VERSION_PATH, value={"time": time.time()})
 

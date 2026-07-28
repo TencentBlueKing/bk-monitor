@@ -273,6 +273,16 @@ class TestRefreshConsulStorage:
         # 验证版本信息已写入
         assert ClusterInfo.CONSUL_VERSION_PATH in mock_consul._kv_store
 
+    def test_refresh_consul_storage_config_removes_stale_keys(self, mock_consul, mocker):
+        """数据库中不存在的 Consul Storage Key 应在全量刷新时删除。"""
+        stale_key = f"{ClusterInfo.CONSUL_PREFIX_PATH}/999"
+        mock_consul.put(stale_key, {"type": "influxdb"})
+        mocker.patch("metadata.models.storage.ClusterInfo.objects.all", return_value=MockClusterList())
+
+        ClusterInfo.refresh_consul_storage_config()
+
+        assert stale_key not in mock_consul._kv_store
+
     def test_refresh_consul_storage_config_duplicate_cluster_id(self, mock_consul, mocker):
         """测试重复 cluster_id 的处理（应该去重）"""
         # 清空 mock_consul，避免之前测试的数据污染

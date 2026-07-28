@@ -201,8 +201,29 @@ class TestFeatureFlagConfig:
         feature_flag.save(operator="admin", update_fields={"config"})
 
         assert feature_flag.updater == "admin"
-        assert model_save.call_args.kwargs["update_fields"] == {"config", "updater"}
+        assert model_save.call_args.kwargs["update_fields"] == {"config", "updater", "updated_at"}
         on_commit.assert_called_once()
+
+    def test_percentage_variation_is_stable_and_supports_partial_allocations(self):
+        """百分比分配应稳定，并能覆盖 50/50 等非 100% 单项配置。"""
+        variations = {"true": True, "false": False}
+        percentage = {"true": 50, "false": 50}
+
+        first = FeatureFlagConfig._select_percentage_variation(
+            "test-flag", "table-1", percentage, variations
+        )
+        second = FeatureFlagConfig._select_percentage_variation(
+            "test-flag", "table-1", percentage, variations
+        )
+        assert first == second
+
+        allocated = {
+            FeatureFlagConfig._select_percentage_variation(
+                "test-flag", f"table-{index}", percentage, variations
+            )[1]
+            for index in range(200)
+        }
+        assert allocated == {True, False}
 
     def test_get_consul_feature_flag_config(self, sample_feature_flags, mock_consul):
         """测试从 Consul 读取特性开关配置"""

@@ -343,6 +343,16 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
     list_filter = ("bk_app_code", "space_uid")
 
 
+class FeatureFlagAdmin(admin.ModelAdmin):
+    list_display = ("flag_name", "description", "is_enabled", "creator", "updater", "updated_at")
+    search_fields = ("flag_name", "description", "creator", "updater")
+    list_filter = ("is_enabled",)
+    readonly_fields = ("creator", "updater", "created_at", "updated_at")
+
+    def save_model(self, request, obj, form, change):
+        obj.save(operator=request.user.username)
+
+
 class EntityDefinitionAdminMixin:
     """
     Mixin for ResourceDefinition/RelationDefinition Admin：
@@ -434,5 +444,6 @@ admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)
 admin.site.register(models.StorageClusterRecord, StorageClusterRecordAdmin)
 admin.site.register(models.BkAppSpaceRecord, BkAppSpaceRecordAdmin)
+admin.site.register(models.FeatureFlag, FeatureFlagAdmin)
 admin.site.register(models.ResourceDefinition, ResourceDefinitionAdmin)
 admin.site.register(models.RelationDefinition, RelationDefinitionAdmin)
