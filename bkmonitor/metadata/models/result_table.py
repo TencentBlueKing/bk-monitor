@@ -604,14 +604,6 @@ class ResultTable(models.Model):
             option.name: option.get_value()
             for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         }
-        if ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK in options:
-            # Graph Relation V4 与日志链路一样由专用 option 独立选择。
-            # 校验通过后直接同步应用并返回，不进入普通自定义指标的 VM 接入判断。
-            GraphRelationV4DataLinkOption.from_option_value(
-                options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK]
-            )
-            apply_graph_relation_v4_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-            return
 
         # 获取数据源ID
         datasource = self.get_related_datasource()
@@ -619,7 +611,14 @@ class ResultTable(models.Model):
         # 获取目标业务ID
         target_bk_biz_id = self.get_target_bk_biz_id()
 
-        if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
+        if ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK in options:
+            # Graph Relation V4 与日志链路一样由专用 option 独立选择。
+            # 校验通过后直接同步应用并返回，不进入普通自定义指标的 VM 接入判断。
+            GraphRelationV4DataLinkOption.from_option_value(
+                options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK]
+            )
+            apply_graph_relation_v4_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+        elif self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
             # NOTE:
@@ -680,6 +679,11 @@ class ResultTable(models.Model):
                         force_update=force_update,
                         consumer_group=consumer_group,
                     )
+
+                # 如果最终数据源没有切换到bkdata，则刷新consul配置
+                datasource = self.get_related_datasource(refresh=True)
+                if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                    datasource.refresh_consul_config()
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
@@ -692,11 +696,6 @@ class ResultTable(models.Model):
             logger.error(
                 f"create_result_table: not support storage and option, storage: {self.default_storage}, options: {options}"
             )
-
-        # 如果最终数据源没有切换到bkdata，则刷新consul配置
-        datasource = self.get_related_datasource(refresh=True)
-        if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
-            datasource.refresh_consul_config()
 
     def check_and_create_storage(
         self,
