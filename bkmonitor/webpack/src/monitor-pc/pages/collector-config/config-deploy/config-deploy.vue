@@ -230,7 +230,7 @@
             <span
               :style="{ backgroundColor: labelMap[item.label_name].color }"
               class="pre-panel-name"
-              >{{ labelMap[item.label_name].name }}</span
+              >{{ item.label_name !== 'RETRY' ? labelMap[item.label_name].name : '' }}</span
             >
             <span
               :style="{ borderColor: labelMap[item.label_name].color }"
@@ -289,6 +289,15 @@
               </i18n>
             </span>
           </div>
+          <bk-button
+            v-if="isRunning && item.table.some((row) => row.status === 'FAILED')"
+            text
+            class="row-retry-btn"
+            theme="primary"
+            @click="handleBatchRowRetry($event, item)"
+          >
+            {{ $t('批量重试') }}
+          </bk-button>
         </div>
       </right-panel>
     </div>
@@ -410,10 +419,10 @@ export default {
   computed: {
     haveDeploying() {
       const resArr = [];
-      this.content.forEach(item => {
+      for (const item of this.content) {
         const res = item.child.some(one => ['DEPLOYING', 'RUNNING', 'PENDING'].includes(one.status));
         resArr.push(res);
-      });
+      }
       return resArr.some(item => item);
     },
     statusList() {
@@ -454,13 +463,13 @@ export default {
       const { status } = this.header;
       this.header.data = data.headerData;
       this.content = data.contents;
-      this.content.forEach(item => {
-        item.child.forEach(set => {
+      for (const item of this.content) {
+        for (const set of item.child) {
           if (set.status === 'RUNNING' || set.status === 'PENDING' || set.status === status || status === 'ALL') {
             item.table.push(set);
           }
-        });
-      });
+        }
+      }
       const operationStepMap = {
         ADD_DEL: this.$t('增删目标'),
         UPGRADE: this.$t('升级'),
@@ -477,7 +486,7 @@ export default {
       if (this.side.title === data.instance_name) {
         this.side.title = '';
       }
-      this.content.forEach(item => {
+      for (const item of this.content) {
         if (item.child?.length) {
           const setData = item.child.find(set => set.instance_id === data.instance_id && set.status === 'FAILED');
           if (setData) {
@@ -486,7 +495,7 @@ export default {
             item.failedNum -= 1;
           }
         }
-      });
+      }
       this.header.data.pendingNum += 1;
       this.header.data.failedNum -= 1;
       this.handlePolling(false);
@@ -531,16 +540,16 @@ export default {
       this.refresh = false;
       this.header.batchRetry = true;
       this.side.title = '';
-      this.content.forEach(item => {
-        item.child.forEach(set => {
+      for (const item of this.content) {
+        for (const set of item.child) {
           if (set.status === 'FAILED') {
             set.status = 'PENDING';
             failed.push(set);
           }
-        });
+        }
         item.pendingNum += item.failedNum;
         item.failedNum = 0;
-      });
+      }
       this.header.data.pendingNum += this.header.data.failedNum;
       this.header.data.failedNum = 0;
       this.handlePolling(false);
@@ -556,9 +565,9 @@ export default {
           }
         })
         .catch(() => {
-          failed.forEach(item => {
+          for (const item of failed) {
             item.status = 'FAILED';
-          });
+          }
           this.header.data.pendingNum = 0;
           this.header.data.failedNum = failed.length;
           this.header.batchRetry = false;
@@ -589,9 +598,9 @@ export default {
       this.$emit('can-polling', v);
     },
     handleStatusChange(status) {
-      this.content.forEach(item => {
+      for (const item of this.content) {
         item.table = [];
-        item.child.forEach(set => {
+        for (const set of item.child) {
           if (
             (status === 'RUNNING' && (set.status === 'RUNNING' || set.status === 'PENDING')) ||
             set.status === status ||
@@ -599,8 +608,8 @@ export default {
           ) {
             item.table.push(set);
           }
-        });
-      });
+        }
+      }
     },
     handleCollapseChange(item, v) {
       if (item.child.length) {
@@ -634,26 +643,35 @@ export default {
     async taskReadyStatus(id) {
       let timer = null;
       clearTimeout(timer);
-      return new Promise(async resolve => {
-        const show = await isTaskReady({ collect_config_id: id });
-        if (show) {
-          resolve(true);
-        } else {
-          timer = setTimeout(() => {
-            this.taskReadyStatus(id).then(res => {
-              resolve(res);
-            });
-          }, 2000);
-        }
+      return new Promise(resolve => {
+        isTaskReady({ collect_config_id: id })
+          .then(show => {
+            if (show) {
+              resolve(true);
+            } else {
+              timer = setTimeout(() => {
+                this.taskReadyStatus(id).then(res => {
+                  resolve(res);
+                });
+              }, 2000);
+            }
+          })
+          .catch(() => {
+            timer = setTimeout(() => {
+              this.taskReadyStatus(id).then(res => {
+                resolve(res);
+              });
+            }, 2000);
+          });
       });
     },
     handleCopyTargets() {
       let copyStr = '';
-      this.content.forEach(item => {
-        item.table.forEach(tableItem => {
+      for (const item of this.content) {
+        for (const tableItem of item.table) {
           copyStr += `${tableItem.instance_name}\n`;
-        });
-      });
+        }
+      }
       copyText(copyStr, msg => {
         this.$bkMessage({
           message: msg,
@@ -666,23 +684,25 @@ export default {
         theme: 'success',
       });
     },
+    /**
+     * 批量重试某操作步骤下所有失败的实例
+     * @param {Event} e - 点击事件对象
+     * @param {Object} item - 操作步骤面板数据（包含 table 列表）
+     */
+    handleBatchRowRetry(e, item) {
+      e.stopPropagation();
+      for (const row of item.table || []) {
+        if (row.status === 'FAILED') {
+          this.handleRetry(row, item);
+        }
+      }
+    },
   },
 };
 </script>
 <style lang="scss" scoped>
-.mr-3 {
-  margin-right: 3px;
-}
 
-.ml-auto {
-  /* stylelint-disable-next-line declaration-no-important */
-  margin-left: auto !important;
-}
-
-.mt-2 {
-  margin-top: 2px;
-}
-
+/* stylelint-disable-next-line scss/at-mixin-pattern */
 @mixin pointStatus() {
   .point {
     display: flex;
@@ -700,6 +720,7 @@ export default {
   }
 }
 
+/* stylelint-disable-next-line scss/at-mixin-pattern */
 @mixin filterList() {
   .header-filter {
     display: flex;
@@ -719,13 +740,13 @@ export default {
       padding: 0 12px;
       cursor: pointer;
 
-      @include pointStatus();
+      @include pointStatus;
 
       &:not(:last-of-type) {
         &::after {
           position: absolute;
           top: 6px;
-          right: 0px;
+          right: 0;
           width: 1px;
           height: 12px;
           content: '';
@@ -755,6 +776,19 @@ export default {
   }
 }
 
+.mr-3 {
+  margin-right: 3px;
+}
+
+.ml-auto {
+  /* stylelint-disable-next-line declaration-no-important */
+  margin-left: auto !important;
+}
+
+.mt-2 {
+  margin-top: 2px;
+}
+
 .config-deploy {
   &-description {
     height: 16px;
@@ -778,7 +812,7 @@ export default {
     align-items: center;
     margin-bottom: 20px;
 
-    @include filterList();
+    @include filterList;
 
     .header-retry {
       margin-left: 10px;
@@ -833,6 +867,15 @@ export default {
         border-right-color: transparent !important;
         transform: scaleY(2);
       }
+    }
+
+    :deep(.title-desc) {
+      flex: 1;
+    } 
+
+    .row-retry-btn {
+      margin: 0 24px 0 auto;
+      font-size: 12px;
     }
 
     .panel-title {
@@ -904,7 +947,7 @@ export default {
   .side-detail {
     max-height: calc(100vh - 120px);
     padding: 10px 30px 10px 16px;
-    margin: 28px 40px 20px 40px;
+    margin: 28px 40px 20px;
     overflow-y: auto;
     color: #fff;
     background: #000;
