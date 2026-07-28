@@ -248,7 +248,12 @@ def _invoke(domain_id: str, operation_id: str, params: dict[str, Any], *, force_
         return _error(code="provider_unavailable", message=str(e))
 
     requested_fields = invoke_params.get("fields") or op.default_fields or None
-    result = op.response_postprocess(raw, requested_fields) if op.response_postprocess else raw
+    if op.response_postprocess is None:
+        result = raw
+    elif op.response_postprocess_needs_params:
+        result = op.response_postprocess(raw, requested_fields, invoke_params)
+    else:
+        result = op.response_postprocess(raw, requested_fields)
     return {
         "status": "ok",
         "kind": "invocation",

@@ -11,7 +11,6 @@ platform-source catalog domain：nodeman（节点管理 bk-nodeman，只读）�
 - fetch_subscription_statistic：订阅实例状态与插件版本分布
 - get_subscription_instance_status：按订阅ID列出各实例的部署状态 + 主机归属 + bkmonitorbeat 进程态
 - get_subscription_task_instances：分页查询订阅实例任务，不返回步骤与日志
-- get_subscription_task_step_summaries：按单个任务查询保留快照中的步骤安全摘要
 - search_host_plugin_status：按主机ID查询 Agent 与插件状态/版本
 
 典型链路：read-db-model 读 DeploymentConfigVersion 拿 subscription_id → 本接口查该订阅各实例
@@ -30,8 +29,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.conf import settings
-
 from core.drf_resource import api
 
 from ._catalog import OperationSpec, ParamsGuardRejected, PlatformSourceCatalog
@@ -40,14 +37,9 @@ SUBSCRIPTION_INSTANCE_STATUS_ALLOWED_KEYS = frozenset({"subscription_id_list"})
 SUBSCRIPTION_SUMMARY_ALLOWED_KEYS = frozenset({"subscription_id_list"})
 SUBSCRIPTION_STATISTIC_ALLOWED_KEYS = frozenset({"subscription_id_list"})
 SUBSCRIPTION_TASK_INSTANCES_ALLOWED_KEYS = frozenset({"subscription_id", "task_id_list", "page", "pagesize"})
-SUBSCRIPTION_TASK_STEP_SUMMARIES_ALLOWED_KEYS = frozenset({"subscription_id", "task_id", "page", "pagesize"})
 HOST_PLUGIN_STATUS_ALLOWED_KEYS = frozenset({"bk_host_id", "page", "pagesize"})
 
 MAX_PAGE_SIZE = 1000
-RETAINED_TASK_MAX_PAGE_SIZE = 100
-MAX_TASK_STEPS = 50
-MAX_STEP_SUB_STEPS = 100
-MAX_PROJECTED_STEP_NODES = 10_000
 
 INSTANCE_HOST_FIELDS = (
     "bk_host_innerip_v6",
@@ -148,12 +140,6 @@ def _normalize_int(value: Any, field: str) -> int:
     if normalized <= 0:
         raise ParamsGuardRejected(f"{field} 必须为正整数: {value!r}")
     return normalized
-
-
-def _require_positive_integer(value: Any, field: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise ParamsGuardRejected(f"{field} 必须为正整数: {value!r}")
-    return value
 
 
 def _normalize_int_list(value: Any, field: str) -> list[int]:
@@ -281,241 +267,6 @@ def project_subscription_task_instances(raw: Any, _fields: list[str] | None) -> 
         projected_instances.append(projected_instance)
     projected["list"] = projected_instances
     return projected
-
-
-def guard_subscription_task_step_summaries(params: dict[str, Any]) -> dict[str, Any]:
-    if not getattr(settings, "BKM_CLI_NODEMAN_RETAINED_TASK_SNAPSHOTS_ENABLED", False):
-        raise ParamsGuardRejected("NodeMan 保留任务快照能力门禁未开启")
-    if not isinstance(params, dict):
-        raise ParamsGuardRejected("get_subscription_task_step_summaries 参数必须是对象")
-
-    _reject_unknown_keys(
-        params,
-        SUBSCRIPTION_TASK_STEP_SUMMARIES_ALLOWED_KEYS,
-        "get_subscription_task_step_summaries",
-    )
-    page = _normalize_int(params.get("page", 1), "page")
-    pagesize = _normalize_int(params.get("pagesize", 100), "pagesize")
-    if pagesize > RETAINED_TASK_MAX_PAGE_SIZE:
-        raise ParamsGuardRejected(f"pagesize 不得超过 {RETAINED_TASK_MAX_PAGE_SIZE}")
-
-    return {
-        "subscription_id": _require_positive_integer(params.get("subscription_id"), "subscription_id"),
-        "task_id_list": [_require_positive_integer(params.get("task_id"), "task_id")],
-        "need_detail": False,
-        "need_aggregate_all_tasks": False,
-        "need_out_of_scope_snapshots": True,
-        "page": page,
-        "pagesize": pagesize,
-    }
-
-
-def _new_projection_meta() -> dict[str, Any]:
-    return {"is_partial": False, "dropped_items": 0, "reasons": []}
-
-
-def _record_drop(meta: dict[str, Any], reason: str, count: int = 1) -> None:
-    if count <= 0:
-        return
-    meta["is_partial"] = True
-    meta["dropped_items"] += count
-    if reason not in meta["reasons"]:
-        meta["reasons"].append(reason)
-
-
-def _is_nonnegative_integer(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
-
-
-def _is_positive_integer(value: Any) -> bool:
-    return _is_nonnegative_integer(value) and value > 0
-
-
-def _project_sub_step(raw: Any, meta: dict[str, Any]) -> dict[str, Any] | None:
-    if not isinstance(raw, dict):
-        _record_drop(meta, "invalid_sub_step")
-        return None
-    if (
-        not _is_nonnegative_integer(raw.get("index"))
-        or not isinstance(raw.get("node_name"), str)
-        or not isinstance(raw.get("status"), str)
-    ):
-        _record_drop(meta, "invalid_sub_step_fields")
-        return None
-
-    projected = {
-        "index": raw["index"],
-        "node_name": raw["node_name"],
-        "status": raw["status"],
-    }
-    for field in ("step_code", "start_time", "finish_time"):
-        value = raw.get(field)
-        if value is not None and not isinstance(value, str):
-            _record_drop(meta, "invalid_sub_step_nullable_field")
-            value = None
-        projected[field] = value
-    return projected
-
-
-def _project_step(
-    raw: Any,
-    meta: dict[str, Any],
-    sub_step_budget: int,
-) -> tuple[dict[str, Any] | None, int]:
-    if not isinstance(raw, dict):
-        _record_drop(meta, "invalid_step")
-        return None, 0
-    if (
-        not isinstance(raw.get("id"), str)
-        or not isinstance(raw.get("type"), str)
-        or not isinstance(raw.get("status"), str)
-    ):
-        _record_drop(meta, "invalid_step_fields")
-        return None, 0
-
-    projected = {
-        "id": raw["id"],
-        "type": raw["type"],
-        "status": raw["status"],
-    }
-    for field in ("action", "start_time", "finish_time"):
-        value = raw.get(field)
-        if value is not None and not isinstance(value, str):
-            _record_drop(meta, "invalid_step_nullable_field")
-            value = None
-        projected[field] = value
-
-    target_hosts = raw.get("target_hosts")
-    if not isinstance(target_hosts, list) or len(target_hosts) != 1 or not isinstance(target_hosts[0], dict):
-        _record_drop(meta, "invalid_target_hosts")
-        projected["sub_steps"] = []
-        return projected, 0
-
-    raw_sub_steps = target_hosts[0].get("sub_steps")
-    if not isinstance(raw_sub_steps, list):
-        _record_drop(meta, "invalid_sub_steps")
-        projected["sub_steps"] = []
-        return projected, 0
-
-    if len(raw_sub_steps) > MAX_STEP_SUB_STEPS:
-        _record_drop(meta, "sub_step_limit_exceeded", len(raw_sub_steps) - MAX_STEP_SUB_STEPS)
-        raw_sub_steps = raw_sub_steps[:MAX_STEP_SUB_STEPS]
-
-    projected_sub_steps: list[dict[str, Any]] = []
-    for index, raw_sub_step in enumerate(raw_sub_steps):
-        if len(projected_sub_steps) >= sub_step_budget:
-            _record_drop(meta, "page_node_limit_exceeded", len(raw_sub_steps) - index)
-            break
-        projected_sub_step = _project_sub_step(raw_sub_step, meta)
-        if projected_sub_step is not None:
-            projected_sub_steps.append(projected_sub_step)
-    projected["sub_steps"] = projected_sub_steps
-    return projected, len(projected_sub_steps)
-
-
-def _project_task(
-    raw: Any,
-    meta: dict[str, Any],
-    remaining_nodes: int,
-) -> tuple[dict[str, Any] | None, int]:
-    if not isinstance(raw, dict):
-        _record_drop(meta, "invalid_task_instance")
-        return None, remaining_nodes
-    if (
-        not _is_positive_integer(raw.get("task_id"))
-        or not _is_positive_integer(raw.get("record_id"))
-        or not isinstance(raw.get("instance_id"), str)
-        or not isinstance(raw.get("status"), str)
-    ):
-        _record_drop(meta, "invalid_task_instance_fields")
-        return None, remaining_nodes
-
-    projected = {
-        "task_id": raw["task_id"],
-        "record_id": raw["record_id"],
-        "instance_id": raw["instance_id"],
-        "status": raw["status"],
-    }
-    for field in ("create_time", "start_time", "finish_time"):
-        value = raw.get(field)
-        if value is not None and not isinstance(value, str):
-            _record_drop(meta, "invalid_task_time")
-            value = None
-        projected[field] = value
-
-    raw_steps = raw.get("steps")
-    if not isinstance(raw_steps, list):
-        _record_drop(meta, "invalid_steps")
-        projected["steps"] = []
-        return projected, remaining_nodes
-
-    if len(raw_steps) > MAX_TASK_STEPS:
-        _record_drop(meta, "step_limit_exceeded", len(raw_steps) - MAX_TASK_STEPS)
-        raw_steps = raw_steps[:MAX_TASK_STEPS]
-
-    projected_steps: list[dict[str, Any]] = []
-    for index, raw_step in enumerate(raw_steps):
-        if remaining_nodes <= 0:
-            _record_drop(meta, "page_node_limit_exceeded", len(raw_steps) - index)
-            break
-        projected_step, projected_sub_step_count = _project_step(raw_step, meta, remaining_nodes - 1)
-        if projected_step is None:
-            continue
-        projected_steps.append(projected_step)
-        remaining_nodes -= 1 + projected_sub_step_count
-    projected["steps"] = projected_steps
-    return projected, remaining_nodes
-
-
-def project_subscription_task_step_summaries(raw: Any, _fields: list[str] | None) -> dict[str, Any]:
-    meta = _new_projection_meta()
-    result: dict[str, Any] = {
-        "total": 0,
-        "status_counter": {},
-        "list": [],
-        "projection_meta": meta,
-    }
-    if not isinstance(raw, dict):
-        _record_drop(meta, "invalid_top_level")
-        return result
-
-    total = raw.get("total")
-    if _is_nonnegative_integer(total):
-        result["total"] = total
-    else:
-        _record_drop(meta, "invalid_total")
-
-    status_counter = raw.get("status_counter")
-    if isinstance(status_counter, dict):
-        for field in STATUS_COUNTER_FIELDS:
-            if field not in status_counter:
-                continue
-            value = status_counter[field]
-            if _is_nonnegative_integer(value):
-                result["status_counter"][field] = value
-            else:
-                _record_drop(meta, "invalid_status_count")
-    else:
-        _record_drop(meta, "invalid_status_counter")
-
-    tasks = raw.get("list")
-    if not isinstance(tasks, list):
-        _record_drop(meta, "invalid_task_instances")
-        return result
-    if len(tasks) > RETAINED_TASK_MAX_PAGE_SIZE:
-        _record_drop(
-            meta,
-            "task_instance_limit_exceeded",
-            len(tasks) - RETAINED_TASK_MAX_PAGE_SIZE,
-        )
-        tasks = tasks[:RETAINED_TASK_MAX_PAGE_SIZE]
-
-    remaining_nodes = MAX_PROJECTED_STEP_NODES
-    for task in tasks:
-        projected_task, remaining_nodes = _project_task(task, meta, remaining_nodes)
-        if projected_task is not None:
-            result["list"].append(projected_task)
-    return result
 
 
 def guard_host_plugin_status(params: dict[str, Any]) -> dict[str, Any]:
@@ -720,48 +471,6 @@ def register() -> None:
                     "聚合全部任务得到当前实例视图，指定 task_id_list 时关闭聚合以确保任务过滤生效。"
                     "响应再次固定投影并丢弃 steps/log/inputs。"
                     "status=SUCCESS 只表示节点管理任务执行成功，不代表采集数据已入库。"
-                ),
-            ),
-            OperationSpec(
-                id="get_subscription_task_step_summaries",
-                summary="查询单个 NodeMan 任务的保留步骤安全摘要",
-                handler=api.node_man.task_result,
-                params_guard=guard_subscription_task_step_summaries,
-                params_schema_override={
-                    "type": "object",
-                    "properties": {
-                        "subscription_id": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "description": "节点管理订阅 ID",
-                        },
-                        "task_id": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "description": "单个节点管理任务 ID",
-                        },
-                        "page": {"type": "integer", "default": 1, "minimum": 1},
-                        "pagesize": {
-                            "type": "integer",
-                            "default": 100,
-                            "minimum": 1,
-                            "maximum": RETAINED_TASK_MAX_PAGE_SIZE,
-                        },
-                    },
-                    "required": ["subscription_id", "task_id"],
-                    "additionalProperties": False,
-                },
-                example_params={"subscription_id": 101, "task_id": 201, "page": 1, "pagesize": 100},
-                default_fields=[],
-                allowed_fields=[],
-                required_params=["subscription_id", "task_id"],
-                response_postprocess=project_subscription_task_step_summaries,
-                audit_tags=["readonly", "nodeman", "retained-snapshot"],
-                notes=(
-                    "仅在 BKM_CLI_NODEMAN_RETAINED_TASK_SNAPSHOTS_ENABLED 显式开启时可调用；"
-                    "固定查询单个 task_id 的已移出范围保留快照，返回步骤与子步骤白名单摘要。"
-                    "不返回日志、inputs、outputs、params、context、instance_info、ex_data 或原始 target_hosts。"
-                    "结果只是 NodeMan 当前仍保留的控制面快照，空结果不表示任务成功、失败或从未发生。"
                 ),
             ),
             OperationSpec(

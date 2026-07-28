@@ -25,6 +25,8 @@ QUERY_ROUTE_ALLOWED_KEYS = frozenset({"channel_id"})
 QUERY_STREAM_TO_ALLOWED_KEYS = frozenset({"stream_to_id"})
 
 _POSITIVE_INTEGER_STRING_RE = re.compile(r"^[0-9]+$")
+_MAX_IDENTIFIER_DIGITS = 20
+_MAX_IDENTIFIER_VALUE = 10**_MAX_IDENTIFIER_DIGITS - 1
 _MISSING = object()
 _ROUTE_SINK_TYPES = ("kafka", "redis", "pulsar")
 _STREAM_REPORT_MODES = frozenset({"kafka", "redis", "pulsar", "file"})
@@ -43,12 +45,14 @@ def _guard_query(params: Any, *, param_name: str, allowed_keys: frozenset[str], 
         raise ParamsGuardRejected(f"{param_name} 必须是正整数或十进制数字字符串")
     if isinstance(value, int):
         normalized = value
-    elif isinstance(value, str) and _POSITIVE_INTEGER_STRING_RE.fullmatch(value):
+    elif (
+        isinstance(value, str) and len(value) <= _MAX_IDENTIFIER_DIGITS and _POSITIVE_INTEGER_STRING_RE.fullmatch(value)
+    ):
         normalized = int(value)
     else:
         raise ParamsGuardRejected(f"{param_name} 必须是正整数或十进制数字字符串")
-    if normalized <= 0:
-        raise ParamsGuardRejected(f"{param_name} 必须大于 0")
+    if normalized <= 0 or normalized > _MAX_IDENTIFIER_VALUE:
+        raise ParamsGuardRejected(f"{param_name} 必须是 1 到 {_MAX_IDENTIFIER_VALUE} 之间的整数")
 
     return {
         "condition": {
@@ -83,8 +87,12 @@ def _positive_integer_schema(param_name: str) -> dict[str, Any]:
         "properties": {
             param_name: {
                 "oneOf": [
-                    {"type": "integer", "minimum": 1},
-                    {"type": "string", "pattern": "^[0-9]+$"},
+                    {"type": "integer", "minimum": 1, "maximum": _MAX_IDENTIFIER_VALUE},
+                    {
+                        "type": "string",
+                        "pattern": "^0*[1-9][0-9]*$",
+                        "maxLength": _MAX_IDENTIFIER_DIGITS,
+                    },
                 ],
                 "description": f"{param_name}，正整数或十进制数字字符串",
             }
@@ -109,10 +117,10 @@ def _project_positive_integer(value: Any) -> int | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, int):
-        return value if value > 0 else None
-    if isinstance(value, str) and _POSITIVE_INTEGER_STRING_RE.fullmatch(value):
+        return value if 0 < value <= _MAX_IDENTIFIER_VALUE else None
+    if isinstance(value, str) and len(value) <= _MAX_IDENTIFIER_DIGITS and _POSITIVE_INTEGER_STRING_RE.fullmatch(value):
         normalized = int(value)
-        return normalized if normalized > 0 else None
+        return normalized if 0 < normalized <= _MAX_IDENTIFIER_VALUE else None
     return None
 
 
@@ -213,12 +221,28 @@ def project_query_route(raw: Any, _fields: list[str] | None) -> dict[str, Any]:
     }
 
 
-def project_query_stream_to(raw: Any, _fields: list[str] | None) -> dict[str, Any]:
+def project_query_stream_to(
+    raw: Any,
+    _fields: list[str] | None,
+    invoke_params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """兼容嵌套与扁平响应，只输出接收端逻辑摘要。"""
     meta = _new_projection_meta()
     summaries: list[dict[str, Any]] = []
+    condition = invoke_params.get("condition") if isinstance(invoke_params, dict) else None
+    requested_stream_to_id = (
+        _project_positive_integer(condition.get("stream_to_id")) if isinstance(condition, dict) else None
+    )
     if not isinstance(raw, list):
         _record_drop(meta, "invalid_top_level")
+        return {
+            "configuration_scope": "current",
+            "projection_meta": meta,
+            "stream_to_summaries": summaries,
+        }
+    if requested_stream_to_id is not None and len(raw) > 1:
+        for _item in raw:
+            _record_drop(meta, "ambiguous_stream_to_response")
         return {
             "configuration_scope": "current",
             "projection_meta": meta,
@@ -244,11 +268,30 @@ def project_query_stream_to(raw: Any, _fields: list[str] | None) -> dict[str, An
             _record_drop(meta, "invalid_stream_to")
             continue
 
-        stream_to_id_value = metadata.get(
-            "stream_to_id",
-            item.get("stream_to_id", stream_to.get("stream_to_id")),
-        )
-        stream_to_id = _project_positive_integer(stream_to_id_value)
+        id_containers = [metadata, item]
+        if stream_to is not item:
+            id_containers.append(stream_to)
+        response_id_values = [container["stream_to_id"] for container in id_containers if "stream_to_id" in container]
+        response_stream_to_ids = {
+            projected_id
+            for value in response_id_values
+            if (projected_id := _project_positive_integer(value)) is not None
+        }
+        if len(response_stream_to_ids) > 1:
+            _record_drop(meta, "stream_to_id_mismatch")
+            continue
+        response_stream_to_id = next(iter(response_stream_to_ids), None)
+        if response_stream_to_id is None and response_id_values:
+            _record_drop(meta, "invalid_stream_to_id")
+            continue
+        if (
+            response_stream_to_id is not None
+            and requested_stream_to_id is not None
+            and response_stream_to_id != requested_stream_to_id
+        ):
+            _record_drop(meta, "stream_to_id_mismatch")
+            continue
+        stream_to_id = response_stream_to_id or requested_stream_to_id
         if stream_to_id is None:
             _record_drop(meta, "invalid_stream_to_id")
             continue
@@ -309,6 +352,7 @@ def register() -> None:
                 handler=api.gse.query_stream_to,
                 params_guard=guard_query_stream_to,
                 response_postprocess=project_query_stream_to,
+                response_postprocess_needs_params=True,
                 params_schema_override=_positive_integer_schema("stream_to_id"),
                 example_params={"stream_to_id": 101},
                 required_params=["stream_to_id"],

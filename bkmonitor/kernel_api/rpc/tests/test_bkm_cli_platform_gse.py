@@ -10,6 +10,7 @@ GSE platform-source catalog tests.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from django.conf import settings
@@ -54,8 +55,8 @@ def test_gse_operations_expose_only_one_required_positive_integer():
             "properties": {
                 param_name: {
                     "oneOf": [
-                        {"type": "integer", "minimum": 1},
-                        {"type": "string", "pattern": "^[0-9]+$"},
+                        {"type": "integer", "minimum": 1, "maximum": 99999999999999999999},
+                        {"type": "string", "pattern": "^0*[1-9][0-9]*$", "maxLength": 20},
                     ],
                     "description": f"{param_name}，正整数或十进制数字字符串",
                 }
@@ -63,6 +64,19 @@ def test_gse_operations_expose_only_one_required_positive_integer():
             "required": [param_name],
             "additionalProperties": False,
         }
+
+
+def test_gse_string_schema_matches_only_positive_decimal_strings():
+    domain = PlatformSourceCatalog.get_domain("gse")
+    assert domain is not None
+
+    for operation_id in ("query_route", "query_stream_to"):
+        schema = domain.operations[operation_id].params_schema_override
+        pattern = schema["properties"][domain.operations[operation_id].required_params[0]]["oneOf"][1]["pattern"]
+        assert re.fullmatch(pattern, "00101")
+        assert not re.fullmatch(pattern, "0")
+        assert not re.fullmatch(pattern, "000")
+        assert schema["properties"][domain.operations[operation_id].required_params[0]]["oneOf"][1]["maxLength"] == 20
 
 
 @pytest.mark.parametrize(
@@ -107,6 +121,20 @@ def test_gse_guards_reject_missing_or_non_positive_integer(guard_name, param_nam
         ("guard_query_stream_to", "stream_to_id"),
     ],
 )
+def test_gse_guards_reject_overlong_decimal_strings_without_leaking_conversion_errors(guard_name, param_name):
+    guard = getattr(gse, guard_name)
+
+    with pytest.raises(ParamsGuardRejected, match=param_name):
+        guard({param_name: "9" * 5000})
+
+
+@pytest.mark.parametrize(
+    ("guard_name", "param_name"),
+    [
+        ("guard_query_route", "channel_id"),
+        ("guard_query_stream_to", "stream_to_id"),
+    ],
+)
 @pytest.mark.parametrize(
     "extra_key",
     [
@@ -142,6 +170,8 @@ def test_gse_operations_use_fixed_response_projectors():
 
     assert domain.operations["query_route"].response_postprocess is gse.project_query_route
     assert domain.operations["query_stream_to"].response_postprocess is gse.project_query_stream_to
+    assert domain.operations["query_route"].response_postprocess_needs_params is False
+    assert domain.operations["query_stream_to"].response_postprocess_needs_params is True
     for operation in domain.operations.values():
         assert operation.default_fields == []
         assert operation.allowed_fields == []
@@ -281,6 +311,108 @@ def test_project_query_stream_to_infers_missing_mode_from_one_known_sink():
         "configuration_scope": "current",
         "projection_meta": {"is_partial": False, "dropped_items": 0, "reasons": []},
         "stream_to_summaries": [{"stream_to_id": 201, "name": "stream-main", "report_mode": "kafka"}],
+    }
+
+
+def test_project_query_stream_to_uses_guarded_request_id_when_flat_response_omits_it():
+    raw = [
+        {
+            "name": "stream-main",
+            "report_mode": "kafka",
+            "kafka": {
+                "storage_address": [{"ip": "broker.example.invalid", "port": 9092}],
+                "sasl_passwd": "canary-password",
+            },
+        }
+    ]
+
+    assert gse.project_query_stream_to(
+        raw,
+        None,
+        {"condition": {"stream_to_id": 201}},
+    ) == {
+        "configuration_scope": "current",
+        "projection_meta": {"is_partial": False, "dropped_items": 0, "reasons": []},
+        "stream_to_summaries": [{"stream_to_id": 201, "name": "stream-main", "report_mode": "kafka"}],
+    }
+
+
+def test_project_query_stream_to_rejects_response_id_mismatch():
+    raw = [{"stream_to_id": 202, "name": "stream-main", "report_mode": "kafka"}]
+
+    assert gse.project_query_stream_to(
+        raw,
+        None,
+        {"condition": {"stream_to_id": 201}},
+    ) == {
+        "configuration_scope": "current",
+        "projection_meta": {
+            "is_partial": True,
+            "dropped_items": 1,
+            "reasons": ["stream_to_id_mismatch"],
+        },
+        "stream_to_summaries": [],
+    }
+
+
+def test_project_query_stream_to_checks_all_response_id_locations_before_request_fallback():
+    raw = [
+        {
+            "metadata": {"stream_to_id": None},
+            "stream_to_id": 202,
+            "name": "stream-main",
+            "report_mode": "kafka",
+        }
+    ]
+
+    assert gse.project_query_stream_to(
+        raw,
+        None,
+        {"condition": {"stream_to_id": 201}},
+    ) == {
+        "configuration_scope": "current",
+        "projection_meta": {
+            "is_partial": True,
+            "dropped_items": 1,
+            "reasons": ["stream_to_id_mismatch"],
+        },
+        "stream_to_summaries": [],
+    }
+
+
+def test_project_query_stream_to_rejects_ambiguous_multi_item_response_for_one_requested_id():
+    raw = [
+        {"name": "stream-main", "report_mode": "kafka"},
+        {"name": "stream-secondary", "report_mode": "redis"},
+    ]
+
+    assert gse.project_query_stream_to(
+        raw,
+        None,
+        {"condition": {"stream_to_id": 201}},
+    ) == {
+        "configuration_scope": "current",
+        "projection_meta": {
+            "is_partial": True,
+            "dropped_items": 2,
+            "reasons": ["ambiguous_stream_to_response"],
+        },
+        "stream_to_summaries": [],
+    }
+
+
+def test_project_query_stream_to_rejects_overlong_response_id_without_conversion_error():
+    assert gse.project_query_stream_to(
+        [{"stream_to_id": "9" * 5000, "name": "stream-main", "report_mode": "kafka"}],
+        None,
+    ) == {
+        "configuration_scope": "current",
+        "projection_meta": {
+            "is_partial": True,
+            "dropped_items": 1,
+            "reasons": ["invalid_stream_to_id"],
+        },
+        "stream_to_summaries": [],
     }
 
 
