@@ -45,6 +45,7 @@ from .data_link import (  # noqa
     DorisStorageBindingConfig,
 )
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
+from .feature_flag import FeatureFlag, FeatureFlagConfig
 from .es_snapshot import (
     EsSnapshot,
     EsSnapshotIndice,
@@ -179,4 +180,7 @@ __all__ = [
     "CustomRelationStatus",
     "ResourceDefinition",
     "RelationDefinition",
+    # feature flag
+    "FeatureFlag",
+    "FeatureFlagConfig",
 ]

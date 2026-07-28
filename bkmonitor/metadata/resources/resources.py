@@ -3520,3 +3520,333 @@ class ListBkBaseRtInfoByBizIdResource(Resource):
         # 如果不分页，返回所有结果
         results = [rt.to_json() for rt in bkbase_rts]
         return results
+
+
+def _mask_storage_passwords(value):
+    """递归脱敏配置检查接口返回的 Storage 密码。"""
+    if isinstance(value, dict):
+        return {
+            key: "******" if key == "password" and item else _mask_storage_passwords(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_mask_storage_passwords(item) for item in value]
+    return value
+
+
+class GetConsulStorageConfigResource(Resource):
+    """
+    获取 Consul 中的存储集群配置（用于检查配置是否正确写入）
+    用于项目上线时检查 refresh_consul_storage_config 配置是否正确写入
+
+    支持两种模式：
+    1. 获取单个集群配置：提供 cluster_id 参数
+    2. 获取所有集群配置：不提供 cluster_id 参数
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_id = serializers.IntegerField(label="集群ID", required=False)
+
+    def perform_request(self, validated_request_data):
+        import json
+        from django.conf import settings
+
+        cluster_id = validated_request_data.get("cluster_id")
+
+        from metadata.utils.consul_tools import HashConsul
+        from metadata.models.storage import ClusterInfo
+
+        try:
+            # 如果没有提供 cluster_id，返回所有配置
+            if cluster_id is None:
+                all_configs = ClusterInfo.get_all_consul_storage_config()
+
+                if not all_configs:
+                    return {
+                        "exists": False,
+                        "consul_path_prefix": ClusterInfo.CONSUL_PREFIX_PATH,
+                        "message": "Consul 中没有存储集群配置",
+                        "count": 0,
+                    }
+
+                return {
+                    "exists": True,
+                    "consul_path_prefix": ClusterInfo.CONSUL_PREFIX_PATH,
+                    "configs": _mask_storage_passwords(all_configs),
+                    "count": len(all_configs),
+                }
+
+            # 如果提供了 cluster_id，返回单个配置
+            # 从 settings 读取 Consul 配置
+            consul_host = getattr(settings, "CONSUL_CLIENT_HOST", "127.0.0.1")
+            consul_port = getattr(settings, "CONSUL_CLIENT_PORT", 8500)
+            hash_consul = HashConsul(host=consul_host, port=consul_port)
+            consul_path = f"{ClusterInfo.CONSUL_PREFIX_PATH}/{cluster_id}"
+
+            index, consul_data = hash_consul.get(consul_path)
+
+            if not consul_data or not consul_data.get("Value"):
+                return {
+                    "exists": False,
+                    "cluster_id": cluster_id,
+                    "consul_path": consul_path,
+                    "message": f"配置不存在于 Consul: {consul_path}",
+                }
+
+            # 解析配置
+            value_str = consul_data["Value"]
+
+            # 如果 Value 是 bytes，需要先解码为字符串
+            if isinstance(value_str, bytes):
+                value_str = value_str.decode("utf-8")
+
+            if isinstance(value_str, str):
+                config = json.loads(value_str)
+            else:
+                config = value_str
+
+            return {
+                "exists": True,
+                "cluster_id": cluster_id,
+                "consul_path": consul_path,
+                "consul_index": index,
+                "config": _mask_storage_passwords(config),
+            }
+        except Exception as e:
+            if cluster_id is not None:
+                logger.exception(f"get consul storage config error, cluster_id->[{cluster_id}], error->[{e}]")
+                consul_path = f"{ClusterInfo.CONSUL_PREFIX_PATH}/{cluster_id}"
+                return {
+                    "exists": False,
+                    "cluster_id": cluster_id,
+                    "consul_path": consul_path,
+                    "error": str(e),
+                    "message": f"读取 Consul 配置失败: {e}",
+                }
+            else:
+                logger.exception(f"get all consul storage config error, error->[{e}]")
+                return {
+                    "exists": False,
+                    "consul_path_prefix": ClusterInfo.CONSUL_PREFIX_PATH,
+                    "error": str(e),
+                    "message": f"读取所有 Consul 配置失败: {e}",
+                }
+
+
+class GetRedisStorageConfigResource(Resource):
+    """
+    获取 Redis 中的存储集群配置（用于检查配置是否正确写入）
+    用于项目上线时检查 refresh_redis_storage_config 配置是否正确写入
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_id = serializers.IntegerField(label="集群ID", required=False)
+
+    def perform_request(self, validated_request_data):
+        cluster_id = validated_request_data.get("cluster_id")
+
+        from metadata.models.storage import ClusterInfo
+
+        try:
+            # 如果没有提供 cluster_id，返回所有配置
+            if cluster_id is None:
+                all_configs = ClusterInfo.get_all_redis_storage_config()
+
+                if not all_configs:
+                    return {
+                        "exists": False,
+                        "redis_key_prefix": ClusterInfo.REDIS_PREFIX_KEY,
+                        "message": "Redis 中没有存储集群配置",
+                        "count": 0,
+                    }
+
+                return {
+                    "exists": True,
+                    "redis_key_prefix": ClusterInfo.REDIS_PREFIX_KEY,
+                    "configs": _mask_storage_passwords(all_configs),
+                    "count": len(all_configs),
+                }
+
+            # 如果提供了 cluster_id，返回单个配置
+            config = ClusterInfo.get_redis_storage_config(cluster_id)
+
+            if config is None:
+                redis_key = f"{ClusterInfo.REDIS_PREFIX_KEY}:{cluster_id}"
+                return {
+                    "exists": False,
+                    "cluster_id": cluster_id,
+                    "redis_key": redis_key,
+                    "message": f"配置不存在于 Redis: {redis_key}",
+                }
+
+            redis_key = f"{ClusterInfo.REDIS_PREFIX_KEY}:{cluster_id}"
+            return {
+                "exists": True,
+                "cluster_id": cluster_id,
+                "redis_key": redis_key,
+                "config": _mask_storage_passwords(config),
+            }
+        except Exception as e:
+            if cluster_id is not None:
+                logger.exception(f"get redis storage config error, cluster_id->[{cluster_id}], error->[{e}]")
+                redis_key = f"{ClusterInfo.REDIS_PREFIX_KEY}:{cluster_id}"
+                return {
+                    "exists": False,
+                    "cluster_id": cluster_id,
+                    "redis_key": redis_key,
+                    "error": str(e),
+                    "message": f"读取 Redis 配置失败: {e}",
+                }
+            else:
+                logger.exception(f"get all redis storage config error, error->[{e}]")
+                return {
+                    "exists": False,
+                    "redis_key_prefix": ClusterInfo.REDIS_PREFIX_KEY,
+                    "error": str(e),
+                    "message": f"读取所有 Redis 配置失败: {e}",
+                }
+
+
+class GetConsulFeatureFlagConfigResource(Resource):
+    """
+    获取 Consul 中的特性开关配置（用于检查配置是否正确写入）
+    用于项目上线时检查 refresh_consul_feature_flag_config 配置是否正确写入
+
+    支持两种模式：
+    1. 获取单个 flag：提供 flag_name 参数
+    2. 获取所有 flags：不提供 flag_name 参数
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        flag_name = serializers.CharField(label="特性开关名称", required=False, allow_blank=True)
+
+    def perform_request(self, validated_request_data):
+        flag_name = validated_request_data.get("flag_name")
+
+        from metadata.models.feature_flag import FeatureFlagConfig
+
+        try:
+            consul_path = FeatureFlagConfig.CONSUL_PREFIX_PATH
+
+            # 如果没有提供 flag_name，返回所有 flags
+            if not flag_name:
+                all_configs = FeatureFlagConfig.get_all_consul_feature_flag_config()
+
+                if all_configs is None:
+                    return {
+                        "exists": False,
+                        "consul_path": consul_path,
+                        "message": f"配置不存在于 Consul: {consul_path}",
+                    }
+
+                return {
+                    "exists": True,
+                    "consul_path": consul_path,
+                    "configs": all_configs,
+                    "count": len(all_configs) if isinstance(all_configs, dict) else 0,
+                }
+
+            # 如果提供了 flag_name，返回单个 flag 的配置
+            config = FeatureFlagConfig.get_consul_feature_flag_config(flag_name)
+
+            if config is None:
+                return {
+                    "exists": False,
+                    "flag_name": flag_name,
+                    "consul_path": consul_path,
+                    "message": f"配置不存在于 Consul: {consul_path}",
+                }
+
+            return {
+                "exists": True,
+                "flag_name": flag_name,
+                "consul_path": consul_path,
+                "config": config,
+            }
+        except Exception as e:
+            consul_path = FeatureFlagConfig.CONSUL_PREFIX_PATH
+            logger.exception(f"get consul feature flag config error, flag_name->[{flag_name}], error->[{e}]")
+            return {
+                "exists": False,
+                "flag_name": flag_name,
+                "consul_path": consul_path,
+                "error": str(e),
+                "message": f"读取 Consul 配置失败: {e}",
+            }
+
+
+class GetRedisFeatureFlagConfigResource(Resource):
+    """
+    获取 Redis 中的特性开关配置（用于检查配置是否正确写入）
+    用于项目上线时检查 refresh_redis_feature_flag_config 配置是否正确写入
+
+    支持两种模式：
+    1. 获取单个 flag：提供 flag_name 参数
+    2. 获取所有 flags：不提供 flag_name 参数
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        flag_name = serializers.CharField(label="特性开关名称", required=False, allow_blank=True)
+
+    def perform_request(self, validated_request_data):
+        flag_name = validated_request_data.get("flag_name")
+
+        from metadata.models.feature_flag import FeatureFlagConfig
+        try:
+            redis_key = FeatureFlagConfig.REDIS_PREFIX_KEY
+
+            # 如果没有提供 flag_name，返回所有 flags
+            if not flag_name:
+                all_configs = FeatureFlagConfig.get_all_redis_feature_flag_config()
+
+                if all_configs is None:
+                    return {
+                        "exists": False,
+                        "redis_key": redis_key,
+                        "message": f"配置不存在于 Redis: {redis_key}",
+                    }
+
+                return {
+                    "exists": True,
+                    "redis_key": redis_key,
+                    "configs": all_configs,
+                    "count": len(all_configs) if isinstance(all_configs, dict) else 0,
+                }
+
+            # 如果提供了 flag_name，返回单个 flag 的配置
+            all_configs = FeatureFlagConfig.get_all_redis_feature_flag_config()
+
+            if all_configs is None:
+                return {
+                    "exists": False,
+                    "flag_name": flag_name,
+                    "redis_key": redis_key,
+                    "message": f"配置不存在于 Redis: {redis_key}",
+                }
+
+            config = all_configs.get(flag_name) if isinstance(all_configs, dict) else None
+
+            if config is None:
+                return {
+                    "exists": False,
+                    "flag_name": flag_name,
+                    "redis_key": redis_key,
+                    "message": f"配置不存在于 Redis: {redis_key}",
+                }
+
+            return {
+                "exists": True,
+                "flag_name": flag_name,
+                "redis_key": redis_key,
+                "config": config,
+            }
+        except Exception as e:
+            redis_key = FeatureFlagConfig.REDIS_PREFIX_KEY
+            logger.exception(f"get redis feature flag config error, flag_name->[{flag_name}], error->[{e}]")
+            return {
+                "exists": False,
+                "flag_name": flag_name,
+                "redis_key": redis_key,
+                "error": str(e),
+                "message": f"读取 Redis 配置失败: {e}",
+            }

@@ -108,6 +108,8 @@ class ClusterInfo(models.Model):
 
     CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
+    REDIS_PREFIX_KEY = f"{config.REDIS_KEY_PREFIX}:unify-query:data:storage"
+    REDIS_CHANNEL = f"{REDIS_PREFIX_KEY}:storage_channel"
 
     TYPE_INFLUXDB = "influxdb"
     TYPE_KAFKA = "kafka"
@@ -575,6 +577,269 @@ class ClusterInfo(models.Model):
         hash_consul.put(key=cls.CONSUL_VERSION_PATH, value={"time": time.time()})
 
         logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
+
+    @classmethod
+    def refresh_redis_storage_config(cls):
+        """
+        刷新查询模块的存储配置到 Redis
+
+        功能说明：
+        1. 从数据库获取所有存储集群信息（ClusterInfo）
+        2. 将每个集群的配置信息序列化为 JSON 格式
+        3. 写入到 Redis，key 格式为: {REDIS_PREFIX_KEY}:{cluster_id}
+
+        Redis 存储格式：
+        - Key: {REDIS_PREFIX_KEY}:{cluster_id}
+        - Value: JSON 字符串，包含以下字段：
+          {
+            "address": "http://domain_name:port",  # 集群访问地址
+            "username": "username",                 # 用户名（如果有）
+            "password": "password",                 # 密码（如果有）
+            "type": "influxdb|kafka|redis|..."     # 集群类型
+          }
+
+        :return: None
+        """
+        # 1. 获取需要刷新的信息列表
+        # 从数据库查询所有存储集群配置信息
+        info_list = cls.objects.all()
+
+        total_count = info_list.count()
+        logger.debug(f"total find->[{total_count}] storage info to refresh to redis")
+
+        # 2. 构建需要刷新的字典信息
+        # 使用 cluster_id 作为 key，方便后续遍历和去重
+        refresh_dict = {}
+        for storage_info in info_list:
+            refresh_dict[storage_info.cluster_id] = storage_info
+
+        redis_client = RedisTools().client
+        expected_keys = {f"{cls.REDIS_PREFIX_KEY}:{cluster_id}" for cluster_id in refresh_dict}
+
+        # 3. 遍历所有的字典信息并写入至 Redis
+        # 参考 Consul 的实现逻辑，将配置信息写入 Redis
+        for cluster_id, storage_info in list(refresh_dict.items()):
+            # 构建 Redis key，格式: {REDIS_PREFIX_KEY}:{cluster_id}
+            # 与 Consul 路径结构保持一致，便于统一管理
+            redis_key = f"{cls.REDIS_PREFIX_KEY}:{cluster_id}"
+
+            # 根据 schema 生成地址，如果 schema 不是 http 或 https，则默认使用 http
+            # 确保生成的地址格式正确，例如: http://example.com:9092
+            schema = storage_info.schema if storage_info.schema in ["http", "https"] else "http"
+
+            # 构建配置值字典，包含集群访问所需的基本信息
+            # 注意：这里只存储必要的连接信息
+            config_value = {
+                "address": f"{schema}://{storage_info.domain_name}:{storage_info.port}",
+                "username": storage_info.username,
+                "password": storage_info.password,
+                "type": storage_info.cluster_type,
+            }
+
+            # 将配置信息序列化为 JSON 字符串并写入 Redis
+            # 使用 JSON 格式便于后续读取和解析
+            redis_client.set(redis_key, json.dumps(config_value))
+            logger.debug(f"redis key->[{redis_key}] is refresh with value->[{config_value}] success.")
+
+        # 4. 删除数据库中已不存在的 Storage，避免 UQ 前缀扫描继续读取旧配置。
+        existing_keys = {
+            key.decode("utf-8") if isinstance(key, bytes) else key
+            for key in redis_client.scan_iter(match=f"{cls.REDIS_PREFIX_KEY}:*")
+        }
+        stale_keys = existing_keys - expected_keys
+        if stale_keys:
+            redis_client.delete(*stale_keys)
+            logger.info("deleted stale storage redis keys: %s", sorted(stale_keys))
+
+        # 5. 全量写入和清理完成后再通知 UQ reload。
+        redis_client.publish(
+            cls.REDIS_CHANNEL,
+            json.dumps({"storage_ids": sorted(refresh_dict), "timestamp": time.time()}),
+        )
+
+        logger.info(f"all storage info is refresh to redis success count->[{total_count}].")
+
+    @classmethod
+    def get_redis_storage_config(cls, cluster_id: int) -> dict | None:
+        """
+        从 Redis 读取存储集群配置
+
+        功能说明：
+        1. 根据 cluster_id 构建 Redis key
+        2. 从 Redis 读取配置信息（JSON 格式）
+        3. 解析 JSON 字符串并返回配置字典
+        4. 如果配置不存在或读取失败，返回 None
+
+        Redis key 格式：
+        - Key: {REDIS_PREFIX_KEY}:{cluster_id}
+        - Value: JSON 字符串，包含 address, username, password, type 等字段
+
+        返回值格式：
+        {
+            "address": "http://domain_name:port",
+            "username": "username",
+            "password": "password",
+            "type": "influxdb|kafka|redis|..."
+        }
+
+        使用场景：
+        - 查询模块需要获取存储集群配置时，优先从 Redis 读取（性能更好）
+        - 如果 Redis 中没有配置，可以回退到从数据库或 Consul 读取
+
+        :param cluster_id: 集群ID，用于构建 Redis key
+        :return: 配置字典，如果不存在或读取失败则返回 None
+        """
+        # 构建 Redis key，格式与 refresh_redis_storage_config 方法保持一致
+        redis_key = f"{cls.REDIS_PREFIX_KEY}:{cluster_id}"
+
+        try:
+            # 从 Redis 读取配置数据
+            # Redis 返回的数据可能是 bytes 类型，需要转换为字符串
+            data = RedisTools().client.get(redis_key)
+
+            if data:
+                # 如果数据是 bytes 类型，需要先解码为字符串
+                if isinstance(data, bytes):
+                    data = data.decode("utf-8")
+
+                # 将 JSON 字符串解析为 Python 字典
+                # 如果 JSON 格式不正确，会抛出异常，被 except 捕获
+                return json.loads(data)
+
+            # 如果 Redis 中没有该 key，返回 None
+            # 调用方可以根据需要决定是否从数据库或 Consul 读取
+            return None
+
+        except Exception as e:  # pylint: disable=broad-except
+            # 捕获所有异常，避免因为 Redis 连接问题或数据格式问题导致程序崩溃
+            # 记录错误日志，便于排查问题
+            logger.error(f"get redis storage config error, cluster_id->[{cluster_id}], error->[{e}]")
+            return None
+
+    @classmethod
+    def get_all_redis_storage_config(cls) -> dict:
+        """
+        从 Redis 读取所有存储集群配置
+
+        功能说明：
+        1. 从数据库获取所有集群 ID
+        2. 遍历所有集群 ID，从 Redis 读取配置
+        3. 返回包含所有集群配置的字典
+
+        返回值格式：
+        {
+            "1": {
+                "address": "http://127.0.0.1:4090",
+                "username": "admin",
+                "password": "password123",
+                "type": "influxdb"
+            },
+            "2": {
+                "address": "http://127.0.0.1:9200",
+                "username": "elastic",
+                "password": "password",
+                "type": "elasticsearch"
+            }
+        }
+
+        :return: 包含所有集群配置的字典，key 为 cluster_id（字符串），value 为配置字典
+        """
+        all_configs = {}
+
+        try:
+            # 从数据库获取所有集群 ID
+            cluster_ids = cls.objects.values_list("cluster_id", flat=True)
+
+            # 遍历所有集群 ID，从 Redis 读取配置
+            for cluster_id in cluster_ids:
+                config = cls.get_redis_storage_config(cluster_id)
+                if config is not None:
+                    all_configs[str(cluster_id)] = config
+
+            return all_configs
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"get all redis storage config error, error->[{e}]")
+            return {}
+
+    @classmethod
+    def get_all_consul_storage_config(cls) -> dict:
+        """
+        从 Consul 读取所有存储集群配置
+
+        功能说明：
+        1. 从数据库获取所有集群 ID
+        2. 遍历所有集群 ID，从 Consul 读取配置
+        3. 返回包含所有集群配置的字典
+
+        返回值格式：
+        {
+            "1": {
+                "address": "http://127.0.0.1:4090",
+                "username": "admin",
+                "password": "password123",
+                "type": "influxdb"
+            },
+            "2": {
+                "address": "http://127.0.0.1:9200",
+                "username": "elastic",
+                "password": "password",
+                "type": "elasticsearch"
+            }
+        }
+
+        :return: 包含所有集群配置的字典，key 为 cluster_id（字符串），value 为配置字典
+        """
+        import json
+        from django.conf import settings
+        from metadata.utils import consul_tools
+
+        all_configs = {}
+
+        try:
+            # 从 settings 读取 Consul 配置
+            consul_host = getattr(settings, "CONSUL_CLIENT_HOST", "127.0.0.1")
+            consul_port = getattr(settings, "CONSUL_CLIENT_PORT", 8500)
+            hash_consul = consul_tools.HashConsul(host=consul_host, port=consul_port)
+
+            # 从数据库获取所有集群 ID
+            cluster_ids = cls.objects.values_list("cluster_id", flat=True)
+
+            # 遍历所有集群 ID，从 Consul 读取配置
+            for cluster_id in cluster_ids:
+                consul_path = f"{cls.CONSUL_PREFIX_PATH}/{cluster_id}"
+
+                try:
+                    index, consul_data = hash_consul.get(consul_path)
+
+                    if consul_data and consul_data.get("Value"):
+                        # 获取 Value 字段（可能是 bytes 或字符串）
+                        value_str = consul_data["Value"]
+
+                        # 如果 Value 是 bytes，需要先解码为字符串
+                        if isinstance(value_str, bytes):
+                            value_str = value_str.decode("utf-8")
+
+                        # 如果 Value 是字符串，需要解析 JSON
+                        if isinstance(value_str, str):
+                            config = json.loads(value_str)
+                        # 如果已经是字典，直接使用
+                        elif isinstance(value_str, dict):
+                            config = value_str
+                        else:
+                            continue
+
+                        all_configs[str(cluster_id)] = config
+                except Exception as e:  # pylint: disable=broad-except
+                    # 单个集群读取失败，记录日志但继续处理其他集群
+                    logger.debug(f"get consul storage config error, cluster_id->[{cluster_id}], error->[{e}]")
+                    continue
+
+            return all_configs
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"get all consul storage config error, error->[{e}]")
+            return {}
 
     def base64_with_prefix(self, content: str | None) -> str | None:
         """编码，并添加上前缀"""

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,22 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.shortcuts import render
 
-# Create your views here.
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from metadata.resources.resources import (
+    GetConsulFeatureFlagConfigResource,
+    GetConsulStorageConfigResource,
+    GetRedisFeatureFlagConfigResource,
+    GetRedisStorageConfigResource,
+)
+
+
+class ConfigCheckViewSet(ResourceViewSet):
+    """检查 Storage 和 Feature Flag 是否已同步到 Consul / Redis。"""
+
+    resource_routes = [
+        ResourceRoute("GET", GetConsulStorageConfigResource, endpoint="get_consul_storage_config"),
+        ResourceRoute("GET", GetRedisStorageConfigResource, endpoint="get_redis_storage_config"),
+        ResourceRoute("GET", GetConsulFeatureFlagConfigResource, endpoint="get_consul_feature_flag_config"),
+        ResourceRoute("GET", GetRedisFeatureFlagConfigResource, endpoint="get_redis_feature_flag_config"),
+    ]
