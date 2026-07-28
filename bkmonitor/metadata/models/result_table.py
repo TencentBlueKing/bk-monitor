@@ -679,11 +679,6 @@ class ResultTable(models.Model):
                         force_update=force_update,
                         consumer_group=consumer_group,
                     )
-
-                # 如果最终数据源没有切换到bkdata，则刷新consul配置
-                datasource = self.get_related_datasource(refresh=True)
-                if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
-                    datasource.refresh_consul_config()
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
@@ -696,6 +691,11 @@ class ResultTable(models.Model):
             logger.error(
                 f"create_result_table: not support storage and option, storage: {self.default_storage}, options: {options}"
             )
+
+        # 如果最终数据源没有切换到bkdata，则刷新consul配置
+        datasource = self.get_related_datasource(refresh=True)
+        if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+            datasource.refresh_consul_config()
 
     def check_and_create_storage(
         self,
