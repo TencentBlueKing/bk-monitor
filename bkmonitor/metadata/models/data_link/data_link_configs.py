@@ -1839,8 +1839,8 @@ class ClusterConfig(models.Model):
             sync_namespaces: 指定同步的命名空间列表
         """
 
-        if cluster.cluster_type == cluster.TYPE_KAFKA and cluster.gse_stream_to_id == 0:
-            raise ValueError(f"Kafka 集群({cluster.cluster_name})的 gse_stream_to_id 不能为 0")
+        if cluster.cluster_type == cluster.TYPE_KAFKA and cluster.gse_stream_to_id <= 0:
+            raise ValueError(f"Kafka 集群({cluster.cluster_name})的 gse_stream_to_id 必须大于 0")
 
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]
