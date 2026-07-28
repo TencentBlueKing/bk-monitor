@@ -7345,6 +7345,29 @@ def test_es_cluster_config_uses_cluster_schema(schema, expected_schema):
     assert cluster_config.compose_es_config(cluster)["spec"]["schema"] == expected_schema
 
 
+@pytest.mark.parametrize("invalid_stream_to_id", [0, -1])
+def test_sync_kafka_cluster_config_rejects_non_positive_gse_stream_to_id(mocker, invalid_stream_to_id):
+    cluster = models.ClusterInfo(
+        cluster_name="kafka-with-non-positive-stream-to-id",
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        domain_name="kafka.example.com",
+        port=9092,
+        gse_stream_to_id=invalid_stream_to_id,
+        bk_tenant_id="system",
+    )
+    get_or_create = mocker.patch.object(ClusterConfig.objects, "get_or_create")
+    apply_data_link = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.apply_data_link")
+
+    with pytest.raises(
+        ValueError,
+        match=r"Kafka 集群\(kafka-with-non-positive-stream-to-id\)的 gse_stream_to_id 必须大于 0",
+    ):
+        ClusterConfig.sync_cluster_config(cluster)
+
+    get_or_create.assert_not_called()
+    apply_data_link.assert_not_called()
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
