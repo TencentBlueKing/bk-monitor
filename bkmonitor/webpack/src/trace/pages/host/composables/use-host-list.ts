@@ -25,6 +25,7 @@
  */
 
 import { type Ref, type ShallowRef, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 
@@ -156,6 +157,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectedRowKeys.value = [];
   });
 
+  /** 获取计算参数 */
   const getComputeParams = () => ({
     activeCategory: activeCategory.value,
     keyword: keyword.value,
@@ -247,10 +249,10 @@ export const useHostList = (options: IUseHostListOptions) => {
     page.value = 1;
   };
 
-  const handleKeywordChange = (value: string) => {
+  const handleKeywordChange = useDebounceFn((value: string) => {
     keyword.value = value;
     resetPage();
-  };
+  }, 500);
   const handleWhereChange = (value: IWhereItem[]) => {
     where.value = value;
     resetPage();

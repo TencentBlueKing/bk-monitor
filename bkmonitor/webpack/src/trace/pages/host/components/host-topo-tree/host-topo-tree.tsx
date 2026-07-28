@@ -24,20 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
 
-import { Checkbox, Input, Loading, Tree } from 'bkui-vue';
+import { Checkbox, Input, Loading } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { countHostNodes, isHostNode } from '../../utils/topo-tree';
-
 import type { HostTopoTreeContext } from '../../composables/use-host-topo-tree';
-import type { IHostTopoHostNode, IHostTopoTreeNode } from '../../types';
+import type { IHostTopoViewRow } from '../../composables/use-host-topo-tree-worker';
+import type { IHostTopoHostNode } from '../../types';
 
 import './host-topo-tree.scss';
-
-/** bk-tree 自定义节点插槽参数：节点业务数据 + 组件内置属性 */
-type ITreeSlotNode = IHostTopoTreeNode & { __attr__?: { hasChildNode?: boolean; isOpen?: boolean; isRoot?: boolean } };
 
 export default defineComponent({
   name: 'HostTopoTree',
@@ -50,21 +46,62 @@ export default defineComponent({
   },
   emits: {
     /** 主机对比：source 为当前选中主机，target 为对比目标主机 */
-    compare: (_payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => true,
+    // compare: (_payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => true,
   },
   setup(props) {
     const { t } = useI18n();
     const ctx = props.context;
+    const scrollRef = shallowRef<HTMLElement | null>(null);
+    let resizeObserver: null | ResizeObserver = null;
+    let scrollFrame = 0;
 
-    // 点击内容：选中 + 展开 + 触发 click；不含 collapse，保证「收起只能点小三角」
-    const nodeContentAction = ['selected', 'expand', 'click'];
+    const notifyViewport = () => {
+      const element = scrollRef.value;
+      if (element) {
+        ctx.handleViewportChange(element.scrollTop, element.clientHeight);
+      }
+    };
 
-    /** 保留展开箭头、去掉节点类型（文件夹/文件）图标 */
-    const getPrefixIcon = (_item: ITreeSlotNode, renderType: string) =>
-      renderType === 'node_action' ? 'default' : null;
+    const handleScroll = () => {
+      if (scrollFrame) {
+        return;
+      }
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0;
+        notifyViewport();
+      });
+    };
 
-    const handleNodeClick = (node: IHostTopoTreeNode) => {
+    onMounted(() => {
+      if (scrollRef.value) {
+        resizeObserver = new ResizeObserver(notifyViewport);
+        resizeObserver.observe(scrollRef.value);
+      }
+      notifyViewport();
+    });
+
+    onBeforeUnmount(() => {
+      resizeObserver?.disconnect();
+      if (scrollFrame) {
+        cancelAnimationFrame(scrollFrame);
+      }
+    });
+
+    watch(ctx.viewportResetKey, () => {
+      if (scrollRef.value) {
+        scrollRef.value.scrollTop = 0;
+      }
+      notifyViewport();
+    });
+
+    const handleNodeClick = (node: IHostTopoViewRow) => {
       ctx.handleSelectNode(node);
+      ctx.handleExpandNode(node);
+    };
+
+    const handleToggle = (event: MouseEvent, node: IHostTopoViewRow) => {
+      event.stopPropagation();
+      ctx.handleExpandNode(node, !node.isExpanded);
     };
 
     // const handleCompare = (event: MouseEvent, target: IHostTopoHostNode) => {
@@ -77,10 +114,10 @@ export default defineComponent({
     // };
 
     /** 渲染实例节点：名称 + 右侧主机数量 */
-    const renderInstNode = (node: ITreeSlotNode) => (
+    const renderInstNode = (node: IHostTopoViewRow) => (
       <div class='topo-node topo-node--inst'>
         <span class='topo-node__label'>{node.name}</span>
-        <span class='topo-node__count'>{countHostNodes(node)}</span>
+        <span class='topo-node__count'>{node.hostCount}</span>
       </div>
     );
 
@@ -93,6 +130,7 @@ export default defineComponent({
           v-bk-tooltips={{
             content: `IP：${node.ip}\n${t('主机名')}：${node.alias_name || node.bk_host_name}`,
             placement: 'right',
+            delay: 100,
             extCls: 'host-topo-tooltips',
           }}
         >
@@ -110,7 +148,48 @@ export default defineComponent({
       );
     };
 
-    const renderTreeNode = (node: ITreeSlotNode) => (isHostNode(node) ? renderHostNode(node) : renderInstNode(node));
+    const renderTreeNode = (node: IHostTopoViewRow) =>
+      'bk_host_id' in node ? renderHostNode(node as IHostTopoHostNode) : renderInstNode(node);
+
+    const renderRow = (node: IHostTopoViewRow) => {
+      const isSelected = ctx.selectedIds.value.includes(node.id);
+      return (
+        <div
+          key={node.id}
+          style={{
+            height: `${ctx.rowHeight}px`,
+            paddingLeft: `${node.depth * 16 + 4}px`,
+          }}
+          class={['host-topo-tree__row', { 'is-selected': isSelected }]}
+          onClick={() => handleNodeClick(node)}
+        >
+          {Array.from({ length: node.depth }, (_, depth) => `${depth * 16 + 12}px`).map(left => (
+            <span
+              key={left}
+              style={{ left }}
+              class='host-topo-tree__line'
+            />
+          ))}
+          {node.hasChildren && node.isExpanded && (
+            <span
+              style={{ left: `${node.depth * 16 + 12}px` }}
+              class='host-topo-tree__line host-topo-tree__line--children'
+            />
+          )}
+          <span
+            class={[
+              'host-topo-tree__arrow',
+              {
+                'host-topo-tree__arrow--expanded': node.isExpanded,
+                'host-topo-tree__arrow--hidden': !node.hasChildren,
+              },
+            ]}
+            onClick={(event: MouseEvent) => handleToggle(event, node)}
+          />
+          {renderTreeNode(node)}
+        </div>
+      );
+    };
 
     return () => (
       <div class='host-topo-tree'>
@@ -145,30 +224,30 @@ export default defineComponent({
           class='host-topo-tree__body'
           loading={ctx.loading.value}
         >
-          <Tree
+          <div
             ref={instance => {
-              ctx.treeRef.value = (instance ?? null) as typeof ctx.treeRef.value;
+              scrollRef.value = instance as HTMLElement | null;
             }}
-            v-slots={{
-              node: (node: ITreeSlotNode) => renderTreeNode(node),
-            }}
-            search={{
-              value: ctx.searchValue.value,
-              showChildNodes: true,
-            }}
-            children='children'
-            data={ctx.displayTreeData.value}
-            empty-text={t('暂无数据')}
-            label='name'
-            level-line='1px solid #EBEEF5'
-            node-content-action={nodeContentAction}
-            nodeKey='id'
-            prefix-icon={getPrefixIcon}
-            selected={ctx.selectedIds.value}
-            show-node-type-icon={false}
-            virtual-render
-            onNodeClick={handleNodeClick}
-          />
+            class='host-topo-tree__scroller'
+            onScroll={handleScroll}
+          >
+            <div
+              style={{ height: `${ctx.totalRows.value * ctx.rowHeight}px` }}
+              class='host-topo-tree__spacer'
+            >
+              <div
+                style={{
+                  transform: `translate3d(0, ${ctx.visibleStart.value * ctx.rowHeight}px, 0)`,
+                }}
+                class='host-topo-tree__visible-rows'
+              >
+                {ctx.visibleRows.value.map(renderRow)}
+              </div>
+            </div>
+            {!ctx.loading.value && ctx.totalRows.value === 0 && (
+              <div class='host-topo-tree__empty'>{t('暂无数据')}</div>
+            )}
+          </div>
         </Loading>
       </div>
     );
