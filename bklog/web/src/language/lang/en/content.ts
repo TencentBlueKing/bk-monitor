@@ -457,6 +457,7 @@ export default {
     'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
   '已加载完全部数据，如需查看更多查询条件可以{0}':
     'All data has been loaded, if more query conditions are needed, please {0}',
+  '已加载全部数据 ({n} 个字段)': 'All data loaded ({n} fields)',
   '2. 将keytab放es每个节点对应的目录中去': '2. Put the keytab in the directory corresponding to each node of ES',
   每15分钟按照CMDB最新拓扑自动部署或取消采集:
     'Automatically deploy or cancel collection every 15 minutes based on the latest topology in CMDB',
