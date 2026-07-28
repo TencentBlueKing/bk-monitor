@@ -1029,10 +1029,14 @@ class StorageHandler:
         new_custom_option = copy.deepcopy(raw_custom_option)
         new_custom_option["visible_config"] = params["visible_config"]
 
+        # auth_info 必须以 dict 形式显式传入：TransferApi 的 before_request(add_esb_info_before_request)
+        # 在 params 缺失 auth_info 时会将其塞成 JSON 字符串，而 metadata modify_cluster_info 会对 auth_info
+        # 调用 .get()，字符串会触发 "'str' object has no attribute 'get'"。Doris 无账号，用空账号占位。
         modify_params = {
             "cluster_id": int(self.cluster_id),
             "cluster_type": DORIS_CLUSTER_TYPE,
             "custom_option": new_custom_option,
+            "auth_info": {"username": "", "password": ""},
         }
         cluster_obj = TransferApi.modify_cluster_info(modify_params)
 
