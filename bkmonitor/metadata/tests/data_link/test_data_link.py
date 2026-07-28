@@ -7345,6 +7345,28 @@ def test_es_cluster_config_uses_cluster_schema(schema, expected_schema):
     assert cluster_config.compose_es_config(cluster)["spec"]["schema"] == expected_schema
 
 
+def test_sync_kafka_cluster_config_rejects_zero_gse_stream_to_id(mocker):
+    cluster = models.ClusterInfo(
+        cluster_name="kafka-with-zero-stream-to-id",
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        domain_name="kafka.example.com",
+        port=9092,
+        gse_stream_to_id=0,
+        bk_tenant_id="system",
+    )
+    get_or_create = mocker.patch.object(ClusterConfig.objects, "get_or_create")
+    apply_data_link = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.apply_data_link")
+
+    with pytest.raises(
+        ValueError,
+        match=r"Kafka 集群\(kafka-with-zero-stream-to-id\)的 gse_stream_to_id 不能为 0",
+    ):
+        ClusterConfig.sync_cluster_config(cluster)
+
+    get_or_create.assert_not_called()
+    apply_data_link.assert_not_called()
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
