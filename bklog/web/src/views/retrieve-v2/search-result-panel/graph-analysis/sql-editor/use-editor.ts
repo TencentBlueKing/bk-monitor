@@ -36,7 +36,7 @@ import { setDorisFields } from './lang';
 export default ({ refRootElement, sqlContent, onValueChange }) => {
   const editorInstance = ref<monaco.editor.IStandaloneCodeEditor>();
   const store = useStore();
-  const fieldList = computed(() => store.state.indexFieldInfo.fields);
+  const fieldList = computed(() => store.getters.filteredFieldList);
 
   const updateEditorHeight = () => {
     editorInstance.value.layout(); // 重新布局编辑器
