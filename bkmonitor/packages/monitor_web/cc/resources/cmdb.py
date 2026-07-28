@@ -38,14 +38,22 @@ def topo_tree(bk_biz_id):
 # 主机相关的信息及数据需要支持IPv6及DHCP
 # 如果相关信息的获取需要保证兼容性，那么使用Host对象作为参数，否则直接使用特定字段作为参数
 # 如果相关信息的获取需要保证兼容性，那么使用bk_host_id作为返回值，否则直接使用特定字段作为返回值
-def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
+def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表（如果在外部已经获取了数据，可以只传入没有数据的主机）
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时，仅以该时间段内
+                      是否有数据上报来判定 Agent 状态，跳过 node_man 实时查询（历史场景无意义）。
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
     :return {bk_host_id: AGENT_STATUS}
     """
     status: dict[int, int] = {}
+    now = int(time.time())
+    # 前端默认时间范围为 now-7d ~ now，始终传递 start_time/end_time；
+    # 仅靠"参数是否存在"判断历史模式会导致默认实时页面误判。
+    # 改为：结束时间超过 5 分钟前才视为历史查询（此时 NodeMan 实时检测无意义）。
+    is_historical = start_time is not None and end_time is not None and end_time < now - 300
 
     # 获取主机数据状态，查询最近三分钟
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
@@ -58,12 +66,19 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-    now = int(time.time()) * 1000
-    # 仅判定最近三分钟内是否有数据上报，使用 instant 查询取窗口聚合的单点，避免拉回区间序列
-    records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+    if is_historical:
+        query_end = int(end_time) * 1000
+    else:
+        query_end = int(time.time()) * 1000
+    # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
+    query_start = query_end - 180000
+    # 使用 instant 查询取窗口聚合的单点，避免拉回区间序列
+    records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
 
     # 统计已经存在数据的主机并设置状态为正常
-    ip_to_host_id: dict[tuple, int] = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+    ip_to_host_id: dict[tuple, int] = {
+        (host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts
+    }
     for record in records:
         if record["_result_"] is None:
             continue
@@ -80,6 +95,14 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
 
         if bk_host_id:
             status[bk_host_id] = AGENT_STATUS.ON
+
+    if is_historical:
+        # 历史查询：node_man 只提供实时 Agent 存活状态，对历史时间段无意义；
+        # 改为依赖 TSDB 数据上报推断：历史窗口内有数据 → ON；无数据 → NO_DATA
+        for host in hosts:
+            if host.bk_host_id not in status:
+                status[host.bk_host_id] = AGENT_STATUS.NO_DATA
+        return status
 
     # 后续只查询没数据的主机
     meta = {"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id), "bk_biz_id": bk_biz_id}
@@ -138,12 +161,20 @@ def _parse_cc_ports(ports):
     return arr_ports
 
 
-def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = None) -> dict[int, list[dict]]:
+def get_process_info(
+    bk_biz_id: int,
+    hosts: list[Host],
+    limit_port_num: int = None,
+    start_time: int = None,
+    end_time: int = None,
+) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param limit_port_num: 限制端口数量
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选），用于限定进程存活状态的判定窗口
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -175,7 +206,7 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
     result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
 
     # 查询进程状态数据
-    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts)
+    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts, start_time, end_time)
 
     bk_host_ids = {host.bk_host_id for host in hosts}
     for pp in result:
@@ -211,40 +242,31 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
     return pp_info
 
 
-def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str, int]]:
+def get_process_status(
+    bk_biz_id: int,
+    hosts: list[Host],
+    start_time: int = None,
+    end_time: int = None,
+) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     """
-    ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
-    bk_host_ids = {host.bk_host_id for host in hosts}
-
-    # 查询进程端口数据
-    data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-    data_source = data_source_class(
-        bk_biz_id=bk_biz_id,
-        interval=180,
-        metrics=[{"field": "proc_exists", "method": "AVG", "alias": "A"}],
-        table="system.proc_port",
-        group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
-    )
-    query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-    now = int(time.time()) * 1000
-    # 仅判定最近三分钟内进程是否存在，使用 instant 查询取窗口聚合的单点，避免拉回区间序列
-    records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
-
-    # 根据返回值记录进程状态
     result = defaultdict(dict)
-    for record in records:
-        if record["_result_"] is None:
-            continue
-
-        if record.get("bk_host_id"):
-            bk_host_id = int(record["bk_host_id"])
-        else:
-            bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
-
-        if bk_host_id in bk_host_ids and record.get("display_name"):
-            result[bk_host_id][record["display_name"]] = AGENT_STATUS.ON if record["_result_"] else AGENT_STATUS.OFF
+    for bk_host_id, display_name, value in _query_proc_metrics(
+        bk_biz_id,
+        hosts,
+        "system.proc_port",
+        "proc_exists",
+        "AVG",
+        start_time,
+        end_time,
+    ):
+        result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
 
 
@@ -272,7 +294,7 @@ def _query_proc_metrics(
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
     """
-    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
+    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
 
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
@@ -285,12 +307,11 @@ def _query_proc_metrics(
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if start_time is not None and end_time is not None:
-        query_start = int(start_time) * 1000
         query_end = int(end_time) * 1000
     else:
-        now = int(time.time()) * 1000
-        query_start = now - 180000
-        query_end = now
+        query_end = int(time.time()) * 1000
+    # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
+    query_start = query_end - 180000
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
     for record in records:
         if record.get("_result_") is None:
@@ -299,7 +320,7 @@ def _query_proc_metrics(
             bk_host_id = int(record["bk_host_id"])
         else:
             record_cloud_id = record.get("bk_target_cloud_id")
-            cloud_id = int(record_cloud_id) if record_cloud_id is not None else -1
+            cloud_id = int(record_cloud_id) if record_cloud_id is not None else 0
             bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), cloud_id))
         if bk_host_id in bk_host_ids and record.get("display_name"):
             yield bk_host_id, record["display_name"], record.get("_result_")
@@ -312,30 +333,31 @@ def get_process_runtime_metrics(
     查询进程运行时指标 (system.proc)
 
     返回各进程指标字段的运行时数据：
-    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num
+    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num, fd_limit_soft
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :return: 以 bk_host_id 为一级 key、进程 display_name（进程名）为二级 key 的运行时指标字典，
-        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/fd_num）
+        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/fd_num/fd_limit_soft）
         e.g.:
             {
                 11: {
-                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "fd_num": 64},
-                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "fd_num": 128}
+                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "fd_num": 64, "fd_limit_soft": 1024},
+                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "fd_num": 128, "fd_limit_soft": 65535}
                 }
             }
     """
     try:
         # system.proc 指标字段（SUM 聚合）
-        # - cpu_usage_pct: 进程 CPU 使用率（%）
-        # - mem_res:       进程使用的物理内存（字节）
-        # - mem_usage_pct: 进程内存使用率（%）
-        # - fd_num:        进程文件句柄数
+        # - cpu_usage_pct:  进程 CPU 使用率（%）
+        # - mem_res:        进程使用的物理内存（字节）
+        # - mem_usage_pct:  进程内存使用率（%）
+        # - fd_num:         进程文件句柄数
+        # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时 SUM 为总限制额度
         # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处 SUM
-        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num"]
+        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"]
 
         result = defaultdict(lambda: defaultdict(dict))
 
@@ -464,14 +486,18 @@ def get_process_port_health(
         return {}
 
 
-def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[int, dict] | dict[tuple, dict]:
+def get_host_performance_data(
+    bk_biz_id: int, hosts: list[Host] | None = None, start_time: int = None, end_time: int = None
+) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
              需要兼容基于bk_host_id或bk_target_ip的数据查询
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表 {"ip": "127.0.0.1", "bk_cloud_id": 0}
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     """
-    ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
 
     data = {
@@ -498,16 +524,23 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
             group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
         )
         query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-        now = int(time.time()) * 1000
-        records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+        if start_time is not None and end_time is not None:
+            query_end = int(end_time) * 1000
+        else:
+            query_end = int(time.time()) * 1000
+        # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
+        query_start = query_end - 180000
+        records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
         for record in records:
-            if not record["_result_"]:
+            if record["_result_"] is None:
                 continue
 
             if record.get("bk_host_id"):
                 bk_host_id = int(record["bk_host_id"])
             else:
-                bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
+                record_cloud_id = record.get("bk_target_cloud_id")
+                record_cloud_id = int(record_cloud_id) if record_cloud_id is not None else 0
+                bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record_cloud_id)))
 
             if bk_host_id in bk_host_ids:
                 local[bk_host_id] = round(record["_result_"] * metric.get("ratio", 1), 2)
@@ -702,7 +735,9 @@ def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> tuple[int, int
 
 
 # 获取主机告警事件
-def get_host_alarm_count(bk_biz_id: int, hosts: list[Host], days: int = 7) -> dict[int, dict[int, int]]:
+def get_host_alarm_count(
+    bk_biz_id: int, hosts: list[Host], days: int = 7, start_time: int = None, end_time: int = None
+) -> dict[int, dict[int, int]]:
     """
     获取主机关联告警数量，当不传主机时，统计所有主机数据
     todo: 在ipv6改造后，alert需要添加bk_host_id，该函数需要额外适配
@@ -713,7 +748,10 @@ def get_host_alarm_count(bk_biz_id: int, hosts: list[Host], days: int = 7) -> di
          无 event.ip 的 K8s 告警（仅 dimensions 匹配）可能被遗漏，属已知权衡。
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
-    :param days: 查询范围
+    :param days: 查询范围（天），仅在未传 start_time/end_time 时生效
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时，按精确时间范围
+                      构建 ES 索引，覆盖 days 参数。
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。
     :return: Dict[bk_host_id, Dict[severity, count]]
     """
     if not hosts:
@@ -726,16 +764,25 @@ def get_host_alarm_count(bk_biz_id: int, hosts: list[Host], days: int = 7) -> di
         if inner_ip:
             host_ips.update(ip.strip() for ip in inner_ip.split(",") if ip.strip())
 
+    is_historical = start_time is not None and end_time is not None
     search_object = (
-        AlertDocument.search(days=days)
+        AlertDocument.search(
+            start_time=start_time if is_historical else None,
+            end_time=end_time if is_historical else None,
+            days=None if is_historical else days,
+        )
         .filter("term", status=EventStatus.ABNORMAL)
         .filter("term", **{"event.bk_biz_id": bk_biz_id})
         .source(["event.ip", "event.bk_cloud_id", "severity", "dimensions"])
     )
+    if is_historical:
+        # 补充 ES range 过滤，按告警开始时间精确约束，避免索引按天选择带来的边界数据
+        search_object = search_object.filter("range", begin_time={"gte": start_time, "lte": end_time})
+
     if host_ips:
         search_object = search_object.filter("terms", **{"event.ip": list(host_ips)})
 
-    ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
 
     alarm_count_info = {host.bk_host_id: {1: 0, 2: 0, 3: 0} for host in hosts}
     for alert in search_object.scan():
