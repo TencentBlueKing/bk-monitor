@@ -7312,6 +7312,39 @@ def test_surrealdb_cluster_config_uses_cluster_version():
     assert cluster_config.compose_surrealdb_config(cluster)["spec"]["version"] == "2.3.2"
 
 
+@pytest.mark.parametrize(
+    ("schema", "expected_schema"),
+    [
+        ("http", "http"),
+        ("https", "https"),
+        ("HTTP", "http"),
+        (" HTTPS ", "https"),
+        ("ftp", "http"),
+        ("", "http"),
+        (None, "http"),
+    ],
+)
+def test_es_cluster_config_uses_cluster_schema(schema, expected_schema):
+    cluster = models.ClusterInfo(
+        cluster_name="es-with-schema",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es.example.com",
+        port=9200,
+        username="elastic",
+        password="password",
+        schema=schema,
+        bk_tenant_id="system",
+    )
+    cluster_config = ClusterConfig(
+        bk_tenant_id="system",
+        namespace="bklog",
+        name=cluster.cluster_name,
+        kind=DataLinkKind.ELASTICSEARCH.value,
+    )
+
+    assert cluster_config.compose_es_config(cluster)["spec"]["schema"] == expected_schema
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()

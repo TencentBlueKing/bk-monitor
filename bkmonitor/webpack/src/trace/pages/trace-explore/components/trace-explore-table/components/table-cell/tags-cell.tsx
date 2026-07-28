@@ -99,6 +99,7 @@ export default defineComponent({
                 '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
               }}
               class={`tag-item ${this.renderCtx?.isEnabledCellEllipsis(this.column)}`}
+              stopPropagation={false}
             >
               {{
                 default: () => (

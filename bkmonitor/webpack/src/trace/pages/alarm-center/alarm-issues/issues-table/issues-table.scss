@@ -108,6 +108,12 @@
           font-weight: 700;
         }
       }
+
+      .issues-name-exception-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
   }
 
@@ -260,12 +266,23 @@
 
   // ===================== 负责人列 =====================
   .issues-assignee-cell {
-    .issues-assignee-unassigned-col {
+    .issues-assignee-col {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       align-items: center;
       cursor: pointer;
+
+      .explore-user-tags-col {
+        height: 32px;
+
+        .item-tags {
+          .bk-tag {
+            cursor: unset;
+            border-radius: 4px !important;
+          }
+        }
+      }
 
       .assignee-tag-wrapper {
         display: inline-flex;
@@ -286,12 +303,6 @@
         .assignee-tag-wrapper {
           background-color: #f0f4fa;
         }
-      }
-    }
-
-    .explore-user-tags-col {
-      .bk-tag {
-        border-radius: 4px !important;
       }
     }
   }
@@ -367,6 +378,62 @@
 
     .issues-assignee-cell {
       opacity: $ended-opacity-text;
+    }
+  }
+}
+
+// ===================== JSON 查看器 Popover 样式 =====================
+.tippy-box[data-theme~='issues-json-popover'] {
+  border: 1px solid #dcdee5;
+
+  .issues-json-popover-content {
+    max-height: 50vh;
+    overflow-y: hidden;
+
+    &:hover {
+      overflow-y: auto;
+    }
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: solid;
+      }
+
+      .vjs-key {
+        flex-shrink: 0;
+        color: #9d694c;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #1f6d89;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
     }
   }
 }

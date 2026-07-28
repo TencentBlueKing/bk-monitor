@@ -601,10 +601,16 @@ class PatternHandler:
     def _is_no_data_alert(self, alert):
         return NO_DATA_ALERT_DEDUPE_KEY in (alert.get("dedupe_keys") or [])
 
+    @staticmethod
+    def _normalize_alert_dimension_key(key):
+        if isinstance(key, str) and key.startswith("tags."):
+            return key[len("tags.") :]
+        return key
+
     def _extract_signature_from_alert_dimensions(self, dimensions):
         signature_keys = {SIGNATURE_FIELD, self.pattern_aggs_field}
         for dimension in dimensions or []:
-            key = dimension.get("key")
+            key = self._normalize_alert_dimension_key(dimension.get("key"))
             if key not in signature_keys:
                 continue
             value = dimension.get("value")
@@ -619,7 +625,9 @@ class PatternHandler:
             return None
 
         dimension_map = {
-            dimension.get("key"): dimension.get("value") for dimension in dimensions if dimension.get("key") is not None
+            self._normalize_alert_dimension_key(dimension.get("key")): dimension.get("value")
+            for dimension in dimensions
+            if dimension.get("key") is not None
         }
         return tuple(
             str(signature if field == SIGNATURE_FIELD else dimension_map.get(field, "")) for field in select_fields

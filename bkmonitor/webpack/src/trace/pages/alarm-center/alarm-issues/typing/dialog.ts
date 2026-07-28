@@ -85,6 +85,14 @@ export interface IssueOperationSucceededBase {
   update_time: IssueItem['update_time'];
 }
 
+/** 指派负责人 dialog 组件所需私有参数 */
+export interface IssuesAssignDialogParams {
+  /** 当前负责人列表（单条操作时回填） */
+  assignee?: IssueItem['assignee'];
+}
+
+// ===================== 响应结构类型 =====================
+
 /** Issues 批量操作响应 */
 export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = IssuesBatchActionType> {
   /** 失败的条目列表，含失败原因 */
@@ -93,10 +101,8 @@ export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = 
   succeeded: IssueSucceededItemByActionMap[U][];
 }
 
-// ===================== 响应结构类型 =====================
-
 /** ISSUES 各操作 dialog 组件所需的非公共私有参数(打开时需要回填显示的属性) */
-export type IssuesOperationDialogParams = IssuesPriorityDialogParams;
+export type IssuesOperationDialogParams = IssuesAssignDialogParams | IssuesPriorityDialogParams;
 
 /** 修改优先级 dialog 组件所需私有参数 */
 export interface IssuesPriorityDialogParams {

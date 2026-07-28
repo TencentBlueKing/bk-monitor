@@ -292,6 +292,12 @@ body {
   }
 }
 
+.tippy-box[data-theme~='max-width-40vw'] {
+  .tippy-content {
+    max-width: 40vw;
+  }
+}
+
 .tippy-box[data-theme~='light'] {
   color: #26323d;
   background-color: #fff;

@@ -280,6 +280,7 @@ def sync_bkbase_cluster_info(
     password = _get_attr_by_path(cluster_spec, field_mappings["password"])
     version = _get_attr_by_path(cluster_spec, field_mappings.get("version", ""))
     bk_biz_id = _get_attr_by_path(cluster_spec, field_mappings.get("bk_biz_id", ""))
+    schema = _get_attr_by_path(cluster_spec, field_mappings.get("schema", ""))
 
     # kafka 集群专用字段
     sasl_mechanisms = _get_attr_by_path(cluster_spec, field_mappings.get("sasl_mechanisms", ""))
@@ -342,6 +343,8 @@ def sync_bkbase_cluster_info(
         # "version": version,
         # "gse_stream_to_id": stream_to_id,
     }
+    if schema:
+        need_update_fields["schema"] = schema
 
     with transaction.atomic():
         cluster = models.ClusterInfo.objects.filter(
@@ -405,6 +408,7 @@ def sync_bkbase_cluster_info(
                 registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                 registered_to_bkbase=True,
                 version=version,
+                schema=schema or None,
                 gse_stream_to_id=stream_to_id or -1,
             )
             logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")

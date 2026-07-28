@@ -96,3 +96,16 @@ export function countElementsNotInFirstRow(container: HTMLElement): number {
 
   return Array.from(children).filter(item => (item as HTMLElement).offsetTop > firstElementTop).length;
 }
+
+interface IItemDescription {
+  val: string;
+}
+
+/** 获取策略描述的纯文本提示配置 */
+export function getItemDescriptionTooltip(data: IItemDescription[]) {
+  return {
+    allowHTML: false,
+    content: data.map(item => item.val).join('\n'),
+    extCls: 'strategy-item-description-tooltips',
+  };
+}

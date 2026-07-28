@@ -203,7 +203,7 @@ paths:
   /mcp/get_strategy_detail/:
     get:
       operationId: get_strategy_detail
-      description: Get the strategy configuration snapshot by strategy ID in a business. Use strategy_id from list_alerts, get_alert_info, or get_strategy_snapshot as id. 根据业务下的策略ID获取策略配置快照。可使用 list_alerts、get_alert_info 或 get_strategy_snapshot 返回的 strategy_id 作为 id 传入。
+      description: Get the current strategy configuration by strategy ID in a business. Use strategy_id from list_alerts, get_alert_info, or get_strategy_snapshot as id. This returns the current saved configuration, not the historical snapshot at alert time. 根据业务下的策略ID获取当前保存的策略配置。可使用 list_alerts、get_alert_info 或 get_strategy_snapshot 返回的 strategy_id 作为 id。该工具返回当前配置，不是告警触发时的历史快照。
       tags:
       - alert_mcp
       parameters:
@@ -313,7 +313,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/alert_v2/alert/events/
+          path: /api/v4/search_alert/get_alert_events/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -366,7 +366,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/alert_v2/alert/event_ts/
+          path: /api/v4/search_alert/get_alert_event_ts/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -421,7 +421,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/alert_v2/alert/event_tag_detail/
+          path: /api/v4/search_alert/get_alert_event_tag_detail/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -456,7 +456,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/alert_v2/alert/k8s_target/
+          path: /api/v4/search_alert/get_alert_k8s_target/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -491,7 +491,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/alert_v2/alert/host_target/
+          path: /api/v4/search_alert/get_alert_host_target/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -538,7 +538,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/alert_v2/alert/traces/
+          path: /api/v4/search_alert/get_alert_traces/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -573,7 +573,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/alert_v2/alert/log_relation_list/
+          path: /api/v4/search_alert/get_alert_log_relations/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

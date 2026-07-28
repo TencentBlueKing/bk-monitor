@@ -6,6 +6,8 @@ import string
 from pydantic import ValidationError
 
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
+from constants.common import DEFAULT_TENANT_ID
 from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
@@ -331,3 +333,57 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
         ds.delete_consul_config()
 
     logger.info("apply_event_group_datalink: tenant(%s) %s end", bk_tenant_id, table_id)
+
+
+def rebuild_built_in_metric_datalink(bk_data_id: int, kafka_cluster_id: int):
+    """重建内置指标数据链路
+
+    1. 1100006 - bkunifylogbeat_common_metrics
+    2. 1100007 - bkunifylogbeat_task_metrics
+    3. 1100013 - bkm_statistics
+    4. 1100011 - custom_report_aggate_dataid
+
+    Args:
+        bk_tenant_id: 租户ID
+        bk_data_id: 数据源ID
+    """
+
+    bk_tenant_id = DEFAULT_TENANT_ID
+
+    logger.info("rebuild_built_in_metric_datalink: tenant(%s) bk_data_id->[%s] start", bk_tenant_id, bk_data_id)
+
+    # 获取数据源
+    ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+    if not ds:
+        raise ValueError(
+            f"rebuild_built_in_metric_datalink: tenant({bk_tenant_id}) bk_data_id->[%s] not found", bk_data_id
+        )
+
+    table_ids = DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).values_list(
+        "table_id", flat=True
+    )
+    if not table_ids:
+        raise ValueError(
+            f"rebuild_built_in_metric_datalink: tenant({bk_tenant_id}) bk_data_id->[%s] not found", bk_data_id
+        )
+    if len(table_ids) != 1:
+        raise ValueError(
+            f"rebuild_built_in_metric_datalink: tenant({bk_tenant_id}) bk_data_id->[%s] has multiple table_ids",
+            bk_data_id,
+        )
+    rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_ids[0])
+
+    # 修改数据源配置
+    ds.is_enable = True
+    ds.mq_cluster_id = kafka_cluster_id
+    ds.created_from = DataIdCreatedFromSystem.BKDATA.value
+    ds.save()
+
+    # gse路由注册与bkbase注册
+    ds.refresh_gse_config_to_gse()
+    ds.register_to_bkbase(bk_biz_id=get_tenant_default_biz_id(bk_tenant_id), namespace="bkmonitor")
+
+    # 链路重建
+    rt.is_enable = True
+    rt.save()
+    rt.apply_datalink(force_update=True, delay=False)

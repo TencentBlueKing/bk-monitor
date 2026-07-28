@@ -232,7 +232,12 @@ class DataLink(models.Model):
     # value : "strict" 表示 compose 完成后该 kind 的未消费组件视为脏数据，直接报错；
     #         "keep"   表示允许既有组件残留（既不报错也不删除，也不参与本次下发）。
     # 未声明的 (strategy, kind) 默认按 "strict" 处理。
-    REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep"]] = {}
+    REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep"]] = {
+        # 日志在 ES / Doris 间切换时，需要保留旧存储绑定以支持历史分段查询；
+        # compose 只会认领当前生效的绑定，因此旧绑定不应被视为脏数据。
+        (BK_LOG, ESStorageBindingConfig): "keep",
+        (BK_LOG, DorisStorageBindingConfig): "keep",
+    }
 
     bk_data_id = models.IntegerField(verbose_name="关联数据源ID", default=0)
     table_ids = models.JSONField(verbose_name="关联结果表ID列表", default=list)

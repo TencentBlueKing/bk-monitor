@@ -187,6 +187,139 @@ def _graph_relation_sync_dry_run(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message=str(exc)) from exc
 
 
+@_register("get_report_token")
+def _get_report_token(params: dict[str, Any]) -> dict[str, Any]:
+    """回显自定义上报 dataid 对应的上报凭证（bk.data.token），只读，支持两种上报格式。
+
+    动机：自定义指标上报有两条格式各用不同 token，配置推送客户端时要取对的那个：
+      - **prometheus**（pushgateway / remotewrite / OTLP，header X-BK-TOKEN）：aes256 自描述
+        token，由 dataid(s)+biz 经平台 AES 密钥**确定性算出**
+        （bkmonitor.utils.cipher.transform_data_id_to_token / _v1_token）。
+      - **json**（`/v2/push` body 的 access_token）：随机 uuid token，**存在 `DataSource.token`**
+        （metadata），只能按 bk_data_id **读取**、不可推导。
+    本命令只读回显，免手工推导 / 翻库。
+
+    约束：
+      - token 是「按 dataid 隔离的上报凭证」，非租户安全边界；命令只读、无副作用。
+      - AES 密钥仅用于计算、不回显。
+      - token_version=v0（默认）走 transform_data_id_to_token；v1 走 transform_data_id_to_v1_token
+        （多 profile_data_id 维度，bk-collector aes256Decoder 兼容解析 v0/v1）；仅对 prometheus 生效。
+
+    params：
+      - format：prometheus | json | all（默认 all；prom/otlp→prometheus、proxy/v2push→json）。
+      - metric_data_id/trace_data_id/log_data_id/bk_biz_id(int, 默认 -1)；prometheus 需至少一个 dataid；
+        json 需 metric_data_id（作 DataSource 读取键）。
+      - profile_data_id(int, 默认 -1，仅 prometheus+v1)；app_name(str, 默认 "")；token_version(v0|v1, 默认 v0)。
+    返回 tokens：{"prometheus": <aes256>, "json": <uuid>}（按请求的 format 子集）。
+    """
+    import json
+
+    from bkmonitor.utils.cipher import transform_data_id_to_token, transform_data_id_to_v1_token
+
+    def _to_int(key: str, default: int = -1) -> int:
+        raw = params.get(key, default)
+        if raw in (None, ""):
+            return default
+        try:
+            return int(raw)
+        except (TypeError, ValueError) as exc:
+            raise CustomException(message=f"params.{key} must be an integer") from exc
+
+    # format 归一 + 别名
+    fmt = str(params.get("format") or "all").strip().lower()
+    fmt = {"prom": "prometheus", "otlp": "prometheus", "proxy": "json", "v2push": "json"}.get(fmt, fmt)
+    if fmt not in ("prometheus", "json", "all"):
+        raise CustomException(message="params.format must be 'prometheus', 'json' or 'all'")
+    want_prom = fmt in ("prometheus", "all")
+    want_json = fmt in ("json", "all")
+
+    token_version = str(params.get("token_version") or "v0").strip().lower()
+    if token_version not in ("v0", "v1"):
+        raise CustomException(message="params.token_version must be 'v0' or 'v1'")
+
+    # profile_data_id 仅 prometheus+v1 有意义；其余情形传入即拒绝，避免静默丢弃。
+    if params.get("profile_data_id") not in (None, "") and not (want_prom and token_version == "v1"):
+        raise CustomException(
+            message="params.profile_data_id is only valid with format prometheus/all and token_version='v1'"
+        )
+
+    # prometheus：至少提供一个 dataid（v1 含 profile），否则各 id 全落默认 -1、aes256 token 无隔离意义。
+    if want_prom:
+        id_keys = ("metric_data_id", "trace_data_id", "log_data_id")
+        if token_version == "v1":
+            id_keys += ("profile_data_id",)
+        if all(params.get(k) in (None, "") for k in id_keys):
+            raise CustomException(
+                message="at least one of metric_data_id / trace_data_id / log_data_id "
+                "(or profile_data_id when token_version='v1') is required for prometheus format"
+            )
+    # json：token 存于 DataSource，按 metric_data_id（bk_data_id）读取，故必须给 metric_data_id。
+    if want_json and params.get("metric_data_id") in (None, ""):
+        raise CustomException(message="params.metric_data_id is required for json format (DataSource lookup key)")
+
+    metric_data_id = _to_int("metric_data_id")
+    trace_data_id = _to_int("trace_data_id")
+    log_data_id = _to_int("log_data_id")
+    bk_biz_id = _to_int("bk_biz_id")
+    app_name = str(params.get("app_name") or "")
+
+    result: dict[str, Any] = {
+        "format": fmt,
+        "token_version": token_version,
+        "metric_data_id": metric_data_id,
+        "trace_data_id": trace_data_id,
+        "log_data_id": log_data_id,
+        "bk_biz_id": bk_biz_id,
+        "app_name": app_name,
+        "tokens": {},
+    }
+
+    if want_prom:
+        if token_version == "v1":
+            profile_data_id = _to_int("profile_data_id")
+            result["profile_data_id"] = profile_data_id
+            result["tokens"]["prometheus"] = transform_data_id_to_v1_token(
+                metric_data_id=metric_data_id,
+                trace_data_id=trace_data_id,
+                log_data_id=log_data_id,
+                profile_data_id=profile_data_id,
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+            )
+        else:
+            result["tokens"]["prometheus"] = transform_data_id_to_token(
+                metric_data_id=metric_data_id,
+                trace_data_id=trace_data_id,
+                log_data_id=log_data_id,
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+            )
+
+    if want_json:
+        # json/proxy token = DataSource.token（uuid，随机存储、不可推导），按 bk_data_id 只读读取。
+        # 注意 token 字段 default=""：系统/内建（非自定义）dataid 的行存在但 token 为空。
+        from metadata.models.data_source import DataSource
+
+        data_source = DataSource.objects.filter(bk_data_id=metric_data_id).first()
+        json_token = data_source.token if data_source is not None else ""
+        if json_token:
+            result["tokens"]["json"] = json_token
+        else:
+            reason = (
+                f"DataSource for bk_data_id={metric_data_id} not found"
+                if data_source is None
+                else f"DataSource bk_data_id={metric_data_id} has empty token (typically a non-custom/system data source)"
+            )
+            if fmt == "json":
+                # 用户显式点名 json → 严格失败，不返回空 token。
+                raise CustomException(message=f"json/proxy token unavailable: {reason}")
+            # format=all → 尽力而为：json 置 null + 记 note，不丢弃已算出的 prometheus token。
+            result["tokens"]["json"] = None
+            result.setdefault("notes", []).append(f"json token unavailable: {reason}")
+
+    return json.loads(json.dumps(result, default=str))
+
+
 # ── get_effective_setting 辅助 ────────────────────────────────────────────────
 
 # 凭据类 name（含 token/secret/password/appsecret 等，大小写不敏感）一律脱敏。

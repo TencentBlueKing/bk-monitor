@@ -1,0 +1,1321 @@
+paths:
+  /mcp/search_alarm_strategies/:
+    post:
+      operationId: search_alarm_strategies
+      description: Search alarm strategies in one business by status, name, notice group, metric, label, action config, and other confirmed conditions. Use this as the discovery step before get_alarm_strategy, update_alarm_strategy, or strategy shield operations. 查询单个业务的告警策略。支持按状态、名称、告警组、指标、标签、处理套餐等条件过滤。作为策略详情、更新和策略屏蔽前的发现入口。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Required for MCP authentication and business isolation. 业务ID，用于MCP鉴权和业务隔离。
+                scenario:
+                  type: string
+                  description: Monitoring scenario, such as os, host_process, kubernetes, or uptimecheck. 监控场景。
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - key
+                    - value
+                    properties:
+                      key:
+                        type: string
+                        description: Filter key. Common values include strategy_id, strategy_name, strategy_status, user_group_id, user_group_name, metric_id, metric_name, label_name, action_name, algorithm_type, and scenario. 筛选字段。
+                      value:
+                        type: array
+                        items:
+                          type: string
+                        description: Values to match. 匹配值列表。
+                  description: Strategy filter conditions. 策略过滤条件。
+                page:
+                  type: integer
+                  default: 1
+                  minimum: 1
+                  description: Page number. 页码。
+                page_size:
+                  type: integer
+                  default: 10
+                  minimum: 1
+                  description: Items per page. 每页条数。
+                with_user_group:
+                  type: boolean
+                  default: false
+                  description: Include notice group summaries. 是否补充告警组摘要。
+                with_user_group_detail:
+                  type: boolean
+                  default: false
+                  description: Include notice group details. 是否补充告警组详情。
+                convert_dashboard:
+                  type: boolean
+                  default: true
+                  description: Convert dashboard configuration in strategy results. 是否转换策略中的仪表盘配置。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/search_alarm_strategies/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/get_alarm_strategy/:
+    post:
+      operationId: get_alarm_strategy
+      description: Get one alarm strategy by an exact strategy_id or strategy_name condition. A unique match returns the complete raw strategy plus microsecond-precision config_version for update_alarm_strategy; zero or multiple matches return candidate summaries. convert_dashboard defaults to false so query configs and internal IDs remain writable. 通过精确策略ID或名称获取单个策略。唯一命中返回完整原始配置及微秒精度config_version，供update_alarm_strategy并发校验；默认不转换仪表盘配置，以保留可写查询配置和内部ID。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - conditions
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                conditions:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - key
+                    - value
+                    properties:
+                      key:
+                        type: string
+                        enum:
+                        - strategy_id
+                        - strategy_name
+                        description: Exact strategy locator. 精确策略定位字段。
+                      value:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: string
+                        description: Strategy IDs or names. 策略ID或名称列表。
+                with_user_group:
+                  type: boolean
+                  default: true
+                  description: Include notice group information. 是否补充告警组信息。
+                with_user_group_detail:
+                  type: boolean
+                  default: false
+                  description: Include full notice group details. 是否补充告警组详情。
+                convert_dashboard:
+                  type: boolean
+                  default: false
+                  description: Convert dashboard configuration. Keep false when the result will be submitted to update_alarm_strategy so raw query configs and internal IDs are preserved. 是否转换仪表盘配置；用于完整更新时保持false，以保留原始查询配置和内部ID。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/get_alarm_strategy/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/create_alarm_strategy/:
+    post:
+      operationId: create_alarm_strategy
+      description: Create an alarm strategy after checking duplicates with search_alarm_strategies and resolving notice_group_ids/action_config_ids from discovery tools. Use the simplified metric/detect/notice_group_ids payload for common single time-series threshold strategies. For log keyword strategies (data_source_label=bk_log_search, data_type_label=log), submit the complete items/detects/notice structure with query_configs.query_string and index_set_id instead of the simplified metric payload. This is a production write and requires explicit confirm=true. 创建告警策略。创建前先查重并解析告警组/处理套餐ID。常见单指标阈值可用简化metric/detect/notice_group_ids；日志关键字策略（bk_log_search+log）必须提交完整items/detects/notice，并在query_configs中提供query_string与index_set_id。生产写操作，必须显式传confirm=true。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - name
+              - scenario
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                name:
+                  type: string
+                  description: Strategy name. 策略名称。
+                scenario:
+                  type: string
+                  description: Monitoring scenario, for example os, host_process, kubernetes, or uptimecheck. 监控场景。
+                metric:
+                  type: object
+                  required:
+                  - data_source_label
+                  - data_type_label
+                  - result_table_id
+                  - metric_field
+                  properties:
+                    name:
+                      type: string
+                      description: Display name of the monitored item. 监控项名称。
+                    data_source_label:
+                      type: string
+                      description: Data source label, for example bk_monitor, custom, bk_log_search, or bk_data. 数据来源标签。
+                    data_type_label:
+                      type: string
+                      description: Data type, such as time_series, event, or log. 数据类型。
+                    result_table_id:
+                      type: string
+                      description: Result table ID. For log keyword strategies prefer the complete items path and keep this blank or from get_alarm_strategy. 结果表ID；日志关键字策略建议走完整items路径。
+                    metric_field:
+                      type: string
+                      description: Metric field for time-series strategies. Not the primary field for log keyword strategies. 时序策略的指标字段；日志关键字策略不以该字段为主。
+                    index_set_id:
+                      type: integer
+                      description: Log index set ID for bk_log_search strategies. Prefer discovering it via log MCP list_index_sets. 日志索引集ID；建议通过日志MCP的list_index_sets发现。
+                    query_string:
+                      type: string
+                      description: Log keyword query string for bk_log_search log strategies, for example level:ERROR AND path:/api/*. Prefer the complete items path when creating log keyword strategies. 日志关键字检索语句；创建日志关键字策略时建议走完整items路径。
+                    agg_method:
+                      type: string
+                      default: AVG
+                      description: Aggregation method. 聚合方法。
+                    agg_interval:
+                      type: integer
+                      default: 60
+                      description: Aggregation interval in seconds. 聚合周期，单位秒。
+                    agg_dimension:
+                      type: array
+                      items:
+                        type: string
+                      description: Aggregation dimensions. 聚合维度。
+                    agg_condition:
+                      type: array
+                      items:
+                        type: object
+                      description: Metric query conditions. 指标查询条件。
+                    unit:
+                      type: string
+                      description: Metric unit. 指标单位。
+                    alias:
+                      type: string
+                      default: a
+                      description: Query alias. 查询别名。
+                  description: Simplified metric query for common time-series threshold strategies. For log keyword strategies, prefer items[].query_configs with query_string and index_set_id. 简化指标定义，适用于常见时序阈值；日志关键字策略请优先使用完整items.query_configs。
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                  description: Complete monitoring items. Required for log keyword strategy creation together with detects and notice. 完整监控项；创建日志关键字策略时与detects、notice一起提交。
+                detects:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                  description: Complete detection rules used with the full items path. 完整检测规则，与完整items路径一起使用。
+                notice:
+                  type: object
+                  description: Complete notice configuration used with the full items path. 完整通知配置，与完整items路径一起使用。
+                detect:
+                  type: object
+                  required:
+                  - level
+                  - algorithm_type
+                  - trigger_count
+                  - check_window
+                  properties:
+                    level:
+                      type: integer
+                      enum:
+                      - 1
+                      - 2
+                      - 3
+                      description: Alert level, 1=fatal, 2=warning, 3=reminder. 告警级别。
+                    algorithm_type:
+                      type: string
+                      description: Detection algorithm. Use Threshold for static thresholds. 检测算法，静态阈值使用Threshold。
+                    method:
+                      type: string
+                      enum:
+                      - gt
+                      - gte
+                      - lt
+                      - lte
+                      - eq
+                      - neq
+                      description: Comparison method required by Threshold. Threshold比较方法。
+                    threshold:
+                      description: Threshold value required by Threshold. Threshold阈值。
+                      oneOf:
+                      - type: number
+                      - type: string
+                    config:
+                      description: Native algorithm config. Required for non-Threshold algorithms. 非Threshold算法必须提供的原生配置。
+                    trigger_count:
+                      type: integer
+                      minimum: 1
+                      description: Number of abnormal points required to trigger. 触发次数。
+                    check_window:
+                      type: integer
+                      minimum: 1
+                      description: Detection window count. 检测周期。
+                    recovery_window:
+                      type: integer
+                      minimum: 1
+                      description: Recovery window count; defaults to check_window. 恢复周期，默认与检测周期相同。
+                    unit_prefix:
+                      type: string
+                      description: Algorithm display unit prefix. 算法单位前缀。
+                    no_data_config:
+                      type: object
+                      description: No-data alarm configuration. 无数据告警配置。
+                    target:
+                      type: array
+                      items:
+                        type: array
+                        items:
+                          type: object
+                      description: Monitoring target. Empty means all targets in the business. 监控目标，空数组表示业务全部目标。
+                  description: Detection rule. Threshold requires method and threshold; other algorithms require config. 检测规则。
+                notice_group_ids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                  description: Notice group IDs from search_alarm_notice_groups. 从search_alarm_notice_groups获取的告警组ID。
+                action_config_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional action config IDs from search_alarm_action_configs. 可选的处理套餐ID。
+                labels:
+                  type: array
+                  items:
+                    type: string
+                  description: Strategy labels. 策略标签。
+                is_enabled:
+                  type: boolean
+                  default: true
+                  description: Whether the strategy is enabled after creation. 创建后是否启用。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation for this production write. 生产写操作的用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/create_alarm_strategy/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/update_alarm_strategy/:
+    post:
+      operationId: update_alarm_strategy
+      description: Fully update one existing alarm strategy. You MUST first call get_alarm_strategy, preserve the complete returned configuration, internal IDs and config_version, modify only the requested fields, then submit with confirm=true. Supports PromQL/time-series query changes and log keyword strategies (bk_log_search + log) by editing query_configs.query_string and index_set_id. Query-derived metric_id is synchronized with changed PromQL/physical query fields while unchanged special metric IDs are preserved. A stale config_version is rejected to prevent concurrent overwrite. This never creates a missing strategy. 使用完整配置更新单个已有告警策略。必须先调用get_alarm_strategy，保留全部配置、内部ID和config_version后仅改指定字段。支持修改PromQL/时序查询，也支持日志关键字策略通过query_configs.query_string与index_set_id修改检索语句；旧config_version会被拒绝，且不会自动创建策略。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              - name
+              - type
+              - source
+              - scenario
+              - is_enabled
+              - is_invalid
+              - invalid_type
+              - items
+              - detects
+              - notice
+              - actions
+              - labels
+              - app
+              - path
+              - priority
+              - priority_group_key
+              - metric_type
+              - issue_config
+              - update_time
+              - config_version
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Must match the strategy returned by get_alarm_strategy. 业务ID，必须与原策略一致。
+                id:
+                  type: string
+                  description: Existing strategy ID from get_alarm_strategy. Required; this tool never creates a new strategy. 已有策略ID，必须来自get_alarm_strategy。
+                name:
+                  type: string
+                  description: Complete strategy name. 完整策略名称。
+                type:
+                  type: string
+                  default: monitor
+                  description: Strategy type. 策略类型。
+                source:
+                  type: string
+                  description: Strategy source. Preserve the current value. 策略来源，需保留原值。
+                scenario:
+                  type: string
+                  description: Monitoring scenario. 监控场景。
+                is_enabled:
+                  type: boolean
+                  description: Whether the strategy is enabled. 是否启用。
+                is_invalid:
+                  type: boolean
+                  description: Whether the strategy is invalid. 是否失效。
+                invalid_type:
+                  type: string
+                  description: Invalid reason/type. 失效类型。
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - name
+                    - query_configs
+                    - algorithms
+                    - no_data_config
+                    - target
+                    properties:
+                      id:
+                        type: string
+                        description: Existing item ID. Preserve it from get_alarm_strategy. 监控项ID，需保留原值。
+                      name:
+                        type: string
+                      expression:
+                        type: string
+                        description: Metric expression using query aliases. 指标计算表达式。
+                      origin_sql:
+                        type: string
+                      functions:
+                        type: array
+                        items:
+                          type: object
+                      metric_type:
+                        type: string
+                      query_configs:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          required:
+                          - id
+                          - alias
+                          - data_source_label
+                          - data_type_label
+                          properties:
+                            id:
+                              type: string
+                              description: Existing query config ID. Preserve it when editing. 查询配置ID。
+                            alias:
+                              type: string
+                              description: Query alias referenced by expression. 查询别名。
+                            data_source_label:
+                              type: string
+                            data_type_label:
+                              type: string
+                            metric_id:
+                              type: string
+                              description: Metric ID. 指标ID。
+                            result_table_id:
+                              type: string
+                            metric_field:
+                              type: string
+                            promql:
+                              type: string
+                              description: PromQL query for Prometheus data sources. Prometheus数据源的PromQL。
+                            index_set_id:
+                              type: integer
+                              description: Log index set ID for bk_log_search strategies. Preserve when only changing the keyword query. 日志检索索引集ID；仅改关键字时需原样保留。
+                            query_string:
+                              type: string
+                              description: Log keyword query string for bk_log_search + log strategies, for example level:ERROR AND status:500. This is the primary editable field for log keyword alarms. 日志关键字检索语句（bk_log_search+log），是日志关键字告警的主要可编辑字段。
+                            time_field:
+                              type: string
+                              description: Log time field, commonly dtEventTimeStamp. Preserve unless intentionally changing. 日志时间字段，常见为dtEventTimeStamp；无改动时保留原值。
+                            agg_method:
+                              type: string
+                              description: Aggregation method such as AVG/MAX/SUM. 聚合方法。
+                            agg_interval:
+                              type: integer
+                              description: Aggregation interval in seconds. 聚合周期（秒）。
+                            agg_dimension:
+                              type: array
+                              items:
+                                type: string
+                            agg_condition:
+                              type: array
+                              items:
+                                type: object
+                            functions:
+                              type: array
+                              items:
+                                type: object
+                        description: Complete query configurations. For log keyword strategies edit query_string/index_set_id; for Prometheus edit promql; preserve other data-source-specific fields. 完整查询配置。日志关键字改query_string/index_set_id，Prometheus改promql，其余数据源特有字段必须保留。
+                      algorithms:
+                        type: array
+                        items:
+                          type: object
+                        description: Complete detection algorithm configurations. 完整检测算法配置。
+                      no_data_config:
+                        type: object
+                      target:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: object
+                  description: Complete monitoring items from get_alarm_strategy. Supports editing PromQL, log keyword query_string, expression and aggregation. 完整监控项；可改PromQL、日志关键字query_string、expression和聚合配置。
+                detects:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - level
+                    - trigger_config
+                    - recovery_config
+                    properties:
+                      id:
+                        type: string
+                      level:
+                        type: integer
+                      expression:
+                        type: string
+                      connector:
+                        type: string
+                      trigger_config:
+                        type: object
+                      recovery_config:
+                        type: object
+                  description: Complete trigger and recovery rules. 完整触发与恢复规则。
+                notice:
+                  type: object
+                  description: Complete notice configuration from get_alarm_strategy. 完整通知配置。
+                actions:
+                  type: array
+                  items:
+                    type: object
+                  description: Complete action configurations; empty array is allowed. 完整处理套餐配置，可为空数组。
+                labels:
+                  type: array
+                  items:
+                    type: string
+                app:
+                  type: string
+                path:
+                  type: string
+                priority:
+                  type: integer
+                  nullable: true
+                priority_group_key:
+                  type: string
+                metric_type:
+                  type: string
+                issue_config:
+                  type: object
+                  nullable: true
+                update_time:
+                  type: string
+                  description: Display update time returned by get_alarm_strategy. get_alarm_strategy返回的展示更新时间。
+                config_version:
+                  type: string
+                  description: Microsecond-precision concurrency version from get_alarm_strategy. Stale values are rejected. get_alarm_strategy返回的微秒精度并发版本，旧值会被拒绝。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/update_alarm_strategy/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/search_alarm_shields/:
+    post:
+      operationId: search_alarm_shields
+      description: Search alarm shields in one business. Defaults to active shields. For a strategy-specific query, first resolve the strategy ID, request categories=["strategy"], then inspect shield_list[].dimension_config.strategy_id. 查询单个业务的告警屏蔽，默认查询生效中屏蔽。按策略查询时先定位策略ID，再查询strategy类型并检查返回的dimension_config.strategy_id。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                is_active:
+                  type: boolean
+                  default: true
+                  description: Whether to return active shields. 是否查询生效中的屏蔽。
+                order:
+                  type: string
+                  default: -id
+                  enum:
+                  - -id
+                  - id
+                  - begin_time
+                  - -begin_time
+                  - failure_time
+                  - -failure_time
+                  description: Sort field. 排序字段。
+                categories:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - scope
+                    - strategy
+                    - event
+                    - alert
+                    - dimension
+                  description: Shield categories. 屏蔽类型列表。
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - key
+                    - value
+                    properties:
+                      key:
+                        type: string
+                        description: Shield model field. description supports fuzzy matching; other fields use exact matching. Shield模型字段，description支持模糊查询。
+                      value:
+                        description: Filter value. 筛选值。
+                  description: Shield model filters. 屏蔽过滤条件。
+                time_range:
+                  type: string
+                  description: Time range in "start -- end" form. 时间范围。
+                page:
+                  type: integer
+                  minimum: 1
+                  description: Page number. 页码。
+                page_size:
+                  type: integer
+                  minimum: 1
+                  description: Items per page. 每页条数。
+                source:
+                  type: string
+                  description: Shield source. 屏蔽来源。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/search_alarm_shields/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/get_alarm_shield/:
+    get:
+      operationId: get_alarm_shield
+      description: Get one alarm shield by ID in a business. The ID must come from search_alarm_shields. 获取业务下单个告警屏蔽详情，ID必须来自search_alarm_shields。
+      tags:
+      - alert_handling_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID. 业务ID。
+      - in: query
+        name: id
+        schema:
+          type: string
+        required: true
+        description: Shield ID from search_alarm_shields. 从search_alarm_shields获取的屏蔽ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/search_alert/get_alarm_shield/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/create_alarm_shield/:
+    post:
+      operationId: create_alarm_shield
+      description: Create an alarm shield. Supported categories are scope, strategy, alert, and dimension; event shields are not exposed because the backend has no safe event-to-alert mapping. First resolve the target and check for an existing active shield. For a strategy shield use category="strategy" and dimension_config.id=[strategy_id]. Times use "YYYY-MM-DD HH:mm:ss"; cycle type 1=once, 2=daily, 3=weekly, 4=monthly. Production write; confirm=true is required. 创建告警屏蔽。支持scope、strategy、alert、dimension；后端缺少安全的事件到告警映射，暂不开放event屏蔽。先定位目标并检查已有屏蔽。生产写操作，必须confirm=true。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - category
+              - begin_time
+              - end_time
+              - shield_notice
+              - dimension_config
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                category:
+                  type: string
+                  enum:
+                  - scope
+                  - strategy
+                  - alert
+                  - dimension
+                  description: Shield category. 屏蔽类型。
+                description:
+                  type: string
+                  description: Shield reason. 屏蔽原因。
+                begin_time:
+                  type: string
+                  description: Start time in YYYY-MM-DD HH:mm:ss, interpreted in business timezone unless a timezone is included. 开始时间。
+                end_time:
+                  type: string
+                  description: End time in YYYY-MM-DD HH:mm:ss, interpreted in business timezone unless a timezone is included. 结束时间。
+                cycle_config:
+                  type: object
+                  required:
+                  - type
+                  properties:
+                    type:
+                      type: integer
+                      enum:
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                    begin_time:
+                      type: string
+                      description: Daily cycle start time, HH:mm:ss. 周期每日开始时间。
+                    end_time:
+                      type: string
+                      description: Daily cycle end time, HH:mm:ss. 周期每日结束时间。
+                    day_list:
+                      type: array
+                      items:
+                        type: integer
+                    week_list:
+                      type: array
+                      items:
+                        type: integer
+                  description: Cycle configuration. Omit for a one-time shield or use type=1. 周期配置。
+                shield_notice:
+                  type: boolean
+                  description: Whether to send shield notifications. 是否发送屏蔽通知。
+                notice_config:
+                  type: object
+                  required:
+                  - notice_time
+                  - notice_way
+                  - notice_receiver
+                  properties:
+                    notice_time:
+                      type: integer
+                    notice_way:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: string
+                        enum:
+                        - weixin
+                        - mail
+                        - sms
+                        - voice
+                    notice_receiver:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        required:
+                        - id
+                        - type
+                        properties:
+                          id:
+                            type: string
+                          type:
+                            type: string
+                  description: Required when shield_notice=true. shield_notice为true时必填。
+                dimension_config:
+                  type: object
+                  description: Shield target. For strategy, use id as strategy IDs. For alert, provide exactly one of alert_id or alert_ids. Non-biz scope requires a non-empty target; IP targets require ip/bk_cloud_id, node targets require bk_obj_id/bk_inst_id, dynamic-group targets require dynamic_group_id, and instance targets are positive IDs. Dimension shields require non-empty dimension_conditions. 屏蔽目标。策略屏蔽使用策略ID列表；告警屏蔽只能传alert_id或alert_ids之一；非业务级范围屏蔽必须提供非空target，动态分组需dynamic_group_id，实例需正整数ID；维度屏蔽必须提供非空条件。
+                is_quick:
+                  type: boolean
+                  default: false
+                label:
+                  type: string
+                source:
+                  type: string
+                dimension_keys:
+                  type: array
+                  items:
+                    type: string
+                  description: Dimension keys retained for alert shields. alert屏蔽保留的维度键。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/create_alarm_shield/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/update_alarm_shield/:
+    post:
+      operationId: update_alarm_shield
+      description: Update editable fields of an existing alarm shield. Call get_alarm_shield first and submit complete begin_time, end_time, cycle_config, and shield_notice values even when only one field changes. The shield target/category cannot be replaced here. Production write; confirm=true is required. 编辑已有告警屏蔽。必须先读取详情，即使只修改一个字段也要完整回填开始时间、结束时间、周期和通知开关。不能通过本工具替换屏蔽对象或类型。生产写操作，必须confirm=true。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              - begin_time
+              - end_time
+              - cycle_config
+              - shield_notice
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                id:
+                  type: string
+                  description: Shield ID from get_alarm_shield. 屏蔽ID。
+                begin_time:
+                  type: string
+                  description: Complete start time. 完整开始时间。
+                end_time:
+                  type: string
+                  description: Complete end time. 完整结束时间。
+                cycle_config:
+                  type: object
+                  properties:
+                    type:
+                      type: integer
+                      enum:
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                    begin_time:
+                      type: string
+                    end_time:
+                      type: string
+                    day_list:
+                      type: array
+                      items:
+                        type: integer
+                    week_list:
+                      type: array
+                      items:
+                        type: integer
+                  description: Cycle configuration patch merged with the current shield detail. Omitted keys keep their current values. 周期配置会与当前详情递归合并，未传字段保留原值。
+                shield_notice:
+                  type: boolean
+                  description: Whether shield notifications are enabled. 是否启用屏蔽通知。
+                notice_config:
+                  type: object
+                  required:
+                  - notice_time
+                  - notice_way
+                  - notice_receiver
+                  properties:
+                    notice_time:
+                      type: integer
+                    notice_way:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: string
+                        enum:
+                        - weixin
+                        - mail
+                        - sms
+                        - voice
+                    notice_receiver:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        required:
+                        - id
+                        - type
+                        properties:
+                          id:
+                            type: string
+                          type:
+                            type: string
+                  description: Complete notice configuration when shield_notice=true. 通知配置。
+                description:
+                  type: string
+                level:
+                  type: array
+                  items:
+                    type: integer
+                  description: Alert levels for strategy shields. 策略屏蔽等级。
+                label:
+                  type: string
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/update_alarm_shield/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/disable_alarm_shield/:
+    post:
+      operationId: disable_alarm_shield
+      description: Disable one or more alarm shields in one business. IDs must come from search_alarm_shields/get_alarm_shield. Production write; confirm=true is required. 解除业务下一个或多个告警屏蔽。ID必须来自屏蔽查询工具。生产写操作，必须confirm=true。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                id:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                  description: Shield ID list. Always use an array, even for one shield. 屏蔽ID列表，即使单个也使用数组。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/disable_alarm_shield/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/search_alarm_notice_groups/:
+    post:
+      operationId: search_alarm_notice_groups
+      description: Search notice groups in one business by ID or fuzzy name. Set with_detail=true before editing a group to retrieve its complete notice, duty, channel, and mention configuration. Use returned IDs before creating/updating strategies. 查询业务下的告警组，支持按ID或名称模糊搜索。编辑告警组前设置with_detail=true获取完整通知、轮值、渠道和提醒配置。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Converted to bk_biz_ids=[bk_biz_id] for the backend. 业务ID，后台自动转换为数组。
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Notice group IDs. 告警组ID列表。
+                name:
+                  type: string
+                  description: Fuzzy notice group name. 告警组名称模糊查询。
+                with_detail:
+                  type: boolean
+                  default: false
+                  description: Return complete group details. Set true before update_alarm_notice_group. 是否返回完整告警组详情，编辑前应设为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/search_notice_groups/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/update_alarm_notice_group/:
+    post:
+      operationId: update_alarm_notice_group
+      description: Update an existing notice group. Only id, bk_biz_id and confirm are always required; omitted top-level fields are filled from current detail. Provided nested lists/objects such as alert_notice, action_notice and duty_arranges replace the complete current block, so read with_detail=true first. duty_arranges=[] explicitly clears schedules. duty_rules must belong to the current or public business. mention_type is internal and cannot be set. Changing a shared group affects every linked strategy. Production write requires confirm=true. 更新已有告警组。仅id、bk_biz_id、confirm固定必填，未传顶层字段会从当前详情补齐；传入的通知、轮值等嵌套列表/对象按整块替换，因此必须先with_detail=true读取。duty_arranges=[]表示清空排班，duty_rules仅允许当前或公共业务，mention_type不可设置。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              - bk_biz_id
+              - confirm
+              properties:
+                id:
+                  type: string
+                  description: Existing notice group ID. 已有告警组ID。
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                name:
+                  type: string
+                  description: Notice group name. 告警组名称。
+                timezone:
+                  type: string
+                  default: Asia/Shanghai
+                need_duty:
+                  type: boolean
+                  default: false
+                channels:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - user
+                    - wxwork-bot
+                  description: Notice channels. 通知渠道。
+                desc:
+                  type: string
+                alert_notice:
+                  type: array
+                  items:
+                    type: object
+                  description: Complete replacement of alert notice configuration. 告警通知完整替换。
+                action_notice:
+                  type: array
+                  items:
+                    type: object
+                  description: Complete replacement of action notice configuration. 处理通知完整替换。
+                duty_arranges:
+                  type: array
+                  items:
+                    type: object
+                  description: Complete replacement of schedules; [] explicitly clears all schedules. 排班完整替换，空数组表示清空。
+                duty_rules:
+                  type: array
+                  items:
+                    type: string
+                  description: Duty rule IDs from the current or public business. 当前或公共业务的轮值规则ID。
+                duty_notice:
+                  type: object
+                path:
+                  type: string
+                mention_list:
+                  type: array
+                  items:
+                    type: object
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/update_notice_group/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/search_alarm_action_configs/:
+    get:
+      operationId: search_alarm_action_configs
+      description: List action configs in one business, including is_enabled. The backend does not provide name/plugin filters; when needed, filter returned data by name or plugin_id. Use before get_alarm_action_config or strategy writes. 查询业务下的处理套餐并返回is_enabled。后端不支持名称或类型入参筛选，需要时在结果中按name或plugin_id二次过滤。
+      tags:
+      - alert_handling_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID. 业务ID。
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+        required: false
+        description: Page number. 页码。
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 1000
+        required: false
+        description: Items per page. 每页条数。
+      - in: query
+        name: order
+        schema:
+          type: string
+          default: -id
+          enum:
+          - -id
+          - id
+          - create_time
+          - -create_time
+          - update_time
+          - -update_time
+        required: false
+        description: Sort field. 排序字段。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/search_alert/search_action_configs/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/get_alarm_action_config/:
+    get:
+      operationId: get_alarm_action_config
+      description: Get one action config by ID in a business, including is_enabled and complete execute_config. Call search_alarm_action_configs first. plugin_id is returned for context but is immutable in update_alarm_action_config. 获取业务下单个处理套餐详情，包含is_enabled和完整execute_config。plugin_id仅用于识别类型，更新时不可修改。
+      tags:
+      - alert_handling_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID. 业务ID。
+      - in: query
+        name: id
+        schema:
+          type: string
+        required: true
+        description: Action config ID from search_alarm_action_configs. 处理套餐ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/search_alert/get_action_config/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/update_alarm_action_config/:
+    post:
+      operationId: update_alarm_action_config
+      description: Update an existing action config. Call get_alarm_action_config first. name, desc, execute_config and is_enabled are complete editable values; plugin_id is immutable. Nested dictionaries in execute_config are recursively merged with current detail while arrays replace the complete array, preventing omitted headers/auth/body/retry fields from being lost. Production write requires confirm=true. 更新已有处理套餐。必须先读取详情；name、desc、execute_config、is_enabled为完整可编辑值，plugin_id不可修改。execute_config字典递归合并，数组整组替换，避免遗漏字段被默认值覆盖。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              - bk_biz_id
+              - name
+              - desc
+              - execute_config
+              - is_enabled
+              - confirm
+              properties:
+                id:
+                  type: string
+                  description: Existing action config ID. 已有处理套餐ID。
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                name:
+                  type: string
+                desc:
+                  type: string
+                execute_config:
+                  type: object
+                  required:
+                  - template_detail
+                  - timeout
+                  properties:
+                    template_detail:
+                      type: object
+                      description: Complete plugin template details. For HTTP callback this includes method, url, headers, authorize, body, query_params, failed_retry, need_poll, notify_interval, and interval_notify_mode. 完整插件模板详情。
+                    template_id:
+                      type: string
+                    timeout:
+                      type: integer
+                  description: Execution configuration merged with current detail. Dictionaries merge recursively; arrays replace. 与当前详情合并的执行配置，字典递归合并、数组替换。
+                is_enabled:
+                  type: boolean
+                  description: Whether the action config is enabled. 处理套餐是否启用。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/update_action_config/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

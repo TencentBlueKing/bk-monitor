@@ -66,27 +66,33 @@ def test_get_negative_space_related_info(create_or_delete_records):
 
 def test_authorize_data_id_list():
     """测试授权数据源"""
+    test_bk_tenant_id = "tenant_a"
     test_data_id = 109011
-    utils.authorize_data_id_list(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, [test_data_id])
+    utils.authorize_data_id_list(test_bk_tenant_id, DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, [test_data_id])
 
     # 检测资源授权
     assert models.SpaceDataSource.objects.filter(
-        space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID, bk_data_id=test_data_id
+        bk_tenant_id=test_bk_tenant_id,
+        space_type_id=DEFAULT_SPACE_TYPE,
+        space_id=DEFAULT_SPACE_ID,
+        bk_data_id=test_data_id,
     ).exists()
 
 
 def test_create_bksaas_space_resource(create_and_delete_record, mocker):
     """测试创建蓝鲸应用类型关联的空间资源"""
+    test_bk_tenant_id = "tenant_a"
     api_resp = [
         {"bcs_cluster_id": DEFAULT_BCS_CLUSTER_ID_ONE, "namespace": "bkapp-test-m-stag"},
         {"bcs_cluster_id": DEFAULT_BCS_CLUSTER_ID_TWO, "namespace": "bkapp-test-m-prod"},
     ]
     mocker.patch("core.drf_resource.api.bk_paas.get_app_cluster_namespace", return_value=api_resp)
     models.SpaceResource.objects.filter(space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID).delete()
-    utils.create_bksaas_space_resource(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, DEFAULT_CREATOR)
+    utils.create_bksaas_space_resource(test_bk_tenant_id, DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, DEFAULT_CREATOR)
 
     # 检测数据源已经授权
     assert models.SpaceDataSource.objects.filter(
+        bk_tenant_id=test_bk_tenant_id,
         space_type_id=DEFAULT_SPACE_TYPE,
         space_id=DEFAULT_SPACE_ID,
         bk_data_id__in=[DEFAULT_K8S_METRIC_DATA_ID_ONE, DEFAULT_K8S_METRIC_DATA_ID_TWO],

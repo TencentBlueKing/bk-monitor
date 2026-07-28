@@ -527,6 +527,6 @@ export default {
   'JS 错误的View数 / 总View数 × 100%': 'JS Error View Count / Total View Count × 100%',
   '失败接口请求次数 / 接口请求总次数 × 100%': 'Failed API Request Count / Total API Request Count × 100%',
 
-  '触发规则：仅当对应数据值大于{threshold}时触发告警':
+  '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
     'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
 };
