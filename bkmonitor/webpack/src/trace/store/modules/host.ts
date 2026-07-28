@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, customRef, ref as deepRef, onScopeDispose, watch, ref } from 'vue';
-import { shallowRef } from 'vue';
+import { computed, customRef, ref as deepRef, onScopeDispose, reactive, shallowRef, watch } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { getDefaultTimezone } from '@/i18n/dayjs';
+import { DEFAULT_AGGREGATION_STATE } from '@/pages/host/constants/aggregation';
 
 import type { HostPageScene } from '@/pages/host/constants/constants';
+import type { MetricAggregationState } from '@/pages/host/types/aggregation';
 import type { EHostQuickCategory } from '@/pages/host/types/host-list';
 import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
 const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
@@ -56,7 +57,13 @@ export const useHostStore = defineStore('host', () => {
   const keyword = shallowRef('');
 
   /** 当前激活的 Tab */
-  const activeTab = ref('');
+  const activeTab = shallowRef('');
+
+  /** 当前选中的节点 */
+  const nodeId = shallowRef('');
+
+  /** 聚合状态 */
+  const metricAggregationState = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
@@ -121,5 +128,7 @@ export const useHostStore = defineStore('host', () => {
     activeCategory,
     keyword,
     activeTab,
+    nodeId,
+    metricAggregationState,
   };
 });

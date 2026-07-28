@@ -23,9 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, reactive } from 'vue';
-
-import { DEFAULT_AGGREGATION_STATE } from '../constants/aggregation';
+import { computed } from 'vue';
 
 import type { MetricAggregationState } from '../types/aggregation';
 import type { ChartViewOptions } from '@/pages/trace-explore/components/explore-chart/use-chart-view-option';
@@ -36,9 +34,7 @@ export type MetricAggregationController = ReturnType<typeof useMetricAggregation
  * 指标汇聚 Toolbar 状态控制器。
  * 由「指标汇聚」Tab 容器持有，向 Toolbar（受控）与后续图表（props）统一分发。
  */
-export function useMetricAggregation() {
-  const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
-
+export function useMetricAggregation(state: MetricAggregationState) {
   /** 局部更新状态 */
   const updateState = (patch: Partial<MetricAggregationState>) => {
     Object.assign(state, patch);

@@ -50,6 +50,12 @@ export const useHostUrlParams = () => {
       to: hostStore.timeRange[1],
       timezone: hostStore.timezone,
       refreshInterval: hostStore.refreshInterval.toString(),
+      /** 当前选中的拓扑节点 ID */
+      nodeId: hostStore.nodeId,
+      /** 当前激活的内容 Tab */
+      activeTab: hostStore.activeTab,
+      /** 指标汇聚 Toolbar 状态（JSON 编码） */
+      metricAggregationState: encodeURIComponent(JSON.stringify(hostStore.metricAggregationState)),
     };
   });
 
@@ -81,7 +87,6 @@ export const useHostUrlParams = () => {
    */
   function getUrlParams() {
     const {
-      where,
       filterExpanded,
       activeCategory,
       panelKey,
@@ -91,8 +96,31 @@ export const useHostUrlParams = () => {
       to,
       timezone,
       refreshInterval,
-      search,
+      nodeId,
+      activeTab,
+      metricAggregationState,
     } = route.query;
+    hostStore.nodeId = (nodeId || route.params.id || '') as string;
+    hostStore.activeTab = (activeTab || '') as string;
+    getWhereParams();
+    hostStore.keyword = (keyword || queryString || '') as string;
+    hostStore.filterExpanded = filterExpanded === 'true' || !!hostStore.where.length;
+    Object.assign(hostStore.metricAggregationState, tryURLDecodeParse(metricAggregationState as string, {}));
+    // 兼容旧版本面板key
+    const panelKeyMap = {
+      unresolveData: 'alarm',
+      cpuData: 'cpu',
+      menmoryData: 'mem',
+      diskData: 'disk',
+    };
+    hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
+    hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
+    hostStore.timezone = (timezone as string) || window.timezone;
+    hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
+  }
+
+  function getWhereParams() {
+    const { where, search } = route.query;
     if (where) {
       hostStore.where = tryURLDecodeParse(where as string, []);
     } else {
@@ -137,19 +165,6 @@ export const useHostUrlParams = () => {
       }
       hostStore.where = newWhere;
     }
-    hostStore.keyword = (keyword || queryString || '') as string;
-    hostStore.filterExpanded = filterExpanded === 'true' || !!hostStore.where.length;
-    // 兼容旧版本面板key
-    const panelKeyMap = {
-      unresolveData: 'alarm',
-      cpuData: 'cpu',
-      menmoryData: 'mem',
-      diskData: 'disk',
-    };
-    hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
-    hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
-    hostStore.timezone = (timezone as string) || window.timezone;
-    hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
   }
 
   return {

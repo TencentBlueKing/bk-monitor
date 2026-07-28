@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, computed } from 'vue';
+import { computed, defineComponent, onMounted } from 'vue';
 import { watch } from 'vue';
 
 import { Message, ResizeLayout } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import CommonHeader from '../../components/common-header/common-header';
 import { useHostStore } from '../../store/modules/host';
-import { useRoute } from 'vue-router';
 import AlarmTools from './components/alarm-tools/index';
 import HostContentTabs from './components/host-content-tabs/host-content-tabs';
 import HostLocationBar from './components/host-location-bar/host-location-bar';
@@ -51,13 +51,12 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const route = useRoute();
-    const nodeId = (route.params.id || '') as string;
     const isLockSearch = ((route.query.lockSearch || 'false') as string) === 'true';
     const isShareLink = ((route.query.shareLink || 'false') as string) === 'true';
-    const { timeRange, timezone, refreshImmediate, refreshInterval, scene } = storeToRefs(useHostStore());
-    const { urlParams, getUrlParams, setUrlParams } = useHostUrlParams();
+    const { timeRange, timezone, refreshImmediate, refreshInterval, scene, nodeId } = storeToRefs(useHostStore());
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
-    const topoTree = useHostTopoTree(nodeId);
+    const topoTree = useHostTopoTree(nodeId.value);
+    const { urlParams, getUrlParams, setUrlParams } = useHostUrlParams();
 
     const timeRangeDisabledTip = computed(() => {
       return isShareLink && isLockSearch ? t('该分享链接仅包含当前时间范围') : '';
@@ -69,10 +68,19 @@ export default defineComponent({
         setUrlParams();
       }
     );
+    // 选中节点变化时同步到 store（用于 URL 持久化与页面刷新恢复）
+    watch(
+      () => topoTree.selectedNode.value,
+      val => {
+        if (val?.id) {
+          nodeId.value = val.id;
+        }
+      }
+    );
 
     onMounted(() => {
-      topoTree.loadTopoTree();
       getUrlParams();
+      topoTree.loadTopoTree(nodeId.value);
     });
 
     /** 主机对比：本期表格内容未开发，先以消息提示反馈交互（占位） */
@@ -99,12 +107,12 @@ export default defineComponent({
     return (
       <div class='host-page'>
         <CommonHeader
-          timeRangeDisabledTip={this.timeRangeDisabledTip}
           class='host-page-header'
           hideFeature={['gotoOld']}
           refreshImmediate={this.refreshImmediate}
           refreshInterval={this.refreshInterval}
           timeRange={this.timeRange}
+          timeRangeDisabledTip={this.timeRangeDisabledTip}
           timezone={this.timezone}
           onImmediateRefreshChange={value => (this.refreshImmediate = value)}
           onRefreshIntervalChange={value => (this.refreshInterval = value)}

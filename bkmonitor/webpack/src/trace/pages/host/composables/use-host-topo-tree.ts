@@ -30,7 +30,7 @@ import { getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateItemId } from '../utils/host-list-core';
 import { isHostNode, matchTreeNode, pruneEmptyNodes } from '../utils/topo-tree';
 
-import type { IHostTopoHostNode, IHostTopoTreeNode, IHostTopoInstNode } from '../types';
+import type { IHostTopoHostNode, IHostTopoInstNode, IHostTopoTreeNode } from '../types';
 
 /** bk-tree 实例上本 composable 需要调用的最小方法集 */
 interface ITreeInstance {
@@ -123,13 +123,13 @@ export const useHostTopoTree = (nodeId: string) => {
   };
 
   /** 加载拓扑树（暂用 mock，后续替换为 getHostTopoTreeByBizId） */
-  const loadTopoTree = async () => {
+  const loadTopoTree = async (id = '') => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
       rawTreeData.value = data;
-      if (nodeId) {
-        selectedNode.value = findNodeById(data, nodeId) ?? null;
+      if (id || nodeId) {
+        selectedNode.value = findNodeById(data, id || nodeId) ?? null;
       } else {
         // 根节点默认选中
         selectedNode.value = data[0] ?? null;
@@ -156,7 +156,9 @@ export const useHostTopoTree = (nodeId: string) => {
     }
     const { data } = tree.getData();
     // getData().data 为扁平化后的全部节点，逐个收起
-    data.forEach(node => tree.setOpen(node, false));
+    for (const node of data) {
+      tree.setOpen(node, false);
+    }
   };
 
   return {
