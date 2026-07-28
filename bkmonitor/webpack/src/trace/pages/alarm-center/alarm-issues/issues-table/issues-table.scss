@@ -394,6 +394,14 @@
       overflow-y: auto;
     }
 
+    .issues-string-popover-pre {
+      margin: 0;
+      line-height: 22px;
+      color: #1f6d89;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+
     .vjs-tree-node {
       font-size: 12px;
       line-height: 22px;
