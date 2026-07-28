@@ -25,6 +25,7 @@
  */
 import { h, computed } from 'vue';
 
+import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
@@ -54,6 +55,7 @@ export default () => {
 
     if (field) {
       const fieldName = field.field_name;
+      const displayName = getFieldNameByField(field, store);
       const fieldType = field.field_type;
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
@@ -131,12 +133,12 @@ export default () => {
               directives: [
                 {
                   name: 'bk-tooltips',
-                  value: { allowHTML: false, content: isLackIndexFields ? unionContent : fieldName },
+                  value: { allowHTML: false, content: isLackIndexFields ? unionContent : displayName },
                 },
               ],
               class: { 'lack-index-filed': isLackIndexFields },
             },
-            [fieldName],
+            [displayName],
           ),
 
           sortable

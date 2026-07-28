@@ -96,6 +96,11 @@ enum RetrieveEvent {
   RESULT_ROW_BOX_RESIZE = 'result-row-box-resize',
 
   /**
+   * 显示字段列布局变化
+   */
+  VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE = 'visible-field-column-layout-change',
+
+  /**
    * 搜索时间变化
    */
   SEARCH_TIME_CHANGE = 'search-time-change',

@@ -6,6 +6,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import useFieldEgges from '@/hooks/use-field-egges';
+import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute } from 'vue-router/composables';
@@ -42,13 +43,19 @@ watch(
 const activeIndex = ref(-1);
 
 const operatorDictionary = computed(() => {
+  store.state.operatorDictionaryVersion;
   const defVal = {
     [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
   };
   return {
     ...defVal,
-    ...store.state.operatorDictionary,
+    ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
   };
+});
+
+const fieldAggsItems = computed(() => {
+  store.state.fieldAggsItemsVersion;
+  return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
 });
 
 const textDir = computed(() => {
@@ -81,7 +88,7 @@ const handleToggle = (visable, item, index) => {
       if (typeof resp === 'boolean') {
         return;
       }
-      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      commonFilterAddition.value[index].list = fieldAggsItems.value[item.field_name] ?? [];
     });
   }
 };
@@ -92,7 +99,7 @@ const handleInputVlaueChange = (value, item, index) => {
     if (typeof resp === 'boolean') {
       return;
     }
-    commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    commonFilterAddition.value[index].list = fieldAggsItems.value[item.field_name] ?? [];
   });
 };
 

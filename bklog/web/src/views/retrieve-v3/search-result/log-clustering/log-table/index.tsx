@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, onMounted, shallowRef, set } from 'vue';
+import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, set } from 'vue';
 import useStore from '@/hooks/use-store';
+import { moduleLargeDataCacheService } from '@/storage';
 import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
 import $http from '@/api';
@@ -129,7 +130,8 @@ export default defineComponent({
 
     const tableList = shallowRef<ITableItem[]>([]);
     const groupListState = ref<GroupListState>({});
-    const rawDataList = ref([]); // 存储原始接口数据
+    const rawDataScope = ref(''); // 原始接口数据 IndexedDB 分块缓存 scope
+    const rawDataCount = ref(0);
     const { addEvent } = useRetrieveEvent();
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
@@ -474,12 +476,25 @@ export default defineComponent({
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
-          // 保存接口数据
-          rawDataList.value = structuredClone(res.data);
+          // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
+          const responseList = Array.isArray(res.data) ? res.data : [];
+          const nextScope = moduleLargeDataCacheService.createScope('log-clustering', {
+            indexId: props.indexId,
+            requestData: props.requestData,
+          });
+          const prevScope = rawDataScope.value;
+          rawDataScope.value = nextScope;
+          rawDataCount.value = responseList.length;
+          moduleLargeDataCacheService.replaceList(nextScope, responseList, 50).catch(error => {
+            console.warn('[cluster-cache] persist raw data failed', error);
+          });
+          if (prevScope) {
+            moduleLargeDataCacheService.clear(prevScope).catch(() => {});
+          }
           let listMap = new Map<string, LogPattern[]>();
           let groupKeys = [];
 
-          res.data.forEach((item) => {
+          responseList.forEach((item) => {
             const groupList = item.group?.map((g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`) ?? ['#'];
 
             const groupKey = groupList.length ? groupList.join(' | ') : '#';
@@ -543,7 +558,7 @@ export default defineComponent({
 
           groupListState.value = groupState;
           pagination.value.groupCount = groupKeys.length;
-          pagination.value.childCount = res.data.length;
+          pagination.value.childCount = responseList.length;
           setPaginationCount();
           setTimeout(computedScrollXWidth);
           listMap.clear();
@@ -676,13 +691,24 @@ export default defineComponent({
       refreshTable();
     });
 
+    onBeforeUnmount(() => {
+      if (rawDataScope.value) {
+        moduleLargeDataCacheService.clear(rawDataScope.value).catch(() => {});
+      }
+      tableList.value = [];
+      groupListState.value = {};
+      rawDataCount.value = 0;
+    });
+
     expose({
       refreshTable,
       isLoading: () => tableLoading.value,
-      getRawData: () => {
-        // 返回原始接口数据
-        return rawDataList.value;
+      getRawData: async () => {
+        // 返回原始接口数据：从 IndexedDB 分块读取，避免组件长期持有大数组。
+        if (!rawDataScope.value) return [];
+        return moduleLargeDataCacheService.getSlice(rawDataScope.value, 0, rawDataCount.value);
       },
+      getRawDataCount: () => rawDataCount.value,
       getDisplayMode: () => displayType.value,
     });
 
