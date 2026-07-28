@@ -158,6 +158,7 @@ export default {
   无匹配的数据: 'No matching data',
   业务独享集群: 'Business exclusive cluster',
   ES集群管理: 'ES cluster management',
+  Doris集群管理: 'Doris cluster management',
   一键拉群功能: 'WeCom',
   请选择群成员: 'Select group members',
   搜索拓扑节点: 'Search topology nodes',
@@ -1399,4 +1400,5 @@ export default {
   '关联空间的索引集，无法编辑': 'Index sets from associated spaces cannot be edited',
   '请{0}编辑。': 'Please edit {0}.',
   前往对应的空间: 'Go to the corresponding space',
+  当前租户可见: 'Visible to current tenants',
 };
