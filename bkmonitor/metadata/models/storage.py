@@ -673,7 +673,7 @@ class ClusterInfo(models.Model):
         logger.info(f"all storage info is refresh to redis success count->[{total_count}].")
 
     @classmethod
-    def get_redis_storage_config(cls, cluster_id: int) -> dict | None:
+    def get_redis_storage_config(cls, cluster_id: int, raise_on_error: bool = False) -> dict | None:
         """
         从 Redis 读取存储集群配置
 
@@ -727,10 +727,12 @@ class ClusterInfo(models.Model):
             # 捕获所有异常，避免因为 Redis 连接问题或数据格式问题导致程序崩溃
             # 记录错误日志，便于排查问题
             logger.error(f"get redis storage config error, cluster_id->[{cluster_id}], error->[{e}]")
+            if raise_on_error:
+                raise
             return None
 
     @classmethod
-    def get_all_redis_storage_config(cls) -> dict:
+    def get_all_redis_storage_config(cls, raise_on_error: bool = False) -> dict:
         """
         从 Redis 读取所有存储集群配置
 
@@ -765,7 +767,7 @@ class ClusterInfo(models.Model):
 
             # 遍历所有集群 ID，从 Redis 读取配置
             for cluster_id in cluster_ids:
-                config = cls.get_redis_storage_config(cluster_id)
+                config = cls.get_redis_storage_config(cluster_id, raise_on_error=raise_on_error)
                 if config is not None:
                     all_configs[str(cluster_id)] = config
 
@@ -773,6 +775,8 @@ class ClusterInfo(models.Model):
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"get all redis storage config error, error->[{e}]")
+            if raise_on_error:
+                raise
             return {}
 
     @classmethod

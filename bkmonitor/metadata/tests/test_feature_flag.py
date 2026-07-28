@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, PropertyMock
 import pytest
 import fakeredis
 
-from metadata.models.feature_flag import FeatureFlag, FeatureFlagConfig
+from metadata.models.feature_flag import FeatureFlag, FeatureFlagConfig, FeatureFlagQuerySet
 from metadata.tests.conftest import MockHashConsul
 
 # feature_flag 测试不需要数据库，只测试配置读写功能
@@ -204,6 +204,21 @@ class TestFeatureFlagConfig:
         assert model_save.call_args.kwargs["update_fields"] == {"config", "updater", "updated_at"}
         on_commit.assert_called_once()
 
+    def test_bulk_delete_defers_single_external_refresh(self, mocker):
+        """QuerySet 批量删除（包括 Admin delete selected）提交后只刷新一次。"""
+        queryset = FeatureFlagQuerySet(model=FeatureFlag)
+        mocker.patch.object(queryset, "values_list", return_value=["flag-a", "flag-b"])
+        mocker.patch("django.db.models.QuerySet.delete", return_value=(2, {"metadata.FeatureFlag": 2}))
+        on_commit = mocker.patch("metadata.models.feature_flag.transaction.on_commit")
+        refresh = mocker.patch.object(FeatureFlag, "_refresh_external_config")
+
+        result = queryset.delete()
+
+        assert result == (2, {"metadata.FeatureFlag": 2})
+        on_commit.assert_called_once()
+        on_commit.call_args.args[0]()
+        refresh.assert_called_once_with("flag-a,flag-b", "bulk deleted")
+
     def test_percentage_variation_is_stable_and_supports_partial_allocations(self):
         """百分比分配应稳定，并能覆盖 50/50 等非 100% 单项配置。"""
         variations = {"true": True, "false": False}
@@ -281,17 +296,33 @@ class TestFeatureFlagConfig:
         assert config is not None
         assert config == sample_feature_flags["must-vm-query"]
 
-    def test_get_feature_flag_config_fallback(self, sample_feature_flags, mock_redis, mock_consul):
-        """测试获取特性开关配置的回退机制"""
-        # 只写入 Consul，不写入 Redis
+    def test_get_feature_flag_config_fallback(self, sample_feature_flags, mock_redis, mock_consul, mocker):
+        """主后端读取失败时回退到另一后端"""
         FeatureFlagConfig.refresh_consul_feature_flag_config(sample_feature_flags)
+        mocker.patch.object(mock_redis, "get", side_effect=ConnectionError("redis unavailable"))
 
-        # 优先从 Redis 读取（Redis 中没有，应该回退到 Consul）
+        # Redis 读取失败时回退到 Consul
         config = FeatureFlagConfig.get_feature_flag_config("must-vm-query", prefer_redis=True)
 
-        # 验证从 Consul 读取（回退）
         assert config is not None
         assert config == sample_feature_flags["must-vm-query"]
+
+    def test_get_feature_flag_config_does_not_fallback_when_primary_is_missing(
+        self, sample_feature_flags, mock_redis, mock_consul
+    ):
+        """主后端成功确认不存在时，不应从可能陈旧的后端复活开关。"""
+        FeatureFlagConfig.refresh_redis_feature_flag_config(sample_feature_flags)
+
+        config = FeatureFlagConfig.get_feature_flag_config("must-vm-query", prefer_redis=False)
+
+        assert config is None
+
+    def test_redis_feature_flag_read_can_propagate_diagnostic_error(self, mock_redis, mocker):
+        """诊断接口读取 Redis 失败时应返回错误，而不是伪装成配置不存在。"""
+        mocker.patch.object(mock_redis, "get", side_effect=ConnectionError("redis unavailable"))
+
+        with pytest.raises(ConnectionError, match="redis unavailable"):
+            FeatureFlagConfig.get_all_redis_feature_flag_config(raise_on_error=True)
 
     def test_get_feature_flag_value_with_table_id_match(self, sample_feature_flags, mock_redis):
         """测试根据 table_id 获取特性开关值，匹配 targeting 规则"""

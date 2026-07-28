@@ -3650,7 +3650,7 @@ class GetRedisStorageConfigResource(Resource):
         try:
             # 如果没有提供 cluster_id，返回所有配置
             if cluster_id is None:
-                all_configs = ClusterInfo.get_all_redis_storage_config()
+                all_configs = ClusterInfo.get_all_redis_storage_config(raise_on_error=True)
 
                 if not all_configs:
                     return {
@@ -3668,7 +3668,7 @@ class GetRedisStorageConfigResource(Resource):
                 }
 
             # 如果提供了 cluster_id，返回单个配置
-            config = ClusterInfo.get_redis_storage_config(cluster_id)
+            config = ClusterInfo.get_redis_storage_config(cluster_id, raise_on_error=True)
 
             if config is None:
                 redis_key = f"{ClusterInfo.REDIS_PREFIX_KEY}:{cluster_id}"
@@ -3730,7 +3730,7 @@ class GetConsulFeatureFlagConfigResource(Resource):
 
             # 如果没有提供 flag_name，返回所有 flags
             if not flag_name:
-                all_configs = FeatureFlagConfig.get_all_consul_feature_flag_config()
+                all_configs = FeatureFlagConfig.get_all_consul_feature_flag_config(raise_on_error=True)
 
                 if all_configs is None:
                     return {
@@ -3747,7 +3747,7 @@ class GetConsulFeatureFlagConfigResource(Resource):
                 }
 
             # 如果提供了 flag_name，返回单个 flag 的配置
-            config = FeatureFlagConfig.get_consul_feature_flag_config(flag_name)
+            config = FeatureFlagConfig.get_consul_feature_flag_config(flag_name, raise_on_error=True)
 
             if config is None:
                 return {
@@ -3797,7 +3797,7 @@ class GetRedisFeatureFlagConfigResource(Resource):
 
             # 如果没有提供 flag_name，返回所有 flags
             if not flag_name:
-                all_configs = FeatureFlagConfig.get_all_redis_feature_flag_config()
+                all_configs = FeatureFlagConfig.get_all_redis_feature_flag_config(raise_on_error=True)
 
                 if all_configs is None:
                     return {
@@ -3814,7 +3814,7 @@ class GetRedisFeatureFlagConfigResource(Resource):
                 }
 
             # 如果提供了 flag_name，返回单个 flag 的配置
-            all_configs = FeatureFlagConfig.get_all_redis_feature_flag_config()
+            all_configs = FeatureFlagConfig.get_all_redis_feature_flag_config(raise_on_error=True)
 
             if all_configs is None:
                 return {

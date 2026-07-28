@@ -277,6 +277,13 @@ class TestRefreshRedisStorage:
         # 应该返回 None（因为 Redis 连接失败）
         assert result is None
 
+    def test_get_redis_storage_config_can_propagate_diagnostic_error(self, mock_redis, mocker):
+        """诊断接口应能区分后端失败和配置不存在。"""
+        mocker.patch.object(mock_redis, "get", side_effect=ConnectionError("Redis connection error"))
+
+        with pytest.raises(ConnectionError, match="Redis connection error"):
+            ClusterInfo.get_redis_storage_config(1, raise_on_error=True)
+
     def test_refresh_and_get_redis_storage_config_integration(self, mock_redis, mocker):
         """测试刷新和获取 Redis 配置的集成测试"""
         # 创建 mock 集群信息

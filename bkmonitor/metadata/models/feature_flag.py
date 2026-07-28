@@ -25,6 +25,19 @@ from bkmonitor.utils.db.fields import JsonField
 logger = logging.getLogger("metadata")
 
 
+class FeatureFlagQuerySet(models.QuerySet):
+    def delete(self):
+        """批量删除后只发布一次最新的完整配置快照。"""
+        flag_names = list(self.values_list("flag_name", flat=True))
+        result = super().delete()
+        if flag_names:
+            summary = ",".join(flag_names)
+            transaction.on_commit(
+                lambda: self.model._refresh_external_config(summary, "bulk deleted")
+            )
+        return result
+
+
 class FeatureFlag(models.Model):
     """
     特性开关数据库模型
@@ -40,6 +53,8 @@ class FeatureFlag(models.Model):
     updater = models.CharField("变更人", max_length=32, default="system")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    objects = FeatureFlagQuerySet.as_manager()
 
     class Meta:
         db_table = "metadata_featureflag"
@@ -408,7 +423,7 @@ class FeatureFlagConfig:
         logger.info(f"all feature flag config is refresh to redis success count->[{len(feature_flags)}].")
 
     @classmethod
-    def get_all_consul_feature_flag_config(cls) -> dict | None:
+    def get_all_consul_feature_flag_config(cls, raise_on_error: bool = False) -> dict | None:
         """
         从 Consul 读取所有特性开关配置
 
@@ -465,10 +480,12 @@ class FeatureFlagConfig:
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"get all consul feature flag config error, error->[{e}]")
+            if raise_on_error:
+                raise
             return None
 
     @classmethod
-    def get_consul_feature_flag_config(cls, flag_name: str) -> dict | None:
+    def get_consul_feature_flag_config(cls, flag_name: str, raise_on_error: bool = False) -> dict | None:
         """
         从 Consul 读取特性开关配置，参考 Consul 的 get 方法实现
 
@@ -547,10 +564,12 @@ class FeatureFlagConfig:
         except Exception as e:  # pylint: disable=broad-except
             # 捕获所有异常，避免因为 Consul 连接问题或数据格式问题导致程序崩溃
             logger.error(f"get consul feature flag config error, flag_name->[{flag_name}], error->[{e}]")
+            if raise_on_error:
+                raise
             return None
 
     @classmethod
-    def get_all_redis_feature_flag_config(cls) -> dict | None:
+    def get_all_redis_feature_flag_config(cls, raise_on_error: bool = False) -> dict | None:
         """
         从 Redis 读取所有特性开关配置
 
@@ -595,10 +614,12 @@ class FeatureFlagConfig:
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"get all redis feature flag config error, error->[{e}]")
+            if raise_on_error:
+                raise
             return None
 
     @classmethod
-    def get_redis_feature_flag_config(cls, flag_name: str) -> dict | None:
+    def get_redis_feature_flag_config(cls, flag_name: str, raise_on_error: bool = False) -> dict | None:
         """
         从 Redis 读取特性开关配置，参考 get_redis_storage_config 方法实现
 
@@ -664,6 +685,8 @@ class FeatureFlagConfig:
         except Exception as e:  # pylint: disable=broad-except
             # 捕获所有异常，避免因为 Redis 连接问题或数据格式问题导致程序崩溃
             logger.error(f"get redis feature flag config error, flag_name->[{flag_name}], error->[{e}]")
+            if raise_on_error:
+                raise
             return None
 
     @classmethod
@@ -686,22 +709,13 @@ class FeatureFlagConfig:
         :param prefer_redis: 是否优先从 Redis 读取，默认 False（优先从 Consul 读取）
         :return: 配置字典，如果不存在或读取失败则返回 None
         """
-        if prefer_redis:
-            # 优先从 Redis 读取
-            config = cls.get_redis_feature_flag_config(flag_name)
-            if config:
-                return config
-
-            # Redis 中没有，尝试从 Consul 读取
-            return cls.get_consul_feature_flag_config(flag_name)
-        else:
-            # 优先从 Consul 读取
-            config = cls.get_consul_feature_flag_config(flag_name)
-            if config:
-                return config
-
-            # Consul 中没有，尝试从 Redis 读取
-            return cls.get_redis_feature_flag_config(flag_name)
+        primary = cls.get_redis_feature_flag_config if prefer_redis else cls.get_consul_feature_flag_config
+        fallback = cls.get_consul_feature_flag_config if prefer_redis else cls.get_redis_feature_flag_config
+        try:
+            # 主后端成功返回 None 代表权威地“不存在”，不能用另一后端的旧值复活配置。
+            return primary(flag_name, raise_on_error=True)
+        except Exception:  # pylint: disable=broad-except
+            return fallback(flag_name)
 
     @classmethod
     def get_feature_flag_config_prefer_consul(cls, flag_name: str) -> dict | None:
@@ -721,13 +735,7 @@ class FeatureFlagConfig:
         :param flag_name: 特性开关名称
         :return: 配置字典，如果不存在或读取失败则返回 None
         """
-        # 优先从 Consul 读取
-        config = cls.get_consul_feature_flag_config(flag_name)
-        if config:
-            return config
-
-        # Consul 中没有，尝试从 Redis 读取
-        return cls.get_redis_feature_flag_config(flag_name)
+        return cls.get_feature_flag_config(flag_name, prefer_redis=False)
 
     @classmethod
     def get_feature_flag_config_prefer_redis(cls, flag_name: str) -> dict | None:
@@ -747,13 +755,7 @@ class FeatureFlagConfig:
         :param flag_name: 特性开关名称
         :return: 配置字典，如果不存在或读取失败则返回 None
         """
-        # 优先从 Redis 读取
-        config = cls.get_redis_feature_flag_config(flag_name)
-        if config:
-            return config
-
-        # Redis 中没有，尝试从 Consul 读取
-        return cls.get_consul_feature_flag_config(flag_name)
+        return cls.get_feature_flag_config(flag_name, prefer_redis=True)
 
     @classmethod
     def get_all_feature_flag_config(cls, prefer_redis: bool = False) -> dict | None:
@@ -769,22 +771,12 @@ class FeatureFlagConfig:
         :param prefer_redis: 是否优先从 Redis 读取，默认 False（优先从 Consul 读取）
         :return: 包含所有特性开关配置的字典，如果不存在或读取失败则返回 None
         """
-        if prefer_redis:
-            # 优先从 Redis 读取
-            config = cls.get_all_redis_feature_flag_config()
-            if config:
-                return config
-
-            # Redis 中没有，尝试从 Consul 读取
-            return cls.get_all_consul_feature_flag_config()
-        else:
-            # 优先从 Consul 读取
-            config = cls.get_all_consul_feature_flag_config()
-            if config:
-                return config
-
-            # Consul 中没有，尝试从 Redis 读取
-            return cls.get_all_redis_feature_flag_config()
+        primary = cls.get_all_redis_feature_flag_config if prefer_redis else cls.get_all_consul_feature_flag_config
+        fallback = cls.get_all_consul_feature_flag_config if prefer_redis else cls.get_all_redis_feature_flag_config
+        try:
+            return primary(raise_on_error=True)
+        except Exception:  # pylint: disable=broad-except
+            return fallback()
 
     @classmethod
     def get_all_feature_flag_config_prefer_consul(cls) -> dict | None:
@@ -798,13 +790,7 @@ class FeatureFlagConfig:
 
         :return: 包含所有特性开关配置的字典，如果不存在或读取失败则返回 None
         """
-        # 优先从 Consul 读取
-        config = cls.get_all_consul_feature_flag_config()
-        if config:
-            return config
-
-        # Consul 中没有，尝试从 Redis 读取
-        return cls.get_all_redis_feature_flag_config()
+        return cls.get_all_feature_flag_config(prefer_redis=False)
 
     @classmethod
     def get_all_feature_flag_config_prefer_redis(cls) -> dict | None:
@@ -818,13 +804,7 @@ class FeatureFlagConfig:
 
         :return: 包含所有特性开关配置的字典，如果不存在或读取失败则返回 None
         """
-        # 优先从 Redis 读取
-        config = cls.get_all_redis_feature_flag_config()
-        if config:
-            return config
-
-        # Redis 中没有，尝试从 Consul 读取
-        return cls.get_all_consul_feature_flag_config()
+        return cls.get_all_feature_flag_config(prefer_redis=True)
 
     @staticmethod
     def _select_percentage_variation(
