@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from apps.log_clustering.constants import NEW_SERIES_ALGORITHM_TYPE, StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
+from apps.log_clustering.serializers import NewClsStrategySerializer
 
 
 class TestClusteringMonitorHandler(TestCase):
@@ -17,6 +18,7 @@ class TestClusteringMonitorHandler(TestCase):
             new_cls_index_set_id=None,
             new_cls_strategy_output="",
             new_cls_pattern_rt="",
+            model_output_rt="2_bklog_model_output",
             log_count_aggregation_flow={"agg": {"result_table_id": "2_legacy_new_class"}},
             group_fields=["service_name"],
             clustering_fields="log",
@@ -61,10 +63,34 @@ class TestClusteringMonitorHandler(TestCase):
             ],
         )
         self.assertEqual(algorithm["type"], NEW_SERIES_ALGORITHM_TYPE)
-        self.assertEqual(algorithm["config"], {"detect_range": 30 * 24 * 60 * 60, "threshold": 5})
+        self.assertEqual(algorithm["config"], {"detect_range": 30 * 24 * 60 * 60, "threshold": 4})
         self.assertEqual(request_params["detects"][0]["level"], 1)
         self.assertEqual(request_params["detects"][0]["trigger_config"]["count"], 1)
         mock_sync_clustered_route.assert_called_once_with(index_set_id=123, raise_exception=True)
+
+    @patch(
+        "apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route",
+        return_value=True,
+    )
+    def test_save_new_series_minimum_log_count_as_strict_threshold(self, _mock_sync_clustered_route):
+        self.handler.save_new_cls_clustering_strategy(params={"interval": 30, "threshold": 1})
+
+        request_params = self.handler.save_strategy_infos.call_args.kwargs["request_params"]
+        algorithm_config = request_params["items"][0]["algorithms"][0]["config"]
+
+        self.assertEqual(algorithm_config["threshold"], 0)
+
+    def test_save_legacy_new_class_strategy_keeps_threshold(self):
+        self.handler.save_legacy_new_cls_clustering_strategy(
+            table_id="2_legacy_new_class",
+            metric="log_count",
+            params={"interval": 30, "threshold": 1},
+        )
+
+        request_params = self.handler.save_strategy_infos.call_args.kwargs["request_params"]
+        algorithm_args = request_params["items"][0]["algorithms"][0]["config"]["args"]
+
+        self.assertEqual(algorithm_args["$new_class_alert_th"], 1)
 
     def test_new_class_and_normal_strategy_share_log_search_source_config(self):
         self.handler.save_new_cls_clustering_strategy(params={"interval": 30, "threshold": 5})
@@ -220,7 +246,7 @@ class TestClusteringMonitorHandler(TestCase):
                                 {
                                     "type": NEW_SERIES_ALGORITHM_TYPE,
                                     "level": 2,
-                                    "config": {"detect_range": 30 * 24 * 60 * 60, "threshold": 5},
+                                    "config": {"detect_range": 30 * 24 * 60 * 60, "threshold": 0},
                                 }
                             ]
                         }
@@ -233,4 +259,43 @@ class TestClusteringMonitorHandler(TestCase):
         result = self.handler.get_strategy(StrategiesType.NEW_CLS_strategy, 9527)
 
         self.assertEqual(result["interval"], 30)
-        self.assertEqual(result["threshold"], 5)
+        self.assertEqual(result["threshold"], 1)
+
+    @patch(
+        "apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route",
+        return_value=True,
+    )
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.search_alarm_strategy_v3")
+    def test_new_series_threshold_round_trip_does_not_drift(self, mock_search_strategy, _mock_sync_clustered_route):
+        mock_search_strategy.return_value = {
+            "strategy_config_list": [
+                {
+                    "items": [
+                        {
+                            "algorithms": [
+                                {
+                                    "type": NEW_SERIES_ALGORITHM_TYPE,
+                                    "level": 2,
+                                    "config": {"detect_range": 30 * 24 * 60 * 60, "threshold": 5},
+                                }
+                            ]
+                        }
+                    ],
+                    "notice": {"user_groups": [42]},
+                }
+            ]
+        }
+
+        params = self.handler.get_strategy(StrategiesType.NEW_CLS_strategy, 9527)
+        self.handler.save_new_cls_clustering_strategy(params=params)
+
+        request_params = self.handler.save_strategy_infos.call_args.kwargs["request_params"]
+        algorithm_config = request_params["items"][0]["algorithms"][0]["config"]
+        self.assertEqual(params["threshold"], 6)
+        self.assertEqual(algorithm_config["threshold"], 5)
+
+    def test_new_class_strategy_serializer_rejects_zero_threshold(self):
+        serializer = NewClsStrategySerializer(data={"interval": 30, "threshold": 0, "level": 2, "user_groups": [42]})
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("threshold", serializer.errors)
