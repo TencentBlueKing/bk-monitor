@@ -106,9 +106,9 @@ class ClusterInfo(models.Model):
     # 集群英文名正则表达式，要求符合 [_A-Za-z0-9][_A-Za-z0-9-]* 格式，且长度不超过50，与bkbase的集群名命名规则一致
     CLUSTER_NAME_REGEX = re.compile(r"^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$")
 
-    CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
+    CONSUL_PREFIX_PATH = f"{config.MIGRATION_CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
-    REDIS_PREFIX_KEY = f"{config.REDIS_KEY_PREFIX}:unify-query:data:storage"
+    REDIS_PREFIX_KEY = f"{settings.BACKEND_APP_CODE}:unify-query:data:storage"
     REDIS_CHANNEL = f"{REDIS_PREFIX_KEY}:storage_channel"
 
     TYPE_INFLUXDB = "influxdb"

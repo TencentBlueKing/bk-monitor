@@ -13,8 +13,11 @@ from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 import fakeredis
+from django.conf import settings
 
+from metadata import config
 from metadata.models.feature_flag import FeatureFlag, FeatureFlagConfig, FeatureFlagQuerySet
+from metadata.models.storage import ClusterInfo
 from metadata.tests.conftest import MockHashConsul
 
 # feature_flag 测试不需要数据库，只测试配置读写功能
@@ -78,6 +81,13 @@ class TestFeatureFlagConfig:
                 },
             },
         }
+
+    def test_unify_query_paths_are_shared_across_deployment_roles(self):
+        """Web 与 worker 必须使用相同的 backend app code 发布 UQ 配置。"""
+        assert FeatureFlagConfig.CONSUL_PREFIX_PATH.startswith(config.MIGRATION_CONSUL_PATH)
+        assert ClusterInfo.CONSUL_PREFIX_PATH.startswith(config.MIGRATION_CONSUL_PATH)
+        assert FeatureFlagConfig.REDIS_PREFIX_KEY.startswith(f"{settings.BACKEND_APP_CODE}:")
+        assert ClusterInfo.REDIS_PREFIX_KEY.startswith(f"{settings.BACKEND_APP_CODE}:")
 
     @pytest.fixture
     def mock_consul(self, mocker):
@@ -164,6 +174,9 @@ class TestFeatureFlagConfig:
 
     def test_force_refresh_empty_config_cleans_both_backends(self, mocker):
         """空数据库强刷也应让 Consul 和 Redis 收敛到空配置。"""
+        publication_lock = mocker.patch.object(
+            FeatureFlag, "_publication_lock", return_value=MagicMock()
+        )
         mocker.patch("metadata.models.feature_flag.FeatureFlag.objects.filter", return_value=[])
         refresh_consul = mocker.patch.object(FeatureFlagConfig, "refresh_consul_feature_flag_config")
         refresh_redis = mocker.patch.object(FeatureFlagConfig, "refresh_redis_feature_flag_config")
@@ -172,6 +185,31 @@ class TestFeatureFlagConfig:
 
         refresh_consul.assert_called_once_with({})
         refresh_redis.assert_called_once_with({})
+        publication_lock.assert_called_once()
+
+    def test_commit_callback_logs_publication_lock_timeout(self, mocker):
+        """事务已提交后锁超时只记录同步失败，不能让管理请求报保存失败。"""
+        mocker.patch.object(
+            FeatureFlag,
+            "_publication_lock",
+            side_effect=TimeoutError("publication lock timeout"),
+        )
+        logger = mocker.patch("metadata.models.feature_flag.logger")
+
+        FeatureFlag._refresh_external_config("must-vm-query", "saved")
+
+        logger.exception.assert_called_once()
+
+    def test_periodic_refresh_propagates_publication_lock_timeout(self, mocker):
+        """周期任务仍需上报锁失败，便于任务平台触发告警和重试。"""
+        mocker.patch.object(
+            FeatureFlag,
+            "_publication_lock",
+            side_effect=TimeoutError("publication lock timeout"),
+        )
+
+        with pytest.raises(TimeoutError, match="publication lock timeout"):
+            FeatureFlagConfig.force_refresh_feature_flag_config()
 
     def test_external_refresh_attempts_redis_when_consul_fails(self, mocker):
         """单个后端失败不能阻止另一个后端刷新。"""

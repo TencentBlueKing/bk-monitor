@@ -98,31 +98,46 @@ class FeatureFlag(models.Model):
                     cursor.execute("SELECT RELEASE_LOCK(%s)", [cls.PUBLICATION_LOCK_NAME])
 
     @classmethod
-    def _refresh_external_config(cls, flag_name: str, action: str) -> None:
+    def _refresh_external_config(
+        cls,
+        flag_name: str,
+        action: str,
+        raise_on_failure: bool = False,
+    ) -> None:
         """事务提交后将数据库快照分别同步到 Consul 和 Redis。"""
-        # 多进程事务回调必须串行：持锁后再读取数据库，保证最后发布的一定是最新已提交快照。
-        with cls._publication_lock():
-            feature_flags = {}
-            for feature_flag in cls.objects.filter(is_enabled=True):
-                config_dict = feature_flag.to_config_dict()
-                if config_dict:
-                    feature_flags[feature_flag.flag_name] = config_dict
+        try:
+            # 多进程事务回调必须串行：持锁后再读取数据库，保证最后发布的一定是最新已提交快照。
+            with cls._publication_lock():
+                feature_flags = {}
+                for feature_flag in cls.objects.filter(is_enabled=True):
+                    config_dict = feature_flag.to_config_dict()
+                    if config_dict:
+                        feature_flags[feature_flag.flag_name] = config_dict
 
-            failed_backends = []
-            for backend, refresher in (
-                ("consul", FeatureFlagConfig.refresh_consul_feature_flag_config),
-                ("redis", FeatureFlagConfig.refresh_redis_feature_flag_config),
-            ):
-                try:
-                    refresher(feature_flags)
-                except Exception:  # pylint: disable=broad-except
-                    failed_backends.append(backend)
-                    logger.exception(
-                        "refresh feature flag config to %s failed after %s, flag_name->[%s]",
-                        backend,
-                        action,
-                        flag_name,
-                    )
+                failed_backends = []
+                for backend, refresher in (
+                    ("consul", FeatureFlagConfig.refresh_consul_feature_flag_config),
+                    ("redis", FeatureFlagConfig.refresh_redis_feature_flag_config),
+                ):
+                    try:
+                        refresher(feature_flags)
+                    except Exception:  # pylint: disable=broad-except
+                        failed_backends.append(backend)
+                        logger.exception(
+                            "refresh feature flag config to %s failed after %s, flag_name->[%s]",
+                            backend,
+                            action,
+                            flag_name,
+                        )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "acquire feature flag publication lock failed after %s, flag_name->[%s]",
+                action,
+                flag_name,
+            )
+            if raise_on_failure:
+                raise
+            return
 
         if failed_backends:
             logger.error(
@@ -131,6 +146,10 @@ class FeatureFlag(models.Model):
                 action,
                 ",".join(failed_backends),
             )
+            if raise_on_failure:
+                raise RuntimeError(
+                    f"refresh feature flag config failed for backends: {','.join(failed_backends)}"
+                )
         else:
             logger.info(
                 "feature flag [%s] %s and config refreshed to consul and redis",
@@ -216,11 +235,11 @@ class FeatureFlagConfig:
     """
 
     # Consul 配置路径
-    CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/feature_flag"
-    CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/feature_flag"
+    CONSUL_PREFIX_PATH = f"{config.MIGRATION_CONSUL_PATH}/unify-query/data/feature_flag"
+    CONSUL_VERSION_PATH = f"{config.MIGRATION_CONSUL_PATH}/unify-query/version/feature_flag"
 
     # Redis 配置路径，参考 Consul 路径结构
-    REDIS_PREFIX_KEY = f"{config.REDIS_KEY_PREFIX}:unify-query:data:feature_flag"
+    REDIS_PREFIX_KEY = f"{settings.BACKEND_APP_CODE}:unify-query:data:feature_flag"
     REDIS_CHANNEL = f"{REDIS_PREFIX_KEY}:feature_flag_channel"
     # REDIS_VERSION_KEY = f"{config.REDIS_KEY_PREFIX}:unify-query:version:feature_flag"
 
@@ -1017,36 +1036,8 @@ class FeatureFlagConfig:
 
         :return: None
         """
-        from metadata.models.feature_flag import FeatureFlag
-
-        # 1. 从数据库获取所有启用的特性开关配置
-        feature_flag_list = FeatureFlag.objects.filter(is_enabled=True)
-
-        # 2. 构建配置字典
-        feature_flags_dict = {}
-        for feature_flag in feature_flag_list:
-            config_dict = feature_flag.to_config_dict()
-            if config_dict:
-                feature_flags_dict[feature_flag.flag_name] = config_dict
-
-        # 3. 空配置也必须继续刷新，用于清理外部遗留 Key。
-        if not feature_flags_dict:
-            logger.warning("no enabled feature flags found in database, clean external feature flag config")
-
-        # 4. 两个后端独立尝试，单个后端故障不能阻止另一个收敛。
-        errors = []
-        for backend, refresher in (
-            ("consul", cls.refresh_consul_feature_flag_config),
-            ("redis", cls.refresh_redis_feature_flag_config),
-        ):
-            try:
-                refresher(feature_flags_dict)
-            except Exception as error:  # pylint: disable=broad-except
-                errors.append((backend, error))
-                logger.exception("force refresh feature flag config to %s failed", backend)
-
-        if errors:
-            failed_backends = ",".join(backend for backend, _ in errors)
-            raise RuntimeError(f"force refresh feature flag config failed for backends: {failed_backends}")
-
-        logger.info(f"force refresh feature flag config success, count->[{len(feature_flags_dict)}]")
+        FeatureFlag._refresh_external_config(
+            flag_name="*",
+            action="periodic forced refresh",
+            raise_on_failure=True,
+        )
