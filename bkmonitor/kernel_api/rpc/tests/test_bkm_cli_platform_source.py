@@ -438,6 +438,7 @@ def test_nodeman_register_adds_readonly_evidence_ops():
         "fetch_subscription_statistic",
         "get_subscription_instance_status",
         "get_subscription_task_instances",
+        "get_subscription_task_step_summaries",
         "search_host_plugin_status",
     }
     op = domain.operations["get_subscription_instance_status"]

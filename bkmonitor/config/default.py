@@ -1887,6 +1887,10 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+# NodeMan 上游完成 deleted-aware 租户校验部署后，才可显式开启保留任务快照查询。
+BKM_CLI_NODEMAN_RETAINED_TASK_SNAPSHOTS_ENABLED = (
+    os.getenv("BKM_CLI_NODEMAN_RETAINED_TASK_SNAPSHOTS_ENABLED", "false").lower() == "true"
+)
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # IAM多租户配置
