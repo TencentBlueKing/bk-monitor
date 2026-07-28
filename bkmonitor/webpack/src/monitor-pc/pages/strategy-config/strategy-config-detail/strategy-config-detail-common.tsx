@@ -618,20 +618,23 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         custom_event_name,
         bkmonitor_strategy_id,
       }) => {
-        const curMetric = metricList?.find(set => set.metric_id === metric_id) || {
-          data_source_label,
-          data_type_label,
-          metric_field,
-          metric_field_name: metric_field,
-          metric_id,
-          result_table_id,
-          unit,
-          index_set_id,
-          query_string,
-          custom_event_name,
-          bkmonitor_strategy_id,
-          dimensions: [],
-        };
+        // strategy 存的 metric_id 可能与 get_metric_list 返回不一致（如 data_label 别名），
+        // 按 metric_id 查询有结果但精确匹配失败时，使用返回的第一条指标补齐 dimensions 等元信息
+        const curMetric = metricList?.find(set => set.metric_id === metric_id) ||
+          metricList?.[0] || {
+            data_source_label,
+            data_type_label,
+            metric_field,
+            metric_field_name: metric_field,
+            metric_id,
+            result_table_id,
+            unit,
+            index_set_id,
+            query_string,
+            custom_event_name,
+            bkmonitor_strategy_id,
+            dimensions: [],
+          };
 
         this.dataMode =
           agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')

@@ -3662,3 +3662,114 @@ def test_admin_token_resolve_aes_fallback_metric_and_log_combo_returns_unmatched
     assert result["data"]["kind"] is None
     assert result["data"]["apm_application"] is None
     assert result["data"]["custom_report"] is None
+
+
+def test_apm_profiling_datalink_detail_returns_v4_components(monkeypatch):
+    application = SimpleNamespace(
+        id=11,
+        app_name="checkout",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+    )
+    profile_datasource = SimpleNamespace(
+        bk_biz_id=2,
+        app_name="checkout",
+        bk_data_id=1573194,
+        result_table_id="2_profile_checkout_1573194",
+        created=datetime(2026, 7, 1, 10, 0, 0),
+        updated=datetime(2026, 7, 1, 11, 0, 0),
+        bkdata_datalink_config={
+            "version": 4,
+            "namespace": "bklog",
+            "v4_resource_names": {
+                "data_id_name": "profile_2_checkout",
+                "result_table_name": "profile_checkout_1573194",
+                "doris_binding_name": "profile_checkout_1573194",
+                "databus_name": "profile_checkout_1573194",
+            },
+        },
+        is_bkbase_v4_link=lambda: True,
+    )
+
+    monkeypatch.setattr(admin_apm, "_get_application", lambda *_args, **_kwargs: application)
+    monkeypatch.setattr(admin_apm, "_get_profile_datasource", lambda *_args, **_kwargs: profile_datasource)
+
+    configs = {
+        ("DataId", "profile_2_checkout"): {
+            "kind": "DataId",
+            "metadata": {"name": "profile_2_checkout"},
+            "status": {"phase": "Ok"},
+        },
+        ("Databus", "profile_checkout_1573194"): {
+            "kind": "Databus",
+            "metadata": {"name": "profile_checkout_1573194"},
+            "spec": {
+                "sources": [{"kind": "DataId", "name": "profile_2_checkout", "namespace": "bklog"}],
+                "sinks": [{"kind": "DorisBinding", "name": "profile_checkout_1573194", "namespace": "bklog"}],
+            },
+            "status": {"phase": "Ok"},
+        },
+        ("DorisBinding", "profile_checkout_1573194"): {
+            "kind": "DorisBinding",
+            "metadata": {"name": "profile_checkout_1573194"},
+            "spec": {
+                "data": {"kind": "ResultTable", "name": "profile_checkout_1573194", "namespace": "bklog"},
+                "storage": {"kind": "Doris", "name": "doris-default1", "namespace": "bklog"},
+            },
+            "status": {"phase": "Ok"},
+        },
+        ("ResultTable", "profile_checkout_1573194"): {
+            "kind": "ResultTable",
+            "metadata": {"name": "profile_checkout_1573194"},
+            "status": {"phase": "Ok"},
+        },
+    }
+
+    def fake_get_data_link_component_config(*, bk_tenant_id, kind, component_name, namespace):
+        assert bk_tenant_id == "system"
+        assert namespace == "bklog"
+        return configs[(kind, component_name)]
+
+    monkeypatch.setattr(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        fake_get_data_link_component_config,
+    )
+
+    result = admin_apm.get_apm_profiling_datalink_detail(
+        {"bk_tenant_id": "system", "application_id": 11, "include": ["component_config"]}
+    )
+
+    data = result["data"]
+    assert data["available"] is True
+    assert data["unavailable_reason"] is None
+    assert data["data_link_strategy"] == "apm_profiling_v4"
+    assert data["namespace"] == "bklog"
+    assert data["bk_data_id"] == 1573194
+    assert data["components"]["DataId"][0]["status"] == "Ok"
+    assert data["components"]["Databus"][0]["data_id_name"] == "profile_2_checkout"
+    assert data["components"]["DorisBinding"][0]["doris_cluster_name"] == "doris-default1"
+    assert data["components"]["ResultTable"][0]["component_config"]["status"]["phase"] == "Ok"
+    assert result["warnings"] == []
+
+
+def test_apm_profiling_datalink_detail_marks_v3_unavailable(monkeypatch):
+    application = SimpleNamespace(id=12, app_name="legacy", bk_tenant_id="system", bk_biz_id=2)
+    profile_datasource = SimpleNamespace(
+        bk_biz_id=2,
+        app_name="legacy",
+        bk_data_id=100,
+        result_table_id="2_profile.profile_legacy",
+        created=datetime(2026, 7, 1, 10, 0, 0),
+        updated=datetime(2026, 7, 1, 11, 0, 0),
+        bkdata_datalink_config={},
+        is_bkbase_v4_link=lambda: False,
+    )
+    monkeypatch.setattr(admin_apm, "_get_application", lambda *_args, **_kwargs: application)
+    monkeypatch.setattr(admin_apm, "_get_profile_datasource", lambda *_args, **_kwargs: profile_datasource)
+
+    result = admin_apm.get_apm_profiling_datalink_detail({"bk_tenant_id": "system", "application_id": 12})
+
+    assert result["data"]["available"] is False
+    assert result["data"]["unavailable_reason"] == "profiling_v3_unsupported"
+    assert result["data"]["components"]["Databus"] == []
+    assert result["warnings"][0]["code"] == "PROFILING_V3_UNSUPPORTED"

@@ -183,7 +183,7 @@ export default class App extends tsc<object> {
     return this.$store.getters.bizList;
   }
   get hasBusinessAuth() {
-    return this.$store.getters.bizList.some(item => +item.id === +this.bizId);
+    return !!this.$store.getters.bizIdMap?.has?.(+this.bizId);
   }
   // 业务列表
   get bizList() {
@@ -195,7 +195,7 @@ export default class App extends tsc<object> {
     );
   }
   get bizName() {
-    return this.$store.getters.bizList.find(item => +item.id === +this.bizId)?.text;
+    return this.$store.getters.bizIdMap?.get?.(+this.bizId)?.text;
   }
 
   // 当前是否全屏

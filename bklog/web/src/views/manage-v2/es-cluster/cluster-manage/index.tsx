@@ -87,6 +87,7 @@ export default defineComponent({
     const isAllowedCreate = ref(null); // 是否有权限新建
     const showSlider = ref(false); // 显示编辑或新建ES源侧边栏
     const editClusterId = ref(null); // 编辑ES源ID
+    const editClusterData = ref(null); // 编辑的集群行数据
     const isOpenWindow = ref(false); // 是否打开窗口
     const emptyType = ref('empty'); // 空状态类型
     const filterParams = ref({}); // 过滤参数对象
@@ -176,7 +177,6 @@ export default defineComponent({
       },
     });
 
-
     // 来源过滤器
     const sourceFilters = computed(() => {
       const { es_source_type: esSourceType } = globalsData.value;
@@ -254,7 +254,7 @@ export default defineComponent({
     };
 
     // 获取状态文本
-    const getStateText = id => {
+    const getStateText = (id) => {
       const info = stateMap.value[id];
       const state = typeof info === 'boolean' ? info : info?.status;
 
@@ -276,7 +276,7 @@ export default defineComponent({
     };
 
     // 页面变化处理
-    const handlePageChange = page => {
+    const handlePageChange = (page) => {
       if (pagination.value.current === page) {
         return;
       }
@@ -289,7 +289,7 @@ export default defineComponent({
     };
 
     // 每页条数变化处理
-    const handleLimitChange = limit => {
+    const handleLimitChange = (limit) => {
       if (pagination.value.limit === limit) {
         return;
       }
@@ -360,7 +360,7 @@ export default defineComponent({
     };
 
     // ipv6补全
-    const completeIPv6Address = address => {
+    const completeIPv6Address = (address) => {
       const sections = address.split(':');
       const missingSections = 8 - sections.length;
 
@@ -369,7 +369,7 @@ export default defineComponent({
       }
 
       return sections
-        .map(section => {
+        .map((section) => {
           if (section.length < 4) {
             return '0'.repeat(4 - section.length) + section;
           }
@@ -389,8 +389,9 @@ export default defineComponent({
     // 新建ES源
     const addDataSource = async () => {
       if (isAllowedCreate.value) {
-        showSlider.value = true;
         editClusterId.value = null;
+        editClusterData.value = null;
+        showSlider.value = true;
       } else {
         try {
           tableLoading.value = true;
@@ -413,7 +414,7 @@ export default defineComponent({
     };
 
     // 创建索引集
-    const createIndexSet = row => {
+    const createIndexSet = (row) => {
       router.push({
         name: 'es-index-set-create',
         query: {
@@ -424,7 +425,7 @@ export default defineComponent({
     };
 
     // 编辑ES源
-    const editDataSource = async item => {
+    const editDataSource = async (item) => {
       const id = item.cluster_config.cluster_id;
       if (!item.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]) {
         try {
@@ -448,12 +449,13 @@ export default defineComponent({
         return;
       }
 
-      showSlider.value = true;
       editClusterId.value = id;
+      editClusterData.value = item;
+      showSlider.value = true;
     };
 
     // 删除ES源
-    const deleteDataSource = async row => {
+    const deleteDataSource = async (row) => {
       const id = row.cluster_config.cluster_id;
       if (!row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]) {
         try {
@@ -487,7 +489,7 @@ export default defineComponent({
     };
 
     // 处理删除
-    const handleDelete = row => {
+    const handleDelete = (row) => {
       http
         .request('source/deleteEs', {
           params: {
@@ -495,12 +497,12 @@ export default defineComponent({
             cluster_id: row.cluster_config.cluster_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             if (tableDataPaged.value.length <= 1) {
               pagination.value.current = pagination.value.current > 1 ? pagination.value.current - 1 : 1;
             }
-            const deleteIndex = tableDataSearched.value.findIndex(item => {
+            const deleteIndex = tableDataSearched.value.findIndex((item) => {
               return item.cluster_config.cluster_id === row.cluster_config.cluster_id;
             });
             tableDataSearched.value.splice(deleteIndex, 1);
@@ -529,13 +531,13 @@ export default defineComponent({
     };
 
     // 激活详情处理
-    const handleActiveDetails = state => {
+    const handleActiveDetails = (state) => {
       isOpenWindow.value = state;
       introWidth.value = state ? 360 : 1;
     };
 
     // 检查字段显示
-    const checkcFields = field => {
+    const checkcFields = (field) => {
       return clusterSetting.value.selectedFields.some(item => item.id === field);
     };
 
@@ -558,7 +560,7 @@ export default defineComponent({
     };
 
     // 获取百分比
-    const getPercent = row => {
+    const getPercent = (row) => {
       return (100 - row.storage_usage) / 100;
     };
 
@@ -572,7 +574,7 @@ export default defineComponent({
     };
 
     // 操作处理
-    const handleOperation = type => {
+    const handleOperation = (type) => {
       if (type === 'clear-filter') {
         params.value.keyword = '';
         clearTableFilter(clusterTable.value);
@@ -629,6 +631,7 @@ export default defineComponent({
                 {t('新建')}
               </bk-button>
             )}
+
             <bk-input
               style='float: right; width: 360px'
               clearable={true}
@@ -790,7 +793,11 @@ export default defineComponent({
                 min-width='80'
                 prop='cluster_config.creator'
                 renderHeader={renderHeader}
-                scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.cluster_config.creator}></bk-user-display-name> }}
+                scopedSlots={{
+                  default: (props: any) => (
+                    <bk-user-display-name user-id={props.row.cluster_config.creator}></bk-user-display-name>
+                  ),
+                }}
               />
             )}
             {checkcFields('create_time') && (
@@ -804,7 +811,29 @@ export default defineComponent({
                 sortable
               />
             )}
-            {activeTab.value !== CLUSTER_TYPES.DORIS && (
+            {activeTab.value === CLUSTER_TYPES.DORIS ? (
+              <bk-table-column
+                key='operate'
+                width='100'
+                scopedSlots={{
+                  default: (props: any) => (
+                    <div class='collect-table-operate'>
+                      <log-button
+                        vCursor={{
+                          active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
+                        }}
+                        button-text={t('编辑')}
+                        theme='primary'
+                        text
+                        on-on-click={() => editDataSource(props.row)}
+                      />
+                    </div>
+                  ),
+                }}
+                label={t('操作')}
+                renderHeader={renderHeader}
+              />
+            ) : (
               <bk-table-column
                 key='operate'
                 width='180'
@@ -880,7 +909,7 @@ export default defineComponent({
           >
             <span
               class='bk-icon icon-more'
-              onMousedown={e => {
+              onMousedown={(e) => {
                 if (e.button === 0) {
                   dragBegin(e);
                 }
@@ -894,6 +923,8 @@ export default defineComponent({
         </div>
 
         <EsSlider
+          clusterData={editClusterData.value}
+          clusterType={activeTab.value}
           editClusterId={editClusterId.value}
           showSlider={showSlider.value}
           onHandleCancelSlider={handleSliderHidden}

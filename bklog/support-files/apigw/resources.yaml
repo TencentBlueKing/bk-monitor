@@ -305,7 +305,7 @@ paths:
           timeout: 30
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: List topology accessible for log extraction
@@ -327,7 +327,7 @@ paths:
           timeout: 30
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: List paths allowed for log extraction
@@ -349,7 +349,7 @@ paths:
           timeout: 30
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: Query hosts accessible for log extraction
@@ -371,7 +371,7 @@ paths:
           timeout: 60
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: List files accessible for log extraction
@@ -393,7 +393,7 @@ paths:
           timeout: 60
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: Create a log extraction task
@@ -420,7 +420,7 @@ paths:
           timeout: 30
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: Get a log extraction task
@@ -442,7 +442,7 @@ paths:
           timeout: 30
         pluginConfigs: []
         authConfig:
-          userVerifiedRequired: true
+          userVerifiedRequired: false
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn: Get the download URL for a log extraction task
