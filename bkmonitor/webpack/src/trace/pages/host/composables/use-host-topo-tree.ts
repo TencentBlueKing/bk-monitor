@@ -24,27 +24,28 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef } from 'vue';
+import { computed, shallowRef, watch, onMounted } from 'vue';
+
+import { useDebounceFn } from '@vueuse/core';
 
 import { getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateItemId } from '../utils/host-list-core';
-import { isHostNode, matchTreeNode, pruneEmptyNodes } from '../utils/topo-tree';
+import { isHostNode } from '../utils/topo-tree';
+import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
 
-import type { IHostTopoHostNode, IHostTopoInstNode, IHostTopoTreeNode } from '../types';
+import type { IHostTopoHostNode, IHostTopoTreeNode } from '../types';
+import type { IHostTopoViewRow } from './use-host-topo-tree-worker';
 
-/** bk-tree 实例上本 composable 需要调用的最小方法集 */
-interface ITreeInstance {
-  getData: (newTree?: boolean) => { data: IHostTopoTreeNode[] };
-  setOpen: (item: IHostTopoTreeNode, isOpen?: boolean, autoOpenParents?: boolean) => void;
-}
+const TOPO_ROW_HEIGHT = 32;
+const VIEW_OVERSCAN = 10;
 
 /**
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
  * 视图层（host-topo-tree）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
 export const useHostTopoTree = (nodeId: string) => {
-  /** bk-tree 组件实例引用，用于调用展开/收起等命令式方法 */
-  const treeRef = shallowRef<ITreeInstance | null>(null);
+  const topoTreeWorker = useHostTopoTreeWorker();
+  /** 加载状态 */
   const loading = shallowRef(false);
   /** 原始树数据（接口/ mock 原样数据） */
   const rawTreeData = shallowRef<IHostTopoTreeNode[]>([]);
@@ -53,87 +54,132 @@ export const useHostTopoTree = (nodeId: string) => {
   const hideEmptyNode = shallowRef(true);
   /** 当前选中的节点或主机 */
   const selectedNode = shallowRef<IHostTopoTreeNode | null>(null);
+  /** Worker 返回的当前可视区节点切片 */
+  const visibleRows = shallowRef<IHostTopoViewRow[]>([]);
+  /** 可视切片在完整扁平列表中的起始下标 */
+  const visibleStart = shallowRef(0);
+  /** 当前展开 / 搜索状态下的扁平节点总数 */
+  const totalRows = shallowRef(0);
+  /** 通知视图将滚动位置重置到顶部 */
+  const viewportResetKey = shallowRef(0);
+  /** 视口高度 */
+  let viewportHeight = 0;
+  /** 视口滚动位置 */
+  let viewportScrollTop = 0;
+  /** 已加载的开始下标 */
+  let loadedStart = 0;
+  /** 已加载的结束下标 */
+  let loadedEnd = 0;
+  /** 视图请求版本 */
+  let viewRequestVersion = 0;
+  /** 是否已初始化 */
+  let initialized = false;
 
-  /** 视图实际渲染的数据：根据「隐藏无主机节点」开关裁剪 */
-  const displayTreeData = computed<IHostTopoTreeNode[]>(() =>
-    hideEmptyNode.value ? pruneEmptyNodes(rawTreeData.value) : rawTreeData.value
-  );
-
-  /** 对比主机列表（过滤已选中的节主机点） */
-  const compareHostList = computed<IHostTopoHostNode[]>(() => {
-    const hostMap = new Map();
-    let currentHostId = selectedNode.value?.id;
-    if (selectedNode.value && ('id' in selectedNode.value || 'bk_host_id' in selectedNode.value)) {
-      currentHostId = handleCreateItemId(selectedNode.value);
+  const updateFilter = useDebounceFn(async () => {
+    if (!initialized) {
+      return;
     }
-    const fn = (data: IHostTopoTreeNode[]) => {
-      for (const item of data) {
-        if ('children' in item) {
-          fn(item.children);
+    resetViewport();
+    const { start, end } = getRange();
+    const version = ++viewRequestVersion;
+    const result = await topoTreeWorker.setFilter(hideEmptyNode.value, searchValue.value, start, end);
+    applyViewResult(result, start, end, version);
+  }, 500);
+
+  watch([searchValue, hideEmptyNode], updateFilter);
+
+  /** 对比候选只随原始树重建，避免每次选中节点都重新遍历百万级数据。 */
+  const compareHostList = computed<IHostTopoHostNode[]>(() => {
+    const hostMap = new Map<string, IHostTopoHostNode>();
+    const stack = [...rawTreeData.value];
+    while (stack.length) {
+      const item = stack.pop();
+      if (!item) {
+        continue;
+      }
+      if (isHostNode(item)) {
+        const id = handleCreateItemId(item);
+        if (!hostMap.has(id)) {
+          hostMap.set(id, { ...item, id });
         }
-        if ('ip' in item || 'bk_host_id' in item) {
-          const id = handleCreateItemId(item);
-          if (id !== currentHostId && !hostMap.has(id)) {
-            hostMap.set(id, {
-              ...item,
-              id,
-            });
-          }
+      } else {
+        for (const child of item.children) {
+          stack.push(child);
         }
       }
-    };
-    fn(displayTreeData.value);
-    const hostList = Array.from(hostMap).map(item => item[1]);
-    return hostList;
+    }
+    return [...hostMap.values()];
   });
 
   /** 当前选中的是否为主机（决定 hover 其他主机时是否出现「对比」按钮） */
-  const selectedIsHost = computed(() => !!selectedNode.value && isHostNode(selectedNode.value));
+  // const selectedIsHost = computed(() => !!selectedNode.value && isHostNode(selectedNode.value));
 
-  /** 受控选中态：传给 bk-tree 的 selected（node-key=id） */
+  /** 受控选中态 */
   const selectedIds = computed<string[]>(() => (selectedNode.value ? [selectedNode.value.id] : []));
 
-  /**
-   * bk-tree 搜索配置：
-   * - 自定义 match 命中 IP / 主机名 / 节点名称
-   * - showChildNodes=false：命中父节点时默认折叠子内容，但仍可手动展开
-   */
-  const searchOption = computed(() => ({
-    value: searchValue.value,
-    match: (keyword: boolean | number | string, _itemText: string, item: IHostTopoTreeNode) =>
-      matchTreeNode(String(keyword), item),
-    resultType: 'tree' as const,
-    showChildNodes: false,
-  }));
-
-  /** 根据 id 查找节点 */
-  const findNodeById = (data: IHostTopoInstNode[], id: string) => {
-    for (const item of data) {
-      if (item.id === id) {
-        return item;
-      }
-      if (item.children) {
-        const result = findNodeById(item.children as IHostTopoInstNode[], id);
-        if (result) {
-          return result;
-        }
-      }
-    }
-    return null;
+  const getRange = () => {
+    const firstVisible = Math.floor(viewportScrollTop / TOPO_ROW_HEIGHT);
+    const visibleCount = Math.ceil(viewportHeight / TOPO_ROW_HEIGHT);
+    return {
+      end: Math.max(firstVisible + visibleCount + VIEW_OVERSCAN, VIEW_OVERSCAN * 2),
+      start: Math.max(0, firstVisible - VIEW_OVERSCAN),
+    };
   };
 
-  /** 加载拓扑树（暂用 mock，后续替换为 getHostTopoTreeByBizId） */
-  const loadTopoTree = async (id = '') => {
+  const applyViewResult = (
+    result: { rows: IHostTopoViewRow[]; total: number },
+    start: number,
+    end: number,
+    version: number
+  ) => {
+    if (version !== viewRequestVersion) {
+      return;
+    }
+    visibleRows.value = result.rows;
+    visibleStart.value = start;
+    totalRows.value = result.total;
+    loadedStart = start;
+    loadedEnd = Math.min(end, result.total);
+  };
+
+  const refreshVisibleRange = async (force = false) => {
+    if (!initialized) {
+      return;
+    }
+    const { start, end } = getRange();
+    const firstVisible = Math.floor(viewportScrollTop / TOPO_ROW_HEIGHT);
+    const lastVisible = firstVisible + Math.ceil(viewportHeight / TOPO_ROW_HEIGHT);
+    if (!force && firstVisible >= loadedStart && lastVisible <= loadedEnd) {
+      return;
+    }
+    const version = ++viewRequestVersion;
+    const result = await topoTreeWorker.getRange(start, end);
+    applyViewResult(result, start, end, version);
+  };
+
+  const handleViewportChange = (scrollTop: number, height: number) => {
+    viewportScrollTop = scrollTop;
+    viewportHeight = height;
+    refreshVisibleRange();
+  };
+
+  const resetViewport = () => {
+    viewportScrollTop = 0;
+    viewportResetKey.value += 1;
+  };
+
+  /** 加载拓扑树并在 Worker 中建立扁平索引、主机计数和可见节点计数。 */
+  const loadTopoTree = async () => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
       rawTreeData.value = data;
-      if (id || nodeId) {
-        selectedNode.value = findNodeById(data, id || nodeId) ?? null;
-      } else {
-        // 根节点默认选中
-        selectedNode.value = data[0] ?? null;
-      }
+      const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, nodeId);
+      initialized = true;
+      selectedNode.value = result.selectedNode;
+      totalRows.value = result.total;
+      resetViewport();
+      await refreshVisibleRange(true);
     } finally {
       loading.value = false;
     }
@@ -144,37 +190,52 @@ export const useHostTopoTree = (nodeId: string) => {
   };
 
   /** 选中节点 / 主机 */
-  const handleSelectNode = (node: IHostTopoTreeNode) => {
-    selectedNode.value = node;
+  const handleSelectNode = (row: IHostTopoViewRow) => {
+    selectedNode.value = row as unknown as IHostTopoTreeNode;
   };
 
-  /** 全部收起：收起当前树内所有节点 */
-  const handleCollapseAll = () => {
-    const tree = treeRef.value;
-    if (!tree) {
+  /** 点击内容时只负责展开关闭节点；收起仍只能点击箭头。 */
+  const handleExpandNode = async (row: IHostTopoViewRow, expanded = true) => {
+    if (!row.hasChildren || row.isExpanded === expanded) {
       return;
     }
-    const { data } = tree.getData();
-    // getData().data 为扁平化后的全部节点，逐个收起
-    for (const node of data) {
-      tree.setOpen(node, false);
-    }
+    const { start, end } = getRange();
+    const version = ++viewRequestVersion;
+    const result = await topoTreeWorker.toggle(row.id, expanded, start, end);
+    applyViewResult(result, start, end, version);
   };
 
+  /** 全部收起通过清空 Worker 展开集合完成，无需逐节点调用组件实例方法。 */
+  const handleCollapseAll = async () => {
+    resetViewport();
+    const { start, end } = getRange();
+    const version = ++viewRequestVersion;
+    const result = await topoTreeWorker.collapseAll(start, end);
+    applyViewResult(result, start, end, version);
+  };
+
+  onMounted(() => {
+    loadTopoTree();
+  });
+
   return {
-    treeRef,
     loading,
     searchValue,
     hideEmptyNode,
     selectedNode,
-    selectedIsHost,
+    // selectedIsHost,
     selectedIds,
-    displayTreeData,
     compareHostList,
-    searchOption,
+    visibleRows,
+    visibleStart,
+    totalRows,
+    rowHeight: TOPO_ROW_HEIGHT,
+    viewportResetKey,
     loadTopoTree,
     handleRefresh,
     handleSelectNode,
+    handleExpandNode,
+    handleViewportChange,
     handleCollapseAll,
   };
 };

@@ -63,32 +63,100 @@
     overflow: hidden;
   }
 
-  // bk-tree 内部样式定制（本项目 scss 为全局，非 scoped）
-  .bk-tree {
+  &__scroller {
+    position: relative;
     height: 100%;
+    contain: strict;
     overflow: auto;
+  }
 
-    .bk-node-content {
-      flex: 1;
-      overflow: hidden;
-      font-size: 12px;
+  &__spacer {
+    position: relative;
+    width: 100%;
+  }
+
+  &__visible-rows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    will-change: transform;
+  }
+
+  &__row {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    padding-right: 4px;
+    overflow: hidden;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f5f7fa;
     }
 
-    .bk-node-row {
-      &:hover {
-        background-color: #f5f7fa;
-      }
+    &.is-selected {
+      --topo-node-count-color: #3a84ff;
+      --topo-node-label-color: #3a84ff;
 
-      &.is-selected {
-        background-color: #e1ecff;
-
-        .topo-node__label,
-        .topo-node__count,
-        .topo-node__ip {
-          color: #3a84ff;
-        }
-      }
+      background-color: #e1ecff;
     }
+  }
+
+  &__line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    pointer-events: none;
+    background-color: #ebeef5;
+
+    &--children {
+      top: calc(50% + 14px);
+    }
+  }
+
+  &__arrow {
+    position: relative;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 100%;
+
+    &::after {
+      position: absolute;
+      top: 50%;
+      left: 7px;
+      width: 0;
+      height: 0;
+      content: '';
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 5px solid #979ba5;
+      transform: translateY(-50%);
+      transform-origin: 2px center;
+      transition: transform 0.1s ease;
+    }
+
+    &--expanded::after {
+      transform: translateY(-50%) rotate(90deg);
+    }
+
+    &--hidden {
+      visibility: hidden;
+    }
+  }
+
+  &__empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: 12px;
+    color: #979ba5;
+    transform: translate(-50%, -50%);
   }
 
   // 自定义节点内容
@@ -103,7 +171,7 @@
     &__label {
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #313238;
+      color: var(--topo-node-label-color, #313238);
       white-space: nowrap;
     }
 
@@ -112,11 +180,12 @@
       padding-left: 8px;
       margin-left: auto;
       font-weight: 700;
-      color: #a3b1cc;
+      color: var(--topo-node-count-color, #a3b1cc);
     }
 
     &__ip {
       flex-shrink: 0;
+      color: var(--topo-node-label-color, inherit);
     }
 
     &__alias {
@@ -126,27 +195,5 @@
       color: #a3b1cc;
       white-space: nowrap;
     }
-
-    &__compare {
-      display: none;
-      flex-shrink: 0;
-      padding: 0 8px;
-      margin-left: auto;
-      font-size: 12px;
-      line-height: 22px;
-      color: #3a84ff;
-      cursor: pointer;
-      background: #fff;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px;
-
-      &:hover {
-        border-color: #3a84ff;
-      }
-    }
-  }
-
-  .bk-node-row:hover .topo-node__compare {
-    display: inline-flex;
   }
 }

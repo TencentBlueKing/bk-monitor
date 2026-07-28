@@ -148,7 +148,7 @@ export default defineComponent({
                 aside: () => (
                   <HostTopoTree
                     context={this.topoTree}
-                    onCompare={this.handleCompare}
+                    // onCompare={this.handleCompare}
                   />
                 ),
                 main: () => (
