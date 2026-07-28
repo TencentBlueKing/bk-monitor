@@ -36,11 +36,26 @@ class HostPerformanceResource(CacheResource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
     @staticmethod
-    def get_process_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+    def get_process_status(
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+    ):
         """
         获取进程信息
+
+        注意：CMDB 进程基本信息（名称/端口/命令等）为当前快照，不支持历史查询；
+        start_time/end_time 仅作用于进程存活状态判定（system.proc_port 的 proc_exists 指标）。
+        选择历史时间后，进程列表仍反映当前 CMDB 数据，但进程启停状态与所选时间窗口一致。
         """
-        result = resource.cc.get_process_info(bk_biz_id=bk_biz_id, hosts=hosts)
+        result = resource.cc.get_process_info(
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+        )
         for bk_host_id in result:
             if bk_host_id not in data:
                 continue
@@ -391,11 +406,26 @@ class SearchHostMetricResource(Resource):
             data[bk_host_id].update(metrics)
 
     @staticmethod
-    def get_process_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+    def get_process_status(
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+    ):
         """
         获取进程信息
+
+        注意：CMDB 进程基本信息（名称/端口/命令等）为当前快照，不支持历史查询；
+        start_time/end_time 仅作用于进程存活状态判定（system.proc_port 的 proc_exists 指标）。
+        选择历史时间后，进程列表仍反映当前 CMDB 数据，但进程启停状态与所选时间窗口一致。
         """
-        result = resource.cc.get_process_info(bk_biz_id=bk_biz_id, hosts=hosts)
+        result = resource.cc.get_process_info(
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+        )
         for bk_host_id in result:
             if bk_host_id not in data:
                 continue
@@ -462,7 +492,10 @@ class SearchHostMetricResource(Resource):
             self.get_performance_data,
             args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
         )
-        pool.apply_async(self.get_process_status, args=(bk_biz_id, hosts, data))
+        pool.apply_async(
+            self.get_process_status,
+            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
+        )
         pool.apply_async(
             self.get_alarm_count,
             args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),

@@ -490,7 +490,12 @@ class GetHostProcessListResource(Resource):
         else:
             host = hosts[0]
 
-        processes = resource.cc.get_process_info(bk_biz_id, hosts=[host])
+        processes = resource.cc.get_process_info(
+            bk_biz_id,
+            hosts=[host],
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
+        )
         if host.bk_host_id not in processes:
             return []
 
@@ -554,7 +559,7 @@ class GetHostProcessListResource(Resource):
                 "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
                 "uptime": host_uptime.get(process["name"]),
                 "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
-                "fdUsage": (
+                "fdUsageRate": (
                     round(fd_num / fd_limit * 100, 2)
                     if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])) is not None
                     and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))

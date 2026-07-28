@@ -49,7 +49,11 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     :return {bk_host_id: AGENT_STATUS}
     """
     status: dict[int, int] = {}
-    is_historical = start_time is not None and end_time is not None
+    now = int(time.time())
+    # 前端默认时间范围为 now-7d ~ now，始终传递 start_time/end_time；
+    # 仅靠"参数是否存在"判断历史模式会导致默认实时页面误判。
+    # 改为：结束时间超过 5 分钟前才视为历史查询（此时 NodeMan 实时检测无意义）。
+    is_historical = start_time is not None and end_time is not None and end_time < now - 300
 
     # 获取主机数据状态，查询最近三分钟
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
@@ -63,12 +67,11 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if is_historical:
-        query_start = int(start_time) * 1000
         query_end = int(end_time) * 1000
     else:
-        now = int(time.time()) * 1000
-        query_start = now - 180000
-        query_end = now
+        query_end = int(time.time()) * 1000
+    # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
+    query_start = query_end - 180000
     # 使用 instant 查询取窗口聚合的单点，避免拉回区间序列
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
 
@@ -158,12 +161,20 @@ def _parse_cc_ports(ports):
     return arr_ports
 
 
-def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = None) -> dict[int, list[dict]]:
+def get_process_info(
+    bk_biz_id: int,
+    hosts: list[Host],
+    limit_port_num: int = None,
+    start_time: int = None,
+    end_time: int = None,
+) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param limit_port_num: 限制端口数量
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选），用于限定进程存活状态的判定窗口
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -195,7 +206,7 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
     result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
 
     # 查询进程状态数据
-    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts)
+    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts, start_time, end_time)
 
     bk_host_ids = {host.bk_host_id for host in hosts}
     for pp in result:
@@ -231,40 +242,31 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
     return pp_info
 
 
-def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str, int]]:
+def get_process_status(
+    bk_biz_id: int,
+    hosts: list[Host],
+    start_time: int = None,
+    end_time: int = None,
+) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     """
-    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
-    bk_host_ids = {host.bk_host_id for host in hosts}
-
-    # 查询进程端口数据
-    data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-    data_source = data_source_class(
-        bk_biz_id=bk_biz_id,
-        interval=180,
-        metrics=[{"field": "proc_exists", "method": "AVG", "alias": "A"}],
-        table="system.proc_port",
-        group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
-    )
-    query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-    now = int(time.time()) * 1000
-    # 仅判定最近三分钟内进程是否存在，使用 instant 查询取窗口聚合的单点，避免拉回区间序列
-    records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
-
-    # 根据返回值记录进程状态
     result = defaultdict(dict)
-    for record in records:
-        if record["_result_"] is None:
-            continue
-
-        if record.get("bk_host_id"):
-            bk_host_id = int(record["bk_host_id"])
-        else:
-            bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
-
-        if bk_host_id in bk_host_ids and record.get("display_name"):
-            result[bk_host_id][record["display_name"]] = AGENT_STATUS.ON if record["_result_"] else AGENT_STATUS.OFF
+    for bk_host_id, display_name, value in _query_proc_metrics(
+        bk_biz_id,
+        hosts,
+        "system.proc_port",
+        "proc_exists",
+        "AVG",
+        start_time,
+        end_time,
+    ):
+        result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
 
 
@@ -305,12 +307,11 @@ def _query_proc_metrics(
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if start_time is not None and end_time is not None:
-        query_start = int(start_time) * 1000
         query_end = int(end_time) * 1000
     else:
-        now = int(time.time()) * 1000
-        query_start = now - 180000
-        query_end = now
+        query_end = int(time.time()) * 1000
+    # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
+    query_start = query_end - 180000
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
     for record in records:
         if record.get("_result_") is None:
@@ -524,12 +525,11 @@ def get_host_performance_data(
         )
         query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
         if start_time is not None and end_time is not None:
-            query_start = int(start_time) * 1000
             query_end = int(end_time) * 1000
         else:
-            now = int(time.time()) * 1000
-            query_start = now - 180000
-            query_end = now
+            query_end = int(time.time()) * 1000
+        # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
+        query_start = query_end - 180000
         records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
         for record in records:
             if record["_result_"] is None:
