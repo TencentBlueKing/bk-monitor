@@ -2311,6 +2311,8 @@ export default (options: UseSelectionSearchOptions) => {
       tokenIndex,
       tokenCount,
       searchMode: getSearchMode(),
+      // 划词弹层「添加到本次检索」：语句模式执行 ES 保留字转义
+      escape: true,
     });
 
     const depth = options.depth ?? (mappedFieldName && mappedFieldName !== FULLTEXT_FIELD_NAME

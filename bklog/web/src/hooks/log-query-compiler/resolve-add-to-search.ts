@@ -24,6 +24,13 @@ export type AddToSearchInput = {
   tokenCount?: number;
   /** ui | sql；也可传 storage SEARCH_TYPE 对应的 dic 值 */
   searchMode: AddToSearchMode;
+  /**
+   * 语句模式是否转义 ES/Query String 保留字符。
+   * - true：划词弹层「添加到本次检索」
+   * - false：点击分词（添加到本次检索 / 新建检索等）
+   * 默认 true（兼容旧调用）。
+   */
+  escape?: boolean;
 };
 
 export type AddToSearchPayload = {
@@ -71,8 +78,11 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
   const tokenCount = input.tokenCount ?? (isSoleToken ? 1 : undefined);
   const tokenIndex = input.tokenIndex ?? (isSoleToken ? 0 : undefined);
 
+  // 仅划词路径显式 escape:true；点击分词传 false（仍保留通配位置）
+  const shouldEscape = input.escape !== false;
+
   if (isFulltext) {
-    const inner = escapeQueryStringPhraseLiteral(value);
+    const inner = shouldEscape ? escapeQueryStringPhraseLiteral(value) : value;
     if (input.searchMode === 'sql') {
       return {
         field: '*',
@@ -102,6 +112,7 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
     isSoleToken,
     tokenIndex,
     tokenCount,
+    escape: shouldEscape,
   });
 
   if (input.searchMode === 'sql') {
@@ -116,9 +127,11 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
   }
 
   const ui = compiled.uiCondition;
+  // 保留 new-search-page-is，供 setQueryCondition 识别「新建检索」开新页
+  const preserveNewSearch = operatorHint === 'new-search-page-is';
   return {
     field: ui?.field || field,
-    operator: ui?.operator || operatorHint,
+    operator: preserveNewSearch ? operatorHint : (ui?.operator || operatorHint),
     value: ui?.value || [value],
     fieldType,
     fullPlain,

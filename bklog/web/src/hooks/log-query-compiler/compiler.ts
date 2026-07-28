@@ -124,6 +124,11 @@ export const compileFieldValue = (params: {
   isSoleToken?: boolean;
   tokenIndex?: number;
   tokenCount?: number;
+  /**
+   * 是否转义 ES/Query String 保留字符。
+   * 默认 true；点击分词传 false，仅保留通配位置逻辑。
+   */
+  escape?: boolean;
 }): CompileResult => {
   const opts = mergeOptions('query-string', {
     tokenizerMode: 'phrase',
@@ -131,6 +136,7 @@ export const compileFieldValue = (params: {
     detectField: false,
     normalizeMode: 'light',
     wildcardForKeyword: true,
+    escape: params.escape !== false,
   });
 
   // 仅轻量 Normalize：不走 Lexer/Parser，避免对已解析 Value 重复拆词再拼接

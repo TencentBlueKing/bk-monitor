@@ -73,7 +73,8 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
   };
 
   /**
-   * 点击分词「添加到本次检索」：统一走 resolveAddToSearch（UI + 语句）。
+   * 点击分词菜单（添加到本次检索 / 新建检索等）：统一走 resolveAddToSearch。
+   * 语句模式不转义 ES 保留字（转义仅划词弹层开启）。
    */
   const handleSearchCondition = (
     field: any,
@@ -122,6 +123,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       tokenIndex: tokenMeta?.tokenIndex ?? (soleByToken || soleByValue ? 0 : undefined),
       tokenCount: tokenMeta?.tokenCount ?? (soleByToken || soleByValue ? 1 : undefined),
       searchMode: getSearchMode(),
+      // 点击分词（含添加到本次检索 / 新建检索）：不转义 ES 保留字；
+      // 保留字转义仅划词弹层「添加到本次检索」开启（见 use-selection-search）
+      escape: false,
     });
 
     handleAddCondition(
