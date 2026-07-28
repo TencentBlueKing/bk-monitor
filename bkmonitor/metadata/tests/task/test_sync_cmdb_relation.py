@@ -647,8 +647,6 @@ def test_enable_relation_graph_v4_uses_result_table_modify(mocker):
         table_id=table_id,
         cluster_id=910101,
     ).exists()
-    assert not models.GraphRelationBindingConfig.objects.exists()
-    assert not models.GraphDataBusConfig.objects.exists()
     assert not models.DataLink.objects.exists()
 
 

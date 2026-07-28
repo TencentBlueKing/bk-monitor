@@ -37,7 +37,6 @@ from .data_link import (  # noqa
     ESStorageBindingConfig,
     LogDataBusConfig,
     LogResultTableConfig,
-    GraphDataBusConfig,
     GraphRelationBindingConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
@@ -173,7 +172,6 @@ __all__ = [
     "RecordRuleV4",
     "ResultTableFlow",
     "BkBaseResultTable",
-    "GraphDataBusConfig",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
     # resource relation

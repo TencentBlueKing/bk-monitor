@@ -11,7 +11,6 @@ from .data_link_configs import (  # noqa
     ESStorageBindingConfig,
     DorisStorageBindingConfig,
     LogDataBusConfig,
-    GraphDataBusConfig,
     GraphRelationBindingConfig,
     SurrealDBBindingConfig,
 )
@@ -29,7 +28,6 @@ __all__ = [
     "ESStorageBindingConfig",
     "LogDataBusConfig",
     "DorisStorageBindingConfig",
-    "GraphDataBusConfig",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
 ]

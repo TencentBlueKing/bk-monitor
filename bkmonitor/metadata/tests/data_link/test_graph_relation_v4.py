@@ -10,7 +10,6 @@ from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
-    GraphRelationBindingConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -194,7 +193,6 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
     assert ctx["data_link"].get_related_component_classes() == expected_component_classes
     assert [config["kind"] for config in configs] == expected_kinds
     assert all("bkm_data_link_strategy" not in config["metadata"]["labels"] for config in configs)
-    assert not GraphRelationBindingConfig.objects.filter(data_link_name=ctx["data_link"].data_link_name).exists()
     if "surrealdb" in write_targets:
         graph_databus = next(
             config
@@ -558,7 +556,7 @@ def test_apply_graph_relation_v4_surrealdb_only_preserves_existing_vm_record(
     )
 
 
-def test_apply_graph_relation_v4_reuses_legacy_graph_datalink(mocker, graph_relation_v4_records):
+def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_relation_v4_records):
     from metadata.task.datalink import apply_graph_relation_v4_datalink
 
     ctx = graph_relation_v4_records
@@ -570,15 +568,6 @@ def test_apply_graph_relation_v4_reuses_legacy_graph_datalink(mocker, graph_rela
         data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
         bk_data_id=ctx["data_source"].bk_data_id,
         table_ids=[ctx["table_id"]],
-    )
-    GraphRelationBindingConfig.objects.create(
-        name=legacy_data_link_name,
-        data_link_name=legacy_data_link_name,
-        namespace="bkmonitor",
-        bk_biz_id=2,
-        bk_tenant_id="system",
-        write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-        table_id=ctx["table_id"],
     )
     models.BkBaseResultTable.objects.create(
         bk_tenant_id="system",
