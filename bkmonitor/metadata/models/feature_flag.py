@@ -15,7 +15,7 @@ import time
 from typing import Any
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from metadata import config
 from metadata.utils import consul_tools
 from metadata.utils.redis_tools import RedisTools
@@ -58,6 +58,45 @@ class FeatureFlag(models.Model):
         """
         return self.config if isinstance(self.config, dict) else {}
 
+    @classmethod
+    def _refresh_external_config(cls, flag_name: str, action: str) -> None:
+        """事务提交后将数据库快照分别同步到 Consul 和 Redis。"""
+        feature_flags = {}
+        for feature_flag in cls.objects.filter(is_enabled=True):
+            config_dict = feature_flag.to_config_dict()
+            if config_dict:
+                feature_flags[feature_flag.flag_name] = config_dict
+
+        failed_backends = []
+        for backend, refresher in (
+            ("consul", FeatureFlagConfig.refresh_consul_feature_flag_config),
+            ("redis", FeatureFlagConfig.refresh_redis_feature_flag_config),
+        ):
+            try:
+                refresher(feature_flags)
+            except Exception:  # pylint: disable=broad-except
+                failed_backends.append(backend)
+                logger.exception(
+                    "refresh feature flag config to %s failed after %s, flag_name->[%s]",
+                    backend,
+                    action,
+                    flag_name,
+                )
+
+        if failed_backends:
+            logger.error(
+                "feature flag [%s] %s but config refresh failed for backends->[%s]",
+                flag_name,
+                action,
+                ",".join(failed_backends),
+            )
+        else:
+            logger.info(
+                "feature flag [%s] %s and config refreshed to consul and redis",
+                flag_name,
+                action,
+            )
+
     def save(self, *args, **kwargs):
         """
         重写 save 方法，在保存特性开关配置后自动刷新到 Consul 和 Redis
@@ -96,37 +135,15 @@ class FeatureFlag(models.Model):
 
         # 设置变更人
         self.updater = operator
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"updater"}
 
         # 2. 调用父类的 save 方法
         super().save(*args, **kwargs)
 
-        # 3. 自动刷新配置到 Consul 和 Redis
-        try:
-            # 从数据库获取所有启用的特性开关配置
-            from metadata.models.feature_flag import FeatureFlag
-
-            feature_flag_list = FeatureFlag.objects.filter(is_enabled=True)
-
-            # 构建配置字典
-            feature_flags_dict = {}
-            for feature_flag in feature_flag_list:
-                config_dict = feature_flag.to_config_dict()
-                if config_dict:
-                    feature_flags_dict[feature_flag.flag_name] = config_dict
-
-            # 刷新到 Consul
-            FeatureFlagConfig.refresh_consul_feature_flag_config(feature_flags_dict)
-
-            # 刷新到 Redis
-            FeatureFlagConfig.refresh_redis_feature_flag_config(feature_flags_dict)
-
-            logger.info(f"feature flag [{self.flag_name}] saved and config refreshed to consul and redis")
-
-        except Exception as e:  # pylint: disable=broad-except
-            # 捕获所有异常，避免因为配置刷新失败导致保存操作失败
-            logger.error(
-                f"auto refresh feature flag config error after save, flag_name->[{self.flag_name}], error->[{e}]"
-            )
+        # 3. 事务提交成功后再发布，避免外部配置中心看到最终回滚的数据。
+        flag_name = self.flag_name
+        transaction.on_commit(lambda: type(self)._refresh_external_config(flag_name, "saved"))
 
     def delete(self, *args, **kwargs):
         """
@@ -146,31 +163,8 @@ class FeatureFlag(models.Model):
         # 2. 调用父类的 delete 方法
         super().delete(*args, **kwargs)
 
-        # 3. 自动刷新配置到 Consul 和 Redis
-        try:
-            # 从数据库获取所有启用的特性开关配置（自动排除已删除的配置）
-            from metadata.models.feature_flag import FeatureFlag
-
-            feature_flag_list = FeatureFlag.objects.filter(is_enabled=True)
-
-            # 构建配置字典
-            feature_flags_dict = {}
-            for feature_flag in feature_flag_list:
-                config_dict = feature_flag.to_config_dict()
-                if config_dict:
-                    feature_flags_dict[feature_flag.flag_name] = config_dict
-
-            # 刷新到 Consul
-            FeatureFlagConfig.refresh_consul_feature_flag_config(feature_flags_dict)
-
-            # 刷新到 Redis
-            FeatureFlagConfig.refresh_redis_feature_flag_config(feature_flags_dict)
-
-            logger.info(f"feature flag [{flag_name}] deleted and config refreshed to consul and redis")
-
-        except Exception as e:  # pylint: disable=broad-except
-            # 捕获所有异常，避免因为配置刷新失败导致删除操作失败
-            logger.error(f"auto refresh feature flag config error after delete, flag_name->[{flag_name}], error->[{e}]")
+        # 3. 事务提交成功后再发布，查询结果会自动排除已删除配置。
+        transaction.on_commit(lambda: type(self)._refresh_external_config(flag_name, "deleted"))
 
 
 class FeatureFlagConfig:
@@ -1007,15 +1001,24 @@ class FeatureFlagConfig:
             if config_dict:
                 feature_flags_dict[feature_flag.flag_name] = config_dict
 
-        # 3. 如果没有任何配置，记录警告并返回
+        # 3. 空配置也必须继续刷新，用于清理外部遗留 Key。
         if not feature_flags_dict:
-            logger.warning("no enabled feature flags found in database, skip force refresh")
-            return
+            logger.warning("no enabled feature flags found in database, clean external feature flag config")
 
-        # 4. 刷新到 Consul
-        cls.refresh_consul_feature_flag_config(feature_flags_dict)
+        # 4. 两个后端独立尝试，单个后端故障不能阻止另一个收敛。
+        errors = []
+        for backend, refresher in (
+            ("consul", cls.refresh_consul_feature_flag_config),
+            ("redis", cls.refresh_redis_feature_flag_config),
+        ):
+            try:
+                refresher(feature_flags_dict)
+            except Exception as error:  # pylint: disable=broad-except
+                errors.append((backend, error))
+                logger.exception("force refresh feature flag config to %s failed", backend)
 
-        # 5. 刷新到 Redis
-        cls.refresh_redis_feature_flag_config(feature_flags_dict)
+        if errors:
+            failed_backends = ",".join(backend for backend, _ in errors)
+            raise RuntimeError(f"force refresh feature flag config failed for backends: {failed_backends}")
 
         logger.info(f"force refresh feature flag config success, count->[{len(feature_flags_dict)}]")

@@ -639,7 +639,7 @@ class ClusterInfo(models.Model):
             # 将配置信息序列化为 JSON 字符串并写入 Redis
             # 使用 JSON 格式便于后续读取和解析
             redis_client.set(redis_key, json.dumps(config_value))
-            logger.debug(f"redis key->[{redis_key}] is refresh with value->[{config_value}] success.")
+            logger.debug("redis storage key->[%s] refreshed successfully", redis_key)
 
         # 4. 删除数据库中已不存在的 Storage，避免 UQ 前缀扫描继续读取旧配置。
         existing_keys = {

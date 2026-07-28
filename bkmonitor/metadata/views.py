@@ -15,11 +15,13 @@ from metadata.resources.resources import (
     GetRedisFeatureFlagConfigResource,
     GetRedisStorageConfigResource,
 )
+from monitor_web.permissions import GlobalSettingPermission
 
 
 class ConfigCheckViewSet(ResourceViewSet):
     """检查 Storage 和 Feature Flag 是否已同步到 Consul / Redis。"""
 
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", GetConsulStorageConfigResource, endpoint="get_consul_storage_config"),
         ResourceRoute("GET", GetRedisStorageConfigResource, endpoint="get_redis_storage_config"),

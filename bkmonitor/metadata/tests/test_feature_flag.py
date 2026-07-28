@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, PropertyMock
 import pytest
 import fakeredis
 
-from metadata.models.feature_flag import FeatureFlagConfig
+from metadata.models.feature_flag import FeatureFlag, FeatureFlagConfig
 from metadata.tests.conftest import MockHashConsul
 
 # feature_flag 测试不需要数据库，只测试配置读写功能
@@ -161,6 +161,48 @@ class TestFeatureFlagConfig:
         assert mock_redis.get(FeatureFlagConfig.REDIS_PREFIX_KEY) is None
         assert publish_spy.call_count == 1
         assert publish_spy.call_args.args[0] == FeatureFlagConfig.REDIS_CHANNEL
+
+    def test_force_refresh_empty_config_cleans_both_backends(self, mocker):
+        """空数据库强刷也应让 Consul 和 Redis 收敛到空配置。"""
+        mocker.patch("metadata.models.feature_flag.FeatureFlag.objects.filter", return_value=[])
+        refresh_consul = mocker.patch.object(FeatureFlagConfig, "refresh_consul_feature_flag_config")
+        refresh_redis = mocker.patch.object(FeatureFlagConfig, "refresh_redis_feature_flag_config")
+
+        FeatureFlagConfig.force_refresh_feature_flag_config()
+
+        refresh_consul.assert_called_once_with({})
+        refresh_redis.assert_called_once_with({})
+
+    def test_external_refresh_attempts_redis_when_consul_fails(self, mocker):
+        """单个后端失败不能阻止另一个后端刷新。"""
+        feature_flag = MagicMock()
+        feature_flag.flag_name = "must-vm-query"
+        feature_flag.to_config_dict.return_value = {"variations": {"Default": False}}
+        mocker.patch("metadata.models.feature_flag.FeatureFlag.objects.filter", return_value=[feature_flag])
+        mocker.patch.object(
+            FeatureFlagConfig,
+            "refresh_consul_feature_flag_config",
+            side_effect=RuntimeError("consul unavailable"),
+        )
+        refresh_redis = mocker.patch.object(FeatureFlagConfig, "refresh_redis_feature_flag_config")
+
+        FeatureFlag._refresh_external_config("must-vm-query", "saved")
+
+        refresh_redis.assert_called_once_with(
+            {"must-vm-query": {"variations": {"Default": False}}}
+        )
+
+    def test_partial_save_persists_updater_and_defers_refresh(self, mocker):
+        """部分更新必须持久化 updater，并在事务提交后刷新。"""
+        model_save = mocker.patch("django.db.models.Model.save")
+        on_commit = mocker.patch("metadata.models.feature_flag.transaction.on_commit")
+        feature_flag = FeatureFlag(flag_name="must-vm-query", config={})
+
+        feature_flag.save(operator="admin", update_fields={"config"})
+
+        assert feature_flag.updater == "admin"
+        assert model_save.call_args.kwargs["update_fields"] == {"config", "updater"}
+        on_commit.assert_called_once()
 
     def test_get_consul_feature_flag_config(self, sample_feature_flags, mock_consul):
         """测试从 Consul 读取特性开关配置"""

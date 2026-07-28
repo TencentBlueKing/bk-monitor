@@ -62,11 +62,15 @@ def refresh_consul_storage():
         task_name="refresh_consul_storage", status=TASK_STARTED, process_target=None
     ).inc()
     start_time = time.time()
-    try:
-        logger.info("start to refresh metadata es storage info")
-        models.ClusterInfo.refresh_consul_storage_config()
-    except Exception as e:
-        logger.error(f"refresh es storage failed for ->{e}")
+    for backend, refresher in (
+        ("consul", models.ClusterInfo.refresh_consul_storage_config),
+        ("redis", models.ClusterInfo.refresh_redis_storage_config),
+    ):
+        try:
+            logger.info("start to refresh metadata storage info to %s", backend)
+            refresher()
+        except Exception:
+            logger.exception("refresh metadata storage to %s failed", backend)
 
     cost_time = time.time() - start_time
 
