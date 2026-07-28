@@ -871,9 +871,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "namespace": "{{namespace}}",
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
-                    {% if data_link_strategy %},
-                    "bkm_data_link_strategy": "{{data_link_strategy}}"
-                    {% endif %}
                 }
             },
             "spec": {
@@ -916,7 +913,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "transforms": json.dumps(transforms),
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
-            "data_link_strategy": self.data_link_strategy,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -944,9 +940,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "namespace": "{{namespace}}",
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
-                    {% if data_link_strategy %},
-                    "bkm_data_link_strategy": "{{data_link_strategy}}"
-                    {% endif %}
                 }
             },
             "spec": {
@@ -988,7 +981,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "rules": json.dumps(rules),
             "data_id_name": self.data_id_name,
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
-            "data_link_strategy": self.data_link_strategy,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -1353,8 +1345,7 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
                 {% endif %}
                 "namespace": "{{namespace}}",
                 "labels": {
-                    "bk_biz_id": "{{bk_biz_id}}",
-                    "bkm_data_link_strategy": "graph_relation_time_series"
+                    "bk_biz_id": "{{bk_biz_id}}"
                 }
             },
             "spec": {
@@ -1479,9 +1470,6 @@ class GraphDataBusConfig(DataBusConfig):
                 "namespace": "{{namespace}}",
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
-                    {% if data_link_strategy %},
-                    "bkm_data_link_strategy": "{{data_link_strategy}}"
-                    {% endif %}
                 }
             },
             "spec": {
@@ -1514,7 +1502,6 @@ class GraphDataBusConfig(DataBusConfig):
             "data_id_name": self.data_id_name,
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
-            "data_link_strategy": self.data_link_strategy,
         }
 
         if settings.ENABLE_MULTI_TENANT_MODE:

@@ -795,8 +795,6 @@ def _is_graph_relation_rebuild(
     sink_map: dict[str, list[str]],
     rt_instances: Sequence[ResultTableConfig],
 ) -> bool:
-    if databus.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
-        return True
     if DataLinkKind.SURREALDBBINDING.value in sink_map:
         return True
     if DataLinkKind.VMSTORAGEBINDING.value not in sink_map:
@@ -1390,8 +1388,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         for databus_instance in databus_instances:
             databus_instance.data_link_name = data_link_name
             databus_instance.bk_data_id = data_source.bk_data_id
-            databus_instance.data_link_strategy = strategy if strategy == DataLink.GRAPH_RELATION_TIME_SERIES else ""
-            databus_instance.save(update_fields=["data_link_name", "bk_data_id", "data_link_strategy"])
+            databus_instance.save(update_fields=["data_link_name", "bk_data_id"])
 
         # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
         for instance in sink_instances:

@@ -4027,94 +4027,6 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_link_dry_r
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_marker_without_bkbase_rt():
-    table_id = "1001_bkmonitor_time_series_60211.__default__"
-    data_id_name = "graph_vm_only_marker_data"
-    bkbase_vmrt_id = "1001_graph_vm_only_marker_rt"
-    models.DataSource.objects.create(
-        bk_data_id=60211,
-        data_name=data_id_name,
-        mq_cluster_id=1,
-        mq_config_id=1,
-        etl_config="bk_standard_v2_time_series",
-        is_custom_source=False,
-        bk_tenant_id="system",
-    )
-    models.DataSourceResultTable.objects.create(
-        bk_data_id=60211,
-        table_id=table_id,
-        bk_tenant_id="system",
-    )
-    models.DataIdConfig.objects.create(
-        name=data_id_name,
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        bk_biz_id=1001,
-        bk_data_id=60211,
-    )
-    models.ClusterInfo.objects.create(
-        cluster_name="vm-marker",
-        cluster_type=models.ClusterInfo.TYPE_VM,
-        domain_name="marker.vm",
-        port=9090,
-        description="",
-        cluster_id=300101,
-        is_default_cluster=True,
-        version="2.x",
-        bk_tenant_id="system",
-    )
-    models.ResultTableConfig.objects.create(
-        name="graph_vm_only_marker_rt",
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        bk_biz_id=1001,
-        bkbase_table_id=bkbase_vmrt_id,
-    )
-    models.VMStorageBindingConfig.objects.create(
-        name="graph_vm_only_marker_binding",
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        bk_biz_id=1001,
-        bkbase_result_table_name="graph_vm_only_marker_rt",
-        vm_cluster_name="vm-marker",
-        table_id="",
-    )
-    models.DataBusConfig.objects.create(
-        name="graph_vm_only_marker_databus",
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        bk_biz_id=1001,
-        data_id_name=data_id_name,
-        bk_data_id=60211,
-        sink_names=[f"{DataLinkKind.VMSTORAGEBINDING.value}:graph_vm_only_marker_binding"],
-        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-    )
-
-    rebuild_bkbase_v4_datalink_relation(bk_tenant_id="system", namespace="bkmonitor", dry_run=False)
-
-    data_link = DataLink.objects.get()
-    assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
-    assert data_link.bk_data_id == 60211
-    assert data_link.table_ids == [table_id]
-    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
-    assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
-    assert graph_binding.vm_storage_binding_name == "graph_vm_only_marker_binding"
-    assert graph_binding.vm_databus_name == "graph_vm_only_marker_databus"
-    assert graph_binding.bkbase_result_table_name == "graph_vm_only_marker_rt"
-    assert graph_binding.graph_result_table_name == ""
-    assert DataBusConfig.objects.get(name="graph_vm_only_marker_databus").data_link_strategy == (
-        DataLink.GRAPH_RELATION_TIME_SERIES
-    )
-    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=data_link.data_link_name)
-    assert bkbase_rt.bkbase_data_name == data_id_name
-    assert bkbase_rt.monitor_table_id == table_id
-    assert bkbase_rt.storage_type == models.ClusterInfo.TYPE_VM
-    assert bkbase_rt.storage_cluster_id == 300101
-    assert bkbase_rt.bkbase_rt_name == "graph_vm_only_marker_rt"
-    assert bkbase_rt.bkbase_table_id == bkbase_vmrt_id
-
-
-@pytest.mark.django_db(databases="__all__")
 def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
     table_id = "1001_bkmonitor_time_series_60202.__default__"
     data_id_name = "graph_vm_only_rebuild_data"
@@ -4565,10 +4477,7 @@ def test_get_bkbase_components_config_extracts_databus_consumer_group():
         "metadata": {
             "name": "l_1575783",
             "namespace": "bkmonitor",
-            "labels": {
-                "bk_biz_id": "7",
-                "bkm_data_link_strategy": DataLink.GRAPH_RELATION_TIME_SERIES,
-            },
+            "labels": {"bk_biz_id": "7"},
         },
         "spec": {
             "sinks": [{"kind": "ElasticSearchBinding", "name": "l_1575783"}],
@@ -4589,7 +4498,6 @@ def test_get_bkbase_components_config_extracts_databus_consumer_group():
     assert extra_config["data_id_name"] == "l_1575783"
     assert extra_config["sink_names"] == ["ElasticSearchBinding:l_1575783"]
     assert extra_config["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
-    assert extra_config["data_link_strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
 
 
 def test_get_bkbase_components_config_defaults_databus_consumer_group():
@@ -4612,11 +4520,9 @@ def test_get_bkbase_components_config_defaults_databus_consumer_group():
     )
 
     assert extra_config["consumer_group"] == ""
-    assert extra_config["data_link_strategy"] == ""
 
 
 def test_should_update_bkbase_component_field_allows_selected_empty_values():
-    assert _should_update_bkbase_component_field(DataLinkKind.DATABUS.value, "data_link_strategy", "") is True
     assert _should_update_bkbase_component_field(DataLinkKind.SURREALDBBINDING.value, "vertices", []) is True
     assert _should_update_bkbase_component_field(DataLinkKind.SURREALDBBINDING.value, "relations", []) is True
     assert _should_update_bkbase_component_field(DataLinkKind.DATAID.value, "bk_data_id", 0) is False

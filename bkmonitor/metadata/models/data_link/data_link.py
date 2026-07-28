@@ -660,7 +660,6 @@ class DataLink(models.Model):
                         # SurrealDB 分支必须使用独立消费组，避免与 VM Databus
                         # 竞争同一 Kafka 分区；同时清理早期错误写入的共享值。
                         "consumer_group": "",
-                        "data_link_strategy": self.data_link_strategy,
                     },
                 )
 
@@ -1630,7 +1629,6 @@ class DataLink(models.Model):
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
-                    "data_link_strategy": self.data_link_strategy,
                 },
             )
             data_bus_ins.apply_consumer_group(consumer_group)

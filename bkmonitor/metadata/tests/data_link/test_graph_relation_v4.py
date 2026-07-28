@@ -193,6 +193,7 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
 
     assert ctx["data_link"].get_related_component_classes() == expected_component_classes
     assert [config["kind"] for config in configs] == expected_kinds
+    assert all("bkm_data_link_strategy" not in config["metadata"]["labels"] for config in configs)
     assert not GraphRelationBindingConfig.objects.filter(data_link_name=ctx["data_link"].data_link_name).exists()
     if "surrealdb" in write_targets:
         graph_databus = next(
