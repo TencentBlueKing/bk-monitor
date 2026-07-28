@@ -506,6 +506,58 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
     ).exists()
 
 
+def test_apply_graph_relation_v4_surrealdb_only_preserves_existing_vm_record(
+    mocker,
+    graph_relation_v4_records,
+):
+    from metadata.task.datalink import apply_graph_relation_v4_datalink
+
+    ctx = graph_relation_v4_records
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    models.DataIdConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="bkm_graph_relation_v4_metric",
+        bk_biz_id=2,
+        bk_data_id=ctx["data_source"].bk_data_id,
+        status=DataLinkResourceStatus.OK.value,
+    )
+    vm_record = models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=ctx["table_id"],
+        storage_cluster_id=165001,
+        vm_cluster_id=165001,
+        bk_base_data_id=75001,
+        bk_base_data_name="legacy_graph_relation_data",
+        vm_result_table_id="2_legacy_graph_relation_vm_rt",
+        remark="preserve vm branch identity",
+    )
+    original_vm_identity = {
+        "storage_cluster_id": vm_record.storage_cluster_id,
+        "vm_cluster_id": vm_record.vm_cluster_id,
+        "bk_base_data_id": vm_record.bk_base_data_id,
+        "bk_base_data_name": vm_record.bk_base_data_name,
+        "vm_result_table_id": vm_record.vm_result_table_id,
+        "remark": vm_record.remark,
+    }
+    mocker.patch.object(DataLink, "apply_data_link")
+    mocker.patch.object(DataLink, "sync_metadata")
+
+    apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+
+    assert (
+        models.AccessVMRecord.objects.filter(pk=vm_record.pk).values(*original_vm_identity).get()
+        == original_vm_identity
+    )
+
+
 def test_apply_graph_relation_v4_reuses_legacy_graph_datalink(mocker, graph_relation_v4_records):
     from metadata.task.datalink import apply_graph_relation_v4_datalink
 

@@ -185,8 +185,10 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
     primary_cluster = vm_cluster if vm_cluster else surrealdb_storage.storage_cluster
     datalink.sync_metadata(table_id=table_id, storage_cluster_id=primary_cluster.cluster_id)
 
-    # 6. AccessVMRecord 只描述 VM 接入结果：VM 单写/双写时回填，切换为
-    # SurrealDB-only 时删除旧记录，避免后续流程误判该 RT 仍有 VM 主链路。
+    # 6. AccessVMRecord 同时承载 VM 分支的历史接入身份：VM 单写/双写时回填；
+    # SurrealDB-only 不新建也不删除已有记录，以便后续切回 VM 时继续复用原
+    # VM 集群和结果表名称。当前实际主存储仍以 BkBaseResultTable.storage_type
+    # 及 ResultTableOption 为准，不由 AccessVMRecord 是否存在决定。
     if option.should_write_vm and vm_cluster:
         bkbase_rt = BkBaseResultTable.objects.get(
             bk_tenant_id=bk_tenant_id,
@@ -212,11 +214,6 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
                 result_table_id=table_id,
                 **vm_record_values,
             )
-    else:
-        AccessVMRecord.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            result_table_id=table_id,
-        ).delete()
 
     # 7. 非 BKData 数据源已经切换到 BKBase DataBus 消费，清理旧 Transfer
     # Consul 配置，保持与普通 VM V4 接入流程一致。
