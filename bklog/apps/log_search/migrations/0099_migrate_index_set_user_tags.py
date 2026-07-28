@@ -14,6 +14,7 @@ def migrate_index_set_user_tags(apps, schema_editor):
     user_tags_by_id = {str(tag["tag_id"]): tag for tag in user_tags}
 
     index_sets = LogIndexSet.objects.filter(is_deleted=False).exclude(space_uid="")
+    target_tag_id_map = {}
     index_sets_to_update = []
     for index_set in index_sets.iterator(chunk_size=500):
         old_tag_ids = [str(tag_id) for tag_id in index_set.tag_ids if tag_id]
@@ -28,14 +29,20 @@ def migrate_index_set_user_tags(apps, schema_editor):
                 new_tag_ids.append(tag_id)
                 continue
 
-            target_tag, _ = IndexSetTag.objects.get_or_create(
-                space_uid=index_set.space_uid,
-                name=tag["name"],
-                value=tag["value"],
-                tag_type=TAG_TYPE_USER,
-                defaults={"color": tag["color"]},
-            )
-            new_tag_ids.append(str(target_tag.tag_id))
+            space_and_source_tag_id = (index_set.space_uid, tag_id)
+            target_tag_id = target_tag_id_map.get(space_and_source_tag_id)
+            if target_tag_id is None:
+                target_tag, _ = IndexSetTag.objects.get_or_create(
+                    space_uid=index_set.space_uid,
+                    name=tag["name"],
+                    value=tag["value"],
+                    tag_type=TAG_TYPE_USER,
+                    defaults={"color": tag["color"]},
+                )
+                target_tag_id = str(target_tag.tag_id)
+                target_tag_id_map[space_and_source_tag_id] = target_tag_id
+
+            new_tag_ids.append(target_tag_id)
             changed = True
 
         # 同一个索引集可能引用多个最终映射到同一空间标签的全局标签，
