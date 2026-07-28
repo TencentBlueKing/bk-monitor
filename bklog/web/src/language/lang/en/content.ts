@@ -158,6 +158,7 @@ export default {
   无匹配的数据: 'No matching data',
   业务独享集群: 'Business exclusive cluster',
   ES集群管理: 'ES cluster management',
+  Doris集群管理: 'Doris cluster management',
   一键拉群功能: 'WeCom',
   请选择群成员: 'Select group members',
   搜索拓扑节点: 'Search topology nodes',
@@ -456,6 +457,7 @@ export default {
     'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
   '已加载完全部数据，如需查看更多查询条件可以{0}':
     'All data has been loaded, if more query conditions are needed, please {0}',
+  '已加载全部数据 ({n} 个字段)': 'All data loaded ({n} fields)',
   '2. 将keytab放es每个节点对应的目录中去': '2. Put the keytab in the directory corresponding to each node of ES',
   每15分钟按照CMDB最新拓扑自动部署或取消采集:
     'Automatically deploy or cancel collection every 15 minutes based on the latest topology in CMDB',
@@ -1399,4 +1401,5 @@ export default {
   '关联空间的索引集，无法编辑': 'Index sets from associated spaces cannot be edited',
   '请{0}编辑。': 'Please edit {0}.',
   前往对应的空间: 'Go to the corresponding space',
+  当前租户可见: 'Visible to current tenants',
 };

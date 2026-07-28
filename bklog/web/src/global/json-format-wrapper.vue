@@ -76,7 +76,7 @@
         v-else-if="totalKeys > pageSize"
         class="json-load-complete"
       >
-        <span>{{ $t('已加载全部数据 ({total} 个字段)', { total: totalKeys }) }}</span>
+        <span>{{ $t('已加载全部数据 ({n} 个字段)', { n: totalKeys }) }}</span>
       </div>
     </div>
   </ShadowWrapper>
