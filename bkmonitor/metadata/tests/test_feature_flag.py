@@ -175,6 +175,7 @@ class TestFeatureFlagConfig:
 
     def test_external_refresh_attempts_redis_when_consul_fails(self, mocker):
         """单个后端失败不能阻止另一个后端刷新。"""
+        mocker.patch.object(FeatureFlag, "_publication_lock", return_value=MagicMock())
         feature_flag = MagicMock()
         feature_flag.flag_name = "must-vm-query"
         feature_flag.to_config_dict.return_value = {"variations": {"Default": False}}

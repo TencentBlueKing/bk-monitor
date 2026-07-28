@@ -780,7 +780,7 @@ class ClusterInfo(models.Model):
             return {}
 
     @classmethod
-    def get_all_consul_storage_config(cls) -> dict:
+    def get_all_consul_storage_config(cls, raise_on_error: bool = False) -> dict:
         """
         从 Consul 读取所有存储集群配置
 
@@ -848,14 +848,17 @@ class ClusterInfo(models.Model):
 
                         all_configs[str(cluster_id)] = config
                 except Exception as e:  # pylint: disable=broad-except
-                    # 单个集群读取失败，记录日志但继续处理其他集群
                     logger.debug(f"get consul storage config error, cluster_id->[{cluster_id}], error->[{e}]")
+                    if raise_on_error:
+                        raise
                     continue
 
             return all_configs
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"get all consul storage config error, error->[{e}]")
+            if raise_on_error:
+                raise
             return {}
 
     def base64_with_prefix(self, content: str | None) -> str | None:

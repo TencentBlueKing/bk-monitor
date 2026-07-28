@@ -12,17 +12,20 @@ import hashlib
 import json
 import logging
 import re
+import threading
 import time
+from contextlib import contextmanager
 from typing import Any
 
 from django.conf import settings
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from metadata import config
 from metadata.utils import consul_tools
 from metadata.utils.redis_tools import RedisTools
 from bkmonitor.utils.db.fields import JsonField
 
 logger = logging.getLogger("metadata")
+feature_flag_publication_thread_lock = threading.Lock()
 
 
 class FeatureFlagQuerySet(models.QuerySet):
@@ -55,6 +58,7 @@ class FeatureFlag(models.Model):
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     objects = FeatureFlagQuerySet.as_manager()
+    PUBLICATION_LOCK_NAME = "metadata_feature_flag_publication"
 
     class Meta:
         db_table = "metadata_featureflag"
@@ -75,29 +79,50 @@ class FeatureFlag(models.Model):
         return self.config if isinstance(self.config, dict) else {}
 
     @classmethod
+    @contextmanager
+    def _publication_lock(cls):
+        """在进程内及 MySQL 多进程间串行发布，且不依赖作为同步目标的 Redis。"""
+        with feature_flag_publication_thread_lock:
+            if connection.vendor != "mysql":
+                yield
+                return
+
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT GET_LOCK(%s, %s)", [cls.PUBLICATION_LOCK_NAME, 60])
+                acquired = cursor.fetchone()[0]
+                if acquired != 1:
+                    raise RuntimeError("timed out acquiring feature flag publication lock")
+                try:
+                    yield
+                finally:
+                    cursor.execute("SELECT RELEASE_LOCK(%s)", [cls.PUBLICATION_LOCK_NAME])
+
+    @classmethod
     def _refresh_external_config(cls, flag_name: str, action: str) -> None:
         """事务提交后将数据库快照分别同步到 Consul 和 Redis。"""
-        feature_flags = {}
-        for feature_flag in cls.objects.filter(is_enabled=True):
-            config_dict = feature_flag.to_config_dict()
-            if config_dict:
-                feature_flags[feature_flag.flag_name] = config_dict
+        # 多进程事务回调必须串行：持锁后再读取数据库，保证最后发布的一定是最新已提交快照。
+        with cls._publication_lock():
+            feature_flags = {}
+            for feature_flag in cls.objects.filter(is_enabled=True):
+                config_dict = feature_flag.to_config_dict()
+                if config_dict:
+                    feature_flags[feature_flag.flag_name] = config_dict
 
-        failed_backends = []
-        for backend, refresher in (
-            ("consul", FeatureFlagConfig.refresh_consul_feature_flag_config),
-            ("redis", FeatureFlagConfig.refresh_redis_feature_flag_config),
-        ):
-            try:
-                refresher(feature_flags)
-            except Exception:  # pylint: disable=broad-except
-                failed_backends.append(backend)
-                logger.exception(
-                    "refresh feature flag config to %s failed after %s, flag_name->[%s]",
-                    backend,
-                    action,
-                    flag_name,
-                )
+            failed_backends = []
+            for backend, refresher in (
+                ("consul", FeatureFlagConfig.refresh_consul_feature_flag_config),
+                ("redis", FeatureFlagConfig.refresh_redis_feature_flag_config),
+            ):
+                try:
+                    refresher(feature_flags)
+                except Exception:  # pylint: disable=broad-except
+                    failed_backends.append(backend)
+                    logger.exception(
+                        "refresh feature flag config to %s failed after %s, flag_name->[%s]",
+                        backend,
+                        action,
+                        flag_name,
+                    )
 
         if failed_backends:
             logger.error(

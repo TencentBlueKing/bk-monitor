@@ -3559,7 +3559,7 @@ class GetConsulStorageConfigResource(Resource):
         try:
             # 如果没有提供 cluster_id，返回所有配置
             if cluster_id is None:
-                all_configs = ClusterInfo.get_all_consul_storage_config()
+                all_configs = ClusterInfo.get_all_consul_storage_config(raise_on_error=True)
 
                 if not all_configs:
                     return {

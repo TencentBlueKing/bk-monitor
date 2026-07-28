@@ -393,3 +393,13 @@ class TestRefreshRedisStorage:
         assert "2" in all_configs
         assert all_configs["1"]["type"] == "influxdb"
         assert all_configs["2"]["type"] == "kafka"
+
+    def test_get_all_consul_storage_config_can_propagate_partial_failure(self, mocker):
+        """批量诊断中任一 Consul 读取失败都不能伪装成成功的部分结果。"""
+        consul_client = MagicMock()
+        consul_client.get.side_effect = RuntimeError("consul unavailable")
+        mocker.patch("metadata.models.storage.consul_tools.HashConsul", return_value=consul_client)
+        mocker.patch("metadata.models.storage.ClusterInfo.objects.values_list", return_value=[1])
+
+        with pytest.raises(RuntimeError, match="consul unavailable"):
+            ClusterInfo.get_all_consul_storage_config(raise_on_error=True)
