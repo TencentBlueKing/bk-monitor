@@ -23,7 +23,7 @@ from typing import Any
 import arrow
 import xxhash
 from django.conf import settings
-from django.db import transaction
+from django.db import router, transaction
 from django.db.models import Model, QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -3076,8 +3076,15 @@ class Strategy(AbstractConfig):
 
     @classmethod
     def delete_by_strategy_ids(cls, strategy_ids: list[int]):
+        with transaction.atomic(using=router.db_for_write(StrategyModel)):
+            return cls._delete_by_strategy_ids(strategy_ids)
+
+    @classmethod
+    def _delete_by_strategy_ids(cls, strategy_ids: list[int]):
         """
         批量删除策略
+
+        删除与成功历史写入放在同一事务中，避免中途失败后主表已删但无删除历史。
         """
         from bkmonitor.models.issue import StrategyIssueConfig
 
@@ -3088,10 +3095,9 @@ class Strategy(AbstractConfig):
                     create_user=cls._get_username(),
                     strategy_id=strategy_id,
                     operate="delete",
+                    status=True,
                 )
             )
-        StrategyHistoryModel.objects.bulk_create(histories, batch_size=100)
-
         StrategyModel.objects.filter(id__in=strategy_ids).delete()
         RelationModel.objects.filter(strategy_id__in=strategy_ids).delete()
         DetectModel.objects.filter(strategy_id__in=strategy_ids).delete()
@@ -3100,6 +3106,8 @@ class Strategy(AbstractConfig):
         QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).delete()
         StrategyLabel.objects.filter(strategy_id__in=strategy_ids).delete()
         StrategyIssueConfig.objects.filter(strategy_id__in=strategy_ids).delete()
+
+        StrategyHistoryModel.objects.bulk_create(histories, batch_size=100)
 
     @classmethod
     def from_models(cls, strategies: list[StrategyModel] | QuerySet) -> list["Strategy"]:
