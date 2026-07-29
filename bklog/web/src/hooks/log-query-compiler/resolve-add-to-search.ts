@@ -25,12 +25,17 @@ export type AddToSearchInput = {
   /** ui | sql；也可传 storage SEARCH_TYPE 对应的 dic 值 */
   searchMode: AddToSearchMode;
   /**
-   * 语句模式是否转义 ES/Query String 保留字符。
+   * 语句模式是否转义 ES/Query String 保留字符（wildcard 路径）。
    * - true：划词弹层「添加到本次检索」
-   * - false：点击分词（添加到本次检索 / 新建检索等）
+   * - false：点击分词
    * 默认 true（兼容旧调用）。
    */
   escape?: boolean;
+  /**
+   * 语句模式 Value 完全匹配：输出 KEY: "{value}"（引号短语）。
+   * 点击分词（添加到本次检索 / 新建检索）为 true；划词为 false（通配逻辑）。
+   */
+  exactPhrase?: boolean;
 };
 
 export type AddToSearchPayload = {
@@ -78,11 +83,12 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
   const tokenCount = input.tokenCount ?? (isSoleToken ? 1 : undefined);
   const tokenIndex = input.tokenIndex ?? (isSoleToken ? 0 : undefined);
 
-  // 仅划词路径显式 escape:true；点击分词传 false（仍保留通配位置）
+  // 划词：escape + 通配；点击分词：exactPhrase → KEY: "{value}"
   const shouldEscape = input.escape !== false;
+  const exactPhrase = Boolean(input.exactPhrase);
 
   if (isFulltext) {
-    const inner = shouldEscape ? escapeQueryStringPhraseLiteral(value) : value;
+    const inner = shouldEscape || exactPhrase ? escapeQueryStringPhraseLiteral(value) : value;
     if (input.searchMode === 'sql') {
       return {
         field: '*',
@@ -99,6 +105,19 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
       value: [value],
       fieldType,
       fullPlain,
+    };
+  }
+
+  // 点击分词语句模式：完全匹配短语，与划词通配路径分离
+  if (input.searchMode === 'sql' && exactPhrase) {
+    const inner = escapeQueryStringPhraseLiteral(value);
+    return {
+      field,
+      operator: operatorHint,
+      value: [value],
+      fieldType,
+      fullPlain,
+      queryString: negative ? `NOT ${field}: "${inner}"` : `${field}: "${inner}"`,
     };
   }
 
