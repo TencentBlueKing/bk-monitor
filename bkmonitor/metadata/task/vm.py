@@ -23,7 +23,7 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(ttl=3600, identify="metadata_check_access_vm_task")
-def check_access_vm_task(only_v4=False):
+def check_access_vm_task(only_v4=True):
     """检测遗漏或者失败的接入 vm 的结果表
 
     NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
