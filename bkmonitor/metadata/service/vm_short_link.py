@@ -30,7 +30,7 @@ logger = logging.getLogger("metadata")
 SHORT_LINK_BK_DATA_ID = 0
 DEFAULT_OPERATOR = "system"
 DATA_LABEL_MAX_LENGTH = 128
-DATA_LABEL_PATTERN = re.compile(r"^[a-z][a-z0-9_.:]*$")
+DATA_LABEL_PATTERN = re.compile(r"^[a-z0-9._]+$")
 
 
 def _get_space_info_by_biz_id(bk_tenant_id: str, bk_biz_id: int) -> tuple[str, str]:
