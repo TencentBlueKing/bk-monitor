@@ -88,6 +88,9 @@ class SceneAsyncExportHandler:
             ).exists():
                 raise DuplicateUnifyQueryExportException()
 
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user, is_scene=True)
+
         result = self.scene_handler.pre_get_result(
             sorted_fields=self.scene_handler.origin_order_by,
             size=1000,

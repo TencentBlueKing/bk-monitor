@@ -28,7 +28,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from apps.log_search.constants import ExportStatus, ExportType, IndexSetType
-from apps.log_search.exceptions import AsyncExportTaskNotDownloadableException
+from apps.log_search.exceptions import AsyncExportTaskNotDownloadableException, ConcurrentExportLimitException
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, Scenario
@@ -390,3 +390,109 @@ class TestAsyncExportProgress(TestCase):
             total_count = handler.get_union_export_total_count(request_size=100)
 
         self.assertEqual(total_count, 30)
+
+
+class TestAsyncTaskConcurrentLimit(TestCase):
+    """测试 AsyncTask.check_running_count_by_user 限流逻辑"""
+
+    def setUp(self):
+        self.username = "test_user"
+        self.other_username = "other_user"
+        self.common_params = {
+            "request_param": SEARCH_DICT,
+            "index_set_id": 3,
+            "bk_biz_id": 2,
+            "start_time": SEARCH_DICT["start_time"],
+            "end_time": SEARCH_DICT["end_time"],
+            "export_type": ExportType.ASYNC,
+        }
+
+    def _create_running_task(self, created_by, scenario_id=None, export_status=ExportStatus.DOWNLOAD_LOG):
+        return AsyncTask.objects.create(
+            created_by=created_by,
+            scenario_id=scenario_id,
+            export_status=export_status,
+            **self.common_params,
+        )
+
+    # ---- 非场景分组 ----
+
+    def test_non_scene_under_limit_does_not_raise(self):
+        """未达上限时不抛异常"""
+        self._create_running_task(self.username, scenario_id=Scenario.LOG)
+        # 不应抛异常
+        AsyncTask.check_running_count_by_user(self.username)
+
+    def test_non_scene_at_limit_raises(self):
+        """达到上限时抛出 ConcurrentExportLimitException"""
+        for i in range(3):
+            self._create_running_task(self.username, scenario_id=Scenario.LOG)
+        with self.assertRaises(ConcurrentExportLimitException):
+            AsyncTask.check_running_count_by_user(self.username)
+
+    def test_null_export_status_counts_as_running(self):
+        """export_status 为 NULL 时也算正在运行"""
+        self._create_running_task(self.username, scenario_id=Scenario.LOG, export_status=ExportStatus.DOWNLOAD_LOG)
+        self._create_running_task(self.username, scenario_id=Scenario.LOG, export_status=ExportStatus.EXPORT_PACKAGE)
+        # export_status=NULL
+        AsyncTask.objects.create(
+            created_by=self.username,
+            scenario_id=Scenario.LOG,
+            export_status=None,
+            **self.common_params,
+        )
+        with self.assertRaises(ConcurrentExportLimitException):
+            AsyncTask.check_running_count_by_user(self.username)
+
+    def test_different_users_are_isolated(self):
+        """不同用户的任务互不影响"""
+        for i in range(3):
+            self._create_running_task(self.other_username, scenario_id=Scenario.LOG)
+        # other_user 已满，但 test_user 不受影响
+        AsyncTask.check_running_count_by_user(self.username)
+
+    # ---- 场景分组 ----
+
+    def test_scene_under_limit_does_not_raise(self):
+        """场景分组未达上限时不抛异常"""
+        self._create_running_task(self.username, scenario_id="scene")
+        AsyncTask.check_running_count_by_user(self.username, is_scene=True)
+
+    def test_scene_at_limit_raises(self):
+        """场景分组达到上限时抛出异常"""
+        for i in range(3):
+            self._create_running_task(self.username, scenario_id="scene")
+        with self.assertRaises(ConcurrentExportLimitException):
+            AsyncTask.check_running_count_by_user(self.username, is_scene=True)
+
+    # ---- 分组隔离 ----
+
+    def test_scene_and_non_scene_are_independent(self):
+        """场景和非场景分组独立计数，互不影响"""
+        # 非场景已满
+        for i in range(3):
+            self._create_running_task(self.username, scenario_id=Scenario.LOG)
+        # 场景分组不受影响
+        AsyncTask.check_running_count_by_user(self.username, is_scene=True)
+
+        # 反过来：场景已满
+        for i in range(3):
+            self._create_running_task(self.other_username, scenario_id="scene")
+        # 非场景不受影响
+        AsyncTask.check_running_count_by_user(self.other_username)
+
+    def test_scene_tasks_do_not_affect_non_scene_limit(self):
+        """场景任务不计入非场景分组的限流"""
+        for i in range(3):
+            self._create_running_task(self.username, scenario_id="scene")
+        # scene 任务不会让 non-scene 超限
+        AsyncTask.check_running_count_by_user(self.username, is_scene=False)
+
+    # ---- override_settings ----
+
+    def test_override_settings_changes_limit(self):
+        """override_settings 可以动态修改并发上限"""
+        self._create_running_task(self.username, scenario_id=Scenario.LOG)
+        with self.settings(MAX_CONCURRENT_EXPORT_TASKS=1):
+            with self.assertRaises(ConcurrentExportLimitException):
+                AsyncTask.check_running_count_by_user(self.username)

@@ -105,7 +105,6 @@ from bkm_space.api import AbstractSpaceApi
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
-from config.default import MAX_CONCURRENT_EXPORT_TASKS
 
 
 class GlobalConfig(models.Model):
@@ -1553,20 +1552,25 @@ class AsyncTask(OperateRecordModel):
     )
 
     @classmethod
-    def check_running_count_by_user(cls, username: str):
+    def check_running_count_by_user(cls, username: str, is_scene: bool = False):
         running_status = [
             ExportStatus.DOWNLOAD_LOG,
             ExportStatus.EXPORT_PACKAGE,
             ExportStatus.EXPORT_UPLOAD,
         ]
+        qs = cls.objects.filter(created_by=username)
+
+        if is_scene:
+            qs = qs.filter(scenario_id="scene")
+        else:
+            qs = qs.exclude(scenario_id="scene")
+
         if (
-            cls.objects.filter(created_by=username)
-            .filter(Q(export_status__in=running_status) | Q(export_status__isnull=True))
-            .count()
-            >= MAX_CONCURRENT_EXPORT_TASKS
+            qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
+            >= settings.MAX_CONCURRENT_EXPORT_TASKS
         ):
             raise ConcurrentExportLimitException(
-                ConcurrentExportLimitException.MESSAGE.format(limit_count=MAX_CONCURRENT_EXPORT_TASKS)
+                ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)
             )
 
     class Meta:
