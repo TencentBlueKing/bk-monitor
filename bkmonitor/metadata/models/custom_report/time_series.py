@@ -445,7 +445,10 @@ class TimeSeriesGroup(CustomGroupBase):
     def bulk_refresh_rt_fields(self, table_id: str, metric_info: list):
         """批量刷新结果表打平的指标和维度"""
         # 根据 field_name 聚合 metric_info，合并不同 scope 下的指标维度
-        aggregated_metrics = defaultdict(lambda: {"tag_value_list": {}, "tag_list": [], "is_active": False})
+        # tag_map 仅用于聚合过程中的 O(1) 查找，输出前会剔除
+        aggregated_metrics: dict[str, Any] = defaultdict(
+            lambda: {"tag_value_list": {}, "tag_list": [], "tag_map": {}, "is_active": False}
+        )
 
         for item in metric_info:
             field_name = item.get("field_name")
@@ -477,23 +480,24 @@ class TimeSeriesGroup(CustomGroupBase):
                         "values": list(new_values),
                     }
 
-            # 合并插件配置传入的 tag_list，保留第一个非空描述
-            aggregated_tag_map = {
-                tag["field_name"]: tag for tag in aggregated_metric["tag_list"] if tag.get("field_name")
-            }
+            # 合并插件配置传入的 tag_list，保留第一个非空描述；tag_map 跨 scope 复用
+            tag_map = aggregated_metric["tag_map"]
             for tag in item.get("tag_list") or []:
-                tag_name = tag.get("field_name")
+                tag_name: str | None = tag.get("field_name")
                 if not tag_name:
                     continue
-                if tag_name not in aggregated_tag_map:
+                if tag_name not in tag_map:
                     aggregated_tag = dict(tag)
                     aggregated_metric["tag_list"].append(aggregated_tag)
-                    aggregated_tag_map[tag_name] = aggregated_tag
-                elif not aggregated_tag_map[tag_name].get("description") and tag.get("description"):
-                    aggregated_tag_map[tag_name]["description"] = tag["description"]
+                    tag_map[tag_name] = aggregated_tag
+                elif not tag_map[tag_name].get("description") and tag.get("description"):
+                    tag_map[tag_name]["description"] = tag["description"]
 
-        # 将聚合后的数据转换为列表
-        metric_info = list(aggregated_metrics.values())
+        # 将聚合后的数据转换为列表，并移除内部辅助字段
+        metric_info = []
+        for aggregated_metric in aggregated_metrics.values():
+            aggregated_metric.pop("tag_map", None)
+            metric_info.append(aggregated_metric)
 
         # 创建或更新
         metric_tag_info = self._refine_metric_tags(metric_info)
