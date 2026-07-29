@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -57,6 +57,15 @@ export default defineComponent({
     const isFormatDate = computed(() => store.state.isFormatDate);
 
     const sortStatus = ref<undefined | 'asc' | 'desc'>(undefined);
+
+    // 切换检索模式时，重置排序状态
+    watch(
+      () => store.state.indexItem?.retrieve_type,
+      () => {
+        sortStatus.value = undefined;
+        store.commit('updateState', { dateTimeSort: false, dateTimeSortList: [] });
+      },
+    );
 
     const userSortFields = computed(() => store.state.indexFieldInfo?.user_custom_config?.sortList ?? []);
     const defaultSortFields = computed(() =>
