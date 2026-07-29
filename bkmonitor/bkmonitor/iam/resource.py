@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from iam import Resource
 
 from bk_dataview.api import get_org_by_id
-from bk_dataview.models import Dashboard
+from bk_dataview.models import Dashboard, Org
 from bkm_space.utils import api as space_api
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from bkmonitor.utils.cache import lru_cache_with_ttl
@@ -28,11 +28,16 @@ class ResourceMeta(metaclass=abc.ABCMeta):
     资源定义
     """
 
+    # === IAM 资源元数据声明 ===
     system_id: str = ""
     id: str = ""
     name: str = ""
     selection_mode: str = ""
     related_instance_selections: list = ""
+
+    # === 资源拓扑关系 ===
+    # 父资源类型；顶级资源为 None。
+    parent_resource: type["ResourceMeta"] | None = None
 
     @classmethod
     def to_json(cls):
@@ -61,6 +66,23 @@ class ResourceMeta(metaclass=abc.ABCMeta):
         """
         return cls.create_simple_instance(instance_id, attribute)
 
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {instance_id: parent_instance_id}。
+
+        注意：
+          - “是否有父资源”这一模型层信息，请通过 `parent_resource` 类属性判断，
+            不要用“本方法是否返回空”来隐式判断。
+          - 顶级资源（parent_resource is None）不应重写本方法，保持默认返回 {}。
+          - 非顶级资源子类应重写本方法，返回本实例到父实例 id 的批量映射。
+        """
+        return {}
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {instance_id: display_name}。子类重写。"""
+        return {}
+
 
 class Business(ResourceMeta):
     """
@@ -72,6 +94,9 @@ class Business(ResourceMeta):
     name = _lazy("空间")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "space_list"}]
+
+    # 顶级资源：无父资源
+    parent_resource = None
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
@@ -107,6 +132,62 @@ class Business(ResourceMeta):
         resource = cls.create_simple_instance(instance_id, attribute)
         return resource
 
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {bk_biz_id: "[空间类型中文] 空间名"}。
+
+        注意 instance_id 是 bk_biz_id 字符串，与 metadata.Space 的映射规则如下
+        （见 bkm_space.utils.space_uid_to_bk_biz_id / Space.get_bk_biz_id）：
+          - CMDB 业务(bkcc): bk_biz_id = int(Space.space_id)，为正数；
+          - 其他类型空间: bk_biz_id = -Space.pk，为负数。
+        因此需要按正/负数分别用不同字段回查；并且正数分支必须限定
+        space_type_id=bkcc，避免与其他类型下同值 space_id 的记录发生串扰。
+        """
+        from metadata.models import Space, SpaceType
+        from metadata.models.space.constants import SpaceTypes
+
+        if not instance_ids:
+            return {}
+
+        positive_ids: set[str] = set()
+        negative_pks: set[int] = set()
+        for raw in instance_ids:
+            try:
+                v = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if v > 0:
+                positive_ids.add(str(v))
+            elif v < 0:
+                negative_pks.add(-v)
+
+        if not positive_ids and not negative_pks:
+            return {}
+
+        # 空间类型中文名映射（type_id -> type_name），用于拼接展示名前缀。
+        type_name_map = dict(SpaceType.objects.values_list("type_id", "type_name"))
+
+        result: dict[str, str] = {}
+
+        if positive_ids:
+            # CMDB 业务：以 space_id 反查，必须限定 bkcc 类型避免串扰。
+            qs = Space.objects.filter(
+                space_type_id=SpaceTypes.BKCC.value,
+                space_id__in=positive_ids,
+            ).values("space_id", "space_type_id", "space_name")
+            for row in qs:
+                type_display = type_name_map.get(row["space_type_id"], row["space_type_id"])
+                result[str(row["space_id"])] = f"[{type_display}] {row['space_name']}"
+
+        if negative_pks:
+            # 非 CMDB 空间：以主键 pk 反查，bk_biz_id = -pk。
+            qs = Space.objects.filter(id__in=negative_pks).values("id", "space_type_id", "space_name")
+            for row in qs:
+                type_display = type_name_map.get(row["space_type_id"], row["space_type_id"])
+                result[str(-row["id"])] = f"[{type_display}] {row['space_name']}"
+
+        return result
+
 
 class ApmApplication(ResourceMeta):
     system_id = settings.BK_IAM_SYSTEM_ID
@@ -114,6 +195,9 @@ class ApmApplication(ResourceMeta):
     name = _lazy("APM应用")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "apm_application_list_v2"}]
+
+    # 父资源：CMDB 业务/空间
+    parent_resource = Business
 
     @classmethod
     def create_instance_by_info(cls, item: dict) -> Resource:
@@ -161,6 +245,24 @@ class ApmApplication(ResourceMeta):
         }
         return resource
 
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        from apm_web.models import Application
+
+        if not instance_ids:
+            return {}
+        qs = Application.objects.filter(application_id__in=instance_ids).values("application_id", "app_name")
+        return {str(row["application_id"]): row["app_name"] for row in qs}
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        from apm_web.models import Application
+
+        if not instance_ids:
+            return {}
+        qs = Application.objects.filter(application_id__in=instance_ids).values("application_id", "bk_biz_id")
+        return {str(row["application_id"]): str(row["bk_biz_id"]) for row in qs if row["bk_biz_id"] is not None}
+
 
 class GrafanaDashboard(ResourceMeta):
     system_id = settings.BK_IAM_SYSTEM_ID
@@ -168,6 +270,9 @@ class GrafanaDashboard(ResourceMeta):
     name = _lazy("Grafana仪表盘")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "grafana_dashboard_list"}]
+
+    # 父资源：CMDB 业务/空间
+    parent_resource = Business
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
@@ -188,6 +293,91 @@ class GrafanaDashboard(ResourceMeta):
         }
         return resource
 
+    # Grafana 前端约定：dashboard.folder_id=0 表示"未挂在任何目录下"，
+    # 在 UI 上会显示到一个名为 "General" 的虚拟目录（DB 里并不存在这条 folder 记录）。
+    GENERAL_FOLDER_NAME = "General"
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {instance_id: display_name}。
+
+        instance_id 只有两种形态：
+          - Dashboard: "{org_id}|{uid}"
+          - Folder:    "folder:{org_id}|{folder_id}"
+
+        展示名与权限中心侧 GrafanaDashboardProvider 保持一致：
+          - Folder:    "[目录] {folder_title}"
+          - Dashboard: "[仪表盘] {folder_title}/{dashboard_title}"
+                       dashboard.folder_id=0 或对应 folder 查不到时，
+                       folder_title 兜底为 "General"（Grafana 虚拟目录）。
+        """
+        if not instance_ids:
+            return {}
+
+        # 在解析阶段就建立 uid/folder_id 到 raw_id 列表的反查映射，
+        # 避免后续在数据库结果与 instance_ids 之间做 O(N*M) 的双层循环匹配。
+        uid_to_raw_ids: dict[str, list[str]] = {}
+        folder_id_to_raw_ids: dict[int, list[str]] = {}
+        for raw_id in instance_ids:
+            prefix, sep, suffix = raw_id.partition("|")
+            if not sep:
+                continue
+            if prefix.startswith("folder:"):
+                try:
+                    folder_id_to_raw_ids.setdefault(int(suffix), []).append(raw_id)
+                except (ValueError, TypeError):
+                    continue
+            else:
+                if suffix:
+                    uid_to_raw_ids.setdefault(suffix, []).append(raw_id)
+
+        result: dict[str, str] = {}
+
+        # Dashboard 分支：额外拼上所在 folder 的名称（folder_id=0 或查不到时兜底为 General）
+        if uid_to_raw_ids:
+            dashboards = list(
+                Dashboard.objects.filter(uid__in=uid_to_raw_ids.keys()).values("uid", "title", "folder_id")
+            )
+            # folder_id=0 直接兜底为 General，不查库；只查真实的 folder_id
+            need_folder_ids = {d["folder_id"] for d in dashboards if d["folder_id"]}
+            folder_title_map: dict[int, str] = {}
+            if need_folder_ids:
+                folder_title_map = dict(
+                    Dashboard.objects.filter(id__in=need_folder_ids, is_folder=1).values_list("id", "title")
+                )
+            for d in dashboards:
+                folder_name = folder_title_map.get(d["folder_id"], cls.GENERAL_FOLDER_NAME)
+                display_name = f"[仪表盘] {folder_name}/{d['title']}"
+                for raw_id in uid_to_raw_ids.get(d["uid"], []):
+                    result[raw_id] = display_name
+
+        # Folder 分支：直接加 [目录] 前缀
+        if folder_id_to_raw_ids:
+            for row in Dashboard.objects.filter(id__in=folder_id_to_raw_ids.keys(), is_folder=1).values("id", "title"):
+                for raw_id in folder_id_to_raw_ids.get(row["id"], []):
+                    result[raw_id] = f"[目录] {row['title']}"
+
+        return result
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        if not instance_ids:
+            return {}
+
+        org_ids: set[int] = set()
+        id_to_org: dict[str, int] = {}
+        for raw_id in instance_ids:
+            try:
+                prefix = raw_id.split("|")[0]
+                org_id = int(prefix.replace("folder:", ""))
+                org_ids.add(org_id)
+                id_to_org[raw_id] = org_id
+            except (ValueError, IndexError):
+                continue
+
+        org_map = dict(Org.objects.filter(id__in=org_ids).values_list("id", "name"))
+        return {raw_id: str(org_map[oid]) for raw_id, oid in id_to_org.items() if oid in org_map}
+
 
 class RumApplication(ResourceMeta):
     system_id = settings.BK_IAM_SYSTEM_ID
@@ -195,6 +385,9 @@ class RumApplication(ResourceMeta):
     name = _lazy("RUM应用")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "rum_application_list_v2"}]
+
+    # 父资源：CMDB 业务/空间
+    parent_resource = Business
 
     @classmethod
     def create_instance_by_info(cls, item: dict) -> Resource:
@@ -241,6 +434,24 @@ class RumApplication(ResourceMeta):
             "_bk_iam_path_": "/{},{}/".format(Business.id, app_simple_info["bk_biz_id"]),
         }
         return resource
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        from rum_web.models.application import Application
+
+        if not instance_ids:
+            return {}
+        qs = Application.objects.filter(application_id__in=instance_ids).values("application_id", "app_name")
+        return {str(row["application_id"]): row["app_name"] for row in qs}
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        from rum_web.models.application import Application
+
+        if not instance_ids:
+            return {}
+        qs = Application.objects.filter(application_id__in=instance_ids).values("application_id", "bk_biz_id")
+        return {str(row["application_id"]): str(row["bk_biz_id"]) for row in qs if row["bk_biz_id"] is not None}
 
 
 class ResourceEnum:
