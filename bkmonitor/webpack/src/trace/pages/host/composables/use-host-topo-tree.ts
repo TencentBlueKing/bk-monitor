@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef, watch, onMounted } from 'vue';
+import { computed, onMounted, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 
@@ -173,6 +173,13 @@ export const useHostTopoTree = (nodeId: string) => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
+      // 存在有子节点的根节点时，默认对第一个有子节点的根节点展开第一级子列表（Worker 消费 isOpen）
+      for (const root of data) {
+        if ('children' in root && Array.isArray(root.children) && root.children.length > 0) {
+          (root as IHostTopoTreeNode & { isOpen?: boolean }).isOpen = true;
+          break;
+        }
+      }
       rawTreeData.value = data;
       const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, nodeId);
       initialized = true;
