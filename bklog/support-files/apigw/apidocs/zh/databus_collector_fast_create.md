@@ -110,7 +110,7 @@
 | separator            | string | 否   | 分隔符                      |
 | retain_original_text | bool   | 否   | 是否保留原文，默认 True     |
 | retain_extra_json    | bool   | 否   | 是否保留未定义 JSON 字段，默认 False |
-| enable_retain_content | bool  | 否   | 是否保留失败日志，默认 True |
+| enable_retain_content | bool  | 否   | 是否保留失败日志，默认 True。仅在 retain_original_text 为 True 时生效 |
 
 #### ETL Fields
 

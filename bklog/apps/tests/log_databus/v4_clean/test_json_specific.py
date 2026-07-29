@@ -45,24 +45,23 @@ class TestJsonRetainOriginalText(TestCase):
 
 
 class TestJsonEnableRetainContent(TestCase):
-    """enable_retain_content 分支"""
+    """enable_retain_content 分支（已收敛为 retain_original_text 的子开关）"""
 
     def setUp(self):
         self.storage = BkLogJsonEtlStorage()
 
-    def test_enable_retain_content_generates_log(self):
-        """enable_retain_content=True 时应生成 log assign 规则"""
+    def test_enable_retain_content_without_original_text_no_log(self):
+        """retain_original_text=False 时即使 enable_retain_content=True 也不应生成 log assign 规则"""
         etl_params = {"retain_original_text": False, "enable_retain_content": True}
         fields = [make_field("level")]
         config = get_fresh_config()
         result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
-        log_rules = find_rules_by_output(rules, "log")
-        self.assertEqual(len(log_rules), 1)
+        assert_rule_absent(self, rules, "log")
 
     def test_enable_retain_content_json_de_null_strategy(self):
-        """enable_retain_content=True 时 bk_separator_object 的 json_de 应使用 null 策略"""
-        etl_params = {"enable_retain_content": True}
+        """保留原文 + enable_retain_content=True 时 json_de 应使用 null 策略"""
+        etl_params = {"retain_original_text": True, "enable_retain_content": True}
         fields = [make_field("level")]
         config = get_fresh_config()
         result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
@@ -70,6 +69,17 @@ class TestJsonEnableRetainContent(TestCase):
         sep_rules = find_rules_by_output(rules, "bk_separator_object")
         self.assertEqual(len(sep_rules), 1)
         self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "null")
+
+    def test_enable_retain_content_without_original_text_json_de_drop_strategy(self):
+        """retain_original_text=False 时 enable_retain_content 失效，json_de 应回落到 drop 策略"""
+        etl_params = {"retain_original_text": False, "enable_retain_content": True}
+        fields = [make_field("level")]
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        rules = result["clean_rules"]
+        sep_rules = find_rules_by_output(rules, "bk_separator_object")
+        self.assertEqual(len(sep_rules), 1)
+        self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "drop")
 
     def test_no_enable_retain_content_json_de_drop_strategy(self):
         """enable_retain_content 未设置时 json_de 应使用 drop 策略"""

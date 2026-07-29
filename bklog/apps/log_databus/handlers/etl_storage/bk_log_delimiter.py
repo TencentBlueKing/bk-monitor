@@ -132,7 +132,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             "separator_node_name": self.separator_node_name,
             "separator": etl_params["separator"],
             "etl_flat": etl_params.get("etl_flat", False),
-            "enable_retain_content": etl_params.get("enable_retain_content", False),
+            "enable_retain_content": self.is_retain_content_enabled(etl_params),
         }
 
         if built_in_config.get("option") and isinstance(built_in_config["option"], dict):
@@ -235,8 +235,8 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         )
 
         # 4. 从iter_item提取data：切分始终需要 iter_string；log 仅在保留原文或失败日志时写出
-        # 与 JSON 清洗对齐：retain_original_text / enable_retain_content 任一为真才 assign log
-        if etl_params.get("retain_original_text") or etl_params.get("enable_retain_content"):
+        # 与 JSON 清洗对齐：保留清洗失败日志已收敛为保留原文的子开关，只需判断 retain_original_text
+        if etl_params.get("retain_original_text"):
             rules.append(
                 {
                     "input_id": "iter_item",

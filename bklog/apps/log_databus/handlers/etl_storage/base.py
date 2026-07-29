@@ -747,6 +747,23 @@ class EtlStorage:
             )
         return rules
 
+    @staticmethod
+    def is_retain_content_enabled(etl_params: dict) -> bool:
+        """
+        是否保留清洗失败日志。仅在开启保留原文时生效：未保留原文时，清洗失败的数据没有可读内容，
+        留在库里只占存储，因此这里把 enable_retain_content 收敛为 retain_original_text 的子开关。
+        :param etl_params: 清洗参数
+        """
+        return bool(etl_params.get("retain_original_text")) and bool(etl_params.get("enable_retain_content"))
+
+    @classmethod
+    def is_record_parse_failure_enabled(cls, etl_params: dict) -> bool:
+        """
+        是否输出清洗失败标记字段。同样从属于保留原文，避免存量配置在关闭保留原文后仍产出 __parse_failure。
+        :param etl_params: 清洗参数
+        """
+        return bool(etl_params.get("record_parse_failure")) and bool(etl_params.get("retain_original_text"))
+
     def _build_parse_failure_field_v4(self, etl_params: dict) -> list:
         """
         构建V4版本的清洗失败标记字段规则
@@ -754,7 +771,7 @@ class EtlStorage:
         :return: 清洗失败标记字段规则列表
         """
         rules = []
-        if etl_params.get("record_parse_failure"):
+        if self.is_record_parse_failure_enabled(etl_params):
             rules.append(
                 {
                     "input_id": self.separator_node_name,
@@ -957,7 +974,7 @@ class EtlStorage:
             )
 
         # 增加清洗失败标记
-        if etl_params.get("record_parse_failure"):
+        if self.is_record_parse_failure_enabled(etl_params):
             field_list.append(
                 {
                     "field_name": PARSE_FAILURE_FIELD,
