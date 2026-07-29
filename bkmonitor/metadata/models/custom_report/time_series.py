@@ -318,16 +318,19 @@ class TimeSeriesGroup(CustomGroupBase):
             # 格式: {field_name: 是否禁用}
             metric_dict[item["field_name"]] = not item.get("is_active", True)
             # 兼容传入 tag_value_list/tag_list 的情况
-            if "tag_value_list" in item:
+            tag_value_list = item.get("tag_value_list") or {}
+            if tag_value_list:
                 is_update_description = False
-                for tag in item["tag_value_list"].keys():
-                    tag_dict[tag] = ""
-            else:
-                for tag in item.get("tag_list", []):
-                    # 取第一个值，后面重复的直接忽略
-                    if not tag.get("field_name") or tag["field_name"] in tag_dict:
-                        continue
-                    tag_dict[tag["field_name"]] = tag.get("description", "")
+                for tag_name in tag_value_list:
+                    tag_dict.setdefault(tag_name, "")
+
+            for tag in item.get("tag_list") or []:
+                tag_name = tag.get("field_name")
+                if not tag_name:
+                    continue
+                # 静态配置中的描述优先于自动发现生成的空描述
+                if tag_name not in tag_dict or not tag_dict[tag_name]:
+                    tag_dict[tag_name] = tag.get("description", "")
 
         return {
             "is_update_description": is_update_description,
@@ -441,8 +444,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
     def bulk_refresh_rt_fields(self, table_id: str, metric_info: list):
         """批量刷新结果表打平的指标和维度"""
-        # 根据field_name聚合metric_info，合并tag_value_list
-        aggregated_metrics = defaultdict(lambda: {"tag_value_list": {}, "tag_list": []})
+        # 根据 field_name 聚合 metric_info，合并不同 scope 下的指标维度
+        aggregated_metrics = defaultdict(lambda: {"tag_value_list": {}, "tag_list": [], "is_active": False})
 
         for item in metric_info:
             field_name = item.get("field_name")
@@ -450,12 +453,15 @@ class TimeSeriesGroup(CustomGroupBase):
                 continue
 
             # 初始化聚合数据
-            aggregated_metrics[field_name].setdefault("field_name", field_name)
+            aggregated_metric = aggregated_metrics[field_name]
+            aggregated_metric["field_name"] = field_name
+            # ResultTableField 是表级打平字段，任一 scope 活跃时该指标都应保持启用
+            aggregated_metric["is_active"] = aggregated_metric["is_active"] or item.get("is_active", True)
 
             # 合并 tag_value_list
             tag_value_list = item.get("tag_value_list") or {}
             for tag_name, tag_info in tag_value_list.items():
-                existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
+                existing_tag = aggregated_metric["tag_value_list"].get(tag_name)
                 tag_info = tag_info or {}
                 new_values = set(tag_info.get("values") or [])
                 new_update_time = tag_info.get("last_update_time", 0)
@@ -466,10 +472,25 @@ class TimeSeriesGroup(CustomGroupBase):
                     existing_tag["last_update_time"] = max(existing_tag["last_update_time"], new_update_time)
                 else:
                     # 新建 tag 信息
-                    aggregated_metrics[field_name]["tag_value_list"][tag_name] = {
+                    aggregated_metric["tag_value_list"][tag_name] = {
                         "last_update_time": new_update_time,
                         "values": list(new_values),
                     }
+
+            # 合并插件配置传入的 tag_list，保留第一个非空描述
+            aggregated_tag_map = {
+                tag["field_name"]: tag for tag in aggregated_metric["tag_list"] if tag.get("field_name")
+            }
+            for tag in item.get("tag_list") or []:
+                tag_name = tag.get("field_name")
+                if not tag_name:
+                    continue
+                if tag_name not in aggregated_tag_map:
+                    aggregated_tag = dict(tag)
+                    aggregated_metric["tag_list"].append(aggregated_tag)
+                    aggregated_tag_map[tag_name] = aggregated_tag
+                elif not aggregated_tag_map[tag_name].get("description") and tag.get("description"):
+                    aggregated_tag_map[tag_name]["description"] = tag["description"]
 
         # 将聚合后的数据转换为列表
         metric_info = list(aggregated_metrics.values())
