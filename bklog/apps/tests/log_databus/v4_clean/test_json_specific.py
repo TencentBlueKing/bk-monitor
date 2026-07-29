@@ -81,6 +81,15 @@ class TestJsonEnableRetainContent(TestCase):
         self.assertEqual(len(sep_rules), 1)
         self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "drop")
 
+    def test_is_retain_content_enabled_default_compat(self):
+        """enable_retain_content 缺失时按调用点给的 default 取值，保住该字段引入前的存量语义"""
+        # 保留原文 + 缺 key：JSON get_result_table_config 传 default=True 需仍为 True
+        self.assertTrue(self.storage.is_retain_content_enabled({"retain_original_text": True}, default=True))
+        # V4 规则等调用点不传 default，缺 key 视为 False
+        self.assertFalse(self.storage.is_retain_content_enabled({"retain_original_text": True}))
+        # 未保留原文时 default 一律不生效
+        self.assertFalse(self.storage.is_retain_content_enabled({"retain_original_text": False}, default=True))
+
     def test_no_enable_retain_content_json_de_drop_strategy(self):
         """enable_retain_content 未设置时 json_de 应使用 drop 策略"""
         etl_params = {"retain_original_text": True}

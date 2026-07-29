@@ -211,7 +211,8 @@ class BkLogJsonEtlStorage(EtlStorage):
             # 当 JSON 中的某个字段类型为 string，且原始数据为 object 时，将 object 进行 JSON 序列化后再入库，提高数据可读性
             "enable_origin_string": True,
             # 当原始数据不符合 JSON 格式时，不对数据进行丢弃，直接强制写入到 log 字段（仅在保留原文时生效）
-            "enable_retain_content": self.is_retain_content_enabled(etl_params),
+            # default=True 沿用该字段引入前的历史缺省，避免存量 JSON 采集项静默变成丢弃失败日志
+            "enable_retain_content": self.is_retain_content_enabled(etl_params, default=True),
         }
 
         # 保存删除的字段
