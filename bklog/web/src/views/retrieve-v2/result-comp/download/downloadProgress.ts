@@ -29,11 +29,17 @@
  * 采用「10 秒轮询真实数据 + 前端每 1 秒模拟增长」的方案
  */
 
-/** 基础增长量：10 秒增长 20000 条 */
-const BASE_GROWTH = 20000;
+import {
+  DOWNLOAD_POLLING_INTERVAL,
+  DOWNLOAD_PROGRESS_BASE_GROWTH,
+  DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
+} from './constants';
 
 /** 进度上限：模拟增长最多到 99% */
 const PROGRESS_CEILING = 0.99;
+
+/** 每个轮询周期内的模拟更新次数 */
+const PROGRESS_UPDATES_PER_POLL = DOWNLOAD_POLLING_INTERVAL / DOWNLOAD_PROGRESS_UPDATE_INTERVAL;
 
 /** 单位数组 */
 const UNITS = ['', 'K', 'M', 'G'];
@@ -48,13 +54,16 @@ const UNITS = ['', 'K', 'M', 'G'];
 export function calculateProgress(task: any) {
   if (!task.export_total_count || task.export_total_count <= 0) return;
 
-  // 每秒增长量
-  const growthPerSecond = Math.max((task.currentGrowth || BASE_GROWTH) / 10, 0);
+  // 每次更新增长量
+  const growthPerUpdate = Math.max(
+    (task.currentGrowth || DOWNLOAD_PROGRESS_BASE_GROWTH) / PROGRESS_UPDATES_PER_POLL,
+    0,
+  );
   const maxExportedCount = Math.floor(task.export_total_count * PROGRESS_CEILING);
 
   // 增长 exported_count，但不超过 99% 上限
   task.exported_count = Math.min(
-    Math.max(task.exported_count, 0) + growthPerSecond,
+    Math.max(task.exported_count, 0) + growthPerUpdate,
     maxExportedCount,
   );
 
@@ -70,7 +79,11 @@ export function calculateProgress(task: any) {
  * @param realExportedCount - 接口返回的真实已下载条数
  * @param baseGrowth - 基础增长量，默认 20000
  */
-export function adjustGrowthAfterPoll(task: any, realExportedCount: number, baseGrowth = BASE_GROWTH) {
+export function adjustGrowthAfterPoll(
+  task: any,
+  realExportedCount: number,
+  baseGrowth = DOWNLOAD_PROGRESS_BASE_GROWTH,
+) {
   // 计算误差：真实值 - 当前显示值
   const error = realExportedCount - task.exported_count;
 
