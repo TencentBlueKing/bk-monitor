@@ -74,7 +74,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
 
   /**
    * 点击分词菜单（添加到本次检索 / 新建检索等）：统一走 resolveAddToSearch。
-   * 语句模式不转义 ES 保留字（转义仅划词弹层开启）。
+   * 语句模式：完全匹配 KEY: "{value}"；不走划词通配 / ES 保留字转义。
    */
   const handleSearchCondition = (
     field: any,
@@ -123,9 +123,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       tokenIndex: tokenMeta?.tokenIndex ?? (soleByToken || soleByValue ? 0 : undefined),
       tokenCount: tokenMeta?.tokenCount ?? (soleByToken || soleByValue ? 1 : undefined),
       searchMode: getSearchMode(),
-      // 点击分词（含添加到本次检索 / 新建检索）：不转义 ES 保留字；
-      // 保留字转义仅划词弹层「添加到本次检索」开启（见 use-selection-search）
+      // 点击分词：语句模式 KEY: "{value}"；划词通配/保留字转义见 use-selection-search
       escape: false,
+      exactPhrase: true,
     });
 
     handleAddCondition(
