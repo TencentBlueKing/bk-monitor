@@ -53,6 +53,18 @@
         @pick-success="handlePickSuccess"
       >
       </bk-date-picker>
+      <span
+        class="top-start"
+        v-bk-tooltips="$t('查看所有的索引集的下载历史')"
+      >
+        <bk-button
+          theme="primary"
+          :disabled="tableLoading || isSearchAll"
+          @click="handleSearchAll"
+        >
+          {{ $t('查看所有') }}
+        </bk-button>
+      </span>
     </div>
     <div
       class="table-container"
@@ -73,7 +85,7 @@
           prop="id"
         ></bk-table-column>
         <!-- index_set_id -->
-        <template v-if="isShowSetLabel">
+        <template v-if="isSearchAll">
           <bk-table-column
             width="100"
             :label="$t('索引集ID')"
@@ -283,12 +295,28 @@
 </template>
 
 <script>
+  import axios from 'axios';
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
   import { parseTableIdConditions } from '@/store/helper.ts';
 
   import { axiosInstance } from '@/api';
-  import { formatNumber } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
+  import {
+    adjustGrowthAfterPoll,
+    calculateProgress,
+    calculateProgressPercent,
+    formatNumber,
+  } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
+  import {
+    DOWNLOAD_DATA_DELAY,
+    DOWNLOAD_POLLING_INTERVAL,
+    DOWNLOAD_PROGRESS_BASE_GROWTH,
+    DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
+    DOWNLOAD_RECENT_DAYS,
+    MILLISECONDS_PER_DAY,
+  } from '@/views/retrieve-v2/result-comp/download/constants';
+
+  const HISTORY_PAGE_SIZE = 10;
 
   export default {
     props: {
@@ -300,32 +328,22 @@
         type: Array,
         required: true,
       },
-      exportList: {
-        type: Array,
-        default: () => [],
-      },
-      tableLoading: {
-        type: Boolean,
-        default: false,
-      },
-      dateRangeProp: {
-        type: Array,
-        default: () => [],
-      },
-      pagination: {
-        type: Object,
-        default: () => ({
-          current: 1,
-          count: 0,
-          limit: 10,
-        }),
-      },
     },
     data() {
       return {
+        exportList: [],
         isShowDialog: false,
-        isShowSetLabel: false, // 是否展示索引集ID
+        tableLoading: false,
+        isSearchAll: false, // 是否查看所有索引集下载历史
         dateRange: [], // 日期范围
+        historyPollingTimer: null,
+        progressUpdateTimer: null,
+        historyCancelExecutor: null,
+        pagination: {
+          current: 1,
+          count: 0,
+          limit: HISTORY_PAGE_SIZE,
+        },
         shortcutSelectedIndex: 3, // 当前选中的快捷键索引（默认为"最近3月"）
         dateShortcuts: [
           {
@@ -367,7 +385,7 @@
             value() {
               const end = new Date();
               const start = new Date();
-              start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+              start.setTime(start.getTime() - MILLISECONDS_PER_DAY * DOWNLOAD_RECENT_DAYS);
               return [start, end];
             },
           },
@@ -411,22 +429,20 @@
         return this.$store.getters.isSceneMode;
       },
     },
-      watch: {
+    watch: {
       showHistoryExport(val) {
         this.isShowDialog = val;
         if (val) {
-          // 同步日期范围
-          this.dateRange = this.dateRangeProp || [];
+          this.resetHistoryState();
+          this.fetchHistoryList();
+          this.startHistoryPolling();
+        } else {
+          this.resetHistoryState(false);
         }
       },
-      // 同步父组件的日期范围
-      dateRangeProp: {
-        handler(val) {
-          if (val && val.length === 2) {
-            this.dateRange = val;
-          }
-        },
-      },
+    },
+    beforeDestroy() {
+      this.resetHistoryState(false);
     },
     methods: {
       formatNumber,
@@ -437,7 +453,6 @@
           return;
         }
         this.openDownloadUrl($row);
-        this.$emit('start-polling');
       },
       retryExport($row) {
         // 异常任务直接异步下载
@@ -446,7 +461,6 @@
         } else {
           this.downloadAsync($row.search_dict);
         }
-        this.$emit('start-polling');
       },
       /**
        * @desc: 同步下载
@@ -484,7 +498,7 @@
             blobDownload(res, downloadName);
           })
           .finally(() => {
-            this.$emit('get-table-list', true);
+            this.refreshAfterDownload();
           });
       },
       /**
@@ -492,7 +506,6 @@
        * @param { Object } data
        */
       downloadAsync(data) {
-        this.$emit('loading-change', true);
         let downRequestUrl;
 
         if (this.isScene) {
@@ -534,16 +547,21 @@
           })
           .finally(() => {
             setTimeout(() => {
-              this.$emit('get-table-list', true);
+              this.refreshAfterDownload();
             }, 1000);
           });
       },
+      refreshAfterDownload() {
+        this.setDefaultDateRange();
+        this.fetchHistoryList(true);
+        this.$emit('refresh-current-tasks');
+      },
       handleSearchAll() {
-        if (this.tableLoading) {
+        if (this.tableLoading || this.isSearchAll) {
           return;
         }
         this.isSearchAll = true;
-        this.$emit('get-table-list');
+        this.fetchHistoryList(true);
       },
       /**
        * @desc: 设置默认日期范围（最近3月）
@@ -551,7 +569,7 @@
       setDefaultDateRange() {
         const end = new Date();
         const start = new Date();
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+        start.setTime(start.getTime() - MILLISECONDS_PER_DAY * DOWNLOAD_RECENT_DAYS);
         this.dateRange = [start, end];
         this.shortcutSelectedIndex = 3;
       },
@@ -565,7 +583,7 @@
        * @desc: 日期选择器确认
        */
       handlePickSuccess() {
-        this.$emit('date-range-change', this.dateRange);
+        this.fetchHistoryList(true);
       },
       getSearchDictStr(searchObj) {
         return JSON.stringify(searchObj);
@@ -662,23 +680,200 @@
         const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${allParams}`;
         window.open(jumpUrl, '_blank', 'noopener,noreferrer');
       },
+      resetHistoryState(resetDateRange = true) {
+        this.cancelHistoryRequest();
+        this.stopHistoryPolling();
+        this.stopProgressUpdate();
+        this.exportList = [];
+        this.tableLoading = false;
+        this.isSearchAll = false;
+        this.pagination = {
+          current: 1,
+          count: 0,
+          limit: HISTORY_PAGE_SIZE,
+        };
+        this.dateRange = [];
+        if (resetDateRange) {
+          this.setDefaultDateRange();
+        }
+      },
+      cancelHistoryRequest() {
+        if (this.historyCancelExecutor) {
+          this.historyCancelExecutor();
+          this.historyCancelExecutor = null;
+        }
+      },
+      startHistoryPolling() {
+        this.stopHistoryPolling();
+        this.historyPollingTimer = setInterval(() => {
+          if (this.isShowDialog) {
+            this.fetchHistoryList(false, true);
+          }
+        }, DOWNLOAD_POLLING_INTERVAL);
+      },
+      stopHistoryPolling() {
+        if (this.historyPollingTimer) {
+          clearInterval(this.historyPollingTimer);
+          this.historyPollingTimer = null;
+        }
+      },
+      startProgressUpdate() {
+        if (this.progressUpdateTimer) {
+          return;
+        }
+        this.progressUpdateTimer = setInterval(() => {
+          const hasDownloadingTask = this.exportList.some(row => row.export_status === 'download_log');
+          if (!hasDownloadingTask) {
+            this.stopProgressUpdate();
+            return;
+          }
+          this.exportList.forEach(row => {
+            if (row.export_status === 'download_log') {
+              calculateProgress(row);
+            }
+          });
+        }, DOWNLOAD_PROGRESS_UPDATE_INTERVAL);
+      },
+      stopProgressUpdate() {
+        if (this.progressUpdateTimer) {
+          clearInterval(this.progressUpdateTimer);
+          this.progressUpdateTimer = null;
+        }
+      },
+      createProgressRow(row) {
+        if (row.export_status !== 'download_log') {
+          return { ...row };
+        }
+        return {
+          ...row,
+          currentGrowth: DOWNLOAD_PROGRESS_BASE_GROWTH,
+          progressPercent: calculateProgressPercent(
+            row.exported_count || 0,
+            row.export_total_count || 0,
+          ),
+        };
+      },
+      setExportListData(data) {
+        const currentRowMap = new Map(this.exportList.map(row => [row.id, row]));
+        this.exportList = data.map(item => {
+          const currentRow = currentRowMap.get(item.id);
+          if (!currentRow) {
+            return this.createProgressRow(item);
+          }
+          if (currentRow.export_status === 'download_log' && item.export_status === 'download_log') {
+            const displayedCount = currentRow.exported_count || 0;
+            Object.assign(currentRow, item);
+            currentRow.exported_count = displayedCount;
+            adjustGrowthAfterPoll(currentRow, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
+            return currentRow;
+          }
+          Object.assign(currentRow, item);
+          return currentRow;
+        });
+
+        if (this.exportList.some(row => row.export_status === 'download_log')) {
+          this.startProgressUpdate();
+        } else {
+          this.stopProgressUpdate();
+        }
+      },
+      async fetchHistoryList(isReset = false, isPolling = false) {
+        if (!this.isShowDialog) {
+          return;
+        }
+        if (isReset) {
+          this.pagination.current = 1;
+        }
+        this.cancelHistoryRequest();
+        if (!isPolling) {
+          this.tableLoading = true;
+          this.stopProgressUpdate();
+        }
+
+        if (this.isUnionSearch && !this.unionIndexList.length) {
+          this.exportList = [];
+          this.pagination.count = 0;
+          this.tableLoading = false;
+          return;
+        }
+
+        let cancelExecutor;
+        const cancelToken = new axios.CancelToken(executor => {
+          cancelExecutor = executor;
+        });
+        this.historyCancelExecutor = cancelExecutor;
+        const { limit, current } = this.pagination;
+        const params = {
+          bk_biz_id: this.bkBizId,
+          page: current,
+          pagesize: limit,
+          show_all: this.isSearchAll,
+          start_time: this.dateRange[0]?.getTime() || null,
+          end_time: this.dateRange[1]
+            ? this.dateRange[1].getTime() + DOWNLOAD_DATA_DELAY
+            : null,
+        };
+        let queryUrl;
+        let requestConfig;
+
+        if (this.isScene) {
+          queryUrl = 'retrieve/getSceneExportHistory';
+          params.space_uid = this.retrieveParams?.space_uid;
+          params.table_id_conditions = this.retrieveParams?.table_id_conditions;
+          params.scene_filter_values = this.retrieveParams?.scene_filter_values;
+          requestConfig = { data: params };
+        } else if (this.isUnionSearch) {
+          queryUrl = 'unionSearch/unionExportHistory';
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_ids = this.unionIndexList;
+          requestConfig = { params };
+        } else {
+          queryUrl = 'retrieve/getExportHistoryList';
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId : this.$route.params.indexId;
+          requestConfig = { params };
+        }
+
+        try {
+          const res = await this.$http.request(queryUrl, requestConfig, { cancelToken });
+          if (this.historyCancelExecutor !== cancelExecutor) {
+            return;
+          }
+          if (res.result) {
+            this.pagination.count = res.data.total || 0;
+            this.setExportListData(res.data.list);
+          }
+        } catch (error) {
+          if (axios.isCancel(error)) {
+            return;
+          }
+        } finally {
+          if (this.historyCancelExecutor === cancelExecutor) {
+            this.historyCancelExecutor = null;
+            this.tableLoading = false;
+            if (this.exportList.some(row => row.export_status === 'download_log')) {
+              this.startProgressUpdate();
+            }
+          }
+        }
+      },
       handlePageChange(page) {
-        // 通知父组件更新分页并刷新数据
-        this.$emit('pagination-change', { page });
+        this.pagination.current = page;
+        this.fetchHistoryList();
       },
       handleLimitChange(size) {
         if (this.pagination.limit !== size) {
-          // 通知父组件更新分页并刷新数据
-          this.$emit('pagination-change', { limit: size });
+          this.pagination.current = 1;
+          this.pagination.limit = size;
+          this.fetchHistoryList();
         }
       },
       /**
        * @desc: 关闭table弹窗清空数据
        */
       closeDialog() {
-        this.isSearchAll = false;
-        this.isShowSetLabel = false;
-        this.dateRange = [];
+        this.resetHistoryState(false);
         this.$emit('handle-close-dialog');
       },
       getIndexSetIDs(row) {
@@ -698,9 +893,11 @@
   }
 
   .search-history {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
     margin: 10px 0 20px 0;
-    text-align: left;
   }
 
   .export-table {
