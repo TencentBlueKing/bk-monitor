@@ -6,6 +6,11 @@
         "command": ".cursor/hooks/run-hook.cmd aafe-session-start",
         "timeout": 5,
         "failClosed": false
+      },
+      {
+        "command": ".cursor/hooks/run-hook.cmd aafe-task-completion",
+        "timeout": 120,
+        "failClosed": false
       }
     ]
   }

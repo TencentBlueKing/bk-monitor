@@ -1,6 +1,6 @@
 # Skill: Project Architecture Locator
 
-Generated: 2026-07-29T03:20:43.280Z
+Generated: 2026-07-29T06:39:32.825Z
 Project: blueking-log
 Root: /Users/lixintao/github/bk-monitor/bklog/web
 
@@ -19,10 +19,10 @@ Use this project-specific skill before reading large source files. It provides a
 
 - Package: blueking-log
 - Version: 1.0.0
-- Files scanned: 1176
+- Files scanned: 1177
 - Route entries: 160
 - Component entries: 180
-- Design docs: 2
+- Design docs: 3
 
 ## Main Routes
 
@@ -455,7 +455,8 @@ Use this project-specific skill before reading large source files. It provides a
 
 ## Design Documents
 
-- `.docs/架构图.md`: 架构图 — 附录：详细架构图与数据流图 > A. 整体前端架构图 > B. 应用启动时序图 > C. 路由守卫执行流程 > D. Retrieve 检索模块初始化数据流 > E. HTTP 请求处理流程 > F. Vuex Store 状态流转图 > G. 检索模块 API 调用链路图
+- `.docs/日志检索V3架构与数据链路.md`: 日志检索 V3 架构与数据链路 — 1. 当前结论 > 2. 入口与模块边界 > 3. 页面初始化链路 > 4. 主查询链路 > 4.1 查询参数与分支 > 4.2 主线程到 Worker > 4.3 Worker 解析与落盘 > 5. 存储与渲染数据流
+- `.docs/架构图.md`: bklog/web 当前前端架构与日志检索数据流 — 1. 总体架构 > 2. 设计变化 > 3. 相关图表 > 4. 代码定位
 - `README.md`: 日志前端构建使用说明 — 前置准备 > 安装gpg > 生成GPG Key并导出公钥 > 在Github上配置GPG Key公钥 > 在Git上配置GPG Key > 本地启动 > 本地 `hosts` 文件配置 > 前端环境变量配置
 
 ## Context Budget Rules

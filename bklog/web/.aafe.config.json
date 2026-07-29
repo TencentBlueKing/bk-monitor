@@ -75,7 +75,20 @@
   "hooks": {
     "enabled": true,
     "sessionStart": ".cursor/hooks/aafe-session-start",
+    "taskCompletion": ".cursor/hooks/aafe-task-completion",
     "failClosed": false
+  },
+  "taskCompletion": {
+    "enabled": true,
+    "command": "aafe task-completion",
+    "steps": [
+      "aafe knowledge update",
+      "aafe knowledge-web",
+      "aafe update",
+      "aafe doctor"
+    ],
+    "failClosed": false,
+    "log": ".ai-agent/memory/knowledge-sync.jsonl"
   },
   "projectKnowledge": {
     "enabled": true,
