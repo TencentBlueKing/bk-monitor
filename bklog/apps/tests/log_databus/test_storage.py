@@ -224,8 +224,9 @@ class TestUpdateVisibleConfig(TestCase):
         mock_api.modify_cluster_info.assert_called_once()
         modify_params = mock_api.modify_cluster_info.call_args[0][0]
         self.assertEqual(modify_params["cluster_type"], DORIS_CLUSTER_TYPE)
-        # auth_info 必须为 dict，避免 before_request 将其序列化为字符串导致 metadata .get 报错
-        self.assertIsInstance(modify_params.get("auth_info"), dict)
+        # 不传 auth_info：metadata #11701 缺省保留原凭据；Doris 查找已按 cluster_type 放宽
+        self.assertNotIn("auth_info", modify_params)
+        self.assertNotIn("registered_system", modify_params)
         custom_option = modify_params["custom_option"]
         # 只改 visible_config
         self.assertEqual(custom_option["visible_config"], params["visible_config"])
