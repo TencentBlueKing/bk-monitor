@@ -85,6 +85,19 @@ def _get_configured_bkbase_result_table(
         if data_link_strategies.get(candidate.data_link_name) == data_link_strategy:
             return candidate
 
+    compatible_strategy = {
+        DataLink.BK_STANDARD_V2_TIME_SERIES: DataLink.GRAPH_RELATION_TIME_SERIES,
+        DataLink.GRAPH_RELATION_TIME_SERIES: DataLink.BK_STANDARD_V2_TIME_SERIES,
+    }.get(data_link_strategy)
+    if compatible_strategy:
+        compatible_candidates = [
+            candidate
+            for candidate in candidates
+            if data_link_strategies.get(candidate.data_link_name) == compatible_strategy
+        ]
+        if len(compatible_candidates) == 1:
+            return compatible_candidates[0]
+
     orphan_candidates = [candidate for candidate in candidates if candidate.data_link_name not in data_link_strategies]
     if len(orphan_candidates) == 1:
         return orphan_candidates[0]
@@ -825,16 +838,28 @@ def create_bkbase_data_link(
         )
 
     # 2. 创建链路资源对象
-    data_link_ins, _ = DataLink.objects.update_or_create(
+    data_link_ins = DataLink.objects.filter(
         bk_tenant_id=data_source.bk_tenant_id,
         data_link_name=data_link_name,
-        namespace=namespace,
-        data_link_strategy=data_link_strategy,
-        defaults={
-            "bk_data_id": data_source.bk_data_id,
-            "table_ids": [monitor_table_id],
-        },
-    )
+    ).first()
+    previous_data_link_strategy = data_link_ins.data_link_strategy if data_link_ins else None
+    if data_link_ins is None:
+        data_link_ins = DataLink.objects.create(
+            bk_tenant_id=data_source.bk_tenant_id,
+            data_link_name=data_link_name,
+            namespace=namespace,
+            data_link_strategy=data_link_strategy,
+            bk_data_id=data_source.bk_data_id,
+            table_ids=[monitor_table_id],
+        )
+    else:
+        data_link_ins.namespace = namespace
+        data_link_ins.data_link_strategy = data_link_strategy
+        data_link_ins.bk_data_id = data_source.bk_data_id
+        data_link_ins.table_ids = [monitor_table_id]
+        data_link_ins.save(
+            update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"]
+        )
     try:
         # 2. 尝试根据套餐，申请创建链路
         logger.info(
@@ -853,6 +878,10 @@ def create_bkbase_data_link(
             table_id=monitor_table_id,
             storage_cluster_name=storage_cluster_name,
             consumer_group=consumer_group,
+            cleanup_absent_components=(
+                previous_data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
+                and data_link_strategy != DataLink.GRAPH_RELATION_TIME_SERIES
+            ),
         )
         # 2.1 上报链路接入指标
     except Exception as e:  # pylint: disable=broad-except

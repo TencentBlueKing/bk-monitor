@@ -24,6 +24,7 @@ from metadata.models.data_link.data_link_configs import (
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
     ResultTableConfig,
+    SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
 
@@ -38,6 +39,7 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
     VMStorageBindingConfig,
     ESStorageBindingConfig,
     DorisStorageBindingConfig,
+    SurrealDBBindingConfig,
     BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
@@ -70,6 +72,7 @@ REUSE_ENABLED_STRATEGIES: set[str] = {
     "bk_standard_v2_time_series",
     "bk_standard_v2_event",
     "bk_log",
+    "graph_relation_time_series",
 }
 
 
@@ -119,7 +122,7 @@ def is_reuse_enabled_for(strategy: str, table_id: str | None = None, bk_tenant_i
     return True
 
 
-LeftoverPolicy = Literal["strict", "keep"]
+LeftoverPolicy = Literal["strict", "keep", "delete"]
 
 
 T = TypeVar("T", bound=DataLinkResourceConfigBase)

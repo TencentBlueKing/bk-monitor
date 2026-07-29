@@ -6497,6 +6497,8 @@ class SurrealDBStorage(models.Model, StorageResultTable):
     """
 
     STORAGE_TYPE = ClusterInfo.TYPE_SURREALDB
+    UPGRADE_FIELD_CONFIG = ("table_type", "vertices", "relations", "storage_cluster_id")
+    JSON_FIELDS = ("vertices", "relations")
 
     TEMPORARY_TABLE_TYPE = "temporary"  # 图能力表，支持顶点/边写入，支持指标入图
     NORMAL_TABLE_TYPE = "normal"  # 基础表，无图能力
@@ -6523,6 +6525,7 @@ class SurrealDBStorage(models.Model, StorageResultTable):
         vertices=None,
         relations=None,
         storage_cluster_id=None,
+        create_storage_cluster_record=True,
         **kwargs,
     ):
         """
@@ -6534,6 +6537,7 @@ class SurrealDBStorage(models.Model, StorageResultTable):
         :param vertices: 顶点定义列表
         :param relations: 关系定义列表
         :param storage_cluster_id: SurrealDB 集群ID
+        :param create_storage_cluster_record: 是否创建当前存储集群记录，作为额外存储时应关闭
         """
         if storage_cluster_id is None:
             storage_cluster_id = ClusterInfo.objects.get(
@@ -6559,25 +6563,26 @@ class SurrealDBStorage(models.Model, StorageResultTable):
                         "storage_cluster_id": storage_cluster_id,
                     },
                 )
-                surrealdb_cluster_ids = ClusterInfo.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    cluster_type=ClusterInfo.TYPE_SURREALDB,
-                ).values_list("cluster_id", flat=True)
-                StorageClusterRecord.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    table_id=table_id,
-                    is_current=True,
-                    cluster_id__in=surrealdb_cluster_ids,
-                ).exclude(cluster_id=storage_cluster_id).update(is_current=False)
-                StorageClusterRecord.objects.update_or_create(
-                    bk_tenant_id=bk_tenant_id,
-                    table_id=table_id,
-                    cluster_id=storage_cluster_id,
-                    defaults={
-                        "enable_time": django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
-                        "is_current": True,
-                    },
-                )
+                if create_storage_cluster_record:
+                    surrealdb_cluster_ids = ClusterInfo.objects.filter(
+                        bk_tenant_id=bk_tenant_id,
+                        cluster_type=ClusterInfo.TYPE_SURREALDB,
+                    ).values_list("cluster_id", flat=True)
+                    StorageClusterRecord.objects.filter(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=table_id,
+                        is_current=True,
+                        cluster_id__in=surrealdb_cluster_ids,
+                    ).exclude(cluster_id=storage_cluster_id).update(is_current=False)
+                    StorageClusterRecord.objects.update_or_create(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=table_id,
+                        cluster_id=storage_cluster_id,
+                        defaults={
+                            "enable_time": django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
+                            "is_current": True,
+                        },
+                    )
                 action = "created" if created else "updated"
                 logger.info("CreateSurrealDBStorage: %s SurrealDB storage table[%s] success", action, record.table_id)
         except Exception as e:  # pylint: disable=broad-except
@@ -6588,6 +6593,20 @@ class SurrealDBStorage(models.Model, StorageResultTable):
 
     def add_field(self, field):
         pass
+
+    def update_storage(self, **kwargs):
+        """更新普通 SurrealDB storage，并校验目标集群归属当前租户。"""
+        storage_cluster_id = kwargs.get("storage_cluster_id")
+        if (
+            storage_cluster_id is not None
+            and not ClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+                cluster_id=storage_cluster_id,
+            ).exists()
+        ):
+            raise ValueError("SurrealDB存储集群配置有误，请确认或联系管理员处理")
+        return super().update_storage(**kwargs)
 
     @property
     def consul_config(self):

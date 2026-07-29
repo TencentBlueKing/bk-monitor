@@ -182,13 +182,6 @@ class TimeSeriesGroup(CustomGroupBase):
     def is_cmdb_relation_builtin(self):
         return bool(self.CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX.match(self.time_series_group_name))
 
-    @classmethod
-    def make_cmdb_relation_builtin_table_id_and_group_name(cls, bk_biz_id, space_type):
-        return (
-            f"{bk_biz_id}_{space_type}_built_in_time_series.__default__",
-            f"{bk_biz_id}_{space_type}_built_in_time_series",
-        )
-
     # 组合一个默认的table_id
     @staticmethod
     def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -754,6 +747,7 @@ class TimeSeriesGroup(CustomGroupBase):
         data_label: str | None = None,
         metric_group_dimensions: list[dict] | None = None,
         is_need_deploy_collector_config: bool = True,
+        is_sync_db: bool = True,
     ):
         """
         创建一个新的自定义分组记录
@@ -772,6 +766,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param bk_tenant_id: 租户ID
         :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
+        :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :return: group object
         """
         # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
@@ -795,6 +790,7 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
+            is_sync_db=is_sync_db,
         )
 
         # 写入 metric_group_dimensions 模型字段
