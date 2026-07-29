@@ -745,8 +745,6 @@ def access_bkdata_vm(
     if bk_biz_id != 0:
         space = Space.objects.get_space_info_by_biz_id(bk_biz_id=bk_biz_id)
         push_and_publish_space_router(space["space_type"], space["space_id"], table_id_list=[table_id])
-    else:
-        push_and_publish_space_router(table_id_list=[table_id])
 
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s end access bkdata vm", bk_biz_id, table_id, data_id)
 
