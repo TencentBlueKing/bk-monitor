@@ -208,11 +208,7 @@ export const useHostUrlParams = () => {
             timeShift: queryTimeOffset,
           };
         }
-        return {
-          compareType: 'none',
-          compareTargets: [],
-          timeShift: [],
-        };
+        return {};
       })(),
     });
   }
@@ -228,7 +224,7 @@ export const useHostUrlParams = () => {
   function handleSelectNode(node: IHostTopoViewRow) {
     hostStore.nodeId = node.id;
     Object.assign(hostStore.metricAggregationState, {
-      ...DEFAULT_AGGREGATION_STATE,
+      ...JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE)),
       columns: hostStore.metricAggregationState.columns,
     });
     if (isHostNode(node)) {
