@@ -204,6 +204,14 @@ class CreateApplicationResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        # ↓ 负责人列表（可选）：创建时会写入数据库，并对列表中每个用户授予 APM_APPLICATION 权限
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            default=list,
+            allow_empty=True,
+        )
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -243,6 +251,8 @@ class CreateApplicationResource(Resource):
             # ↓ 两个可选项
             storage_options=validated_request_data.get("datasource_option"),
             plugin_config=validated_request_data.get("plugin_config"),
+            # ↓ 负责人列表（可选）
+            owners=validated_request_data.get("owners") or [],
         )
 
         from apm_web.tasks import APMEvent, report_apm_application_event
@@ -739,6 +749,12 @@ class SetupResource(Resource):
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
         plugin_config = PluginConfigSerializer(required=False)
         application_qps_config = serializers.IntegerField(label="qps", required=False)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            allow_empty=True,
+        )
 
         def validate(self, attrs):
             res = super().validate(attrs)
@@ -807,10 +823,25 @@ class SetupResource(Resource):
             )
 
     class ApplicationSetupProcessor(SetupProcessor):
-        update_key = ["app_alias", "description"]
+        update_key = ["app_alias", "description", "owners"]
 
         def setup(self):
-            Application.objects.filter(application_id=self._application.application_id).update(**self._params)
+            application_id = self._application.application_id
+            # 字段更新：存在什么就写什么（app_alias / description / owners 三个字段都支持）
+            update_fields = {k: v for k, v in self._params.items() if k in self.update_key}
+
+            # owners 字段需要额外做标准化与授权
+            if "owners" in update_fields:
+                previous_owners = list(self._application.owners or [])
+                normalized_owners = Application._normalize_owners(update_fields["owners"])
+                update_fields["owners"] = normalized_owners
+
+                Application.objects.filter(application_id=application_id).update(**update_fields)
+                # 主动授权：仅对新增的负责人授权，被移除的不做权限回收
+                self._application.owners = normalized_owners
+                self._application.grant_owners(normalized_owners, previous_owners=previous_owners)
+            elif update_fields:
+                Application.objects.filter(application_id=application_id).update(**update_fields)
 
     class ApdexSetupProcessor(SetupProcessor):
         group_key = "application_apdex_config"
