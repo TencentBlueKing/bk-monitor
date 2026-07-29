@@ -49,18 +49,27 @@ interface UseProcessMetricOptions {
  */
 export function useProcessMetric(options: UseProcessMetricOptions) {
   const { t } = useI18n();
+  /** 进程详情视图配置请求加载loading状态 */
   const loading = shallowRef(false);
+  /** 视图分组管理弹窗显隐 */
+  const settingShow = shallowRef(false);
   /** 后端返回的原始面板分组数据（getProcessViewsPanelsApi） */
   const panels = shallowRef<HostViewsRowPanel[]>([]);
   /** 后端返回的分组与指标排序配置（getProcessMetricGroupPanelOrderApi，供 GroupManageDialog 使用） */
   const orderData = shallowRef<MetricGroupPanelOrder[]>([]);
 
-  const load = async (needCache = true) => {
+  /**
+   * 加载面板与排序配置
+   * @param forceRefresh 是否强制刷新排序配置（默认 false）：
+   * - false：复用排序配置的模块级缓存
+   * - true：忽略缓存，强制重新拉取最新排序配置（保存/重置后使用）
+   */
+  const load = async (forceRefresh = false) => {
     loading.value = true;
     try {
       const [panelsRes, orderRes] = await Promise.all([
-        getProcessViewsPanelsApi(),
-        getProcessMetricGroupPanelOrderApi(needCache),
+        getProcessViewsPanelsApi(forceRefresh),
+        getProcessMetricGroupPanelOrderApi(forceRefresh),
       ]);
       panels.value = panelsRes;
       orderData.value = orderRes;
@@ -82,7 +91,8 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
           order: value,
         },
       });
-      await load(false);
+      await load(true);
+      settingShow.value = false;
     } finally {
       loading.value = false;
     }
@@ -101,7 +111,8 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
           order: [],
         },
       });
-      await load(false);
+      await load(true);
+      settingShow.value = false;
     } finally {
       loading.value = false;
     }
@@ -133,6 +144,7 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
     rows,
     orderData,
     loading,
+    settingShow,
     handleSave,
     handleReset,
     load,

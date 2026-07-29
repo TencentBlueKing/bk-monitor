@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef, watch } from 'vue';
+import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
+import { useHostStore } from '../../../store/modules/host';
 import { getHostProcessList } from '../services/process-service';
-import { useHostStore } from '@/store/modules/host';
 
 import type { ProcessItem } from '../types/process';
 import type { IHostTopoHostNode } from '../types/topo';
@@ -48,31 +48,44 @@ export const useProcessList = (options: { host: Ref<IHostTopoHostNode | null> })
   const loading = shallowRef(false);
   /** 原始进程数据（接口原样数据） */
   const rawList = shallowRef<ProcessItem[]>([]);
-  /** 进程名 / PID 搜索关键字 */
+  /** 进程名搜索关键字 */
   const keyword = shallowRef('');
   /** 排序（`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
+  /** 当前请求的 AbortController，用于取消未完成的请求 */
+  let abortController: AbortController | null = null;
 
   const loadData = async () => {
+    // 取消上一次未完成的请求，避免快速切换主机时竞态
+    abortController?.abort();
     const host = options.host.value;
     if (!host) {
       rawList.value = [];
       return;
     }
+
+    const controller = new AbortController();
+    abortController = controller;
+    const { signal } = controller;
+
     loading.value = true;
-    try {
-      rawList.value = await getHostProcessList({
+    const data = await getHostProcessList(
+      {
         bk_target_ip: host.ip,
         bk_target_cloud_id: String(host.bk_cloud_id ?? ''),
         start_time: timeRangeTimestamp.value.start_time,
         end_time: timeRangeTimestamp.value.end_time,
-      });
-    } finally {
-      loading.value = false;
-    }
+      },
+      { signal }
+    );
+
+    // 请求被取消（主机切换 / 组件卸载），丢弃本次结果
+    if (signal.aborted) return;
+    rawList.value = data;
+    loading.value = false;
   };
 
-  /** 关键字过滤：命中进程名或 PID */
+  /** 关键字过滤：命中进程名 */
   const filteredList = computed<ProcessItem[]>(() => {
     const kw = keyword.value.trim().toLowerCase();
     if (!kw) {
@@ -107,6 +120,12 @@ export const useProcessList = (options: { host: Ref<IHostTopoHostNode | null> })
 
   // 选中主机或时间范围变化时重新拉取
   watch([() => options.host.value, timeRangeTimestamp], () => loadData(), { immediate: true });
+
+  // 组件卸载（effect scope 释放）时终止未完成的请求
+  onScopeDispose(() => {
+    abortController?.abort();
+    abortController = null;
+  });
 
   return {
     loading,

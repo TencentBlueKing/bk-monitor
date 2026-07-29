@@ -24,16 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import dayjs from 'dayjs';
-
-import { EProcessPortStatus } from '../types/process';
+import { ProcessDetailTabEnum, ProcessPortStatusEnum } from './enum';
 
 /** 端口状态 → 展示配置（圆点颜色 + 名称，与采集状态风格保持一致） */
 export const PROCESS_PORT_STATUS_MAP: Record<number, { color: string; name: string }> = {
-  [EProcessPortStatus.Normal]: { name: window.i18n.t('正常'), color: '#2dcb56' },
-  [EProcessPortStatus.Abnormal]: { name: window.i18n.t('异常'), color: '#ea3636' },
-  [EProcessPortStatus.Normal]: { name: window.i18n.t('正常'), color: '#2dcb56' },
-  [EProcessPortStatus.Abnormal]: { name: window.i18n.t('异常'), color: '#ea3636' },
+  [ProcessPortStatusEnum.Normal]: { name: window.i18n.t('正常'), color: '#2dcb56' },
+  [ProcessPortStatusEnum.Abnormal]: { name: window.i18n.t('异常'), color: '#ea3636' },
 };
 
 /** 进程表格列定义 */
@@ -75,64 +71,8 @@ export const PROCESS_LIST_COLUMNS: IProcessColumnConfig[] = [
   { id: 'uptime', name: window.i18n.t('运行时长范围'), type: 'uptime', checked: true, minWidth: 140 },
 ];
 
-/**
- * 进程指标进度条颜色（参考主机列表指标列：>85 warn、>=95 danger、其余 success）
- * @param value 指标使用率百分比（CPU / 内存 / 文件句柄等）
- */
-export const getProcessBarColor = (value: number): string => {
-  if (value >= 95) return '#ea3636';
-  if (value > 85) return '#f59500';
-  return '#21a380';
-};
-
-/** 运行时长毫秒数 → 展示文案（列表按小时，超过 1 天按天） */
-export const formatUptime = (milliseconds: number): string => {
-  if (!(milliseconds > 0)) {
-    return '--';
-  }
-  const seconds = milliseconds / 1000;
-  const hours = seconds / 3600;
-  if (hours >= 24) {
-    return `${+(hours / 24).toFixed(1)} d`;
-  }
-  return `${+hours.toFixed(1)} h`;
-};
-
-/** 物理内存 RSS 字节数 → 展示文案（如 92 MiB） */
-export const formatMemRss = (bytes: number): string => {
-  if (!(bytes > 0)) {
-    return '--';
-  }
-  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
-  let value = bytes;
-  let index = 0;
-  while (value >= 1024 && index < units.length - 1) {
-    value /= 1024;
-    index += 1;
-  }
-  return `${+value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
-};
-
 /** 进程详情二级 Tab（Profiling 本期未开发，点击展示占位） */
 export const PROCESS_DETAIL_TABS = [
-  { id: 'metric', label: '指标视图', icon: 'icon-zhibiaojiansuo' },
-  { id: 'profiling', label: 'Profiling', icon: 'icon-profiling' },
+  { id: ProcessDetailTabEnum.METRIC, label: window.i18n.t('指标视图'), icon: 'icon-zhibiaojiansuo' },
+  { id: ProcessDetailTabEnum.PROFILING, label: window.i18n.t('Profiling'), icon: 'icon-profiling' },
 ] as const;
-
-/** 进程详情二级 Tab 取值 */
-export type ProcessDetailTab = (typeof PROCESS_DETAIL_TABS)[number]['id'];
-
-/**
- * 运行时长范围毫秒数 → 进程详情展示文案（如 `2.19d (2024-10-22 14:00:00)`）。
- * 起始时间按「当前时间 - 运行时长」推算，对齐设计稿头部信息。
- */
-export const formatProcessUptimeDetail = (milliseconds: number): string => {
-  if (!(milliseconds > 0)) {
-    return '--';
-  }
-  const seconds = milliseconds / 1000;
-  const startTime = dayjs().subtract(milliseconds, 'millisecond').format('YYYY-MM-DD HH:mm:ss');
-  const days = seconds / 86400;
-  const duration = days >= 1 ? `${+days.toFixed(2)}d` : `${+(seconds / 3600).toFixed(2)}h`;
-  return `${duration} (${startTime})`;
-};

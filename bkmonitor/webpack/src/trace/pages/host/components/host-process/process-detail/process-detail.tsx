@@ -24,40 +24,42 @@
  * IN THE SOFTWARE.
  */
 
-import {
-  type PropType,
-  computed,
-  ref as deepRef,
-  defineComponent,
-  onBeforeUnmount,
-  provide,
-  reactive,
-  shallowRef,
-  watch,
-} from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, provide, reactive, shallowRef, watch } from 'vue';
 
 import { Exception, Loading, Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
+import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
+import TimeRange from '../../../../../components/time-range/time-range';
+import { getDefaultTimezone } from '../../../../../i18n/dayjs';
+import { DEFAULT_AGGREGATION_STATE } from '../../../../../pages/host/constants/aggregation';
+import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
+import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pages/host/constants/process';
+import { formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
 import { useMetricAggregation } from '../../../composables/use-metric-aggregation';
 import { useProcessMetric } from '../../../composables/use-process-metric';
-import { formatProcessUptimeDetail, PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../constants/process';
-import { buildScopedVars, DashboardPanel } from '../../dashbords';
+import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
 import GroupManageDialog from '../../host-metric/group-manage-dialog';
 import MetricToolbar from '../../host-metric/metric-toolbar';
-import RefreshRate from '@/components/refresh-rate/refresh-rate';
-import TimeRange from '@/components/time-range/time-range';
-import { getDefaultTimezone } from '@/i18n/dayjs';
-import { DEFAULT_AGGREGATION_STATE } from '@/pages/host/constants/aggregation';
 
-import type { ProcessDetailTab } from '../../../constants/process';
+import type { TimeRangeType } from '../../../../../components/time-range/utils';
+import type {
+  CompareTarget,
+  IHostTopoHostNode,
+  IHostTopoTreeNode,
+  MetricAggregationState,
+  ProcessDetailTabType,
+} from '../../../../../pages/host/types';
 import type { ProcessItem } from '../../../types/process';
-import type { TimeRangeType } from '@/components/time-range/utils';
-import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode, MetricAggregationState } from '@/pages/host/types';
 
 import './process-detail.scss';
 
+/**
+ * @description 进程详情抽屉组件
+ * 以 Sideslider 形式展示单个进程的基本信息（名称、用户、运行时长、端口、启动命令）
+ * 与指标视图（MetricToolbar + DashboardPanel），支持本地时间范围与自动刷新。
+ */
 export default defineComponent({
   name: 'ProcessDetail',
   props: {
@@ -71,160 +73,170 @@ export default defineComponent({
       type: Object as PropType<null | ProcessItem>,
       default: null,
     },
+    /** 当前选中的拓扑节点（主机或拓扑实例），用于驱动详情取数 */
     selectedNode: {
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
     },
+    /** 对比主机列表，透传给 Toolbar 用于对比目标选择 */
     compareHostList: {
       type: Array as PropType<IHostTopoHostNode[]>,
       default: () => [],
     },
   },
   emits: {
+    /** 抽屉显隐更新（v-model:show） */
     'update:show': (_v: boolean) => true,
   },
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useI18n();
 
-    // 抽屉本地的时间范围与刷新（独立于页面顶栏，仅驱动详情内图表）
-    const timeRange = deepRef<TimeRangeType>(['now-1d', 'now']);
+    /** 当前二级 Tab，默认指标视图 */
+    const activeTab = shallowRef<ProcessDetailTabType>(ProcessDetailTabEnum.METRIC);
+    /** 抽屉本地的时间范围（独立于页面顶栏，仅驱动详情内图表） */
+    const timeRange = shallowRef<TimeRangeType>(['now-1d', 'now']);
+    /** 抽屉本地时区，跟随 timeRange 一起下发给图表 */
     const timezone = shallowRef(getDefaultTimezone());
+    /** 自动刷新间隔（秒），-1 表示关闭 */
     const refreshInterval = shallowRef(-1);
+    /** 立即刷新信号：变更该值即触发下游图表重新取数 */
     const refreshImmediate = shallowRef('');
+    /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
+    let refreshTimer: null | ReturnType<typeof setInterval> = null;
+
     // 向下游图表（useEcharts）提供本地时间范围与刷新信号
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
 
-    // 自动刷新定时器：间隔 > 0 时周期性触发图表刷新
-    let refreshTimer: null | ReturnType<typeof setInterval> = null;
+    /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
+    const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
+    const aggregation = useMetricAggregation(state);
+    /** 进程指标数据：取数走带缓存的 panel / order */
+    const { rows, orderData, loading, settingShow, load, handleReset, handleSave } = useProcessMetric({
+      keyword: () => aggregation.state.keyword,
+      ungroupTitle: () => t('未分组'),
+    });
+
+    /** 根据选中节点类型，生成当前目标的查询参数 */
+    const currentTarget = computed<CompareTarget | null>(() => {
+      const node = props.selectedNode;
+      if (!node) return null;
+      if ('bk_host_id' in node) {
+        return {
+          bk_target_ip: node.ip,
+          bk_target_cloud_id: node.bk_cloud_id,
+          bk_host_id: node.bk_host_id,
+        };
+      }
+
+      return {
+        bk_inst_id: node.bk_inst_id,
+        bk_obj_id: node.bk_obj_id,
+      };
+    });
+
+    /** 变量取值：仅请求态字段变化才会触发图表重新取数 */
+    const scopedVars = computed<ScopedVarMap>(() => ({
+      ...buildScopedVars(aggregation.state, currentTarget.value),
+      // 进程态需把进程名下发给图表查询，等价于旧版 variables.display_name
+      ...(props.process?.name ? { display_name: props.process.name } : {}),
+    }));
+
+    /**
+     * @description 清除自动刷新定时器
+     */
     const clearRefreshTimer = () => {
       if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;
       }
     };
-    watch(refreshInterval, value => {
-      clearRefreshTimer();
-      if (value > 0) {
+
+    /**
+     * @description 启动自动刷新定时器
+     * @param interval - 刷新间隔（毫秒），<= 0 时不启动
+     */
+    const startRefreshTimer = (interval: number) => {
+      if (interval > 0) {
         refreshTimer = setInterval(() => {
           refreshImmediate.value = random(5);
-        }, value);
+        }, interval);
       }
-    });
-    onBeforeUnmount(clearRefreshTimer);
+    };
 
-    // 汇聚 Toolbar 状态（与系统指标一致，受控分发给 Toolbar 与图表）
-    const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
-    const aggregation = useMetricAggregation(state);
-    // 进程指标数据：取数走带缓存的 panel / order
-    const metricCtrl = useProcessMetric({
-      keyword: () => aggregation.state.keyword,
-      ungroupTitle: () => t('未分组'),
-    });
-
-    /** 根据选中节点类型，生成当前目标的查询参数 */
-    const currentTarget = computed<CompareTarget>(() => {
-      if ('bk_host_id' in props.selectedNode) {
-        return {
-          bk_target_ip: props.selectedNode.ip,
-          bk_target_cloud_id: props.selectedNode.bk_cloud_id,
-          bk_host_id: props.selectedNode.bk_host_id,
-        };
-      }
-
-      return {
-        bk_inst_id: props.selectedNode.bk_inst_id,
-        bk_obj_id: props.selectedNode.bk_obj_id,
-      };
-    });
-
-    // 变量取值：仅请求态字段变化才会触发图表重新取数
-    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
-
-    /** 当前二级 Tab，默认指标视图 */
-    const activeTab = shallowRef<ProcessDetailTab>('metric');
-    /** 视图分组管理弹窗 */
-    const settingShow = shallowRef(false);
-
-    // 打开抽屉时按需加载指标数据（service 已做缓存，重复打开不会重复请求）
-    watch(
-      () => props.show,
-      show => {
-        if (show) {
-          metricCtrl.load();
-        }
-      },
-      { immediate: true }
-    );
-
-    const handleClose = () => emit('update:show', false);
-
-    /** 详情标题：进程名 / 主机 IP */
-    const detailTitle = computed(() => {
-      const process = props.process;
-      if (!process) return t('进程详情');
-      return `${process.name} / ${process.hostIp}`;
-    });
-
-    /** 抽屉头部：标题 + 右侧时间/刷新工具 */
-    const renderHeader = () => (
-      <div class='process-detail-header'>
-        <div class='process-detail-header__left'>
-          <i
-            class='icon-monitor icon-arrow-left process-detail-header__collapse'
-            onClick={handleClose}
-          />
-          <span class='process-detail-header__title'>{detailTitle.value}</span>
+    /**
+     * @description 抽屉头部区域渲染函数（标题 + 时间范围 + 自动刷新）
+     */
+    const renderHeader = () => {
+      return (
+        <div class='process-detail-header'>
+          <div class='process-detail-header-left'>
+            <span class='process-detail-header-title'>{t('进程详情')}</span>
+          </div>
+          <div class='process-detail-header-tools'>
+            <TimeRange
+              modelValue={timeRange.value}
+              timezone={timezone.value}
+              onUpdate:modelValue={(v: TimeRangeType) => {
+                timeRange.value = v;
+              }}
+              onUpdate:timezone={(v: string) => {
+                timezone.value = v;
+              }}
+            />
+            <span class='process-detail-header-divider' />
+            <RefreshRate
+              value={refreshInterval.value}
+              onImmediate={() => {
+                refreshImmediate.value = random(5);
+              }}
+              onSelect={(v: number) => {
+                refreshInterval.value = v;
+              }}
+            />
+          </div>
         </div>
-        <div class='process-detail-header__tools'>
-          <TimeRange
-            modelValue={timeRange.value}
-            timezone={timezone.value}
-            onUpdate:modelValue={(value: TimeRangeType) => (timeRange.value = value)}
-            onUpdate:timezone={(value: string) => (timezone.value = value)}
-          />
-          <span class='process-detail-header__divider' />
-          <RefreshRate
-            value={refreshInterval.value}
-            onImmediate={() => (refreshImmediate.value = random(5))}
-            onSelect={(value: number) => (refreshInterval.value = value)}
-          />
-        </div>
-      </div>
-    );
+      );
+    };
 
-    /** 详情头部块：LOGO + 标题 + key-value 信息 */
+    /**
+     * @description 抽屉进程基本信息区域渲染函数（进程名、用户、运行时长、端口、启动命令）
+     */
     const renderInfo = () => {
       const process = props.process;
       if (!process) return null;
       const portConfig = PROCESS_PORT_STATUS_MAP[process.portStatus];
       return (
-        <div class='process-detail__info'>
-          <div class='process-detail__logo'>
-            <i class='icon-monitor icon-mc-process' />
+        <div class='process-detail-info'>
+          <div class='process-detail-logo'>
+            <i class='icon-monitor icon-jincheng1' />
           </div>
-          <div class='process-detail__info-main'>
-            <div class='process-detail__info-title'>{detailTitle.value}</div>
-            <div class='process-detail__info-meta'>
-              <div class='process-detail__kv'>
-                <span class='process-detail__kv-label'>{t('用户')}：</span>
-                <span class='process-detail__kv-value'>{process.user || '--'}</span>
+          <div class='process-detail-info-main'>
+            <div class='process-detail-info-title'>{`${process.name} / ${process.hostIp}`}</div>
+            <div class='process-detail-info-meta'>
+              <div class='process-detail-kv'>
+                <span class='process-detail-kv-label'>{t('运行用户')}：</span>
+                <span class='process-detail-kv-value'>{process.user || '--'}</span>
               </div>
-              <div class='process-detail__kv'>
-                <span class='process-detail__kv-label'>{t('运行时长')}：</span>
-                <span class='process-detail__kv-value'>{formatProcessUptimeDetail(process.uptime)}</span>
+              <div class='process-detail-kv'>
+                <span class='process-detail-kv-label'>{t('运行时长')}：</span>
+                <span class='process-detail-kv-value'>{formatProcessUptimeDetail(process.uptime)}</span>
               </div>
-              <div class='process-detail__kv'>
-                <span class='process-detail__kv-label'>{t('端口')}：</span>
+              <div class='process-detail-kv'>
+                <span class='process-detail-kv-label'>{t('实例数')}：</span>
+                <span class='process-detail-kv-value'>{process.instanceCount ?? '--'}</span>
+              </div>
+              <div class='process-detail-kv'>
+                <span class='process-detail-kv-label'>{t('端口')}：</span>
                 <span
                   style={{ backgroundColor: portConfig?.color || '#c4c6cc' }}
-                  class='process-detail__kv-dot'
+                  class='process-detail-kv-dot'
                 />
-                <span class='process-detail__kv-value'>{`${process.protocol} ${process.bindIp}: ${process.port}`}</span>
+                <span class='process-detail-kv-value'>{`${process.protocol} ${process.bindIp}: ${process.port}`}</span>
               </div>
-              <div class='process-detail__kv'>
-                <span class='process-detail__kv-label'>{t('启动命令')}：</span>
-                <span class='process-detail__kv-value'>{process.startCommand || '--'}</span>
+              <div class='process-detail-kv'>
+                <span class='process-detail-kv-label'>{t('启动命令')}：</span>
+                <span class='process-detail-kv-value'>{process.startCommand || '--'}</span>
               </div>
             </div>
           </div>
@@ -232,82 +244,129 @@ export default defineComponent({
       );
     };
 
-    /** 二级 Tab：指标视图 / Profiling */
+    /**
+     * @description 抽屉Tabs区域渲染函数
+     */
     const renderTabs = () => (
-      <div class='process-detail__tabs'>
+      <div class='process-detail-tabs'>
         {PROCESS_DETAIL_TABS.map(tab => (
           <div
             key={tab.id}
-            class={['process-detail__tab', { 'is-active': activeTab.value === tab.id }]}
-            onClick={() => (activeTab.value = tab.id)}
+            class={['process-detail-tab', { 'is-active': activeTab.value === tab.id }]}
+            onClick={() => {
+              activeTab.value = tab.id;
+            }}
           >
-            <i class={['icon-monitor', tab.icon, 'process-detail__tab-icon']} />
-            <span>{t(tab.label)}</span>
+            <i class={['icon-monitor', tab.icon, 'process-detail-tab-icon']} />
+            <span>{tab.label}</span>
           </div>
         ))}
       </div>
     );
 
-    /** 指标视图：与系统指标组件展示一致（Toolbar + 图表 + 视图分组管理） */
-    const renderMetric = () => (
-      <div class='process-detail__metric'>
-        <MetricToolbar
-          currentTarget={props.selectedNode.name}
-          targetList={props.compareHostList}
-          value={aggregation.state}
-          onChange={aggregation.updateState}
-          onOpenSetting={() => (settingShow.value = true)}
-        />
-        <DashboardPanel
-          class='process-detail__charts'
-          columns={aggregation.state.columns}
-          rows={metricCtrl.rows.value}
-          scopedVars={scopedVars.value}
-        />
-        <GroupManageDialog
-          isShow={settingShow.value}
-          orderData={metricCtrl.orderData.value}
-          submitLoading={metricCtrl.loading.value}
-          onReset={metricCtrl.handleReset}
-          onSave={metricCtrl.handleSave}
-          onUpdate:isShow={(v: boolean) => (settingShow.value = v)}
-        />
-      </div>
+    /**
+     * @description 抽屉内容区域渲染函数
+     * 指标 Tab：展示 MetricToolbar + DashboardPanel + GroupManageDialog
+     * 其他 Tab：展示「功能开发中」占位
+     */
+    const renderContent = () => {
+      if (activeTab.value === ProcessDetailTabEnum.METRIC) {
+        return (
+          <div class='process-detail-metric'>
+            <MetricToolbar
+              currentTarget={props.selectedNode?.name}
+              targetList={props.compareHostList}
+              value={state}
+              onChange={aggregation.updateState}
+              onOpenSetting={() => {
+                settingShow.value = true;
+              }}
+            />
+            <DashboardPanel
+              class='process-detail-charts'
+              columns={state.columns}
+              rows={rows.value}
+              scopedVars={scopedVars.value}
+            />
+            <GroupManageDialog
+              isShow={settingShow.value}
+              orderData={orderData.value}
+              submitLoading={loading.value}
+              onReset={handleReset}
+              onSave={handleSave}
+              onUpdate:isShow={(v: boolean) => {
+                settingShow.value = v;
+              }}
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div class='process-detail-placeholder'>
+          <Exception
+            description={t('功能开发中')}
+            scene='part'
+            type='building'
+          />
+        </div>
+      );
+    };
+
+    /** 抽屉显隐变化时统一管理数据加载与定时器生命周期 */
+    watch(
+      () => props.show,
+      show => {
+        if (show) {
+          load();
+          startRefreshTimer(refreshInterval.value);
+        } else {
+          clearRefreshTimer();
+        }
+      },
+      { immediate: true }
     );
 
-    /** Profiling 本期未开发，展示占位 */
-    const renderProfiling = () => (
-      <div class='process-detail__placeholder'>
-        <Exception
-          description={t('功能开发中')}
-          scene='part'
-          type='building'
-        />
-      </div>
-    );
+    /** 仅刷新间隔变化时调整定时器（抽屉关闭时不启停） */
+    watch(refreshInterval, value => {
+      clearRefreshTimer();
+      if (props.show) {
+        startRefreshTimer(value);
+      }
+    });
 
-    const renderContent = () => (
-      <Loading
-        class='process-detail'
-        loading={metricCtrl.loading.value}
-      >
-        {renderInfo()}
-        {renderTabs()}
-        {activeTab.value === 'metric' ? renderMetric() : renderProfiling()}
-      </Loading>
-    );
+    /** 组件卸载前清除定时器，避免内存泄漏 */
+    onBeforeUnmount(clearRefreshTimer);
 
-    return () => (
+    return {
+      loading,
+      renderHeader,
+      renderInfo,
+      renderTabs,
+      renderContent,
+    };
+  },
+  render() {
+    return (
       <Sideslider
         width={1200}
         extCls='process-detail-sideslider'
-        isShow={props.show}
+        isShow={this.show}
         quickClose
-        onUpdate:isShow={(v: boolean) => emit('update:show', v)}
+        onUpdate:isShow={v => this.$emit('update:show', v)}
       >
         {{
-          header: renderHeader,
-          default: renderContent,
+          header: this.renderHeader,
+          default: () => (
+            <Loading
+              class='process-detail'
+              loading={this.loading}
+            >
+              {this.renderInfo()}
+              {this.renderTabs()}
+              {this.renderContent()}
+            </Loading>
+          ),
         }}
       </Sideslider>
     );

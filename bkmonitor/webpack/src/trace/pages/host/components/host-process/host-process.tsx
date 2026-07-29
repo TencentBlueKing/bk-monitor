@@ -26,6 +26,7 @@
 
 import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
 
+import { useDebounceFn } from '@vueuse/core';
 import { Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
@@ -59,6 +60,11 @@ export default defineComponent({
       host: toRef(props, 'host'),
     });
 
+    /** 搜索输入防抖（300ms），避免每次按键触发过滤计算 */
+    const debouncedKeywordChange = useDebounceFn((value: string) => {
+      handleKeywordChange(value);
+    }, 300);
+
     /** 展示列（默认勾选项对齐设计稿，可在「字段设置」中调整） */
     const visibleColumns = shallowRef<string[]>(PROCESS_LIST_COLUMNS.filter(c => c.checked).map(c => c.id));
     /** 进程详情抽屉显隐状态（点击进程名打开） */
@@ -86,6 +92,7 @@ export default defineComponent({
       activeProcess,
       handleRowClick,
       handleKeywordChange,
+      debouncedKeywordChange,
       handleSortChange,
     };
   },
@@ -99,7 +106,7 @@ export default defineComponent({
             type='search'
             clearable
             onClear={() => this.handleKeywordChange('')}
-            onInput={(v: string) => this.handleKeywordChange(v)}
+            onInput={(v: string) => this.debouncedKeywordChange(v)}
           />
         </div>
         <ProcessTable

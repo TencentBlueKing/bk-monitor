@@ -24,18 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { request } from 'monitor-api/base';
+import {
+  getHostMetricGroupPanelOrder,
+  getHostViewsPanels,
+  getProcessMetricGroupPanelOrder,
+  getProcessViewsPanels,
+} from 'monitor-api/modules/performance';
 
 import type { MetricGroupPanelOrder } from '../types/panel-order';
 import type { HostViewsRowPanel } from '../types/panels';
-
-const getHostViewsPanels = request('POST', '/rest/v2/scene_view/get_host_views_panels/');
-
-const getHostMetricGroupPanelOrder = request('POST', '/rest/v2/scene_view/get_host_metric_group_panel_order/');
-
-const getProcessViewsPanels = request('POST', '/rest/v2/scene_view/get_process_views_panels/');
-
-const getProcessMetricGroupPanelOrder = request('POST', '/rest/v2/scene_view/get_process_metric_group_panel_order/');
 
 /** 主机指标分组面板排序缓存：整页生命周期内只取一次 */
 let hostMetricGroupPanelOrderCache: MetricGroupPanelOrder[] | null = null;
@@ -55,21 +52,27 @@ let processMetricGroupPanelOrderCache: MetricGroupPanelOrder[] | null = null;
 
 /**
  * @description: 获取进程视图面板（带模块级缓存）
+ * @param forceRefresh 是否强制刷新（默认 false）：
+ * - false：优先复用模块级缓存，缓存为空时才发起请求
+ * - true：忽略现有缓存，强制重新请求并用最新结果覆盖缓存（如保存/重置排序配置后调用）
  * @returns {Promise<HostViewsRowPanel[]>} 进程视图面板
  */
-export const getProcessViewsPanelsApi = async (): Promise<HostViewsRowPanel[]> => {
-  if (!processViewsPanelsCache) {
-    processViewsPanelsCache = await getProcessViewsPanels();
+export const getProcessViewsPanelsApi = async (forceRefresh = false): Promise<HostViewsRowPanel[]> => {
+  if (!processViewsPanelsCache || forceRefresh) {
+    processViewsPanelsCache = await getProcessViewsPanels().catch(() => []);
   }
   return processViewsPanelsCache;
 };
 
 /**
- * @description: 获取指标分组面板排序配置
+ * @description: 获取指标分组面板排序配置（带模块级缓存）
+ * @param forceRefresh 是否强制刷新（默认 false）：
+ * - false：优先复用模块级缓存，缓存为空时才发起请求
+ * - true：忽略现有缓存，强制重新请求并用最新结果覆盖缓存（如保存/重置排序配置后调用）
  * @returns {Promise<MetricGroupPanelOrder[]>} 指标分组面板排序配置
  */
-export const getHostMetricGroupPanelOrderApi = async (needCache = true): Promise<MetricGroupPanelOrder[]> => {
-  if (!hostMetricGroupPanelOrderCache || !needCache) {
+export const getHostMetricGroupPanelOrderApi = async (forceRefresh = false): Promise<MetricGroupPanelOrder[]> => {
+  if (!hostMetricGroupPanelOrderCache || forceRefresh) {
     hostMetricGroupPanelOrderCache = await getHostMetricGroupPanelOrder();
   }
   return hostMetricGroupPanelOrderCache;
@@ -77,11 +80,14 @@ export const getHostMetricGroupPanelOrderApi = async (needCache = true): Promise
 
 /**
  * @description: 获取进程指标分组面板排序配置（带模块级缓存）
+ * @param forceRefresh 是否强制刷新（默认 false）：
+ * - false：优先复用模块级缓存，缓存为空时才发起请求
+ * - true：忽略现有缓存，强制重新请求并用最新结果覆盖缓存（如保存/重置排序配置后调用）
  * @returns {Promise<MetricGroupPanelOrder[]>} 进程指标分组面板排序配置
  */
-export const getProcessMetricGroupPanelOrderApi = async (needCache = true): Promise<MetricGroupPanelOrder[]> => {
-  if (!processMetricGroupPanelOrderCache || !needCache) {
-    processMetricGroupPanelOrderCache = await getProcessMetricGroupPanelOrder();
+export const getProcessMetricGroupPanelOrderApi = async (forceRefresh = false): Promise<MetricGroupPanelOrder[]> => {
+  if (!processMetricGroupPanelOrderCache || forceRefresh) {
+    processMetricGroupPanelOrderCache = await getProcessMetricGroupPanelOrder().catch(() => []);
   }
   return processMetricGroupPanelOrderCache;
 };

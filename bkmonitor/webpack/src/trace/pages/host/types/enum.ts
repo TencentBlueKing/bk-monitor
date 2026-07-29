@@ -23,13 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { ProcessDetailTabEnum, ProcessPortStatusEnum } from '../constants/enum';
+import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
-export * from './aggregation';
-export * from './enum';
-export * from './host';
-export * from './host-list';
-export * from './metric-group';
-export * from './panel-order';
-export * from './panels';
-export * from './process';
-export * from './topo';
+/** 进程详情二级 Tab 取值 */
+export type ProcessDetailTabType = GetEnumTypeTool<typeof ProcessDetailTabEnum>;
+
+/** 进程端口状态取值 */
+export type ProcessPortStatusType = GetEnumTypeTool<typeof ProcessPortStatusEnum>;

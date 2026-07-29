@@ -497,6 +497,7 @@ export default {
   指标汇聚: 'Metric aggregation',
   未恢复的告警: 'Unrecovered alarms',
   详情页开发中: 'Details page development in progress',
+  功能开发中: 'Feature in development',
   节点: 'Node',
   该分享链接仅包含当前时间范围: 'The shared link only includes the current time range',
   '无 Agent': 'No Agent',

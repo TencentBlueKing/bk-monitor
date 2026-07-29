@@ -56,12 +56,18 @@ export function useMetricGroups(options: UseHostMetricOptions) {
   /** 后端返回的分组与指标排序配置（getHostMetricGroupPanelOrderApi，供 GroupManageDialog 使用） */
   const orderData = shallowRef<MetricGroupPanelOrder[]>([]);
 
-  const load = async (needCache = true) => {
+  /**
+   * 加载面板与排序配置
+   * @param forceRefresh 是否强制刷新排序配置（默认 false）：
+   * - false：复用排序配置的模块级缓存
+   * - true：忽略缓存，强制重新拉取最新排序配置（保存/重置后使用）
+   */
+  const load = async (forceRefresh = false) => {
     loading.value = true;
     try {
       const [panelsRes, orderRes] = await Promise.all([
         getHostViewsPanelsApi(),
-        getHostMetricGroupPanelOrderApi(needCache),
+        getHostMetricGroupPanelOrderApi(forceRefresh),
       ]);
       panels.value = panelsRes;
       orderData.value = orderRes;
@@ -83,7 +89,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
           order: value,
         }, // 设置配置
       });
-      await load(false);
+      await load(true);
       settingShow.value = false;
     } finally {
       loading.value = false;
@@ -103,7 +109,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
           order: [],
         }, // 设置配置
       });
-      await load(false);
+      await load(true);
       settingShow.value = false;
     } finally {
       loading.value = false;
