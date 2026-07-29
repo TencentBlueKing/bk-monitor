@@ -334,6 +334,46 @@ def test_invoke_postprocess_is_applied():
     assert out["result"] == [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
 
+def test_invoke_can_pass_guarded_params_to_postprocess():
+    def _h(**_):
+        return [{"name": "stream-main"}]
+
+    def _guard(params):
+        return {"condition": {"stream_to_id": int(params["stream_to_id"])}}
+
+    def _pp(items, fields, invoke_params):
+        return {
+            "items": items,
+            "fields": fields,
+            "stream_to_id": invoke_params["condition"]["stream_to_id"],
+        }
+
+    op = OperationSpec(
+        id="query_things",
+        summary="s",
+        handler=_h,
+        params_guard=_guard,
+        response_postprocess=_pp,
+        response_postprocess_needs_params=True,
+    )
+    PlatformSourceCatalog.register_domain(id="domain7", summary="d", audit_tags=["readonly"], operations=[op])
+
+    out = query_platform_source(
+        {
+            "mode": "invoke",
+            "domain": "domain7",
+            "operation": "query_things",
+            "params": {"stream_to_id": "201"},
+        }
+    )
+
+    assert out["result"] == {
+        "items": [{"name": "stream-main"}],
+        "fields": None,
+        "stream_to_id": 201,
+    }
+
+
 def test_invoke_params_must_be_object():
     PlatformSourceCatalog.register_domain(id="domain1", summary="d", audit_tags=["readonly"], operations=[])
     out = query_platform_source({"mode": "invoke", "domain": "domain1", "operation": "x", "params": "not-an-object"})
@@ -387,6 +427,41 @@ def test_operation_id_with_banned_substring_rejected():
 def test_invalid_cache_bypass_method_rejected():
     with pytest.raises(ValueError, match="cache_bypass_method"):
         OperationSpec(id="get_thing", summary="s", handler=_stub_handler, cache_bypass_method="purge")
+
+
+def test_response_postprocess_needs_params_must_be_boolean():
+    with pytest.raises(ValueError, match="response_postprocess_needs_params"):
+        OperationSpec(
+            id="get_thing",
+            summary="s",
+            handler=_stub_handler,
+            response_postprocess=lambda raw, fields, params: raw,
+            response_postprocess_needs_params="yes",
+        )
+
+
+def test_response_postprocess_needs_params_requires_postprocessor():
+    with pytest.raises(ValueError, match="response_postprocess"):
+        OperationSpec(
+            id="get_thing",
+            summary="s",
+            handler=_stub_handler,
+            response_postprocess_needs_params=True,
+        )
+
+
+def test_response_postprocess_needs_params_requires_three_argument_signature():
+    def _two_argument_postprocessor(raw, fields):
+        return raw
+
+    with pytest.raises(ValueError, match="three arguments"):
+        OperationSpec(
+            id="get_thing",
+            summary="s",
+            handler=_stub_handler,
+            response_postprocess=_two_argument_postprocessor,
+            response_postprocess_needs_params=True,
+        )
 
 
 def test_duplicate_domain_registration_rejected():

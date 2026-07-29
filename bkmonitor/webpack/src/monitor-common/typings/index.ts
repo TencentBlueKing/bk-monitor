@@ -42,13 +42,19 @@ export interface IDocLinkData {
 export interface ISpaceItem {
   bk_biz_id: number;
   id: number;
+  /** 业务 id 字符串，供大列表搜索复用，避免循环内反复模板转换 */
+  id_str?: string;
   is_demo: boolean;
   is_hidden_tag?: boolean;
   py_text?: string; // 拼音全拼
   pyf_text?: string; // 拼音首字母
   space_code: string;
   space_id: string;
+  /** space_id 小写缓存，供大列表搜索复用 */
+  space_id_lc?: string;
   space_name: string;
+  /** space_name 小写缓存，供大列表搜索复用 */
+  space_name_lc?: string;
   space_type_id: string;
   space_uid: string;
   status: string;

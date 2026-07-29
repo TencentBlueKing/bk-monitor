@@ -219,7 +219,7 @@ class StrategySerializer(serializers.Serializer):
 
 class NewClsStrategySerializer(StrategySerializer):
     interval = serializers.IntegerField(label=_("告警间隔"))
-    threshold = serializers.IntegerField(label=_("告警阈值"))
+    threshold = serializers.IntegerField(label=_("告警阈值"), min_value=1)
 
 
 class StrategyTypeSerializer(serializers.Serializer):

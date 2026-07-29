@@ -17,25 +17,46 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
+from apps.log_search.exceptions import IndexSetDorisQueryException
+from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
 class UnifyQueryChartHandler(UnifyQueryHandler):
     def __init__(self, params):
         self.sql = params["sql"]
+        self.table_id = None
         super().__init__(params)
+        self.index_set_obj = self.index_info_list[0].get("index_set_obj")
+        self.is_support_sql_and_grep = LogIndexSet.is_support_sql_and_grep(self.index_set_ids[0], self.index_set_obj)
 
     def init_base_dict(self):
         # 拼接查询参数列表
         query_list = []
+
+        native_doris_map = LogIndexSet.batch_get_is_native_doris(
+            [info["index_set_id"] for info in self.index_info_list]
+        )
+
         for index, index_info in enumerate(self.index_info_list):
+            self.table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
+
+            index_set_obj = index_info.get("index_set_obj")
+
+            if index_set_obj:
+                is_manual_connect_doris = (
+                    True if index_set_obj.support_doris and index_set_obj.doris_table_id else False
+                )
+                if not is_manual_connect_doris and native_doris_map.get(index_info["index_set_id"], False):
+                    self.table_id = f"bklog_index_set_{index_info['index_set_id']}"
+
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                 "reference_name": self.generate_reference_name(index),
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": f"bklog_index_set_{index_info['index_set_id']}_analysis",
+                "table_id": self.table_id,
             }
 
             query_list.append(query_dict)
@@ -51,7 +72,16 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "is_merge_db": True,  # 多表查询会进行合并
         }
 
+    def check_support_sql_and_grep(self):
+        """
+        校验是否支持 sql 分析与 grep 查询
+        """
+        if not self.is_support_sql_and_grep:
+            raise IndexSetDorisQueryException()
+
     def get_chart_data(self):
+        self.check_support_sql_and_grep()
+
         start_time = time.time()
         result = UnifyQueryApi.query_ts_raw(self.base_dict)
         for record in result["list"]:
@@ -71,6 +101,8 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def generate_sql(self):
+        self.check_support_sql_and_grep()
+
         search_dict = copy.deepcopy(self.base_dict)
         search_dict["dry_run"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)

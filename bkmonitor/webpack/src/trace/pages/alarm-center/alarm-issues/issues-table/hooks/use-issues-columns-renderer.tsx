@@ -30,6 +30,7 @@ import { get } from '@vueuse/core';
 import { Loading, Radio } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
+import VueJsonPretty from 'vue-json-pretty';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import {
@@ -54,6 +55,12 @@ import type { TableColumnItem } from '../../../typings';
 import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem, TrendRangeType } from '../../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { TippyOptions } from 'vue-tippy';
+
+import 'vue-json-pretty/lib/styles.css';
+
+/** 匹配开头的日期时间格式字符串（如 2026-07-24 21:08:17.684 或 2026-07-24 21:08:00+0800），用于移除以释放有限的展示空间 */
+const DATETIME_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{4})?\s*/;
 
 /** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 */
 export type IssuesColumnsRendererCtx = {
@@ -94,6 +101,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const regressionConfig = ISSUES_REGRESSION_MAP[String(row.is_regression)];
+    const exceptionText = row.log_content?.replace(DATETIME_PREFIX_REGEX, '') || row.anomaly_message || '--';
 
     return (
       <div class='issues-name-col'>
@@ -156,14 +164,46 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
               const el = e.target as HTMLElement;
               const { isEllipsisActive, content } = isEllipsisActiveLine(el);
               if (isEllipsisActive) {
-                rendererCtx.hoverPopoverTools.showPopover(e, content, {
-                  theme: 'max-width-40vw text-wrap',
+                let popoverConfigs: TippyOptions = {
+                  content: content,
+                  theme: 'dart',
+                };
+
+                if (row.log_content) {
+                  try {
+                    const parsed = JSON.parse(content);
+                    popoverConfigs = {
+                      content: (
+                        <div class='issues-json-popover-content'>
+                          <VueJsonPretty
+                            data={parsed}
+                            showDoubleQuotes={false}
+                            showLine={false}
+                          />
+                        </div>
+                      ) as unknown as Element,
+                      theme: 'light',
+                    };
+                  } catch {
+                    // Not valid JSON, wrap in styled container to improve readability
+                    popoverConfigs = {
+                      content: (
+                        <div class='issues-json-popover-content'>
+                          <pre class='issues-string-popover-pre'>{content}</pre>
+                        </div>
+                      ) as unknown as Element,
+                      theme: 'light',
+                    };
+                  }
+                }
+                rendererCtx.hoverPopoverTools.showPopover(e, popoverConfigs.content, {
+                  theme: `${popoverConfigs.theme} issues-json-popover max-width-50vw text-wrap`,
                 });
               }
             }}
             onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
           >
-            {row.log_content || row.anomaly_message || '--'}
+            {exceptionText}
           </span>
         </div>
       </div>
@@ -424,7 +464,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
 
   /** 列渲染配置映射表：按 colKey 定义各列的 cellRenderer / renderType / 布局等配置 */
   const columnsRendererMap: Record<string, Partial<BaseTableColumn>> = {
-    name: { cellRenderer: renderIssueName },
+    name: { cellRenderer: renderIssueName, resize: { minWidth: 80, maxWidth: 1000 } },
     labels: { renderType: ExploreTableColumnTypeEnum.TAGS },
     last_alert_time: { cellRenderer: renderTimeCell },
     first_alert_time: { cellRenderer: renderTimeCell },

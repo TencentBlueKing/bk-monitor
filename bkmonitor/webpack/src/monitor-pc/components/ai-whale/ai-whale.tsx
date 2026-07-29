@@ -126,8 +126,6 @@ export default class AiWhale extends tsc<{
   /* 弹出层实例 */
   popoverInstance = null;
   hoverTimer = null;
-  /* 轮询 */
-  timeInstance = null;
   /* 区分点击/与拖拽 */
   downTime = 0;
   data: IData = null;
@@ -164,7 +162,6 @@ export default class AiWhale extends tsc<{
   destroyed() {
     document.removeEventListener('mouseup', this.handleMouseup);
     window.removeEventListener('resize', this.resizeFn);
-    window.clearInterval(this.timeInstance);
     window.clearTimeout(this.hoverTimer);
     this.handlePopoverHidden();
   }
@@ -281,15 +278,9 @@ export default class AiWhale extends tsc<{
     }, 0);
   }
 
-  /* 获取告警信息，每两分钟拉取一次 */
+  /* 获取告警信息，仅初始化请求一次 */
   init() {
     this.handleGetData();
-    this.timeInstance = setInterval(
-      () => {
-        this.handleGetData();
-      },
-      2 * 60 * 1000
-    );
   }
 
   /* 调取接口 */
