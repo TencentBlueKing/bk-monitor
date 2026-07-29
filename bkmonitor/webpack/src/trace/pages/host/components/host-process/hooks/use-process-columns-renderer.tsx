@@ -26,13 +26,8 @@
 
 import { useI18n } from 'vue-i18n';
 
-import {
-  type IProcessColumnConfig,
-  formatMemRss,
-  formatUptime,
-  getProcessBarColor,
-  PROCESS_PORT_STATUS_MAP,
-} from '../../../constants/process';
+import { type IProcessColumnConfig, PROCESS_PORT_STATUS_MAP } from '../../../constants/process';
+import { formatMemRss, formatUptime, getProcessBarColor } from '../../../utils/process';
 
 import type { ProcessItem } from '../../../types/process';
 

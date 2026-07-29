@@ -24,12 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-export * from './aggregation';
-export * from './enum';
-export * from './host';
-export * from './host-list';
-export * from './metric-group';
-export * from './panel-order';
-export * from './panels';
-export * from './process';
-export * from './topo';
+export const ProcessDetailTabEnum = {
+  /** 指标视图 */
+  METRIC: 'metric',
+  /** Profiling */
+  PROFILING: 'profiling',
+} as const;
+
+/** 进程端口状态 */
+export const ProcessPortStatusEnum = {
+  /** 异常 */
+  Abnormal: 1,
+  /** 正常 */
+  Normal: 0,
+} as const;

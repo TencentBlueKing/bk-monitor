@@ -24,12 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-/** 进程端口状态：决定端口列状态圆点颜色（正常绿点 / 异常红点） */
-export enum EProcessPortStatus {
-  /** 异常 */
-  Abnormal = 1,
-  /** 正常 */
-  Normal = 0,
+import type { ProcessPortStatusType } from './enum';
+
+/** 获取主机进程列表的请求参数 */
+export interface HostProcessListParams {
+  /** 目标云区域 ID */
+  bk_target_cloud_id?: string;
+  /** 目标主机 IP */
+  bk_target_ip?: string;
+  /** 结束时间（毫秒时间戳） */
+  end_time: number;
+  /** 开始时间（毫秒时间戳） */
+  start_time: number;
 }
 
 /** 进程列表行数据 */
@@ -57,7 +63,7 @@ export interface ProcessItem {
   /** 监听端口 */
   port: number;
   /** 端口状态，0 为正常，1 为异常 */
-  portStatus: EProcessPortStatus;
+  portStatus: ProcessPortStatusType;
   /** 监听协议（TCP / UDP） */
   protocol: string;
   /** 启动命令（进程详情头部展示） */

@@ -26,19 +26,16 @@
 
 import { getHostProcessList as getHostProcessListApi } from 'monitor-api/modules/scene_view';
 
-import { getMockHostProcessList } from '../mock/process-list';
-
-import type { ProcessItem } from '../types';
+import type { HostProcessListParams, ProcessItem } from '../types';
 
 /**
  * @description 获取选中主机的进程列表。
+ * @param params 请求参数
+ * @param requestConfig 请求配置
  */
-export const getHostProcessList = async (params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  // return getHostProcessListApi(params) as Promise<ProcessItem[]>;
-  return getMockHostProcessList();
+export const getHostProcessList = async (
+  params: HostProcessListParams,
+  requestConfig?: { signal?: AbortSignal }
+): Promise<ProcessItem[]> => {
+  return getHostProcessListApi<HostProcessListParams, ProcessItem[]>(params, requestConfig).catch(() => []);
 };
