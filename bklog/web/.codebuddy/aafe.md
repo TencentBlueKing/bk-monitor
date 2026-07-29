@@ -1,3 +1,1 @@
-# AAFE Architecture Runtime for CodeBuddy
-
-Use .ai-agent as the project architecture runtime. Route requests through runtime/router.yaml, run DDD discovery for business-heavy features, run pattern interview for new features, select patterns per module for complex frontend work, execute pipeline steps, enforce gates, and run refactor critique before finalizing code.
+# AAFE Architecture Runtime\n\n## AAFE Skill Router\n\nFor every task, read `.ai-agent/skill-index.md` first, then `.ai-agent/project.md` if present, and only the matching `.ai-agent/project-skills/<domain>/SKILL.md` on demand. The native `.codebuddy/skills/aafe-runtime/SKILL.md` is the discovery entry; the `.ai-agent/` directory remains the single source of truth.\n\n## Runtime Pipeline\n\nFor non-trivial frontend work, load `.ai-agent/runtime/engine.md`, classify with `.ai-agent/runtime/router.yaml`, follow the matching pipeline, enforce gates, and write reusable outcomes to `.ai-agent/memory/`.\n

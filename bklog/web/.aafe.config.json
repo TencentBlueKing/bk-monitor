@@ -77,6 +77,14 @@
     "sessionStart": ".cursor/hooks/aafe-session-start",
     "failClosed": false
   },
+  "projectKnowledge": {
+    "enabled": true,
+    "entry": ".ai-agent/project.md",
+    "skillsPath": ".ai-agent/project-skills",
+    "index": ".ai-agent/skill-index.md",
+    "loadMode": "index-on-demand",
+    "editorPointersOnly": true
+  },
   "skills": {
     "downloadable": true,
     "purpose": "github-agent-skills-distribution",

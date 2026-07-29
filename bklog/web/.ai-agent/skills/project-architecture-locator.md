@@ -1,6 +1,6 @@
 # Skill: Project Architecture Locator
 
-Generated: 2026-07-09T06:59:40.391Z
+Generated: 2026-07-29T03:20:43.280Z
 Project: blueking-log
 Root: /Users/lixintao/github/bk-monitor/bklog/web
 
@@ -19,7 +19,7 @@ Use this project-specific skill before reading large source files. It provides a
 
 - Package: blueking-log
 - Version: 1.0.0
-- Files scanned: 1137
+- Files scanned: 1176
 - Route entries: 160
 - Component entries: 180
 - Design docs: 2
@@ -373,33 +373,34 @@ Use this project-specific skill before reading large source files. It provides a
 ## Main Modules
 
 - `packages/web-v1/src` (342 files)
-- `src/views/retrieve-v2` (135 files)
+- `src/views/retrieve-v2` (138 files)
 - `src/views/manage-v2` (110 files)
-- `src/views/retrieve-v3` (108 files)
+- `src/views/retrieve-v3` (109 files)
 - `src/views/manage` (56 files)
 - `src/services` (37 files)
-- `src/hooks` (29 files)
-- `src/components/collection-access` (26 files)
+- `src/hooks` (32 files)
+- `src/components/collection-access` (27 files)
+- `src/hooks/log-query-compiler` (25 files)
 - `src/components/monitor-echarts` (20 files)
 - `src/store` (15 files)
 - `src/views/extract` (12 files)
+- `src/storage/services` (11 files)
+- `src/views/retrieve-core` (11 files)
 - `src/common` (10 files)
 - `src/mixins` (10 files)
-- `src/storage/services` (10 files)
+- `src/storage/utils` (10 files)
 - `src/views/client-log-search` (10 files)
-- `src/views/retrieve-core` (10 files)
-- `src/storage/utils` (8 files)
 - `packages/web-v1` (7 files)
 - `src` (7 files)
 - `src/global` (7 files)
 - `src/router` (6 files)
+- `src/storage/repositories` (6 files)
 - `src/views/retrieve` (6 files)
 - `src/components/log-masking` (5 files)
 - `src/directives` (5 files)
 - `src/global/ai-assitant` (5 files)
 - `src/global/utils` (5 files)
 - `src/language/lang` (5 files)
-- `src/storage/repositories` (5 files)
 - `src/store/actions` (5 files)
 - `src/api` (4 files)
 - `src/components/filter-rule` (4 files)
@@ -451,7 +452,6 @@ Use this project-specific skill before reading large source files. It provides a
 - `src/storage/workers` (1 files)
 - `src/store/getters` (1 files)
 - `src/store/mutations` (1 files)
-- `src/views/data-id-url` (1 files)
 
 ## Design Documents
 
