@@ -1369,6 +1369,7 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
         )
 
 
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     """
     检查业务内置数据链路
@@ -1424,8 +1425,13 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     data_name_tpl_to_task: dict[tuple[str, tuple[str, ...]], Any] = {
         ("bkmonitor", ("{bk_tenant_id}_{bk_biz_id}_sys_base",)): create_basereport_datalink_for_bkcc,
         ("bklog", ("base_{bk_biz_id}_agent_event",)): create_base_event_datalink_for_bkcc,
-        ("bkmonitor", ("base_{bk_biz_id}_system_proc_port",)): create_system_proc_datalink_for_bkcc,
-        ("bkmonitor", ("base_{bk_biz_id}_system_proc_perf",)): create_system_proc_datalink_for_bkcc,
+        (
+            "bkmonitor",
+            (
+                "base_{bk_biz_id}_system_proc_port",
+                "base_{bk_biz_id}_system_proc_perf",
+            ),
+        ): create_system_proc_datalink_for_bkcc,
         ("bkmonitor", ("base_{bk_biz_id}_bkmonitorbeat_gather_up",)): create_gather_up_datalink_for_bkcc,
     }
     if settings.ENABLE_PING_ALARM:

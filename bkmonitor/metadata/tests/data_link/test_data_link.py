@@ -5283,7 +5283,7 @@ def test_check_bkcc_space_builtin_datalink_creates_ping_only_when_enabled(mocker
     check_bkcc_space_builtin_datalink([("system", 1)])
     mock_base.assert_called_once()
     mock_event.assert_called_once()
-    assert mock_proc.call_count == 2
+    mock_proc.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
     mock_ping.assert_not_called()
     # gather_up 不受 ENABLE_PING_ALARM 影响，随内置链路一起巡检创建
     mock_gather_up.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
