@@ -56,7 +56,7 @@ export default defineComponent({
     const { timeRange, timezone, refreshImmediate, refreshInterval, scene, nodeId } = storeToRefs(useHostStore());
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
     const topoTree = useHostTopoTree(nodeId.value);
-    const { urlParams, getUrlParams, setUrlParams } = useHostUrlParams();
+    const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
 
     const timeRangeDisabledTip = computed(() => {
       return isShareLink && isLockSearch ? t('该分享链接仅包含当前时间范围') : '';
@@ -66,15 +66,6 @@ export default defineComponent({
       () => urlParams.value,
       () => {
         setUrlParams();
-      }
-    );
-    // 选中节点变化时同步到 store（用于 URL 持久化与页面刷新恢复）
-    watch(
-      () => topoTree.selectedNode.value,
-      val => {
-        if (val?.id) {
-          nodeId.value = val.id;
-        }
       }
     );
 
@@ -101,6 +92,7 @@ export default defineComponent({
       topoTree,
       timeRangeDisabledTip,
       handleCompare,
+      handleSelectNode,
     };
   },
   render() {
@@ -148,6 +140,7 @@ export default defineComponent({
                 aside: () => (
                   <HostTopoTree
                     context={this.topoTree}
+                    onSelectNode={node => this.handleSelectNode(node)}
                     // onCompare={this.handleCompare}
                   />
                 ),
