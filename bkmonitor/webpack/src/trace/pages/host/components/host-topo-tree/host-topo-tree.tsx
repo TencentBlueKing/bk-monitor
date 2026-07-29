@@ -47,8 +47,9 @@ export default defineComponent({
   emits: {
     /** 主机对比：source 为当前选中主机，target 为对比目标主机 */
     // compare: (_payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => true,
+    selectNode: (_payload: IHostTopoViewRow) => true,
   },
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useI18n();
     const ctx = props.context;
     const scrollRef = shallowRef<HTMLElement | null>(null);
@@ -97,6 +98,7 @@ export default defineComponent({
     const handleNodeClick = (node: IHostTopoViewRow) => {
       ctx.handleSelectNode(node);
       ctx.handleExpandNode(node);
+      emit('selectNode', node);
     };
 
     const handleToggle = (event: MouseEvent, node: IHostTopoViewRow) => {

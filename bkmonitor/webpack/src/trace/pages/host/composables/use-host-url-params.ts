@@ -29,11 +29,15 @@ import { computed } from 'vue';
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
 
+import { DEFAULT_AGGREGATION_STATE } from '../constants/aggregation';
 import { HOST_FILTER_FIELDS, NUMBER_METHODS } from '../constants/host-list';
+import { isHostNode } from '../utils/topo-tree';
 import { EFieldType } from '@/components/retrieval-filter/typing';
 import { useHostStore } from '@/store/modules/host';
 
+import type { CompareTarget } from '../types/aggregation';
 import type { EHostQuickCategory } from '../types/host-list';
+import type { IHostTopoViewRow } from './use-host-topo-tree-worker';
 export const useHostUrlParams = () => {
   const hostStore = useHostStore();
 
@@ -98,14 +102,13 @@ export const useHostUrlParams = () => {
       refreshInterval,
       nodeId,
       activeTab,
-      metricAggregationState,
     } = route.query;
     hostStore.nodeId = (nodeId || route.params.id || '') as string;
     hostStore.activeTab = (activeTab || '') as string;
     getWhereParams();
     hostStore.keyword = (keyword || queryString || '') as string;
     hostStore.filterExpanded = filterExpanded === 'true' || !!hostStore.where.length;
-    Object.assign(hostStore.metricAggregationState, tryURLDecodeParse(metricAggregationState as string, {}));
+    getMetricAggregationState();
     // 兼容旧版本面板key
     const panelKeyMap = {
       unresolveData: 'alarm',
@@ -167,9 +170,78 @@ export const useHostUrlParams = () => {
     }
   }
 
+  /**
+   * 从 URL query 参数恢复指标汇聚状态到 store
+   *
+   * 支持从 URL 恢复以下汇聚配置：
+   * - metricAggregationState: 完整的汇聚状态 JSON
+   * - method / interval: 汇聚方法和间隔
+   * - compares / timeOffset: 对比目标（按目标对比或时间偏移对比）
+   */
+  function getMetricAggregationState() {
+    const { metricAggregationState, compares, timeOffset, method, interval } = route.query;
+    Object.assign(hostStore.metricAggregationState, {
+      ...tryURLDecodeParse(metricAggregationState as string, {}),
+      ...(() => {
+        const obj: any = {};
+        if (method) {
+          obj.method = method;
+        }
+        if (interval) {
+          obj.interval = interval;
+        }
+        return obj;
+      })(),
+      ...(() => {
+        const queryCompares: any = tryURLDecodeParse(compares as string, {});
+        const queryTimeOffset = tryURLDecodeParse(timeOffset as string, []);
+        const targets: CompareTarget[] = queryCompares?.targets;
+        if (targets?.length) {
+          return {
+            compareType: 'target',
+            compareTargets: targets,
+          };
+        }
+        if (queryTimeOffset?.length) {
+          return {
+            compareType: 'time',
+            timeShift: queryTimeOffset,
+          };
+        }
+        return {
+          compareType: 'none',
+          compareTargets: [],
+          timeShift: [],
+        };
+      })(),
+    });
+  }
+
+  /**
+   * 处理拓扑节点选中事件
+   *
+   * 当用户在拓扑树中选中节点时：
+   * 1. 更新 store 中的当前节点 ID
+   * 2. 重置指标汇聚状态为默认值（保留已配置的列）
+   * 3. 如果选中的是主机节点，清空过滤条件、快捷分类和搜索关键词
+   */
+  function handleSelectNode(node: IHostTopoViewRow) {
+    hostStore.nodeId = node.id;
+    Object.assign(hostStore.metricAggregationState, {
+      ...DEFAULT_AGGREGATION_STATE,
+      columns: hostStore.metricAggregationState.columns,
+    });
+    if (isHostNode(node)) {
+      hostStore.where = [];
+      hostStore.activeCategory = '';
+      hostStore.keyword = '';
+    }
+  }
+
   return {
     urlParams,
     setUrlParams,
     getUrlParams,
+    handleSelectNode,
   };
 };

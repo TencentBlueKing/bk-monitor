@@ -169,7 +169,7 @@ export const useHostTopoTree = (nodeId: string) => {
   };
 
   /** 加载拓扑树并在 Worker 中建立扁平索引、主机计数和可见节点计数。 */
-  const loadTopoTree = async () => {
+  const loadTopoTree = async (id = '') => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
@@ -181,7 +181,7 @@ export const useHostTopoTree = (nodeId: string) => {
         }
       }
       rawTreeData.value = data;
-      const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, nodeId);
+      const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, id || nodeId);
       initialized = true;
       selectedNode.value = result.selectedNode;
       totalRows.value = result.total;
