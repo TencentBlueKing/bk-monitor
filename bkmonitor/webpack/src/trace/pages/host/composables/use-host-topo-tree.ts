@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, onMounted, shallowRef, watch } from 'vue';
+import { type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 
@@ -43,7 +43,7 @@ const VIEW_OVERSCAN = 10;
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
  * 视图层（host-topo-tree）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
-export const useHostTopoTree = (nodeId: string) => {
+export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   const topoTreeWorker = useHostTopoTreeWorker();
   /** 加载状态 */
   const loading = shallowRef(false);
@@ -169,7 +169,7 @@ export const useHostTopoTree = (nodeId: string) => {
   };
 
   /** 加载拓扑树并在 Worker 中建立扁平索引、主机计数和可见节点计数。 */
-  const loadTopoTree = async (id = '') => {
+  const loadTopoTree = async () => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
@@ -181,7 +181,7 @@ export const useHostTopoTree = (nodeId: string) => {
         }
       }
       rawTreeData.value = data;
-      const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, id || nodeId);
+      const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, nodeId.value);
       initialized = true;
       selectedNode.value = result.selectedNode;
       totalRows.value = result.total;

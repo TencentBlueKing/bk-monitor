@@ -55,7 +55,7 @@ export default defineComponent({
     const isShareLink = ((route.query.shareLink || 'false') as string) === 'true';
     const { timeRange, timezone, refreshImmediate, refreshInterval, scene, nodeId } = storeToRefs(useHostStore());
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
-    const topoTree = useHostTopoTree(nodeId.value);
+    const topoTree = useHostTopoTree(nodeId);
     const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
 
     const timeRangeDisabledTip = computed(() => {
@@ -71,7 +71,6 @@ export default defineComponent({
 
     onMounted(() => {
       getUrlParams();
-      topoTree.loadTopoTree(nodeId.value);
     });
 
     /** 主机对比：本期表格内容未开发，先以消息提示反馈交互（占位） */
