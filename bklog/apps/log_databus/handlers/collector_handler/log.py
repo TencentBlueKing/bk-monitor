@@ -3,7 +3,8 @@ from itertools import chain
 
 import arrow
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import F, Q, Value
+from django.db.models.functions import Replace, StrIndex, Substr
 
 from apps.api import TransferApi, BkDataMetaApi
 from apps.log_databus.constants import CollectorSourceEnum, STORAGE_CLUSTER_TYPE
@@ -161,7 +162,7 @@ class LogCollectorHandler:
     @staticmethod
     def build_index_set_bk_data_name(result_table_ids) -> str:
         """Build the bk_data_name exposed by the collector list for an independent index set."""
-        return ",".join(result_table_id for result_table_id in result_table_ids if result_table_id)
+        return ",".join([result_table_id for result_table_id in result_table_ids if result_table_id])
 
     @staticmethod
     def build_field_enum(values) -> list[dict]:
@@ -327,8 +328,18 @@ class LogCollectorHandler:
 
         if exclude_not_completed:
             qs = qs.filter(table_id__isnull=False)
+
+        if keyword or bk_data_name_list:
+            qs = qs.alias(
+                exposed_bk_data_name=Replace(
+                    F("table_id"),
+                    Value("."),
+                    Value("_"),
+                )
+            )
+
         if keyword:
-            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword)
+            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(exposed_bk_data_name__icontains=keyword)
             if keyword.isdigit():
                 keyword_filter |= Q(bk_data_id=int(keyword))
             qs = qs.filter(keyword_filter)
@@ -373,16 +384,18 @@ class LogCollectorHandler:
         if table_id_list:
             query = Q()
             for table_id in table_id_list:
-                query |= Q(table_id__iendswith=f".{table_id}")
-            qs = qs.filter(query)
+                query |= Q(exposed_table_id__icontains=table_id)
+            qs = qs.alias(
+                exposed_table_id=Substr(
+                    F("table_id"),
+                    StrIndex(F("table_id"), Value(".")) + 1,
+                )
+            ).filter(query)
         if bk_data_name_list:
-            requested_bk_data_names = {str(bk_data_name).lower() for bk_data_name in bk_data_name_list}
-            matched_table_ids = []
-            for db_table_id in qs.values_list("table_id", flat=True):
-                _, exposed_bk_data_name = self.get_collector_table_fields(db_table_id)
-                if exposed_bk_data_name.lower() in requested_bk_data_names:
-                    matched_table_ids.append(db_table_id)
-            qs = qs.filter(table_id__in=matched_table_ids)
+            query = Q()
+            for bk_data_name in bk_data_name_list:
+                query |= Q(exposed_bk_data_name__icontains=str(bk_data_name))
+            qs = qs.filter(query)
         if bk_data_id_list:
             qs = qs.filter(bk_data_id__in=bk_data_id_list)
 
@@ -510,10 +523,11 @@ class LogCollectorHandler:
             matched_index_set_ids = []
             for index_set_id, index_set_data_objs in index_set_data_objs_map.items():
                 index_set_result_table_id = self.build_index_set_bk_data_name(
-                    index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs
+                    [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
                 )
-                if index_set_result_table_id.lower() in requested_result_table_id_list:
-                    matched_index_set_ids.append(index_set_id)
+                for requested_result_table_id in requested_result_table_id_list:
+                    if requested_result_table_id in index_set_result_table_id.lower():
+                        matched_index_set_ids.append(index_set_id)
 
             log_index_sets = log_index_sets.filter(index_set_id__in=matched_index_set_ids)
 
@@ -524,7 +538,7 @@ class LogCollectorHandler:
                 for index_set_id, index_set_data_objs in index_set_data_objs_map.items()
                 if normalized_keyword
                 in self.build_index_set_bk_data_name(
-                    index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs
+                    [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
                 ).lower()
             ]
             log_index_sets = log_index_sets.filter(

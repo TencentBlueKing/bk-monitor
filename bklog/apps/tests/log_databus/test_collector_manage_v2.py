@@ -416,7 +416,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         for key, value in [
             ("table_id", "current_collector"),
             ("bk_data_id", self.current_collector.bk_data_id),
-            ("bk_data_name", "2_bklog_current_collector"),
+            ("bk_data_name", "2_BKLOG_CURRENT_COLLECTOR"),
         ]:
             result = handler.get_log_collectors(
                 {
@@ -471,6 +471,19 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         matched_item = next(item for item in result["list"] if item["index_set_id"] == index_set.index_set_id)
         self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")
         self.assertNotIn(other_index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
+
+    def test_get_log_collectors_searches_collector_by_exposed_bk_data_name(self):
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "keyword": "2_BKLOG_CURRENT",
+            }
+        )
+
+        collectors = self._collectors_from_result(result)
+        self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
 
     def test_get_log_collectors_searches_index_set_by_exposed_bk_data_name(self):
         index_set = LogIndexSet.objects.create(
