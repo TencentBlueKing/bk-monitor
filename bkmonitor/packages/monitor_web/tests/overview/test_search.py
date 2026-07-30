@@ -27,6 +27,48 @@ def _app(application_id: int, bk_biz_id: int = 2) -> SimpleNamespace:
 
 
 class TestTraceSearchItem:
+    def test_collect_candidate_apps_uses_slim_query_and_preserves_priority(self) -> None:
+        visited_app = _app(4, bk_biz_id=3)
+        current_service_app = _app(3)
+        current_no_service_app = _app(2)
+        current_no_service_app.service_count = 0
+        allowed_service_app = _app(1, bk_biz_id=4)
+
+        application_queryset = mock.MagicMock()
+        application_queryset.exclude.return_value = application_queryset
+        application_queryset.order_by.return_value = application_queryset
+        application_queryset.only.return_value = application_queryset
+        application_queryset.__iter__.return_value = iter(
+            [allowed_service_app, current_no_service_app, current_service_app, visited_app]
+        )
+
+        with (
+            mock.patch.object(
+                TraceSearchItem,
+                "_aggregate_user_visits",
+                return_value={(visited_app.bk_biz_id, visited_app.app_name): 1},
+            ),
+            mock.patch.object(TraceSearchItem, "_get_default_biz_id", return_value=2),
+            mock.patch.object(TraceSearchItem, "_get_allowed_bk_biz_ids", return_value=[4]),
+            mock.patch(
+                "monitor_web.overview.search.Application.objects.filter", return_value=application_queryset
+            ) as filter_apps,
+        ):
+            candidates = TraceSearchItem._collect_candidate_apps("tenant", "admin", bk_biz_id=2)
+
+        assert [app.application_id for app in candidates] == [4, 3, 2, 1]
+        assert set(filter_apps.call_args.kwargs["bk_biz_id__in"]) == {2, 3, 4}
+        application_queryset.exclude.assert_called_once_with(trace_result_table_id="")
+        application_queryset.order_by.assert_called_once_with()
+        assert set(application_queryset.only.call_args.args) == {
+            "application_id",
+            "bk_biz_id",
+            "app_name",
+            "app_alias",
+            "trace_result_table_id",
+            "service_count",
+        }
+
     def test_streams_cumulative_unique_snapshots(self) -> None:
         app_a = _app(1)
         app_b = _app(2)

@@ -512,9 +512,18 @@ class TraceSearchItem(SearchItem):
         if not biz_ids:
             return []
 
+        # 候选最终会按业务得分重新排序，仅加载后续评分、探测和结果装配实际读取的字段。
         apps = list(
-            Application.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=list(biz_ids)).exclude(
-                trace_result_table_id=""
+            Application.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=list(biz_ids))
+            .exclude(trace_result_table_id="")
+            .order_by()
+            .only(
+                "application_id",
+                "bk_biz_id",
+                "app_name",
+                "app_alias",
+                "trace_result_table_id",
+                "service_count",
             )
         )
         if not apps:
@@ -557,7 +566,7 @@ class TraceSearchItem(SearchItem):
             "[TraceSearch] raw path candidate apps, trace_id=%s, bk_biz_id=%s, candidates=%s",
             trace_id,
             bk_biz_id,
-            ",".join([f"{app.bk_biz_id}-{app.app_name}" for app in apps]),
+            ",".join(f"{app.bk_biz_id}-{app.app_name}" for app in apps),
         )
 
         def _probe_app(app: Application) -> Application | None:
