@@ -1,24 +1,11 @@
-from types import SimpleNamespace
-
 import pytest
 from elasticsearch_dsl import Search
 
-from fta_web.alert.handlers import base
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.base import BaseBizQueryHandler
 from fta_web.alert.handlers.incident import IncidentQueryHandler
 from fta_web.issue.handlers.issue import IssueQueryHandler
-
-
-def _patch_authorized_space(monkeypatch, biz_ids):
-    """让 parse_biz_item 走 request 分支，返回指定授权业务集（不依赖真实鉴权 / DB）。"""
-    monkeypatch.setattr(base, "get_request", lambda: SimpleNamespace(user=SimpleNamespace()))
-    monkeypatch.setattr(
-        base,
-        "resource",
-        SimpleNamespace(space=SimpleNamespace(get_bk_biz_ids_by_user=lambda user: list(biz_ids))),
-    )
 
 
 def _make_handler(handler_cls, bk_biz_ids, authorized_bizs, unauthorized_bizs):
@@ -100,28 +87,6 @@ def test_add_biz_condition_keeps_authorized_filter_for_all_biz_marker():
 
     assert _contains_terms(dsl, "event.bk_biz_id", [1, 2])
     assert not _contains_must_not_terms(dsl, "event.bk_biz_id", [-1])
-
-
-def test_parse_biz_item_drops_all_biz_sentinel_from_unauthorized(monkeypatch):
-    _patch_authorized_space(monkeypatch, [1, 2])
-
-    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([-1])
-
-    assert sorted(authorized_bizs) == [1, 2]
-    # -1 是"全部授权业务"哨兵而非真实业务，不得残留
-    assert unauthorized_bizs == []
-
-
-def test_add_biz_condition_omits_sentinel_only_clause(monkeypatch):
-    # 解析结果直接喂给 add_biz_condition：不应再生成 bk_biz_id IN [-1] 的恒假子句
-    _patch_authorized_space(monkeypatch, [1, 2])
-    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([-1])
-    handler = _make_handler(AlertQueryHandler, [-1], authorized_bizs, unauthorized_bizs)
-
-    dsl = handler.add_biz_condition(Search()).to_dict()
-
-    assert _contains_terms(dsl, "event.bk_biz_id", [1, 2])
-    assert not _contains_terms(dsl, "event.bk_biz_id", [-1])
 
 
 def test_add_biz_condition_splits_large_authorized_filter(monkeypatch):

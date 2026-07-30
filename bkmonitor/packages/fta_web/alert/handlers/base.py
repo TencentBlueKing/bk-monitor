@@ -846,9 +846,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
             authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
             if -1 not in bk_biz_ids:
                 authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
-            # 剔除 -1：它是"全部授权业务"哨兵而非真实业务，留在 unauthorized_bizs 里只会让
-            # add_biz_condition 生成 bk_biz_id IN [-1] 的恒假子句，白占一个 ES bool 子句。
-            unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs) - {-1})
+            unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         return authorized_bizs, unauthorized_bizs
 
     def build_es_terms_query(self, field: str, values: list):
