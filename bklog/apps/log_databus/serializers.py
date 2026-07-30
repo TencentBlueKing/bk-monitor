@@ -1933,6 +1933,12 @@ class LogCollectorSerializer(serializers.Serializer):
                     if item not in CollectorSourceEnum.get_enums_values():
                         raise ValidationError(_("采集项来源(collector_source)类型不合法"))
 
+            if key == "bk_data_id":
+                try:
+                    attrs["value"] = [int(item) for item in value]
+                except (TypeError, ValueError):
+                    raise ValidationError(_("数据ID(bk_data_id)类型不合法"))
+
             return attrs
 
     parent_index_set_id = serializers.IntegerField(label=_("归属索引集ID"), default=None, allow_null=True)

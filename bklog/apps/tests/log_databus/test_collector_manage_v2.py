@@ -29,6 +29,7 @@ from apps.log_databus.constants import CollectorSourceEnum
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import LogCollectorSerializer
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils.local import set_local_param
 
 # 当前空间为 bkcc 业务空间（"大"的一方）
@@ -184,7 +185,9 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         collectors = self._collectors_from_result(result)
         self.assertEqual(len(collectors), 2)
         collector_ids = {item["collector_config_id"] for item in collectors}
-        self.assertEqual(collector_ids, {self.current_collector.collector_config_id, self.related_collector.collector_config_id})
+        self.assertEqual(
+            collector_ids, {self.current_collector.collector_config_id, self.related_collector.collector_config_id}
+        )
 
     def test_returned_item_has_related_space_fields(self):
         """返回项应包含 bk_biz_id / space_uid / space_name / is_related_space 字段，且值正确。"""
@@ -299,6 +302,30 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             invalid_serializer.is_valid()
         self.assertIn("collector_source", str(ctx.exception))
 
+    def test_serializer_validates_bk_data_id_condition(self):
+        valid_serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "bk_data_id", "value": [str(self.current_collector.bk_data_id)]}],
+            }
+        )
+        self.assertTrue(valid_serializer.is_valid())
+        self.assertEqual(valid_serializer.validated_data["conditions"][0]["value"], [self.current_collector.bk_data_id])
+
+        invalid_serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "bk_data_id", "value": ["invalid"]}],
+            }
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            invalid_serializer.is_valid()
+        self.assertIn("bk_data_id", str(ctx.exception))
+
     def test_get_query_ids_by_collector_source_logic(self):
         """直接验证 get_query_ids_by_collector_source 的查询 id 组合逻辑。"""
         self.mock_get_all_related.return_value = [CURRENT_SPACE_UID, RELATED_SPACE_UID]
@@ -338,3 +365,130 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             handler.get_query_ids_by_collector_source([CollectorSourceEnum.RELATED_SPACE.value]),
             [RELATED_SPACE_UID],
         )
+
+    @patch.object(LogCollectorHandler, "get_bkdata_cluster_names", return_value={"bkdata_cluster"})
+    @patch.object(LogCollectorHandler, "get_metadata_cluster_names", return_value={"metadata_cluster"})
+    def test_get_collector_field_enums_uses_collector_list_field_values(
+        self, _mock_get_metadata_cluster_names, _mock_get_bkdata_cluster_names
+    ):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_collector_field_enums(include_related_spaces=False)
+
+        self.assertEqual(
+            result["name"],
+            [
+                {"key": "bkdata_index_set", "value": "bkdata_index_set"},
+                {"key": "current_collector", "value": "current_collector"},
+            ],
+        )
+        self.assertEqual(result["table_id"], [{"key": "current_collector", "value": "current_collector"}])
+        self.assertEqual(result["bk_data_id"], [{"key": 1500586, "value": 1500586}])
+        self.assertEqual(
+            result["bk_data_name"],
+            [
+                {"key": "2_bkbase.second,2_bkbase.first", "value": "2_bkbase.second,2_bkbase.first"},
+                {"key": "2_bklog_current_collector", "value": "2_bklog_current_collector"},
+            ],
+        )
+        self.assertEqual(
+            result["storage_display_name"],
+            [
+                {"key": "bkdata_cluster", "value": "bkdata_cluster"},
+                {"key": "metadata_cluster", "value": "metadata_cluster"},
+            ],
+        )
+
+    def test_get_log_collectors_filters_by_table_id_bk_data_id_and_bk_data_name(self):
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+        base_data = {
+            "space_uid": CURRENT_SPACE_UID,
+            "page": PAGE,
+            "pagesize": PAGESIZE,
+        }
+
+        for key, value in [
+            ("table_id", "current_collector"),
+            ("bk_data_id", self.current_collector.bk_data_id),
+            ("bk_data_name", "2_bklog_current_collector"),
+        ]:
+            result = handler.get_log_collectors(
+                {
+                    **base_data,
+                    "conditions": [{"key": key, "value": [value]}],
+                }
+            )
+            collectors = self._collectors_from_result(result)
+            self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
+
+        for key, value in [
+            ("table_id", "2_bklog_current_collector"),
+            ("bk_data_name", "current_collector"),
+        ]:
+            result = handler.get_log_collectors(
+                {
+                    **base_data,
+                    "conditions": [{"key": key, "value": [value]}],
+                }
+            )
+            self.assertEqual(self._collectors_from_result(result), [])
+
+    def test_get_log_collectors_filters_index_set_by_exposed_bk_data_name(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+        other_index_set = LogIndexSet.objects.create(
+            index_set_name="other_bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=other_index_set.index_set_id,
+            result_table_id="2_bkbase.other",
+        )
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [
+                    {"key": "bk_data_name", "value": ["2_bkbase.second,2_bkbase.first"]},
+                ],
+            }
+        )
+
+        matched_item = next(item for item in result["list"] if item["index_set_id"] == index_set.index_set_id)
+        self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")
+        self.assertNotIn(other_index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
+
+    def test_get_log_collectors_searches_index_set_by_exposed_bk_data_name(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "keyword": "SECOND,2_BKBASE.FI",
+            }
+        )
+
+        matched_item = next(item for item in result["list"] if item["index_set_id"] == index_set.index_set_id)
+        self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")

@@ -23,7 +23,8 @@ from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
     Scenario,
-    SpaceApi, TAG_TYPE_INNER,
+    SpaceApi,
+    TAG_TYPE_INNER,
 )
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.local import get_local_param
@@ -62,9 +63,7 @@ class LogCollectorHandler:
     def bk_biz_id_to_space_detail_map(self) -> dict[int, dict]:
         if self._bk_biz_id_to_space_detail_map is None:
             all_space_objs = SpaceApi.batch_get_space_detail(set(self.all_related_space_uids))
-            self._bk_biz_id_to_space_detail_map = {
-                v.bk_biz_id: v.to_dict() for _, v in all_space_objs.items()
-            }
+            self._bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for _, v in all_space_objs.items()}
         return self._bk_biz_id_to_space_detail_map
 
     def fetch_log_collector_data(self, result: list[dict], include_related_spaces: bool = False):
@@ -145,10 +144,30 @@ class LogCollectorHandler:
                     "etl_config": item.get("etl_config", ""),
                     "collect_paths": item.get("params", {}).get("paths", []),
                     "is_search": item.get("is_search", True),
-                    **related_space_info
+                    **related_space_info,
                 }
             )
         return result_list
+
+    @staticmethod
+    def get_collector_table_fields(table_id: str | None) -> tuple[str, str]:
+        """Convert the stored result table ID to the fields exposed by the collector list API."""
+        if not table_id:
+            return "", ""
+
+        _, data_name = table_id.split(".")
+        return data_name, table_id.replace(".", "_")
+
+    @staticmethod
+    def build_index_set_bk_data_name(result_table_ids) -> str:
+        """Build the bk_data_name exposed by the collector list for an independent index set."""
+        return ",".join(result_table_id for result_table_id in result_table_ids if result_table_id)
+
+    @staticmethod
+    def build_field_enum(values) -> list[dict]:
+        """Build a stable, de-duplicated field-enum response."""
+        enum_values = sorted({value for value in values if value not in (None, "")}, key=lambda value: str(value))
+        return [{"key": value, "value": value} for value in enum_values]
 
     @staticmethod
     def get_collector_subscription_status(collector_id_list) -> dict[str, dict]:
@@ -263,6 +282,8 @@ class LogCollectorHandler:
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
         table_id_list: list = None,
+        bk_data_name_list: list = None,
+        bk_data_id_list: list = None,
         collector_scenario_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
@@ -272,7 +293,7 @@ class LogCollectorHandler:
         exclude_not_completed: bool = False,
         exclude_parent_index_set_id: int = None,
         include_related_spaces: bool = False,
-        collector_source: list = None
+        collector_source: list = None,
     ) -> list[dict]:
         """
          获取采集项信息
@@ -280,7 +301,9 @@ class LogCollectorHandler:
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
-        :param table_id_list: 结果表ID
+        :param table_id_list: 数据名
+        :param bk_data_name_list: 存储名
+        :param bk_data_id_list: 数据ID
         :param collector_scenario_id_list: 日志类型
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
@@ -350,8 +373,18 @@ class LogCollectorHandler:
         if table_id_list:
             query = Q()
             for table_id in table_id_list:
-                query |= Q(table_id__icontains=table_id)
+                query |= Q(table_id__iendswith=f".{table_id}")
             qs = qs.filter(query)
+        if bk_data_name_list:
+            requested_bk_data_names = {str(bk_data_name).lower() for bk_data_name in bk_data_name_list}
+            matched_table_ids = []
+            for db_table_id in qs.values_list("table_id", flat=True):
+                _, exposed_bk_data_name = self.get_collector_table_fields(db_table_id)
+                if exposed_bk_data_name.lower() in requested_bk_data_names:
+                    matched_table_ids.append(db_table_id)
+            qs = qs.filter(table_id__in=matched_table_ids)
+        if bk_data_id_list:
+            qs = qs.filter(bk_data_id__in=bk_data_id_list)
 
         collector_configs = qs.values()
         # Todo 时区处理逻辑太混乱，add_cluster_info 里面已经有时间处理逻辑，先在这里去掉时区
@@ -404,7 +437,7 @@ class LogCollectorHandler:
         log_access_type_list: list = None,
         exclude_parent_index_set_id: int = None,
         include_related_spaces: bool = False,
-        collector_source: list = None
+        collector_source: list = None,
     ) -> list[dict]:
         """
          获取索引集内容
@@ -429,9 +462,7 @@ class LogCollectorHandler:
         if log_access_type_list and not _scenario_id_list:
             return []
 
-        qs = LogIndexSet.objects.filter(collector_config_id__isnull=True).exclude(
-            scenario_id=Scenario.LOG
-        )
+        qs = LogIndexSet.objects.filter(collector_config_id__isnull=True).exclude(scenario_id=Scenario.LOG)
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
             query_space_uids = self.get_query_ids_by_collector_source(collector_source)
@@ -464,27 +495,40 @@ class LogCollectorHandler:
         if updated_by_list:
             log_index_sets = log_index_sets.filter(updated_by__in=updated_by_list)
 
-        log_index_set_data = LogIndexSetData.objects.all()
-        if result_table_id_list or keyword:
-            query = Q()
-            if result_table_id_list:
-                for table_id in result_table_id_list:
-                    query |= Q(result_table_id__icontains=table_id)
-            if keyword:
-                query |= Q(result_table_id__icontains=keyword)
-            log_index_set_data = log_index_set_data.filter(query)
-        index_set_id_list = []
-        log_index_set_data_mappings = defaultdict(list)
-        for obj in log_index_set_data:
-            log_index_set_data_mappings[obj.index_set_id].append(obj)
-            index_set_id_list.append(obj.index_set_id)
+        candidate_index_set_ids = list(log_index_sets.values_list("index_set_id", flat=True))
+        index_set_data_objs = LogIndexSetData.objects.filter(index_set_id__in=candidate_index_set_ids).order_by(
+            "-index_id"
+        )
+
+        index_set_data_objs_map = defaultdict(list)
+
+        for index_set_data_obj in index_set_data_objs:
+            index_set_data_objs_map[index_set_data_obj.index_set_id].append(index_set_data_obj)
 
         if result_table_id_list:
-            log_index_sets = log_index_sets.filter(index_set_id__in=index_set_id_list)
+            requested_result_table_id_list = {str(result_table).lower() for result_table in result_table_id_list}
+            matched_index_set_ids = []
+            for index_set_id, index_set_data_objs in index_set_data_objs_map.items():
+                index_set_result_table_id = self.build_index_set_bk_data_name(
+                    index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs
+                )
+                if index_set_result_table_id.lower() in requested_result_table_id_list:
+                    matched_index_set_ids.append(index_set_id)
+
+            log_index_sets = log_index_sets.filter(index_set_id__in=matched_index_set_ids)
 
         if keyword:
+            normalized_keyword = keyword.lower()
+            keyword_index_set_ids = [
+                index_set_id
+                for index_set_id, index_set_data_objs in index_set_data_objs_map.items()
+                if normalized_keyword
+                in self.build_index_set_bk_data_name(
+                    index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs
+                ).lower()
+            ]
             log_index_sets = log_index_sets.filter(
-                Q(index_set_name__icontains=keyword) | Q(index_set_id__in=index_set_id_list)
+                Q(index_set_name__icontains=keyword) | Q(index_set_id__in=keyword_index_set_ids)
             )
 
         index_set_ids = []
@@ -504,7 +548,7 @@ class LogCollectorHandler:
         result_list = []
         for obj in log_index_sets:
             _index_set_id = obj.index_set_id
-            index_set_data = log_index_set_data_mappings[_index_set_id]
+            index_set_data = index_set_data_objs_map[_index_set_id]
             source_id = obj.source_id
             indexes = []
             bk_data_name_list = []
@@ -564,6 +608,8 @@ class LogCollectorHandler:
         scenario_id_list = []
         name_list = []
         bk_data_name_list = []
+        table_id_list = []
+        bk_data_id_list = []
         collector_scenario_id_list = []
         created_by_list = []
         updated_by_list = []
@@ -579,6 +625,10 @@ class LogCollectorHandler:
                 name_list = item["value"]
             elif item["key"] == "bk_data_name":
                 bk_data_name_list = item["value"]
+            elif item["key"] == "table_id":
+                table_id_list = item["value"]
+            elif item["key"] == "bk_data_id":
+                bk_data_id_list = item["value"]
             elif item["key"] == "collector_scenario_id":
                 collector_scenario_id_list = item["value"]
             elif item["key"] == "created_by":
@@ -602,7 +652,9 @@ class LogCollectorHandler:
             parent_index_set_id=data.get("parent_index_set_id"),
             scenario_id_list=scenario_id_list,
             collector_config_name_list=name_list,
-            table_id_list=bk_data_name_list,
+            table_id_list=table_id_list,
+            bk_data_name_list=bk_data_name_list,
+            bk_data_id_list=bk_data_id_list,
             collector_scenario_id_list=collector_scenario_id_list,
             created_by_list=created_by_list,
             updated_by_list=updated_by_list,
@@ -612,12 +664,14 @@ class LogCollectorHandler:
             exclude_not_completed=data.get("exclude_not_completed", False),
             exclude_parent_index_set_id=data.get("exclude_parent_index_set_id"),
             include_related_spaces=include_related_spaces,
-            collector_source=collector_source
+            collector_source=collector_source,
         )
 
         lists_to_check = [
             collector_scenario_id_list,
             status_list,
+            table_id_list,
+            bk_data_id_list,
         ]
         if any(chain.from_iterable(lists_to_check)):
             # 如果存在对采集名称、存储名、日志类型、采集状态不为空的查询,直接返回
@@ -636,14 +690,13 @@ class LogCollectorHandler:
                 log_access_type_list=log_access_type_list,
                 exclude_parent_index_set_id=data.get("exclude_parent_index_set_id"),
                 include_related_spaces=include_related_spaces,
-                collector_source=collector_source
+                collector_source=collector_source,
             )
 
         combined_data = collector_configs + log_index_sets
         self.fill_parent_index_sets_info(combined_data)
         combined_data = self.fetch_log_collector_data(
-            result=combined_data,
-            include_related_spaces=include_related_spaces
+            result=combined_data, include_related_spaces=include_related_spaces
         )
         if data.get("exclude_not_data", False):
             combined_data = self.filter_no_data(combined_data)
@@ -724,56 +777,73 @@ class LogCollectorHandler:
         :return: 包含创建人和更新人枚举值的字典
         """
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
-            query_collector_condition = {
-                "bk_biz_id__in": self.all_related_bk_biz_ids
-            }
+            query_collector_condition = {"bk_biz_id__in": self.all_related_bk_biz_ids}
             query_index_set_condition = {
                 "collector_config_id__isnull": True,
-                "space_uid__in": self.all_related_space_uids
+                "space_uid__in": self.all_related_space_uids,
             }
         else:
-            query_collector_condition = {
-                "bk_biz_id": self.bk_biz_id
-            }
-            query_index_set_condition = {
-                "collector_config_id__isnull": True,
-                "space_uid": self.space_uid
-            }
+            query_collector_condition = {"bk_biz_id": self.bk_biz_id}
+            query_index_set_condition = {"collector_config_id__isnull": True, "space_uid": self.space_uid}
 
-        # 获取采集项的创建人和更新人枚举
-        collector_created_by = (
-            CollectorConfig.objects.filter(**query_collector_condition).values_list("created_by", flat=True).distinct()
-        )
-        collector_updated_by = (
-            CollectorConfig.objects.filter(**query_collector_condition).values_list("updated_by", flat=True).distinct()
+        collector_fields = list(
+            CollectorConfig.objects.filter(**query_collector_condition).values(
+                "collector_config_name", "table_id", "bk_data_id", "created_by", "updated_by"
+            )
         )
 
         # 获取索引集的创建人和更新人枚举
-        index_set_created_by = (
+        index_set_fields = list(
             LogIndexSet.objects.filter(**query_index_set_condition)
             .exclude(scenario_id=Scenario.LOG)
-            .values_list("created_by", flat=True)
-            .distinct()
+            .values("index_set_id", "index_set_name", "created_by", "updated_by")
         )
-        index_set_updated_by = (
-            LogIndexSet.objects.filter(**query_index_set_condition)
-            .exclude(scenario_id=Scenario.LOG)
-            .values_list("updated_by", flat=True)
-            .distinct()
+
+        index_set_ids = [item["index_set_id"] for item in index_set_fields]
+
+        result_table_ids_map = defaultdict(list)
+
+        for index_set_data in LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).order_by("-index_id"):
+            if index_set_data.result_table_id:
+                result_table_ids_map[index_set_data.index_set_id].append(index_set_data.result_table_id)
+
+        names = [item["collector_config_name"] for item in collector_fields]
+        names.extend(item["index_set_name"] for item in index_set_fields)
+
+        table_ids = []
+        bk_data_names = []
+
+        for item in collector_fields:
+            table_id, bk_data_name = self.get_collector_table_fields(item["table_id"])
+            table_ids.append(table_id)
+            bk_data_names.append(bk_data_name)
+
+        bk_data_names.extend(
+            self.build_index_set_bk_data_name(result_table_ids_map[item["index_set_id"]]) for item in index_set_fields
         )
 
         # 合并去重
-        created_by_enums = list(set(chain(collector_created_by, index_set_created_by)))
-        updated_by_enums = list(set(chain(collector_updated_by, index_set_updated_by)))
+        created_by_enums = [item["created_by"] for item in collector_fields]
+        created_by_enums.extend(item["created_by"] for item in index_set_fields)
+        updated_by_enums = [item["updated_by"] for item in collector_fields]
+        updated_by_enums.extend(item["updated_by"] for item in index_set_fields)
 
         # 过滤空值并转换为字典格式
-        created_by_dict = [{"key": item, "value": item} for item in created_by_enums if item]
-        updated_by_dict = [{"key": item, "value": item} for item in updated_by_enums if item]
+        created_by_dict = self.build_field_enum(created_by_enums)
+        updated_by_dict = self.build_field_enum(updated_by_enums)
         # 获取集群名枚举
         cluster_names = self.get_metadata_cluster_names() | self.get_bkdata_cluster_names()
-        cluster_name_dict = [{"key": item, "value": item} for item in cluster_names if item]
+        cluster_name_dict = self.build_field_enum(cluster_names)
 
-        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_display_name": cluster_name_dict}
+        return {
+            "created_by": created_by_dict,
+            "updated_by": updated_by_dict,
+            "storage_display_name": cluster_name_dict,
+            "name": self.build_field_enum(names),
+            "table_id": self.build_field_enum(table_ids),
+            "bk_data_id": self.build_field_enum(item["bk_data_id"] for item in collector_fields),
+            "bk_data_name": self.build_field_enum(bk_data_names),
+        }
 
     @staticmethod
     def get_collector_status(collector_id_list):
