@@ -821,9 +821,6 @@ class LogCollectorHandler:
             if index_set_data.result_table_id:
                 result_table_ids_map[index_set_data.index_set_id].append(index_set_data.result_table_id)
 
-        names = [item["collector_config_name"] for item in collector_fields]
-        names.extend(item["index_set_name"] for item in index_set_fields)
-
         table_ids = []
         bk_data_names = []
 
@@ -833,16 +830,19 @@ class LogCollectorHandler:
             bk_data_names.append(bk_data_name)
 
         bk_data_names.extend(
-            self.build_index_set_bk_data_name(result_table_ids_map[item["index_set_id"]]) for item in index_set_fields
+            [self.build_index_set_bk_data_name(result_table_ids_map[item["index_set_id"]]) for item in index_set_fields]
         )
 
-        # 合并去重
+        # 合并
+        name_enums = [item["collector_config_name"] for item in collector_fields]
+        name_enums.extend(item["index_set_name"] for item in index_set_fields)
         created_by_enums = [item["created_by"] for item in collector_fields]
         created_by_enums.extend(item["created_by"] for item in index_set_fields)
         updated_by_enums = [item["updated_by"] for item in collector_fields]
         updated_by_enums.extend(item["updated_by"] for item in index_set_fields)
 
         # 过滤空值并转换为字典格式
+        name_dict = self.build_field_enum(name_enums)
         created_by_dict = self.build_field_enum(created_by_enums)
         updated_by_dict = self.build_field_enum(updated_by_enums)
         # 获取集群名枚举
@@ -850,13 +850,13 @@ class LogCollectorHandler:
         cluster_name_dict = self.build_field_enum(cluster_names)
 
         return {
+            "name": name_dict,
+            "bk_data_id": self.build_field_enum(item["bk_data_id"] for item in collector_fields),
+            "table_id": self.build_field_enum(table_ids),
+            "bk_data_name": self.build_field_enum(bk_data_names),
+            "storage_display_name": cluster_name_dict,
             "created_by": created_by_dict,
             "updated_by": updated_by_dict,
-            "storage_display_name": cluster_name_dict,
-            "name": self.build_field_enum(names),
-            "table_id": self.build_field_enum(table_ids),
-            "bk_data_id": self.build_field_enum(item["bk_data_id"] for item in collector_fields),
-            "bk_data_name": self.build_field_enum(bk_data_names),
         }
 
     @staticmethod
