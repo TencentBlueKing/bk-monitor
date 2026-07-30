@@ -202,3 +202,53 @@ def test_bulk_refresh_rt_fields_with_none_values(create_and_delete_records):
         field_name="endpoint",
         tag=models.ResultTableField.FIELD_TAG_DIMENSION,
     ).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bulk_refresh_rt_fields_with_tag_list(create_and_delete_records):
+    group = models.TimeSeriesGroup.objects.get(table_id=DEFAULT_TABLE_ID)
+    metric_info_list = [
+        {
+            "field_name": "disk_usage4",
+            "field_scope": "scope_a",
+            "tag_list": [{"field_name": "endpoint", "description": "Endpoint"}],
+            "is_active": False,
+        },
+        {
+            "field_name": "disk_usage4",
+            "field_scope": "scope_b",
+            "tag_list": [{"field_name": "service", "description": "Service"}],
+            "is_active": True,
+        },
+        {
+            "field_name": "disk_usage5",
+            "tag_list": [{"field_name": "instance", "description": "Instance"}],
+            "is_active": False,
+        },
+    ]
+
+    group.bulk_refresh_rt_fields(DEFAULT_TABLE_ID, metric_info_list)
+
+    assert not models.ResultTableField.objects.get(
+        table_id=DEFAULT_TABLE_ID,
+        field_name="disk_usage4",
+        tag=models.ResultTableField.FIELD_TAG_METRIC,
+    ).is_disabled
+    assert models.ResultTableField.objects.get(
+        table_id=DEFAULT_TABLE_ID,
+        field_name="disk_usage5",
+        tag=models.ResultTableField.FIELD_TAG_METRIC,
+    ).is_disabled
+
+    dimensions = {
+        field.field_name: field.description
+        for field in models.ResultTableField.objects.filter(
+            table_id=DEFAULT_TABLE_ID,
+            tag=models.ResultTableField.FIELD_TAG_DIMENSION,
+        )
+    }
+    assert dimensions == {
+        "endpoint": "Endpoint",
+        "service": "Service",
+        "instance": "Instance",
+    }

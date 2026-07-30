@@ -1,0 +1,187 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_common_actions",
+      "data": [
+        {
+          "name": "业务运维",
+          "name_en": "Ops Actions",
+          "actions": [
+            {
+              "id": "view_business_v2"
+            },
+            {
+              "id": "view_synthetic_v2"
+            },
+            {
+              "id": "manage_synthetic_v2"
+            },
+            {
+              "id": "view_host_v2"
+            },
+            {
+              "id": "manage_host_v2"
+            },
+            {
+              "id": "view_event_v2"
+            },
+            {
+              "id": "manage_event_v2"
+            },
+            {
+              "id": "view_plugin_v2"
+            },
+            {
+              "id": "manage_plugin_v2"
+            },
+            {
+              "id": "view_collection_v2"
+            },
+            {
+              "id": "manage_collection_v2"
+            },
+            {
+              "id": "view_rule_v2"
+            },
+            {
+              "id": "manage_rule_v2"
+            },
+            {
+              "id": "view_notify_team_v2"
+            },
+            {
+              "id": "manage_notify_team_v2"
+            },
+            {
+              "id": "view_downtime_v2"
+            },
+            {
+              "id": "manage_downtime_v2"
+            },
+            {
+              "id": "view_custom_metric_v2"
+            },
+            {
+              "id": "manage_custom_metric_v2"
+            },
+            {
+              "id": "view_custom_event_v2"
+            },
+            {
+              "id": "manage_custom_event_v2"
+            },
+            {
+              "id": "edit_single_dashboard"
+            },
+            {
+              "id": "view_single_dashboard"
+            },
+            {
+              "id": "export_config_v2"
+            },
+            {
+              "id": "import_config_v2"
+            },
+            {
+              "id": "explore_metric_v2"
+            },
+            {
+              "id": "view_apm_application_v2"
+            },
+            {
+              "id": "manage_apm_application_v2"
+            },
+            {
+              "id": "manage_datasource_v2"
+            },
+            {
+              "id": "manage_report"
+            },
+            {
+              "id": "view_rum_application_v2"
+            },
+            {
+              "id": "manage_rum_application_v2"
+            },
+            {
+              "id": "using_dashboard_mcp"
+            },
+            {
+              "id": "using_metrics_mcp"
+            },
+            {
+              "id": "using_log_mcp"
+            },
+            {
+              "id": "using_alarm_mcp"
+            },
+            {
+              "id": "using_alarm_handling_mcp"
+            },
+            {
+              "id": "using_metadata_mcp"
+            },
+            {
+              "id": "using_apm_mcp"
+            }
+          ]
+        },
+        {
+          "name": "业务只读",
+          "name_en": "Read-only Actions",
+          "actions": [
+            {
+              "id": "view_business_v2"
+            },
+            {
+              "id": "view_synthetic_v2"
+            },
+            {
+              "id": "view_host_v2"
+            },
+            {
+              "id": "view_event_v2"
+            },
+            {
+              "id": "view_plugin_v2"
+            },
+            {
+              "id": "view_collection_v2"
+            },
+            {
+              "id": "view_rule_v2"
+            },
+            {
+              "id": "view_notify_team_v2"
+            },
+            {
+              "id": "view_downtime_v2"
+            },
+            {
+              "id": "manage_downtime_v2"
+            },
+            {
+              "id": "view_custom_metric_v2"
+            },
+            {
+              "id": "view_custom_event_v2"
+            },
+            {
+              "id": "view_single_dashboard"
+            },
+            {
+              "id": "explore_metric_v2"
+            },
+            {
+              "id": "view_apm_application_v2"
+            },
+            {
+              "id": "view_rum_application_v2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -849,6 +849,16 @@ class StorageUpdateSerializer(serializers.Serializer):
         return attrs
 
 
+class DorisVisibleConfigUpdateSerializer(serializers.Serializer):
+    """
+    Doris 集群可见范围更新序列化（仅编辑可见范围，不涉及域名/账号/连通性）
+    """
+
+    cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    visible_config = VisibleSerializer(label=_("可见范围配置"))
+
+
 class TokenizeOnCharsSerializer(serializers.Serializer):
     """
     自定义分词符序列化

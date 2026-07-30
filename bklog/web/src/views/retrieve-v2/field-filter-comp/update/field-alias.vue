@@ -41,7 +41,7 @@ const showSlider = ref(false);
 const sliderLoading = ref(false);
 const confirmLoading = ref(false);
 const formData = ref([]);
-const fields = computed(() => store.state.indexFieldInfo.fields);
+const fields = computed(() => store.getters.rawFieldList);
 const globalsData = computed(() => store.getters["globals/globalsData"]);
 const handleOpenSidebar = async () => {
   showSlider.value = true;

@@ -306,11 +306,10 @@
         return this.$store.state.indexFieldInfo.sort_list;
       },
       shadowTotal() {
-        return this.$store.state.indexFieldInfo.fields;
+        return this.$store.getters.filteredFieldList;
       },
       filterShadowTotal() {
-        const fields = this.$store.state.indexFieldInfo.fields;
-        return fields.filter(item => {
+        return this.$store.getters.filteredFieldList.filter(item => {
           const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
           const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
           return matchesKeyword && !isInShadowVisible;
@@ -320,11 +319,7 @@
         return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       fieldAliasMap() {
-        let fieldAliasMap = {};
-        this.$store.state.indexFieldInfo.fields.forEach(item => {
-          fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-        });
-        return fieldAliasMap;
+        return this.$store.getters.fieldAliasMap;
       },
       toSelectLength() {
         if (this.keyword) {

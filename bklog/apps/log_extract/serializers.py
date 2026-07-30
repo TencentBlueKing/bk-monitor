@@ -35,7 +35,6 @@ from apps.log_extract.constants import (
     LogExtractNodeInstanceType,
     LogExtractTargetNodeTypeEnum,
 )
-from apps.log_extract.models import ExtractLink
 from apps.log_search.constants import CCInstanceType, InstanceTypeEnum
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.drf import GeneralSerializer
@@ -198,7 +197,7 @@ class CreateTaskSerializer(serializers.Serializer):
     preview_start_time = serializers.CharField(label=_("预览开始时间"), max_length=20, default="", required=False)
     preview_end_time = serializers.CharField(label=_("预览结束时间"), max_length=20, default="", required=False)
     preview_is_search_child = serializers.BooleanField(label=_("预览是否搜索子目录"))
-    link_id = serializers.IntegerField(label=_("提取链路id"))
+    link_id = serializers.IntegerField(label=_("提取链路id"), required=False, allow_null=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -251,11 +250,6 @@ class CreateTaskSerializer(serializers.Serializer):
                 raise serializers.ValidationError(_("biz 类型节点对象不能与其他类型节点对象同时存在"))
 
         return attrs
-
-    def validate_link_id(self, value):
-        if ExtractLink.objects.filter(link_id=value).exists():
-            return value
-        raise serializers.ValidationError(_("提取链路不存在"))
 
     def validate_file_path(self, value):
         if len(value) > settings.CSTONE_DOWNLOAD_FILES_LIMIT:

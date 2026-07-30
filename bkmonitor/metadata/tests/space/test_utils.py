@@ -112,6 +112,76 @@ def test_create_bksaas_space_resource(create_and_delete_record, mocker):
     assert set(real_clusters) == {DEFAULT_BCS_CLUSTER_ID_ONE, DEFAULT_BCS_CLUSTER_ID_TWO}
 
 
+def test_create_bkcc_spaces_uses_builtin_datalink_check_synchronously(mocker, settings):
+    settings.ENABLE_V2_VM_DATA_LINK = True
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.tasks.check_bkcc_space_builtin_datalink")
+    biz_list = [
+        {
+            "bk_biz_id": "1001",
+            "bk_biz_name": "业务一",
+            "bk_tenant_id": "tenant_a",
+            "time_zone": "Asia/Shanghai",
+        },
+        {
+            "bk_biz_id": 1002,
+            "bk_biz_name": "业务二",
+            "bk_tenant_id": "tenant_b",
+            "time_zone": "Asia/Shanghai",
+        },
+    ]
+
+    utils.create_bkcc_spaces(biz_list, create_builtin_data_link_delay=False)
+
+    check_bkcc_space_builtin_datalink.assert_called_once_with(biz_list=[("tenant_a", 1001), ("tenant_b", 1002)])
+    assert (
+        models.Space.objects.filter(
+            space_type_id="bkcc",
+            space_id__in=["1001", "1002"],
+        ).count()
+        == 2
+    )
+
+
+def test_create_bkcc_spaces_uses_builtin_datalink_check_asynchronously(mocker, settings):
+    settings.ENABLE_V2_VM_DATA_LINK = True
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.tasks.check_bkcc_space_builtin_datalink")
+    biz_list = [
+        {
+            "bk_biz_id": "1001",
+            "bk_biz_name": "业务一",
+            "bk_tenant_id": "tenant_a",
+            "time_zone": "Asia/Shanghai",
+        }
+    ]
+
+    utils.create_bkcc_spaces(biz_list)
+
+    check_bkcc_space_builtin_datalink.assert_not_called()
+    check_bkcc_space_builtin_datalink.delay.assert_called_once_with(biz_list=[("tenant_a", 1001)])
+
+
+def test_create_bkcc_spaces_skips_builtin_datalink_check_when_disabled(mocker, settings):
+    settings.ENABLE_V2_VM_DATA_LINK = False
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.tasks.check_bkcc_space_builtin_datalink")
+
+    utils.create_bkcc_spaces(
+        [
+            {
+                "bk_biz_id": "1001",
+                "bk_biz_name": "业务一",
+                "bk_tenant_id": "tenant_a",
+                "time_zone": "Asia/Shanghai",
+            }
+        ]
+    )
+
+    check_bkcc_space_builtin_datalink.assert_not_called()
+    check_bkcc_space_builtin_datalink.delay.assert_not_called()
+
+
 def test_filter_space_resource(create_and_delete_record):
     spaces = [(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID)]
     space_resource_data = utils._filter_space_resource_by_page(spaces)

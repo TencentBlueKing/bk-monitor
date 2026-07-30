@@ -137,14 +137,24 @@ class TasksHandler:
         preview_is_search_child,
         preview_start_time,
         preview_end_time,
-        link_id,
+        link_id=None,
         target_node_type=LogExtractTargetNodeTypeEnum.INSTANCE.value,
         target_nodes=[],
     ):
         request_user = get_request_external_username() or get_request_username()
+        if link_id is None:
+            extract_links = ExtractLink.objects.filter(is_enable=True)
+            if settings.IS_K8S_DEPLOY_MODE:
+                extract_links = extract_links.exclude(link_type=ExtractLinkType.COMMON.value)
+            extract_link: ExtractLink = extract_links.first()
+            if extract_link:
+                link_id = extract_link.link_id
+        else:
+            extract_link = ExtractLink.objects.filter(link_id=link_id).first()
+        if not extract_link:
+            raise exceptions.TaskExtractLinkNotExist
         # K8S部署情况下禁止使用内网链路, 所以已有的内网链路不能创建任务
-        extract_link: ExtractLink = ExtractLink.objects.filter(link_id=link_id).first()
-        if extract_link and extract_link.link_type == ExtractLinkType.COMMON.value and settings.IS_K8S_DEPLOY_MODE:
+        if extract_link.link_type == ExtractLinkType.COMMON.value and settings.IS_K8S_DEPLOY_MODE:
             raise exceptions.TaskCannotCreateByCommonLink
 
         # step 2：用户任务鉴权

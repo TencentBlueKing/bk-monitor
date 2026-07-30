@@ -229,9 +229,27 @@ class ApmApplication(AbstractRecordModel):
     @classmethod
     def check_application(cls, bk_biz_id, app_name):
         """检查应用是否已经存在"""
-        # 只检查名称是否重名
+        # 1. 名称精确重名校验
         if cls.origin_objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first():
             raise ValueError(f"应用: {app_name} 已被创建，请尝试更换应用名称")
+
+        # 2. 归一化重名校验：`.`、`-` 在拼接 table_id / data_name / ES 索引时会统一被替换为 `_`，
+        # 因此 `my.app`、`my-app`、`my_app` 在系统内部会指向同一个 table_id，必须在建应用时拒绝冲突。
+        # 参考：ApmDataSourceConfigBase.normalize_app_name
+        normalized = app_name.replace("-", "_").replace(".", "_")
+        # 若 app_name 本身不含 `.`/`-`，normalized == app_name，上一步已覆盖，此处无需重复扫描
+        if normalized != app_name:
+            conflict = (
+                cls.origin_objects.filter(bk_biz_id=bk_biz_id)
+                .exclude(app_name=app_name)
+                .values_list("app_name", flat=True)
+            )
+            for exist_name in conflict:
+                if exist_name.replace("-", "_").replace(".", "_") == normalized:
+                    raise ValueError(
+                        f"应用: {app_name} 与已存在应用 {exist_name} 归一化后重名（`.`、`-` 会被统一处理为 `_`），"
+                        f"请更换应用名称"
+                    )
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)

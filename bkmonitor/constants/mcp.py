@@ -41,6 +41,7 @@ MCP_SERVER_SUFFIX_TO_PERMISSION_ACTION = {
     "dashboard-edit": "using_dashboard_mcp",
     "dashboard-query": "using_dashboard_mcp",
     "log-query": "using_log_mcp",
+    "log-extract": "using_log_mcp",
     "tracing": "using_apm_mcp",
     "profiling": "using_apm_mcp",
     "profiling-query": "using_apm_mcp",

@@ -143,9 +143,22 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(content["data"]["func_name"], "__meta__")
         self.assertEqual(content["data"]["protocol"], "bklog.admin_resource.v1")
         self.assertIn("bklog.collector.list", content["data"]["result"]["functions"])
+        self.assertIn("bklog.collector.storage.snapshot", content["data"]["result"]["functions"])
         self.assertIn("bklog.collector.storage.preview", content["data"]["result"]["functions"])
         self.assertIn("bklog.collector.storage.apply", content["data"]["result"]["functions"])
         self.assertIn("bklog.storage_cluster.list", content["data"]["result"]["functions"])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_meta_detail_returns_storage_snapshot_schema(self):
+        content = self._call(
+            "__meta__",
+            {"action": "detail", "target_func_name": "bklog.collector.storage.snapshot"},
+        )
+
+        self.assertTrue(content["result"])
+        function = content["data"]["result"]
+        self.assertEqual(function["safety_level"], "read")
+        self.assertEqual(function["params_schema"]["properties"]["collector_config_ids"]["maxItems"], 30)
 
     def test_viewset_uses_drf_permission_for_entry_auth(self):
         permission_class_names = {
@@ -615,6 +628,56 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
 
 
 class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, TestCase):
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=HOT_WARM_METADATA_STORAGE)
+    def test_storage_snapshot_returns_current_metadata_values(self, mock_get_result_table_storage):
+        content = self._call(
+            "bklog.collector.storage.snapshot",
+            {"collector_config_ids": [10402]},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["summary"]["total"], 1)
+        item = result["items"][0]
+        self.assertEqual(item["before"]["storage_cluster_id"], 88)
+        self.assertEqual(item["before"]["retention"], 30)
+        self.assertEqual(item["before"]["allocation_min_days"], 5)
+        self.assertEqual(item["before"]["storage_shards_nums"], 9)
+        self.assertEqual(item["before"]["storage_replies"], 2)
+        self.assertEqual(item["before"]["storage_shards_size"], 30)
+        self.assertEqual(item["after"], item["before"])
+        self.assertEqual(item["diff"], [])
+        mock_get_result_table_storage.assert_called_once()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", side_effect=RuntimeError("transfer unavailable"))
+    def test_storage_snapshot_returns_warning_when_storage_query_fails(self, mock_get_result_table_storage):
+        content = self._call(
+            "bklog.collector.storage.snapshot",
+            {"collector_config_ids": [10402]},
+        )
+
+        self.assertTrue(content["result"])
+        item = content["data"]["result"]["items"][0]
+        self.assertEqual(item["status"], "blocked")
+        self.assertEqual(item["before"]["retention"], None)
+        self.assertEqual(item["before"]["allocation_min_days"], None)
+        self.assertEqual(item["before"]["storage_shards_nums"], 6)
+        self.assertEqual(item["before"]["storage_replies"], 1)
+        self.assertEqual(item["warnings"][0]["code"], "result_table_storage_query_failed")
+        mock_get_result_table_storage.assert_called_once()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_storage_snapshot_rejects_more_than_thirty_collectors(self):
+        content = self._call(
+            "bklog.collector.storage.snapshot",
+            {"collector_config_ids": list(range(1, 32))},
+        )
+
+        self.assertFalse(content["result"])
+        self.assertIn("at most 30 items", content["message"])
+
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
     @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")

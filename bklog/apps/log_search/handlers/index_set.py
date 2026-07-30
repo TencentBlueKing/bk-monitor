@@ -211,8 +211,16 @@ class IndexSetHandler(APIModel):
             key="collector_config_id",
             value="collector_scenario_id",
         )
+        index_set_ids = [index_set["index_set_id"] for index_set in index_sets]
+        is_id_to_is_native_doris_map = LogIndexSet.batch_get_is_native_doris(index_set_ids)
         for index_set in index_sets:
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
+            is_support_sql_and_grep = False
+            if index_set["support_doris"] and index_set["doris_table_id"]:
+                is_support_sql_and_grep = True
+            if is_id_to_is_native_doris_map.get(index_set["index_set_id"], False):
+                is_support_sql_and_grep = True
+            index_set["support_doris"] = is_support_sql_and_grep
         # 不分组，直接返回
         if not is_group:
             return index_sets
@@ -1389,27 +1397,27 @@ class IndexSetHandler(APIModel):
                 is_deleted=False, search_type="default", created_at__range=[start_time, end_time], created_by=username
             ).order_by("-created_at")
         history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
-        index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
-        detail_data = list(
-            LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
+        index_set_ids = [history["index_set_id"] for history in history_data]
+        detail_by_index_set_id = {
+            detail["index_set_id"]: detail
+            for detail in LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
                 "index_set_id", "index_set_name", "space_uid"
             )
-        )
+        }
         return_data = []
         for history in history_data:
-            for detail in detail_data:
-                if detail["index_set_id"] == history["index_set_id"]:
-                    if space_uid and space_uid != detail["space_uid"]:
-                        continue
-                    search_data = {
-                        "index_set_id": history["index_set_id"],
-                        "created_at": history["created_at"],
-                        "params": history["params"],
-                        "duration": history["duration"],
-                        "index_set_name": detail["index_set_name"],
-                        "space_uid": detail["space_uid"],
-                    }
-                    return_data.append(search_data)
+            detail = detail_by_index_set_id.get(history["index_set_id"])
+            if not detail or (space_uid and space_uid != detail["space_uid"]):
+                continue
+            search_data = {
+                "index_set_id": history["index_set_id"],
+                "created_at": history["created_at"],
+                "params": history["params"],
+                "duration": history["duration"],
+                "index_set_name": detail["index_set_name"],
+                "space_uid": detail["space_uid"],
+            }
+            return_data.append(search_data)
         return_data = return_data[: int(limit)]
         return return_data
 
@@ -1928,11 +1936,12 @@ class BaseIndexSetHandler:
         )
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids)
-        doris_table_id = index_set.doris_table_id
         if is_doris or is_analysis:
-            if not doris_table_id:
+            db_doris_table_id = index_set.doris_table_id
+            is_manual_connect_doris = True if index_set.support_doris and db_doris_table_id else False
+            if not is_manual_connect_doris:
                 return table_info_list
-            for doris_table_id in doris_table_id.split(","):
+            for doris_table_id in db_doris_table_id.split(","):
                 doris_table_info = {
                     "storage_type": "doris",
                     "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],

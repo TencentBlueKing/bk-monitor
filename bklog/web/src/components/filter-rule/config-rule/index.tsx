@@ -30,6 +30,7 @@ import { getRegExp } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import ControlOperate from './control-operate';
@@ -80,9 +81,9 @@ export default defineComponent({
     const isMatchListShown = ref(true);
     const fieldValueCache = ref<Record<string, string[]>>({});
 
-    const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
-    const isFieldListEmpty = computed(() => !indexFieldInfo.value.fields.length);
+    const fieldList = computed(() => store.getters.filteredFieldList ?? []);
+    const isFieldListEmpty = computed(() => !store.state.indexFieldInfo.is_loading && !fieldList.value.length);
     const isSearchEmpty = computed(() => !(isFieldListEmpty.value || filterFieldList.value.length));
     const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
     const textDir = computed(() => {
@@ -95,13 +96,17 @@ export default defineComponent({
         && field.field_type !== '__virtual__'
         && !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(field.field_name)
         && (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
-      return indexFieldInfo.value.fields.filter(filterFn);
+      return fieldList.value.filter(filterFn);
     });
     const isConfirmEnable = computed(() => formData.value.op && formData.value.values.length);
     const currentFieldInfo = computed(() => filterFieldList.value[activeIndex.value]);
+    const fieldAggsItems = computed(() => {
+      store.state.fieldAggsItemsVersion;
+      return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+    });
 
     const activeItemMatchList = computed(() => {
-      return (store.state.indexFieldInfo.aggs_items[currentFieldInfo.value.field_name] ?? [])
+      return (fieldAggsItems.value[currentFieldInfo.value.field_name] ?? [])
         .filter(
           item => !(formData.value.values ?? []).includes(item),
         );

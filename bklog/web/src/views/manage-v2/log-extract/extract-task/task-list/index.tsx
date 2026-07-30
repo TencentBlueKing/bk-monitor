@@ -31,6 +31,7 @@ import useLocale from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
+import { manageDraftCacheService } from '@/storage';
 import useUtils from '@/hooks/use-utils';
 
 import DownloadUrl from './download-url.tsx';
@@ -252,6 +253,7 @@ export default defineComponent({
         return;
       }
       sessionStorage.setItem('cloneData', JSON.stringify(row));
+      manageDraftCacheService.set('cloneData', row, { source: 'extract-task' }).catch(() => {});
       router.push({
         name: 'extract-clone',
         query: {

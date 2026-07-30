@@ -833,13 +833,10 @@ def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: boo
     NOTE: 业务类型，不需要关联资源
 
     :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称、租户ID
+    :param create_builtin_data_link_delay: 是否异步检查并补齐内置数据链路
     :return: 返回 True 或异常
     """
-    from metadata.task.tasks import (
-        create_base_event_datalink_for_bkcc,
-        create_basereport_datalink_for_bkcc,
-        create_system_proc_datalink_for_bkcc,
-    )
+    from metadata.task.tasks import check_bkcc_space_builtin_datalink
 
     space_data = []
     for biz in biz_list:
@@ -857,18 +854,13 @@ def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: boo
 
     Space.objects.bulk_create(space_data)
 
-    # 初始化空间内置数据链路
-    if settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK:
-        for biz in biz_list:
-            bk_biz_id = int(biz["bk_biz_id"])
-            if create_builtin_data_link_delay:
-                create_basereport_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
-                create_base_event_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
-                create_system_proc_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
-            else:
-                create_basereport_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
-                create_base_event_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
-                create_system_proc_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+    # 初始化空间内置数据链路，统一复用检查逻辑补齐所有内置数据源和 DataLink
+    builtin_datalink_biz_list = [(biz["bk_tenant_id"], int(biz["bk_biz_id"])) for biz in biz_list]
+    if settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK and builtin_datalink_biz_list:
+        if create_builtin_data_link_delay:
+            check_bkcc_space_builtin_datalink.delay(biz_list=builtin_datalink_biz_list)
+        else:
+            check_bkcc_space_builtin_datalink(biz_list=builtin_datalink_biz_list)
 
     logger.info("bulk create bkcc space successfully, space: %s", json.dumps(biz_list))
 

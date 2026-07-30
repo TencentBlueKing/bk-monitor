@@ -30,17 +30,6 @@ if TYPE_CHECKING:
     from metadata.models.storage import ClusterInfo
 
 
-class ExpandableGroup:
-    """
-    可展开组件容器基类。
-
-    用于 STRATEGY_RELATED_COMPONENTS 中标记需要根据 write_mode 动态展开的组件容器。
-    子类需实现 expand() 类方法。
-    """
-
-    pass
-
-
 class DataLinkResourceConfigBase(models.Model):
     """
     数据链路资源配置基类
@@ -50,7 +39,6 @@ class DataLinkResourceConfigBase(models.Model):
         (DataLinkKind.DATAID.value, "数据源"),
         (DataLinkKind.RESULTTABLE.value, "结果表"),
         (DataLinkKind.VMSTORAGEBINDING.value, "存储配置"),
-        (DataLinkKind.GRAPHRELATIONBINDING.value, "图关系绑定"),
         (DataLinkKind.SURREALDBBINDING.value, "SurrealDB绑定"),
         (DataLinkKind.DATABUS.value, "清洗任务"),
         (DataLinkKind.SINK.value, "清洗配置"),
@@ -537,40 +525,14 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         )
 
 
-class GraphRelationConfig(ExpandableGroup):
+@deprecated("已废弃，Graph Relation V4 写入目标统一使用 ResultTableOption 配置")
+class GraphRelationBindingConfig(models.Model):
     """
-    图关系链路组件容器。
+    已废弃的图关系写入目标配置。
 
-    用于在 STRATEGY_RELATED_COMPONENTS 中组织双写场景下的组件分组。
-    本身不注册到 bkbase，仅作为内部容器辅助 get_related_component_classes 等方法。
-    """
-
-    @classmethod
-    def expand(cls, write_mode: str | None) -> list[type["DataLinkResourceConfigBase"]]:
-        from metadata.models.data_link.data_link_configs import GraphRelationBindingConfig
-
-        normalized_write_mode = GraphRelationBindingConfig.normalize_write_mode(write_mode)
-        vm_components = [ResultTableConfig, VMStorageBindingConfig, DataBusConfig]
-        surrealdb_components = [ResultTableConfig, SurrealDBBindingConfig, GraphDataBusConfig]
-        components = []
-        if normalized_write_mode in (
-            GraphRelationBindingConfig.WRITE_MODE_VM,
-            GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-        ):
-            components.extend(vm_components)
-        if normalized_write_mode in (
-            GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-            GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-        ):
-            components.extend(surrealdb_components)
-        return components
-
-
-class GraphRelationBindingConfig(DataLinkResourceConfigBase):
-    """
-    图关系写入目标配置。
-
-    该模型不直接下发为 BKBase 资源，负责在监控侧声明 relation 数据写入到 VM、SurrealDB 或双写。
+    仅保留模型和历史字段用于兼容已有数据库记录，不再参与 Graph Relation V4
+    的配置、状态聚合、组件删除或链路重建。当前写入目标由 ResultTableOption
+    的 graph_relation_v4_data_link 选项声明。
     """
 
     WRITE_MODE_VM = "vm"
@@ -583,6 +545,15 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
     )
 
     kind = DataLinkKind.GRAPHRELATIONBINDING.value
+    namespace = models.CharField(
+        verbose_name="命名空间", max_length=64, default=settings.DEFAULT_VM_DATA_LINK_NAMESPACE
+    )
+    create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+    status = models.CharField(verbose_name="状态", max_length=64)
+    data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64, blank=True)
+    bk_biz_id = models.BigIntegerField(verbose_name="业务ID")
+    bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore[reportAssignmentType]
     name = models.CharField(verbose_name="图关系绑定配置名称", max_length=64, db_index=True)
     write_mode = models.CharField(
         verbose_name="写入模式",
@@ -611,215 +582,6 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
         indexes = [
             models.Index(fields=["bk_tenant_id", "namespace", "data_link_name"], name="grbc_tenant_ns_dl_idx"),
         ]
-
-    @property
-    def should_write_vm(self) -> bool:
-        return self.write_mode in (self.WRITE_MODE_VM, self.WRITE_MODE_VM_AND_SURREALDB)
-
-    @property
-    def should_write_surrealdb(self) -> bool:
-        return self.write_mode in (self.WRITE_MODE_SURREALDB, self.WRITE_MODE_VM_AND_SURREALDB)
-
-    @property
-    def vm_binding_component_name(self) -> str:
-        return self.vm_storage_binding_name or self.bkbase_result_table_name
-
-    @property
-    def vm_databus_component_name(self) -> str:
-        return self.vm_databus_name or self.bkbase_result_table_name
-
-    @property
-    def surrealdb_binding_component_name(self) -> str:
-        return self.surrealdb_binding_name or self.graph_result_table_name
-
-    @property
-    def graph_databus_component_name(self) -> str:
-        return self.graph_databus_name or self.graph_result_table_name
-
-    def get_expected_component_names(self, component_cls: type[DataLinkResourceConfigBase]) -> list[str]:
-        names: list[str] = []
-        should_write_vm = self.write_mode_includes_vm(self.write_mode)
-        should_write_surrealdb = self.write_mode_includes_surrealdb(self.write_mode)
-        if component_cls is ResultTableConfig:
-            if should_write_vm:
-                names.append(self.bkbase_result_table_name)
-            if should_write_surrealdb:
-                names.append(self.graph_result_table_name)
-        elif component_cls is VMStorageBindingConfig and should_write_vm:
-            names.append(self.vm_binding_component_name)
-        elif component_cls is DataBusConfig and should_write_vm:
-            names.append(self.vm_databus_component_name)
-        elif component_cls is SurrealDBBindingConfig and should_write_surrealdb:
-            names.append(self.surrealdb_binding_component_name)
-        elif component_cls is GraphDataBusConfig and should_write_surrealdb:
-            names.append(self.graph_databus_component_name)
-        return list(dict.fromkeys(name for name in names if name))
-
-    @classmethod
-    def write_mode_includes_vm(cls, write_mode: str | None) -> bool:
-        normalized_write_mode = cls.normalize_write_mode(write_mode)
-        return normalized_write_mode in (cls.WRITE_MODE_VM, cls.WRITE_MODE_VM_AND_SURREALDB)
-
-    @classmethod
-    def write_mode_includes_surrealdb(cls, write_mode: str | None) -> bool:
-        normalized_write_mode = cls.normalize_write_mode(write_mode)
-        return normalized_write_mode in (cls.WRITE_MODE_SURREALDB, cls.WRITE_MODE_VM_AND_SURREALDB)
-
-    def _aggregate_status(self) -> str:
-        from metadata.models.data_link.constants import DataLinkResourceStatus
-
-        statuses: list[str] = []
-        if self.should_write_vm and self.vm_binding_component_name:
-            vm_binding = VMStorageBindingConfig.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-                name=self.vm_binding_component_name,
-            ).first()
-            if vm_binding:
-                statuses.extend([vm_binding.status, vm_binding.component_status or ""])
-            else:
-                statuses.append(DataLinkResourceStatus.INITIALIZING.value)
-
-        if self.should_write_surrealdb and self.surrealdb_binding_component_name:
-            surrealdb_binding = SurrealDBBindingConfig.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-                name=self.surrealdb_binding_component_name,
-            ).first()
-            if surrealdb_binding:
-                statuses.extend([surrealdb_binding.status, surrealdb_binding.component_status or ""])
-            else:
-                statuses.append(DataLinkResourceStatus.INITIALIZING.value)
-
-        statuses = [status for status in statuses if status]
-        if not statuses:
-            return DataLinkResourceStatus.INITIALIZING.value
-        if DataLinkResourceStatus.FAILED.value in statuses:
-            return DataLinkResourceStatus.FAILED.value
-        if any(
-            status
-            in {
-                DataLinkResourceStatus.INITIALIZING.value,
-                DataLinkResourceStatus.CREATING.value,
-                DataLinkResourceStatus.PENDING.value,
-                DataLinkResourceStatus.RECONCILING.value,
-                DataLinkResourceStatus.TERMINATING.value,
-            }
-            for status in statuses
-        ):
-            return DataLinkResourceStatus.PENDING.value
-        return DataLinkResourceStatus.OK.value
-
-    @classmethod
-    def normalize_write_mode(cls, write_mode: str | None) -> str:
-        valid_modes = {choice[0] for choice in cls.WRITE_MODE_CHOICES}
-        if write_mode in valid_modes:
-            return write_mode
-        return cls.WRITE_MODE_VM_AND_SURREALDB
-
-    @property
-    def component_status(self):
-        return self._aggregate_status()
-
-    @property
-    def component_config(self):
-        return self.compose_config()
-
-    def compose_config(self) -> dict[str, Any]:
-        return {
-            "kind": self.kind,
-            "metadata": {
-                "name": self.name,
-                "namespace": self.namespace,
-                "labels": {"bk_biz_id": str(self.datalink_biz_ids.label_biz_id)},
-                **({"tenant": self.bk_tenant_id} if settings.ENABLE_MULTI_TENANT_MODE else {}),
-            },
-            "spec": {
-                "writeMode": self.write_mode,
-                "vmClusterName": self.vm_cluster_name,
-                "surrealdbClusterName": self.surrealdb_cluster_name,
-                "resultTableName": self.bkbase_result_table_name,
-                "graphResultTableName": self.graph_result_table_name,
-                "tableType": self.table_type,
-            },
-            "status": {"phase": self.component_status},
-        }
-
-    def _delete_component(self, component_class: type[DataLinkResourceConfigBase], name: str) -> None:
-        if not name:
-            return
-        components = component_class.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            namespace=self.namespace,
-            data_link_name=self.data_link_name,
-            name=name,
-        )
-        for component in components:
-            component.delete_config()
-
-    def _delete_surrealdb_storage(self) -> None:
-        if not self.table_id:
-            return
-        from metadata.models.storage import ClusterInfo, StorageClusterRecord, SurrealDBStorage
-
-        storages = SurrealDBStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-        storage_cluster_ids = set(storages.values_list("storage_cluster_id", flat=True))
-        storage_cluster_ids.update(
-            ClusterInfo.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                cluster_type=ClusterInfo.TYPE_SURREALDB,
-            ).values_list("cluster_id", flat=True)
-        )
-        storages.delete()
-        if storage_cluster_ids:
-            StorageClusterRecord.objects.filter(
-                table_id=self.table_id,
-                bk_tenant_id=self.bk_tenant_id,
-                cluster_id__in=storage_cluster_ids,
-            ).delete()
-
-    def transition_write_mode(self, new_write_mode: str | None) -> None:
-        normalized_new_write_mode = self.normalize_write_mode(new_write_mode)
-        if normalized_new_write_mode == self.write_mode:
-            return
-
-        old_write_vm = self.write_mode_includes_vm(self.write_mode)
-        old_write_surrealdb = self.write_mode_includes_surrealdb(self.write_mode)
-        new_write_vm = self.write_mode_includes_vm(normalized_new_write_mode)
-        new_write_surrealdb = self.write_mode_includes_surrealdb(normalized_new_write_mode)
-
-        logger.info(
-            "transition_graph_relation_write_mode: data_link_name->[%s], old_write_mode->[%s], new_write_mode->[%s]",
-            self.data_link_name,
-            self.write_mode,
-            normalized_new_write_mode,
-        )
-        if old_write_vm and not new_write_vm:
-            self._delete_component(DataBusConfig, self.vm_databus_component_name)
-            self._delete_component(VMStorageBindingConfig, self.vm_binding_component_name)
-            self._delete_component(ResultTableConfig, self.bkbase_result_table_name)
-
-        if old_write_surrealdb and not new_write_surrealdb:
-            self._delete_component(GraphDataBusConfig, self.graph_databus_component_name)
-            self._delete_component(SurrealDBBindingConfig, self.surrealdb_binding_component_name)
-            self._delete_component(ResultTableConfig, self.graph_result_table_name)
-            self._delete_surrealdb_storage()
-
-    def delete_config(self):
-        if self.should_write_vm:
-            self._delete_component(DataBusConfig, self.vm_databus_component_name)
-            self._delete_component(VMStorageBindingConfig, self.vm_binding_component_name)
-            self._delete_component(ResultTableConfig, self.bkbase_result_table_name)
-
-        if self.should_write_surrealdb:
-            self._delete_component(GraphDataBusConfig, self.graph_databus_component_name)
-            self._delete_component(SurrealDBBindingConfig, self.surrealdb_binding_component_name)
-            self._delete_component(ResultTableConfig, self.graph_result_table_name)
-            self._delete_surrealdb_storage()
-
-        self.delete()
 
 
 class DataBusConfig(DataLinkResourceConfigBase):
@@ -874,6 +636,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
         transform_options: dict[str, Any] | None = None,
+        transforms: list[dict[str, Any]] | None = None,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -884,6 +647,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         @param transform_name: 转换名称
         @param transform_format: 转换格式
         @param transform_options: 转换额外配置
+        @param transforms: 完整转换列表；传入时覆盖单个预定义转换参数
         """
         tpl = """
         {
@@ -896,9 +660,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "namespace": "{{namespace}}",
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
-                    {% if data_link_strategy %},
-                    "bkm_data_link_strategy": "{{data_link_strategy}}"
-                    {% endif %}
                 }
             },
             "spec": {
@@ -917,20 +678,20 @@ class DataBusConfig(DataLinkResourceConfigBase):
                         "namespace": "{{namespace}}"
                     }
                 ],
-                "transforms": [
-                    {{transform}}
-                ]
+                "transforms": {{transforms}}
             }
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-        transform = {
-            "kind": transform_kind,
-            "name": transform_name,
-            "format": transform_format,
-        }
-        if transform_options:
-            transform.update(transform_options)
+        if transforms is None:
+            transform = {
+                "kind": transform_kind,
+                "name": transform_name,
+                "format": transform_format,
+            }
+            if transform_options:
+                transform.update(transform_options)
+            transforms = [transform]
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -938,10 +699,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
-            "transform": json.dumps(transform),
+            "transforms": json.dumps(transforms),
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
-            "data_link_strategy": self.data_link_strategy,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -969,9 +729,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "namespace": "{{namespace}}",
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
-                    {% if data_link_strategy %},
-                    "bkm_data_link_strategy": "{{data_link_strategy}}"
-                    {% endif %}
                 }
             },
             "spec": {
@@ -1013,7 +770,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "rules": json.dumps(rules),
             "data_id_name": self.data_id_name,
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
-            "data_link_strategy": self.data_link_strategy,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -1378,8 +1134,7 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
                 {% endif %}
                 "namespace": "{{namespace}}",
                 "labels": {
-                    "bk_biz_id": "{{bk_biz_id}}",
-                    "bkm_data_link_strategy": "graph_relation_time_series"
+                    "bk_biz_id": "{{bk_biz_id}}"
                 }
             },
             "spec": {
@@ -1456,100 +1211,6 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
             missing = [k for k in ("name", "from", "to") if k not in relation]
             if missing:
                 raise ValueError(f"relations[{idx}] 缺少必填字段: {', '.join(missing)}")
-
-
-class GraphDataBusConfigManager(models.Manager):
-    """Proxy manager for Databus records used by graph ResultTables."""
-
-    def get_queryset(self):
-        return super().get_queryset().filter(sink_names__icontains=f"{DataLinkKind.SURREALDBBINDING.value}:")
-
-
-class GraphDataBusConfig(DataBusConfig):
-    """
-    图关联关系数据总线配置（SurrealDB sink 专用）
-
-    与 DataBusConfig 共享同一张 DB 表（Django Proxy Model），仅用于语义区分：
-    - DataBusConfig.compose_config(): VM sink 的 Databus（含 transforms 清洗）
-    - GraphDataBusConfig.compose_config(): SurrealDB sink 的 Databus（transforms 为空，autoOffsetReset=earliest）
-
-    注意（查询隔离）：
-      由于 proxy model 共享底表，旧代码通过 DataBusConfig.objects 仍能查到底层记录；
-      图链路读写入口必须使用 GraphDataBusConfig.objects 以表达 SurrealDB sink 语义。
-    """
-
-    objects = GraphDataBusConfigManager()
-
-    class Meta:
-        proxy = True
-        verbose_name = "图关联数据总线配置"
-        verbose_name_plural = verbose_name
-
-    def compose_config(self, sinks: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        图关联关系数据总线配置，transforms 为空（由 SurrealDBBinding 定义图结构）
-
-        Note:
-            `autoOffsetReset=earliest`：图链路首次订阅从 Kafka 头部开始消费，
-            避免丢失已有关联关系数据；与线上图链路实例一致。
-        """
-        tpl = """
-        {
-            "kind": "Databus",
-            "metadata": {
-                "name": "{{name}}",
-                {% if tenant %}
-                "tenant": "{{ tenant }}",
-                {% endif %}
-                "namespace": "{{namespace}}",
-                "labels": {
-                    "bk_biz_id": "{{bk_biz_id}}"
-                    {% if data_link_strategy %},
-                    "bkm_data_link_strategy": "{{data_link_strategy}}"
-                    {% endif %}
-                }
-            },
-            "spec": {
-                "maintainers": {{maintainers}},
-                {% if consumer_group %}
-                "consumerGroup": {{consumer_group}},
-                {% endif %}
-                "sinks": {{sinks}},
-                "sources": [
-                    {
-                        "kind": "DataId",
-                        "name": "{{data_id_name}}",
-                        {% if tenant %}
-                        "tenant": "{{ tenant }}",
-                        {% endif %}
-                        "namespace": "{{namespace}}"
-                    }
-                ],
-                "transforms": [],
-                "autoOffsetReset": "earliest"
-            }
-        }
-        """
-        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-        render_params = {
-            "name": self.name,
-            "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,
-            "sinks": json.dumps(sinks),
-            "data_id_name": self.data_id_name,
-            "maintainers": json.dumps(maintainer),
-            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
-            "data_link_strategy": self.data_link_strategy,
-        }
-
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            render_params["tenant"] = self.bk_tenant_id
-
-        return utils.compose_config(
-            tpl=tpl,
-            render_params=render_params,
-            err_msg_prefix="compose graph databus config",
-        )
 
 
 class ClusterConfig(models.Model):
@@ -1839,6 +1500,9 @@ class ClusterConfig(models.Model):
             sync_namespaces: 指定同步的命名空间列表
         """
 
+        if cluster.cluster_type == cluster.TYPE_KAFKA and cluster.gse_stream_to_id <= 0:
+            raise ValueError(f"Kafka 集群({cluster.cluster_name})的 gse_stream_to_id 必须大于 0")
+
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]
         namespaces = cls.KIND_TO_NAMESPACES_MAP[kind]
@@ -1917,7 +1581,6 @@ COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DATAID.value: DataIdConfig,
     DataLinkKind.RESULTTABLE.value: ResultTableConfig,
     DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
-    DataLinkKind.GRAPHRELATIONBINDING.value: GraphRelationBindingConfig,
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
     DataLinkKind.SURREALDBBINDING.value: SurrealDBBindingConfig,

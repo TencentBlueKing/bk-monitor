@@ -93,16 +93,8 @@
     <export-history
       :index-set-list="indexSetList"
       :show-history-export="showHistoryExport"
-      :export-list="exportListData"
-      :table-loading="exportTableLoading"
-      :date-range="exportDateRange"
-      :pagination="exportPagination"
       @handle-close-dialog="handleCloseDialog"
-      @date-range-change="handleDateRangeChange"
-      @pagination-change="handlePaginationChange"
-      @loading-change="handleLoadingChange"
-      @start-polling="startStatusPolling"
-      @get-table-list="getTableList"
+      @refresh-current-tasks="fetchCurrentTasks(true)"
     />
 
     <!-- 导出弹窗提示 -->
@@ -253,12 +245,14 @@
 </template>
 
 <script>
+  import axios from 'axios';
   import { blobDownload } from '@/common/util';
   import { mapGetters, mapState } from 'vuex';
   import useFieldNameHook from '@/hooks/use-field-name';
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import { getEffectiveSearchTotal } from '@/storage/utils/normalize-search-total';
   import BklogPopover from '@/components/bklog-popover';
   import TaskItem from './TaskItem';
   import {
@@ -266,9 +260,18 @@
     adjustGrowthAfterPoll,
     calculateProgressPercent,
   } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
+  import {
+    DOWNLOAD_DATA_DELAY,
+    DOWNLOAD_POLLING_INTERVAL,
+    DOWNLOAD_PROGRESS_BASE_GROWTH,
+    DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
+    DOWNLOAD_RECENT_DAYS,
+    MILLISECONDS_PER_DAY,
+  } from '@/views/retrieve-v2/result-comp/download/constants';
 
   // 需要轮询的状态列表
   const POLLING_STATUS = ['download_log', 'export_package', 'export_upload', null];
+  const CURRENT_TASK_PAGE_SIZE = 10;
 
   export default {
     components: {
@@ -358,19 +361,11 @@
         ],
         modeHintMap: {},
         // queueStatus: true
-        // 导出历史相关数据
-        exportListData: [], // 导出列表数据
-        exportTableLoading: false, // 表格加载状态
-        exportPollingTimer: null, // 轮询定时器
-        exportDateRange: [], // 查询时间范围（默认最近3月）
-        exportPagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
-        },
+        exportListData: [], // 当前索引集/采集项的下载任务
+        exportPollingTimer: null, // 当前任务轮询定时器
+        currentTaskCancelExecutor: null,
         isComponentUnmounted: false, // 组件是否已卸载
         progressUpdateTimer: null, // 进度更新定时器
-        baseGrowth: 20000, // 基础增长量：10秒增长20000条
         popoverHoverTimer: null, // Popover 悬浮延迟隐藏定时器
         pendingTaskStatus: {}, // 进行中任务状态记录 { [taskId]: status }
         failedTaskIds: [],
@@ -380,14 +375,15 @@
     computed: {
       ...mapState({
         totalCount: state => {
-          if (state.searchTotal > 0) {
-            return state.searchTotal;
+          const effectiveTotal = getEffectiveSearchTotal(state);
+          if (effectiveTotal > 0) {
+            return effectiveTotal;
           }
 
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => state.retrieve.isTotalCountLoaded,
-        totalFields: state => state.indexFieldInfo.fields ?? [],
+        totalFields: (_state, getters) => getters.filteredFieldList,
         visibleFields: state => state.visibleFields ?? [],
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         retrieveType: state => state.indexItem?.retrieve_type,
@@ -496,23 +492,14 @@
           this.$refs.downloadProgressPopover.hide();
         }
       },
-      showHistoryExport(val) {
-        // 当下载历史弹窗打开时，拉取最新数据
-        if (val) {
-          this.initDateRange();
-          this.getTableList(true);
-        }
-      },
     },
-    mounted() {
-      // 初始化时间范围为最近3月
-      this.initDateRange();
-    },
+
     beforeDestroy() {
       // 设置组件卸载标志位
       this.isComponentUnmounted = true;
-      // 清除轮询定时器
+      // 清除轮询定时器和未完成的当前任务请求
       this.stopStatusPolling();
+      this.cancelCurrentTaskRequest();
       // 清除进度更新定时器
       this.stopProgressUpdate();
       // 清除 Popover 悬浮定时器
@@ -549,9 +536,8 @@
         // 清空失败任务定时器和记录
         this.clearFailedTaskTimer();
         this.failedTaskIds = [];
-        // 重新初始化数据
-        this.initDateRange();
-        this.getTableList();
+        // 重新初始化当前范围任务
+        this.fetchCurrentTasks();
       },
       exportLog() {
         if (!this.queueStatus) return;
@@ -625,9 +611,7 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
-              // 更新时间范围拉取最新数据
-              this.initDateRange(true);
-              this.getTableList(true);
+              this.fetchCurrentTasks(true);
             } else {
               this.$bkMessage({
                 theme: 'error',
@@ -723,9 +707,7 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
-              // 更新时间范围拉取最新数据
-              this.initDateRange(true);
-              this.getTableList(true);
+              this.fetchCurrentTasks(true);
             }
           })
           .catch(err => {
@@ -756,49 +738,7 @@
         const { getQueryAlias } = useFieldNameHook({ store: this.$store });
         return getQueryAlias(field);
       },
-      // ========== 导出历史相关方法 ==========
-      /**
-       * @desc: 初始化时间范围（最近3月）
-       */
-      /**
-       * @desc: 初始化时间范围（最近3月）
-       * @param { boolean } extendEndTime - 是否延长查询截止时间
-       */
-      initDateRange(extendEndTime = false) {
-        const end = new Date();
-        if (extendEndTime) {
-          end.setTime(end.getTime() + 3000);
-        }
-        const start = new Date();
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
-        this.exportDateRange = [start, end];
-      },
-      /**
-       * @desc: 处理子组件时间范围变更事件
-       */
-      handleDateRangeChange(newDateRange) {
-        this.exportDateRange = newDateRange;
-        this.getTableList(true);
-      },
-      /**
-       * @desc: 处理子组件分页变更事件
-       */
-      handlePaginationChange({ page, limit }) {
-        if (page) {
-          this.exportPagination.current = page;
-        }
-        if (limit) {
-          this.exportPagination.limit = limit;
-          this.exportPagination.current = 1;
-        }
-        this.getTableList();
-      },
-      /**
-       * @desc: 处理子组件 loading 变更事件
-       */
-      handleLoadingChange(isLoading) {
-        this.exportTableLoading = isLoading;
-      },
+
       /**
        * @desc: 显示下载历史弹窗
        */
@@ -822,7 +762,16 @@
         } else {
           await this.downloadAsync(task.search_dict);
         }
-        this.getTableList(true);
+        this.fetchCurrentTasks(true);
+      },
+      /**
+       * @desc: 取消未完成的当前任务请求
+       */
+      cancelCurrentTaskRequest() {
+        if (this.currentTaskCancelExecutor) {
+          this.currentTaskCancelExecutor();
+          this.currentTaskCancelExecutor = null;
+        }
       },
       /**
        * @desc: 轮询
@@ -830,8 +779,8 @@
       startStatusPolling() {
         this.stopStatusPolling();
         this.exportPollingTimer = setInterval(() => {
-          this.getTableList(false, true);
-        }, 10000);
+          this.fetchCurrentTasks(false, true);
+        }, DOWNLOAD_POLLING_INTERVAL);
       },
       stopStatusPolling() {
         if (this.exportPollingTimer) {
@@ -854,7 +803,7 @@
         this.exportListData.forEach(row => {
           if (row.export_status === 'download_log') {
             // 初始增长量等于基础增长量
-            row.currentGrowth = this.baseGrowth;
+            row.currentGrowth = DOWNLOAD_PROGRESS_BASE_GROWTH;
             // 初始化进度百分比
             row.progressPercent = calculateProgressPercent(
               row.exported_count || 0,
@@ -870,7 +819,7 @@
         this.stopProgressUpdate();
         this.progressUpdateTimer = setInterval(() => {
           this.updateAllTaskProgress();
-        }, 1000);
+        }, DOWNLOAD_PROGRESS_UPDATE_INTERVAL);
       },
       /**
        * @desc: 停止1秒进度更新定时器
@@ -968,7 +917,7 @@
               if (row.id === item.id) {
                 // 如果是拉取中的任务，修正增长量
                 if (row.export_status === 'download_log' && item.export_status === 'download_log') {
-                  adjustGrowthAfterPoll(row, item.exported_count || 0, this.baseGrowth);
+                  adjustGrowthAfterPoll(row, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
                 } else {
                   Object.assign(row, { ...item });
                 }
@@ -990,34 +939,34 @@
        * @param { Boolean } isReset 是否从1页开始查询
        * @param { Boolean } isPolling 该次请求是否是轮询
        */
-      getTableList(isReset = false, isPolling = false) {
-        isReset && (this.exportPagination.current = 1);
-        !isPolling && (this.exportTableLoading = true);
-        const { limit, current } = this.exportPagination;
-        let queryUrl;
-        let requestConfig;
-
-        // 将日期范围转换为时间戳（毫秒）
-        const startTime = this.exportDateRange[0] ? this.exportDateRange[0].getTime() : null;
-        const endTime = this.exportDateRange[1] ? this.exportDateRange[1].getTime() : null;
-
+      async fetchCurrentTasks(_isReset = false, isPolling = false) {
+        this.cancelCurrentTaskRequest();
+        const now = Date.now();
+        const startTime = now - MILLISECONDS_PER_DAY * DOWNLOAD_RECENT_DAYS;
+        const endTime = now + DOWNLOAD_DATA_DELAY;
         const params = {
           bk_biz_id: this.bkBizId,
-          page: current,
-          pagesize: limit,
+          page: 1,
+          pagesize: CURRENT_TASK_PAGE_SIZE,
           show_all: false,
           start_time: startTime,
           end_time: endTime,
         };
+        let queryUrl;
+        let requestConfig;
 
         if (this.isUnionSearch && !this.unionIndexList.length) {
           this.exportListData = [];
-          this.exportPagination.count = 0;
           this.stopStatusPolling();
           this.stopProgressUpdate();
-          this.exportTableLoading = false;
           return;
         }
+
+        let cancelExecutor;
+        const cancelToken = new axios.CancelToken(executor => {
+          cancelExecutor = executor;
+        });
+        this.currentTaskCancelExecutor = cancelExecutor;
 
         if (this.isScene) {
           queryUrl = 'retrieve/getSceneExportHistory';
@@ -1030,39 +979,36 @@
           params.index_set_id = window.__IS_MONITOR_COMPONENT__
             ? this.$route.query.indexId : this.$store.state.indexId;
           params.index_set_ids = this.unionIndexList;
+          requestConfig = { params };
         } else {
           queryUrl = 'retrieve/getExportHistoryList';
           params.index_set_id = window.__IS_MONITOR_COMPONENT__
             ? this.$route.query.indexId : this.$store.state.indexId;
-        }
-
-        if (!this.isScene) {
           requestConfig = { params };
         }
 
-        this.$http
-          .request(queryUrl, requestConfig)
-          .then(res => {
-            if (this.isComponentUnmounted) {
-              // 组件已卸载，清除定时器并直接返回
-              this.stopStatusPolling();
-              this.stopProgressUpdate();
-              return;
-            }
-            if (res.result) {
-              this.exportPagination.count = res.data.total || 0;
-              // 处理任务状态记录与变化检测
-              this.handleTaskStatus(res.data.list);
-              this.setExportListData(res.data.list, isPolling);
-            }
-            if (!this.shouldContinuePolling()) {
-              this.stopStatusPolling();
-              this.stopProgressUpdate();
-            }
-          })
-          .finally(() => {
-            this.exportTableLoading = false;
-          });
+        try {
+          const res = await this.$http.request(queryUrl, requestConfig, { cancelToken });
+          if (this.currentTaskCancelExecutor !== cancelExecutor || this.isComponentUnmounted) {
+            return;
+          }
+          if (res.result) {
+            this.handleTaskStatus(res.data.list);
+            this.setExportListData(res.data.list, isPolling);
+          }
+          if (!this.shouldContinuePolling()) {
+            this.stopStatusPolling();
+            this.stopProgressUpdate();
+          }
+        } catch (error) {
+          if (axios.isCancel(error)) {
+            return;
+          }
+        } finally {
+          if (this.currentTaskCancelExecutor === cancelExecutor) {
+            this.currentTaskCancelExecutor = null;
+          }
+        }
       },
     },
   };
