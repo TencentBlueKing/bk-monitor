@@ -1113,7 +1113,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def add_biz_condition(self, search_object):
         queries = []
-        if self.authorized_bizs is not None and self.bk_biz_ids:
+        if self.authorized_bizs is not None and self.bk_biz_ids and not self.is_tenant_wide_authorized():
             # 进行我有权限的告警过滤
             authorized_query = self.build_es_terms_query("event.bk_biz_id", self.authorized_bizs)
             if authorized_query is not None:
@@ -1133,9 +1133,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             if unauthorized_query is not None:
                 queries.append(unauthorized_query & user_condition)
 
-        if queries:
-            return search_object.filter(reduce(operator.or_, queries))
-        return search_object
+        return self.finalize_biz_condition(search_object, queries)
 
     def add_filter(self, search_object, start_time: int = None, end_time: int = None):
         # 条件过滤

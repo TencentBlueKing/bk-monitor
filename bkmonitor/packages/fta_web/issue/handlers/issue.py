@@ -9,11 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-import operator
 import threading
 import time
 
-from functools import reduce
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
@@ -531,7 +529,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
     def add_biz_condition(self, search_object):
         """业务权限过滤"""
         queries = []
-        if self.authorized_bizs is not None and self.bk_biz_ids:
+        if self.authorized_bizs is not None and self.bk_biz_ids and not self.is_tenant_wide_authorized():
             # 有权限的业务直接过滤
             authorized_biz_ids = [str(b) for b in self.authorized_bizs]
             authorized_query = self.build_es_terms_query("bk_biz_id", authorized_biz_ids)
@@ -550,9 +548,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
             if unauthorized_query is not None:
                 queries.append(unauthorized_query & user_condition)
 
-        if queries:
-            return search_object.filter(reduce(operator.or_, queries))
-        return search_object
+        return self.finalize_biz_condition(search_object, queries)
 
     def search_raw(self, show_aggs: bool = False, show_dsl: bool = False) -> tuple[Response, dict | None]:
         search_object = self.get_search_object()

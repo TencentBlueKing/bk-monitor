@@ -17,6 +17,7 @@ from abc import ABC
 from collections.abc import Callable, Iterable
 from functools import reduce
 
+from django.conf import settings
 from django.utils import translation as dj_translation
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
@@ -851,6 +852,69 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
 
     def build_es_terms_query(self, field: str, values: list):
         return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
+
+    def is_tenant_wide_authorized(self) -> bool:
+        """授权业务集是否已覆盖当前租户的全部空间。
+
+        覆盖时业务维度不再有区分度，无需为授权业务逐个生成 term——管理员场景下授权业务
+        可达十万级，单次请求的 terms 子句实测能把 DSL 撑到 1MB 以上。
+
+        仅在单租户部署下成立：告警检索链路并不过滤 bk_tenant_id（该字段只写不读，且早期
+        索引里完全没有），多租户部署中业务 terms 同时承担着租户隔离，省掉就会跨租户泄漏。
+        """
+        if not hasattr(self, "_tenant_wide_authorized"):
+            self._tenant_wide_authorized = self._compute_tenant_wide_authorized()
+        return self._tenant_wide_authorized
+
+    def _compute_tenant_wide_authorized(self) -> bool:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return False
+
+        # 未带业务范围，或存在无权限业务，语义都不是"授权覆盖全量"，照常按业务过滤
+        if not getattr(self, "bk_biz_ids", None) or getattr(self, "unauthorized_bizs", None):
+            return False
+
+        authorized_bizs = set(getattr(self, "authorized_bizs", None) or [])
+        if not authorized_bizs:
+            return False
+
+        try:
+            spaces = SpaceApi.list_spaces_dict(using_cache=True)
+        except Exception:  # NOCC:broad-except(取不到空间列表时按业务过滤，不放宽可见范围)
+            logger.exception("load spaces for tenant-wide authorization check failed")
+            return False
+
+        tenant_id = get_request_tenant_id()
+        space_ids = {
+            space["bk_biz_id"]
+            for space in spaces
+            if space.get("bk_biz_id") is not None and (space.get("bk_tenant_id") or DEFAULT_TENANT_ID) == tenant_id
+        }
+        # 空集合不足以证明"覆盖全量"（缓存未就绪 / 接口降级），此时必须继续按业务过滤
+        if not space_ids:
+            return False
+
+        return space_ids <= authorized_bizs
+
+    def finalize_biz_condition(self, search_object: Search, queries: list) -> Search:
+        """收口业务可见性过滤：有子句取并集，无子句则显式判定放行还是查空。
+
+        末尾的 match_none 不可省略：授权业务为空时 build_es_terms_query 返回 None，子句
+        列表为空，若直接返回 search_object，业务过滤会从"查空"变成"索引范围内的全业务数据"。
+        """
+        if queries:
+            return search_object.filter(reduce(operator.or_, queries))
+
+        if not self.bk_biz_ids:
+            # 未指定业务范围：各 Handler 对该语义的处理不一致（部分已在上面追加"与我相关"
+            # 条件，部分历史上不加业务过滤），此处不收紧，避免影响无请求上下文的内部调用。
+            return search_object
+
+        if self.is_tenant_wide_authorized():
+            # 授权已覆盖租户全量空间，业务维度无需过滤
+            return search_object
+
+        return search_object.filter(Q("match_none"))
 
     def get_fulltext_biz_scope_ids(self) -> set[int] | None:
         """返回业务名称全文检索可扫描的显式业务范围；None 表示当前租户全量空间。"""
