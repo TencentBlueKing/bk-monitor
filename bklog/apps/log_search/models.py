@@ -45,6 +45,8 @@ from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EsSourceType
 from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportStatus,
+    ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
     INDEX_SET_NO_DATA_CHECK_PREFIX,
     INDEX_SET_NOT_EXISTED,
@@ -76,6 +78,7 @@ from apps.log_search.constants import (
     IndexSetDataType,
 )
 from apps.log_search.exceptions import (
+    ConcurrentExportLimitException,
     CouldNotFindTemplateException,
     DefaultConfigNotAllowedDelete,
     IndexSetNameDuplicateException,
@@ -1556,7 +1559,7 @@ class AsyncTask(OperateRecordModel):
             ExportStatus.EXPORT_PACKAGE,
             ExportStatus.EXPORT_UPLOAD,
         ]
-        qs = cls.objects.filter(created_by=username)
+        qs = cls.objects.filter(created_by=username, export_type=ExportType.ASYNC)
 
         if is_scene:
             qs = qs.filter(scenario_id="scene")

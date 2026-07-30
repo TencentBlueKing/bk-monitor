@@ -19,12 +19,15 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import datetime
 import io
 import tempfile
 from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
+from django.db.models.query import QuerySet
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
 from apps.log_search.constants import ExportStatus, ExportType, IndexSetType
@@ -32,7 +35,11 @@ from apps.log_search.exceptions import AsyncExportTaskNotDownloadableException, 
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, Scenario
-from apps.log_search.tasks.async_export import AsyncExportUtils, UnionAsyncExportUtils
+from apps.log_search.tasks.async_export import (
+    AsyncExportUtils,
+    UnionAsyncExportUtils,
+    error_async_export_tasks_turn_to_failed,
+)
 from apps.log_search.tasks.unify_query_async_export import BaseExportUtils as UnifyQueryBaseExportUtils
 from apps.log_search.views.search_views import SearchViewSet
 from apps.log_unifyquery.handler.async_export_handlers import (
@@ -496,3 +503,86 @@ class TestAsyncTaskConcurrentLimit(TestCase):
         with self.settings(MAX_CONCURRENT_EXPORT_TASKS=1):
             with self.assertRaises(ConcurrentExportLimitException):
                 AsyncTask.check_running_count_by_user(self.username)
+
+
+class TestFailStaleAsyncExportTasks(TestCase):
+    def _create_task(self, export_status=None, export_type=ExportType.ASYNC):
+        return AsyncTask.objects.create(
+            request_param=SEARCH_DICT,
+            scenario_id=Scenario.LOG,
+            index_set_id=3,
+            bk_biz_id=2,
+            start_time=SEARCH_DICT["start_time"],
+            end_time=SEARCH_DICT["end_time"],
+            export_type=export_type,
+            export_status=export_status,
+            created_by="admin",
+        )
+
+    def test_error_async_export_tasks_turn_to_failed(self):
+        expired_time = timezone.now() - datetime.timedelta(hours=25)
+        stale_tasks = [
+            self._create_task(export_status=None),
+            self._create_task(export_status=ExportStatus.DOWNLOAD_LOG),
+            self._create_task(export_status=ExportStatus.EXPORT_PACKAGE),
+            self._create_task(export_status=ExportStatus.EXPORT_UPLOAD),
+        ]
+        AsyncTask.objects.filter(id__in=[task.id for task in stale_tasks]).update(created_at=expired_time)
+
+        with patch("apps.log_search.tasks.async_export.logger.warning") as mock_warning:
+            error_async_export_tasks_turn_to_failed.run()
+
+        expected_logs = {(task.id, task.export_status) for task in stale_tasks}
+        actual_logs = {(call.args[1], call.args[2]) for call in mock_warning.call_args_list}
+        self.assertEqual(actual_logs, expected_logs)
+        for task in stale_tasks:
+            task.refresh_from_db()
+            self.assertEqual(task.export_status, ExportStatus.FAILED)
+            self.assertTrue(task.failed_reason)
+
+    def test_keep_recent_terminal_and_sync_tasks(self):
+        expired_time = timezone.now() - datetime.timedelta(hours=25)
+        recent_task = self._create_task(export_status=ExportStatus.DOWNLOAD_LOG)
+        terminal_tasks = [
+            self._create_task(export_status=ExportStatus.SUCCESS),
+            self._create_task(export_status=ExportStatus.FAILED),
+            self._create_task(export_status=ExportStatus.DOWNLOAD_EXPIRED),
+            self._create_task(export_status=ExportStatus.DATA_EXPIRED),
+        ]
+        sync_task = self._create_task(export_status=None, export_type=ExportType.SYNC)
+        AsyncTask.objects.filter(id__in=[task.id for task in [*terminal_tasks, sync_task]]).update(
+            created_at=expired_time
+        )
+
+        error_async_export_tasks_turn_to_failed.run()
+
+        recent_task.refresh_from_db()
+        self.assertEqual(recent_task.export_status, ExportStatus.DOWNLOAD_LOG)
+        for task in terminal_tasks:
+            original_status = task.export_status
+            task.refresh_from_db()
+            self.assertEqual(task.export_status, original_status)
+        sync_task.refresh_from_db()
+        self.assertIsNone(sync_task.export_status)
+
+    def test_keep_task_whose_status_changes_during_scan(self):
+        expired_time = timezone.now() - datetime.timedelta(hours=25)
+        stale_task = self._create_task(export_status=ExportStatus.DOWNLOAD_LOG)
+        AsyncTask.objects.filter(id=stale_task.id).update(created_at=expired_time)
+
+        original_iterator = QuerySet.iterator
+
+        def change_status_before_update(queryset, *args, **kwargs):
+            for task in original_iterator(queryset, *args, **kwargs):
+                AsyncTask.objects.filter(id=stale_task.id).update(export_status=ExportStatus.SUCCESS)
+                yield task
+
+        with (
+            patch.object(QuerySet, "iterator", change_status_before_update),
+            patch("apps.log_search.tasks.async_export.logger.warning") as mock_warning,
+        ):
+            error_async_export_tasks_turn_to_failed.run()
+
+        stale_task.refresh_from_db()
+        self.assertEqual(stale_task.export_status, ExportStatus.SUCCESS)
+        mock_warning.assert_not_called()
