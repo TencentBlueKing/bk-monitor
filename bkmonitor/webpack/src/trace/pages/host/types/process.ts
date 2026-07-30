@@ -50,7 +50,7 @@ export interface ProcessItem {
   fdUsageRate: string;
   /** 所属主机 IP（蓝色链接） */
   hostIp: string;
-  /** 行唯一 key */
+  /** 进程唯一 key，如 127.0.0.1_elasticsearch_1000 */
   id: string;
   /** 进程实例数量 */
   instanceCount: number;

@@ -46,6 +46,8 @@ const isEmpty = (val: unknown) => val === '' || val === null || val === undefine
  */
 export function buildScopedVars(state: MetricAggregationState, currentTarget?: CompareTarget | null): ScopedVarMap {
   return {
+    // 目标维度字段全量展开为顶层变量（对齐旧版 variables = { ...filters }），供 $bk_host_id 等占位符取值
+    ...currentTarget,
     interval: state.interval,
     method: state.method,
     group_by: [],

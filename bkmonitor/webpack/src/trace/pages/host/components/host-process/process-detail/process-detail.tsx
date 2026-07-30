@@ -51,6 +51,7 @@ import type {
   MetricAggregationState,
   ProcessDetailTabType,
 } from '../../../../../pages/host/types';
+import type { CustomOptions } from '../../../../trace-explore/components/explore-chart/use-echarts';
 import type { ProcessItem } from '../../../types/process';
 
 import './process-detail.scss';
@@ -104,10 +105,6 @@ export default defineComponent({
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
 
-    // 向下游图表（useEcharts）提供本地时间范围与刷新信号
-    provide('timeRange', timeRange);
-    provide('refreshImmediate', refreshImmediate);
-
     /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
     const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
     const aggregation = useMetricAggregation(state);
@@ -116,6 +113,11 @@ export default defineComponent({
       keyword: () => aggregation.state.keyword,
       ungroupTitle: () => t('未分组'),
     });
+
+    // 向下游图表（useEcharts）提供本地时间范围与刷新间隔
+    provide('timeRange', timeRange);
+    provide('refreshImmediate', refreshImmediate);
+    provide('viewOptions', aggregation.viewOptions);
 
     /** 根据选中节点类型，生成当前目标的查询参数 */
     const currentTarget = computed<CompareTarget | null>(() => {
@@ -138,9 +140,23 @@ export default defineComponent({
     /** 变量取值：仅请求态字段变化才会触发图表重新取数 */
     const scopedVars = computed<ScopedVarMap>(() => ({
       ...buildScopedVars(aggregation.state, currentTarget.value),
-      // 进程态需把进程名下发给图表查询，等价于旧版 variables.display_name
-      ...(props.process?.name ? { display_name: props.process.name } : {}),
+      // 进程态需把进程唯一标识下发，等价于旧版 scene 变量 $display_name
+      ...(props.process?.id ? { display_name: props.process.id } : {}),
     }));
+
+    /**
+     * 图表自定义配置：图例名称中的进程唯一标识（如 127.0.0.1_elasticsearch_1000）替换为进程名展示。
+     * 注：取数仍使用唯一 id，此处仅做展示层替换，保留名称其余部分（如同环比后缀）。
+     */
+    const chartCustomOptions: CustomOptions = {
+      series: seriesData =>
+        seriesData.map(item => {
+          // @ts-ignore
+          const dimensions = item.dimensions;
+          // @ts-ignore
+          return { ...item, alias: dimensions ? `${dimensions.display_name}|${dimensions.pid}` : item.alias };
+        }),
+    };
 
     /**
      * @description 清除自动刷新定时器
@@ -285,6 +301,7 @@ export default defineComponent({
             <DashboardPanel
               class='process-detail-charts'
               columns={state.columns}
+              customOptions={chartCustomOptions}
               rows={rows.value}
               scopedVars={scopedVars.value}
             />
