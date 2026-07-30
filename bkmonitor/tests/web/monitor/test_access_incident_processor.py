@@ -45,10 +45,10 @@ class _FakeIncidentDocument:
         self.id = kwargs.get("id", f"{kwargs.get('create_time', 0)}{self.incident_id}")
         self.end_time = kwargs.get("end_time")
 
-    def generate_handlers(self, snapshot):
+    def generate_handlers(self, snapshot, alert_docs=None):
         return None
 
-    def generate_assignees(self, snapshot):
+    def generate_assignees(self, snapshot, alert_docs=None):
         return None
 
     @classmethod
@@ -80,6 +80,42 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.processor.update_alert_incident_relations = lambda *args, **kwargs: {}
         self.processor.generate_incident_labels = lambda *args, **kwargs: None
         self.processor.generate_alert_operations = lambda *args, **kwargs: None
+
+    @patch("alarm_backends.service.access.incident.processor.AlertDocument.mget")
+    def test_get_snapshot_alert_documents_batches_unique_alert_ids(self, mock_mget):
+        snapshot = SimpleNamespace(
+            content=SimpleNamespace(
+                incident_alerts=[
+                    {"id": "1"},
+                    {"id": "2"},
+                    {"id": "1"},
+                ]
+            )
+        )
+        alert_documents = [SimpleNamespace(id="1"), SimpleNamespace(id="2")]
+        mock_mget.return_value = alert_documents
+
+        result = self.processor.get_snapshot_alert_documents(snapshot)
+
+        mock_mget.assert_called_once_with(["1", "2"])
+        self.assertEqual(result, {"1": alert_documents[0], "2": alert_documents[1]})
+
+    @patch("alarm_backends.service.access.incident.processor.logger.warning")
+    @patch("alarm_backends.service.access.incident.processor.time.monotonic", return_value=11)
+    def test_log_slow_stage_contains_incident_context(self, mock_monotonic, mock_warning):
+        sync_info = {
+            "incident_id": 1001,
+            "sync_type": "update",
+            "scope": {"alerts": ["1"]},
+        }
+
+        self.processor.log_slow_stage(sync_info, stage="alert_document_lookup", started_at=0)
+
+        mock_warning.assert_called_once()
+        log_message = mock_warning.call_args.args[0]
+        self.assertIn("incident_id=%s", log_message)
+        self.assertIn("stage=%s", log_message)
+        self.assertEqual(mock_warning.call_args.args[1:5], (1001, "update", 1, "alert_document_lookup"))
 
     def test_mark_bkfara_source_persists_process_info_on_attr_dict(self):
         incident_document = SimpleNamespace(extra_info=_AttrDictLike())
