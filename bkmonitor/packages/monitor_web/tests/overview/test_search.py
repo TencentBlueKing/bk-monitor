@@ -124,6 +124,8 @@ class TestTraceSearchItem:
     def test_deadline_keeps_partial_results_without_waiting_for_slow_paths(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        assert TraceSearchItem._TRACE_SEARCH_TIMEOUT == 10
+
         app = _app(1)
         release = threading.Event()
         precalc_done = threading.Event()
@@ -183,6 +185,7 @@ class TestTraceSearchItem:
             ),
             mock.patch("monitor_web.overview.search.Application.objects.filter") as application_filter,
         ):
+            application_filter.return_value.only.return_value = application_filter.return_value
             application_filter.return_value.first.return_value = app
             hits = list(
                 TraceSearchItem._path_precalc(
@@ -196,6 +199,12 @@ class TestTraceSearchItem:
 
         assert set(queried_table_ids) == {"broken_table", "healthy_table"}
         assert hits == [app]
+        application_filter.return_value.only.assert_called_once_with(
+            "application_id",
+            "bk_biz_id",
+            "app_name",
+            "app_alias",
+        )
 
     def test_raw_probe_failure_does_not_block_other_apps(self) -> None:
         broken_app = _app(1)
@@ -497,6 +506,51 @@ def test_search_view_closes_search_generator_when_stream_is_closed() -> None:
         event_stream.close()
 
     assert result.closed
+
+
+def test_search_view_close_propagates_request_stop_to_search_item() -> None:
+    received_stop_events: list[threading.Event | None] = []
+    worker_done = threading.Event()
+
+    class BlockingSearchItem(SearchItem):
+        @classmethod
+        def match(cls, query: str) -> bool:
+            return True
+
+        @classmethod
+        def search(
+            cls,
+            bk_tenant_id: str,
+            username: str,
+            query: str,
+            limit: int = 5,
+            current_bk_biz_id: int | None = None,
+            stop_event: threading.Event | None = None,
+        ) -> Iterator[dict[str, Any]]:
+            received_stop_events.append(stop_event)
+            try:
+                yield {"type": "blocking", "name": "Blocking", "items": []}
+                if stop_event is not None:
+                    stop_event.wait(timeout=1)
+            finally:
+                worker_done.set()
+
+    request = SimpleNamespace(query_params={"query": TRACE_ID}, user=SimpleNamespace(username="admin"))
+
+    with (
+        mock.patch.object(Searcher, "search_items", [BlockingSearchItem]),
+        mock.patch("monitor_web.overview.views.get_request_tenant_id", return_value="tenant"),
+    ):
+        response = SearchViewSet().list(request)
+        event_stream = response._iterator
+
+        assert next(event_stream) == "event: start\n\n"
+        assert json.loads(next(event_stream).removeprefix("data: "))["type"] == "blocking"
+        event_stream.close()
+
+    assert received_stop_events[0] is not None
+    assert received_stop_events[0].is_set()
+    assert worker_done.wait(timeout=1)
 
 
 def test_search_view_streams_snapshots_and_end_event() -> None:

@@ -445,11 +445,20 @@ class TraceSearchItem(SearchItem):
                 app_name: str | None = info.get("app_name")
                 if not app_name:
                     continue
-                app = Application.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    bk_biz_id=bk_biz_id,
-                    app_name=app_name,
-                ).first()
+                app = (
+                    Application.objects.filter(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        app_name=app_name,
+                    )
+                    .only(
+                        "application_id",
+                        "bk_biz_id",
+                        "app_name",
+                        "app_alias",
+                    )
+                    .first()
+                )
                 if app:
                     yield app
 
