@@ -74,7 +74,7 @@ paths:
   /app/apm/update_application/:
     post:
       operationId: apm_update_application
-      description: 更新APM应用信息（别名/描述/负责人，含负责人主动授权）
+      description: 更新APM应用信息（别名/描述/负责人）
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
