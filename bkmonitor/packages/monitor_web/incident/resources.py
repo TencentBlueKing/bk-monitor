@@ -1731,6 +1731,9 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                     "strategy_alerts_mapping": strategy_alerts_mapping,
                     "dimension_values": {k: [v] for k, v in drill_result.get("dimensions", {}).items()},
                 }
+                if drill_result.get("interaction"):
+                    # 异常维度仍由监控补充告警详情，但跳转协议必须保持 BKFara 生成的原始语义。
+                    content_item["interaction"] = drill_result["interaction"]
                 content.append(content_item)
         else:
             content = raw_content
@@ -1745,6 +1748,22 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         if individual_summary_content:
             diagnosis_result.update({"individual_summary": individual_summary_content})
         return diagnosis_result
+
+
+class IncidentPanelDetailResource(IncidentBaseResource):
+    """代理 BKFara 故障诊断侧滑详情，保持组件原生 payload 不变。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        incident_id = serializers.IntegerField(required=True, label="故障ID")
+        incident_task_id = serializers.IntegerField(required=False, allow_null=True, label="故障分析任务ID")
+        drawer_type = serializers.ChoiceField(required=True, choices=("event", "log", "trace"), label="侧滑类型")
+        detail_ref = serializers.DictField(required=True, label="详情引用")
+        page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
+        page_size = serializers.IntegerField(required=False, default=30, min_value=1, max_value=1000, label="每页数量")
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        return api.bk_incident.get_panel_detail(**validated_request_data)
 
 
 class IncidentDateHistogramResource(Resource):
