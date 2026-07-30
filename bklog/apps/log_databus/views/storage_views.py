@@ -35,6 +35,7 @@ from apps.log_databus.constants import ClusterTypeEnum, STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import StorageCreateException, StorageNotExistException
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import (
+    DorisVisibleConfigUpdateSerializer,
     StorageBatchDetectSerializer,
     StorageCreateSerializer,
     StorageDetectSerializer,
@@ -53,7 +54,7 @@ class StorageViewSet(APIViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [BusinessActionPermission([ActionEnum.CREATE_ES_SOURCE])]
-        if self.action == "update":
+        if self.action in ["update", "update_visible_config"]:
             return [InstanceActionPermission([ActionEnum.MANAGE_ES_SOURCE], ResourceEnum.ES_SOURCE)]
         return [ViewBusinessPermission()]
 
@@ -507,6 +508,39 @@ class StorageViewSet(APIViewSet):
         }
         """
         return Response(StorageHandler(cluster_id).destroy())
+
+    @detail_route(methods=["PUT"], url_path="visible_config")
+    def update_visible_config(self, request, *args, **kwargs):
+        """
+        @api {put} /databus/storage/$cluster_id/visible_config/ 06_存储集群-更新Doris可见范围
+        @apiName update_storage_visible_config
+        @apiGroup 09_StorageCluster
+        @apiDescription 仅更新 Doris 集群可见范围配置（不涉及域名/账号/连通性）
+        @apiParam {Int} cluster_id 集群ID
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {Object} visible_config 可见业务配置
+        @apiParam {string} visible_config.visible_type 可见业务配置类型 current_biz 当前业务，all_biz 全部业务 biz_attr 业务属性 multi_biz 多个业务
+        @apiParam {List} [visible_config.visible_bk_biz] multi_biz 类型设置该参数
+        @apiParam {Object} [visible_config.bk_biz_labels] biz_attr 类型设置该参数
+        @apiParamExample {Json} 请求参数
+        {
+            "bk_biz_id": 2,
+            "visible_config": {
+                "visible_type": "multi_biz",
+                "visible_bk_biz": [100, 101]
+            }
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {},
+            "code": 0,
+            "message": ""
+        }
+        """
+        request.data["cluster_id"] = kwargs["cluster_id"]
+        data = self.params_valid(DorisVisibleConfigUpdateSerializer)
+        return Response(StorageHandler(kwargs["cluster_id"]).update_visible_config(data))
 
     @list_route(methods=["POST"], url_path="connectivity_detect")
     def connectivity_detect(self, request, *args, **kwargs):

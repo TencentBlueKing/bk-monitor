@@ -182,13 +182,6 @@ class TimeSeriesGroup(CustomGroupBase):
     def is_cmdb_relation_builtin(self):
         return bool(self.CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX.match(self.time_series_group_name))
 
-    @classmethod
-    def make_cmdb_relation_builtin_table_id_and_group_name(cls, bk_biz_id, space_type):
-        return (
-            f"{bk_biz_id}_{space_type}_built_in_time_series.__default__",
-            f"{bk_biz_id}_{space_type}_built_in_time_series",
-        )
-
     # 组合一个默认的table_id
     @staticmethod
     def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -325,16 +318,19 @@ class TimeSeriesGroup(CustomGroupBase):
             # 格式: {field_name: 是否禁用}
             metric_dict[item["field_name"]] = not item.get("is_active", True)
             # 兼容传入 tag_value_list/tag_list 的情况
-            if "tag_value_list" in item:
+            tag_value_list = item.get("tag_value_list") or {}
+            if tag_value_list:
                 is_update_description = False
-                for tag in item["tag_value_list"].keys():
-                    tag_dict[tag] = ""
-            else:
-                for tag in item.get("tag_list", []):
-                    # 取第一个值，后面重复的直接忽略
-                    if not tag.get("field_name") or tag["field_name"] in tag_dict:
-                        continue
-                    tag_dict[tag["field_name"]] = tag.get("description", "")
+                for tag_name in tag_value_list:
+                    tag_dict.setdefault(tag_name, "")
+
+            for tag in item.get("tag_list") or []:
+                tag_name = tag.get("field_name")
+                if not tag_name:
+                    continue
+                # 静态配置中的描述优先于自动发现生成的空描述
+                if tag_name not in tag_dict or not tag_dict[tag_name]:
+                    tag_dict[tag_name] = tag.get("description", "")
 
         return {
             "is_update_description": is_update_description,
@@ -448,8 +444,11 @@ class TimeSeriesGroup(CustomGroupBase):
 
     def bulk_refresh_rt_fields(self, table_id: str, metric_info: list):
         """批量刷新结果表打平的指标和维度"""
-        # 根据field_name聚合metric_info，合并tag_value_list
-        aggregated_metrics = defaultdict(lambda: {"tag_value_list": {}, "tag_list": []})
+        # 根据 field_name 聚合 metric_info，合并不同 scope 下的指标维度
+        # tag_map 仅用于聚合过程中的 O(1) 查找，输出前会剔除
+        aggregated_metrics: dict[str, Any] = defaultdict(
+            lambda: {"tag_value_list": {}, "tag_list": [], "tag_map": {}, "is_active": False}
+        )
 
         for item in metric_info:
             field_name = item.get("field_name")
@@ -457,12 +456,15 @@ class TimeSeriesGroup(CustomGroupBase):
                 continue
 
             # 初始化聚合数据
-            aggregated_metrics[field_name].setdefault("field_name", field_name)
+            aggregated_metric = aggregated_metrics[field_name]
+            aggregated_metric["field_name"] = field_name
+            # ResultTableField 是表级打平字段，任一 scope 活跃时该指标都应保持启用
+            aggregated_metric["is_active"] = aggregated_metric["is_active"] or item.get("is_active", True)
 
             # 合并 tag_value_list
             tag_value_list = item.get("tag_value_list") or {}
             for tag_name, tag_info in tag_value_list.items():
-                existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
+                existing_tag = aggregated_metric["tag_value_list"].get(tag_name)
                 tag_info = tag_info or {}
                 new_values = set(tag_info.get("values") or [])
                 new_update_time = tag_info.get("last_update_time", 0)
@@ -473,13 +475,29 @@ class TimeSeriesGroup(CustomGroupBase):
                     existing_tag["last_update_time"] = max(existing_tag["last_update_time"], new_update_time)
                 else:
                     # 新建 tag 信息
-                    aggregated_metrics[field_name]["tag_value_list"][tag_name] = {
+                    aggregated_metric["tag_value_list"][tag_name] = {
                         "last_update_time": new_update_time,
                         "values": list(new_values),
                     }
 
-        # 将聚合后的数据转换为列表
-        metric_info = list(aggregated_metrics.values())
+            # 合并插件配置传入的 tag_list，保留第一个非空描述；tag_map 跨 scope 复用
+            tag_map = aggregated_metric["tag_map"]
+            for tag in item.get("tag_list") or []:
+                tag_name: str | None = tag.get("field_name")
+                if not tag_name:
+                    continue
+                if tag_name not in tag_map:
+                    aggregated_tag = dict(tag)
+                    aggregated_metric["tag_list"].append(aggregated_tag)
+                    tag_map[tag_name] = aggregated_tag
+                elif not tag_map[tag_name].get("description") and tag.get("description"):
+                    tag_map[tag_name]["description"] = tag["description"]
+
+        # 将聚合后的数据转换为列表，并移除内部辅助字段
+        metric_info = []
+        for aggregated_metric in aggregated_metrics.values():
+            aggregated_metric.pop("tag_map", None)
+            metric_info.append(aggregated_metric)
 
         # 创建或更新
         metric_tag_info = self._refine_metric_tags(metric_info)
@@ -754,6 +772,7 @@ class TimeSeriesGroup(CustomGroupBase):
         data_label: str | None = None,
         metric_group_dimensions: list[dict] | None = None,
         is_need_deploy_collector_config: bool = True,
+        is_sync_db: bool = True,
     ):
         """
         创建一个新的自定义分组记录
@@ -772,6 +791,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param bk_tenant_id: 租户ID
         :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
+        :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :return: group object
         """
         # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
@@ -795,6 +815,7 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
+            is_sync_db=is_sync_db,
         )
 
         # 写入 metric_group_dimensions 模型字段

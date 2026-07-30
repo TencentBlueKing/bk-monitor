@@ -199,6 +199,8 @@ class Application(AbstractRecordModel):
     log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
     # ↓ 1 个数据字段 (由定时任务刷新)
     service_count = models.IntegerField("服务个数", default=0)
+    # 负责人列表：应用创建/编辑时可主动指定负责人，创建/更新后会给这些用户授权 APM_APPLICATION 权限
+    owners = models.JSONField("负责人列表", default=list, blank=True)
     # 租户id
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
 
@@ -465,6 +467,7 @@ class Application(AbstractRecordModel):
         enabled_log,
         storage_options=None,
         plugin_config=None,
+        owners=None,
     ):
         create_params = {
             "bk_tenant_id": bk_tenant_id,
@@ -481,6 +484,9 @@ class Application(AbstractRecordModel):
 
         application_info = api.apm_api.create_application(create_params)
 
+        # 负责人列表去重、保序、去空
+        normalized_owners = cls._normalize_owners(owners)
+
         application = cls.objects.create(
             bk_tenant_id=bk_tenant_id,
             application_id=application_info["application_id"],
@@ -488,6 +494,7 @@ class Application(AbstractRecordModel):
             app_name=app_name,
             app_alias=app_alias,
             description=description,
+            owners=normalized_owners,
         )
 
         # 初始化应用配置信息: 插件、环境、语言、数据源配置
@@ -689,6 +696,57 @@ class Application(AbstractRecordModel):
             Application.authorization_to_maintainers.delay(self.update_user, self.application_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"application->({self.application_id}) grant creator action failed, reason: {e}")
+
+        # 给应用负责人授权（创建阶段的 owners 就是全量新增，等价于 grant_owners）
+        if self.owners:
+            self.grant_owners(self.owners, previous_owners=[])
+
+    @staticmethod
+    def _normalize_owners(owners):
+        """负责人列表标准化：去空、去重、保序，返回 list[str]"""
+        if not owners:
+            return []
+        seen = set()
+        result = []
+        for user in owners:
+            if not user:
+                continue
+            user = str(user).strip()
+            if not user or user in seen:
+                continue
+            seen.add(user)
+            result.append(user)
+        return result
+
+    def grant_owners(self, new_owners, previous_owners=None):
+        """
+        给新增的负责人授权 APM_APPLICATION 权限。
+
+        策略：
+        - 仅对 new_owners 相对于 previous_owners 新增的用户调用 IAM `grant_creator_action`；
+        - 被移除的用户不做 IAM 权限回收（bk-monitor 侧无回收能力，IAM 侧默认 6 个月有效期到期后自然失效）。
+
+        :param new_owners: 目标负责人列表（数据库将被更新为该列表）
+        :param previous_owners: 更新前的负责人列表；不传则默认取 self.owners
+        """
+        normalized_new = self._normalize_owners(new_owners)
+        if previous_owners is None:
+            previous_owners = self.owners or []
+        normalized_old = self._normalize_owners(previous_owners)
+
+        to_grant = [user for user in normalized_new if user not in set(normalized_old)]
+        if not to_grant:
+            return normalized_new
+
+        resource_instance = ResourceEnum.APM_APPLICATION.create_simple_instance(
+            self.application_id, {"bk_biz_id": self.bk_biz_id}
+        )
+        for user in to_grant:
+            try:
+                Permission().grant_creator_action(resource_instance, creator=user)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f"application->({self.application_id}) grant owner({user}) action failed, reason: {e}")
+        return normalized_new
 
     @property
     def is_create_finished(self):

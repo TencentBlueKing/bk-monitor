@@ -72,10 +72,7 @@
   const retrieveParams = computed(() => store.getters.retrieveParams);
   /** 字段配置管理组件所需参数 */
   const fieldAliasMap = computed(() => {
-    return (store.state.indexFieldInfo.fields ?? []).reduce(
-      (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
-      {},
-    );
+    return store.getters.fieldAliasMap;
   });
 
   const searchConfigList = computed(() => {

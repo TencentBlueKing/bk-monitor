@@ -246,15 +246,19 @@ class BkDataDorisProvider:
         cls, obj: "ProfileDataSource", maintainer: str, operator: str, name_stuffix: str = None
     ) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
+        # 保持与 ApmDataSourceConfigBase.normalize_app_name 一致：`-`、`.` 均转为 `_`
+        pure_app_name = (
+            obj.app_name.replace("-", "_").replace(".", "_")
+            if not name_stuffix
+            else f"{obj.app_name}{name_stuffix}".replace("-", "_").replace(".", "_")
+        )
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
             app_name=obj.app_name,
             maintainer=maintainer,
             operator=operator,
             _obj=obj,
-            pure_app_name=obj.app_name.replace("-", "_")
-            if not name_stuffix
-            else f"{obj.app_name}{name_stuffix}".replace("-", "_"),
+            pure_app_name=pure_app_name,
         )
 
     def provider(self) -> dict:

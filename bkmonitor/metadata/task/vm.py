@@ -16,7 +16,6 @@ from alarm_backends.core.lock.service_lock import share_lock
 from core.prometheus import metrics
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.db import filter_model_by_in_page
 
@@ -24,7 +23,7 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(ttl=3600, identify="metadata_check_access_vm_task")
-def check_access_vm_task(only_v4=False):
+def check_access_vm_task(only_v4=True):
     """检测遗漏或者失败的接入 vm 的结果表
 
     NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
@@ -49,13 +48,12 @@ def check_access_vm_task(only_v4=False):
         model=models.ResultTable,
         field_op="table_id__in",
         filter_data=list(rt_ds_dict.keys()),
-        value_field_list=["table_id", "bk_biz_id"],
+        value_field_list=["table_id"],
         value_func="values",
         other_filter={"is_deleted": False, "is_enable": True, "default_storage": "influxdb"},
     )
     # 过滤出没有接入 vm 的结果表
-    rt_biz_dict = {rt["table_id"]: rt["bk_biz_id"] for rt in rt_info}
-    rt_list = list(rt_biz_dict.keys())
+    rt_list = [rt["table_id"] for rt in rt_info]
     accessed_vm_rt_list = filter_model_by_in_page(
         model=models.AccessVMRecord,
         field_op="result_table_id__in",
@@ -78,37 +76,33 @@ def check_access_vm_task(only_v4=False):
         logger.info("check_access_vm_task:no need to add fix access vm, total use %.2f seconds", end_time - start_time)
         return
 
-    # 单个单个接入 vm
+    # 逐个 ResultTable 同步下发 DataLink。
     for rt in need_access_vm_rt_list:
-        bk_biz_id = rt_biz_dict.get(rt)
         bk_data_id = rt_ds_dict.get(rt)
-        if bk_biz_id is None or bk_data_id is None:
-            logger.warning("table_id: %s not found bk_biz_id or data_id", rt)
+        if bk_data_id is None:
+            logger.warning("table_id: %s not found data_id", rt)
             continue
         # 开始接入
         try:
-            # Note: 应根据data_id的来源决定接入链路的版本是V3还是V4
             ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
-            if ds.created_from == DataIdCreatedFromSystem.BKGSE.value:
-                # 如果指定了 only_v4，则跳过 V3 的接入
-                if only_v4:
-                    logger.info(
-                        "check_access_vm_task: skip v3 datalink due to only_v4=True, table_id->[%s],data_id->[%s]",
-                        rt,
-                        bk_data_id,
-                    )
-                    continue
+            # 如果指定了 only_v4，则跳过 V3 的接入。
+            if only_v4 and ds.created_from == DataIdCreatedFromSystem.BKGSE.value:
                 logger.info(
-                    "check_access_vm_task: try to access v3 datalink,table_id->[%s],data_id->[%s]", rt, bk_data_id
+                    "check_access_vm_task: skip v3 datalink due to only_v4=True, table_id->[%s],data_id->[%s]",
+                    rt,
+                    bk_data_id,
                 )
-                access_bkdata(bk_tenant_id=ds.bk_tenant_id, bk_biz_id=bk_biz_id, table_id=rt, data_id=bk_data_id)
-            if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
-                logger.info(
-                    "check_access_vm_task: try to access v4 datalink,table_id->[%s],data_id->[%s]", rt, bk_data_id
-                )
-                access_v2_bkdata_vm(bk_tenant_id=ds.bk_tenant_id, bk_biz_id=bk_biz_id, table_id=rt, data_id=bk_data_id)
+                continue
+
+            result_table = models.ResultTable.objects.get(table_id=rt, bk_tenant_id=ds.bk_tenant_id)
+            logger.info(
+                "check_access_vm_task: try to apply result table datalink,table_id->[%s],data_id->[%s]",
+                rt,
+                bk_data_id,
+            )
+            result_table.apply_datalink(delay=False)
         except Exception as e:
-            logger.error("access bkdata vm error, error: %s", e)
+            logger.error("apply result table datalink error, table_id: %s, error: %s", rt, e)
 
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="check_access_vm_task", process_target=None).observe(

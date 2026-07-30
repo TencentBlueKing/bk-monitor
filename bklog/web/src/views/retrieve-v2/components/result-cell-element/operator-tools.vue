@@ -25,112 +25,125 @@
 -->
 
 <template>
-  <div :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
+  <div :class="['handle-content', { 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }]">
     <template v-if="!isUnionSearch">
-      <span
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
-      >
-        <span
-          :class="`icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
-          @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
-          @mouseup.stop
-        >
-        </span>
-      </span>
-      <span
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
-      >
-        <span
-          :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
-          @click.stop="handleCheckClick('contextLog', isActiveLog)"
-          @mouseup.stop
-        >
-        </span>
-      </span>
-      <span
-        v-if="isActiveWebConsole && !isMonitorApm"
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
-      >
-        <span
-          :class="`icon bklog-icon bklog-consola ${!isCanClickWebConsole && 'is-disable'}`"
-          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
-          @mouseup.stop
-        ></span>
-      </span>
-      <div v-show="false">
-        <div id="realTimeLog-html">
-          <span>
-            <span
-              v-if="!isActiveLog"
-              class="bk-icon icon-exclamation-circle-shape"
-            ></span>
-            <span>{{ toolMessage.realTimeLog }}</span>
-          </span>
-        </div>
-      </div>
-      <div v-show="false">
-        <div id="webConsole-html">
-          <span>
-            <span
-              v-if="!isCanClickWebConsole"
-              class="bk-icon icon-exclamation-circle-shape"
-            ></span>
-            <span>{{ toolMessage.webConsole }}</span>
-          </span>
-        </div>
-      </div>
-      <div v-show="false">
-        <div id="contextLog-html">
-          <span>
-            <span
-              v-if="!isActiveLog"
-              class="bk-icon icon-exclamation-circle-shape"
-            ></span>
-            <span>{{ toolMessage.contextLog }}</span>
-          </span>
-        </div>
-      </div>
-    </template>
-    <template v-else>
-      <span
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: $t('上下文'), delay: 500 }"
-      >
-        <span
-          :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}` "
-          @click.stop="handleCheckClick('contextLog', isActiveLog)"
-          @mouseup.stop
-        >
-        </span>
-      </span>
-    </template>
-    <template v-if="isAiAssistanceActive">
-      <span
-        class="handle-card ai-assistant bklog-row-ai"
-        v-bk-tooltips="{ allowHtml: false, content: $t('AI助手'), delay: 500 }"
-        @click.stop="e => handleCheckClick('ai', true, e)"
+      <button
+        :class="['handle-item', { 'is-disable': !isActiveLog }]"
+        type="button"
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500, disabled: isActiveLog }"
+        @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         @mouseup.stop
       >
-        <span class="bklog-icon bklog-ai-mofabang"></span>
-        <img :src="aiImageUrl" />
-      </span>
-    </template>
-    <template v-if="showTraceInput">
-      <span
-        class="handle-card"
+        <span class="icon bklog-icon bklog-shishirizhi" />
+        <span class="handle-label">{{ $t('实时') }}</span>
+      </button>
+      <span class="handle-divider" />
+      <button
+        :class="['handle-item', { 'is-disable': !isActiveLog }]"
+        type="button"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
+        @click.stop="handleCheckClick('contextLog', isActiveLog)"
+        @mouseup.stop
       >
-        <span
-          class="icon bklog-icon bklog-tracing"
-          v-bk-tooltips="{ allowHtml: false, content: $t('关联Trace检索'), delay: 500 }"
+        <span class="icon bklog-icon bklog-shangxiawen" />
+        <span class="handle-label">{{ $t('上下文') }}</span>
+      </button>
+      <template v-if="showTraceInput">
+        <span class="handle-divider" />
+        <button
+          class="handle-item"
+          type="button"
           @click.stop="handleCheckClick('trace_id', true)"
           @mouseup.stop
         >
-        </span>
-      </span>
+          <span class="icon bklog-icon bklog-tracing" />
+          <span class="handle-label">Trace</span>
+        </button>
+      </template>
+      <template v-if="showFullRow">
+        <span class="handle-divider" />
+        <button
+          class="handle-item"
+          type="button"
+          @click.stop="handleCheckClick('fullRow', true)"
+          @mouseup.stop
+        >
+          <span class="icon bklog-icon bklog-match-all"></span>
+          <span class="handle-label">{{ $t('全量') }}</span>
+        </button>
+      </template>
+      <template v-if="isAiAssistanceActive">
+        <span class="handle-divider" />
+        <button
+          class="handle-item ai-assistant bklog-row-ai"
+          type="button"
+          @click.stop="e => handleCheckClick('ai', true, e)"
+          @mouseup.stop
+        >
+          <span class="bklog-icon bklog-ai-mofabang" />
+          <img :src="aiImageUrl" />
+          <span class="handle-label ai-label">AI</span>
+        </button>
+      </template>
     </template>
+    <template v-else>
+      <button
+        :class="['handle-item', { 'is-disable': !isActiveLog }]"
+        type="button"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
+        @click.stop="handleCheckClick('contextLog', isActiveLog)"
+        @mouseup.stop
+      >
+        <span class="icon bklog-icon bklog-shangxiawen" />
+        <span class="handle-label">{{ $t('上下文') }}</span>
+      </button>
+      <template v-if="showTraceInput">
+        <span class="handle-divider" />
+        <button
+          class="handle-item"
+          type="button"
+          @click.stop="handleCheckClick('trace_id', true)"
+          @mouseup.stop
+        >
+          <span class="icon bklog-icon bklog-tracing" />
+          <span class="handle-label">Trace</span>
+        </button>
+      </template>
+      <template v-if="showFullRow">
+        <span class="handle-divider" />
+        <button
+          class="handle-item"
+          type="button"
+          @click.stop="handleCheckClick('fullRow', true)"
+          @mouseup.stop
+        >
+          <span class="icon bklog-icon bklog-lc-star-shape" />
+          <span class="handle-label">{{ $t('全量') }}</span>
+        </button>
+      </template>
+    </template>
+    <div v-show="false">
+      <div id="realTimeLog-html">
+        <span>
+          <span
+            v-if="!isActiveLog"
+            class="bk-icon icon-exclamation-circle-shape"
+          ></span>
+          <span>{{ toolMessage.realTimeLog }}</span>
+        </span>
+      </div>
+    </div>
+    <div v-show="false">
+      <div id="contextLog-html">
+        <span>
+          <span
+            v-if="!isActiveLog"
+            class="bk-icon icon-exclamation-circle-shape"
+          ></span>
+          <span>{{ toolMessage.contextLog }}</span>
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -154,12 +167,16 @@
         type: String,
         default: 'table',
       },
+      showFullRow: {
+        type: Boolean,
+        default: false,
+      },
       handleClick: Function,
     },
     emits: ['handleAi'],
     data() {
       return {
-        showAllHandle: false, // hove操作区域显示全部icon
+        showAllHandle: false,
         isMonitorApm: window.__IS_MONITOR_APM__,
       };
     },
@@ -174,38 +191,8 @@
       isActiveLog() {
         return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
       },
-      isActiveWebConsole() {
-        return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
-      },
       isAiAssistanceActive() {
         return this.$store.getters.isAiAssistantActive;
-      },
-      /** 判断webConsole是否能点击 */
-      isCanClickWebConsole() {
-        if (!this.isActiveWebConsole) return false;
-        const { cluster, container_id: containerID, __ext } = this.rowData;
-        let queryData = {};
-        if (cluster && containerID) {
-          queryData = {
-            cluster,
-            container_id: containerID,
-          };
-        } else {
-          if (!__ext) return false;
-          if (!__ext.container_id) return false;
-          queryData = { container_id: __ext.container_id };
-          if (__ext.io_tencent_bcs_cluster) {
-            Object.assign(queryData, {
-              cluster: __ext.io_tencent_bcs_cluster,
-            });
-          } else if (__ext.bk_bcs_cluster_id) {
-            Object.assign(queryData, {
-              cluster: __ext.bk_bcs_cluster_id,
-            });
-          }
-        }
-        if (!queryData.cluster || !queryData.container_id) return false;
-        return true;
       },
       toolMessage() {
         return (
@@ -216,12 +203,14 @@
           }
         );
       },
-      isShowSourceField() {
-        return this.operatorConfig?.isShowSourceField;
-      },
+      /** 当前行存在可解析的 Trace ID 时才展示入口 */
       showTraceInput() {
-        return this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
-      }
+        const isApmActive = this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
+        if (!isApmActive) {
+          return false;
+        }
+        return !!this.getTraceIdFromRowData();
+      },
     },
     methods: {
       normalizeTraceSearchText(value) {
@@ -245,6 +234,11 @@
           const matchedTraceId = this.getTraceIdFromText(traceId);
           if (matchedTraceId) {
             return matchedTraceId;
+          }
+          // 专用字段存在时，优先信任字段值（兼容高亮标签等包装）
+          const cleanedTraceId = this.normalizeTraceSearchText(traceId).trim();
+          if (cleanedTraceId) {
+            return cleanedTraceId;
           }
         }
 
@@ -305,29 +299,45 @@
   .handle-content {
     position: relative;
     display: inline-flex;
-    gap: 2px;
+    gap: 0;
     align-items: center;
     justify-content: flex-start;
     width: max-content;
     overflow: visible;
+    background: #fff;
+    border: 1px solid #c4cee3;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px 0 #0000001f;
 
-    .handle-card {
-      display: flex;
+    .handle-item {
+      display: inline-flex;
+      gap: 4px;
       align-items: center;
-      justify-content: center;
-      width: 20px;
-      min-width: 20px;
-      height: 20px;
-      margin-left: 0;
-      font-size: 16px;
+      height: 28px;
+      padding: 0 10px;
+      font-size: 12px;
       line-height: 20px;
-      color: #8b92a5;
+      color: #4d4f56;
+      cursor: pointer;
+      background: transparent;
+      border: 0;
+      border-radius: 2px;
 
       .bklog-icon,
       .icon {
-        font-size: 16px;
-        line-height: 20px;
-        cursor: pointer;
+        font-size: 14px;
+        line-height: 14px;
+      }
+
+      .handle-label {
+        white-space: nowrap;
+      }
+
+      &:hover,
+      &:focus-visible {
+        color: #3a84ff;
+        background: #edf4ff;
+        outline: none;
       }
 
       &.ai-assistant {
@@ -335,15 +345,32 @@
 
         img {
           position: absolute;
-          top: 0;
-          left: 0;
-          width: 20px;
-          height: 20px;
+          top: 50%;
+          left: 10px;
+          width: 14px;
+          height: 14px;
           cursor: pointer;
           background-color: #fff;
           opacity: 0;
+          transform: translateY(-50%);
+        }
+
+        .ai-label {
+          font-weight: 600;
+          background: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
         }
       }
+    }
+
+    .handle-divider {
+      flex: 0 0 1px;
+      width: 1px;
+      height: 16px;
+      background: #dcdee5;
     }
   }
 
@@ -356,34 +383,17 @@
     color: #d7473f;
   }
 
-  .icon-more {
-    transform: translateY(2px) translateX(4px);
-  }
-
   .is-disable {
     /* stylelint-disable-next-line declaration-no-important */
-    color: #eceef2 !important;
+    color: #c4c6cc !important;
 
     /* stylelint-disable-next-line declaration-no-important */
     cursor: no-drop !important;
-  }
 
-  .clean-str {
-    color: #3a84ff;
-    cursor: pointer;
-  }
-
-  .union-icon {
-    margin-right: 8px;
-  }
-
-  .bklog-handle {
-    font-size: 14px;
-    color: #979ba5;
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
+    &:hover,
+    &:focus-visible {
+      color: #c4c6cc !important;
+      background: transparent !important;
     }
   }
 </style>

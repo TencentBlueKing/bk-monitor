@@ -186,9 +186,12 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
                     };
                   } catch {
                     // Not valid JSON, wrap in styled container to improve readability
+                    // 字符串日志若以日期时间开头（content 中的日期时间前缀已被剥离，需从原始日志提取），则将日期时间单独一行展示
+                    const datetimePrefix = row.log_content.match(DATETIME_PREFIX_REGEX)?.[0]?.trimEnd();
                     popoverConfigs = {
                       content: (
                         <div class='issues-json-popover-content'>
+                          {datetimePrefix && <div class='issues-string-popover-datetime'>{datetimePrefix}</div>}
                           <pre class='issues-string-popover-pre'>{content}</pre>
                         </div>
                       ) as unknown as Element,

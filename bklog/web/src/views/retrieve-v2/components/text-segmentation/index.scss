@@ -18,6 +18,21 @@
       mark {
         background-color: #faeeb1;
       }
+
+      mark.result-highlight {
+        padding: 1px 2px;
+        background-color: #faeeb1;
+        border-radius: 2px;
+      }
+
+      mark.page-highlight {
+        padding: 1px 0;
+        border-radius: 2px;
+      }
+
+      mark.result-highlight.page-highlight {
+        box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
+      }
     }
 
     &.is-wheeling {
@@ -81,8 +96,17 @@
     }
   }
   &.bklog-root-field {
-    mark {
+    mark.result-highlight {
       background-color: #faeeb1;
+    }
+
+    mark.page-highlight {
+      padding: 1px 0;
+      border-radius: 2px;
+    }
+
+    mark.result-highlight.page-highlight {
+      box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
     }
   }
 }

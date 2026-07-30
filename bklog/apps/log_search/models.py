@@ -45,7 +45,6 @@ from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EsSourceType
 from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
-    ExportStatus,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
     INDEX_SET_NO_DATA_CHECK_PREFIX,
     INDEX_SET_NOT_EXISTED,
@@ -77,7 +76,6 @@ from apps.log_search.constants import (
     IndexSetDataType,
 )
 from apps.log_search.exceptions import (
-    ConcurrentExportLimitException,
     CouldNotFindTemplateException,
     DefaultConfigNotAllowedDelete,
     IndexSetNameDuplicateException,

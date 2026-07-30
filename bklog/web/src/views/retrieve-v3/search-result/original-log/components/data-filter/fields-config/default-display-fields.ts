@@ -11,8 +11,8 @@ const getStoreFieldList = (store: Store<any>): IFieldItem[] => {
     return filteredFieldList;
   }
 
-  const fields = store.state.indexFieldInfo?.fields;
-  return Array.isArray(fields) ? fields : [];
+  const rawFieldList = store.getters.rawFieldList;
+  return Array.isArray(rawFieldList) ? rawFieldList : [];
 };
 
 /**

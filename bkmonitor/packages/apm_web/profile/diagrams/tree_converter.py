@@ -91,6 +91,8 @@ class TreeConverter:
             parent = tree.root
             map_parent = tree.map_root
             stacktraces = json.loads(sample["stacktrace"])
+            leaf_node = None
+            leaf_map_node = None
 
             visited_node = set()
             for stacktrace in reversed(stacktraces):
@@ -125,6 +127,7 @@ class TreeConverter:
                         )
                         parent.add_child(node)
                         parent = node
+                    leaf_node = node
 
                     # 2. 构造图
                     if node_id not in tree.function_node_map:
@@ -145,5 +148,13 @@ class TreeConverter:
                             map_node.add_value(value)
                         map_parent.add_child(map_node)
                         map_parent = map_node
+                    leaf_map_node = map_node
 
                     visited_node.add(node_id)
+
+            # stacktrace 按根节点到叶子节点遍历，最后一个有效节点承载当前 sample 的 self 值。
+            # total 在合并图中按 sample 去重，self 则只计入叶子函数一次。
+            if leaf_node is not None:
+                leaf_node.add_self_value(value)
+            if leaf_map_node is not None:
+                leaf_map_node.add_self_value(value)

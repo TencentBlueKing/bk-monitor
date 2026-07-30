@@ -524,12 +524,12 @@ class ApmApplicationSearchItem(SearchItem):
     Search item for apm application.
     """
 
-    RE_APP_NAME = re.compile(r"^[a-z0-9_-]{1,50}$")
+    RE_APP_NAME = re.compile(r"^[a-z0-9_.-]{1,50}$")
 
     @classmethod
     def match(cls, query: str) -> bool:
         """
-        1-50字符，由小写字母、数字、下划线、中划线组成
+        1-50字符，由小写字母、数字、下划线、中划线、点组成
         """
         return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
 
