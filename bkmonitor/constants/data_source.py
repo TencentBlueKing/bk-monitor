@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from enum import Enum
+
 from django.utils.translation import gettext_lazy as _lazy
 
 
@@ -259,3 +261,14 @@ GrayUnifyQueryDataSources = [
 DATA_LINK_V3_VERSION_NAME = "V3"
 # V4链路版本
 DATA_LINK_V4_VERSION_NAME = "V4"
+
+
+class OperatorGroupRelation(str, Enum):
+    """操作符组间关系"""
+
+    AND = "AND"
+    OR = "OR"
+
+    @classmethod
+    def choices(cls):
+        return [(relation.name, relation.value) for relation in cls]
