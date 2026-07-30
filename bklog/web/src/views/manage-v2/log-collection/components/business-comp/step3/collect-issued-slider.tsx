@@ -478,6 +478,10 @@ export default defineComponent({
       () => props.isShow,
       (val: boolean) => {
         if (val) {
+          // 加载新采集项前清空遗留的任务数据，
+          // 避免 HostDetail 使用旧的 task_id 请求任务详情。
+          tableListAll.value = [];
+          calcTabNum();
           curTaskIdList.value = [...new Set([...(props.config?.task_id_list ?? [])])];
           if (props.isContainer) {
             // 容器环境：使用容器状态逻辑
