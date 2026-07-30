@@ -254,6 +254,7 @@ export default defineComponent({
     /** 时区变化 */
     const handleTimezoneChange = (val: string) => {
       timezone.value = val;
+      handleSearch();
     };
 
     /** 重新搜索 */
@@ -349,7 +350,7 @@ export default defineComponent({
             value={timeRange.value}
             timezone={timezone.value}
             onChange={handleTimeChange}
-            onTimezoneChange={handleTimezoneChange}
+            on-timezone-change={handleTimezoneChange}
           />
         </div>
 

@@ -77,9 +77,13 @@ axiosInstance.interceptors.request.use(
     const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
     config.headers.Traceparent = traceparent;
     // }
-    // 添加时区信息
-    if (store.state.indexItem?.timezone) {
-      config.headers['X-BKLOG-TIMEZONE'] = store.state.indexItem.timezone;
+    // 检索模块使用时间选择器设置的时区，其它模块使用用户个人设置的时区
+    const isRetrievePage = /^#\/retrieve(?:\/|\?|$)/.test(window.location.hash);
+    const timezone = isRetrievePage
+      ? store.state.indexItem?.timezone
+      : store.state.userMeta?.time_zone;
+    if (timezone) {
+      config.headers['X-BKLOG-TIMEZONE'] = timezone;
     }
     return config;
   },
