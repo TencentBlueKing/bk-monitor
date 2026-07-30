@@ -2094,7 +2094,7 @@ class QueryEbpfProfileResource(Resource):
         )
 
 
-""""后端直接调用的类"""
+# ==================== 外部 API（网关侧对外简化调用入口） ====================
 
 
 class CreateApplicationSimpleResource(Resource):
@@ -2206,6 +2206,38 @@ class UpdateApplicationSimpleResource(Resource):
 
         SetupResource()(**setup_params)
         return {"application_id": application.application_id}
+
+
+class DetailApplicationSimpleResource(Resource):
+    """外部系统查询 APM 应用详情（在原详情基础上补充 SaaS 层的 owners 字段）"""
+
+    RequestSerializer = ApplicationRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        # 复用现有详情接口，拿到数据链路层的完整信息
+        data = ApplicationInfoResource()(**validated_request_data)
+
+        # 补充 SaaS 层管理属性 owners（数据层模型无此字段，需反查 apm_web.Application）
+        owners: list = []
+        try:
+            from apm_web.models import Application as WebApplication
+
+            web_app = WebApplication.origin_objects.filter(
+                bk_biz_id=data.get("bk_biz_id"),
+                app_name=data.get("app_name"),
+            ).first()
+            if web_app and web_app.owners:
+                owners = list(web_app.owners)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "get application owners failed, bk_biz_id=%s, app_name=%s, err=%s",
+                data.get("bk_biz_id"),
+                data.get("app_name"),
+                exc,
+            )
+
+        data["owners"] = owners
+        return data
 
 
 class DeleteApplicationSimpleResource(Resource):

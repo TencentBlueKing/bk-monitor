@@ -100,7 +100,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /apm_api/v1/application/detail_application/
+          path: /apm_api/v1/application/detail_application_simple/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true

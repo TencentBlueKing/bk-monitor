@@ -14,6 +14,7 @@ from apm.resources import (
     ApplyDatasourceResource,
     CreateApplicationResource,
     CreateApplicationSimpleResource,
+    DetailApplicationSimpleResource,
     UpdateApplicationSimpleResource,
     CreateOrUpdateBkdataFlowResource,
     DeleteAppConfigResource,
@@ -73,19 +74,22 @@ class MetaInfoViewSet(ResourceViewSet):
 
 class ApplicationViewSet(ResourceViewSet):
     resource_routes = [
+        # ==================== 外部 API（网关侧对外简化调用入口） ====================
         ResourceRoute("POST", CreateApplicationSimpleResource, endpoint="create_application_simple"),
         ResourceRoute("POST", UpdateApplicationSimpleResource, endpoint="update_application_simple"),
+        ResourceRoute("GET", DetailApplicationSimpleResource, endpoint="detail_application_simple"),
+        ResourceRoute("POST", DeleteApplicationSimpleResource, endpoint="delete_application_simple"),
+        ResourceRoute("GET", StartApplicationSimpleResource, endpoint="start_application_simple"),
+        ResourceRoute("GET", StopApplicationSimpleResource, endpoint="stop_application_simple"),
+        # ==================== 内部 API（SaaS / 后端直接调用） ====================
         ResourceRoute("POST", CreateApplicationResource, endpoint="create_application"),
         ResourceRoute("POST", DeleteApplicationResource, endpoint="delete_application"),
-        ResourceRoute("POST", DeleteApplicationSimpleResource, endpoint="delete_application_simple"),
         ResourceRoute("POST", ApplyDatasourceResource, endpoint="apply_datasource"),
         ResourceRoute("GET", ListApplicationResources, endpoint="list_application"),
         ResourceRoute("GET", ApplicationInfoResource, endpoint="detail_application"),
         ResourceRoute("GET", QueryBkDataTokenInfoResource, endpoint="query_bk_data_token_info"),
         ResourceRoute("GET", StopApplicationResource, endpoint="stop_application"),
-        ResourceRoute("GET", StopApplicationSimpleResource, endpoint="stop_application_simple"),
         ResourceRoute("GET", StartApplicationResource, endpoint="start_application"),
-        ResourceRoute("GET", StartApplicationSimpleResource, endpoint="start_application_simple"),
         ResourceRoute("GET", QueryRootEndpointResource, endpoint="query_root_endpoint"),
         ResourceRoute("GET", QueryFieldsResource, endpoint="query_fields"),
         ResourceRoute("POST", QueryEventResource, endpoint="query_event"),
