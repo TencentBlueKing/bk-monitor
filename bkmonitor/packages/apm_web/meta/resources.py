@@ -235,6 +235,13 @@ class CreateApplicationResource(Resource):
             bk_tenant_id = get_request_tenant_id()
         else:
             bk_tenant_id = DEFAULT_TENANT_ID
+
+        # 默认将创建者加入 owners 列表（置于列表首位，_normalize_owners 会兜底去重）
+        owners = list(validated_request_data.get("owners") or [])
+        creator = get_request_username()
+        if creator and creator not in owners:
+            owners.insert(0, creator)
+
         app = Application.create_application(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -251,8 +258,8 @@ class CreateApplicationResource(Resource):
             # ↓ 两个可选项
             storage_options=validated_request_data.get("datasource_option"),
             plugin_config=validated_request_data.get("plugin_config"),
-            # ↓ 负责人列表（可选）
-            owners=validated_request_data.get("owners") or [],
+            # ↓ 负责人列表（默认包含创建者）
+            owners=owners,
         )
 
         from apm_web.tasks import APMEvent, report_apm_application_event
