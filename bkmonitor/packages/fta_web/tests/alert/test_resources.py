@@ -57,6 +57,41 @@ class TestAlertTopNResource:
         with pytest.raises(ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_bucket_count_gets_full_time_range(self, monkeypatch):
+        # 基数聚合子线程必须拿到完整时间范围：perform_request 随后会 pop 掉 start/end 换成分片
+        # 区间，若与子线程共享同一 dict，覆盖区间会随线程调度退化成"仅当天"。
+        captured = {}
+
+        def fake_get_bucket_count(request_data):
+            captured.update(request_data)
+            return {}
+
+        monkeypatch.setattr(
+            alert_resources,
+            "resource",
+            SimpleNamespace(
+                alert=SimpleNamespace(alert_top_n_result=SimpleNamespace(bulk_request=lambda params: []))
+            ),
+        )
+
+        top_n_resource = AlertTopNResource.__new__(AlertTopNResource)
+        monkeypatch.setattr(top_n_resource, "get_bucket_count", fake_get_bucket_count)
+
+        result = top_n_resource.perform_request(
+            {
+                "bk_biz_ids": None,
+                "fields": ["alert_name"],
+                "size": 10,
+                "start_time": 1711900800,
+                "end_time": 1711987200,
+                "need_time_partition": True,
+            }
+        )
+
+        assert captured["start_time"] == 1711900800
+        assert captured["end_time"] == 1711987200
+        assert result == {"doc_count": 0, "fields": []}
+
 
 class TestAlertDetailResource:
     @pytest.mark.parametrize(
