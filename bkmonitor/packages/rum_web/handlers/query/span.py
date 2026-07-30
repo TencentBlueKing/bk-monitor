@@ -10,16 +10,40 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.utils.rum import RUMDatasourceTarget
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 class SpanQuery(BaseQuery):
-    def __init__(self, bk_biz_id: int):
-        self.bk_biz_id = bk_biz_id
+    USING_LOG: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
-    def time_range_queryset(self, start_time: int, end_time: int) -> UnifyQuerySet:
-        return super().time_range_queryset(start_time, end_time).scope(bk_biz_id=self.bk_biz_id)
+    def __init__(self, data_sources: list[RUMDatasourceTarget]):
+        self.data_sources = data_sources
+
+    def get_queries(
+        self, filters: list[types.Filter] | None = None, query_string: str = ""
+    ) -> list[QueryConfigBuilder]:
+        return [
+            self.build_query_q(
+                QueryConfigBuilder(self.USING_LOG).table(ds.table_id).time_field(self.DEFAULT_TIME_FIELD),
+                filters,
+                query_string,
+            )
+            for ds in self.data_sources
+        ]
+
+    def time_range_queryset(self, start_time: int, end_time: int, using_scope: bool = True) -> UnifyQuerySet:
+        qs = super().time_range_queryset(start_time, end_time)
+        if not using_scope:
+            return qs
+
+        bk_biz_ids = {ds.app.bk_biz_id for ds in self.data_sources}
+        if len(bk_biz_ids) != 1:
+            return qs
+        return qs.scope(bk_biz_ids.pop())
 
     def query_list(
         self,
@@ -27,13 +51,13 @@ class SpanQuery(BaseQuery):
         end_time: int,
         offset: int,
         limit: int,
-        query_configs: list[dict[str, Any]],
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
         sort: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        processed_sort_fields = self.process_sort_fields(sort or self.DEFAULT_SORT)
-        queries: list[QueryConfigBuilder] = [
-            self.get_q_from_query_config(query_config).order_by(*processed_sort_fields)
-            for query_config in query_configs
+        queries = [
+            q.order_by(*self.process_sort_fields(sort or self.DEFAULT_SORT))
+            for q in self.get_queries(filters, query_string)
         ]
         return super()._query_list(queries, start_time, end_time, offset, limit)
 
@@ -41,31 +65,21 @@ class SpanQuery(BaseQuery):
         self,
         start_time: int,
         end_time: int,
-        query_configs: list[dict[str, Any]],
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
     ) -> int:
-        alias: str = "a"
-        # 构建查询列表
-        queries = [
-            self.get_q_from_query_config(query_config).alias(alias).metric(field="_index", method="COUNT", alias=alias)
-            for query_config in query_configs
-        ]
-        return super()._query_total(queries, start_time, end_time)
+        return super()._query_total(self.get_queries(filters, query_string), start_time, end_time)
 
     def query_field_topk(
         self,
         start_time: int,
         end_time: int,
-        query_configs: list[dict[str, Any]],
         field: str,
         limit: int = 5,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
         need_empty: bool = False,
     ):
-        alias: str = "a"
-        queries = [
-            self.get_q_from_query_config(query_config)
-            .metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
-            .group_by(field)
-            .order_by("_value desc")
-            for query_config in query_configs
-        ]
-        return super()._query_field_topk(queries, start_time, end_time, limit)
+        return super()._query_field_topk(
+            self.get_queries(filters, query_string), start_time, end_time, field, limit, need_empty
+        )
