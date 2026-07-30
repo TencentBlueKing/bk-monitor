@@ -14,6 +14,7 @@ from apm.resources import (
     ApplyDatasourceResource,
     CreateApplicationResource,
     CreateApplicationSimpleResource,
+    UpdateApplicationSimpleResource,
     CreateOrUpdateBkdataFlowResource,
     DeleteAppConfigResource,
     DeleteApplicationResource,
@@ -73,6 +74,7 @@ class MetaInfoViewSet(ResourceViewSet):
 class ApplicationViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateApplicationSimpleResource, endpoint="create_application_simple"),
+        ResourceRoute("POST", UpdateApplicationSimpleResource, endpoint="update_application_simple"),
         ResourceRoute("POST", CreateApplicationResource, endpoint="create_application"),
         ResourceRoute("POST", DeleteApplicationResource, endpoint="delete_application"),
         ResourceRoute("POST", DeleteApplicationSimpleResource, endpoint="delete_application_simple"),

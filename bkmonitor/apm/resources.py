@@ -2122,6 +2122,12 @@ class CreateApplicationSimpleResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=False, default=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=False, default=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=False, default=False)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            allow_empty=True,
+        )
 
     def fill_default(self, validate_data):
         if not validate_data.get("bk_biz_id"):
@@ -2154,6 +2160,52 @@ class CreateApplicationSimpleResource(Resource):
         self.fill_default(validated_request_data)
         app = CreateApplicationResource()(**validated_request_data)
         return ApplicationInfoResource()(application_id=app["application_id"])["token"]
+
+
+class UpdateApplicationSimpleResource(Resource):
+    """外部系统更新 APM 应用信息（支持修改别名/描述/负责人，并对新增负责人主动授权）"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+        space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
+        description = serializers.CharField(label="描述", required=False, max_length=255, allow_blank=True)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            allow_empty=True,
+        )
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("space_uid"):
+            validated_request_data["bk_biz_id"] = space_uid_to_bk_biz_id(validated_request_data["space_uid"])
+
+        from apm_web.models import Application
+        from apm_web.meta.resources import SetupResource
+
+        application = Application.origin_objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        ).first()
+        if not application:
+            raise ValueError(
+                f"应用不存在: bk_biz_id={validated_request_data['bk_biz_id']}, "
+                f"app_name={validated_request_data['app_name']}"
+            )
+
+        setup_params = {"application_id": application.application_id}
+        for field in ("app_alias", "description", "owners"):
+            if field in validated_request_data:
+                setup_params[field] = validated_request_data[field]
+
+        if len(setup_params) == 1:
+            # 只传了 application_id，没有任何可更新字段
+            return {"application_id": application.application_id}
+
+        SetupResource()(**setup_params)
+        return {"application_id": application.application_id}
 
 
 class DeleteApplicationSimpleResource(Resource):

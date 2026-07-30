@@ -71,6 +71,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "delete apm application"
+  /app/apm/update_application/:
+    post:
+      operationId: apm_update_application
+      description: 更新APM应用信息（别名/描述/负责人）
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/application/update_application_simple/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "update apm application"
   /app/apm/detail_apm_application/:
     get:
       operationId: detail_apm_application
