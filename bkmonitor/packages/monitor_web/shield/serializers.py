@@ -87,6 +87,7 @@ class AlertSerializer(BaseSerializer):
         alert_ids = serializers.ListField(required=False, child=serializers.CharField(allow_blank=False))
         dimensions = serializers.DictField(required=False)
         bk_topo_node = serializers.DictField(required=False)
+        dimension_conditions = serializers.ListField(required=False, child=DimensionConditionSlz(required=True))
 
         def validate(self, attrs):
             if not attrs.get("alert_id") and not attrs.get("alert_ids"):

@@ -26,7 +26,7 @@ from bkmonitor.utils.range import (
     TIME_MATCH_CLASS_MAP,
     load_field_instance,
 )
-from bkmonitor.utils.range.conditions import AndCondition, EqualCondition, OrCondition
+from bkmonitor.utils.range.conditions import AndCondition, Condition, EqualCondition, OrCondition
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -34,6 +34,17 @@ from constants.shield import ScopeType, ShieldCategory
 from core.errors.alarm_backends import StrategyNotFound
 
 logger = logging.getLogger("fta_action")
+
+
+class _NeverMatchCondition(Condition):
+    """永不命中的占位条件。
+
+    用于 dimension_condition 解析失败时兜底（fail-close）：所在 AND 组整体不命中，
+    确保解析失败不会让屏蔽范围被动扩大（过度屏蔽导致漏告警，比屏蔽不生效更危险）。
+    """
+
+    def is_match(self, data):
+        return False
 
 
 class ShieldObj:
@@ -81,21 +92,32 @@ class ShieldObj:
         or_condition = OrCondition()
         and_condition = AndCondition()
         for condition in dimension_conditions:
+            if not isinstance(condition, dict):
+                logger.error(
+                    "shield(%s) invalid dimension_condition(%s), treat as never-match",
+                    self.id,
+                    condition,
+                )
+                and_condition.add(_NeverMatchCondition())
+                continue
+            # 分组边界仅由 condition 声明的 and/or 关系决定，与解析成败无关，保证解析失败时分组结构不漂移
+            if condition.get("condition") == "or" and and_condition.conditions:
+                or_condition.add(and_condition)
+                and_condition = AndCondition()
             try:
                 field = load_field_instance(condition["key"], condition["value"])
                 condition_class = CONDITION_CLASS_MAP.get(condition.get("method"), EqualCondition)
-                if condition.get("condition") == "or" and and_condition.conditions:
-                    or_condition.add(and_condition)
-                    and_condition = AndCondition()
                 and_condition.add(condition_class(field))
             except Exception as e:
+                # 解析失败的条件替换为永不命中的占位条件（fail-close）：
+                # 所在 AND 组整体不命中，避免条件被静默丢弃后屏蔽范围被动扩大（过度屏蔽导致漏告警）
                 logger.error(
-                    "shield(%s) parse dimension_condition(%s) failed: %s, skip this condition",
+                    "shield(%s) parse dimension_condition(%s) failed: %s, treat as never-match",
                     self.id,
                     condition,
                     e,
                 )
-                continue
+                and_condition.add(_NeverMatchCondition())
         if and_condition.conditions:
             or_condition.add(and_condition)
         if or_condition.conditions:
