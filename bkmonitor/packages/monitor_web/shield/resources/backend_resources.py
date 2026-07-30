@@ -271,6 +271,8 @@ class AddShieldResource(Resource, EventDimensionMixin):
             dimension_config = {scope_key_mapping.get(scope_type): target}
         if "metric_id" in data["dimension_config"]:
             dimension_config["metric_id"] = data["dimension_config"]["metric_id"]
+        if data["dimension_config"].get("dimension_conditions"):
+            dimension_config["dimension_conditions"] = data["dimension_config"]["dimension_conditions"]
         return dimension_config
 
     def handle_strategy(self, data):
@@ -324,6 +326,10 @@ class AddShieldResource(Resource, EventDimensionMixin):
                 "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
             }
         )
+
+        # 透传维度过滤条件（如 regex/nregex）
+        if data["dimension_config"].get("dimension_conditions"):
+            dimension_config["dimension_conditions"] = data["dimension_config"]["dimension_conditions"]
 
         # 更新alerts的屏蔽状态
         alert_document = AlertDocument(id=alert_id, is_shielded=True, update_time=int(time.time()))
@@ -421,6 +427,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
     """
 
     def handle_alerts(self, data):
+        # TODO: 批量告警屏蔽暂未支持 dimension_conditions 透传，需补齐时参照 handle_alert() 的透传方式
         alert_ids = data["dimension_config"]["alert_ids"] or [data["dimension_config"]["alert_id"]]
         # dimension_config.dimensions 标记告警保留需要匹配的屏蔽维度
         target_dimension_config: dict = data["dimension_config"].get("dimensions", {})

@@ -81,12 +81,21 @@ class ShieldObj:
         or_condition = OrCondition()
         and_condition = AndCondition()
         for condition in dimension_conditions:
-            field = load_field_instance(condition["key"], condition["value"])
-            condition_class = CONDITION_CLASS_MAP.get(condition.get("method"), EqualCondition)
-            if condition.get("condition") == "or" and and_condition.conditions:
-                or_condition.add(and_condition)
-                and_condition = AndCondition()
-            and_condition.add(condition_class(field))
+            try:
+                field = load_field_instance(condition["key"], condition["value"])
+                condition_class = CONDITION_CLASS_MAP.get(condition.get("method"), EqualCondition)
+                if condition.get("condition") == "or" and and_condition.conditions:
+                    or_condition.add(and_condition)
+                    and_condition = AndCondition()
+                and_condition.add(condition_class(field))
+            except Exception as e:
+                logger.error(
+                    "shield(%s) parse dimension_condition(%s) failed: %s, skip this condition",
+                    self.id,
+                    condition,
+                    e,
+                )
+                continue
         if and_condition.conditions:
             or_condition.add(and_condition)
         if or_condition.conditions:
@@ -114,6 +123,14 @@ class ShieldObj:
                 bk_topo_node = clean_dimension.pop("bk_topo_node", [])
                 if not (len(bk_topo_node) == 1 and bk_topo_node[0]["bk_obj_id"] == ScopeType.BIZ):
                     clean_dimension["bk_topo_node"] = bk_topo_node
+
+        if self.config["category"] == ShieldCategory.SCOPE:
+            # 范围屏蔽支持维度过滤条件（如 regex/nregex），进一步筛选目标范围内的匹配维度
+            self._parse_dimension_conditions(clean_dimension)
+
+        if self.config["category"] == ShieldCategory.ALERT:
+            # 告警屏蔽（含移动端 EVENT 类型映射）支持维度过滤条件
+            self._parse_dimension_conditions(clean_dimension)
 
         # 解析动态分组配置
         if self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:
