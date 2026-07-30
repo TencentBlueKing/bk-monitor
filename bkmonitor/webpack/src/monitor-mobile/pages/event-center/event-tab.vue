@@ -32,6 +32,7 @@
     >
       <van-tab
         v-for="(item, index) in tabList"
+        :name="item.value"
         :key="index"
       >
         <template #title>
@@ -70,7 +71,7 @@ export default class EventTab extends Vue {
   @Prop({ default: () => [] }) readonly tabList: ITabItem[];
 
   // v-model的值
-  @Prop() readonly value: number;
+  @Prop() readonly value: string;
 
   handleCount(count) {
     return count <= 99 ? count : 99;
@@ -78,8 +79,8 @@ export default class EventTab extends Vue {
 
   // 点击tab
   handleChangeTab(val) {
-    this.$emit('input', this.tabList[val].value);
-    this.$emit('change', this.tabList[val].value);
+    this.$emit('input', val);
+    this.$emit('change', val);
   }
 }
 </script>
