@@ -203,8 +203,8 @@ class UseSegmentProp {
     ]
       .filter((item) => {
         if (window?.__IS_MONITOR_TRACE__) {
-          // return item.text !== this.$t('新建检索');
-          return !['new-search-page-is', 'add-to-ai'].includes(item.id);
+          // Trace 宿主内没有「新建检索」「引用至小鲸」的落地页，无论 disabled 如何都要剔除
+          return !['new-search-page-is', 'add-to-ai'].includes(item.id) && !item.disabled;
         }
         return !item.disabled;
       })
