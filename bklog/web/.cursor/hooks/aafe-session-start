@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-cat <<'JSON'
-{
-  "additional_context": "<AAFE_SKILL_ROUTER>\n1. Read .ai-agent/skill-index.md.\n2. Read .ai-agent/project.md if present.\n3. Load matching .ai-agent/project-skills/*/SKILL.md on demand only.\n4. For non-trivial tasks, follow .ai-agent/runtime/* and .ai-agent/pipelines/*.\n5. Do not copy project knowledge into editor directories.\n</AAFE_SKILL_ROUTER>"
-}
-JSON
-exit 0

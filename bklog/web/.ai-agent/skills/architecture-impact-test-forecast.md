@@ -1,34 +1,97 @@
 # Skill: Architecture Impact and Test Forecast
 
-This skill is a mandatory final step after every completed task, fix, refactor, configuration change or documentation update.
+This skill runs after the user confirms they want impact analysis and test references at task completion.
+
+Trigger: user answers **是 / Yes / 需要 / Y** to the mandatory completion question defined in the global AAFE task-completion-impact rule.
 
 ## Required context
 
-1. Read the target project's \.ai-agent/skills/knowledge-center-architecture.md when present.
-2. Read \.ai-agent/memory/knowledge-center-architecture.md when present.
-3. Read the relevant \.docs architecture documents and Mermaid diagrams.
-4. Map changed files to modules, routes, components, stores, APIs, workers, storage, flows and tests.
+1. Read the target project's `.ai-agent/skills/knowledge-center-architecture.md` when present.
+2. Read `.ai-agent/memory/knowledge-center-architecture.md` when present.
+3. Read relevant `.docs` architecture documents and Mermaid diagrams.
+4. Map **current task changed files only** to modules, routes, components, stores, APIs, workers, storage, flows and tests.
 
-## Required final output
+## Step 1 — Impact scope report
 
-Before reporting completion, produce:
+Produce:
 
-- 修复/变更影响范围：直接影响、间接影响和可能影响；
-- 架构关系依据：引用相关 .docs 文件、图表和源码路径；
-- 需要测试的范围：单元、组件、集成、端到端、回归和异常路径；
-- 测试优先级：P0/P1/P2，并说明预测原因；
-- 未验证项、风险和需要人工确认的架构冲突。
+- **直接影响**：changed files, modules, routes, components, stores, APIs, hooks
+- **间接影响**：callers, dependents, shared layers, downstream data flow
+- **潜在影响**：auth guards, cache, Worker, IndexedDB, compatibility, degradation paths
+- **架构关系依据**：.docs paths, diagram refs, source evidence
 
-## Project-specific rules
+Required artifacts: `impact_scope`, `architecture_evidence`
 
-- Do not claim a test passed unless it was actually run.
-- Distinguish tested, predicted and not covered.
-- For changes involving route guards, request cancellation, streaming, parsing, pagination, cache, Worker or IndexedDB, include stale response, cancellation, reload/degradation and concurrent request cases.
-- For changes involving Store or API contracts, include dependent pages, actions, services and UI rendering paths.
-- If no test is needed, explain why using the architecture relationships and still provide the predicted scope.
+## Step 2 — Minimal test case design
 
-Required artifacts:
-- impact_scope
-- architecture_evidence
-- test_forecast
+Design the **smallest sufficient** test set for this change only:
+
+| Field | Requirement |
+| --- | --- |
+| ID | TC-001, TC-002, ... |
+| Priority | P0 required path / P1 important edge / P2 regression |
+| Scenario | What behavior is verified |
+| Mock setup | All external deps mocked; **no real API or prod data** |
+| Steps | Arrange → Act → Assert |
+| Assertions | Concrete expected outcomes |
+| Boundary coverage | Which edge case this case covers |
+
+Must cover when relevant:
+
+- happy path
+- validation / empty / null / max boundary
+- error and rejection paths
+- permission / unauthorized
+- cancellation / timeout / concurrent requests
+- cache stale / reload / degradation
+- Store or API contract changes → dependent UI paths
+
+Required artifact: `test_cases`
+
+## Step 3 — Execute tests and report results
+
+- Run unit/component tests where the project test runner exists
+- Use Mock/fixtures for API, Store, router, browser APIs
+- For each case report: **pass | fail | skipped | not_run**
+- Include command or execution method when run
+- **Never claim pass without actual execution**
+
+Required artifact: `test_results`
+
+## Step 4 — Residual risks
+
 - unverified_risks
+- items needing manual QA or E2E
+- architecture conflicts between .docs and code
+
+## Output template
+
+```markdown
+## 影响范围报告
+### 直接影响
+...
+### 间接影响
+...
+### 潜在影响
+...
+### 架构依据
+...
+
+## 测试用例
+| ID | 优先级 | 场景 | Mock 要点 | 断言 | 覆盖边界 |
+...
+
+## 测试执行结果
+| ID | 状态 | 命令/方式 | 结果摘要 |
+...
+
+## 未覆盖风险
+...
+```
+
+## Rules
+
+- Scope tests to **this task's diff** only; avoid unrelated full-suite regression unless P2 and justified.
+- Mock all external I/O; document mock shape in each test case.
+- Distinguish **tested / predicted / not covered** explicitly.
+- If no automated test is feasible, provide executable manual verification steps and mark not_run with reason.
