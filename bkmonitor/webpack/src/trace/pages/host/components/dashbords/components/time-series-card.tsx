@@ -81,7 +81,6 @@ export default defineComponent({
     const chartMainRef = useTemplateRef<HTMLElement>('chartMain');
     const resizeLayoutRef = useTemplateRef<InstanceType<typeof ResizeLayout>>('resizeLayout');
     const viewOptions = inject<MaybeRef<ChartViewOptions>>('viewOptions', undefined);
-
     /** 是否展示统计值 */
     const isShowStatistics = computed(() => toValue(viewOptions)?.showStatistics ?? false);
 
@@ -104,6 +103,10 @@ export default defineComponent({
       chartRef: chartMainRef,
       $api: instance.appContext.config.globalProperties.$api,
       params: computed(() => ({})),
+      viewportRequest: {
+        enable: true,
+        el: chartRef,
+      },
       customOptions: {},
     });
 
