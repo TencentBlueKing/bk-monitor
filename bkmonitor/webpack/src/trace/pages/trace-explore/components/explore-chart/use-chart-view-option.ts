@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import type { EchartSeriesItem, IMarkPointDataItem } from './types';
+import type { XAXisComponentOption } from 'echarts';
 
 /** 上层容器（如 HostMetric）注入的视图选项 */
 export interface ChartViewOptions {
@@ -114,7 +115,7 @@ export const useChartViewOption = () => {
    * @param seriesData echarts series 数组
    * @param xData X 轴时间戳数组
    */
-  const applyPeakMarkPoint = (seriesData: EchartSeriesItem[], xData: number[]) => {
+  const applyPeakMarkPoint = (seriesData: EchartSeriesItem[], xData: number[], xAxis: XAXisComponentOption[]) => {
     if (!isHighlightPeak.value) return;
     if (!seriesData.length) return;
     const getValues = (series: EchartSeriesItem): number[] => {
@@ -153,21 +154,55 @@ export const useChartViewOption = () => {
     if (maxSeriesIndex === -1 && minSeriesIndex === -1) return;
 
     const peakData = buildPeakMarkPointData(xData, seriesData[0]?.unit);
-    const maxPeakData = peakData.find(item => item.type === 'max');
-    const minPeakData = peakData.find(item => item.type === 'min');
 
-    if (maxSeriesIndex !== -1 && maxPeakData) {
-      const seriesItem = seriesData[maxSeriesIndex];
-      seriesItem.markPoint = seriesItem.markPoint
-        ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), maxPeakData] }
-        : { data: [maxPeakData] };
+    // 找到目标值在 series data 中首次出现的 x 轴索引
+    const findValueXIndex = (series: EchartSeriesItem, targetValue: number): number => {
+      if (!Array.isArray(series.data)) return -1;
+      for (let i = 0; i < series.data.length; i++) {
+        const d = series.data[i];
+        const val =
+          typeof d === 'object' && d !== null && 'value' in d ? (d as { value: number }).value : (d as number);
+        if (val === targetValue) return i;
+      }
+      return -1;
+    };
+
+    // 根据 x 轴位置动态决定 label 方向和偏移，避免右侧截断及与坐标轴刻度重叠
+    const getDynamicPeakItem = (seriesIndex: number, targetValue: number, type: 'max' | 'min') => {
+      const baseItem = peakData.find(item => item.type === type);
+      if (!baseItem) return undefined;
+      const xIndex = findValueXIndex(seriesData[seriesIndex], targetValue);
+      const isRightSide = xIndex >= 0 && xIndex >= xData.length * 0.65;
+      return {
+        ...baseItem,
+        label: {
+          ...baseItem.label,
+          position: isRightSide ? 'left' : 'right',
+        },
+      };
+    };
+
+    if (maxSeriesIndex !== -1) {
+      const maxItem = getDynamicPeakItem(maxSeriesIndex, globalMax, 'max');
+      if (maxItem) {
+        const seriesItem = seriesData[maxSeriesIndex];
+        seriesItem.markPoint = seriesItem.markPoint
+          ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), maxItem] }
+          : { data: [maxItem] };
+      }
     }
 
-    if (minSeriesIndex !== -1 && minPeakData) {
-      const seriesItem = seriesData[minSeriesIndex];
-      seriesItem.markPoint = seriesItem.markPoint
-        ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), minPeakData] }
-        : { data: [minPeakData] };
+    if (minSeriesIndex !== -1) {
+      const minItem = getDynamicPeakItem(minSeriesIndex, globalMin, 'min');
+      if (minItem) {
+        const seriesItem = seriesData[minSeriesIndex];
+        seriesItem.markPoint = seriesItem.markPoint
+          ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), minItem] }
+          : { data: [minItem] };
+      }
+    }
+    for (const axis of xAxis) {
+      axis.offset = isHighlightPeak.value ? 10 : 0;
     }
   };
 
@@ -175,7 +210,7 @@ export const useChartViewOption = () => {
    * @description 监听 highlightPeak 变化
    * @param callback 变化后的回调函数
    */
-  const watchHighlightPeak = (callback: () => void) => {
+  const watchHighlightPeak = (callback: (show: boolean) => void) => {
     watch(isHighlightPeak, callback);
   };
 
