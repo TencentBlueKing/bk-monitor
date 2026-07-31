@@ -52,27 +52,35 @@
         <div
           v-for="(item, index) in shieldContent"
           :key="index"
-          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
+          :class="['detail-item', { 'is-dimension': item.id === 'dimension' }]"
         >
           <template v-if="item.type === shieldType">
-            <span>
+            <span style="margin-top: 5px">
               {{ `${item.name}:` }}
             </span>
             <!-- 维度信息需要可复选 -->
             <van-checkbox-group
-              v-if="item.name === $t('维度') && Array.isArray(item.value)"
+              v-if="item.id === 'dimension' && Array.isArray(item.value)"
               v-model="selectedDimension"
-              class="detail-item-span"
+              class="detail-item-span dimension-checkbox-group"
               icon-size="16px"
             >
-              <van-checkbox
-                v-for="dimension in item.value"
-                :key="dimension.displayValue"
-                :name="dimension.key"
-                shape="square"
+              <div
+                v-for="dimension in dimensions"
+                :key="dimension.key"
+                class="dimension-row"
               >
-                {{ `${dimension.displayKey || dimension.key}(${dimension.displayValue || dimension.value})` }}
-              </van-checkbox>
+                <van-checkbox
+                  :name="dimension.key"
+                  shape="square"
+                  icon-size="16px"
+                  label-disabled
+                  class="dimension-checkbox"
+                />
+                <span class="dimension-key">{{ dimension.displayKey || dimension.key }}</span>
+                <span class="dimension-operator" @click="handleShowConditionPopup(dimension)">{{ conditionMap[dimension.method] || '='}}</span>
+                <van-field class="dimension-value" v-model="dimension.value"></van-field>
+              </div>
             </van-checkbox-group>
             <span
               v-else
@@ -171,20 +179,29 @@
     >
       {{ $t('提交') }}
     </footer-button>
+    <BkSelect       
+        :title="$t('选择操作符')"
+        v-model="currentDimension.method"
+        :columns="conditionList"
+        :show.sync="showConditionPopup"
+        @cancel="handleConditionCancel"
+        @confirm="handleConditionConfirm"
+    />
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { Checkbox, CheckboxGroup, Grid, GridItem, Picker, Popup, Radio, RadioGroup, Toast } from 'vant';
+import { Checkbox, CheckboxGroup, Grid, GridItem, Picker, Popup, Radio, RadioGroup, Toast, Field } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
 import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
-
+import { STRING_CONDITION_METHOD_LIST } from './constant';
+import BkSelect from '../../components/select/select.vue';
 enum TimeSemantics {
   Custom = 8,
   CustomNextDay = 7,
@@ -220,6 +237,7 @@ interface IRadioList {
 }
 interface IShieldItem {
   name: string;
+  id: string;
   type: string;
   value: IDimensionItem[] | string;
 }
@@ -237,6 +255,8 @@ interface IShieldItem {
     [Grid.name]: Grid,
     [GridItem.name]: GridItem,
     FooterButton,
+    BkSelect,
+    [Field.name]: Field,
   },
 })
 export default class AlarmDetail extends Vue {
@@ -266,6 +286,25 @@ export default class AlarmDetail extends Vue {
   };
   private showPicker = false;
   private hourList: number[] = []; // 至次日可选小时
+
+  currentDimension = {};
+  showConditionPopup = false;
+
+  dimensions = [];
+
+  get conditionList() {
+    return STRING_CONDITION_METHOD_LIST.map(item => ({
+      value: item.id,
+      text: item.name,
+    }));
+  }
+
+  get conditionMap() {
+    return STRING_CONDITION_METHOD_LIST.reduce((acc, cur) => {
+      acc[cur.id] = cur.name;
+      return acc;
+    }, {});
+  }
 
   get getNextDaySelectedHour() {
     return Number(...this.nextDayPickerRef.getValues());
@@ -331,23 +370,36 @@ export default class AlarmDetail extends Vue {
         type: 'event',
         name: this.$tc('维度'),
         value: this.eventDetail.dimensions,
+        id: 'dimension',
       },
       {
         type: 'strategy',
         name: this.$tc('策略名称'),
         value: this.eventDetail.strategyName,
+        id: 'strategy',
       },
       {
         type: 'scope',
         name: this.$tc('IP/实例'),
         value: this.eventDetail.targetMessage,
+        id: 'scope',
       },
       {
         type: 'event',
         name: this.$tc('条件'),
         value: this.eventDetail.anomalyMessage,
+        id: 'anomaly',
       },
     ];
+    this.dimensions =
+      this.eventDetail.dimensions.map(item => {
+        return {
+          key: item.key,
+          value: item.value,
+          method: 'eq',
+          condition: 'and',
+        };
+      }) || [];
     this.$store.commit('app/setPageLoading', false);
   }
 
@@ -363,6 +415,19 @@ export default class AlarmDetail extends Vue {
       // 去除存在的实例屏蔽选项
       this.radioList.type.splice(index, 1);
     }
+  }
+
+  handleShowConditionPopup(dimension) {
+    this.currentDimension = dimension;
+    this.showConditionPopup = true;
+  }
+
+  handleConditionCancel() {
+    this.showConditionPopup = false;
+  }
+
+  handleConditionConfirm(value) {
+    this.$set(this.currentDimension, 'method', value);
   }
 
   //  屏蔽时间选择
@@ -438,7 +503,13 @@ export default class AlarmDetail extends Vue {
       desc: this.reason,
     };
     if (this.shieldType === 'event') {
-      params.dimension_keys = this.selectedDimension;
+      params.dimension_conditions = this.selectedDimension.map(item => {
+        const dimension = this.dimensions.find(dimension => dimension.key === item);
+        return {
+          ...dimension,
+          value: Array.isArray(dimension.value) ? dimension.value : [dimension.value],
+        };
+      });
     }
     quickShield(params)
       .then(e => {
@@ -547,21 +618,63 @@ export default class AlarmDetail extends Vue {
 
         .detail-item-span {
           width: 100%;
-          padding-bottom: 5px;
           margin-left: 4px;
           overflow: hidden;
         }
+      }
 
-        .van-checkbox {
-          padding-bottom: 5px;
+      .dimension-checkbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+
+        .dimension-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
           border-bottom: 1px solid #ebecf1;
-
-          & + .van-checkbox {
-            margin-top: 5px;
-          }
         }
 
-        :deep(.van-checkbox__label) {
+        .dimension-checkbox {
+          flex-shrink: 0;
+          width: 20px;
+        }
+
+        .dimension-key {
+          flex-shrink: 0;
+          width: 88px;
+          font-size: 12px;
+          color: #323438;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .dimension-operator {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 62px;
+          height: 32px;
+          font-size: 12px;
+          color: #4d4f56;
+          background: #fff;
+          border: 1px solid #c4c6cc;
+          border-radius: 2px;
+        }
+
+        .dimension-value {
+          flex: 1;
+          min-width: 0;
+          height: 32px;
+          padding: 0 8px;
+          font-size: 12px;
+          line-height: 32px;
+          color: #4d4f56;
+          background: #fff;
+          border: 1px solid #c4c6cc;
+          border-radius: 2px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
