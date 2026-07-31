@@ -36,12 +36,15 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceAuthResult,
     ResourceInstance,
     Subject,
+    to_action_id,
+    to_resource_type_id,
 )
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
 
 if TYPE_CHECKING:
     from bkmonitor.iam.iam_engine.crosscutting.bypass import BypassRule
     from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 
 
 class ProviderRouter:
@@ -69,7 +72,7 @@ class ProviderRouter:
     def _should_bypass(
         self,
         subject: Subject,
-        actions: tuple[str, ...],
+        actions: tuple[ActionDef | str, ...],
         resources: tuple[ResourceInstance, ...],
     ) -> bool:
         """任一 BypassRule 命中即返回 True。"""
@@ -98,8 +101,8 @@ class ProviderRouter:
             return BatchAuthResult(
                 items=tuple(
                     ResourceAuthResult(
-                        action_id=request.action_id,
-                        resource_type=r.type,
+                        action_id=to_action_id(request.action_id),
+                        resource_type=to_resource_type_id(r.type),
                         resource_id=r.id,
                         allowed=True,
                     )
@@ -117,8 +120,8 @@ class ProviderRouter:
             return BatchAuthResult(
                 items=tuple(
                     ResourceAuthResult(
-                        action_id=aid,
-                        resource_type=request.resource.type if request.resource else "",
+                        action_id=to_action_id(aid),
+                        resource_type=to_resource_type_id(request.resource.type) if request.resource else "",
                         resource_id=request.resource.id if request.resource else "",
                         allowed=True,
                     )
@@ -135,7 +138,7 @@ class ProviderRouter:
     def query_policies(
         self,
         subject: Subject,
-        action_id: str,
+        action_id: ActionDef | str,
     ) -> list[PolicyExpression]:
         """收集所有 Provider 的策略 AST，原样返回不合并。
 
@@ -146,7 +149,7 @@ class ProviderRouter:
     def query_policies_by_actions(
         self,
         subject: Subject,
-        action_ids: list[str],
+        action_ids: list[ActionDef | str],
     ) -> dict[str, list[PolicyExpression]]:
         """批量收集多个 action 的策略 AST。"""
         return self.policy.query_policies_by_actions(subject, action_ids)

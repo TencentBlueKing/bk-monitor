@@ -31,8 +31,12 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject
+
+if TYPE_CHECKING:
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 
 
 class BypassRule(ABC):
@@ -48,14 +52,14 @@ class BypassRule(ABC):
     def should_bypass(
         self,
         subject: Subject,
-        actions: tuple[str, ...],
+        actions: tuple[ActionDef | str, ...],
         resources: tuple[ResourceInstance, ...],
     ) -> bool:
         """判断是否豁免该请求。返回 True 直接放行。
 
         Args:
             subject: 鉴权主体
-            actions: 操作 ID 元组（单次鉴权为单元素）
+            actions: 操作引用元组（ActionDef 对象或 action_id 字符串，单次鉴权为单元素）
             resources: 资源实例元组（无资源场景为空元组）
         """
         ...
@@ -77,7 +81,7 @@ class SettingsSkipRule(BypassRule):
     """
 
     def should_bypass(
-        self, subject: Subject, actions: tuple[str, ...], resources: tuple[ResourceInstance, ...]
+        self, subject: Subject, actions: tuple[ActionDef | str, ...], resources: tuple[ResourceInstance, ...]
     ) -> bool:
         from django.conf import settings
 
@@ -99,6 +103,6 @@ class SubjectBypassRule(BypassRule):
         self._subject_ids: frozenset[str] = frozenset(subject_ids or set())
 
     def should_bypass(
-        self, subject: Subject, actions: tuple[str, ...], resources: tuple[ResourceInstance, ...]
+        self, subject: Subject, actions: tuple[ActionDef | str, ...], resources: tuple[ResourceInstance, ...]
     ) -> bool:
         return subject.id in self._subject_ids

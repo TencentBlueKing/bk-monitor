@@ -46,6 +46,9 @@ from bkmonitor.iam.iam_engine.core.types import (
     Subject,
 )
 from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
+
+if TYPE_CHECKING:
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
 from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
@@ -130,7 +133,7 @@ class IAMFramework:
     def query_policies(
         self,
         subject: Subject,
-        action_id: str,
+        action_id: ActionDef | str,
     ) -> list[PolicyExpression]:
         """收集所有 Provider 的策略 AST，原样返回不合并。"""
         return self._router.query_policies(subject, action_id)
@@ -138,7 +141,7 @@ class IAMFramework:
     def query_policies_by_actions(
         self,
         subject: Subject,
-        action_ids: list[str],
+        action_ids: list[ActionDef | str],
     ) -> dict[str, list[PolicyExpression]]:
         """批量收集多个 action 的策略 AST。"""
         return self._router.query_policies_by_actions(subject, action_ids)

@@ -30,9 +30,26 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
+
+
+def to_action_id(action: ActionDef | str) -> str:
+    """Normalize action reference to string ID. Accepts ActionDef object or raw string."""
+    if isinstance(action, str):
+        return action
+    return action.id  # type: ignore[union-attr]
+
+
+def to_resource_type_id(rt: ResourceTypeDef | str) -> str:
+    """Normalize resource type reference to string ID. Accepts ResourceTypeDef object or raw string."""
+    if isinstance(rt, str):
+        return rt
+    return rt.id  # type: ignore[union-attr]
 
 
 class SubjectType(str, Enum):
@@ -79,7 +96,7 @@ class ResourceInstance:
         attributes: 实例属性（v3 ABAC 求值用）
     """
 
-    type: str
+    type: ResourceTypeDef | str
     id: str
     system: str = ""
     name: str = ""
@@ -95,7 +112,7 @@ class AuthRequest:
     """
 
     subject: Subject
-    action_id: str
+    action_id: ActionDef | str
     resource: ResourceInstance | None = None
     environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
 
@@ -152,7 +169,7 @@ class BatchByResourceRequest:
     """
 
     subject: Subject
-    action_id: str
+    action_id: ActionDef | str
     resources: tuple[ResourceInstance, ...] = ()
     environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
 
@@ -162,7 +179,7 @@ class BatchByActionRequest:
     """批量鉴权（多 action、同 resource 或无 resource）请求。"""
 
     subject: Subject
-    action_ids: tuple[str, ...] = ()
+    action_ids: tuple[ActionDef | str, ...] = ()
     resource: ResourceInstance | None = None
     environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
 
@@ -201,5 +218,5 @@ class ApplyURLRequest:
     """
 
     subject: Subject
-    action_ids: tuple[str, ...] = ()
+    action_ids: tuple[ActionDef | str, ...] = ()
     resources: tuple[ResourceInstance, ...] = ()

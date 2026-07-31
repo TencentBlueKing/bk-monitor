@@ -10,6 +10,22 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import TYPE_CHECKING, Any
+
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
+from bkmonitor.iam.iam_engine.core.types import (
+    ApplyURLRequest,
+    AuthRequest,
+    BatchAuthResult,
+    BatchByActionRequest,
+    BatchByResourceRequest,
+    Subject,
+)
+from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
+
 # ---------------------------------------------------------------------------
 # CompositionPolicy —— 多 Provider 鉴权决策组合策略基类
 #
@@ -26,24 +42,9 @@ from __future__ import annotations
 #   原样返回给调用方自行处理。
 # ---------------------------------------------------------------------------
 
-from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any
-from collections.abc import Generator
-
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
-from bkmonitor.iam.iam_engine.core.types import (
-    ApplyURLRequest,
-    AuthRequest,
-    BatchAuthResult,
-    BatchByActionRequest,
-    BatchByResourceRequest,
-    Subject,
-)
-from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
-
 if TYPE_CHECKING:
     from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 
 
 class CompositionPolicy(ABC):
@@ -155,7 +156,7 @@ class CompositionPolicy(ABC):
     def query_policies(
         self,
         subject: Subject,
-        action_id: str,
+        action_id: ActionDef | str,
     ) -> list[PolicyExpression]:
         """收集所有 Provider 的 query_policy 结果（非空 AST 列表）。
 
@@ -172,16 +173,17 @@ class CompositionPolicy(ABC):
     def query_policies_by_actions(
         self,
         subject: Subject,
-        action_ids: list[str],
+        action_ids: list[ActionDef | str],
     ) -> dict[str, list[PolicyExpression]]:
-        """批量收集：遍历 Provider 调其批量接口，聚合为 dict[action_id -> list[AST]]。
+        """批量收集：遍历 Provider 调其批量接口，聚合为 dict[str -> list[AST]]。
 
-        优先使用 Provider 的 query_policy_by_actions（一次网络调用），
+        优先使用 Provider 的 query_policy_by_actions（一次网络调用）。
+        返回 dict 的 key 为字符串化的 action_id。
         """
-        result: dict[str, list[PolicyExpression]] = {aid: [] for aid in action_ids}
+        result: dict[str, list[PolicyExpression]] = {}
         for p in self.providers:
             batch = p.query_policy_by_actions(subject, action_ids)
             for aid, expr in batch.items():
                 if expr is not None:
-                    result[aid].append(expr)
+                    result.setdefault(aid, []).append(expr)
         return result

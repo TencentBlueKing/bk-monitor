@@ -41,7 +41,11 @@ from bkmonitor.iam.iam_engine.core.types import (
     BatchByActionRequest,
     BatchByResourceRequest,
     Subject,
+    to_action_id,
 )
+
+if TYPE_CHECKING:
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 
 if TYPE_CHECKING:
     from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
@@ -102,7 +106,7 @@ class PermissionProvider(ABC):
     def query_policy(
         self,
         subject: Subject,
-        action_id: str,
+        action_id: ActionDef | str,
     ) -> PolicyExpression | None:
         """查询单个 action 的策略 AST。
 
@@ -114,18 +118,18 @@ class PermissionProvider(ABC):
     def query_policy_by_actions(
         self,
         subject: Subject,
-        action_ids: list[str],
+        action_ids: list[ActionDef | str],
     ) -> dict[str, PolicyExpression | None]:
         """批量查询多个 action 的策略 AST。
 
         默认走"逐个调 query_policy"的兜底实现；子类若有更高效的一次性接口
         （如 v3 的 policy_query_by_actions）应覆盖本方法。
 
-        返回值：dict[action_id -> PolicyExpression | None]
+        返回值：dict[action_id(str) -> PolicyExpression | None]
             * 该 Provider 不支持 POLICY_EXPRESSION 时，所有 value 都是 None
             * 部分 action 无策略（例如用户无任何权限）时，对应 value 是 None
         """
-        return {aid: self.query_policy(subject, aid) for aid in action_ids}
+        return {to_action_id(aid): self.query_policy(subject, aid) for aid in action_ids}
 
     # ==================== 迁移契约 ====================
 

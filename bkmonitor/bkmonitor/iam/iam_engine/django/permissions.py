@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from rest_framework import permissions as drf_permissions
 
@@ -20,8 +21,13 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceInstance,
     Subject,
     SubjectType,
+    to_action_id,
+    to_resource_type_id,
 )
 from bkmonitor.iam.iam_engine.django.facade import get_framework
+
+if TYPE_CHECKING:
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 
 # ---------------------------------------------------------------------------
 # IAMPermission —— 底层积木
@@ -66,14 +72,19 @@ class IAMPermission(drf_permissions.BasePermission):
 
     def __init__(
         self,
-        actions: list[str],
-        resource_type: str = "",
+        actions: list[ActionDef | str],
+        resource_type: ResourceTypeDef | str = "",
         get_resource_id: Callable | str | None = None,
     ) -> None:
         super().__init__()
         self._actions = list(actions)
         self._resource_type = resource_type
         self._get_resource_id = get_resource_id
+
+    @property
+    def _has_resource_type(self) -> bool:
+        """是否有有效的资源类型。空字符串表示无资源类型。"""
+        return bool(to_resource_type_id(self._resource_type))
 
     # ------------------------------------------------------------------
     # has_permission
@@ -116,7 +127,7 @@ class IAMPermission(drf_permissions.BasePermission):
 
     def _resolve_resource_id(self, request, view) -> str | None:
         """解析资源 ID。优先级：callable > str(方法名) > view.kwargs["pk"]。"""
-        if not self._resource_type:
+        if not self._has_resource_type:
             return None
 
         resolver = self._get_resource_id
@@ -134,7 +145,7 @@ class IAMPermission(drf_permissions.BasePermission):
 
     def _resolve_object_resource_id(self, obj) -> str | None:
         """从 obj 上取资源 ID。默认取 obj.pk。"""
-        if not self._resource_type:
+        if not self._has_resource_type:
             return None
         return str(getattr(obj, "pk", ""))
 
@@ -180,7 +191,7 @@ class IamActionMapMixin:
     """
 
     iam_action_map: dict = {}
-    iam_resource_type: str = ""
+    iam_resource_type: ResourceTypeDef | str = ""
     iam_get_resource_id: Callable | str | None = None
 
     def get_permissions(self):
@@ -194,7 +205,7 @@ class IamActionMapMixin:
 
         return super().get_permissions()
 
-    def _lookup_action_ids(self, action: str) -> list[str] | None:
+    def _lookup_action_ids(self, action: str) -> list[ActionDef | str] | None:
         """查 iam_action_map。优先级：精确匹配 > "*" 通配 > _methods。"""
         action_map = self.iam_action_map
         if action in action_map:
@@ -213,7 +224,7 @@ class IamActionMapMixin:
                 return val
         return None
 
-    def _build(self, action_ids: list[str]) -> list:
+    def _build(self, action_ids: list[ActionDef | str]) -> list:
         if not action_ids:
             return []
         return [
@@ -245,8 +256,8 @@ class IamActionMapMixin:
 
 
 def insert_permission_field(
-    actions: list[str],
-    resource_type: str = "",
+    actions: list[ActionDef | str],
+    resource_type: ResourceTypeDef | str = "",
     get_resource_id: Callable | str | None = None,
     field_name: str = "permission",
 ):
@@ -283,20 +294,22 @@ def insert_permission_field(
             # 收集所有资源实例
             resource_by_id: dict[str, ResourceInstance] = {}
             item_resource_ids: list[tuple[int, str | None]] = []
+            rt_id = to_resource_type_id(resource_type)
             for idx, item in enumerate(results):
-                rid = resolver(request, view, item) if resource_type else None
+                rid = resolver(request, view, item) if rt_id else None
                 item_resource_ids.append((idx, rid))
                 if rid and rid not in resource_by_id:
                     resource_by_id[rid] = ResourceInstance(type=resource_type, id=rid)
 
-            # 每条 action 调一次 batch_by_resource，构建 (action_id, resource_id) → allowed
+            # 每条 action 调一次 batch_by_resource，构建 (action_id_str, resource_id) → allowed
             allowed_map: dict[tuple[str, str], bool] = {}
             for action_id in actions:
+                aid_str = to_action_id(action_id)
                 if not resource_by_id:
                     # 无资源 — 单次 is_allowed
                     allowed = fw.is_allowed(AuthRequest(subject=subject, action_id=action_id))
                     for idx, _rid in item_resource_ids:
-                        allowed_map[(action_id, "")] = allowed
+                        allowed_map[(aid_str, "")] = allowed
                 else:
                     batch_result = fw.batch_by_resource(
                         BatchByResourceRequest(
@@ -306,14 +319,15 @@ def insert_permission_field(
                         )
                     )
                     for item_result in batch_result.items:
-                        allowed_map[(action_id, item_result.resource_id)] = item_result.allowed
+                        allowed_map[(aid_str, item_result.resource_id)] = item_result.allowed
 
             # 回填每行数据
             for idx, rid in item_resource_ids:
                 perm = {}
                 for action_id in actions:
-                    key = (action_id, rid or "")
-                    perm[action_id] = allowed_map.get(key, False)
+                    aid_str = to_action_id(action_id)
+                    key = (aid_str, rid or "")
+                    perm[aid_str] = allowed_map.get(key, False)
                 results[idx][field_name] = perm
 
             return response

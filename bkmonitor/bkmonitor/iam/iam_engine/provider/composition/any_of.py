@@ -32,6 +32,7 @@ from bkmonitor.iam.iam_engine.core.types import (
     BatchByActionRequest,
     BatchByResourceRequest,
     ResourceAuthResult,
+    to_resource_type_id,
 )
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
 
@@ -80,7 +81,7 @@ class AnyOfPolicy(CompositionPolicy):
             items=tuple(
                 ResourceAuthResult(
                     action_id=request.action_id,
-                    resource_type=r.type,
+                    resource_type=to_resource_type_id(r.type),
                     resource_id=r.id,
                     allowed=(request.action_id, r.id) in allowed_keys,
                 )
@@ -101,7 +102,7 @@ class AnyOfPolicy(CompositionPolicy):
                 if item.allowed:
                     allowed_actions.add(item.action_id)
         resource_id = request.resource.id if request.resource else ""
-        resource_type = request.resource.type if request.resource else ""
+        resource_type = to_resource_type_id(request.resource.type) if request.resource else ""
         return BatchAuthResult(
             items=tuple(
                 ResourceAuthResult(

@@ -23,6 +23,8 @@ from __future__ import annotations
 #     初始化了 self.ctx / self.options
 # ---------------------------------------------------------------------------
 
+from typing import TYPE_CHECKING
+
 from bkmonitor.iam.iam_engine.core.types import (
     AuthRequest,
     BatchAuthResult,
@@ -32,6 +34,9 @@ from bkmonitor.iam.iam_engine.core.types import (
     Subject,
 )
 from bkmonitor.iam.iam_engine.core.utils import chunked
+
+if TYPE_CHECKING:
+    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 
 
 class ChunkedBatchMixin:
@@ -58,7 +63,7 @@ class ChunkedBatchMixin:
     def _batch_by_resource_page(
         self,
         subject: Subject,
-        action_id: str,
+        action_id: ActionDef | str,
         batch: list[ResourceInstance],
     ) -> list[ResourceAuthResult]:
         """处理单批（<= CHUNK_SIZE）的鉴权。子类必须实现。"""
