@@ -415,7 +415,7 @@ export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOption
       containLabel: true,
       left: 10,
       right: 10,
-      top: 10,
+      top: 20,
       bottom: 10,
       backgroundColor: 'transparent',
     },
@@ -480,7 +480,7 @@ export const useEcharts = ({
   const buildOptions = (seriesList: any[]) => {
     if (!seriesList.length) return undefined;
     const { xAxis, seriesData, xData } = createSeries(seriesList, customOptions.series);
-    applyPeakMarkPoint(seriesData, xData);
+    applyPeakMarkPoint(seriesData, xData, xAxis);
     const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
     const echartOptions = createOptions(xAxis, yAxis, seriesData, customOptions.options);
     const { tooltipsOptions } = useChartTooltips(chartRef, {
