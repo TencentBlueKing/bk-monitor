@@ -59,6 +59,10 @@ LOG_COLLECTOR_ORDERING_CHOICES = (
     "-updated_at",
     "created_at",
     "-created_at",
+    "daily_usage",
+    "-daily_usage",
+    "total_usage",
+    "-total_usage",
 )
 DEFAULT_LOG_COLLECTOR_ORDERING = "-updated_at"
 

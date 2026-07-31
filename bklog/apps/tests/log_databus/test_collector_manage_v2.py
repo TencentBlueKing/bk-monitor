@@ -30,6 +30,7 @@ from apps.log_databus.constants import CollectorSourceEnum
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import LogCollectorSerializer
+from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils.local import set_local_param
 
@@ -327,6 +328,22 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             invalid_serializer.is_valid()
         self.assertIn("bk_data_id", str(ctx.exception))
 
+    def test_serializer_accepts_multiple_query_values(self):
+        serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "query", "value": ["nginx", "1500", "default-es"]}],
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(
+            serializer.validated_data["conditions"][0],
+            {"key": "query", "value": ["nginx", "1500", "default-es"]},
+        )
+
     def test_serializer_validates_log_collector_ordering(self):
         serializer = LogCollectorSerializer(data={"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE})
         self.assertTrue(serializer.is_valid())
@@ -341,6 +358,10 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             "-updated_at",
             "created_at",
             "-created_at",
+            "daily_usage",
+            "-daily_usage",
+            "total_usage",
+            "-total_usage",
         ):
             serializer = LogCollectorSerializer(
                 data={
@@ -502,6 +523,23 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             (True, 0, (1, (0, 6))),
         )
 
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"storage_usage": {"daily_usage": "2048"}, "index_set_id": 7},
+                "daily_usage",
+                descending=False,
+            ),
+            (False, 2048, (1, (0, 7))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"storage_usage": {"total_usage": 4096}, "index_set_id": 8},
+                "total_usage",
+                descending=True,
+            ),
+            (False, -4096, (1, (0, 8))),
+        )
+
     def test_sort_log_collectors_by_retention_with_empty_values_last(self):
         data = [
             {"retention": 30, "collector_config_id": 1},
@@ -540,6 +578,145 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             result = LogCollectorHandler.sort_log_collectors(data, ordering)
             result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
             self.assertEqual(result_ids, expected_ids)
+
+    def test_sort_log_collectors_by_storage_usage_with_empty_values_last(self):
+        data = [
+            {"index_set_id": 1, "storage_usage": {"daily_usage": 1024, "total_usage": 10240}},
+            {"index_set_id": 2, "storage_usage": {"daily_usage": None, "total_usage": None}},
+            {"index_set_id": 3, "storage_usage": {"daily_usage": 0, "total_usage": 0}},
+            {
+                "collector_config_id": 4,
+                "index_set_id": 4,
+                "storage_usage": {"daily_usage": "4096", "total_usage": "40960"},
+            },
+        ]
+
+        for ordering, expected_ids in (
+            ("daily_usage", [3, 1, 4, 2]),
+            ("-daily_usage", [4, 1, 3, 2]),
+            ("total_usage", [3, 1, 4, 2]),
+            ("-total_usage", [4, 1, 3, 2]),
+        ):
+            result = LogCollectorHandler.sort_log_collectors(data, ordering)
+            result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
+            self.assertEqual(result_ids, expected_ids)
+
+    def test_fill_storage_usage_info_groups_index_sets_by_space(self):
+        current_index_set = LogIndexSet.objects.create(
+            index_set_name="current_usage_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        related_index_set = LogIndexSet.objects.create(
+            index_set_name="related_usage_index_set",
+            space_uid=RELATED_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        data = [
+            {"collector_config_id": 1, "index_set_id": current_index_set.index_set_id},
+            {"index_set_id": related_index_set.index_set_id},
+            {"collector_config_id": 3, "index_set_id": ""},
+        ]
+
+        def get_storage_usage_info(bk_biz_id, index_set_ids):
+            multiplier = 1 if bk_biz_id == CURRENT_BK_BIZ_ID else 2
+            return [
+                {
+                    "index_set_id": str(index_set_id),
+                    "daily_count": 10 * multiplier,
+                    "total_count": 100 * multiplier,
+                    "daily_usage": 1024 * multiplier,
+                    "total_usage": 10240 * multiplier,
+                }
+                for index_set_id in index_set_ids
+            ]
+
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+        with (
+            patch(
+                "apps.log_databus.handlers.collector_handler.log.space_uid_to_bk_biz_id",
+                return_value=RELATED_BK_BIZ_ID,
+            ) as mock_space_uid_to_bk_biz_id,
+            patch.object(
+                IndexSetHandler,
+                "get_storage_usage_info",
+                side_effect=get_storage_usage_info,
+            ) as mock_get_storage_usage_info,
+        ):
+            result = handler.fill_storage_usage_info(data)
+
+        self.assertEqual(result[0]["storage_usage"]["daily_usage"], 1024)
+        self.assertEqual(result[0]["storage_usage"]["total_usage"], 10240)
+        self.assertEqual(result[1]["storage_usage"]["daily_usage"], 2048)
+        self.assertEqual(result[1]["storage_usage"]["total_usage"], 20480)
+        self.assertIsNone(result[2]["storage_usage"]["daily_usage"])
+        self.assertIsNone(result[2]["storage_usage"]["total_usage"])
+        mock_space_uid_to_bk_biz_id.assert_called_once_with(RELATED_SPACE_UID)
+        self.assertEqual(
+            {(call.args[0], tuple(call.args[1])) for call in mock_get_storage_usage_info.call_args_list},
+            {
+                (CURRENT_BK_BIZ_ID, (current_index_set.index_set_id,)),
+                (RELATED_BK_BIZ_ID, (related_index_set.index_set_id,)),
+            },
+        )
+
+    def test_get_log_collectors_fills_usage_before_sorting_and_pagination(self):
+        self._setup_related_space_mocks()
+
+        def fill_storage_usage_info(data):
+            usage_by_collector_id = {
+                self.current_collector.collector_config_id: 1024,
+                self.related_collector.collector_config_id: 4096,
+            }
+            for item in data:
+                total_usage = usage_by_collector_id[item["collector_config_id"]]
+                item["storage_usage"] = {
+                    "daily_count": 1,
+                    "total_count": 10,
+                    "daily_usage": total_usage // 10,
+                    "total_usage": total_usage,
+                }
+            return data
+
+        with patch.object(
+            LogCollectorHandler,
+            "fill_storage_usage_info",
+            side_effect=fill_storage_usage_info,
+        ) as mock_fill_storage_usage_info:
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": 1,
+                    "pagesize": 1,
+                    "conditions": [],
+                    "include_related_spaces": True,
+                    "ordering": "-total_usage",
+                }
+            )
+
+        mock_fill_storage_usage_info.assert_called_once()
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["list"][0]["collector_config_id"], self.related_collector.collector_config_id)
+        self.assertEqual(result["list"][0]["storage_usage"]["total_usage"], 4096)
+
+    def test_get_log_collectors_does_not_fill_usage_for_other_ordering(self):
+        self._setup_related_space_mocks()
+
+        with patch.object(LogCollectorHandler, "fill_storage_usage_info") as mock_fill_storage_usage_info:
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": 1,
+                    "pagesize": PAGESIZE,
+                    "conditions": [],
+                    "include_related_spaces": True,
+                    "ordering": "-updated_at",
+                }
+            )
+
+        mock_fill_storage_usage_info.assert_not_called()
+        self.assertTrue(result["list"])
+        self.assertTrue(all("storage_usage" not in item for item in result["list"]))
 
     def test_get_log_collectors_sorts_before_pagination(self):
         self._setup_related_space_mocks()
@@ -703,20 +880,86 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")
         self.assertNotIn(other_index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
 
-    def test_get_log_collectors_searches_collector_by_exposed_bk_data_name(self):
+    def test_filter_by_queries_matches_all_searchable_fields_and_multiple_queries(self):
+        data = [
+            {
+                "collector_config_id": 1,
+                "name": "Nginx Access",
+                "bk_data_id": 1500586,
+                "table_id": "nginx_access",
+                "bk_data_name": "2_bklog_nginx_access",
+                "storage_display_name": "Default ES",
+            },
+            {
+                "index_set_id": 2,
+                "name": "BKBase Index",
+                "bk_data_id": "",
+                "table_id": "",
+                "bk_data_name": "2_bkbase.pipeline_log",
+                "storage_display_name": "BKData Cluster",
+            },
+        ]
+
+        cases = (
+            (["nginx"], [1]),
+            (["0058"], [1]),
+            (["ACCESS"], [1]),
+            (["bklog_nginx"], [1]),
+            (["default es"], [1]),
+            (["nginx", "0058", "default es"], [1]),
+            (["bkbase", "cluster"], [2]),
+            (["pipeline", "nginx"], []),
+            (["missing"], []),
+            (["", "  "], [1, 2]),
+        )
+        for queries, expected_ids in cases:
+            with self.subTest(queries=queries):
+                result = LogCollectorHandler.filter_by_queries(data, queries)
+                result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
+                self.assertEqual(result_ids, expected_ids)
+
+    def test_get_log_collectors_searches_collector_with_query_condition(self):
         result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
             {
                 "space_uid": CURRENT_SPACE_UID,
                 "page": PAGE,
                 "pagesize": PAGESIZE,
-                "keyword": "2_BKLOG_CURRENT",
+                "conditions": [{"key": "query", "value": ["CURRENT_COLLECTOR"]}],
             }
         )
 
         collectors = self._collectors_from_result(result)
         self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
 
-    def test_get_log_collectors_searches_index_set_by_exposed_bk_data_name(self):
+    def test_get_log_collectors_searches_storage_display_name_with_query_condition(self):
+        def add_cluster_info(data):
+            for item in data:
+                item["storage_display_name"] = (
+                    "Related ES Cluster"
+                    if item["collector_config_id"] == self.related_collector.collector_config_id
+                    else "Current ES Cluster"
+                )
+            return data
+
+        self._setup_related_space_mocks()
+        with patch(
+            "apps.log_databus.handlers.collector_handler.log.CollectorHandler.add_cluster_info",
+            side_effect=add_cluster_info,
+        ):
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": PAGE,
+                    "pagesize": PAGESIZE,
+                    "conditions": [{"key": "query", "value": ["related es"]}],
+                    "include_related_spaces": True,
+                }
+            )
+
+        collectors = self._collectors_from_result(result)
+        self.assertEqual([item["collector_config_id"] for item in collectors], [self.related_collector.pk])
+
+    def test_get_log_collectors_searches_index_set_with_multiple_query_conditions(self):
         index_set = LogIndexSet.objects.create(
             index_set_name="bkdata_index_set",
             space_uid=CURRENT_SPACE_UID,
@@ -730,7 +973,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
                 "space_uid": CURRENT_SPACE_UID,
                 "page": PAGE,
                 "pagesize": PAGESIZE,
-                "keyword": "SECOND,2_BKBASE.FI",
+                "conditions": [{"key": "query", "value": ["SECOND", "2_BKBASE.FI"]}],
             }
         )
 

@@ -213,12 +213,15 @@ class LogCollectorHandler:
 
     @classmethod
     def _field_sort_key(cls, item: dict, field: str, descending: bool) -> tuple:
-        value = item.get(field)
+        if field in {"daily_usage", "total_usage"}:
+            value = (item.get("storage_usage") or {}).get(field)
+        else:
+            value = item.get(field)
         if value in (None, ""):
             return True, 0, cls._collector_identity_sort_key(item)
 
         try:
-            if field == "retention":
+            if field in {"retention", "daily_usage", "total_usage"}:
                 normalized_value = int(value)
             else:
                 normalized_value = arrow.get(str(value)[:19], "YYYY-MM-DD HH:mm:ss").int_timestamp
@@ -239,6 +242,76 @@ class LogCollectorHandler:
             return sorted(data, key=lambda item: cls._name_sort_key(item, descending))
 
         return sorted(data, key=lambda item: cls._field_sort_key(item, field, descending))
+
+    def fill_storage_usage_info(self, data: list[dict]) -> list[dict]:
+        """Fill storage usage fields for collector and independent-index-set records."""
+        usage_fields = ("daily_count", "total_count", "daily_usage", "total_usage")
+        index_set_ids = set()
+
+        for item in data:
+            item["storage_usage"] = {field: None for field in usage_fields}
+
+            index_set_id = item.get("index_set_id")
+            if index_set_id in (None, ""):
+                continue
+
+            try:
+                index_set_ids.add(int(index_set_id))
+            except (TypeError, ValueError):
+                continue
+
+        if not index_set_ids:
+            return data
+
+        index_set_ids_by_space_uid = defaultdict(list)
+        index_set_space_info = LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values_list(
+            "index_set_id", "space_uid"
+        )
+        for index_set_id, space_uid in index_set_space_info:
+            index_set_ids_by_space_uid[space_uid].append(index_set_id)
+
+        usage_map = {}
+        for space_uid, grouped_index_set_ids in index_set_ids_by_space_uid.items():
+            bk_biz_id = self.bk_biz_id if space_uid == self.space_uid else space_uid_to_bk_biz_id(space_uid)
+            usage_list = IndexSetHandler.get_storage_usage_info(bk_biz_id, grouped_index_set_ids)
+            for usage in usage_list:
+                try:
+                    usage_map[int(usage["index_set_id"])] = usage
+                except (KeyError, TypeError, ValueError):
+                    continue
+
+        for item in data:
+            try:
+                usage = usage_map.get(int(item.get("index_set_id")))
+            except (TypeError, ValueError):
+                usage = None
+
+            if not usage:
+                continue
+
+            for field in usage_fields:
+                item["storage_usage"][field] = usage.get(field)
+
+        return data
+
+    @staticmethod
+    def filter_by_queries(data: list[dict], queries: list) -> list[dict]:
+        """Filter records when every query matches at least one exposed searchable field."""
+        normalized_queries = [
+            str(query).strip().casefold() for query in (queries or []) if query is not None and str(query).strip()
+        ]
+        if not normalized_queries:
+            return data
+
+        searchable_fields = ("name", "bk_data_id", "table_id", "bk_data_name", "storage_display_name")
+        return [
+            item
+            for item in data
+            if all(
+                any(query in str(item.get(field) or "").casefold() for field in searchable_fields)
+                for query in normalized_queries
+            )
+        ]
 
     @staticmethod
     def get_collector_subscription_status(collector_id_list) -> dict[str, dict]:
@@ -348,7 +421,6 @@ class LogCollectorHandler:
 
     def get_collector_config_info(
         self,
-        keyword: str = None,
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
@@ -368,7 +440,6 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取采集项信息
-        :param keyword: 搜索关键字
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
@@ -399,7 +470,7 @@ class LogCollectorHandler:
         if exclude_not_completed:
             qs = qs.filter(table_id__isnull=False)
 
-        if keyword or bk_data_name_list:
+        if bk_data_name_list:
             qs = qs.alias(
                 exposed_bk_data_name=Replace(
                     F("table_id"),
@@ -407,12 +478,6 @@ class LogCollectorHandler:
                     Value("_"),
                 )
             )
-
-        if keyword:
-            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(exposed_bk_data_name__icontains=keyword)
-            if keyword.isdigit():
-                keyword_filter |= Q(bk_data_id=int(keyword))
-            qs = qs.filter(keyword_filter)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
@@ -509,7 +574,6 @@ class LogCollectorHandler:
 
     def get_log_index_set_info(
         self,
-        keyword: str = None,
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         index_set_name_list: list = None,
@@ -524,7 +588,6 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取索引集内容
-        :param keyword: 搜索关键字
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param index_set_name_list: 索引集名称
@@ -601,20 +664,6 @@ class LogCollectorHandler:
 
             log_index_sets = log_index_sets.filter(index_set_id__in=matched_index_set_ids)
 
-        if keyword:
-            normalized_keyword = keyword.lower()
-            keyword_index_set_ids = [
-                index_set_id
-                for index_set_id, index_set_data_objs in index_set_data_objs_map.items()
-                if normalized_keyword
-                in self.build_index_set_bk_data_name(
-                    [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
-                ).lower()
-            ]
-            log_index_sets = log_index_sets.filter(
-                Q(index_set_name__icontains=keyword) | Q(index_set_id__in=keyword_index_set_ids)
-            )
-
         index_set_ids = []
         source_ids = []
         for obj in log_index_sets:
@@ -686,7 +735,6 @@ class LogCollectorHandler:
 
     def get_log_collectors(self, data):
         """获取日志采集信息"""
-        keyword = data.get("keyword")
         conditions = data.get("conditions", [])
         include_related_spaces = data.get("include_related_spaces", False)
         scenario_id_list = []
@@ -702,6 +750,7 @@ class LogCollectorHandler:
         log_access_type_list = []
         tag_id_list = []
         collector_source = []
+        query_list = []
         for item in conditions:
             if item["key"] == "scenario_id":
                 scenario_id_list = item["value"]
@@ -729,10 +778,11 @@ class LogCollectorHandler:
                 tag_id_list = [int(v) for v in item["value"]]
             elif item["key"] == "collector_source":
                 collector_source = item["value"]
+            elif item["key"] == "query":
+                query_list = item["value"]
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
-            keyword=keyword,
             parent_index_set_id=data.get("parent_index_set_id"),
             scenario_id_list=scenario_id_list,
             collector_config_name_list=name_list,
@@ -763,7 +813,6 @@ class LogCollectorHandler:
         else:
             # 获取索引集信息
             log_index_sets = self.get_log_index_set_info(
-                keyword=keyword,
                 parent_index_set_id=data.get("parent_index_set_id"),
                 scenario_id_list=scenario_id_list,
                 index_set_name_list=name_list,
@@ -782,6 +831,7 @@ class LogCollectorHandler:
         combined_data = self.fetch_log_collector_data(
             result=combined_data, include_related_spaces=include_related_spaces
         )
+        combined_data = self.filter_by_queries(combined_data, query_list)
         if data.get("exclude_not_data", False):
             combined_data = self.filter_no_data(combined_data)
         # 按标签过滤
@@ -789,10 +839,10 @@ class LogCollectorHandler:
             combined_data = [
                 item for item in combined_data if any(tag.get("tag_id") in tag_id_list for tag in item.get("tags", []))
             ]
-        combined_data = self.sort_log_collectors(
-            combined_data,
-            data.get("ordering") or DEFAULT_LOG_COLLECTOR_ORDERING,
-        )
+        ordering = data.get("ordering") or DEFAULT_LOG_COLLECTOR_ORDERING
+        if ordering.removeprefix("-") in {"daily_usage", "total_usage"}:
+            combined_data = self.fill_storage_usage_info(combined_data)
+        combined_data = self.sort_log_collectors(combined_data, ordering)
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])
         page_obj = paginator.get_page(data["page"])
