@@ -40,12 +40,14 @@ from apps.log_databus.constants import (
     CollectorSourceEnum,
     ContainerCollectorType,
     DEFAULT_EXT_JSON_EXPAND_DEPTH,
+    DEFAULT_LOG_COLLECTOR_ORDERING,
     Environment,
     EsSourceType,
     EtlConfig,
     EXT_JSON_EXPAND_DEPTH_CHOICES,
     KafkaInitialOffsetEnum,
     LabelSelectorOperator,
+    LOG_COLLECTOR_ORDERING_CHOICES,
     MetadataTypeEnum,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
@@ -1948,6 +1950,11 @@ class LogCollectorSerializer(serializers.Serializer):
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
     conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_blank=True, allow_null=True)
+    ordering = serializers.ChoiceField(
+        label=_("排序方式"),
+        choices=LOG_COLLECTOR_ORDERING_CHOICES,
+        default=DEFAULT_LOG_COLLECTOR_ORDERING,
+    )
     exclude_not_completed = serializers.BooleanField(label=_("排除未完成的采集项"), default=False)
     exclude_not_data = serializers.BooleanField(label=_("排除无数据的采集项"), default=False)
     include_related_spaces = serializers.BooleanField(label=_("是否包含关联空间中的采集项"), default=False)

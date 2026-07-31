@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 from unittest.mock import patch
 
+import arrow
 from django.test import TestCase
 
 from bkm_space.define import Space, SpaceTypeEnum
@@ -325,6 +326,236 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             invalid_serializer.is_valid()
         self.assertIn("bk_data_id", str(ctx.exception))
+
+    def test_serializer_validates_log_collector_ordering(self):
+        serializer = LogCollectorSerializer(data={"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE})
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["ordering"], "-updated_at")
+
+        for ordering in (
+            "name",
+            "-name",
+            "retention",
+            "-retention",
+            "updated_at",
+            "-updated_at",
+            "created_at",
+            "-created_at",
+        ):
+            serializer = LogCollectorSerializer(
+                data={
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": PAGE,
+                    "pagesize": PAGESIZE,
+                    "ordering": ordering,
+                }
+            )
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "ordering": "invalid",
+            }
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("ordering", serializer.errors)
+
+    def test_sort_log_collectors_by_name(self):
+        data = [
+            {"name": name, "collector_config_id": index}
+            for index, name in enumerate(["a", "Z", "0", "A", "z", "9", "_", ""], start=1)
+        ]
+
+        ascending = LogCollectorHandler.sort_log_collectors(data, "name")
+        descending = LogCollectorHandler.sort_log_collectors(data, "-name")
+
+        self.assertEqual([item["name"] for item in ascending], ["A", "Z", "0", "9", "a", "z", "_", ""])
+        self.assertEqual([item["name"] for item in descending], ["Z", "A", "9", "0", "z", "a", "_", ""])
+
+    def test_collector_identity_sort_key_variants(self):
+        cases = [
+            ({"collector_config_id": 12}, (0, (0, 12))),
+            ({"collector_config_id": "12", "index_set_id": 99}, (0, (0, 12))),
+            ({"index_set_id": 34}, (1, (0, 34))),
+            ({"collector_config_id": "collector-x"}, (0, (1, "collector-x"))),
+            ({"index_set_id": "index-x"}, (1, (1, "index-x"))),
+            ({}, (1, (1, ""))),
+        ]
+
+        for item, expected_key in cases:
+            with self.subTest(item=item):
+                self.assertEqual(LogCollectorHandler._collector_identity_sort_key(item), expected_key)
+
+    def test_name_character_sort_key_variants(self):
+        cases = [
+            ("A", (0, 0), (0, 0)),
+            ("Z", (0, 25), (0, -25)),
+            ("0", (1, 0), (1, 0)),
+            ("9", (1, 9), (1, -9)),
+            ("a", (2, 0), (2, 0)),
+            ("z", (2, 25), (2, -25)),
+            ("_", (3, ord("_")), (3, -ord("_"))),
+            ("中", (3, ord("中")), (3, -ord("中"))),
+        ]
+
+        for character, ascending_key, descending_key in cases:
+            with self.subTest(character=character):
+                self.assertEqual(
+                    LogCollectorHandler._name_character_sort_key(character, descending=False), ascending_key
+                )
+                self.assertEqual(
+                    LogCollectorHandler._name_character_sort_key(character, descending=True), descending_key
+                )
+
+    def test_name_sort_key_structure(self):
+        item = {"name": "A1a_", "collector_config_id": "12"}
+
+        ascending_key = LogCollectorHandler._name_sort_key(item, descending=False)
+        descending_key = LogCollectorHandler._name_sort_key(item, descending=True)
+
+        self.assertEqual(
+            ascending_key,
+            (
+                False,
+                ((0, 0), (1, 1), (2, 0), (3, ord("_")), (-1, 0)),
+                (0, (0, 12)),
+            ),
+        )
+        self.assertEqual(
+            descending_key,
+            (
+                False,
+                ((0, 0), (1, -1), (2, 0), (3, -ord("_")), (4, 0)),
+                (0, (0, 12)),
+            ),
+        )
+        self.assertEqual(
+            LogCollectorHandler._name_sort_key({"name": "", "index_set_id": 3}, descending=False),
+            (True, ((-1, 0),), (1, (0, 3))),
+        )
+
+    def test_sort_log_collectors_by_name_prefix_and_stable_identity(self):
+        data = [
+            {"name": "A", "collector_config_id": 2},
+            {"name": "Aa", "collector_config_id": 6},
+            {"name": "A0", "collector_config_id": 5},
+            {"name": "AA", "collector_config_id": 4},
+            {"name": "A", "index_set_id": 1},
+            {"name": "A", "collector_config_id": 1},
+            {"name": "", "index_set_id": 7},
+        ]
+
+        ascending = LogCollectorHandler.sort_log_collectors(data, "name")
+        descending = LogCollectorHandler.sort_log_collectors(data, "-name")
+
+        self.assertEqual([item["name"] for item in ascending], ["A", "A", "A", "AA", "A0", "Aa", ""])
+        self.assertEqual(
+            [item.get("collector_config_id") or item.get("index_set_id") for item in ascending[:3]],
+            [1, 2, 1],
+        )
+        self.assertEqual([item["name"] for item in descending], ["AA", "A0", "Aa", "A", "A", "A", ""])
+
+    def test_field_sort_key_variants(self):
+        retention_item = {"retention": "14", "collector_config_id": 2}
+        identity_key = (0, (0, 2))
+
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(retention_item, "retention", descending=False),
+            (False, 14, identity_key),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(retention_item, "retention", descending=True),
+            (False, -14, identity_key),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key({"retention": "", "index_set_id": 3}, "retention", descending=True),
+            (True, 0, (1, (0, 3))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"retention": "forever", "collector_config_id": 4}, "retention", descending=False
+            ),
+            (True, 0, (0, (0, 4))),
+        )
+
+        time_value = "2025-02-01 12:30:45+0800"
+        timestamp = arrow.get(time_value[:19], "YYYY-MM-DD HH:mm:ss").int_timestamp
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"updated_at": time_value, "index_set_id": 5}, "updated_at", descending=False
+            ),
+            (False, timestamp, (1, (0, 5))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"updated_at": time_value, "index_set_id": 5}, "updated_at", descending=True
+            ),
+            (False, -timestamp, (1, (0, 5))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"updated_at": "not-a-time", "index_set_id": 6}, "updated_at", descending=False
+            ),
+            (True, 0, (1, (0, 6))),
+        )
+
+    def test_sort_log_collectors_by_retention_with_empty_values_last(self):
+        data = [
+            {"retention": 30, "collector_config_id": 1},
+            {"retention": "", "index_set_id": 2},
+            {"retention": 7, "collector_config_id": 3},
+            {"retention": 14, "collector_config_id": 4},
+        ]
+
+        ascending = LogCollectorHandler.sort_log_collectors(data, "retention")
+        descending = LogCollectorHandler.sort_log_collectors(data, "-retention")
+
+        self.assertEqual([item["retention"] for item in ascending], [7, 14, 30, ""])
+        self.assertEqual([item["retention"] for item in descending], [30, 14, 7, ""])
+
+    def test_sort_log_collectors_by_created_and_updated_at(self):
+        data = [
+            {
+                "collector_config_id": 1,
+                "updated_at": "2025-01-01 00:00:00+0800",
+                "created_at": "2025-02-01 00:00:00",
+            },
+            {
+                "collector_config_id": 2,
+                "updated_at": "2025-02-01 00:00:00",
+                "created_at": "2025-01-01 00:00:00+0800",
+            },
+            {"index_set_id": 3, "updated_at": "", "created_at": ""},
+        ]
+
+        for ordering, expected_ids in (
+            ("updated_at", [1, 2, 3]),
+            ("-updated_at", [2, 1, 3]),
+            ("created_at", [2, 1, 3]),
+            ("-created_at", [1, 2, 3]),
+        ):
+            result = LogCollectorHandler.sort_log_collectors(data, ordering)
+            result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
+            self.assertEqual(result_ids, expected_ids)
+
+    def test_get_log_collectors_sorts_before_pagination(self):
+        self._setup_related_space_mocks()
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": 1,
+                "pagesize": 1,
+                "conditions": [],
+                "include_related_spaces": True,
+                "ordering": "-name",
+            }
+        )
+
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["list"][0]["name"], "related_collector")
 
     def test_get_query_ids_by_collector_source_logic(self):
         """直接验证 get_query_ids_by_collector_source 的查询 id 组合逻辑。"""

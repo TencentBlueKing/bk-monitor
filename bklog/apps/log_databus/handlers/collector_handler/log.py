@@ -7,7 +7,11 @@ from django.db.models import F, Q, Value
 from django.db.models.functions import Replace, StrIndex, Substr
 
 from apps.api import TransferApi, BkDataMetaApi
-from apps.log_databus.constants import CollectorSourceEnum, STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import (
+    DEFAULT_LOG_COLLECTOR_ORDERING,
+    STORAGE_CLUSTER_TYPE,
+    CollectorSourceEnum,
+)
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.constants import (
@@ -169,6 +173,72 @@ class LogCollectorHandler:
         """Build a stable, de-duplicated field-enum response."""
         enum_values = sorted({value for value in values if value not in (None, "")}, key=lambda value: str(value))
         return [{"key": value, "value": value} for value in enum_values]
+
+    @staticmethod
+    def _collector_identity_sort_key(item: dict) -> tuple:
+        """Build a deterministic tie-breaker for mixed collector and index-set records."""
+        collector_config_id = item.get("collector_config_id")
+        if collector_config_id not in (None, ""):
+            item_type = 0
+            item_id = collector_config_id
+        else:
+            item_type = 1
+            item_id = item.get("index_set_id")
+
+        try:
+            normalized_id = (0, int(item_id))
+        except (TypeError, ValueError):
+            normalized_id = (1, str(item_id or ""))
+        return item_type, normalized_id
+
+    @staticmethod
+    def _name_character_sort_key(character: str, descending: bool) -> tuple[int, int]:
+        """[A-Z][0-9][a-z]，[Z-A][9-0][z-a]"""
+        if "A" <= character <= "Z":
+            group, position = 0, ord(character) - ord("A")
+        elif "0" <= character <= "9":
+            group, position = 1, ord(character) - ord("0")
+        elif "a" <= character <= "z":
+            group, position = 2, ord(character) - ord("a")
+        else:
+            group, position = 3, ord(character)
+        return group, -position if descending else position
+
+    @classmethod
+    def _name_sort_key(cls, item: dict, descending: bool) -> tuple:
+        name = str(item.get("name") or "")
+        character_keys = [cls._name_character_sort_key(character, descending) for character in name]
+        character_keys.append((4, 0) if descending else (-1, 0))
+        return not bool(name), tuple(character_keys), cls._collector_identity_sort_key(item)
+
+    @classmethod
+    def _field_sort_key(cls, item: dict, field: str, descending: bool) -> tuple:
+        value = item.get(field)
+        if value in (None, ""):
+            return True, 0, cls._collector_identity_sort_key(item)
+
+        try:
+            if field == "retention":
+                normalized_value = int(value)
+            else:
+                normalized_value = arrow.get(str(value)[:19], "YYYY-MM-DD HH:mm:ss").int_timestamp
+        except (TypeError, ValueError, arrow.parser.ParserError):
+            return True, 0, cls._collector_identity_sort_key(item)
+
+        return False, -normalized_value if descending else normalized_value, cls._collector_identity_sort_key(item)
+
+    @classmethod
+    def sort_log_collectors(cls, data: list[dict], ordering: str = DEFAULT_LOG_COLLECTOR_ORDERING) -> list[dict]:
+        """
+        分页前排序
+        """
+        descending = ordering.startswith("-")
+        field = ordering.removeprefix("-")
+
+        if field == "name":
+            return sorted(data, key=lambda item: cls._name_sort_key(item, descending))
+
+        return sorted(data, key=lambda item: cls._field_sort_key(item, field, descending))
 
     @staticmethod
     def get_collector_subscription_status(collector_id_list) -> dict[str, dict]:
@@ -714,12 +784,15 @@ class LogCollectorHandler:
         )
         if data.get("exclude_not_data", False):
             combined_data = self.filter_no_data(combined_data)
-        combined_data.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         # 按标签过滤
         if tag_id_list:
             combined_data = [
                 item for item in combined_data if any(tag.get("tag_id") in tag_id_list for tag in item.get("tags", []))
             ]
+        combined_data = self.sort_log_collectors(
+            combined_data,
+            data.get("ordering") or DEFAULT_LOG_COLLECTOR_ORDERING,
+        )
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])
         page_obj = paginator.get_page(data["page"])
