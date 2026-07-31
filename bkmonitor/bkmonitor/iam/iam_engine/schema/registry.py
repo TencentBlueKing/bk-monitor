@@ -131,8 +131,10 @@ class SchemaRegistry:
                 if binding.action_id not in self._actions:
                     raise SchemaError(f"Role {role.id!r} references unknown action {binding.action_id!r}")
                 if not binding.resource_type:
-                    raise SchemaError(f"Role {role.id!r} binding {binding.action_id!r} specifies no resource_type")
-                self._check_role_binding_resource_type(role, binding)
+                    if self._actions[binding.action_id].resource_type:
+                        raise SchemaError(f"Role {role.id!r} binding {binding.action_id!r} specifies no resource_type")
+                else:
+                    self._check_role_binding_resource_type(role, binding)
 
     def _check_ancestor_chain(self, rt_id: str, seen: list[str]) -> None:
         """递归检查资源类型的祖先链无环且引用完整。入口 rt_id 必须已注册。"""

@@ -89,16 +89,14 @@ class ResourceInstance:
 
 @dataclass(frozen=True)
 class AuthRequest:
-    """一次鉴权请求的完整入参。
+    """一次鉴权请求的完整入参 —— 单 action，单 resource。
 
-    使用不可变对象承载请求，便于 Bypass 规则、装饰器、审计等横切能力
-    无副作用地读取上下文。
+    批量场景请使用 BatchByResourceRequest / BatchByActionRequest。
     """
 
     subject: Subject
     action_id: str
-    resources: tuple[ResourceInstance, ...] = ()
-    # 环境属性（v3 ABAC 用）；框架保留字段但 v4 Provider 会忽略
+    resource: ResourceInstance | None = None
     environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
 
 

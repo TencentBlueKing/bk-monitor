@@ -80,6 +80,8 @@ class IAMFramework:
             raise ValueError("IAMFramework requires at least one provider")
 
         self._schema = schema
+        if len({p.name for p in providers}) != len(providers):
+            raise ValueError(f"Provider names must be unique, got: {[p.name for p in providers]}")
         self._providers: dict[str, PermissionProvider] = {p.name: p for p in providers}
         self._router = ProviderRouter(composition, bypass_rules)
 

@@ -78,8 +78,8 @@ class CompositionConfig:
     """组合策略配置。
 
     Attributes:
-        policy: 策略名称（"single"/"any_of"/"all_of"/"primary"/"routed"）
-        options: 策略参数（action_routes/max_workers/strict_errors 等）
+        policy: 策略名称（"single"/"any_of"/"all_of"/"primary"）
+        options: 策略参数（max_workers/strict_errors/fallback_on_error 等）
     """
 
     policy: str = "single"

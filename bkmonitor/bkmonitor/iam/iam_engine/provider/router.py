@@ -34,6 +34,7 @@ from bkmonitor.iam.iam_engine.core.types import (
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
+    ResourceAuthResult,
     Subject,
 )
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
@@ -81,9 +82,45 @@ class ProviderRouter:
         return self.policy.is_allowed(request)
 
     def batch_by_resource(self, request: BatchByResourceRequest) -> BatchAuthResult:
+        bypass_req = AuthRequest(
+            subject=request.subject,
+            action_id=request.action_id,
+            resources=request.resources,
+            environment=request.environment,
+        )
+        if self._should_bypass(bypass_req):
+            return BatchAuthResult(
+                items=tuple(
+                    ResourceAuthResult(
+                        action_id=request.action_id,
+                        resource_type=r.type,
+                        resource_id=r.id,
+                        allowed=True,
+                    )
+                    for r in request.resources
+                )
+            )
         return self.policy.batch_by_resource(request)
 
     def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
+        bypass_req = AuthRequest(
+            subject=request.subject,
+            action_id=request.action_ids[0] if request.action_ids else "",
+            resources=(request.resource,) if request.resource else (),
+            environment=request.environment,
+        )
+        if self._should_bypass(bypass_req):
+            return BatchAuthResult(
+                items=tuple(
+                    ResourceAuthResult(
+                        action_id=aid,
+                        resource_type=request.resource.type if request.resource else "",
+                        resource_id=request.resource.id if request.resource else "",
+                        allowed=True,
+                    )
+                    for aid in request.action_ids
+                )
+            )
         return self.policy.batch_by_action(request)
 
     def get_apply_url(self, request: ApplyURLRequest) -> str:

@@ -14,12 +14,11 @@ from __future__ import annotations
 # CompositionPolicy —— 多 Provider 鉴权决策组合策略基类
 #
 # 组合策略用**具体类**建模，不用魔法字符串："mode": "any_of" —— 拒绝。
-# 五种内置策略（见同目录其它文件）：
+# 四种内置策略（见同目录其它文件）：
 #   * SinglePolicy    单 Provider（默认）
 #   * AnyOfPolicy     任一 allow 即 allow（宽松，双写迁移期）
 #   * AllOfPolicy     全部 allow 才 allow（严格，敏感操作）
 #   * PrimaryPolicy   主决策 + 主故障时 fallback（v4 挂了降级到 v3）
-#   * RoutedPolicy    按 action_id 路由到不同 Provider（部分迁移）
 #
 # 职责边界：
 #   CompositionPolicy 只关心**鉴权决策的组合**（is_allowed / batch_by_resource
@@ -32,7 +31,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any
 from collections.abc import Generator
 
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderError
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -77,7 +76,7 @@ class CompositionPolicy(ABC):
         for p in self.providers:
             if p.name == name:
                 return p
-        raise KeyError(f"Provider {name!r} not found. Available: {[p.name for p in self.providers]}")
+        raise ProviderNotFound(f"Provider {name!r} not found. Available: {[p.name for p in self.providers]}")
 
     # ---- 执行策略 ----
 
@@ -111,7 +110,7 @@ class CompositionPolicy(ABC):
             method = getattr(provider, method_name)
             try:
                 yield (method(*args, **kwargs), False)
-            except ProviderError as exc:
+            except Exception as exc:
                 yield (exc, True)
 
     def _call_concurrent(
@@ -126,7 +125,7 @@ class CompositionPolicy(ABC):
             for future in as_completed(futures):
                 try:
                     yield (future.result(), False)
-                except ProviderError as exc:
+                except Exception as exc:
                     yield (exc, True)
         finally:
             executor.shutdown(wait=False, cancel_futures=True)

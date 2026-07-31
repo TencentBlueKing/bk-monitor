@@ -76,6 +76,6 @@ def auth_request_to_batch(request: AuthRequest) -> BatchByResourceRequest:
     return BatchByResourceRequest(
         subject=request.subject,
         action_id=request.action_id,
-        resources=request.resources,
+        resources=(request.resource,) if request.resource else (),
         environment=request.environment,
     )

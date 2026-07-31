@@ -180,12 +180,14 @@ def _build_action(item: Mapping[str, Any]) -> ActionDef:
 
 def _build_role(item: Mapping[str, Any]) -> RoleDef:
     _require_keys(item, {"id", "name"}, "role")
+    raw_actions = item.get("actions", ()) or ()
+    _validate_bindings(raw_actions)
     bindings = tuple(
         RoleActionBinding(
             action_id=b["action_id"],
             resource_type=b.get("resource_type", ""),
         )
-        for b in (item.get("actions", ()) or ())
+        for b in raw_actions
     )
     return RoleDef(
         id=item["id"],
@@ -194,6 +196,15 @@ def _build_role(item: Mapping[str, Any]) -> RoleDef:
         actions=bindings,
         extensions=dict(item.get("extensions", {}) or {}),
     )
+
+
+def _validate_bindings(bindings) -> None:
+    """校验每个绑定字典包含必填的 action_id。"""
+    for i, b in enumerate(bindings):
+        if not isinstance(b, dict):
+            raise SchemaError(f"role action binding [{i}] must be a dict, got {type(b).__name__}")
+        if "action_id" not in b:
+            raise SchemaError(f"role action binding [{i}] missing required key: 'action_id'")
 
 
 def _require_keys(item: Mapping[str, Any], required: set[str], kind: str) -> None:

@@ -34,6 +34,19 @@ from typing import Any
 from bkmonitor.iam.iam_engine.policy.expression import Op, PolicyExpression
 
 
+def _as_collection(value):
+    """Ensure value is a collection for IN/NOT_IN operators.
+
+    Strings are wrapped as a single-element tuple to prevent
+    substring/character-level matching.
+    """
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    return value
+
+
 class DictEvaluator:
     """给一个 dict 对象和一个表达式，返回是否匹配。
 
@@ -79,9 +92,9 @@ class DictEvaluator:
         if op is Op.NEQ:
             return left != expr.value
         if op is Op.IN:
-            return left in (expr.value or ())
+            return left in _as_collection(expr.value)
         if op is Op.NOT_IN:
-            return left not in (expr.value or ())
+            return left not in _as_collection(expr.value)
         if op is Op.STARTS_WITH:
             return isinstance(left, str) and left.startswith(str(expr.value))
         if op is Op.ENDS_WITH:
