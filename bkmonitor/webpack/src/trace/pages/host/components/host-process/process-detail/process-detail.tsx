@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeUnmount, provide, reactive, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { Exception, Loading, Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
 import TimeRange from '../../../../../components/time-range/time-range';
 import { getDefaultTimezone } from '../../../../../i18n/dayjs';
-import { DEFAULT_AGGREGATION_STATE } from '../../../../../pages/host/constants/aggregation';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
 import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pages/host/constants/process';
 import { formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
@@ -42,13 +42,13 @@ import { useProcessMetric } from '../../../composables/use-process-metric';
 import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
 import GroupManageDialog from '../../host-metric/group-manage-dialog';
 import MetricToolbar from '../../host-metric/metric-toolbar';
+import { useHostStore } from '@/store/modules/host';
 
 import type { TimeRangeType } from '../../../../../components/time-range/utils';
 import type {
   CompareTarget,
   IHostTopoHostNode,
   IHostTopoTreeNode,
-  MetricAggregationState,
   ProcessDetailTabType,
 } from '../../../../../pages/host/types';
 import type { CustomOptions } from '../../../../trace-explore/components/explore-chart/use-echarts';
@@ -91,6 +91,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const { processMetricAggregationState } = storeToRefs(useHostStore());
 
     /** 当前二级 Tab，默认指标视图 */
     const activeTab = shallowRef<ProcessDetailTabType>(ProcessDetailTabEnum.METRIC);
@@ -106,8 +107,7 @@ export default defineComponent({
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
 
     /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
-    const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
-    const aggregation = useMetricAggregation(state);
+    const aggregation = useMetricAggregation(processMetricAggregationState.value);
     /** 进程指标数据：取数走带缓存的 panel / order */
     const { rows, orderData, loading, settingShow, load, handleReset, handleSave } = useProcessMetric({
       keyword: () => aggregation.state.keyword,
@@ -151,9 +151,9 @@ export default defineComponent({
     const chartCustomOptions: CustomOptions = {
       series: seriesData =>
         seriesData.map(item => {
-          // @ts-ignore
+          // @ts-expect-error
           const dimensions = item.dimensions;
-          // @ts-ignore
+          // @ts-expect-error
           return { ...item, alias: dimensions ? `${dimensions.display_name}|${dimensions.pid}` : item.alias };
         }),
     };
@@ -292,7 +292,7 @@ export default defineComponent({
             <MetricToolbar
               currentTarget={props.selectedNode?.name}
               targetList={props.compareHostList}
-              value={state}
+              value={processMetricAggregationState.value}
               onChange={aggregation.updateState}
               onOpenSetting={() => {
                 settingShow.value = true;
@@ -300,7 +300,7 @@ export default defineComponent({
             />
             <DashboardPanel
               class='process-detail-charts'
-              columns={state.columns}
+              columns={processMetricAggregationState.value.columns}
               customOptions={chartCustomOptions}
               rows={rows.value}
               scopedVars={scopedVars.value}

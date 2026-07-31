@@ -28,12 +28,15 @@ import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Input } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { useProcessList } from '../../composables/use-process-list';
+import { DEFAULT_AGGREGATION_STATE } from '../../constants/aggregation';
 import { PROCESS_LIST_COLUMNS } from '../../constants/process';
 import ProcessDetail from './process-detail/process-detail';
 import ProcessTable from './process-table';
+import { useHostStore } from '@/store/modules/host';
 
 import type { ProcessItem } from '../../types/process';
 import type { IHostTopoHostNode } from '../../types/topo';
@@ -55,9 +58,21 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    /** 从 store 获取当前选中进程 ID 和进程指标汇聚状态 */
+    const { hostProcessId, processMetricAggregationState } = storeToRefs(useHostStore());
     /** 进程列表数据 hook（含加载状态、搜索、排序） */
     const { loading, keyword, displayList, sortInfo, handleKeywordChange, handleSortChange } = useProcessList({
       host: toRef(props, 'host'),
+      /**
+       * @description 数据加载完成回调：当 URL 带有 hostProcessId 时自动打开对应进程详情
+       * @param list - 加载完成的进程列表数据
+       */
+      loadDataEnd: (list: ProcessItem[]) => {
+        const row = list.find(item => item.id === hostProcessId.value);
+        if (row) {
+          handleRowClick(row);
+        }
+      },
     });
 
     /** 搜索输入防抖（300ms），避免每次按键触发过滤计算 */
@@ -79,6 +94,20 @@ export default defineComponent({
     const handleRowClick = (row: ProcessItem) => {
       activeProcess.value = row;
       detailShow.value = true;
+      hostProcessId.value = row.id;
+    };
+
+    /**
+     * @description 处理进程详情抽屉显隐变化
+     * @param show - 抽屉是否显示
+     * 关闭时重置选中进程 ID 和进程指标汇聚状态为默认值
+     */
+    const handleDetailShow = (show: boolean) => {
+      detailShow.value = show;
+      if (!show) {
+        hostProcessId.value = '';
+        Object.assign(processMetricAggregationState.value, JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE)));
+      }
     };
 
     return {
@@ -94,6 +123,7 @@ export default defineComponent({
       handleKeywordChange,
       debouncedKeywordChange,
       handleSortChange,
+      handleDetailShow,
     };
   },
   render() {
@@ -128,7 +158,7 @@ export default defineComponent({
           process={this.activeProcess}
           selectedNode={this.host}
           show={this.detailShow}
-          onUpdate:show={(v: boolean) => (this.detailShow = v)}
+          onUpdate:show={(v: boolean) => this.handleDetailShow(v)}
         />
       </div>
     );

@@ -63,7 +63,17 @@ export const useHostStore = defineStore('host', () => {
   const nodeId = shallowRef('');
 
   /** 聚合状态 */
-  const metricAggregationState = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
+  const metricAggregationState = reactive<MetricAggregationState>(
+    JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE))
+  );
+
+  /** 主机进程 ID（用于记录当前选中的进程，支持 URL 参数持久化） */
+  const hostProcessId = shallowRef('');
+
+  /** 进程详情侧栏指标视图 Toolbar 汇聚状态（独立于主页面的 metricAggregationState） */
+  const processMetricAggregationState = reactive<MetricAggregationState>(
+    JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE))
+  );
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
@@ -130,5 +140,7 @@ export const useHostStore = defineStore('host', () => {
     activeTab,
     nodeId,
     metricAggregationState,
+    hostProcessId,
+    processMetricAggregationState,
   };
 });
