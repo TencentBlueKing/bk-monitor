@@ -25,16 +25,7 @@
  */
 import { type Ref, defineComponent, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 
-import {
-  type ICombo,
-  Arrow,
-  Graph,
-  registerBehavior,
-  registerCombo,
-  registerEdge,
-  registerLayout,
-  registerNode,
-} from '@antv/g6';
+import { type ICombo, Arrow, Graph, registerCombo, registerEdge, registerLayout, registerNode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading } from 'bkui-vue';
 import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
@@ -43,14 +34,15 @@ import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../components/exception';
-import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
-import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
+import FailureTopoTooltips from '../failure-topo/tooltip/failure-topo-tooltips';
+import TopoTooltip from '../failure-topo/tooltip/resource-tooltip-plugin';
 import { getApmServiceType, getNodeAttrs } from '../failure-topo/utils';
 import { checkIsRoot, useIncidentInject } from '../utils';
+import { registerDragCanvasMoveBase, registerScrollCanvasBase } from './g6-behaviors';
 import { createGraphData } from './resource-data';
 
-import type { IEdge, ITopoCombo, ITopoData, ITopoNode } from '../failure-topo/types';
+import type { IEdge, ITopoCombo, ITopoData, ITopoNode } from '../failure-topo/types/topo';
 
 import './resource-graph.scss';
 
@@ -129,6 +121,8 @@ export default defineComponent({
     };
     /** 渲染g6 */
     const renderGraph = () => {
+      // graph 未创建或已销毁时直接返回，避免 null.data
+      if (!graph || graph.get?.('destroyed')) return;
       graph.data(JSON.parse(JSON.stringify(graphData.value)));
       graph.render();
       if (props.resourceNodeId) {
@@ -591,165 +585,10 @@ export default defineComponent({
         'quadratic'
       );
     };
-    /** 基于canvas或者坐标位置 */
-    const getCanvasByPoint = combo => {
-      const comboBBox = combo.getBBox();
-      return {
-        topLeft: graph.getCanvasByPoint(comboBBox.x, comboBBox.y),
-        bottomRight: graph.getCanvasByPoint(comboBBox.x + comboBBox.width, comboBBox.y + comboBBox.height),
-      };
-    };
-    /** 自定义拖拽 */
-    const registerCustomBehavior = () => {
-      // 自定义拖拽
-      registerBehavior('drag-canvas-move', {
-        getEvents() {
-          return {
-            mouseenter: 'omMouseenter',
-            mousedown: 'onMouseDown',
-            mousemove: 'onMouseMove',
-            mouseup: 'onMouseUp',
-            mouseleave: 'onMouseLeave',
-          };
-        },
-        omMouseenter(e) {
-          if (e.item && ['node', 'edge'].includes(e.item.getType())) {
-            return;
-          }
-          const canvas = graph.get('canvas');
-          const el = canvas.get('el'); // 获取到画布实际的 DOM 元素
-          this.comboRect = {
-            el,
-          };
-          (this.comboRect as any).el.cursor = 'grab';
-        },
-        onMouseDown(e) {
-          if (e.item && ['node', 'edge'].includes(e.item.getType())) {
-            return;
-          }
-          e.item &&
-            graph.updateItem(e.item, {
-              style: {
-                cursor: 'grabbing',
-              },
-            });
-          (this as any).comboRect.el.style.cursor = 'grabbing';
-          this.dragging = true;
-          const combos = graph.getCombos().filter(combo => !combo.getModel().parentId);
-          let xCombo = combos[0];
-          let xComboWidth = 0;
-          combos.forEach(combo => {
-            const { width } = combo.getBBox();
-            if (width > xComboWidth) {
-              xCombo = combo;
-              xComboWidth = width;
-            }
-          });
-          this.comboRect = {
-            ...((this as any).comboRect || {}),
-            xCombo,
-            topCombo: combos[0],
-            bottomCombo: combos[combos.length - 1],
-            width: graph.getWidth(),
-            height: graph.getHeight() + 20,
-          };
-        },
-        onMouseMove(e) {
-          if (this.dragging) {
-            const comboRect = this.comboRect as {
-              bottomCombo: ITopoCombo;
-              height: number;
-              topCombo: ITopoCombo;
-              width: number;
-              xCombo: ITopoCombo;
-            };
-            let { movementX, movementY } = e.originalEvent;
-            // 大于零向上拖动
-            if (movementY < 0) {
-              const { bottomRight } = getCanvasByPoint(comboRect.bottomCombo);
-              bottomRight.y < comboRect.height && (movementY = 0);
-            } else {
-              const { topLeft } = getCanvasByPoint(comboRect.topCombo);
-              topLeft.y > 0 && (movementY = 0);
-            }
-            const { topLeft, bottomRight } = getCanvasByPoint(comboRect.xCombo);
-            /** 大于0向左拖动 */
-            if (movementX < 0) {
-              bottomRight.x < comboRect.width && (movementX = 0);
-            } else {
-              topLeft.x > 0 && (movementX = 0);
-            }
-            graph.translate(movementX, movementY);
-          }
-        },
-        onMouseUp(e) {
-          this.dragging = false;
-          e.item &&
-            e.item.getType() === 'combo' &&
-            graph.updateItem(e.item, {
-              style: {
-                cursor: 'grab',
-              },
-            });
-          (this as any).comboRect.el.style.cursor = 'grab';
-        },
-        onMouseLeave(e) {
-          if (this.dragging) {
-            e.item &&
-              e.item.getType() === 'combo' &&
-              graph.updateItem(e.item, {
-                style: {
-                  cursor: 'grab',
-                },
-              });
-            (this as any).comboRect.el.style.cursor = 'grab';
-            this.dragging = false;
-          }
-        },
-      });
-      registerBehavior('custom-scroll-canvas', {
-        getEvents() {
-          return {
-            wheel: 'onWheel',
-          };
-        },
-        onWheel: e => {
-          e.preventDefault();
-          e.stopPropagation();
-          const { deltaX, deltaY } = e;
-          const sensitivity = 2; // 设置滚动灵敏度
-          let dx = -deltaX * sensitivity;
-          let dy = -deltaY * sensitivity;
-          // 获取所有combos的布局信息
-          const combos = graph.getCombos().filter(combo => !combo.getModel().parentId);
-          const width = graph.getWidth();
-          const height = graph.getHeight() + 20;
-          if (Math.abs(deltaY) > Math.abs(deltaX)) {
-            // vertical scroll
-            if (deltaY > 0) {
-              const bottomCombo = combos[combos.length - 1];
-              const { bottomRight } = getCanvasByPoint(bottomCombo);
-              bottomRight.y < height && (dy = 0);
-            } else {
-              const topCombo = combos[0];
-              const { topLeft } = getCanvasByPoint(topCombo);
-              topLeft.y > 0 && (dy = 0);
-            }
-            dx = 0;
-          } else {
-            const topCombo = combos[0];
-            const { topLeft, bottomRight } = getCanvasByPoint(topCombo);
-            /** 大于0判断右侧 否则判断左侧 */
-            if (deltaX > 0) {
-              bottomRight.x < width && (dx = 0);
-            } else {
-              topLeft.x > 0 && (dx = 0);
-            }
-            dy = 0;
-          }
-          graph.translate(dx, dy);
-        },
-      });
+    /** 注册资源拓扑图行为（拖拽 + 滚动），使用 dragMargin=0（无留白） */
+    const registerSharedBehavior = () => {
+      registerDragCanvasMoveBase({ dragMargin: 0 });
+      registerScrollCanvasBase({ dragMargin: 0 });
     };
     /** 自定义combo */
     const registerCustomCombo = () => {
@@ -1063,6 +902,8 @@ export default defineComponent({
           if (ranks.length === 0 && edges.length === 0) {
             graph?.destroy?.();
             graph = null;
+            // 插件随 graph.destroy 一并销毁，避免后续 hide 打到已销毁实例
+            tooltips = null;
             exceptionData.value.showException = true;
             exceptionData.value.type = 'noData';
             exceptionData.value.msg =
@@ -1080,6 +921,10 @@ export default defineComponent({
             }
           });
           graphData.value = createGraphData(ranksMap, edges);
+          // 无数据仅展示异常态，不再 init/render（graphRef 已不在 DOM）
+          if (exceptionData.value.showException) {
+            return;
+          }
           if (!graph) {
             setTimeout(() => {
               init();
@@ -1162,7 +1007,7 @@ export default defineComponent({
       registerCustomNode();
       registerCustomEdge();
       registerCustomCombo();
-      registerCustomBehavior();
+      registerSharedBehavior();
       registerCustomTooltip();
       registerCustomLayout();
       graph = new Graph({
@@ -1205,7 +1050,7 @@ export default defineComponent({
           },
         },
         modes: {
-          default: ['drag-canvas-move', 'custom-scroll-canvas'],
+          default: ['drag-canvas-move-base', 'custom-scroll-canvas-base'],
         },
       });
       /** 设置节点 边 combo */
@@ -1575,6 +1420,7 @@ export default defineComponent({
             model={this.tooltipsModel}
             showViewResource={false}
             type={this.tooltipsType}
+            onHide={this.hideToolTips}
             onViewService={this.handleViewService}
           />
         </div>
