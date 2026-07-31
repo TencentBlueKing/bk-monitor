@@ -10,18 +10,44 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from django.db.models import Q
+
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.rum import RUMDatasourceTarget
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, FilterOperator, LogicSupportOperator
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 class SpanQuery(BaseQuery):
     USING_LOG: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
-    def __init__(self, data_sources: list[RUMDatasourceTarget]):
+    def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources
+
+    @classmethod
+    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
+        return q
+
+    @classmethod
+    def _build_filters(cls, filters: list[types.Filter] | None) -> Q:
+        if not filters:
+            return Q()
+
+        q: Q = Q()
+        for f in filters:
+            operator = f["operator"]
+            key = cls._translate_field(f["key"])
+            # 更新 q，叠加查询条件
+            if operator == LogicSupportOperator.LOGIC:
+                q = cls._add_logic_filter(q, key, f["value"])
+            else:
+                q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
+        return q
+
+    @classmethod
+    def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
+        return q.filter(cls._build_filters(filters)).query_string(query_string)
 
     def get_queries(
         self, filters: list[types.Filter] | None = None, query_string: str = ""

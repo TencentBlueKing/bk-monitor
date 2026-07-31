@@ -18,10 +18,11 @@ to the current version of the project delivered to anyone in the future.
 import logging
 from typing import Any
 
-from apm import constants, types
+from apm import constants
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.apm import OtlpKey, TraceDataSourceConfig
+from bkmonitor.data_source.utils import types
 
 logger = logging.getLogger("apm")
 
