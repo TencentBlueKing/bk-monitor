@@ -30,7 +30,6 @@ from bkmonitor.iam.iam_engine.schema.definitions import (
     ResourceTypeDef,
     RoleActionBinding,
     RoleDef,
-    SystemDef,
 )
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
 
@@ -53,7 +52,7 @@ def load_from_class(registry: SchemaRegistry, container: type) -> int:
 
     注意：
       - 只扫描类的直接属性（vars(cls)），不递归继承链
-      - 支持一个类里混合 ActionDef / ResourceTypeDef / RoleDef / SystemDef
+      - 支持一个类里混合 ActionDef / ResourceTypeDef / RoleDef
       - 私有属性（以 "_" 开头）跳过
 
     Args:
@@ -76,9 +75,6 @@ def load_from_class(registry: SchemaRegistry, container: type) -> int:
         elif isinstance(value, RoleDef):
             registry.register_role(value)
             count += 1
-        elif isinstance(value, SystemDef):
-            registry.register_system(value)
-            count += 1
     return count
 
 
@@ -95,9 +91,6 @@ def load_from_dict(registry: SchemaRegistry, data: Mapping[str, Any]) -> int:
 
     字典结构约定：
         {
-            "systems": [
-                {"id": "bk_monitor", "name": "蓝鲸监控", ...},
-            ],
             "resource_types": [
                 {"id": "space", "name": "业务", "ancestor": ""},
             ],
@@ -121,10 +114,6 @@ def load_from_dict(registry: SchemaRegistry, data: Mapping[str, Any]) -> int:
     """
     count = 0
 
-    for item in data.get("systems", []) or []:
-        registry.register_system(_build_system(item))
-        count += 1
-
     for item in data.get("resource_types", []) or []:
         registry.register_resource_type(_build_resource_type(item))
         count += 1
@@ -141,19 +130,6 @@ def load_from_dict(registry: SchemaRegistry, data: Mapping[str, Any]) -> int:
 
 
 # ---- 内部：dict → dataclass 转换 -------------------------------------------
-
-
-def _build_system(item: Mapping[str, Any]) -> SystemDef:
-    _require_keys(item, {"id", "name"}, "system")
-    return SystemDef(
-        id=item["id"],
-        name=item["name"],
-        description=item.get("description", ""),
-        managers=tuple(item.get("managers", ()) or ()),
-        clients=tuple(item.get("clients", ()) or ()),
-        callback_url=item.get("callback_url", ""),
-        extensions=dict(item.get("extensions", {}) or {}),
-    )
 
 
 def _build_resource_type(item: Mapping[str, Any]) -> ResourceTypeDef:

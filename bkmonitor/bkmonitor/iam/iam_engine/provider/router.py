@@ -34,6 +34,7 @@ from bkmonitor.iam.iam_engine.core.types import (
     BatchByActionRequest,
     BatchByResourceRequest,
     ResourceAuthResult,
+    ResourceInstance,
     Subject,
 )
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
@@ -65,28 +66,35 @@ class ProviderRouter:
 
     # ---- 内部 helper ----
 
-    def _should_bypass(self, request: AuthRequest) -> bool:
+    def _should_bypass(
+        self,
+        subject: Subject,
+        actions: tuple[str, ...],
+        resources: tuple[ResourceInstance, ...],
+    ) -> bool:
         """任一 BypassRule 命中即返回 True。"""
         for rule in self.bypass_rules:
-            if rule.should_bypass(request):
+            if rule.should_bypass(subject, actions, resources):
                 return True
         return False
 
-    # ==================== 鉴权通路（显式，bypass 横切） ====================
+    # ==================== 鉴权通路（bypass 横切） ====================
 
     def is_allowed(self, request: AuthRequest) -> bool:
-        if self._should_bypass(request):
+        if self._should_bypass(
+            request.subject,
+            (request.action_id,),
+            (request.resource,) if request.resource else (),
+        ):
             return True
         return self.policy.is_allowed(request)
 
     def batch_by_resource(self, request: BatchByResourceRequest) -> BatchAuthResult:
-        bypass_req = AuthRequest(
-            subject=request.subject,
-            action_id=request.action_id,
-            resources=request.resources,
-            environment=request.environment,
-        )
-        if self._should_bypass(bypass_req):
+        if self._should_bypass(
+            request.subject,
+            (request.action_id,),
+            request.resources,
+        ):
             return BatchAuthResult(
                 items=tuple(
                     ResourceAuthResult(
@@ -101,13 +109,11 @@ class ProviderRouter:
         return self.policy.batch_by_resource(request)
 
     def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
-        bypass_req = AuthRequest(
-            subject=request.subject,
-            action_id=request.action_ids[0] if request.action_ids else "",
-            resources=(request.resource,) if request.resource else (),
-            environment=request.environment,
-        )
-        if self._should_bypass(bypass_req):
+        if self._should_bypass(
+            request.subject,
+            request.action_ids,
+            (request.resource,) if request.resource else (),
+        ):
             return BatchAuthResult(
                 items=tuple(
                     ResourceAuthResult(

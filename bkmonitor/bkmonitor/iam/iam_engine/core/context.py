@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     # 避免运行时循环 import：schema/registry 反过来不应该 import core.context
+    from bkmonitor.iam.iam_engine.schema.definitions import SystemDef
     from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
 
 
@@ -59,6 +60,7 @@ class ProviderContext:
 
     Args:
         schema: 冻结后的 SchemaRegistry；Provider 可查询 action/resource_type 元数据
+        system: 该 Provider 的系统信息（per-Provider，非框架共享）
         credentials: 该 Provider 的凭据（app_code/secret 等，由 credentials_provider 解析后传入）
         logger: 日志器；建议每个 Provider 用自己的 logger 名
         cache: 可选缓存后端；None 表示不启用
@@ -66,6 +68,7 @@ class ProviderContext:
     """
 
     schema: SchemaRegistry
+    system: SystemDef | None = None
     credentials: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
     logger: Logger = field(default_factory=lambda: getLogger("iam_engine"))
     cache: CacheBackend | None = None

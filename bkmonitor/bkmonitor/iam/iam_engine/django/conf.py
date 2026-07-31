@@ -12,10 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from bkmonitor.iam.iam_engine.core.config import (
-    CompositionConfig,
-    ProviderConfig,
-)
+from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
 from bkmonitor.iam.iam_engine.core.context import ProviderContext
 from bkmonitor.iam.iam_engine.core.framework import IAMFramework
 from bkmonitor.iam.iam_engine.core.utils import import_class
@@ -74,7 +71,7 @@ def _resolve_credentials(credentials_dotted: str, key: str) -> dict:
     return fn(key=key)
 
 
-def _build_provider(provider_cfg: ProviderConfig, credentials_dotted: str, schema: SchemaRegistry):
+def _build_provider(provider_cfg, credentials_dotted: str, schema: SchemaRegistry):
     """从配置实例化一个 Provider。"""
     cls = import_class(provider_cfg.cls)
     options = dict(provider_cfg.options)
@@ -86,12 +83,13 @@ def _build_provider(provider_cfg: ProviderConfig, credentials_dotted: str, schem
 
     ctx = ProviderContext(
         schema=schema,
+        system=system,
         credentials=credentials,
         logger=logging.getLogger(f"iam_engine.provider.{cls.name}"),
         cache=None,
     )
 
-    return cls(ctx, system=system, **options)
+    return cls(ctx, **options)
 
 
 def _build_bypass_rules(raw_rules: tuple[str, ...]):
@@ -119,10 +117,11 @@ def load_framework() -> IAMFramework:
             "IAM_FRAMEWORK is not configured in Django settings. Add IAM_FRAMEWORK = {...} to your settings.py."
         )
 
+    config = FrameworkConfig.from_dict(raw)
+
     # 1. 构建 SchemaRegistry
     registry = SchemaRegistry()
-    for key in ("ACTIONS", "RESOURCE_TYPES", "ROLES"):
-        dotted = raw.get(key)
+    for dotted in (config.actions_module, config.resource_types_module, config.roles_module):
         if not dotted:
             continue
         cls = import_class(dotted) if "." in dotted else None
@@ -135,34 +134,21 @@ def load_framework() -> IAMFramework:
     logger.info("schema registry frozen: %d action(s)", len(registry._actions))
 
     # 2. 构建 Provider 列表
-    provider_configs = raw.get("PROVIDERS", [])
-    credentials_dotted = raw.get("CREDENTIALS_PROVIDER", "")
-
     providers = []
-    for cfg_dict in provider_configs:
-        provider_cfg = ProviderConfig(
-            cls=cfg_dict["class"],
-            options=cfg_dict.get("options", {}),
-        )
-        provider = _build_provider(provider_cfg, credentials_dotted, registry)
+    for provider_cfg in config.providers:
+        provider = _build_provider(provider_cfg, config.credentials_provider, registry)
         providers.append(provider)
         logger.info("provider loaded: %s", provider.name)
     if not providers:
         raise RuntimeError("IAM_FRAMEWORK.PROVIDERS must contain at least one provider")
 
     # 3. 构建 CompositionPolicy
-    composition_raw = raw.get("COMPOSITION", {})
-    composition_cfg = CompositionConfig(
-        policy=composition_raw.get("policy", "single"),
-        options=composition_raw.get("options", {}),
-    )
-    policy_cls = _resolve_policy_class(composition_cfg.policy)
-    composition = policy_cls(providers, **composition_cfg.options)
-    logger.info("composition policy: %s", composition_cfg.policy)
+    policy_cls = _resolve_policy_class(config.composition.policy)
+    composition = policy_cls(providers, **config.composition.options)
+    logger.info("composition policy: %s", config.composition.policy)
 
     # 4. 构建 BypassRules
-    bypass_rules_raw: tuple[str, ...] = tuple(raw.get("BYPASS_RULES", []))
-    bypass_rules = _build_bypass_rules(bypass_rules_raw)
+    bypass_rules = _build_bypass_rules(config.bypass_rules)
 
     # 5. 装配 IAMFramework
     fw = IAMFramework(

@@ -50,16 +50,17 @@ from bkmonitor.iam.iam_engine.schema.definitions import (
     ActionDef,
     ResourceTypeDef,
     RoleDef,
-    SystemDef,
 )
 
 
 class SchemaRegistry:
     """Schema 元数据中心注册表。
 
+    管理 Action / ResourceType / Role 的元数据。
+    System 信息是 per-Provider 的，由 ProviderContext 管理，不在此注册表中。
+
     典型用法：
         registry = SchemaRegistry()
-        registry.register_system(SystemDef(id="bk_monitor", name="蓝鲸监控"))
         registry.register_resource_type(ResourceTypeDef(id="space", name="业务"))
         registry.register_action(ActionDef(id="view_business", name="业务查看",
                                             resource_type="space"))
@@ -84,7 +85,6 @@ class SchemaRegistry:
     """
 
     def __init__(self) -> None:
-        self._systems: dict[str, SystemDef] = {}
         self._resource_types: dict[str, ResourceTypeDef] = {}
         self._actions: dict[str, ActionDef] = {}
         self._roles: dict[str, RoleDef] = {}
@@ -167,12 +167,6 @@ class SchemaRegistry:
     # 注册接口（仅在 freeze 之前可用）
     # ------------------------------------------------------------------
 
-    def register_system(self, system: SystemDef) -> None:
-        self._assert_not_frozen()
-        if system.id in self._systems:
-            raise SchemaConflict(f"duplicate system id: {system.id!r}")
-        self._systems[system.id] = system
-
     def register_resource_type(self, rt: ResourceTypeDef) -> None:
         self._assert_not_frozen()
         if rt.id in self._resource_types:
@@ -194,17 +188,6 @@ class SchemaRegistry:
     # ------------------------------------------------------------------
     # 查询接口（freeze 前后均可用）
     # ------------------------------------------------------------------
-
-    # ---- System ----
-
-    def get_system(self, system_id: str) -> SystemDef:
-        try:
-            return self._systems[system_id]
-        except KeyError as exc:
-            raise SchemaError(f"system {system_id!r} not found") from exc
-
-    def all_systems(self) -> list[SystemDef]:
-        return list(self._systems.values())
 
     # ---- ResourceType ----
 

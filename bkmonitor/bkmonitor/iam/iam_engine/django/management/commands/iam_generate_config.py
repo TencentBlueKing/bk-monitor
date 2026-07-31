@@ -28,20 +28,64 @@ class Command(BaseCommand):
     def handle(self, **options):
         fw = get_framework()
 
-        def _action(a: ActionDef):
-            return {"id": a.id, "name": a.name, "resource_type": a.resource_type, "parents": list(a.parents)}
+        def _action(a: ActionDef) -> dict:
+            d: dict = {"id": a.id, "name": a.name, "resource_type": a.resource_type}
+            if a.description:
+                d["description"] = a.description
+            return d
 
-        def _resource_type(r: ResourceTypeDef):
-            return {"id": r.id, "name": r.name, "ancestor_types": list(r.ancestor_types)}
+        def _resource_type(r: ResourceTypeDef) -> dict:
+            d: dict = {"id": r.id, "name": r.name}
+            if r.ancestor:
+                d["ancestor"] = r.ancestor
+                d["ancestor_chain"] = fw.schema.resolve_ancestor_types(r.id)
+            if r.description:
+                d["description"] = r.description
+            return d
 
-        def _role(r: RoleDef):
-            return {"id": r.id, "name": r.name, "actions": list(r.actions)}
+        def _role(r: RoleDef) -> dict:
+            return {
+                "id": r.id,
+                "name": r.name,
+                "description": r.description,
+                "actions": [{"action_id": b.action_id, "resource_type": b.resource_type} for b in r.actions],
+            }
 
-        config = {
+        config: dict = {
             "actions": [_action(a) for a in fw.schema.all_actions()],
             "resource_types": [_resource_type(r) for r in fw.schema.all_resource_types()],
             "roles": [_role(r) for r in fw.schema.all_roles()],
         }
+
+        # 系统信息是 per-Provider 的，从 Provider.ctx.system 获取
+        provider_name = options.get("provider")
+        if provider_name:
+            provider = fw.providers.get(provider_name)
+            if provider is not None and provider.ctx.system is not None:
+                s = provider.ctx.system
+                config["system"] = {
+                    "id": s.id,
+                    "name": s.name,
+                    "description": s.description,
+                    "clients": list(s.clients),
+                    "managers": list(s.managers),
+                    "callback_url": s.callback_url,
+                }
+        else:
+            systems = {}
+            for p in fw.providers.values():
+                if p.ctx.system is not None:
+                    s = p.ctx.system
+                    systems[p.name] = {
+                        "id": s.id,
+                        "name": s.name,
+                        "description": s.description,
+                        "clients": list(s.clients),
+                        "managers": list(s.managers),
+                        "callback_url": s.callback_url,
+                    }
+            if systems:
+                config["systems"] = systems
 
         output = options.get("output")
         if output:

@@ -135,3 +135,32 @@ class FrameworkConfig:
     credentials_provider: str = ""
     migration: MigrationConfig = field(default_factory=MigrationConfig)
     bypass_rules: tuple[str, ...] = ()
+
+    @classmethod
+    def from_dict(cls, raw: dict) -> FrameworkConfig:
+        """从 settings.IAM_FRAMEWORK 字典构建强类型配置。
+
+        settings dict key 使用 UPPER_CASE，此方法完成映射。
+        """
+        providers = tuple(
+            ProviderConfig(
+                cls=item["class"],
+                options=item.get("options", {}),
+            )
+            for item in raw.get("PROVIDERS", [])
+        )
+        composition = CompositionConfig(
+            policy=raw.get("COMPOSITION", {}).get("policy", "single"),
+            options=raw.get("COMPOSITION", {}).get("options", {}),
+        )
+        migration = MigrationConfig(**raw.get("MIGRATION", {}))
+        return cls(
+            actions_module=raw.get("ACTIONS", ""),
+            resource_types_module=raw.get("RESOURCE_TYPES", ""),
+            roles_module=raw.get("ROLES", ""),
+            providers=providers,
+            composition=composition,
+            credentials_provider=raw.get("CREDENTIALS_PROVIDER", ""),
+            migration=migration,
+            bypass_rules=tuple(raw.get("BYPASS_RULES", [])),
+        )

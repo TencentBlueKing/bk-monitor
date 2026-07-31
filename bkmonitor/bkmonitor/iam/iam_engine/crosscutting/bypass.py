@@ -24,12 +24,15 @@ from __future__ import annotations
 #
 # 扩展：
 #   使用方继承 BypassRule 实现自定义豁免逻辑，注册到 ProviderRouter 即可。
-#   BypassRule 只依赖 core.types.AuthRequest，不依赖 Django 或任何 Provider。
+#   BypassRule 只依赖 core.types.Subject + ResourceInstance，不依赖 Django 或任何 Provider。
+#
+# subject / actions / resources 统一使用元组，可单可多，覆盖 is_allowed、
+# batch_by_resource、batch_by_action 三种鉴权场景。子类按需使用。
 # ---------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
 
-from bkmonitor.iam.iam_engine.core.types import AuthRequest
+from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject
 
 
 class BypassRule(ABC):
@@ -42,8 +45,19 @@ class BypassRule(ABC):
     """
 
     @abstractmethod
-    def should_bypass(self, request: AuthRequest) -> bool:
-        """判断是否豁免该请求。返回 True 直接放行。"""
+    def should_bypass(
+        self,
+        subject: Subject,
+        actions: tuple[str, ...],
+        resources: tuple[ResourceInstance, ...],
+    ) -> bool:
+        """判断是否豁免该请求。返回 True 直接放行。
+
+        Args:
+            subject: 鉴权主体
+            actions: 操作 ID 元组（单次鉴权为单元素）
+            resources: 资源实例元组（无资源场景为空元组）
+        """
         ...
 
 
@@ -62,7 +76,9 @@ class SettingsSkipRule(BypassRule):
     Django import 延迟到 should_bypass 内部，模块导入时不强依赖 Django。
     """
 
-    def should_bypass(self, request: AuthRequest) -> bool:  # noqa: ARG002
+    def should_bypass(
+        self, subject: Subject, actions: tuple[str, ...], resources: tuple[ResourceInstance, ...]
+    ) -> bool:
         from django.conf import settings
 
         return bool(getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False))
@@ -82,5 +98,7 @@ class SubjectBypassRule(BypassRule):
     def __init__(self, subject_ids: set[str] | None = None) -> None:
         self._subject_ids: frozenset[str] = frozenset(subject_ids or set())
 
-    def should_bypass(self, request: AuthRequest) -> bool:
-        return request.subject.id in self._subject_ids
+    def should_bypass(
+        self, subject: Subject, actions: tuple[str, ...], resources: tuple[ResourceInstance, ...]
+    ) -> bool:
+        return subject.id in self._subject_ids
