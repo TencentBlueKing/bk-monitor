@@ -189,6 +189,16 @@
           width: 100%;
           overflow: auto;
         }
+
+        /* 图表加载骨架屏（loading 时替代图表区） */
+        .process-detail-skeleton {
+          display: grid;
+          flex: 1;
+          gap: 70px 12px;
+          align-content: start;
+          padding: 12px 0;
+          overflow: hidden;
+        }
       }
 
       /* Profiling 占位 */
