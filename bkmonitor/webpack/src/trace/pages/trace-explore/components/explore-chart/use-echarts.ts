@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, computed, inject, shallowRef, toValue, watch } from 'vue';
+import { type MaybeRef, type Ref, computed, inject, onBeforeUnmount, onMounted, shallowRef, toValue, watch } from 'vue';
 
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
@@ -66,6 +66,10 @@ export interface ChartOptions {
   // biome-ignore lint/suspicious/noExplicitAny: API 参数类型通用
   params: MaybeRef<Record<string, any>>;
   downSampleRangeComputed?: (timeRange: number[]) => string | undefined;
+  viewportRequest?: {
+    el: Ref<HTMLElement>;
+    enable: boolean;
+  };
 }
 
 export interface CustomOptions {
@@ -449,6 +453,7 @@ export const useEcharts = ({
   params,
   customOptions,
   interactionState,
+  viewportRequest,
   downSampleRangeComputed,
 }: ChartOptions) => {
   /** 图表id，每次重新请求会修改该值 */
@@ -456,10 +461,43 @@ export const useEcharts = ({
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
   const { applyPeakMarkPoint, watchHighlightPeak } = useChartViewOption();
-
   let cancelTokens = [];
   /** 请求版本号，用于丢弃 lazyRender 阶段的过期回调 */
   let currentRequestId = 0;
+
+  const intersectionObserver = shallowRef<IntersectionObserver>(null);
+  const isInViewPort = el => {
+    if (!el) return false;
+    const { top, bottom } = el.getBoundingClientRect();
+    return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
+  };
+
+  // 注册Intersection监听
+  const registerObserver = el => {
+    if (intersectionObserver.value) {
+      unregisterObserver(el);
+    }
+    intersectionObserver.value = new IntersectionObserver(async entries => {
+      for (const entry of entries) {
+        if (intersectionObserver.value && entry.intersectionRatio > 0) {
+          options.value = await getEchartOptions();
+        }
+      }
+    });
+    // 临时使用此方法解决，自定义指标直接全选分组时，偶现前两个图表不会请求数据
+    setTimeout(() => {
+      intersectionObserver.value.observe(el);
+    }, 50);
+  };
+
+  const unregisterObserver = el => {
+    if (intersectionObserver.value) {
+      intersectionObserver.value.unobserve(el);
+      intersectionObserver.value.disconnect();
+      intersectionObserver.value = null;
+    }
+  };
+
   const loading = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
@@ -498,6 +536,16 @@ export const useEcharts = ({
   const getEchartOptions = async () => {
     for (const cb of cancelTokens) {
       cb?.();
+    }
+    if (viewportRequest?.enable) {
+      if (!isInViewPort(viewportRequest.el.value)) {
+        if (intersectionObserver.value) {
+          unregisterObserver(viewportRequest.el.value);
+        }
+        viewportRequest.el.value && registerObserver(viewportRequest.el.value);
+        return;
+      }
+      unregisterObserver(viewportRequest.el.value);
     }
     cancelTokens = [];
     const requestId = ++currentRequestId;
@@ -545,6 +593,7 @@ export const useEcharts = ({
               metricList.value.push(metric);
             }
           }
+          metricList.value = [...metricList.value];
           const targetCopy = { ...target };
           if (query_config) {
             targetCopy.data = query_config;
@@ -621,6 +670,18 @@ export const useEcharts = ({
     if (nextOptions) {
       options.value = nextOptions;
       chartId.value = random(8);
+    }
+  });
+
+  onMounted(() => {
+    if (viewportRequest?.enable) {
+      registerObserver(viewportRequest.el.value);
+    }
+  });
+
+  onBeforeUnmount(() => {
+    if (intersectionObserver.value) {
+      unregisterObserver(viewportRequest.el.value);
     }
   });
   return {

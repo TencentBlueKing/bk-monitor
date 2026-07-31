@@ -40,6 +40,7 @@
   &__agg-select {
     width: 80px;
 
+    /* stylelint-disable-next-line selector-pseudo-class-no-unknown */
     :deep(.bk-input) {
       border: 0;
       border-bottom: 1px solid #dcdee5;
@@ -87,32 +88,11 @@
   &__checkbox {
     font-size: 12px;
     white-space: nowrap;
-  }
-
-  &__column-switch {
-    display: flex;
-    align-items: center;
-    column-gap: 4px;
-    font-size: 12px;
     color: #4d4f56;
-    cursor: pointer;
 
-    .icon-monitor {
-      font-size: 16px;
-      color: #63656e;
+    & + & {
+      margin-left: 0;
     }
-
-    &:hover {
-      color: #3a84ff;
-
-      .icon-monitor {
-        color: #3a84ff;
-      }
-    }
-  }
-
-  &__column-text {
-    white-space: nowrap;
   }
 
   &__setting {
@@ -132,6 +112,28 @@
     }
 
     &:hover {
+      .icon-monitor {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  &__column-switch {
+    display: flex;
+    align-items: center;
+    column-gap: 4px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    .icon-monitor {
+      font-size: 16px;
+      color: #63656e;
+    }
+
+    &:hover {
+      color: #3a84ff;
+
       .icon-monitor {
         color: #3a84ff;
       }
