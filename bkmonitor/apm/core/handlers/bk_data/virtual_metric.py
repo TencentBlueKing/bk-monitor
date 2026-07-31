@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 import traceback
@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apm import constants
 from apm.core.handlers.bk_data.flow import ApmFlow
-from apm.models import ApmApplication
+from apm.models import ApmApplication, ApmDataSourceConfigBase
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.dataflow.task.apm_metrics import APMVirtualMetricTask
 from common.log import logger
@@ -53,12 +53,14 @@ class VirtualMetricFlow:
     @property
     def datasource_name(self):
         # 数据源id
-        return f"{self.PREFIX}_{self.app_name}"[-50:]
+        # 与 ApmDataSourceConfigBase.normalize_app_name 保持一致，兼容大小写混用的 app_name。
+        return f"{self.PREFIX}_{ApmDataSourceConfigBase.normalize_app_name(self.app_name)}"[-50:]
 
     @property
     def datasource_cleans_table_id(self):
         # 数据源清洗结果表id
-        return f"{self.PREFIX}_{self.app_name}"
+        # 与 ApmDataSourceConfigBase.normalize_app_name 保持一致，兼容大小写混用的 app_name。
+        return f"{self.PREFIX}_{ApmDataSourceConfigBase.normalize_app_name(self.app_name)}"
 
     @property
     def datasource_cleans_table_id_with_biz(self):
@@ -88,7 +90,7 @@ class VirtualMetricFlow:
             self._create_start_flow()
 
             logger.info(
-                f"[BkBaseVirtualMetricHandler] bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} " f"创建虚拟指标成功"
+                f"[BkBaseVirtualMetricHandler] bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} 创建虚拟指标成功"
             )
         except Exception as e:  # noqa
             msg = f"APM bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} 创建虚拟指标失败: {e} {traceback.format_exc()}"

@@ -125,7 +125,7 @@ PROFILING_DORIS_CLEAN_RULES = [
 
 
 def _sanitize_name(raw: str) -> str:
-    """清洗名称：中文原地转拼音、剔除特殊字符、去空格、点/减号转下划线、合并连续下划线"""
+    """清洗名称：中文原地转拼音、剔除特殊字符、去空格、点/减号转下划线、大写转小写、合并连续下划线"""
     parts = []
     for char in raw:
         if "\u4e00" <= char <= "\u9fff":
@@ -136,7 +136,8 @@ def _sanitize_name(raw: str) -> str:
         elif not re.match(MATCH_DATA_NAME_PATTERN, char):
             parts.append(char)
     refine = "".join(parts)
-    refine = refine.replace(" ", "").replace("-", "_")
+    # 统一小写化，与 ApmDataSourceConfigBase.normalize_app_name 一致
+    refine = refine.replace(" ", "").replace("-", "_").lower()
     return re.sub(r"_+", "_", refine)
 
 
@@ -249,12 +250,12 @@ class BkDataDorisProvider:
         cls, obj: "ProfileDataSource", maintainer: str, operator: str, name_stuffix: str = None
     ) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
-        # 保持与 ApmDataSourceConfigBase.normalize_app_name 一致：`-`、`.` 均转为 `_`
-        pure_app_name = (
-            obj.app_name.replace("-", "_").replace(".", "_")
-            if not name_stuffix
-            else f"{obj.app_name}{name_stuffix}".replace("-", "_").replace(".", "_")
-        )
+        # 保持与 ApmDataSourceConfigBase.normalize_app_name 一致：
+        # `-`、`.` 均转为 `_`，并统一小写化（放开 app_name 大小写后仍保持下游命名规范）
+        from .datasource import ApmDataSourceConfigBase
+
+        raw_name = obj.app_name if not name_stuffix else f"{obj.app_name}{name_stuffix}"
+        pure_app_name = ApmDataSourceConfigBase.normalize_app_name(raw_name)
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
             app_name=obj.app_name,

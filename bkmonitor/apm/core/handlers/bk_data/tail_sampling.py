@@ -15,7 +15,7 @@ from json import JSONDecodeError
 from django.conf import settings
 
 from apm.core.handlers.bk_data.flow import ApmFlow
-from apm.models import TraceDataSource
+from apm.models import ApmDataSourceConfigBase, TraceDataSource
 from bkmonitor.dataflow.task.apm_tail_sampling import APMTailSamplingTask
 from constants.apm import FlowType
 from core.drf_resource import api
@@ -51,7 +51,9 @@ class TailSamplingFlow(ApmFlow):
 
     @property
     def deploy_name(self):
-        return f"bkapm_trace_{self.bk_biz_id}_{self.app_name}"
+        # 与 ApmDataSourceConfigBase.normalize_app_name 保持一致：
+        # 兼容大小写混用的 app_name，避免 BkBase raw_data_name 命名不合规。
+        return f"bkapm_trace_{self.bk_biz_id}_{ApmDataSourceConfigBase.normalize_app_name(self.app_name)}"
 
     @property
     def cleans_description(self):
@@ -172,7 +174,9 @@ class TailSamplingFlow(ApmFlow):
 
     @property
     def cleans_table_id(self):
-        return f"{self.cleans_names}_{self.app_name.replace('-', '_')}"[:50]
+        # 与 ApmDataSourceConfigBase.normalize_app_name 保持一致：
+        # `-`、`.` 统一转 `_`，并小写化，兼容大小写混用的 app_name。
+        return f"{self.cleans_names}_{ApmDataSourceConfigBase.normalize_app_name(self.app_name)}"[:50]
 
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):

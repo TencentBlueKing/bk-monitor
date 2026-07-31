@@ -49,7 +49,11 @@ class EmptyRealTimeNode(RealTimeNode):
 
     @property
     def table_name(self):
-        return f"tail_{self.app_name.replace('-', '_')}_output"
+        # 与 apm.models.datasource.ApmDataSourceConfigBase.normalize_app_name 保持一致：
+        # 将 `-`、`.` 归一为 `_`，并统一小写，兼容大小写混用的 app_name。
+        # 此处直接内联实现，避免底层 dataflow 模块反向依赖 apm.models。
+        normalized = self.app_name.replace("-", "_").replace(".", "_").lower()
+        return f"tail_{normalized}_output"
 
     @property
     def _sql(self):
