@@ -95,7 +95,7 @@ class CompositionPolicy(ABC):
 
             for result, is_error in self._call_all("is_allowed", request):
                 if is_error:
-                    ...  # result 是 ProviderError 实例
+                    ...  # result 是异常实例
                 else:
                     ...  # result 是方法的正常返回值
         """

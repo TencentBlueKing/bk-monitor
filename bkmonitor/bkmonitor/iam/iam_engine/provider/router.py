@@ -23,7 +23,6 @@ from __future__ import annotations
 #   * 未来若增加 Metrics / Audit / CircuitBreaker，也在此层挂钩
 #   * 上层 IAMFramework 只与 Router 打交道，接口稳定
 #
-# 前向引用，允许 bypass_rules 为空列表跑通。
 # ---------------------------------------------------------------------------
 
 from typing import TYPE_CHECKING
@@ -40,7 +39,6 @@ from bkmonitor.iam.iam_engine.core.types import (
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
 
 if TYPE_CHECKING:
-    # BypassRule 在批次 6 crosscutting/bypass.py 落地
     from bkmonitor.iam.iam_engine.crosscutting.bypass import BypassRule
     from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
 

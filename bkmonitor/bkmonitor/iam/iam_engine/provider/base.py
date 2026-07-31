@@ -45,8 +45,6 @@ from bkmonitor.iam.iam_engine.core.types import (
 )
 
 if TYPE_CHECKING:
-    # 迁移相关类型见批次 5（schema/diff.py）；此处用 TYPE_CHECKING 前向引用，
-    # 避免批次 4 依赖尚未落地的类型。
     from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
     from bkmonitor.iam.iam_engine.schema.diff import MigrationPlan, MigrationReport
     from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
