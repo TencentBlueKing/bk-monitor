@@ -42,7 +42,7 @@ import {
 import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
 
-import type { IssueDetail } from '../../typing/detail';
+import type { IssueDetail } from '../../typing';
 import type { TapdWorkspaceItem } from '../typing';
 
 import './tapd-sideslider.scss';
@@ -68,7 +68,7 @@ export default defineComponent({
     },
     issueDetail: {
       type: Object as PropType<IssueDetail>,
-      default: () => null,
+      default: undefined,
     },
   },
   emits: ['update:show', 'addWorkspace', 'revokeAuth'],

@@ -44,7 +44,7 @@ import { resolveGraphPanel } from '../variables/resolve';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
-import { useEcharts } from '@/pages/trace-explore/components/explore-chart/use-echarts';
+import { type CustomOptions, useEcharts } from '@/pages/trace-explore/components/explore-chart/use-echarts';
 import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 import TableLegend from '@/plugins/components/table-legend';
@@ -72,6 +72,11 @@ export default defineComponent({
     dashboardId: {
       type: String,
       default: '',
+    },
+    /** 图表自定义配置（series/options/tooltips 等回调） */
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
     },
   },
   setup(props) {
@@ -107,7 +112,7 @@ export default defineComponent({
         enable: true,
         el: chartRef,
       },
-      customOptions: {},
+      customOptions: props.customOptions,
     });
 
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(

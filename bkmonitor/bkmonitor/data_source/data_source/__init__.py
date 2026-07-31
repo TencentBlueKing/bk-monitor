@@ -2085,10 +2085,9 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
     WILDCARD_PATTERN: str = "*"
     QUERY_SPECIAL_REGEX = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
-    LOG_UNIFY_QUERY_ALL_BIZ_ID: int = -1
 
-    # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
-    LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
+    # 用于灰度对账的临时黑名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
+    LOG_UNIFY_QUERY_BLACK_BIZ_LIST: list[int] | None = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2103,16 +2102,13 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
                 condition["_origin_method"] = condition["method"]
                 condition["method"] = condition_mapping[condition["method"]]
 
-    def _fetch_black_list(self) -> list[str | int]:
-        return []
-
     @classmethod
-    def _fetch_white_list(cls) -> list[str | int]:
+    def _fetch_black_list(cls) -> list[str | int]:
         # 仅用于命令行对账，线上环境恒定为 None。
-        if cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST is not None:
-            return cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+        if cls.LOG_UNIFY_QUERY_BLACK_BIZ_LIST is not None:
+            return cls.LOG_UNIFY_QUERY_BLACK_BIZ_LIST
 
-        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV
+        return settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV
 
     def _get_unify_query_string(self) -> str:
         # 背景：没有切换 UnifyQuery 的场景直调日志平台 API，此处对其日志平台对 query_string 的处理逻辑。
@@ -2129,19 +2125,13 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
             return True
 
-        white_list: list[str | int] = self._fetch_white_list()
-        # 全量灰度：如果 -1 在白名单中，全部使用 unify-query 查询。
-        if self.LOG_UNIFY_QUERY_ALL_BIZ_ID in white_list or str(self.LOG_UNIFY_QUERY_ALL_BIZ_ID) in white_list:
-            return True
-
         # 日志聚类场景，使用 unify-query 查询。
         if self._get_unify_query_table_suffix() == "_clustered":
             return True
 
-        # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
-        if bk_biz_id in white_list or str(bk_biz_id) in white_list:
-            return True
-        return False
+        # 黑名单机制，命中的业务不使用 unify-query 查询，其他业务默认使用。
+        black_list: list[str | int] = self._fetch_black_list()
+        return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
 
     @classmethod
     def _get_datasource(cls) -> str:

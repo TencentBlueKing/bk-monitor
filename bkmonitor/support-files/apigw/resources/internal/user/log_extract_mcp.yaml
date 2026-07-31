@@ -1,0 +1,474 @@
+paths:
+  /mcp/list_log_extract_topology/:
+    post:
+      operationId: list_log_extract_topology
+      description: List topology nodes that the current user may access through log-extraction policies. Returned nodes use object_id and instance_id and can be passed directly to subsequent tools. 查询当前用户在日志提取策略下可访问的拓扑；返回节点使用 object_id 和 instance_id，可直接传给后续工具。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/topology/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/search_log_extract_hosts/:
+    post:
+      operationId: search_log_extract_hosts
+      description: Query hosts accessible under log-extraction policies. Omit node_list to search from the authorized business root, or pass nodes returned by list_log_extract_topology. Response hosts include bk_host_id and bk_cloud_id for direct use by subsequent tools. 查询日志提取策略下可访问的主机；不传 node_list 时从授权业务根节点查询，也可传入拓扑工具返回的节点；返回主机包含 bk_host_id 和 bk_cloud_id，可直接用于后续工具。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                node_list:
+                  type: array
+                  minItems: 1
+                  description: Optional authorized topology nodes returned by list_log_extract_topology. Omit to use the business root.
+                  items:
+                    type: object
+                    required: [object_id, instance_id]
+                    properties:
+                      object_id: {type: string}
+                      instance_id: {type: integer}
+                search_content:
+                  type: string
+                  description: Fuzzy search across internal IPv4, internal IPv6, host name, operating-system type, and operating-system name. 对内网 IPv4、内网 IPv6、主机名、操作系统类型和操作系统名称进行模糊搜索。
+                start: {type: integer, minimum: 0, default: 0}
+                page_size: {type: integer, minimum: 1, maximum: 500, default: 20}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/search_hosts/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/list_log_extract_allowed_paths/:
+    post:
+      operationId: list_log_extract_allowed_paths
+      description: List the directories and file types allowed by log-extraction policies for selected hosts, topology nodes, or a service template. Returns {ip_list, strategies}; ip_list contains the resolved concrete hosts and can be passed to search_log_extract_files, while each strategies item contains file_path, file_type, operator, and strategy_name. Call this before file search; it does not execute a remote JOB. 查询所选主机、动态拓扑节点或服务模板允许的目录及文件类型，返回 {ip_list, strategies}；ip_list 是解析后的具体主机，可直接传给 search_log_extract_files，strategies 每项包含 file_path、file_type、operator 和 strategy_name。本工具不会执行远程 JOB。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                target_node_type:
+                  type: string
+                  enum: [INSTANCE, TOPO, SERVICE_TEMPLATE]
+                  default: INSTANCE
+                  description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes. INSTANCE 可传 ip_list 或主机节点，TOPO 和 SERVICE_TEMPLATE 必须传 target_nodes。
+                ip_list:
+                  type: array
+                  description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both ip and bk_cloud_id.
+                  items:
+                    type: object
+                    description: Provide bk_host_id, or provide a non-empty IPv4/IPv6 address with bk_cloud_id. When bk_host_id is present, ip may be omitted or empty for compatibility.
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                    anyOf:
+                    - title: Host ID
+                      required: [bk_host_id]
+                      properties:
+                        ip:
+                          type: string
+                          anyOf:
+                          - {maxLength: 0}
+                          - {format: ipv4}
+                          - {format: ipv6}
+                    - title: IP and cloud area
+                      required: [ip, bk_cloud_id]
+                      properties:
+                        ip:
+                          type: string
+                          minLength: 1
+                          anyOf:
+                          - {format: ipv4}
+                          - {format: ipv6}
+                target_nodes:
+                  type: array
+                  description: Optional; an empty array is treated as omitted.
+                  items:
+                    type: object
+                    required: [object_id, instance_id]
+                    properties:
+                      object_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
+                      instance_id: {type: integer}
+              oneOf:
+              - title: Static host instances
+                properties:
+                  target_node_type: {type: string, enum: [INSTANCE]}
+                  target_nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [host]}
+                anyOf:
+                - required: [ip_list]
+                  properties:
+                    ip_list: {type: array, minItems: 1}
+                - required: [target_nodes]
+                  properties:
+                    target_nodes: {type: array, minItems: 1}
+              - title: Dynamic topology nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [TOPO]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [biz, set, module]}
+                    oneOf:
+                    - title: Entire business
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [biz]}
+                    - title: Sets and modules
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [set, module]}
+              - title: Service template nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [SERVICE_TEMPLATE]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [SERVICE_TEMPLATE]}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/allowed_paths/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/search_log_extract_files/:
+    post:
+      operationId: search_log_extract_files
+      description: This tool creates a real BK JOB and runs a file-discovery script on every selected host, waiting synchronously for up to 60 seconds. The script creates and removes temporary files under /tmp but does not modify the files being searched. Call list_log_extract_allowed_paths first, narrow the hosts and path, and avoid repeated exploratory calls. Each host discovers at most 500 files, while this tool returns only the latest 100 records across all selected hosts as {total, data, truncated}. If truncated is true, narrow the hosts, path, or time range instead of attempting pagination, because every call creates a new JOB. 本工具会创建真实的蓝鲸作业，在每台目标主机执行文件发现脚本，并同步等待最长 60 秒。脚本会在 /tmp 创建并清理临时文件，但不会修改被搜索的文件。请先调用 list_log_extract_allowed_paths 并缩小范围。每台主机最多发现 500 个文件，本工具仅返回全部目标中最新的 100 条，结构为 {total, data, truncated}；若 truncated 为 true，应进一步缩小主机、路径或时间范围，不要尝试翻页，因为每次调用都会创建新作业。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, ip_list, path, is_search_child, time_range]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                ip_list:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: object
+                    description: Provide bk_host_id, or provide a non-empty IPv4/IPv6 address with bk_cloud_id. When bk_host_id is present, ip may be omitted or empty for compatibility.
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                    anyOf:
+                    - title: Host ID
+                      required: [bk_host_id]
+                      properties:
+                        ip:
+                          type: string
+                          anyOf:
+                          - {maxLength: 0}
+                          - {format: ipv4}
+                          - {format: ipv6}
+                    - title: IP and cloud area
+                      required: [ip, bk_cloud_id]
+                      properties:
+                        ip:
+                          type: string
+                          minLength: 1
+                          anyOf:
+                          - {format: ipv4}
+                          - {format: ipv6}
+                path: {type: string, description: Directory or file path to inspect. 查询路径。}
+                is_search_child: {type: boolean, description: Search child directories recursively. 是否递归查询。}
+                time_range: {type: string, enum: [1d, 1w, 1m, all, custom]}
+                start_time: {type: string, description: "Required for custom range, format YYYY-MM-DD HH:mm:ss."}
+                end_time: {type: string, description: "Required for custom range, format YYYY-MM-DD HH:mm:ss."}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/search_files/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/create_log_extract_task/:
+    post:
+      operationId: create_log_extract_task
+      description: Create an asynchronous log-extraction task and return {task_id}. This runs jobs on target hosts and MUST only be called after explicit user confirmation. Host and topology identifiers can be copied from preceding tools; omitted preview metadata is derived by the service. 创建异步日志提取任务并返回 {task_id}，仅在用户明确确认后调用；主机和拓扑标识可复用前序工具结果，未提供的预览元数据由服务端生成。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, file_path, filter_type, filter_content]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                target_node_type:
+                  type: string
+                  enum: [INSTANCE, TOPO, SERVICE_TEMPLATE]
+                  default: INSTANCE
+                  description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes.
+                ip_list:
+                  type: array
+                  description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both a non-empty IPv4/IPv6 address and bk_cloud_id.
+                  items:
+                    type: object
+                    description: Provide bk_host_id, or provide a non-empty IPv4/IPv6 address with bk_cloud_id. When bk_host_id is present, ip may be omitted or empty for compatibility.
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                    anyOf:
+                    - title: Host ID
+                      required: [bk_host_id]
+                      properties:
+                        ip:
+                          type: string
+                          anyOf:
+                          - {maxLength: 0}
+                          - {format: ipv4}
+                          - {format: ipv6}
+                    - title: IP and cloud area
+                      required: [ip, bk_cloud_id]
+                      properties:
+                        ip:
+                          type: string
+                          minLength: 1
+                          anyOf:
+                          - {format: ipv4}
+                          - {format: ipv6}
+                target_nodes:
+                  type: array
+                  description: Optional; an empty array is treated as omitted.
+                  items:
+                    type: object
+                    required: [object_id, instance_id]
+                    properties:
+                      object_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
+                      instance_id: {type: integer}
+                file_path:
+                  type: array
+                  minItems: 1
+                  items: {type: string}
+                filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range], description: Empty means no filtering. 空字符串表示不过滤。}
+                filter_content:
+                  type: object
+                  description: "Fields by filter_type: '' -> {}; line_range -> start_line/end_line; match_word -> keyword/keyword_type; tail_line -> line_num; match_range -> start/end. The selected combination is validated by BK Log. 各过滤类型使用对应字段，具体组合由日志平台校验。"
+                  properties:
+                    start_line: {type: integer, minimum: 0}
+                    end_line: {type: integer, minimum: 0}
+                    keyword: {type: string, minLength: 1, maxLength: 64}
+                    keyword_type: {type: string, enum: [keyword_or, keyword_and, keyword_not]}
+                    line_num: {type: integer, minimum: 1}
+                    start: {type: string, minLength: 1, maxLength: 64}
+                    end: {type: string, minLength: 1, maxLength: 64}
+                remark: {type: string, maxLength: 255}
+                preview_directory: {type: string, description: Optional display metadata; defaults to the parent directory of the first file path.}
+                preview_ip_list:
+                  type: array
+                  description: Optional display metadata; defaults to an empty list. Explicit items require ip and bk_cloud_id.
+                  items:
+                    type: object
+                    required: [ip, bk_cloud_id]
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                preview_time_range: {type: string, enum: [1d, 1w, 1m, all, custom], default: all}
+                preview_start_time: {type: string}
+                preview_end_time: {type: string}
+                preview_is_search_child: {type: boolean, default: false}
+                link_id: {type: integer, nullable: true, description: Extraction link ID; BK Log selects its default when omitted.}
+              oneOf:
+              - title: Static host instances
+                properties:
+                  target_node_type: {type: string, enum: [INSTANCE]}
+                  target_nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [host]}
+                anyOf:
+                - required: [ip_list]
+                  properties:
+                    ip_list: {type: array, minItems: 1}
+                - required: [target_nodes]
+                  properties:
+                    target_nodes: {type: array, minItems: 1}
+              - title: Dynamic topology nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [TOPO]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [biz, set, module]}
+                    oneOf:
+                    - title: Entire business
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [biz]}
+                    - title: Sets and modules
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [set, module]}
+              - title: Service template nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [SERVICE_TEMPLATE]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [SERVICE_TEMPLATE]}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/create_task/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/get_log_extract_task/:
+    get:
+      operationId: get_log_extract_task
+      description: Get the stable polling state of a log-extraction task as {task_id, bk_biz_id, state, raw_state, terminal, downloadable, error}. state is one of pending, running, downloadable, failed, expired, or unknown. Stop polling when terminal is true, and call get_log_extract_download_url only when downloadable is true. 查询日志提取任务的稳定轮询状态，返回 {task_id, bk_biz_id, state, raw_state, terminal, downloadable, error}；state 为 pending、running、downloadable、failed、expired 或 unknown。terminal 为 true 时停止轮询，仅当 downloadable 为 true 时调用下载地址工具。
+      tags: [log_extract_mcp]
+      parameters:
+      - {in: query, name: bk_biz_id, required: true, schema: {type: integer}, description: Business ID. 业务ID。}
+      - {in: query, name: task_id, required: true, schema: {type: integer}, description: Log extraction task ID. 日志提取任务ID。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_extract/get_task/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/get_log_extract_download_url/:
+    post:
+      operationId: get_log_extract_download_url
+      description: Get the raw download URL after the task becomes downloadable. The URL is returned as a normal MCP result and may enter the host or model context. Call this tool only after the user explicitly requests the download; avoid quoting, repeatedly requesting, or actively logging the URL. 任务可下载后获取原始下载地址。该地址会作为普通 MCP 结果返回，可能进入 Host 或模型上下文。仅在用户明确要求下载后调用，避免复述、重复请求或主动记录该地址。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, task_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                task_id: {type: integer, description: Log extraction task ID. 日志提取任务ID。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/get_download_url/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

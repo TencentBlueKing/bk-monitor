@@ -35,6 +35,7 @@ class VisibleEnum:
 
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
+APM_GLOBAL_CONFIG_KEY = "APM_GLOBAL"
 # 获取需要增加事务的DB链接名
 DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "monitor_api")
 
@@ -528,7 +529,13 @@ DEFAULT_PLATFORM_API_NAME_CONFIG = {
     ],
 }
 
-DEFAULT_APM_PLATFORM_AS_INT_CONFIG = {"as_int": ["attributes.http.status_code"]}
+DEFAULT_APM_PLATFORM_ATTRIBUTE_CONFIG = {
+    "as_int": ["attributes.http.status_code"],
+    "as_string": [
+        "attributes.trpc.status_type",
+        "attributes.trpc.status_code",
+    ],
+}
 
 
 class ConfigTypes:

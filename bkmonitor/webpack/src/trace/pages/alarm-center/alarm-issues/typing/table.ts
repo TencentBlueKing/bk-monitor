@@ -116,6 +116,8 @@ export interface IssueItem extends Record<string, unknown> {
   labels: string[];
   /** 最近关联告警时间（秒级时间戳） */
   last_alert_time: number;
+  /** 关联日志内容（仅日志类型告警有值） */
+  log_content?: string;
   /** 合并状态 */
   merge_status?: MergeStatus;
   /** Issue 名称（回归问题带 [回归] 前缀） */
@@ -135,7 +137,7 @@ export interface IssueItem extends Record<string, unknown> {
   /** 策略名称 */
   strategy_name: string;
   /** 告警时间分布趋势 [[毫秒时间戳, 数量], ...] */
-  trend: [number, number][];
+  trend?: [number, number][];
   /** 最近更新时间（秒级时间戳） */
   update_time: number;
 }

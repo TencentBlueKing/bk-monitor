@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from datetime import datetime
+from urllib.parse import quote, urlencode
 
 import arrow
 from django.conf import settings
@@ -212,6 +213,7 @@ class IncidentNoticeHelper:
             "number": alert_stats,
             "assignees": assignees,
             "url": url,
+            "process_url": cls._get_process_url(incident),
             "bk_biz_id": incident.bk_biz_id,
             "incident_id": incident.incident_id,
         }
@@ -371,6 +373,25 @@ class IncidentNoticeHelper:
         # 构建故障详情页面URL
         site_url = settings.BK_MONITOR_HOST.rstrip("/")
         return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident_doc_id or incident.id}"
+
+    @classmethod
+    def _get_process_url(cls, incident: IncidentDocument) -> str:
+        """构建 BKFara 故障分析过程 URL。"""
+        extra_info = incident.extra_info or {}
+        if hasattr(extra_info, "to_dict"):
+            extra_info = extra_info.to_dict()
+        if extra_info.get("notice_source") != "bkfara":
+            return ""
+
+        scope_id = extra_info.get("scope_id")
+        task_id = extra_info.get("task_id")
+        if not scope_id or task_id in (None, ""):
+            return ""
+
+        site_url = settings.BK_INCIDENT_SAAS_HOST.rstrip("/")
+        scope_path = quote(str(scope_id), safe="")
+        query = urlencode({"incident_task_id": task_id})
+        return f"{site_url}/{scope_path}/record/fault/{incident.incident_id}?{query}"
 
     @classmethod
     def _get_alert_owners(cls, incident: IncidentDocument) -> list[str]:

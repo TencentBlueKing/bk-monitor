@@ -531,4 +531,6 @@ export default {
     'Trigger rule: alarm is triggered only when the number of new dimension values is greater than {threshold}',
   '分组删除后，相关指标将被移动到 <{name}>':
     'After the group is deleted, the related metrics will be moved to <{name}>',
+  '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
+    'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
 };

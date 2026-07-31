@@ -163,9 +163,11 @@ class PerformanceMonitor {
 // 导出单例
 export const performanceMonitor = new PerformanceMonitor();
 
-// 在开发环境下，将性能监控器挂载到 window 对象，方便调试
+// 在开发环境下，将旧版轻量性能计时器挂载到独立命名空间，方便调试。
+// 注意：`window.__BKLOG_PERF_MONITOR__` 已由 IndexedDB 性能诊断服务占用，提供 enable/mark/export 等能力。
+// 这里不能再覆盖该全局对象，否则会导致控制台调用 `__BKLOG_PERF_MONITOR__.enable/mark` 为 undefined。
 if (process.env.NODE_ENV === 'development') {
-  (window as any).__BKLOG_PERF_MONITOR__ = performanceMonitor;
+  (window as any).__BKLOG_LEGACY_PERF_MONITOR__ = performanceMonitor;
   (window as any).__BKLOG_PERF_REPORT__ = () => performanceMonitor.report();
   (window as any).__BKLOG_PERF_SUMMARY__ = () => {
     const summary = performanceMonitor.getSummary();

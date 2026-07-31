@@ -679,6 +679,33 @@ def test_enable_closed_strategies_accepts_negative_biz_ids(monkeypatch):
     assert received["bk_biz_ids"] == [-4759, 2]
 
 
+def test_disable_enabled_strategies_accepts_negative_biz_ids_and_dry_run(monkeypatch):
+    received = {}
+
+    def fake_disable_enabled_strategies(**kwargs):
+        received.update(kwargs)
+        return {
+            -4759: {
+                "enabled_count": 2,
+                "previously_recorded_count": 0,
+                "newly_recorded_count": 2,
+                "recorded_count": 2,
+                "disabled_count": 0,
+                "dry_run": True,
+            }
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "disable_enabled_strategies",
+        fake_disable_enabled_strategies,
+    )
+
+    data_migrate_command.Command()._handle_disable_enabled_strategies({"bk_biz_ids": [-4759], "dry_run": True})
+
+    assert received == {"bk_biz_ids": [-4759], "dry_run": True}
+
+
 def test_stop_biz_subscription_tasks_handler_passes_negative_biz_ids(monkeypatch):
     received = {}
 

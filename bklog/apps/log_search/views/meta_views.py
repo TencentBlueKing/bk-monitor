@@ -60,7 +60,7 @@ class MetaViewSet(APIViewSet):
             "result": true
         }
         """
-        return Response(MetaHandler.get_user())
+        return Response(MetaHandler.get_user(refresh=True))
 
     @list_route(methods=["GET"], url_path="spaces/mine")
     def list_spaces_mine(self, request):

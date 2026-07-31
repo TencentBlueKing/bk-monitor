@@ -210,8 +210,21 @@ export default defineComponent({
           text: username,
           value: username,
         }));
-        // 批量获取用户信息，用于更新 text 为 display_name
-        tenantManager.batchGetUserDisplayInfo(response.data);
+        // 批量获取用户信息，用返回值同步更新 text 为 display_name
+        // （已缓存的用户不会触发 userInfoUpdated 事件，需要同步处理）
+        const userInfoMap = await tenantManager.batchGetUserDisplayInfo(response.data);
+        let hasUpdate = false;
+        const updated = createdBys.value.map((item) => {
+          const info = userInfoMap.get(item.value);
+          if (info && info.display_name && info.display_name !== item.text) {
+            hasUpdate = true;
+            return { ...item, text: info.display_name };
+          }
+          return item;
+        });
+        if (hasUpdate) {
+          createdBys.value = updated;
+        }
       } catch (error) {
         console.warn('获取用户名列表失败:', error);
       }

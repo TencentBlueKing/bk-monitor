@@ -220,7 +220,8 @@ export default defineComponent({
       type: 5,
       hour: 0.5,
       run_time: dayjs().format('HH:mm:ss'),
-      only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
+      // 仅一次提交给后端的 run_time 不能带时区后缀，否则后端 strptime 会报 unconverted data remains: +0800
+      only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       week_list: [],
       day_list: [],
     });
@@ -339,7 +340,7 @@ export default defineComponent({
           break;
         case FrequencyType.onlyOnce:
           Object.assign(formData.frequency, {
-            run_time: frequency.only_once_run_time,
+            run_time: dayjs(frequency.only_once_run_time).format('YYYY-MM-DD HH:mm:ss'),
           });
           break;
         default:
@@ -493,7 +494,7 @@ export default defineComponent({
           frequency.run_time = formData.frequency.run_time;
           break;
         case FrequencyType.onlyOnce:
-          frequency.only_once_run_time = formData.frequency.run_time;
+          frequency.only_once_run_time = dayjs(formData.frequency.run_time).format('YYYY-MM-DD HH:mm:ss');
           break;
 
         default:
@@ -663,7 +664,7 @@ export default defineComponent({
           formData.start_time = null;
           formData.end_time = null;
           // 点击 仅一次 时刷新一次时间。
-          if (isNotChooseOnlyOnce) frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ssZZ');
+          if (isNotChooseOnlyOnce) frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
         } else {
           // 把丢掉的 start_time 和 end_time 补回去
           // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -1428,7 +1429,7 @@ export default defineComponent({
                     modelValue={this.frequency.only_once_run_time}
                     type='datetime'
                     onChange={v => {
-                      this.frequency.only_once_run_time = v;
+                      this.frequency.only_once_run_time = dayjs(v).format('YYYY-MM-DD HH:mm:ss');
                     }}
                   />
                 </div>

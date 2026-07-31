@@ -179,9 +179,10 @@ export default defineComponent({
       );
     };
     const renderStatusIcon = (status = 'closed') => {
+      const statusLowerCase = status.toLowerCase();
       // 未恢复
-      if (status === 'abnormal') {
-        const data: IAggregationRoot = alertAggregateData.value.filter(item => item.id === 'ABNORMAL')[0];
+      if (statusLowerCase === 'abnormal') {
+        const data: IAggregationRoot = alertAggregateData.value.filter(item => item.id.toUpperCase() === 'ABNORMAL')[0];
         return (
           <Progress
             width={38}
@@ -196,7 +197,7 @@ export default defineComponent({
           </Progress>
         );
       }
-      const info = statusList[status.toLowerCase()];
+      const info = statusList[statusLowerCase];
       return (
         <i
           style={{ color: info?.color }}

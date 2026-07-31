@@ -68,7 +68,7 @@ def get_request_api_headers(params):
     api_headers = {
         "bk_app_code": settings.APP_CODE,
         "bk_app_secret": settings.SECRET_KEY,
-        "bk_username": get_request_username(),
+        "bk_username": params.get("bk_username") or get_request_username(),
     }
     api_headers.update(params)
     return json.dumps(api_headers)

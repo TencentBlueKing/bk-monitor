@@ -396,6 +396,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   activePanel: eventPanelType = 'list';
   tableData: IEventItem[] = [];
   tableLoading = false;
+  isPartial = false;
+  partialReasons: Array<{ code: string; scopes: string[] }> = [];
+  totalRelation: 'eq' | 'gte' = 'eq';
   selectedList: string[] = [];
   sortOrder = '';
   pagination = {
@@ -420,6 +423,26 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   incidentQueryStringSource: 'base' | 'table' = 'base';
   valueMap: Record<Partial<AnlyzeField>, ICommonItem[]> = null;
+
+  get partialWarningTitle() {
+    if (this.searchType !== 'alert') {
+      return '';
+    }
+    if (this.isPartial) {
+      const isAlertListPartial = this.partialReasons.some(reason => reason.scopes.includes('alerts'));
+      if (isAlertListPartial) {
+        return this.$t(
+          '当前查询结果不完整，仅展示已扫描范围内的部分结果，实际数量至少为 {0} 条。请缩小时间范围或增加筛选条件。',
+          [this.pagination.count]
+        );
+      }
+      return this.$t('当前查询的部分聚合统计不完整，请缩小时间范围或增加筛选条件。');
+    }
+    if (this.totalRelation === 'gte') {
+      return this.$t('当前查询匹配至少 {0} 条，页面展示的总数为下界。', [this.pagination.count]);
+    }
+    return '';
+  }
 
   filterWidth = 320;
   filterInputStatus: FilterInputStatus = 'success';
@@ -1096,13 +1119,22 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const {
       aggs,
       alerts: list,
+      is_partial,
       overview,
+      partial_reasons,
       total,
+      total_relation,
       code,
-    } = await searchAlert(this.handleGetSearchParams(onlyOverview), {
-      needRes: true,
-      needMessage: false,
-    })
+    } = await searchAlert(
+      {
+        ...this.handleGetSearchParams(onlyOverview),
+        allow_partial: true,
+      },
+      {
+        needRes: true,
+        needMessage: false,
+      }
+    )
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
@@ -1115,8 +1147,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           apiType: 'alert',
           aggs: [],
           alerts: [],
+          is_partial: false,
           overview: [],
+          partial_reasons: [],
           total: 0,
+          total_relation: 'eq',
           code,
         };
       });
@@ -1134,8 +1169,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         event_count: '--',
         bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--',
       })),
+      isPartial: is_partial === true,
       overview,
-      total: Math.min(total, 10000),
+      partialReasons: partial_reasons || [],
+      total,
+      totalRelation: total_relation === 'gte' ? 'gte' : 'eq',
       code,
     };
   }
@@ -1464,7 +1502,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     } else {
       needTopN && (await this.handleGetSearchTopNList(false));
     }
-    const [{ aggs, list, total, code, greyed_spaces, apiType }] = await Promise.all(promiseList);
+    const [{ aggs, list, total, code, greyed_spaces, apiType, isPartial, partialReasons, totalRelation }] =
+      await Promise.all(promiseList);
     /** 如果数据接口类型与当前搜索类型不一致，则不进行数据展示, 大数据场景下，切换搜索类型，会导致多个tab数据错乱 */
     if (apiType && apiType !== this.searchType) {
       return;
@@ -1492,6 +1531,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         event_count: this.eventCounts?.[item.id] || '--',
         followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false,
       })) || [];
+    this.isPartial = this.searchType === 'alert' && isPartial === true;
+    this.partialReasons = this.isPartial ? partialReasons || [] : [];
+    this.totalRelation = this.searchType === 'alert' && totalRelation === 'gte' ? 'gte' : 'eq';
 
     // 查找当前表格的 告警 标签是否有 告警接收人 为空的情况。BugID: 1010158081103484871
     this.numOfEmptyAssignee = this.tableData.filter(
@@ -2837,6 +2879,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   </bk-button>
                 </template>
               </bk-alert>
+            )}
+            {this.partialWarningTitle && (
+              <bk-alert
+                class='content-alert'
+                title={this.partialWarningTitle}
+                type='warning'
+              />
             )}
             <div
               ref='contentTable'

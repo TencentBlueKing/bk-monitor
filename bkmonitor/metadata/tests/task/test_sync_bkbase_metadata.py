@@ -544,6 +544,7 @@ def test_sync_bkbase_clusters(create_or_delete_records):
             "spec": {
                 "host": "es.example.com",
                 "port": 9200,
+                "schema": "https",
                 "user": "es_user",  # 注意这里键名是 user
                 "password": "es_password",
             },
@@ -626,6 +627,7 @@ def test_sync_bkbase_clusters(create_or_delete_records):
         assert es_cluster.username == "es_user"
         assert es_cluster.password == "es_password"
         assert es_cluster.cluster_type == models.ClusterInfo.TYPE_ES
+        assert es_cluster.schema == "https"
 
         vm_cluster = models.ClusterInfo.objects.get(domain_name="vm.example.com")
         assert vm_cluster.username == "vm_user"
@@ -645,6 +647,56 @@ def test_sync_bkbase_clusters(create_or_delete_records):
         assert surrealdb_cluster.password == "root"
         assert surrealdb_cluster.cluster_type == models.ClusterInfo.TYPE_SURREALDB
         assert surrealdb_cluster.version == "2.3.2"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_es_cluster_schema_only_when_not_empty():
+    es_config = next(
+        config for config in BKBASE_V4_KIND_STORAGE_CONFIGS if config["cluster_type"] == models.ClusterInfo.TYPE_ES
+    )
+    cluster_data = {
+        "kind": "ElasticSearch",
+        "metadata": {"namespace": "bklog", "name": "es_schema", "labels": {}, "annotations": {}},
+        "spec": {
+            "host": "es_schema.test",
+            "port": 9200,
+            "schema": "https",
+            "user": "testuser",
+            "password": "testpwd",
+        },
+    }
+    cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        cluster_name="es_schema",
+        display_name="es_schema",
+        domain_name="es_schema.test",
+        port=9200,
+        description="",
+        is_default_cluster=False,
+        schema="http",
+    )
+
+    sync_bkbase_cluster_info(
+        bk_tenant_id="system",
+        cluster_data=cluster_data,
+        field_mappings=es_config["field_mappings"],
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        update=True,
+    )
+    cluster.refresh_from_db()
+    assert cluster.schema == "https"
+
+    cluster_data["spec"]["schema"] = ""
+    sync_bkbase_cluster_info(
+        bk_tenant_id="system",
+        cluster_data=cluster_data,
+        field_mappings=es_config["field_mappings"],
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        update=True,
+    )
+    cluster.refresh_from_db()
+    assert cluster.schema == "https"
 
 
 @pytest.mark.django_db(databases="__all__")

@@ -26,6 +26,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { readBlobRespToJson } from '@/common/util';
+import { moduleLargeDataCacheService } from '@/storage';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
@@ -65,6 +66,8 @@ export default defineComponent({
       has_more: true,
       is_error: false,
       exception_msg: '',
+      cache_scope: '',
+      cached_count: 0,
     });
 
     const matchMode = ref({
@@ -85,12 +88,13 @@ export default defineComponent({
      * 如果 log 字段不存在，则设置为第一个 field_type 为 text 的字段
      */
     const setDefaultFieldValue = () => {
-      if (field.value === '' && store.state.indexFieldInfo.fields.length > 0) {
-        const logField = store.state.indexFieldInfo.fields.find(field => field.field_name === 'log');
+      const rawFieldList = store.getters.rawFieldList;
+      if (field.value === '' && rawFieldList.length > 0) {
+        const logField = rawFieldList.find(field => field.field_name === 'log');
         if (logField) {
           field.value = logField.field_name;
         } else {
-          const textField = store.state.indexFieldInfo.fields.find(field => field.field_type === 'text');
+          const textField = rawFieldList.find(field => field.field_type === 'text');
           if (textField) {
             field.value = textField.field_name;
           }
@@ -108,7 +112,19 @@ export default defineComponent({
       }
     };
 
+    const clearGrepCache = () => {
+      const scope = grepRequestResult.value.cache_scope;
+      if (scope) {
+        moduleLargeDataCacheService.clear(scope).catch(error => {
+          console.warn('[grep-cache] clear failed', error);
+        });
+      }
+      grepRequestResult.value.cache_scope = '';
+      grepRequestResult.value.cached_count = 0;
+    };
+
     const resetGrepRequestResult = () => {
+      clearGrepCache();
       grepRequestResult.value.has_more = true;
       grepRequestResult.value.list.splice(0, grepRequestResult.value.list.length);
       grepRequestResult.value.offset = 0;
@@ -173,8 +189,23 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ data, result, message }) => {
               if (result) {
-                grepRequestResult.value.has_more = data.list.length === 100;
-                grepRequestResult.value.list.push(...data.list);
+                const list = Array.isArray(data.list) ? data.list : [];
+                grepRequestResult.value.has_more = list.length === 100;
+                const currentScope = grepRequestResult.value.cache_scope || moduleLargeDataCacheService.createScope('grep', {
+                  indexId: store.state.indexId,
+                  field: field.value,
+                  grepQuery: grepQuery.value,
+                  start_time,
+                  end_time,
+                });
+                const mergedList = grepRequestResult.value.list.concat(list);
+                grepRequestResult.value.cache_scope = currentScope;
+                grepRequestResult.value.cached_count = mergedList.length;
+                moduleLargeDataCacheService.replaceList(currentScope, mergedList, 50).catch(error => {
+                  console.warn('[grep-cache] persist failed', error);
+                });
+                grepRequestResult.value.list = mergedList;
+                data.list = undefined;
                 setTimeout(() => {
                   RetrieveHelper.highLightKeywords([searchValue.value], true);
                 });
@@ -215,9 +246,9 @@ export default defineComponent({
     // 处理匹配模式更新
     const handleMatchModeUpdate = (mode: any) => {
       Object.assign(matchMode.value, mode);
-      RetrieveHelper.markInstance?.setCaseSensitive(matchMode.value.caseSensitive);
-      RetrieveHelper.markInstance?.setRegExpMode(matchMode.value.regexMode);
-      RetrieveHelper.markInstance?.setAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
+      RetrieveHelper.setHighlightCaseSensitive(matchMode.value.caseSensitive);
+      RetrieveHelper.setHighlightRegExpMode(matchMode.value.regexMode);
+      RetrieveHelper.setHighlightAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
       RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 
@@ -350,7 +381,10 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      RequestPool.execCanceToken('requestIndexSetGrepQueryToken');
+      requestGrepList.cancel?.();
       resetGrepRequestResult();
+      moduleLargeDataCacheService.clearMemory(grepRequestResult.value.cache_scope);
       RetrieveHelper.destroyMarkInstance();
     });
 

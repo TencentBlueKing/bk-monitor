@@ -4,9 +4,10 @@ from copy import deepcopy
 from typing import Any
 
 from django.db import transaction
-from django.db.models import Model, Q
+from django.db.models import Count, Model, Q
 
-from bkmonitor.models import BCSCluster
+from bk_dataview.models import Dashboard, Org
+from bkmonitor.models import BCSCluster, StrategyModel
 from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models import (
     BkAppSpaceRecord,
@@ -19,9 +20,12 @@ from metadata.models import (
     SpaceVMInfo,
     VMShortLinkRecord,
 )
+from metadata.models.custom_report.time_series import TimeSeriesGroup
 from metadata.models.record_rule.rules import RecordRule
 from metadata.models.record_rule.v4 import RecordRuleV4, RecordRuleV4Flow
+from metadata.models.result_table import ResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from monitor_web.models import CustomEventGroup
 
 BKCI_SPACE_TYPE = SpaceTypes.BKCI.value
 BCS_RESOURCE_TYPE = SpaceTypes.BCS.value
@@ -42,6 +46,101 @@ MODEL_REGISTRY: dict[str, type[Model]] = {
     "metadata.RecordRuleV4Flow": RecordRuleV4Flow,
     "bkmonitor.BCSCluster": BCSCluster,
 }
+
+
+def collect_bkci_project_usage(
+    bk_tenant_id: str,
+    space_ids: list[str] | tuple[str, ...] | set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """统计租户下各 BKCI 项目的管理数据记录数。
+
+    ``SpaceDataSource`` 使用空间类型和 ``space_id`` 关联项目；其他模型使用
+    BKCI 空间对应的虚拟业务 ID（即 ``-Space.pk``）。Grafana Dashboard 通过
+    名称等于虚拟业务 ID 的 Org 关联，只统计仪表盘，不统计文件夹。
+
+    Args:
+        bk_tenant_id: 待统计的租户 ID。
+        space_ids: 可选的 BKCI 项目 ID 列表；不传时统计租户下全部 BKCI 项目。
+
+    Returns:
+        按 ``space_id`` 排序的项目使用情况列表。
+    """
+    bk_tenant_id = (bk_tenant_id or "").strip()
+    if not bk_tenant_id:
+        raise ValueError("bk_tenant_id is required")
+
+    spaces = Space.objects.filter(bk_tenant_id=bk_tenant_id, space_type_id=BKCI_SPACE_TYPE)
+    if space_ids is not None:
+        normalized_space_ids = {str(space_id).strip() for space_id in space_ids if str(space_id).strip()}
+        spaces = spaces.filter(space_id__in=normalized_space_ids)
+
+    space_records = list(spaces.order_by("space_id").values("id", "space_id", "space_name"))
+    if not space_records:
+        return []
+
+    space_id_list = [record["space_id"] for record in space_records]
+    bk_biz_ids = [-record["id"] for record in space_records]
+
+    def count_by_biz_id(model: type[Model], *, tenant_scoped: bool = False) -> dict[int, int]:
+        filters: dict[str, Any] = {"bk_biz_id__in": bk_biz_ids}
+        if tenant_scoped:
+            filters["bk_tenant_id"] = bk_tenant_id
+        return dict(
+            model.objects.filter(**filters)
+            .values_list("bk_biz_id")
+            .annotate(record_count=Count("pk"))
+            .values_list("bk_biz_id", "record_count")
+        )
+
+    space_data_source_counts = dict(
+        SpaceDataSource.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            space_type_id=BKCI_SPACE_TYPE,
+            space_id__in=space_id_list,
+        )
+        .values_list("space_id")
+        .annotate(record_count=Count("pk"))
+        .values_list("space_id", "record_count")
+    )
+    custom_event_group_counts = count_by_biz_id(CustomEventGroup, tenant_scoped=True)
+    time_series_group_counts = count_by_biz_id(TimeSeriesGroup, tenant_scoped=True)
+    strategy_counts = count_by_biz_id(StrategyModel)
+    bcs_cluster_counts = count_by_biz_id(BCSCluster, tenant_scoped=True)
+    result_table_counts = count_by_biz_id(ResultTable, tenant_scoped=True)
+
+    org_to_biz_id = {
+        org_id: int(name)
+        for org_id, name in Org.objects.filter(name__in=[str(bk_biz_id) for bk_biz_id in bk_biz_ids]).values_list(
+            "id", "name"
+        )
+    }
+    dashboard_counts_by_org = dict(
+        Dashboard.objects.filter(org_id__in=org_to_biz_id, is_folder=0)
+        .values_list("org_id")
+        .annotate(record_count=Count("pk"))
+        .values_list("org_id", "record_count")
+    )
+    dashboard_counts = {org_to_biz_id[org_id]: record_count for org_id, record_count in dashboard_counts_by_org.items()}
+
+    result = []
+    for space in space_records:
+        bk_biz_id = -space["id"]
+        result.append(
+            {
+                "bk_tenant_id": bk_tenant_id,
+                "space_id": space["space_id"],
+                "space_name": space["space_name"],
+                "bk_biz_id": bk_biz_id,
+                "space_data_source_count": space_data_source_counts.get(space["space_id"], 0),
+                "custom_event_group_count": custom_event_group_counts.get(bk_biz_id, 0),
+                "time_series_group_count": time_series_group_counts.get(bk_biz_id, 0),
+                "strategy_model_count": strategy_counts.get(bk_biz_id, 0),
+                "bcs_cluster_count": bcs_cluster_counts.get(bk_biz_id, 0),
+                "dashboard_count": dashboard_counts.get(bk_biz_id, 0),
+                "result_table_count": result_table_counts.get(bk_biz_id, 0),
+            }
+        )
+    return result
 
 
 def repair_bkci_space_id_prefix(

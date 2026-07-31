@@ -48,17 +48,22 @@ from apps.log_clustering.constants import (
     NEW_CLASS_FIELD_PREFIX,
     NEW_CLASS_QUERY_FIELDS,
     NEW_CLASS_QUERY_TIME_RANGE,
+    NEW_CLASS_ALERT_SEARCH_PAGE_SIZE,
     NEW_CLASS_SENSITIVITY_FIELD,
+    NO_DATA_ALERT_DEDUPE_KEY,
     PERCENTAGE_RATE,
     OwnerConfigEnum,
     PatternEnum,
     RemarkConfigEnum,
+    SIGNATURE_FIELD,
     StorageTypeEnum,
+    StrategiesType,
 )
 from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
     ClusteringRemark,
+    SignatureStrategySettings,
 )
 from apps.log_clustering.utils.pattern import parse_pattern_placeholders
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -527,6 +532,143 @@ class PatternHandler:
     def new_class_field(self) -> str:
         return f"{NEW_CLASS_FIELD_PREFIX}_{self._pattern_level}"
 
+    @cached_property
+    def _monitor_bk_biz_id(self) -> int:
+        if self._clustering_config.related_space_pre_bk_biz_id:
+            return self._clustering_config.related_space_pre_bk_biz_id
+        return self._clustering_config.bk_biz_id
+
+    def _get_new_class(self):
+        start_time, end_time = generate_time_range(
+            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
+        )
+        if self._clustering_config.use_mini_link:
+            # TODO: 使用监控新类告警结果判定
+            return set()
+        if self._clustering_config.new_cls_strategy_output:
+            return self._get_new_class_from_bkdata_strategy_output(start_time, end_time)
+        if self._clustering_config.new_cls_pattern_rt:
+            return self._get_new_class_from_bkdata_pattern_rt(start_time, end_time)
+        return self._get_new_class_from_alerts(start_time, end_time)
+
+    def _get_new_class_from_bkdata_strategy_output(self, start_time, end_time):
+        # 存量 IntelligentDetect 策略输出 RT
+        try:
+            select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
+            new_classes = (
+                BkData(self._clustering_config.new_cls_strategy_output)
+                .select(*select_fields)
+                .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
+                .query()
+            )
+        except Exception:  # pylint: disable=broad-except
+            # 分组字段不存在导致查询失败时，退化到不按分组聚合
+            select_fields = NEW_CLASS_QUERY_FIELDS
+            new_classes = (
+                BkData(self._clustering_config.new_cls_strategy_output)
+                .select(*select_fields)
+                .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
+                .query()
+            )
+        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
+
+    def _get_new_class_from_bkdata_pattern_rt(self, start_time, end_time):
+        select_fields = NEW_CLASS_QUERY_FIELDS
+        new_classes = (
+            BkData(self._clustering_config.new_cls_pattern_rt)
+            .select(*select_fields)
+            .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
+            .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
+            .query()
+        )
+        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
+
+    def _get_new_class_strategy_id(self):
+        strategy_settings = SignatureStrategySettings.objects.filter(
+            index_set_id=self._index_set_id,
+            strategy_type=StrategiesType.NEW_CLS_strategy,
+            signature="",
+            is_deleted=False,
+        ).first()
+        if not strategy_settings or not strategy_settings.strategy_id:
+            return None
+        return strategy_settings.strategy_id
+
+    def _is_no_data_alert(self, alert):
+        return NO_DATA_ALERT_DEDUPE_KEY in (alert.get("dedupe_keys") or [])
+
+    @staticmethod
+    def _normalize_alert_dimension_key(key):
+        if isinstance(key, str) and key.startswith("tags."):
+            return key[len("tags.") :]
+        return key
+
+    def _extract_signature_from_alert_dimensions(self, dimensions):
+        signature_keys = {SIGNATURE_FIELD, self.pattern_aggs_field}
+        for dimension in dimensions or []:
+            key = self._normalize_alert_dimension_key(dimension.get("key"))
+            if key not in signature_keys:
+                continue
+            value = dimension.get("value")
+            if value not in (None, ""):
+                return str(value)
+        return None
+
+    def _extract_new_class_tuple_from_alert(self, alert, select_fields):
+        dimensions = alert.get("dimensions") or []
+        signature = self._extract_signature_from_alert_dimensions(dimensions)
+        if not signature:
+            return None
+
+        dimension_map = {
+            self._normalize_alert_dimension_key(dimension.get("key")): dimension.get("value")
+            for dimension in dimensions
+            if dimension.get("key") is not None
+        }
+        return tuple(
+            str(signature if field == SIGNATURE_FIELD else dimension_map.get(field, "")) for field in select_fields
+        )
+
+    def _get_new_class_from_alerts(self, start_time, end_time):
+        strategy_id = self._get_new_class_strategy_id()
+        if not strategy_id:
+            return set()
+
+        select_fields = NEW_CLASS_QUERY_FIELDS + list(self._clustering_config.group_fields or [])
+        new_classes = set()
+        page = 1
+
+        while True:
+            request_params = {
+                "bk_biz_ids": [self._monitor_bk_biz_id],
+                "conditions": [{"key": "strategy_id", "value": [strategy_id]}],
+                "start_time": int(start_time.timestamp()),
+                "end_time": int(end_time.timestamp()),
+                "page": page,
+                "page_size": NEW_CLASS_ALERT_SEARCH_PAGE_SIZE,
+                "show_overview": False,
+                "show_aggs": False,
+            }
+            alert_result = MonitorApi.search_alert(request_params) or {}
+            alerts = alert_result.get("alerts") or []
+            for alert in alerts:
+                if self._is_no_data_alert(alert):
+                    continue
+                new_class_tuple = self._extract_new_class_tuple_from_alert(alert, select_fields)
+                if new_class_tuple:
+                    new_classes.add(new_class_tuple)
+
+            total = alert_result.get("total", 0)
+            if page * NEW_CLASS_ALERT_SEARCH_PAGE_SIZE >= total or not alerts:
+                break
+            page += 1
+
+        return new_classes
+
     def _parse_pattern_aggs_result(self, pattern_field: str, aggs_result: dict) -> list[dict]:
         aggs = aggs_result.get("aggs")
         pattern_field_aggs = aggs.get(pattern_field)
@@ -556,47 +698,6 @@ class PatternHandler:
                     )
             bucket = result_buckets
         return bucket
-
-    def _get_new_class(self):
-        start_time, end_time = generate_time_range(
-            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
-        )
-        if self._clustering_config.use_mini_link:
-            # TODO: 使用监控新类告警结果判定
-            new_classes = []
-        elif self._clustering_config.new_cls_strategy_output:
-            # 新类异常检测逻辑适配
-            try:
-                select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
-                new_classes = (
-                    BkData(self._clustering_config.new_cls_strategy_output)
-                    .select(*select_fields)
-                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
-                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                    .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
-                    .query()
-                )
-            except Exception:  # pylint: disable=broad-except
-                # 分组字段不存在导致查询失败时，退化到不按分组聚合
-                select_fields = NEW_CLASS_QUERY_FIELDS
-                new_classes = (
-                    BkData(self._clustering_config.new_cls_strategy_output)
-                    .select(*select_fields)
-                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
-                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                    .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
-                    .query()
-                )
-        else:
-            select_fields = NEW_CLASS_QUERY_FIELDS
-            new_classes = (
-                BkData(self._clustering_config.new_cls_pattern_rt)
-                .select(*select_fields)
-                .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
-                .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
-                .query()
-            )
-        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
     def _get_pattern_data(self, patterns):
         if not patterns:
@@ -749,8 +850,12 @@ class PatternHandler:
         """
         self._clustering_config.group_fields = group_fields
         self._clustering_config.save()
-        # TODO: 暂不打开，等完成告警配置页面再打开
-        # update_log_count_aggregation_flow.delay(self._clustering_config.index_set_id)
+        if self._clustering_config.new_cls_strategy_enable:
+            from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
+
+            monitor_handler = ClusteringMonitorHandler(self._clustering_config.index_set_id)
+            if not monitor_handler.is_legacy_new_class_strategy():
+                monitor_handler.resave_new_cls_clustering_strategy()
         return model_to_dict(self._clustering_config)
 
     @atomic

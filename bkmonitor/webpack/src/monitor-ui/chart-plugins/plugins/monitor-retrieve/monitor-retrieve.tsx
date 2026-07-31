@@ -40,9 +40,10 @@ import dayjs from 'dayjs';
 import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import ApmTraceExplore from '../apm-trace-explore';
+
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import ApmTraceExplore from '../apm-trace-explore';
 
 import './monitor-retrieve.scss';
 import '@blueking/monitor-apm-log/css/main.css';
@@ -67,7 +68,9 @@ export default class MonitorRetrieve extends tsc<void> {
   bklogContentScrollTop = 0;
   showQuickJump = true;
   /** 打开 ApmTraceExplore Trace 详情侧边窗 */
-  slideDetail: { appName: string; bizId?: number; traceId: string } | null = null;
+  slideDetail: null | { appName: string; bizId?: number; traceId: string } = null;
+  /** APM 日志 Vue 实例本地引用，避免被嵌套 monitor-trace-log 覆盖 window.mainComponent 后丢失 */
+  apmLogInstance: any = null;
 
   async created() {
     initWindowState();
@@ -76,8 +79,15 @@ export default class MonitorRetrieve extends tsc<void> {
   beforeDestroy() {
     if (!this.empty) {
       logStore.commit('resetState');
-      window.mainComponent.$destroy();
-      window.mainComponent = null;
+      const instance = this.apmLogInstance;
+      this.apmLogInstance = null;
+      // 嵌套 KeepAlive 的 trace-log 卸载时可能已误毁 window.mainComponent
+      if (instance && !instance._isDestroyed) {
+        instance.$destroy();
+      }
+      if (window.mainComponent === instance || window.mainComponent?._isDestroyed) {
+        window.mainComponent = null;
+      }
     }
 
     this.bklogContentDom?.removeEventListener('scroll', this.handleBklogContentScroll);
@@ -97,6 +107,17 @@ export default class MonitorRetrieve extends tsc<void> {
 
   handleSliderClose() {
     this.slideDetail = null;
+    // ExploreTraceSlider 被 KeepAlive 缓存，关闭侧边栏不会卸载 monitor-trace-log，
+    // 其写入的 __IS_MONITOR_TRACE__ / mainComponent 会残留，导致外层 APM 悬浮/划词失效
+    this.restoreApmLogWindowState();
+  }
+
+  /** 恢复 APM 日志包依赖的 window 全局标记与 mainComponent */
+  restoreApmLogWindowState() {
+    initWindowState();
+    if (this.apmLogInstance && !this.apmLogInstance._isDestroyed) {
+      window.mainComponent = this.apmLogInstance;
+    }
   }
 
   async init() {
@@ -113,7 +134,7 @@ export default class MonitorRetrieve extends tsc<void> {
         spaceUid,
       });
       initGlobalComponents();
-      window.mainComponent = new Vue({
+      this.apmLogInstance = new Vue({
         store: logStore,
         router: this.$router,
         i18n,
@@ -129,8 +150,9 @@ export default class MonitorRetrieve extends tsc<void> {
             },
           }),
       });
+      window.mainComponent = this.apmLogInstance;
       await this.$nextTick();
-      window.mainComponent.$mount(this.$el.querySelector('#main'));
+      this.apmLogInstance.$mount(this.$el.querySelector('#main'));
       this.bklogContentDom = (await this.handleGetBklogContent()) as HTMLElement;
       this.bklogContentDom?.addEventListener('scroll', this.handleBklogContentScroll);
     } else {

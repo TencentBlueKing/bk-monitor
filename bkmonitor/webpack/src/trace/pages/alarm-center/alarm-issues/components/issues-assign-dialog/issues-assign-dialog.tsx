@@ -34,7 +34,7 @@ import { useAsyncDialog } from '../../hooks/use-async-dialog';
 import { useRecentAssignees } from '../../hooks/use-recent-assignees';
 
 import type { AsyncDialogConfirmEvent } from '../../hooks/use-async-dialog';
-import type { IssueIdentifier } from '../../typing';
+import type { IssueIdentifier, IssuesAssignDialogParams } from '../../typing';
 
 import './issues-assign-dialog.scss';
 
@@ -54,6 +54,11 @@ export default defineComponent({
     /** 弹窗标题 */
     title: {
       type: String,
+    },
+    /** dialog 私有参数（用于回填当前负责人） */
+    dialogParam: {
+      type: Object as PropType<IssuesAssignDialogParams>,
+      default: () => ({}),
     },
   },
   emits: {
@@ -111,12 +116,12 @@ export default defineComponent({
       emit('cancel');
     };
 
-    // 每次弹窗打开时清空输入值
+    // 每次弹窗打开时回填当前负责人
     watch(
       () => props.isShow,
       val => {
         if (val) {
-          assignInputValue.value = [];
+          assignInputValue.value = props.dialogParam?.assignee?.length ? props.dialogParam.assignee : [];
         }
       }
     );

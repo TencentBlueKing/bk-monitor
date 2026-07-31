@@ -11,9 +11,12 @@ specific language governing permissions and limitations under the License.
 import os
 from typing import Any
 
+from blueapps.account.components.bk_token.verification_strategy import TokenVerifier
 from django.conf import settings
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
+from opentelemetry import context as otel_context
+from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
@@ -23,7 +26,7 @@ from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import api, resource
+from core.drf_resource import resource
 from core.errors.api import BKAPIError
 
 
@@ -106,11 +109,19 @@ def get_core_context(request):
 
     # 获取用户时区
     user_time_zone = ""
-    if username:
+    bk_token = request.COOKIES.get("bk_token", "")
+    if username and bk_token:
         try:
-            user_time_zone = api.bk_login.get_user_info(id=username).get("time_zone", "")
-        except Exception as e:
-            logger.error(f"Get user {username} time zone failed: {e}")
+            # bk_token 会作为 GET 参数发送，避免自动采集将其记录到请求 URL。
+            context_token = otel_context.attach(otel_context.set_value(_SUPPRESS_INSTRUMENTATION_KEY, True))
+            try:
+                result, user_info = TokenVerifier().get_user_info(bk_token)
+            finally:
+                otel_context.detach(context_token)
+            if result and user_info.get("username") == username:
+                user_time_zone = user_info.get("time_zone", "")
+        except Exception:
+            logger.error(f"Get user {username} time zone failed")
 
     return {
         # healthz 自监控引用

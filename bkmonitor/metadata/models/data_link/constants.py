@@ -35,7 +35,6 @@ class DataLinkKind(Enum):
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
-        (GRAPHRELATIONBINDING, "graphrelationbindings"),
         (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DORISBINDING, "dorisbindings"),
         (DATABUS, "databuses"),

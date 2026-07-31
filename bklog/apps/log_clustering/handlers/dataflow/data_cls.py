@@ -435,6 +435,7 @@ class LogCountAggregationFlowCls:
     log_count_signatures: list[str]
     table_name_no_id: str
     result_table_id: str
+    include_agg: bool
     agg: RealTimeCls
     tspider_storage: TspiderStorageCls
     storage_type: str

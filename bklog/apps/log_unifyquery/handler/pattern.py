@@ -21,7 +21,11 @@ the project delivered to anyone in the future.
 
 import copy
 
+from apps.log_clustering.constants import AGGS_FIELD_PREFIX, SIGNATURE_FIELD, PatternEnum
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+
+
+SIGNATURE_AGGS_FIELD = f"{AGGS_FIELD_PREFIX}_{PatternEnum.LEVEL_05.value}"
 
 
 class UnifyQueryPatternHandler(UnifyQueryHandler):
@@ -77,9 +81,13 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
             reordered_group_keys = []
             reordered_group_values = []
             for dimension in dimensions:
-                if dimension in key_value_map:
+                result_dimension = dimension
+                if dimension == SIGNATURE_AGGS_FIELD and dimension not in key_value_map:
+                    result_dimension = SIGNATURE_FIELD
+
+                if result_dimension in key_value_map:
                     reordered_group_keys.append(dimension)
-                    reordered_group_values.append(key_value_map[dimension])
+                    reordered_group_values.append(key_value_map[result_dimension])
 
             item["group_keys"] = reordered_group_keys
             item["group_values"] = reordered_group_values

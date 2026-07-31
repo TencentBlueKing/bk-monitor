@@ -26,8 +26,17 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
             return settings.BK_INCIDENT_APIGW_URL
         return f"{settings.BK_COMPONENT_API_URL}/api/incident-manager/prod/"
 
+    @staticmethod
+    def is_standard_scope_id(value):
+        return isinstance(value, str) and value.startswith(("bkcc_", "bkci_", "bksaas_"))
+
     def convert_bk_biz_id_list_to_scope_id_list(self, params, bk_biz_id_list):
-        return [params.get("scope_type", "bkcc") + "_" + str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
+        return [
+            bk_biz_id
+            if self.is_standard_scope_id(bk_biz_id)
+            else params.get("scope_type", "bkcc") + "_" + str(bk_biz_id)
+            for bk_biz_id in bk_biz_id_list
+        ]
 
     def convert_bk_biz_id_to_scope_value(self, params):
         """
@@ -132,7 +141,7 @@ class CreateTaskResource(IncidentBaseResource):
         template_id = serializers.IntegerField(label="模版ID", required=True)
         constants = serializers.JSONField(label="创建任务参数", required=False)
         name = serializers.CharField(label="任务名称", required=False)
-        source = serializers.CharField(label="任务来源", required=False,default="bk_monitor")
+        source = serializers.CharField(label="任务来源", required=False, default="bk_monitor")
 
 
 class OperateTaskResource(IncidentBaseResource):
@@ -180,6 +189,24 @@ class GetIncidentDiagnosisResource(IncidentBaseResource):
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         incident_id = serializers.IntegerField(label="故障ID", required=True)
+
+
+class GetPanelDetailResource(IncidentBaseResource):
+    """获取故障诊断记录的侧滑详情数据。"""
+
+    action = "/incident/incident_analysis/get_panel_detail/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
+        scope_value = serializers.CharField(label="空间ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+        incident_task_id = serializers.IntegerField(label="故障分析任务ID", required=False, allow_null=True)
+        drawer_type = serializers.ChoiceField(label="侧滑类型", choices=("event", "log", "trace"), required=True)
+        detail_ref = serializers.DictField(label="详情引用", required=True)
+        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(label="每页数量", required=False, default=30, min_value=1, max_value=1000)
 
 
 class GetIncidentDetailResource(IncidentBaseResource):

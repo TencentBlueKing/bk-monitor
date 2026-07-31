@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, ref } from 'vue';
+import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -33,6 +33,7 @@ import { bkMessage } from 'bk-magic-vue';
 import { parseTableRowData } from '../../../common/util';
 import { GradeFieldValueType, type GradeSetting } from '../../../views/retrieve-core/interface';
 import $http from '@/api';
+import { retrieveRowCacheService } from '@/storage';
 
 import './grade-option.scss';
 
@@ -129,23 +130,47 @@ export default defineComponent({
     const gradeOptionForm = ref(getDefaultGradeOption());
 
     const isLoading = ref(false);
+    const indexedRows = ref<Record<string, any>[]>([]);
 
     const fieldList = computed(() =>
-      (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values && f.field_type === 'keyword'),
+      store.getters.rawFieldList.filter(f => f.es_doc_values && f.field_type === 'keyword'),
     );
 
     const gradeOptionField = computed(() => fieldList.value.find(f => f.field_name === gradeOptionForm.value.field));
+
+    watch(
+      () => [
+        store.state.indexSetQueryResult.row_query_key,
+        store.state.indexSetQueryResult.cached_count,
+        gradeOptionForm.value.field,
+        gradeOptionForm.value.valueType,
+      ],
+      async () => {
+        if (gradeOptionForm.value.valueType !== GradeFieldValueType.VALUE || !gradeOptionForm.value.field) {
+          indexedRows.value = [];
+          return;
+        }
+
+        indexedRows.value = await retrieveRowCacheService.getRowsByQuery(
+          store.state.indexSetQueryResult.row_query_key,
+          0,
+          200,
+        );
+      },
+      { immediate: true },
+    );
+
     const fieldSearchValueList = computed(() => {
       if (gradeOptionForm.value.valueType === GradeFieldValueType.VALUE && gradeOptionForm.value.field) {
         const storedValues = gradeOptionForm.value.settings.flatMap(item => item.fieldValue ?? []);
         return Array.from(
           new Set([
-            ...store.state.indexSetQueryResult.list.map(item =>
+            ...indexedRows.value.map(item =>
               parseTableRowData(item, gradeOptionForm.value.field, gradeOptionField.value?.field_type, true),
             ),
             ...storedValues,
           ]),
-        ).map(f => ({ id: `${f}`, name: `${f}` }));
+        ).map(f => ({ id: String(f), name: String(f) }));
       }
 
       return [];

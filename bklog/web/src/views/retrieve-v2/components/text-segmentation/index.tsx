@@ -41,6 +41,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { highlightPlainTextIntoFragment, pageHighlightState, buildSegmentPageHighlightRanges, type HighlightRange } from '@/views/retrieve-core/page-highlight';
 import { debounce } from 'lodash-es';
 
 import type { WordListItem } from '@/hooks/use-text-segmentation';
@@ -67,6 +68,10 @@ export default defineComponent({
     isLimitExpandView: {
       type: Boolean,
       default: false,
+    },
+    precomputedSegments: {
+      type: Array,
+      default: undefined,
     },
   },
   emits: ['menu-click'],
@@ -103,17 +108,15 @@ export default defineComponent({
         content: props.content,
         field: props.field,
         data: props.data,
+        precomputedSegments: props.precomputedSegments as WordListItem[],
       },
     });
 
     let wordList: WordListItem[];
+    let segmentPageRanges: HighlightRange[][] = [];
     let renderMoreItems: (size?, next?) => void = null;
 
     const getTagName = item => {
-      if (item.isMark) {
-        return 'mark';
-      }
-
       if (/^(br|\n)$/.test(item.text)) {
         return 'br';
       }
@@ -125,9 +128,16 @@ export default defineComponent({
       e.stopPropagation();
       e.preventDefault();
       e.stopImmediatePropagation();
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       showAll.value = !showAll.value;
 
       renderMoreItems?.();
+    };
+
+    const handleMorePointerEvent = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
     };
 
     const handleTextSegmentClick = (e: MouseEvent) => {
@@ -165,6 +175,7 @@ export default defineComponent({
       const { setListItem, removeScrollEvent } = cellScrollInstance;
       renderMoreItems = setListItem;
       removeScrollEventFn = removeScrollEvent;
+      segmentPageRanges = buildSegmentPageHighlightRanges(wordList);
 
       // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
       // 这里默认渲染前500跟分词 + 10 - 20行溢出
@@ -183,23 +194,33 @@ export default defineComponent({
           refContent.value,
           refSegmentContent.value,
           // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-          (item: WordListItem) => {
+          (item: WordListItem, index?: number) => {
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
+
+            if (/^(br|\n)$/.test(item.text)) {
+              return child;
+            }
 
             if (item.isBlobWord) {
               child.innerHTML = xssFilter(item.text?.length ? item.text : '""');
               return child;
             }
 
-            child.textContent = item.text?.length ? item.text : '""';
+            const text = item.text?.length ? item.text : '""';
+            child.appendChild(highlightPlainTextIntoFragment({
+              text,
+              resultRanges: item.resultRanges?.length
+                ? item.resultRanges
+                : undefined,
+              resultHighlighted: !item.resultRanges?.length && item.isMark,
+              pageRanges: typeof index === 'number' ? segmentPageRanges[index] : undefined,
+            }));
             return child;
           },
         );
 
         setWordSegmentRender();
-
-        nextTick(() => RetrieveHelper.highlightElement(refSegmentContent.value));
       });
     });
 
@@ -234,7 +255,7 @@ export default defineComponent({
     );
 
     watch(
-      () => props.content,
+      () => [props.content, props.precomputedSegments, pageHighlightState.version],
       () => {
         textSegmentInstance = new UseTextSegmentation({
           onSegmentClick: handleMenuClick,
@@ -242,6 +263,7 @@ export default defineComponent({
             content: props.content,
             field: props.field,
             data: props.data,
+            precomputedSegments: props.precomputedSegments as WordListItem[],
           },
         });
         setWordList();
@@ -258,6 +280,8 @@ export default defineComponent({
           <span
             class={['btn-more-action', 'word-text', 'is-show']}
             onClick={handleClickMore}
+            onMousedown={handleMorePointerEvent}
+            onMouseup={handleMorePointerEvent}
           >
             {btnText.value}
           </span>

@@ -47,6 +47,7 @@ import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import aiWhaleStore from '../../../store/modules/ai-whale';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
+import { splitHighlightFragments } from '../../home/new-home/utils';
 import FavList, { type IFavListItem } from './fav-list';
 import IconBtn, { type IIconBtnOptions } from './icon-btn';
 import TreeMenu from './tree-menu';
@@ -395,11 +396,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     return item;
   }
 
-  handleSearchHit(item: TreeMenuItem): string {
-    const keywork = this.keywork.toLocaleLowerCase();
-    return item.title.replace(new RegExp(`(${keywork})`, 'i'), '<span class="highlight">$1</span>');
-  }
-
   /**
    * 仪表盘的更多操作
    */
@@ -540,7 +536,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   }
   handleShowAddFrom(data: IMoreData, opt?: IIconBtnOptions) {
     const { option = opt, item } = data || {};
-    this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
+    this.formData.dir = item?.isGroup && item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
     this.copiedUid = item?.uid;
@@ -678,7 +674,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         if (hashPath && !hashPath.startsWith('/')) {
           hashPath = `/${hashPath}`;
         }
-        const url = hashPath ? `${location.origin}${window.site_url}?bizId=${this.$store.getters.bizId}#${hashPath}` : '';
+        const url = hashPath
+          ? `${location.origin}${window.site_url}?bizId=${this.$store.getters.bizId}#${hashPath}`
+          : '';
         url && window.open(url, '_blank');
         return true;
       })
@@ -850,10 +848,20 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                     onClick={() => this.handleSelectedGrafana(item)}
                   >
                     <span class='search-icon' />
-                    <span
-                      class='search-content'
-                      domPropsInnerHTML={this.handleSearchHit(item)}
-                    />
+                    <span class='search-content'>
+                      {splitHighlightFragments(item.title, this.keywork).map(fragment =>
+                        fragment.highlight ? (
+                          <span
+                            key={fragment.start}
+                            class='highlight'
+                          >
+                            {fragment.text}
+                          </span>
+                        ) : (
+                          fragment.text
+                        )
+                      )}
+                    </span>
                   </div>
                 ))
               ) : (

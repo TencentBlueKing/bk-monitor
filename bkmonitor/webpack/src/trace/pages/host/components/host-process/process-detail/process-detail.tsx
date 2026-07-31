@@ -24,16 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeUnmount, provide, reactive, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
-import { Exception, Loading, Sideslider } from 'bkui-vue';
+import { Exception, Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
+import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
 import TimeRange from '../../../../../components/time-range/time-range';
 import { getDefaultTimezone } from '../../../../../i18n/dayjs';
-import { DEFAULT_AGGREGATION_STATE } from '../../../../../pages/host/constants/aggregation';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
 import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pages/host/constants/process';
 import { formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
@@ -42,15 +43,16 @@ import { useProcessMetric } from '../../../composables/use-process-metric';
 import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
 import GroupManageDialog from '../../host-metric/group-manage-dialog';
 import MetricToolbar from '../../host-metric/metric-toolbar';
+import { useHostStore } from '@/store/modules/host';
 
 import type { TimeRangeType } from '../../../../../components/time-range/utils';
 import type {
   CompareTarget,
   IHostTopoHostNode,
   IHostTopoTreeNode,
-  MetricAggregationState,
   ProcessDetailTabType,
 } from '../../../../../pages/host/types';
+import type { CustomOptions } from '../../../../trace-explore/components/explore-chart/use-echarts';
 import type { ProcessItem } from '../../../types/process';
 
 import './process-detail.scss';
@@ -90,6 +92,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const { processMetricAggregationState } = storeToRefs(useHostStore());
 
     /** 当前二级 Tab，默认指标视图 */
     const activeTab = shallowRef<ProcessDetailTabType>(ProcessDetailTabEnum.METRIC);
@@ -104,18 +107,18 @@ export default defineComponent({
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
 
-    // 向下游图表（useEcharts）提供本地时间范围与刷新信号
-    provide('timeRange', timeRange);
-    provide('refreshImmediate', refreshImmediate);
-
     /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
-    const state = reactive<MetricAggregationState>({ ...DEFAULT_AGGREGATION_STATE });
-    const aggregation = useMetricAggregation(state);
+    const aggregation = useMetricAggregation(processMetricAggregationState.value);
     /** 进程指标数据：取数走带缓存的 panel / order */
     const { rows, orderData, loading, settingShow, load, handleReset, handleSave } = useProcessMetric({
       keyword: () => aggregation.state.keyword,
       ungroupTitle: () => t('未分组'),
     });
+
+    // 向下游图表（useEcharts）提供本地时间范围与刷新间隔
+    provide('timeRange', timeRange);
+    provide('refreshImmediate', refreshImmediate);
+    provide('viewOptions', aggregation.viewOptions);
 
     /** 根据选中节点类型，生成当前目标的查询参数 */
     const currentTarget = computed<CompareTarget | null>(() => {
@@ -138,9 +141,23 @@ export default defineComponent({
     /** 变量取值：仅请求态字段变化才会触发图表重新取数 */
     const scopedVars = computed<ScopedVarMap>(() => ({
       ...buildScopedVars(aggregation.state, currentTarget.value),
-      // 进程态需把进程名下发给图表查询，等价于旧版 variables.display_name
-      ...(props.process?.name ? { display_name: props.process.name } : {}),
+      // 进程态需把进程唯一标识下发，等价于旧版 scene 变量 $display_name
+      ...(props.process?.id ? { display_name: props.process.id } : {}),
     }));
+
+    /**
+     * 图表自定义配置：图例名称中的进程唯一标识（如 127.0.0.1_elasticsearch_1000）替换为进程名展示。
+     * 注：取数仍使用唯一 id，此处仅做展示层替换，保留名称其余部分（如同环比后缀）。
+     */
+    const chartCustomOptions: CustomOptions = {
+      series: seriesData =>
+        seriesData.map(item => {
+          // @ts-expect-error
+          const dimensions = item.dimensions;
+          // @ts-expect-error
+          return { ...item, alias: dimensions ? `${dimensions.display_name}|${dimensions.pid}` : item.alias };
+        }),
+    };
 
     /**
      * @description 清除自动刷新定时器
@@ -265,6 +282,20 @@ export default defineComponent({
     );
 
     /**
+     * @description 图表区域加载态骨架屏（参考告警中心仪表盘分组，按当前列数渲染两行图表骨架）
+     */
+    const renderSkeleton = () => (
+      <div
+        style={{ gridTemplateColumns: `repeat(${processMetricAggregationState.value.columns}, minmax(0, 1fr))` }}
+        class='process-detail-skeleton'
+      >
+        {new Array(3 * processMetricAggregationState.value.columns).fill(0).map((_, index) => (
+          <ChartSkeleton key={index} />
+        ))}
+      </div>
+    );
+
+    /**
      * @description 抽屉内容区域渲染函数
      * 指标 Tab：展示 MetricToolbar + DashboardPanel + GroupManageDialog
      * 其他 Tab：展示「功能开发中」占位
@@ -276,18 +307,23 @@ export default defineComponent({
             <MetricToolbar
               currentTarget={props.selectedNode?.name}
               targetList={props.compareHostList}
-              value={state}
+              value={processMetricAggregationState.value}
               onChange={aggregation.updateState}
               onOpenSetting={() => {
                 settingShow.value = true;
               }}
             />
-            <DashboardPanel
-              class='process-detail-charts'
-              columns={state.columns}
-              rows={rows.value}
-              scopedVars={scopedVars.value}
-            />
+            {loading.value ? (
+              renderSkeleton()
+            ) : (
+              <DashboardPanel
+                class='process-detail-charts'
+                columns={processMetricAggregationState.value.columns}
+                customOptions={chartCustomOptions}
+                rows={rows.value}
+                scopedVars={scopedVars.value}
+              />
+            )}
             <GroupManageDialog
               isShow={settingShow.value}
               orderData={orderData.value}
@@ -339,7 +375,6 @@ export default defineComponent({
     onBeforeUnmount(clearRefreshTimer);
 
     return {
-      loading,
       renderHeader,
       renderInfo,
       renderTabs,
@@ -358,14 +393,11 @@ export default defineComponent({
         {{
           header: this.renderHeader,
           default: () => (
-            <Loading
-              class='process-detail'
-              loading={this.loading}
-            >
+            <div class='process-detail'>
               {this.renderInfo()}
               {this.renderTabs()}
               {this.renderContent()}
-            </Loading>
+            </div>
           ),
         }}
       </Sideslider>

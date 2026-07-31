@@ -24,8 +24,33 @@ from constants.alert import EventStatus
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.alert.serializers import AlertIDField
+from kernel_api.resource.alert import (
+    CreateAlarmShieldResource,
+    CreateAlarmStrategyResource,
+    DisableAlarmShieldResource,
+    GetAlarmShieldResource,
+    GetAlarmStrategyResource,
+    GetMCPActionConfigResource,
+    ListAlertEventsResource,
+    ListAlertEventTagDetailResource,
+    ListAlertEventTSResource,
+    ListAlertHostTargetResource,
+    ListAlertK8sTargetResource,
+    ListAlertLogRelationsResource,
+    ListAlertResource,
+    ListAlertTopNResource,
+    ListAlertTracesResource,
+    ListStrategySnapshotResource,
+    SearchActionConfigsResource,
+    SearchAlarmShieldsResource,
+    SearchAlarmStrategiesResource,
+    SearchNoticeGroupsResource,
+    UpdateAlarmShieldResource,
+    UpdateAlarmStrategyResource,
+    UpdateMCPActionConfigResource,
+    UpdateNoticeGroupResource,
+)
 from kernel_api.resource.qos import FailurePublishResource, FailureRecoveryResource
-from kernel_api.resource.alert import ListAlertResource, ListAlertTopNResource, ListStrategySnapshotResource
 from monitor_web.strategies.resources.v2 import GetStrategyV2Resource
 
 logger = logging.getLogger("kernel_api")
@@ -56,6 +81,32 @@ class SearchAlertViewSet(ResourceViewSet):
         ResourceRoute("POST", ListStrategySnapshotResource, endpoint="get_strategy_snapshot"),
         # 根据策略ID获取策略详情
         ResourceRoute("GET", GetStrategyV2Resource, endpoint="get_strategy_detail"),
+        # 告警关联查询 MCP（校验告警实际业务归属）
+        ResourceRoute("POST", ListAlertEventsResource, endpoint="get_alert_events"),
+        ResourceRoute("POST", ListAlertEventTSResource, endpoint="get_alert_event_ts"),
+        ResourceRoute("POST", ListAlertEventTagDetailResource, endpoint="get_alert_event_tag_detail"),
+        ResourceRoute("GET", ListAlertK8sTargetResource, endpoint="get_alert_k8s_target"),
+        ResourceRoute("GET", ListAlertHostTargetResource, endpoint="get_alert_host_target"),
+        ResourceRoute("POST", ListAlertTracesResource, endpoint="get_alert_traces"),
+        ResourceRoute("GET", ListAlertLogRelationsResource, endpoint="get_alert_log_relations"),
+        # 告警策略管理 MCP
+        ResourceRoute("POST", SearchAlarmStrategiesResource, endpoint="search_alarm_strategies"),
+        ResourceRoute("POST", GetAlarmStrategyResource, endpoint="get_alarm_strategy"),
+        ResourceRoute("POST", CreateAlarmStrategyResource, endpoint="create_alarm_strategy"),
+        ResourceRoute("POST", UpdateAlarmStrategyResource, endpoint="update_alarm_strategy"),
+        # 告警屏蔽管理 MCP
+        ResourceRoute("POST", SearchAlarmShieldsResource, endpoint="search_alarm_shields"),
+        ResourceRoute("GET", GetAlarmShieldResource, endpoint="get_alarm_shield"),
+        ResourceRoute("POST", CreateAlarmShieldResource, endpoint="create_alarm_shield"),
+        ResourceRoute("POST", UpdateAlarmShieldResource, endpoint="update_alarm_shield"),
+        ResourceRoute("POST", DisableAlarmShieldResource, endpoint="disable_alarm_shield"),
+        # 告警组管理 MCP
+        ResourceRoute("POST", SearchNoticeGroupsResource, endpoint="search_notice_groups"),
+        ResourceRoute("POST", UpdateNoticeGroupResource, endpoint="update_notice_group"),
+        # 处理套餐管理 MCP
+        ResourceRoute("GET", SearchActionConfigsResource, endpoint="search_action_configs"),
+        ResourceRoute("GET", GetMCPActionConfigResource, endpoint="get_action_config"),
+        ResourceRoute("POST", UpdateMCPActionConfigResource, endpoint="update_action_config"),
     ]
 
 

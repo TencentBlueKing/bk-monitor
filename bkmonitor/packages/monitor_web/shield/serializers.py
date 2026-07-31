@@ -14,6 +14,16 @@ from bkmonitor.utils.range import SUPPORT_COMPOSITE_METHODS, SUPPORT_SIMPLE_METH
 from constants.shield import ShieldCategory
 
 
+class DimensionConditionSlz(serializers.Serializer):
+    """维度条件序列化器，供各屏蔽类型的 DimensionConfig 复用"""
+
+    key = serializers.CharField(label="维度键名", required=True)
+    value = serializers.ListField(label="维度值", required=True, child=serializers.CharField())
+    method = serializers.ChoiceField(label="匹配方法", choices=SUPPORT_SIMPLE_METHODS, default="eq")
+    condition = serializers.ChoiceField(label="组合条件", choices=SUPPORT_COMPOSITE_METHODS, default="and")
+    name = serializers.CharField(label="维度别名", required=False)
+
+
 class BaseSerializer(serializers.Serializer):
     class CycleConfigSlz(serializers.Serializer):
         type = serializers.IntegerField(required=True)
@@ -45,24 +55,18 @@ class ScopeSerializer(BaseSerializer):
         scope_type = serializers.CharField(required=True)
         target = serializers.ListField(required=False)
         metric_id = serializers.ListField(required=False)
+        dimension_conditions = serializers.ListField(required=False, child=DimensionConditionSlz(required=True))
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
 
 
 class StrategySerializer(BaseSerializer):
     class DimensionConfig(serializers.Serializer):
-        class DimensionCondition(serializers.Serializer):
-            key = serializers.CharField(required=True)
-            value = serializers.ListField(required=True, child=serializers.CharField())
-            method = serializers.ChoiceField(choices=SUPPORT_SIMPLE_METHODS, default="eq")
-            condition = serializers.ChoiceField(choices=SUPPORT_COMPOSITE_METHODS, default="and")
-            name = serializers.CharField(required=False)
-
         id = serializers.ListField(required=True)
         level = serializers.ListField(required=False)
         scope_type = serializers.CharField(required=False)
         target = serializers.ListField(required=False)
-        dimension_conditions = serializers.ListField(required=False, child=DimensionCondition(required=True))
+        dimension_conditions = serializers.ListField(required=False, child=DimensionConditionSlz(required=True))
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
 
@@ -70,6 +74,7 @@ class StrategySerializer(BaseSerializer):
 class EventSerializer(BaseSerializer):
     class DimensionConfig(serializers.Serializer):
         id = serializers.CharField(required=True)
+        dimension_conditions = serializers.ListField(required=False, child=DimensionConditionSlz(required=True))
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
     # 用于移动端，快捷屏蔽，动态删除维度
@@ -82,6 +87,7 @@ class AlertSerializer(BaseSerializer):
         alert_ids = serializers.ListField(required=False, child=serializers.CharField(allow_blank=False))
         dimensions = serializers.DictField(required=False)
         bk_topo_node = serializers.DictField(required=False)
+        dimension_conditions = serializers.ListField(required=False, child=DimensionConditionSlz(required=True))
 
         def validate(self, attrs):
             if not attrs.get("alert_id") and not attrs.get("alert_ids"):
@@ -95,14 +101,7 @@ class AlertSerializer(BaseSerializer):
 
 class DimensionSerializer(BaseSerializer):
     class DimensionConfig(serializers.Serializer):
-        class DimensionCondition(serializers.Serializer):
-            key = serializers.CharField(required=True)
-            value = serializers.ListField(required=True, child=serializers.CharField())
-            method = serializers.ChoiceField(choices=SUPPORT_SIMPLE_METHODS, default="eq")
-            condition = serializers.ChoiceField(choices=SUPPORT_COMPOSITE_METHODS, default="and")
-            name = serializers.CharField(required=False)
-
-        dimension_conditions = serializers.ListField(required=True, child=DimensionCondition(required=True))
+        dimension_conditions = serializers.ListField(required=True, child=DimensionConditionSlz(required=True))
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
 

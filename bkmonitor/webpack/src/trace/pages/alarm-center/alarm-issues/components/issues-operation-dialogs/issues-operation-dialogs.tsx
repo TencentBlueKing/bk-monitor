@@ -202,6 +202,7 @@ export default defineComponent({
         class='issues-operation-dialogs'
       >
         <IssuesAssignDialog
+          dialogParam={this.dialogParam}
           isShow={this.dialogType === IssuesBatchActionEnum.ASSIGN && this.show}
           issuesData={this.issuesData}
           onCancel={() => this.handleShowChange(false)}
