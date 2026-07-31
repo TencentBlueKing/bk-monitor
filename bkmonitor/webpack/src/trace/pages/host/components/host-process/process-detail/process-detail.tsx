@@ -26,12 +26,13 @@
 
 import { type PropType, computed, defineComponent, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
-import { Exception, Loading, Sideslider } from 'bkui-vue';
+import { Exception, Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
+import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
 import TimeRange from '../../../../../components/time-range/time-range';
 import { getDefaultTimezone } from '../../../../../i18n/dayjs';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
@@ -281,6 +282,20 @@ export default defineComponent({
     );
 
     /**
+     * @description 图表区域加载态骨架屏（参考告警中心仪表盘分组，按当前列数渲染两行图表骨架）
+     */
+    const renderSkeleton = () => (
+      <div
+        style={{ gridTemplateColumns: `repeat(${processMetricAggregationState.value.columns}, minmax(0, 1fr))` }}
+        class='process-detail-skeleton'
+      >
+        {new Array(3 * processMetricAggregationState.value.columns).fill(0).map((_, index) => (
+          <ChartSkeleton key={index} />
+        ))}
+      </div>
+    );
+
+    /**
      * @description 抽屉内容区域渲染函数
      * 指标 Tab：展示 MetricToolbar + DashboardPanel + GroupManageDialog
      * 其他 Tab：展示「功能开发中」占位
@@ -298,13 +313,17 @@ export default defineComponent({
                 settingShow.value = true;
               }}
             />
-            <DashboardPanel
-              class='process-detail-charts'
-              columns={processMetricAggregationState.value.columns}
-              customOptions={chartCustomOptions}
-              rows={rows.value}
-              scopedVars={scopedVars.value}
-            />
+            {loading.value ? (
+              renderSkeleton()
+            ) : (
+              <DashboardPanel
+                class='process-detail-charts'
+                columns={processMetricAggregationState.value.columns}
+                customOptions={chartCustomOptions}
+                rows={rows.value}
+                scopedVars={scopedVars.value}
+              />
+            )}
             <GroupManageDialog
               isShow={settingShow.value}
               orderData={orderData.value}
@@ -356,7 +375,6 @@ export default defineComponent({
     onBeforeUnmount(clearRefreshTimer);
 
     return {
-      loading,
       renderHeader,
       renderInfo,
       renderTabs,
@@ -375,14 +393,11 @@ export default defineComponent({
         {{
           header: this.renderHeader,
           default: () => (
-            <Loading
-              class='process-detail'
-              loading={this.loading}
-            >
+            <div class='process-detail'>
               {this.renderInfo()}
               {this.renderTabs()}
               {this.renderContent()}
-            </Loading>
+            </div>
           ),
         }}
       </Sideslider>
