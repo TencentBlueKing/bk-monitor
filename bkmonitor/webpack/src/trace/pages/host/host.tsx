@@ -36,8 +36,10 @@ import CommonHeader from '../../components/common-header/common-header';
 import { useHostStore } from '../../store/modules/host';
 import AlarmTools from './components/alarm-tools/index';
 import HostContentTabs from './components/host-content-tabs/host-content-tabs';
+import HostDetailView from './components/host-detail-view/host-detail-view';
 import HostLocationBar from './components/host-location-bar/host-location-bar';
 import HostTopoTree from './components/host-topo-tree/host-topo-tree';
+import { useHostDetail } from './composables/use-host-detail';
 import { useHostTopoTree } from './composables/use-host-topo-tree';
 import { useHostUrlParams } from './composables/use-host-url-params';
 import { HOST_PAGE_HEADER_NAV_BAR_LIST } from './constants/constants';
@@ -57,6 +59,8 @@ export default defineComponent({
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
     const topoTree = useHostTopoTree(nodeId);
     const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
+    // 主机详情数据（基于选中节点动态生成）
+    const { detailData, loading: detailLoading } = useHostDetail(topoTree.selectedNode);
 
     const timeRangeDisabledTip = computed(() => {
       return isShareLink && isLockSearch ? t('该分享链接仅包含当前时间范围') : '';
@@ -89,6 +93,8 @@ export default defineComponent({
       refreshInterval,
       scene,
       topoTree,
+      detailData,
+      detailLoading,
       timeRangeDisabledTip,
       handleCompare,
       handleSelectNode,
@@ -144,12 +150,33 @@ export default defineComponent({
                   />
                 ),
                 main: () => (
-                  <div class='host-page-content-main'>
-                    <HostContentTabs
-                      compareHostList={this.topoTree.compareHostList.value}
-                      selectedNode={this.topoTree.selectedNode.value}
-                    />
-                  </div>
+                  <ResizeLayout
+                    class='host-page-content-inner-layout'
+                    v-slots={{
+                      main: () => (
+                        <div class='host-page-content-main'>
+                          <HostContentTabs
+                            compareHostList={this.topoTree.compareHostList.value}
+                            selectedNode={this.topoTree.selectedNode.value}
+                          />
+                        </div>
+                      ),
+                      aside: () => (
+                        <HostDetailView
+                          width={320}
+                          data={this.detailData}
+                          loading={this.detailLoading}
+                        />
+                      ),
+                    }}
+                    border={false}
+                    initialDivide={undefined}
+                    max={600}
+                    min={300}
+                    placement='right'
+                    collapsible
+                    immediate
+                  />
                 ),
               }}
               border={false}
