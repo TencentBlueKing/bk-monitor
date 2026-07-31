@@ -60,6 +60,10 @@ export const useHostUrlParams = () => {
       activeTab: hostStore.activeTab,
       /** 指标汇聚 Toolbar 状态（JSON 编码） */
       metricAggregationState: encodeURIComponent(JSON.stringify(hostStore.metricAggregationState)),
+      /** 当前选中的主机进程 ID（用于恢复进程详情选中状态） */
+      hostProcessId: hostStore.hostProcessId,
+      /** 主机进程详情侧栏指标视图 Toolbar 状态（JSON 编码） */
+      processMetricAggregationState: encodeURIComponent(JSON.stringify(hostStore.processMetricAggregationState)),
     };
   });
 
@@ -102,9 +106,17 @@ export const useHostUrlParams = () => {
       refreshInterval,
       nodeId,
       activeTab,
+      dashboardId,
+      hostProcessId,
+      'var-display_name': varDisplayName,
     } = route.query;
     hostStore.nodeId = (nodeId || route.params.id || '') as string;
-    hostStore.activeTab = (activeTab || '') as string;
+    // 兼容旧版本dashboardId
+    const activeTabKeyMap = {
+      host: 'system',
+      process: 'process',
+    };
+    hostStore.activeTab = (activeTab || activeTabKeyMap?.[dashboardId as string] || '') as string;
     getWhereParams();
     hostStore.keyword = (keyword || queryString || '') as string;
     hostStore.filterExpanded = filterExpanded === 'true' || !!hostStore.where.length;
@@ -117,6 +129,8 @@ export const useHostUrlParams = () => {
       diskData: 'disk',
     };
     hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
+    /** 恢复主机进程 ID，兼容旧版 var-display_name 参数 */
+    hostStore.hostProcessId = (hostProcessId || varDisplayName || '') as string;
     hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
     hostStore.timezone = (timezone as string) || window.timezone;
     hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
@@ -179,37 +193,47 @@ export const useHostUrlParams = () => {
    * - compares / timeOffset: 对比目标（按目标对比或时间偏移对比）
    */
   function getMetricAggregationState() {
-    const { metricAggregationState, compares, timeOffset, method, interval } = route.query;
+    const { metricAggregationState, processMetricAggregationState, compares, timeOffset, method, interval } =
+      route.query;
+    const paramsFn = () => {
+      return {
+        ...(() => {
+          const obj: any = {};
+          if (method) {
+            obj.method = method;
+          }
+          if (interval) {
+            obj.interval = interval;
+          }
+          return obj;
+        })(),
+        ...(() => {
+          const queryCompares: any = tryURLDecodeParse(compares as string, {});
+          const queryTimeOffset = tryURLDecodeParse(timeOffset as string, []);
+          const targets: CompareTarget[] = queryCompares?.targets;
+          if (targets?.length) {
+            return {
+              compareType: 'target',
+              compareTargets: targets,
+            };
+          }
+          if (queryTimeOffset?.length) {
+            return {
+              compareType: 'time',
+              timeShift: queryTimeOffset,
+            };
+          }
+          return {};
+        })(),
+      };
+    };
     Object.assign(hostStore.metricAggregationState, {
       ...tryURLDecodeParse(metricAggregationState as string, {}),
-      ...(() => {
-        const obj: any = {};
-        if (method) {
-          obj.method = method;
-        }
-        if (interval) {
-          obj.interval = interval;
-        }
-        return obj;
-      })(),
-      ...(() => {
-        const queryCompares: any = tryURLDecodeParse(compares as string, {});
-        const queryTimeOffset = tryURLDecodeParse(timeOffset as string, []);
-        const targets: CompareTarget[] = queryCompares?.targets;
-        if (targets?.length) {
-          return {
-            compareType: 'target',
-            compareTargets: targets,
-          };
-        }
-        if (queryTimeOffset?.length) {
-          return {
-            compareType: 'time',
-            timeShift: queryTimeOffset,
-          };
-        }
-        return {};
-      })(),
+      ...paramsFn(),
+    });
+    Object.assign(hostStore.processMetricAggregationState, {
+      ...tryURLDecodeParse(processMetricAggregationState as string, {}),
+      ...paramsFn(),
     });
   }
 

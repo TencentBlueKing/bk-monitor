@@ -42,7 +42,15 @@ const SORTABLE_KEYS = new Set<keyof ProcessItem>(['cpuUsage', 'memRss', 'instanc
  * @description 进程列表业务编排：按选中主机加载数据，并在前端完成关键字搜索与排序。
  * 视图层（host-process / process-table）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
-export const useProcessList = (options: { host: Ref<IHostTopoHostNode | null> }) => {
+export const useProcessList = (options: {
+  host: Ref<IHostTopoHostNode | null>;
+  /**
+   * @description 数据加载完成后的回调函数（可选）
+   * 用于在进程列表加载完成后执行额外逻辑，如自动选中某个进程
+   * @param list - 加载完成的进程列表数据
+   */
+  loadDataEnd?: (list: ProcessItem[]) => void;
+}) => {
   const { timeRangeTimestamp } = storeToRefs(useHostStore());
 
   const loading = shallowRef(false);
@@ -78,11 +86,12 @@ export const useProcessList = (options: { host: Ref<IHostTopoHostNode | null> })
       },
       { signal }
     );
-
     // 请求被取消（主机切换 / 组件卸载），丢弃本次结果
     if (signal.aborted) return;
     rawList.value = data;
     loading.value = false;
+    /** 触发数据加载完成回调（如有），用于外部处理加载后逻辑 */
+    options?.loadDataEnd?.(data);
   };
 
   /** 关键字过滤：命中进程名 */
