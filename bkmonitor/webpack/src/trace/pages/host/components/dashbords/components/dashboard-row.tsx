@@ -32,6 +32,7 @@ import MonitorCrossDrag from '@/components/monitor-cross-drag/monitor-cross-drag
 
 import type { DashboardRow } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
+import type { CustomOptions } from '@/pages/trace-explore/components/explore-chart/use-echarts';
 
 import './dashboard-row.scss';
 
@@ -59,6 +60,11 @@ export default defineComponent({
     /** 变量取值映射 */
     scopedVars: {
       type: Object as PropType<ScopedVarMap>,
+      default: () => ({}),
+    },
+    /** 图表自定义配置（series/options/tooltips 等回调） */
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
   },
@@ -116,6 +122,7 @@ export default defineComponent({
                   class='chart-card'
                 >
                   <TimeSeriesCard
+                    customOptions={this.customOptions}
                     dashboardId={this.row.id}
                     panel={panel}
                     scopedVars={this.scopedVars}

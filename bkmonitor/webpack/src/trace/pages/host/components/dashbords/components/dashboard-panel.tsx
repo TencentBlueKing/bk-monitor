@@ -33,6 +33,7 @@ import DashboardRow from './dashboard-row';
 
 import type { DashboardRow as DashboardRowModel } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
+import type { CustomOptions } from '@/pages/trace-explore/components/explore-chart/use-echarts';
 
 import './dashboard-panel.scss';
 
@@ -54,6 +55,11 @@ export default defineComponent({
       type: Object as PropType<ScopedVarMap>,
       default: () => ({}),
     },
+    /** 图表自定义配置（series/options/tooltips 等回调）*/
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -65,6 +71,7 @@ export default defineComponent({
             <DashboardRow
               key={row.id}
               columns={props.columns}
+              customOptions={props.customOptions}
               row={row}
               scopedVars={props.scopedVars}
             />

@@ -25,6 +25,7 @@
  */
 
 export interface CompareTarget {
+  bk_host_id?: number;
   bk_inst_id?: number;
   bk_obj_id?: string;
   bk_target_cloud_id?: number;
