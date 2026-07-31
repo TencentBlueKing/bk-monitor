@@ -539,18 +539,22 @@ class TestDataSource:
         ]
 
     @pytest.mark.parametrize(
-        ("white_list", "bk_biz_id", "expected"),
+        ("black_list", "bk_biz_id", "expected"),
         [
-            ([-1], 100147, True),
-            (["-1"], 100147, True),
-            ([2], 2, True),
-            (["2"], 2, True),
-            ([2], 100147, False),
+            ([], 100147, True),
+            ([2], 2, False),
+            (["2"], 2, False),
+            ([-50], -50, False),
+            ([2], 100147, True),
         ],
     )
-    def test_log_search_time_series_switch_unify_query_by_env_white_list(
-        self, monkeypatch, white_list, bk_biz_id, expected
-    ):
+    def test_log_search_time_series_switch_unify_query_by_env_black_list(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        black_list: list[str | int],
+        bk_biz_id: int,
+        expected: bool,
+    ) -> None:
         query_config = {
             "result_table_id": "2_bklog.nginx_access_error_1",
             "index_set_id": 1,
@@ -559,12 +563,15 @@ class TestDataSource:
             "agg_condition": [],
         }
         data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=bk_biz_id)
-        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", None)
-        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", white_list)
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_BLACK_BIZ_LIST", None)
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV", black_list)
 
         assert data_source.switch_unify_query(bk_biz_id) is expected
 
-    def test_log_search_time_series_switch_unify_query_by_reconcile_white_list(self, monkeypatch):
+    @pytest.mark.parametrize(("black_list", "expected"), [([], True), ([100147], False)])
+    def test_log_search_time_series_switch_unify_query_by_reconcile_black_list(
+        self, monkeypatch: pytest.MonkeyPatch, black_list: list[int], expected: bool
+    ) -> None:
         query_config = {
             "result_table_id": "2_bklog.nginx_access_error_1",
             "index_set_id": 1,
@@ -573,12 +580,12 @@ class TestDataSource:
             "agg_condition": [],
         }
         data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=100147)
-        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", [-1])
-        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", [])
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_BLACK_BIZ_LIST", black_list)
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV", [100147])
 
-        assert data_source.switch_unify_query(100147) is True
+        assert data_source.switch_unify_query(100147) is expected
 
-    def test_log_search_time_series_switch_unify_query_by_clustered(self, monkeypatch):
+    def test_log_search_time_series_switch_unify_query_by_clustered(self, monkeypatch: pytest.MonkeyPatch) -> None:
         query_config = {
             "result_table_id": "2_bklog.nginx_access_error_1",
             "index_set_id": 1,
@@ -587,8 +594,8 @@ class TestDataSource:
             "agg_condition": [],
             "query_string": "__dist_05",
         }
-        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", None)
-        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", [])
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_BLACK_BIZ_LIST", None)
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV", [100147])
 
         data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=100147)
 

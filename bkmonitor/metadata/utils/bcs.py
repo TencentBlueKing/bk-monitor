@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict, List, Optional
 
 from django.db import transaction
 from django.db.models import Q
@@ -64,13 +63,15 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id, is_fed_cluster)
             # 创建新的SpaceDataSource信息
             for data_id in data_ids:
                 logger.info(
-                    "change_cluster_router: try to create SpaceDataSource record,bk_data_id->[%s],"
-                    "new_bk_biz_id->[%s]",
+                    "change_cluster_router: try to create SpaceDataSource record,bk_data_id->[%s],new_bk_biz_id->[%s]",
                     data_id,
                     new_bk_biz_id,
                 )
                 SpaceDataSource.objects.get_or_create(
-                    space_type_id=SpaceTypes.BKCC.value, space_id=new_bk_biz_id, bk_data_id=data_id
+                    bk_tenant_id=cluster.bk_tenant_id,
+                    space_type_id=SpaceTypes.BKCC.value,
+                    space_id=new_bk_biz_id,
+                    bk_data_id=data_id,
                 )
 
             # 针对K8S Event，单独处理
@@ -104,7 +105,7 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
     NOTE: 升级空间后，bk_biz_id, 可能为负数，需要转换到空间属性
     """
 
-    def _filter_cluster(bk_biz_ids: List, clusters: QuerySet) -> QuerySet:
+    def _filter_cluster(bk_biz_ids: list, clusters: QuerySet) -> QuerySet:
         # 获取 bcs 空间信息
         bcs_spaces = get_bcs_space_by_biz(bk_biz_ids)
         # 过滤需要的参数
@@ -190,10 +191,11 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
         # 筛选业务允许访问的data_id
         space_data_ids = set(
             SpaceDataSource.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=bk_biz_ids).values_list(
-                'bk_data_id', flat=True
+                "bk_data_id", flat=True
             )
         )
-        for data_id in space_data_ids:  # 对于空间被授权访问的data_id，若其在集群DS映射表（K8S指标&自定义指标）中，则将其添加并返回
+        # 对于空间被授权访问的 data_id，若其在集群 DS 映射表（K8S 指标和自定义指标）中，则将其添加并返回
+        for data_id in space_data_ids:
             if (data_id not in data_ids) and (data_id in data_id_to_cluster):
                 data_ids.add(data_id)
                 data_id_cluster_map[data_id] = data_id_to_cluster[data_id]
@@ -201,7 +203,7 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
     return data_ids, data_id_cluster_map
 
 
-def get_bcs_space_by_biz(bk_biz_ids: Optional[List] = None) -> List[Dict]:
+def get_bcs_space_by_biz(bk_biz_ids: list | None = None) -> list[dict]:
     """通过业务获取到 BCS 空间信息"""
     # 如果传递的业务 ID 为空，则直接返回
     if not bk_biz_ids:

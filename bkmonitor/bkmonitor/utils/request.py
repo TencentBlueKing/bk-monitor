@@ -113,7 +113,8 @@ def get_source_app(request=None):
 def get_app_code_by_request(request):
     bk_app_code = request.META.get("HTTP_BK_APP_CODE")
     if bk_app_code is None and hasattr(request, "jwt"):
-        bk_app_code = request.jwt.app.app_code
+        jwt_app = getattr(request.jwt, "app", None)
+        bk_app_code = getattr(jwt_app, "app_code", "")
 
     return bk_app_code
 

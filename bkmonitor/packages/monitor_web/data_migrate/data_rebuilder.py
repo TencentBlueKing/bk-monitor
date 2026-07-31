@@ -315,16 +315,8 @@ def init_global_plugin(bk_tenant_id: str):
             )
 
 
-def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: str) -> set[int]:
-    """从 ``ApplicationConfig`` 中获取导入阶段记录的关闭对象 ID。"""
-    config = ApplicationConfig.objects.filter(
-        cc_biz_id=bk_biz_id,
-        key=DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY,
-    ).first()
-    if not config or not isinstance(config.value, dict):
-        return set()
-
-    raw_record_ids = config.value.get(model_label, [])
+def _normalize_closed_record_ids(raw_record_ids: Any, bk_biz_id: int, model_label: str) -> set[int]:
+    """将配置中的关闭对象 ID 规范化为整数集合。"""
     if not isinstance(raw_record_ids, list):
         return set()
 
@@ -340,6 +332,73 @@ def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: 
                 record_id,
             )
     return closed_record_ids
+
+
+def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: str) -> set[int]:
+    """从 ``ApplicationConfig`` 中获取导入阶段记录的关闭对象 ID。"""
+    config = ApplicationConfig.objects.filter(
+        cc_biz_id=bk_biz_id,
+        key=DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY,
+    ).first()
+    if not config or not isinstance(config.value, dict):
+        return set()
+
+    return _normalize_closed_record_ids(config.value.get(model_label, []), bk_biz_id, model_label)
+
+
+def disable_enabled_strategies(
+    bk_biz_ids: list[int],
+    dry_run: bool = False,
+) -> dict[int, dict[str, Any]]:
+    """关闭业务下当前启用的策略，并将策略 ID 记录到 ``ApplicationConfig`` 供后续恢复。"""
+    disable_results: dict[int, dict[str, Any]] = {}
+    for bk_biz_id in bk_biz_ids:
+        with transaction.atomic():
+            enabled_strategy_ids = set(
+                StrategyModel.objects.select_for_update()
+                .filter(bk_biz_id=bk_biz_id, is_enabled=True)
+                .values_list("id", flat=True)
+            )
+
+            config = (
+                ApplicationConfig.objects.select_for_update()
+                .filter(
+                    cc_biz_id=bk_biz_id,
+                    key=DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY,
+                )
+                .first()
+            )
+            config_value = deepcopy(config.value) if config and isinstance(config.value, dict) else {}
+            previously_recorded_ids = _normalize_closed_record_ids(
+                config_value.get(STRATEGY_CLOSE_RECORDS_MODEL_LABEL, []),
+                bk_biz_id,
+                STRATEGY_CLOSE_RECORDS_MODEL_LABEL,
+            )
+            recorded_strategy_ids = previously_recorded_ids | enabled_strategy_ids
+
+            disabled_count = 0
+            if enabled_strategy_ids and not dry_run:
+                config_value[STRATEGY_CLOSE_RECORDS_MODEL_LABEL] = sorted(recorded_strategy_ids)
+                ApplicationConfig.objects.update_or_create(
+                    cc_biz_id=bk_biz_id,
+                    key=DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY,
+                    defaults={"value": config_value},
+                )
+                disabled_count = StrategyModel.objects.filter(
+                    bk_biz_id=bk_biz_id,
+                    id__in=enabled_strategy_ids,
+                    is_enabled=True,
+                ).update(is_enabled=False, update_user="system")
+
+            disable_results[bk_biz_id] = {
+                "enabled_count": len(enabled_strategy_ids),
+                "previously_recorded_count": len(previously_recorded_ids),
+                "newly_recorded_count": len(enabled_strategy_ids - previously_recorded_ids),
+                "recorded_count": len(recorded_strategy_ids),
+                "disabled_count": disabled_count,
+                "dry_run": dry_run,
+            }
+    return disable_results
 
 
 def enable_closed_strategies_from_application_config(bk_biz_ids: list[int]) -> dict[int, dict[str, Any]]:

@@ -42,8 +42,12 @@ AGGS_FIELD_PREFIX = "__dist"
 NEW_CLASS_FIELD_PREFIX = "dist"
 
 NEW_CLASS_SENSITIVITY_FIELD = "sensitivity"
-NEW_CLASS_QUERY_FIELDS = ["signature"]
+SIGNATURE_FIELD = "signature"
+NEW_CLASS_QUERY_FIELDS = [SIGNATURE_FIELD]
 NEW_CLASS_QUERY_TIME_RANGE = "customized"
+NEW_CLASS_ALERT_SEARCH_PAGE_SIZE = 5000
+NO_DATA_ALERT_DIMENSION_KEY = "__NO_DATA_DIMENSION__"
+NO_DATA_ALERT_DEDUPE_KEY = f"tags.{NO_DATA_ALERT_DIMENSION_KEY}"
 
 CLUSTERING_CONFIG_EXCLUDE = ["sample_set_id", "model_id"]
 CLUSTERING_CONFIG_DEFAULT = "default_clustering_config"
@@ -84,18 +88,21 @@ DEFAULT_METRIC = "event_time"
 # 保存告警策略 v3部分参数
 DEFAULT_AGG_METHOD = "SUM"
 ITEM_NAME_CLUSTERING = "SUM(log_count)"
+ITEM_NAME_NEW_CLASS = f"COUNT({SIGNATURE_FIELD})"
 DEFAULT_METRIC_CLUSTERING = "log_count"
 ALARM_INTERVAL_CLUSTERING = 7200
 # 数量突增告警
 AGG_DIMENSION_NORMAL = ["__dist_05"]
-AGG_CONDITION_NORMAL = [
+CLUSTERED_LOG_AGG_CONDITION = [
     {"key": "__dist_05", "dimension_name": "__dist_05", "value": [""], "method": "neq", "condition": "and"}
 ]
 # 新类告警
-AGG_DIMENSION = ["sensitivity", "signature"]
-AGG_CONDITION = [
+LEGACY_NEW_CLASS_AGG_DIMENSION = ["sensitivity", SIGNATURE_FIELD]
+LEGACY_NEW_CLASS_AGG_CONDITION = [
     {"key": "sensitivity", "dimension_name": "sensitivity", "value": ["__dist_05"], "method": "eq", "condition": "and"}
 ]
+NEW_SERIES_ALGORITHM_TYPE = "NewSeries"
+NEW_SERIES_THRESHOLD_CONFIG_KEY = "threshold"
 TRIGGER_CONFIG = {
     "count": 1,
     "check_window": 5,
@@ -167,7 +174,7 @@ DEFAULT_PATTERN_MONITOR_MSG = """
 {{content.dimension}}
 {{content.detail}}
 
-**内容:** 智能模型检测到异常, 异常类型: {{alarm.bkm_info.alert_msg}}, 近 {{ (strategy.items[0].query_configs[0]["agg_interval"]\
+**内容:** 日志聚类检测到异常, 异常类型: {{alarm.bkm_info.alert_msg}}, 近 {{ (strategy.items[0].query_configs[0]["agg_interval"]\
  / 60) | int }} 分钟出现次数 ({{alarm.current_value | int }})
 **负责人:** {{ json.loads(alarm.related_info)["owners"] or '无' }}
 **备注:** {% if "remark_text" in json.loads(alarm.related_info) %}{{ json.loads(alarm.related_info)["remark_text"] }}\

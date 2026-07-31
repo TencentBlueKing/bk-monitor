@@ -107,6 +107,7 @@ from apps.utils.bcs import Bcs
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class K8sCollectorHandler(CollectorHandler):
@@ -1109,7 +1110,7 @@ class K8sCollectorHandler(CollectorHandler):
         path_collector_config = std_collector_config = ""
         parent_container_config_id = 0
         # 注入索引集标签
-        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
+        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"], space_uid=bk_biz_id_to_space_uid(data["bk_biz_id"]))
         is_send_create_notify = False
         for config in data["config"]:
             if config["paths"]:
@@ -1363,7 +1364,7 @@ class K8sCollectorHandler(CollectorHandler):
         path_collector = std_collector = None
         path_collector_config = std_collector_config = None
         # 注入索引集标签
-        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
+        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"], space_uid=bk_biz_id_to_space_uid(data["bk_biz_id"]))
         is_send_path_create_notify = is_send_std_create_notify = False
         # 容器配置是否创建标识
         is_exist_bcs_path = False

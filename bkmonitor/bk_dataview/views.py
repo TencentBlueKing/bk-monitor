@@ -226,6 +226,7 @@ class ProxyBaseView(View):
                 params=params,
                 headers=headers,
                 data=request.body,
+                timeout=grafana_settings.TIMEOUT,
                 stream=True,
                 hooks={"response": requests_curl_log},
             )

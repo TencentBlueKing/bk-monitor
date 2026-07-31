@@ -4,6 +4,8 @@ import useLocale from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
+import { retrieveRowCacheService, storageHealthService } from '@/storage';
+import { createRetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
 
 import { runStandaloneRelatedSearch, type StandaloneSearchResult } from '../search-runner';
 
@@ -71,10 +73,26 @@ export const useStandaloneRelatedPage = () => {
 
     await store.dispatch('requestIndexSetFieldInfo');
 
+    const rowQueryKey = retrieveRowCacheService.createQueryKey({
+      standalone: 'related-log',
+      indexSetId: payload.indexSetId,
+      query: payload.query,
+    });
+    const fieldNames = store.getters?.filteredFieldList?.map?.(field => field.field_name) ?? [];
+    const renderMetas = originList.map((row, index) => createRetrieveRowRenderMeta(row, renderList[index]));
+    const rowKeys = originList.length
+      ? await retrieveRowCacheService.replaceRows(rowQueryKey, originList, { fieldNames, renderRows: renderList, renderMetas })
+      : [];
+    storageHealthService.markActiveQuery(rowQueryKey);
+
     store.commit('updateIndexSetQueryResult', {
       ...data,
+      // Keep list/origin_log_list as graceful fallback for environments where IndexedDB is unavailable.
       list: renderList,
       origin_log_list: originList,
+      row_keys: Object.freeze(rowKeys),
+      row_query_key: rowQueryKey,
+      cached_count: rowKeys.length,
       total,
       is_loading: false,
       is_error: false,

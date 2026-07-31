@@ -66,27 +66,33 @@ def test_get_negative_space_related_info(create_or_delete_records):
 
 def test_authorize_data_id_list():
     """测试授权数据源"""
+    test_bk_tenant_id = "tenant_a"
     test_data_id = 109011
-    utils.authorize_data_id_list(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, [test_data_id])
+    utils.authorize_data_id_list(test_bk_tenant_id, DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, [test_data_id])
 
     # 检测资源授权
     assert models.SpaceDataSource.objects.filter(
-        space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID, bk_data_id=test_data_id
+        bk_tenant_id=test_bk_tenant_id,
+        space_type_id=DEFAULT_SPACE_TYPE,
+        space_id=DEFAULT_SPACE_ID,
+        bk_data_id=test_data_id,
     ).exists()
 
 
 def test_create_bksaas_space_resource(create_and_delete_record, mocker):
     """测试创建蓝鲸应用类型关联的空间资源"""
+    test_bk_tenant_id = "tenant_a"
     api_resp = [
         {"bcs_cluster_id": DEFAULT_BCS_CLUSTER_ID_ONE, "namespace": "bkapp-test-m-stag"},
         {"bcs_cluster_id": DEFAULT_BCS_CLUSTER_ID_TWO, "namespace": "bkapp-test-m-prod"},
     ]
     mocker.patch("core.drf_resource.api.bk_paas.get_app_cluster_namespace", return_value=api_resp)
     models.SpaceResource.objects.filter(space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID).delete()
-    utils.create_bksaas_space_resource(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, DEFAULT_CREATOR)
+    utils.create_bksaas_space_resource(test_bk_tenant_id, DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, DEFAULT_CREATOR)
 
     # 检测数据源已经授权
     assert models.SpaceDataSource.objects.filter(
+        bk_tenant_id=test_bk_tenant_id,
         space_type_id=DEFAULT_SPACE_TYPE,
         space_id=DEFAULT_SPACE_ID,
         bk_data_id__in=[DEFAULT_K8S_METRIC_DATA_ID_ONE, DEFAULT_K8S_METRIC_DATA_ID_TWO],
@@ -104,6 +110,76 @@ def test_create_bksaas_space_resource(create_and_delete_record, mocker):
             assert isinstance(dv["namespace"], list)
 
     assert set(real_clusters) == {DEFAULT_BCS_CLUSTER_ID_ONE, DEFAULT_BCS_CLUSTER_ID_TWO}
+
+
+def test_create_bkcc_spaces_uses_builtin_datalink_check_synchronously(mocker, settings):
+    settings.ENABLE_V2_VM_DATA_LINK = True
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.tasks.check_bkcc_space_builtin_datalink")
+    biz_list = [
+        {
+            "bk_biz_id": "1001",
+            "bk_biz_name": "业务一",
+            "bk_tenant_id": "tenant_a",
+            "time_zone": "Asia/Shanghai",
+        },
+        {
+            "bk_biz_id": 1002,
+            "bk_biz_name": "业务二",
+            "bk_tenant_id": "tenant_b",
+            "time_zone": "Asia/Shanghai",
+        },
+    ]
+
+    utils.create_bkcc_spaces(biz_list, create_builtin_data_link_delay=False)
+
+    check_bkcc_space_builtin_datalink.assert_called_once_with(biz_list=[("tenant_a", 1001), ("tenant_b", 1002)])
+    assert (
+        models.Space.objects.filter(
+            space_type_id="bkcc",
+            space_id__in=["1001", "1002"],
+        ).count()
+        == 2
+    )
+
+
+def test_create_bkcc_spaces_uses_builtin_datalink_check_asynchronously(mocker, settings):
+    settings.ENABLE_V2_VM_DATA_LINK = True
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.tasks.check_bkcc_space_builtin_datalink")
+    biz_list = [
+        {
+            "bk_biz_id": "1001",
+            "bk_biz_name": "业务一",
+            "bk_tenant_id": "tenant_a",
+            "time_zone": "Asia/Shanghai",
+        }
+    ]
+
+    utils.create_bkcc_spaces(biz_list)
+
+    check_bkcc_space_builtin_datalink.assert_not_called()
+    check_bkcc_space_builtin_datalink.delay.assert_called_once_with(biz_list=[("tenant_a", 1001)])
+
+
+def test_create_bkcc_spaces_skips_builtin_datalink_check_when_disabled(mocker, settings):
+    settings.ENABLE_V2_VM_DATA_LINK = False
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.tasks.check_bkcc_space_builtin_datalink")
+
+    utils.create_bkcc_spaces(
+        [
+            {
+                "bk_biz_id": "1001",
+                "bk_biz_name": "业务一",
+                "bk_tenant_id": "tenant_a",
+                "time_zone": "Asia/Shanghai",
+            }
+        ]
+    )
+
+    check_bkcc_space_builtin_datalink.assert_not_called()
+    check_bkcc_space_builtin_datalink.delay.assert_not_called()
 
 
 def test_filter_space_resource(create_and_delete_record):

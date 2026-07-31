@@ -980,6 +980,12 @@
                         "value": "response.state",
                         "type": "string",
                         "format": "jmespath"
+                    },
+                    {
+                        "key": "message",
+                        "value": "response.message",
+                        "type": "string",
+                        "format": "jmespath"
                     }
                 ],
                 "finished_rule": {

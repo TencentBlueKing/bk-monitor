@@ -520,7 +520,9 @@ export default defineComponent({
     );
     watch(
       () => [props.data.length, props.loading] as [number, boolean],
-      ([newLen, loadingVal], [oldLen]) => {
+      (newVal, oldVal) => {
+        const [newLen, loadingVal] = newVal;
+        const oldLen = oldVal?.[0];
         if (!loadingVal && newLen !== oldLen) {
           scheduleInitMenuPop(1000);
         }
@@ -553,6 +555,10 @@ export default defineComponent({
      * @param show
      */
     const expandObject = (row: FieldItem, show: boolean) => {
+      // 动态对象边界字段（flattened）不继续展开内部 mapping
+      if (row.field_type === 'flattened') {
+        return;
+      }
       row.expand = show;
       const index = formData.value.tableList.findIndex(item => item.field_name === row.field_name);
 
@@ -1128,32 +1134,36 @@ export default defineComponent({
         className: () => 'fields-table-column',
         cell: (h, { row }) => (
           <div class='type-select-wrapper'>
-            <bk-select
-              class={{ 'type-error': row.typeErr }}
-              clearable={false}
-              disabled={row.is_built_in}
-              value={row.field_type}
-              on-change={value => {
-                if (value === 'string') {
-                  scheduleInitMenuPop(1000);
-                }
-                const newList = updateList(props.data, row, item => ({
-                  ...item,
-                  field_type: value,
-                  typeErr: false, // 选择类型后清除错误状态
-                }));
-                emit('change', newList);
-              }}
-            >
-              {(globalsData.value.field_data_type || []).map(option => (
-                <bk-option
-                  id={option.id}
-                  key={option.id}
-                  disabled={isTypeDisabled(row, option)}
-                  name={option.name}
-                />
-              ))}
-            </bk-select>
+            {row.field_type === 'flattened' ? (
+              <span class='overflow-tips'>{t('动态对象字段')}</span>
+            ) : (
+              <bk-select
+                class={{ 'type-error': row.typeErr }}
+                clearable={false}
+                disabled={row.is_built_in}
+                value={row.field_type}
+                on-change={value => {
+                  if (value === 'string') {
+                    scheduleInitMenuPop(1000);
+                  }
+                  const newList = updateList(props.data, row, item => ({
+                    ...item,
+                    field_type: value,
+                    typeErr: false, // 选择类型后清除错误状态
+                  }));
+                  emit('change', newList);
+                }}
+              >
+                {(globalsData.value.field_data_type || []).map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    disabled={isTypeDisabled(row, option)}
+                    name={option.name}
+                  />
+                ))}
+              </bk-select>
+            )}
             {row.typeErr && (
               <i
                 class='bk-icon icon-exclamation-circle-shape tooltips-icon type-error-icon'

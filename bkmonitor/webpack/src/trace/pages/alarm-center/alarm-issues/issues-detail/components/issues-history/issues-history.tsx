@@ -115,6 +115,7 @@ export default defineComponent({
               >
                 <div
                   class='item-title'
+                  v-overflow-tips
                   onClick={() => {
                     this.handleClick(item);
                   }}

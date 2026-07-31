@@ -111,7 +111,7 @@ export const fieldTypeMap = {
     textColor: '#979BA5',
   },
   flattened: {
-    name: i18n.t('扁平化对象'),
+    name: i18n.t('动态对象字段'),
     icon: 'bklog-icon bklog-fllatend',
     color: '#E8EAF0',
     textColor: '#63656e',

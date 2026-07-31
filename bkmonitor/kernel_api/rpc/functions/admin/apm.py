@@ -20,10 +20,12 @@ from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     PAGE_LIST_TENANT_SCHEMA,
+    _mask_sensitive_fields,
     build_response,
     filter_by_bk_tenant_id,
     get_bk_tenant_id,
     get_page_list_bk_tenant_id,
+    normalize_include,
     normalize_pagination,
     serialize_model,
     serialize_value,
@@ -51,8 +53,18 @@ FUNC_APM_APPLICATION_LIST = "admin.apm.application_list"
 FUNC_APM_APPLICATION_DETAIL = "admin.apm.application_detail"
 FUNC_APM_SERVICE_LIST = "admin.apm.service_list"
 FUNC_APM_TOPO = "admin.apm.topo"
+FUNC_APM_PROFILING_DATALINK_DETAIL = "admin.apm.profiling_datalink_detail"
 
 DATASOURCE_TYPES = ("metric", "trace", "log", "profile")
+PROFILING_DATALINK_INCLUDE_VALUES = {"component_config"}
+PROFILING_DATALINK_STRATEGY = "apm_profiling_v4"
+PROFILING_RESOURCE_KIND_BY_FIELD = (
+    ("data_id_name", "DataId"),
+    ("databus_name", "Databus"),
+    ("doris_binding_name", "DorisBinding"),
+    ("result_table_name", "ResultTable"),
+)
+DEFAULT_PROFILING_NAMESPACE = "bklog"
 
 
 def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> int | None:
@@ -284,6 +296,156 @@ def _get_application(application_id: Any, bk_tenant_id: str) -> Any:
         return apm_models.ApmApplication.objects.get(id=normalized_application_id, bk_tenant_id=bk_tenant_id)
     except apm_models.ApmApplication.DoesNotExist as error:
         raise CustomException(message=f"未找到 APM 应用: application_id={normalized_application_id}") from error
+
+
+def _get_profile_datasource(application: Any) -> Any | None:
+    return apm_models.ProfileDataSource.objects.filter(
+        bk_biz_id=application.bk_biz_id, app_name=application.app_name
+    ).first()
+
+
+def _read_profiling_v4_resource_names(profile_datasource: Any) -> dict[str, str]:
+    config = profile_datasource.bkdata_datalink_config
+    if not isinstance(config, dict):
+        return {}
+    raw_names = config.get("v4_resource_names")
+    if not isinstance(raw_names, dict):
+        return {}
+    return {
+        field_name: str(value).strip()
+        for field_name, _kind in PROFILING_RESOURCE_KIND_BY_FIELD
+        if (value := raw_names.get(field_name)) not in (None, "")
+    }
+
+
+def _read_profiling_namespace(profile_datasource: Any) -> str:
+    config = profile_datasource.bkdata_datalink_config
+    if isinstance(config, dict):
+        namespace = str(config.get("namespace") or "").strip()
+        if namespace:
+            return namespace
+    return DEFAULT_PROFILING_NAMESPACE
+
+
+def _extract_component_status(component_config: Any) -> str:
+    if not isinstance(component_config, dict):
+        return ""
+    status = component_config.get("status")
+    if isinstance(status, str):
+        return status.strip()
+    if isinstance(status, dict):
+        phase = status.get("phase")
+        return str(phase).strip() if phase not in (None, "") else ""
+    return ""
+
+
+def _read_nested_ref_name(component_config: Any, *keys: str) -> str | None:
+    current: Any = component_config
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    if isinstance(current, dict):
+        name = current.get("name")
+        return str(name).strip() if name not in (None, "") else None
+    if isinstance(current, str) and current.strip():
+        return current.strip()
+    return None
+
+
+def _build_profiling_component_item(
+    *,
+    kind: str,
+    name: str,
+    namespace: str,
+    application: Any,
+    profile_datasource: Any,
+    resource_names: dict[str, str],
+    component_config: Any | None,
+    include_component_config: bool,
+) -> dict[str, Any]:
+    status = _extract_component_status(component_config)
+    item: dict[str, Any] = {
+        "kind": kind,
+        "name": name,
+        "namespace": namespace,
+        "status": status,
+        "data_link_name": f"profile_{application.app_name}",
+        "bk_biz_id": application.bk_biz_id,
+        "bk_tenant_id": application.bk_tenant_id,
+        "created_at": serialize_value(getattr(profile_datasource, "created", None)) or "",
+        "updated_at": serialize_value(getattr(profile_datasource, "updated", None)) or "",
+    }
+
+    if kind == "DataId":
+        item["bk_data_id"] = profile_datasource.bk_data_id
+    elif kind == "ResultTable":
+        item["table_id"] = profile_datasource.result_table_id
+        item["data_type"] = "log"
+        item["bkbase_table_id"] = name
+    elif kind == "DorisBinding":
+        item["table_id"] = profile_datasource.result_table_id
+        item["bkbase_result_table_name"] = resource_names.get("result_table_name") or _read_nested_ref_name(
+            component_config, "spec", "data", "name"
+        )
+        item["doris_cluster_name"] = _read_nested_ref_name(component_config, "spec", "storage", "name")
+    elif kind == "Databus":
+        item["bk_data_id"] = profile_datasource.bk_data_id
+        item["data_id_name"] = resource_names.get("data_id_name")
+        doris_binding_name = resource_names.get("doris_binding_name")
+        item["sink_names"] = (
+            [{"kind": "DorisBinding", "name": doris_binding_name, "namespace": namespace}]
+            if doris_binding_name
+            else []
+        )
+
+    if include_component_config:
+        item["component_config"] = _mask_sensitive_fields(component_config) if component_config is not None else None
+
+    return item
+
+
+def _empty_profiling_datalink_detail(
+    *,
+    application: Any,
+    profile_datasource: Any | None,
+    available: bool,
+    unavailable_reason: str | None,
+) -> dict[str, Any]:
+    namespace = _read_profiling_namespace(profile_datasource) if profile_datasource else DEFAULT_PROFILING_NAMESPACE
+    return {
+        "available": available,
+        "unavailable_reason": unavailable_reason,
+        "application_id": application.id,
+        "app_name": application.app_name,
+        "bk_biz_id": application.bk_biz_id,
+        "version": (
+            (profile_datasource.bkdata_datalink_config or {}).get("version")
+            if profile_datasource and isinstance(profile_datasource.bkdata_datalink_config, dict)
+            else None
+        ),
+        "v4_resource_names": (
+            _read_profiling_v4_resource_names(profile_datasource) if profile_datasource else {}
+        ),
+        "data_link_name": f"profile_{application.app_name}",
+        "bk_tenant_id": application.bk_tenant_id,
+        "namespace": namespace,
+        "data_link_strategy": PROFILING_DATALINK_STRATEGY,
+        "bk_data_id": getattr(profile_datasource, "bk_data_id", None) or 0,
+        "table_ids": (
+            [profile_datasource.result_table_id]
+            if profile_datasource and profile_datasource.result_table_id
+            else []
+        ),
+        "created_at": serialize_value(getattr(profile_datasource, "created", None)) or "",
+        "updated_at": serialize_value(getattr(profile_datasource, "updated", None)) or "",
+        "components": {
+            "DataId": [],
+            "ResultTable": [],
+            "DorisBinding": [],
+            "Databus": [],
+        },
+    }
 
 
 def _serialize_topo_node(node: Any) -> dict[str, Any]:
@@ -575,4 +737,163 @@ def get_apm_topo(params: dict[str, Any]) -> dict[str, Any]:
             "relations": [_serialize_topo_relation(relation) for relation in relations],
             "summary": {"node_count": len(nodes), "relation_count": len(relations), "limit": limit},
         },
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_APM_PROFILING_DATALINK_DETAIL,
+    summary="Admin 查询 APM Profiling V4 组件关系详情",
+    description=(
+        "基于 ProfileDataSource.bkdata_datalink_config.v4_resource_names 直接查询 bkbase 组件状态，"
+        "不依赖 metadata DataLink / DataIdConfig 等表。返回结构与 admin.datalink.datalink_detail 同构，"
+        "可供组件关系图复用。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "application_id": "必填，APM 应用 ID",
+        "include": "可选，展开范围: component_config；默认包含 component_config",
+    },
+    example_params={
+        "bk_tenant_id": "system",
+        "application_id": 1,
+        "include": ["component_config"],
+    },
+)
+def get_apm_profiling_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
+    from metadata.models.data_link.service import get_data_link_component_config
+
+    bk_tenant_id = get_bk_tenant_id(params)
+    includes = normalize_include(
+        params.get("include"),
+        PROFILING_DATALINK_INCLUDE_VALUES,
+        default=PROFILING_DATALINK_INCLUDE_VALUES,
+    )
+    include_component_config = "component_config" in includes
+    warnings_list: list[dict[str, Any]] = []
+
+    application = _get_application(params.get("application_id"), bk_tenant_id)
+    profile_datasource = _get_profile_datasource(application)
+    if profile_datasource is None:
+        return build_response(
+            operation="apm.profiling_datalink_detail",
+            func_name=FUNC_APM_PROFILING_DATALINK_DETAIL,
+            bk_tenant_id=bk_tenant_id,
+            data=_empty_profiling_datalink_detail(
+                application=application,
+                profile_datasource=None,
+                available=False,
+                unavailable_reason="profile_datasource_missing",
+            ),
+            warnings=[
+                {
+                    "code": "PROFILE_DATASOURCE_MISSING",
+                    "message": "该应用未创建 Profiling 数据源",
+                }
+            ],
+        )
+
+    if not profile_datasource.is_bkbase_v4_link():
+        return build_response(
+            operation="apm.profiling_datalink_detail",
+            func_name=FUNC_APM_PROFILING_DATALINK_DETAIL,
+            bk_tenant_id=bk_tenant_id,
+            data=_empty_profiling_datalink_detail(
+                application=application,
+                profile_datasource=profile_datasource,
+                available=False,
+                unavailable_reason="profiling_v3_unsupported",
+            ),
+            warnings=[
+                {
+                    "code": "PROFILING_V3_UNSUPPORTED",
+                    "message": "当前 Profiling 数据源为 V3 链路，本地未记录 V4 资源名，无法构建组件关系图",
+                }
+            ],
+        )
+
+    resource_names = _read_profiling_v4_resource_names(profile_datasource)
+    if not resource_names:
+        return build_response(
+            operation="apm.profiling_datalink_detail",
+            func_name=FUNC_APM_PROFILING_DATALINK_DETAIL,
+            bk_tenant_id=bk_tenant_id,
+            data=_empty_profiling_datalink_detail(
+                application=application,
+                profile_datasource=profile_datasource,
+                available=False,
+                unavailable_reason="v4_resource_names_missing",
+            ),
+            warnings=[
+                {
+                    "code": "V4_RESOURCE_NAMES_MISSING",
+                    "message": "Profiling V4 资源名尚未落库，可能仍在创建中",
+                }
+            ],
+        )
+
+    namespace = _read_profiling_namespace(profile_datasource)
+    components: dict[str, list[dict[str, Any]]] = {
+        "DataId": [],
+        "ResultTable": [],
+        "DorisBinding": [],
+        "Databus": [],
+    }
+
+    for field_name, kind in PROFILING_RESOURCE_KIND_BY_FIELD:
+        name = resource_names.get(field_name)
+        if not name:
+            warnings_list.append(
+                {
+                    "code": "PROFILING_RESOURCE_NAME_MISSING",
+                    "message": f"缺少资源名: {field_name}",
+                }
+            )
+            continue
+
+        component_config = None
+        if include_component_config:
+            component_config = get_data_link_component_config(
+                bk_tenant_id=bk_tenant_id,
+                kind=kind,
+                component_name=name,
+                namespace=namespace,
+            )
+            if component_config is None:
+                warnings_list.append(
+                    {
+                        "code": "COMPONENT_CONFIG_UNAVAILABLE",
+                        "message": (
+                            f"component_config 获取失败: namespace={namespace}, kind={kind}, name={name}"
+                        ),
+                    }
+                )
+
+        components[kind].append(
+            _build_profiling_component_item(
+                kind=kind,
+                name=name,
+                namespace=namespace,
+                application=application,
+                profile_datasource=profile_datasource,
+                resource_names=resource_names,
+                component_config=component_config,
+                include_component_config=include_component_config,
+            )
+        )
+
+    data = _empty_profiling_datalink_detail(
+        application=application,
+        profile_datasource=profile_datasource,
+        available=True,
+        unavailable_reason=None,
+    )
+    data["v4_resource_names"] = resource_names
+    data["components"] = components
+
+    return build_response(
+        operation="apm.profiling_datalink_detail",
+        func_name=FUNC_APM_PROFILING_DATALINK_DETAIL,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+        warnings=warnings_list,
     )

@@ -841,6 +841,7 @@ export default defineComponent({
                 clearable={true}
                 loading={loading}
                 display-tag
+                ext-popover-cls={props.isSticky ? 'is-sticky-hidden' : ''}
                 on-change={(val: any) => {
                   const selectedIds = Array.isArray(val) ? val : (val !== null && val !== '' ? [val] : []);
                   handleFieldChange(field.key, val, buildLabels(selectedIds, options));

@@ -427,6 +427,7 @@ class TestPatternSearch(TestCase):
             table_info["query_alias_settings"],
             [
                 {"field_name": "dteventtimestamp", "query_alias": "dtEventTimeStamp"},
+                {"field_name": "__dist_05", "query_alias": "signature"},
                 {"field_name": "serverip", "query_alias": "sip", "path_type": "string"},
                 {"field_name": "log", "query_alias": "message", "path_type": "text"},
                 {"field_name": "serverip", "query_alias": "serverIp"},
@@ -457,7 +458,13 @@ class TestPatternSearch(TestCase):
         self.assertEqual(table_info["cluster_id"], 6)
         self.assertEqual(table_info["index_set"], "2_bklog_31_clustered")
         self.assertEqual(table_info["table_id"], "bklog_index_set_31_2_bklog_31_clustered.__default__")
-        self.assertEqual(table_info["query_alias_settings"], LOG_INDEX_SET_CREATE_PARAMS["query_alias_settings"])
+        self.assertEqual(
+            table_info["query_alias_settings"],
+            [
+                {"field_name": "__dist_05", "query_alias": "signature"},
+                *LOG_INDEX_SET_CREATE_PARAMS["query_alias_settings"],
+            ],
+        )
 
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
     def test_sync_clustered_route_uses_transfer_api_tenant_getter(self, mock_bulk_create_or_update_log_router):

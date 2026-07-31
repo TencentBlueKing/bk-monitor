@@ -153,12 +153,12 @@
                   class="participle-form-item"
                 >
                   <span
-                    v-if="props.row.field_type === 'object' && props.row.children?.length && !props.row.expand"
+                    v-if="canExpandObjectField(props.row) && !props.row.expand"
                     @click="expandObject(props.row, true)"
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
                   ></span>
                   <span
-                    v-if="props.row.field_type === 'object' && props.row.children?.length && props.row.expand"
+                    v-if="canExpandObjectField(props.row) && props.row.expand"
                     @click="expandObject(props.row, false)"
                     class="ext-btn bklog-icon bklog-arrow-down-filled"
                   ></span>
@@ -265,7 +265,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.field_type }}</span>
+                  <span>{{ getFieldTypeDisplay(props.row.field_type) }}</span>
                 </div>
                 <!-- <bk-form-item v-else
                   :required="true"
@@ -294,7 +294,16 @@
                   v-else
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
+                  <!-- 动态对象边界字段只展示用户文案，不暴露 flattened -->
+                  <span
+                    v-if="props.row.field_type === 'flattened'"
+                    class="overflow-tips"
+                    v-bk-overflow-tips
+                  >
+                    {{ getFieldTypeDisplay(props.row.field_type) }}
+                  </span>
                   <bk-select
+                    v-else
                     v-model="props.row.field_type"
                     :clearable="false"
                     :disabled="props.row.is_delete || isSetDisabled || props.row.is_built_in"
@@ -1199,7 +1208,20 @@
         if (type === 'analyzed') atLastAnalyzed = true;
         return this.isPreviewMode || isDelete || fieldType !== 'string' || !atLastAnalyzed || this.isSetDisabled;
       },
+      /** 动态对象边界字段不展开内部 mapping */
+      canExpandObjectField(row) {
+        return row.field_type === 'object' && !!row.children?.length;
+      },
+      getFieldTypeDisplay(fieldType) {
+        if (fieldType === 'flattened') {
+          return this.$t('动态对象字段');
+        }
+        return fieldType;
+      },
       expandObject(row, show) {
+        if (!this.canExpandObjectField(row)) {
+          return;
+        }
         row.expand = show;
         const index = this.formData.tableList.findIndex(item => item.field_name === row.field_name);
         if (show) {

@@ -592,10 +592,10 @@ class TestEntityHandlerRedisSync:
     @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
     @patch("alarm_backends.service.scheduler.app.app.send_task")
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_apply_changed_definition_schedules_bkbase_sync(
+    def test_apply_changed_definition_does_not_schedule_legacy_bkbase_sync(
         self, mock_redis, mock_send_task, mock_on_commit, cleanup_definition_data
     ):
-        """ResourceDefinition / RelationDefinition 变更后投递 BKBase 图定义同步任务"""
+        """Graph Relation 改由 ResultTable option 管理，不再从定义变更入口投递旧同步任务。"""
         handler = EntityHandler(model_class=ResourceDefinition)
 
         handler.apply(
@@ -603,17 +603,8 @@ class TestEntityHandlerRedisSync:
             spec={"fields": []},
         )
 
-        mock_send_task.assert_called_once_with(
-            "metadata.sync_graph_definition_to_bkbase",
-            kwargs={
-                "namespace": NAMESPACE_ALL,
-                "kind": "ResourceDefinition",
-                "name": "test_bkbase_sync",
-                "generation": 1,
-                "action": "apply",
-            },
-            queue="celery_metadata_task_worker",
-        )
+        mock_send_task.assert_not_called()
+        mock_on_commit.assert_not_called()
 
     @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[])
     @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())

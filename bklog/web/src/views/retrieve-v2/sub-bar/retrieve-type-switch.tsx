@@ -109,9 +109,11 @@ export default defineComponent({
         store.commit('updateIndexItemParams', {
           retrieve_type: type,
           scene_active: SceneType.Container,
+          scene_filter_values: {},
+          isSceneFilterChanged: false,
         });
 
-        // 清空检索数据
+        // 清空检索数据和趋势图，场景化检索需先选择过滤条件后再发起检索请求。
         resetRetrieveData(store);
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_CLEAR);
 

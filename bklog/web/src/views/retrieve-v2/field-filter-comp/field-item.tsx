@@ -127,14 +127,14 @@ export default class FieldItem extends tsc<object> {
       .map(item => item.indexName);
   }
 
+  /** 聚合 / 请求始终使用业务主键 field_name，禁止把 UI 别名写入请求参数 */
   get agg_field() {
-    const fieldName = this.fieldItem.field_name;
-    return this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName;
+    return this.fieldItem.field_name;
   }
 
   get computedFieldName() {
     let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
-      ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
+      ? this.fieldItem.query_alias || this.fieldItem.field_name
       : this.fieldItem.field_name;
 
     if (this.isFieldObject) {
@@ -142,6 +142,10 @@ export default class FieldItem extends tsc<object> {
       name = parts.at(-1) || parts[0];
     }
     return name;
+  }
+
+  get isFieldDisplayToggleSupported() {
+    return true;
   }
 
   beforeDestroy() {
@@ -299,6 +303,8 @@ export default class FieldItem extends tsc<object> {
       color: this.fieldItem.is_full_text ? '' : fieldIconInfo.textColor,
     };
     const childrenCount = this.fieldItem.children?.length || 0;
+    const showAnalysisOperation = this.isShowFieldsAnalysis && !this.isFrontStatistics;
+    const showOperationText = showAnalysisOperation || this.isFieldDisplayToggleSupported;
 
     return (
       <li class='filed-item'>
@@ -347,35 +353,39 @@ export default class FieldItem extends tsc<object> {
               )}
             </span>
           </div>
-          <div
-            ref='operationRef'
-            class={['operation-text', { 'analysis-active': this.analysisActive }]}
-          >
-            {this.isShowFieldsAnalysis && !this.isFrontStatistics && (
-              <div
-                class='operation-icon-box'
-                v-bk-tooltips={{ content: this.$t('图表分析') }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  this.handleClickAnalysisItem();
-                }}
-              >
-                <i class='bklog-icon bklog-chart-2' />
-              </div>
-            )}
+          {showOperationText && (
             <div
-              class='operation-icon-box'
-              v-bk-tooltips={{
-                content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                this.handleShowOrHiddenItem();
-              }}
+              ref='operationRef'
+              class={['operation-text', { 'analysis-active': this.analysisActive }]}
             >
-              <i class={['bk-icon include-icon', this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash']} />
+              {showAnalysisOperation && (
+                <div
+                  class='operation-icon-box'
+                  v-bk-tooltips={{ content: this.$t('图表分析') }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    this.handleClickAnalysisItem();
+                  }}
+                >
+                  <i class='bklog-icon bklog-chart-2' />
+                </div>
+              )}
+              {this.isFieldDisplayToggleSupported && (
+                <div
+                  class='operation-icon-box'
+                  v-bk-tooltips={{
+                    content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    this.handleShowOrHiddenItem();
+                  }}
+                >
+                  <i class={['bk-icon include-icon', this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash']} />
+                </div>
+              )}
             </div>
-          </div>
+          )}
           <div style='display: none'>
             <div ref='fieldChart'>
               {this.analysisActive && (

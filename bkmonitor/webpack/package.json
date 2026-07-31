@@ -39,6 +39,7 @@
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
+    "test:strategy-text-display": "node --test ./tests/strategy-text-display.test.cjs",
     "iconfont": "node ./webpack/update-iconfont.js"
   },
   "simple-git-hooks": {

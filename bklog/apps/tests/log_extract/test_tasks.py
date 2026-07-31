@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 
 import json
 import random
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from apps.log_extract import constants
 from apps.log_extract.handlers.explorer import ExplorerHandler
@@ -120,6 +120,38 @@ class TestTasks(TestCase):
         self.tasks = TasksHandler()
         ExtractLink.objects.create(name="test", link_id=1, link_type="common", operator="admin", op_bk_biz_id=1)
 
+    @override_settings(IS_K8S_DEPLOY_MODE=True)
+    @patch("apps.log_extract.handlers.tasks.get_request_external_username", return_value=USER)
+    @patch("apps.log_extract.handlers.tasks.ExtractLink.objects.filter")
+    def test_create_excludes_common_link_from_k8s_default(self, filter_extract_link, *args, **kwargs):
+        extract_links = filter_extract_link.return_value
+        extract_links.exclude.return_value.first.return_value = Mock(
+            link_id=2, link_type=constants.ExtractLinkType.BK_REPO.value
+        )
+
+        with patch(
+            "apps.log_extract.handlers.tasks.ExplorerHandler.get_strategies",
+            side_effect=RuntimeError("stop after selecting extract link"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "stop after selecting extract link"):
+                self.tasks.create(
+                    bk_biz_id=BK_BIZ_ID,
+                    ip_list=[],
+                    request_file_list=[],
+                    filter_type="",
+                    remark="",
+                    filter_content={},
+                    preview_directory="",
+                    preview_ip_list=[],
+                    preview_time_range="all",
+                    preview_is_search_child=False,
+                    preview_start_time="",
+                    preview_end_time="",
+                )
+
+        filter_extract_link.assert_called_once_with(is_enable=True)
+        extract_links.exclude.assert_called_once_with(link_type=constants.ExtractLinkType.COMMON.value)
+
     @override_settings(MIDDLEWARE=("apps.tests.middlewares.OverrideMiddleware",))
     @patch("apps.decorators.user_operation_record.delay", return_value=None)
     @patch("apps.log_extract.handlers.explorer.ExplorerHandler.get_module_by_ip")
@@ -134,7 +166,6 @@ class TestTasks(TestCase):
         for index, params in enumerate(CREATE_PARAMS_LIST):
             params["filter_type"] = ALLOWED_FILTER_TYPES[random.randint(0, 3)]
             params["filter_content"] = FILTER_CONTENT[params["filter_type"]]
-            params["link_id"] = 1
             params.update(CLONE_PARAM)
             host_info_list = []
             for ip in params["ip_list"]:

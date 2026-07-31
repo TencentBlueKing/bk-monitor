@@ -18,6 +18,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 from opentelemetry import trace
 
 from apm.constants import (
+    APM_GLOBAL_CONFIG_KEY,
     DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG,
     DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG,
     DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
@@ -335,11 +336,15 @@ class ApplicationConfig(BkCollectorConfig):
         license_config = self.get_license_config()
         queue_config = self.get_queue_config()
         attribute_config = self.get_config(ConfigTypes.DB_CONFIG, DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG)
-        drop_rules = attribute_config.setdefault("drop", [])
-        for field in self.get_drop_fields_config():
-            rule = {"predicate_key": field, "keys": [field]}
-            if rule not in drop_rules:
-                drop_rules.append(rule)
+        drop_rules: list[dict] = []
+        drop_rule_hashes: set[str] = set()
+        for rule in [*attribute_config.get("drop", []), *self.get_drop_fields_config()]:
+            rule_hash: str = count_md5(rule)
+            if rule_hash in drop_rule_hashes:
+                continue
+            drop_rule_hashes.add(rule_hash)
+            drop_rules.append(rule)
+        attribute_config["drop"] = drop_rules
         attribute_config_logs = self.get_config(
             ConfigTypes.ATTRIBUTES_CONFIG_LOGS, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
         )
@@ -387,6 +392,9 @@ class ApplicationConfig(BkCollectorConfig):
         if metrics_filter_config:
             config["metrics_filter_config"] = metrics_filter_config
 
+        # 覆盖优先级：GLOBAL < APP，确保 all_app_config 可以做覆盖式更新。
+        self.merge_config(config, self.get_global_config())
+
         # 增加all_app_config的配置将覆盖对应的原有配置
         all_app_config = self.get_config(ConfigTypes.ALL_APP_CONFIG, {})
         if all_app_config:
@@ -415,7 +423,34 @@ class ApplicationConfig(BkCollectorConfig):
 
         return config
 
-    def get_drop_fields_config(self) -> list[str]:
+    def get_global_config(self) -> dict:
+        params = {
+            "bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID,
+            "app_name": APM_GLOBAL_CONFIG_KEY,
+            "config_type": ConfigTypes.ALL_APP_CONFIG,
+        }
+        if self.config_cache:
+            json_value = self.config_cache.get_normal_type_value(**params)
+        else:
+            json_value = NormalTypeValueConfig.get_app_value(**params)
+
+        if not json_value:
+            return {}
+
+        return json.loads(json_value)
+
+    @classmethod
+    def merge_config(cls, config: dict, override: dict) -> dict:
+        for key, value in override.items():
+            if isinstance(config.get(key), dict) and isinstance(value, dict):
+                cls.merge_config(config[key], value)
+                continue
+            config[key] = copy.deepcopy(value)
+        return config
+
+    def get_drop_fields_config(self) -> list[dict]:
+        # 格式：[{"keys":["attributes.a1","attributes.a2"],"predicate_key":"attributes.a1","match":["a"]}]
+        # 说明：当 attributes.a1=a 时，删除 attributes.a1、attributes.a2 两个字段
         params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
         if self.config_cache:
             json_value = self.config_cache.get_normal_type_value(**params, config_type=ConfigTypes.DROP_FIELDS_CONFIG)

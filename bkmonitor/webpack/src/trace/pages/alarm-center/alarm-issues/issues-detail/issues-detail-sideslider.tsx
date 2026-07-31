@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, onUnmounted, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
-import { issueDetail } from 'monitor-api/modules/issue';
 import { convertDurationArray } from 'monitor-common/utils';
-import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { storeToRefs } from 'pinia';
 import { appendQueryStringCondition } from 'trace/components/retrieval-filter/query-string-utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
@@ -38,10 +38,10 @@ import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { mergeWhereList } from '@/components/retrieval-filter/utils';
 import TimeRange from '@/components/time-range/time-range';
-import useRequestAbort from '@/hooks/useRequestAbort';
+import { useIssuesDetailStore } from '@/store/modules/issues-detail';
 
 import type { CommonCondition } from '../../typings';
-import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
+import type { ImpactScopeEvent, ImpactScopeResource } from '../typing';
 import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } from '../typing/constants';
 
 import './issues-detail-sideslider.scss';
@@ -70,12 +70,9 @@ export default defineComponent({
   },
   emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
-    const detail = shallowRef<IssueDetail>(undefined);
-    const loading = shallowRef(false);
+    const issuesDetailStore = useIssuesDetailStore();
+    const { bizId, issueId, detail, loading, timeRange, timezone, refreshInterval } = storeToRefs(issuesDetailStore);
     const isFullscreen = shallowRef(false);
-    const timeRange = shallowRef<(number | string)[]>(['now-1h', 'now']);
-    const timezone = shallowRef(getDefaultTimezone());
-    const refreshInterval = shallowRef(-1);
     let timer = null;
     // 筛选条件状态
     const conditions = shallowRef<IWhereItem[]>([]);
@@ -85,47 +82,32 @@ export default defineComponent({
     const impactScopeResource = shallowRef<ImpactScopeResource>(null);
     const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
     const impactScopeDrawerShow = shallowRef(false);
-    /** 初始化默认查询时间范围 */
-    const initTimeRange = (firstAlertTime?: number) => {
-      const timeValue = firstAlertTime ?? 'now-1h';
-      const time = Number(timeValue);
-      timeRange.value = [Number.isNaN(time) ? timeValue : time * 1000, 'now'];
-    };
-
-    const { run, signal } = useRequestAbort<IssueDetail>(issueDetail);
-
-    /** 获取Issue详情数据 */
-    const getIssueDetailData = async (hasLoading = true) => {
-      if (!props.show) return;
-      if (hasLoading) {
-        loading.value = true;
-      }
-
-      const res = await run({
-        bk_biz_id: props.issueBizId,
-        id: props.issueId,
-      });
-      if (signal?.aborted) return;
-      initTimeRange(res.first_alert_time);
-      detail.value = res;
-      loading.value = false;
-    };
-
+    // 同步 props 到 Store，驱动 Store 自动请求详情（仅 show 时同步；reset 由 handleShowChange / onUnmounted 负责）
+    // 注意：TAPD 首次授权回调场景中，alarm-center 打开本侧滑后，此处同步会触发 store.fetchDetail，
+    // detail 数据到达后反过来驱动 IssuesTapd 的弹窗显示（show = createTapdSliderShow && !!detail）。
     watch(
       () => [props.issueBizId, props.issueId],
       () => {
         if (props.show) {
-          getIssueDetailData();
-        } else {
-          detail.value = undefined;
+          bizId.value = props.issueBizId;
+          issueId.value = props.issueId;
         }
       },
       { immediate: true }
     );
-
     const handleShowChange = (isShow: boolean) => {
+      // 关闭侧滑时主动重置 Store，避免 detail 残留污染下次打开（也切断 IssuesTapd 的 !!detail 条件）
+      // alarm-center 所有运行时关闭均经此函数（无外部直接置 alarmDetailShow=false 的运行时路径）
+      if (!isShow) {
+        issuesDetailStore.reset();
+      }
       emit('update:show', isShow);
     };
+
+    // 组件被 v-if 卸载时兜底重置（如 alarmType 切换离开 ISSUES，show 来不及变 false）
+    onUnmounted(() => {
+      issuesDetailStore.reset();
+    });
 
     /** 下一个 */
     const handleNext = () => {
@@ -152,7 +134,7 @@ export default defineComponent({
     /** 强制刷新 */
     const handleImmediateRefresh = () => {
       timeRange.value = [...timeRange.value];
-      getIssueDetailData();
+      issuesDetailStore.refresh();
     };
 
     /** 自动刷新调整 */
@@ -177,7 +159,7 @@ export default defineComponent({
     };
 
     const handleCreateTapd = () => {
-      emit('createTapd', true, detail.value);
+      emit('createTapd', true);
     };
 
     const handleConditionChange = (val: IWhereItem[]) => {

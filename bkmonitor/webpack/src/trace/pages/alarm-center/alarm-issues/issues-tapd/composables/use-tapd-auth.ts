@@ -33,17 +33,16 @@ import { getUserWorkspaceApi, rebindWorkspaceApi, unbindWorkspaceApi } from '../
 
 import type { TapdWorkspaceItem } from '../typing';
 
-type UseTapdAuthEmit = (event: 'update:loading', loading: boolean) => void;
-
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
-export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit) {
+export function useTapdAuth(options: UseTapdAuthOptions) {
   const { t } = useI18n();
   const { show, bizId, issuesId } = options;
+  const pageLoading = shallowRef(false);
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
   /** 项目列表 */
@@ -57,7 +56,7 @@ export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit)
   const revokeAuthLoading = shallowRef(false);
 
   const getAuth = async () => {
-    emit?.('update:loading', true);
+    pageLoading.value = true;
     installUrl.value = '';
     /** 授权成功后跳转的参数 */
     const successUrlParams = new URLSearchParams({
@@ -75,11 +74,16 @@ export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit)
       alarmType: 'issues',
     });
     try {
-      const data = await getUserWorkspaceApi({
-        bk_biz_id: bizId.value,
-        success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
-        error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
-      });
+      const data = await getUserWorkspaceApi(
+        {
+          bk_biz_id: bizId.value,
+          success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
+          error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
+        },
+        {
+          needMessage: false,
+        }
+      );
       const list = data.items || [];
       workspaceList.splice(0, workspaceList.length, ...list.map(item => ({ ...item, loading: false })));
       installUrl.value = data.install_url;
@@ -92,15 +96,21 @@ export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit)
         window.open(errData.auth_url, '_self');
       }
     }
-    /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
-    if (workspaceList.find(item => item.is_bound === 'bound')) {
-      createTapdSliderShow.value = true;
-      authDialogShow.value = false;
-    } else {
-      createTapdSliderShow.value = false;
-      authDialogShow.value = true;
+    /**
+     * 如果有授权链接，一直展示授权引导loading效果，需要跳转到TAPD页面进行授权
+     * 没有授权链接表示用户已经授权或者没有权限授权，直接展示后续内容
+     */
+    if (!authUrl.value) {
+      pageLoading.value = false;
+      /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
+      if (workspaceList.find(item => item.is_bound === 'bound')) {
+        createTapdSliderShow.value = true;
+        authDialogShow.value = false;
+      } else {
+        createTapdSliderShow.value = false;
+        authDialogShow.value = true;
+      }
     }
-    emit?.('update:loading', false);
   };
 
   watch(
@@ -178,6 +188,7 @@ export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit)
   };
 
   return {
+    pageLoading,
     authDialogShow,
     createTapdSliderShow,
     workspaceList,

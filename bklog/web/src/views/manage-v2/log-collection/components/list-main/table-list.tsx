@@ -238,12 +238,42 @@ export default defineComponent({
     /** 监听用户信息更新事件，更新显示名称映射 */
     const handleUserInfoUpdated = (data: UserInfoLoadedEventData) => {
       const newMap = new Map(userDisplayNameMap.value);
+      let hasUpdate = false;
       for (const [bkUsername, userInfo] of data.userInfo.entries()) {
-        if (userInfo?.display_name) {
+        if (userInfo?.display_name && newMap.get(bkUsername) !== userInfo.display_name) {
           newMap.set(bkUsername, userInfo.display_name);
+          hasUpdate = true;
         }
       }
-      userDisplayNameMap.value = newMap;
+      if (hasUpdate) {
+        userDisplayNameMap.value = newMap;
+
+        // 同步更新过滤下拉项的 label（created_by / updated_by）
+        type FilterItem = IFilterValues['created_by'][number];
+        const updateFilterItems = (items: FilterItem[] | undefined): FilterItem[] | undefined => {
+          if (!items || items.length === 0) return items;
+          let changed = false;
+          const next = items.map(item => {
+            const displayName = newMap.get(item.key || '');
+            if (displayName && displayName !== item.label) {
+              changed = true;
+              return { ...item, label: displayName };
+            }
+            return item;
+          });
+          return changed ? next : items;
+        };
+
+        const createdBy = updateFilterItems(IFilterValues.value.created_by);
+        const updatedBy = updateFilterItems(IFilterValues.value.updated_by);
+        if (createdBy !== IFilterValues.value.created_by || updatedBy !== IFilterValues.value.updated_by) {
+          IFilterValues.value = {
+            ...IFilterValues.value,
+            created_by: createdBy,
+            updated_by: updatedBy,
+          };
+        }
+      }
     };
     // 全量标签列表（用于标签管理）
     const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
@@ -1485,8 +1515,20 @@ export default defineComponent({
           }
         }
         if (userIds.size > 0) {
-          // 触发批量获取请求，通过 userInfoUpdated 事件监听来更新显示名称
-          tenantManager.batchGetUserDisplayInfo(Array.from(userIds));
+          // 批量获取用户信息，直接用返回值更新显示名称映射
+          // （已缓存的用户不会触发 userInfoUpdated 事件，需要同步处理）
+          const userInfoMap = await tenantManager.batchGetUserDisplayInfo(Array.from(userIds));
+          const newMap = new Map(userDisplayNameMap.value);
+          let hasUpdate = false;
+          for (const [bkUsername, userInfo] of userInfoMap.entries()) {
+            if (userInfo?.display_name && newMap.get(bkUsername) !== userInfo.display_name) {
+              newMap.set(bkUsername, userInfo.display_name);
+              hasUpdate = true;
+            }
+          }
+          if (hasUpdate) {
+            userDisplayNameMap.value = newMap;
+          }
         }
       } catch (error) {
         listLoading.value = false;
@@ -1544,6 +1586,18 @@ export default defineComponent({
           let userInfoMap = new Map<string, { display_name: string }>();
           if (allUserIds.length > 0) {
             userInfoMap = await tenantManager.batchGetUserDisplayInfo(allUserIds);
+            // 同步更新显示名称映射（已缓存的用户不会触发 userInfoUpdated 事件）
+            const newMap = new Map(userDisplayNameMap.value);
+            let hasUpdate = false;
+            for (const [bkUsername, userInfo] of userInfoMap.entries()) {
+              if (userInfo?.display_name && newMap.get(bkUsername) !== userInfo.display_name) {
+                newMap.set(bkUsername, userInfo.display_name);
+                hasUpdate = true;
+              }
+            }
+            if (hasUpdate) {
+              userDisplayNameMap.value = newMap;
+            }
           }
 
           // 处理过滤选项，添加用户显示名称

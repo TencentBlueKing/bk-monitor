@@ -23,17 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, toRefs } from 'vue';
+import { defineComponent, toRefs } from 'vue';
 
-import { Message } from 'bkui-vue';
+import { Loading, Message } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { useTapdAuth } from './composables/use-tapd-auth';
 import { revokeAuthApi } from './services/tapd';
 import TapdAuthDialog from './tapd-auth-dialog/tapd-auth-dialog';
 import TapdSideslider from './tapd-sideslider/tapd-sideslider';
+import { useIssuesDetailStore } from '@/store/modules/issues-detail';
 
-import type { IssueDetail } from '../typing/detail';
+import './issues-tapd.scss';
 
 export default defineComponent({
   name: 'IssuesTapd',
@@ -50,17 +52,15 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    issueDetail: {
-      type: Object as PropType<IssueDetail>,
-      default: () => null,
-    },
   },
-  emits: ['update:show', 'update:loading'],
+  emits: ['update:show'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const { show, bizId, issuesId } = toRefs(props);
+    const { detail } = storeToRefs(useIssuesDetailStore());
 
     const {
+      pageLoading,
       authDialogShow,
       createTapdSliderShow,
       workspaceList,
@@ -69,7 +69,7 @@ export default defineComponent({
       revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
-    } = useTapdAuth({ show, bizId, issuesId }, emit);
+    } = useTapdAuth({ show, bizId, issuesId });
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
 
@@ -102,6 +102,39 @@ export default defineComponent({
       }
     };
 
+    const renderLoading = () => {
+      if (!pageLoading.value) return;
+
+      if (authUrl.value) {
+        return (
+          <div class='issues-tapd-loading'>
+            <div class='issues-tapd-loading-mask' />
+            <div class='issues-tapd-loading-content'>
+              <Loading
+                class='loading-spin'
+                loading={pageLoading.value}
+                mode='spin'
+                size='small'
+                theme='primary'
+              >
+                <div />
+              </Loading>
+              <div class='loading-title'>{t('正在前往TAPD授权')}</div>
+              <div class='loading-desc'>{t('授权完成后将自动返回，并继续创建 TAPD 单据')}</div>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <Loading
+          class='issues-tapd-loading'
+          loading={pageLoading.value}
+        >
+          <div />
+        </Loading>
+      );
+    };
+
     return {
       createTapdSliderShow,
       authDialogShow,
@@ -109,6 +142,8 @@ export default defineComponent({
       authUrl,
       isAuth,
       revokeAuthLoading,
+      detail,
+      renderLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
       handleRevokeAuth,
@@ -118,12 +153,16 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='display: none'>
+      <div class='issues-tapd'>
+        {this.renderLoading()}
         <TapdSideslider
           bizId={this.bizId}
-          issueDetail={this.issueDetail}
+          issueDetail={this.detail}
           issuesId={this.issuesId}
-          show={this.createTapdSliderShow}
+          // 首次 TAPD 授权回调后，Issue 详情需要异步加载。
+          // 通过 !!this.detail 延迟渲染，确保表单初始化时 issueDetail 已就绪，
+          // 避免默认字段（标题/处理人/优先级）因数据未到达而无法回填。
+          show={this.createTapdSliderShow && !!this.detail}
           workspaceList={this.workspaceList}
           onAddWorkspace={this.handleAddWorkspace}
           onRevokeAuth={this.handleRevokeAuth}

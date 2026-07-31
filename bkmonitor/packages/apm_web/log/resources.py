@@ -22,7 +22,6 @@ from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_w
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.constants import DEFAULT_APM_LOG_SEARCH_FIELD_NAME
 from apm_web.models import LogServiceRelation
-from apm_web.strategy.dispatch import EntitySet
 from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import Vendor, FIVE_MIN_SECONDS
 from core.drf_resource import Resource, api
@@ -200,28 +199,24 @@ def process_metric_relations(
     app_name: str,
     service_name: str | None,
     indexes_mapping: dict[int, list[dict[str, Any]]],
-    start_time: int,
-    end_time: int,
     overwrite_method: Callable[..., list[dict]] | None = None,
-):
-    """根据应用关联指标反查关联日志索引集。"""
+) -> list[dict[str, Any]]:
+    """根据服务 workload 关系从缓存获取容器日志索引集。"""
     if not service_name:
         return []
 
-    # 服务没有关联容器时提前返回，减少非必要查询和缓存访问。
-    if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
-        return []
+    related_indexes: list[dict[str, Any]] = ServiceLogHandler.list_indexes_by_relation(
+        bk_biz_id, app_name, service_name
+    )
+    index_infos: list[dict[str, Any]] = _find_index_infos_from_cache(
+        bk_biz_id, [index["index_set_id"] for index in related_indexes], indexes_mapping
+    )
+    for index_info in index_infos:
+        index_info["addition"] = (
+            overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME) if overwrite_method else []
+        )
 
-    result = []
-    relations = ServiceLogHandler.list_indexes_by_relation(bk_biz_id, app_name, service_name, start_time, end_time)
-    for r in relations:
-        index_infos: list[dict] = _find_index_infos_from_cache(bk_biz_id, [r["index_set_id"]], indexes_mapping)
-        for index_info in index_infos:
-            index_info["addition"] = r["addition"]
-            if overwrite_method:
-                index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
-            result.append(index_info)
-    return result
+    return index_infos
 
 
 def _generate_cache_key(
@@ -229,8 +224,6 @@ def _generate_cache_key(
     app_name: str,
     service_name: str | None,
     extra_info: dict[str, Any] | None,
-    start_time: int | None,
-    end_time: int | None,
 ) -> str:
     """生成日志关联列表的缓存 key。
 
@@ -238,8 +231,6 @@ def _generate_cache_key(
     :param app_name: 应用名称。
     :param extra_info: 额外过滤信息，如 span_id / trace_id。
     :param service_name: 服务名称。
-    :param start_time: 开始时间戳。
-    :param end_time: 结束时间戳。
     :return: 缓存 key。
     """
 
@@ -248,10 +239,6 @@ def _generate_cache_key(
         key_parts.append(service_name)
 
     key_parts.append(count_md5(extra_info))
-    if start_time and end_time and service_name:
-        # 应用关联日志无需按时间范围缓存。
-        key_parts.append(str((start_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS))
-        key_parts.append(str((end_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS))
 
     return "-".join(key_parts + ["log_relation_list"])
 
@@ -295,11 +282,11 @@ def log_relation_list(
     :param app_name: 应用名称。
     :param service_name: 服务名称。
     :param extra_info: 额外过滤信息，如 {"span_id": "xxx"} 或 {"trace_id": "yyy"}。
-    :param start_time: 开始时间戳。
-    :param end_time: 结束时间戳。
+    :param start_time: 开始时间戳，仅保留接口兼容，不参与关联结果查询。
+    :param end_time: 结束时间戳，仅保留接口兼容，不参与关联结果查询。
     :return: 去重后的索引集信息列表，is_app_datasource=True 的排在最前。
     """
-    cache_key: str = _generate_cache_key(bk_biz_id, app_name, service_name, extra_info, start_time, end_time)
+    cache_key: str = _generate_cache_key(bk_biz_id, app_name, service_name, extra_info)
     cache_call = using_cache(CacheType.APM(FIVE_MIN_SECONDS))
     cached: list[dict] | None = cache_call.get_value(cache_key)
     if cached:
@@ -312,7 +299,7 @@ def log_relation_list(
     tasks: list[tuple[Callable[..., list[dict]], tuple]] = [
         (process_relation, (*common_args, overwrite_method)),
         (process_datasource, (*common_args, overwrite_method)),
-        (process_metric_relations, (*common_args, start_time, end_time, overwrite_method)),
+        (process_metric_relations, (*common_args, overwrite_method)),
         (process_span_host, (*common_args, processed_extra_info, overwrite_method)),
     ]
 
@@ -353,29 +340,10 @@ class LogInfoResource(Resource, HostIndexQueryMixin):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, data):
-        bk_biz_id = data["bk_biz_id"]
-        app_name = data["app_name"]
-        service_name = data.get("service_name")
-
-        # 1.是否开启了日志
-        if ServiceLogHandler.get_log_datasource(bk_biz_id=bk_biz_id, app_name=app_name):
-            return True
-
-        # 2. 是否手动关联了日志索引集
-        if ServiceLogHandler.get_log_relations(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_names=[service_name] if service_name else None
-        ):
-            return True
-
-        # 3. 是否有关联的 pod 日志
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
-        if ServiceLogHandler.list_indexes_by_relation(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, start_time=start_time, end_time=end_time
-        ):
-            return True
-        return False
+    def perform_request(self, validated_request_data: dict[str, Any]) -> bool:
+        span_id = validated_request_data.pop("span_id", None)
+        extra_info: dict[str, str] | None = {"span_id": span_id} if span_id else None
+        return bool(log_relation_list(extra_info=extra_info, **validated_request_data))
 
 
 class LogRelationListResource(Resource, HostIndexQueryMixin):
@@ -393,12 +361,12 @@ class LogRelationListResource(Resource, HostIndexQueryMixin):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         extra_info: dict[str, str] = {}
-        span_id = data.pop("span_id", None)
-        trace_id = data.pop("trace_id", None)
+        span_id = validated_request_data.pop("span_id", None)
+        trace_id = validated_request_data.pop("trace_id", None)
         if span_id:
             extra_info["span_id"] = span_id
         if trace_id:
             extra_info["trace_id"] = trace_id
-        return log_relation_list(extra_info=extra_info or None, **data)
+        return log_relation_list(extra_info=extra_info or None, **validated_request_data)

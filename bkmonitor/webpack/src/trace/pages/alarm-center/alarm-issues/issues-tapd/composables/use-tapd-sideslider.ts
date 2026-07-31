@@ -30,12 +30,12 @@ import { getTapdFieldsApi } from '../../components/tapd-field-form/service/issue
 import { TapdLinkModeEnum } from '../constant';
 import useUserConfig from '@/hooks/useUserConfig';
 
-import type { IssueDetail } from '../../typing/detail';
+import type { IssueDetail } from '../../typing';
 import type { CreateTapdDefaultSetting, TapdLinkModeType, TapdWorkspaceItem } from '../typing';
 
 interface UseTapdSidesliderOptions {
   bizId: Ref<number | string>;
-  issueDetail: Ref<IssueDetail>;
+  issueDetail: Ref<IssueDetail | undefined>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
   workspaceList: Ref<TapdWorkspaceItem[]>;
@@ -78,7 +78,11 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   /** 用户配置 hook */
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
-  const setTapdFieldDefatultValue = () => {
+  const setTapdFieldDefaultValue = () => {
+    const detail = issueDetail.value;
+    // 防卫式编程：issueDetail 到达前不产生副作用（例如首次 TAPD 授权回调后，detail 尚未就绪）
+    if (!detail) return;
+
     const defaultPriorityLabelMap = {
       P0: 'High',
       P1: 'Middle',
@@ -87,17 +91,16 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
     const defaultPriorityLabel =
       tapdFields.value
         .find(item => item.field_id === 'priority_label')
-        ?.options?.find(option => option.id === defaultPriorityLabelMap?.[issueDetail.value?.priority])?.id || '';
-    if (issueDetail.value) {
-      const defaultValue = {
-        name: issueDetail.value?.name || '',
-        owner: issueDetail.value?.assignee || [],
-      };
-      if (defaultPriorityLabel) {
-        defaultValue.priority_label = defaultPriorityLabel;
-      }
-      tapdFieldValue.value = defaultValue;
+        ?.options?.find(option => option.id === defaultPriorityLabelMap?.[detail.priority])?.id || '';
+
+    const defaultValue: Record<string, unknown> = {
+      name: detail.name || '',
+      owner: detail.assignee || [],
+    };
+    if (defaultPriorityLabel) {
+      defaultValue.priority_label = defaultPriorityLabel;
     }
+    tapdFieldValue.value = defaultValue;
   };
 
   /**
@@ -113,7 +116,7 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
       bk_biz_id: bizId.value as number,
     });
     tapdFields.value = fields;
-    setTapdFieldDefatultValue();
+    setTapdFieldDefaultValue();
     tapdFieldFormLoading.value = false;
   };
 
@@ -146,6 +149,8 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   watch(
     () => show.value,
     val => {
+      // show 变为 true 时 TapdSideslider 开始渲染，触发 TAPD 字段获取与默认值回填。
+      // 注意：show 的打开由外部条件控制，确保此时 issueDetail 已就绪。
       if (val) getTapdDefaultValue();
     }
   );

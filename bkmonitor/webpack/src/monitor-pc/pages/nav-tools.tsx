@@ -377,8 +377,11 @@ class NavTools extends DocumentLinkMixin {
   }
   /** 权限中心入口 */
   handleGoToPermissionCenter() {
+    // 去掉尾部 /，避免 bk_iam_url 已带斜杠时拼成 //my-perm
+    const base = (window.bk_iam_url || '').replace(/\/$/, '');
+    if (!base) return;
     this.hidePopoverSetOrHelp();
-    window.open(`${window.bk_iam_url}/my-perm`, '_blank', 'noopener,noreferrer');
+    window.open(`${base}/my-perm`, '_blank', 'noopener,noreferrer');
   }
   handleQuit() {
     location.href = `${window.site_url}logout`;

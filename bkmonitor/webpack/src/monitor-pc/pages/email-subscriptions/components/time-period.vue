@@ -262,8 +262,8 @@ export default class TimePeriod extends Vue {
     };
     if ([2, 3, 4].includes(this.typeValue)) value.runTime = `${type === 'time' ? v : this.dayTime}`;
     switch (this.typeValue) {
-      case 1: // 仅一次
-        value.runTime = dayjs.tz(type === 'datetime' ? v : this.onceTime).format('YYYY-MM-DD HH:mm:ssZZ');
+      case 1: // 仅一次：提交给后端的 run_time 不能带时区后缀，否则后端 strptime 会报 unconverted data remains: +0800
+        value.runTime = dayjs.tz(type === 'datetime' ? v : this.onceTime).format('YYYY-MM-DD HH:mm:ss');
         break;
       case 2: // 按天
         // value.runTime = this.dayTime
