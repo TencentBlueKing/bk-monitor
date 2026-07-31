@@ -22,6 +22,7 @@ from django.utils.translation import gettext as _
 from alarm_backends.core.lock.service_lock import share_lock
 from core.prometheus import metrics
 from metadata import models
+from metadata.feature_flag import FeatureFlagRedisSync
 from metadata.config import (
     KAFKA_SASL_MECHANISM,
     KAFKA_SASL_PROTOCOL,
@@ -33,7 +34,7 @@ from metadata.task.tasks import (
     clean_disable_es_storage,
     manage_es_storage,
 )
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -79,6 +80,36 @@ def refresh_consul_storage():
     )
     metrics.report_all()
     logger.info(f"refresh_consul_storage:task finished, cost time: {cost_time}")
+
+
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshFeatureFlag")
+def refresh_feature_flag():
+    """刷新 Feature Flag 配置给 unify-query 使用。"""
+    task_name = "refresh_feature_flag"
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name=task_name, status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()
+    failed = False
+    try:
+        logger.info("start to sync feature flag config from consul to redis")
+        FeatureFlagRedisSync.sync_from_consul()
+    except Exception:
+        failed = True
+        logger.exception("refresh metadata feature flag config failed")
+
+    cost_time = time.time() - start_time
+    task_status = TASK_FINISHED_FAILURE if failed else TASK_FINISHED_SUCCESS
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name=task_name, status=task_status, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name=task_name, process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_feature_flag: task finished, cost time: %s", cost_time)
+    if failed:
+        raise RuntimeError("metadata feature flag config refresh failed")
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")
