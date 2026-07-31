@@ -6283,6 +6283,7 @@ def test_compose_custom_event_configs_reuses_legacy_components(create_or_delete_
     assert configs[0]["metadata"]["name"] == "legacy_event_rt"
     assert configs[1]["metadata"]["name"] == "legacy_event_es_binding"
     assert configs[1]["spec"]["data"]["name"] == "legacy_event_rt"
+    assert configs[1]["spec"]["doc_type"] == table_id
     assert configs[2]["metadata"]["name"] == "legacy_event_databus"
     assert configs[2]["spec"]["sources"][0]["name"] == "legacy_event_data_id"
     assert configs[2]["spec"]["sinks"][0]["name"] == "legacy_event_es_binding"
