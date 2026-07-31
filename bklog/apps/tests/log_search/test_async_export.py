@@ -26,12 +26,18 @@ from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
 from django.db.models.query import QuerySet
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
+from django.utils.translation import gettext
+from redis.exceptions import ConnectionError as RedisConnectionError
 from rest_framework.test import APIRequestFactory
 
-from apps.log_search.constants import ExportStatus, ExportType, IndexSetType
-from apps.log_search.exceptions import AsyncExportTaskNotDownloadableException, ConcurrentExportLimitException
+from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportStatus, ExportType, IndexSetType
+from apps.log_search.exceptions import (
+    AsyncExportRequestBusyException,
+    AsyncExportTaskNotDownloadableException,
+    ConcurrentExportLimitException,
+)
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, Scenario
@@ -46,6 +52,7 @@ from apps.log_unifyquery.handler.async_export_handlers import (
     UnifyQueryAsyncExportHandlers,
     UnifyQueryUnionAsyncExportHandlers,
 )
+from apps.log_unifyquery.handler.scene_async_export import SceneAsyncExportHandler
 
 
 SEARCH_DICT = {
@@ -54,6 +61,8 @@ SEARCH_DICT = {
     "end_time": "2026-06-25 01:00:00",
     "size": 321,
 }
+
+TEST_MAX_CONCURRENT_EXPORT_TASKS = 3
 
 
 class FakeIndexSet:
@@ -90,8 +99,12 @@ class FakeSearchHandler:
 
 
 class TestAsyncExportProgress(TestCase):
+    @override_settings(USE_REDIS=True)
     def test_async_export_creates_task_with_export_total_count(self):
         with ExitStack() as stack:
+            mock_lock = Mock()
+            mock_lock.acquire.return_value = True
+            stack.enter_context(patch("apps.log_search.models.cache.lock", return_value=mock_lock))
             stack.enter_context(
                 patch(
                     "apps.log_search.handlers.search.async_export_handlers.SearchHandler",
@@ -139,6 +152,8 @@ class TestAsyncExportProgress(TestCase):
         self.assertEqual(async_task.exported_count, 0)
         self.assertEqual(async_task.download_count, 0)
         self.assertEqual(mock_delay.call_args.kwargs["async_task_id"], task_id)
+        mock_lock.acquire.assert_called_once_with()
+        mock_lock.release.assert_called_once_with()
 
     def test_generate_export_history_returns_progress_fields(self):
         history = {
@@ -399,6 +414,49 @@ class TestAsyncExportProgress(TestCase):
         self.assertEqual(total_count, 30)
 
 
+class TestAsyncExportConcurrentCheckOrder(TestCase):
+    def test_unify_query_handlers_check_concurrent_limit_first(self):
+        for handler_class in (UnifyQueryAsyncExportHandlers, UnifyQueryUnionAsyncExportHandlers):
+            with self.subTest(handler_class=handler_class.__name__):
+                handler = handler_class.__new__(handler_class)
+                handler.request_user = "test_user"
+
+                with (
+                    patch.object(
+                        AsyncTask,
+                        "check_running_count_by_user",
+                        side_effect=ConcurrentExportLimitException(),
+                    ) as mock_check_running_count,
+                    patch(
+                        "apps.log_unifyquery.handler.async_export_handlers.FeatureToggleObject.switch"
+                    ) as mock_duplicate_check,
+                ):
+                    with self.assertRaises(ConcurrentExportLimitException):
+                        handler.async_export()
+
+                mock_check_running_count.assert_called_once_with("test_user")
+                mock_duplicate_check.assert_not_called()
+
+    def test_scene_handler_checks_concurrent_limit_first(self):
+        handler = SceneAsyncExportHandler.__new__(SceneAsyncExportHandler)
+        handler.request_user = "test_user"
+
+        with (
+            patch.object(
+                AsyncTask,
+                "check_running_count_by_user",
+                side_effect=ConcurrentExportLimitException(),
+            ) as mock_check_running_count,
+            patch("apps.log_unifyquery.handler.scene_async_export.FeatureToggleObject.switch") as mock_duplicate_check,
+        ):
+            with self.assertRaises(ConcurrentExportLimitException):
+                handler.async_export()
+
+        mock_check_running_count.assert_called_once_with("test_user", is_scene=True)
+        mock_duplicate_check.assert_not_called()
+
+
+@override_settings(MAX_CONCURRENT_EXPORT_TASKS=TEST_MAX_CONCURRENT_EXPORT_TASKS)
 class TestAsyncTaskConcurrentLimit(TestCase):
     """测试 AsyncTask.check_running_count_by_user 限流逻辑"""
 
@@ -432,7 +490,7 @@ class TestAsyncTaskConcurrentLimit(TestCase):
 
     def test_non_scene_at_limit_raises(self):
         """达到上限时抛出 ConcurrentExportLimitException"""
-        for i in range(3):
+        for _ in range(TEST_MAX_CONCURRENT_EXPORT_TASKS):
             self._create_running_task(self.username, scenario_id=Scenario.LOG)
         with self.assertRaises(ConcurrentExportLimitException):
             AsyncTask.check_running_count_by_user(self.username)
@@ -453,7 +511,7 @@ class TestAsyncTaskConcurrentLimit(TestCase):
 
     def test_different_users_are_isolated(self):
         """不同用户的任务互不影响"""
-        for i in range(3):
+        for _ in range(TEST_MAX_CONCURRENT_EXPORT_TASKS):
             self._create_running_task(self.other_username, scenario_id=Scenario.LOG)
         # other_user 已满，但 test_user 不受影响
         AsyncTask.check_running_count_by_user(self.username)
@@ -462,13 +520,13 @@ class TestAsyncTaskConcurrentLimit(TestCase):
 
     def test_scene_under_limit_does_not_raise(self):
         """场景分组未达上限时不抛异常"""
-        self._create_running_task(self.username, scenario_id="scene")
+        self._create_running_task(self.username, scenario_id=ASYNC_EXPORT_SCENE_ID)
         AsyncTask.check_running_count_by_user(self.username, is_scene=True)
 
     def test_scene_at_limit_raises(self):
         """场景分组达到上限时抛出异常"""
-        for i in range(3):
-            self._create_running_task(self.username, scenario_id="scene")
+        for _ in range(TEST_MAX_CONCURRENT_EXPORT_TASKS):
+            self._create_running_task(self.username, scenario_id=ASYNC_EXPORT_SCENE_ID)
         with self.assertRaises(ConcurrentExportLimitException):
             AsyncTask.check_running_count_by_user(self.username, is_scene=True)
 
@@ -477,21 +535,21 @@ class TestAsyncTaskConcurrentLimit(TestCase):
     def test_scene_and_non_scene_are_independent(self):
         """场景和非场景分组独立计数，互不影响"""
         # 非场景已满
-        for i in range(3):
+        for _ in range(TEST_MAX_CONCURRENT_EXPORT_TASKS):
             self._create_running_task(self.username, scenario_id=Scenario.LOG)
         # 场景分组不受影响
         AsyncTask.check_running_count_by_user(self.username, is_scene=True)
 
         # 反过来：场景已满
-        for i in range(3):
-            self._create_running_task(self.other_username, scenario_id="scene")
+        for _ in range(TEST_MAX_CONCURRENT_EXPORT_TASKS):
+            self._create_running_task(self.other_username, scenario_id=ASYNC_EXPORT_SCENE_ID)
         # 非场景不受影响
         AsyncTask.check_running_count_by_user(self.other_username)
 
     def test_scene_tasks_do_not_affect_non_scene_limit(self):
         """场景任务不计入非场景分组的限流"""
-        for i in range(3):
-            self._create_running_task(self.username, scenario_id="scene")
+        for _ in range(TEST_MAX_CONCURRENT_EXPORT_TASKS):
+            self._create_running_task(self.username, scenario_id=ASYNC_EXPORT_SCENE_ID)
         # scene 任务不会让 non-scene 超限
         AsyncTask.check_running_count_by_user(self.username, is_scene=False)
 
@@ -503,6 +561,150 @@ class TestAsyncTaskConcurrentLimit(TestCase):
         with self.settings(MAX_CONCURRENT_EXPORT_TASKS=1):
             with self.assertRaises(ConcurrentExportLimitException):
                 AsyncTask.check_running_count_by_user(self.username)
+
+    @override_settings(USE_REDIS=False)
+    def test_create_with_running_limit_falls_back_when_redis_is_disabled(self):
+        task = AsyncTask.async_export_task_create_with_running_limit(
+            username=self.username, request_param=SEARCH_DICT, scenario_id=Scenario.LOG
+        )
+
+        self.assertEqual(task.created_by, self.username)
+        self.assertEqual(task.export_type, ExportType.ASYNC)
+
+    @override_settings(USE_REDIS=False, MAX_CONCURRENT_EXPORT_TASKS=1)
+    def test_create_with_running_limit_still_checks_limit_when_redis_is_disabled(self):
+        self._create_running_task(self.username, scenario_id=Scenario.LOG)
+
+        with self.assertRaises(ConcurrentExportLimitException):
+            AsyncTask.async_export_task_create_with_running_limit(
+                username=self.username, request_param=SEARCH_DICT, scenario_id=Scenario.LOG
+            )
+
+        self.assertEqual(AsyncTask.objects.filter(created_by=self.username).count(), 1)
+
+    @override_settings(USE_REDIS=True)
+    def test_create_with_running_limit_uses_separate_group_locks(self):
+        default_lock = Mock()
+        default_lock.acquire.return_value = True
+        scene_lock = Mock()
+        scene_lock.acquire.return_value = True
+        task_params = {key: value for key, value in self.common_params.items() if key != "export_type"}
+
+        with patch("apps.log_search.models.cache.lock", return_value=default_lock) as mock_cache_lock:
+            default_task = AsyncTask.async_export_task_create_with_running_limit(
+                username=self.username, scenario_id=Scenario.LOG, **task_params
+            )
+        default_lock_key = mock_cache_lock.call_args.args[0]
+        self.assertEqual(mock_cache_lock.call_args.kwargs, {"timeout": 30, "blocking_timeout": 5})
+
+        with patch("apps.log_search.models.cache.lock", return_value=scene_lock) as mock_cache_lock:
+            scene_task = AsyncTask.async_export_task_create_with_running_limit(
+                username=self.username,
+                is_scene=True,
+                scenario_id=ASYNC_EXPORT_SCENE_ID,
+                **task_params,
+            )
+        scene_lock_key = mock_cache_lock.call_args.args[0]
+        self.assertEqual(mock_cache_lock.call_args.kwargs, {"timeout": 30, "blocking_timeout": 5})
+
+        self.assertIn(":default:", default_lock_key)
+        self.assertIn(":scene:", scene_lock_key)
+        self.assertNotEqual(default_lock_key, scene_lock_key)
+        self.assertEqual(default_task.created_by, self.username)
+        self.assertEqual(scene_task.created_by, self.username)
+        self.assertEqual(default_task.export_type, ExportType.ASYNC)
+        self.assertEqual(scene_task.export_type, ExportType.ASYNC)
+        default_lock.release.assert_called_once_with()
+        scene_lock.release.assert_called_once_with()
+
+    @override_settings(USE_REDIS=True, MAX_CONCURRENT_EXPORT_TASKS=1)
+    def test_create_with_running_limit_rechecks_count_inside_lock(self):
+        self._create_running_task(self.username, scenario_id=Scenario.LOG)
+        lock = Mock()
+        lock.acquire.return_value = True
+
+        with patch("apps.log_search.models.cache.lock", return_value=lock):
+            with self.assertRaises(ConcurrentExportLimitException):
+                AsyncTask.async_export_task_create_with_running_limit(
+                    username=self.username, request_param=SEARCH_DICT, scenario_id=Scenario.LOG
+                )
+
+        lock.release.assert_called_once_with()
+        self.assertEqual(AsyncTask.objects.filter(created_by=self.username).count(), 1)
+
+    @override_settings(USE_REDIS=True)
+    def test_create_with_running_limit_does_not_create_when_lock_is_busy(self):
+        lock = Mock()
+        lock.acquire.return_value = False
+
+        with patch("apps.log_search.models.cache.lock", return_value=lock):
+            with self.assertRaisesMessage(
+                AsyncExportRequestBusyException,
+                gettext("当前有导出任务正在创建中，请稍后重试"),
+            ):
+                AsyncTask.async_export_task_create_with_running_limit(
+                    username=self.username, request_param=SEARCH_DICT, scenario_id=Scenario.LOG
+                )
+
+        lock.release.assert_not_called()
+        self.assertFalse(AsyncTask.objects.filter(created_by=self.username).exists())
+
+    @override_settings(USE_REDIS=True)
+    def test_create_with_running_limit_falls_back_when_redis_connection_fails(self):
+        lock = Mock()
+        lock.acquire.side_effect = RedisConnectionError("Redis unavailable")
+
+        with (
+            patch("apps.log_search.models.cache.lock", return_value=lock),
+            patch("apps.log_search.models.logger.exception") as mock_logger_exception,
+        ):
+            task = AsyncTask.async_export_task_create_with_running_limit(
+                username=self.username,
+                request_param=SEARCH_DICT,
+                scenario_id=Scenario.LOG,
+            )
+
+        self.assertEqual(task.created_by, self.username)
+        self.assertEqual(task.export_type, ExportType.ASYNC)
+        lock.acquire.assert_called_once_with()
+        lock.release.assert_not_called()
+        mock_logger_exception.assert_called_once()
+
+    @override_settings(USE_REDIS=True, MAX_CONCURRENT_EXPORT_TASKS=1)
+    def test_redis_connection_fallback_still_checks_running_limit(self):
+        self._create_running_task(self.username, scenario_id=Scenario.LOG)
+        lock = Mock()
+        lock.acquire.side_effect = RedisConnectionError("Redis unavailable")
+
+        with patch("apps.log_search.models.cache.lock", return_value=lock):
+            with self.assertRaises(ConcurrentExportLimitException):
+                AsyncTask.async_export_task_create_with_running_limit(
+                    username=self.username,
+                    request_param=SEARCH_DICT,
+                    scenario_id=Scenario.LOG,
+                )
+
+        self.assertEqual(AsyncTask.objects.filter(created_by=self.username).count(), 1)
+
+    @override_settings(USE_REDIS=True)
+    def test_release_connection_error_does_not_abort_created_task(self):
+        lock = Mock()
+        lock.acquire.return_value = True
+        lock.release.side_effect = RedisConnectionError("Redis unavailable")
+
+        with (
+            patch("apps.log_search.models.cache.lock", return_value=lock),
+            patch("apps.log_search.models.logger.exception") as mock_logger_exception,
+        ):
+            task = AsyncTask.async_export_task_create_with_running_limit(
+                username=self.username,
+                request_param=SEARCH_DICT,
+                scenario_id=Scenario.LOG,
+            )
+
+        self.assertTrue(AsyncTask.objects.filter(id=task.id).exists())
+        lock.release.assert_called_once_with()
+        mock_logger_exception.assert_called_once()
 
 
 class TestFailStaleAsyncExportTasks(TestCase):
@@ -538,7 +740,10 @@ class TestFailStaleAsyncExportTasks(TestCase):
         for task in stale_tasks:
             task.refresh_from_db()
             self.assertEqual(task.export_status, ExportStatus.FAILED)
-            self.assertTrue(task.failed_reason)
+            self.assertEqual(
+                task.failed_reason,
+                gettext("异步导出任务超过 24 小时未启动或未完成，自动标记为失败"),
+            )
 
     def test_keep_recent_terminal_and_sync_tasks(self):
         expired_time = timezone.now() - datetime.timedelta(hours=25)

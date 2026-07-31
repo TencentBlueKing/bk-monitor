@@ -338,7 +338,7 @@ def error_async_export_tasks_turn_to_failed():
     )
 
     updated_count = 0
-    failed_reason = "异步导出任务超过 24 小时未启动或未完成，自动标记为失败"
+    failed_reason = _("异步导出任务超过 24 小时未启动或未完成，自动标记为失败")
 
     for error_task in error_tasks.iterator(chunk_size=500):
         original_export_status = error_task["export_status"]
