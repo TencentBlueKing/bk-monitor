@@ -125,3 +125,83 @@ class AuthResult:
     @classmethod
     def deny(cls, provider_name: str = "", reason: str = "") -> AuthResult:
         return cls(allowed=False, reason=reason, provider_name=provider_name)
+
+
+# ---------------------------------------------------------------------------
+# 批量鉴权 —— 请求 / 结果
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ResourceAuthResult:
+    """针对某个 (action_id, resource) 组合的鉴权结果。
+
+    用于批量接口的行级返回：Provider 返回一批 (resource_id, allowed) 结果，
+    上层可按 resource_id 匹配回原始 ResourceInstance 使用。
+    """
+
+    action_id: str
+    resource_type: str
+    resource_id: str
+    allowed: bool
+
+
+@dataclass(frozen=True)
+class BatchByResourceRequest:
+    """批量鉴权（同 action、多 resource）请求。
+
+    Provider 内部完成分片（如 v4 可每批 20），调用方无感知；
+    """
+
+    subject: Subject
+    action_id: str
+    resources: tuple[ResourceInstance, ...] = ()
+    environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
+
+
+@dataclass(frozen=True)
+class BatchByActionRequest:
+    """批量鉴权（多 action、同 resource 或无 resource）请求。"""
+
+    subject: Subject
+    action_ids: tuple[str, ...] = ()
+    resource: ResourceInstance | None = None
+    environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
+
+
+@dataclass(frozen=True)
+class BatchAuthResult:
+    """批量鉴权的整体返回。
+
+    items 保序：与请求中的 (action_id, resource) 顺序一致，
+    调用方可通过下标或 (action_id, resource_id) 匹配。
+    """
+
+    items: tuple[ResourceAuthResult, ...] = ()
+
+    def allowed_resource_ids(self, action_id: str = "") -> list[str]:
+        """便捷方法：返回 allowed=True 的 resource_id 列表。
+
+        Args:
+            action_id: 若指定，仅筛选该 action 的结果；空串表示不过滤
+        """
+        return [
+            item.resource_id for item in self.items if item.allowed and (not action_id or item.action_id == action_id)
+        ]
+
+
+# ---------------------------------------------------------------------------
+# 权限申请 URL 请求
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ApplyURLRequest:
+    """生成"跳转到权限申请页"的 URL 请求。
+
+    典型场景：接口返回 403 + apply_url，前端引导用户点击去权限中心申请。
+    """
+
+    subject: Subject
+    action_ids: tuple[str, ...] = ()
+    resources: tuple[ResourceInstance, ...] = ()
