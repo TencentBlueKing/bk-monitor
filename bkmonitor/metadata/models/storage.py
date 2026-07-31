@@ -106,8 +106,24 @@ class ClusterInfo(models.Model):
     # 集群英文名正则表达式，要求符合 [_A-Za-z0-9][_A-Za-z0-9-]* 格式，且长度不超过50，与bkbase的集群名命名规则一致
     CLUSTER_NAME_REGEX = re.compile(r"^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$")
 
-    CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
-    CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
+    CONSUL_PREFIX_PATH = f"{config.MIGRATION_CONSUL_PATH}/unify-query/data/storage"
+    CONSUL_VERSION_PATH = f"{config.MIGRATION_CONSUL_PATH}/unify-query/version/storage"
+    REDIS_PREFIX_KEY = f"{settings.BACKEND_APP_CODE}:unify-query:data:storage"
+    REDIS_CHANNEL = f"{REDIS_PREFIX_KEY}:storage_channel"
+
+    @staticmethod
+    def _format_storage_address(schema: str, host: str, port: int) -> str:
+        """生成可被 URL 解析器接受的存储地址，兼容 IPv6 literal。"""
+        normalized_host = host
+        if not (host.startswith("[") and host.endswith("]")):
+            try:
+                address = ipaddress.ip_address(host)
+            except ValueError:
+                pass
+            else:
+                if address.version == 6:
+                    normalized_host = f"[{address.compressed}]"
+        return f"{schema}://{normalized_host}:{port}"
 
     TYPE_INFLUXDB = "influxdb"
     TYPE_KAFKA = "kafka"
@@ -547,12 +563,15 @@ class ClusterInfo(models.Model):
         info_list = cls.objects.all()
 
         total_count = info_list.count()
-        logger.debug(f"total find->[{total_count}] es storage info to refresh")
+        logger.debug("total found [%s] storage infos to refresh", total_count)
 
         # 2. 构建需要刷新的字典信息
         refresh_dict = {}
         for storage_info in info_list:
             refresh_dict[storage_info.cluster_id] = storage_info
+        expected_paths = {
+            "/".join([cls.CONSUL_PREFIX_PATH, str(cluster_id)]) for cluster_id in refresh_dict
+        }
 
         # 3. 遍历所有的字典信息并写入至consul
         for cluster_id, storage_info in list(refresh_dict.items()):
@@ -561,20 +580,113 @@ class ClusterInfo(models.Model):
             # 根据 schema 生成地址，如果 schema 不是 http 或 https，则默认使用 http
             schema = storage_info.schema if storage_info.schema in ["http", "https"] else "http"
 
-            hash_consul.put(
+            if not hash_consul.put(
                 key=consul_path,
                 value={
-                    "address": f"{schema}://{storage_info.domain_name}:{storage_info.port}",
+                    "address": cls._format_storage_address(schema, storage_info.domain_name, storage_info.port),
                     "username": storage_info.username,
                     "password": storage_info.password,
                     "type": storage_info.cluster_type,
                 },
-            )
+            ):
+                raise RuntimeError(f"put storage config to consul failed, key: {consul_path}")
             logger.debug(f"consul path->[{consul_path}] is refresh with value->[{refresh_dict}] success.")
 
-        hash_consul.put(key=cls.CONSUL_VERSION_PATH, value={"time": time.time()})
+        # 4. 清理数据库中已不存在的 Storage Key，避免 UQ 继续读取孤儿配置。
+        _, consul_items = hash_consul.list(cls.CONSUL_PREFIX_PATH)
+        for item in consul_items or []:
+            key = item.get("Key")
+            if isinstance(key, bytes):
+                key = key.decode("utf-8")
+            if key and key.startswith(f"{cls.CONSUL_PREFIX_PATH}/") and key not in expected_paths:
+                hash_consul.delete(key)
+                logger.info("deleted stale storage consul key: %s", key)
 
-        logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
+        if not hash_consul.put(key=cls.CONSUL_VERSION_PATH, value={"time": time.time()}):
+            raise RuntimeError(f"put storage version to consul failed, key: {cls.CONSUL_VERSION_PATH}")
+
+        logger.info("all storage infos refreshed to consul successfully, count=[%s].", total_count)
+
+    @classmethod
+    def refresh_redis_storage_config(cls):
+        """
+        刷新查询模块的存储配置到 Redis
+
+        功能说明：
+        1. 从数据库获取所有存储集群信息（ClusterInfo）
+        2. 将每个集群的配置信息序列化为 JSON 格式
+        3. 写入到 Redis，key 格式为: {REDIS_PREFIX_KEY}:{cluster_id}
+
+        Redis 存储格式：
+        - Key: {REDIS_PREFIX_KEY}:{cluster_id}
+        - Value: JSON 字符串，包含以下字段：
+          {
+            "address": "http://domain_name:port",  # 集群访问地址
+            "username": "username",                 # 用户名（如果有）
+            "password": "password",                 # 密码（如果有）
+            "type": "influxdb|kafka|redis|..."     # 集群类型
+          }
+
+        :return: None
+        """
+        # 1. 获取需要刷新的信息列表
+        # 从数据库查询所有存储集群配置信息
+        info_list = cls.objects.all()
+
+        total_count = info_list.count()
+        logger.debug(f"total find->[{total_count}] storage info to refresh to redis")
+
+        # 2. 构建需要刷新的字典信息
+        # 使用 cluster_id 作为 key，方便后续遍历和去重
+        refresh_dict = {}
+        for storage_info in info_list:
+            refresh_dict[storage_info.cluster_id] = storage_info
+
+        redis_client = RedisTools().client
+        expected_keys = {f"{cls.REDIS_PREFIX_KEY}:{cluster_id}" for cluster_id in refresh_dict}
+
+        # 3. 遍历所有的字典信息并写入至 Redis
+        # 参考 Consul 的实现逻辑，将配置信息写入 Redis
+        for cluster_id, storage_info in list(refresh_dict.items()):
+            # 构建 Redis key，格式: {REDIS_PREFIX_KEY}:{cluster_id}
+            # 与 Consul 路径结构保持一致，便于统一管理
+            redis_key = f"{cls.REDIS_PREFIX_KEY}:{cluster_id}"
+
+            # 根据 schema 生成地址，如果 schema 不是 http 或 https，则默认使用 http
+            # 确保生成的地址格式正确，例如: http://example.com:9092
+            schema = storage_info.schema if storage_info.schema in ["http", "https"] else "http"
+
+            # 构建配置值字典，包含集群访问所需的基本信息
+            # 注意：这里只存储必要的连接信息
+            config_value = {
+                "address": cls._format_storage_address(schema, storage_info.domain_name, storage_info.port),
+                "username": storage_info.username,
+                "password": storage_info.password,
+                "type": storage_info.cluster_type,
+            }
+
+            # 将配置信息序列化为 JSON 字符串并写入 Redis
+            # 使用 JSON 格式便于后续读取和解析
+            redis_client.set(redis_key, json.dumps(config_value))
+            logger.debug("redis storage key->[%s] refreshed successfully", redis_key)
+
+        # 4. 删除数据库中已不存在的 Storage，避免 UQ 前缀扫描继续读取旧配置。
+        existing_keys = {
+            key.decode("utf-8") if isinstance(key, bytes) else key
+            for key in redis_client.scan_iter(match=f"{cls.REDIS_PREFIX_KEY}:*")
+        }
+        stale_keys = existing_keys - expected_keys
+        if stale_keys:
+            redis_client.delete(*stale_keys)
+            logger.info("deleted stale storage redis keys: %s", sorted(stale_keys))
+
+        # 5. 全量写入和清理完成后再通知 UQ reload。
+        redis_client.publish(
+            cls.REDIS_CHANNEL,
+            json.dumps({"storage_ids": sorted(refresh_dict), "timestamp": time.time()}),
+        )
+
+        logger.info(f"all storage info is refresh to redis success count->[{total_count}].")
 
     def base64_with_prefix(self, content: str | None) -> str | None:
         """编码，并添加上前缀"""
