@@ -33,7 +33,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from bkmonitor.iam.iam_engine.core.capabilities import Capability
 from bkmonitor.iam.iam_engine.core.context import ProviderContext
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
@@ -69,18 +68,6 @@ class PermissionProvider(ABC):
         self.options = options
 
     # ==================== 能力声明 ====================
-
-    def supports(self, capability: Capability) -> bool:
-        """声明本 Provider 支持的能力。默认全部不支持，子类按需覆盖。
-
-        典型实现：
-            def supports(self, capability: Capability) -> bool:
-                return capability in {
-                    Capability.ROLE_MODEL,
-                    Capability.WILDCARD_RESOURCE,
-                }
-        """
-        return False
 
     # ==================== 高层能力（必选） ====================
 

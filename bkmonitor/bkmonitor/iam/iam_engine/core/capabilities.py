@@ -62,7 +62,7 @@ class Capability:
 
     # ---- 以下为声明式接口：新增内置能力只需加一行 ----
 
-    # 策略表达式查询（v3 独有）：能返回 PolicyExpression 供本地求值 / DB 下推
+    # 策略表达式查询
     POLICY_EXPRESSION: Capability
 
     # 批量鉴权：支持一次传入多个资源
@@ -71,19 +71,19 @@ class Capability:
     # 无限制批量：批量鉴权无平台上限
     BATCH_AUTH_UNLIMITED: Capability
 
-    # 角色模型：平台支持 RBAC 角色（v4 独有）
+    # 角色模型
     ROLE_MODEL: Capability
 
-    # 通配符资源授权（v4 支持 resource.id = "*"）
+    # 通配符资源授权
     WILDCARD_RESOURCE: Capability
 
-    # 授权过期时间（v4 支持 expired_at）
+    # 授权过期时间
     AUTH_EXPIRATION: Capability
 
-    # 读权限缓存（v3 SDK 内置 is_allowed_with_cache）
+    # 读权限缓存
     READ_CACHE: Capability
 
-    # 资源创建者关联授权（v3 grant_resource_creator_actions）
+    # 资源创建者关联授权
     CREATOR_GRANT: Capability
 
     # 权限申请 URL 生成
