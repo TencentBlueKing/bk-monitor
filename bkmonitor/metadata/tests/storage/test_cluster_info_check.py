@@ -85,6 +85,88 @@ def test_health_check_kafka_cluster_requires_auth_info():
     assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_INVALID_CONFIG
 
 
+def test_health_check_kafka_cluster_ignores_stale_sasl_config_when_auth_disabled(mocker):
+    metadata = SimpleNamespace(brokers={1: object()}, topics={})
+    admin_client = mocker.Mock()
+    admin_client.list_topics.return_value = metadata
+    admin_client_class = mocker.Mock(return_value=admin_client)
+    mocker.patch.object(ClusterInfo, "_get_kafka_admin_client_class", return_value=admin_client_class)
+
+    cluster = make_cluster(
+        ClusterInfo.TYPE_KAFKA,
+        username="stale-user",
+        password="stale-password",
+        is_auth=False,
+        sasl_mechanisms="SCRAM-SHA-512",
+        security_protocol="SASL_PLAINTEXT",
+    )
+
+    result = cluster.health_check(timeout=3)
+
+    assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
+    assert result["details"]["security_protocol"] == "PLAINTEXT"
+    assert result["details"]["sasl_mechanisms"] is None
+    assert result["details"]["auth_enabled"] is False
+    admin_conf = admin_client_class.call_args.args[0]
+    assert admin_conf["security.protocol"] == "PLAINTEXT"
+    assert "sasl.mechanisms" not in admin_conf
+    assert "sasl.username" not in admin_conf
+    assert "sasl.password" not in admin_conf
+
+
+def test_health_check_kafka_cluster_keeps_ssl_transport_when_auth_disabled(mocker):
+    metadata = SimpleNamespace(brokers={1: object()}, topics={})
+    admin_client = mocker.Mock()
+    admin_client.list_topics.return_value = metadata
+    admin_client_class = mocker.Mock(return_value=admin_client)
+    mocker.patch.object(ClusterInfo, "_get_kafka_admin_client_class", return_value=admin_client_class)
+
+    cluster = make_cluster(
+        ClusterInfo.TYPE_KAFKA,
+        is_auth=False,
+        sasl_mechanisms="SCRAM-SHA-512",
+        security_protocol="SASL_SSL",
+    )
+
+    result = cluster.health_check(timeout=3)
+
+    assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
+    assert result["details"]["security_protocol"] == "SSL"
+    assert result["details"]["sasl_mechanisms"] is None
+    admin_conf = admin_client_class.call_args.args[0]
+    assert admin_conf["security.protocol"] == "SSL"
+    assert "sasl.mechanisms" not in admin_conf
+
+
+def test_health_check_kafka_cluster_forces_sasl_protocol_when_auth_enabled(mocker):
+    metadata = SimpleNamespace(brokers={1: object()}, topics={})
+    admin_client = mocker.Mock()
+    admin_client.list_topics.return_value = metadata
+    admin_client_class = mocker.Mock(return_value=admin_client)
+    mocker.patch.object(ClusterInfo, "_get_kafka_admin_client_class", return_value=admin_client_class)
+
+    cluster = make_cluster(
+        ClusterInfo.TYPE_KAFKA,
+        username="admin",
+        password="password",
+        is_auth=True,
+        sasl_mechanisms="SCRAM-SHA-512",
+        security_protocol="PLAINTEXT",
+    )
+
+    result = cluster.health_check(timeout=3)
+
+    assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
+    assert result["details"]["security_protocol"] == "SASL_PLAINTEXT"
+    assert result["details"]["sasl_mechanisms"] == "SCRAM-SHA-512"
+    assert result["details"]["auth_enabled"] is True
+    admin_conf = admin_client_class.call_args.args[0]
+    assert admin_conf["security.protocol"] == "SASL_PLAINTEXT"
+    assert admin_conf["sasl.mechanisms"] == "SCRAM-SHA-512"
+    assert admin_conf["sasl.username"] == "admin"
+    assert admin_conf["sasl.password"] == "password"
+
+
 def test_health_check_rejects_non_positive_timeout():
     result = make_cluster(ClusterInfo.TYPE_KAFKA).health_check(timeout=0)
 

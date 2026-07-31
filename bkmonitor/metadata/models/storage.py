@@ -386,26 +386,18 @@ class ClusterInfo(models.Model):
         has_ssl = bool(
             self.is_ssl_verify or self.ssl_certificate_authorities or self.ssl_certificate or self.ssl_certificate_key
         )
-        has_sasl = bool(self.username and self.password)
-        if self.is_auth and not has_sasl:
-            raise ValueError("Kafka 开启鉴权但缺少 username/password")
-
-        if self.security_protocol:
-            security_protocol = self.security_protocol
-        elif has_ssl and has_sasl:
-            security_protocol = "SASL_SSL"
-        elif has_ssl:
-            security_protocol = "SSL"
-        elif has_sasl:
-            security_protocol = config.KAFKA_SASL_PROTOCOL
-        else:
-            security_protocol = "PLAINTEXT"
-        conf["security.protocol"] = security_protocol
-
-        if has_sasl:
+        use_ssl = self.security_protocol in {"SSL", "SASL_SSL"} or has_ssl
+        has_credentials = bool(self.username and self.password)
+        if self.is_auth:
+            if not has_credentials:
+                raise ValueError("Kafka 开启鉴权但缺少 username/password")
+            security_protocol = "SASL_SSL" if use_ssl else config.KAFKA_SASL_PROTOCOL
             conf["sasl.mechanisms"] = self.sasl_mechanisms or config.KAFKA_SASL_MECHANISM
             conf["sasl.username"] = self.username
             conf["sasl.password"] = self.password
+        else:
+            security_protocol = "SSL" if use_ssl else "PLAINTEXT"
+        conf["security.protocol"] = security_protocol
 
         if self.ssl_insecure_skip_verify:
             conf["enable.ssl.certificate.verification"] = False
@@ -433,7 +425,7 @@ class ClusterInfo(models.Model):
                 "topic_count": len(metadata.topics or {}),
                 "security_protocol": conf.get("security.protocol"),
                 "sasl_mechanisms": conf.get("sasl.mechanisms"),
-                "auth_enabled": bool(self.is_auth or self.username),
+                "auth_enabled": self.is_auth,
             },
         )
 
