@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, computed, inject, onMounted, shallowRef, toValue, watch } from 'vue';
+import { type MaybeRef, type Ref, computed, inject, onBeforeUnmount, onMounted, shallowRef, toValue, watch } from 'vue';
 
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
@@ -582,10 +582,10 @@ export const useEcharts = ({
       }
       // #endif
       return $api[target.apiModule]
-      [target.apiFunc](resultParams, {
-        cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-        needMessage: false,
-      })
+        [target.apiFunc](resultParams, {
+          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+          needMessage: false,
+        })
         .then(res => {
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
@@ -601,12 +601,12 @@ export const useEcharts = ({
           targets.value.push(targetCopy);
           return series?.length
             ? series.map(item => ({
-              ...item,
-              alias: target.alias || item.alias,
-              type: target.chart_type || toValue(panel).options?.time_series?.type || item.type || 'line',
-              stack: target.data?.stack || item.stack,
-              unit: item.unit || (toValue(panel)?.options as { unit?: string })?.unit,
-            }))
+                ...item,
+                alias: target.alias || item.alias,
+                type: target.chart_type || toValue(panel).options?.time_series?.type || item.type || 'line',
+                stack: target.data?.stack || item.stack,
+                unit: item.unit || (toValue(panel)?.options as { unit?: string })?.unit,
+              }))
             : [];
         })
         .catch(() => []);
@@ -676,6 +676,12 @@ export const useEcharts = ({
   onMounted(() => {
     if (viewportRequest?.enable) {
       registerObserver(viewportRequest.el.value);
+    }
+  });
+
+  onBeforeUnmount(() => {
+    if (intersectionObserver.value) {
+      unregisterObserver(viewportRequest.el.value);
     }
   });
   return {
