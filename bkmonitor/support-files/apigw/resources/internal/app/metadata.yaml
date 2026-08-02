@@ -369,6 +369,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata get result table storage
+  /app/metadata/get_result_table_storage_status/:
+    get:
+      operationId: metadata_get_result_table_storage_status
+      description: 查询结果表 ES/Doris 存储状态和历史分段
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/get_result_table_storage_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get result table storage status
   /app/metadata/get_cluster_info/:
     get:
       operationId: metadata_get_cluster_info

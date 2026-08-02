@@ -208,6 +208,17 @@ class GetResultTableStorageResource(MetaDataAPIGWResource):
         storage_type = serializers.CharField(required=True)
 
 
+class GetResultTableStorageStatusResource(MetaDataAPIGWResource):
+    """查询结果表 ES/Doris 存储状态和历史分段。"""
+
+    action = "/app/metadata/get_result_table_storage_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        timeout = serializers.IntegerField(required=False, default=15, min_value=1, max_value=30, label="超时时间")
+
+
 class GetTsDataResource(MetaDataAPIGWResource):
     """
     数据查询

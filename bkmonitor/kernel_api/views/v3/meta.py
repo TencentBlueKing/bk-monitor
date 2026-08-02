@@ -99,6 +99,10 @@ class GetResultTableStorageViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetResultTableStorageResult)]
 
 
+class GetResultTableStorageStatusViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetResultTableStorageStatus)]
+
+
 class CreateClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateClusterInfoResource)]
 
