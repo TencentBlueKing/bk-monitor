@@ -389,6 +389,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata get cluster info
+  /app/metadata/get_cluster_status/:
+    get:
+      operationId: metadata_get_cluster_status
+      description: 批量查询存储集群运行状态
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/get_cluster_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get cluster status
   /app/metadata/create_cluster_info/:
     post:
       operationId: metadata_create_cluster_info

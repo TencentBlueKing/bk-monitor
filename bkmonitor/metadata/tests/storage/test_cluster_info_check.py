@@ -216,7 +216,36 @@ def test_health_check_kafka_cluster_connection_failed(mocker):
 @pytest.mark.parametrize("health_status", ["green", "yellow"])
 def test_health_check_es_cluster_available(mocker, health_status):
     client = mocker.Mock()
-    client.cluster.health.return_value = {"status": health_status, "number_of_nodes": 2}
+    client.cluster.health.return_value = {
+        "status": health_status,
+        "number_of_nodes": 2,
+        "number_of_data_nodes": 2,
+    }
+    client.cat.allocation.return_value = [
+        {
+            "node": "node-1",
+            "host": "es-1",
+            "ip": "127.0.0.1",
+            "node.role": "d",
+            "shards": "3",
+            "disk.total": "1000",
+            "disk.used": "400",
+            "disk.avail": "600",
+            "disk.percent": "40",
+            "disk.indices": "300",
+        },
+        {
+            "name": "node-2",
+            "nodeRole": ["data", "ingest"],
+            "shardCount": "4",
+            "diskTotal": "2000",
+            "diskUsed": "500",
+            "diskAvail": "1500",
+            "diskPercent": "25",
+            "diskIndices": "450",
+        },
+        {"node": "UNASSIGNED", "shards": "1"},
+    ]
     mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
 
     result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3)
@@ -226,12 +255,24 @@ def test_health_check_es_cluster_available(mocker, health_status):
     assert result["is_connected"] is True
     assert result["is_available"] is True
     assert result["details"]["health_status"] == health_status
+    assert result["details"]["nodes"] == {"total": 2, "available": 2}
+    assert result["details"]["capacity"] == {
+        "total_bytes": 3000,
+        "used_bytes": 900,
+        "available_bytes": 2100,
+        "used_percent": 30.0,
+    }
+    assert result["details"]["indices_store_bytes"] == 750
+    assert len(result["details"]["node_details"]) == 2
+    assert result["details"]["node_details"][0]["roles"] == ["d"]
+    assert result["details"]["node_details"][1]["roles"] == ["data", "ingest"]
     client.cluster.health.assert_called_once_with(request_timeout=3)
 
 
 def test_health_check_es_cluster_red_is_unavailable(mocker):
     client = mocker.Mock()
     client.cluster.health.return_value = {"status": "red", "number_of_nodes": 1}
+    client.cat.allocation.return_value = []
     mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
 
     result = make_cluster(ClusterInfo.TYPE_ES).health_check()
@@ -275,6 +316,48 @@ def test_health_check_doris_cluster_available(mocker):
     cursor.__enter__ = mocker.Mock(return_value=cursor)
     cursor.__exit__ = mocker.Mock(return_value=None)
     cursor.fetchone.return_value = {"1": 1}
+    cursor.fetchall.return_value = [
+        {
+            "BackendId": "10001",
+            "Host": "doris-1",
+            "Alive": "true",
+            "SystemDecommissioned": "false",
+            "TabletNum": "10",
+            "DataUsedCapacity": "1 GB",
+            "TrashUsedCapcacity": "128 MB",
+            "AvailCapacity": "3 GB",
+            "TotalCapacity": "4 GB",
+            "UsedPct": "25%",
+            "MaxDiskUsedPct": "30%",
+            "RemoteUsedCapacity": "256 MB",
+            "LastHeartbeat": "2026-08-03 10:00:00",
+            "ErrMsg": "",
+            "Version": "2.1.7",
+            "NodeRole": "mix",
+        },
+        {
+            "BackendId": "10002",
+            "Host": "doris-2",
+            "Alive": "false",
+            "SystemDecommissioned": "false",
+            "TabletNum": "20",
+            "DataUsedCapacity": "2 GB",
+            "TrashUsedCapacity": "0 B",
+            "AvailCapacity": "2 GB",
+            "TotalCapacity": "4 GB",
+            "UsedPct": "50%",
+            "MaxDiskUsedPct": "60%",
+            "RemoteUsedCapacity": "0 B",
+        },
+        {
+            "BackendId": "10003",
+            "Host": "doris-3",
+            "Alive": "true",
+            "IsDecommissioned": "true",
+            "AvailCapacity": "8 GB",
+            "TotalCapacity": "8 GB",
+        },
+    ]
     connection = mocker.Mock()
     connection.cursor.return_value = cursor
     connect = mocker.patch("metadata.models.storage.pymysql.connect", return_value=connection)
@@ -287,9 +370,54 @@ def test_health_check_doris_cluster_available(mocker):
     assert result["is_connected"] is True
     assert result["is_available"] is True
     assert result["details"]["query"] == "SELECT 1"
-    cursor.execute.assert_called_once_with("SELECT 1")
+    assert cursor.execute.call_count == 2
+    assert cursor.execute.call_args_list[0].args == ("SELECT 1",)
+    assert cursor.execute.call_args_list[1].args == ("SHOW BACKENDS",)
+    assert result["details"]["nodes"] == {"total": 2, "available": 1}
+    assert result["details"]["capacity"] == {
+        "total_bytes": 8 * 1024**3,
+        "used_bytes": 3 * 1024**3,
+        "available_bytes": 5 * 1024**3,
+        "used_percent": 37.5,
+    }
+    assert result["details"]["data_used_bytes"] == 3 * 1024**3
+    assert result["details"]["trash_used_bytes"] == 128 * 1024**2
+    assert result["details"]["remote_used_bytes"] == 256 * 1024**2
+    assert result["details"]["tablet_count"] == 30
+    assert result["details"]["max_disk_used_percent"] == 60
+    assert len(result["details"]["node_details"]) == 3
     connection.close.assert_called_once()
     connect.assert_called_once()
+
+
+def test_health_check_es_capacity_failure_does_not_override_health(mocker):
+    client = mocker.Mock()
+    client.cluster.health.return_value = {"status": "green", "number_of_data_nodes": 1}
+    client.cat.allocation.side_effect = RuntimeError("allocation forbidden")
+    mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
+
+    result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3)
+
+    assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
+    assert result["is_available"] is True
+    assert result["details"]["collection_errors"][0]["code"] == "ES_ALLOCATION_QUERY_FAILED"
+
+
+def test_health_check_doris_backend_failure_does_not_override_connection(mocker):
+    cursor = mocker.Mock()
+    cursor.__enter__ = mocker.Mock(return_value=cursor)
+    cursor.__exit__ = mocker.Mock(return_value=None)
+    cursor.fetchone.return_value = {"1": 1}
+    cursor.execute.side_effect = [None, RuntimeError("access denied")]
+    connection = mocker.Mock()
+    connection.cursor.return_value = cursor
+    mocker.patch("metadata.models.storage.pymysql.connect", return_value=connection)
+
+    result = make_cluster(ClusterInfo.TYPE_DORIS, port=9030).health_check(timeout=2)
+
+    assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
+    assert result["is_available"] is True
+    assert result["details"]["collection_errors"][0]["code"] == "DORIS_BACKENDS_QUERY_FAILED"
 
 
 @pytest.mark.parametrize("cluster_type", [ClusterInfo.TYPE_REDIS, ClusterInfo.TYPE_INFLUXDB, ClusterInfo.TYPE_ARGUS])
