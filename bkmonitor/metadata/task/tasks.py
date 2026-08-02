@@ -968,7 +968,7 @@ def _refresh_data_link_component_statuses() -> tuple[
                     biz_id_by_link.setdefault(link_key, component.bk_biz_id)
                 report_metadata_data_link_status_info(
                     data_link_name=component.data_link_name,
-                    biz_id=component.bk_biz_id,
+                    biz_id=str(component.bk_biz_id),
                     kind=component.kind,
                     status=component.status,
                 )
