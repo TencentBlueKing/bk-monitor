@@ -32,6 +32,7 @@ class BkBaseResultTable(models.Model):
         (DataLinkResourceStatus.PENDING.value, "等待中"),
         (DataLinkResourceStatus.FAILED.value, "失败"),
         (DataLinkResourceStatus.TERMINATING.value, "终止中"),
+        (DataLinkResourceStatus.TERMINATED.value, "已终止"),
         (DataLinkResourceStatus.OK.value, "已就绪"),
     )
 

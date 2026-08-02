@@ -42,7 +42,7 @@
 ### 3.3 Kind / Status / Namespace / Tenant
 
 - `DataLinkKind`：BKBase 组件类型枚举（`DataId`、`ResultTable`、`VmStorageBinding`、`ElasticSearchBinding`、`DorisBinding`、`Databus` 等）。
-- `DataLinkResourceStatus`：资源状态（`Initializing`、`Creating`、`Pending`、`Ok`、`Failed`、`Reconciling`、`Terminating`）。
+- `DataLinkResourceStatus`：资源状态（`Initializing`、`Creating`、`Pending`、`Ok`、`Failed`、`Reconciling`、`Terminating`、`Terminated`）。
 - `namespace`：按数据域隔离，常见为 `bkmonitor`（时序）/ `bklog`（日志）。
 - `bk_tenant_id`：租户隔离字段；开启多租户模式时会写入 BKBase 配置中的 `tenant`。
 
@@ -204,6 +204,8 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 配置模型属性 `component_status` -> `service.get_data_link_component_status`。
 - 配置模型属性 `component_config` -> `service.get_data_link_component_config`。
 - 状态查询会走 `get_bkbase_component_status_with_retry`（4 次指数退避）。
+- 定时刷新按 `(bk_tenant_id, namespace, kind)` 调用 `list_data_link` 批量获取全部组件状态；可信的非空响应中未出现的本地组件记为 `Terminated`。
+- 空列表、接口异常或无法完整解析的响应不会覆盖本地状态；链路整体状态按 `data_link_name` 汇总为 `Ok`、`Terminated` 或 `Pending`。
 
 ### 6.4 基础采集链路特点
 

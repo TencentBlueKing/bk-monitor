@@ -12,12 +12,14 @@ import json
 import logging
 import time
 import traceback
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -47,7 +49,7 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.service import get_data_link_component_status
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.space.space import Space
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -844,24 +846,207 @@ def _check_and_delete_ds_consul_config(data_source: DataSource):
     logger.info("_check_and_delete_ds_consul_config:data_source->[%s],consul_config deleted", data_source.bk_data_id)
 
 
+ComponentBatchKey = tuple[str, str, str]
+DataLinkStatusKey = tuple[str, str]
+
+
+def _normalize_data_link_tenant_id(bk_tenant_id: str | None) -> str:
+    return bk_tenant_id or DEFAULT_TENANT_ID
+
+
+def _parse_list_data_link_statuses(configs: Any) -> dict[str, str] | None:
+    """解析 list_data_link 返回值；无法证明列表完整时返回 None。"""
+    if not isinstance(configs, list) or not configs:
+        return None
+
+    statuses: dict[str, str] = {}
+    for config in configs:
+        if not isinstance(config, dict):
+            return None
+        metadata = config.get("metadata")
+        status = config.get("status")
+        if not isinstance(metadata, dict) or not isinstance(status, dict):
+            return None
+        name = metadata.get("name")
+        phase = status.get("phase")
+        if not isinstance(name, str) or not name or not isinstance(phase, str) or not phase or name in statuses:
+            return None
+        statuses[name] = phase
+    return statuses
+
+
+def _mark_component_links_untrusted(components: list[Any], untrusted_links: set[DataLinkStatusKey]) -> None:
+    for component in components:
+        if component.data_link_name:
+            untrusted_links.add((_normalize_data_link_tenant_id(component.bk_tenant_id), component.data_link_name))
+
+
+def _refresh_data_link_component_statuses() -> tuple[
+    dict[DataLinkStatusKey, list[str]], set[DataLinkStatusKey], dict[DataLinkStatusKey, int], int
+]:
+    """批量刷新全部本地 DataLink 组件，并返回用于汇总链路状态的信息。"""
+    statuses_by_link: dict[DataLinkStatusKey, list[str]] = defaultdict(list)
+    untrusted_links: set[DataLinkStatusKey] = set()
+    biz_id_by_link: dict[DataLinkStatusKey, int] = {}
+    changed_count = 0
+
+    for kind, component_class in COMPONENT_CLASS_MAP.items():
+        components_by_batch: dict[ComponentBatchKey, list[Any]] = defaultdict(list)
+        for component in component_class.objects.all().iterator(chunk_size=1000):
+            batch_key = (
+                _normalize_data_link_tenant_id(component.bk_tenant_id),
+                component.namespace,
+                kind,
+            )
+            components_by_batch[batch_key].append(component)
+
+        for (bk_tenant_id, namespace, component_kind), components in components_by_batch.items():
+            bkbase_kind = DataLinkKind.get_choice_value(component_kind)
+            try:
+                configs = api.bkdata.list_data_link(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    kind=bkbase_kind,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "bulk_refresh_data_link_status: list components failed, tenant->[%s], namespace->[%s], "
+                    "kind->[%s], error->[%s]",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                    error,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                continue
+
+            remote_statuses = _parse_list_data_link_statuses(configs)
+            if remote_statuses is None:
+                logger.warning(
+                    "bulk_refresh_data_link_status: list components returned empty or invalid data, "
+                    "tenant->[%s], namespace->[%s], kind->[%s], skip batch",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                continue
+
+            now = timezone.now()
+            changed_components = []
+            for component in components:
+                component_status = remote_statuses.get(component.name, DataLinkResourceStatus.TERMINATED.value)
+                if component.status != component_status:
+                    component.status = component_status
+                    component.last_modify_time = now
+                    changed_components.append(component)
+
+            try:
+                if changed_components:
+                    component_class.objects.bulk_update(
+                        changed_components,
+                        ["status", "last_modify_time"],
+                        batch_size=1000,
+                    )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "bulk_refresh_data_link_status: update components failed, tenant->[%s], namespace->[%s], "
+                    "kind->[%s], error->[%s]",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                    error,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                continue
+
+            changed_count += len(changed_components)
+            for component in components:
+                if component.data_link_name and kind != DataLinkKind.DATAID.value:
+                    link_key = (bk_tenant_id, component.data_link_name)
+                    statuses_by_link[link_key].append(component.status)
+                    biz_id_by_link.setdefault(link_key, component.bk_biz_id)
+                report_metadata_data_link_status_info(
+                    data_link_name=component.data_link_name,
+                    biz_id=str(component.bk_biz_id),
+                    kind=component.kind,
+                    status=component.status,
+                )
+
+    return statuses_by_link, untrusted_links, biz_id_by_link, changed_count
+
+
+def _refresh_bkbase_result_table_statuses(
+    statuses_by_link: dict[DataLinkStatusKey, list[str]],
+    untrusted_links: set[DataLinkStatusKey],
+    biz_id_by_link: dict[DataLinkStatusKey, int],
+) -> int:
+    """根据可信的本地组件状态汇总刷新 BkBaseResultTable.status。"""
+    bkbase_records = {
+        (_normalize_data_link_tenant_id(record.bk_tenant_id), record.data_link_name): record
+        for record in BkBaseResultTable.objects.all()
+    }
+    changed_records = []
+    now = timezone.now()
+    for link_key, component_statuses in statuses_by_link.items():
+        if link_key in untrusted_links or not component_statuses:
+            continue
+        bkbase_record = bkbase_records.get(link_key)
+        if bkbase_record is None:
+            continue
+
+        if all(status == DataLinkResourceStatus.OK.value for status in component_statuses):
+            status = DataLinkResourceStatus.OK.value
+        elif all(status == DataLinkResourceStatus.TERMINATED.value for status in component_statuses):
+            status = DataLinkResourceStatus.TERMINATED.value
+        else:
+            status = DataLinkResourceStatus.PENDING.value
+
+        if bkbase_record.status != status:
+            bkbase_record.status = status
+            bkbase_record.last_modify_time = now
+            changed_records.append(bkbase_record)
+
+        report_metadata_data_link_status_info(
+            data_link_name=bkbase_record.data_link_name,
+            biz_id=str(biz_id_by_link[link_key]),
+            kind=DataLinkKind.RESULTTABLE.value,
+            status=status,
+        )
+
+    if changed_records:
+        BkBaseResultTable.objects.bulk_update(
+            changed_records,
+            ["status", "last_modify_time"],
+            batch_size=1000,
+        )
+    return len(changed_records)
+
+
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def bulk_refresh_data_link_status(bkbase_rt_records):
-    """
-    并发刷新链路状态
-    """
-    # 统计&上报 任务状态指标
+def bulk_refresh_data_link_status():
+    """批量刷新全部本地 DataLink 组件状态及链路整体状态。"""
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="bulk_refresh_data_link_status", status=TASK_STARTED, process_target=None
     ).inc()
 
-    start_time = time.time()  # 记录开始时间
-    logger.info(
-        "bulk_refresh_data_link_status: start to refresh data_link status, bkbase_rt_records: %s", bkbase_rt_records
+    start_time = time.time()
+    logger.info("bulk_refresh_data_link_status: start to refresh all local data_link components")
+    statuses_by_link, untrusted_links, biz_id_by_link, changed_component_count = _refresh_data_link_component_statuses()
+    changed_bkbase_count = _refresh_bkbase_result_table_statuses(
+        statuses_by_link=statuses_by_link,
+        untrusted_links=untrusted_links,
+        biz_id_by_link=biz_id_by_link,
     )
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        executor.map(_refresh_data_link_status, bkbase_rt_records)
-    cost_time = time.time() - start_time  # 总耗时
-    logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
+    cost_time = time.time() - start_time
+    logger.info(
+        "bulk_refresh_data_link_status: finished, changed components->[%s], changed bkbase records->[%s], "
+        "untrusted links->[%s], cost_time->[%s]",
+        changed_component_count,
+        changed_bkbase_count,
+        len(untrusted_links),
+        cost_time,
+    )
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="bulk_refresh_data_link_status", status=TASK_FINISHED_SUCCESS, process_target=None
@@ -870,221 +1055,6 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
         task_name="bulk_refresh_data_link_status", process_target=None
     ).observe(cost_time)
     metrics.report_all()
-
-
-def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
-    """
-    刷新链路状态（各组件状态+整体状态）
-    @param bkbase_rt_record: BkBaseResultTable 计算平台结果表
-    """
-    # 统计&上报 任务状态指标
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="_refresh_data_link_status", status=TASK_STARTED, process_target=bkbase_rt_record.data_link_name
-    ).inc()
-
-    # 1. 获取基本信息
-    start_time = time.time()  # 记录开始时间
-    bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
-    data_link_name = bkbase_rt_record.data_link_name
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],bkbase_data_id_name->[%s]",
-        data_link_name,
-        bkbase_data_id_name,
-    )
-    data_link_ins = models.DataLink.objects.get(data_link_name=data_link_name)
-    data_link_strategy = data_link_ins.data_link_strategy
-    bk_tenant_id = bkbase_rt_record.bk_tenant_id
-    namespace = data_link_ins.namespace
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s] namespace->[%s]",
-        data_link_name,
-        data_link_strategy,
-        namespace,
-    )
-
-    # 2. 刷新数据源状态
-    # 优先按 bkbase_data_id_name 精确命中；考虑到复用场景 / 存量脏数据里 BkBaseResultTable.bkbase_data_name
-    # 可能记录的是旧生成名，这里再补一道按 DataLink.bk_data_id 的 fallback，最大程度兜住历史数据。
-    data_id_config = None
-    try:
-        data_id_config = models.DataIdConfig.objects.get(
-            bk_tenant_id=bk_tenant_id, namespace=namespace, name=bkbase_data_id_name
-        )
-    except models.DataIdConfig.DoesNotExist:
-        fallback_bk_data_id = data_link_ins.bk_data_id
-        if fallback_bk_data_id:
-            data_id_config = (
-                models.DataIdConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    namespace=namespace,
-                    bk_data_id=fallback_bk_data_id,
-                )
-                .order_by("-id")
-                .first()
-            )
-        if data_id_config is None:
-            logger.warning(
-                "_refresh_data_link_status: data_link_name->[%s],data_id_config name->[%s] and bk_data_id->[%s] "
-                "both miss, skip data source status refresh",
-                data_link_name,
-                bkbase_data_id_name,
-                fallback_bk_data_id,
-            )
-
-    if data_id_config is not None:
-        try:
-            with transaction.atomic():
-                data_id_status = get_data_link_component_status(
-                    bk_tenant_id=bk_tenant_id,
-                    kind=data_id_config.kind,
-                    namespace=data_id_config.namespace,
-                    component_name=data_id_config.name,
-                )
-                if data_id_config.status != data_id_status:
-                    logger.info(
-                        "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
-                        "with exist record,will change to->[%s]",
-                        data_link_name,
-                        data_id_config.status,
-                        data_id_status,
-                    )
-                    data_id_config.status = data_id_status
-                    data_id_config.data_link_name = data_link_name
-                    data_id_config.save()
-                report_metadata_data_link_status_info(
-                    data_link_name=data_link_name,
-                    biz_id=data_id_config.bk_biz_id,
-                    kind=data_id_config.kind,
-                    status=data_id_config.status,
-                )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "_refresh_data_link_status: data_link_name->[%s],refresh data_id_config->[%s] error->[%s]",
-                data_link_name,
-                data_id_config.name,
-                e,
-            )
-
-    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
-    if hasattr(data_link_ins, "get_related_component_classes"):
-        components = data_link_ins.get_related_component_classes()
-    else:
-        components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
-    all_components_ok = True
-    refreshed_component_keys: set[tuple[str, str, str]] = set()
-
-    # 4. 遍历链路关联的所有类型资源；
-    # 历史写法按 ``name=bkbase_rt_name`` 查，默认 RT/Binding/DataBus 三者同名。组件复用之后三者可能
-    # 各自复用 legacy name、互不相同，此处改为按 (bk_tenant_id, namespace, data_link_name) 过滤该 kind
-    # 下属于本链路的所有实例并逐条刷新。非复用链路同样兼容：三者同名时按 data_link_name 过滤一样命中。
-    for component in components:
-        component_queryset = component.objects.filter(
-            bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name
-        )
-        component_instances = list(component_queryset)
-        if not component_instances:
-            logger.warning(
-                "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
-                data_link_name,
-                component.kind,
-            )
-            all_components_ok = False
-            continue
-
-        for component_ins in component_instances:
-            try:
-                with transaction.atomic():
-                    component_key = (component_ins.kind, component_ins.namespace, component_ins.name)
-                    if component_key in refreshed_component_keys:
-                        continue
-                    refreshed_component_keys.add(component_key)
-
-                    component_status = get_data_link_component_status(
-                        bk_tenant_id=bk_tenant_id,
-                        kind=component_ins.kind,
-                        namespace=component_ins.namespace,
-                        component_name=component_ins.name,
-                    )
-                    logger.info(
-                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
-                        data_link_name,
-                        component_ins.name,
-                        component_ins.kind,
-                        component_status,
-                    )
-                    if component_status != DataLinkResourceStatus.OK.value:
-                        all_components_ok = False
-                    # 和DB中数据不一致时，才进行更新操作
-                    if component_ins.status != component_status:
-                        component_ins.status = component_status
-                        component_ins.save()
-                        logger.info(
-                            "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
-                            "status updated to->[%s]",
-                            data_link_name,
-                            component_ins.name,
-                            component_ins.kind,
-                            component_status,
-                        )
-
-                report_metadata_data_link_status_info(
-                    data_link_name=data_link_name,
-                    biz_id=component_ins.bk_biz_id,
-                    kind=component_ins.kind,
-                    status=component_ins.status,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
-                    "refresh failed,error->[%s]",
-                    data_link_name,
-                    component_ins.name,
-                    component_ins.kind,
-                    e,
-                )
-
-    # 5. 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
-    if all_components_ok:
-        bkbase_rt_record.status = DataLinkResourceStatus.OK.value
-    else:
-        bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
-    with transaction.atomic():
-        bkbase_rt_record.save()
-
-    if data_id_config is not None:
-        report_metadata_data_link_status_info(
-            data_link_name=data_link_name,
-            biz_id=data_id_config.bk_biz_id,
-            kind=DataLinkKind.RESULTTABLE.value,
-            status=bkbase_rt_record.status,
-        )
-
-    cost_time = time.time() - start_time
-
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
-        data_link_name,
-        all_components_ok,
-        bkbase_rt_record.status,
-    )
-
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="_refresh_data_link_status",
-        status=TASK_FINISHED_SUCCESS,
-        process_target=bkbase_rt_record.data_link_name,
-    ).inc()
-
-    # 6. 上报指标
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
-        task_name="_refresh_data_link_status", process_target=bkbase_rt_record.data_link_name
-    ).observe(cost_time)
-    metrics.report_all()
-
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] refresh status finished,cost time->[%s]",
-        data_link_name,
-        cost_time,
-    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
