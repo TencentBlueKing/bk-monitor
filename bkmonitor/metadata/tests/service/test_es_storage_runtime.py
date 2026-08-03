@@ -5,13 +5,14 @@ from unittest.mock import Mock
 from metadata.service.es_storage import query_es_storage_runtime
 
 
-def _build_client(*, stats=None, cat_rows=None, settings=None, aliases=None):
+def _build_client(*, stats=None, cat_rows=None, settings=None, aliases=None, mappings=None):
     return SimpleNamespace(
         cat=SimpleNamespace(indices=Mock(return_value=cat_rows or [])),
         indices=SimpleNamespace(
             stats=Mock(return_value=stats or {"indices": {}}),
             get_settings=Mock(return_value=settings or {}),
             get_alias=Mock(return_value=aliases or {}),
+            get_mapping=Mock(return_value=mappings or {}),
         ),
     )
 
@@ -78,8 +79,8 @@ def test_managed_es_runtime_uses_v2_v1_rule_and_returns_projected_fields(mocker)
             {
                 index_name: {
                     "uuid": "index-uuid",
-                    "total": {"docs": {"count": 3, "deleted": 1}, "store": {"size_in_bytes": 128}},
-                    "primaries": {"store": {"size_in_bytes": 64}},
+                    "total": {"docs": {"count": 6, "deleted": 2}, "store": {"size_in_bytes": 128}},
+                    "primaries": {"docs": {"count": 3, "deleted": 1}, "store": {"size_in_bytes": 64}},
                 }
             },
             "v2",
@@ -164,8 +165,55 @@ def test_managed_es_runtime_uses_v2_v1_rule_and_returns_projected_fields(mocker)
     )
     legacy_item = legacy_data["indices"]["items"][0]
     assert legacy_item["store_size"] == 128
-    assert legacy_item["stats"]["total"]["docs"]["count"] == 3
+    assert legacy_item["stats"]["total"]["docs"]["count"] == 6
     assert legacy_warnings == []
+
+
+def test_es_runtime_docs_fall_back_to_cat_before_total_stats(mocker):
+    index_name = "external-logs-2026.08.03"
+    client = _build_client(
+        stats={
+            "indices": {
+                index_name: {
+                    "total": {"docs": {"count": 14, "deleted": 4}, "store": {"size_in_bytes": 2048}},
+                    "primaries": {"store": {"size_in_bytes": 1024}},
+                }
+            }
+        },
+        cat_rows=[
+            {
+                "index": index_name,
+                "docs.count": "7",
+                "docs.deleted": "2",
+                "store.size": "2048",
+                "pri.store.size": "1024",
+            }
+        ],
+    )
+    storage = SimpleNamespace(
+        table_id="2_bklog.external",
+        origin_table_id=None,
+        storage_cluster_id=1,
+        index_set="external-logs-*",
+        need_create_index=False,
+        get_client=lambda: client,
+        es_client=client,
+    )
+    cluster = SimpleNamespace(cluster_id=2)
+    mocker.patch("metadata.service.es_storage.clone_es_storage_with_cluster", return_value=storage)
+
+    data, warnings = query_es_storage_runtime(
+        es_storage=storage,
+        bk_tenant_id="system",
+        runtime_cluster=cluster,
+        includes={"indices"},
+        timeout=9,
+    )
+
+    assert data["indices"]["total_docs"] == 7
+    assert data["indices"]["items"][0]["docs_count"] == 7
+    assert data["indices"]["items"][0]["docs_deleted"] == 2
+    assert warnings == []
 
 
 def test_external_es_runtime_uses_index_set_without_managed_date_patterns(mocker):
@@ -278,3 +326,68 @@ def test_external_es_runtime_failure_does_not_fallback_to_managed_physical_stora
     assert data["aliases"]["queried"] is False
     assert warnings[0]["code"] == "RUNTIME_QUERY_FAILED"
     physical_lookup.assert_not_called()
+
+
+def test_managed_aliases_are_none_when_index_resolution_fails(mocker):
+    client = _build_client()
+    get_index_stats = Mock(side_effect=RuntimeError("index stats unavailable"))
+    storage = SimpleNamespace(
+        table_id="system.cpu",
+        origin_table_id=None,
+        storage_cluster_id=1,
+        index_set=None,
+        need_create_index=True,
+        search_format_v2=lambda: "v2_system_cpu_*",
+        search_format_v1=lambda: "system_cpu_*",
+        get_index_stats=get_index_stats,
+        get_client=lambda: client,
+        es_client=client,
+    )
+    cluster = SimpleNamespace(cluster_id=2)
+    mocker.patch("metadata.service.es_storage.clone_es_storage_with_cluster", return_value=storage)
+
+    data, warnings = query_es_storage_runtime(
+        es_storage=storage,
+        bk_tenant_id="system",
+        runtime_cluster=cluster,
+        includes={"indices", "aliases"},
+        timeout=15,
+    )
+
+    assert data["indices"] is None
+    assert data["aliases"] is None
+    assert get_index_stats.call_count == 2
+    client.indices.get_alias.assert_not_called()
+    assert [warning["code"] for warning in warnings] == ["RUNTIME_QUERY_FAILED", "RUNTIME_QUERY_FAILED"]
+
+
+def test_mapping_query_does_not_depend_on_index_stats(mocker):
+    mapping = {"v2_system_cpu_20260803_0": {"mappings": {"properties": {"value": {"type": "long"}}}}}
+    client = _build_client(mappings=mapping)
+    storage = SimpleNamespace(
+        table_id="system.cpu",
+        origin_table_id=None,
+        storage_cluster_id=1,
+        index_set=None,
+        need_create_index=True,
+        search_format_v2=lambda: "v2_system_cpu_*",
+        search_format_v1=lambda: "system_cpu_*",
+        get_index_stats=Mock(side_effect=RuntimeError("index stats unavailable")),
+        get_client=lambda: client,
+        es_client=client,
+    )
+    cluster = SimpleNamespace(cluster_id=2)
+    mocker.patch("metadata.service.es_storage.clone_es_storage_with_cluster", return_value=storage)
+
+    data, warnings = query_es_storage_runtime(
+        es_storage=storage,
+        bk_tenant_id="system",
+        runtime_cluster=cluster,
+        includes={"indices", "mapping"},
+        timeout=15,
+    )
+
+    assert data["indices"] is None
+    assert data["mapping"] == mapping
+    assert client.indices.get_mapping.call_args.kwargs == {"index": "v2_system_cpu_*", "request_timeout": 15}
+    assert [warning["code"] for warning in warnings] == ["RUNTIME_QUERY_FAILED"]

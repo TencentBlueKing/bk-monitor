@@ -2803,14 +2803,14 @@ def test_es_storage_sample_uses_selected_runtime_cluster():
     assert storage.storage_cluster_id == 3
 
 
-def test_es_storage_runtime_index_item_keeps_stats_values_and_counts_shards():
+def test_es_storage_runtime_index_item_prefers_cat_docs_before_total_stats_and_counts_shards():
     item = _build_runtime_index_item(
         index_name="v2_system_cpu_20260521_0",
         stats={"total": {"docs": {"count": 0}, "store": {"size_in_bytes": 0}}},
         cat_meta={"health": "green", "status": "open", "pri": "2", "rep": "1", "docs.count": "99"},
     )
 
-    assert item["docs_count"] == 0
+    assert item["docs_count"] == 99
     assert item["store_size_bytes"] == 0
     assert "stats" not in item
     assert item["primary_shards"] == 2

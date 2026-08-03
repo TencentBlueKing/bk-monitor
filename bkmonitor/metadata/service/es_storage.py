@@ -106,7 +106,7 @@ def serialize_es_runtime_value(value: Any) -> Any:
     return value
 
 
-def _runtime_index_stats_expression(es_storage: models.ESStorage, index_version: str) -> str:
+def _runtime_index_stats_expression(es_storage: models.ESStorage, index_version: str | None) -> str:
     return es_storage.search_format_v1() if index_version == "v1" else es_storage.search_format_v2()
 
 
@@ -253,20 +253,20 @@ def _build_runtime_index_item(
         "status": cat_meta.get("status"),
         "docs_count": _parse_runtime_int(
             _first_runtime_value(
-                _nested_runtime_value(stats, ("total", "docs", "count")),
                 _nested_runtime_value(stats, ("primaries", "docs", "count")),
                 cat_meta.get("docs.count"),
                 cat_meta.get("docsCount"),
                 cat_meta.get("docs_count"),
+                _nested_runtime_value(stats, ("total", "docs", "count")),
             )
         ),
         "docs_deleted": _parse_runtime_int(
             _first_runtime_value(
-                _nested_runtime_value(stats, ("total", "docs", "deleted")),
                 _nested_runtime_value(stats, ("primaries", "docs", "deleted")),
                 cat_meta.get("docs.deleted"),
                 cat_meta.get("docsDeleted"),
                 cat_meta.get("docs_deleted"),
+                _nested_runtime_value(stats, ("total", "docs", "deleted")),
             )
         ),
         "store_size_bytes": _parse_runtime_int(
@@ -306,32 +306,32 @@ def _query_expression_stats(
     return dict(indices) if isinstance(indices, Mapping) else {}
 
 
-def _resolve_index_stats(
-    es_storage: models.ESStorage, index: str | None, timeout: int | None
-) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+def _resolve_index_query(
+    es_storage: models.ESStorage,
+    index: str | None,
+    index_version: str | None = None,
+) -> dict[str, Any]:
     if index:
-        expression = index
-        return _query_expression_stats(es_storage, expression, timeout), {
+        return {
             "mode": "explicit",
             "need_create_index": bool(es_storage.need_create_index),
             "source": "request_index",
-            "expression": expression,
+            "expression": index,
         }
 
     if not es_storage.need_create_index:
         expression = str(es_storage.index_set or "").strip()
         if not expression:
             raise ValueError("need_create_index=False 时 index_set 不能为空")
-        return _query_expression_stats(es_storage, expression, timeout), {
+        return {
             "mode": "external",
             "need_create_index": False,
             "source": "index_set",
             "expression": expression,
         }
 
-    stats_map, index_version = es_storage.get_index_stats(request_timeout=timeout)
     expression = _runtime_index_stats_expression(es_storage, index_version)
-    return stats_map, {
+    return {
         "mode": "managed",
         "need_create_index": True,
         "source": "generated_table_pattern",
@@ -339,6 +339,17 @@ def _resolve_index_stats(
         "index_version": index_version or None,
         "candidates": [es_storage.search_format_v2(), es_storage.search_format_v1()],
     }
+
+
+def _resolve_index_stats(
+    es_storage: models.ESStorage, index: str | None, timeout: int | None
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    if index or not es_storage.need_create_index:
+        index_query = _resolve_index_query(es_storage, index)
+        return _query_expression_stats(es_storage, index_query["expression"], timeout), index_query
+
+    stats_map, index_version = es_storage.get_index_stats(request_timeout=timeout)
+    return stats_map, _resolve_index_query(es_storage, index, index_version)
 
 
 def _filter_runtime_index_names(
@@ -456,7 +467,7 @@ def _resolve_alias_query(
 
 
 def _query_mapping(es_storage: models.ESStorage, index: str | None, timeout: int | None) -> Any:
-    _, index_query = _resolve_index_stats(es_storage, index, timeout)
+    index_query = _resolve_index_query(es_storage, index)
     kwargs: dict[str, Any] = {"index": index_query["expression"]}
     if timeout is not None:
         kwargs["request_timeout"] = timeout
@@ -568,14 +579,17 @@ def query_es_storage_runtime(
                 if resolved:
                     index_query, index_names = resolved
                     data["index_query"] = index_query
-            data["aliases"] = _run_runtime_query(
-                name="aliases",
-                es_storage=runtime_storage,
-                bk_tenant_id=bk_tenant_id,
-                runtime_cluster=runtime_cluster,
-                query=lambda storage: _query_aliases(storage, index_names, timeout),
-                warnings=warnings,
-            )
+                else:
+                    data["aliases"] = None
+            if index_query:
+                data["aliases"] = _run_runtime_query(
+                    name="aliases",
+                    es_storage=runtime_storage,
+                    bk_tenant_id=bk_tenant_id,
+                    runtime_cluster=runtime_cluster,
+                    query=lambda storage: _query_aliases(storage, index_names, timeout),
+                    warnings=warnings,
+                )
     if "mapping" in includes:
         data["mapping"] = _run_runtime_query(
             name="mapping",
