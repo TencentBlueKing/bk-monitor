@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 Issue 合并/拆分功能单测：覆盖 Resolver fast-path noop + 异常类 + content JSON 格式。
 """
 
+import threading
+
 import pytest
 
 from bkmonitor.issue_merge import (
@@ -501,3 +503,60 @@ class TestSplitReasonsOptional:
         s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID})
         assert s.is_valid(), s.errors
         assert s.validated_data["reasons"] == []
+
+
+class TestIssueTopNResource:
+    """时间跨度超过 7 天才走分片分支，此时基数聚合在子线程中并行执行。"""
+
+    START_TIME = 1711900800
+    END_TIME = START_TIME + 10 * 24 * 3600
+
+    def test_bucket_count_gets_full_time_range_when_partitioned(self, monkeypatch):
+        # 基数聚合无法由分片结果相加得到，子线程必须拿到完整时间范围；主线程紧随其后就会
+        # pop 掉 start/end 换成分片区间，共享同一 dict 时覆盖区间会随线程调度漂移。
+        # 用 Event 把子线程的读取排到 pop 之后，避免子线程抢跑导致用例对旧实现假阴性。
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources as issue_resources
+
+        captured = {}
+        sliced_params = []
+        popped = threading.Event()
+
+        def fake_get_bucket_count(request_data):
+            captured["ordered"] = popped.wait(timeout=30)
+            captured["request_data"] = dict(request_data)
+            return {}
+
+        def fake_bulk_request(params):
+            # 走到批量分片查询时，主线程已经 pop 掉 start_time / end_time
+            popped.set()
+            sliced_params.extend(params)
+            return []
+
+        monkeypatch.setattr(
+            issue_resources,
+            "resource",
+            SimpleNamespace(issue=SimpleNamespace(issue_top_n_result=SimpleNamespace(bulk_request=fake_bulk_request))),
+        )
+
+        top_n_resource = issue_resources.IssueTopNResource.__new__(issue_resources.IssueTopNResource)
+        monkeypatch.setattr(top_n_resource, "get_bucket_count", fake_get_bucket_count)
+
+        result = top_n_resource.perform_request(
+            {
+                "bk_biz_ids": None,
+                "fields": ["issue_name"],
+                "size": 10,
+                "start_time": self.START_TIME,
+                "end_time": self.END_TIME,
+                "need_time_partition": True,
+            }
+        )
+
+        # 确认真的走了分片分支，而不是被 7 天阈值挡回单次查询
+        assert len(sliced_params) > 1
+        assert captured["ordered"] is True, "子线程未能排到主线程 pop 之后，用例时序失控"
+        assert captured["request_data"]["start_time"] == self.START_TIME
+        assert captured["request_data"]["end_time"] == self.END_TIME
+        assert result == {"doc_count": 0, "fields": []}
