@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { getSelectionText } from '@/common/selection-util';
 import RetrieveHelper from '@/views/retrieve-helper';
 import {
   buildSegmentPageHighlightRanges,
@@ -655,10 +656,11 @@ export default class UseJsonFormatter {
   }
 
   handleSegmentClick(e: MouseEvent, value) {
-    // 如果是点击划选文本，则不进行处理
-    if (RetrieveHelper.isClickOnSelection(e, 2) || window?.getSelection()?.toString()?.length > 1) {
+    // 如果是点击划选文本，则不进行处理（选区可能在 shadow root 内，不能直接读 document 选区）
+    if (RetrieveHelper.isClickOnSelection(e, 2) || getSelectionText(e.target as Node).length > 1) {
       return;
     }
+    
     if (!value.toString() || value === '--') {
       return;
     }
