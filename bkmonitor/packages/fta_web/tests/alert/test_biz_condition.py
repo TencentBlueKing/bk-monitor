@@ -32,17 +32,7 @@ def _make_handler(handler_cls, bk_biz_ids, authorized_bizs, unauthorized_bizs):
     return handler
 
 
-def _patch_tenant_spaces(monkeypatch, space_ids, *, multi_tenant=False):
-    """给出"当前租户的全部空间"，避免单测触达真实空间接口。"""
-    spaces = [{"bk_biz_id": biz_id, "bk_tenant_id": TENANT_ID} for biz_id in space_ids]
-
-    class FakeSpaceApi:
-        @classmethod
-        def list_spaces_dict(cls, using_cache=True):
-            return spaces
-
-    monkeypatch.setattr(base_handler_module, "SpaceApi", FakeSpaceApi, raising=False)
-    monkeypatch.setattr(base_handler_module, "get_request_tenant_id", lambda: TENANT_ID)
+def _patch_tenant_mode(monkeypatch, *, multi_tenant=False):
     monkeypatch.setattr(base_handler_module.settings, "ENABLE_MULTI_TENANT_MODE", multi_tenant)
 
 
@@ -139,8 +129,7 @@ def test_parse_all_biz_marks_trusted_tenant_wide_scope(monkeypatch):
 def test_add_biz_condition_keeps_authorized_filter_when_unauthorized_is_empty(
     monkeypatch, handler_cls, field, expected_values
 ):
-    # 授权业务是租户空间的真子集，不适用"覆盖全量则免过滤"的快路径
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_tenant_mode(monkeypatch)
     handler = _make_handler(
         handler_cls,
         bk_biz_ids=[1, 2],
@@ -191,7 +180,7 @@ def test_add_biz_condition_fails_closed_when_no_biz_clause_can_be_built(monkeypa
     授权业务为空时 build_es_terms_query 返回 None，子句列表随之为空；若此时直接返回
     search_object，业务过滤会整体消失——这是失败开放，比查空严重得多。
     """
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_tenant_mode(monkeypatch)
     handler = _make_handler(handler_cls, bk_biz_ids=[1], authorized_bizs=[], unauthorized_bizs=[])
 
     dsl = handler.add_biz_condition(Search()).to_dict()
@@ -201,12 +190,12 @@ def test_add_biz_condition_fails_closed_when_no_biz_clause_can_be_built(monkeypa
 
 
 @pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
-def test_add_biz_condition_omits_terms_when_authorization_covers_whole_tenant(monkeypatch, handler_cls, field):
-    """授权覆盖租户全量空间时，业务维度无区分度，不再生成 terms 子句。
+def test_add_biz_condition_omits_terms_for_trusted_tenant_wide_scope(monkeypatch, handler_cls, field):
+    """IAM 明确授予租户全量权限时，业务维度无区分度，不再生成 terms 子句。
 
     管理员的授权业务可达十万级，这条子句实测能把单次请求的 DSL 撑到 1MB 以上。
     """
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_tenant_mode(monkeypatch)
     _patch_request(monkeypatch, tenant_wide_authorized=True)
     handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
@@ -221,7 +210,7 @@ def test_add_biz_condition_omits_terms_when_authorization_covers_whole_tenant(mo
 @pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
 def test_add_biz_condition_keeps_terms_without_trusted_tenant_wide_scope(monkeypatch, handler_cls, field):
     """缓存空间集合被授权集覆盖，也不足以证明 IAM 策略允许访问当前及未来的全部业务。"""
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_tenant_mode(monkeypatch)
     _patch_request(monkeypatch, tenant_wide_authorized=False)
     handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
@@ -233,7 +222,7 @@ def test_add_biz_condition_keeps_terms_without_trusted_tenant_wide_scope(monkeyp
 @pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
 def test_add_biz_condition_keeps_terms_for_explicit_biz_list(monkeypatch, handler_cls, field):
     """即使用户具备全量权限，显式业务列表仍是调用方要求保留的查询范围。"""
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_tenant_mode(monkeypatch)
     _patch_request(monkeypatch, tenant_wide_authorized=True)
     handler = _make_handler(handler_cls, bk_biz_ids=[1, 2, 3], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
@@ -249,7 +238,7 @@ def test_add_biz_condition_keeps_terms_in_multi_tenant_mode(monkeypatch, handler
     告警检索链路并不过滤 bk_tenant_id（该字段只写不读，且早期索引里完全没有），
     业务 terms 同时承担着租户隔离，省掉就会跨租户泄漏。
     """
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3], multi_tenant=True)
+    _patch_tenant_mode(monkeypatch, multi_tenant=True)
     _patch_request(monkeypatch, tenant_wide_authorized=True)
     handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
@@ -259,9 +248,14 @@ def test_add_biz_condition_keeps_terms_in_multi_tenant_mode(monkeypatch, handler
 
 
 @pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
-def test_add_biz_condition_keeps_terms_when_space_list_unavailable(monkeypatch, handler_cls, field):
-    """拿不到空间列表时不得推断为"覆盖全量"，否则缓存未就绪就等于放开权限。"""
-    _patch_tenant_spaces(monkeypatch, [])
+def test_add_biz_condition_keeps_terms_without_request_context(monkeypatch, handler_cls, field):
+    """无请求上下文时拿不到可信 IAM 标记，内部调用必须继续按业务过滤。"""
+    _patch_tenant_mode(monkeypatch)
+
+    def get_request_without_context():
+        raise RuntimeError("request context unavailable")
+
+    monkeypatch.setattr(base_handler_module, "get_request", get_request_without_context)
     handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
     dsl = handler.add_biz_condition(Search()).to_dict()
@@ -270,21 +264,11 @@ def test_add_biz_condition_keeps_terms_when_space_list_unavailable(monkeypatch, 
 
 
 @pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
-def test_add_biz_condition_keeps_terms_for_other_tenant_spaces(monkeypatch, handler_cls, field):
-    """授权业务只覆盖别的租户的空间时，同样不构成"覆盖当前租户全量"。"""
-    spaces = [{"bk_biz_id": biz_id, "bk_tenant_id": "tenant-b"} for biz_id in (1, 2, 3)]
-    spaces.append({"bk_biz_id": 9, "bk_tenant_id": TENANT_ID})
-
-    class FakeSpaceApi:
-        @classmethod
-        def list_spaces_dict(cls, using_cache=True):
-            return spaces
-
-    monkeypatch.setattr(base_handler_module, "SpaceApi", FakeSpaceApi, raising=False)
-    monkeypatch.setattr(base_handler_module, "get_request_tenant_id", lambda: TENANT_ID)
-    monkeypatch.setattr(base_handler_module.settings, "ENABLE_MULTI_TENANT_MODE", False)
-
-    handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
+def test_add_biz_condition_keeps_terms_with_real_unauthorized_bizs(monkeypatch, handler_cls, field):
+    """存在真实未授权业务时，即使 IAM 标记为全量也不得进入省略分支。"""
+    _patch_tenant_mode(monkeypatch)
+    _patch_request(monkeypatch, tenant_wide_authorized=True)
+    handler = _make_handler(handler_cls, bk_biz_ids=[-1, 9], authorized_bizs=[1, 2, 3], unauthorized_bizs=[9])
 
     dsl = handler.add_biz_condition(Search()).to_dict()
 
@@ -293,7 +277,7 @@ def test_add_biz_condition_keeps_terms_for_other_tenant_spaces(monkeypatch, hand
 
 def test_add_biz_condition_without_biz_scope_keeps_existing_semantics(monkeypatch):
     """未指定业务范围时保持既有语义：Alert 退化为"与我相关"，而不是查空。"""
-    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_tenant_mode(monkeypatch)
     handler = _make_handler(AlertQueryHandler, bk_biz_ids=None, authorized_bizs=None, unauthorized_bizs=[])
 
     dsl = handler.add_biz_condition(Search()).to_dict()
