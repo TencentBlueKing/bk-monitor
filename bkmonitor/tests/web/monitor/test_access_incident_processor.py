@@ -172,6 +172,31 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
         self.assertIn("notice_config", mock_record_create.call_args.kwargs)
 
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentDocument", _FakeIncidentDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_create_incident")
+    def test_create_incident_reads_timeout_from_api_resources(self, mock_record_create, mock_snapshot_model, mock_api):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        get_incident_snapshot = Mock(
+            TIMEOUT=300,
+            return_value={"incident_alerts": [{"id": 177}], "rca_summary": {"bk_biz_ids": [132]}},
+        )
+        update_incident_detail = Mock(TIMEOUT=300)
+        mock_api.bkdata = SimpleNamespace(
+            get_incident_snapshot=get_incident_snapshot,
+            update_incident_detail=update_incident_detail,
+        )
+        sync_info = self._base_sync_info()
+        sync_info["fpp_snapshot_id"] = "snapshot-1"
+
+        self.processor.create_incident(sync_info)
+
+        get_incident_snapshot.assert_called_once_with(snapshot_id="snapshot-1")
+        update_incident_detail.assert_called_once()
+        mock_record_create.assert_called_once()
+
     @patch("alarm_backends.service.access.incident.processor.time.time", return_value=1710000099)
     @patch("alarm_backends.service.access.incident.processor.api")
     @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
