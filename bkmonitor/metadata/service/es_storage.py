@@ -366,7 +366,6 @@ def _build_indices_overview(
     warnings: list[dict[str, Any]],
     timeout: int | None,
     index: str | None = None,
-    include_legacy_index_fields: bool = False,
 ) -> dict[str, Any]:
     stats_map, index_query = _resolve_index_stats(es_storage, index, timeout)
     index_names = _filter_runtime_index_names(es_storage, stats_map, index_query)
@@ -382,10 +381,6 @@ def _build_indices_overview(
         )
         for index_name in index_names
     ]
-    if include_legacy_index_fields:
-        for item in items:
-            item["store_size"] = item.get("store_size_bytes")
-            item["stats"] = stats_map.get(item["index"], {})
     return {
         "_index_query": index_query,
         "count": len(items),
@@ -523,7 +518,6 @@ def query_es_storage_runtime(
     includes: set[str] | None = None,
     index: str | None = None,
     timeout: int | None = None,
-    include_legacy_index_fields: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """查询指定 ES 集群上的索引、别名及可选 mapping，单项失败不影响其他结果。"""
 
@@ -548,7 +542,6 @@ def query_es_storage_runtime(
                 warnings,
                 timeout,
                 index,
-                include_legacy_index_fields=include_legacy_index_fields,
             ),
             warnings=warnings,
         )

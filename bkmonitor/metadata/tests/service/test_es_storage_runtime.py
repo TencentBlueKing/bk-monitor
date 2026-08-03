@@ -153,20 +153,8 @@ def test_managed_es_runtime_uses_v2_v1_rule_and_returns_projected_fields(mocker)
         ],
     }
     assert "stats" not in data["indices"]["items"][0]
+    assert "store_size" not in data["indices"]["items"][0]
     assert warnings == []
-
-    legacy_data, legacy_warnings = query_es_storage_runtime(
-        es_storage=storage,
-        bk_tenant_id="system",
-        runtime_cluster=cluster,
-        includes={"indices"},
-        timeout=15,
-        include_legacy_index_fields=True,
-    )
-    legacy_item = legacy_data["indices"]["items"][0]
-    assert legacy_item["store_size"] == 128
-    assert legacy_item["stats"]["total"]["docs"]["count"] == 6
-    assert legacy_warnings == []
 
 
 def test_es_runtime_docs_fall_back_to_cat_before_total_stats(mocker):
