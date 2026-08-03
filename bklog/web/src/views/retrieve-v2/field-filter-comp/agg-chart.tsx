@@ -75,12 +75,6 @@ export default class AggChart extends tsc<object> {
   t = window.mainComponent.$t.bind(window.mainComponent);
   searchKeyword = '';
 
-  // 缓存计算
-  private cachedTopFiveList: [string, unknown][] = [];
-  private cachedShowFiveList: [string, unknown][] = [];
-  private cachedShowValidCount = 0;
-  private cachedShowTotalCount = 0;
-
   get unionIndexList() {
     return store.getters.unionIndexList;
   }
@@ -89,48 +83,39 @@ export default class AggChart extends tsc<object> {
     return store.getters.isUnionSearch;
   }
 
-  // 优化计算属性：缓存计算结果
+  // Vue computed 会按依赖自动缓存；勿再套一层手动缓存，否则请求中途渲染会把旧 values 固化，导致过滤后百分比异常
   get topFiveList() {
-    if (!this.cachedTopFiveList.length) {
-      const totalList = Object.entries(this.statisticalFieldData)
-        .filter(([key]) => !['__validCount', '__totalCount'].includes(key))
-        .sort((a, b) => Number(b[1]) - Number(a[1]));
-
-      for (const item of totalList) {
-        const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
+    const totalList = Object.entries(this.statisticalFieldData)
+      .filter(([key]) => !['__validCount', '__totalCount'].includes(key))
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .map(([key, value]) => {
+        const markList = key.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
         if (markList.length) {
-          item[0] = markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
+          return [
+            markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(','),
+            value,
+          ] as [string, unknown];
         }
-      }
+        return [key, value] as [string, unknown];
+      });
 
-      this.cachedTopFiveList = this.showAllList ? totalList : totalList.slice(0, 5);
-    }
-    return this.cachedTopFiveList;
+    return this.showAllList ? totalList : totalList.slice(0, 5);
   }
 
   get showFiveList() {
-    if (!this.cachedShowFiveList.length) {
-      this.cachedShowFiveList = this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
-    }
-    return this.cachedShowFiveList;
+    return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
   }
 
   get showValidCount() {
-    if (!this.cachedShowValidCount) {
-      this.cachedShowValidCount = this.isFrontStatistics
-        ? this.statisticalFieldData.__validCount || 0
-        : this.fieldValueData.field_count;
-    }
-    return this.cachedShowValidCount;
+    return this.isFrontStatistics
+      ? this.statisticalFieldData.__validCount || 0
+      : this.fieldValueData.field_count;
   }
 
   get showTotalCount() {
-    if (!this.cachedShowTotalCount) {
-      this.cachedShowTotalCount = this.isFrontStatistics
-        ? this.statisticalFieldData.__totalCount || 0
-        : this.fieldValueData.total_count;
-    }
-    return this.cachedShowTotalCount;
+    return this.isFrontStatistics
+      ? this.statisticalFieldData.__totalCount || 0
+      : this.fieldValueData.total_count;
   }
 
   get watchQueryParams() {
@@ -185,17 +170,16 @@ export default class AggChart extends tsc<object> {
     if (!this.showTotalCount) {
       return '0%';
     }
-    // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
-    const percentage = (count / this.showTotalCount) * 100;
+    // 进度条宽度限制在 100%，避免异常数据撑破样式
+    const percentage = Math.min(100, (count / this.showTotalCount) * 100);
     return `${percentage}%`;
   }
 
-  // 优化百分比计算
+  // 百分比文案：>=1% 取整，<1% 显示 <1%
   computePercent(count: number) {
     if (!this.showTotalCount) {
       return '0%';
     }
-    // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
     const percentage = (count / this.showTotalCount) * 100;
     return percentage >= 1 ? `${Math.round(percentage)}%` : '<1%';
   }
@@ -311,15 +295,26 @@ export default class AggChart extends tsc<object> {
     }
     this.limitSize = limit;
     this.listLoading = true;
-    this.resetCache();
+    // 请求开始先清空旧列表，避免 loading 期间仍用旧 values 参与百分比计算
+    this.fieldValueData = {
+      ...this.fieldValueData,
+      values: [],
+      total_count: 0,
+      field_count: 0,
+    };
     try {
       const isScene = store.getters.isSceneMode;
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
         : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
-      this.listLoading = true;
+      // watchQueryParams 直接订阅 store，可能早于 props 更新；覆盖关键查询条件保证过滤后统计一致
+      const latestRetrieveParams = store.getters.retrieveParams || {};
       const data = {
         ...this.retrieveParams,
+        ...latestRetrieveParams,
+        addition: store.getters.requestAddition ?? latestRetrieveParams.addition ?? this.retrieveParams.addition,
+        start_time: this.retrieveParams.start_time ?? latestRetrieveParams.start_time,
+        end_time: this.retrieveParams.end_time ?? latestRetrieveParams.end_time,
         agg_field: this.fieldName,
         limit,
         ...(isScene ? {} : { index_set_ids: indexSetIDs }),
@@ -341,18 +336,8 @@ export default class AggChart extends tsc<object> {
     }
   }
 
-  // 重置缓存
-  resetCache() {
-    this.cachedTopFiveList = [];
-    this.cachedShowFiveList = [];
-    this.cachedShowValidCount = 0;
-    this.cachedShowTotalCount = 0;
-  }
-
   // 渲染函数
   render() {
-    const hasData = !!this.filterList.length;
-
     return (
       <div class='retrieve-v2 field-data'>
         {
@@ -372,7 +357,7 @@ export default class AggChart extends tsc<object> {
             rows={this.limit > 6 ? Math.ceil(this.limit / 8) : 2}
             widths={['10%', '90%']}
           />
-        ) : hasData ? (
+        ) : this.filterList.length ? (
           <ul class='chart-list'>
             {this.filterList.map((item, index) => {
               const [value, count] = item as [string, number];
