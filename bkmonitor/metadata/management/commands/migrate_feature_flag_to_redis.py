@@ -15,9 +15,9 @@ from metadata.feature_flag import FeatureFlagRedisSync, FeatureFlagSourceMissing
 
 
 class Command(BaseCommand):
-    """将既有 Consul Feature Flag 快照一次性迁移到 unify-query Redis。"""
+    """将既有 Consul Feature Flag 快照一次性写入 Redis。"""
 
-    help = "将 Consul 中的 Feature Flag 快照迁移到 unify-query Redis"
+    help = "将 Consul 中的 Feature Flag 快照一次性写入 Redis"
 
     def handle(self, *args, **options):
         try:
@@ -30,7 +30,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "feature flag migration command completed: "
-                f"{len(snapshot)} flags are available at {FeatureFlagRedisSync.REDIS_TARGET_KEY}; "
+                f"{len(snapshot)} flags were written to Redis; "
                 "repeated invocations are skipped"
             )
         )
