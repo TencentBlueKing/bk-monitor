@@ -34,7 +34,7 @@ def make_health_result(cluster, **kwargs):
 
 def test_get_status_projects_standard_fields_and_es_degraded():
     cluster = make_cluster(1)
-    cluster.health_check = lambda timeout: make_health_result(
+    cluster.health_check = lambda timeout, include_node_details=False: make_health_result(
         cluster,
         details={
             "health_status": "yellow",
@@ -107,7 +107,9 @@ def test_get_status_projects_standard_fields_and_es_degraded():
 )
 def test_get_status_projects_doris_backend_status(nodes, expected_status, expected_available):
     cluster = make_cluster(2, ClusterInfo.TYPE_DORIS)
-    cluster.health_check = lambda timeout: make_health_result(cluster, details={"nodes": nodes})
+    cluster.health_check = lambda timeout, include_node_details=False: make_health_result(
+        cluster, details={"nodes": nodes}
+    )
 
     result = ClusterStatusService.get_status(cluster, timeout=3, include_node_details=True)
 
@@ -117,9 +119,36 @@ def test_get_status_projects_doris_backend_status(nodes, expected_status, expect
         assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_CLUSTER_UNHEALTHY
 
 
+def test_get_status_degrades_when_doris_backends_cannot_be_queried():
+    cluster = make_cluster(2, ClusterInfo.TYPE_DORIS)
+    cluster.health_check = lambda timeout, include_node_details=False: make_health_result(
+        cluster,
+        details={
+            "collection_errors": [
+                {
+                    "component": "backends",
+                    "code": "DORIS_BACKENDS_QUERY_FAILED",
+                    "message": "Doris 集群后端状态和容量查询失败",
+                    "details": {"type": "OperationalError", "message": "access denied"},
+                }
+            ]
+        },
+    )
+
+    result = ClusterStatusService.get_status(cluster, timeout=3)
+
+    assert result["status"] == ClusterStatusService.STATUS_DEGRADED
+    assert result["is_connected"] is True
+    assert result["is_available"] is True
+    assert result["nodes"] == {"total": None, "available": None}
+    assert result["capacity"]["total_bytes"] is None
+    assert result["error"] is None
+    assert result["details"]["collection_errors"][0]["code"] == "DORIS_BACKENDS_QUERY_FAILED"
+
+
 def test_get_status_projects_fixed_doris_node_fields():
     cluster = make_cluster(2, ClusterInfo.TYPE_DORIS)
-    cluster.health_check = lambda timeout: make_health_result(
+    cluster.health_check = lambda timeout, include_node_details=False: make_health_result(
         cluster,
         details={
             "nodes": {"total": 1, "available": 1},
@@ -179,7 +208,7 @@ def test_get_status_keeps_standard_shape_for_clusters_without_capacity(cluster_t
         if cluster_type == ClusterInfo.TYPE_KAFKA
         else {"url": "http://vm/health", "status_code": 200, "unexpected": "drop"}
     )
-    cluster.health_check = lambda timeout: make_health_result(cluster, details=details)
+    cluster.health_check = lambda timeout, include_node_details=False: make_health_result(cluster, details=details)
 
     result = ClusterStatusService.get_status(cluster, timeout=3)
 
@@ -203,7 +232,7 @@ def test_get_status_keeps_standard_shape_for_clusters_without_capacity(cluster_t
 
 def test_get_status_projects_unsupported_cluster():
     cluster = make_cluster(4, ClusterInfo.TYPE_REDIS)
-    cluster.health_check = lambda timeout: make_health_result(
+    cluster.health_check = lambda timeout, include_node_details=False: make_health_result(
         cluster,
         status=ClusterInfo.CHECK_STATUS_UNSUPPORTED,
         is_connected=False,
@@ -277,6 +306,22 @@ def test_get_statuses_isolates_single_cluster_failure(mocker):
     assert results[0] == {"cluster_id": 1, "status": "available"}
     assert results[1]["status"] == ClusterStatusService.STATUS_UNAVAILABLE
     assert results[1]["error"]["code"] == "STATUS_COLLECTION_FAILED"
+
+
+@pytest.mark.parametrize("raises", [False, True])
+def test_status_worker_closes_old_connections_at_task_boundaries(mocker, raises):
+    cluster = make_cluster(1)
+    close_connections = mocker.patch.object(ClusterStatusService, "_close_old_connections")
+    get_status = mocker.patch.object(ClusterStatusService, "get_status")
+    if raises:
+        get_status.side_effect = RuntimeError("probe failed")
+        with pytest.raises(RuntimeError, match="probe failed"):
+            ClusterStatusService._get_status_in_worker(cluster, 5, False)
+    else:
+        get_status.return_value = {"cluster_id": 1}
+        assert ClusterStatusService._get_status_in_worker(cluster, 5, False) == {"cluster_id": 1}
+
+    assert close_connections.call_count == 2
 
 
 @pytest.mark.parametrize(

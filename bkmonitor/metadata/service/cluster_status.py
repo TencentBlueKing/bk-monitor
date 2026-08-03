@@ -4,6 +4,15 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+from django.db import close_old_connections
+
+from metadata.cluster_status import (
+    CLUSTER_STATUS_DEFAULT_TIMEOUT,
+    CLUSTER_STATUS_MAX_COUNT,
+    CLUSTER_STATUS_MAX_TIMEOUT,
+    CLUSTER_STATUS_MAX_WORKERS,
+    CLUSTER_STATUS_MIN_TIMEOUT,
+)
 from metadata.models.storage import ClusterInfo
 
 
@@ -26,9 +35,11 @@ def _empty_capacity() -> dict[str, int | float | None]:
 class ClusterStatusService:
     """批量查询并投影 ClusterInfo 的统一运行状态。"""
 
-    MAX_CLUSTER_COUNT = 20
-    MAX_WORKERS = 5
-    DEFAULT_TIMEOUT = ClusterInfo.DEFAULT_CHECK_TIMEOUT
+    MAX_CLUSTER_COUNT = CLUSTER_STATUS_MAX_COUNT
+    MAX_WORKERS = CLUSTER_STATUS_MAX_WORKERS
+    DEFAULT_TIMEOUT = CLUSTER_STATUS_DEFAULT_TIMEOUT
+    MIN_TIMEOUT = CLUSTER_STATUS_MIN_TIMEOUT
+    MAX_TIMEOUT = CLUSTER_STATUS_MAX_TIMEOUT
 
     STATUS_AVAILABLE = "available"
     STATUS_DEGRADED = "degraded"
@@ -60,7 +71,7 @@ class ClusterStatusService:
             max_workers = min(cls.MAX_WORKERS, len(clusters))
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_cluster_ids = {
-                    executor.submit(cls.get_status, cluster, timeout, include_node_details): cluster_id
+                    executor.submit(cls._get_status_in_worker, cluster, timeout, include_node_details): cluster_id
                     for cluster_id, cluster in clusters.items()
                 }
                 for future in as_completed(future_cluster_ids):
@@ -76,9 +87,36 @@ class ClusterStatusService:
         ]
 
     @classmethod
+    def _get_status_in_worker(
+        cls,
+        cluster: ClusterInfo,
+        timeout: int,
+        include_node_details: bool,
+    ) -> dict[str, Any]:
+        """在线程任务边界清理 Django 连接，避免连接跨任务残留。"""
+
+        cls._close_old_connections()
+        try:
+            return cls.get_status(cluster, timeout, include_node_details)
+        finally:
+            cls._close_old_connections()
+
+    @staticmethod
+    def _close_old_connections() -> None:
+        """以 best-effort 方式清理线程中的 Django 数据库连接。"""
+
+        try:
+            close_old_connections()
+        except Exception:  # pylint: disable=broad-except
+            logger.debug("close old database connections failed", exc_info=True)
+
+    @classmethod
     def get_status(cls, cluster: ClusterInfo, timeout: int, include_node_details: bool = False) -> dict[str, Any]:
         try:
-            health_result = cluster.health_check(timeout=timeout)
+            health_check_kwargs: dict[str, Any] = {"timeout": timeout}
+            if include_node_details:
+                health_check_kwargs["include_node_details"] = True
+            health_result = cluster.health_check(**health_check_kwargs)
         except Exception as error:  # health_check 已有兜底，此处防止未来实现异常破坏整批请求
             logger.exception("ClusterInfo.health_check unexpectedly failed, cluster_id->[%s]", cluster.cluster_id)
             return cls._build_collection_failed_status(cluster, error)
@@ -135,6 +173,13 @@ class ClusterStatusService:
                 return cls.STATUS_UNAVAILABLE, False, error
 
         if cluster.cluster_type == ClusterInfo.TYPE_DORIS:
+            collection_errors = details.get("collection_errors") or []
+            if any(
+                isinstance(collection_error, dict) and collection_error.get("code") == "DORIS_BACKENDS_QUERY_FAILED"
+                for collection_error in collection_errors
+            ):
+                return cls.STATUS_DEGRADED, True, error
+
             total_nodes = nodes["total"]
             available_nodes = nodes["available"]
             if total_nodes is not None and available_nodes is not None:

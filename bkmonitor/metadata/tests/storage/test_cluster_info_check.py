@@ -221,12 +221,15 @@ def test_health_check_es_cluster_available(mocker, health_status):
         "number_of_nodes": 2,
         "number_of_data_nodes": 2,
     }
+    client.cat.nodes.return_value = [
+        {"name": "node-1", "ip": "127.0.0.1", "node.role": "d"},
+        {"ip": "127.0.0.2", "roles": ["data", "ingest"]},
+    ]
     client.cat.allocation.return_value = [
         {
             "node": "node-1",
             "host": "es-1",
             "ip": "127.0.0.1",
-            "node.role": "d",
             "shards": "3",
             "disk.total": "1000",
             "disk.used": "400",
@@ -236,7 +239,7 @@ def test_health_check_es_cluster_available(mocker, health_status):
         },
         {
             "name": "node-2",
-            "nodeRole": ["data", "ingest"],
+            "ip": "127.0.0.2",
             "shardCount": "4",
             "diskTotal": "2000",
             "diskUsed": "500",
@@ -246,9 +249,13 @@ def test_health_check_es_cluster_available(mocker, health_status):
         },
         {"node": "UNASSIGNED", "shards": "1"},
     ]
-    mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
+    client_factory = mocker.patch(
+        "metadata.models.storage.es_tools.get_client_by_datasource_info",
+        return_value=client,
+    )
+    legacy_client_factory = mocker.patch("metadata.models.storage.es_tools.get_client")
 
-    result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3)
+    result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3, include_node_details=True)
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
@@ -267,13 +274,21 @@ def test_health_check_es_cluster_available(mocker, health_status):
     assert result["details"]["node_details"][0]["roles"] == ["d"]
     assert result["details"]["node_details"][1]["roles"] == ["data", "ingest"]
     client.cluster.health.assert_called_once_with(request_timeout=3)
+    client.cat.nodes.assert_called_once_with(
+        format="json",
+        h="name,ip,node.role",
+        params={"request_timeout": 3},
+    )
+    legacy_client_factory.assert_not_called()
+    assert client_factory.call_args.args[0]["domain_name"] == "127.0.0.1"
+    assert client_factory.call_args.args[0]["port"] == 9092
 
 
 def test_health_check_es_cluster_red_is_unavailable(mocker):
     client = mocker.Mock()
     client.cluster.health.return_value = {"status": "red", "number_of_nodes": 1}
     client.cat.allocation.return_value = []
-    mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
+    mocker.patch("metadata.models.storage.es_tools.get_client_by_datasource_info", return_value=client)
 
     result = make_cluster(ClusterInfo.TYPE_ES).health_check()
 
@@ -394,13 +409,39 @@ def test_health_check_es_capacity_failure_does_not_override_health(mocker):
     client = mocker.Mock()
     client.cluster.health.return_value = {"status": "green", "number_of_data_nodes": 1}
     client.cat.allocation.side_effect = RuntimeError("allocation forbidden")
-    mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
+    mocker.patch("metadata.models.storage.es_tools.get_client_by_datasource_info", return_value=client)
 
     result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3)
 
     assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
     assert result["is_available"] is True
     assert result["details"]["collection_errors"][0]["code"] == "ES_ALLOCATION_QUERY_FAILED"
+    client.cat.nodes.assert_not_called()
+
+
+def test_health_check_es_node_roles_failure_does_not_override_health_or_capacity(mocker):
+    client = mocker.Mock()
+    client.cluster.health.return_value = {"status": "green", "number_of_data_nodes": 1}
+    client.cat.nodes.side_effect = RuntimeError("nodes forbidden")
+    client.cat.allocation.return_value = [
+        {
+            "node": "node-1",
+            "ip": "127.0.0.1",
+            "shards": "3",
+            "disk.total": "1000",
+            "disk.used": "400",
+            "disk.avail": "600",
+        }
+    ]
+    mocker.patch("metadata.models.storage.es_tools.get_client_by_datasource_info", return_value=client)
+
+    result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3, include_node_details=True)
+
+    assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
+    assert result["is_available"] is True
+    assert result["details"]["capacity"]["total_bytes"] == 1000
+    assert result["details"]["node_details"][0]["roles"] == []
+    assert result["details"]["collection_errors"][0]["code"] == "ES_NODES_QUERY_FAILED"
 
 
 def test_health_check_doris_backend_failure_does_not_override_connection(mocker):

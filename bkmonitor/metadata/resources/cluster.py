@@ -363,11 +363,11 @@ class GetClusterStatusResource(Resource):
             max_length=ClusterStatusService.MAX_CLUSTER_COUNT,
         )
         timeout = serializers.IntegerField(
-            label="单集群探测超时时间（秒）",
+            label="单次底层探测操作超时时间（秒）",
             required=False,
             default=ClusterStatusService.DEFAULT_TIMEOUT,
-            min_value=1,
-            max_value=30,
+            min_value=ClusterStatusService.MIN_TIMEOUT,
+            max_value=ClusterStatusService.MAX_TIMEOUT,
         )
         include_node_details = serializers.BooleanField(
             label="是否返回节点明细",

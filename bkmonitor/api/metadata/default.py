@@ -18,6 +18,12 @@ from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username, get_request_username
 from core.drf_resource import CacheResource, Resource, api
 from core.drf_resource.contrib.nested_api import KernelAPIResource
+from metadata.cluster_status import (
+    CLUSTER_STATUS_DEFAULT_TIMEOUT,
+    CLUSTER_STATUS_MAX_COUNT,
+    CLUSTER_STATUS_MAX_TIMEOUT,
+    CLUSTER_STATUS_MIN_TIMEOUT,
+)
 
 
 class MetaDataAPIGWResource(KernelAPIResource):
@@ -757,10 +763,14 @@ class GetClusterStatusResource(MetaDataAPIGWResource):
             child=serializers.IntegerField(min_value=1),
             allow_empty=False,
             min_length=1,
-            max_length=20,
+            max_length=CLUSTER_STATUS_MAX_COUNT,
         )
         timeout = serializers.IntegerField(
-            label="单集群探测超时时间（秒）", required=False, default=5, min_value=1, max_value=30
+            label="单次底层探测操作超时时间（秒）",
+            required=False,
+            default=CLUSTER_STATUS_DEFAULT_TIMEOUT,
+            min_value=CLUSTER_STATUS_MIN_TIMEOUT,
+            max_value=CLUSTER_STATUS_MAX_TIMEOUT,
         )
         include_node_details = serializers.BooleanField(label="是否返回节点明细", required=False, default=False)
 

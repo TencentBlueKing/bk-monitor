@@ -12,7 +12,7 @@
 | 字段 | 类型 | 必选 | 描述 |
 |---|---|---|---|
 | cluster_ids | list[int] | 是 | 存储集群 ID 列表，最多 20 个；重复 ID 按首次出现位置去重 |
-| timeout | int | 否 | 单集群探测超时时间，单位秒，范围 1～30，默认 5 |
+| timeout | int | 否 | 单次底层网络操作的超时时间，单位秒，范围 1～30，默认 5 |
 | include_node_details | bool | 否 | 是否返回 ES/Doris 节点明细，默认 false |
 
 ### 请求参数示例
@@ -26,6 +26,8 @@
 ```
 
 默认响应中不包含 `details.node_details`。只有显式传入 `include_node_details=true` 时，ES/Doris 的 `details` 才包含该字段；公共 `nodes` 和 `capacity` 不受此参数影响。
+
+接口最多使用 5 个工作线程，集群数超过 5 时会分批探测。`timeout` 作用于健康、容量、节点等单次底层网络操作，不是整批请求或单个集群的墙钟总超时；ES、Doris 需要顺序执行多个操作，因此请求总耗时还会受到集群数量、类型及网络状态影响。
 
 ### 公共响应结构
 
@@ -57,9 +59,11 @@
 | 字段 | 类型 | 描述 |
 |---|---|---|
 | total | int/null | 存储节点总数；ES 为当前 data node 数，Doris 为非退役 BE 数 |
-| available | int/null | 当前可用存储节点数 |
+| available | int/null | 当前可用存储节点数；ES 与 total 一样表示当前已发现的 data node 数 |
 
 Kafka、VictoriaMetrics、不支持的类型或未找到的集群无法提供节点汇总时，两个字段均为 null。
+
+ES 无法从 cluster health 得知配置中“预期存在但当前未加入集群”的 data node，因此 `nodes.available` 不能用于判断相对预期拓扑是否有节点离线；ES 是否降级以 green/yellow/red 为准。
 
 #### capacity 公共字段
 
@@ -77,7 +81,7 @@ ES 汇总当前 data node 的磁盘信息；Doris 汇总所有非退役 BE 的�
 | status | is_available | 说明 |
 |---|---|---|
 | available | true | 集群健康且可用 |
-| degraded | true | 集群仍可用，但存在降级；例如 ES yellow、Doris 部分有效 BE 离线 |
+| degraded | true | 集群仍可用，但存在降级；例如 ES yellow、Doris 部分有效 BE 离线，或 Doris 已连接但无法查询 BE 状态 |
 | unavailable | false | 集群不可用、连接失败、ES red 或 Doris 无可用有效 BE |
 | unsupported | false | ClusterInfo 类型暂不支持运行时探测 |
 | unknown | false | 请求的 cluster_id 在当前租户下不存在 |
@@ -96,7 +100,7 @@ ES 汇总当前 data node 的磁盘信息；Doris 汇总所有非退役 BE 的�
 | unassigned_shards | int/null | unassigned shard 数量 |
 | indices_store_bytes | int/null | data node 上 `disk.indices` 的汇总值，即索引数据占用；与公共 capacity 的物理磁盘占用口径不同 |
 | node_details | list[object] | data node 明细，固定结构；仅 `include_node_details=true` 时返回 |
-| collection_errors | list[object] | 容量附加查询错误；无错误时为空数组 |
+| collection_errors | list[object] | 容量或节点角色附加查询错误；无错误时为空数组 |
 
 #### details.node_details[] 字段
 
@@ -105,12 +109,12 @@ ES 汇总当前 data node 的磁盘信息；Doris 汇总所有非退役 BE 的�
 | name | string/null | 节点名称 |
 | host | string/null | 节点 host |
 | ip | string/null | 节点 IP |
-| roles | list[string] | 节点角色；不同 ES 版本可能返回角色名或角色缩写，统一转换为字符串数组 |
+| roles | list[string] | 通过 `_cat/nodes` 获取的节点角色；不同 ES 版本可能返回角色名或角色缩写，统一转换为字符串数组 |
 | shard_count | int/null | 分配到该节点的 shard 数量 |
 | capacity | object | 节点物理磁盘容量，字段与公共 capacity 完全相同 |
 | indices_store_bytes | int/null | 该节点 `disk.indices` 的字节数 |
 
-`_cat/allocation` 中没有磁盘容量的 UNASSIGNED 汇总行不会进入 `node_details`。
+`_cat/allocation` 中没有磁盘容量的 UNASSIGNED 汇总行不会进入 `node_details`。节点角色来自 `_cat/nodes`，优先按节点名与 allocation 关联，名称缺失时按 IP 关联；角色查询失败时返回空数组，并写入 `collection_errors`。
 
 #### Elasticsearch 示例（include_node_details=true）
 
@@ -172,7 +176,7 @@ ES 汇总当前 data node 的磁盘信息；Doris 汇总所有非退役 BE 的�
 | tablet_count | int/null | 所有非退役 BE 的 tablet 数量汇总 |
 | max_disk_used_percent | float/null | 所有非退役 BE 的最大单盘使用率 |
 | node_details | list[object] | SHOW BACKENDS 节点明细的固定投影；仅 `include_node_details=true` 时返回 |
-| collection_errors | list[object] | SHOW BACKENDS 附加查询错误；无错误时为空数组 |
+| collection_errors | list[object] | SHOW BACKENDS 查询错误；无错误时为空数组。查询失败时无法确认 BE 状态，集群返回 degraded |
 
 #### details.node_details[] 字段
 
@@ -300,12 +304,12 @@ VictoriaMetrics 不返回节点明细和物理容量，公共 `nodes`、`capacit
 
 ### collection_errors 字段
 
-附加查询失败但主健康探测成功时，集群状态不会被覆盖，错误写入固定结构的 `details.collection_errors[]`：
+健康入口已连接、但容量或节点等后续查询失败时，错误写入固定结构的 `details.collection_errors[]`。ES allocation/nodes 失败不覆盖 cluster health 状态；Doris `SHOW BACKENDS` 同时用于判断 BE 健康，失败时集群状态降为 degraded。
 
 | 字段 | 类型 | 描述 |
 |---|---|---|
-| component | string/null | 当前为 `capacity` |
-| code | string/null | `ES_ALLOCATION_QUERY_FAILED` 或 `DORIS_BACKENDS_QUERY_FAILED` |
+| component | string/null | `capacity`、`node_details` 或 `backends` |
+| code | string/null | `ES_ALLOCATION_QUERY_FAILED`、`ES_NODES_QUERY_FAILED` 或 `DORIS_BACKENDS_QUERY_FAILED` |
 | message | string/null | 错误摘要 |
 | details.type | string/null | 异常类型 |
 | details.message | string/null | 异常消息 |
@@ -342,7 +346,7 @@ VictoriaMetrics 不返回节点明细和物理容量，公共 `nodes`、`capacit
 | 标准字段 | 兼容读取的底层字段 |
 |---|---|
 | name | `node`、`name` |
-| roles | `node.role`、`role`、`nodeRole` |
+| roles | `_cat/nodes` 的 `node.role`、`role`、`roles`、`nodeRole` |
 | shard_count | `shards`、`shardCount` |
 | capacity.total_bytes | `disk.total`、`diskTotal` |
 | capacity.used_bytes | `disk.used`、`diskUsed`；缺失时使用 total - available |
@@ -351,7 +355,7 @@ VictoriaMetrics 不返回节点明细和物理容量，公共 `nodes`、`capacit
 | indices_store_bytes | `disk.indices`、`diskIndices` |
 
 - 数字字符串统一转换为 int/float。
-- roles 无论底层返回字符串、逗号分隔字符串还是数组，统一转换为 `list[string]`。
+- roles 无论底层返回字符串、逗号分隔字符串还是数组，统一转换为 `list[string]`；无角色标记 `-` 统一转换为空数组。
 - 版本不提供的可选字段返回 null 或空数组，不新增动态字段。
 
 #### Doris
