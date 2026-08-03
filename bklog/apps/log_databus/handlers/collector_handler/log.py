@@ -488,7 +488,11 @@ class LogCollectorHandler:
             )
 
         if keyword:
-            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(exposed_bk_data_name__icontains=keyword)
+            keyword_filter = (
+                Q(collector_config_name__icontains=keyword)
+                | Q(table_id__icontains=keyword)
+                | Q(exposed_bk_data_name__icontains=keyword)
+            )
             if keyword.isdigit():
                 keyword_filter |= Q(bk_data_id=int(keyword))
             qs = qs.filter(keyword_filter)
