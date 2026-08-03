@@ -28,6 +28,12 @@ class Config(AppConfig):
     label = "bkmonitor"
 
     def ready(self):
+        # 装配 IAM 鉴权框架（必须放在 INSTALLED_APPS 之外，因为 iam/__init__.py
+        # 加载时会触发 action.py 的 _() 翻译调用，而翻译系统需要 apps 已就绪）
+        from bkmonitor.iam.iam_engine.django.conf import load_framework
+
+        load_framework()
+
         # 动态配置库自动更新
         from bkmonitor.define import global_config
         from bkmonitor.models import CacheNode, GlobalConfig

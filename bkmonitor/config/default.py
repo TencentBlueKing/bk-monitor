@@ -1351,6 +1351,38 @@ OFFICIAL_PLUGINS_MANAGERS = []
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
 
+# ---- IAM v4 鉴权 ----
+BK_IAM_APP_CODE = os.getenv("BK_IAM_APP_CODE", APP_CODE)
+BK_IAM_APP_SECRET = os.getenv("BK_IAM_APP_SECRET", SECRET_KEY)
+BK_IAM_V4_API_BASE_URL = os.getenv("BK_IAM_V4_API_BASE_URL", "")
+BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor_v4")
+BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
+
+IAM_FRAMEWORK = {
+    "ACTIONS": "bkmonitor.iam.schema.actions.Actions",
+    "RESOURCE_TYPES": "bkmonitor.iam.schema.resource_types.ResourceTypes",
+    "ROLES": "bkmonitor.iam.schema.roles.Roles",
+    "CREDENTIALS_PROVIDER": "bkmonitor.iam.iam_v4.credentials.resolve_credentials",
+    "PROVIDERS": [
+        {
+            "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+            "options": {
+                "base_url": BK_IAM_V4_API_BASE_URL,
+                "system": {
+                    "id": BK_IAM_V4_SYSTEM_ID,
+                    "name": "蓝鲸监控平台V4",
+                    "description": "蓝鲸监控平台 IAM v4 权限系统",
+                    "callback_url": BK_IAM_V4_CALLBACK_URL,
+                    "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
+                    "clients": [APP_CODE],
+                },
+            },
+        },
+    ],
+    "COMPOSITION": {"policy": "single"},
+    "MIGRATION": {"mode": "manual"},
+}
+
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 

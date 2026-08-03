@@ -27,6 +27,7 @@ from __future__ import annotations
 #     初始化了 self.ctx / self.options
 # ---------------------------------------------------------------------------
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
@@ -82,9 +83,7 @@ class BatchMixin:
         else:
             items = self._parallel_batch(
                 chunks,
-                self._batch_by_resource_page,
-                request.subject,
-                action_id,
+                lambda c: self._batch_by_resource_page(request.subject, action_id, c),
             )
         return BatchAuthResult(items=tuple(items))
 
@@ -115,9 +114,7 @@ class BatchMixin:
         else:
             items = self._parallel_batch(
                 chunks,
-                self._batch_by_action_page,
-                request.subject,
-                request.resource,
+                lambda c: self._batch_by_action_page(request.subject, c, request.resource),
             )
         return BatchAuthResult(items=tuple(items))
 
@@ -137,18 +134,17 @@ class BatchMixin:
     def _parallel_batch(
         self,
         chunks: list[list],
-        fn,
-        subject: Subject,
-        arg,
+        fn: Callable[[list], list[ResourceAuthResult]],
     ) -> list[ResourceAuthResult]:
         """ThreadPoolExecutor 并行执行分片，按 chunk 原始顺序合并结果。
 
+        fn 接收单个 chunk，返回 list[ResourceAuthResult]。
         部分 chunk 失败时聚合所有异常并抛出 ProviderUnavailable。
         """
         items: list[ResourceAuthResult] = []
         max_workers = min(self.MAX_WORKERS, len(chunks))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(fn, subject, arg, chunk): i for i, chunk in enumerate(chunks)}
+            futures = {executor.submit(fn, chunk): i for i, chunk in enumerate(chunks)}
             results_by_idx: dict[int, list[ResourceAuthResult]] = {}
             errors: list[tuple[int, Exception]] = []
             for future in as_completed(futures):

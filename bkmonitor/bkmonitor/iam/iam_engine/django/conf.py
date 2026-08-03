@@ -51,7 +51,6 @@ def _build_system_def(raw: dict) -> SystemDef:
     return SystemDef(
         id=raw["id"],
         name=raw["name"],
-        name_en=raw.get("name_en", ""),
         description=raw.get("description", ""),
         managers=tuple(raw.get("managers", [])),
         clients=tuple(raw.get("clients", [])),

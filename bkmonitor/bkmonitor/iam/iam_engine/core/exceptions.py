@@ -26,6 +26,10 @@ from __future__ import annotations
 class IamEngineError(Exception):
     """iam_engine 所有异常的基类。"""
 
+    def __init__(self, message: str = "", code: int | str = 0):
+        super().__init__(message)
+        self.code = code
+
 
 # ---- 配置类 ----------------------------------------------------------------
 
