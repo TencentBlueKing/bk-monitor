@@ -25,6 +25,7 @@ from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource
 from metadata import models
 from metadata.models.storage import ClusterInfo
+from metadata.service.cluster_status import ClusterStatusService
 from metadata.service.storage_details import StorageClusterDetail
 
 logger = logging.getLogger(__name__)
@@ -347,3 +348,37 @@ class QueryClusterInfoResource(Resource):
             result_list.append(cluster_consul_config)
 
         return result_list
+
+
+class GetClusterStatusResource(Resource):
+    """批量查询存储集群的运行状态。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        cluster_ids = serializers.ListField(
+            label="存储集群ID列表",
+            child=serializers.IntegerField(min_value=1),
+            allow_empty=False,
+            min_length=1,
+            max_length=ClusterStatusService.MAX_CLUSTER_COUNT,
+        )
+        timeout = serializers.IntegerField(
+            label="单次底层探测操作超时时间（秒）",
+            required=False,
+            default=ClusterStatusService.DEFAULT_TIMEOUT,
+            min_value=ClusterStatusService.MIN_TIMEOUT,
+            max_value=ClusterStatusService.MAX_TIMEOUT,
+        )
+        include_node_details = serializers.BooleanField(
+            label="是否返回节点明细",
+            required=False,
+            default=False,
+        )
+
+    def perform_request(self, validated_request_data):
+        return ClusterStatusService.get_statuses(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            cluster_ids=validated_request_data["cluster_ids"],
+            timeout=validated_request_data["timeout"],
+            include_node_details=validated_request_data.get("include_node_details", False),
+        )
