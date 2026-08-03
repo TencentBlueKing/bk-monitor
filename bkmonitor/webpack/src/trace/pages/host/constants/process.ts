@@ -42,19 +42,19 @@ export interface IProcessColumnConfig {
   disabled?: boolean;
   /** 字段 key */
   id: string;
-  /** 列宽 */
-  minWidth?: number;
   /** 列名（i18n key） */
   name: string;
   /** 是否可排序 */
   sortable?: boolean;
   /** 单元格渲染类型，驱动表格 View 选择渲染器 */
   type: 'cpu' | 'fileHandle' | 'host' | 'instanceCount' | 'memory' | 'name' | 'port' | 'text' | 'uptime';
+  /** 列宽 */
+  width?: number;
 }
 
 /** 进程列表全部列配置 */
 export const PROCESS_LIST_COLUMNS: IProcessColumnConfig[] = [
-  { id: 'name', name: window.i18n.t('进程名'), type: 'name', checked: true, disabled: true, minWidth: 220 },
+  { id: 'name', name: window.i18n.t('进程名'), type: 'name', checked: true, disabled: true, width: 220 },
   {
     id: 'instanceCount',
     name: window.i18n.t('实例数'),
@@ -62,13 +62,13 @@ export const PROCESS_LIST_COLUMNS: IProcessColumnConfig[] = [
     checked: true,
     sortable: true,
     align: 'right',
-    minWidth: 100,
+    width: 80,
   },
-  { id: 'user', name: window.i18n.t('运行用户'), type: 'text', checked: true, minWidth: 120 },
-  { id: 'cpuUsage', name: window.i18n.t('CPU 总占用'), type: 'cpu', checked: true, sortable: true, minWidth: 160 },
-  { id: 'memRss', name: window.i18n.t('RSS 总内存'), type: 'memory', checked: true, sortable: true, minWidth: 160 },
-  { id: 'fdNum', name: window.i18n.t('文件句柄'), type: 'fileHandle', checked: true, sortable: true, minWidth: 160 },
-  { id: 'uptime', name: window.i18n.t('运行时长范围'), type: 'uptime', checked: true, minWidth: 140 },
+  { id: 'user', name: window.i18n.t('运行用户'), type: 'text', checked: true, width: 120 },
+  { id: 'cpuUsage', name: window.i18n.t('CPU 总占用'), type: 'cpu', checked: true, sortable: true, width: 160 },
+  { id: 'memRss', name: window.i18n.t('RSS 总内存'), type: 'memory', checked: true, sortable: true, width: 160 },
+  { id: 'fdNum', name: window.i18n.t('文件句柄'), type: 'fileHandle', checked: true, sortable: true, width: 160 },
+  { id: 'uptime', name: window.i18n.t('运行时长范围'), type: 'uptime', checked: true, width: 100 },
 ];
 
 /** 进程详情二级 Tab（Profiling 本期未开发，点击展示占位） */

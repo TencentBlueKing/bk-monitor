@@ -28,12 +28,12 @@ import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } 
 
 import { type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
-import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { PROCESS_LIST_COLUMNS } from '../../constants/process';
 import { useProcessColumnsRenderer } from './hooks/use-process-columns-renderer';
+import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { ProcessItem } from '../../types/process';
 
@@ -62,16 +62,17 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 表格空数据配置：{ emptyText, type } 或自定义渲染函数 */
-    empty: {
-      type: [Object, Function] as PropType<(() => unknown) | { emptyText?: string; type?: 'empty' | 'search-empty' }>,
-      default: undefined,
+    /** 表格空数据类型 */
+    emptyType: {
+      type: String as PropType<'empty' | 'search-empty'>,
+      default: 'empty',
     },
   },
   emits: {
     sortChange: (_v: string) => true,
     columnsChange: (_cols: string[]) => true,
     rowClick: (_row: ProcessItem) => true,
+    clearFilter: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -132,14 +133,13 @@ export default defineComponent({
         class='process-table'
       >
         <PrimaryTable
-          class={`process-table__body ${this.tableSkeletonConfig?.tableClass}`}
+          class={`process-table-body ${this.data.length === 0 ? 'process-table-body--empty' : ''} ${this.tableSkeletonConfig?.tableClass || ''}`}
           v-slots={{
             empty: () => (
-              <Exception
-                class='common-table-empty'
-                description={this.empty?.emptyText || this.t('暂无数据')}
-                scene='part'
-                type={this.empty?.type || 'search-empty'}
+              <ExploreTableEmpty
+                showOperation={this.emptyType === 'search-empty'}
+                type={this.emptyType}
+                onClearFilter={() => this.$emit('clearFilter')}
               />
             ),
           }}
