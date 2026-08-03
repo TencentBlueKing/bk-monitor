@@ -23,6 +23,7 @@ class StorageProbeTarget:
     cluster_id: int
     cluster: models.ClusterInfo | None
     has_current_segment: bool
+    is_configured_current: bool
     has_historical_segment: bool
 
 
@@ -161,7 +162,7 @@ def _resolve_history_table_id(
     table_id: str,
     storages: dict[str, models.ESStorage | models.DorisStorage | None],
     errors: list[dict[str, Any]],
-) -> str:
+) -> str | None:
     origin_table_ids = {storage.origin_table_id for storage in storages.values() if storage and storage.origin_table_id}
     if len(origin_table_ids) > 1:
         errors.append(
@@ -172,7 +173,7 @@ def _resolve_history_table_id(
                 origin_table_ids=sorted(origin_table_ids),
             )
         )
-        return table_id
+        return None
     return next(iter(origin_table_ids), table_id)
 
 
@@ -273,7 +274,12 @@ def _extract_doris_create_table(rows: Any) -> Any:
     return None
 
 
-def build_doris_storage_runtime(raw_runtime: Any) -> dict[str, Any]:
+def build_doris_storage_runtime(
+    raw_runtime: Any,
+    *,
+    connection_cluster_id: int | None = None,
+    is_historical_cluster: bool = False,
+) -> dict[str, Any]:
     """将 DorisBinding/information_schema 原始结果投影为稳定的关键字段。"""
 
     raw_runtime = raw_runtime if isinstance(raw_runtime, Mapping) else {}
@@ -290,6 +296,12 @@ def build_doris_storage_runtime(raw_runtime: Any) -> dict[str, Any]:
 
     return {
         "request_table_id": raw_runtime.get("request_table_id"),
+        "metadata_context": {
+            "connection_cluster_id": connection_cluster_id,
+            "is_historical_cluster": is_historical_cluster,
+            "binding_source": "current_doris_binding",
+            "historical_binding_snapshot_available": False,
+        },
         "binding": _compact_mapping(
             {
                 "name": binding.get("name"),
@@ -340,7 +352,7 @@ class ResultTableStorageStatusService:
             ),
         }
         history_table_id = _resolve_history_table_id(self.table_id, storages, errors)
-        if history_table_id != self.table_id:
+        if history_table_id is not None and history_table_id != self.table_id:
             effective_storage_models = {
                 models.ClusterInfo.TYPE_ES: models.ESStorage,
                 models.ClusterInfo.TYPE_DORIS: models.DorisStorage,
@@ -375,17 +387,28 @@ class ResultTableStorageStatusService:
                 )
             )
 
-        records = list(
-            models.StorageClusterRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id, table_id=history_table_id
-            ).order_by("enable_time", "create_time", "id")
+        records = (
+            list(
+                models.StorageClusterRecord.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id, table_id=history_table_id
+                ).order_by("enable_time", "create_time", "id")
+            )
+            if history_table_id is not None
+            else []
         )
 
         ordered_cluster_ids: list[int] = []
         seen_cluster_ids: set[int] = set()
-        for cluster_id in [record.cluster_id for record in records] + [
+        configured_cluster_id_list = [
             storage.storage_cluster_id for storage in storages.values() if storage is not None
-        ]:
+        ]
+        configured_cluster_ids = set(configured_cluster_id_list)
+        target_cluster_ids = (
+            [record.cluster_id for record in records] + configured_cluster_id_list
+            if history_table_id is not None
+            else []
+        )
+        for cluster_id in target_cluster_ids:
             if cluster_id in seen_cluster_ids:
                 continue
             seen_cluster_ids.add(cluster_id)
@@ -400,7 +423,7 @@ class ResultTableStorageStatusService:
         segments = [_serialize_segment(record, cluster_map.get(record.cluster_id)) for record in records]
         segment_cluster_ids = {record.cluster_id for record in records}
         for storage_type, storage in storages.items():
-            if storage and storage.storage_cluster_id not in segment_cluster_ids:
+            if history_table_id is not None and storage and storage.storage_cluster_id not in segment_cluster_ids:
                 warnings.append(
                     _warning(
                         "STORAGE_CLUSTER_RECORD_MISSING",
@@ -411,7 +434,10 @@ class ResultTableStorageStatusService:
                     )
                 )
 
-        targets = [self._build_target(cluster_id, records, cluster_map) for cluster_id in ordered_cluster_ids]
+        targets = [
+            self._build_target(cluster_id, records, cluster_map, configured_cluster_ids)
+            for cluster_id in ordered_cluster_ids
+        ]
         cluster_results = self._probe_targets(targets, storages)
         return {
             "result_table": _serialize_result_table(result_table),
@@ -439,12 +465,14 @@ class ResultTableStorageStatusService:
         cluster_id: int,
         records: list[models.StorageClusterRecord],
         cluster_map: dict[int, models.ClusterInfo],
+        configured_cluster_ids: set[int],
     ) -> StorageProbeTarget:
         related_records = [record for record in records if record.cluster_id == cluster_id]
         return StorageProbeTarget(
             cluster_id=cluster_id,
             cluster=cluster_map.get(cluster_id),
             has_current_segment=any(record.is_current for record in related_records),
+            is_configured_current=cluster_id in configured_cluster_ids,
             has_historical_segment=any(not record.is_current for record in related_records),
         )
 
@@ -489,9 +517,12 @@ class ResultTableStorageStatusService:
         errors: list[dict[str, Any]] = []
         cluster = target.cluster
         storage_type = cluster.cluster_type if cluster is not None else "unknown"
+        is_current = target.has_current_segment or target.is_configured_current
         result: dict[str, Any] = {
             "storage_type": storage_type,
-            "is_current": target.has_current_segment,
+            "is_current": is_current,
+            "is_current_segment": target.has_current_segment,
+            "is_configured_current": target.is_configured_current,
             "cluster": _serialize_cluster(cluster),
             "health": None,
             "runtime": None,
@@ -572,13 +603,27 @@ class ResultTableStorageStatusService:
                 else:
                     warnings.append(item)
         else:
+            is_historical_cluster = not target.is_configured_current
+            if is_historical_cluster:
+                warnings.append(
+                    _warning(
+                        "HISTORICAL_DORIS_BINDING_NOT_SNAPSHOTTED",
+                        "仅连接信息切换到历史 Doris 集群；DorisBinding 和物理库表名仍来自当前配置，"
+                        "查询结果可能为空或指向不同物理表",
+                        cluster_id=target.cluster_id,
+                    )
+                )
             raw_runtime = storage.query_physical_storage_metadata(
                 storage_cluster_id=cluster.cluster_id, timeout=self.timeout
             )
             raw_runtime = serialize_es_runtime_value(raw_runtime)
             warnings.extend(raw_runtime.get("warnings", []))
             errors.extend(raw_runtime.get("errors", []))
-            result["runtime"] = build_doris_storage_runtime(raw_runtime)
+            result["runtime"] = build_doris_storage_runtime(
+                raw_runtime,
+                connection_cluster_id=cluster.cluster_id,
+                is_historical_cluster=is_historical_cluster,
+            )
         return result
 
     @staticmethod
@@ -586,7 +631,9 @@ class ResultTableStorageStatusService:
         cluster = target.cluster
         return {
             "storage_type": cluster.cluster_type if cluster is not None else "unknown",
-            "is_current": target.has_current_segment,
+            "is_current": target.has_current_segment or target.is_configured_current,
+            "is_current_segment": target.has_current_segment,
+            "is_configured_current": target.is_configured_current,
             "cluster": _serialize_cluster(cluster),
             "health": None,
             "runtime": None,

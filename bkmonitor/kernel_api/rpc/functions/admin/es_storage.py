@@ -510,7 +510,10 @@ def get_es_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_ES_STORAGE_RUNTIME_OVERVIEW,
     summary="Admin 查询 ESStorage 运行时 ES 概览",
-    description="inspect 级别能力，访问目标 ES 集群读取索引、别名和 mapping；单类查询失败不影响整体返回。",
+    description=(
+        "inspect 级别能力，访问目标 ES 集群读取索引、别名和 mapping；单类查询失败不影响整体返回。"
+        "为兼容既有 Admin 调用方，索引项保留 store_size 和 stats；Metadata Resource 不返回这些兼容字段。"
+    ),
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "table_id": "必填，ESStorage.table_id",
@@ -538,6 +541,7 @@ def get_es_storage_runtime_overview(params: dict[str, Any]) -> dict[str, Any]:
         runtime_cluster=runtime_cluster,
         includes=includes,
         index=index,
+        include_legacy_index_fields=True,
     )
     data["inspect"] = True
     data["storage_cluster"] = _serialize_cluster_summary(runtime_cluster)

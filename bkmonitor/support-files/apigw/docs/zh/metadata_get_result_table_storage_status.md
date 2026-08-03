@@ -48,7 +48,7 @@ GET /app/metadata/get_result_table_storage_status/
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
 | result_table | object | 请求结果表的基础信息，包括 `table_id`、`bk_tenant_id`、`bk_biz_id`、`default_storage`、启用/删除状态等 |
-| history_table_id | string | 历史分段实际所属结果表；虚拟结果表为实体表 `origin_table_id`，其他情况等于请求的 `table_id` |
+| history_table_id | string/null | 历史分段实际所属结果表；虚拟结果表为实体表 `origin_table_id`，其他情况等于请求的 `table_id`。ES/Doris 指向不同实体表时为 `null`，并停止运行时探测 |
 | storage_configs | object | 当前 ES/Doris 安全配置，键为 `elasticsearch`、`doris`；未配置的类型值为 `null` |
 | segments | array | 完整历史存储分段，按启用时间、创建时间、记录 ID 排序 |
 | cluster_results | object | 按集群去重后的健康状态和运行时信息；key 为字符串形式的 `cluster_id`，顺序与历史集群首次出现顺序一致 |
@@ -76,7 +76,9 @@ GET /app/metadata/get_result_table_storage_status/
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
 | storage_type | string | `elasticsearch`、`doris` 或 `unknown` |
-| is_current | bool | 是否存在关联到该集群的当前分段 |
+| is_current | bool | `is_current_segment` 或 `is_configured_current` 任一为 true；用于兼容判断当前集群 |
+| is_current_segment | bool | 是否存在 `is_current=true` 的关联历史分段 |
+| is_configured_current | bool | 当前 ESStorage/DorisStorage 是否指向该集群；配置缺少历史分段时仍可为 true |
 | cluster | object/null | 脱敏集群信息，包括 ID、名称、类型、域名、端口、版本及协议 |
 | health | object/null | `ClusterInfo.health_check` 标准化结果；未执行或集群配置缺失时为 `null` |
 | runtime | object/null | ES 或 Doris 运行时信息 |
@@ -132,6 +134,7 @@ GET /app/metadata/get_result_table_storage_status/
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
 | request_table_id | string | 本次请求的 Storage 表 ID |
+| metadata_context | object | 元信息来源上下文，说明实际连接集群、是否历史集群以及 Binding 快照情况 |
 | binding | object | DorisBinding 摘要：`name`、`namespace`、`phase`、`message`、物理表名及其来源 |
 | table | object/null | 物理表摘要 |
 | columns | array | 按字段顺序返回的字段摘要 |
@@ -143,6 +146,8 @@ GET /app/metadata/get_result_table_storage_status/
 `columns` 每项仅包含：`name`、`position`、`is_nullable`、`data_type`、`column_type`、`key`、`default`、`extra`、`character_set`、`collation`、`comment`。
 
 `partitions` 每项仅包含：`name`、`position`、`method`、`expression`、`description`、`rows`、`data_length_bytes`、`index_length_bytes`、`create_time`、`update_time`。对应 Doris 版本不提供的字段会省略，不透传 `information_schema` 原始整行数据。
+
+历史 Doris 集群采用 best-effort 语义：`metadata_context.connection_cluster_id` 是实际连接的历史集群，但 `binding_source` 固定为 `current_doris_binding`。历史记录没有保存当时的 DorisBinding 或物理库表名；因此历史查询可能为空或指向与当时不同的物理表，并返回 `HISTORICAL_DORIS_BINDING_NOT_SNAPSHOTTED` 告警。
 
 ### 响应参数示例
 
@@ -183,6 +188,8 @@ GET /app/metadata/get_result_table_storage_status/
         "cluster_id": 1,
         "storage_type": "elasticsearch",
         "is_current": true,
+        "is_current_segment": true,
+        "is_configured_current": true,
         "is_deleted": false,
         "creator": "admin",
         "create_time": "2026-08-03T10:00:00+08:00",
@@ -274,5 +281,8 @@ GET /app/metadata/get_result_table_storage_status/
 ### 注意事项
 
 - 最多并发探测 4 个唯一集群；`timeout` 作用于每次下游 I/O，不是整个接口的总耗时上限。
+- 单个受管 ES 集群正常路径会依次执行健康检查、索引 stats、cat、settings、aliases；v2 没有命中时 stats 还会回退查询 v1，理论上最多约为 `6 × timeout`。外部 ES 不查询 aliases，正常路径约为 `4 × timeout`。
+- 单个 Doris 集群会依次执行健康检查、连接及 4 条元信息 SQL；连接和每次读取分别受 `timeout` 约束。因此调用方/APIGW 超时时间应高于单次 I/O timeout。
 - `result=true` 不代表每个集群探测均成功，请同时检查顶层及各 `cluster_results` 中的 `warnings`、`errors`。
 - 健康探测不可用时不会继续查询该集群的运行时信息，此时 `runtime_skipped=true`。
+- 当前框架没有可安全中断阻塞中下游 I/O 的请求取消信号；客户端提前断开后，已提交的集群 worker 仍会完成或等待自身 I/O timeout。

@@ -175,6 +175,8 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
     es_result = result["cluster_results"][str(es_cluster.cluster_id)]
     doris_result = result["cluster_results"][str(doris_cluster.cluster_id)]
     assert "segment_ids" not in es_result
+    assert es_result["is_current_segment"] is True
+    assert es_result["is_configured_current"] is True
     assert es_result["runtime"]["aliases"]["queried"] is False
     assert doris_result["runtime"]["table"] == {"name": "storage_status", "rows": 3}
     assert doris_result["runtime"]["columns"] == [
@@ -307,6 +309,12 @@ def test_resource_timeout_serializer_defaults_and_validates_range():
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_resource_request_reports_missing_result_table():
+    with pytest.raises(ValueError, match="结果表不存在"):
+        GetResultTableStorageStatus().request({"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.not_exists"})
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_runtime_error_is_returned_without_failing_whole_response(mocker):
     table_id = "2_bklog.storage_partial"
     _create_result_table(table_id, models.ClusterInfo.TYPE_DORIS)
@@ -373,8 +381,38 @@ def test_missing_cluster_and_other_tenant_history_are_reported_safely():
     assert [segment["id"] for segment in result["segments"]] == [own_segment.id]
     assert list(result["cluster_results"]) == [str(missing_cluster_id)]
     cluster_result = result["cluster_results"][str(missing_cluster_id)]
+    assert cluster_result["is_current"] is True
+    assert cluster_result["is_current_segment"] is True
+    assert cluster_result["is_configured_current"] is True
     assert cluster_result["runtime_skipped"] is True
     assert cluster_result["errors"][0]["code"] == "STORAGE_CLUSTER_NOT_FOUND"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_storage_config_without_segment_is_still_reported_as_current(mocker):
+    table_id = "2_bklog.config_without_segment"
+    _create_result_table(table_id, models.ClusterInfo.TYPE_ES)
+    cluster = _create_cluster(96002, models.ClusterInfo.TYPE_ES)
+    models.ESStorage.objects.create(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        storage_cluster_id=cluster.cluster_id,
+        need_create_index=False,
+        index_set="external-*",
+    )
+    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch(
+        "metadata.service.result_table_storage_status.query_es_storage_runtime",
+        return_value=({"indices": {"count": 0, "items": []}, "aliases": {"queried": False}}, []),
+    )
+
+    result = ResultTableStorageStatusService(bk_tenant_id=TENANT_ID, table_id=table_id).query()
+
+    cluster_result = result["cluster_results"][str(cluster.cluster_id)]
+    assert cluster_result["is_current"] is True
+    assert cluster_result["is_current_segment"] is False
+    assert cluster_result["is_configured_current"] is True
+    assert result["warnings"][0]["code"] == "STORAGE_CLUSTER_RECORD_MISSING"
 
 
 def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fields():
@@ -416,11 +454,19 @@ def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fie
                 ],
                 "show_create_table": [{"CREATE TABLE": "CREATE TABLE `demo` (...)"}],
             },
-        }
+        },
+        connection_cluster_id=42,
+        is_historical_cluster=True,
     )
 
     assert runtime == {
         "request_table_id": "2_bklog.demo",
+        "metadata_context": {
+            "connection_cluster_id": 42,
+            "is_historical_cluster": True,
+            "binding_source": "current_doris_binding",
+            "historical_binding_snapshot_available": False,
+        },
         "binding": {
             "name": "demo",
             "namespace": "bklog",
@@ -434,3 +480,90 @@ def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fie
         "partitions": [{"name": "p1", "method": "RANGE", "description": "LESS THAN ('2026-08-04')"}],
         "create_table": "CREATE TABLE `demo` (...)",
     }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_historical_doris_uses_current_binding_with_explicit_best_effort_context(mocker):
+    table_id = "2_bklog.doris_history"
+    _create_result_table(table_id, models.ClusterInfo.TYPE_DORIS)
+    old_cluster = _create_cluster(97001, models.ClusterInfo.TYPE_DORIS)
+    current_cluster = _create_cluster(97002, models.ClusterInfo.TYPE_DORIS)
+    models.DorisStorage.objects.create(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        storage_cluster_id=current_cluster.cluster_id,
+        bkbase_table_id="2_bklog_doris_history",
+    )
+    _create_segment(
+        table_id,
+        old_cluster.cluster_id,
+        datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        is_current=False,
+    )
+    _create_segment(
+        table_id,
+        current_cluster.cluster_id,
+        datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+        is_current=True,
+    )
+    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(
+        models.DorisStorage,
+        "query_physical_storage_metadata",
+        return_value={
+            "request_table_id": table_id,
+            "doris_binding": {
+                "physical_table_name": "current_db.current_table",
+                "physical_table_name_source": "metadata.annotations.PhysicalTableName",
+            },
+            "physical_metadata": {},
+            "warnings": [],
+            "errors": [],
+        },
+    )
+
+    result = ResultTableStorageStatusService(bk_tenant_id=TENANT_ID, table_id=table_id).query()
+
+    old_result = result["cluster_results"][str(old_cluster.cluster_id)]
+    current_result = result["cluster_results"][str(current_cluster.cluster_id)]
+    assert old_result["is_current"] is False
+    assert old_result["runtime"]["metadata_context"] == {
+        "connection_cluster_id": old_cluster.cluster_id,
+        "is_historical_cluster": True,
+        "binding_source": "current_doris_binding",
+        "historical_binding_snapshot_available": False,
+    }
+    assert "HISTORICAL_DORIS_BINDING_NOT_SNAPSHOTTED" in {warning["code"] for warning in old_result["warnings"]}
+    assert current_result["runtime"]["metadata_context"]["is_historical_cluster"] is False
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_conflicting_origin_tables_block_runtime_probe(mocker):
+    table_id = "2_bklog.origin_conflict"
+    _create_result_table(table_id, models.ClusterInfo.TYPE_ES)
+    es_cluster = _create_cluster(98001, models.ClusterInfo.TYPE_ES)
+    doris_cluster = _create_cluster(98002, models.ClusterInfo.TYPE_DORIS)
+    models.ESStorage.objects.create(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        origin_table_id="2_bklog.origin_es",
+        storage_cluster_id=es_cluster.cluster_id,
+        need_create_index=False,
+        index_set="external-*",
+    )
+    models.DorisStorage.objects.create(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        origin_table_id="2_bklog.origin_doris",
+        storage_cluster_id=doris_cluster.cluster_id,
+        bkbase_table_id="2_bklog_origin_doris",
+    )
+    health_check = mocker.patch.object(models.ClusterInfo, "health_check")
+
+    result = ResultTableStorageStatusService(bk_tenant_id=TENANT_ID, table_id=table_id).query()
+
+    assert result["history_table_id"] is None
+    assert result["segments"] == []
+    assert result["cluster_results"] == {}
+    assert result["errors"][0]["code"] == "STORAGE_ORIGIN_TABLE_CONFLICT"
+    health_check.assert_not_called()
