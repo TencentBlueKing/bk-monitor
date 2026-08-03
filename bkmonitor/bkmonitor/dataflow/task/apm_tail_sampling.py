@@ -21,6 +21,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import ElasticsearchStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
+from constants.apm import normalize_app_name
 
 
 class EmptyRealTimeNode(RealTimeNode):
@@ -49,11 +50,7 @@ class EmptyRealTimeNode(RealTimeNode):
 
     @property
     def table_name(self):
-        # 与 apm.models.datasource.ApmDataSourceConfigBase.normalize_app_name 保持一致：
-        # 将 `-`、`.` 归一为 `_`，并统一小写，兼容大小写混用的 app_name。
-        # 此处直接内联实现，避免底层 dataflow 模块反向依赖 apm.models。
-        normalized = self.app_name.replace("-", "_").replace(".", "_").lower()
-        return f"tail_{normalized}_output"
+        return f"tail_{normalize_app_name(self.app_name)}_output"
 
     @property
     def _sql(self):

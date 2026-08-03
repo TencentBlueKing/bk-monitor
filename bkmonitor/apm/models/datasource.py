@@ -107,11 +107,12 @@ class ApmDataSourceConfigBase(models.Model):
     @classmethod
     def normalize_app_name(cls, app_name: str) -> str:
         """
-        统一转义 app_name 中的非法字符（`.`、`-`）为 `_`，并统一小写化，
-        用于拼接 table_id / data_name / event_group_name / ES 索引名等下游资源名。
-        小写化用于允许 app_name 大小写混用，但下游存储命名保持规范。
+        Deprecated: 已迁移至 `constants.apm.normalize_app_name`，此处保留为向后兼容 shim。
+        新代码请直接 `from constants.apm import normalize_app_name`。
         """
-        return app_name.replace("-", "_").replace(".", "_").lower()
+        from constants.apm import normalize_app_name as _normalize_app_name
+
+        return _normalize_app_name(app_name)
 
     @classmethod
     def start(cls, bk_biz_id, app_name):

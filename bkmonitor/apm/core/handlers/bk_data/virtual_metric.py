@@ -17,10 +17,11 @@ from django.utils.translation import gettext_lazy as _
 
 from apm import constants
 from apm.core.handlers.bk_data.flow import ApmFlow
-from apm.models import ApmApplication, ApmDataSourceConfigBase
+from apm.models import ApmApplication
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.dataflow.task.apm_metrics import APMVirtualMetricTask
 from common.log import logger
+from constants.apm import normalize_app_name
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from metadata.models.storage import DataBusStatus
@@ -53,14 +54,12 @@ class VirtualMetricFlow:
     @property
     def datasource_name(self):
         # 数据源id
-        # 与 ApmDataSourceConfigBase.normalize_app_name 保持一致，兼容大小写混用的 app_name。
-        return f"{self.PREFIX}_{ApmDataSourceConfigBase.normalize_app_name(self.app_name)}"[-50:]
+        return f"{self.PREFIX}_{normalize_app_name(self.app_name)}"[-50:]
 
     @property
     def datasource_cleans_table_id(self):
         # 数据源清洗结果表id
-        # 与 ApmDataSourceConfigBase.normalize_app_name 保持一致，兼容大小写混用的 app_name。
-        return f"{self.PREFIX}_{ApmDataSourceConfigBase.normalize_app_name(self.app_name)}"
+        return f"{self.PREFIX}_{normalize_app_name(self.app_name)}"
 
     @property
     def datasource_cleans_table_id_with_biz(self):

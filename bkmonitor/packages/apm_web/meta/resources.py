@@ -134,6 +134,7 @@ from constants.apm import (
     StandardFieldCategory,
     TailSamplingSupportMethod,
     TelemetryDataType,
+    normalize_app_name,
 )
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel
@@ -286,18 +287,16 @@ class CheckDuplicateNameResource(Resource):
         # 与 Application.check_application 保持一致的重名判定口径：
         # 1) 大小写不敏感的精确重名（MyApp 与 myapp 视为同名）；
         # 2) 归一化后重名（my.app / my-app / MyApp 归一化后均为 myapp）。
-        from apm.models import ApmDataSourceConfigBase
-
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
 
         if Application.origin_objects.filter(bk_biz_id=bk_biz_id, app_name__iexact=app_name).exists():
             return {"exists": True}
 
-        normalized = ApmDataSourceConfigBase.normalize_app_name(app_name)
+        normalized = normalize_app_name(app_name)
         exist_names = Application.origin_objects.filter(bk_biz_id=bk_biz_id).values_list("app_name", flat=True)
         for exist_name in exist_names:
-            if ApmDataSourceConfigBase.normalize_app_name(exist_name) == normalized:
+            if normalize_app_name(exist_name) == normalized:
                 return {"exists": True}
 
         return {"exists": False}

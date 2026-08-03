@@ -23,6 +23,7 @@ from pypinyin import lazy_pinyin
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
+from constants.apm import normalize_app_name
 from metadata.models.data_link.constants import (
     DataLinkKind,
     DataLinkResourceStatus,
@@ -131,12 +132,12 @@ def _sanitize_name(raw: str) -> str:
         if "\u4e00" <= char <= "\u9fff":
             parts.append(lazy_pinyin(char)[0])
         elif char == ".":
-            # 点号保留为下划线，与 ApmDataSourceConfigBase.normalize_app_name 一致
+            # 点号保留为下划线，与 constants.apm.normalize_app_name 一致
             parts.append("_")
         elif not re.match(MATCH_DATA_NAME_PATTERN, char):
             parts.append(char)
     refine = "".join(parts)
-    # 统一小写化，与 ApmDataSourceConfigBase.normalize_app_name 一致
+    # 统一小写化，与 constants.apm.normalize_app_name 一致
     refine = refine.replace(" ", "").replace("-", "_").lower()
     return re.sub(r"_+", "_", refine)
 
@@ -250,12 +251,10 @@ class BkDataDorisProvider:
         cls, obj: "ProfileDataSource", maintainer: str, operator: str, name_stuffix: str = None
     ) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
-        # 保持与 ApmDataSourceConfigBase.normalize_app_name 一致：
+        # 保持与 constants.apm.normalize_app_name 一致：
         # `-`、`.` 均转为 `_`，并统一小写化（放开 app_name 大小写后仍保持下游命名规范）
-        from .datasource import ApmDataSourceConfigBase
-
         raw_name = obj.app_name if not name_stuffix else f"{obj.app_name}{name_stuffix}"
-        pure_app_name = ApmDataSourceConfigBase.normalize_app_name(raw_name)
+        pure_app_name = normalize_app_name(raw_name)
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
             app_name=obj.app_name,
