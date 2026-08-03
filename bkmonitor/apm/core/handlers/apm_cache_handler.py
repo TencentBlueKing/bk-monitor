@@ -1,7 +1,9 @@
 import json
 import logging
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any
 
 from django.conf import settings
 
@@ -86,13 +88,20 @@ class ApmCacheHandler:
             return ".".join(key_parts)
 
     @contextmanager
-    def distributed_lock(self, lock_type: str, ttl: int = 600, **kwargs):
+    def distributed_lock(
+        self,
+        lock_type: str,
+        ttl: int = 600,
+        wait_time: float = 0.1,
+        **kwargs: Any,
+    ) -> Iterator["ApmLock"]:
         """
         分布式锁上下文管理器，仿造service_lock的实现方式
 
         Args:
             lock_type: 锁类型，如 'topo_discover', 'datasource_discover'
             ttl: 锁的过期时间（秒），默认10分钟
+            wait_time: 获取锁的最长等待时间（秒）
             **kwargs: 用于生成锁key的参数
         """
         lock = None
@@ -100,12 +109,10 @@ class ApmCacheHandler:
 
         try:
             lock = ApmLock(lock_key, ttl, self.redis_client)
-            if lock.acquire(0.1):
+            if lock.acquire(wait_time):
                 yield lock
             else:
                 raise LockError(msg=f"{lock_key} is already locked")
-        except LockError as err:
-            raise err
         finally:
             if lock is not None:
                 lock.release()
