@@ -26,6 +26,7 @@
 
 import { Ref } from 'vue';
 
+import { getSelectionRanges } from '@/common/selection-util';
 import { parseTableRowData } from '@/common/util';
 import { getLocationQueryParams } from '@/utils';
 
@@ -107,15 +108,12 @@ class RetrieveHelper extends RetrieveBase {
    * @param lineSpacing 行间距，默认为0，如果 > 0，点击位置在行间距内也判定为点击在选择区域内
    */
   isClickOnSelection(e: MouseEvent, lineSpacing = 0) {
-    const selection = window.getSelection();
+    // 事件 target 用于定位 shadow root：Trace 宿主下 document 选区会被 retarget 到 shadow host，
+    // 矩形会退化成整个宿主容器，导致容器内任意点击都被判定为点在选区上
+    const ranges = getSelectionRanges(e.target as Node);
 
     // 如果没有选中文本，直接返回 false
-    if (!selection || selection.isCollapsed) {
-      return false;
-    }
-
-    const rangeCount = selection.rangeCount;
-    if (rangeCount === 0) {
+    if (!ranges.length) {
       return false;
     }
 
@@ -126,7 +124,11 @@ class RetrieveHelper extends RetrieveBase {
     };
 
     // 遍历所有选中的范围
-    for (const range of Array.from({ length: rangeCount }, (_, i) => selection.getRangeAt(i))) {
+    for (const range of ranges) {
+      if (range.collapsed) {
+        continue;
+      }
+
       // 获取范围的边界矩形
       const rects = range.getClientRects();
 
