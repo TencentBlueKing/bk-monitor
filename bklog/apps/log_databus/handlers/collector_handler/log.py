@@ -427,6 +427,7 @@ class LogCollectorHandler:
 
     def get_collector_config_info(
         self,
+        keyword: str = None,
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
@@ -446,6 +447,7 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取采集项信息
+        :param keyword: 旧版单关键词搜索
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
@@ -476,7 +478,7 @@ class LogCollectorHandler:
         if exclude_not_completed:
             qs = qs.filter(table_id__isnull=False)
 
-        if bk_data_name_list:
+        if keyword or bk_data_name_list:
             qs = qs.alias(
                 exposed_bk_data_name=Replace(
                     F("table_id"),
@@ -484,6 +486,12 @@ class LogCollectorHandler:
                     Value("_"),
                 )
             )
+
+        if keyword:
+            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(exposed_bk_data_name__icontains=keyword)
+            if keyword.isdigit():
+                keyword_filter |= Q(bk_data_id=int(keyword))
+            qs = qs.filter(keyword_filter)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
@@ -582,6 +590,7 @@ class LogCollectorHandler:
 
     def get_log_index_set_info(
         self,
+        keyword: str = None,
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         index_set_name_list: list = None,
@@ -596,6 +605,7 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取索引集内容
+        :param keyword: 旧版单关键词搜索
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param index_set_name_list: 索引集名称
@@ -672,6 +682,20 @@ class LogCollectorHandler:
 
             log_index_sets = log_index_sets.filter(index_set_id__in=matched_index_set_ids)
 
+        if keyword:
+            normalized_keyword = keyword.lower()
+            keyword_index_set_ids = [
+                index_set_id
+                for index_set_id, index_set_data_objs in index_set_data_objs_map.items()
+                if normalized_keyword
+                in self.build_index_set_bk_data_name(
+                    [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
+                ).lower()
+            ]
+            log_index_sets = log_index_sets.filter(
+                Q(index_set_name__icontains=keyword) | Q(index_set_id__in=keyword_index_set_ids)
+            )
+
         index_set_ids = []
         source_ids = []
         for obj in log_index_sets:
@@ -746,6 +770,7 @@ class LogCollectorHandler:
 
     def get_log_collectors(self, data):
         """获取日志采集信息"""
+        keyword = data.get("keyword")
         conditions = data.get("conditions", [])
         include_related_spaces = data.get("include_related_spaces", False)
         scenario_id_list = []
@@ -794,6 +819,7 @@ class LogCollectorHandler:
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
+            keyword=keyword,
             parent_index_set_id=data.get("parent_index_set_id"),
             scenario_id_list=scenario_id_list,
             collector_config_name_list=name_list,
@@ -824,6 +850,7 @@ class LogCollectorHandler:
         else:
             # 获取索引集信息
             log_index_sets = self.get_log_index_set_info(
+                keyword=keyword,
                 parent_index_set_id=data.get("parent_index_set_id"),
                 scenario_id_list=scenario_id_list,
                 index_set_name_list=name_list,

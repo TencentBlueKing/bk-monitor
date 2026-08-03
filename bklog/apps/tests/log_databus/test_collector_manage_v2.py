@@ -344,6 +344,19 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             {"key": "query", "value": ["nginx", "1500", "default-es"]},
         )
 
+    def test_serializer_accepts_legacy_keyword(self):
+        serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "keyword": "CURRENT_COLLECTOR",
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["keyword"], "CURRENT_COLLECTOR")
+
     def test_serializer_validates_log_collector_ordering(self):
         serializer = LogCollectorSerializer(data={"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE})
         self.assertTrue(serializer.is_valid())
@@ -959,6 +972,66 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
 
         collectors = self._collectors_from_result(result)
         self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
+
+    def test_get_log_collectors_searches_collector_with_legacy_keyword(self):
+        base_data = {
+            "space_uid": CURRENT_SPACE_UID,
+            "page": PAGE,
+            "pagesize": PAGESIZE,
+        }
+
+        for keyword in ("CURRENT_COLLECTOR", "BKLOG_CURRENT", str(self.current_collector.bk_data_id)):
+            with self.subTest(keyword=keyword):
+                result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors({**base_data, "keyword": keyword})
+                collectors = self._collectors_from_result(result)
+                self.assertEqual(
+                    [item["collector_config_id"] for item in collectors],
+                    [self.current_collector.pk],
+                )
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors({**base_data, "keyword": "0058"})
+        self.assertEqual(self._collectors_from_result(result), [])
+
+    def test_get_log_collectors_searches_index_set_with_legacy_keyword(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "keyword": "SECOND,2_BKBASE.FI",
+            }
+        )
+
+        self.assertIn(index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
+
+    def test_legacy_keyword_and_query_condition_have_and_relationship(self):
+        base_data = {
+            "space_uid": CURRENT_SPACE_UID,
+            "page": PAGE,
+            "pagesize": PAGESIZE,
+            "keyword": "CURRENT_COLLECTOR",
+        }
+
+        matched_result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {**base_data, "conditions": [{"key": "query", "value": [str(self.current_collector.bk_data_id)]}]}
+        )
+        self.assertEqual(
+            [item["collector_config_id"] for item in self._collectors_from_result(matched_result)],
+            [self.current_collector.pk],
+        )
+
+        unmatched_result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {**base_data, "conditions": [{"key": "query", "value": ["missing"]}]}
+        )
+        self.assertEqual(self._collectors_from_result(unmatched_result), [])
 
     def test_get_log_collectors_searches_storage_display_name_with_query_condition(self):
         def add_cluster_info(data):
