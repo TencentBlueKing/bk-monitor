@@ -281,3 +281,37 @@ Knowledge update: updated.
   - `retrieve-helper.tsx`：`isClickOnSelection` 改为 `getSelectionRanges(e.target)`；
   - `use-json-formatter.ts`：段点击守卫改为 `getSelectionText(e.target)`。
 - 约束：读取选区必须传入 contextNode（组件根或事件 target）以定位 shadow root 链；回写禁止只靠 `removeAllRanges + addRange`。
+- 附带：`ip-selector.vue` / `search-result-panel/index.vue` 将 `defineProps` 挪到 `#if MONITOR_APP` 条件编译块之前，避免 apm/trace 条件编译裁剪异步组件时影响 props 声明顺序。
+
+## 2026-07-29 Monitor 嵌入包 retrieve-search / trend-chart Worker Blob 内联
+
+- 场景：APM / Trace 日志组件通过 `scripts/create-monitor.js` 预构建为 CommonJS npm 包（`@blueking/monitor-apm-log`、`@blueking/monitor-trace-log`）。宿主只引入 `main` + `css/main.css`，检索链路已走 `retrieveSearchWorkerService` → `retrieve-search.worker.ts`（另有趋势图 `trend-chart-worker.ts`）。
+- 根因（三类叠加）：
+  1. `output.publicPath: ""` 且运行时 `__webpack_require__.b = undefined`，`new Worker(new URL("548.js", undefined))` 相对站点根找文件；宿主也不会把 `node_modules` 里的 worker chunk 打进静态资源。
+  2. 全局 `chunkFormat: "commonjs"` 落到 worker chunk；`548.js` 还异步依赖 `495.js`，worker 内缺少可用的 `importScripts` 拉 chunk，即使拷贝文件也极易挂。
+  3. 日志主站在 `main.js` 调 `performanceMonitorService.init(router)` 注册 `__BKLOG_WORKERS__`；monitor 入口 `initWindowState` 原先只设 `__IS_MONITOR_*`，嵌入运行时无 Work 诊断面。
+- 决策：Monitor 构建把 Worker **内联为 Blob**，宿主零改动；日志主站继续用 `new Worker(new URL(..., import.meta.url))`。
+  - 工厂拆分：默认工厂与 worker 同目录（`src/storage/workers/create-retrieve-search-worker.ts`、`src/hooks/workers/create-trend-chart-worker.ts`）；Monitor 变体放在 `src/views/retrieve-v3/monitor/worker-factories/`，用 `worker-loader?inline=no-fallback`。
+  - `create-monitor.js` 用 `NormalModuleReplacementPlugin` 在构建期把默认工厂替换为 monitor 变体（跳过 `worker-factories` 自身，防循环）；`DropExternalWorkerAssetsPlugin` 删除残留数字 chunk / `*.worker.js` / 散落 `*.ts` 资产，npm 包仍以 `main.js` + `css/` 为主。
+  - `optimization.splitChunks: false`，尽量单 main；`workerChunkLoading: "import-scripts"` 仅兜底残留路径。
+  - `apm.ts` / `trace.ts` 的 `initWindowState` 补调 `performanceMonitorService.init()`（不强制绑 fakeRouter），注册 `workerManager` / `window.__BKLOG_WORKERS__`。
+- 依赖：devDependency 增加 `worker-loader@3`。
+- 验证：`npm run build:trace` / `build:apm` 产物无外部 `548.js`/`495.js`；`main.js` 内可见 `URL.createObjectURL` + worker-loader 工厂；控制台 `window.__BKLOG_WORKERS__.ping('retrieve-search-ingest')` 应 `ok: true`。
+- 约束 / 权衡：
+  - 不要让宿主去拷贝/托管独立 worker 静态文件作为默认方案；嵌入场景以 Blob 内联为准。
+  - main.js 体积会增大（内联 worker + 如 json-bignumber 等依赖），换取加载稳定。
+  - 禁止把 monitor 专用 `worker-loader` 工厂放进 `storage/utils` 或 hooks 根目录，避免与主站路径混淆；默认工厂跟 worker，monitor 变体跟 monitor 入口。
+  - 若日后宿主愿意托管静态 worker，可再加 `external chunk + __BKLOG_MONITOR_PUBLIC_PATH__` 双模式；当前不实现。
+
+## 2026-07-31 内联 Worker 里的 `require is not defined`
+
+- 现象：APM / Trace 嵌入包运行到 Worker 时报 `Uncaught ReferenceError: require is not defined (blob:.../xxx:5730:38)`，该行是 `const external_vue_namespaceObject = require("vue");`。
+- 根因：`worker-loader` 会把**父编译**的 externals 原样套到 Worker 子编译上（`worker-loader/dist/index.js` 中 `if (compilerOptions.externals) new ExternalsPlugin(getExternalsType(compilerOptions), ...)`）。Monitor 构建是 CommonJS 库（`externalsType: "commonjs"`，externals 含 `vue` / `dayjs`），于是 Worker 产物里出现 `require(...)`，而 Blob Worker 没有 CommonJS 运行时。
+  - `retrieve-search.worker` 命中 `require("vue")`；`trend-chart-worker` 命中 `require("dayjs")` 及其 utc / timezone 插件。
+- 决策（两层）：
+  1. 构建层根治：新增 `scripts/inline-worker-loader.js` 包装 `worker-loader`，在 `pitch` 的同步窗口内把父编译选项临时改为「Worker 自包含」（清 `externals` / `externalsType`，`output.library` 置空，`chunkFormat: "array-push"` + `chunkLoading: "import-scripts"`），返回前还原。`webpack` 的 `createChildCompiler` 同步展开 `compiler.options`，`ExternalsPlugin` 也在同步段构造，故同 tick 改完即还原是安全的。经由 `create-monitor.js` 的 `resolveLoader.alias` 以 `monitor-inline-worker-loader` 注入，两个 worker 工厂改引该名字。
+  2. 源码层收口：Worker 依赖图不应触达 vue。`page-highlight.ts` 持有 `reactive` 状态，把其中纯计算部分（`HighlightRange` / `HighlightSegment` / `parseResultMarkedText` / `mapGlobalRangesToSegments` / `escapeHtml`）拆到 `src/views/retrieve-core/highlight-range.ts`，`page-highlight.ts` 再导出以保持既有引用；`optimizedSplit` 从 DOM 工具集 `hooks/hooks-helper.ts` 移到 `hooks/optimized-split.ts`。`lucene.segment.ts`、`storage/utils/retrieve-render-meta.ts` 一律改引纯模块。
+- 验证：`MONITOR_APP=apm|trace bkmonitor-cli build --log` 后，从 `main.js` 抽出内联 worker 源码，裸 `require(` 为 0、无 vue 引用，并可在 `vm` 沙箱内求值通过（`self.onmessage` 已装载）；主站 `MONITOR_APP=log` 构建仍走 `new Worker(new URL(...))` 独立 chunk，不受影响。
+- 约束：
+  - Worker 侧模块禁止 import `vue` / `page-highlight.ts` / `hooks-helper.ts` 等带 vue 或 DOM 模块级副作用的文件；需要复用的纯逻辑先下沉到无框架依赖的模块。
+  - Monitor 构建新增 externals 时无需再关心 Worker，包装 loader 会让其打进 Blob；但 Worker 内仍禁止动态 `import()`，避免产生需要 `importScripts` 的异步分片。
