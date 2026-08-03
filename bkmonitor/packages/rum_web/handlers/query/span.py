@@ -10,40 +10,19 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-from django.db.models import Q
-
 from bkmonitor.data_source.utils import types
+from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, FilterOperator, LogicSupportOperator
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
-class SpanQuery(BaseQuery):
-    USING_LOG: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+class SpanQuery(APMQueryFilterMixin, BaseQuery):
+    USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources
-
-    @classmethod
-    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
-        return q
-
-    @classmethod
-    def _build_filters(cls, filters: list[types.Filter] | None) -> Q:
-        if not filters:
-            return Q()
-
-        q: Q = Q()
-        for f in filters:
-            operator = f["operator"]
-            key = cls._translate_field(f["key"])
-            # 更新 q，叠加查询条件
-            if operator == LogicSupportOperator.LOGIC:
-                q = cls._add_logic_filter(q, key, f["value"])
-            else:
-                q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
-        return q
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -54,15 +33,15 @@ class SpanQuery(BaseQuery):
     ) -> list[QueryConfigBuilder]:
         return [
             self.build_query_q(
-                QueryConfigBuilder(self.USING_LOG).table(ds.table_id).time_field(self.DEFAULT_TIME_FIELD),
+                QueryConfigBuilder(self.USING).table(ds.table_id).time_field(self.DEFAULT_TIME_FIELD),
                 filters,
                 query_string,
             )
             for ds in self.data_sources
         ]
 
-    def time_range_queryset(self, start_time: int, end_time: int, using_scope: bool = True) -> UnifyQuerySet:
-        qs = super().time_range_queryset(start_time, end_time)
+    def get_qs(self, start_time: int, end_time: int, using_scope: bool = True) -> UnifyQuerySet:
+        qs = super().get_qs(start_time, end_time)
         if not using_scope:
             return qs
 
@@ -81,11 +60,9 @@ class SpanQuery(BaseQuery):
         query_string: str = "",
         sort: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        queries = [
-            q.order_by(*self.process_sort_fields(sort or self.DEFAULT_SORT))
-            for q in self.get_queries(filters, query_string)
-        ]
-        return super()._query_list(queries, start_time, end_time, offset, limit)
+        processed_sort_fields = self.process_sort_fields(sort or self.DEFAULT_SORT)
+        queries = [q.order_by(*processed_sort_fields) for q in self.get_queries(filters, query_string)]
+        return sort_fields(super()._query_list(queries, start_time, end_time, offset, limit), processed_sort_fields)
 
     def query_total(
         self,
