@@ -39,12 +39,15 @@ PUBLIC_RESOURCES = {
     ("POST", "/esquery_search/"),
     ("POST", "/index_set/"),
     ("POST", "/pattern/{index_set_id}/search/"),
+    ("POST", "/pattern/{index_set_id}/remark/"),
     ("POST", "/query/ts/"),
     ("POST", "/query/ts/raw/"),
     ("POST", "/query/ts/reference/"),
     ("PUT", "/index_set/{index_set_id}/"),
+    ("PUT", "/pattern/{index_set_id}/update_remark/"),
     ("DELETE", "/databus_collectors/{collector_config_id}/"),
     ("DELETE", "/index_set/{index_set_id}/"),
+    ("DELETE", "/pattern/{index_set_id}/delete_remark/"),
 }
 
 
