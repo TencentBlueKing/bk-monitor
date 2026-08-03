@@ -275,7 +275,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     "incident_snapshot_request",
                     incident_api.get_incident_snapshot,
                     snapshot_id=sync_info["fpp_snapshot_id"],
-                    log_extra={"timeout_seconds": incident_api.TIMEOUT},
+                    log_extra={"timeout_seconds": incident_api.get_incident_snapshot.TIMEOUT},
                 )
 
             snapshot = IncidentSnapshotDocument(
@@ -351,7 +351,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 sync_info,
                 incident_document,
                 mark_received=True,
-                log_extra={"timeout_seconds": self.get_incident_api(sync_info).TIMEOUT},
+                log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
             )
             self.measure_stage(
                 sync_info,
@@ -470,7 +470,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     "incident_snapshot_request",
                     incident_api.get_incident_snapshot,
                     snapshot_id=sync_info["fpp_snapshot_id"],
-                    log_extra={"timeout_seconds": incident_api.TIMEOUT},
+                    log_extra={"timeout_seconds": incident_api.get_incident_snapshot.TIMEOUT},
                 )
             else:
                 snapshot_info = {
@@ -596,7 +596,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     self.update_remote_incident_detail,
                     sync_info,
                     incident_document,
-                    log_extra={"timeout_seconds": self.get_incident_api(sync_info).TIMEOUT},
+                    log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
                 )
 
             self.measure_stage(
@@ -658,7 +658,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     self.update_remote_incident_detail,
                     sync_info,
                     incident_document,
-                    log_extra={"timeout_seconds": self.get_incident_api(sync_info).TIMEOUT},
+                    log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
                     **remote_status_update,
                 )
         except Exception as e:
