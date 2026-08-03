@@ -188,8 +188,6 @@ GET /app/metadata/get_result_table_storage_status/
         "cluster_id": 1,
         "storage_type": "elasticsearch",
         "is_current": true,
-        "is_current_segment": true,
-        "is_configured_current": true,
         "is_deleted": false,
         "creator": "admin",
         "create_time": "2026-08-03T10:00:00+08:00",
@@ -202,6 +200,8 @@ GET /app/metadata/get_result_table_storage_status/
       "1": {
         "storage_type": "elasticsearch",
         "is_current": true,
+        "is_current_segment": true,
+        "is_configured_current": true,
         "cluster": {
           "cluster_id": 1,
           "cluster_name": "default_es_storage",
