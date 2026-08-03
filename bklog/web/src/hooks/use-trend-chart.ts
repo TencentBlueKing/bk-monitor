@@ -34,6 +34,7 @@ import { addListener, removeListener } from 'resize-detector';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+import { createTrendChartWorker } from './workers/create-trend-chart-worker';
 import chartOption, { getSeriesData } from './trend-chart-options';
 import { formatTimeStampZone } from '@/global/utils/time';
 
@@ -97,7 +98,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     try {
-      chartWorker = new Worker(new URL('./trend-chart-worker.ts', import.meta.url), { type: 'module' });
+      chartWorker = createTrendChartWorker();
       useWorker = true;
     } catch (e) {
       console.warn('Worker 初始化失败，降级到主线程处理:', e);

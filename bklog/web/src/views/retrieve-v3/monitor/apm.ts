@@ -36,6 +36,7 @@ if (!window.mainComponent?.$t) {
 }
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
 import useStore from '@/hooks/use-store';
+import { performanceMonitorService } from '@/storage';
 
 import MonitorApmLog from './monitor';
 
@@ -52,5 +53,7 @@ const initWindowState = () => {
   window.__IS_MONITOR_COMPONENT__ = true;
   window.__IS_MONITOR_TRACE__ = false;
   window.__IS_MONITOR_APM__ = true;
-}
+  // 为嵌入运行时注册 workerManager / __BKLOG_WORKERS__ 诊断 API。
+  performanceMonitorService.init();
+};
 export { MonitorApmLog, logStore, i18n, initMonitorState, initGlobalComponents, initWindowState };
