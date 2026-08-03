@@ -518,8 +518,10 @@ class LogDataSource(ApmDataSourceConfigBase):
                     **{
                         "bk_tenant_id": bk_biz_id_to_bk_tenant_id(bk_biz_id),
                         "bk_biz_id": bk_biz_id,
+                        # 英文名（资源标识）需满足 [a-z0-9_] 规范，走归一化；
+                        # 中文/展示名保留用户输入的原始 app_name，避免大写被丢失
                         "collector_config_name_en": valid_log_config_name,
-                        "collector_config_name": valid_log_config_name,
+                        "collector_config_name": app_name,
                         "custom_type": "otlp_log",
                         "category_id": "application_check",
                         # 兼容集群不支持冷热配置
@@ -543,7 +545,8 @@ class LogDataSource(ApmDataSourceConfigBase):
                     bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
                     collector_config_id=obj.collector_config_id,
                     category_id="application_check",
-                    collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    # 展示名保留用户输入的原始 app_name（含大小写）
+                    collector_config_name=app_name,
                     allocation_min_days=0,
                     **storage_params,
                 )
