@@ -74,6 +74,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   let viewRequestVersion = 0;
   /** 是否已初始化 */
   let initialized = false;
+  let scrollEl: HTMLElement = null;
 
   const updateFilter = useDebounceFn(async () => {
     if (!initialized) {
@@ -157,7 +158,8 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
     applyViewResult(result, start, end, version);
   };
 
-  const handleViewportChange = (scrollTop: number, height: number) => {
+  const handleViewportChange = (scrollTop: number, height: number, element: HTMLElement) => {
+    scrollEl = element;
     viewportScrollTop = scrollTop;
     viewportHeight = height;
     refreshVisibleRange();
@@ -173,22 +175,60 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
-      // 存在有子节点的根节点时，默认对第一个有子节点的根节点展开第一级子列表（Worker 消费 isOpen）
-      for (const root of data) {
+      rawTreeData.value = data;
+      await handleSelectNodeOfNodeId();
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /** 根据 nodeId 在已有拓扑树数据中定位并聚焦目标节点（展开路径 + 滚动到位） */
+  const handleSelectNodeOfNodeId = async () => {
+    // 存在有子节点的根节点时，默认对第一个有子节点的根节点展开第一级子列表（Worker 消费 isOpen）
+    if (nodeId.value) {
+      // 存在 nodeId 时，展开从根到目标节点的完整路径，确保目标节点可见
+      const expandToNode = (nodes: IHostTopoTreeNode[], targetId: string): boolean => {
+        let found = false;
+        for (const node of nodes) {
+          if (node.id === targetId) {
+            found = true;
+            break;
+          }
+          if ('children' in node && Array.isArray(node.children) && node.children.length > 0) {
+            if (expandToNode(node.children, targetId)) {
+              (node as IHostTopoTreeNode & { isOpen?: boolean }).isOpen = true;
+              found = true;
+              break;
+            }
+          }
+        }
+        return found;
+      };
+      expandToNode(rawTreeData.value, nodeId.value);
+    } else {
+      for (const root of rawTreeData.value) {
         if ('children' in root && Array.isArray(root.children) && root.children.length > 0) {
           (root as IHostTopoTreeNode & { isOpen?: boolean }).isOpen = true;
           break;
         }
       }
-      rawTreeData.value = data;
-      const result = await topoTreeWorker.init(data, hideEmptyNode.value, searchValue.value, nodeId.value);
-      initialized = true;
-      selectedNode.value = result.selectedNode;
-      totalRows.value = result.total;
+    }
+    const result = await topoTreeWorker.init(rawTreeData.value, hideEmptyNode.value, searchValue.value, nodeId.value);
+    selectedNode.value = result.selectedNode;
+    totalRows.value = result.total;
+    let scrollTop = 0;
+    // 有目标节点偏移量时滚动到目标位置，否则重置到顶部
+    if (result.selectedNodeOffset >= 0) {
+      viewportScrollTop = result.selectedNodeOffset * TOPO_ROW_HEIGHT;
+      scrollTop = viewportScrollTop;
+      viewportResetKey.value += 1;
+    } else {
       resetViewport();
-      await refreshVisibleRange(true);
-    } finally {
-      loading.value = false;
+    }
+    initialized = true;
+    await refreshVisibleRange(true);
+    if (scrollEl) {
+      scrollEl.scrollTop = scrollTop;
     }
   };
 
@@ -244,6 +284,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
     handleExpandNode,
     handleViewportChange,
     handleCollapseAll,
+    handleSelectNodeOfNodeId,
   };
 };
 

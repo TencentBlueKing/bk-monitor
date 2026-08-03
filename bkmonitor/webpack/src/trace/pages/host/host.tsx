@@ -44,7 +44,7 @@ import { useHostTopoTree } from './composables/use-host-topo-tree';
 import { useHostUrlParams } from './composables/use-host-url-params';
 import { HOST_PAGE_HEADER_NAV_BAR_LIST } from './constants/constants';
 
-import type { IHostTopoHostNode } from './types';
+import type { IHostListRow, IHostTopoHostNode } from './types';
 
 import './host.scss';
 
@@ -85,6 +85,12 @@ export default defineComponent({
       });
     };
 
+    /** 点击主机列表 IP 单元格时，设置 nodeId 并触发拓扑树定位聚焦到对应主机节点 */
+    const handleSelectIpCell = (row: IHostListRow) => {
+      nodeId.value = String(row.bk_host_id);
+      topoTree.handleSelectNodeOfNodeId();
+    };
+
     return {
       t,
       timeRange,
@@ -98,6 +104,7 @@ export default defineComponent({
       timeRangeDisabledTip,
       handleCompare,
       handleSelectNode,
+      handleSelectIpCell,
     };
   },
   render() {
@@ -158,6 +165,7 @@ export default defineComponent({
                           <HostContentTabs
                             compareHostList={this.topoTree.compareHostList.value}
                             selectedNode={this.topoTree.selectedNode.value}
+                            onSelectIpCell={this.handleSelectIpCell}
                           />
                         </div>
                       ),

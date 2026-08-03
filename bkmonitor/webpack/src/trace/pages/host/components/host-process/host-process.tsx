@@ -59,9 +59,9 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     /** 从 store 获取当前选中进程 ID 和进程指标汇聚状态 */
-    const { hostProcessId, processMetricAggregationState } = storeToRefs(useHostStore());
+    const { hostProcessId, processMetricAggregationState, hostProcessKeyword: keyword } = storeToRefs(useHostStore());
     /** 进程列表数据 hook（含加载状态、搜索、排序） */
-    const { loading, keyword, displayList, sortInfo, handleKeywordChange, handleSortChange } = useProcessList({
+    const { loading, displayList, sortInfo, handleKeywordChange, handleSortChange } = useProcessList({
       host: toRef(props, 'host'),
       /**
        * @description 数据加载完成回调：当 URL 带有 hostProcessId 时自动打开对应进程详情
@@ -73,6 +73,7 @@ export default defineComponent({
           handleRowClick(row);
         }
       },
+      keyword,
     });
 
     /** 搜索输入防抖（300ms），避免每次按键触发过滤计算 */

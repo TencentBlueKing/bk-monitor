@@ -70,6 +70,9 @@ export const useHostStore = defineStore('host', () => {
   /** 主机进程 ID（用于记录当前选中的进程，支持 URL 参数持久化） */
   const hostProcessId = shallowRef('');
 
+  /** 进程tab 关键字搜索 */
+  const hostProcessKeyword = shallowRef('');
+
   /** 进程详情侧栏指标视图 Toolbar 汇聚状态（独立于主页面的 metricAggregationState） */
   const processMetricAggregationState = reactive<MetricAggregationState>(
     JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE))
@@ -142,5 +145,6 @@ export const useHostStore = defineStore('host', () => {
     metricAggregationState,
     hostProcessId,
     processMetricAggregationState,
+    hostProcessKeyword,
   };
 });

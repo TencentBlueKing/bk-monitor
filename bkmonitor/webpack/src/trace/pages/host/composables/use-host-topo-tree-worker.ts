@@ -33,7 +33,10 @@ type WorkerResponse =
   | {
       nodeCount: number;
       requestId: number;
+      /** 选中的拓扑节点数据 */
       selectedNode: IHostTopoTreeNode | null;
+      /** 选中节点在可视列表中的偏移行号（用于虚拟滚动聚焦定位，-1 表示未找到） */
+      selectedNodeOffset: number;
       total: number;
       type: 'INIT_DONE';
     };

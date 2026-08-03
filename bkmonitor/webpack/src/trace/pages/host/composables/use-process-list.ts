@@ -25,7 +25,7 @@
  */
 
 import { computed, onScopeDispose, shallowRef, watch } from 'vue';
-import type { Ref } from 'vue';
+import type { Ref, ShallowRef } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
@@ -44,6 +44,7 @@ const SORTABLE_KEYS = new Set<keyof ProcessItem>(['cpuUsage', 'memRss', 'instanc
  */
 export const useProcessList = (options: {
   host: Ref<IHostTopoHostNode | null>;
+  keyword: ShallowRef<string>;
   /**
    * @description 数据加载完成后的回调函数（可选）
    * 用于在进程列表加载完成后执行额外逻辑，如自动选中某个进程
@@ -52,12 +53,10 @@ export const useProcessList = (options: {
   loadDataEnd?: (list: ProcessItem[]) => void;
 }) => {
   const { timeRangeTimestamp } = storeToRefs(useHostStore());
-
+  const { keyword } = options;
   const loading = shallowRef(false);
   /** 原始进程数据（接口原样数据） */
   const rawList = shallowRef<ProcessItem[]>([]);
-  /** 进程名搜索关键字 */
-  const keyword = shallowRef('');
   /** 排序（`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
   /** 当前请求的 AbortController，用于取消未完成的请求 */
@@ -138,7 +137,6 @@ export const useProcessList = (options: {
 
   return {
     loading,
-    keyword,
     sortInfo,
     displayList,
     loadData,

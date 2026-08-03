@@ -46,6 +46,7 @@ export const useHostUrlParams = () => {
 
   const urlParams = computed(() => {
     return {
+      scene: hostStore.scene,
       where: encodeURIComponent(JSON.stringify(hostStore.where)),
       filterExpanded: String(hostStore.filterExpanded),
       activeCategory: hostStore.activeCategory,
@@ -64,6 +65,8 @@ export const useHostUrlParams = () => {
       hostProcessId: hostStore.hostProcessId,
       /** 主机进程详情侧栏指标视图 Toolbar 状态（JSON 编码） */
       processMetricAggregationState: encodeURIComponent(JSON.stringify(hostStore.processMetricAggregationState)),
+      /** 进程列表搜索关键词（同步到 URL） */
+      hostProcessKeyword: hostStore.hostProcessKeyword,
     };
   });
 
@@ -109,6 +112,7 @@ export const useHostUrlParams = () => {
       dashboardId,
       hostProcessId,
       'var-display_name': varDisplayName,
+      hostProcessKeyword,
     } = route.query;
     hostStore.nodeId = (nodeId || route.params.id || '') as string;
     // 兼容旧版本dashboardId
@@ -131,6 +135,8 @@ export const useHostUrlParams = () => {
     hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
     /** 恢复主机进程 ID，兼容旧版 var-display_name 参数 */
     hostStore.hostProcessId = (hostProcessId || varDisplayName || '') as string;
+    /** 恢复进程列表搜索关键词 */
+    hostStore.hostProcessKeyword = (hostProcessKeyword || '') as string;
     hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
     hostStore.timezone = (timezone as string) || window.timezone;
     hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
@@ -251,6 +257,9 @@ export const useHostUrlParams = () => {
       ...JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE)),
       columns: hostStore.metricAggregationState.columns,
     });
+    hostStore.hostProcessId = '';
+    /** 切换节点时清空进程搜索关键词 */
+    hostStore.hostProcessKeyword = '';
     if (isHostNode(node)) {
       hostStore.where = [];
       hostStore.activeCategory = '';
