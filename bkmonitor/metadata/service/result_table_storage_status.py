@@ -27,6 +27,14 @@ class StorageProbeTarget:
     has_historical_segment: bool
 
 
+@dataclass
+class StorageSegmentState:
+    """单个集群在历史分段中的聚合状态。"""
+
+    has_current: bool = False
+    has_historical: bool = False
+
+
 def _serialize_datetime(value: Any) -> str | None:
     return value.isoformat() if value is not None else None
 
@@ -399,20 +407,30 @@ class ResultTableStorageStatusService:
 
         ordered_cluster_ids: list[int] = []
         seen_cluster_ids: set[int] = set()
+        segment_states: dict[int, StorageSegmentState] = {}
+        for record in records:
+            state = segment_states.get(record.cluster_id)
+            if state is None:
+                state = StorageSegmentState()
+                segment_states[record.cluster_id] = state
+            if record.is_current:
+                state.has_current = True
+            else:
+                state.has_historical = True
+            if record.cluster_id not in seen_cluster_ids:
+                seen_cluster_ids.add(record.cluster_id)
+                ordered_cluster_ids.append(record.cluster_id)
+
         configured_cluster_id_list = [
             storage.storage_cluster_id for storage in storages.values() if storage is not None
         ]
         configured_cluster_ids = set(configured_cluster_id_list)
-        target_cluster_ids = (
-            [record.cluster_id for record in records] + configured_cluster_id_list
-            if history_table_id is not None
-            else []
-        )
-        for cluster_id in target_cluster_ids:
-            if cluster_id in seen_cluster_ids:
-                continue
-            seen_cluster_ids.add(cluster_id)
-            ordered_cluster_ids.append(cluster_id)
+        if history_table_id is not None:
+            for cluster_id in configured_cluster_id_list:
+                if cluster_id in seen_cluster_ids:
+                    continue
+                seen_cluster_ids.add(cluster_id)
+                ordered_cluster_ids.append(cluster_id)
 
         cluster_map = {
             cluster.cluster_id: cluster
@@ -421,7 +439,7 @@ class ResultTableStorageStatusService:
             )
         }
         segments = [_serialize_segment(record, cluster_map.get(record.cluster_id)) for record in records]
-        segment_cluster_ids = {record.cluster_id for record in records}
+        segment_cluster_ids = set(segment_states)
         for storage_type, storage in storages.items():
             if history_table_id is not None and storage and storage.storage_cluster_id not in segment_cluster_ids:
                 warnings.append(
@@ -435,7 +453,7 @@ class ResultTableStorageStatusService:
                 )
 
         targets = [
-            self._build_target(cluster_id, records, cluster_map, configured_cluster_ids)
+            self._build_target(cluster_id, segment_states, cluster_map, configured_cluster_ids)
             for cluster_id in ordered_cluster_ids
         ]
         cluster_results = self._probe_targets(targets, storages)
@@ -463,17 +481,17 @@ class ResultTableStorageStatusService:
     @staticmethod
     def _build_target(
         cluster_id: int,
-        records: list[models.StorageClusterRecord],
+        segment_states: Mapping[int, StorageSegmentState],
         cluster_map: dict[int, models.ClusterInfo],
         configured_cluster_ids: set[int],
     ) -> StorageProbeTarget:
-        related_records = [record for record in records if record.cluster_id == cluster_id]
+        segment_state = segment_states.get(cluster_id)
         return StorageProbeTarget(
             cluster_id=cluster_id,
             cluster=cluster_map.get(cluster_id),
-            has_current_segment=any(record.is_current for record in related_records),
+            has_current_segment=segment_state.has_current if segment_state else False,
             is_configured_current=cluster_id in configured_cluster_ids,
-            has_historical_segment=any(not record.is_current for record in related_records),
+            has_historical_segment=segment_state.has_historical if segment_state else False,
         )
 
     def _probe_targets(

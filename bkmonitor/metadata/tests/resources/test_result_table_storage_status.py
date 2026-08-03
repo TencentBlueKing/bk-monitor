@@ -177,6 +177,7 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
     assert "segment_ids" not in es_result
     assert es_result["is_current_segment"] is True
     assert es_result["is_configured_current"] is True
+    assert "HISTORICAL_CONFIG_NOT_SNAPSHOTTED" in {warning["code"] for warning in es_result["warnings"]}
     assert es_result["runtime"]["aliases"]["queried"] is False
     assert doris_result["runtime"]["table"] == {"name": "storage_status", "rows": 3}
     assert doris_result["runtime"]["columns"] == [
