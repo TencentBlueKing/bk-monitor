@@ -41,9 +41,18 @@ class FeatureFlagRedisSync:
         Consul key 缺失不是一个空快照：迁移期间必须保留 Redis 中已有的
         快照，避免误删后让 unify-query 回退到代码默认开关值。
         """
+        redis_client = RedisTools().client
+        completed_snapshot = cls._load_completed_snapshot(redis_client)
+        if completed_snapshot is not None:
+            logger.info(
+                "feature flag config migration already completed; skip, redis_key=%s, flag_count=%s",
+                cls.REDIS_TARGET_KEY,
+                len(completed_snapshot),
+            )
+            return completed_snapshot
+
         _, consul_data = consul_tools.HashConsul().get(cls.CONSUL_SOURCE_PATH)
         snapshot = cls._load_snapshot(consul_data)
-        redis_client = RedisTools().client
         payload = json.dumps(snapshot, sort_keys=True)
         payload_digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -56,6 +65,36 @@ class FeatureFlagRedisSync:
             cls.REDIS_TARGET_KEY,
             len(snapshot),
         )
+        return snapshot
+
+    @classmethod
+    def _load_completed_snapshot(cls, redis_client):
+        """返回已完成迁移的快照；没有完成标记时返回 None。
+
+        完成标记存在时，Redis 目标值必须存在且与标记匹配。否则直接失败，
+        避免在一次性迁移完成后重新读取 Consul 或覆盖已有配置。
+        """
+        marker = cls._decode_redis_value(redis_client.get(cls.REDIS_MIGRATION_MARKER_KEY))
+        if marker is None:
+            return None
+
+        current_value = cls._decode_redis_value(redis_client.get(cls.REDIS_TARGET_KEY))
+        if not isinstance(current_value, str):
+            raise RuntimeError("feature flag migration marker exists but Redis snapshot is missing")
+
+        try:
+            snapshot = json.loads(current_value)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError("feature flag migration marker exists but Redis snapshot is invalid") from error
+
+        if not isinstance(snapshot, dict):
+            raise RuntimeError("feature flag migration marker exists but Redis snapshot is invalid")
+
+        payload = json.dumps(snapshot, sort_keys=True)
+        payload_digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        if marker != payload_digest:
+            raise RuntimeError("feature flag migration already completed with a different snapshot")
+
         return snapshot
 
     @classmethod

@@ -91,11 +91,14 @@ class TestFeatureFlagRedisSync:
         consul_client.put(FeatureFlagRedisSync.CONSUL_SOURCE_PATH, snapshot)
 
         FeatureFlagRedisSync.sync_from_consul()
+        consul_client.clear_call_history()
+        consul_client._kv_store.clear()
         FeatureFlagRedisSync.sync_from_consul()
 
         first_message = subscriber.get_message(timeout=0.1)
         assert json.loads(first_message["data"]) == snapshot
         assert subscriber.get_message(timeout=0.1) is None
+        assert consul_client.get_call_history() == []
 
     def test_existing_snapshot_is_marked_without_second_dispatch(self, redis_client, consul_client, subscriber):
         snapshot = {"z-flag": {"enabled": True}, "a-flag": {"enabled": False}}
