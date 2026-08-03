@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref, inject, reactive } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import { getSelectionRange, restoreSelectionRange } from '@/common/selection-util';
@@ -304,6 +304,8 @@ export default defineComponent({
 
     // —— 分页与渲染列表 ——
     /** 前端本地分页页码（从 1 开始） */
+    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick');
+
     const pageIndex = ref(1);
     /** 前端本地分页每页条数 */
     const pageSize = ref(50);
@@ -955,6 +957,16 @@ export default defineComponent({
 
     /** JSON / 分词菜单点击：时间字段需取原始时间戳构造检索条件 */
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field?: any }) => {
+      if (window.__IS_MONITOR_APM__ && isLink && option.operation === 'trace-view') {
+        const apmRelation = store.state.indexSetFieldConfig?.apm_relation;
+        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
+        handleRelatedTraceClick({
+          appName,
+          bkBizId,
+          traceId: option.value,
+        });
+        return;
+      }
       const timeTypes = ['date', 'date_nanos'];
       const field = fieldOption?.field ?? getFieldByName(option.fieldName);
       const fieldType = field?.field_type ?? option.fieldType;
