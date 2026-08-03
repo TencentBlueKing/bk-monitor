@@ -1399,4 +1399,10 @@ export default {
   '关联空间的索引集，无法编辑': 'Index sets from associated spaces cannot be edited',
   '请{0}编辑。': 'Please edit {0}.',
   前往对应的空间: 'Go to the corresponding space',
+  '复制 {0} 成功': 'Copied {0} successfully',
+  '管理页面于8月13号更新，更新后个性化设置会被重置覆盖。请重新调整配置表格样式。':
+    'The management page will be updated on August 13. Your personalized settings will be reset and overwritten after the update. Please reconfigure the table style.',
+  '按用量排序需要实时请求集群使用情况，需等待较长时间，点击确认执行':
+    'Sorting by usage requires a real-time request for cluster usage and may take a while. Click Confirm to proceed.',
+  '搜索 数据 ID、采集名、数据名、存储集群、存储名': 'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
 };
