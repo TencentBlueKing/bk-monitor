@@ -78,6 +78,10 @@ export default defineComponent({
       type: [Number, String],
       default: undefined,
     },
+    maxHeight: {
+      type: [Number, String],
+      default: undefined,
+    },
     pagination: {
       type: Object as PropType<IPaginationInfo>,
       default: () => {},
@@ -517,6 +521,7 @@ export default defineComponent({
               pagination={props.pagination}
               row-key='key'
               height={props.height}
+              maxHeight={props.maxHeight}
               rowHeight={props.rowHeight}
               scroll={{ type: 'lazy', bufferSize: 10 }}
               on-sort-change={sortChange}

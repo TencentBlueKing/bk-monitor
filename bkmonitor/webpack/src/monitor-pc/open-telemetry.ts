@@ -29,7 +29,7 @@ import { BkOpenTelemetry } from '@blueking/open-telemetry';
 const ROBOT_INFO_URL = 'commons/fetch_robot_info/';
 
 /** hash / history 路由统一归一为低基数 path group */
-const getPathGroup = (url: string): string => {
+const getUrlTemplate = (url: string): string => {
   const parsed = new URL(url, window.location.href);
   const hashLocation = parsed.hash.replace(/^#!?/, '');
 
@@ -59,12 +59,13 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
     },
     tracking: {
       view: {
-        getPathGroup,
+        getUrlTemplate,
         // 轮询类请求不延长 View Loading Time
         excludedActivityUrls: [ROBOT_INFO_URL],
       },
       request: {
         excludedUrls: [ROBOT_INFO_URL],
+        allowedTracingUrls: [url => new URL(url).origin === window.location.origin],
       },
       blankScreen: {
         // SPA 挂载根节点，避免对整页 body 误判白屏

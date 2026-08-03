@@ -298,8 +298,10 @@
   );
 
   const stickyStyle = computed(() => {
+    const searchBarOffset = `${searchBarHeight.value + 8}px`;
     return {
-      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
+      '--offset-search-bar': searchBarOffset,
+      '--top-searchbar-height': searchBarOffset,
     };
   });
 

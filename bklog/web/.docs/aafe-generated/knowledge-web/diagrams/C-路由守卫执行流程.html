@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · C-路由守卫执行流程 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · C-路由守卫执行流程</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · C-路由守卫执行流程</div><h2>C-路由守卫执行流程</h2><p><code>.docs/diagrams/C-路由守卫执行流程.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeyAncHJpbWFyeUNvbG9yJzogJyNlOGY1ZTknLCAncHJpbWFyeVRleHRDb2xvcic6ICcjMmU3ZDMyJywgJ3ByaW1hcnlCb3JkZXJDb2xvcic6ICcjNDNhMDQ3JywgJ2xpbmVDb2xvcic6ICcjNjZiYjZhJ319fSUlXG5mbG93Y2hhcnQgVERcbiAgICBTVEFSVChb6Lev55Sx5YiH5o2i5byA5aeLXSkgLS0-IEJFRk9SRV9FQUNIe2JlZm9yZUVhY2gg5a6I5Y2rfVxuICAgIFxuICAgIHN1YmdyYXBoIFwiYmVmb3JlRWFjaCDlpITnkIZcIlxuICAgICAgICBCRUZPUkVfRUFDSCAtLT4gQ0FOQ0VMX1JFUVvlj5bmtoggY2FuY2VsV2hlblJvdXRlQ2hhbmdlPGJyLz7nmoTor7fmsYJdXG4gICAgICAgIENBTkNFTF9SRVEgLS0-IENIRUNLX1JFVFJJRVZFe-ebruagh-aYryByZXRyaWV2ZT99XG4gICAgICAgIENIRUNLX1JFVFJJRVZFIC0tPnzmmK98IFBPU1RfTVNHW-WQkSB3aW5kb3cucGFyZW50PGJyLz5wb3N0TWVzc2FnZSDlkIzmraXlj4LmlbBdXG4gICAgICAgIENIRUNLX1JFVFJJRVZFIC0tPnzlkKZ8IENIRUNLX0VYVEVSTkFMe-WklumDqOeJiD99XG4gICAgICAgIFBPU1RfTVNHIC0tPiBDSEVDS19FWFRFUk5BTFxuICAgICAgICBDSEVDS19FWFRFUk5BTCAtLT585pivfCBDSEVDS19XSElURUxJU1R76Lev55Sx5Zyo55m95ZCN5Y2VP31cbiAgICAgICAgQ0hFQ0tfRVhURVJOQUwgLS0-fOWQpnwgQUxMT1db5YWB6K646K6_6ZeuXVxuICAgICAgICBDSEVDS19XSElURUxJU1QgLS0-fOWQpnwgUkVESVJFQ1Rb6YeN5a6a5ZCR5YiwIHJldHJpZXZlPGJyLz7miJYgbWFuYWdlXVxuICAgICAgICBDSEVDS19XSElURUxJU1QgLS0-fOaYr3wgQUxMT1dcbiAgICBlbmRcbiAgICBcbiAgICBSRURJUkVDVCAtLT4gQUZURVJfRUFDSFxuICAgIEFMTE9XIC0tPiBBRlRFUl9FQUNIXG4gICAgXG4gICAgc3ViZ3JhcGggXCJhZnRlckVhY2gg5aSE55CGXCJcbiAgICAgICAgQUZURVJfRUFDSHthZnRlckVhY2gg5a6I5Y2rfSAtLT4gQ0hFQ0tfRVhDRVBUSU9Oe-aYryBleGNlcHRpb24g6aG1P31cbiAgICAgICAgQ0hFQ0tfRVhDRVBUSU9OIC0tPnzlkKZ8IFJFUE9SVF9MT0dbcmVwb3J0Um91dGVMb2cg5LiK5oqlXVxuICAgICAgICBDSEVDS19FWENFUFRJT04gLS0-fOaYr3wgRU5EX0hPT0tcbiAgICAgICAgUkVQT1JUX0xPRyAtLT4gRU5EX0hPT0tb5a6I5Y2r57uT5p2fXVxuICAgIGVuZFxuICAgIFxuICAgIEVORF9IT09LIC0tPiBSRU5ERVIoW-a4suafk-ebruagh-e7hOS7tl0pXG4ifQ">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: { &#39;primaryColor&#39;: &#39;#e8f5e9&#39;, &#39;primaryTextColor&#39;: &#39;#2e7d32&#39;, &#39;primaryBorderColor&#39;: &#39;#43a047&#39;, &#39;lineColor&#39;: &#39;#66bb6a&#39;}}}%%
+flowchart TD
+    START([路由切换开始]) --&gt; BEFORE_EACH{beforeEach 守卫}
+    
+    subgraph &quot;beforeEach 处理&quot;
+        BEFORE_EACH --&gt; CANCEL_REQ[取消 cancelWhenRouteChange&lt;br/&gt;的请求]
+        CANCEL_REQ --&gt; CHECK_RETRIEVE{目标是 retrieve?}
+        CHECK_RETRIEVE --&gt;|是| POST_MSG[向 window.parent&lt;br/&gt;postMessage 同步参数]
+        CHECK_RETRIEVE --&gt;|否| CHECK_EXTERNAL{外部版?}
+        POST_MSG --&gt; CHECK_EXTERNAL
+        CHECK_EXTERNAL --&gt;|是| CHECK_WHITELIST{路由在白名单?}
+        CHECK_EXTERNAL --&gt;|否| ALLOW[允许访问]
+        CHECK_WHITELIST --&gt;|否| REDIRECT[重定向到 retrieve&lt;br/&gt;或 manage]
+        CHECK_WHITELIST --&gt;|是| ALLOW
+    end
+    
+    REDIRECT --&gt; AFTER_EACH
+    ALLOW --&gt; AFTER_EACH
+    
+    subgraph &quot;afterEach 处理&quot;
+        AFTER_EACH{afterEach 守卫} --&gt; CHECK_EXCEPTION{是 exception 页?}
+        CHECK_EXCEPTION --&gt;|否| REPORT_LOG[reportRouteLog 上报]
+        CHECK_EXCEPTION --&gt;|是| END_HOOK
+        REPORT_LOG --&gt; END_HOOK[守卫结束]
+    end
+    
+    END_HOOK --&gt; RENDER([渲染目标组件])
+</pre></main></div></body></html>

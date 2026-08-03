@@ -15,7 +15,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 import pydantic
 from django.conf import settings
@@ -592,14 +592,12 @@ class ResultTable(models.Model):
     def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
-        from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
+        from metadata.task.datalink import (
+            apply_event_group_datalink,
+            apply_graph_relation_v4_datalink,
+            apply_log_datalink,
+        )
         from metadata.task.tasks import access_bkdata_vm
-
-        # 获取数据源ID
-        datasource = self.get_related_datasource()
-
-        # 获取目标业务ID
-        target_bk_biz_id = self.get_target_bk_biz_id()
 
         # 获取结果表配置项
         options = {
@@ -607,7 +605,20 @@ class ResultTable(models.Model):
             for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         }
 
-        if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
+        # 获取数据源ID
+        datasource = self.get_related_datasource()
+
+        # 获取目标业务ID
+        target_bk_biz_id = self.get_target_bk_biz_id()
+
+        if ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK in options:
+            # Graph Relation V4 与日志链路一样由专用 option 独立选择。
+            # 校验通过后直接同步应用并返回，不进入普通自定义指标的 VM 接入判断。
+            GraphRelationV4DataLinkOption.from_option_value(
+                options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK]
+            )
+            apply_graph_relation_v4_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+        elif self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
             # NOTE:
@@ -962,7 +973,11 @@ class ResultTable(models.Model):
                     raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(ex_storage_type))
 
                 ex_storage_config = dict(ex_storage_config)
-                if ex_storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+                if ex_storage_type in (
+                    ClusterInfo.TYPE_ES,
+                    ClusterInfo.TYPE_DORIS,
+                    ClusterInfo.TYPE_SURREALDB,
+                ):
                     ex_storage_config["create_storage_cluster_record"] = False
                 if ex_storage_type == ClusterInfo.TYPE_ES:
                     ex_storage_config["enable_create_index"] = False
@@ -1448,7 +1463,11 @@ class ResultTable(models.Model):
                 continue
 
             ex_storage_config = dict(ex_storage_config)
-            if ex_storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+            if ex_storage_type in (
+                ClusterInfo.TYPE_ES,
+                ClusterInfo.TYPE_DORIS,
+                ClusterInfo.TYPE_SURREALDB,
+            ):
                 # 新建配置不代表切换默认写入目标，current 由 ResultTable 统一推进。
                 ex_storage_config["create_storage_cluster_record"] = False
             ex_storage.create_table(
@@ -1507,6 +1526,16 @@ class ResultTable(models.Model):
                 new_metric_group_dimensions_option_value
                 and self.data_source.created_from == DataIdCreatedFromSystem.BKGSE.value
             ):
+                force_update_datalink = True
+
+            graph_relation_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            ).first()
+            existing_graph_relation_option_value = graph_relation_option.get_value() if graph_relation_option else None
+            new_graph_relation_option_value = option.get(ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK)
+            if existing_graph_relation_option_value != new_graph_relation_option_value:
                 force_update_datalink = True
 
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
@@ -3027,6 +3056,40 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         return self
 
 
+class GraphRelationV4DataLinkOption(pydantic.BaseModel):
+    """Graph Relation V4 数据链路写入目标。"""
+
+    write_targets: list[Literal["vm", "surrealdb"]] = pydantic.Field(
+        min_length=1,
+        max_length=2,
+        description="链路写入目标",
+    )
+
+    @classmethod
+    def from_option_value(cls, value: Any) -> Self:
+        if isinstance(value, str):
+            value = json.loads(value)
+        if not isinstance(value, dict):
+            raise TypeError(_("Graph Relation V4 数据链路配置必须是对象"))
+        return cls(**value)
+
+    @pydantic.field_validator("write_targets")
+    @classmethod
+    def validate_write_targets(cls, value: list[Literal["vm", "surrealdb"]]) -> list[Literal["vm", "surrealdb"]]:
+        if len(value) != len(set(value)):
+            raise ValueError(_("Graph Relation V4 数据链路写入目标不能重复"))
+        target_order = {"vm": 0, "surrealdb": 1}
+        return sorted(value, key=target_order.__getitem__)
+
+    @property
+    def should_write_vm(self) -> bool:
+        return "vm" in self.write_targets
+
+    @property
+    def should_write_surrealdb(self) -> bool:
+        return "surrealdb" in self.write_targets
+
+
 class ResultTableOption(OptionBase):
     """结果表option配置"""
 
@@ -3046,6 +3109,7 @@ class ResultTableOption(OptionBase):
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
+    OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
 
@@ -3074,6 +3138,7 @@ class ResultTableOption(OptionBase):
             (OPTION_ENABLE_FIELD_BLACK_LIST, _("是否开启指标黑名单")),
             (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
+            (OPTION_GRAPH_RELATION_V4_DATA_LINK, _("Graph Relation V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
         ),
         max_length=128,

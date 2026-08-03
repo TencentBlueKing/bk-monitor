@@ -4,7 +4,7 @@
   flex: 1;
   width: 100%;
   height: auto;
-  overflow: visible;
+  overflow: auto;
 
   .vue-grid-layout {
     background: #f5f7fa;
@@ -60,7 +60,7 @@
       overflow: hidden;
       background-color: #fff;
       border-radius: 2px;
-      box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.05);
+      box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
 
       &.has-btn {
         height: calc(100% - 20px);
@@ -69,8 +69,10 @@
 
     .single-chart-header {
       display: flex;
+
       // justify-content: space-between;
       align-items: center;
+
       // padding: 0 16px;
       height: 20px;
       margin-bottom: 8px;

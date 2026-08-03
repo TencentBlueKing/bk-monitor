@@ -128,12 +128,11 @@
 <script setup>
   import { ref, computed, watch, defineProps, defineExpose } from 'vue';
 
-  import { formatHierarchy } from '@/common/field-resolver';
   import { getRegExp } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import VueDraggable from 'vuedraggable';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import VueDraggable from 'vuedraggable';
 
   // 获取 store
   const store = useStore();
@@ -147,9 +146,7 @@
     },
   });
   // 定义响应式数据
-  const fieldList = computed(() => {
-    return formatHierarchy(store.state.indexFieldInfo.fields);
-  });
+  const fieldList = computed(() => store.getters.filteredFieldList);
 
   /** 将 fieldList 数组转换成 kv 结构(k-field_name,v-fieldItem) ,控制字段渲染顺序使用 */
   const fieldListMap = computed(() => {

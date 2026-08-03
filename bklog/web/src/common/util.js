@@ -821,6 +821,16 @@ export const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
  */
 export const copyMessage = (val, alertMsg = undefined) => {
   try {
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(val);
+      window.mainComponent.messageSuccess(
+        alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
+      );
+
+      return;
+    }
+
     const input = document.createElement('input');
     input.setAttribute('value', val);
     document.body.appendChild(input);
@@ -1168,13 +1178,15 @@ export const parseTableRowData = (
  * @returns {String} 字段值
  */
 export const getRowFieldValue = (row, field) => {
-  if (field.is_virtual_alias_field) {
-    const fieldList = [field.field_name, ...field.source_field_names];
-    for (const fieldName of fieldList) {
-      const value = parseTableRowData(row, fieldName, field.field_type, false, null);
-      if (value !== undefined && value !== null && value !== '') {
-        return value ?? '--';
-      }
+  const showFieldAlias = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+  const fieldList = showFieldAlias
+    ? [field.query_alias, field.field_name, ...(field.is_virtual_alias_field ? (field.source_field_names || []) : [])]
+    : [field.field_name];
+
+  for (const fieldName of [...new Set(fieldList.filter(Boolean))]) {
+    const value = parseTableRowData(row, fieldName, field.field_type, false, null);
+    if (value !== undefined && value !== null && value !== '') {
+      return value ?? '--';
     }
   }
 
@@ -1339,6 +1351,7 @@ export const utcFormatDate = (val, formatTimezone = false) => {
 // 首次加载设置表格默认宽度自适应
 export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
+    const widthSnapshot = Object.create(null);
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach((field) => {
         const targetList = [field];
@@ -1356,6 +1369,7 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
 
           set(item, 'width', width);
           set(item, 'minWidth', minWidth);
+          widthSnapshot[item.field_name] = Object.assign({}, { computedWidth: width, minWidth });
         });
       });
 
@@ -1364,10 +1378,10 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       // Extra width is distributed at render time based on the current result container.
     }
 
-    return true;
+    return { ...widthSnapshot };
   } catch (error) {
     console.error(error);
-    return false;
+    return Object.create(null);
   }
 };
 

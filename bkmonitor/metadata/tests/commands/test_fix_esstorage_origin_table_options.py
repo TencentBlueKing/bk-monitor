@@ -11,7 +11,10 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
-from metadata.management.commands.fix_esstorage_origin_table_options import Command
+from metadata.management.commands.fix_esstorage_origin_table_options import (
+    Command,
+    fix_esstorage_origin_table_options,
+)
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -45,6 +48,159 @@ def test_fill_esstorage_index_set_filters_by_tenant_and_biz():
     assert target.index_set == "100147_bklog_target"
     assert other_biz.index_set == ""
     assert other_tenant.index_set == ""
+
+
+def test_fill_esstorage_index_set_excludes_biz_ids():
+    included = models.ESStorage.objects.create(
+        bk_tenant_id="system",
+        table_id="100147_bklog.included",
+        storage_cluster_id=1,
+        index_set="",
+    )
+    excluded = [
+        models.ESStorage.objects.create(
+            bk_tenant_id="system",
+            table_id="100148_bklog.excluded",
+            storage_cluster_id=1,
+            index_set="",
+        ),
+        models.ESStorage.objects.create(
+            bk_tenant_id="system",
+            table_id="-100149_bklog.excluded",
+            storage_cluster_id=1,
+            index_set="",
+        ),
+        models.ESStorage.objects.create(
+            bk_tenant_id="system",
+            table_id="space_100149_bklog.excluded",
+            storage_cluster_id=1,
+            index_set="",
+        ),
+    ]
+
+    table_ids = Command().fill_esstorage_index_set(
+        "system",
+        0,
+        dry_run=False,
+        exclude_bk_biz_ids=[100148, -100149],
+    )
+
+    included.refresh_from_db()
+    for storage in excluded:
+        storage.refresh_from_db()
+    assert table_ids == [included.table_id]
+    assert included.index_set == "100147_bklog_included"
+    assert all(storage.index_set == "" for storage in excluded)
+
+
+def test_fill_rt_options_excludes_biz_ids():
+    included_table_id = "100147_bklog.included"
+    excluded_table_id = "100148_bklog.excluded"
+    models.ESStorage.objects.bulk_create(
+        [
+            models.ESStorage(
+                bk_tenant_id="system",
+                table_id=included_table_id,
+                storage_cluster_id=1,
+            ),
+            models.ESStorage(
+                bk_tenant_id="system",
+                table_id=excluded_table_id,
+                storage_cluster_id=1,
+            ),
+        ]
+    )
+
+    table_ids = Command().fill_rt_options(
+        "system",
+        0,
+        dry_run=False,
+        exclude_bk_biz_ids=[100148],
+    )
+
+    assert included_table_id in table_ids
+    assert excluded_table_id not in table_ids
+    assert set(
+        models.ResultTableOption.objects.filter(
+            bk_tenant_id="system",
+            table_id=included_table_id,
+        ).values_list("name", flat=True)
+    ) == {"need_add_time"}
+    assert not models.ResultTableOption.objects.filter(
+        bk_tenant_id="system",
+        table_id=excluded_table_id,
+    ).exists()
+
+
+def test_fill_rt_options_does_not_return_table_with_existing_options():
+    table_id = "5017046_bklog.existing_options"
+    models.ESStorage.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        storage_cluster_id=1,
+    )
+    models.ResultTableOption.objects.bulk_create(
+        [
+            models.ResultTableOption(
+                bk_tenant_id="system",
+                table_id=table_id,
+                name="need_add_time",
+                value="true",
+                value_type="bool",
+                creator="admin",
+            ),
+            models.ResultTableOption(
+                bk_tenant_id="system",
+                table_id=table_id,
+                name="time_field",
+                value='{"name":"time","type":"date","unit":"millisecond"}',
+                value_type="dict",
+                creator="admin",
+            ),
+        ]
+    )
+
+    option_table_ids = Command().fill_rt_options("system", 5017046, dry_run=False)
+
+    assert option_table_ids == []
+    assert (
+        models.ResultTableOption.objects.filter(
+            bk_tenant_id="system",
+            table_id=table_id,
+            name__in=["need_add_time", "time_field"],
+        ).count()
+        == 2
+    )
+
+
+def test_biz_event_table_is_excluded_from_index_set_and_options():
+    table_id = "5017046_bkmonitor_event_1588533"
+    es_storage = models.ESStorage.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        storage_cluster_id=1,
+        index_set="",
+    )
+
+    result = fix_esstorage_origin_table_options(
+        bk_tenant_id="system",
+        bk_biz_id=5017046,
+        dry_run=False,
+        refresh_routes=False,
+    )
+
+    es_storage.refresh_from_db()
+    assert result == {
+        "index_set_table_ids": [],
+        "option_table_ids": [],
+        "refreshed_table_ids": [],
+    }
+    assert es_storage.index_set == ""
+    assert not models.ResultTableOption.objects.filter(
+        bk_tenant_id="system",
+        table_id=table_id,
+        name__in=["need_add_time", "time_field"],
+    ).exists()
 
 
 def test_fill_rt_options_creates_one_time_field_for_multiple_virtual_tables():
@@ -113,12 +269,49 @@ def test_fill_rt_options_creates_one_time_field_for_multiple_virtual_tables():
 
 def test_handle_refreshes_changed_tables_for_specified_biz(mocker):
     command = Command()
-    mocker.patch.object(command, "fill_esstorage_index_set", return_value=["100147_bklog.index"])
-    mocker.patch.object(command, "fill_rt_options", return_value=["100147_bklog.option", "100147_bklog.index"])
+    fill_esstorage_index_set = mocker.patch.object(
+        command, "fill_esstorage_index_set", return_value=["100147_bklog.index"]
+    )
+    fill_rt_options = mocker.patch.object(
+        command, "fill_rt_options", return_value=["100147_bklog.option", "100147_bklog.index"]
+    )
     refresh_routes = mocker.patch.object(command, "refresh_routes")
 
-    command.handle(bk_tenant_id="system", bk_biz_id=100147, dry_run=False)
+    command.handle(
+        bk_tenant_id="system",
+        bk_biz_id=100147,
+        exclude_bk_biz_ids=[100148, 100149],
+        dry_run=False,
+    )
 
+    fill_esstorage_index_set.assert_called_once_with("system", 100147, False, exclude_bk_biz_ids=[100148, 100149])
+    fill_rt_options.assert_called_once_with("system", 100147, False, exclude_bk_biz_ids=[100148, 100149])
+    refresh_routes.assert_called_once_with("system", ["100147_bklog.index", "100147_bklog.option"])
+
+
+def test_fix_esstorage_origin_table_options_can_be_called_directly(mocker):
+    fill_esstorage_index_set = mocker.patch.object(
+        Command, "fill_esstorage_index_set", return_value=["100147_bklog.index"]
+    )
+    fill_rt_options = mocker.patch.object(
+        Command, "fill_rt_options", return_value=["100147_bklog.option", "100147_bklog.index"]
+    )
+    refresh_routes = mocker.patch.object(Command, "refresh_routes")
+
+    result = fix_esstorage_origin_table_options(
+        bk_tenant_id="system",
+        bk_biz_id=100147,
+        exclude_bk_biz_ids=[100148, 100149],
+        dry_run=False,
+    )
+
+    assert result == {
+        "index_set_table_ids": ["100147_bklog.index"],
+        "option_table_ids": ["100147_bklog.option", "100147_bklog.index"],
+        "refreshed_table_ids": ["100147_bklog.index", "100147_bklog.option"],
+    }
+    fill_esstorage_index_set.assert_called_once_with("system", 100147, False, exclude_bk_biz_ids=[100148, 100149])
+    fill_rt_options.assert_called_once_with("system", 100147, False, exclude_bk_biz_ids=[100148, 100149])
     refresh_routes.assert_called_once_with("system", ["100147_bklog.index", "100147_bklog.option"])
 
 

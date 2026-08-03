@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from collections.abc import Generator, Iterator
+from collections.abc import Generator
 from typing import Any
 
 from django.http import StreamingHttpResponse
@@ -71,14 +71,17 @@ class SearchViewSet(viewsets.GenericViewSet):
         searcher: Searcher = Searcher(
             bk_tenant_id=get_request_tenant_id(), username=request.user.username, current_bk_biz_id=bk_biz_id
         )
-        result: Iterator[dict] = searcher.search(query, limit=page_size)
+        result: Generator[dict[str, Any], None, None] = searcher.search(query, limit=page_size)
 
         # 使用 event-stream 返回搜索结果
         def event_stream() -> Generator[str, None, None]:
-            yield "event: start\n\n"
-            for line in result:
-                yield f"data: {json.dumps(line)}\n\n"
-            yield "event: end\n\n"
+            try:
+                yield "event: start\n\n"
+                for line in result:
+                    yield f"data: {json.dumps(line)}\n\n"
+                yield "event: end\n\n"
+            finally:
+                result.close()
 
         sr = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
         sr.headers["Cache-Control"] = "no-cache"

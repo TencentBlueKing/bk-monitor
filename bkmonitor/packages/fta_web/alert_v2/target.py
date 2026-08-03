@@ -616,7 +616,7 @@ class K8SNodeTarget(BaseK8STarget):
     TARGET_TYPE = K8STargetType.NODE
 
 
-class APMServiceTarget(BaseTarget):
+class APMServiceTarget(DefaultTarget):
     """APM 服务目标对象"""
 
     TARGET_TYPE = APMTargetType.SERVICE
@@ -685,10 +685,12 @@ class APMServiceTarget(BaseTarget):
         return target_hosts
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        return sorted(
+        origin_log_targets: list[dict[str, Any]] = super().list_related_log_targets()
+        apm_log_targets: list[dict[str, Any]] = sorted(
             self._list_related_apm_log_targets(self.list_related_apm_targets()),
             key=lambda t: not t.get("is_app_datasource", False),
         )
+        return merge_log_targets(origin_log_targets, apm_log_targets)
 
 
 class HostTarget(DefaultTarget):

@@ -1,0 +1,53 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · A-整体前端架构图 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · A-整体前端架构图</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · A-整体前端架构图</div><h2>A-整体前端架构图</h2><p><code>.docs/diagrams/A-整体前端架构图.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeyAncHJpbWFyeUNvbG9yJzogJyNlM2YyZmQnLCAncHJpbWFyeVRleHRDb2xvcic6ICcjMTU2NWMwJywgJ3ByaW1hcnlCb3JkZXJDb2xvcic6ICcjMTk3NmQyJywgJ2xpbmVDb2xvcic6ICcjNDJhNWY1JywgJ3NlY29uZGFyeUNvbG9yJzogJyNmZmYzZTAnLCAndGVydGlhcnlDb2xvcic6ICcjZjNlNWY1J319fSUlXG5ncmFwaCBUQlxuICAgIHN1YmdyYXBoIFwi5bqU55So5YWl5Y-j5bGCXCJcbiAgICAgICAgTUFJTltcIm1haW4uanM8YnIvPuW6lOeUqOWFpeWPo1wiXVxuICAgICAgICBBUFBbXCJhcHAudHN4PGJyLz7moLnnu4Tku7blo7NcIl1cbiAgICBlbmRcblxuICAgIHN1YmdyYXBoIFwi5qC45b-D5Z-656GA6K6-5pa9XCJcbiAgICAgICAgUk9VVEVSW1wicm91dGVyL2luZGV4LmpzPGJyLz7ot6_nlLHns7vnu59cIl1cbiAgICAgICAgU1RPUkVbXCJzdG9yZS9pbmRleC5qczxici8-VnVleCDnirbmgIHnrqHnkIZcIl1cbiAgICAgICAgSFRUUFtcImFwaS9pbmRleC5qczxici8-SFRUUCDor7fmsYLlsYJcIl1cbiAgICAgICAgU0VSVklDRVNbXCJzZXJ2aWNlcy9pbmRleC5qczxici8-QVBJIOacjeWKoeWumuS5iVwiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCJTdG9yZSDmqKHlnZdcIlxuICAgICAgICBSRVRSSUVWRV9TVE9SRVtcInJldHJpZXZlPGJyLz7mo4DntKLnirbmgIFcIl1cbiAgICAgICAgQ09MTEVDVF9TVE9SRVtcImNvbGxlY3Q8YnIvPumHh-mbhueKtuaAgVwiXVxuICAgICAgICBHTE9CQUxTX1NUT1JFW1wiZ2xvYmFsczxici8-5YWo5bGA54q25oCBXCJdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcIui3r-eUseaooeWdl1wiXG4gICAgICAgIFJFVFJJRVZFX1JPVVRFU1tcInJldHJpZXZlUm91dGVzPGJyLz7mo4DntKLmqKHlnZdcIl1cbiAgICAgICAgTUFOQUdFX1JPVVRFU1tcIm1hbmFnZVJvdXRlczxici8-566h55CG5qih5Z2XXCJdXG4gICAgICAgIERBU0hCT0FSRF9ST1VURVNbXCJkYXNoYm9hcmRSb3V0ZXM8YnIvPuS7quihqOebmOaooeWdl1wiXVxuICAgICAgICBNT05JVE9SX1JPVVRFU1tcIm1vbml0b3JSb3V0ZXM8YnIvPuebkeaOp-W1jOWFpeaooeWdl1wiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCLlhajlsYAgVUkg57uE5Lu2XCJcbiAgICAgICAgTk9USUNFW1wiTm90aWNlPGJyLz7lhazlkYrnu4Tku7ZcIl1cbiAgICAgICAgSEVBRE5BVltcIkhlYWROYXY8YnIvPuWktOmDqOWvvOiIqlwiXVxuICAgICAgICBBVVRIRElBTE9HW1wiQXV0aERpYWxvZzxici8-6Ym05p2D5by556qXXCJdXG4gICAgICAgIEdMT0JBTFNFVFRJTkdbXCJHbG9iYWxTZXR0aW5nRGlhbG9nPGJyLz7lhajlsYDorr7nva5cIl1cbiAgICBlbmRcblxuICAgIE1BSU4gLS0-IEFQUFxuICAgIE1BSU4gLS0-IFJPVVRFUlxuICAgIE1BSU4gLS0-IFNUT1JFXG4gICAgQVBQIC0tPiBOT1RJQ0VcbiAgICBBUFAgLS0-IEhFQUROQVZcbiAgICBBUFAgLS0-IEFVVEhESUFMT0dcbiAgICBBUFAgLS0-IEdMT0JBTFNFVFRJTkdcbiAgICBBUFAgLS0-IHxyb3V0ZXItdmlld3wgUkVUUklFVkVfUk9VVEVTXG4gICAgQVBQIC0tPiB8cm91dGVyLXZpZXd8IE1BTkFHRV9ST1VURVNcbiAgICBBUFAgLS0-IHxyb3V0ZXItdmlld3wgREFTSEJPQVJEX1JPVVRFU1xuICAgIEFQUCAtLT4gfHJvdXRlci12aWV3fCBNT05JVE9SX1JPVVRFU1xuICAgIFxuICAgIFNUT1JFIC0tPiBSRVRSSUVWRV9TVE9SRVxuICAgIFNUT1JFIC0tPiBDT0xMRUNUX1NUT1JFXG4gICAgU1RPUkUgLS0-IEdMT0JBTFNfU1RPUkVcbiAgICBcbiAgICBIVFRQIC0tPiBTRVJWSUNFU1xuICAgIFNUT1JFIC0tPiBIVFRQXG4ifQ">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: { &#39;primaryColor&#39;: &#39;#e3f2fd&#39;, &#39;primaryTextColor&#39;: &#39;#1565c0&#39;, &#39;primaryBorderColor&#39;: &#39;#1976d2&#39;, &#39;lineColor&#39;: &#39;#42a5f5&#39;, &#39;secondaryColor&#39;: &#39;#fff3e0&#39;, &#39;tertiaryColor&#39;: &#39;#f3e5f5&#39;}}}%%
+graph TB
+    subgraph &quot;应用入口层&quot;
+        MAIN[&quot;main.js&lt;br/&gt;应用入口&quot;]
+        APP[&quot;app.tsx&lt;br/&gt;根组件壳&quot;]
+    end
+
+    subgraph &quot;核心基础设施&quot;
+        ROUTER[&quot;router/index.js&lt;br/&gt;路由系统&quot;]
+        STORE[&quot;store/index.js&lt;br/&gt;Vuex 状态管理&quot;]
+        HTTP[&quot;api/index.js&lt;br/&gt;HTTP 请求层&quot;]
+        SERVICES[&quot;services/index.js&lt;br/&gt;API 服务定义&quot;]
+    end
+
+    subgraph &quot;Store 模块&quot;
+        RETRIEVE_STORE[&quot;retrieve&lt;br/&gt;检索状态&quot;]
+        COLLECT_STORE[&quot;collect&lt;br/&gt;采集状态&quot;]
+        GLOBALS_STORE[&quot;globals&lt;br/&gt;全局状态&quot;]
+    end
+
+    subgraph &quot;路由模块&quot;
+        RETRIEVE_ROUTES[&quot;retrieveRoutes&lt;br/&gt;检索模块&quot;]
+        MANAGE_ROUTES[&quot;manageRoutes&lt;br/&gt;管理模块&quot;]
+        DASHBOARD_ROUTES[&quot;dashboardRoutes&lt;br/&gt;仪表盘模块&quot;]
+        MONITOR_ROUTES[&quot;monitorRoutes&lt;br/&gt;监控嵌入模块&quot;]
+    end
+
+    subgraph &quot;全局 UI 组件&quot;
+        NOTICE[&quot;Notice&lt;br/&gt;公告组件&quot;]
+        HEADNAV[&quot;HeadNav&lt;br/&gt;头部导航&quot;]
+        AUTHDIALOG[&quot;AuthDialog&lt;br/&gt;鉴权弹窗&quot;]
+        GLOBALSETTING[&quot;GlobalSettingDialog&lt;br/&gt;全局设置&quot;]
+    end
+
+    MAIN --&gt; APP
+    MAIN --&gt; ROUTER
+    MAIN --&gt; STORE
+    APP --&gt; NOTICE
+    APP --&gt; HEADNAV
+    APP --&gt; AUTHDIALOG
+    APP --&gt; GLOBALSETTING
+    APP --&gt; |router-view| RETRIEVE_ROUTES
+    APP --&gt; |router-view| MANAGE_ROUTES
+    APP --&gt; |router-view| DASHBOARD_ROUTES
+    APP --&gt; |router-view| MONITOR_ROUTES
+    
+    STORE --&gt; RETRIEVE_STORE
+    STORE --&gt; COLLECT_STORE
+    STORE --&gt; GLOBALS_STORE
+    
+    HTTP --&gt; SERVICES
+    STORE --&gt; HTTP
+</pre></main></div></body></html>

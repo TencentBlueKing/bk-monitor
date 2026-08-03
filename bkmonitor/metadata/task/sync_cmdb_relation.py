@@ -11,45 +11,55 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
 
 from alarm_backends.core.lock.service_lock import share_lock
-from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
+from metadata import config
 from metadata.models import (
     ClusterInfo,
-    DataLink,
     DataSource,
     DataSourceResultTable,
+    GraphRelationV4DataLinkOption,
     Label,
     ResultTable,
+    ResultTableOption,
     Space,
+    SurrealDBStorage,
     TimeSeriesGroup,
 )
-from metadata.models.data_link.data_link import SURREALDB_RT_SUFFIX
-from metadata.models.data_link.constants import DataLinkResourceStatus
-from metadata.models.data_link.data_link_configs import (
-    DataBusConfig,
-    GraphDataBusConfig,
-    GraphRelationBindingConfig,
-    ResultTableConfig,
-    SurrealDBBindingConfig,
-    VMStorageBindingConfig,
-)
-from metadata.models.data_link.utils import compose_bkdata_table_id
-from metadata.models.entity_relation import EntityMeta, NAMESPACE_ALL
+from metadata.models.entity_relation import EntityMeta
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
 GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST"
+
+
+@dataclass
+class _RelationSyncContext:
+    """单个 Redis field 对应的 CMDB relation 同步上下文。"""
+
+    field: bytes | str
+    key: str
+    value: dict[str, Any]
+    space_type: str
+    space_id: str
+    bk_biz_id: int
+    bk_tenant_id: str
+    table_id: str
+    data_name: str
+
+    @property
+    def redis_token(self) -> str:
+        return self.value.get("token") or ""
 
 
 def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
@@ -79,640 +89,28 @@ def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
     return biz_ids
 
 
-def _get_graph_definition_binding_queryset(namespace: str, filter_by_biz_whitelist: bool = True):
-    queryset = GraphRelationBindingConfig.objects.filter(
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-    ).filter(
-        Q(
-            write_mode__in=[
-                GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-                GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-            ]
-        )
-        | Q(
-            write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
-            surrealdb_cluster_name__gt="",
-            graph_result_table_name__gt="",
-        )
-    )
-    if namespace and namespace != NAMESPACE_ALL:
-        bk_biz_id = space_uid_to_bk_biz_id(namespace)
-        if not bk_biz_id:
-            logger.warning("sync_graph_definition_to_bkbase: namespace->[%s] cannot resolve bk_biz_id, skip", namespace)
-            return GraphRelationBindingConfig.objects.none()
-        queryset = queryset.filter(bk_biz_id=bk_biz_id)
-    if filter_by_biz_whitelist:
-        enabled_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
-        if not enabled_biz_ids:
-            return GraphRelationBindingConfig.objects.none()
-        queryset = queryset.filter(bk_biz_id__in=enabled_biz_ids)
-    return queryset
-
-
-def _get_data_source_and_table_id(graph_binding: GraphRelationBindingConfig) -> tuple[DataSource | None, str]:
-    data_link = DataLink.objects.filter(
-        bk_tenant_id=graph_binding.bk_tenant_id,
-        namespace=graph_binding.namespace,
-        data_link_name=graph_binding.data_link_name,
-        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-    ).first()
-    if not data_link:
-        logger.warning("sync_graph_definition_to_bkbase: data_link->[%s] not found, skip", graph_binding.data_link_name)
-        return None, ""
-
-    data_source = DataSource.objects.filter(
-        bk_tenant_id=data_link.bk_tenant_id,
-        bk_data_id=data_link.bk_data_id,
-    ).first()
-    if not data_source:
-        logger.warning(
-            "sync_graph_definition_to_bkbase: data_link->[%s] data_id->[%s] not found, skip",
-            data_link.data_link_name,
-            data_link.bk_data_id,
-        )
-        return None, ""
-
-    table_id = graph_binding.table_id
-    if not table_id and data_link.table_ids:
-        table_id = data_link.table_ids[0]
-    if not table_id:
-        table_id = (
-            DataSourceResultTable.objects.filter(
-                bk_tenant_id=data_link.bk_tenant_id,
-                bk_data_id=data_source.bk_data_id,
-            )
-            .values_list("table_id", flat=True)
-            .first()
-        )
-    if not table_id:
-        logger.warning(
-            "sync_graph_definition_to_bkbase: data_link->[%s] has no result table, skip", data_link.data_link_name
-        )
-        return None, ""
-
-    return data_source, table_id
-
-
-def _graph_definitions_changed(graph_binding: GraphRelationBindingConfig, vertices: list, relations: list) -> bool:
-    if not graph_binding.should_write_surrealdb:
-        return False
-
-    if _canonical_graph_definitions(graph_binding.vertices) != _canonical_graph_definitions(
-        vertices
-    ) or _canonical_graph_definitions(graph_binding.relations) != _canonical_graph_definitions(relations):
-        return True
-
-    if not graph_binding.graph_result_table_name:
-        return True
-
-    common_filters = {
-        "bk_tenant_id": graph_binding.bk_tenant_id,
-        "namespace": graph_binding.namespace,
-        "data_link_name": graph_binding.data_link_name,
-    }
-    surrealdb_binding = SurrealDBBindingConfig.objects.filter(
-        **common_filters,
-        name=graph_binding.surrealdb_binding_component_name,
-    ).first()
-    if not surrealdb_binding:
-        return True
-
-    if _canonical_graph_definitions(surrealdb_binding.vertices) != _canonical_graph_definitions(
-        vertices
-    ) or _canonical_graph_definitions(surrealdb_binding.relations) != _canonical_graph_definitions(relations):
-        return True
-
-    return not (
-        ResultTableConfig.objects.filter(
-            **common_filters,
-            name=graph_binding.graph_result_table_name,
-        ).exists()
-        and GraphDataBusConfig.objects.filter(
-            **common_filters,
-            name=graph_binding.graph_databus_component_name,
-        ).exists()
-    )
-
-
-def _graph_definition_sync_write_mode(graph_binding: GraphRelationBindingConfig) -> str:
-    if (
-        graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
-        and graph_binding.surrealdb_auto_restore
-        and graph_binding.surrealdb_cluster_name
-        and graph_binding.graph_result_table_name
-        and not SurrealDBBindingConfig.objects.filter(
-            bk_tenant_id=graph_binding.bk_tenant_id,
-            namespace=graph_binding.namespace,
-            data_link_name=graph_binding.data_link_name,
-            name=graph_binding.surrealdb_binding_component_name,
-        ).exists()
-    ):
-        return GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
-    return graph_binding.write_mode
-
-
-def _graph_relation_binding_sync_healthy(graph_binding: GraphRelationBindingConfig) -> bool:
-    if graph_binding.status == DataLinkResourceStatus.FAILED.value:
-        return False
-
-    common_filters = {
-        "bk_tenant_id": graph_binding.bk_tenant_id,
-        "namespace": graph_binding.namespace,
-        "data_link_name": graph_binding.data_link_name,
-    }
-    component_checks = []
-    if graph_binding.should_write_vm:
-        component_checks.extend(
-            [
-                (ResultTableConfig, graph_binding.bkbase_result_table_name),
-                (VMStorageBindingConfig, graph_binding.vm_binding_component_name),
-                (DataBusConfig, graph_binding.vm_databus_component_name),
-            ]
-        )
-    if graph_binding.should_write_surrealdb:
-        component_checks.extend(
-            [
-                (ResultTableConfig, graph_binding.graph_result_table_name),
-                (SurrealDBBindingConfig, graph_binding.surrealdb_binding_component_name),
-                (GraphDataBusConfig, graph_binding.graph_databus_component_name),
-            ]
-        )
-
-    return all(
-        bool(component_name)
-        and component.objects.filter(
-            **common_filters,
-            name=component_name,
-            status=DataLinkResourceStatus.OK.value,
-        ).exists()
-        for component, component_name in component_checks
-    )
-
-
 def _get_builtin_relation_token(
-    ds: DataSource, table_id: str, generated_token: str, time_series_group: TimeSeriesGroup | None = None
+    data_source: DataSource,
+    bk_biz_id: int,
+    data_name: str,
+    time_series_group: TimeSeriesGroup | None = None,
 ) -> str:
-    return time_series_group.token if time_series_group and time_series_group.token else generated_token
+    """获取 relation 上报 token。
+
+    正常链路以 TimeSeriesGroup.token 为准；仅在历史 RT 缺少 TimeSeriesGroup
+    记录时，使用可重复计算的 Prometheus token 作为兼容兜底。
+    """
+    if time_series_group and time_series_group.token:
+        return time_series_group.token
+    return transform_data_id_to_token(
+        metric_data_id=data_source.bk_data_id,
+        bk_biz_id=bk_biz_id,
+        app_name=data_name,
+    )
 
 
 def _canonical_graph_definitions(definitions: list) -> list[str]:
     return sorted(json.dumps(item, sort_keys=True, ensure_ascii=False) for item in definitions)
-
-
-def _graph_relation_preview_reason(
-    *,
-    graph_binding: GraphRelationBindingConfig,
-    target_write_mode: str,
-    graph_definitions_changed: bool,
-    healthy: bool,
-) -> str:
-    if target_write_mode != graph_binding.write_mode:
-        return "write_mode_changed"
-    if graph_definitions_changed:
-        return "graph_definitions_changed"
-    if not healthy:
-        return "component_unhealthy"
-    return "no_change"
-
-
-def _build_graph_relation_sync_preview(
-    graph_binding: GraphRelationBindingConfig,
-    *,
-    target_write_mode: str,
-    vertices: list,
-    relations: list,
-    would_apply: bool,
-    reason: str,
-    table_id: str = "",
-) -> dict[str, Any]:
-    return {
-        "data_link_name": graph_binding.data_link_name,
-        "name": graph_binding.name,
-        "bk_tenant_id": graph_binding.bk_tenant_id,
-        "namespace": graph_binding.namespace,
-        "bk_biz_id": graph_binding.bk_biz_id,
-        "status": graph_binding.status,
-        "table_id": table_id or graph_binding.table_id,
-        "current_write_mode": graph_binding.write_mode,
-        "target_write_mode": target_write_mode,
-        "would_apply": would_apply,
-        "reason": reason,
-        "surrealdb_auto_restore": graph_binding.surrealdb_auto_restore,
-        "vm_target": {
-            "result_table_name": graph_binding.bkbase_result_table_name,
-            "storage_binding_name": graph_binding.vm_binding_component_name,
-            "databus_name": graph_binding.vm_databus_component_name,
-            "cluster_name": graph_binding.vm_cluster_name,
-        },
-        "surrealdb_target": {
-            "result_table_name": graph_binding.graph_result_table_name,
-            "binding_name": graph_binding.surrealdb_binding_component_name,
-            "cluster_name": graph_binding.surrealdb_cluster_name,
-            "table_type": graph_binding.table_type,
-        },
-        "graph_databus_target": {
-            "databus_name": graph_binding.graph_databus_component_name,
-        },
-        "vertices_count": len(vertices),
-        "relations_count": len(relations),
-    }
-
-
-def preview_graph_definition_sync_to_bkbase(
-    namespace: str = "",
-    bk_biz_id: int | None = None,
-    action: str = "manual",
-) -> dict[str, Any]:
-    """
-    只读预览 ResourceDefinition / RelationDefinition 同步会影响哪些 GraphRelation 链路。
-
-    与 sync_graph_definition_to_bkbase(dry_run=True) 使用同一批筛选与判定 helper，
-    但额外返回每条 binding 的目标组件名，供 bkm-cli 激活前核验，不执行任何 apply 或状态写入。
-    """
-    if bk_biz_id is not None:
-        namespace = bk_biz_id_to_space_uid(bk_biz_id)
-        if not namespace:
-            raise ValueError(f"cannot resolve namespace from bk_biz_id={bk_biz_id}")
-
-    namespace = namespace or NAMESPACE_ALL
-    enabled_biz_ids = sorted(_get_graph_relation_bkbase_sync_biz_ids())
-    unfiltered_matched = _get_graph_definition_binding_queryset(namespace, filter_by_biz_whitelist=False).count()
-    bindings = list(_get_graph_definition_binding_queryset(namespace))
-    result: dict[str, Any] = {
-        "namespace": namespace,
-        "action": action,
-        "dry_run": True,
-        "enabled_biz_ids": enabled_biz_ids,
-        "matched": len(bindings),
-        "filtered_by_whitelist": max(unfiltered_matched - len(bindings), 0),
-        "would_apply": 0,
-        "would_skip": 0,
-        "would_fail": 0,
-        "previews": [],
-    }
-
-    for graph_binding in bindings:
-        try:
-            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=graph_binding.bk_biz_id)
-            target_write_mode = _graph_definition_sync_write_mode(graph_binding)
-
-            if not vertices or not relations:
-                data_source = None
-                table_id = ""
-                if graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
-                    result["would_skip"] += 1
-                    reason = "vm_only_empty_graph_definitions_skipped"
-                    would_apply = False
-                elif graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB:
-                    data_source, table_id = _get_data_source_and_table_id(graph_binding)
-                    if data_source and table_id:
-                        result["would_apply"] += 1
-                        reason = "empty_graph_definitions_would_downgrade_to_vm"
-                        target_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
-                        would_apply = True
-                    else:
-                        result["would_skip"] += 1
-                        reason = "missing_data_source_or_table_id"
-                        would_apply = False
-                else:
-                    result["would_fail"] += 1
-                    reason = "graph_definitions_empty"
-                    would_apply = False
-
-                result["previews"].append(
-                    _build_graph_relation_sync_preview(
-                        graph_binding,
-                        target_write_mode=target_write_mode,
-                        vertices=vertices,
-                        relations=relations,
-                        would_apply=would_apply,
-                        reason=reason,
-                        table_id=table_id,
-                    )
-                )
-                continue
-
-            graph_definitions_changed = (
-                _graph_definitions_changed(graph_binding, vertices, relations)
-                or target_write_mode != graph_binding.write_mode
-            )
-            healthy = _graph_relation_binding_sync_healthy(graph_binding)
-            if not graph_definitions_changed and healthy:
-                result["would_skip"] += 1
-                result["previews"].append(
-                    _build_graph_relation_sync_preview(
-                        graph_binding,
-                        target_write_mode=target_write_mode,
-                        vertices=vertices,
-                        relations=relations,
-                        would_apply=False,
-                        reason="no_change",
-                    )
-                )
-                continue
-
-            data_source, table_id = _get_data_source_and_table_id(graph_binding)
-            if not data_source or not table_id:
-                result["would_skip"] += 1
-                result["previews"].append(
-                    _build_graph_relation_sync_preview(
-                        graph_binding,
-                        target_write_mode=target_write_mode,
-                        vertices=vertices,
-                        relations=relations,
-                        would_apply=False,
-                        reason="missing_data_source_or_table_id",
-                    )
-                )
-                continue
-
-            result["would_apply"] += 1
-            result["previews"].append(
-                _build_graph_relation_sync_preview(
-                    graph_binding,
-                    target_write_mode=target_write_mode,
-                    vertices=vertices,
-                    relations=relations,
-                    would_apply=True,
-                    reason=_graph_relation_preview_reason(
-                        graph_binding=graph_binding,
-                        target_write_mode=target_write_mode,
-                        graph_definitions_changed=graph_definitions_changed,
-                        healthy=healthy,
-                    ),
-                    table_id=table_id,
-                )
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            result["would_fail"] += 1
-            preview = _build_graph_relation_sync_preview(
-                graph_binding,
-                target_write_mode=graph_binding.write_mode,
-                vertices=[],
-                relations=[],
-                would_apply=False,
-                reason="preview_failed",
-            )
-            preview["error"] = str(e)
-            result["previews"].append(preview)
-
-    return result
-
-
-def sync_graph_definition_to_bkbase(
-    namespace: str,
-    kind: str = "",
-    name: str = "",
-    generation: int | None = None,
-    action: str = "apply",
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    """
-    将 ResourceDefinition / RelationDefinition 的最新图定义同步到已有 BKBase graph relation 链路。
-
-    只处理已存在且写入 SurrealDB 的 GraphRelationBindingConfig；首次创建链路仍由 CMDB relation 同步负责。
-    """
-    namespace = namespace or NAMESPACE_ALL
-    enabled_biz_ids = sorted(_get_graph_relation_bkbase_sync_biz_ids())
-    unfiltered_matched = _get_graph_definition_binding_queryset(namespace, filter_by_biz_whitelist=False).count()
-    bindings = list(_get_graph_definition_binding_queryset(namespace))
-    result: dict[str, Any] = {
-        "namespace": namespace,
-        "kind": kind,
-        "name": name,
-        "generation": generation,
-        "action": action,
-        "dry_run": dry_run,
-        "enabled_biz_ids": enabled_biz_ids,
-        "matched": len(bindings),
-        "filtered_by_whitelist": max(unfiltered_matched - len(bindings), 0),
-        "applied": 0,
-        "skipped": 0,
-        "failed": 0,
-        "failures": [],
-    }
-
-    logger.info(
-        "sync_graph_definition_to_bkbase started: namespace=%s, kind=%s, name=%s, generation=%s, action=%s, matched=%s",
-        namespace,
-        kind,
-        name,
-        generation,
-        action,
-        len(bindings),
-    )
-
-    for graph_binding in bindings:
-        try:
-            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=graph_binding.bk_biz_id)
-            if not vertices or not relations:
-                error_message = "graph definitions are empty, SurrealDB write requires non-empty vertices and relations"
-                if graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
-                    result["skipped"] += 1
-                    logger.info(
-                        "sync_graph_definition_to_bkbase: data_link=%s, bk_biz_id=%s has empty graph definitions, "
-                        "skip vm-only binding",
-                        graph_binding.data_link_name,
-                        graph_binding.bk_biz_id,
-                    )
-                    continue
-                if graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB:
-                    data_source, table_id = _get_data_source_and_table_id(graph_binding)
-                    if not data_source or not table_id:
-                        result["skipped"] += 1
-                        continue
-                    if dry_run:
-                        result["applied"] += 1
-                        logger.info(
-                            "sync_graph_definition_to_bkbase dry_run downgrade to vm: data_link=%s, bk_biz_id=%s",
-                            graph_binding.data_link_name,
-                            graph_binding.bk_biz_id,
-                        )
-                        continue
-                    data_link = DataLink.objects.get(
-                        bk_tenant_id=graph_binding.bk_tenant_id,
-                        namespace=graph_binding.namespace,
-                        data_link_name=graph_binding.data_link_name,
-                        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-                    )
-                    data_link.apply_data_link(
-                        bk_biz_id=graph_binding.bk_biz_id,
-                        data_source=data_source,
-                        table_id=table_id,
-                        storage_cluster_name=graph_binding.vm_cluster_name,
-                        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
-                        persist_graph_write_mode=True,
-                        surrealdb_auto_restore=True,
-                    )
-                    result["applied"] += 1
-                    logger.warning(
-                        "sync_graph_definition_to_bkbase: data_link=%s, bk_biz_id=%s has empty graph definitions, "
-                        "downgraded to vm-only",
-                        graph_binding.data_link_name,
-                        graph_binding.bk_biz_id,
-                    )
-                    continue
-
-                if not dry_run:
-                    graph_binding.status = DataLinkResourceStatus.FAILED.value
-                    graph_binding.save(update_fields=["status"])
-                result["failed"] += 1
-                result["failures"].append(
-                    {
-                        "data_link_name": graph_binding.data_link_name,
-                        "bk_biz_id": graph_binding.bk_biz_id,
-                        "error": error_message,
-                    }
-                )
-                logger.warning(
-                    "sync_graph_definition_to_bkbase: data_link=%s, bk_biz_id=%s has empty graph definitions, "
-                    "mark failed",
-                    graph_binding.data_link_name,
-                    graph_binding.bk_biz_id,
-                )
-                continue
-            sync_write_mode = _graph_definition_sync_write_mode(graph_binding)
-            graph_definitions_changed = (
-                _graph_definitions_changed(graph_binding, vertices, relations)
-                or sync_write_mode != graph_binding.write_mode
-            )
-            if not graph_definitions_changed and _graph_relation_binding_sync_healthy(graph_binding):
-                result["skipped"] += 1
-                continue
-
-            data_source, table_id = _get_data_source_and_table_id(graph_binding)
-            if not data_source or not table_id:
-                result["skipped"] += 1
-                continue
-
-            if dry_run:
-                result["applied"] += 1
-                logger.info(
-                    "sync_graph_definition_to_bkbase dry_run: data_link=%s, bk_biz_id=%s, vertices=%s, relations=%s",
-                    graph_binding.data_link_name,
-                    graph_binding.bk_biz_id,
-                    len(vertices),
-                    len(relations),
-                )
-                continue
-
-            data_link = DataLink.objects.get(
-                bk_tenant_id=graph_binding.bk_tenant_id,
-                namespace=graph_binding.namespace,
-                data_link_name=graph_binding.data_link_name,
-                data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-            )
-            data_link.apply_data_link(
-                bk_biz_id=graph_binding.bk_biz_id,
-                data_source=data_source,
-                table_id=table_id,
-                storage_cluster_name=graph_binding.vm_cluster_name,
-                write_mode=sync_write_mode,
-            )
-            result["applied"] += 1
-            logger.info(
-                "sync_graph_definition_to_bkbase applied: data_link=%s, bk_biz_id=%s, vertices=%s, relations=%s",
-                graph_binding.data_link_name,
-                graph_binding.bk_biz_id,
-                len(vertices),
-                len(relations),
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            result["failed"] += 1
-            if not dry_run:
-                graph_binding.status = DataLinkResourceStatus.FAILED.value
-                graph_binding.save(update_fields=["status"])
-            result["failures"].append(
-                {
-                    "data_link_name": graph_binding.data_link_name,
-                    "bk_biz_id": graph_binding.bk_biz_id,
-                    "error": str(e),
-                }
-            )
-            logger.exception(
-                "sync_graph_definition_to_bkbase failed: data_link=%s, bk_biz_id=%s, error=%s",
-                graph_binding.data_link_name,
-                graph_binding.bk_biz_id,
-                e,
-            )
-
-    logger.info("sync_graph_definition_to_bkbase finished: result=%s", result)
-    return result
-
-
-def _apply_relation_graph_link_best_effort(
-    data_link: DataLink,
-    ds: DataSource,
-    bk_biz_id: int,
-    table_id: str,
-    vm_cluster_name: str,
-    effective_write_mode: str,
-    graph_binding: GraphRelationBindingConfig | None = None,
-    persist_graph_write_mode: bool = True,
-    surrealdb_auto_restore: bool = False,
-) -> bool:
-    """
-    Relation data must keep the historical VM/event path available.
-
-    SurrealDB graph link apply is best effort in this periodic sync path: failures are logged and retried by the next
-    run instead of rolling back the built-in relation RT/token refresh.
-    """
-    try:
-        data_link.apply_data_link(
-            bk_biz_id=bk_biz_id,
-            data_source=ds,
-            table_id=table_id,
-            storage_cluster_name=vm_cluster_name,
-            write_mode=effective_write_mode,
-            persist_graph_write_mode=persist_graph_write_mode,
-            surrealdb_auto_restore=surrealdb_auto_restore,
-        )
-        return True
-    except Exception as e:  # pylint: disable=broad-except
-        if graph_binding:
-            graph_binding.status = DataLinkResourceStatus.FAILED.value
-            graph_binding.save(update_fields=["status"])
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: best-effort graph link apply failed, data_id->[%s], "
-            "bk_biz_id->[%s], write_mode->[%s], error->[%s]",
-            ds.bk_data_id,
-            bk_biz_id,
-            effective_write_mode,
-            e,
-        )
-        return False
-
-
-def _is_graph_relation_binding_apply_config_unchanged(
-    graph_binding: GraphRelationBindingConfig,
-    effective_write_mode: str,
-    graph_binding_defaults: dict[str, Any],
-) -> bool:
-    if graph_binding.write_mode != effective_write_mode:
-        return False
-
-    for field, value in graph_binding_defaults.items():
-        current_value = getattr(graph_binding, field)
-        if field in {"vertices", "relations"}:
-            if _canonical_graph_definitions(current_value) != _canonical_graph_definitions(value):
-                return False
-            continue
-        if current_value != value:
-            return False
-    return True
-
-
-def _enable_relation_surrealdb_dual_write_best_effort(ds: DataSource, bk_tenant_id: str, bk_biz_id: int) -> None:
-    try:
-        enable_relation_surrealdb_dual_write(ds, bk_tenant_id, bk_biz_id)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning(
-            "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
-            "data_id->[%s], bk_biz_id->[%s], error->[%s]",
-            ds.bk_data_id,
-            bk_biz_id,
-            e,
-        )
 
 
 def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: set[int] | None = None) -> bool:
@@ -720,375 +118,409 @@ def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: s
     return bk_biz_id in enabled_biz_ids
 
 
-def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_biz_id: int) -> None:
+def _compose_relation_graph_v4_storage_config(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    table_id: str,
+) -> dict[str, Any]:
+    """校验 Graph V4 依赖，并生成保持已有集群稳定的 SurrealDB external storage 配置。"""
+    surrealdb_storage = SurrealDBStorage.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+    ).first()
+    if surrealdb_storage is not None:
+        storage_cluster_id = surrealdb_storage.storage_cluster_id
+    else:
+        default_clusters = list(
+            ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+                is_default_cluster=True,
+            )
+        )
+        if len(default_clusters) != 1:
+            raise ValueError(
+                f"sync_relation_redis_data: tenant({bk_tenant_id}) requires exactly one default SurrealDB cluster, "
+                f"found {len(default_clusters)}"
+            )
+        storage_cluster_id = default_clusters[0].cluster_id
+
+    vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
+    if not vertices:
+        raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph vertices are empty")
+    if not relations:
+        raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph relations are empty")
+
+    return {
+        "storage_cluster_id": storage_cluster_id,
+        "table_type": SurrealDBStorage.TEMPORARY_TABLE_TYPE,
+        "vertices": vertices,
+        "relations": relations,
+    }
+
+
+def _modify_relation_graph_v4_result_table(
+    result_table: ResultTable,
+    storage_config: dict[str, Any],
+) -> bool:
+    """通过普通 ResultTable 变更流程同步刷新 Graph V4 storage、option 和接入链路。"""
+    # storage、option 和 Graph V4 接入必须处于同一事务；同步 apply 失败时由
+    # ResultTable.modify 回滚本地配置。
+    with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+        result_table = (
+            ResultTable.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=result_table.pk)
+        )
+        desired_graph_option = GraphRelationV4DataLinkOption(write_targets=["vm", "surrealdb"])
+        surrealdb_storage = (
+            SurrealDBStorage.objects.using(config.DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+            )
+            .first()
+        )
+        graph_option_record = (
+            ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            )
+            .first()
+        )
+        current_graph_option = None
+        if graph_option_record is not None:
+            try:
+                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
+            except (TypeError, ValueError):
+                # 非法旧值视为配置变化，交给普通 modify 流程覆盖修复。
+                pass
+
+        storage_unchanged = bool(
+            surrealdb_storage
+            and surrealdb_storage.storage_cluster_id == storage_config["storage_cluster_id"]
+            and surrealdb_storage.table_type == storage_config["table_type"]
+            and _canonical_graph_definitions(surrealdb_storage.vertices)
+            == _canonical_graph_definitions(storage_config["vertices"])
+            and _canonical_graph_definitions(surrealdb_storage.relations)
+            == _canonical_graph_definitions(storage_config["relations"])
+        )
+        option_unchanged = bool(
+            current_graph_option and current_graph_option.model_dump() == desired_graph_option.model_dump()
+        )
+        if storage_unchanged and option_unchanged:
+            logger.info(
+                "sync_relation_redis_data: graph relation config unchanged, skip ResultTable.modify, "
+                "bk_tenant_id->[%s], table_id->[%s]",
+                result_table.bk_tenant_id,
+                result_table.table_id,
+            )
+            return False
+
+        # ResultTable.modify 会以传入 option 为完整期望状态，因此先合并当前全部
+        # ResultTableOption，仅覆盖 Graph V4 配置，避免丢失已有查询或清洗选项。
+        options = {
+            option.name: option.get_value()
+            for option in ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME).filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+            )
+        }
+        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump()
+        result_table.modify(
+            operator="system",
+            external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},
+            option=options,
+        )
+        return True
+
+
+def enable_relation_surrealdb_dual_write(
+    ds: DataSource,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_config: dict[str, Any] | None = None,
+) -> bool:
+    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路"""
     table_ids = list(
         DataSourceResultTable.objects.filter(bk_data_id=ds.bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
             "table_id", flat=True
         )
     )
-    if not table_ids:
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: data_id->[%s] has no result table, skip apply graph relation link",
-            ds.bk_data_id,
+    if len(table_ids) != 1:
+        raise ValueError(
+            f"enable_relation_surrealdb_dual_write: tenant({bk_tenant_id}) data_id({ds.bk_data_id}) "
+            f"requires exactly one result table, found {len(table_ids)}"
         )
-        return
-
-    table_id = table_ids[0]
-    data_link_name = compose_bkdata_table_id(f"{bk_tenant_id}_{ds.data_name}_graph_relation")
-    existed_graph_binding = GraphRelationBindingConfig.objects.filter(
+    result_table = ResultTable.objects.get(
         bk_tenant_id=bk_tenant_id,
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-        name=data_link_name,
-    ).first()
-    current_write_mode = (
-        existed_graph_binding.write_mode
-        if existed_graph_binding
-        else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+        table_id=table_ids[0],
     )
-    desired_write_mode = (
-        _graph_definition_sync_write_mode(existed_graph_binding) if existed_graph_binding else current_write_mode
+    storage_config = storage_config or _compose_relation_graph_v4_storage_config(
+        bk_tenant_id,
+        bk_biz_id,
+        result_table.table_id,
     )
-    apply_write_mode = desired_write_mode
-    is_auto_restoring_vm_binding = (
-        bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
-        and current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
-        and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
-    )
-    should_write_vm = desired_write_mode in (
-        GraphRelationBindingConfig.WRITE_MODE_VM,
-        GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-    )
-    should_write_surrealdb = desired_write_mode in (
-        GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-        GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-    )
+    return _modify_relation_graph_v4_result_table(result_table, storage_config)
 
-    vm_cluster = None
-    if should_write_vm:
-        vm_cluster_queryset = ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=ClusterInfo.TYPE_VM,
-        )
-        vm_cluster = (
-            vm_cluster_queryset.filter(cluster_name=existed_graph_binding.vm_cluster_name).first()
-            if existed_graph_binding and existed_graph_binding.vm_cluster_name
-            else vm_cluster_queryset.filter(is_default_cluster=True).first()
-        )
-    if should_write_vm and not vm_cluster:
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: data_id->[%s] has no vm cluster, skip apply graph relation link",
-            ds.bk_data_id,
-        )
-        return
 
-    surrealdb_cluster = None
-    if should_write_surrealdb:
-        surrealdb_cluster_queryset = ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=ClusterInfo.TYPE_SURREALDB,
+def _parse_relation_redis_value(field: bytes | str, raw_value: bytes | str) -> dict[str, Any]:
+    """解析 Redis value；脏数据按空配置处理，由后续流程重新生成 token。"""
+    try:
+        value = json.loads(raw_value)
+        if not isinstance(value, dict):
+            raise ValueError(f"value is not a dictionary: {value!r}")
+        return value
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "sync_relation_redis_data: invalid redis value, field->[%s], value->[%s], error->[%s]; "
+            "use empty value instead",
+            field,
+            raw_value,
+            e,
         )
-        surrealdb_cluster = (
-            surrealdb_cluster_queryset.filter(cluster_name=existed_graph_binding.surrealdb_cluster_name).first()
-            if existed_graph_binding and existed_graph_binding.surrealdb_cluster_name
-            else (
-                surrealdb_cluster_queryset.filter(is_default_cluster=True).first()
-                or surrealdb_cluster_queryset.order_by("cluster_id").first()
-            )
-        )
-    if should_write_surrealdb and not surrealdb_cluster:
-        if is_auto_restoring_vm_binding:
-            logger.warning(
-                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
-                "fallback to vm-only graph relation link",
-                ds.bk_data_id,
-            )
-            desired_write_mode = current_write_mode
-            apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
-            should_write_surrealdb = False
+        return {"token": None, "modifyTime": None}
+
+
+def _build_relation_sync_context(field: bytes | str, raw_value: bytes | str) -> _RelationSyncContext | None:
+    """解析 Redis field，并补齐单业务同步所需的租户、RT 和数据源标识。"""
+    value = _parse_relation_redis_value(field, raw_value)
+    try:
+        key = field.decode("utf-8") if isinstance(field, bytes) else field
+        space_type, space_id = key.split("__", maxsplit=1)
+        if not space_type or not space_id:
+            raise ValueError("space type or space id is empty")
+
+        if space_type == "bkcc":
+            bk_biz_id = int(space_id)
         else:
-            logger.warning(
-                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
-                "skip apply graph relation link",
-                ds.bk_data_id,
-            )
-            return
+            bk_biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
+            if not bk_biz_id:
+                raise ValueError(f"space does not exist: {space_type}__{space_id}")
 
-    vertices = []
-    relations = []
-    if should_write_surrealdb:
-        vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
-        if not vertices or not relations:
-            if desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_SURREALDB:
-                logger.warning(
-                    "enable_relation_surrealdb_dual_write: data_id->[%s] has empty graph definitions and "
-                    "surrealdb-only mode, skip apply graph relation link",
-                    ds.bk_data_id,
-                )
-                return
-            logger.warning(
-                "enable_relation_surrealdb_dual_write: data_id->[%s] has empty graph definitions, downgrade to vm-only",
-                ds.bk_data_id,
-            )
-            apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
-            should_write_surrealdb = False
-            if current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
-                desired_write_mode = current_write_mode
+        data_name = f"{bk_biz_id}_{space_type}_built_in_time_series"
+        table_id = f"{data_name}.__default__"
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning(
+            "sync_relation_redis_data: invalid redis field, field->[%s], error->[%s]",
+            field,
+            e,
+        )
+        return None
 
-    if not should_write_surrealdb and existed_graph_binding:
-        vertices = existed_graph_binding.vertices
-        relations = existed_graph_binding.relations
-    graph_table_id = table_id.replace(".__default__", f"{SURREALDB_RT_SUFFIX}.__default__", 1)
-    if graph_table_id == table_id:
-        graph_table_id = f"{table_id}{SURREALDB_RT_SUFFIX}"
-
-    data_link, _ = DataLink.objects.update_or_create(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_link_name,
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-        defaults={
-            "bk_data_id": ds.bk_data_id,
-            "table_ids": table_ids,
-            "data_link_strategy": DataLink.GRAPH_RELATION_TIME_SERIES,
-        },
-    )
-    vm_cluster_name = vm_cluster.cluster_name if vm_cluster else ""
-    surrealdb_cluster_name = surrealdb_cluster.cluster_name if surrealdb_cluster else ""
-    if existed_graph_binding:
-        vm_cluster_name = vm_cluster_name or existed_graph_binding.vm_cluster_name
-        surrealdb_cluster_name = surrealdb_cluster_name or existed_graph_binding.surrealdb_cluster_name
-
-    bkbase_result_table_name = DataLink.resolve_graph_relation_vm_result_table_name(
-        bk_tenant_id=bk_tenant_id,
-        table_id=table_id,
-        default_name=compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
-    )
-    graph_binding_defaults = {
-        "data_link_name": data_link.data_link_name,
-        "bk_biz_id": bk_biz_id,
-        "vm_cluster_name": vm_cluster_name,
-        "surrealdb_cluster_name": surrealdb_cluster_name,
-        "table_id": table_id,
-        "bkbase_result_table_name": bkbase_result_table_name,
-        "vm_storage_binding_name": bkbase_result_table_name,
-        "vm_databus_name": bkbase_result_table_name,
-        "graph_result_table_name": compose_bkdata_table_id(graph_table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
-        "table_type": existed_graph_binding.table_type if existed_graph_binding else "temporary",
-        "vertices": vertices,
-        "relations": relations,
-        "surrealdb_auto_restore": (
-            bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
-            and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
-        ),
-    }
-    graph_binding, created = GraphRelationBindingConfig.objects.get_or_create(
-        bk_tenant_id=bk_tenant_id,
-        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-        name=data_link.data_link_name,
-        defaults={
-            **graph_binding_defaults,
-            "write_mode": desired_write_mode,
-            "status": DataLinkResourceStatus.INITIALIZING.value,
-        },
-    )
-    if not created:
-        if (
-            apply_write_mode == desired_write_mode
-            and _graph_relation_binding_sync_healthy(graph_binding)
-            and _is_graph_relation_binding_apply_config_unchanged(
-                graph_binding=graph_binding,
-                effective_write_mode=desired_write_mode,
-                graph_binding_defaults=graph_binding_defaults,
-            )
-        ):
-            logger.info(
-                "enable_relation_surrealdb_dual_write: graph link unchanged, skip apply, data_id->[%s], "
-                "data_link->[%s], bk_biz_id->[%s]",
-                ds.bk_data_id,
-                data_link.data_link_name,
-                bk_biz_id,
-            )
-            return
-        for field, value in graph_binding_defaults.items():
-            setattr(graph_binding, field, value)
-        graph_binding.write_mode = desired_write_mode
-        graph_binding.status = DataLinkResourceStatus.INITIALIZING.value
-        update_fields = [*graph_binding_defaults, "write_mode", "status"]
-        graph_binding.save(update_fields=update_fields)
-
-    _apply_relation_graph_link_best_effort(
-        data_link=data_link,
-        ds=ds,
+    return _RelationSyncContext(
+        field=field,
+        key=key,
+        value=value,
+        space_type=space_type,
+        space_id=space_id,
         bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
         table_id=table_id,
-        vm_cluster_name=vm_cluster_name,
-        effective_write_mode=apply_write_mode,
-        graph_binding=graph_binding,
-        persist_graph_write_mode=apply_write_mode == desired_write_mode,
-        surrealdb_auto_restore=graph_binding_defaults["surrealdb_auto_restore"],
+        data_name=data_name,
+    )
+
+
+def _sync_relation_metadata(
+    redis_key: str,
+    context: _RelationSyncContext,
+    result_table: ResultTable | None,
+    time_series_group: TimeSeriesGroup | None,
+    graph_storage_config: dict[str, Any] | None,
+) -> DataSource:
+    """创建或读取 relation 元数据，并统一回写 Redis token。"""
+    # 步骤 1：复用已有 DataSource，或在一个事务内创建完整的 relation 元数据。
+    if result_table is not None:
+        data_source = DataSource.objects.get(
+            bk_tenant_id=context.bk_tenant_id,
+            data_name=context.data_name,
+        )
+        modify_time: str | int = str(int(time.time()))
+    else:
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+            data_source = DataSource.create_data_source(
+                bk_tenant_id=context.bk_tenant_id,
+                data_name=context.data_name,
+                operator="system",
+                type_label="time_series",
+                source_label="bk_monitor",
+                etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+                space_type_id=context.space_type,
+                space_uid=context.key,
+                bk_biz_id=context.bk_biz_id,
+            )
+            time_series_group = TimeSeriesGroup.create_time_series_group(
+                bk_data_id=data_source.bk_data_id,
+                bk_biz_id=context.bk_biz_id,
+                time_series_group_name=context.data_name,
+                label=Label.RESULT_TABLE_LABEL_OTHER,
+                operator="system",
+                table_id=context.table_id,
+                is_builtin=True,
+                bk_tenant_id=context.bk_tenant_id,
+                # Graph 白名单业务先创建本地 RT，再由 ResultTable.modify 一次性
+                # 下发 VM + SurrealDB，避免提前创建一条普通 VM 链路。
+                is_sync_db=graph_storage_config is None,
+            )
+        modify_time = int(time_series_group.last_modify_time.timestamp())
+
+    # 步骤 2：计算并回写 relation 生产端使用的 Redis token。
+    # relation 生产端从 Redis 获取 TimeSeriesGroup token；DataSource.token
+    # 是另一套独立上报凭证，不在这个周期任务中修改。
+    context.value["token"] = _get_builtin_relation_token(
+        data_source,
+        context.bk_biz_id,
+        context.data_name,
+        time_series_group,
+    )
+    context.value["modifyTime"] = modify_time
+    RedisTools.hset_to_redis(
+        redis_key,
+        context.key,
+        json.dumps(context.value),
+    )
+    return data_source
+
+
+def _sync_relation_redis_item(
+    redis_key: str,
+    context: _RelationSyncContext,
+    result_table: ResultTable | None,
+    time_series_group: TimeSeriesGroup | None,
+    enabled_graph_biz_ids: set[int],
+) -> None:
+    """同步单个 relation field，并将异常隔离在当前业务。"""
+    logger.info("sync_relation_redis_data: start sync field->[%s]", context.key)
+
+    # 步骤 1：先处理不能安全自动修复的历史状态。
+    if result_table is None and context.redis_token:
+        # Redis 已有 token 说明生产端可能仍在使用历史链路。此时自动创建新
+        # DataSource 会生成新的 data_id/token，因此保守跳过，避免覆盖在线凭证。
+        logger.warning(
+            "sync_relation_redis_data: result table is missing but redis token exists, skip auto creation, "
+            "field->[%s], table_id->[%s]",
+            context.key,
+            context.table_id,
+        )
+        return
+
+    # 步骤 2：为白名单业务准备 Graph 配置。依赖异常时仅跳过本轮 Graph。
+    graph_storage_config = None
+    if _is_relation_surrealdb_dual_write_enabled(context.bk_biz_id, enabled_graph_biz_ids):
+        try:
+            graph_storage_config = _compose_relation_graph_v4_storage_config(
+                context.bk_tenant_id,
+                context.bk_biz_id,
+                context.table_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            # Graph 依赖异常只影响本轮 Graph 配置，普通 relation RT 和
+            # Redis token 仍按主流程维护。
+            logger.warning(
+                "sync_relation_redis_data: graph relation dependency check failed, "
+                "bk_tenant_id->[%s], bk_biz_id->[%s], error->[%s]",
+                context.bk_tenant_id,
+                context.bk_biz_id,
+                e,
+            )
+
+    # 步骤 3：创建或复用 relation 元数据，并完成 Redis token 回写。
+    # 失败只终止当前 field，后续业务继续处理。
+    action = "update" if result_table is not None else "create"
+    try:
+        data_source = _sync_relation_metadata(
+            redis_key,
+            context,
+            result_table,
+            time_series_group,
+            graph_storage_config,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning(
+            "sync_relation_redis_data: %s relation metadata failed, field->[%s], value->[%s], error->[%s]",
+            action,
+            context.field,
+            context.value,
+            e,
+        )
+        return
+
+    # 步骤 4：Graph 接入作为附加能力 best-effort 执行。
+    # 接入失败只记录告警，并在下个
+    # 周期重试，不回滚已经完成的 RT 创建和 Redis token 更新。
+    if graph_storage_config is not None:
+        try:
+            enable_relation_surrealdb_dual_write(
+                data_source,
+                context.bk_tenant_id,
+                context.bk_biz_id,
+                storage_config=graph_storage_config,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
+                "data_id->[%s], bk_biz_id->[%s], error->[%s]",
+                data_source.bk_data_id,
+                context.bk_biz_id,
+                e,
+            )
+
+    logger.info(
+        "sync_relation_redis_data: %s relation metadata completed, field->[%s], value->[%s]",
+        action,
+        context.key,
+        context.value,
     )
 
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
-    """
-    同步cmdb-relation内置数据
+    """按 Redis field 同步 CMDB relation 内置 RT、token 和 Graph V4 配置。
+
+    主流程只负责批量加载已有元数据和逐项调度。单业务的数据解析、创建/更新
+    以及 Graph best-effort 异常均在各自 helper 内隔离，避免影响后续业务。
     """
     logger.info("sync_relation_redis_data started")
     start_time = time.time()
-    # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_relation_redis_data", status=TASK_STARTED, process_target=None
     ).inc()
-    # 获取对应的Redis数据
+
+    # 步骤 1：读取 CMDB relation 生产端维护的全部空间配置。
     redis_key = settings.BUILTIN_DATA_RT_REDIS_KEY
     redis_data = RedisTools.hgetall(redis_key)
-    # 批量获取所有内置RT对象
-    existing_rts = ResultTable.objects.filter(is_builtin=True)
-    existing_rts_dict = {rt.table_id: rt for rt in existing_rts}
-    existing_time_series_groups = TimeSeriesGroup.objects.filter(table_id__in=existing_rts_dict.keys())
-    existing_time_series_groups_dict = {
+
+    # 步骤 2：预加载已有 relation 元数据，循环内只进行精确匹配和必要的写操作。
+    # 多租户下 table_id 可能相同，因此必须使用 tenant + table_id 作为身份。
+    existing_result_tables = list(ResultTable.objects.filter(is_builtin=True))
+    existing_result_table_map = {
+        (result_table.bk_tenant_id, result_table.table_id): result_table for result_table in existing_result_tables
+    }
+    existing_time_series_groups = TimeSeriesGroup.objects.filter(
+        table_id__in=[result_table.table_id for result_table in existing_result_tables]
+    )
+    existing_time_series_group_map = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
-    enabled_graph_dual_write_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
-    for field, value in redis_data.items():
-        try:
-            # 将json解析放在try中，确保value是有效的JSON字符串
-            value_dict: dict[str, str | None] = json.loads(value)
-            if not isinstance(value_dict, dict):
-                raise ValueError(
-                    "sync_relation_redis_data: Value->[%s] of field->[%s] is not a valid dictionary", value, field
-                )
+    enabled_graph_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
 
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "sync_relation_redis_data: error occurred, field->[%s], error->[%s]. Using default value_dict.",
-                field,
-                e,
-            )
-            value_dict = {"token": None, "modifyTime": None}  # 预期中的默认字典
+    # 步骤 3：逐个解析 Redis field 并同步，单 field 异常在内部隔离。
+    for field, raw_value in redis_data.items():
+        context = _build_relation_sync_context(field, raw_value)
+        if context is None:
+            continue
 
-        # 解码并解析field
-        key = field.decode("utf-8")
-        space_type, space_id = key.split("__")
+        identity = (context.bk_tenant_id, context.table_id)
+        _sync_relation_redis_item(
+            redis_key,
+            context,
+            existing_result_table_map.get(identity),
+            existing_time_series_group_map.get(identity),
+            enabled_graph_biz_ids,
+        )
 
-        # 转义业务ID，非业务类型ID为负数
-        if space_type == "bkcc":
-            biz_id = int(space_id)
-        else:
-            biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
-            if not biz_id:
-                logger.error(
-                    "sync_relation_redis_data: space not found, space_type->[%s], space_id->[%s]", space_type, space_id
-                )
-                continue
-
-        table_id, data_name = TimeSeriesGroup.make_cmdb_relation_builtin_table_id_and_group_name(biz_id, space_type)
-
-        token = value_dict.get("token")  # Redis缓存中的Token数据
-
-        logger.info("sync_relation_redis_data start sync builtin redis data, field=%s", key)
-
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(biz_id)
-        rt = existing_rts_dict.get(table_id)
-        if rt:
-            try:
-                new_modify_time = str(int(time.time()))
-                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
-                generated_token = transform_data_id_to_token(
-                    metric_data_id=ds.bk_data_id, bk_biz_id=biz_id, app_name=data_name
-                )
-                time_series_group = existing_time_series_groups_dict.get((bk_tenant_id, table_id))
-                builtin_token = _get_builtin_relation_token(ds, table_id, generated_token, time_series_group)
-                # 兼容历史问题，如果DB中存储的Token和实际采集校验 Token 不一致，更新之
-                if ds.token != builtin_token:
-                    logger.info(
-                        "sync_relation_redis_data: data_id->[%s] ,token is not same,db_record->[%s],"
-                        "builtin_token->[%s]",
-                        ds.bk_data_id,
-                        ds.token,
-                        builtin_token,
-                    )
-                    ds.token = builtin_token
-                    ds.save(update_fields=["token"])
-                    ds.refresh_consul_config()
-
-                # 更新Redis中的数据
-                value_dict["token"] = builtin_token
-                value_dict["modifyTime"] = new_modify_time
-                RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
-                    _enable_relation_surrealdb_dual_write_best_effort(ds, bk_tenant_id, biz_id)
-                logger.info(
-                    "sync_relation_redis_data: Update Data For Field->[%s],has completed,value->[%s]", key, value_dict
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(
-                    "sync_relation_redis_data: update redis data failed, field->[%s], value->[%s],error->[%s]",
-                    field,
-                    value_dict,
-                    e,
-                )
-                continue
-        else:
-            if token:  # RT不存在，Token存在场景 -> 跳过创建
-                continue
-
-            try:
-                logger.info("sync_relation_redis_data: create builtin metadata for field->[%s]", key)
-                with transaction.atomic():
-                    # field下对应RT不存在且Token不存在，创建新DS与RT,使用事务保证实例同时成功创建
-                    ds = DataSource.create_data_source(
-                        bk_tenant_id=bk_tenant_id,
-                        data_name=data_name,
-                        operator="system",
-                        type_label="time_series",
-                        source_label="bk_monitor",
-                        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
-                        space_type_id=space_type,
-                        space_uid=key,
-                        bk_biz_id=biz_id,
-                    )
-                    ts_group = TimeSeriesGroup.create_time_series_group(
-                        bk_data_id=ds.bk_data_id,
-                        bk_biz_id=biz_id,
-                        time_series_group_name=data_name,
-                        label=Label.RESULT_TABLE_LABEL_OTHER,
-                        operator="system",
-                        table_id=table_id,
-                        is_builtin=True,
-                        bk_tenant_id=bk_tenant_id,
-                    )
-                    existing_time_series_groups_dict[(bk_tenant_id, table_id)] = ts_group
-                generated_token = transform_data_id_to_token(
-                    metric_data_id=ds.bk_data_id,
-                    bk_biz_id=biz_id,
-                    app_name=data_name,
-                )
-                time_series_group = ts_group
-                builtin_token = _get_builtin_relation_token(ds, table_id, generated_token, time_series_group)
-                if ds.token != builtin_token:
-                    ds.token = builtin_token
-                    ds.save(update_fields=["token"])
-                    ds.refresh_consul_config()
-                # 更新Redis中的Token和modifyTime
-                value_dict["token"] = builtin_token
-                value_dict["modifyTime"] = int(ts_group.last_modify_time.timestamp())
-                RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
-                    _enable_relation_surrealdb_dual_write_best_effort(ds, bk_tenant_id, biz_id)
-                logger.info(
-                    "sync_relation_redis_data: Create Data For Field->[%s],has completed,value->[%s]",
-                    key,
-                    value_dict,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(
-                    "sync_relation_redis_data: create builtin metadata failed, field->[%s], value->[%s],error->[%s]",
-                    field,
-                    value_dict,
-                    e,
-                )
-
+    # 步骤 4：所有 field 处理完成后统一上报本轮任务指标。
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_relation_redis_data", status=TASK_FINISHED_SUCCESS, process_target=None

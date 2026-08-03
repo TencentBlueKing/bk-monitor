@@ -215,3 +215,10 @@ Knowledge update: updated.
 - Context: retrieve-v2 `log-rows.tsx` hover row operator in original display mode must keep product motion `translate(0, -32px)` but must not be clipped by the result container and must not cover row text/click/selection area.
 - Decision: render `.bklog-row-hover-operator` as `position: fixed` and compute viewport-based `top/right` from the hovered row. Do not clamp anchor downward. This keeps the final visual operator above the first row while escaping `.bklog-result-container { overflow: hidden }`.
 - Verification: browser E2E on `http://appdev.woa.com:8001` original mode, first row hover. Measured operator visible, transform matrix y=-32, operator rect top/bottom `384/412`, first row rect top/bottom `412/442`, root top `411`; no overlap with row text and no clipping.
+
+## 2026-07-30 字段分析过滤后百分比异常
+
+- 问题：字段分析 / 去重后字段统计点击 value 过滤后，百分比出现 3090% 等远超 100% 的值（story=1010158081136538213）。
+- 根因：`agg-chart.tsx` 在 Vue computed 内再套手动缓存（`cachedShowFiveList` / `cachedShowTotalCount`）。`queryFieldFetchTopList` 先 `resetCache` 再请求；loading 期间 render 仍求值 `filterList`，把旧 `values` 写回缓存；请求返回后 `total_count` 已是过滤后新值，但 values 仍是旧缓存 → `count/newTotal*100` 远超 100%。
+- 决策：删除手动缓存，依赖 Vue computed 依赖追踪；请求开始清空 `values/total_count`；请求参数合并 `store.getters.retrieveParams/requestAddition`，避免 watch 早于 props 导致条件陈旧；进度条宽度 `Math.min(100, ...)`。
+- 约束：不要在 `agg-chart` 的 computed getter 内用可变私有字段做结果缓存；不要在 loading 分支外提前求值依赖列表数据的 computed。

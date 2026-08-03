@@ -521,7 +521,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
     def get_permissions(self):
         """拨测任务权限控制"""
 
-        if self.action == "list":
+        if self.action in ("list", "query", "metrics"):
             return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
         return super().get_permissions()
 
@@ -939,6 +939,16 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         )
         return Response({"count": len(tasks)})
 
+    @action(methods=["GET"], detail=False)
+    def query(self, request, *args, **kwargs):
+        """任务列表查询（分页/过滤，指标走 metrics 接口）"""
+        return Response(resource.uptime_check.uptime_check_task_query(request.query_params.dict()))
+
+    @action(methods=["POST"], detail=False)
+    def metrics(self, request, *args, **kwargs):
+        """批量查询任务可用率/响应时长/告警状态"""
+        return Response(resource.uptime_check.uptime_check_task_metrics(request.data))
+
     @action(methods=["POST"], detail=False)
     def test(self, request, *args, **kwargs):
         """
@@ -1064,6 +1074,12 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
     """拨测分组 ViewSet"""
 
+    def get_permissions(self):
+        """拨测分组权限控制：card 和 top_tasks 为只读查询，使用查看权限"""
+        if self.action in ("card", "top_tasks"):
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
+        return super().get_permissions()
+
     def create(self, request: Request):
         """创建分组"""
         bk_tenant_id = cast(str, get_request_tenant_id())
@@ -1151,6 +1167,16 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
             group["tasks"] = [task_map[task_id] for task_id in task_ids if task_id in task_map]
 
         return Response(result)
+
+    @action(methods=["GET"], detail=False)
+    def card(self, request, *args, **kwargs):
+        """分组卡片数据（分组维度分页，TopN 走 top_tasks 接口）"""
+        return Response(resource.uptime_check.uptime_check_group_card(request.query_params.dict()))
+
+    @action(methods=["POST"], detail=False)
+    def top_tasks(self, request, *args, **kwargs):
+        """批量查询分组 TopN 最差任务"""
+        return Response(resource.uptime_check.uptime_check_group_top_tasks(request.data))
 
     @action(methods=["POST"], detail=True)
     def add_task(self, request, pk: int | str):

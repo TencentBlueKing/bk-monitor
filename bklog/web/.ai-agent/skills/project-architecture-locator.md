@@ -1,6 +1,6 @@
 # Skill: Project Architecture Locator
 
-Generated: 2026-05-27T09:18:12.388Z
+Generated: 2026-07-29T06:39:32.825Z
 Project: blueking-log
 Root: /Users/lixintao/github/bk-monitor/bklog/web
 
@@ -19,10 +19,10 @@ Use this project-specific skill before reading large source files. It provides a
 
 - Package: blueking-log
 - Version: 1.0.0
-- Files scanned: 1114
+- Files scanned: 1177
 - Route entries: 160
 - Component entries: 180
-- Design docs: 2
+- Design docs: 3
 
 ## Main Routes
 
@@ -346,17 +346,13 @@ Use this project-specific skill before reading large source files. It provides a
 - component `AccessSteps`: src/components/collection-access/index.vue
 - component `IssuedSlider`: src/components/collection-access/issued-slider.vue (props: operateType, isSwitch, isFinishCreateStep, type, default)
 - component `Linux`: src/components/collection-access/step-add.vue (props: isUpdate, type, require)
-- component `collection-item`: src/components/collection-access/step-capacity.vue
 - component `base`: src/components/collection-access/step-field.vue (props: operateType, curStep, type, default)
-- component `StepIssued`: src/components/collection-access/step-issued.vue (props: operateType, isSwitch, isFinishCreateStep, type, default)
 - component `collection-item`: src/components/collection-access/step-masking.tsx
 - component `StepResult`: src/components/collection-access/step-result.vue (props: operateType, isSwitch, indexSetId, type, default)
 - component `step-storage`: src/components/collection-access/step-storage.vue (props: operateType, curStep, type, default)
 - component `auth-container-page`: src/components/common/auth-container-page.vue (props: info, type, default)
 - component `auth-dialog`: src/components/common/auth-dialog.vue
 - component `fields-config`: src/components/common/fields-config.vue (props: id, type, required)
-- component `table-status`: src/components/common/table-status.vue (props: isError, type, required)
-- component `welcome-page`: src/components/common/welcome-page.vue (props: data, type, default, newBusiness, url)
 - component `index`: src/components/ellipsis-tag-list/index.tsx (props: list, type, required, default)
 - component `index`: src/components/empty-status/index.vue (props: emptyType, type, default)
 - component `ControlOperate`: src/components/filter-rule/config-rule/control-operate/index.tsx (props: confirmEnable, type, default)
@@ -369,48 +365,57 @@ Use this project-specific skill before reading large source files. It provides a
 - component `index`: src/components/index-set-label-select/index.tsx (props: model, rules)
 - component `RightPanel`: src/components/ip-select/right-panel.vue (props: collapse, title, type, num)
 - component `index`: src/components/log-button/index.vue (props: theme, type, default)
+- component `LogIcon`: src/components/log-icon/index.tsx (props: svg, default, type)
+- component `log-import`: src/components/log-import/log-import.tsx
+- component `log-ip-selector`: src/components/log-ip-selector/log-ip-selector.tsx
+- component `masking-add-rule`: src/components/log-masking/masking-add-rule.tsx (props: model, rules)
 
 ## Main Modules
 
 - `packages/web-v1/src` (342 files)
-- `src/views/retrieve-v2` (148 files)
+- `src/views/retrieve-v2` (138 files)
 - `src/views/manage-v2` (110 files)
-- `src/views/retrieve-v3` (92 files)
-- `src/views/manage` (61 files)
+- `src/views/retrieve-v3` (109 files)
+- `src/views/manage` (56 files)
 - `src/services` (37 files)
-- `src/components/monitor-echarts` (35 files)
-- `src/components/collection-access` (28 files)
-- `src/hooks` (28 files)
+- `src/hooks` (32 files)
+- `src/components/collection-access` (27 files)
+- `src/hooks/log-query-compiler` (25 files)
+- `src/components/monitor-echarts` (20 files)
+- `src/store` (15 files)
 - `src/views/extract` (12 files)
-- `src/store` (11 files)
+- `src/storage/services` (11 files)
+- `src/views/retrieve-core` (11 files)
+- `src/common` (10 files)
 - `src/mixins` (10 files)
+- `src/storage/utils` (10 files)
 - `src/views/client-log-search` (10 files)
-- `src/views/retrieve-core` (10 files)
-- `src/common` (9 files)
-- `src/global` (8 files)
+- `packages/web-v1` (7 files)
 - `src` (7 files)
-- `src/views/retrieve` (7 files)
-- `packages/web-v1` (6 files)
-- `src/components/log-masking` (6 files)
-- `src/global/utils` (6 files)
-- `src/components/common` (5 files)
+- `src/global` (7 files)
+- `src/router` (6 files)
+- `src/storage/repositories` (6 files)
+- `src/views/retrieve` (6 files)
+- `src/components/log-masking` (5 files)
 - `src/directives` (5 files)
 - `src/global/ai-assitant` (5 files)
+- `src/global/utils` (5 files)
 - `src/language/lang` (5 files)
-- `src/router` (5 files)
+- `src/store/actions` (5 files)
 - `src/api` (4 files)
 - `src/components/filter-rule` (4 files)
 - `src/skeleton` (4 files)
 - `src/utils` (4 files)
 - `packages/web-v1/scripts` (3 files)
 - `packages/web-v1/webpack` (3 files)
+- `src/components/common` (3 files)
 - `src/components/log-view` (3 files)
 - `src/components/rule-table` (3 files)
 - `src/global/head-navi` (3 files)
 - `src/store/modules` (3 files)
+- `src/store/services` (3 files)
 - `src/views` (3 files)
 - `src/views/dashboard` (3 files)
-- `src/components/nav` (2 files)
 - `src/components/rule-config-operate` (2 files)
 - `src/components/time-range` (2 files)
 - `src/global/bk-space-choice` (2 files)
@@ -433,6 +438,7 @@ Use this project-specific skill before reading large source files. It provides a
 - `src/components/log-icon` (1 files)
 - `src/components/log-import` (1 files)
 - `src/components/log-ip-selector` (1 files)
+- `src/components/nav` (1 files)
 - `src/components/step-box` (1 files)
 - `src/components/user-selector` (1 files)
 - `src/const` (1 files)
@@ -441,13 +447,16 @@ Use this project-specific skill before reading large source files. It provides a
 - `src/images` (1 files)
 - `src/plugins` (1 files)
 - `src/static` (1 files)
-- `src/views/data-id-url` (1 files)
-- `src/views/share` (1 files)
-- `src/views/un-authorized` (1 files)
+- `src/storage/core` (1 files)
+- `src/storage` (1 files)
+- `src/storage/workers` (1 files)
+- `src/store/getters` (1 files)
+- `src/store/mutations` (1 files)
 
 ## Design Documents
 
-- `.docs/架构图.md`: 架构图 — 附录：详细架构图与数据流图 > A. 整体前端架构图 > B. 应用启动时序图 > C. 路由守卫执行流程 > D. Retrieve 检索模块初始化数据流 > E. HTTP 请求处理流程 > F. Vuex Store 状态流转图 > G. 检索模块 API 调用链路图
+- `.docs/日志检索V3架构与数据链路.md`: 日志检索 V3 架构与数据链路 — 1. 当前结论 > 2. 入口与模块边界 > 3. 页面初始化链路 > 4. 主查询链路 > 4.1 查询参数与分支 > 4.2 主线程到 Worker > 4.3 Worker 解析与落盘 > 5. 存储与渲染数据流
+- `.docs/架构图.md`: bklog/web 当前前端架构与日志检索数据流 — 1. 总体架构 > 2. 设计变化 > 3. 相关图表 > 4. 代码定位
 - `README.md`: 日志前端构建使用说明 — 前置准备 > 安装gpg > 生成GPG Key并导出公钥 > 在Github上配置GPG Key公钥 > 在Git上配置GPG Key > 本地启动 > 本地 `hosts` 文件配置 > 前端环境变量配置
 
 ## Context Budget Rules

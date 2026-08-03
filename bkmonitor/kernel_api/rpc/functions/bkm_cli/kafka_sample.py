@@ -29,8 +29,8 @@ BKM_CLI_KAFKA_SAMPLE_DEFAULT_SIZE = 5
 def kafka_sample(params: dict[str, Any]) -> dict[str, Any]:
     """bkm-cli 服务桥：按 bk_data_id 拉取 Kafka topic 最近 N 条消息样本（消费后立即断开）。
 
-    复用 admin.datasource.kafka_sample 的核心逻辑（已覆盖全部链路类型：confluent-SASL /
-    V4-bkbase tail_kafka_data / V3-AccessVMRecord→bkdata / GSE 路由 / 纯 kafka-python），
+    复用 admin.datasource.kafka_sample 的核心逻辑，由 resource.metadata.kafka_tail
+    统一负责 GSE 配置解析和 Kafka 尾部数据拉取，
     只在 bkm-cli 出口做两件事：
       1. size 上限收敛到 BKM_CLI_KAFKA_SAMPLE_MAX_SIZE（排障二分只需判「有数/无数」，
          不需要大批量；避免服务桥拉过多数据进 agent 上下文）；
@@ -71,11 +71,17 @@ def kafka_sample(params: dict[str, Any]) -> dict[str, Any]:
     return {
         "bk_data_id": data.get("bk_data_id"),
         "topic": data.get("topic"),
+        "topics": data.get("topics", []),
         "count": count,
         # 二分判据：Kafka 有数 ⇒ 采集/上报健康、断点在下游（入库/路由/查询）；
         # Kafka 空 ⇒ 采集或上报侧问题。别把「空」直接当业务事实——先确认 dataid/topic 解析正确、
         # 该链路当前确有流量（低频 dataid 短时窗可能天然为空）。
         "has_data": count > 0,
+        "status": data.get("status"),
+        "latest_timestamp": data.get("latest_timestamp"),
+        "timestamp_field": data.get("timestamp_field"),
+        "age_seconds": data.get("age_seconds"),
+        "warnings": data.get("warnings", []),
         "items": items,
     }
 
@@ -84,16 +90,15 @@ KernelRPCRegistry.register_function(
     func_name="bkm_cli.kafka_sample",
     summary="按 bk_data_id 拉取 Kafka topic 最近 N 条消息样本（只读，消费后立即断开）",
     description=(
-        "复用 admin kafka_sample 核心：解析 DataSource→topic（含 GSE route 覆盖），"
-        "覆盖 confluent-SASL / V4-bkbase / V3-AccessVMRecord→bkdata / GSE / 纯 kafka-python 全链路类型；"
-        "随机 group.id + latest + 消费后 close，不提交 offset。返回 has_data 作为「采集 vs 链路」二分判据。"
+        "复用 admin kafka_sample 核心，由 resource.metadata.kafka_tail(use_gse_config=True) "
+        "统一拉取 Kafka 尾部数据。返回 has_data 和消息体最近业务时间。"
     ),
     handler=kafka_sample,
     params_schema={
         "bk_tenant_id": "可选，租户 ID（默认 system）",
         "bk_data_id": "必填，数据源 ID（DataSource.bk_data_id）",
         "size": f"可选，拉取条数，默认 {BKM_CLI_KAFKA_SAMPLE_DEFAULT_SIZE}，最大 {BKM_CLI_KAFKA_SAMPLE_MAX_SIZE}",
-        "namespace": "可选，V3-VM 链路 bkbase tail 的 namespace（默认 bkmonitor）",
+        "namespace": "兼容保留，当前实现不使用",
     },
     example_params={"bk_tenant_id": "system", "bk_data_id": 624459, "size": 5},
 )
