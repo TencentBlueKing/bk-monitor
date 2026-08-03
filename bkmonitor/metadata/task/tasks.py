@@ -44,6 +44,7 @@ from metadata.models.constants import (
 from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
+    BKBASE_NAMESPACE_BK_LOG,
     BKBASE_NAMESPACE_BK_MONITOR,
     DataLinkKind,
     DataLinkResourceStatus,
@@ -848,6 +849,18 @@ def _check_and_delete_ds_consul_config(data_source: DataSource):
 
 ComponentBatchKey = tuple[str, str, str]
 DataLinkStatusKey = tuple[str, str]
+STORAGE_BINDING_KIND_MAP = {
+    DataLinkKind.ESSTORAGEBINDING.value: DataLinkKind.ELASTICSEARCH.value,
+    DataLinkKind.DORISBINDING.value: DataLinkKind.DORIS.value,
+    DataLinkKind.VMSTORAGEBINDING.value: DataLinkKind.VMSTORAGE.value,
+}
+STORAGE_BINDING_CLUSTER_TYPE_MAP = {
+    DataLinkKind.ESSTORAGEBINDING.value: ClusterInfo.TYPE_ES,
+    DataLinkKind.DORISBINDING.value: ClusterInfo.TYPE_DORIS,
+    DataLinkKind.VMSTORAGEBINDING.value: ClusterInfo.TYPE_VM,
+}
+STORAGE_BINDING_NAMESPACES = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+STORAGE_BINDING_FILTER_THRESHOLD = 1000
 
 
 def _normalize_data_link_tenant_id(bk_tenant_id: str | None) -> str:
@@ -873,6 +886,494 @@ def _parse_list_data_link_statuses(configs: Any) -> dict[str, str] | None:
             return None
         statuses[name] = phase
     return statuses
+
+
+def _parse_storage_binding_reference(
+    config: Any,
+    *,
+    bk_tenant_id: str,
+    namespace: str,
+    binding_kind: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """解析 Storage Binding 引用，并返回基础检查结果和配置问题。"""
+    storage_kind = STORAGE_BINDING_KIND_MAP.get(binding_kind, "")
+    problems: list[str] = []
+
+    if not isinstance(config, dict):
+        config = {}
+        problems.append("invalid_config")
+
+    metadata = config.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        problems.append("invalid_config")
+
+    name = metadata.get("name")
+    if not isinstance(name, str) or not name:
+        name = ""
+        problems.append("invalid_config")
+
+    labels = metadata.get("labels", {})
+    if not isinstance(labels, dict):
+        labels = {}
+        problems.append("invalid_config")
+
+    annotations = metadata.get("annotations", {})
+    if not isinstance(annotations, dict):
+        annotations = {}
+        problems.append("invalid_config")
+
+    spec = config.get("spec")
+    if not isinstance(spec, dict):
+        spec = {}
+        problems.append("invalid_config")
+
+    storage = spec.get("storage")
+    if not isinstance(storage, dict):
+        storage = {}
+        problems.append("invalid_config")
+
+    storage_name = storage.get("name")
+    if not isinstance(storage_name, str) or not storage_name:
+        storage_name = ""
+        problems.append("storage_name_missing")
+
+    storage_namespace = storage.get("namespace") or namespace
+    if not isinstance(storage_namespace, str) or not storage_namespace:
+        storage_namespace = namespace
+        problems.append("invalid_config")
+
+    storage_tenant = storage.get("tenant")
+    if storage_tenant is not None and not isinstance(storage_tenant, str):
+        storage_tenant = None
+        problems.append("invalid_config")
+
+    expected_reference = ""
+    if storage_kind and storage_name:
+        reference_parts = [storage_kind]
+        if storage_tenant and storage_tenant != "default":
+            reference_parts.append(storage_tenant)
+        reference_parts.extend([storage_namespace, storage_name])
+        expected_reference = "/".join(reference_parts)
+
+    issue = {
+        "bk_tenant_id": bk_tenant_id,
+        "namespace": namespace,
+        "binding_kind": binding_kind,
+        "name": name,
+        "storage_kind": storage_kind,
+        "storage_name": storage_name,
+        "expected_reference": expected_reference,
+        "related_res_asset": labels.get("related_res_asset"),
+        "index1": annotations.get("index1"),
+    }
+    return issue, problems
+
+
+def _check_storage_binding_reference(
+    config: Any,
+    *,
+    bk_tenant_id: str,
+    namespace: str,
+    binding_kind: str,
+) -> dict[str, Any] | None:
+    """检查 Storage Binding 的存储资源引用是否与 spec.storage 一致。"""
+    issue, problems = _parse_storage_binding_reference(
+        config,
+        bk_tenant_id=bk_tenant_id,
+        namespace=namespace,
+        binding_kind=binding_kind,
+    )
+    storage_name = issue["storage_name"]
+    index1 = issue["index1"]
+    if index1 and (not isinstance(index1, str) or index1.rsplit("/", 1)[-1] != storage_name):
+        problems.append("index1_mismatch")
+
+    related_res_asset = issue["related_res_asset"]
+    if related_res_asset and (
+        not isinstance(related_res_asset, str) or related_res_asset.rsplit("/", 1)[-1] != storage_name
+    ):
+        problems.append("related_res_asset_mismatch")
+
+    if not problems:
+        return None
+
+    issue["problems"] = list(dict.fromkeys(problems))
+    return issue
+
+
+def _check_storage_binding_references(
+    configs: list[Any],
+    *,
+    bk_tenant_id: str,
+    namespace: str,
+    binding_kind: str,
+) -> list[dict[str, Any]]:
+    """批量检查同租户、命名空间和类型下的 Storage Binding。"""
+    issues = []
+    for config in configs:
+        issue = _check_storage_binding_reference(
+            config,
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            binding_kind=binding_kind,
+        )
+        if issue is not None:
+            issues.append(issue)
+    return issues
+
+
+def _merge_storage_binding_issue(
+    issues_by_key: dict[tuple[str, str, str], dict[str, Any]],
+    unkeyed_issues: list[dict[str, Any]],
+    issue: dict[str, Any],
+) -> None:
+    """按 namespace、kind、name 合并同一 Binding 的远端和本地检查结果。"""
+    name = issue.get("name")
+    if not name:
+        unkeyed_issues.append(issue)
+        return
+
+    key = (issue["namespace"], issue["binding_kind"], name)
+    existing = issues_by_key.get(key)
+    if existing is None:
+        issues_by_key[key] = issue
+        return
+
+    existing["problems"] = list(dict.fromkeys([*existing.get("problems", []), *issue.get("problems", [])]))
+    for field, value in issue.items():
+        if field != "problems":
+            existing[field] = value
+
+
+def _filter_queryset_by_keys(queryset, field: str, keys: set[str]):
+    """键数量较小时在 DB 侧过滤，过大时保持单次 tenant 范围扫描。"""
+    if len(keys) <= STORAGE_BINDING_FILTER_THRESHOLD:
+        return queryset.filter(**{f"{field}__in": keys})
+    return queryset
+
+
+def _load_local_binding_table_ids(
+    *,
+    bk_tenant_id: str,
+    remote_configs_by_batch: dict[tuple[str, str], list[Any]],
+) -> tuple[
+    dict[tuple[str, str, str], set[str]],
+    dict[tuple[str, str, str], dict[str, Any]],
+]:
+    """批量加载远端 Binding 对应的本地 Binding table_id。"""
+    table_ids_by_key: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    remote_config_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for (namespace, binding_kind), configs in remote_configs_by_batch.items():
+        for config in configs:
+            issue, _ = _parse_storage_binding_reference(
+                config,
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                binding_kind=binding_kind,
+            )
+            if issue["name"] and issue["storage_name"]:
+                remote_config_by_key[(namespace, binding_kind, issue["name"])] = config
+
+    for binding_kind, component_class in ((kind, COMPONENT_CLASS_MAP[kind]) for kind in STORAGE_BINDING_KIND_MAP):
+        remote_keys = {key for key in remote_config_by_key if key[1] == binding_kind}
+        if not remote_keys:
+            continue
+
+        remote_names = {key[2] for key in remote_keys}
+        queryset = component_class.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            namespace__in=STORAGE_BINDING_NAMESPACES,
+        )
+        queryset = _filter_queryset_by_keys(queryset, "name", remote_names)
+        for row in queryset.values("namespace", "name", "table_id").iterator(chunk_size=1000):
+            key = (row["namespace"], binding_kind, row["name"])
+            if key in remote_keys:
+                table_ids_by_key[key].add(row["table_id"] or "")
+
+    return table_ids_by_key, remote_config_by_key
+
+
+def _load_storage_cluster_ids(
+    *,
+    bk_tenant_id: str,
+    binding_kind: str,
+    table_ids: set[str],
+) -> tuple[dict[str, set[int]], dict[str, set[str]]]:
+    """批量加载 table_id 对应的本地集群 ID；第二个返回值是 Doris 表对应的缺失 origin table_id。"""
+    cluster_ids_by_table_id: dict[str, set[int]] = defaultdict(set)
+    missing_origin_table_ids: dict[str, set[str]] = defaultdict(set)
+    if not table_ids:
+        return cluster_ids_by_table_id, missing_origin_table_ids
+
+    if binding_kind == DataLinkKind.ESSTORAGEBINDING.value:
+        queryset = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+        queryset = _filter_queryset_by_keys(queryset, "table_id", table_ids)
+        for row in queryset.values("table_id", "storage_cluster_id").iterator(chunk_size=1000):
+            if row["table_id"] not in table_ids:
+                continue
+            cluster_ids_by_table_id.setdefault(row["table_id"], set())
+            if row["storage_cluster_id"] is not None:
+                cluster_ids_by_table_id[row["table_id"]].add(row["storage_cluster_id"])
+        return cluster_ids_by_table_id, missing_origin_table_ids
+
+    if binding_kind == DataLinkKind.VMSTORAGEBINDING.value:
+        queryset = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id)
+        queryset = _filter_queryset_by_keys(queryset, "result_table_id", table_ids)
+        for row in queryset.values("result_table_id", "vm_cluster_id", "storage_cluster_id").iterator(chunk_size=1000):
+            if row["result_table_id"] not in table_ids:
+                continue
+            cluster_ids_by_table_id.setdefault(row["result_table_id"], set())
+            cluster_id = row["vm_cluster_id"] or row["storage_cluster_id"]
+            if cluster_id is not None:
+                cluster_ids_by_table_id[row["result_table_id"]].add(cluster_id)
+        return cluster_ids_by_table_id, missing_origin_table_ids
+
+    rows_by_table_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    doris_queryset = models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+    if len(table_ids) <= STORAGE_BINDING_FILTER_THRESHOLD:
+        # 小批次先读取目标表，再一次性补齐虚拟表引用的 origin；查询次数与 Binding 数量无关。
+        for row in (
+            doris_queryset.filter(table_id__in=table_ids)
+            .values("table_id", "origin_table_id", "storage_cluster_id")
+            .iterator(chunk_size=1000)
+        ):
+            rows_by_table_id[row["table_id"]].append(row)
+
+        origin_table_ids = {
+            row["origin_table_id"]
+            for rows in rows_by_table_id.values()
+            for row in rows
+            if row["origin_table_id"] and row["origin_table_id"] not in rows_by_table_id
+        }
+        if origin_table_ids:
+            for row in (
+                doris_queryset.filter(table_id__in=origin_table_ids)
+                .values("table_id", "origin_table_id", "storage_cluster_id")
+                .iterator(chunk_size=1000)
+            ):
+                rows_by_table_id[row["table_id"]].append(row)
+    else:
+        # 大批次避免对无索引关联字段分块查询，改为单次租户范围流式扫描。
+        for row in doris_queryset.values("table_id", "origin_table_id", "storage_cluster_id").iterator(chunk_size=1000):
+            rows_by_table_id[row["table_id"]].append(row)
+
+    for table_id in table_ids:
+        for row in rows_by_table_id.get(table_id, []):
+            effective_table_id = row["origin_table_id"] or table_id
+            effective_rows = rows_by_table_id.get(effective_table_id, [])
+            if row["origin_table_id"] and not effective_rows:
+                missing_origin_table_ids[table_id].add(row["origin_table_id"])
+                continue
+            cluster_ids_by_table_id.setdefault(table_id, set())
+            for effective_row in effective_rows:
+                if effective_row["storage_cluster_id"] is not None:
+                    cluster_ids_by_table_id[table_id].add(effective_row["storage_cluster_id"])
+    return cluster_ids_by_table_id, missing_origin_table_ids
+
+
+def _normalize_cluster_domain(domain_name: Any) -> str:
+    return domain_name.strip().lower() if isinstance(domain_name, str) else ""
+
+
+def _is_ignored_vm_cmdb_binding(binding_name: str, table_id: str) -> bool:
+    """VM CMDB 派生表不参与本地存储关联检查。"""
+    return binding_name.endswith("_cmdb") or table_id.endswith("_cmdb")
+
+
+def _check_local_storage_binding_references(
+    *,
+    bk_tenant_id: str,
+    remote_configs_by_batch: dict[tuple[str, str], list[Any]],
+) -> list[dict[str, Any]]:
+    """批量检查远端 Binding 与本地 Storage/AccessVMRecord 最终指向的集群是否一致。"""
+    table_ids_by_key, remote_config_by_key = _load_local_binding_table_ids(
+        bk_tenant_id=bk_tenant_id,
+        remote_configs_by_batch=remote_configs_by_batch,
+    )
+    local_issues: list[dict[str, Any]] = []
+    issued_keys: set[tuple[str, str, str]] = set()
+    resolved_keys: dict[tuple[str, str, str], str] = {}
+
+    def add_issue(key: tuple[str, str, str], problems: list[str], **details) -> None:
+        namespace, binding_kind, _ = key
+        issue, _ = _parse_storage_binding_reference(
+            remote_config_by_key[key],
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            binding_kind=binding_kind,
+        )
+        issue.update(details)
+        issue["problems"] = problems
+        local_issues.append(issue)
+        issued_keys.add(key)
+
+    for key in remote_config_by_key:
+        table_ids = table_ids_by_key.get(key)
+        if table_ids is None:
+            continue
+        non_empty_table_ids = {table_id for table_id in table_ids if table_id}
+        if not non_empty_table_ids:
+            add_issue(key, ["local_table_id_missing"], table_ids=[])
+            continue
+        if len(non_empty_table_ids) > 1:
+            add_issue(key, ["local_binding_ambiguous"], table_ids=sorted(non_empty_table_ids))
+            continue
+        table_id = next(iter(non_empty_table_ids))
+        if key[1] == DataLinkKind.VMSTORAGEBINDING.value and _is_ignored_vm_cmdb_binding(key[2], table_id):
+            continue
+        resolved_keys[key] = table_id
+
+    cluster_ids_by_kind_and_table: dict[tuple[str, str], set[int]] = {}
+    for binding_kind in STORAGE_BINDING_KIND_MAP:
+        kind_table_ids = {table_id for key, table_id in resolved_keys.items() if key[1] == binding_kind}
+        if not kind_table_ids:
+            continue
+        cluster_ids_by_table_id, missing_origins_by_table_id = _load_storage_cluster_ids(
+            bk_tenant_id=bk_tenant_id,
+            binding_kind=binding_kind,
+            table_ids=kind_table_ids,
+        )
+        for table_id, cluster_ids in cluster_ids_by_table_id.items():
+            cluster_ids_by_kind_and_table[(binding_kind, table_id)] = cluster_ids
+        if binding_kind == DataLinkKind.DORISBINDING.value and missing_origins_by_table_id:
+            for key, table_id in resolved_keys.items():
+                missing_origins = missing_origins_by_table_id.get(table_id)
+                if key[1] == binding_kind and missing_origins:
+                    add_issue(
+                        key,
+                        ["local_storage_origin_missing"],
+                        table_ids=[table_id],
+                        missing_origin_table_ids=sorted(missing_origins),
+                    )
+
+    comparable_keys: dict[tuple[str, str, str], int] = {}
+    for key, table_id in resolved_keys.items():
+        cluster_ids = cluster_ids_by_kind_and_table.get((key[1], table_id))
+        if cluster_ids is None:
+            # Doris origin 缺失已在上面输出更精确的问题。
+            if key not in issued_keys:
+                add_issue(key, ["local_storage_record_missing"], table_ids=[table_id], local_cluster_ids=[])
+            continue
+        if not cluster_ids:
+            add_issue(key, ["local_cluster_id_missing"], table_ids=[table_id], local_cluster_ids=[])
+            continue
+        if len(cluster_ids) > 1:
+            add_issue(
+                key,
+                ["local_storage_cluster_ambiguous"],
+                table_ids=[table_id],
+                local_cluster_ids=sorted(cluster_ids),
+            )
+            continue
+        comparable_keys[key] = next(iter(cluster_ids))
+
+    if not comparable_keys:
+        return local_issues
+
+    cluster_types = set(STORAGE_BINDING_CLUSTER_TYPE_MAP.values())
+    cluster_by_id: dict[int, dict[str, Any]] = {}
+    cluster_by_type_and_name: dict[tuple[str, str], dict[str, Any]] = {}
+    for cluster in ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        cluster_type__in=cluster_types,
+    ).values("cluster_id", "cluster_type", "cluster_name", "domain_name"):
+        cluster_by_id[cluster["cluster_id"]] = cluster
+        cluster_by_type_and_name[(cluster["cluster_type"], cluster["cluster_name"])] = cluster
+
+    for key, local_cluster_id in comparable_keys.items():
+        table_id = resolved_keys[key]
+        local_cluster = cluster_by_id.get(local_cluster_id)
+        if local_cluster is None:
+            add_issue(
+                key,
+                ["local_cluster_info_missing"],
+                table_ids=[table_id],
+                local_cluster_ids=[local_cluster_id],
+            )
+            continue
+
+        issue, _ = _parse_storage_binding_reference(
+            remote_config_by_key[key],
+            bk_tenant_id=bk_tenant_id,
+            namespace=key[0],
+            binding_kind=key[1],
+        )
+        remote_cluster_name = issue["storage_name"]
+        common_details = {
+            "table_ids": [table_id],
+            "local_cluster_ids": [local_cluster_id],
+            "local_cluster_names": [local_cluster["cluster_name"]],
+            "local_cluster_id": local_cluster_id,
+            "local_cluster_name": local_cluster["cluster_name"],
+            "local_domain_name": local_cluster["domain_name"],
+        }
+        if local_cluster["cluster_name"] == remote_cluster_name:
+            continue
+
+        cluster_type = STORAGE_BINDING_CLUSTER_TYPE_MAP[key[1]]
+        remote_cluster = cluster_by_type_and_name.get((cluster_type, remote_cluster_name))
+        if remote_cluster is None:
+            add_issue(
+                key,
+                ["remote_cluster_info_missing"],
+                **common_details,
+                remote_cluster_id=None,
+                remote_cluster_name=remote_cluster_name,
+                remote_domain_name=None,
+            )
+            continue
+
+        local_domain = _normalize_cluster_domain(local_cluster["domain_name"])
+        remote_domain = _normalize_cluster_domain(remote_cluster["domain_name"])
+        if local_domain and remote_domain and local_domain == remote_domain:
+            continue
+
+        add_issue(
+            key,
+            ["local_storage_cluster_mismatch"],
+            **common_details,
+            remote_cluster_id=remote_cluster["cluster_id"],
+            remote_cluster_name=remote_cluster["cluster_name"],
+            remote_domain_name=remote_cluster["domain_name"],
+        )
+
+    return local_issues
+
+
+def batch_check_storage_binding_references(bk_tenant_id: str) -> list[dict[str, Any]]:
+    """检查指定租户在 bkmonitor、bklog 下的 ES、Doris、VM Storage Binding 引用。"""
+    issues_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+    unkeyed_issues: list[dict[str, Any]] = []
+    remote_configs_by_batch: dict[tuple[str, str], list[Any]] = {}
+    for namespace in STORAGE_BINDING_NAMESPACES:
+        for binding_kind in STORAGE_BINDING_KIND_MAP:
+            configs = api.bkdata.list_data_link(
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                kind=DataLinkKind.get_choice_value(binding_kind),
+            )
+            if not isinstance(configs, list):
+                raise ValueError(
+                    "batch_check_storage_binding_references: list_data_link returned invalid data, "
+                    f"tenant={bk_tenant_id}, namespace={namespace}, kind={binding_kind}"
+                )
+            remote_configs_by_batch[(namespace, binding_kind)] = configs
+            for issue in _check_storage_binding_references(
+                configs,
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                binding_kind=binding_kind,
+            ):
+                _merge_storage_binding_issue(issues_by_key, unkeyed_issues, issue)
+
+    for issue in _check_local_storage_binding_references(
+        bk_tenant_id=bk_tenant_id,
+        remote_configs_by_batch=remote_configs_by_batch,
+    ):
+        _merge_storage_binding_issue(issues_by_key, unkeyed_issues, issue)
+    return [*issues_by_key.values(), *unkeyed_issues]
 
 
 def _mark_component_links_untrusted(components: list[Any], untrusted_links: set[DataLinkStatusKey]) -> None:
@@ -931,6 +1432,18 @@ def _refresh_data_link_component_statuses() -> tuple[
                 )
                 _mark_component_links_untrusted(components, untrusted_links)
                 continue
+
+            if component_kind in STORAGE_BINDING_KIND_MAP:
+                reference_issues = _check_storage_binding_references(
+                    configs,
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    binding_kind=component_kind,
+                )
+                for issue in reference_issues:
+                    logger.warning(
+                        "bulk_refresh_data_link_status: storage binding reference check failed, issue->[%s]", issue
+                    )
 
             now = timezone.now()
             changed_components = []
