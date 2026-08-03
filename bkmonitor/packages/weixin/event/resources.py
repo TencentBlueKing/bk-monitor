@@ -390,7 +390,6 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
                     "strategy_id": 123,
                     "level": 2,
                     "name": "127.0.0.2",
-                    "target": "127.0.0.2",
                     "events": [
                         {
                             "event_id": "a1b2c3d4",
@@ -422,7 +421,6 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
                     "strategy_id": alert.strategy_id,
                     "level": alert.severity,
                     "name": target_display,
-                    "target": target_display,
                     "events": [],
                 }
             # 取组内最高级别（severity 数值越小级别越高）
