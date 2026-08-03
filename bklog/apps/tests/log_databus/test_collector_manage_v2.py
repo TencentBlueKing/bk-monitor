@@ -825,6 +825,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             ("table_id", "current_collector"),
             ("bk_data_id", self.current_collector.bk_data_id),
             ("bk_data_name", "2_BKLOG_CURRENT_COLLECTOR"),
+            ("bk_data_name", "CURRENT_COLLECTOR"),
         ]:
             result = handler.get_log_collectors(
                 {
@@ -837,7 +838,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
 
         for key, value in [
             ("table_id", "2_bklog_current_collector"),
-            ("bk_data_name", "current_collector"),
+            ("bk_data_name", "missing_collector"),
         ]:
             result = handler.get_log_collectors(
                 {
@@ -846,6 +847,34 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
                 }
             )
             self.assertEqual(self._collectors_from_result(result), [])
+
+    def test_get_log_collectors_filters_storage_display_name_by_partial_value(self):
+        def add_cluster_info(data):
+            for item in data:
+                item["storage_display_name"] = (
+                    "Related ES Cluster"
+                    if item["collector_config_id"] == self.related_collector.collector_config_id
+                    else "Current ES Cluster"
+                )
+            return data
+
+        self._setup_related_space_mocks()
+        with patch(
+            "apps.log_databus.handlers.collector_handler.log.CollectorHandler.add_cluster_info",
+            side_effect=add_cluster_info,
+        ):
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": PAGE,
+                    "pagesize": PAGESIZE,
+                    "conditions": [{"key": "storage_display_name", "value": ["RELATED es"]}],
+                    "include_related_spaces": True,
+                }
+            )
+
+        collectors = self._collectors_from_result(result)
+        self.assertEqual([item["collector_config_id"] for item in collectors], [self.related_collector.pk])
 
     def test_get_log_collectors_filters_index_set_by_exposed_bk_data_name(self):
         index_set = LogIndexSet.objects.create(

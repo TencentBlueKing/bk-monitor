@@ -314,6 +314,12 @@ class LogCollectorHandler:
         ]
 
     @staticmethod
+    def fuzzy_match_any(value, candidates: list) -> bool:
+        """Return whether a value contains any candidate, ignoring case."""
+        normalized_value = str(value or "").casefold()
+        return any(str(candidate).casefold() in normalized_value for candidate in candidates)
+
+    @staticmethod
     def get_collector_subscription_status(collector_id_list) -> dict[str, dict]:
         collector_status_mappings = {}
         result = CollectorHandler().get_subscription_status_by_list(collector_id_list)
@@ -551,7 +557,9 @@ class LogCollectorHandler:
         tmp_result_list = []
         collector_id_list = []
         for collector_config in collector_configs:
-            if storage_display_name_list and collector_config["storage_display_name"] not in storage_display_name_list:
+            if storage_display_name_list and not self.fuzzy_match_any(
+                collector_config["storage_display_name"], storage_display_name_list
+            ):
                 continue
             tmp_result_list.append(collector_config)
             collector_id_list.append(collector_config["collector_config_id"])
@@ -729,7 +737,10 @@ class LogCollectorHandler:
         result_list = IndexSetHandler.post_list(result_list)
         if storage_display_name_list:
             result_list = list(
-                filter(lambda x: x.get("storage_display_name") in storage_display_name_list, result_list)
+                filter(
+                    lambda x: self.fuzzy_match_any(x.get("storage_display_name"), storage_display_name_list),
+                    result_list,
+                )
             )
         return result_list
 
