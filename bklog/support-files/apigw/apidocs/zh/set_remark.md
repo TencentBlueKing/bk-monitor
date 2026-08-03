@@ -10,9 +10,9 @@
 | --- | --- | --- | --- |
 | app_code | string | 是 | 蓝鲸应用 ID |
 | app_secret | string | 是 | 蓝鲸应用秘钥 |
-| bk_username | string | 是 | 用户名称 |
+| bk_token | string | 是 | 蓝鲸用户登录态 Token，用于校验用户身份 |
 
-鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。
+鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。也可以使用应用 + 用户 `access_token`，将 `bk_token` 替换为 `access_token`；不要通过 `bk_username` 直接传入用户名。
 
 ### 路径参数
 
@@ -40,7 +40,7 @@ headers = {
     "X-Bkapi-Authorization": json.dumps({
         "bk_app_code": "your app code",
         "bk_app_secret": "your app secret",
-        "bk_username": "your name",
+        "bk_token": "your user token",
     })
 }
 payload = {
