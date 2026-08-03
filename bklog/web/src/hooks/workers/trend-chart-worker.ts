@@ -48,7 +48,7 @@ const getIntervalValue = (interval: string): number => {
   };
 
   const matchs = (interval ?? '1h').match(/(\d+)(s|m|h|d)/);
-  if (!matchs) return 60; // default to 1 minute
+  if (!matchs) return 60; // 默认 1 分钟
   
   const num = matchs[1];
   const unit = matchs[2];
@@ -81,7 +81,7 @@ const isMatchedGroup = (group: any, fieldValue: any, isValueMatch: boolean): boo
     return group.values?.includes(fieldValue);
   }
   
-  // regex matching
+  // 正则匹配
   const pattern = group.regex;
   if (!pattern) return false;
   
