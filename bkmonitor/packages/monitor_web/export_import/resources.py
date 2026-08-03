@@ -42,6 +42,7 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.tasks import step
 from core.errors.export_import import (
     AddTargetError,
+    ExportImportError,
     ImportConfigError,
     ImportHistoryNotExistError,
     UploadPackageError,
@@ -367,10 +368,33 @@ class ExportPackageResource(Resource):
                 for condition in query_config.config.get("agg_condition", []):
                     if "bk_collect_config_id" not in list(condition.values()):
                         continue
-                    if isinstance(condition["value"], list):
-                        self.associated_collect_config_list.extend(condition["value"])
-                    else:
-                        self.associated_collect_config_list.append(condition["value"].split("(")[0])
+                    is_list_value = isinstance(condition["value"], list)
+                    condition_values = condition["value"] if is_list_value else [condition["value"]]
+                    collect_config_ids = []
+                    for value in condition_values:
+                        collect_config_id = (
+                            value if is_list_value or not isinstance(value, str) else value.split("(")[0]
+                        )
+                        if collect_config_id == "" or (is_list_value and not collect_config_id):
+                            continue
+                        try:
+                            int(collect_config_id)
+                        except (TypeError, ValueError):
+                            raise ExportImportError(
+                                {
+                                    "msg": _(
+                                        "策略「{strategy_name}」(ID: {strategy_id})的条件字段"
+                                        "「bk_collect_config_id」期望为数字采集配置ID，实际值为「{value}」，"
+                                        "无法查询关联采集配置"
+                                    ).format(
+                                        strategy_name=strategy_config.name,
+                                        strategy_id=strategy_config.id,
+                                        value=value,
+                                    )
+                                }
+                            )
+                        collect_config_ids.append(collect_config_id)
+                    self.associated_collect_config_list.extend(collect_config_ids)
 
         self.associated_collect_config_list = list(set(self.associated_collect_config_list))
         self.associated_collect_config_list = [i for i in self.associated_collect_config_list if i]
