@@ -237,50 +237,51 @@ const rightContentStyle = computed(() => {
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
-        <div
-          v-show="isOriginShow"
-          :class="[
-            'trend-chart-reserved',
-            RetrieveHelper.randomTrendGraphClassName,
-            { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
-          ]"
-          :style="{ height: `${heightNum}px` }"
-        >
-          <SearchResultChart
-            v-if="shouldRenderTrendChart"
-            @change-queue-res="changeQueueRes"
-            @change-total-count="changeTotalCount"
-            @toggle-change="handleToggleChange"
-            @trend-ready="handleTrendReady"
-          />
+        <template v-if="!__IS_MONITOR_TRACE__">
           <div
-            v-if="isTrendChartPending || !shouldRenderTrendChart"
-            class="trend-chart-skeleton"
-            aria-hidden="true"
+            v-show="isOriginShow"
+            :class="[
+              'trend-chart-reserved',
+              RetrieveHelper.randomTrendGraphClassName,
+              { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
+            ]"
+            :style="{ height: `${heightNum}px` }"
           >
-            <div class="trend-chart-skeleton-title">
-              <span class="trend-chart-skeleton-caret" />
-              <span class="trend-chart-skeleton-title-line" />
-              <span class="trend-chart-skeleton-meta-line" />
-            </div>
+            <SearchResultChart
+              v-if="shouldRenderTrendChart"
+              @change-queue-res="changeQueueRes"
+              @change-total-count="changeTotalCount"
+              @toggle-change="handleToggleChange"
+              @trend-ready="handleTrendReady"
+            />
             <div
-              v-if="isTrendChartShow"
-              class="trend-chart-skeleton-body"
+              v-if="isTrendChartPending || !shouldRenderTrendChart"
+              class="trend-chart-skeleton"
+              aria-hidden="true"
             >
-              <span
-                v-for="index in 36"
-                :key="index"
-                class="trend-chart-skeleton-bar"
-                :style="{ height: `${24 + ((index * 17) % 78)}px` }"
-              />
+              <div class="trend-chart-skeleton-title">
+                <span class="trend-chart-skeleton-caret" />
+                <span class="trend-chart-skeleton-title-line" />
+                <span class="trend-chart-skeleton-meta-line" />
+              </div>
+              <div
+                v-if="isTrendChartShow"
+                class="trend-chart-skeleton-body"
+              >
+                <span
+                  v-for="index in 36"
+                  :key="index"
+                  class="trend-chart-skeleton-bar"
+                  :style="{ height: `${24 + ((index * 17) % 78)}px` }"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          v-show="isOriginShow"
-          class="split-line"
-        />
-
+          <div
+            v-show="isOriginShow"
+            class="split-line"
+          />
+        </template>
         <keep-alive>
           <LogResult
             v-if="isOriginShow"
