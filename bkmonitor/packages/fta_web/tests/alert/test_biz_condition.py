@@ -1,10 +1,14 @@
+from types import SimpleNamespace
+
 import pytest
 from elasticsearch_dsl import Search
+from iam.eval.expression import OP
 
+from bkmonitor.iam import ActionEnum, Permission
 from fta_web.alert.handlers import base as base_handler_module
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
-from fta_web.alert.handlers.base import BaseBizQueryHandler
+from fta_web.alert.handlers.base import BaseBizQueryHandler, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR
 from fta_web.alert.handlers.incident import IncidentQueryHandler
 from fta_web.issue.handlers.issue import IssueQueryHandler
 
@@ -40,6 +44,13 @@ def _patch_tenant_spaces(monkeypatch, space_ids, *, multi_tenant=False):
     monkeypatch.setattr(base_handler_module, "SpaceApi", FakeSpaceApi, raising=False)
     monkeypatch.setattr(base_handler_module, "get_request_tenant_id", lambda: TENANT_ID)
     monkeypatch.setattr(base_handler_module.settings, "ENABLE_MULTI_TENANT_MODE", multi_tenant)
+
+
+def _patch_request(monkeypatch, *, tenant_wide_authorized=False):
+    request = SimpleNamespace(user=SimpleNamespace(username="admin"))
+    setattr(request, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, tenant_wide_authorized)
+    monkeypatch.setattr(base_handler_module, "get_request", lambda: request)
+    return request
 
 
 def _walk_dsl(value):
@@ -83,6 +94,37 @@ def test_parse_biz_item_preserves_explicit_empty_authorized_bizs():
 
     assert authorized_bizs == []
     assert unauthorized_bizs == [1]
+
+
+def test_parse_biz_item_normalizes_all_biz_marker_from_propagated_scope():
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item(
+        [-1],
+        authorized_bizs=[1, 2, 3],
+        unauthorized_bizs=[-1],
+    )
+
+    assert authorized_bizs == [1, 2, 3]
+    assert unauthorized_bizs == []
+
+
+def test_parse_all_biz_marks_trusted_tenant_wide_scope(monkeypatch):
+    request = _patch_request(monkeypatch)
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action):
+            assert action == ActionEnum.VIEW_BUSINESS
+            return [{"bk_biz_id": biz_id} for biz_id in (1, 2, 3)], True
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([-1])
+
+    assert authorized_bizs == [1, 2, 3]
+    assert unauthorized_bizs == []
+    assert getattr(request, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR) is True
 
 
 @pytest.mark.parametrize(
@@ -165,6 +207,7 @@ def test_add_biz_condition_omits_terms_when_authorization_covers_whole_tenant(mo
     管理员的授权业务可达十万级，这条子句实测能把单次请求的 DSL 撑到 1MB 以上。
     """
     _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_request(monkeypatch, tenant_wide_authorized=True)
     handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
     search_object = handler.add_biz_condition(Search())
@@ -176,6 +219,30 @@ def test_add_biz_condition_omits_terms_when_authorization_covers_whole_tenant(mo
 
 
 @pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
+def test_add_biz_condition_keeps_terms_without_trusted_tenant_wide_scope(monkeypatch, handler_cls, field):
+    """缓存空间集合被授权集覆盖，也不足以证明 IAM 策略允许访问当前及未来的全部业务。"""
+    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_request(monkeypatch, tenant_wide_authorized=False)
+    handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
+
+    dsl = handler.add_biz_condition(Search()).to_dict()
+
+    assert _terms_values(dsl, field)
+
+
+@pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
+def test_add_biz_condition_keeps_terms_for_explicit_biz_list(monkeypatch, handler_cls, field):
+    """即使用户具备全量权限，显式业务列表仍是调用方要求保留的查询范围。"""
+    _patch_tenant_spaces(monkeypatch, [1, 2, 3])
+    _patch_request(monkeypatch, tenant_wide_authorized=True)
+    handler = _make_handler(handler_cls, bk_biz_ids=[1, 2, 3], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
+
+    dsl = handler.add_biz_condition(Search()).to_dict()
+
+    assert _terms_values(dsl, field)
+
+
+@pytest.mark.parametrize(("handler_cls", "field"), BIZ_FIELD_CASES)
 def test_add_biz_condition_keeps_terms_in_multi_tenant_mode(monkeypatch, handler_cls, field):
     """多租户部署下即使授权覆盖全量也必须保留业务 terms。
 
@@ -183,6 +250,7 @@ def test_add_biz_condition_keeps_terms_in_multi_tenant_mode(monkeypatch, handler
     业务 terms 同时承担着租户隔离，省掉就会跨租户泄漏。
     """
     _patch_tenant_spaces(monkeypatch, [1, 2, 3], multi_tenant=True)
+    _patch_request(monkeypatch, tenant_wide_authorized=True)
     handler = _make_handler(handler_cls, bk_biz_ids=[-1], authorized_bizs=[1, 2, 3], unauthorized_bizs=[])
 
     dsl = handler.add_biz_condition(Search()).to_dict()
@@ -232,3 +300,68 @@ def test_add_biz_condition_without_biz_scope_keeps_existing_semantics(monkeypatc
 
     assert not _contains_match_none(dsl)
     assert any(node.get("term", {}).get("assignee") == "admin" for node in _walk_dsl(dsl))
+
+
+@pytest.mark.parametrize(
+    ("policy", "expected_biz_ids", "expected_tenant_wide"),
+    [
+        ({"op": OP.ANY}, [1, 2], True),
+        ({"op": OP.IN, "value": ["1"]}, [1], False),
+    ],
+)
+def test_filter_space_list_by_action_reports_trusted_scope(monkeypatch, policy, expected_biz_ids, expected_tenant_wide):
+    spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
+    monkeypatch.setattr(
+        "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
+        lambda **kwargs: spaces,
+    )
+
+    permission = Permission.__new__(Permission)
+    permission.bk_tenant_id = TENANT_ID
+    permission.skip_check = False
+    permission.iam_client = SimpleNamespace(_do_policy_query=lambda request: policy)
+
+    def make_request(action):
+        return object()
+
+    permission.make_request = make_request
+
+    authorized_spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(
+        ActionEnum.VIEW_BUSINESS
+    )
+
+    assert [space["bk_biz_id"] for space in authorized_spaces] == expected_biz_ids
+    assert tenant_wide_authorized is expected_tenant_wide
+
+
+def test_filter_space_list_by_action_reports_skip_check_as_trusted_scope(monkeypatch):
+    spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
+    monkeypatch.setattr(
+        "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
+        lambda **kwargs: spaces,
+    )
+
+    permission = Permission.__new__(Permission)
+    permission.bk_tenant_id = TENANT_ID
+    permission.skip_check = True
+
+    authorized_spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(
+        ActionEnum.VIEW_BUSINESS
+    )
+
+    assert authorized_spaces == spaces
+    assert tenant_wide_authorized is True
+
+
+def test_filter_space_list_by_action_keeps_list_return_contract(monkeypatch):
+    spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
+    monkeypatch.setattr(
+        "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
+        lambda **kwargs: spaces,
+    )
+
+    permission = Permission.__new__(Permission)
+    permission.bk_tenant_id = TENANT_ID
+    permission.skip_check = True
+
+    assert permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS) == spaces

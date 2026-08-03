@@ -30,12 +30,12 @@ from luqum.parser import lexer, parser
 from luqum.tree import AndOperation, FieldGroup, SearchField, Word
 
 from bkm_space.api import SpaceApi
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from constants.alert import EventTargetType
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
@@ -52,6 +52,7 @@ from fta_web.alert.handlers.translator import AbstractTranslator
 _FIELD_MAP_CACHE: dict[type, dict[str, QueryField]] = {}
 ES_TERMS_QUERY_MAX_SIZE = 65536
 MAX_FULLTEXT_BIZ_MATCHES = 1000
+TENANT_WIDE_AUTHORIZED_REQUEST_ATTR = "_fta_tenant_wide_biz_authorized"
 logger = logging.getLogger(__name__)
 
 
@@ -844,19 +845,23 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 req = get_request()
             except Exception:
                 return bk_biz_ids, []
-            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+            permission = Permission(username=req.user.username, bk_tenant_id=get_request_tenant_id())
+            spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
+            setattr(req, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, tenant_wide_authorized)
+            authorized_bizs = [space["bk_biz_id"] for space in spaces]
             if -1 not in bk_biz_ids:
                 authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
+        unauthorized_bizs = [biz_id for biz_id in unauthorized_bizs if biz_id != -1]
         return authorized_bizs, unauthorized_bizs
 
     def build_es_terms_query(self, field: str, values: list):
         return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
 
     def is_tenant_wide_authorized(self) -> bool:
-        """授权业务集是否已覆盖当前租户的全部空间。
+        """当前请求是否明确选择全部业务，且 IAM 授予当前租户的全量业务权限。
 
-        覆盖时业务维度不再有区分度，无需为授权业务逐个生成 term——管理员场景下授权业务
+        此时业务维度不再有区分度，无需为授权业务逐个生成 term——管理员场景下授权业务
         可达十万级，单次请求的 terms 子句实测能把 DSL 撑到 1MB 以上。
 
         仅在单租户部署下成立：告警检索链路并不过滤 bk_tenant_id（该字段只写不读，且早期
@@ -870,31 +875,19 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         if settings.ENABLE_MULTI_TENANT_MODE:
             return False
 
-        # 未带业务范围，或存在无权限业务，语义都不是"授权覆盖全量"，照常按业务过滤
-        if not getattr(self, "bk_biz_ids", None) or getattr(self, "unauthorized_bizs", None):
+        # 只有明确的"全部业务"请求才允许省略业务条件；显式业务列表必须保留调用方限定的范围
+        if -1 not in (getattr(self, "bk_biz_ids", None) or []) or getattr(self, "unauthorized_bizs", None):
             return False
 
-        authorized_bizs = set(getattr(self, "authorized_bizs", None) or [])
-        if not authorized_bizs:
+        if not getattr(self, "authorized_bizs", None):
             return False
 
         try:
-            spaces = SpaceApi.list_spaces_dict(using_cache=True)
-        except Exception:  # NOCC:broad-except(取不到空间列表时按业务过滤，不放宽可见范围)
-            logger.exception("load spaces for tenant-wide authorization check failed")
+            req = get_request()
+        except Exception:
             return False
 
-        tenant_id = get_request_tenant_id()
-        space_ids = {
-            space["bk_biz_id"]
-            for space in spaces
-            if space.get("bk_biz_id") is not None and (space.get("bk_tenant_id") or DEFAULT_TENANT_ID) == tenant_id
-        }
-        # 空集合不足以证明"覆盖全量"（缓存未就绪 / 接口降级），此时必须继续按业务过滤
-        if not space_ids:
-            return False
-
-        return space_ids <= authorized_bizs
+        return bool(getattr(req, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, False))
 
     def finalize_biz_condition(self, search_object: Search, queries: list) -> Search:
         """收口业务可见性过滤：有子句取并集，无子句则显式判定放行还是查空。
