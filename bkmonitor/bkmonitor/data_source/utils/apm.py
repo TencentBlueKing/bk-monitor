@@ -230,3 +230,25 @@ class FilterOperator:
 class LogicSupportOperator:
     # 走特殊逻辑可以使用的操作符
     LOGIC = "logic"
+
+
+class APMQueryFilterMixin:
+    @classmethod
+    def _build_filters(cls, filters: list[types.Filter] | None) -> Q:
+        if not filters:
+            return Q()
+
+        q: Q = Q()
+        for f in filters:
+            operator = f["operator"]
+            key = cls._translate_field(f["key"])
+            # 更新 q，叠加查询条件
+            if operator == LogicSupportOperator.LOGIC:
+                q = cls._add_logic_filter(q, key, f["value"])
+            else:
+                q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
+        return q
+
+    @classmethod
+    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
+        return q
