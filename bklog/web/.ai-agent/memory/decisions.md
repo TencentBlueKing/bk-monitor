@@ -216,9 +216,29 @@ Knowledge update: updated.
 - Decision: render `.bklog-row-hover-operator` as `position: fixed` and compute viewport-based `top/right` from the hovered row. Do not clamp anchor downward. This keeps the final visual operator above the first row while escaping `.bklog-result-container { overflow: hidden }`.
 - Verification: browser E2E on `http://appdev.woa.com:8001` original mode, first row hover. Measured operator visible, transform matrix y=-32, operator rect top/bottom `384/412`, first row rect top/bottom `412/442`, root top `411`; no overlap with row text and no clipping.
 
+## 2026-08-03 TAPD 回填改为评论-only + 最小收敛自测
+
+- 决策：任务完成后的处理结果 / 影响范围 / 自测结果，只通过 `comments_create` 追加评论；禁止为回填改写单据 `description` / `test_focus`。
+- 自测：按 diff 影响最小收敛；逻辑变更落在 `bklog/web/test/` 用 Mock Props/I/O；UI 须先询问是否启用浏览器 MCP，并索取指定 URL，禁止自动探测。
+- 落点：Rules `task-completion-impact.mdc` / `tapd-submit-backfill.mdc`；Skills `architecture-impact-test-forecast.md` / `minimal-convergent-self-test.md` / `tapd-submit-backfill.md`；`.cursor/rules/bklog-web/` 仅 pointer。
+
+## 2026-08-03 自测后 Commit/PR 门禁 + UI 路径预生成
+
+- 决策：自测完成后必须询问是否 Commit；bug 用 `bug: {标题} --bug={id}`，需求用 `feat: {标题} --story={id}`；Commit 后尝试创建 PR；**无论是否 Commit** 都询问是否回填 TAPD（同意词含是/需要/同意/回填等）。
+- UI：在浏览器执行前，按变更范围一次代码分析生成完整 `ui_test_paths`（navigate/click/switch/fill/hover/assert/screenshot），执行阶段只消费路径，避免自测时反复大范围读代码。
+- 回填：评论-only 不变；若存在 PR 链接字段（配置 `tapd.*.pr_field` 或确认后的自定义字段）则写入 PR URL；无字段则评论中带链接。
+- 落点：同上 Rules/Skills 已同步扩展；editor 侧仅 pointer。
+
 ## 2026-07-30 字段分析过滤后百分比异常
 
 - 问题：字段分析 / 去重后字段统计点击 value 过滤后，百分比出现 3090% 等远超 100% 的值（story=1010158081136538213）。
 - 根因：`agg-chart.tsx` 在 Vue computed 内再套手动缓存（`cachedShowFiveList` / `cachedShowTotalCount`）。`queryFieldFetchTopList` 先 `resetCache` 再请求；loading 期间 render 仍求值 `filterList`，把旧 `values` 写回缓存；请求返回后 `total_count` 已是过滤后新值，但 values 仍是旧缓存 → `count/newTotal*100` 远超 100%。
 - 决策：删除手动缓存，依赖 Vue computed 依赖追踪；请求开始清空 `values/total_count`；请求参数合并 `store.getters.retrieveParams/requestAddition`，避免 watch 早于 props 导致条件陈旧；进度条宽度 `Math.min(100, ...)`。
 - 约束：不要在 `agg-chart` 的 computed getter 内用可变私有字段做结果缓存；不要在 loading 分支外提前求值依赖列表数据的 computed。
+
+## 2026-08-03 Grep Tab 挂载必须主动拉数
+
+- 问题：图表分析切到 Grep 模式后持续 Loading、不发起 `grep_query`（story=1010158081136663994）。
+- 根因：`grep/index.tsx` 初始 `is_loading: true`，但 `onMounted` 中 `requestGrepList` 在条数展示重构时被注释；切 Tab 不会触发 `SEARCHING_CHANGE`，请求永远不会发出。
+- 决策：挂载时若 `!RetrieveHelper.isSearching` 且已有 `grep_field`，调用 `reloadGrepDataAndTotal()`；无字段则清 loading；主检索进行中仍等 `SEARCHING_CHANGE(false)`。
+- 约束：不要只依赖事件驱动拉 Grep 数据；Tab 切入（尤其非 origin）不会自动 fire searching 事件。
