@@ -6,13 +6,6 @@ from typing import Any
 
 from django.db import close_old_connections
 
-from metadata.cluster_status import (
-    CLUSTER_STATUS_DEFAULT_TIMEOUT,
-    CLUSTER_STATUS_MAX_COUNT,
-    CLUSTER_STATUS_MAX_TIMEOUT,
-    CLUSTER_STATUS_MAX_WORKERS,
-    CLUSTER_STATUS_MIN_TIMEOUT,
-)
 from metadata.models.storage import ClusterInfo
 
 
@@ -35,11 +28,11 @@ def _empty_capacity() -> dict[str, int | float | None]:
 class ClusterStatusService:
     """批量查询并投影 ClusterInfo 的统一运行状态。"""
 
-    MAX_CLUSTER_COUNT = CLUSTER_STATUS_MAX_COUNT
-    MAX_WORKERS = CLUSTER_STATUS_MAX_WORKERS
-    DEFAULT_TIMEOUT = CLUSTER_STATUS_DEFAULT_TIMEOUT
-    MIN_TIMEOUT = CLUSTER_STATUS_MIN_TIMEOUT
-    MAX_TIMEOUT = CLUSTER_STATUS_MAX_TIMEOUT
+    MAX_CLUSTER_COUNT = 20
+    MAX_WORKERS = 5
+    DEFAULT_TIMEOUT = ClusterInfo.DEFAULT_CHECK_TIMEOUT
+    MIN_TIMEOUT = 1
+    MAX_TIMEOUT = 30
 
     STATUS_AVAILABLE = "available"
     STATUS_DEGRADED = "degraded"

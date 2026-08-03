@@ -50,8 +50,6 @@ from tenacity import (
     wait_fixed,
 )
 
-from metadata.cluster_status import CLUSTER_STATUS_DEFAULT_TIMEOUT
-
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
 from bkmonitor.dataflow.task.downsample import StatisticTask
@@ -121,7 +119,7 @@ class ClusterInfo(models.Model):
     TYPE_DORIS = "doris"
     TYPE_SURREALDB = "surrealdb"
 
-    DEFAULT_CHECK_TIMEOUT = CLUSTER_STATUS_DEFAULT_TIMEOUT
+    DEFAULT_CHECK_TIMEOUT = 5
     CHECK_STATUS_AVAILABLE = "available"
     CHECK_STATUS_UNAVAILABLE = "unavailable"
     CHECK_STATUS_UNSUPPORTED = "unsupported"
