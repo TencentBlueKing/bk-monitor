@@ -632,8 +632,6 @@ FEATURE_TOGGLE = {
     "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
     # 新版采集管理
     "log_manage_v2": os.environ.get("BKAPP_FEATURE_LOG_MANAGE_V2", "on"),
-    # 新版采集项列表
-    "new_collector_list": os.environ.get("BKAPP_FEATURE_NEW_COLLECTOR_LIST", "off"),
     # 客户端日志
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
     # 场景化检索
