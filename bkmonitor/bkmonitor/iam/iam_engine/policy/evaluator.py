@@ -31,7 +31,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from bkmonitor.iam.iam_engine.policy.expression import Op, PolicyExpression
+from ..policy.expression import Op, PolicyExpression
 
 
 def _as_collection(value):

@@ -14,8 +14,8 @@ import json
 
 from django.core.management.base import BaseCommand
 
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleDef
+from ....django.facade import get_framework
+from ....schema.definitions import ActionDef, ResourceTypeDef, RoleDef
 
 
 class Command(BaseCommand):

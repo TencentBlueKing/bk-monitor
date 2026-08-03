@@ -33,7 +33,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+    from ..schema.definitions import ActionDef, ResourceTypeDef
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 

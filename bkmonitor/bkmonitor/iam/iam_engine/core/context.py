@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     # 避免运行时循环 import：schema/registry 反过来不应该 import core.context
-    from bkmonitor.iam.iam_engine.schema.definitions import SystemDef
-    from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+    from ..schema.definitions import SystemDef
+    from ..schema.registry import SchemaRegistry
 
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from rest_framework import permissions as drf_permissions
 
-from bkmonitor.iam.iam_engine.core.types import (
+from ..core.types import (
     AuthRequest,
     BatchByResourceRequest,
     ResourceInstance,
@@ -24,10 +24,10 @@ from bkmonitor.iam.iam_engine.core.types import (
     to_action_id,
     to_resource_type_id,
 )
-from bkmonitor.iam.iam_engine.django.facade import get_framework
+from ..django.facade import get_framework
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+    from ..schema.definitions import ActionDef, ResourceTypeDef
 
 # ---------------------------------------------------------------------------
 # IAMPermission —— 底层积木

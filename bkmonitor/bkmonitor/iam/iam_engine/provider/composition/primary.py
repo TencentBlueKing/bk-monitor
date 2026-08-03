@@ -24,14 +24,14 @@ from __future__ import annotations
 #   fallback_on_error: bool = True   —— False 时主故障不 fallback（直接抛）
 # ---------------------------------------------------------------------------
 
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
-from bkmonitor.iam.iam_engine.core.types import (
+from ...core.exceptions import ProviderUnavailable
+from ...core.types import (
     AuthRequest,
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
 )
-from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
+from ...provider.composition.base import CompositionPolicy
 
 
 class PrimaryPolicy(CompositionPolicy):

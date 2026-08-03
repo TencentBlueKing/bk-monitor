@@ -17,14 +17,14 @@ from __future__ import annotations
 # 所有方法直接委托给 self.providers[0]，无组合逻辑。
 # ---------------------------------------------------------------------------
 
-from bkmonitor.iam.iam_engine.core.exceptions import ConfigError
-from bkmonitor.iam.iam_engine.core.types import (
+from ...core.exceptions import ConfigError
+from ...core.types import (
     AuthRequest,
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
 )
-from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
+from ...provider.composition.base import CompositionPolicy
 
 
 class SinglePolicy(CompositionPolicy):

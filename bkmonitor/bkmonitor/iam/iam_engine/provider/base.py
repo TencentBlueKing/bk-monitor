@@ -33,8 +33,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from bkmonitor.iam.iam_engine.core.context import ProviderContext
-from bkmonitor.iam.iam_engine.core.types import (
+from ..core.context import ProviderContext
+from ..core.types import (
     ApplyURLRequest,
     AuthRequest,
     BatchAuthResult,
@@ -45,12 +45,12 @@ from bkmonitor.iam.iam_engine.core.types import (
 )
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+    from ..schema.definitions import ActionDef
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
-    from bkmonitor.iam.iam_engine.schema.diff import MigrationPlan, MigrationReport
-    from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+    from ..policy.expression import PolicyExpression
+    from ..schema.diff import MigrationPlan, MigrationReport
+    from ..schema.registry import SchemaRegistry
 
 
 class PermissionProvider(ABC):

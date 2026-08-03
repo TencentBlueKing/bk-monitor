@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from bkmonitor.iam.iam_engine.core.types import (
+from ..core.types import (
     ApplyURLRequest,
     AuthRequest,
     BatchAuthResult,
@@ -45,17 +45,17 @@ from bkmonitor.iam.iam_engine.core.types import (
     BatchByResourceRequest,
     Subject,
 )
-from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
+from ..provider.base import PermissionProvider
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
-from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
-from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+    from ..schema.definitions import ActionDef
+from ..provider.composition.base import CompositionPolicy
+from ..provider.router import ProviderRouter
+from ..schema.registry import SchemaRegistry
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.crosscutting.bypass import BypassRule
-    from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
+    from ..crosscutting.bypass import BypassRule
+    from ..policy.expression import PolicyExpression
 
 
 class IAMFramework:

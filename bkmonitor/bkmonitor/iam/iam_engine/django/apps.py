@@ -14,7 +14,7 @@ import logging
 
 from django.apps import AppConfig
 
-from bkmonitor.iam.iam_engine.django.conf import load_framework
+from ..django.conf import load_framework
 
 logger = logging.getLogger("iam_engine.django")
 

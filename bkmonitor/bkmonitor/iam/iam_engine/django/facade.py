@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.core.framework import IAMFramework
+    from ..core.framework import IAMFramework
 
 _framework: IAMFramework | None = None
 

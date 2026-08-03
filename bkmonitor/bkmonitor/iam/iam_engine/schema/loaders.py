@@ -24,14 +24,14 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from bkmonitor.iam.iam_engine.core.exceptions import SchemaError
-from bkmonitor.iam.iam_engine.schema.definitions import (
+from ..core.exceptions import SchemaError
+from ..schema.definitions import (
     ActionDef,
     ResourceTypeDef,
     RoleActionBinding,
     RoleDef,
 )
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from ..schema.registry import SchemaRegistry
 
 
 # ---- 从 Python 类加载 ------------------------------------------------------

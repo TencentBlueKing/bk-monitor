@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import logging
 
-from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
-from bkmonitor.iam.iam_engine.core.context import ProviderContext
-from bkmonitor.iam.iam_engine.core.framework import IAMFramework
-from bkmonitor.iam.iam_engine.core.utils import import_class
-from bkmonitor.iam.iam_engine.django.facade import _set_framework
-from bkmonitor.iam.iam_engine.schema.definitions import SystemDef
-from bkmonitor.iam.iam_engine.schema.loaders import load_from_class as schema_load_from_class
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from ..core.config import FrameworkConfig
+from ..core.context import ProviderContext
+from ..core.framework import IAMFramework
+from ..core.utils import import_class
+from ..django.facade import _set_framework
+from ..schema.definitions import SystemDef
+from ..schema.loaders import load_from_class as schema_load_from_class
+from ..schema.registry import SchemaRegistry
 
 logger = logging.getLogger("iam_engine.django")
 

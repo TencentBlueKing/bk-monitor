@@ -14,7 +14,7 @@ import json
 
 from django.core.management.base import BaseCommand
 
-from bkmonitor.iam.iam_engine.django.facade import get_framework
+from ....django.facade import get_framework
 
 
 class Command(BaseCommand):

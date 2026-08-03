@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from bkmonitor.iam.iam_engine.core.types import (
+from ...core.types import (
     AuthRequest,
     BatchAuthResult,
     BatchByActionRequest,
@@ -34,7 +34,7 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceAuthResult,
     to_resource_type_id,
 )
-from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
+from ...provider.composition.base import CompositionPolicy
 
 
 class AnyOfPolicy(CompositionPolicy):

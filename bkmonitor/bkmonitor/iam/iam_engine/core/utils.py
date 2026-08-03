@@ -24,7 +24,7 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from typing import TypeVar
 
-from bkmonitor.iam.iam_engine.core.exceptions import ConfigError
+from ..core.exceptions import ConfigError
 
 _T = TypeVar("_T")
 

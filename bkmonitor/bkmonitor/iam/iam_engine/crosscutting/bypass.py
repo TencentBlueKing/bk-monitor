@@ -33,10 +33,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject
+from ..core.types import ResourceInstance, Subject
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+    from ..schema.definitions import ActionDef
 
 
 class BypassRule(ABC):

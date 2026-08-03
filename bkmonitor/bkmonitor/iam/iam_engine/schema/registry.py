@@ -38,7 +38,7 @@ from __future__ import annotations
 #     内部不涉及分布式锁。
 # ---------------------------------------------------------------------------
 
-from bkmonitor.iam.iam_engine.core.exceptions import (
+from ..core.exceptions import (
     ActionNotFound,
     ResourceTypeNotFound,
     RoleNotFound,
@@ -46,7 +46,7 @@ from bkmonitor.iam.iam_engine.core.exceptions import (
     SchemaError,
     SchemaFrozenError,
 )
-from bkmonitor.iam.iam_engine.schema.definitions import (
+from ..schema.definitions import (
     ActionDef,
     ResourceTypeDef,
     RoleDef,

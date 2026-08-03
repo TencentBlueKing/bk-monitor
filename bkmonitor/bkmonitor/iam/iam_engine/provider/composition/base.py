@@ -15,8 +15,8 @@ from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any
 
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
-from bkmonitor.iam.iam_engine.core.types import (
+from ...core.exceptions import ProviderNotFound
+from ...core.types import (
     ApplyURLRequest,
     AuthRequest,
     BatchAuthResult,
@@ -24,7 +24,7 @@ from bkmonitor.iam.iam_engine.core.types import (
     BatchByResourceRequest,
     Subject,
 )
-from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
+from ...provider.base import PermissionProvider
 
 # ---------------------------------------------------------------------------
 # CompositionPolicy —— 多 Provider 鉴权决策组合策略基类
@@ -43,8 +43,8 @@ from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
 # ---------------------------------------------------------------------------
 
 if TYPE_CHECKING:
-    from bkmonitor.iam.iam_engine.policy.expression import PolicyExpression
-    from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+    from ...policy.expression import PolicyExpression
+    from ...schema.definitions import ActionDef
 
 
 class CompositionPolicy(ABC):
