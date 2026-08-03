@@ -108,6 +108,22 @@
   .metric-group-list-custom {
     flex: 1;
     overflow-y: auto;
+
+    .metric-group-list-transition {
+      .drag-move {
+        transition: transform 0.1s;
+      }
+    }
+
+    &.is-dragging {
+      .metric-group-list-item:hover {
+        background: transparent;
+      }
+
+      .metric-group-list-item.is-active:hover {
+        background: #e1ecff;
+      }
+    }
   }
 
   .metric-group-list-add-title {

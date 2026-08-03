@@ -32,29 +32,34 @@ import {
   getCurrentInstance,
   inject,
   shallowRef,
+  toRef,
   toValue,
   useTemplateRef,
+  watch,
 } from 'vue';
 
 import { ResizeLayout } from 'bkui-vue';
+import dayjs from 'dayjs';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
 import { resolveGraphPanel } from '../variables/resolve';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
 import { type CustomOptions, useEcharts } from '@/pages/trace-explore/components/explore-chart/use-echarts';
 import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 import TableLegend from '@/plugins/components/table-legend';
+import { reviewInterval } from '@/utils';
 
 import type { HostViewsGraphPanel } from '../../../types/panels';
 import type { ScopedVarMap } from '../variables/resolve';
+import type { DataZoomEvent } from '@/components';
 import type { ChartViewOptions } from '@/pages/trace-explore/components/explore-chart/use-chart-view-option';
 
 import './time-series-card.scss';
-
 export default defineComponent({
   name: 'TimeSeriesCard',
   props: {
@@ -78,10 +83,16 @@ export default defineComponent({
       type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
+    /** 所有联动图表中存在有一个图表触发 hover 是否展示所有联动图表的 tooltip(默认 false) */
+    hoverAllTooltips: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const { t } = useI18n();
     const instance = getCurrentInstance();
+    const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const chartRef = useTemplateRef<HTMLElement>('chart');
     const chartMainRef = useTemplateRef<HTMLElement>('chartMain');
     const resizeLayoutRef = useTemplateRef<InstanceType<typeof ResizeLayout>>('resizeLayout');
@@ -100,14 +111,66 @@ export default defineComponent({
       chartHeight.value = height > layoutDragMaxHeight.value ? layoutDragMaxHeight.value : height;
     };
 
+    const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
+
+    const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange));
+
+    /** 是否展示复位按钮 */
+    const showRestore = inject<MaybeRef<boolean>>('showRestore', false);
+    const handleDataZoomChange = inject('handleDataZoomChange', (_timeRange: string[]) => {});
+    const handleRestore = inject('handleRestore', () => {});
+
+    const mouseIn = shallowRef(false);
+    const handleMouseInChange = (v: boolean) => {
+      mouseIn.value = v;
+    };
+    const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
+      chartInstance.value.dispatchAction({
+        type: 'restore',
+      });
+      if (!mouseIn.value) return;
+      const xAxisData = echartOptions.xAxis[0]?.data;
+      if (!xAxisData.length || xAxisData.length <= 2) return;
+      let { startValue, endValue } = event.batch[0];
+      startValue = Math.max(0, startValue);
+      endValue = Math.min(endValue, xAxisData.length - 1);
+      let endTime = xAxisData[endValue];
+      let startTime = xAxisData[startValue];
+      if (startValue === endValue) {
+        endTime = xAxisData[endValue + 1];
+      }
+      if (!endTime) {
+        endTime = xAxisData[startValue] + 1000;
+      }
+      if (!startTime) {
+        startTime = xAxisData[0];
+      }
+      handleDataZoomChange([startTime, endTime]);
+    };
+
+    const scopedVars = computed(() => {
+      return {
+        ...props.scopedVars,
+        interval: reviewInterval(
+          (props.scopedVars.interval as 'auto' | string) || 'auto',
+          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+          props.panel.collect_interval
+        ),
+      };
+    });
+
     /** 变量解析后的可取数面板，scopedVars 变化时自动重算并触发取数 */
-    const resolvedPanel = computed(() => resolveGraphPanel(props.panel, props.scopedVars, props.dashboardId));
+    const resolvedPanel = computed(() => resolveGraphPanel(props.panel, scopedVars.value));
 
     const { options, loading, metricList, targets, series, chartId } = useEcharts({
       panel: resolvedPanel,
       chartRef: chartMainRef,
       $api: instance.appContext.config.globalProperties.$api,
       params: computed(() => ({})),
+      interactionState: {
+        isMouseOver: mouseIn,
+        hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
+      },
       viewportRequest: {
         enable: true,
         el: chartRef,
@@ -122,10 +185,31 @@ export default defineComponent({
       series,
       chartRef
     );
+
     const { legendData, handleSelectLegend } = useChartLegend(options, chartId, {});
+
+    watch(
+      [loading, options],
+      async () => {
+        if (!loading.value && options.value) {
+          setTimeout(() => {
+            chartInstance.value?.dispatchAction({
+              type: 'takeGlobalCursor',
+              key: 'dataZoomSelect',
+              dataZoomSelectActive: true,
+            });
+          }, 1000);
+        }
+      },
+      {
+        immediate: false,
+        flush: 'post',
+      }
+    );
 
     return {
       t,
+      showRestore,
       instance,
       options,
       loading,
@@ -139,6 +223,9 @@ export default defineComponent({
       handleMenuClick,
       handleMetricClick,
       handleSelectLegend,
+      handleDataZoom,
+      handleMouseInChange,
+      handleRestore,
     };
   },
   render() {
@@ -147,13 +234,24 @@ export default defineComponent({
         <div
           ref='chartMain'
           class='time-series-card__chart'
+          onMouseout={() => this.handleMouseInChange(false)}
+          onMouseover={() => this.handleMouseInChange(true)}
         >
           <VueEcharts
             ref='echart'
             group={this.dashboardId}
             option={this.options}
             autoresize
+            onDatazoom={e => this.handleDataZoom(e, this.options)}
           />
+          {this.showRestore && (
+            <span
+              class='chart-restore'
+              onClick={this.handleRestore}
+            >
+              {this.$t('复位')}
+            </span>
+          )}
         </div>
       );
     };

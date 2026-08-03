@@ -67,6 +67,10 @@ export default defineComponent({
       type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
+    dashboardId: {
+      type: String,
+      default: '',
+    },
   },
   setup(props) {
     /** 分组展开状态，折叠时不挂载图表（避免无谓取数） */
@@ -123,7 +127,7 @@ export default defineComponent({
                 >
                   <TimeSeriesCard
                     customOptions={this.customOptions}
-                    dashboardId={this.row.id}
+                    dashboardId={this.dashboardId}
                     panel={panel}
                     scopedVars={this.scopedVars}
                   />
