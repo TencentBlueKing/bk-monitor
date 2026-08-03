@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · J-API-Key映射查找流程 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · J-API-Key映射查找流程</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · J-API-Key映射查找流程</div><h2>J-API-Key映射查找流程</h2><p><code>.docs/diagrams/J-API-Key映射查找流程.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeyAncHJpbWFyeUNvbG9yJzogJyNmY2U0ZWMnLCAncHJpbWFyeVRleHRDb2xvcic6ICcjYzIxODViJywgJ3ByaW1hcnlCb3JkZXJDb2xvcic6ICcjZTkxZTYzJywgJ2xpbmVDb2xvcic6ICcjZjA2MjkyJ319fSUlXG5mbG93Y2hhcnQgTFJcbiAgICBzdWJncmFwaCBcIuS7o-eggeiwg-eUqFwiXG4gICAgICAgIENBTExbXCJodHRwLnJlcXVlc3QoJ21ldGEvbWVudScsIHsuLi59KVwiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCJzZXJ2aWNlcy9pbmRleC5qc1wiXG4gICAgICAgIFNFUlZJQ0VTW1wi6IGa5ZCI5omA5pyJIHNlcnZpY2Ug5qih5Z2XXCJdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcInNlcnZpY2VzL21ldGEuanNcIlxuICAgICAgICBNRVRBW1wiZXhwb3J0IGNvbnN0IG1lbnUgPSB7PGJyLz4gIHVybDogJy9tZXRhL21lbnUvJyw8YnIvPiAgbWV0aG9kOiAnZ2V0Jzxici8-fVwiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCJhcGkvaW5kZXguanNcIlxuICAgICAgICBBUElbXCJiYXNlVVJMOiAnL2FwaS92MSc8YnIvPisgaW50ZXJjZXB0b3JzPGJyLz4rIGNhbmNlbC9jYWNoZSDmnLrliLZcIl1cbiAgICBlbmRcblxuICAgIHN1YmdyYXBoIFwi5a6e6ZmF6K-35rGCXCJcbiAgICAgICAgUkVRW1wiR0VUIC9hcGkvdjEvbWV0YS9tZW51L1wiXVxuICAgIGVuZFxuXG4gICAgQ0FMTCAtLT4gU0VSVklDRVNcbiAgICBTRVJWSUNFUyAtLT4gTUVUQVxuICAgIE1FVEEgLS0-IEFQSVxuICAgIEFQSSAtLT4gUkVRXG4ifQ">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: { &#39;primaryColor&#39;: &#39;#fce4ec&#39;, &#39;primaryTextColor&#39;: &#39;#c2185b&#39;, &#39;primaryBorderColor&#39;: &#39;#e91e63&#39;, &#39;lineColor&#39;: &#39;#f06292&#39;}}}%%
+flowchart LR
+    subgraph &quot;代码调用&quot;
+        CALL[&quot;http.request(&#39;meta/menu&#39;, {...})&quot;]
+    end
+
+    subgraph &quot;services/index.js&quot;
+        SERVICES[&quot;聚合所有 service 模块&quot;]
+    end
+
+    subgraph &quot;services/meta.js&quot;
+        META[&quot;export const menu = {&lt;br/&gt;  url: &#39;/meta/menu/&#39;,&lt;br/&gt;  method: &#39;get&#39;&lt;br/&gt;}&quot;]
+    end
+
+    subgraph &quot;api/index.js&quot;
+        API[&quot;baseURL: &#39;/api/v1&#39;&lt;br/&gt;+ interceptors&lt;br/&gt;+ cancel/cache 机制&quot;]
+    end
+
+    subgraph &quot;实际请求&quot;
+        REQ[&quot;GET /api/v1/meta/menu/&quot;]
+    end
+
+    CALL --&gt; SERVICES
+    SERVICES --&gt; META
+    META --&gt; API
+    API --&gt; REQ
+</pre></main></div></body></html>
