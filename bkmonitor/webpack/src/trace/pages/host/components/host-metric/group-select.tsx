@@ -88,6 +88,7 @@ export default defineComponent({
     return () => (
       <Select
         {...attrs}
+        class='add-group-select'
         popoverOptions={{
           width: 240,
           extCls: 'add-group-select-popover host-page',

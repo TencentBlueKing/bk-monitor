@@ -95,7 +95,7 @@ export default defineComponent({
     });
 
     // 变量取值：仅请求态字段变化才会触发图表重新取数
-    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
+    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value, timeRange.value));
 
     onMounted(() => {
       groupsCtrl.load();

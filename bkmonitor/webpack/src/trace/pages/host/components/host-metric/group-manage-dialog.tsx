@@ -332,6 +332,7 @@ export default defineComponent({
             </div>
             <div class='group-metric-wrap-operations'>
               <GroupSelect
+                class='batch-move-btn'
                 disabled={!selectedIds.value.length}
                 groupOptions={groupOptions.value}
                 onAddGroup={handleAddGroup}

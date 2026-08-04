@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { Exception } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
+import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { useI18n } from 'vue-i18n';
 
 import DashboardRow from './dashboard-row';
@@ -63,6 +65,9 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const dashboardId = shallowRef(random(10));
+
+    echartsConnect(dashboardId.value);
 
     return () =>
       props.rows.length ? (
@@ -72,6 +77,7 @@ export default defineComponent({
               key={row.id}
               columns={props.columns}
               customOptions={props.customOptions}
+              dashboardId={dashboardId.value}
               row={row}
               scopedVars={props.scopedVars}
             />
