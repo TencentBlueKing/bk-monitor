@@ -38,7 +38,7 @@ def normalize_app_name(app_name: str) -> str:
     请统一 `from constants.apm import normalize_app_name` 后调用本函数，
     严禁复制内联实现，避免规则漂移。
     """
-    return app_name.replace("-", "_").replace(".", "_").lower()
+    return app_name.strip().replace("-", "_").replace(".", "_").lower()
 
 
 class CachedEnum(Enum):
