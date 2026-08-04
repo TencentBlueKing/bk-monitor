@@ -57,7 +57,7 @@ class SchemaRegistry:
     """Schema 元数据中心注册表。
 
     管理 Action / ResourceType / Role 的元数据。
-    System 信息是 per-Provider 的，由 ProviderContext 管理，不在此注册表中。
+    System 信息是 per-Provider 的，由各 Provider 自持（存放在其 options["system"] 中），不在此注册表中。
 
     典型用法：
         registry = SchemaRegistry()

@@ -27,50 +27,18 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class SystemConfig:
-    """单个 Provider 的 IAM 系统元信息配置。
-
-    Attributes:
-        id: 系统唯一标识（如 "bk_monitor"）
-        name: 系统展示名称
-        name_en: 英文名（可选）
-        description: 系统描述
-        managers: 管理员列表
-        clients: 可调用该系统权限的应用列表（v4 独有）
-        callback_url: 权限回调地址
-        extensions: 额外扩展字段
-    """
-
-    id: str
-    name: str
-    name_en: str = ""
-    description: str = ""
-    managers: tuple[str, ...] = ()
-    clients: tuple[str, ...] = ()
-    callback_url: str = ""
-    extensions: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class ProviderConfig:
     """单个 Provider 的配置。
 
     Attributes:
-        cls: Provider 类的 dotted path（如 "iam_engine.builtin.v4.provider.V4PermissionProvider"）
-        options: 实例化参数（system/base_url/credentials_key/timeout 等
+        cls: Provider 类的 dotted path（如 "bkmonitor.iam.iam_v4.provider.V4PermissionProvider"）
+        options: 实例化参数。完全由 Provider 自己定义结构，包含业务配置
+            （如 base_url）、凭据（credentials 字子典）、系统信息（system
+            子字典）等。框架不解析 options 内部结构，直接透传给 Provider。
     """
 
     cls: str
     options: dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def system(self) -> SystemConfig | None:
-        raw = self.options.get("system")
-        if raw is None:
-            return None
-        if isinstance(raw, SystemConfig):
-            return raw
-        return SystemConfig(**raw)
 
 
 @dataclass(frozen=True)
@@ -122,7 +90,6 @@ class FrameworkConfig:
         roles_module: RoleDef 定义的 dotted path（可选）
         providers: Provider 配置列表
         composition: 组合策略配置
-        credentials_provider: 凭据解析 callable 的 dotted path
         migration: 迁移配置
         bypass_rules: BypassRule 类的 dotted path 列表
     """
@@ -132,7 +99,6 @@ class FrameworkConfig:
     roles_module: str = ""
     providers: tuple[ProviderConfig, ...] = ()
     composition: CompositionConfig = field(default_factory=CompositionConfig)
-    credentials_provider: str = ""
     migration: MigrationConfig = field(default_factory=MigrationConfig)
     bypass_rules: tuple[str, ...] = ()
 
@@ -160,7 +126,6 @@ class FrameworkConfig:
             roles_module=raw.get("ROLES", ""),
             providers=providers,
             composition=composition,
-            credentials_provider=raw.get("CREDENTIALS_PROVIDER", ""),
             migration=migration,
             bypass_rules=tuple(raw.get("BYPASS_RULES", [])),
         )

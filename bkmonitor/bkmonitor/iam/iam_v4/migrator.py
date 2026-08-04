@@ -23,8 +23,8 @@ from ..iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPl
 from .client import V4Client
 
 if TYPE_CHECKING:
-    from ..iam_engine.schema.definitions import SystemDef
     from ..iam_engine.schema.registry import SchemaRegistry
+    from .config import V4SystemInfo
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class V4Migrator:
         EntityKind.ROLE: 3,
     }
 
-    def __init__(self, client: V4Client, schema: SchemaRegistry, system_def: SystemDef):
+    def __init__(self, client: V4Client, schema: SchemaRegistry, system_def: V4SystemInfo):
         self._client = client
         self._schema = schema
         self._system = system_def

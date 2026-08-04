@@ -57,33 +57,31 @@ class Command(BaseCommand):
             "roles": [_role(r) for r in fw.schema.all_roles()],
         }
 
-        # 系统信息是 per-Provider 的，从 Provider.ctx.system 获取
+        # 系统信息是 per-Provider 的，通过 provider.get_system_info() 获取
+        # 返回对象结构由 Provider 自己定义，此处以 duck typing 消费其字段
+        def _dump_system(system_obj) -> dict:
+            return {
+                "id": getattr(system_obj, "id", ""),
+                "name": getattr(system_obj, "name", ""),
+                "description": getattr(system_obj, "description", ""),
+                "clients": list(getattr(system_obj, "clients", ()) or ()),
+                "managers": list(getattr(system_obj, "managers", ()) or ()),
+                "callback_url": getattr(system_obj, "callback_url", ""),
+            }
+
         provider_name = options.get("provider")
         if provider_name:
             provider = fw.providers.get(provider_name)
-            if provider is not None and provider.ctx.system is not None:
-                s = provider.ctx.system
-                config["system"] = {
-                    "id": s.id,
-                    "name": s.name,
-                    "description": s.description,
-                    "clients": list(s.clients),
-                    "managers": list(s.managers),
-                    "callback_url": s.callback_url,
-                }
+            if provider is not None:
+                system_info = provider.get_system_info()
+                if system_info is not None:
+                    config["system"] = _dump_system(system_info)
         else:
             systems = {}
             for p in fw.providers.values():
-                if p.ctx.system is not None:
-                    s = p.ctx.system
-                    systems[p.name] = {
-                        "id": s.id,
-                        "name": s.name,
-                        "description": s.description,
-                        "clients": list(s.clients),
-                        "managers": list(s.managers),
-                        "callback_url": s.callback_url,
-                    }
+                system_info = p.get_system_info()
+                if system_info is not None:
+                    systems[p.name] = _dump_system(system_info)
             if systems:
                 config["systems"] = systems
 

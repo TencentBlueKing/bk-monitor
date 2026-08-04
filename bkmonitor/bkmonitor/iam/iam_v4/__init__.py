@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 # iam_v4 — IAM v4 (RBAC) Provider 实现
 #
 # 依赖 iam_engine 框架，提供完整的 v4 鉴权接入：
-#   - schema.py      — Action / ResourceType / Role 定义
+#   - config.py      — Provider 配置契约（V4Options / V4Credentials / V4SystemInfo）
 #   - client.py      — IAM v4 APIGW HTTP 客户端
 #   - provider.py    — V4PermissionProvider
 #   - migrator.py    — plan_migration / apply_migration

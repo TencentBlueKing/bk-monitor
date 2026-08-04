@@ -14,7 +14,7 @@ from __future__ import annotations
 # Schema 元数据定义（Metadata Definitions）
 #
 # 本模块定义"权限模型元数据"，与 core.types 里的"运行时值"严格区分：
-#   - ActionDef / ResourceTypeDef / RoleDef / SystemDef  ← 元数据（本模块）
+#   - ActionDef / ResourceTypeDef / RoleDef  ← 元数据（本模块）
 #   - Subject / ResourceInstance / AuthRequest         ← 运行时值（core.types）
 #
 # 规则：
@@ -22,6 +22,10 @@ from __future__ import annotations
 #   2. 只依赖标准库，不依赖 django / SDK / core.types
 #   3. 业务侧可以继承这些类扩展字段（例如 v3 的 type/version），
 #      但基础字段是 Provider 的最小契约
+#
+#   注：Provider 的“系统信息”（id/name/callback_url 等）结构各不相同，
+#   由各 Provider 在自己的 config.py 里用 dataclass 定义，本模块不提供
+#   统一的 SystemDef。
 # ---------------------------------------------------------------------------
 
 from collections.abc import Mapping
@@ -30,32 +34,6 @@ from types import MappingProxyType
 from typing import Any
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
-
-
-@dataclass(frozen=True)
-class SystemDef:
-    """接入系统的元数据（每个 Provider 各持一份）。
-
-    不同 IAM 平台对系统的描述字段不同（v3 用 provider_config.host 存回调地址、
-    v4 用顶层 callback_url），此处按"并集"设计，Provider 各取所需。
-
-    Args:
-        id: 系统唯一标识（如 "bk_monitor"）
-        name: 系统展示名（中文名）
-        description: 系统描述
-        managers: 管理员用户名列表（v4 特有）
-        clients: 允许调用该系统权限的蓝鲸应用列表（v4 特有）
-        callback_url: 回调地址（v3 塞进 provider_config.host，v4 塞进 callback_url）
-        extensions: 各 Provider 的私有字段（如 v3 的 provider_config 其它键）
-    """
-
-    id: str
-    name: str
-    description: str = ""
-    managers: tuple[str, ...] = ()
-    clients: tuple[str, ...] = ()
-    callback_url: str = ""
-    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
 
 
 @dataclass(frozen=True)

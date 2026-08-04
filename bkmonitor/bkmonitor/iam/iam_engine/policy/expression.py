@@ -21,7 +21,7 @@ from __future__ import annotations
 # 规则：
 #   1. 不绑定任何 IAM 平台的原始数据结构；纯 Python
 #   2. frozen dataclass；children 用 tuple 保证可 hash / 不可变
-#   3. 只依赖 stdlib，不 import django / iam SDK / core.context
+#   3. 只依赖 stdlib，不 import django / iam SDK
 # ---------------------------------------------------------------------------
 
 from dataclasses import dataclass

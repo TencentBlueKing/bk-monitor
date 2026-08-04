@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from .client import V4Client
-from ..iam_engine.core.context import ProviderContext
+from ..iam_engine.provider.base import PermissionProvider
+from ..iam_engine.provider.mixins import BatchMixin
 from ..iam_engine.core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -25,8 +25,8 @@ from ..iam_engine.core.types import (
     to_action_id,
     to_resource_type_id,
 )
-from ..iam_engine.provider.base import PermissionProvider
-from ..iam_engine.provider.mixins import BatchMixin
+from .client import V4Client
+from .config import V4Options, V4SystemInfo
 
 if TYPE_CHECKING:
     from ..iam_engine.schema.diff import MigrationPlan, MigrationReport
@@ -39,28 +39,34 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
     鉴权：is_allowed 对单资源直接调 direct_auth（避免不必要的批量开销）；
     batch_by_resource / batch_by_action 由 BatchMixin 提供分片 + 串/并行。
 
-    配置：CHUNK_SIZE / MAX_WORKERS 可通过 options 覆盖（来自 IAM_FRAMEWORK 或环境变量）。
+    配置：完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
+    Provider 不读 Django settings；具体字段参见 V4Options。
     """
 
     name: ClassVar[str] = "v4"
 
-    # 默认值；可通过 options 覆盖
-    _DEFAULT_CHUNK_SIZE: int = 20
-    _DEFAULT_MAX_WORKERS: int = 1
-
-    def __init__(self, ctx: ProviderContext, **options: Any) -> None:
-        super().__init__(ctx, **options)
-        # 分片/并发配置（options 优先，来自 settings.IAM_FRAMEWORK 或环境变量）
-        self.CHUNK_SIZE = int(options.get("chunk_size", self._DEFAULT_CHUNK_SIZE))
-        self.MAX_WORKERS = int(options.get("max_workers", self._DEFAULT_MAX_WORKERS))
+    def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
+        super().__init__(schema, **options)
+        # 强类型解析 + 启动期校验（缺字段/类型错直接抛 ValueError）
+        self._cfg: V4Options = V4Options.from_dict(options)
+        # BatchMixin 依赖的分片/并发参数
+        self.CHUNK_SIZE = self._cfg.chunk_size
+        self.MAX_WORKERS = self._cfg.max_workers
         # Client 解耦：配置全部注入，不直接读 Django settings
         self._client = V4Client(
-            base_url=str(options.get("base_url", "")),
-            system_id=self.ctx.system.id if self.ctx.system else "",
-            app_code=self.ctx.credentials.get("app_code", ""),
-            app_secret=self.ctx.credentials.get("app_secret", ""),
-            timeout=int(options.get("timeout", 30)),
+            base_url=self._cfg.base_url,
+            system_id=self._cfg.system.id,
+            app_code=self._cfg.credentials.app_code,
+            app_secret=self._cfg.credentials.app_secret,
+            timeout=self._cfg.timeout,
         )
+
+    # ================================================================
+    # 系统信息（供命令行工具使用）
+    # ================================================================
+
+    def get_system_info(self) -> V4SystemInfo:
+        return self._cfg.system
 
     # ================================================================
     # is_allowed — 单资源走 direct_auth
@@ -130,7 +136,7 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
         for action_id in request.action_ids:
             aid = to_action_id(action_id)
             try:
-                action_def = self.ctx.schema.get_action(aid)
+                action_def = self.schema.get_action(aid)
             except Exception:
                 action_def = None
             resources = []
@@ -168,7 +174,7 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
     def plan_migration(self, schema: SchemaRegistry) -> MigrationPlan:
         from .migrator import V4Migrator
 
-        migrator = V4Migrator(self._client, schema, self.ctx.system)
+        migrator = V4Migrator(self._client, schema, self._cfg.system)
         return migrator.plan_migration()
 
     def apply_migration(
@@ -180,7 +186,7 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
     ) -> MigrationReport:
         from .migrator import V4Migrator
 
-        migrator = V4Migrator(self._client, self.ctx.schema, self.ctx.system)
+        migrator = V4Migrator(self._client, self.schema, self._cfg.system)
         return migrator.apply_migration(
             plan,
             dry_run=dry_run,

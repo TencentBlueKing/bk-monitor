@@ -80,9 +80,6 @@ class Capability:
     # 授权过期时间
     AUTH_EXPIRATION: Capability
 
-    # 读权限缓存
-    READ_CACHE: Capability
-
     # 资源创建者关联授权
     CREATOR_GRANT: Capability
 
@@ -100,7 +97,6 @@ Capability.BATCH_AUTH_UNLIMITED = Capability("batch_auth_unlimited")
 Capability.ROLE_MODEL = Capability("role_model")
 Capability.WILDCARD_RESOURCE = Capability("wildcard_resource")
 Capability.AUTH_EXPIRATION = Capability("auth_expiration")
-Capability.READ_CACHE = Capability("read_cache")
 Capability.CREATOR_GRANT = Capability("creator_grant")
 Capability.APPLY_URL = Capability("apply_url")
 Capability.SCHEMA_MIGRATION = Capability("schema_migration")

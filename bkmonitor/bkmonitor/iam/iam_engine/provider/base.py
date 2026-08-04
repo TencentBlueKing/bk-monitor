@@ -33,7 +33,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from ..core.context import ProviderContext
 from ..core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -44,13 +43,12 @@ from ..core.types import (
     to_action_id,
 )
 
-if TYPE_CHECKING:
-    from ..schema.definitions import ActionDef
+from ..schema.registry import SchemaRegistry
 
 if TYPE_CHECKING:
     from ..policy.expression import PolicyExpression
+    from ..schema.definitions import ActionDef
     from ..schema.diff import MigrationPlan, MigrationReport
-    from ..schema.registry import SchemaRegistry
 
 
 class PermissionProvider(ABC):
@@ -59,17 +57,37 @@ class PermissionProvider(ABC):
     新增权限平台 = 新增本类子类；框架其余部分无需改动。
 
     构造约定：
-        Provider 只从 ctx 获取依赖，不依赖 IAMFramework，便于独立测试。
-        options 是从 settings.IAM_FRAMEWORK.PROVIDERS[*].options 透传的字典。
+        Provider 只吃两样东西：
+          - schema：框架统一构建的冻结 SchemaRegistry（跨 Provider 共享）
+          - options：settings.IAM_FRAMEWORK.PROVIDERS[*].options 原样透传的字典
+
+        options 里的结构（含 credentials、system 等）**完全由 Provider 自己决定**，
+        框架不做任何解析。推荐 Provider 在自己的 config.py 里用 dataclass 声明
+        契约类（如 V4Options），并在 __init__ 里调用 XxxOptions.from_dict(options)
+        完成校验。
+
+        Provider 内部日志用模块级 logging.getLogger(__name__) 即可；缓存策略
+        （如需要）也应由 Provider 自持，不通过框架注入。
     """
 
     #: Provider 标识，用于日志/监控/命令行 --provider 参数。
     #: 子类必须覆盖为非空字符串（如 "v4"、"v3"）。
     name: ClassVar[str] = ""
 
-    def __init__(self, ctx: ProviderContext, **options: Any) -> None:
-        self.ctx = ctx
+    def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
+        self.schema = schema
         self.options = options
+
+    # ==================== 系统信息（供命令行/诊断使用） ====================
+
+    def get_system_info(self) -> Any | None:
+        """返回 Provider 的系统信息对象（结构由 Provider 自己决定）。
+
+        命令行工具（如 iam_generate_config）以 duck typing 消费 ``.id`` / ``.name``
+        / ``.description`` / ``.managers`` / ``.clients`` / ``.callback_url`` 等字段。
+        Provider 若无系统概念可返回 None。
+        """
+        return None
 
     # ==================== 能力声明 ====================
 

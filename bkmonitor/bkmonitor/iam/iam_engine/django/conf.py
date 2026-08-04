@@ -13,11 +13,9 @@ from __future__ import annotations
 import logging
 
 from ..core.config import FrameworkConfig
-from ..core.context import ProviderContext
 from ..core.framework import IAMFramework
 from ..core.utils import import_class
 from ..django.facade import _set_framework
-from ..schema.definitions import SystemDef
 from ..schema.loaders import load_from_class as schema_load_from_class
 from ..schema.registry import SchemaRegistry
 
@@ -46,49 +44,14 @@ def _resolve_policy_class(policy_name: str) -> type:
     return import_class(dotted)
 
 
-def _build_system_def(raw: dict) -> SystemDef:
-    """从 settings dict 构建 SystemDef。"""
-    return SystemDef(
-        id=raw["id"],
-        name=raw["name"],
-        description=raw.get("description", ""),
-        managers=tuple(raw.get("managers", [])),
-        clients=tuple(raw.get("clients", [])),
-        callback_url=raw.get("callback_url", ""),
-    )
+def _build_provider(provider_cfg, schema: SchemaRegistry):
+    """从配置实例化一个 Provider。
 
-
-def _resolve_credentials(credentials_dotted: str, key: str) -> dict:
-    """解析凭据。支持多套凭据（多 Provider 时用不同的 credentials_key）。"""
-    if not credentials_dotted:
-        return {}
-    fn = import_class(credentials_dotted) if "." in credentials_dotted else None
-    if fn is None:
-        from django.utils.module_loading import import_string
-
-        fn = import_string(credentials_dotted)
-    return fn(key=key)
-
-
-def _build_provider(provider_cfg, credentials_dotted: str, schema: SchemaRegistry):
-    """从配置实例化一个 Provider。"""
+    框架层不解析 options 内部结构（含 credentials、system 等），
+    直接原封不动透传给 Provider，由 Provider 自己校验和消费。
+    """
     cls = import_class(provider_cfg.cls)
-    options = dict(provider_cfg.options)
-    credentials_key = options.pop("credentials_key", "default")
-    credentials = _resolve_credentials(credentials_dotted, credentials_key)
-
-    system_raw = options.pop("system", None)
-    system = _build_system_def(system_raw) if system_raw else None
-
-    ctx = ProviderContext(
-        schema=schema,
-        system=system,
-        credentials=credentials,
-        logger=logging.getLogger(f"iam_engine.provider.{cls.name}"),
-        cache=None,
-    )
-
-    return cls(ctx, **options)
+    return cls(schema, **provider_cfg.options)
 
 
 def _build_bypass_rules(raw_rules: tuple[str, ...]):
@@ -135,7 +98,7 @@ def load_framework() -> IAMFramework:
     # 2. 构建 Provider 列表
     providers = []
     for provider_cfg in config.providers:
-        provider = _build_provider(provider_cfg, config.credentials_provider, registry)
+        provider = _build_provider(provider_cfg, registry)
         providers.append(provider)
         logger.info("provider loaded: %s", provider.name)
     if not providers:

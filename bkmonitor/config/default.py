@@ -1362,12 +1362,15 @@ IAM_FRAMEWORK = {
     "ACTIONS": "bkmonitor.iam.schema.actions.Actions",
     "RESOURCE_TYPES": "bkmonitor.iam.schema.resource_types.ResourceTypes",
     "ROLES": "bkmonitor.iam.schema.roles.Roles",
-    "CREDENTIALS_PROVIDER": "bkmonitor.iam.iam_v4.credentials.resolve_credentials",
     "PROVIDERS": [
         {
             "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
             "options": {
                 "base_url": BK_IAM_V4_API_BASE_URL,
+                "credentials": {
+                    "app_code": BK_IAM_APP_CODE,
+                    "app_secret": BK_IAM_APP_SECRET,
+                },
                 "system": {
                     "id": BK_IAM_V4_SYSTEM_ID,
                     "name": "蓝鲸监控平台V4",
