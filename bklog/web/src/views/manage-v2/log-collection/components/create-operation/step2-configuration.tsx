@@ -521,7 +521,7 @@ export default defineComponent({
         workload_type,
         container_name_exclude,
         match_annotations,
-        namespaces_exclude,
+        namespaces_exclude: namespacesExcludeList,
         params: itemParams,
       } = configItem;
 
@@ -543,8 +543,14 @@ export default defineComponent({
       const containerNameList = getContainerNameList(container_name || container_name_exclude);
 
       // 处理命名空间：优先使用 namespaces，如果为空则使用 namespaces_exclude
-      const effectiveNamespaces = namespaces?.length ? namespaces : namespaces_exclude;
-      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
+      let effectiveNamespaces = namespaces || [];
+      if (!effectiveNamespaces.length) {
+        effectiveNamespaces = namespacesExcludeList || [];
+      }
+      if (!effectiveNamespaces.length && configItem.collector_type !== 'node_log_config') {
+        effectiveNamespaces = ['*'];
+      }
+      const namespacesExclude = namespacesExcludeList?.length ? '!=' : '=';
       // 处理命名空间字符串（如果是 '*' 则返回空字符串）
       const namespaceStr = effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
 
