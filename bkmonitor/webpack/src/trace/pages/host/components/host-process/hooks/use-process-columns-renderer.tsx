@@ -229,7 +229,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
     const base: Record<string, unknown> = {
       colKey: config.id,
       title: config.name,
-      minWidth: config.minWidth,
+      width: config.width,
       sorter: config.sortable,
       align: config.align,
       ellipsis: config.type === 'port',

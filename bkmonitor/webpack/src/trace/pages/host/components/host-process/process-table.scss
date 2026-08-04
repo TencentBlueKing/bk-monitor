@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .process-table {
   position: relative;
   flex: 1;
@@ -21,6 +22,22 @@
     }
   }
 
+  // 表格内容不足时撑满容器剩余高度（仅在空数据时生效）
+  .process-table-body {
+    &.process-table-body--empty {
+      height: 100%;
+
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+      }
+
+      .t-table--layout-fixed {
+        height: 100%;
+      }
+    }
+  }
+
   // 覆盖式骨架屏（loading 时覆盖表体）
   .common-table-skeleton {
     position: absolute;
@@ -34,17 +51,6 @@
 
     &.common-skeleton-show-body {
       display: block;
-    }
-  }
-
-  // 空数据状态（渲染于表格 empty 插槽）
-  .common-table-empty {
-    .bk-exception-img {
-      height: 180px;
-    }
-
-    .bk-exception-description {
-      margin-top: 16px;
     }
   }
 
