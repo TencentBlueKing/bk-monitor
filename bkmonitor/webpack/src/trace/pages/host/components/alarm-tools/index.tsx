@@ -24,26 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { useI18n } from 'vue-i18n';
 
 import { getStrategyAndEventCountApi } from '../../services/global-service';
 
-import './index.scss';
+import type { IHostTopoTreeNode } from '../../types/topo';
 
-/** 主机场景告警中心跳转参数 */
-const HOST_ALARM_CENTER_QUERY = {
-  condition: JSON.stringify({
-    category: ['hosts', 'host_process', 'os', 'host_device'],
-  }),
-  activeFilterId: 'NOT_SHIELDED_ABNORMAL',
-};
+import './index.scss';
 
 export default defineComponent({
   name: 'AlarmTools',
-  setup() {
+  props: {
+    /** 当前选中的拓扑节点 / 主机（决定内容区视角与各 Tab 数据） */
+    selectedNode: {
+      type: Object as PropType<IHostTopoTreeNode | null>,
+      default: null,
+    },
+  },
+  setup(props) {
     const { t } = useI18n();
     /** 告警数 */
     const alarmNum = shallowRef(0);
@@ -52,25 +52,62 @@ export default defineComponent({
 
     /** 获取告警、策略数量 */
     const fetchCount = async () => {
-      const result = await getStrategyAndEventCountApi({ scene_id: 'host' });
+      const result = await getStrategyAndEventCountApi({
+        scene_id: 'host',
+        target: props.selectedNode
+          ? {
+              ...props.selectedNode,
+            }
+          : undefined,
+      });
       alarmNum.value = result.event_counts ?? 0;
       strategyNum.value = result.strategy_counts ?? 0;
     };
 
     /** 跳转策略列表 */
     const handleToStrategy = () => {
-      window.open(location.href.replace(location.hash, '#/strategy-config'), '_blank');
+      const query = `filters=${encodeURIComponent(
+        JSON.stringify([
+          {
+            key: 'scenario',
+            value: ['host_process', 'os', 'host_device'],
+          },
+          {
+            key: 'strategy_status',
+            value: ['ON'],
+          },
+        ])
+      )}`;
+      window.open(location.href.replace(location.hash, `#/strategy-config?${query}`), '_blank');
     };
 
     /** 跳转告警中心 */
     const handleToAlarmCenter = () => {
       if (!alarmNum.value) return;
-      openAlarmCenter(HOST_ALARM_CENTER_QUERY);
+      const query = `quickFilterValue=${encodeURIComponent(
+        JSON.stringify([
+          {
+            key: 'category',
+            value: ['hosts', 'host_process', 'os', 'host_device'],
+          },
+          {
+            key: 'STATUS',
+            value: ['NOT_SHIELDED_ABNORMAL'],
+          },
+        ])
+      )}`;
+      window.open(location.href.replace(location.hash, `#/trace/alarm-center?${query}`), '_blank');
     };
 
-    onMounted(() => {
-      fetchCount();
-    });
+    watch(
+      () => props.selectedNode,
+      val => {
+        if (val) {
+          fetchCount();
+        }
+      },
+      { immediate: true }
+    );
 
     return () => (
       <div class='alarm-tools'>

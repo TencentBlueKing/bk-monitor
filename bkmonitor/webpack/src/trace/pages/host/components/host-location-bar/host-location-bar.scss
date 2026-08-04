@@ -19,8 +19,12 @@
     color: #4d4f56;
   }
 
-  .temporary-share-icon {
-    margin-left: 2px;
+  .temporary-share {
+    line-height: initial;
+
+    .temporary-share-icon {
+      margin-left: 2px;
+    }
   }
 
   &:hover {

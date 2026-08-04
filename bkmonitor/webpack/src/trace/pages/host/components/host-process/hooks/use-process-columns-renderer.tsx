@@ -190,7 +190,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
     return (
       <div class='process-table-file-handle'>
         <div class='process-table-file-handle__row'>
-          <span class='process-table-file-handle__value'>{row.fdNum.toLocaleString()}</span>
+          <span class='process-table-file-handle__value'>{row.fdNum?.toLocaleString()}</span>
           <span class='process-table-file-handle__percent'>{`${row.fdUsageRate}%`}</span>
         </div>
         <div class='process-table-file-handle__bar'>
