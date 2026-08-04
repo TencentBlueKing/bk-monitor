@@ -15,6 +15,7 @@ import re
 from collections import OrderedDict
 from typing import Any
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -24,6 +25,7 @@ from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource
 from metadata import models
 from metadata.models.storage import ClusterInfo
+from metadata.service.cluster_status import ClusterStatusService
 from metadata.service.storage_details import StorageClusterDetail
 
 logger = logging.getLogger(__name__)
@@ -135,9 +137,7 @@ class CreateClusterInfoResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_name = serializers.RegexField(
-            label="集群名", regex=models.ClusterInfo.CLUSTER_NAME_REGEX, default=""
-        )
+        cluster_name = serializers.RegexField(label="集群名", regex=models.ClusterInfo.CLUSTER_NAME_REGEX, default="")
         display_name = serializers.CharField(required=False, max_length=128, label="集群显示名称")
         cluster_type = serializers.CharField(required=True, label="集群类型")
         domain_name = serializers.CharField(required=True, label="集群域名")
@@ -191,7 +191,7 @@ class ModifyClusterInfoResource(Resource):
         cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
         display_name = serializers.CharField(required=False, max_length=128, label="集群显示名称", default=None)
         description = serializers.CharField(required=False, label="存储集群描述", default=None, allow_blank=True)
-        auth_info = serializers.JSONField(required=False, label="身份认证信息", default={})
+        auth_info = serializers.JSONField(required=False, label="身份认证信息", default=None)
         custom_option = serializers.CharField(required=False, label="集群自定义标签", default=None)
         schema = serializers.CharField(required=False, label="集群链接协议", default=None)
         is_ssl_verify = serializers.BooleanField(required=False, label="是否需要强制SSL/TLS认证", default=None)
@@ -227,10 +227,14 @@ class ModifyClusterInfoResource(Resource):
                 query_dict["cluster_type"] = validated_request_data["cluster_type"]
 
         try:
-            cluster_info = models.ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id,
-                registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM],
-                **query_dict,
+            # 只允许编辑来源系统与bk_app_code相同或者集群类型为DORIS的集群
+            cluster_info = (
+                models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, **query_dict)
+                .filter(
+                    Q(registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM])
+                    | Q(cluster_type=models.ClusterInfo.TYPE_DORIS)
+                )
+                .get()
             )
         except models.ClusterInfo.DoesNotExist:
             raise ValueError(_("找不到指定的集群配置，请确认后重试"))
@@ -250,10 +254,11 @@ class ModifyClusterInfoResource(Resource):
             )
 
         # 3. 判断获取是否需要修改用户名和密码
-        auth_info = validated_request_data.pop("auth_info", {})
-        # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
-        validated_request_data["username"] = auth_info.get("username", "")
-        validated_request_data["password"] = auth_info.get("password", "")
+        if validated_request_data.get("auth_info") is not None:
+            auth_info = validated_request_data["auth_info"]
+            # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
+            validated_request_data["username"] = auth_info.get("username", "")
+            validated_request_data["password"] = auth_info.get("password", "")
 
         # 4. 触发修改内容
         cluster_info.modify(**validated_request_data)
@@ -343,3 +348,37 @@ class QueryClusterInfoResource(Resource):
             result_list.append(cluster_consul_config)
 
         return result_list
+
+
+class GetClusterStatusResource(Resource):
+    """批量查询存储集群的运行状态。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        cluster_ids = serializers.ListField(
+            label="存储集群ID列表",
+            child=serializers.IntegerField(min_value=1),
+            allow_empty=False,
+            min_length=1,
+            max_length=ClusterStatusService.MAX_CLUSTER_COUNT,
+        )
+        timeout = serializers.IntegerField(
+            label="单次底层探测操作超时时间（秒）",
+            required=False,
+            default=ClusterStatusService.DEFAULT_TIMEOUT,
+            min_value=ClusterStatusService.MIN_TIMEOUT,
+            max_value=ClusterStatusService.MAX_TIMEOUT,
+        )
+        include_node_details = serializers.BooleanField(
+            label="是否返回节点明细",
+            required=False,
+            default=False,
+        )
+
+    def perform_request(self, validated_request_data):
+        return ClusterStatusService.get_statuses(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            cluster_ids=validated_request_data["cluster_ids"],
+            timeout=validated_request_data["timeout"],
+            include_node_details=validated_request_data.get("include_node_details", False),
+        )

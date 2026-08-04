@@ -29,8 +29,8 @@ logger = logging.getLogger("metadata")
 # 短链路没有监控侧 DataSource，统一使用 0 标识“无数据源”。
 SHORT_LINK_BK_DATA_ID = 0
 DEFAULT_OPERATOR = "system"
-DATA_LABEL_MAX_LENGTH = 32
-DATA_LABEL_PATTERN = re.compile(r"^[a-z][a-z0-9_.:]*$")
+DATA_LABEL_MAX_LENGTH = 128
+DATA_LABEL_PATTERN = re.compile(r"^[a-z0-9._]+$")
 
 
 def _get_space_info_by_biz_id(bk_tenant_id: str, bk_biz_id: int) -> tuple[str, str]:
@@ -81,13 +81,16 @@ def _normalize_data_labels(data_labels: list[str] | tuple[str, ...] | None) -> l
 
     normalized_labels = list(dict.fromkeys(str(label).strip() for label in data_labels if str(label).strip()))
     for data_label in normalized_labels:
-        if len(data_label) > DATA_LABEL_MAX_LENGTH:
-            raise ValueError(f"data_label exceeds {DATA_LABEL_MAX_LENGTH} characters: {data_label}")
         if not DATA_LABEL_PATTERN.match(data_label):
             raise ValueError(
                 "data_label only supports a-z, 0-9, underscore, dot and colon, "
                 f"and must start with a letter: {data_label}"
             )
+
+    # 校验 data_label 总长度是否超过最大长度
+    if len(",".join(normalized_labels)) > DATA_LABEL_MAX_LENGTH:
+        raise ValueError(f"data_label exceeds {DATA_LABEL_MAX_LENGTH} characters: {','.join(normalized_labels)}")
+
     return normalized_labels
 
 

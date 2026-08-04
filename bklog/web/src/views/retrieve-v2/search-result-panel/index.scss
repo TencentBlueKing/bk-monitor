@@ -10,7 +10,7 @@
     .field-list-sticky {
       position: sticky;
       top: 0;
-      z-index: 3;
+      z-index: 8;
       align-self: start;
 
       &.is-show {
@@ -21,7 +21,7 @@
 
       &.is-close {
         top: var(--offset-search-bar);
-        z-index: 4;
+        z-index: 8;
         flex: 0 0 24px;
         width: 24px;
         height: 32px;

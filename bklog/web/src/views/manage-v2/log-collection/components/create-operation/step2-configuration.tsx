@@ -573,7 +573,7 @@ export default defineComponent({
           match_expressions,
         },
         annotation_selector: {
-          match_annotations,
+          match_annotations: match_annotations || [],
         },
         container: {
           workload_type,
@@ -1346,7 +1346,10 @@ export default defineComponent({
           collector_type,
           [namespacesKey]: namespacesValue,
           label_selector,
-          annotation_selector,
+          annotation_selector: {
+            ...annotation_selector,
+            match_annotations: annotation_selector?.match_annotations || [],
+          },
         };
       });
       // 如果 extra_labels 所有值都为空，则设置为空数组

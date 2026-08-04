@@ -948,7 +948,7 @@
         }
       },
       addObject(){
-        const fieldsObjectData = structuredClone(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
+        const fieldsObjectData = structuredClone(this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
           let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true

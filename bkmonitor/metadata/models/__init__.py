@@ -37,7 +37,6 @@ from .data_link import (  # noqa
     ESStorageBindingConfig,
     LogDataBusConfig,
     LogResultTableConfig,
-    GraphDataBusConfig,
     GraphRelationBindingConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
@@ -68,6 +67,7 @@ from .entity_relation import (
 from .result_table import (
     CMDBLevelRecord,
     ESFieldQueryAliasOption,
+    GraphRelationV4DataLinkOption,
     ResultTable,
     ResultTableField,
     ResultTableFieldOption,
@@ -117,6 +117,7 @@ __all__ = [
     "ResultTableOption",
     "ResultTableFieldOption",
     "ESFieldQueryAliasOption",
+    "GraphRelationV4DataLinkOption",
     # storage
     "ClusterInfo",
     "KafkaTopicInfo",
@@ -171,7 +172,6 @@ __all__ = [
     "RecordRuleV4",
     "ResultTableFlow",
     "BkBaseResultTable",
-    "GraphDataBusConfig",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
     # resource relation

@@ -25,25 +25,29 @@
  */
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
-import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
-import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
+import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
+import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import UseJsonFormatter from '@/hooks/use-json-formatter';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 
 import PopInstanceUtil from '@/global/pop-instance-util';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { buildHighlightHtml, pageHighlightState, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
+import { retrieveFieldCacheService, retrieveRowCacheService } from '@/storage';
+import FullRowViewer from './full-row-viewer.vue';
 import ScrollTop from '../../components/scroll-top/index';
+import useSelectionSearch from '../../hooks/use-selection-search';
 import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
 import LogResultException from './log-result-exception';
@@ -65,6 +69,8 @@ import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 
 import './log-rows.scss';
+
+const FullRowViewerComponent = FullRowViewer as any;
 
 type RowConfig = {
   expand?: boolean;
@@ -97,9 +103,11 @@ export default defineComponent({
     const { handleOperation, getObjectValue, handleAddCondition } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
+    /** mouseup 时固化的划选原文，避免弹层点击后 live Range 文本漂移 */
+    let savedSelectionText = '';
     let mousedownOnRow = false;
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
-    const layoutTimers: ReturnType<typeof setTimeout>[] = [];
+    const layoutTimers: number[] = [];
 
     const hoverOperatorState = reactive({
       visible: false,
@@ -117,6 +125,9 @@ export default defineComponent({
         theme: 'segment-light',
         placement: 'bottom',
         appendTo: document.body,
+        popperOptions: {
+          strategy: 'fixed',
+        },
       },
     });
 
@@ -138,216 +149,23 @@ export default defineComponent({
       }, rects[rects.length - 1]);
     };
 
-    const FULLTEXT_FIELD_NAME = '*';
-
-    type SelectionToken = {
-      text: string;
-      isCursorText: boolean;
-      fieldName?: string;
-      tokenType?: 'field-name' | 'field-value';
-    };
-
-    const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
-
-    const getFieldPlainText = (row: Record<string, any>, field: Record<string, any>) => {
-      const rawValue = getRowFieldValue(row, field);
-      if (rawValue === null || rawValue === undefined || rawValue === '') {
-        return '--';
-      }
-
-      return stripSelectionMarkup(String(rawValue));
-    };
-
-    /** 复用检索结果 JsonFormatter 的分词规则，保证划词补齐边界与页面展示一致。 */
-    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>): SelectionToken[] => {
-      const formatter = new UseJsonFormatter({
-        target: ref(null),
-        fields: [field],
-        jsonValue: row,
-        field,
-        onSegmentClick: () => {},
-      });
-
-      return formatter.getSplitList(field, getFieldPlainText(row, field)).map(token => ({
-        text: token.text,
-        isCursorText: token.isCursorText,
-      }));
-    };
-
-    const getOriginSegmentTokens = (row: Record<string, any>) => {
-      const tokens: SelectionToken[] = [];
-      const fields = visibleFields.value.length ? visibleFields.value : filteredFieldList.value;
-
-      fields.forEach((field, index) => {
-        if (index > 0) {
-          tokens.push({ text: ' ', isCursorText: false });
-        }
-
-        tokens.push({
-          text: field.field_name,
-          isCursorText: true,
-          fieldName: field.field_name,
-          tokenType: 'field-name',
-        });
-        tokens.push({ text: ' ', isCursorText: false });
-        tokens.push(...getFieldSegmentTokens(row, field).map(token => ({
-          ...token,
-          fieldName: field.field_name,
-          tokenType: 'field-value' as const,
-        })));
-      });
-
-      return tokens;
-    };
-
-    const getSelectionTextByRange = (range: Range) => stripSelectionMarkup(range?.toString?.() ?? '');
-
-    const getSelectionAnchorElement = (range: Range) => {
-      const startNode = range?.startContainer as Node | null;
-      const endNode = range?.endContainer as Node | null;
-      const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
-      const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
-
-      return (
-        startElement?.closest?.('[data-search-field-name], [data-field-name]')
-        ?? endElement?.closest?.('[data-search-field-name], [data-field-name]')
-      ) as HTMLElement | null;
-    };
-
-    const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
-      if (!selectionText || !tokens.length) {
-        return [];
-      }
-
-      const normalizedSelection = stripSelectionMarkup(selectionText);
-      if (!normalizedSelection) {
-        return [];
-      }
-
-      const plainText = tokens.map(item => item.text).join('');
-      const selectionStart = plainText.indexOf(normalizedSelection);
-      if (selectionStart < 0) {
-        return [];
-      }
-
-      const selectionEnd = selectionStart + normalizedSelection.length;
-      let cursor = 0;
-      const selectedTokenIndexes = new Set<number>();
-      for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
-        const tokenStart = cursor;
-        const tokenEnd = tokenStart + token.text.length;
-        cursor = tokenEnd;
-
-        if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
-          selectedTokenIndexes.add(i);
-        }
-      }
-
-      if (!selectedTokenIndexes.size) {
-        return [];
-      }
-
-      const completedTokens: SelectionToken[] = [];
-      const appendedTokenSet = new Set<string>();
-      for (const index of Array.from(selectedTokenIndexes).sort((a, b) => a - b)) {
-        const token = tokens[index];
-        if (!token?.isCursorText) {
-          continue;
-        }
-
-        const tokenKey = [token.fieldName ?? '', token.tokenType ?? '', token.text].join('__');
-        if (!appendedTokenSet.has(tokenKey)) {
-          appendedTokenSet.add(tokenKey);
-          completedTokens.push(token);
-        }
-      }
-
-      return completedTokens;
-    };
-
-    const getFieldByName = (fieldName: string) => {
-      if (!fieldName) {
-        return undefined;
-      }
-
-      return filteredFieldList.value.find(item => item.field_name === fieldName)
-        ?? visibleFields.value.find(item => item.field_name === fieldName)
-        ?? fullColumns.value.find(item => item.field_name === fieldName);
-    };
-
-    const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
-      const selectionText = getSelectionTextByRange(selectionRange);
-      if (!selectionText) {
-        return;
-      }
-
-      const targetElement = getSelectionAnchorElement(selectionRange);
-      const targetFieldName = targetElement?.getAttribute('data-search-field-name')
-        ?? targetElement?.getAttribute('data-field-name')
-        ?? '';
-      const targetField = getFieldByName(targetFieldName);
-      const fulltextFieldItem = getInputQueryDefaultItem();
-
-      // 时间格式化只影响展示；划选时间值时仍使用当前行中的原始时间戳。
-      if (targetField && ['date', 'date_nanos'].includes(targetField.field_type)) {
-        const rawValue = getObjectValue(row, targetField);
-        handleAddCondition(targetField.field_name, 'is', [stripSelectionMarkup(String(rawValue))]);
-        return;
-      }
-
-      if (showCtxType.value === 'table') {
-        if (!targetField) {
-          handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
-          return;
-        }
-
-        const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, targetField));
-        if (!completedTokens.length) {
-          handleAddCondition(targetField.field_name, 'is', [selectionText]);
-          return;
-        }
-
-        completedTokens.forEach((token) => {
-          handleAddCondition(targetField.field_name, 'is', [token.text]);
-        });
-        return;
-      }
-
-      const conditions: Array<{ field: string; operator: string; value: string[] }> = [];
-      const appendedConditionKeys = new Set<string>();
-      const fieldNameSet = new Set(filteredFieldList.value.map(item => item.field_name));
-      const originTokens = completeSelectionByTokens(selectionText, getOriginSegmentTokens(row));
-
-      originTokens.forEach((token) => {
-        if (!token.text || token.tokenType === 'field-name' || fieldNameSet.has(token.text)) {
-          return;
-        }
-
-        const field = getFieldByName(token.fieldName ?? '');
-        const plainText = field ? getFieldPlainText(row, field) : '';
-        const operator = field && plainText === token.text ? 'is' : fulltextFieldItem.operator;
-        const conditionField = operator === 'is' && field ? field.field_name : FULLTEXT_FIELD_NAME;
-        const conditionKey = [conditionField, operator, token.text].join('__');
-        if (!appendedConditionKeys.has(conditionKey)) {
-          appendedConditionKeys.add(conditionKey);
-          conditions.push({
-            field: conditionField,
-            operator,
-            value: [token.text],
-          });
-        }
-      });
-
-      if (!conditions.length) {
-        handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
-        return;
-      }
-
-      conditions.forEach((item) => {
-        handleAddCondition(item.field, item.operator, item.value);
-      });
-    };
+    const fullColumns = ref([]);
+    const showCtxType = ref(props.contentType);
+    /**
+     * 划词「添加到本次检索」入口。
+     *
+     * SelectionRange
+     *   → addSelectionToCurrentSearch（字段类型 / 最小分词补齐）
+     *   → emitAddCondition → resolveAddToSearch（UI + 语句统一）
+     *   → handleAddCondition / setQueryCondition
+     */
+    const { stripSelectionMarkup, getFieldByName, addSelectionToCurrentSearch } = useSelectionSearch({
+      handleAddCondition,
+      getObjectValue,
+      fullColumns,
+      showCtxType,
+      enableMinimalTokenCompletion: false,
+    });
 
     const setSelectionPopTargetHandler = (rect: DOMRect) => {
       let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
@@ -377,16 +195,38 @@ export default defineComponent({
       allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
+        const selectionValue = savedSelectionText || stripSelectionMarkup(savedSelection?.toString() ?? '');
+        // 复制只处理剪贴板，不参与任何检索条件添加；显式提前返回，避免后续事件链误落到“添加到本次检索”。
+        if (type === 'copy') {
+          handleOperation('copy', { value: selectionValue });
+          popInstanceUtil.hide();
+          return;
+        }
         if (type === 'add-to-ai') {
-          props.handleClickTools(type, savedSelection?.toString() ?? '');
+          props.handleClickTools(type, selectionValue);
         } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
-          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row);
+          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row, savedSelectionText);
+        } else if (type === 'highlight') {
+          // 仅划词弹层「高亮」：保留整串关键词；跨分词命中由渲染侧拼接匹配保证完整高亮
+          const selectionText = selectionValue.trim();
+          if (selectionText) {
+            RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
+              event: 'mark',
+              value: selectionText,
+            });
+          }
         } else {
-          handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+          handleOperation(type, { value: selectionValue, operation: type });
         }
         popInstanceUtil.hide();
 
-        if (savedSelection) {
+        // 添加到检索后必须清空选区：若还原划选，下次点击会被判定为“点在选区上”
+        // 从而误走划词链路，表现为同词多次操作 KEY/操作符漂移。
+        if (type === 'is' || type === 'not' || type === 'new-search-page-is') {
+          window.getSelection()?.removeAllRanges();
+          savedSelection = null;
+          savedSelectionText = '';
+        } else if (savedSelection) {
           const selection = window.getSelection();
           selection.removeAllRanges();
           selection.addRange(savedSelection);
@@ -399,7 +239,8 @@ export default defineComponent({
     const pageSize = ref(50);
     const isRending = ref(false);
 
-    const tableRowConfig = new WeakMap();
+    let tableRowConfig = new WeakMap();
+    const tableRowConfigByKey = new Map();
     const isPageLoading = ref(RetrieveHelper.isSearching);
     const isPaginationLoading = ref(false);
     // 前端本地分页loadmore触发器
@@ -407,24 +248,49 @@ export default defineComponent({
     const localUpdateCounter = ref(0);
     const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
+    let renderTaskToken = 0;
+    let paginationRequestToken = 0;
+    let paginationRequestPromise: Promise<boolean> | null = null;
+    const isRequesting = ref(false);
+    let requestingTimer: ReturnType<typeof setTimeout> = null;
+    let skipNextLoadingEndReset = false;
+    const fullRowViewerState = reactive({
+      visible: false,
+      rowKey: '',
+      rowData: null as Record<string, any> | null,
+      truncatedFields: [] as string[],
+    });
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const filteredFieldList = computed(() => store.getters.filteredFieldList);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.getters.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
-    const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
+    const fieldScope = computed(() => indexFieldInfo.value.field_scope || store.state.indexId || 'default');
+    const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
+    const tableDataSize = computed(() => rowKeys.value.length || (indexSetQueryResult.value?.list?.length ?? 0));
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
-    const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
+    const limitRow = computed(() => {
+      // if (store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]) {
+      //   return 'auto';
+      // }
+
+      return store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES];
+    });
+
+    const bumpFieldWidthVersion = () => {
+      store.commit('updateState', { fieldWidthVersion: store.state.fieldWidthVersion + 1 });
+    };
 
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
@@ -437,8 +303,6 @@ export default defineComponent({
     const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
     const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
     const isSceneMode = computed(() => store.getters.isSceneMode);
-    const fullColumns = ref([]);
-    const showCtxType = ref(props.contentType);
     const columnLayoutVersion = ref(0);
     const isFirstPageLayoutPending = ref(false);
     let firstPageLayoutToken = 0;
@@ -452,6 +316,18 @@ export default defineComponent({
       hasMoreList.value = true;
       isFirstPageLayoutPending.value = true;
       firstPageLayoutToken += 1;
+      renderTaskToken += 1;
+      paginationRequestToken += 1;
+      paginationRequestPromise = null;
+      requestingTimer && clearTimeout(requestingTimer);
+      requestingTimer = null;
+      isRequesting.value = false;
+      isPaginationLoading.value = false;
+      skipNextLoadingEndReset = false;
+      renderList = Object.freeze([]);
+      localUpdateCounter.value += 1;
+      tableRowConfig = new WeakMap();
+      tableRowConfigByKey.clear();
     };
 
     const { addEvent } = useRetrieveEvent();
@@ -497,18 +373,74 @@ export default defineComponent({
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
 
+    const getRowCacheKey = (row, index: number) => rowKeys.value[index] ?? `${row?.dtEventTimeStamp ?? 'row'}_${index}`;
+
     const setRenderList = (length?: number) => {
-      const arr: Record<string, any>[] = [];
+      renderTaskToken += 1;
+      const taskToken = renderTaskToken;
+      const queryKey = indexSetQueryResult.value?.row_query_key ?? '';
       const endIndex = length ?? tableDataSize.value;
-      const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+
+      if (rowKeys.value.length) {
+        const lastIndex = Math.min(endIndex, rowKeys.value.length);
+        const targetKeys = rowKeys.value.slice(0, lastIndex);
+        const reusableLength = Math.min(renderList.length, lastIndex);
+        const canReusePrefix = Array.from({ length: reusableLength }).every(
+          (_, index) => renderList[index]?.[ROW_KEY] === targetKeys[index],
+        );
+
+        // 本地分页回到较短列表时直接裁剪，不重新读取 IndexedDB 和重建已有行。
+        if (canReusePrefix && renderList.length >= lastIndex) {
+          if (renderList.length !== lastIndex) {
+            renderList = renderList.slice(0, lastIndex);
+            localUpdateCounter.value += 1;
+          }
+          return;
+        }
+
+        // 后端分页只读取并追加新增区间。旧实现每次都重新读取 0..N 行，
+        // 同时替换所有 row 对象，600 行后会导致整表重复 diff、布局和绘制。
+        const startIndex = canReusePrefix ? renderList.length : 0;
+        const keysToLoad = targetKeys.slice(startIndex);
+        if (!keysToLoad.length) {
+          return;
+        }
+
+        retrieveRowCacheService.getRenderEntries(keysToLoad).then((entries) => {
+          const isCurrentTask = taskToken === renderTaskToken
+            && queryKey === (indexSetQueryResult.value?.row_query_key ?? '')
+            && targetKeys.every((key, index) => key === rowKeys.value[index])
+            && (!startIndex || Array.from({ length: startIndex }).every(
+              (_, index) => renderList[index]?.[ROW_KEY] === targetKeys[index],
+            ));
+          if (!isCurrentTask) {
+            return;
+          }
+
+          const nextRows = entries.flatMap((entry, index) => (entry ? [{
+            item: entry.row,
+            renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
+            [ROW_KEY]: keysToLoad[index] ?? getRowCacheKey(entry.row, startIndex + index),
+          }] : []));
+          renderList = startIndex ? renderList.concat(nextRows) : nextRows;
+          localUpdateCounter.value += 1;
+          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        });
+        return;
+      }
+
+      const arr: Record<string, any>[] = [];
+      const lastIndex = Math.min(endIndex, tableList.value.length);
       for (let i = 0; i < lastIndex; i++) {
         arr.push({
           item: tableList.value[i],
-          [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+          renderMeta: undefined as RetrieveRowRenderMeta | undefined,
+          [ROW_KEY]: `${tableList.value[i]?.dtEventTimeStamp ?? 'row'}_${i}`,
         });
       }
 
       renderList = arr;
+      localUpdateCounter.value += 1;
     };
 
     const searchContainerHeight = ref(52);
@@ -516,7 +448,46 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
 
+    const rowComponentMetaMap = new WeakMap<
+      Record<string, any>,
+      { renderMeta?: RetrieveRowRenderMeta; rowKey?: string }
+    >();
+
+    const setRowComponentMeta = (row: Record<string, any> | undefined, rowKey?: string, renderMeta?: RetrieveRowRenderMeta) => {
+      if (row && typeof row === 'object') {
+        rowComponentMetaMap.set(row, { rowKey, renderMeta });
+      }
+    };
+
+    const getRowRenderMeta = (row?: Record<string, any>) => row ? rowComponentMetaMap.get(row)?.renderMeta : undefined;
+    const getRowComponentKey = (row: Record<string, any> | undefined) => row ? rowComponentMetaMap.get(row)?.rowKey : undefined;
+
+    const shouldShowFullRowAction = (row: Record<string, any>) => {
+      const meta = getRowRenderMeta(row);
+      return !!meta?.hasTruncatedField;
+    };
+
+    const openFullRowViewer = (row: Record<string, any>, rowIndex: number) => {
+      const rowKey = getRowComponentKey(row) || rowKeys.value[rowIndex] || '';
+      const meta = getRowRenderMeta(row);
+      fullRowViewerState.rowKey = rowKey;
+      fullRowViewerState.rowData = row;
+      fullRowViewerState.truncatedFields = meta?.truncatedFields ?? [];
+      if (fullRowViewerState.visible) {
+        fullRowViewerState.visible = false;
+        nextTick(() => {
+          fullRowViewerState.visible = true;
+        });
+        return;
+      }
+
+      fullRowViewerState.visible = true;
+    };
+
     const originalColumns = computed(() => {
+      const formatDate = store.state.isFormatDate;
+      // 依赖划词高亮 version，确保时间列在关键字变化后同步重绘
+      void pageHighlightState.version;
       return [
         {
           field: ROW_F_ORIGIN_TIME,
@@ -528,14 +499,29 @@ export default defineComponent({
           renderBodyCell: ({ row }) => {
             const timezone = store.state.indexItem.timezone;
             const fieldType = timeFieldType.value;
-            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+            const fieldName = timeField.value;
+            const rawValue = row[fieldName];
+            const formatValue = formatDate
+              ? RetrieveHelper.formatTimeZoneValue(rawValue, fieldType, timezone)
+              : (rawValue === null || rawValue === undefined || rawValue === '' ? '--' : rawValue);
+            // formatTimeZoneValue 可能返回 <mark>格式化时间</mark>，需先解析再渲染，避免标签被 escape
+            const { plainText, markRanges } = parseResultMarkedText(formatValue);
+            const displayText = plainText || String(formatValue ?? '');
 
             return h(
               'span',
               {
                 class: 'time-field',
+                // 划词添加到本次检索时，通过 data-field-name 定位真实时间字段
+                attrs: {
+                  'data-field-name': fieldName,
+                },
                 domProps: {
-                  innerHTML: xssFilter(formatValue),
+                  // resultRanges 还原检索结果 mark；同时叠加页面划词高亮
+                  innerHTML: buildHighlightHtml({
+                    text: displayText,
+                    resultRanges: markRanges,
+                  }),
                 },
               },
               [],
@@ -556,8 +542,14 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 jsonValue={row}
-                limitRow={limitRow.value}
-                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
+                limitRow={null}
+                originalMode={true}
+                renderMeta={getRowRenderMeta(row)}
+                stateKey={getRowComponentKey(row)}
+                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, {
+                  row,
+                  field: getFieldByName(option.fieldName),
+                })}
               />
             );
           },
@@ -569,7 +561,7 @@ export default defineComponent({
       return {
         field: field.field_name,
         key: field.field_name,
-        title: field.field_name,
+        title: getFieldNameByField(field, store),
         width: field.width,
         minWidth: field.minWidth,
         field_type: field.field_type,
@@ -582,6 +574,7 @@ export default defineComponent({
               fields={field}
               jsonValue={getRowFieldValue(row, field)}
               limitRow={limitRow.value}
+              renderMeta={getRowRenderMeta(row)}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             />
           );
@@ -684,6 +677,8 @@ export default defineComponent({
     // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
     const getFieldColumns = computed(() => {
       columnLayoutVersion.value;
+      // 别名开关变化时重建 title / header 文案，不改 column key
+      showFieldAlias.value;
 
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
@@ -724,7 +719,7 @@ export default defineComponent({
         .closest('.bklog-row-container')
         ?.querySelector('.bklog-row-observe .expand-view-wrapper');
       if (expandTarget) {
-        RetrieveHelper.highlightElement(expandTarget);
+        RetrieveHelper.highlightElement(expandTarget as HTMLElement);
       }
     };
 
@@ -830,24 +825,45 @@ export default defineComponent({
     };
 
     // 替换原有的handleMenuClick
-    const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+    const handleMenuClick = (option, isLink, fieldOption?: { row: any; field?: any }) => {
       const timeTypes = ['date', 'date_nanos'];
+      const field = fieldOption?.field ?? getFieldByName(option.fieldName);
+      const fieldType = field?.field_type ?? option.fieldType;
 
       handleOperation(option.operation, {
         ...option,
-        value: timeTypes.includes(fieldOption?.field.field_type ?? null)
-          ? `${getObjectValue(fieldOption?.row, fieldOption?.field)}`.replace(/<\/?mark>/gim, '')
+        // 时间格式化只影响展示；构造检索条件时必须回取当前行中的原始时间戳。
+        value: timeTypes.includes(fieldType) && fieldOption?.row && field
+          ? String(getObjectValue(fieldOption.row, field)).replace(/<\/?mark>/gim, '')
           : option.value,
         fieldName: option.fieldName,
         operation: option.operation,
-        field: fieldOption?.field,
+        field,
         isLink,
         depth: option.depth,
         displayFieldNames: option.displayFieldNames,
+        fullPlain: option.fullPlain,
+        isSoleToken: option.isSoleToken,
+        tokenIndex: option.tokenIndex,
+        tokenCount: option.tokenCount,
       });
     };
 
     const { renderHead } = useHeaderRender();
+    const getFallbackRenderFields = (fields: Record<string, any>[] = []) => {
+      const renderableFields = fields.filter(field =>
+        field?.field_name
+        && field.field_type !== '__virtual__'
+        && !field.is_virtual_obj_node,
+      );
+      const preferredFields = ['log', 'body']
+        .map(fieldName => renderableFields.find(field => field.field_name === fieldName))
+        .filter(Boolean);
+
+      return preferredFields.length
+        ? preferredFields
+        : renderableFields.slice(0, 4);
+    };
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const setFullColumns = () => {
       /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
@@ -874,7 +890,10 @@ export default defineComponent({
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         return sortA.localeCompare(sortB);
       });
-      const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      let sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (!sortFieldsList.length) {
+        sortFieldsList = getFallbackRenderFields(filteredFields);
+      }
       if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
@@ -882,7 +901,19 @@ export default defineComponent({
         sortFieldsList.unshift(COLLECTOR_SOURCE_F());
       }
 
-      setDefaultTableWidth(sortFieldsList, tableList.value);
+      if (rowKeys.value.length) {
+        retrieveRowCacheService
+          .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
+          .then((rows) => {
+            const widthSnapshot = setDefaultTableWidth(sortFieldsList, rows, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+            retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+            if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+          });
+      } else {
+        const widthSnapshot = setDefaultTableWidth(sortFieldsList, tableList.value, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+        retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+        if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+      }
       fullColumns.value = sortFieldsList;
     };
 
@@ -893,14 +924,17 @@ export default defineComponent({
       }, {});
     };
 
-    const createRowConfigRef = (index: number) => {
+    const createRowConfigRef = (index: number, rowKey?: string) => {
       const rowIndex = index >= 0 ? index : -1;
-      const rowKey = `${ROW_KEY}_${rowIndex}`;
       return ref({
-        [ROW_KEY]: rowKey,
+        [ROW_KEY]: rowKey || `${ROW_KEY}_${rowIndex}`,
         [ROW_INDEX]: rowIndex,
         ...getRowConfigWithCache(),
       });
+    };
+
+    const getRowConfigKey = (row, index: number) => {
+      return getRowComponentKey(row) || rowKeys.value[index] || '';
     };
 
     const ensureTableRowConfig = (row, index: number) => {
@@ -908,20 +942,27 @@ export default defineComponent({
         return createRowConfigRef(index);
       }
 
-      let config = tableRowConfig.get(row);
+      const rowKey = getRowConfigKey(row, index);
+      let config = rowKey ? tableRowConfigByKey.get(rowKey) : tableRowConfig.get(row);
       if (!config) {
-        config = createRowConfigRef(index);
-        tableRowConfig.set(row, config);
-      } else if (index >= 0 && config.value[ROW_INDEX] !== index) {
+        config = createRowConfigRef(index, rowKey);
+        if (rowKey) {
+          tableRowConfigByKey.set(rowKey, config);
+        }
+      } else {
+        if (rowKey && config.value[ROW_KEY] !== rowKey) {
+          config.value[ROW_KEY] = rowKey;
+        }
+      }
+
+      tableRowConfig.set(row, config);
+
+      if (index >= 0 && config.value[ROW_INDEX] !== index) {
         config.value[ROW_INDEX] = index;
       }
 
       return config;
     };
-
-    const isRequesting = ref(false);
-    let requestingTimer: any = null;
-    let skipNextLoadingEndReset = false;
 
     const debounceSetLoading = (delay = 120) => {
       requestingTimer && clearTimeout(requestingTimer);
@@ -954,7 +995,9 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
+            render-meta={getRowRenderMeta(row)}
             row-index={realRowIndex}
+            row-key={getRowComponentKey(row) || rowKeys.value[realRowIndex] || ''}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -975,7 +1018,6 @@ export default defineComponent({
 
       setRenderList(null);
       debounceSetLoading();
-      localUpdateCounter.value += 1;
 
       if (tableDataSize.value <= pageSize.value) {
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
@@ -1041,23 +1083,55 @@ export default defineComponent({
       computeRect(refResultRowBox.value);
     };
 
+    let visibleFieldsLayoutToken = 0;
+    const refreshVisibleFieldsColumnLayout = async () => {
+      const layoutToken = ++visibleFieldsLayoutToken;
+      if (!visibleFields.value.length) {
+        setFullColumns();
+        triggerColumnLayoutReflow();
+        handleResultBoxResize();
+        return;
+      }
+
+      const layoutRows = rowKeys.value.length
+        ? await retrieveRowCacheService.getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 10)))
+        : tableList.value;
+      if (layoutToken !== visibleFieldsLayoutToken) {
+        return;
+      }
+
+      const fieldsWidthConfig = {
+        ...retrieveFieldCacheService.getUserWidthConfig(fieldScope.value),
+        ...(userSettingConfig.value.fieldsWidth ?? {}),
+      };
+      const widthSnapshot = setDefaultTableWidth(visibleFields.value, layoutRows, fieldsWidthConfig);
+      retrieveFieldCacheService.setComputedWidths(fieldScope.value, visibleFields.value);
+      if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+      triggerColumnLayoutReflow();
+      handleResultBoxResize();
+    };
+    addEvent(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE, refreshVisibleFieldsColumnLayout);
+
+    watch(
+      () => [
+        indexFieldInfo.value.field_meta_version,
+        filteredFieldList.value.length,
+        visibleFields.value.length,
+        showCtxType.value,
+      ],
+      ([, filteredLength, visibleLength, currentShowCtxType]) => {
+        if (currentShowCtxType === 'table' && filteredLength > 0 && visibleLength === 0) {
+          refreshVisibleFieldsColumnLayout();
+        }
+      },
+    );
+
     watch(
       () => [props.contentType],
       () => {
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
         setRenderList(50);
-        handleResultBoxResize();
-      },
-    );
-
-    watch(
-      () => [visibleFields.value.length],
-      () => {
-        if (!visibleFields.value.length) {
-          setFullColumns();
-        }
-
         handleResultBoxResize();
       },
     );
@@ -1128,42 +1202,55 @@ export default defineComponent({
       markColumnWidthChanging();
 
       const width = w > 40 ? w : 40;
-      const longFiels = visibleFields.value.filter(
+      const currentFields = visibleFields.value.length ? visibleFields.value : fullColumns.value;
+      const field = currentFields.find(item => item.field_name === col.field);
+      if (!field) return;
+
+      const longFiels = currentFields.filter(
         item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
       );
       const logField = longFiels.find(item => item.field_name === 'log');
       const targetField = longFiels.length
         ? longFiels
-        : visibleFields.value.filter(item => item.field_name !== col.field);
+        : currentFields.filter(item => item.field_name !== col.field);
 
       if (width < col.width && targetField.length) {
+        const widthDiff = col.width - width;
         if (logField) {
-          logField.width += width;
+          logField.width += widthDiff;
         } else {
-          const avgWidth = (col.width - width) / targetField.length;
+          const avgWidth = widthDiff / targetField.length;
           for (const field of targetField) {
             field.width += avgWidth;
           }
         }
       }
 
-      const sourceObj = visibleFields.value.reduce((acc, curField) => {
+      const sourceObj = currentFields.reduce((acc, curField) => {
         acc[curField.field_name] = curField.width;
         return acc;
       }, {});
       const { fieldsWidth } = userSettingConfig.value;
-      const newFieldsWidthObj = Object.assign(fieldsWidth, sourceObj, {
+      const newFieldsWidthObj = {
+        ...fieldsWidth,
+        ...sourceObj,
         [col.field]: Math.ceil(width),
-      });
+      };
 
-      const field = visibleFields.value.find(item => item.field_name === col.field);
       field.width = width;
 
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
+      retrieveFieldCacheService.setUserWidths(fieldScope.value, newFieldsWidthObj);
+      bumpFieldWidthVersion();
 
-      store.commit('updateVisibleFields', visibleFields.value);
+      if (visibleFields.value.length) {
+        store.commit('updateVisibleFields', visibleFields.value);
+      } else {
+        fullColumns.value = [...currentFields];
+      }
+      triggerColumnLayoutReflow();
       preserveHorizontalScrollAfterColumnResize(prevScrollLeft);
     };
 
@@ -1188,44 +1275,80 @@ export default defineComponent({
     };
 
     const loadMoreTableData = () => {
+      // IntersectionObserver 与 wheel 预加载可能在同一帧命中。Promise 锁用于保证后端分页严格单飞，
+      // 不依赖会被渲染定时器重置的 isRequesting，避免后一请求取消前一请求。
+      if (paginationRequestPromise) {
+        return paginationRequestPromise;
+      }
+
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
       // visibleFields.value 在字段重置时会清空，所以需要判断
       if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
         return Promise.resolve(false);
       }
 
+      // 首屏（流式）检索进行中时，row_keys 是渐进写入的部分数据，此时不能触发后端分页，
+      // 否则会因“未满一屏”误判而在首屏完成前反复发起 append 请求。
+      if (indexSetQueryResult.value.is_loading && !indexSetQueryResult.value.is_pagination_loading) {
+        return Promise.resolve(false);
+      }
+
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
         hasMoreList.value = true;
+        requestingTimer && clearTimeout(requestingTimer);
+        requestingTimer = null;
         isRequesting.value = true;
         pageIndex.value += 1;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
         setRenderList(maxLength);
         debounceSetLoading(0);
-        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-        localUpdateCounter.value += 1;
         return Promise.resolve(false);
       }
 
       if (hasMoreList.value) {
+        paginationRequestToken += 1;
+        const requestToken = paginationRequestToken;
+        const requestQueryKey = indexSetQueryResult.value?.row_query_key ?? '';
+        const requestStartSize = rowKeys.value.length;
+        requestingTimer && clearTimeout(requestingTimer);
+        requestingTimer = null;
         isRequesting.value = true;
         isPaginationLoading.value = true;
         skipNextLoadingEndReset = true;
-        return store
+        const currentPromise = store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then((resp) => {
+            const isCurrentRequest = requestToken === paginationRequestToken
+              && requestQueryKey === (indexSetQueryResult.value?.row_query_key ?? '')
+              && !resp?.ignored;
+            if (!isCurrentRequest) {
+              return false;
+            }
+
             const responseSize = getPaginationResponseSize(resp);
+            if (rowKeys.value.length < requestStartSize) {
+              return false;
+            }
+
             pageIndex.value += 1;
             handleResultBoxResize(false);
 
             if (responseSize !== null && responseSize < pageSize.value) {
               hasMoreList.value = false;
             }
+            return true;
           })
           .finally(() => {
+            if (requestToken !== paginationRequestToken) {
+              return;
+            }
+            paginationRequestPromise = null;
             isPaginationLoading.value = false;
             debounceSetLoading(0);
             nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
           });
+        paginationRequestPromise = currentPromise;
+        return currentPromise;
       }
 
       return Promise.resolve(false);
@@ -1241,8 +1364,12 @@ export default defineComponent({
     const afterScrollTop = () => {
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList = renderList.slice(0, maxLength);
-      localUpdateCounter.value += 1;
+      if (rowKeys.value.length) {
+        setRenderList(maxLength);
+      } else {
+        renderList = renderList.slice(0, maxLength);
+        localUpdateCounter.value += 1;
+      }
     };
 
     // 监听滚动条滚动位置
@@ -1430,7 +1557,7 @@ export default defineComponent({
 
 
     const showHeader = computed(() => {
-      return showCtxType.value === 'table' && tableList.value.length > 0;
+      return showCtxType.value === 'table' && tableDataSize.value > 0;
     });
 
     const hasResultException = computed(() => {
@@ -1532,9 +1659,10 @@ export default defineComponent({
     };
 
     const allColumns = computed(() => {
-      return [...leftColumns.value, ...getFieldColumns.value].filter(
+      const columns = [...leftColumns.value, ...getFieldColumns.value].filter(
         item => !(item as any).disabled,
       );
+      return columns;
     });
 
     const clearHoverOperatorHideTimer = () => {
@@ -1621,24 +1749,32 @@ export default defineComponent({
           onMouseenter={activateHoverOperator}
           onMouseleave={deactivateHoverOperator}
         >
-          {/** @ts-expect-error */}
-          <OperatorTools
-            handle-click={(type, event) => {
-              if (type === 'ai') {
-                handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
-                return;
-              }
-              props.handleClickTools(
-                type,
-                hoverOperatorState.row,
-                indexSetOperatorConfig.value,
-                ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
-              );
-            }}
-            index={hoverOperatorState.row[ROW_INDEX]}
-            operator-config={indexSetOperatorConfig.value}
-            row-data={hoverOperatorState.row}
-          />
+          <div class='bklog-row-hover-operator-content'>
+            {/** @ts-expect-error */}
+            <OperatorTools
+              handle-click={(type, event) => {
+                if (type === 'ai') {
+                  handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
+                  return;
+                }
+                if (type === 'fullRow') {
+                  openFullRowViewer(hoverOperatorState.row, hoverOperatorState.rowIndex);
+                  return;
+                }
+                props.handleClickTools(
+                  type,
+                  hoverOperatorState.row,
+                  indexSetOperatorConfig.value,
+                  ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
+                  getRowConfigKey(hoverOperatorState.row, hoverOperatorState.rowIndex),
+                );
+              }}
+              index={hoverOperatorState.row[ROW_INDEX]}
+              operator-config={indexSetOperatorConfig.value}
+              row-data={hoverOperatorState.row}
+              show-full-row={shouldShowFullRowAction(hoverOperatorState.row)}
+            />
+          </div>
         </div>
       );
     };
@@ -1684,6 +1820,7 @@ export default defineComponent({
 
       RetrieveHelper.setMousedownEvent(e);
       savedSelection = null;
+      savedSelectionText = '';
     };
 
     const handleRowMouseup = (e: MouseEvent, item: any, rowIndex: number) => {
@@ -1704,7 +1841,12 @@ export default defineComponent({
         RetrieveHelper.setMousedownEvent(null);
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
-          savedSelection = selection.getRangeAt(0);
+          // cloneRange + 固化文本：弹层点击/高亮重绘后 live Range 可能失效或 toString 漂移
+          // 必须在 mouseup 当下固化，避免后续点击分词/检索刷新冲掉 DOM 后解析漂移
+          savedSelection = selection.getRangeAt(0).cloneRange();
+          savedSelectionText = stripSelectionMarkup(savedSelection.toString());
+          hoverOperatorState.row = item;
+          hoverOperatorState.rowIndex = rowIndex;
           const rect = getSelectionReferenceRect(savedSelection, e);
           const target = setSelectionPopTargetHandler(rect);
           popInstanceUtil.uninstallInstance();
@@ -1714,9 +1856,42 @@ export default defineComponent({
       }
 
       const target = e.target as HTMLElement;
-      const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
+      const expandPanel = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
-      if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+      // 仅「展开图标」或「行空白」触发行展开/收起；
+      // 分词等内容点击只响应自身下拉，不联动外层 ROW。
+      const isExpandIconClick = Boolean(target.closest('.bklog-expand-icon'));
+      const isRowContentClick = Boolean(
+        target.closest(
+          [
+            '.valid-text',
+            '.others-text',
+            '.blob-text',
+            '.segment-content',
+            '.field-value',
+            '.field-name',
+            '.black-mark',
+            '.bklog-root-field',
+            '.bklog-json-view-node',
+            '.bklog-json-view-row',
+            '.bklog-json-view-field',
+            '.bklog-json-view-text',
+            '.bklog-json-view-object',
+            '.bklog-word-segment',
+            '.btn-more-action',
+            '.btn-json-leaf-more',
+            '.btn-original-value-action',
+            'a',
+            'button',
+            'input',
+            'textarea',
+            '[role="button"]',
+            '.bk-link-text',
+          ].join(', '),
+        ),
+      );
+
+      if (!isExpandIconClick && (isRowContentClick || expandPanel?.contains(target))) {
         RetrieveHelper.setMousedownEvent(null);
         return;
       }
@@ -1752,7 +1927,9 @@ export default defineComponent({
       }
 
       return renderList.map((row, rowIndex) => {
-        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
+        const renderRow = row.item as Record<string, any>;
+        setRowComponentMeta(renderRow, row[ROW_KEY], row.renderMeta);
+        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(renderRow, gradeOption.value);
 
         return [
           <RowRender
@@ -1766,11 +1943,11 @@ export default defineComponent({
             ]}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
-            on-row-mouseenter={e => handleRowMouseenter(e, row.item, rowIndex)}
+            on-row-mouseenter={e => handleRowMouseenter(e, renderRow, rowIndex)}
             on-row-mouseleave={handleRowMouseleave}
-            on-row-mouseup={e => handleRowMouseup(e, row.item, rowIndex)}
+            on-row-mouseup={e => handleRowMouseup(e, renderRow, rowIndex)}
           >
-            {renderRowCells(row.item, rowIndex)}
+            {renderRowCells(renderRow, rowIndex)}
           </RowRender>,
         ];
       });
@@ -1942,11 +2119,26 @@ export default defineComponent({
       );
     };
 
+    const renderFullRowViewer = () => (
+      <FullRowViewerComponent
+        visible={fullRowViewerState.visible}
+        rowKey={fullRowViewerState.rowKey}
+        rowData={fullRowViewerState.rowData}
+        fields={visibleFields.value.length ? visibleFields.value : fullColumns.value}
+        truncatedFields={fullRowViewerState.truncatedFields}
+        onUpdate:visible={(value: boolean) => {
+          fullRowViewerState.visible = value;
+        }}
+      />
+    );
+
     const renderDelineatePopContent = () => {
       return <div style='display: none;'>{useSegmentPop.createSegmentContent(refSegmentContent)}</div>;
     };
 
     onBeforeUnmount(() => {
+      renderTaskToken += 1;
+      paginationRequestToken += 1;
       clearHoverOperatorHideTimer();
       popInstanceUtil.uninstallInstance();
       window.clearTimeout(columnWidthChangeTimer);
@@ -1959,50 +2151,29 @@ export default defineComponent({
       renderList = Object.freeze([]);
     });
 
-    return {
-      refRootElement,
-      refResultRowBox,
-      isTableLoading,
-      renderDelineatePopContent,
-      renderRowVNode,
-      renderScrollTop,
-      renderScrollXBar,
-      renderLoader,
-      renderHeadVNode,
-      renderHoverOperatorOverlay,
-      renderFirstPageSkeleton,
-      getExceptionRender,
-      tableDataSize,
-      resultContainerId,
-      hasScrollX,
-      showHeader,
-      isRequesting,
-      exceptionMsg,
-      localUpdateCounter,
-    };
-  },
-  render() {
-    return (
+    return () => (
       <div
-        ref='refRootElement'
+        ref={refRootElement}
         class='bklog-result-container'
       >
-        {this.renderHeadVNode()}
+        {renderHeadVNode()}
         <div
-          id={this.resultContainerId}
-          ref='refResultRowBox'
+          id={resultContainerId.value}
+          ref={refResultRowBox}
           class='bklog-row-box'
-          data-local-update-counter={this.localUpdateCounter}
+          data-local-update-counter={localUpdateCounter.value}
+          data-page-highlight-version={pageHighlightState.version}
         >
-          {this.renderRowVNode()}
+          {renderRowVNode()}
         </div>
-        {this.renderHoverOperatorOverlay()}
-        {this.renderFirstPageSkeleton()}
-        {this.getExceptionRender()}
-        {this.renderScrollXBar()}
-        {this.renderLoader()}
-        {this.renderScrollTop()}
-        {this.renderDelineatePopContent()}
+        {renderHoverOperatorOverlay()}
+        {renderFirstPageSkeleton()}
+        {getExceptionRender()}
+        {renderScrollXBar()}
+        {renderLoader()}
+        {renderScrollTop()}
+        {renderDelineatePopContent()}
+        {renderFullRowViewer()}
         <div class='resize-guide-line' />
       </div>
     );

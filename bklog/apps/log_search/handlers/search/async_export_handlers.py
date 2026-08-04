@@ -90,9 +90,6 @@ class AsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
-        # 校验用户正在运行导出的任务数量
-        AsyncTask.check_running_count_by_user(self.request_user)
-
         # 计算平台暂不支持快速下载
         if is_quick_export and self.search_handler.scenario_id == Scenario.BKDATA:
             raise BKBaseExportException()
@@ -384,9 +381,6 @@ class UnionAsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
-        # 校验用户正在运行导出的任务数量
-        AsyncTask.check_running_count_by_user(self.request_user)
-
         for index_set in self.union_search_handler.index_sets:
             # 计算平台暂不支持快速下载
             if is_quick_export and index_set.scenario_id == Scenario.BKDATA:

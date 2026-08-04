@@ -64,16 +64,17 @@ if (process.env.NODE_ENV === 'development') {
 if (window.__POWERED_BY_BK_WEWEB__) {
   window.bk_biz_id = window.rawWindow.bk_biz_id;
   window.cc_biz_id = window.rawWindow.bk_biz_id;
+  const bizList = window.__BK_WEWEB_DATA__?.$baseStore?.getters.bizList || window.space_list || [];
   store.commit('app/SET_APP_STATE', {
     userName: window.user_name,
     bizId: window.cc_biz_id,
-    bizList: window.space_list,
+    bizList,
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
     bkUrl: window.bk_url,
   });
 
-  new Vue({
+  const app = new Vue({
     el: '#app',
     router,
     store,
@@ -83,6 +84,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
   Vue.prototype.$authorityStore = Authority;
+  window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => app.$destroy());
   /** 在 APM 作为微应用嵌入 monitor-pc 时，向父页面注册一个「离开前回调 */
   window.__BK_WEWEB_DATA__?.registerApmLeaveHandler?.(dispatchApmK8sCacheFlush);
 } else {

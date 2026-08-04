@@ -8,7 +8,14 @@ from elasticsearch_dsl import AttrDict
 
 from constants.data_source import DataSourceLabel
 from fta_web.alert_v2 import target as target_module
-from fta_web.alert_v2.target import BaseTarget, DefaultTarget, HostTarget, K8SPodTarget, merge_log_targets
+from fta_web.alert_v2.target import (
+    APMServiceTarget,
+    BaseTarget,
+    DefaultTarget,
+    HostTarget,
+    K8SPodTarget,
+    merge_log_targets,
+)
 
 
 def test_default_target_merges_addition_for_non_clustering_alert(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -83,6 +90,69 @@ def test_default_target_clustering_keeps_addition_mode(monkeypatch: pytest.Monke
             "addition": [{"field": "service", "operator": "=", "value": ["api"]}],
             "keyword": "",
         }
+    ]
+
+
+def test_apm_service_target_prioritizes_origin_log_and_merges_apm_logs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    query_config: dict[str, Any] = {
+        "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+        "index_set_id": 100,
+        "query_string": 'message: "failed"',
+        "agg_condition": [],
+    }
+    alert: Any = SimpleNamespace(
+        strategy={},
+        first_anomaly_time=1_000,
+        end_time=1_100,
+        event=SimpleNamespace(
+            bk_biz_id=2,
+            target="demo:api",
+        ),
+        origin_alarm={
+            "data": {
+                "dimensions": {"service": "api"},
+                "dimension_fields": ["service"],
+            }
+        },
+    )
+    origin_index_set: dict[str, Any] = {
+        "index_set_id": 100,
+        "index_set_name": "origin",
+    }
+    apm_duplicate_target: dict[str, Any] = {
+        "index_set_id": "100",
+        "index_set_name": "duplicate",
+        "is_app_datasource": True,
+        "addition": [{"field": "service", "operator": "=", "value": ["api"]}],
+    }
+    apm_related_target: dict[str, Any] = {
+        "index_set_id": 200,
+        "index_set_name": "related",
+        "addition": [],
+    }
+
+    monkeypatch.setattr(target_module, "get_alert_query_config_or_none", lambda _: query_config)
+    monkeypatch.setattr(target_module, "get_log_clustering_info", lambda _: ("", ""))
+    monkeypatch.setattr(target_module, "get_biz_index_sets_with_cache", lambda **_: [origin_index_set])
+    monkeypatch.setattr(
+        target_module,
+        "log_relation_list",
+        lambda **_: [apm_related_target, apm_duplicate_target],
+    )
+
+    target = APMServiceTarget(alert)
+    result: list[dict[str, Any]] = target.list_related_log_targets()
+
+    assert result == [
+        {
+            "index_set_id": 100,
+            "index_set_name": "origin",
+            "addition": [],
+            "keyword": '(message: "failed") AND (service: "api")',
+        },
+        apm_related_target,
     ]
 
 

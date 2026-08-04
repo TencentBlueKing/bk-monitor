@@ -610,7 +610,6 @@ def _get_bkbase_components_config(
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
             extra_config["consumer_group"] = spec.get("consumerGroup", "")
-            extra_config["data_link_strategy"] = labels.get("bkm_data_link_strategy", "")
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -694,8 +693,6 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
 
 def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
     if value:
-        return True
-    if kind == DataLinkKind.DATABUS.value and field == "data_link_strategy" and value == "":
         return True
     return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
 

@@ -41,6 +41,8 @@ class FunctionNode:
     children: dict[str, "FunctionNode"] = field(default_factory=dict)
     value: int = 0
     values: list[int] = field(default=list)
+    self_value: int | float | None = None
+    self_values: list[int] = field(default_factory=list)
 
     def __eq__(self, other):
         return self.id == other.id
@@ -49,8 +51,12 @@ class FunctionNode:
         return hash(self.id)
 
     @property
-    def self_time(self) -> int:
+    def self_time(self) -> int | float:
         """self time"""
+        if self.self_value is not None:
+            return self.self_value
+
+        # 兼容未显式提供 self_value 的节点（例如 eBPF 和手工构造节点）。
         sub = self.value - sum(x.value for x in self.children.values())
         return sub if sub > 0 else 0
 
@@ -70,6 +76,9 @@ class FunctionNode:
 
     def add_value(self, value):
         self.values.append(value)
+
+    def add_self_value(self, value):
+        self.self_values.append(value)
 
     @classmethod
     def generate_id(cls, stacktrace_line):
@@ -150,6 +159,7 @@ class ValueCalculator:
         def calculate_node(tree_node):
             """递归计算节点值"""
             tree_node.value = c.calculate(tree_node.values, samples_len)
+            tree_node.self_value = c.calculate(tree_node.self_values, samples_len)
             for child in tree_node.children.values():
                 calculate_node(child)
 
@@ -162,6 +172,7 @@ class ValueCalculator:
         # 计算图结构节点
         for node in tree.function_node_map.values():
             node.value = c.calculate(node.values, samples_len)
+            node.self_value = c.calculate(node.self_values, samples_len)
 
         # 更新图结构根节点值
         tree.map_root.value = format_percent(

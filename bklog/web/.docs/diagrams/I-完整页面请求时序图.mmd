@@ -1,65 +1,40 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'actorBkg': '#e3f2fd', 'actorTextColor': '#1565c0', 'actorBorder': '#1976d2', 'signalColor': '#42a5f5', 'noteBkgColor': '#fff8e1'}}}%%
-sequenceDiagram
-    participant User as 用户
-    participant Browser as 浏览器
-    participant Router as Vue Router
-    participant RetrieveV3 as Retrieve V3
-    participant Store as Vuex Store
-    participant HTTP as HTTP Layer
-    participant API as Backend API
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e3f2fd', 'primaryTextColor': '#1565c0', 'primaryBorderColor': '#1976d2', 'lineColor': '#42a5f5'}}}%%
+flowchart TD
+  START([用户访问 /retrieve/:indexId]) --> ROUTER[Vue Router]
+  ROUTER --> HUB[RetrieveHub]
+  HUB --> INIT[默认加载 retrieve-v3<br/>use-app-init]
 
-    User->>Browser: 访问 /retrieve/:indexId
+  subgraph INITIALIZE[页面初始化]
+    INIT --> PARAMS[写入 URL、空间、索引模式]
+    PARAMS --> INDEX_LIST[dispatch getIndexSetList]
+    INDEX_LIST --> INDEX_API[GET /search/index_set/]
+    INDEX_API --> FIELD_ACTION[dispatch requestIndexSetFieldInfo]
+    FIELD_ACTION --> FIELD_API[普通 / 联合 / 场景字段请求]
+    FIELD_API --> FIELD_CACHE[normalize fields<br/>field cache + IndexedDB]
+  end
 
-    rect rgb(240, 248, 255)
-        Note over Router: 路由守卫
-        Browser->>Router: 路由切换
-        Router->>HTTP: 取消 cancelWhenRouteChange 请求
-        Router->>Router: 检查外部版白名单
-        Router->>RetrieveV3: 渲染组件
-    end
+  FIELD_CACHE --> QUERY_ACTION[dispatch requestIndexSetQuery]
 
-    rect rgb(255, 248, 240)
-        Note over RetrieveV3, API: 初始化数据流
-        RetrieveV3->>RetrieveV3: updateURLArgs 解析 URL
-        RetrieveV3->>Store: commit(updateIndexItem, updateSpace)
-        
-        RetrieveV3->>Store: dispatch(getIndexSetList)
-        Store->>HTTP: request
-        HTTP->>API: GET /search/index_set/
-        API-->>HTTP: 索引集列表
-        HTTP-->>Store: 返回数据
-        Store-->>RetrieveV3: 列表数据
-    end
+  subgraph SEARCH[流式检索执行]
+    QUERY_ACTION --> WORKER_SERVICE[Worker Service<br/>searchStream(queryKey, startSeq, writeMode)]
+    WORKER_SERVICE --> WORKER[WebWorker<br/>postMessage search-stream]
+    WORKER --> SEARCH_API[fetch POST /search/*?stream=true]
+    SEARCH_API --> STREAM[NDJSON: meta / row / done<br/>兼容 JSON envelope]
+    STREAM --> ROW_STORAGE[批量写入原始行与渲染元数据]
+    ROW_STORAGE --> IDB[(IndexedDB retrieveRows)]
+    STREAM --> PROGRESS[progress meta / first row / rowKeys]
+    PROGRESS --> WORKER_SERVICE
+  end
 
-    rect rgb(240, 255, 240)
-        Note over RetrieveV3, API: 字段信息 & 查询
-        RetrieveV3->>Store: dispatch(requestIndexSetFieldInfo)
-        Store->>HTTP: request
-        HTTP->>API: GET /search/index_set/:id/fields/
-        API-->>HTTP: 字段信息
-        HTTP-->>Store: 返回数据
-        
-        Store-->>RetrieveV3: 触发 TREND_GRAPH_SEARCH
-        Store-->>RetrieveV3: 触发 LEFT_FIELD_INFO_UPDATE
+  WORKER_SERVICE --> STORE[Vuex<br/>loading / total / row_keys / timings]
+  STORE --> RESULT[结果组件渲染首行和结果元数据]
+  RESULT --> READ_ROWS[按 row_keys 读取行]
+  READ_ROWS --> IDB
+  IDB --> RENDER[原始行 + overlay 后的渲染行]
+  RENDER --> RESULT
 
-        RetrieveV3->>Store: dispatch(requestIndexSetQuery)
-        Store->>HTTP: request
-        HTTP->>API: POST /search/index_set/:id/search/
-        API-->>HTTP: 检索结果
-        HTTP-->>Store: 返回数据
-        Store-->>RetrieveV3: 渲染结果
-    end
-
-    rect rgb(255, 240, 255)
-        Note over RetrieveV3, API: 并行请求
-        par 趋势图
-            RetrieveV3->>API: POST /search/index_set/:id/aggs/date_histogram/
-            API-->>RetrieveV3: 趋势数据
-        and 收藏夹
-            RetrieveV3->>Store: dispatch(requestFavoriteList)
-            Store->>API: GET /favorite/getFavoriteByGroupList
-            API-->>Store: 收藏夹数据
-        end
-    end
-
-    RetrieveV3->>User: 页面渲染完成
+  RESULT --> LOAD_MORE[用户加载更多]
+  LOAD_MORE --> PAGE_QUERY[分页 query(startSeq, append)]
+  PAGE_QUERY --> WORKER_SERVICE
+  WORKER_SERVICE --> DONE[完成 / 错误 / 取消]
+  DONE --> STORE

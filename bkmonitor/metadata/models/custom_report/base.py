@@ -210,6 +210,7 @@ class CustomGroupBase(models.Model):
         additional_options: dict | None = None,
         data_label: str | None = None,
         bk_biz_id_alias: str | None = None,
+        is_sync_db: bool = True,
         **kwargs,
     ):
         """
@@ -229,6 +230,7 @@ class CustomGroupBase(models.Model):
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
         :param bk_biz_id_alias: 业务ID别名
+        :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :return: group object
         """
         # 创建流程：pre_check -> _create -> create_result_table -> 配置更新
@@ -317,6 +319,7 @@ class CustomGroupBase(models.Model):
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
             bk_biz_id_alias=bk_biz_id_alias,
+            is_sync_db=is_sync_db,
         )
 
         custom_group.update_metrics(metric_info=final_metric_info_list)
