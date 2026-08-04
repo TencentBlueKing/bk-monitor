@@ -197,10 +197,7 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: POST {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
-        data = resp.json()
-        if data.get("code", 0) != 0:
-            raise ProviderError(data.get("message", "IAM v4 API error"), code=data.get("code"))
-        return data
+        return _safe_json(resp)
 
     def _get(self, path: str, params: dict | None = None) -> dict:
         try:
@@ -213,10 +210,7 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: GET {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
-        data = resp.json()
-        if data.get("code", 0) != 0:
-            raise ProviderError(data.get("message", "IAM v4 API error"), code=data.get("code"))
-        return data
+        return _safe_json(resp)
 
     def _put(self, path: str, body: dict) -> dict:
         try:
@@ -229,10 +223,7 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: PUT {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
-        data = resp.json()
-        if data.get("code", 0) != 0:
-            raise ProviderError(data.get("message", "IAM v4 API error"), code=data.get("code"))
-        return data
+        return _safe_json(resp)
 
     def _delete(self, path: str, body: dict | None = None) -> dict:
         try:
@@ -248,10 +239,17 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: DELETE {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
-        data = resp.json()
-        if data.get("code", 0) != 0:
-            raise ProviderError(data.get("message", "IAM v4 API error"), code=data.get("code"))
-        return data
+        return _safe_json(resp)
+
+
+def _safe_json(resp) -> dict:
+    text = resp.text.strip() if hasattr(resp, "text") else ""
+    if not text:
+        return {}
+    data = resp.json()
+    if data.get("code", 0) != 0:
+        raise ProviderError(data.get("message", "IAM v4 API error"), code=data.get("code"))
+    return data
 
 
 def _safe_truncate(resp, max_len: int = 500) -> str:
