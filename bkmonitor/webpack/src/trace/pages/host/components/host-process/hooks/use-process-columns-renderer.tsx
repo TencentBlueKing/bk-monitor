@@ -26,7 +26,11 @@
 
 import { useI18n } from 'vue-i18n';
 
-import { type IProcessColumnConfig, PROCESS_PORT_STATUS_MAP } from '../../../constants/process';
+import {
+  type IProcessColumnConfig,
+  PROCESS_LIST_ELLIPSIS_CELL_CLASS,
+  PROCESS_PORT_STATUS_MAP,
+} from '../../../constants/process';
 import { formatMemRss, formatUptime, getProcessBarColor } from '../../../utils/process';
 
 import type { ProcessItem } from '../../../types/process';
@@ -68,19 +72,13 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
       </div>
       <div class='process-table-name__info'>
         <span
-          class='process-table-name__title'
-          v-overflow-tips={{
-            placement: 'top',
-          }}
+          class={['process-table-name__title', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}
           onClick={() => onClick(row)}
         >
           {row.name || '--'}
         </span>
         <span
-          class='process-table-name__subtitle'
-          v-overflow-tips={{
-            placement: 'top',
-          }}
+          class={['process-table-name__subtitle', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}
         >{`${t('名称匹配')}：process.name=${row.name}`}</span>
       </div>
     </div>
@@ -108,7 +106,9 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
           style={{ backgroundColor: config?.color || '#c4c6cc' }}
           class='process-table-port__dot'
         />
-        <span class='process-table-port__text'>{`${row.protocol} ${row.bindIp}:${row.port}`}</span>
+        <span
+          class={['process-table-port__text', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}
+        >{`${row.protocol} ${row.bindIp}:${row.port}`}</span>
       </div>
     );
   };
@@ -118,7 +118,9 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @param {ProcessItem} row - 当前行进程数据
    * @returns {SlotReturnValue} 主机列 JSX
    */
-  const renderHostCell = (row: ProcessItem) => <span class='process-table-link'>{row.hostIp || '--'}</span>;
+  const renderHostCell = (row: ProcessItem) => (
+    <span class={['process-table-link', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>{row.hostIp || '--'}</span>
+  );
 
   /**
    * @description CPU 占用列渲染（百分比 + 进度条）
@@ -210,14 +212,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 运行时长列 JSX
    */
   const renderUptimeCell = (row: ProcessItem) => (
-    <span
-      class='process-table-uptime'
-      v-overflow-tips={{
-        placement: 'top',
-      }}
-    >
-      {formatUptime(row.uptime)}
-    </span>
+    <span class={['process-table-uptime', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>{formatUptime(row.uptime)}</span>
   );
 
   /**
@@ -232,7 +227,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
       width: config.width,
       sorter: config.sortable,
       align: config.align,
-      ellipsis: config.type === 'port',
+      ellipsis: false,
     };
     /**
      * @description 单元格渲染函数
@@ -260,12 +255,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
           return renderUptimeCell(row);
         default:
           return (
-            <span
-              class='process-table-text'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
+            <span class={['process-table-text', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>
               {(row[config.id as keyof ProcessItem] ?? '--') as string}
             </span>
           );

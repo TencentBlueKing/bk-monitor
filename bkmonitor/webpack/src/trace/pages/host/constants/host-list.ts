@@ -36,6 +36,8 @@ export const HOST_LIST_DEFAULT_PAGE_SIZE = 50;
 export const HOST_LIST_PAGE_SIZE_LIST = [10, 20, 50, 100];
 /** 表格行高（设计稿：36 行高，显示更多内容） */
 export const HOST_LIST_ROW_HEIGHT = 36;
+/** 主机列表溢出省略单元格类名（配合 useTableEllipsis 事件委托，溢出时弹 tooltip） */
+export const HOST_LIST_ELLIPSIS_CELL_CLASS = 'host-list-ellipsis-cell';
 /** 快捷过滤卡片的指标阈值（超过该值计入分类） */
 export const HOST_METRIC_OVER_THRESHOLD = 80;
 

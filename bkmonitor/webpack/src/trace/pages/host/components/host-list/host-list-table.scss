@@ -4,6 +4,14 @@
   flex-direction: column;
   min-height: 0;
 
+  /** 主机列表溢出省略单元格（配合 useTableEllipsis 事件委托，溢出时弹 tooltip，避免微前端下错位） */
+  .host-list-ellipsis-cell {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   &__body {
     flex: 1;
     min-height: 0;

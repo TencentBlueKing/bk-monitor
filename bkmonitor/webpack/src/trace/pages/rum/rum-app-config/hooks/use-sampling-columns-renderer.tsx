@@ -31,7 +31,8 @@ import { get } from '@vueuse/core';
 import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { isEllipsisActiveMultiLine } from '../../../trace-explore/components/trace-explore-table/utils/dom-helper';
+import { isEllipsisActiveMultiLine } from '../../../../utils/dom-helper';
+
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
 import type { IDataSamplingItem } from '../../typings';
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -185,12 +186,12 @@ export const useSamplingColumnsRenderer = (rendererCtx: SamplingColumnsRendererC
     return (
       <div class={['text-log-wrap', { 'is-expanded': isExpanded }]}>
         <div
-          class='text-log-main'
           ref={element => {
             if (rowIndex > -1) {
               registerLogMainElement(element as HTMLElement | null, rowIndex);
             }
           }}
+          class='text-log-main'
         >
           <span
             class='log-text'

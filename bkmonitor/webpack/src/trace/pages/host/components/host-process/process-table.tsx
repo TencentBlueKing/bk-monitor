@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onMounted, shallowRef, useTemplateRef } from 'vue';
 
 import { type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
-import { PROCESS_LIST_COLUMNS } from '../../constants/process';
+import { useTableEllipsis } from '../../../../hooks/use-table-popover';
+import { PROCESS_LIST_COLUMNS, PROCESS_LIST_ELLIPSIS_CELL_CLASS } from '../../constants/process';
 import { useProcessColumnsRenderer } from './hooks/use-process-columns-renderer';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
@@ -87,6 +88,11 @@ export default defineComponent({
       }
     });
 
+    /** 表格文本溢出 tooltip 事件委托（配合 PROCESS_LIST_ELLIPSIS_CELL_CLASS） */
+    const { initListeners: initEllipsisListeners } = useTableEllipsis(bodyRef, {
+      trigger: { selector: `.${PROCESS_LIST_ELLIPSIS_CELL_CLASS}` },
+    });
+
     /** 排序转换为 tdesign 数组形式 */
     const tableSort = computed<TableSort>(() => {
       if (!props.sort) return [];
@@ -116,6 +122,11 @@ export default defineComponent({
       const target = Array.isArray(sortEvent) ? sortEvent[0] : sortEvent;
       emit('sortChange', target?.sortBy ? `${target.descending ? '-' : ''}${target.sortBy}` : '');
     };
+
+    onMounted(async () => {
+      await nextTick();
+      initEllipsisListeners();
+    });
 
     return {
       t,

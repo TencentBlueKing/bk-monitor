@@ -30,36 +30,39 @@ import {
   defineComponent,
   nextTick,
   onBeforeUnmount,
+  onMounted,
+  ref,
   shallowRef,
   useTemplateRef,
-  ref,
   watch,
 } from 'vue';
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
 import { Pagination, Popover } from 'bkui-vue';
+import BkCheckbox from 'bkui-vue/lib/checkbox';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
+import AcrossPageSelection, {
+  type SelectTypeEnum,
+  SelectType,
+} from '../../../../components/across-page-selection/across-page-selection';
+import TagOverflow from '../../../../components/tag-overflow/tag-overflow';
+import { useTableEllipsis } from '../../../../hooks/use-table-popover';
 import {
   type IHostColumnConfig,
   HOST_LIST_COLUMNS,
+  HOST_LIST_ELLIPSIS_CELL_CLASS,
   HOST_LIST_PAGE_SIZE_LIST,
   HOST_STATUS_MAP,
 } from '../../constants/host-list';
-
-import type { EHostAggMethod, IHostListRow } from '../../types/host-list';
-import type { IHostAlarmCount, IHostComponent } from '../../types/host';
-import AcrossPageSelection, {
-  SelectType,
-  type SelectTypeEnum,
-} from '../../../../components/across-page-selection/across-page-selection';
 import AbnormalTips from './abnormal-tips/index';
 import UnresolveList from './unresolve-list/index';
-import TagOverflow from '../../../../components/tag-overflow/tag-overflow';
-import BkCheckbox from 'bkui-vue/lib/checkbox';
+
+import type { IHostAlarmCount, IHostComponent } from '../../types/host';
+import type { EHostAggMethod, IHostListRow } from '../../types/host-list';
 
 import './host-list-table.scss';
 
@@ -72,10 +75,10 @@ const ALARM_LEVEL_COLOR: Record<number, string> = {
 
 /** 进程状态 tip 配置（对齐 performance-table componentStatusMap） */
 type IProcessTipsConfig = {
-  tipsText?: string;
+  docLink?: string;
   linkText?: string;
   linkUrl?: string;
-  docLink?: string;
+  tipsText?: string;
 };
 
 /** 指标进度条颜色阈值 */
@@ -206,6 +209,10 @@ export default defineComponent({
       }
     });
 
+    const { initListeners: initEllipsisListeners } = useTableEllipsis(bodyRef, {
+      trigger: { selector: `.${HOST_LIST_ELLIPSIS_CELL_CLASS}` },
+    });
+
     const destroyTipsPopover = () => {
       tipsPopoverInstance?.hide();
       tipsPopoverInstance?.destroy();
@@ -217,6 +224,11 @@ export default defineComponent({
       unresolvePopoverInstance?.destroy();
       unresolvePopoverInstance = null;
     };
+
+    onMounted(async () => {
+      await nextTick();
+      initEllipsisListeners();
+    });
 
     onBeforeUnmount(() => {
       destroyTipsPopover();
@@ -271,7 +283,7 @@ export default defineComponent({
      * 进程状态 tip（对齐 performance-table handleTipsMouseenter）
      * Thread：异常(1) / 无数据(2)；noProcess：暂无进程引导
      */
-    const handleTipsMouseenter = (e: MouseEvent, item: Partial<IHostComponent>, type: 'Thread' | 'noProcess') => {
+    const handleTipsMouseenter = (e: MouseEvent, item: Partial<IHostComponent>, type: 'noProcess' | 'Thread') => {
       if (type === 'Thread' && [1, 2].includes(item.status as number)) {
         const config = componentStatusMap[item.status as number] || {};
         tipsData.value = {
@@ -352,6 +364,11 @@ export default defineComponent({
       emit('selectIpCell', row);
     };
 
+    /** 普通文本溢出单元格（配合 useTableEllipsis 事件委托，溢出时弹 tooltip） */
+    const renderEllipsisCell = (value: unknown) => (
+      <span class={HOST_LIST_ELLIPSIS_CELL_CLASS}>{value === 0 || value ? value : '--'}</span>
+    );
+
     // --- 单元格渲染器 ---
     const renderIpCell = (row: IHostListRow) => (
       <span
@@ -373,8 +390,8 @@ export default defineComponent({
       return (
         <div class='host-table-status'>
           <div
-            class='host-table-status__dot-wrapper'
             style={{ backgroundColor: config.backgroundColor }}
+            class='host-table-status__dot-wrapper'
           >
             <div
               style={{ backgroundColor: config.color }}
@@ -546,12 +563,6 @@ export default defineComponent({
       }
     };
 
-    /** 普通文本单元格 */
-    const renderTextCell = (row: IHostListRow, key: string) => {
-      const value = row[key as keyof IHostListRow];
-      return <span>{value === 0 || value ? value : '--'}</span>;
-    };
-
     /** 构建某一列的 tdesign 配置 */
     const buildColumn = (config: IHostColumnConfig) => {
       let title = () => <span>{t(config.name)}</span>;
@@ -566,7 +577,7 @@ export default defineComponent({
         minWidth: config.minWidth,
         width: config.width,
         sorter: config.sortable,
-        ellipsis: ['text', 'cluster', 'module'].includes(config.type),
+        ellipsis: false,
       };
       base.cell = (_: unknown, { row }: { row: IHostListRow }) => {
         switch (config.type) {
@@ -581,13 +592,13 @@ export default defineComponent({
           case 'process':
             return renderProcessCell(row);
           case 'cluster':
-            return <span>{row.clusterNames || '--'}</span>;
+            return renderEllipsisCell(row.clusterNames);
           case 'module':
-            return <span>{row.moduleNames || '--'}</span>;
+            return renderEllipsisCell(row.moduleNames);
           case 'checkbox':
             return renderCheckboxCell(row);
           default:
-            return renderTextCell(row, config.id);
+            return renderEllipsisCell(row[config.id as keyof IHostListRow]);
         }
       };
       return base;

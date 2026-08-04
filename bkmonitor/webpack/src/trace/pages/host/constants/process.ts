@@ -32,6 +32,9 @@ export const PROCESS_PORT_STATUS_MAP: Record<number, { color: string; name: stri
   [ProcessPortStatusEnum.Abnormal]: { name: window.i18n.t('异常'), color: '#ea3636' },
 };
 
+/** 进程表格溢出省略单元格类名（配合 useTableEllipsis 事件委托，溢出时弹 tooltip） */
+export const PROCESS_LIST_ELLIPSIS_CELL_CLASS = 'process-list-ellipsis-cell';
+
 /** 进程表格列定义 */
 export interface IProcessColumnConfig {
   /** 单元格对齐方式（数值列通常右对齐） */
