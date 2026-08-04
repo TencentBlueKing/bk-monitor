@@ -40,6 +40,7 @@ from iam.apply.models import (
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 
+from apps.iam.backends.legacy_v3 import LegacyV3Adapter
 from apps.iam.exceptions import (
     ActionNotExistError,
     GetSystemInfoError,
@@ -49,6 +50,15 @@ from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
+from apps.iam.iam_engine.core.requests import (
+    AuthRequest as EngineAuthRequest,
+    BatchAuthRequest as EngineBatchAuthRequest,
+    ResourceInstance as EngineResourceInstance,
+    Subject as EngineSubject,
+)
+from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, BatchAuthDecision
+from apps.iam.iam_engine.provider.router import ModeRouter
+from apps.iam.mode import get_mode_provider
 from apps.iam.utils import gen_perms_apply_data
 from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
 from apps.utils.log import logger
@@ -90,11 +100,27 @@ class Permission:
         if request and getattr(request, "skip_check", False):
             self.skip_check = True
 
+        self._mode_router = None
+
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
         return CompatibleIAM(
             settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
         )
+
+    @property
+    def mode_router(self) -> ModeRouter:
+        if self._mode_router is None:
+            self._mode_router = ModeRouter(
+                mode_provider=get_mode_provider(),
+                v3_provider=LegacyV3Adapter(self.iam_client, settings.BK_IAM_SYSTEM_ID),
+                v4_provider=self.get_v4_provider(),
+            )
+        return self._mode_router
+
+    def get_v4_provider(self):
+        """V4 Provider 将在后续迭代中注入；未配置时路由器按 error 安全拒绝。"""
+        return None
 
     def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """
@@ -127,6 +153,38 @@ class Permission:
             environment=None,
         )
         return request
+
+    def make_engine_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> EngineAuthRequest:
+        action = get_action_by_id(action)
+        return EngineAuthRequest(
+            subject=EngineSubject(id=self.username, tenant_id=self.bk_tenant_id),
+            action_id=action,
+            resources=tuple(self._to_engine_resource(resource) for resource in (resources or [])),
+        )
+
+    def make_engine_batch_request(
+        self,
+        actions: list[ActionMeta | str],
+        resources: list[list[Resource]],
+    ) -> EngineBatchAuthRequest:
+        return EngineBatchAuthRequest(
+            subject=EngineSubject(id=self.username, tenant_id=self.bk_tenant_id),
+            action_ids=tuple(get_action_by_id(action) for action in actions),
+            resource_groups=tuple(
+                tuple(self._to_engine_resource(resource) for resource in resource_group) for resource_group in resources
+            ),
+        )
+
+    @staticmethod
+    def _to_engine_resource(resource: Resource) -> EngineResourceInstance:
+        attributes = dict(resource.attribute or {})
+        return EngineResourceInstance(
+            system=resource.system,
+            type=resource.type,
+            id=str(resource.id),
+            name=attributes.get("name", ""),
+            attributes=attributes,
+        )
 
     def _make_application(
         self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
@@ -265,13 +323,10 @@ class Permission:
                 return True
         # ===== 针对demo业务的权限豁免 结束 ===== #
 
-        request = self.make_request(action, resources)
-
-        try:
-            result = self.iam_client.is_allowed(request)
-        except AuthAPIError as e:
-            logger.exception(f"[IAM AuthAPI Error]: {e}")
-            result = False
+        request = self.make_engine_request(action, resources)
+        decision = self.mode_router.is_allowed(request)
+        self._record_decision(action.id, decision)
+        result = decision.allowed
 
         if not result and raise_exception:
             apply_data, apply_url = self.get_apply_data([action], resources)
@@ -297,8 +352,11 @@ class Permission:
         """
         查询某批资源某批操作是否有权限
         """
-        request = self.make_multi_action_request(actions)
-        result = self.iam_client.batch_resource_multi_actions_allowed(request, resources)
+        actions = [get_action_by_id(action) for action in actions]
+        request = self.make_engine_batch_request(actions, resources)
+        decision = self.mode_router.batch_is_allowed(request)
+        self._record_batch_decision(decision)
+        result = decision.as_allowed_dict()
 
         # ===== 针对demo业务的权限豁免 开始 ===== #
         for action in actions:
@@ -312,6 +370,29 @@ class Permission:
         # ===== 针对demo业务的权限豁免 结束 ===== #
 
         return result
+
+    @staticmethod
+    def _record_decision(action_id: str, decision: AuthDecision) -> None:
+        error_results = tuple(result for result in decision.provider_results if result.status is AuthStatus.ERROR)
+        if not error_results:
+            return
+        logger.warning(
+            "[IAM Decision] mode=%s action=%s allowed=%s degraded=%s hit=%s errors=%s",
+            decision.mode,
+            action_id,
+            decision.allowed,
+            decision.degraded,
+            decision.hit_provider_names,
+            tuple((result.provider_name, result.error_type) for result in error_results),
+        )
+
+    @staticmethod
+    def _record_batch_decision(decision: BatchAuthDecision) -> None:
+        error_count = sum(
+            result.status is AuthStatus.ERROR for item in decision.items for result in item.decision.provider_results
+        )
+        if error_count:
+            logger.warning("[IAM Batch Decision] error_result_count=%s", error_count)
 
     @classmethod
     def make_resource(cls, resource_type: str, instance_id: str) -> Resource:
