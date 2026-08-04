@@ -2602,42 +2602,23 @@ def test_kafka_sample_function_registered():
     assert "bk_data_id" in detail["params_schema"]
 
 
-def test_kafka_sample_v4_uses_data_id_config_by_bk_data_id():
-    datasource = SimpleNamespace(
-        bk_data_id=1001,
-        datalink_version="V4",
-        etl_config="bk_standard_v2_time_series",
-        data_name="demo",
-        mq_cluster=SimpleNamespace(is_auth=False),
-        mq_config=SimpleNamespace(topic="origin_topic"),
-    )
-    data_id_config = SimpleNamespace(namespace="bkmonitor", name="actual_data_id_name")
-    data_id_config_queryset = Mock()
-    data_id_config_queryset.order_by.return_value.first.return_value = data_id_config
-
-    with (
-        patch.object(kafka_sample_module.models.DataSource.objects, "get", return_value=datasource),
-        patch.object(
-            kafka_sample_module.models.DataSourceResultTable.objects,
-            "filter",
-            return_value=Mock(first=Mock(return_value=None)),
-        ),
-        patch.object(kafka_sample_module, "_query_gse_route_topic", return_value=None),
-        patch.object(
-            kafka_sample_module.DataIdConfig.objects, "filter", return_value=data_id_config_queryset
-        ) as data_id_filter,
-        patch.object(kafka_sample_module.api.bkdata, "tail_kafka_data", return_value=['{"value": 1}']) as tail_kafka,
-    ):
+def test_kafka_sample_uses_metadata_kafka_tail():
+    with patch.object(
+        kafka_sample_module.resource.metadata,
+        "kafka_tail",
+        return_value=[{"time": 1785326340, "value": 1}],
+    ) as kafka_tail:
         result = kafka_sample_module.kafka_sample({"bk_tenant_id": "system", "bk_data_id": 1001, "size": 1})
 
-    data_id_filter.assert_called_once_with(bk_tenant_id="system", bk_data_id=1001)
-    tail_kafka.assert_called_once_with(
+    kafka_tail.assert_called_once_with(
         bk_tenant_id="system",
-        namespace="bkmonitor",
-        name="actual_data_id_name",
-        limit=1,
+        bk_data_id=1001,
+        size=1,
+        use_gse_config=True,
     )
-    assert result["data"]["items"] == [{"value": 1}]
+    assert result["meta"]["safety_level"] == "inspect"
+    assert result["data"]["topics"] == []
+    assert result["data"]["items"] == [{"time": 1785326340, "value": 1}]
 
 
 def test_custom_report_refresh_metrics_function_registered():

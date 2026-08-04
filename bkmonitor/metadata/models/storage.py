@@ -222,7 +222,7 @@ class ClusterInfo(models.Model):
 
         return data
 
-    def health_check(self, timeout: int | None = None) -> dict[str, Any]:
+    def health_check(self, timeout: int | None = None, include_node_details: bool = False) -> dict[str, Any]:
         """探测集群连接和可用状态，返回统一结构。"""
 
         if timeout is None:
@@ -249,6 +249,11 @@ class ClusterInfo(models.Model):
         try:
             if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
                 raise ValueError("timeout 必须是大于 0 的整数")
+            if self.cluster_type == self.TYPE_ES and include_node_details:
+                return getattr(self, checker_name)(
+                    timeout=timeout,
+                    include_node_details=True,
+                )
             return getattr(self, checker_name)(timeout=timeout)
         except ValueError as error:
             return self._build_cluster_check_result(
@@ -306,6 +311,146 @@ class ClusterInfo(models.Model):
     @staticmethod
     def _format_check_exception(error: Exception) -> dict[str, str]:
         return {"type": error.__class__.__name__, "message": str(error)}
+
+    @staticmethod
+    def _parse_check_int(value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_check_float(value: Any) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(str(value).strip().rstrip("%"))
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_check_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int | float):
+            return bool(value)
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y"}
+
+    @staticmethod
+    def _normalize_es_roles(value: Any) -> list[str]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, list | tuple | set):
+            return [str(role) for role in value if role not in (None, "", "-")]
+        return [role.strip() for role in str(value).split(",") if role.strip() and role.strip() != "-"]
+
+    @classmethod
+    def _build_es_node_roles_lookup(
+        cls, node_rows: list[dict[str, Any]]
+    ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+        """将 CAT nodes 的版本差异投影为按节点名和 IP 查询的角色映射。"""
+
+        roles_by_name: dict[str, list[str]] = {}
+        roles_by_ip: dict[str, list[str]] = {}
+        for row in node_rows:
+            if not isinstance(row, dict):
+                continue
+            roles = cls._normalize_es_roles(cls._get_check_row_value(row, "node.role", "role", "roles", "nodeRole"))
+            name = cls._get_check_row_value(row, "name", "node")
+            ip = cls._get_check_row_value(row, "ip")
+            if name not in (None, ""):
+                roles_by_name[str(name)] = roles
+            if ip not in (None, ""):
+                roles_by_ip[str(ip)] = roles
+        return roles_by_name, roles_by_ip
+
+    @staticmethod
+    def _parse_doris_size_bytes(value: Any) -> int | None:
+        """将 SHOW BACKENDS 的容量值转换为 bytes。"""
+
+        if value in (None, ""):
+            return None
+        if isinstance(value, int | float) and not isinstance(value, bool):
+            return int(value)
+
+        match = re.fullmatch(r"\s*([+-]?[\d,.]+)\s*([KMGTPE]?B)?\s*", str(value), flags=re.IGNORECASE)
+        if not match:
+            return None
+
+        try:
+            number = float(match.group(1).replace(",", ""))
+        except ValueError:
+            return None
+        unit = (match.group(2) or "B").upper()
+        unit_power = {"B": 0, "KB": 1, "MB": 2, "GB": 3, "TB": 4, "PB": 5, "EB": 6}
+        return int(number * (1024 ** unit_power[unit]))
+
+    @staticmethod
+    def _calculate_check_percent(used: int | None, total: int | None) -> float | None:
+        if used is None or total in (None, 0):
+            return None
+        return round(used * 100 / total, 2)
+
+    @staticmethod
+    def _sum_check_values(values: list[int | None]) -> int | None:
+        valid_values = [value for value in values if value is not None]
+        return sum(valid_values) if valid_values else None
+
+    @staticmethod
+    def _get_check_row_value(row: dict[str, Any], *names: str) -> Any:
+        for name in names:
+            if name in row:
+                return row[name]
+        normalized_row = {str(key).lower(): value for key, value in row.items()}
+        for name in names:
+            if name.lower() in normalized_row:
+                return normalized_row[name.lower()]
+        return None
+
+    @classmethod
+    def _build_check_capacity(
+        cls, total_bytes: int | None, available_bytes: int | None, used_bytes: int | None = None
+    ) -> dict[str, int | float | None]:
+        if used_bytes is None and total_bytes is not None and available_bytes is not None:
+            used_bytes = max(total_bytes - available_bytes, 0)
+        return {
+            "total_bytes": total_bytes,
+            "used_bytes": used_bytes,
+            "available_bytes": available_bytes,
+            "used_percent": cls._calculate_check_percent(used_bytes, total_bytes),
+        }
+
+    @classmethod
+    def _build_doris_backend_detail(cls, row: dict[str, Any]) -> dict[str, Any]:
+        total_bytes = cls._parse_doris_size_bytes(cls._get_check_row_value(row, "TotalCapacity"))
+        available_bytes = cls._parse_doris_size_bytes(cls._get_check_row_value(row, "AvailCapacity"))
+        capacity = cls._build_check_capacity(total_bytes=total_bytes, available_bytes=available_bytes)
+        row_used_percent = cls._parse_check_float(cls._get_check_row_value(row, "UsedPct"))
+        if row_used_percent is not None:
+            capacity["used_percent"] = row_used_percent
+
+        return {
+            "backend_id": cls._parse_check_int(cls._get_check_row_value(row, "BackendId")),
+            "host": cls._get_check_row_value(row, "Host"),
+            "alive": cls._parse_check_bool(cls._get_check_row_value(row, "Alive")),
+            "decommissioned": cls._parse_check_bool(
+                cls._get_check_row_value(row, "SystemDecommissioned", "IsDecommissioned")
+            ),
+            "tablet_count": cls._parse_check_int(cls._get_check_row_value(row, "TabletNum")),
+            "capacity": capacity,
+            "data_used_bytes": cls._parse_doris_size_bytes(cls._get_check_row_value(row, "DataUsedCapacity")),
+            "trash_used_bytes": cls._parse_doris_size_bytes(
+                cls._get_check_row_value(row, "TrashUsedCapacity", "TrashUsedCapcacity")
+            ),
+            "remote_used_bytes": cls._parse_doris_size_bytes(cls._get_check_row_value(row, "RemoteUsedCapacity")),
+            "max_disk_used_percent": cls._parse_check_float(cls._get_check_row_value(row, "MaxDiskUsedPct")),
+            "last_heartbeat": cls._get_check_row_value(row, "LastHeartbeat"),
+            "error_message": cls._get_check_row_value(row, "ErrMsg", "ErrorMessage") or "",
+            "version": cls._get_check_row_value(row, "Version"),
+            "node_role": cls._get_check_row_value(row, "NodeRole"),
+        }
 
     def _validate_check_endpoint(self) -> None:
         if not self.domain_name:
@@ -386,26 +531,18 @@ class ClusterInfo(models.Model):
         has_ssl = bool(
             self.is_ssl_verify or self.ssl_certificate_authorities or self.ssl_certificate or self.ssl_certificate_key
         )
-        has_sasl = bool(self.username and self.password)
-        if self.is_auth and not has_sasl:
-            raise ValueError("Kafka 开启鉴权但缺少 username/password")
-
-        if self.security_protocol:
-            security_protocol = self.security_protocol
-        elif has_ssl and has_sasl:
-            security_protocol = "SASL_SSL"
-        elif has_ssl:
-            security_protocol = "SSL"
-        elif has_sasl:
-            security_protocol = config.KAFKA_SASL_PROTOCOL
-        else:
-            security_protocol = "PLAINTEXT"
-        conf["security.protocol"] = security_protocol
-
-        if has_sasl:
+        use_ssl = self.security_protocol in {"SSL", "SASL_SSL"} or has_ssl
+        has_credentials = bool(self.username and self.password)
+        if self.is_auth:
+            if not has_credentials:
+                raise ValueError("Kafka 开启鉴权但缺少 username/password")
+            security_protocol = "SASL_SSL" if use_ssl else config.KAFKA_SASL_PROTOCOL
             conf["sasl.mechanisms"] = self.sasl_mechanisms or config.KAFKA_SASL_MECHANISM
             conf["sasl.username"] = self.username
             conf["sasl.password"] = self.password
+        else:
+            security_protocol = "SSL" if use_ssl else "PLAINTEXT"
+        conf["security.protocol"] = security_protocol
 
         if self.ssl_insecure_skip_verify:
             conf["enable.ssl.certificate.verification"] = False
@@ -433,24 +570,139 @@ class ClusterInfo(models.Model):
                 "topic_count": len(metadata.topics or {}),
                 "security_protocol": conf.get("security.protocol"),
                 "sasl_mechanisms": conf.get("sasl.mechanisms"),
-                "auth_enabled": bool(self.is_auth or self.username),
+                "auth_enabled": self.is_auth,
             },
         )
 
-    def _check_es_cluster(self, timeout: int) -> dict[str, Any]:
-        client = es_tools.get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.cluster_id)
+    def _check_es_cluster(self, timeout: int, include_node_details: bool = False) -> dict[str, Any]:
+        client = es_tools.get_client_by_datasource_info(
+            {
+                "port": self.port,
+                "schema": self.schema,
+                "version": self.version,
+                "domain_name": self.domain_name,
+                "is_ssl_verify": self.is_ssl_verify,
+                "auth_info": {"password": self.password, "username": self.username},
+            }
+        )
         try:
             health = client.cluster.health(request_timeout=timeout)
         except TypeError:
             health = client.cluster.health()
 
         health_status = (health or {}).get("status")
+        number_of_data_nodes = self._parse_check_int((health or {}).get("number_of_data_nodes"))
         details = {
             "health_status": health_status,
             "number_of_nodes": (health or {}).get("number_of_nodes"),
             "active_shards": (health or {}).get("active_shards"),
+            "initializing_shards": (health or {}).get("initializing_shards"),
+            "relocating_shards": (health or {}).get("relocating_shards"),
             "unassigned_shards": (health or {}).get("unassigned_shards"),
+            "nodes": {"total": number_of_data_nodes, "available": number_of_data_nodes},
         }
+        roles_by_name: dict[str, list[str]] = {}
+        roles_by_ip: dict[str, list[str]] = {}
+        if include_node_details:
+            try:
+                node_rows = client.cat.nodes(
+                    format="json",
+                    h="name,ip,node.role",
+                    params={"request_timeout": timeout},
+                )
+                if not isinstance(node_rows, list):
+                    raise ValueError("Elasticsearch nodes 返回格式不正确")
+                roles_by_name, roles_by_ip = self._build_es_node_roles_lookup(node_rows)
+            except Exception as error:  # pylint: disable=broad-except
+                logger.warning(
+                    "ClusterInfo ES node roles collection failed, cluster_id->[%s], error->[%s]",
+                    self.cluster_id,
+                    error,
+                )
+                details.setdefault("collection_errors", []).append(
+                    {
+                        "component": "node_details",
+                        "code": "ES_NODES_QUERY_FAILED",
+                        "message": "Elasticsearch 节点角色查询失败",
+                        "details": self._format_check_exception(error),
+                    }
+                )
+        try:
+            allocations = client.cat.allocation(format="json", bytes="b", params={"request_timeout": timeout})
+            if not isinstance(allocations, list):
+                raise ValueError("Elasticsearch allocation 返回格式不正确")
+
+            node_details = []
+            for row in allocations:
+                if not isinstance(row, dict):
+                    continue
+                total_bytes = self._parse_check_int(self._get_check_row_value(row, "disk.total", "diskTotal"))
+                available_bytes = self._parse_check_int(self._get_check_row_value(row, "disk.avail", "diskAvail"))
+                used_bytes = self._parse_check_int(self._get_check_row_value(row, "disk.used", "diskUsed"))
+                # _cat/allocation 会包含 UNASSIGNED 汇总行，该行没有磁盘容量。
+                if total_bytes is None:
+                    continue
+                capacity = self._build_check_capacity(
+                    total_bytes=total_bytes,
+                    available_bytes=available_bytes,
+                    used_bytes=used_bytes,
+                )
+                row_used_percent = self._parse_check_float(
+                    self._get_check_row_value(row, "disk.percent", "diskPercent")
+                )
+                if row_used_percent is not None:
+                    capacity["used_percent"] = row_used_percent
+                node_name = self._get_check_row_value(row, "node", "name")
+                node_ip = self._get_check_row_value(row, "ip")
+                roles = roles_by_name.get(str(node_name)) if node_name not in (None, "") else None
+                if roles is None and node_ip not in (None, ""):
+                    roles = roles_by_ip.get(str(node_ip))
+                if roles is None:
+                    roles = self._normalize_es_roles(
+                        self._get_check_row_value(row, "node.role", "role", "roles", "nodeRole")
+                    )
+                node_details.append(
+                    {
+                        "name": node_name,
+                        "host": self._get_check_row_value(row, "host"),
+                        "ip": node_ip,
+                        "roles": roles,
+                        "shard_count": self._parse_check_int(self._get_check_row_value(row, "shards", "shardCount")),
+                        "capacity": capacity,
+                        "indices_store_bytes": self._parse_check_int(
+                            self._get_check_row_value(row, "disk.indices", "diskIndices")
+                        ),
+                    }
+                )
+
+            total_bytes = self._sum_check_values([row["capacity"]["total_bytes"] for row in node_details])
+            available_bytes = self._sum_check_values([row["capacity"]["available_bytes"] for row in node_details])
+            used_bytes = self._sum_check_values([row["capacity"]["used_bytes"] for row in node_details])
+            details["capacity"] = self._build_check_capacity(
+                total_bytes=total_bytes,
+                available_bytes=available_bytes,
+                used_bytes=used_bytes,
+            )
+            details["indices_store_bytes"] = self._sum_check_values(
+                [row["indices_store_bytes"] for row in node_details]
+            )
+            details["node_details"] = node_details
+            if number_of_data_nodes is None:
+                details["nodes"] = {"total": len(node_details), "available": len(node_details)}
+        except Exception as error:  # pylint: disable=broad-except
+            logger.warning(
+                "ClusterInfo ES allocation collection failed, cluster_id->[%s], error->[%s]",
+                self.cluster_id,
+                error,
+            )
+            details.setdefault("collection_errors", []).append(
+                {
+                    "component": "capacity",
+                    "code": "ES_ALLOCATION_QUERY_FAILED",
+                    "message": "Elasticsearch 集群容量查询失败",
+                    "details": self._format_check_exception(error),
+                }
+            )
         if health_status == "red":
             return self._build_cluster_check_result(
                 status=self.CHECK_STATUS_UNAVAILABLE,
@@ -524,6 +776,61 @@ class ClusterInfo(models.Model):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 row = cursor.fetchone()
+                details: dict[str, Any] = {"query": "SELECT 1", "response": row}
+                try:
+                    cursor.execute("SHOW BACKENDS")
+                    backend_rows = cursor.fetchall()
+                    if not isinstance(backend_rows, list | tuple):
+                        raise ValueError("Doris SHOW BACKENDS 返回格式不正确")
+
+                    node_details = [
+                        self._build_doris_backend_detail(backend_row)
+                        for backend_row in backend_rows
+                        if isinstance(backend_row, dict)
+                    ]
+                    active_nodes = [node for node in node_details if not node["decommissioned"]]
+                    available_nodes = [node for node in active_nodes if node["alive"]]
+                    details["nodes"] = {"total": len(active_nodes), "available": len(available_nodes)}
+
+                    total_bytes = self._sum_check_values([node["capacity"]["total_bytes"] for node in active_nodes])
+                    available_bytes = self._sum_check_values(
+                        [node["capacity"]["available_bytes"] for node in active_nodes]
+                    )
+                    details["capacity"] = self._build_check_capacity(
+                        total_bytes=total_bytes,
+                        available_bytes=available_bytes,
+                    )
+                    details["data_used_bytes"] = self._sum_check_values(
+                        [node["data_used_bytes"] for node in active_nodes]
+                    )
+                    details["trash_used_bytes"] = self._sum_check_values(
+                        [node["trash_used_bytes"] for node in active_nodes]
+                    )
+                    details["remote_used_bytes"] = self._sum_check_values(
+                        [node["remote_used_bytes"] for node in active_nodes]
+                    )
+                    details["tablet_count"] = self._sum_check_values([node["tablet_count"] for node in active_nodes])
+                    max_disk_used_percent = [
+                        node["max_disk_used_percent"]
+                        for node in active_nodes
+                        if node["max_disk_used_percent"] is not None
+                    ]
+                    details["max_disk_used_percent"] = max(max_disk_used_percent) if max_disk_used_percent else None
+                    details["node_details"] = node_details
+                except Exception as error:  # pylint: disable=broad-except
+                    logger.warning(
+                        "ClusterInfo Doris backend collection failed, cluster_id->[%s], error->[%s]",
+                        self.cluster_id,
+                        error,
+                    )
+                    details.setdefault("collection_errors", []).append(
+                        {
+                            "component": "backends",
+                            "code": "DORIS_BACKENDS_QUERY_FAILED",
+                            "message": "Doris 集群后端状态和容量查询失败",
+                            "details": self._format_check_exception(error),
+                        }
+                    )
         finally:
             connection.close()
 
@@ -531,7 +838,7 @@ class ClusterInfo(models.Model):
             status=self.CHECK_STATUS_AVAILABLE,
             is_connected=True,
             is_available=True,
-            details={"query": "SELECT 1", "response": row},
+            details=details,
         )
 
     @classmethod

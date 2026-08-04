@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -29,11 +28,12 @@ from fta_web.alert.resources import (
     AlertPermissionResource,
     AlertRelatedInfoResource,
 )
+from monitor_web.shield.serializers import DimensionConditionSlz
 
 logger = logging.getLogger(__name__)
 
 
-class EventTargetMixin(object):
+class EventTargetMixin:
     @classmethod
     def get_target_display(cls, alert, topo_links=None):
         """
@@ -274,7 +274,7 @@ class GetEventGraphView(AlertPermissionResource):
 
         compare_series_name = ""
         if time_compare:
-            query_params["function"].update({"time_compare": ["{}h".format(time_compare)]})
+            query_params["function"].update({"time_compare": [f"{time_compare}h"]})
             compare_series_name = hms_string(timedelta(hours=time_compare).total_seconds())
         result = resource.alert.alert_graph_query(**query_params)
 
@@ -299,7 +299,7 @@ class GetEventGraphView(AlertPermissionResource):
                         continue
                     # 记录该点的时间
                     current_time = point[1]
-                    current = "{:g}".format(point[0])
+                    current = f"{point[0]:g}"
                     break
                 else:
                     current_time = 0
@@ -307,14 +307,14 @@ class GetEventGraphView(AlertPermissionResource):
                 # 查找对应时间的点
                 for point in datapoints:
                     if point[1] == current_time and point[0] is not None:
-                        current = "{:g}".format(point[0])
+                        current = f"{point[0]:g}"
 
             series["statistics"] = {
-                "min": "{:g}".format(min(points)) if points else "",
-                "max": "{:g}".format(max(points)) if points else "",
-                "avg": "{:g}".format(sum(points) / len(points)) if points else "",
+                "min": f"{min(points):g}" if points else "",
+                "max": f"{max(points):g}" if points else "",
+                "avg": f"{sum(points) / len(points):g}" if points else "",
                 "current": current,
-                "total": "{:g}".format(sum(points)),
+                "total": f"{sum(points):g}",
             }
 
         return result["series"]
@@ -341,7 +341,7 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
         for alert in alerts:
             event = alert.event_document
 
-            key = "{}|{}".format(alert.strategy_id, alert.severity)
+            key = f"{alert.strategy_id}|{alert.severity}"
             # 如果不存在分组则初始化
             if key not in result:
                 result[key] = {
@@ -481,6 +481,7 @@ class QuickShield(AlertPermissionResource):
         end_time = serializers.DateTimeField(label="屏蔽结束时间", input_formats=["%Y-%m-%d %H:%M:%S"])
         description = serializers.CharField(label="屏蔽描述", allow_blank=True, default="")
         dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
+        dimension_conditions = serializers.ListField(label="维度条件", default=None, child=DimensionConditionSlz())
 
     @staticmethod
     def handle_scope(alert):
@@ -548,6 +549,13 @@ class QuickShield(AlertPermissionResource):
             shield_params["dimension_keys"] = params["dimension_keys"]
 
         shield_params.update(method_map[params["type"]](alert))
+
+        # 合并维度过滤条件（如 regex/nregex），与屏蔽类型无关
+        # 注意：所有 handle_* 方法均返回含 dimension_config 的 dict，此处 setdefault 为防御性兜底
+        if params.get("dimension_conditions"):
+            shield_params.setdefault("dimension_config", {})
+            shield_params["dimension_config"]["dimension_conditions"] = params["dimension_conditions"]
+
         return shield_params
 
     def perform_request(self, params):

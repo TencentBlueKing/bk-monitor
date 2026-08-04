@@ -1,0 +1,75 @@
+---
+description: 自测完成后询问 Commit → PR → TAPD 回填；内容仅追加评论，禁止改写单据正文；状态可逐步流转。
+alwaysApply: true
+---
+
+# TAPD Submit Backfill（Comment-Only + Commit/PR Gate）
+
+## 触发
+
+以下任一情形，且 `.aafe.config.json` → `tapd.enabled === true`：
+
+1. **自测完成之后**（影响分析 + 最小收敛自测已跑完，或用户明确跳过自测）
+2. 用户意图为提交 / commit / push / 提测 / 提 PR
+
+详细步骤见 Skill：`bklog/web/.ai-agent/skills/tapd-submit-backfill.md`
+
+## 强制顺序（不可跳步）
+
+```text
+自测完成（含 UI 路径预生成与执行）
+  → 询问：是否执行 Commit？
+      ├─ 是 → 按类型 commit → 尝试创建/推送 PR → 询问：是否回填 TAPD？
+      └─ 否 → 仍询问：是否回填 TAPD？
+  → 用户同意回填 → comments_create（+ 可选 PR 字段 / 状态流转）
+```
+
+### Commit message（强制格式）
+
+| 单子类型 | 格式 |
+| --- | --- |
+| bug | `bug: {TAPD 标题} --bug={bug_id}` |
+| 需求 / story | `feat: {TAPD 标题} --story={story_id}` |
+
+- 标题取自 TAPD 单据 `name` / `title`；ID 为完整数字 ID（非短链展示号亦可，但须与 TAPD 一致）
+- 未关联 TAPD 单时：先解析/询问 entry，再 commit；禁止瞎编 ID
+
+### PR
+
+Commit 成功后**尝试**执行 git PR（`gh pr create` 等，按仓库 creating-pull-requests 规则）。PR 成功则保留 URL，供回填。
+
+### 回填询问
+
+无论是否 Commit / 是否产出 PR，自测结束后都要问：
+
+> 是否回填 TAPD 单子？
+
+同意词示例：`是` / `Yes` / `Y` / `需要` / `同意` / `回填` / `好的` / `可以` / `ok`（含明显同义肯定）。  
+否定则跳过，不自动回填。
+
+## 回填方式（强制）
+
+「处理结果 / 预测影响范围 / 自测结果」**只能通过追加评论**：
+
+1. Read `bklog/web/.ai-agent/skills/tapd-submit-backfill.md`
+2. TAPD MCP `comments_create` 追加评论
+3. UI 截图：`tapd_file_upload_url_generate`（`upload_kind=image`）上传后，将 `html_code` 嵌入评论
+4. 若单据存在 PR 链接字段（配置 `tapd.*.pr_field` 或 MCP 探测到），用 `stories_update` / `bugs_update` **仅更新该字段**为本次 PR URL
+
+## 禁止事项
+
+- **禁止**为回填内容调用 update 改写 `description`、`test_focus` 或其他业务正文
+- **禁止**覆盖/重写原单据背景、截图、目标等已有内容
+- 允许的 update：状态逐步流转；PR 链接字段；用户明确要求改的字段
+- 禁止跳过中间状态（如 todo → for_test）
+- 禁止无自测/影响范围评论就改到 `for_test`（用户明确跳过自测并仍要求回填时，评论中标注 `self_test=skipped`）
+- 禁止伪造 MCP / 测试结果；禁止未拿到用户指定 URL 时自动探测环境
+
+## 与自测的衔接
+
+- 自测规则见 `task-completion-impact.mdc`
+- 若含 UI 自测：必须在执行前产出完整 `ui_test_paths`（见 `minimal-convergent-self-test.md`），禁止边点边大范围读代码
+
+## 状态流转
+
+规则见 Skill；本 Rule：**内容回填 = 评论，状态流转 ≠ 改写描述**。

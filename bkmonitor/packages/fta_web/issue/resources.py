@@ -277,7 +277,9 @@ class IssueTopNResource(Resource):
         # 因此放在子线程中与各分片 TopN 查询并行执行，避免串行等待
         executor = ThreadPool(processes=1)
         try:
-            future = executor.apply_async(self.get_bucket_count, [validated_request_data])
+            # 必须传副本：下面 pop 时间范围换成分片区间，与子线程共享同一 dict 时，
+            # 基数聚合覆盖的区间取决于线程调度，无法保证是上面注释要求的"完整时间范围"。
+            future = executor.apply_async(self.get_bucket_count, [dict(validated_request_data)])
 
             # 切分时间区间：pop 掉原始 start/end，用切片后的区间替代下发到每个分片请求
             validated_request_data.pop("start_time")

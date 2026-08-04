@@ -13,6 +13,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from api.unify_query.default import QueryRawResource
+from bkmonitor.data_source.unify_query.builder import QueryHelper
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 
 
@@ -38,6 +40,66 @@ def build_unify_query() -> UnifyQuery:
 
 
 class TestUnifyQuery:
+    def test_query_helper_forwards_es_batch_opt_in(self):
+        unify_query = MagicMock()
+        unify_query.query_log.return_value = ([], 0)
+        query_body = {
+            "start_time": 100,
+            "end_time": 200,
+            "limit": 20,
+            "order_by": ["-time"],
+            "offset": 0,
+            "search_after_key": None,
+            "is_time_align": False,
+            "is_es_batch": True,
+        }
+
+        assert QueryHelper._query_log(unify_query, query_body) == []
+        unify_query.query_log.assert_called_once_with(
+            start_time=100,
+            end_time=200,
+            limit=20,
+            order_by=["-time"],
+            offset=0,
+            search_after_key=None,
+            time_alignment=False,
+            is_es_batch=True,
+        )
+
+    @pytest.mark.parametrize(
+        ("is_es_batch", "expected_params"),
+        [
+            (False, {}),
+            (True, {"is_es_batch": True}),
+        ],
+    )
+    def test_query_log_only_sends_explicit_es_batch_opt_in(
+        self, mocker, mock_query_metrics, is_es_batch, expected_params
+    ):
+        query = build_unify_query()
+        span = MagicMock()
+        mocker.patch.object(query, "get_observe_labels", return_value={"data_source_label": "bk_apm"})
+        mocker.patch.object(query, "process_time_range", return_value=(100, 200))
+        mocker.patch.object(query, "use_unify_query", return_value=True)
+        mocker.patch.object(
+            query,
+            "get_unify_query_params",
+            return_value={"query_list": [{"reference_name": "a"}]},
+        )
+        mocker.patch.object(query, "process_unify_query_log", return_value=[])
+        mocker.patch.object(query, "process_log_by_datasource", return_value=[])
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.tracer.start_as_current_span", return_value=nullcontext(span)
+        )
+        query_raw = mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.query_raw", return_value={})
+
+        query.query_log(start_time=100, end_time=200, is_es_batch=is_es_batch)
+
+        sent_params = query_raw.call_args.kwargs
+        assert {key: sent_params[key] for key in expected_params} == expected_params
+        if not is_es_batch:
+            assert "is_es_batch" not in sent_params
+
     def test_query_unify_query_extracts_series_stat(self, mocker):
         query = build_unify_query()
         span = MagicMock()
@@ -181,3 +243,36 @@ class TestUnifyQuery:
 
         datasource.query_data.assert_called_once()
         assert series_stat == {}
+
+
+class TestQueryRawResource:
+    def test_es_batch_is_optional_without_implicit_default(self):
+        params = {
+            "query_list": [],
+            "metric_merge": "a",
+            "start_time": "100",
+            "end_time": "200",
+            "step": "1m",
+            "space_uid": None,
+        }
+
+        serializer = QueryRawResource.RequestSerializer(data=params)
+
+        assert serializer.is_valid(), serializer.errors
+        assert "is_es_batch" not in serializer.validated_data
+
+    def test_es_batch_accepts_explicit_opt_in(self):
+        params = {
+            "query_list": [],
+            "metric_merge": "a",
+            "start_time": "100",
+            "end_time": "200",
+            "step": "1m",
+            "space_uid": None,
+            "is_es_batch": True,
+        }
+
+        serializer = QueryRawResource.RequestSerializer(data=params)
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["is_es_batch"] is True

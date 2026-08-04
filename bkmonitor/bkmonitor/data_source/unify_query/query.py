@@ -472,6 +472,7 @@ class UnifyQuery:
         offset: int | None = None,
         order_by: list[str] | None = None,
         time_alignment: bool = True,
+        is_es_batch: bool = False,
     ) -> list[dict]:
         params: dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
         if not params["query_list"]:
@@ -484,6 +485,8 @@ class UnifyQuery:
         params["limit"] = limit or 1
         params["_from"] = offset or 0
         params["timezone"] = timezone.get_current_timezone_name()
+        if is_es_batch:
+            params["is_es_batch"] = True
 
         params_json: str = json.dumps(params)
         logger.info("UNIFY_QUERY: %s", params_json)
@@ -738,6 +741,7 @@ class UnifyQuery:
         limit: int = None,
         offset: int = None,
         order_by: list[str] | None = None,
+        is_es_batch: bool = False,
         *args,
         **kwargs,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -760,6 +764,7 @@ class UnifyQuery:
                         offset=offset,
                         order_by=order_by,
                         time_alignment=kwargs.get("time_alignment", True),
+                        is_es_batch=is_es_batch,
                     )
             except Exception as e:
                 exc = e

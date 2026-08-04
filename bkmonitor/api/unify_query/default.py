@@ -184,6 +184,7 @@ class QueryRawResource(UnifyQueryAPIResource):
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
         order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+        is_es_batch = serializers.BooleanField(required=False)
 
     def perform_request(self, params):
         params["from"] = params.pop("_from", 0)

@@ -45,10 +45,10 @@ class _FakeIncidentDocument:
         self.id = kwargs.get("id", f"{kwargs.get('create_time', 0)}{self.incident_id}")
         self.end_time = kwargs.get("end_time")
 
-    def generate_handlers(self, snapshot):
+    def generate_handlers(self, snapshot, alert_docs=None):
         return None
 
-    def generate_assignees(self, snapshot):
+    def generate_assignees(self, snapshot, alert_docs=None):
         return None
 
     @classmethod
@@ -80,6 +80,42 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.processor.update_alert_incident_relations = lambda *args, **kwargs: {}
         self.processor.generate_incident_labels = lambda *args, **kwargs: None
         self.processor.generate_alert_operations = lambda *args, **kwargs: None
+
+    @patch("alarm_backends.service.access.incident.processor.AlertDocument.mget")
+    def test_get_snapshot_alert_documents_batches_unique_alert_ids(self, mock_mget):
+        snapshot = SimpleNamespace(
+            content=SimpleNamespace(
+                incident_alerts=[
+                    {"id": "1"},
+                    {"id": "2"},
+                    {"id": "1"},
+                ]
+            )
+        )
+        alert_documents = [SimpleNamespace(id="1"), SimpleNamespace(id="2")]
+        mock_mget.return_value = alert_documents
+
+        result = self.processor.get_snapshot_alert_documents(snapshot)
+
+        mock_mget.assert_called_once_with(["1", "2"])
+        self.assertEqual(result, {"1": alert_documents[0], "2": alert_documents[1]})
+
+    @patch("alarm_backends.service.access.incident.processor.logger.warning")
+    @patch("alarm_backends.service.access.incident.processor.time.monotonic", return_value=11)
+    def test_log_slow_stage_contains_incident_context(self, mock_monotonic, mock_warning):
+        sync_info = {
+            "incident_id": 1001,
+            "sync_type": "update",
+            "scope": {"alerts": ["1"]},
+        }
+
+        self.processor.log_slow_stage(sync_info, stage="alert_document_lookup", started_at=0)
+
+        mock_warning.assert_called_once()
+        log_message = mock_warning.call_args.args[0]
+        self.assertIn("incident_id=%s", log_message)
+        self.assertIn("stage=%s", log_message)
+        self.assertEqual(mock_warning.call_args.args[1:5], (1001, "update", 1, "alert_document_lookup"))
 
     def test_mark_bkfara_source_persists_process_info_on_attr_dict(self):
         incident_document = SimpleNamespace(extra_info=_AttrDictLike())
@@ -135,6 +171,31 @@ class TestAccessIncidentProcessor(SimpleTestCase):
 
         self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
         self.assertIn("notice_config", mock_record_create.call_args.kwargs)
+
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentDocument", _FakeIncidentDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_create_incident")
+    def test_create_incident_reads_timeout_from_api_resources(self, mock_record_create, mock_snapshot_model, mock_api):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        get_incident_snapshot = Mock(
+            TIMEOUT=300,
+            return_value={"incident_alerts": [{"id": 177}], "rca_summary": {"bk_biz_ids": [132]}},
+        )
+        update_incident_detail = Mock(TIMEOUT=300)
+        mock_api.bkdata = SimpleNamespace(
+            get_incident_snapshot=get_incident_snapshot,
+            update_incident_detail=update_incident_detail,
+        )
+        sync_info = self._base_sync_info()
+        sync_info["fpp_snapshot_id"] = "snapshot-1"
+
+        self.processor.create_incident(sync_info)
+
+        get_incident_snapshot.assert_called_once_with(snapshot_id="snapshot-1")
+        update_incident_detail.assert_called_once()
+        mock_record_create.assert_called_once()
 
     @patch("alarm_backends.service.access.incident.processor.time.time", return_value=1710000099)
     @patch("alarm_backends.service.access.incident.processor.api")

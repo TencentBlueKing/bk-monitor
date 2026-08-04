@@ -115,6 +115,10 @@ class GetClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryClusterInfoResource)]
 
 
+class GetClusterStatusViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetClusterStatusResource)]
+
+
 class QueryEventGroupViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryEventGroupResource)]
 
