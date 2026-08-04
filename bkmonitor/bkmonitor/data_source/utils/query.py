@@ -188,7 +188,13 @@ class BaseQuery:
             .order_by("_value desc")
             for q in queries
         ]
-        qs = self.get_qs(start_time, end_time).expression(alias).time_agg(False).instant().limit(query_limit)
+        qs = (
+            self.get_qs(start_time, end_time)
+            .expression(alias)
+            .time_agg(False)
+            .instant()
+            .limit(max(query_limit, self.QUERY_MAX_LIMIT))
+        )
         records = list(self._add_query(qs, queries))
         return sorted(records, key=lambda item: item["_result_"], reverse=True)[:limit]
 
@@ -209,12 +215,19 @@ class BaseQuery:
         :param limit: 每个字段最多返回的枚举值数量，默认 20
         :return: 字段名到枚举值列表的映射字典
         """
-        qs = self.get_qs(start_time, end_time).expression("a").time_agg(False).instant().limit(limit)
+        query_limit = limit * 2 + 10
+        qs = (
+            self.get_qs(start_time, end_time)
+            .expression("a")
+            .time_agg(False)
+            .instant()
+            .limit(max(query_limit, self.QUERY_MAX_LIMIT))
+        )
         option_values: dict[str, list[str]] = {field: [] for field in fields}
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(queries, qs, field, option_values) for field in fields]
         )
-        return option_values
+        return {field: values[:limit] for field, values in option_values.items()}
 
     @classmethod
     def _collect_option_values(
@@ -227,7 +240,11 @@ class BaseQuery:
         :param field: 目标字段名
         :param option_values: 结果收集字典，key 为字段名，value 为枚举值列表（原地修改）
         """
-        queries = [q.metric(field=field, method="COUNT", alias="a").group_by(field) for q in queries]
+        queries = [
+            q.metric(field=field, method="COUNT", alias="a").group_by(field).order_by("_value desc") for q in queries
+        ]
+        records = list(cls._add_query(queryset, queries))
+        sorted(records, key=lambda item: item["_result_"], reverse=True)
         for bucket in cls._add_query(queryset, queries):
             if bucket["_result_"] == 0:
                 continue

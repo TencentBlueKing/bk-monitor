@@ -19,7 +19,9 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
-    USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+    USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_RUM)
+    DEFAULT_TIME_FIELD = "end_time"
+    DEFAULT_SORT = ["-end_time"]
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources
@@ -33,7 +35,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     ) -> list[QueryConfigBuilder]:
         return [
             self.build_query_q(
-                QueryConfigBuilder(self.USING).table(ds.table_id).time_field(self.DEFAULT_TIME_FIELD),
+                self._get_q().table(ds.table_id),
                 filters,
                 query_string,
             )
