@@ -22,11 +22,14 @@ the project delivered to anyone in the future.
 import datetime
 import io
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
+from threading import Barrier, Lock
 from unittest.mock import Mock, patch
 
+from django.db import close_old_connections
 from django.db.models.query import QuerySet
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from django.utils.translation import gettext
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -96,6 +99,22 @@ class FakeSearchHandler:
 
     def pre_get_result(self, sorted_fields, size):
         return {"_shards": {"total": 1, "successful": 1, "failures": []}}
+
+
+class BarrierRedisLock:
+    """使用同步屏障和线程锁模拟多个请求同时竞争同一个 Redis 锁。"""
+
+    def __init__(self, shared_lock, acquire_barrier, blocking_timeout):
+        self.shared_lock = shared_lock
+        self.acquire_barrier = acquire_barrier
+        self.blocking_timeout = blocking_timeout
+
+    def acquire(self):
+        self.acquire_barrier.wait(timeout=5)
+        return self.shared_lock.acquire(timeout=self.blocking_timeout)
+
+    def release(self):
+        self.shared_lock.release()
 
 
 class TestAsyncExportProgress(TestCase):
@@ -705,6 +724,65 @@ class TestAsyncTaskConcurrentLimit(TestCase):
         self.assertTrue(AsyncTask.objects.filter(id=task.id).exists())
         lock.release.assert_called_once_with()
         mock_logger_exception.assert_called_once()
+
+
+@override_settings(USE_REDIS=True, MAX_CONCURRENT_EXPORT_TASKS=TEST_MAX_CONCURRENT_EXPORT_TASKS)
+class TestAsyncTaskConcurrentCreation(TransactionTestCase):
+    def test_same_user_same_scene_concurrent_creation_does_not_exceed_limit(self):
+        username = "concurrent_test_user"
+        request_count = TEST_MAX_CONCURRENT_EXPORT_TASKS + 1
+        acquire_barrier = Barrier(request_count)
+        locks_by_key = {}
+        captured_lock_keys = []
+        lock_registry_guard = Lock()
+
+        def create_lock(lock_key, timeout, blocking_timeout):
+            with lock_registry_guard:
+                captured_lock_keys.append(lock_key)
+                shared_lock = locks_by_key.setdefault(lock_key, Lock())
+            return BarrierRedisLock(shared_lock, acquire_barrier, blocking_timeout)
+
+        def create_task():
+            close_old_connections()
+            try:
+                task = AsyncTask.async_export_task_create_with_running_limit(
+                    username=username,
+                    is_scene=True,
+                    request_param=SEARCH_DICT,
+                    scenario_id=ASYNC_EXPORT_SCENE_ID,
+                )
+                return "created", task.id
+            except ConcurrentExportLimitException as error:
+                return "rejected", error
+            except Exception as error:  # pylint: disable=broad-except
+                return "unexpected_error", error
+            finally:
+                close_old_connections()
+
+        with patch("apps.log_search.models.cache.lock", side_effect=create_lock):
+            with ThreadPoolExecutor(max_workers=request_count) as executor:
+                futures = [executor.submit(create_task) for _ in range(request_count)]
+                results = [future.result(timeout=10) for future in futures]
+
+        created_results = [result for result in results if result[0] == "created"]
+        rejected_results = [result for result in results if result[0] == "rejected"]
+        unexpected_errors = [result[1] for result in results if result[0] == "unexpected_error"]
+
+        self.assertFalse(unexpected_errors, unexpected_errors)
+        self.assertEqual(len(created_results), TEST_MAX_CONCURRENT_EXPORT_TASKS)
+        self.assertEqual(len(rejected_results), request_count - TEST_MAX_CONCURRENT_EXPORT_TASKS)
+        self.assertTrue(all(isinstance(result[1], ConcurrentExportLimitException) for result in rejected_results))
+        self.assertEqual(len(captured_lock_keys), request_count)
+        self.assertEqual(len(set(captured_lock_keys)), 1)
+        self.assertIn(f":{ASYNC_EXPORT_SCENE_ID}:", captured_lock_keys[0])
+        self.assertEqual(
+            AsyncTask.objects.filter(
+                created_by=username,
+                scenario_id=ASYNC_EXPORT_SCENE_ID,
+                export_type=ExportType.ASYNC,
+            ).count(),
+            TEST_MAX_CONCURRENT_EXPORT_TASKS,
+        )
 
 
 class TestFailStaleAsyncExportTasks(TestCase):
