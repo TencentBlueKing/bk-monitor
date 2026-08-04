@@ -25,12 +25,12 @@ from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from apm import types
 from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard, FilterOperator, LogicSupportOperator
-from bkmonitor.data_source.utils import types
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 

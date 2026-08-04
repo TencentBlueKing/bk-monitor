@@ -20,12 +20,12 @@ from typing import Any
 
 from django.db.models import Q
 
+from apm import types
 from apm.core.handlers.ebpf.base import EbpfHandler
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmApplication, ApmDataSourceConfigBase
 from constants.apm import OtlpKey, PrecalculateStorageConfig
-from bkmonitor.data_source.utils import types
 
 logger = logging.getLogger("apm")
 
