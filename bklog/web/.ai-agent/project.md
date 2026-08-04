@@ -64,5 +64,13 @@ Project-specific rules live in `.ai-agent/rules/`:
 - `vue-development-mode.mdc` - Vue development mode constraints
 - `knowledge-self-update.mdc` - keep project knowledge current with code changes
 - `retrieve-v2-ui.mdc` - retrieve-v2/log-result UI and performance constraints
+- `task-completion-impact.mdc` - ask impact/self-test on task completion; UI path pre-gen; then Commit/PR/TAPD asks
+- `tapd-submit-backfill.mdc` - Commit gate + PR + comment-only TAPD backfill; optional PR field
+
+Related runtime skills in `.ai-agent/skills/`:
+
+- `architecture-impact-test-forecast.md` - impact report + minimal case design + UI path draft
+- `minimal-convergent-self-test.md` - unit/UI self-test; lock `ui_test_paths` before browser
+- `tapd-submit-backfill.md` - ask Commit → PR → TAPD comment backfill + screenshot embed
 
 These rules complement AAFE architecture gates in `.ai-agent/runtime/gates.yaml`.
