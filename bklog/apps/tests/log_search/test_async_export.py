@@ -117,6 +117,24 @@ class BarrierRedisLock:
         self.shared_lock.release()
 
 
+class BarrierRedisCache:
+    """为并发测试按 Redis key 提供共享的功能型假锁。"""
+
+    def __init__(self, request_count):
+        self.acquire_barrier = Barrier(request_count)
+        self.locks_by_key = {}
+        self.lock_keys = []
+        self.lock_timeouts = []
+        self.lock_registry_guard = Lock()
+
+    def lock(self, lock_key, timeout, blocking_timeout):
+        with self.lock_registry_guard:
+            self.lock_keys.append(lock_key)
+            self.lock_timeouts.append(timeout)
+            shared_lock = self.locks_by_key.setdefault(lock_key, Lock())
+        return BarrierRedisLock(shared_lock, self.acquire_barrier, blocking_timeout)
+
+
 class TestAsyncExportProgress(TestCase):
     @override_settings(USE_REDIS=True)
     def test_async_export_creates_task_with_export_total_count(self):
@@ -731,18 +749,9 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
     def test_same_user_same_scene_concurrent_creation_does_not_exceed_limit(self):
         username = "concurrent_test_user"
         request_count = TEST_MAX_CONCURRENT_EXPORT_TASKS + 1
-        acquire_barrier = Barrier(request_count)
-        locks_by_key = {}
-        captured_lock_keys = []
-        lock_registry_guard = Lock()
+        fake_cache = BarrierRedisCache(request_count)
         database_connection = connections["default"]
         share_database_connection = database_connection.vendor == "sqlite" and database_connection.is_in_memory_db()
-
-        def create_lock(lock_key, timeout, blocking_timeout):
-            with lock_registry_guard:
-                captured_lock_keys.append(lock_key)
-                shared_lock = locks_by_key.setdefault(lock_key, Lock())
-            return BarrierRedisLock(shared_lock, acquire_barrier, blocking_timeout)
 
         def create_task():
             if share_database_connection:
@@ -768,7 +777,7 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
         if share_database_connection:
             database_connection.inc_thread_sharing()
         try:
-            with patch("apps.log_search.models.cache.lock", side_effect=create_lock):
+            with patch("apps.log_search.models.cache", fake_cache):
                 with ThreadPoolExecutor(max_workers=request_count) as executor:
                     futures = [executor.submit(create_task) for _ in range(request_count)]
                     results = [future.result(timeout=10) for future in futures]
@@ -784,9 +793,10 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
         self.assertEqual(len(created_results), TEST_MAX_CONCURRENT_EXPORT_TASKS)
         self.assertEqual(len(rejected_results), request_count - TEST_MAX_CONCURRENT_EXPORT_TASKS)
         self.assertTrue(all(isinstance(result[1], ConcurrentExportLimitException) for result in rejected_results))
-        self.assertEqual(len(captured_lock_keys), request_count)
-        self.assertEqual(len(set(captured_lock_keys)), 1)
-        self.assertIn(f":{ASYNC_EXPORT_SCENE_ID}:", captured_lock_keys[0])
+        self.assertEqual(len(fake_cache.lock_keys), request_count)
+        self.assertEqual(len(set(fake_cache.lock_keys)), 1)
+        self.assertEqual(set(fake_cache.lock_timeouts), {30})
+        self.assertIn(f":{ASYNC_EXPORT_SCENE_ID}:", fake_cache.lock_keys[0])
         self.assertEqual(
             AsyncTask.objects.filter(
                 created_by=username,
