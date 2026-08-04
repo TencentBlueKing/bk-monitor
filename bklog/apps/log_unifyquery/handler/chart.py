@@ -17,12 +17,14 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
-from apps.log_search.exceptions import IndexSetDorisQueryException
+from apps.log_search.exceptions import DorisQueryDataNotReadyException, IndexSetDorisQueryException
 from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
 class UnifyQueryChartHandler(UnifyQueryHandler):
+    QUERY_RAW_PARTIAL_CODE = "QUERY_RAW_PARTIAL"
+
     def __init__(self, params):
         self.sql = params["sql"]
         self.table_id = None
@@ -79,18 +81,31 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         if not self.is_support_sql_and_grep:
             raise IndexSetDorisQueryException()
 
+    @classmethod
+    def check_query_result_status(cls, result):
+        """将 UQ 的 Doris 存储未配置状态转换为可展示的业务异常"""
+        status = (result or {}).get("status") or {}
+        if not isinstance(status, dict):
+            return
+
+        status_message = str(status.get("message", ""))
+        is_storage_not_ready = "配置" in status_message and "存储" in status_message
+        if status.get("code") == cls.QUERY_RAW_PARTIAL_CODE and is_storage_not_ready:
+            raise DorisQueryDataNotReadyException()
+
     def get_chart_data(self):
         self.check_support_sql_and_grep()
 
         start_time = time.time()
         result = UnifyQueryApi.query_ts_raw(self.base_dict)
+        self.check_query_result_status(result)
         for record in result["list"]:
             # 删除内置字段
             for key in ["__data_label", "__index", "__result_table"]:
                 record.pop(key, None)
 
         result_table_options = list(result.get("result_table_options", {}).values())
-        result_schema = result_table_options[0]["result_schema"] if result_table_options else []
+        result_schema = result_table_options[0].get("result_schema", []) if result_table_options else []
 
         return {
             "list": result["list"],
@@ -106,8 +121,9 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict["dry_run"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
+        self.check_query_result_status(result)
         result_table_options = list(result.get("result_table_options", {}).values())
-        final_sql = result_table_options[0]["sql"] if result_table_options else ""
+        final_sql = result_table_options[0].get("sql", "") if result_table_options else ""
 
         return {
             "sql": self.sql,
@@ -128,12 +144,13 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             # 首次请求清空缓存
             search_params["clear_cache"] = total_count == 0
             search_result = UnifyQueryApi.query_ts_raw_with_scroll(search_params)
+            self.check_query_result_status(search_result)
             if not search_result.get("list"):
                 break
             # 写入表头
             if not header_written:
                 result_table_options = list(search_result.get("result_table_options", {}).values())
-                result_schema = result_table_options[0]["result_schema"] if result_table_options else []
+                result_schema = result_table_options[0].get("result_schema", []) if result_table_options else []
                 fields = [field["field_alias"] for field in result_schema]
                 csv_writer.writerow(fields)
                 header_written = True
