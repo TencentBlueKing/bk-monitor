@@ -107,6 +107,28 @@ export default defineComponent({
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
 
+    const cacheTimeRange = shallowRef(null);
+    const showRestore = shallowRef(false);
+    const handleDataZoomChange = (value: string[]) => {
+      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
+        timeRange.value = value;
+        showRestore.value = true;
+      }
+    };
+    /**
+     * @description 复位时间范围
+     */
+    const handleRestore = () => {
+      const cacheTime = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      timeRange.value = cacheTime;
+      showRestore.value = false;
+    };
+
+    provide('showRestore', showRestore);
+    provide('handleDataZoomChange', handleDataZoomChange);
+    provide('handleRestore', handleRestore);
+
     /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
     const aggregation = useMetricAggregation(processMetricAggregationState.value);
     /** 进程指标数据：取数走带缓存的 panel / order */
