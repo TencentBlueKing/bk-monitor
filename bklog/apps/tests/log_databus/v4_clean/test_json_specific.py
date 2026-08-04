@@ -101,16 +101,16 @@ class TestJsonEnableRetainContent(TestCase):
         改动 V3 取值只会让存量采集项行为漂移而拿不到任何收益，故本 PR 只改 V4。
         缺 key 时须保住 JSON 侧历史缺省 True（该字段 2024-01 才引入）。
         """
-        fields = [make_field("level")]
-        config = get_fresh_config()
-
-        option = self.storage.get_result_table_config(
-            fields, {"retain_original_text": False, "enable_retain_content": True}, get_fresh_config()
-        )["option"]
-        self.assertTrue(option["enable_retain_content"])
-
-        option = self.storage.get_result_table_config(fields, {"retain_original_text": False}, config)["option"]
-        self.assertTrue(option["enable_retain_content"])
+        # built_in_config / fields 会被就地修改，每个用例都必须用全新副本
+        for etl_params in (
+            {"retain_original_text": False, "enable_retain_content": True},
+            {"retain_original_text": False},
+        ):
+            with self.subTest(etl_params=etl_params):
+                option = self.storage.get_result_table_config(
+                    [make_field("level")], etl_params, get_fresh_config()
+                )["option"]
+                self.assertTrue(option["enable_retain_content"])
 
     def test_no_enable_retain_content_json_de_drop_strategy(self):
         """enable_retain_content 未设置时 json_de 应使用 drop 策略"""
