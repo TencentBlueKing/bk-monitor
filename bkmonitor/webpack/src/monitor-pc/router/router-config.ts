@@ -153,6 +153,16 @@ export const getRouteConfig = () => {
           // isBeta: window.platform?.te === false,
           canStore: true,
         },
+        {
+          name: 'RUM 检索',
+          icon: 'icon-monitor icon-RUM menu-icon',
+          navName: 'RUM 检索',
+          id: 'rum-explore',
+          path: '/trace/rum-explore',
+          href: '#/trace/rum-explore',
+          usePath: true,
+          canStore: true,
+        },
       ],
     },
     {
