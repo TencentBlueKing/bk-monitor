@@ -920,15 +920,6 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         required=False,
     )
 
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        # 保留失败日志、清洗失败标记均从属于保留原文：未保留原文时清洗失败的数据没有可读内容，
-        # 留在库里只会占用存储，这里直接收敛，避免下游各清洗类型重复判断。
-        if not attrs.get("retain_original_text", True):
-            attrs["enable_retain_content"] = False
-            attrs["record_parse_failure"] = False
-        return attrs
-
 
 class CollectorStopSerializer(serializers.Serializer):
     is_stop_index_set = serializers.BooleanField(label=_("是否停止索引集"), required=False, default=True)

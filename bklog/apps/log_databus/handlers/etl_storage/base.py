@@ -748,26 +748,19 @@ class EtlStorage:
         return rules
 
     @staticmethod
-    def is_retain_content_enabled(etl_params: dict, default: bool = False) -> bool:
+    def is_retain_content_enabled(etl_params: dict) -> bool:
         """
-        是否保留清洗失败日志。仅在开启保留原文时生效：未保留原文时，清洗失败的数据没有可读内容，
-        留在库里只占存储，因此这里把 enable_retain_content 收敛为 retain_original_text 的子开关。
+        是否保留清洗失败日志。仅用于 V4 清洗链路：未保留原文时，清洗失败的数据没有可读内容，
+        留在库里只占存储，因此在 V4 里把 enable_retain_content 收敛为 retain_original_text 的子开关。
+
+        仅限 V4：V3（Transfer）侧 option 的取值不走这里，保持原样下发。V3 的分隔符/正则 transformer
+        并不读取该 option（`TransformMapBySeparator` / `TransformMapByRegexp` 恒返回 nil error），
+        改动 V3 取值既无法带来丢弃效果，又会让存量采集项行为漂移。
         :param etl_params: 清洗参数
-        :param default: enable_retain_content 缺失时的取值。该字段 2024-01 才引入，更早的存量
-                        etl_params 没有这个 key，各调用点需沿用自己原有的缺省语义（JSON 为 True，
-                        分隔符/正则及 V4 规则为 False），否则会静默改变存量采集项的行为。
         """
         if not etl_params.get("retain_original_text"):
             return False
-        return bool(etl_params.get("enable_retain_content", default))
-
-    @staticmethod
-    def is_record_parse_failure_enabled(etl_params: dict) -> bool:
-        """
-        是否输出清洗失败标记字段。同样从属于保留原文，避免存量配置在关闭保留原文后仍产出 __parse_failure。
-        :param etl_params: 清洗参数
-        """
-        return bool(etl_params.get("record_parse_failure")) and bool(etl_params.get("retain_original_text"))
+        return bool(etl_params.get("enable_retain_content"))
 
     def _build_parse_failure_field_v4(self, etl_params: dict) -> list:
         """
@@ -776,7 +769,10 @@ class EtlStorage:
         :return: 清洗失败标记字段规则列表
         """
         rules = []
-        if self.is_record_parse_failure_enabled(etl_params):
+        # 仅由 record_parse_failure 决定，不与 retain_original_text 联动：分隔符/正则在两条链路上
+        # 都没有丢弃失败记录的能力，若此时抹掉 __parse_failure，失败记录会退化成「字段全空且无法
+        # 判断失败原因」的数据，比保留标记更糟。须与 get_result_table_fields 的判定保持一致。
+        if etl_params.get("record_parse_failure"):
             rules.append(
                 {
                     "input_id": self.separator_node_name,
@@ -978,8 +974,8 @@ class EtlStorage:
                 },
             )
 
-        # 增加清洗失败标记
-        if self.is_record_parse_failure_enabled(etl_params):
+        # 增加清洗失败标记（结果表字段为 V3/V4 共用，不随 retain_original_text 联动）
+        if etl_params.get("record_parse_failure"):
             field_list.append(
                 {
                     "field_name": PARSE_FAILURE_FIELD,

@@ -81,14 +81,36 @@ class TestJsonEnableRetainContent(TestCase):
         self.assertEqual(len(sep_rules), 1)
         self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "drop")
 
-    def test_is_retain_content_enabled_default_compat(self):
-        """enable_retain_content 缺失时按调用点给的 default 取值，保住该字段引入前的存量语义"""
-        # 保留原文 + 缺 key：JSON get_result_table_config 传 default=True 需仍为 True
-        self.assertTrue(self.storage.is_retain_content_enabled({"retain_original_text": True}, default=True))
-        # V4 规则等调用点不传 default，缺 key 视为 False
+    def test_is_retain_content_enabled_truth_table(self):
+        """helper 仅服务 V4：两个开关都为真才成立，缺 key 视为 False"""
+        self.assertTrue(
+            self.storage.is_retain_content_enabled({"retain_original_text": True, "enable_retain_content": True})
+        )
+        self.assertFalse(
+            self.storage.is_retain_content_enabled({"retain_original_text": False, "enable_retain_content": True})
+        )
+        self.assertFalse(
+            self.storage.is_retain_content_enabled({"retain_original_text": True, "enable_retain_content": False})
+        )
         self.assertFalse(self.storage.is_retain_content_enabled({"retain_original_text": True}))
-        # 未保留原文时 default 一律不生效
-        self.assertFalse(self.storage.is_retain_content_enabled({"retain_original_text": False}, default=True))
+
+    def test_v3_option_not_affected_by_retain_original_text(self):
+        """V3（Transfer）option 的 enable_retain_content 不受 retain_original_text 影响。
+
+        V3 的分隔符/正则 transformer 根本不读该 option（恒返回 nil error，不会丢弃失败记录），
+        改动 V3 取值只会让存量采集项行为漂移而拿不到任何收益，故本 PR 只改 V4。
+        缺 key 时须保住 JSON 侧历史缺省 True（该字段 2024-01 才引入）。
+        """
+        fields = [make_field("level")]
+        config = get_fresh_config()
+
+        option = self.storage.get_result_table_config(
+            fields, {"retain_original_text": False, "enable_retain_content": True}, get_fresh_config()
+        )["option"]
+        self.assertTrue(option["enable_retain_content"])
+
+        option = self.storage.get_result_table_config(fields, {"retain_original_text": False}, config)["option"]
+        self.assertTrue(option["enable_retain_content"])
 
     def test_no_enable_retain_content_json_de_drop_strategy(self):
         """enable_retain_content 未设置时 json_de 应使用 drop 策略"""
