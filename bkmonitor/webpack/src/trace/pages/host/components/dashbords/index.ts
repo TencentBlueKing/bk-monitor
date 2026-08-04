@@ -25,7 +25,6 @@
  */
 
 export { default as DashboardPanel } from './components/dashboard-panel';
-export { createGraphApi } from './services/graph-api';
 export type { DashboardRow } from './typings/dashboard';
 
 export { buildScopedVars } from './variables/resolve';
