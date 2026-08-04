@@ -56,7 +56,7 @@ class BaseQuery:
         return (
             QueryConfigBuilder((query_config["data_type_label"], query_config["data_source_label"]))
             .table(query_config["table"])
-            .time_field(cls.DEFAULT_TIME_FIELD)
+            .time_field(query_config.get("time_field") or cls.DEFAULT_TIME_FIELD)
             .group_by(*query_config.get("group_by", []))
             .conditions(query_config.get("where", []))
             .filter(conditions_to_q(filter_dict_to_conditions(query_config.get("filter_dict") or {}, [])))
@@ -183,7 +183,8 @@ class BaseQuery:
         alias: str = "a"
         query_limit = limit * 2 + 10
         queries = [
-            q.metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
+            q.alias(alias)
+            .metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
             .group_by(field)
             .order_by("_value desc")
             for q in queries
@@ -193,7 +194,7 @@ class BaseQuery:
             .expression(alias)
             .time_agg(False)
             .instant()
-            .limit(max(query_limit, self.QUERY_MAX_LIMIT))
+            .limit(min(query_limit, self.QUERY_MAX_LIMIT))
         )
         records = list(self._add_query(qs, queries))
         return sorted(records, key=lambda item: item["_result_"], reverse=True)[:limit]
@@ -221,7 +222,7 @@ class BaseQuery:
             .expression("a")
             .time_agg(False)
             .instant()
-            .limit(max(query_limit, self.QUERY_MAX_LIMIT))
+            .limit(min(query_limit, self.QUERY_MAX_LIMIT))
         )
         option_values: dict[str, list[str]] = {field: [] for field in fields}
         ThreadPool().map_ignore_exception(
@@ -240,12 +241,17 @@ class BaseQuery:
         :param field: 目标字段名
         :param option_values: 结果收集字典，key 为字段名，value 为枚举值列表（原地修改）
         """
+        alias = "a"
         queries = [
-            q.metric(field=field, method="COUNT", alias="a").group_by(field).order_by("_value desc") for q in queries
+            q.alias(alias).metric(field=field, method="COUNT", alias=alias).group_by(field).order_by("_value desc")
+            for q in queries
         ]
-        records = list(cls._add_query(queryset, queries))
-        sorted(records, key=lambda item: item["_result_"], reverse=True)
-        for bucket in cls._add_query(queryset, queries):
+        records = sorted(
+            cls._add_query(queryset, queries),
+            key=lambda item: item["_result_"],
+            reverse=True,
+        )
+        for bucket in records:
             if bucket["_result_"] == 0:
                 continue
             option_values[field].append(bucket[field])
@@ -269,16 +275,17 @@ class BaseQuery:
         :param enable_topk: 为 True 时使用 topk 表达式过滤，默认 False
         :return: 图表查询配置对象
         """
+        alias = "a"
         queries = [
-            q.alias("a")
+            q.alias(alias)
             .interval(get_bar_interval_number(start_time, end_time))
-            .metric(field=field, method="COUNT", alias="a")
+            .metric(field=field, method="COUNT", alias=alias)
             .group_by(field)
             for q in queries
         ]
         return self._add_query(
             self.get_qs(start_time, end_time)
-            .expression(f"topk({limit}, a)" if enable_topk else "a")
+            .expression(f"topk({limit}, {alias})" if enable_topk else alias)
             .time_agg(False)
             .instant(),
             queries,
@@ -327,12 +334,19 @@ class BaseQuery:
         避免多 RT 场景下重叠值被重复计数。
         """
         alias = "a"
+        # 单 RT 直接使用存储侧 distinct
+        base_qs = self.get_qs(start_time, end_time).expression(alias).time_agg(False).instant()
+        if len(queries) == 1:
+            queries = [q.alias(alias).metric(field=field, method="distinct", alias=alias) for q in queries]
+            return list(self._add_query(base_qs, queries).limit(1))[0]["_result_"]
+
+        # 多 RT 需要枚举后合并去重
         queries = [
-            q.metric(field=field, method="COUNT", alias=alias).group_by(field).order_by("_value desc") for q in queries
+            q.alias(alias).metric(field=field, method="COUNT", alias=alias).group_by(field).order_by("_value desc")
+            for q in queries
         ]
-        qs = self.get_qs(start_time, end_time).expression(alias).time_agg(False).instant().limit(self.QUERY_MAX_LIMIT)
         distinct_values: set[Any] = set()
-        for record in self._add_query(qs, queries):
+        for record in self._add_query(base_qs.limit(self.QUERY_MAX_LIMIT), queries):
             if record.get("_result_", 0) == 0:
                 continue
             distinct_values.add(record.get(field))

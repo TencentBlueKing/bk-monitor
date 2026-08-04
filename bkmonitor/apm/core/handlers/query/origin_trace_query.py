@@ -21,11 +21,10 @@ from django.db.models import Q
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode
 
-from apm import constants
+from apm import constants, types
 from apm.core.discover.precalculation.processor import PrecalculateProcessor
 from apm.core.handlers.query.base import BaseQuery, QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.data_source.utils import types
 from constants.apm import OtlpKey
 
 

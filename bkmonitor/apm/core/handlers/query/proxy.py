@@ -22,6 +22,7 @@ from typing import Any
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.handlers.query.base import FakeQuery, FilterOperator
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
@@ -32,7 +33,6 @@ from apm.core.handlers.query.trace_query import TraceQuery
 from apm.models import ApmApplication, ApmDataSourceConfigBase
 from apm_ebpf.models import DeepflowWorkload
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.data_source.utils import types
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
 logger = logging.getLogger("apm")

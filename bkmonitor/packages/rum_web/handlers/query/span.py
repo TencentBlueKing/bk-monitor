@@ -88,3 +88,16 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
         return super()._query_field_topk(
             self.get_queries(filters, query_string), start_time, end_time, field, limit, need_empty
         )
+
+    def query_option_values(
+        self,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_option_values(
+            self.get_queries(filters, query_string), start_time, end_time, fields, limit
+        )
