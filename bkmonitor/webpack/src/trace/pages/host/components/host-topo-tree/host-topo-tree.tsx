@@ -59,7 +59,7 @@ export default defineComponent({
     const notifyViewport = () => {
       const element = scrollRef.value;
       if (element) {
-        ctx.handleViewportChange(element.scrollTop, element.clientHeight);
+        ctx.handleViewportChange(element.scrollTop, element.clientHeight, element);
       }
     };
 

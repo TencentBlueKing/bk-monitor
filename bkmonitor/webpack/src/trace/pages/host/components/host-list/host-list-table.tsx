@@ -161,6 +161,7 @@ export default defineComponent({
     selectChange: (_keys: (number | string)[], _isAcrossPage: boolean) => true,
     columnsChange: (_cols: string[]) => true,
     aggMethodChange: (_metricKey: string, _method: EHostAggMethod) => true,
+    selectIpCell: (_row: IHostListRow) => true,
   },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
@@ -346,11 +347,16 @@ export default defineComponent({
       }
     );
 
+    /** 点击 IP 单元格时触发 selectIpCell 事件，由父组件处理拓扑树聚焦 */
+    const handleSelectIpCell = (row: IHostListRow) => {
+      emit('selectIpCell', row);
+    };
+
     // --- 单元格渲染器 ---
     const renderIpCell = (row: IHostListRow) => (
       <span
         class='host-table-ip'
-        v-bk-tooltips={{ content: t('详情页开发中'), delay: 300 }}
+        onClick={() => handleSelectIpCell(row)}
       >
         {row.display_name || row.bk_host_innerip || '--'}
       </span>

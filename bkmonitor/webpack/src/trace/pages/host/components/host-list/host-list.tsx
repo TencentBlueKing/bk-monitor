@@ -36,7 +36,7 @@ import HostListTable from './host-list-table';
 import HostListToolbar from './host-list-toolbar';
 import HostStatCards from './host-stat-cards';
 
-import type { EHostQuickCategory } from '../../types/host-list';
+import type { EHostQuickCategory, IHostListRow } from '../../types/host-list';
 import type { IHostTopoTreeNode } from '../../types/topo';
 
 import './host-list.scss';
@@ -50,7 +50,10 @@ export default defineComponent({
       default: null,
     },
   },
-  setup(props) {
+  emits: {
+    selectIpCell: (_row: IHostListRow) => true,
+  },
+  setup(props, { emit }) {
     const { where, filterExpanded, activeCategory, keyword } = storeToRefs(useHostStore());
     const ctx = useHostList({
       selectedNode: toRef(props, 'selectedNode'),
@@ -61,6 +64,11 @@ export default defineComponent({
     });
 
     const hasSelection = computed(() => ctx.selectedRowKeys.value.length > 0);
+
+    /** 点击主机列表 IP 单元格时，向上冒泡到页面层处理拓扑树聚焦 */
+    const handleSelectIpCell = row => {
+      emit('selectIpCell', row);
+    };
 
     return () => (
       <Loading
@@ -114,6 +122,7 @@ export default defineComponent({
           onPageSizeChange={ctx.handlePageSizeChange}
           onSelectChange={ctx.handleSelectChange}
           onSortChange={ctx.handleSortChange}
+          onSelectIpCell={handleSelectIpCell}
         />
       </Loading>
     );

@@ -50,6 +50,7 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
       const data = await getHostOrTopoNodeDetail(
         isHostNode(node)
           ? {
+              bk_biz_id: node.bk_biz_id,
               bk_host_id: node.bk_host_id,
             }
           : {

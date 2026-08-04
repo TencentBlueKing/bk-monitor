@@ -320,6 +320,31 @@ const postState = (requestId, start, end, type) => {
   });
 };
 
+/** 获取节点在可视列表中的偏移量 */
+const getNodeOffset = targetId => {
+  const targetIndex = nodeIndexById.get(String(targetId));
+  if (targetIndex === undefined) return -1;
+  const iterator = createIterator();
+  let offset = 0;
+  while (iterator.stack.length) {
+    const frame = iterator.stack[iterator.stack.length - 1];
+    if (frame.position >= frame.indices.length) {
+      iterator.stack.pop();
+      continue;
+    }
+    const index = frame.indices[frame.position];
+    frame.position += 1;
+    const entry = nodes[index];
+    if (!entry.visibleCount) continue;
+    if (index === targetIndex) return offset;
+    offset += 1;
+    if (isBranchExpanded(entry)) {
+      iterator.stack.push({ indices: entry.children, position: 0 });
+    }
+  }
+  return -1;
+};
+
 self.onmessage = event => {
   const message = event.data;
   switch (message.type) {
@@ -332,10 +357,12 @@ self.onmessage = event => {
       const selectedIndex = nodeIndexById.get(String(message.selectedId || ''));
       const fallbackIndex = roots[0];
       const targetIndex = selectedIndex === undefined ? fallbackIndex : selectedIndex;
+      const selectedNodeOffset = getNodeOffset(message.selectedId);
       self.postMessage({
         nodeCount: nodes.length,
         requestId: message.requestId,
         selectedNode: targetIndex === undefined ? null : nodes[targetIndex].data,
+        selectedNodeOffset,
         total: getTotal(),
         type: 'INIT_DONE',
       });
