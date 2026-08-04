@@ -2321,7 +2321,7 @@ export default defineComponent({
           <bk-alert
             class='table-style-update-alert'
             type='info'
-            title={t('管理页面于8月13号更新，更新后个性化设置会被重置覆盖。请重新调整配置表格样式。')}
+            title={t('管理页面于8月6号更新，更新后个性化设置会被重置覆盖。请重新调整配置表格样式。')}
             closable
             onClose={handleCloseTableStyleUpdateAlert}
           />
