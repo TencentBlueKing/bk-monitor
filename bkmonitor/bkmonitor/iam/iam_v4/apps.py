@@ -16,11 +16,8 @@ class IamV4Config(AppConfig):
     verbose_name = "IAM v4 Provider"
 
     def ready(self):
-        # 尝试注册 callback handler（生产环境有模型依赖时）
-        try:
-            from .callback import services
-            from .callback_handlers import register_all  # noqa: F401 — 生产环境实现
+        # 注册资源回调 handler
+        from .callback import services
+        from .callback.handlers import register_all
 
-            register_all(services)
-        except ImportError:
-            pass  # 测试项目 / 无 callback_handlers 时静默跳过
+        register_all(services)
