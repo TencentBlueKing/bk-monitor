@@ -1,28 +1,35 @@
 # Skill: TAPD Submit Backfill（Comment-Only + Commit/PR Gate）
 
-Trigger（`.aafe.config.json` → `tapd.enabled === true`）:
+Trigger（`.aafe.config.json` → `tapd.enabled === true` **且任务过程中有关联 TAPD 单**）:
 
 1. **自测流程结束后**（含用户跳过自测）
-2. 用户意图 **commit / push / submit / 提交代码 / 提测 / 提 PR**
+2. 用户意图 **commit / push / submit / 提交代码 / 提测 / 提 PR**（且本任务有 TAPD 关联）
+
+**无 TAPD 关联**：跳过 Phase E/F 及 C1 新建/关联询问；可常规 Commit/PR。
 
 Companions:
 
-- Hard rule: `bklog/web/.ai-agent/rules/tapd-submit-backfill.mdc`
-- Self-test: `minimal-convergent-self-test.md`
-- Impact: `architecture-impact-test-forecast.md`
+- Hard rule: `.ai-agent/rules/tapd-submit-backfill.mdc`
+- Self-test: `.ai-agent/skills/minimal-convergent-self-test.md`
+- Impact: `.ai-agent/skills/architecture-impact-test-forecast.md`
 
-## End-to-end pipeline
+## TAPD 关联判定
+
+进入本 Skill 回填分支前，确认任务过程中**已涉及 TAPD 单**（ID/链接/MCP/用户绑定）。  
+**否** → 不执行 Phase E/F；Commit 用常规 message；结束。
+
+## End-to-end pipeline（有关联 TAPD 时）
 
 ```text
-[A] 确保自测产物齐全（缺则先跑 impact + self-test）
+[A] 确保自测产物齐全（缺则先跑 impact + self-test；代码变更任务才需）
 [B] 询问是否 Commit
     ├─ 是 → [C] Commit（bug:/feat: 格式）→ [D] 尝试 PR → [E] 询问回填 TAPD
     └─ 否 → [E] 仍询问回填 TAPD
 [E] 同意 → [F] 评论回填 + 可选 PR 字段 + 状态流转
-    拒绝 → 结束并说明可稍后手动回填
+    拒绝 → 结束
 ```
 
-**Hard：** 即使不 Commit，也必须执行 [E] 询问。禁止静默跳过回填询问。
+**Hard：** 有关联 TAPD 时，即使不 Commit 也必须执行 [E]。**无关联**则整段 [E][F] 跳过。
 
 ---
 
@@ -85,19 +92,22 @@ Ensure before Commit/回填询问：
 | 回答 | 动作 |
 | --- | --- |
 | 是 / Yes / Y / 需要 / 提交 / commit / 好的 / 可以 / ok | → Phase C |
-| 否 / No / N / 不需要 / 跳过 | → Phase E（仍问回填） |
+| 否 / No / N / 不需要 / 跳过 | → Phase E（**仅有关联 TAPD 时**；否则结束） |
 
 ---
 
 ## Phase C — Commit
 
-### C1 Resolve TAPD entry（若尚未解析）
+### C1 Resolve TAPD entry（**仅有关联 TAPD 时**）
 
 | Source | Action |
 | --- | --- |
 | TAPD-origin task | Use known `entry_type`, `entry_id`, `workspace_id`, title |
 | User provides ID | Short ID → `tapd_id_get`；确认 story vs bug；`stories_get` / `bugs_get` 取标题 |
-| 无关联 | 询问关联已有单或新建；未配置 `workspace_id` / `milestone_id` 时索取 |
+
+**无 TAPD 关联**：不询问新建/关联单、不索取 `workspace_id` / `milestone_id`；Commit 用常规 message。
+
+**禁止**在无 TAPD 关联时瞎编 `--bug=` / `--story=` ID。
 
 ### C2 Message format（强制）
 
@@ -133,9 +143,11 @@ Commit 成功后尝试 PR：
 
 ---
 
-## Phase E — Ask TAPD backfill
+## Phase E — Ask TAPD backfill（**仅有关联 TAPD 时**）
 
-**无论** B 选否、C/D 成功或失败，都要问：
+无 TAPD 关联 → **跳过本 Phase**，不向用户问回填。
+
+有关联时，**无论** B 选否、C/D 成功或失败，都要问：
 
 > 是否回填 TAPD 单子？（将追加评论：处理结果 / 影响范围 / 自测结果；若有 PR 且存在 PR 字段则写入链接）
 
@@ -148,7 +160,8 @@ Commit 成功后尝试 PR：
 
 ### F1 Resolve entry
 
-同 C1；无 entry 则先创建/关联再回填。
+使用任务过程中已关联的 `entry_type` / `entry_id` / `workspace_id`。  
+**禁止**在无 TAPD 关联时进入 F1–F6 或询问新建单 / `workspace_id` / `milestone_id`。
 
 ### F2 Upload UI screenshots（optional）
 
@@ -247,9 +260,10 @@ Algorithm:
 
 ---
 
-## Pure GitHub projects
+## Pure GitHub / 无 TAPD 关联
 
-If `tapd` absent or `enabled: false`：
+If `tapd` absent, `enabled: false`, or **任务无 TAPD 关联**：
 
-- 仍可走 Commit / PR（无 TAPD ID 时用常规 commit message，不强制 `--bug=` / `--story=`）
-- 不询问 TAPD 回填，除非用户主动要求
+- 仍可走 Commit / PR（常规 commit message）
+- **不询问** TAPD 回填、新建单、`workspace_id` / `milestone_id`
+- 用户**主动**要求关联 TAPD 时，可单独走本 Skill 并先确认 entry

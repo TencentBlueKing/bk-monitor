@@ -1,8 +1,8 @@
 # Skill: Minimal Convergent Self-Test
 
-Trigger: after impact analysis, or when TAPD backfill needs self-test results.
+Trigger: after impact analysis (code-change tasks only), or when TAPD backfill needs self-test results.
 
-Companion: `architecture-impact-test-forecast.md` (impact) → this skill (tests) → **完成后** `tapd-submit-backfill.md`（询问 Commit / PR / 回填）.
+Companion: `.ai-agent/skills/architecture-impact-test-forecast.md` (impact) → this skill (tests) → **完成后** 若任务有关联 TAPD 单 → `.ai-agent/skills/tapd-submit-backfill.md`.
 
 ## Goal
 
@@ -13,10 +13,10 @@ Companion: `architecture-impact-test-forecast.md` (impact) → this skill (tests
 
 | Impact class | Default mode | Location |
 | --- | --- | --- |
-| Pure function / data transform / computed / cache / percent calc | **unit**（Mock 输入 → 断言输出） | `bklog/web/test/` |
-| Component logic with props/emit, no visual claim | **unit/component**（Mock Props） | `bklog/web/test/` |
-| Store getter/action contract | **unit**（Mock state） | `bklog/web/test/` |
-| Visible layout / CSS / popover / chart render / interaction | **ui-optional** | 先询问，再浏览器 MCP |
+| Pure function / data transform / computed / cache / percent calc | **unit**（Mock 输入 → 断言输出） | `test/` under install root |
+| Component logic with props/emit, no visual claim | **unit/component**（Mock Props） | `test/` |
+| Store getter/action contract | **unit**（Mock state） | `test/` |
+| Visible layout / CSS / popover / chart render / interaction | **ui-optional** | **仅代码变更任务且已进入本 Skill 时**条件询问浏览器 MCP |
 
 Rules:
 
@@ -26,16 +26,15 @@ Rules:
 
 ## Step 1 — Ensure test directory
 
-Path: `bklog/web/test/`
+Path: install-root `test/`（与 `.aafe.config.json` / `.ai-agent` 同级；无则创建）。
 
-If missing, create it. Suggested layout:
+Suggested layout:
 
 ```text
-bklog/web/test/
+test/
   unit/           # pure logic / props I/O
   fixtures/       # mock data
   ui/             # UI paths + screenshots + notes（授权后）
-  README.md       # optional；仅用户要文档时写
 ```
 
 Naming: `test/unit/<module>-<topic>.test.ts`（或项目既有后缀）。  
@@ -60,19 +59,10 @@ Converge:
 - Skip unrelated modules.
 - No real API / prod data.
 
-### Unit example (logic-only)
-
-```ts
-// bklog/web/test/unit/agg-chart-percent.test.ts
-// Arrange mocked total_count + values → Act computePercent → Assert "3%" not "3090%"
-```
-
-Prefer testing extracted pure helpers; if logic is stuck in class methods, instantiate with minimal mocked props/state.
-
 ### Runner
 
 1. Prefer existing project test runner if present (`vitest` / `jest` / `npm test`).
-2. If none: use Node built-in `node:test` + `node:assert` for pure TS/JS logic (compile or run via existing ts tooling if available).
+2. If none: use Node built-in `node:test` + `node:assert` for pure logic.
 3. Record the exact command in results.
 
 ## Step 2.5 — Pre-generate UI test paths（UI cases only, before browser）
@@ -114,7 +104,7 @@ Prefer testing extracted pure helpers; if logic is stuck in class methods, insta
 ### Path P-001 — （场景名）
 1. navigate | {url} | 页面可交互 / 关键壳层可见
 2. click | （控件：文案或 selector） | （期望）
-3. switch | （如 Grep Tab / 原始模式） | （期望）
+3. switch | （如 Tab / 模式切换） | （期望）
 4. fill | （输入目标）| value=... | （期望）
 5. hover | （行/节点） | （期望浮层/按钮）
 6. assert | （可观察结果）
@@ -130,9 +120,11 @@ Prefer testing extracted pure helpers; if logic is stuck in class methods, insta
 
 若影响分析阶段已产出同等质量路径，本步校验补全即可，勿重复劳动。
 
-## Step 3 — UI tests (ask first, never auto)
+## Step 3 — UI tests (conditional ask, never auto)
 
-When impact includes UI:
+**前置**：任务评估为代码变更 + 影响分类含 UI（`mode=ui` / ui-optional）。纯文档/需求分析任务**不得**进入本 Step。
+
+When all preconditions met:
 
 1. Ask:
 
@@ -145,7 +137,7 @@ When impact includes UI:
 
 4. URL 到手后：执行 **Step 2.5** 生成/补全 `ui_test_paths`，再严格按路径操作：
    - navigate → snapshot 定位 → click/switch/fill/hover → assert → screenshot
-   - save under `bklog/web/test/ui/` when useful
+   - save under `test/ui/` when useful
    - do **not** guess hosts, retry random envs, or burn tokens re-analyzing code mid-run
 5. 路径某步失效：允许**一次**局部重读该步相关模板修正路径，记录 `path_amended`；禁止借机全模块再分析。
 
@@ -168,11 +160,9 @@ Hard rules:
 
 自测结束后（含用户拒绝 UI、或仅 unit）：
 
-1. Read and follow `tapd-submit-backfill.md` Phase B 起：
-   - 询问是否 Commit
-   - 若 Commit → 尝试 PR
-   - **无论是否 Commit** → 询问是否回填 TAPD
-2. 若 `tapd.enabled !== true`：可询问常规 Commit/PR，跳过 TAPD 回填询问。
+1. 若任务过程中**有关联 TAPD 单**且 `tapd.enabled`：Read `.ai-agent/skills/tapd-submit-backfill.md` Phase B 起（Commit → PR → 询问 TAPD 回填）
+2. 若无 TAPD 关联：可询问常规 Commit/PR；**跳过 TAPD 回填及关联单号/新建单等条件询问**
+3. 若 `tapd.enabled !== true`：跳过 TAPD 回填询问
 
 ## Anti-patterns
 

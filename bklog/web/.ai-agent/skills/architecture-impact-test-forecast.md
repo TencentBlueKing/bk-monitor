@@ -1,13 +1,16 @@
 # Skill: Architecture Impact and Test Forecast
 
-Trigger: user answers **是 / Yes / 需要 / Y** to the task-completion impact question
-（Rule: `bklog/web/.ai-agent/rules/task-completion-impact.mdc`）.
+Trigger: **同时满足**：
+1. 任务评估为**涉及代码变更**（非纯文档/需求分析-only）
+2. 用户回答 **是 / Yes / 需要 / Y** 至影响分析条件询问
+
+（Rule: `.ai-agent/rules/task-completion-impact.mdc` when present）
 
 Next skill for execution: `minimal-convergent-self-test.md`.
 
 ## Required context
 
-1. Read `.ai-agent/skills/knowledge-center-architecture.md` when present.
+1. Read the target project's `.ai-agent/skills/knowledge-center-architecture.md` when present.
 2. Read `.ai-agent/memory/knowledge-center-architecture.md` when present.
 3. Read relevant `.docs` architecture documents and Mermaid diagrams.
 4. Map **current task changed files only** to modules, routes, components, stores, APIs, workers, storage, flows and tests.
@@ -43,7 +46,7 @@ Classification hints:
 
 - 组件内数据处理 / 百分比 / 缓存 / 排序 → **unit**，Mock Props 或纯函数 I/O
 - Store/API 契约 → **unit**，Mock state/response
-- 布局、样式、图表真实渲染、交互可见性 → 标记 **ui**，交给自测 Skill 询问是否启用浏览器 MCP
+- 布局、样式、图表真实渲染、交互可见性 → 标记 **ui**；**仅当任务为代码变更且进入自测流程时**，交给自测 Skill 条件询问浏览器 MCP
 
 Required artifact: `test_cases`
 
@@ -61,13 +64,13 @@ Required artifact when UI: `ui_test_paths`（草案可在自测 Skill 用 URL �
 
 ## Step 3 — Hand off to self-test skill
 
-Read and follow `minimal-convergent-self-test.md` to:
+Read and follow `.ai-agent/skills/minimal-convergent-self-test.md` to:
 
-1. Create/update files under `bklog/web/test/`
+1. Create/update files under install-root `test/`
 2. Run unit tests with Mock
 3. Ask before any browser MCP; require user-provided URL for UI
 4. 执行 UI 前补全并锁定 `ui_test_paths`，再按路径操作
-5. 自测结束后进入 `tapd-submit-backfill.md`（询问 Commit → PR → 回填）
+5. 自测结束后：若任务过程中**有关联 TAPD 单** → `tapd-submit-backfill.md`（Commit → PR → 条件回填）；无 TAPD 关联则跳过 TAPD 回填
 
 Collect `test_results`（及 UI 时的 `ui_test_paths`）from that skill.
 
