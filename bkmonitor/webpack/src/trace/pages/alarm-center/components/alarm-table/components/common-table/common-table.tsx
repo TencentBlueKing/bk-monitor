@@ -36,8 +36,8 @@ import { Exception, Pagination } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
+import { useTableEllipsis } from '../../../../../../hooks/use-table-popover';
 import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
-import { useTableEllipsis } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
 import {
   type ColumnResizeContext,
   type TableEmpty,
