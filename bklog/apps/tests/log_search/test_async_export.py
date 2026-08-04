@@ -27,7 +27,7 @@ from contextlib import ExitStack
 from threading import Barrier, Lock
 from unittest.mock import Mock, patch
 
-from django.db import close_old_connections
+from django.db import close_old_connections, connections
 from django.db.models.query import QuerySet
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
@@ -735,6 +735,8 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
         locks_by_key = {}
         captured_lock_keys = []
         lock_registry_guard = Lock()
+        database_connection = connections["default"]
+        share_database_connection = database_connection.vendor == "sqlite" and database_connection.is_in_memory_db()
 
         def create_lock(lock_key, timeout, blocking_timeout):
             with lock_registry_guard:
@@ -743,7 +745,10 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
             return BarrierRedisLock(shared_lock, acquire_barrier, blocking_timeout)
 
         def create_task():
-            close_old_connections()
+            if share_database_connection:
+                connections["default"] = database_connection
+            else:
+                close_old_connections()
             try:
                 task = AsyncTask.async_export_task_create_with_running_limit(
                     username=username,
@@ -757,12 +762,19 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
             except Exception as error:  # pylint: disable=broad-except
                 return "unexpected_error", error
             finally:
-                close_old_connections()
+                if not share_database_connection:
+                    close_old_connections()
 
-        with patch("apps.log_search.models.cache.lock", side_effect=create_lock):
-            with ThreadPoolExecutor(max_workers=request_count) as executor:
-                futures = [executor.submit(create_task) for _ in range(request_count)]
-                results = [future.result(timeout=10) for future in futures]
+        if share_database_connection:
+            database_connection.inc_thread_sharing()
+        try:
+            with patch("apps.log_search.models.cache.lock", side_effect=create_lock):
+                with ThreadPoolExecutor(max_workers=request_count) as executor:
+                    futures = [executor.submit(create_task) for _ in range(request_count)]
+                    results = [future.result(timeout=10) for future in futures]
+        finally:
+            if share_database_connection:
+                database_connection.dec_thread_sharing()
 
         created_results = [result for result in results if result[0] == "created"]
         rejected_results = [result for result in results if result[0] == "rejected"]
