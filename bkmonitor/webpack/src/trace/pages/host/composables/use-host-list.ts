@@ -24,31 +24,28 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, type ShallowRef, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
+import { type Ref, type ShallowRef, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
+
 import { useDebounceFn } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
+import { storeToRefs } from 'pinia';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
-import {
-  HOST_AGG_METHOD_LIST,
-  HOST_FILTER_FIELDS,
-  HOST_LIST_COLUMNS,
-  HOST_LIST_DEFAULT_PAGE_SIZE,
-} from '../constants/host-list';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import useUserConfig from '../../../hooks/useUserConfig';
+import { useHostStore } from '../../../store/modules/host';
+import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
 import { getHostInfoList, getHostMetricInfoList } from '../services/host-service';
 import { useHostListWorker } from './use-host-list-worker';
-import { storeToRefs } from 'pinia';
-import { useHostStore } from '../../../store/modules/host';
 import { useHostUrlParams } from './use-host-url-params';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 import type {
   IGetValueFnParams,
   IWhereItem,
   IWhereValueOptionsItem,
 } from '../../../components/retrieval-filter/typing';
-import type { EHostAggMethod, EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
+import type { EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 interface IUseHostListOptions {
@@ -59,17 +56,6 @@ interface IUseHostListOptions {
   selectedNode: Ref<IHostTopoTreeNode | null>;
   where: ShallowRef<IWhereItem[]>;
 }
-
-/** 指标列聚合方式默认值（全部默认 avg） */
-const getDefaultAggMethodMap = (): Record<string, EHostAggMethod> => {
-  const map: Record<string, EHostAggMethod> = {};
-  for (const column of HOST_LIST_COLUMNS) {
-    if (column.type === 'metric') {
-      map[column.id] = 'avg';
-    }
-  }
-  return map;
-};
 
 const EMPTY_CATEGORY_STATS: IHostQuickCardStats = { alarm: 0, cpu: 0, disk: 0, mem: 0 };
 
@@ -84,6 +70,7 @@ export const useHostList = (options: IUseHostListOptions) => {
   const { setUrlParams } = useHostUrlParams();
   const hostListWorker = useHostListWorker();
   const { timeRange, timezone, refreshImmediate, refreshInterval } = storeToRefs(useHostStore());
+  const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
@@ -106,8 +93,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   const selectedRowKeys = shallowRef<(number | string)[]>([]);
   /** 当前展示列 */
   const visibleColumns = shallowRef<string[]>(HOST_LIST_COLUMNS.filter(c => c.checked).map(c => c.id));
-  /** 指标列聚合方式 */
-  const aggMethodMap = shallowRef<Record<string, EHostAggMethod>>(getDefaultAggMethodMap());
+  /** 置顶配置映射（rowId -> 1），与旧版 performance-table 数据结构一致 */
+  const stickyValue = shallowRef<Record<string, 1>>({});
 
   /** 快捷过滤卡片统计（Worker 计算结果） */
   const categoryStats = shallowRef<IHostQuickCardStats>({ ...EMPTY_CATEGORY_STATS });
@@ -122,7 +109,7 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原 */
   const filterOptionsMap = shallowRef<Record<string, unknown>>({});
 
-  let intervalTimer: ReturnType<typeof setTimeout> | null = null;
+  let intervalTimer: null | ReturnType<typeof setTimeout> = null;
   let baseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
 
   watch([timeRange, timezone], () => {
@@ -165,6 +152,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     pageSize: pageSize.value,
     selectedNode: selectedNode.value,
     sortInfo: sortInfo.value,
+    stickyValue: stickyValue.value,
     where: where.value,
   });
 
@@ -191,6 +179,29 @@ export const useHostList = (options: IUseHostListOptions) => {
     return response.result;
   };
 
+  /** 加载置顶配置（与旧版 performance-table 共用 key 和数据结构） */
+  const loadStickyConfig = async () => {
+    try {
+      const config = await handleGetUserConfig<Record<string, 1>>('userStikyNote', { reject403: true });
+      stickyValue.value = config || {};
+    } catch {
+      stickyValue.value = {};
+    }
+  };
+
+  /** 主机置顶/取消置顶 */
+  const handleIpMark = async (row: IHostListRow) => {
+    if (stickyValue.value[row.rowId]) {
+      const next = { ...stickyValue.value };
+      delete next[row.rowId];
+      stickyValue.value = next;
+    } else {
+      stickyValue.value = { ...stickyValue.value, [row.rowId]: 1 };
+    }
+    await handleSetUserConfig(JSON.stringify(stickyValue.value));
+    refreshList(true);
+  };
+
   /** 加载数据：基础数据先渲染，指标数据后补充 */
   const loadData = async () => {
     loading.value = true;
@@ -199,6 +210,7 @@ export const useHostList = (options: IUseHostListOptions) => {
       baseList = await getHostInfoList();
       const initResult = await hostListWorker.initBaseData(baseList);
       rawRowCount.value = initResult.rawRowCount;
+      await loadStickyConfig();
       refreshList(true);
       // 拉取 filterOptionsMap 供集群模块字段展示名称映射
       const filterOptionsMapResult = (await hostListWorker.getFilterOptionsMap()) as Record<
@@ -295,8 +307,12 @@ export const useHostList = (options: IUseHostListOptions) => {
   const handleColumnsChange = (columns: string[]) => {
     visibleColumns.value = columns;
   };
-  const handleAggMethodChange = (metricKey: string, method: EHostAggMethod) => {
-    aggMethodMap.value = { ...aggMethodMap.value, [metricKey]: method };
+
+  /** 清空检索条件（关键字、过滤条件、快捷分类） */
+  const handleClearFilter = () => {
+    keyword.value = '';
+    where.value = [];
+    activeCategory.value = '';
   };
 
   /** 复制选中主机的内网 IP（每行一个，换行分隔） */
@@ -353,14 +369,13 @@ export const useHostList = (options: IUseHostListOptions) => {
     pageSize,
     selectedRowKeys,
     visibleColumns,
-    aggMethodMap,
     // 派生
     categoryStats,
     pagedRows,
     total,
     filterFields,
-    aggMethodList: HOST_AGG_METHOD_LIST,
     filterOptionsMap,
+    stickyValue,
     // 方法
     getValueFn,
     loadData,
@@ -376,8 +391,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     handlePageSizeChange,
     handleSelectChange,
     handleColumnsChange,
-    handleAggMethodChange,
     handleCopyIp,
+    handleIpMark,
+    handleClearFilter,
   };
 };
 

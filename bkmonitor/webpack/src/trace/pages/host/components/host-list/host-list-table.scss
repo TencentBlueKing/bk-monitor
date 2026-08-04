@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .host-list-table {
   display: flex;
   flex: 1;
@@ -13,8 +14,12 @@
   }
 
   &__body {
-    flex: 1;
+    flex: 0 0 auto;
     min-height: 0;
+
+    &--empty {
+      flex: 1;
+    }
 
     .t-table {
       &__header {
@@ -27,6 +32,20 @@
         .t-table__filter-icon-wrap {
           margin-top: 20px;
         }
+      }
+    }
+
+    // 表格内容不足时撑满容器剩余高度（仅在空数据时生效）
+    .host-list-table--empty {
+      height: 100%;
+
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+      }
+
+      .t-table--layout-fixed {
+        height: 100%;
       }
     }
   }
@@ -46,18 +65,71 @@
   .t-table td,
   .t-table th {
     height: 36px;
-    font-size: 12px;
   }
 }
 
 /** 主机蓝链 */
-.host-table-ip {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #3a84ff;
-  white-space: nowrap;
-  cursor: pointer;
+
+.host-table-ip-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+
+  .host-table-ip {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /** IP 状态图标（不监控/不告警） */
+  .host-table-ip-status {
+    flex-shrink: 0;
+    margin-left: 6px;
+    font-size: 18px;
+    color: #ffb848;
+
+    &.icon-menu-shield,
+    &.icon-celvepingbi {
+      font-size: 16px;
+    }
+  }
+
+  /** 置顶按钮 */
+  .host-table-ip-mark {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-width: 28px;
+    height: 16px;
+    margin-left: 6px;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+
+    &.path-primary {
+      color: #fff;
+      background: #3a84ff;
+    }
+
+    &.path-default {
+      display: none;
+      color: #fff;
+      background: #979ba5;
+    }
+  }
 }
+
+/** hover 行时显示未置顶按钮 */
+
+.host-list-table__body .t-table .t-table__body tr:hover .host-table-ip-mark.path-default {
+  display: inline-flex;
+}
+
+/* stylelint-enable selector-class-pattern */
 
 /** 采集状态圆点 */
 .host-table-status {
@@ -130,22 +202,25 @@
   }
 }
 
-/** 指标列表头：聚合方式 + 标题 */
+/** 指标列表头：固定聚合图标 + 标题（纵向布局，对标旧版逻辑但保持新版样式） */
 .host-table-metric-header {
   display: flex;
   flex-direction: column;
-  line-height: 16px;
 
-  &__agg {
-    width: fit-content;
-    width: 16px;
-    height: 12px;
-    margin-bottom: 6px;
+  &__agg.icon-monitor {
+    width: 18px;
+    height: 18px;
+    margin-bottom: -2px;
+    font-size: 14px;
     color: #3a84ff;
-    cursor: pointer;
+
+    &.icon-max {
+      font-size: 11px;
+    }
   }
 
   &__title {
+    line-height: 20px;
     color: #313238;
   }
 }
@@ -220,29 +295,5 @@
 
   100% {
     background-position: 0 50%;
-  }
-}
-
-/** 聚合方式下拉菜单 */
-.host-table-agg-popover {
-  .host-table-agg-menu {
-    padding: 4px 0;
-
-    &__item {
-      padding: 0 16px;
-      font-size: 12px;
-      line-height: 32px;
-      color: #63656e;
-      cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-        background: #f5f7fa;
-      }
-
-      &.is-active {
-        color: #3a84ff;
-      }
-    }
   }
 }

@@ -219,14 +219,26 @@ export const computeCategoryStats = (rows: IHostListRow[]) => {
   return stats;
 };
 
-export const sortRows = (rows: IHostListRow[], sort: string): IHostListRow[] => {
-  if (!sort) {
+export const sortRows = (rows: IHostListRow[], sort: string, stickyValue?: Record<string, number>): IHostListRow[] => {
+  if (!sort && !stickyValue) {
     return rows;
   }
-  const descending = sort.startsWith('-');
+  const descending = sort?.startsWith('-');
   const key = (descending ? sort.slice(1) : sort) as keyof IHostListRow;
   const getValue = (row: IHostListRow) => (key === 'alarm_count' ? row.totalAlarmCount : Number(row[key] ?? 0));
-  return [...rows].sort((a, b) => (descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b)));
+  return [...rows].sort((a, b) => {
+    if (stickyValue) {
+      const aSticky = stickyValue[a.rowId] ? 1 : 0;
+      const bSticky = stickyValue[b.rowId] ? 1 : 0;
+      if (aSticky !== bSticky) {
+        return bSticky - aSticky;
+      }
+    }
+    if (sort) {
+      return descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
+    }
+    return 0;
+  });
 };
 
 export const buildFilterOptionsMap = (rows: IHostListRow[]): Map<string, IValue[]> => {

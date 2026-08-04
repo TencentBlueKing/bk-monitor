@@ -26,10 +26,10 @@
 
 import { type PropType, computed, defineComponent, toRef } from 'vue';
 
-import { Loading } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useHostStore } from 'trace/store/modules/host';
 
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { useHostList } from '../../composables/use-host-list';
 import HostListFilter from './host-list-filter';
 import HostListTable from './host-list-table';
@@ -71,60 +71,91 @@ export default defineComponent({
     };
 
     return () => (
-      <Loading
-        class='host-list'
-        loading={ctx.loading.value}
-      >
-        <HostStatCards
-          activeKey={ctx.activeCategory.value}
-          stats={ctx.categoryStats.value}
-          onCardClick={(key: EHostQuickCategory) => ctx.handleCategoryClick(key)}
-        />
-        <div class='host-list__filter-bar'>
-          <HostListToolbar
-            filterExpanded={ctx.filterExpanded.value}
-            hasSelection={hasSelection.value}
-            keyword={ctx.keyword.value}
-            onCopyIp={ctx.handleCopyIp}
-            onKeywordChange={ctx.handleKeywordChange}
-            onSearch={ctx.handleSearch}
-            onToggleFilter={ctx.toggleFilterExpand}
-          />
-          {ctx.filterExpanded.value && (
-            <HostListFilter
-              fields={ctx.filterFields}
-              filterMode={ctx.filterMode.value}
-              filterOptionsMap={ctx.filterOptionsMap.value}
-              getValueFn={ctx.getValueFn}
-              queryString={ctx.queryString.value}
-              where={ctx.where.value}
-              onModeChange={ctx.handleFilterModeChange}
-              onQueryStringChange={ctx.handleQueryStringChange}
-              onSearch={ctx.handleSearch}
-              onWhereChange={ctx.handleWhereChange}
-            />
-          )}
+      <div class='host-list'>
+        {/* 骨架屏：通过 display 控制显隐，避免条件渲染导致重建 */}
+        <div
+          style={{ display: ctx.loading.value ? 'flex' : 'none' }}
+          class='host-list-skeleton'
+        >
+          <div class='host-list-skeleton__cards'>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                class='host-list-skeleton__card'
+              >
+                <div class='skeleton-element host-list-skeleton__card-icon' />
+                <div class='host-list-skeleton__card-text'>
+                  <div class='skeleton-element host-list-skeleton__card-name' />
+                  <div class='skeleton-element host-list-skeleton__card-num' />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div class='host-list-skeleton__toolbar'>
+            <div class='skeleton-element host-list-skeleton__toolbar-btn' />
+            <div class='skeleton-element host-list-skeleton__toolbar-search' />
+          </div>
+          <div class='host-list-skeleton__table'>
+            <TableSkeleton />
+          </div>
         </div>
-        <HostListTable
-          aggMethodList={ctx.aggMethodList}
-          aggMethodMap={ctx.aggMethodMap.value}
-          data={ctx.pagedRows.value}
-          metricLoading={ctx.metricLoading.value}
-          page={ctx.page.value}
-          pageSize={ctx.pageSize.value}
-          selectedRowKeys={ctx.selectedRowKeys.value}
-          sort={ctx.sortInfo.value}
-          total={ctx.total.value}
-          visibleColumns={ctx.visibleColumns.value}
-          onAggMethodChange={ctx.handleAggMethodChange}
-          onColumnsChange={ctx.handleColumnsChange}
-          onPageChange={ctx.handlePageChange}
-          onPageSizeChange={ctx.handlePageSizeChange}
-          onSelectChange={ctx.handleSelectChange}
-          onSortChange={ctx.handleSortChange}
-          onSelectIpCell={handleSelectIpCell}
-        />
-      </Loading>
+        {/* 真实内容：通过 display 控制显隐，避免条件渲染导致重建 */}
+        <div
+          style={{ display: ctx.loading.value ? 'none' : '' }}
+          class='host-list-content'
+        >
+          <HostStatCards
+            activeKey={ctx.activeCategory.value}
+            stats={ctx.categoryStats.value}
+            onCardClick={(key: EHostQuickCategory) => ctx.handleCategoryClick(key)}
+          />
+          <div class='host-list__filter-bar'>
+            <HostListToolbar
+              filterExpanded={ctx.filterExpanded.value}
+              hasSelection={hasSelection.value}
+              keyword={ctx.keyword.value}
+              onCopyIp={ctx.handleCopyIp}
+              onKeywordChange={ctx.handleKeywordChange}
+              onSearch={ctx.handleSearch}
+              onToggleFilter={ctx.toggleFilterExpand}
+            />
+            {ctx.filterExpanded.value && (
+              <HostListFilter
+                fields={ctx.filterFields}
+                filterMode={ctx.filterMode.value}
+                filterOptionsMap={ctx.filterOptionsMap.value}
+                getValueFn={ctx.getValueFn}
+                queryString={ctx.queryString.value}
+                where={ctx.where.value}
+                onModeChange={ctx.handleFilterModeChange}
+                onQueryStringChange={ctx.handleQueryStringChange}
+                onSearch={ctx.handleSearch}
+                onWhereChange={ctx.handleWhereChange}
+              />
+            )}
+          </div>
+          <HostListTable
+            data={ctx.pagedRows.value}
+            emptyType={ctx.rawRowCount.value > 0 && ctx.total.value === 0 ? 'search-empty' : 'empty'}
+            markValue={ctx.stickyValue.value}
+            metricLoading={ctx.metricLoading.value}
+            page={ctx.page.value}
+            pageSize={ctx.pageSize.value}
+            selectedRowKeys={ctx.selectedRowKeys.value}
+            sort={ctx.sortInfo.value}
+            total={ctx.total.value}
+            visibleColumns={ctx.visibleColumns.value}
+            onClearFilter={ctx.handleClearFilter}
+            onColumnsChange={ctx.handleColumnsChange}
+            onIpMark={ctx.handleIpMark}
+            onPageChange={ctx.handlePageChange}
+            onPageSizeChange={ctx.handlePageSizeChange}
+            onSelectChange={ctx.handleSelectChange}
+            onSelectIpCell={handleSelectIpCell}
+            onSortChange={ctx.handleSortChange}
+          />
+        </div>
+      </div>
     );
   },
 });

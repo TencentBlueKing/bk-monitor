@@ -39,7 +39,7 @@ import {
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
-import { Pagination, Popover } from 'bkui-vue';
+import { Pagination } from 'bkui-vue';
 import BkCheckbox from 'bkui-vue/lib/checkbox';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
@@ -51,18 +51,25 @@ import AcrossPageSelection, {
 } from '../../../../components/across-page-selection/across-page-selection';
 import TagOverflow from '../../../../components/tag-overflow/tag-overflow';
 import { useTableEllipsis } from '../../../../hooks/use-table-popover';
+import { usePopover } from '../../../alarm-center/components/alarm-table/hooks/use-popover';
 import {
   type IHostColumnConfig,
   HOST_LIST_COLUMNS,
   HOST_LIST_ELLIPSIS_CELL_CLASS,
   HOST_LIST_PAGE_SIZE_LIST,
+  HOST_METRIC_HEADER_ICON_MAP,
   HOST_STATUS_MAP,
+  HOST_STATUS_TIPS_MAP,
+  PROCESS_STATUS_TIPS_MAP,
 } from '../../constants/host-list';
 import AbnormalTips from './abnormal-tips/index';
+import HostListIpStatusTips from './host-list-ip-status-tips';
 import UnresolveList from './unresolve-list/index';
+import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
-import type { IHostAlarmCount, IHostComponent } from '../../types/host';
-import type { EHostAggMethod, IHostListRow } from '../../types/host-list';
+import type { IHostAlarmCount, IHostComponent, IStatusTipsConfig } from '../../types/host';
+import type { IHostListRow } from '../../types/host-list';
+import type { TippyContent } from 'vue-tippy';
 
 import './host-list-table.scss';
 
@@ -71,14 +78,6 @@ const ALARM_LEVEL_COLOR: Record<number, string> = {
   1: '#ea3636',
   2: '#ff8000',
   3: '#ffd000',
-};
-
-/** 进程状态 tip 配置（对齐 performance-table componentStatusMap） */
-type IProcessTipsConfig = {
-  docLink?: string;
-  linkText?: string;
-  linkUrl?: string;
-  tipsText?: string;
 };
 
 /** 指标进度条颜色阈值 */
@@ -146,29 +145,34 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 指标列聚合方式 */
-    aggMethodMap: {
-      type: Object as PropType<Record<string, EHostAggMethod>>,
+    /** 置顶配置 */
+    markValue: {
+      type: Object as PropType<Record<string, number>>,
       default: () => ({}),
     },
-    /** 聚合方式候选 */
-    aggMethodList: {
-      type: Array as PropType<{ id: EHostAggMethod; name: string }[]>,
-      default: () => [],
+    /** 表格空数据类型 */
+    emptyType: {
+      type: String as PropType<'empty' | 'search-empty'>,
+      default: 'empty',
     },
   },
   emits: {
     sortChange: (_v: string) => true,
+    clearFilter: () => true,
     pageChange: (_v: number) => true,
     pageSizeChange: (_v: number) => true,
     selectChange: (_keys: (number | string)[], _isAcrossPage: boolean) => true,
     columnsChange: (_cols: string[]) => true,
-    aggMethodChange: (_metricKey: string, _method: EHostAggMethod) => true,
     selectIpCell: (_row: IHostListRow) => true,
+    ipMark: (_row: IHostListRow) => true,
   },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
+    const popover = usePopover();
+    const tableRef = useTemplateRef<HTMLElement>('table');
     const bodyRef = useTemplateRef<HTMLElement>('body');
+    const ipStatusTipsRef = useTemplateRef<InstanceType<typeof HostListIpStatusTips>>('ipStatusTips');
+    const ipStatusTipsRow = shallowRef<IHostListRow | null>(null);
     const tipsContentRef = useTemplateRef<HTMLElement>('tipsContent');
     const unresolveContentRef = useTemplateRef<HTMLElement>('unresolveContent');
 
@@ -177,7 +181,7 @@ export default defineComponent({
     /** 表格体最大高度（自适应屏幕，表内滚动，表头/分页不滚走） */
     const bodyHeight = shallowRef(400);
     /** 进程异常 tip 数据 */
-    const tipsData = shallowRef<IProcessTipsConfig>({
+    const tipsData = shallowRef<IStatusTipsConfig>({
       tipsText: '',
       linkText: '',
       linkUrl: '',
@@ -188,24 +192,12 @@ export default defineComponent({
     let tipsPopoverInstance: Instance | null = null;
     let unresolvePopoverInstance: Instance | null = null;
 
-    const nodeManHost = window.bk_nodeman_host || '';
-    const componentStatusMap: Record<number, IProcessTipsConfig> = {
-      1: {
-        tipsText: t('原因:查看进程本身问题或者检查进程配置是否正常') as string,
-        docLink: 'processMonitor',
-      },
-      2: {
-        tipsText: t('原因:bkmonitorbeat进程采集器未安装或者状态异常') as string,
-        linkText: t('前往节点管理处理') as string,
-        linkUrl: `${nodeManHost}#/plugin-manager/list`,
-      },
-      3: {},
-    };
-
-    useResizeObserver(bodyRef, entries => {
+    /** 监听整个表格容器高度，扣除分页区域后作为表格内容最大高度 */
+    useResizeObserver(tableRef, entries => {
       const height = entries[0]?.contentRect?.height;
       if (height) {
-        bodyHeight.value = height;
+        // 扣除分页高度（约 32px）+ margin-top（12px）+ 缓冲
+        bodyHeight.value = Math.max(height - 44, 200);
       }
     });
 
@@ -280,12 +272,24 @@ export default defineComponent({
     };
 
     /**
-     * 进程状态 tip（对齐 performance-table handleTipsMouseenter）
-     * Thread：异常(1) / 无数据(2)；noProcess：暂无进程引导
+     * 进程/主机状态 tip（对齐 performance-table handleTipsMouseenter）
+     * Thread：异常(1) / 无数据(2)；noProcess：暂无进程引导；Host：无Agent(2) / 无数据上报(3)
      */
-    const handleTipsMouseenter = (e: MouseEvent, item: Partial<IHostComponent>, type: 'noProcess' | 'Thread') => {
+    const handleTipsMouseenter = (
+      e: MouseEvent,
+      item: Partial<IHostComponent> | Partial<IHostListRow>,
+      type: 'Host' | 'noProcess' | 'Thread'
+    ) => {
       if (type === 'Thread' && [1, 2].includes(item.status as number)) {
-        const config = componentStatusMap[item.status as number] || {};
+        const config = PROCESS_STATUS_TIPS_MAP[item.status as number] || {};
+        tipsData.value = {
+          tipsText: config.tipsText || '',
+          linkText: config.linkText || '',
+          linkUrl: config.linkUrl || '',
+          docLink: config.docLink || '',
+        };
+      } else if (type === 'Host' && [2, 3].includes(item.status as number)) {
+        const config = HOST_STATUS_TIPS_MAP[item.status as number] || {};
         tipsData.value = {
           tipsText: config.tipsText || '',
           linkText: config.linkText || '',
@@ -369,15 +373,57 @@ export default defineComponent({
       <span class={HOST_LIST_ELLIPSIS_CELL_CLASS}>{value === 0 || value ? value : '--'}</span>
     );
 
+    /** IP 状态图标（对齐 performance-table handleIpStatusData） */
+    const getIpStatusIcon = (ignoreMonitoring?: boolean, isShielding?: boolean): string => {
+      if (ignoreMonitoring) return 'icon-celvepingbi';
+      if (isShielding) return 'icon-menu-shield';
+      return '';
+    };
+
     // --- 单元格渲染器 ---
-    const renderIpCell = (row: IHostListRow) => (
-      <span
-        class='host-table-ip'
-        onClick={() => handleSelectIpCell(row)}
-      >
-        {row.display_name || row.bk_host_innerip || '--'}
-      </span>
-    );
+    const renderIpCell = (row: IHostListRow) => {
+      const icon = getIpStatusIcon(row.ignore_monitoring, row.is_shielding);
+      const isMarked = !!props.markValue?.[row.rowId];
+
+      return (
+        <div class='host-table-ip-cell'>
+          <span
+            class={`host-table-ip ${HOST_LIST_ELLIPSIS_CELL_CLASS}`}
+            onClick={() => handleSelectIpCell(row)}
+          >
+            {row.display_name || row.bk_host_innerip || '--'}
+          </span>
+          {icon && (
+            <i
+              class={['icon-monitor', icon, 'host-table-ip-status']}
+              onMouseenter={async (event: MouseEvent) => {
+                ipStatusTipsRow.value = row;
+                await nextTick();
+                const inst = ipStatusTipsRef.value;
+                if (inst) {
+                  popover.showPopover(event, () => inst.$el as unknown as TippyContent, {
+                    placement: 'right',
+                    theme: 'light',
+                    arrow: true,
+                  });
+                }
+              }}
+              onMouseleave={() => {
+                popover.clearPopoverTimer();
+              }}
+            />
+          )}
+          <span
+            class={['host-table-ip-mark', isMarked ? 'path-primary' : 'path-default']}
+            onClick={() => {
+              emit('ipMark', row);
+            }}
+          >
+            {t('置顶')}
+          </span>
+        </div>
+      );
+    };
 
     const renderStatusCell = (row: IHostListRow) => {
       if (props.metricLoading && row.status === undefined) {
@@ -387,6 +433,7 @@ export default defineComponent({
       if (!config) {
         return <span>--</span>;
       }
+      const needTips = [2, 3].includes(row.status);
       return (
         <div class='host-table-status'>
           <div
@@ -399,7 +446,7 @@ export default defineComponent({
             />
           </div>
 
-          <span>{t(config.name)}</span>
+          <span onMouseenter={e => needTips && handleTipsMouseenter(e, row, 'Host')}>{t(config.name)}</span>
         </div>
       );
     };
@@ -479,34 +526,12 @@ export default defineComponent({
       );
     };
 
-    /** 指标列表头：聚合方式（蓝字可点切换）+ 标题 */
+    /** 指标列表头：固定聚合图标 + 标题（样式保持新版纵向布局，逻辑对齐旧版固定显示） */
     const renderMetricHeader = (column: IHostColumnConfig) => {
-      const aggMethod = props.aggMethodMap[column.id] || 'avg';
+      const iconClass = HOST_METRIC_HEADER_ICON_MAP[column.id];
       return (
         <div class='host-table-metric-header'>
-          <Popover
-            extCls='host-table-agg-popover'
-            placement='bottom-start'
-            theme='light padding-0'
-            trigger='click'
-          >
-            {{
-              default: () => <i class='icon-monitor icon-avg host-table-metric-header__agg' />,
-              content: () => (
-                <div class='host-table-agg-menu'>
-                  {props.aggMethodList.map(method => (
-                    <div
-                      key={method.id}
-                      class={['host-table-agg-menu__item', { 'is-active': method.id === aggMethod }]}
-                      onClick={() => emit('aggMethodChange', column.id, method.id)}
-                    >
-                      {method.name}
-                    </div>
-                  ))}
-                </div>
-              ),
-            }}
-          </Popover>
+          {iconClass && <i class={['icon-monitor', iconClass, 'host-table-metric-header__agg']} />}
           <span class='host-table-metric-header__title'>{t(column.name)}</span>
         </div>
       );
@@ -620,12 +645,25 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='host-list-table'>
+      <div
+        ref='table'
+        class='host-list-table'
+      >
         <div
           ref='body'
-          class='host-list-table__body'
+          class={['host-list-table__body', !props.data.length ? 'host-list-table__body--empty' : '']}
         >
           <PrimaryTable
+            class={props.data.length === 0 ? 'host-list-table--empty' : ''}
+            v-slots={{
+              empty: () => (
+                <ExploreTableEmpty
+                  showOperation={props.emptyType === 'search-empty'}
+                  type={props.emptyType}
+                  onClearFilter={() => emit('clearFilter')}
+                />
+              ),
+            }}
             bkUiSettings={tableSettings.value}
             columns={tableColumns.value}
             data={props.data}
@@ -641,6 +679,7 @@ export default defineComponent({
             size='small'
             sort={tableSort.value}
             tableLayout='fixed'
+            // @ts-expect-error
             onDisplayColumnsChange={(cols: string[]) => emit('columnsChange', cols)}
             // onSelectChange={(keys: (number | string)[]) => emit('selectChange', keys)}
             onSortChange={handleSortChange}
@@ -669,6 +708,10 @@ export default defineComponent({
           <div ref='unresolveContent'>
             <UnresolveList list={unresolveList.value} />
           </div>
+          <HostListIpStatusTips
+            ref={'ipStatusTips'}
+            row={ipStatusTipsRow.value}
+          />
         </div>
       </div>
     );

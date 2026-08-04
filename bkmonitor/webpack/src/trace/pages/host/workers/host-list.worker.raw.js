@@ -55,10 +55,7 @@ const extractClusters = modules => {
     const index = (module.topo_link || []).findIndex(id => id.startsWith('set'));
     if (index > -1) {
       const id = module.topo_link[index];
-      const name =
-        (module.topo_link_display && module.topo_link_display[index]) ||
-        (module.bk_obj_name_map && module.bk_obj_name_map.set) ||
-        id;
+      const name = module.topo_link_display?.[index] || module.bk_obj_name_map?.set || id;
       if (!map.has(id)) {
         map.set(id, { id, name });
       }
@@ -212,7 +209,7 @@ const matchWhereItem = (row, item) => {
 };
 
 const matchWhere = (row, where) => {
-  if (!where || !where.length) {
+  if (!where?.length) {
     return true;
   }
   let result = true;
@@ -241,14 +238,26 @@ const computeCategoryStats = rows => {
   return stats;
 };
 
-const sortRows = (rows, sort) => {
-  if (!sort) {
+const sortRows = (rows, sort, stickyValue) => {
+  if (!sort && !stickyValue) {
     return rows;
   }
-  const descending = sort.startsWith('-');
+  const descending = sort?.startsWith('-');
   const key = descending ? sort.slice(1) : sort;
   const getValue = row => (key === 'alarm_count' ? row.totalAlarmCount : Number(row[key] != null ? row[key] : 0));
-  return [...rows].sort((a, b) => (descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b)));
+  return [...rows].sort((a, b) => {
+    if (stickyValue) {
+      const aSticky = stickyValue[a.rowId] ? 1 : 0;
+      const bSticky = stickyValue[b.rowId] ? 1 : 0;
+      if (aSticky !== bSticky) {
+        return bSticky - aSticky;
+      }
+    }
+    if (sort) {
+      return descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
+    }
+    return 0;
+  });
 };
 
 const buildFilterOptionsMap = rows => {
@@ -274,7 +283,7 @@ const buildFilterOptionsMap = rows => {
     if (row.bk_os_name) setMap.bk_os_name.set(row.bk_os_name, row.bk_os_name);
     if (row.bk_cloud_name) setMap.bk_cloud_name.set(row.bk_cloud_name, row.bk_cloud_name);
     const statusConfig = HOST_STATUS_MAP[row.status] || HOST_STATUS_MAP[String(row.status)];
-    setMap.status.set(String(row.status), (statusConfig && statusConfig.name) || String(row.status));
+    setMap.status.set(String(row.status), statusConfig?.name || String(row.status));
     for (const cluster of row.bkClusters) {
       setMap.bk_cluster.set(cluster.id, cluster.name);
     }
@@ -365,7 +374,7 @@ const runCompute = params => {
   const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
   const categoryStats = computeCategoryStats(nodeScopedRows);
   const filteredRows = filterByConditions(nodeScopedRows, params);
-  const sortedRows = sortRows(filteredRows, params.sortInfo);
+  const sortedRows = sortRows(filteredRows, params.sortInfo, params.stickyValue);
   const total = sortedRows.length;
   const start = (params.page - 1) * params.pageSize;
   const pagedRows = sortedRows.slice(start, start + params.pageSize);

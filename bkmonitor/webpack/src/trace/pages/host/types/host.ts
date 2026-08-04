@@ -85,3 +85,11 @@ export type IHostModule = {
   topo_link: string[];
   topo_link_display: string[];
 };
+
+/** 状态异常 tip 配置（主机采集状态 / 进程状态共用） */
+export interface IStatusTipsConfig {
+  docLink?: string;
+  linkText?: string;
+  linkUrl?: string;
+  tipsText?: string;
+}
