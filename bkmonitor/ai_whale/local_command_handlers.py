@@ -116,15 +116,13 @@ class TracingAnalysisCommandHandler(CommandHandler):
         return self.jinja_env.render(template, variables)
 
     def get_template(self):
-        # jinja 模板会对一些字符转义, 这种转义我认为会对 llm 推理造成不好的影响:
-        # 例如: `可能出错的 span_id: ['123']` 被转义为 `可能出错的 span_id: [&#39;123&#39;]`
-        # 故添加 `variable | safe` 取消转义
+        # 安全修复: 移除 | safe 过滤器，使用默认的 Jinja2 转义以防止提示词注入
         return """
         请帮我分析 Tracing:
         应用名称: {{ app_name }}
         trace 总耗时: {{ total_time }}
-        可能出错的 span_id: {{ error_span_ids | safe }}
-        Tracing 数据(JSON 格式): {{ trace_data | safe }}
+        可能出错的 span_id: {{ error_span_ids }}
+        Tracing 数据(JSON 格式): {{ trace_data }}
         结果要求: 确保分析准确无误，无需冗余回答内容
         """
 
@@ -220,9 +218,10 @@ class ProfilingAnalysisCommandHandler(CommandHandler):
         )
 
     def get_template(self) -> str:
+        # 安全修复: 移除 | safe 过滤器，使用默认的 Jinja2 转义以防止提示词注入
         return """
         应用名称: {{ app_name }}
         业务ID: {{ bk_biz_id }}
-        请帮助我分析 Profiling 数据(DOT 描述): {{ profiling_data | safe }}
+        请帮助我分析 Profiling 数据(DOT 描述): {{ profiling_data }}
         结果要求: 确保分析准确无误，无需冗余回答内容
         """
