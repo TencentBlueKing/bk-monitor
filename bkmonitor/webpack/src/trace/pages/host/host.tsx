@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted } from 'vue';
+import { computed, defineComponent, onMounted, provide, shallowRef } from 'vue';
 import { watch } from 'vue';
 
 import { Message, ResizeLayout } from 'bkui-vue';
@@ -56,6 +56,29 @@ export default defineComponent({
     const isLockSearch = ((route.query.lockSearch || 'false') as string) === 'true';
     const isShareLink = ((route.query.shareLink || 'false') as string) === 'true';
     const { timeRange, timezone, refreshImmediate, refreshInterval, scene, nodeId } = storeToRefs(useHostStore());
+
+    const cacheTimeRange = shallowRef(null);
+    const showRestore = shallowRef(false);
+    const handleDataZoomChange = (value: any[]) => {
+      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
+        timeRange.value = value;
+        showRestore.value = true;
+      }
+    };
+    /**
+     * @description 复位时间范围
+     */
+    const handleRestore = () => {
+      const cacheTime = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      timeRange.value = cacheTime;
+      showRestore.value = false;
+    };
+
+    provide('showRestore', showRestore);
+    provide('handleDataZoomChange', handleDataZoomChange);
+    provide('handleRestore', handleRestore);
+
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
     const topoTree = useHostTopoTree(nodeId);
     const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();

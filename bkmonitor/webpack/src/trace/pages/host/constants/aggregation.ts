@@ -32,20 +32,6 @@ export const DEFAULT_METHOD = 'MAX';
 /** 对比方法默认值 */
 export const DEFAULT_COMPARE_TYPE: MetricCompareType = 'none';
 
-/**
- * 汇聚周期选项。默认 auto，其余周期与旧版一致。
- * 注：当前为 mock 数据，接入接口后以后端返回为准。
- */
-export const INTERVAL_OPTIONS: SelectOption[] = [
-  { id: 'auto', name: 'auto' },
-  { id: '1m', name: '1m' },
-  { id: '5m', name: '5m' },
-  { id: '10m', name: '10m' },
-  { id: '30m', name: '30m' },
-  { id: '1h', name: '1h' },
-  { id: '1d', name: '1d' },
-];
-
 /** 汇聚方法选项，与旧版一致；默认 MAX */
 export const METHOD_OPTIONS: SelectOption[] = [
   { id: 'AVG', name: 'AVG' },

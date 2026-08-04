@@ -33,11 +33,11 @@ import {
   COLUMN_ICON_MAP,
   COLUMN_VALUES,
   COMPARE_TYPE_OPTIONS,
-  INTERVAL_OPTIONS,
   METHOD_OPTIONS,
   TIME_SHIFT_OPTIONS,
 } from '../../constants/aggregation';
 import { handleCreateCompares, handleCreateItemId } from '../../utils/host-list';
+import { PANEL_INTERVAL_LIST } from '@/pages/main/dashboard-panel/utils';
 
 import type { CompareTargetOption, MetricAggregationState, MetricCompareType } from '../../types/aggregation';
 
@@ -177,7 +177,7 @@ export default defineComponent({
               modelValue={props.value.interval}
               onChange={(v: string) => emit('change', { interval: v })}
             >
-              {INTERVAL_OPTIONS.map(item => (
+              {PANEL_INTERVAL_LIST.map(item => (
                 <Select.Option
                   id={item.id}
                   key={item.id}

@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, TransitionGroup, watch } from 'vue';
 
+import { useThrottleFn } from '@vueuse/core';
 import { Button, Input, Popover } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
@@ -67,8 +68,22 @@ export default defineComponent({
     const addGroupPopoverShow = shallowRef(false);
     const newGroupName = shallowRef('');
     const addGroupMessage = shallowRef('');
-    /** 拖拽起始下标 */
-    const dragIndex = shallowRef(-1);
+    /** 用于实时拖拽展示的本地分组副本 */
+    const displayGroups = shallowRef<MetricGroupModel[]>([]);
+    const isDragging = shallowRef(false);
+    const draggingGroupId = shallowRef('');
+    const targetGroupId = shallowRef('');
+
+    watch(
+      () => props.groups,
+      groups => {
+        if (!isDragging.value) {
+          displayGroups.value = [...groups];
+        }
+      },
+      { immediate: true }
+    );
+
     /** 统计某分组的可见/隐藏数量；scope 为 'all' 时统计全部 */
     const countOf = (scope: string) => {
       const list = scope === GROUP_ID_ALL ? props.metrics : props.metrics.filter(m => m.groupId === scope);
@@ -82,10 +97,10 @@ export default defineComponent({
     const ungroupCount = computed(() => countOf(UNGROUP_ID));
 
     /** 按搜索过滤后的分组 */
-    const renderGroups = computed(() => {
+    const filteredGroups = computed(() => {
       const key = searchKey.value.trim().toLowerCase();
-      if (!key) return props.groups;
-      return props.groups.filter(g => g.title.toLowerCase().includes(key));
+      if (!key) return displayGroups.value;
+      return displayGroups.value.filter(g => g.title.toLowerCase().includes(key));
     });
 
     /** 全局点击事件，关闭所有操作弹窗 */
@@ -114,15 +129,50 @@ export default defineComponent({
       handleAddGroupShowChange(false);
     };
 
-    /** 拖拽排序（仅真实分组，未受搜索影响时才允许） */
-    const handleDrop = (targetIndex: number) => {
-      const from = dragIndex.value;
-      dragIndex.value = -1;
-      if (from < 0 || from === targetIndex) return;
-      const next = [...props.groups];
-      const [moved] = next.splice(from, 1);
-      next.splice(targetIndex, 0, moved);
-      emit('reorder', next);
+    /** 实时交换分组位置 */
+    const transformGroupPosition = () => {
+      if (!draggingGroupId.value || !targetGroupId.value || draggingGroupId.value === targetGroupId.value) {
+        return;
+      }
+      const list = [...displayGroups.value];
+      const sourceIndex = list.findIndex(g => g.id === draggingGroupId.value);
+      const targetIndex = list.findIndex(g => g.id === targetGroupId.value);
+      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
+
+      const [moved] = list.splice(sourceIndex, 1);
+      list.splice(targetIndex, 0, moved);
+      displayGroups.value = list;
+      emit('reorder', list);
+    };
+
+    const throttleTransformGroupPosition = useThrottleFn(transformGroupPosition, 100);
+
+    const handleDragstart = (e: DragEvent, groupId: string) => {
+      isDragging.value = true;
+      draggingGroupId.value = groupId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', groupId);
+      (e.target as HTMLElement)?.classList.add('dragging');
+    };
+
+    const handleDragover = (e: DragEvent, groupId: string) => {
+      if (!draggingGroupId.value || !isDragging.value) return;
+      targetGroupId.value = groupId;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      throttleTransformGroupPosition();
+    };
+
+    const handleDragend = (e: DragEvent) => {
+      transformGroupPosition();
+      (e.target as HTMLElement)?.classList.remove('dragging');
+      isDragging.value = false;
+      draggingGroupId.value = '';
+      targetGroupId.value = '';
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
     };
 
     const renderCount = (count: { hidden: number; visible: number }) => (
@@ -209,29 +259,37 @@ export default defineComponent({
             v-model={searchKey.value}
             placeholder={t('搜索 指标分组')}
             type='search'
+            clearable
           />
         </div>
-        <div class='metric-group-list-custom'>
-          {renderGroups.value.map((group, index) => (
-            <div
-              key={group.id}
-              class={['metric-group-list-item', { 'is-active': props.activeGroupId === group.id }]}
-              draggable={draggable.value}
-              onClick={() => emit('change', group.id)}
-              onDragover={(e: DragEvent) => e.preventDefault()}
-              onDragstart={() => (dragIndex.value = index)}
-              onDrop={() => handleDrop(index)}
-            >
-              {draggable.value && <i class='icon-monitor icon-mc-tuozhuai metric-group-list-drag' />}
-              <span
-                class='metric-group-list-name'
-                v-bk-tooltips={{ content: group.title, delay: 300 }}
+        <div class={['metric-group-list-custom', { 'is-dragging': isDragging.value }]}>
+          <TransitionGroup
+            class='metric-group-list-transition'
+            name={draggable.value ? 'drag' : ''}
+            tag='div'
+          >
+            {filteredGroups.value.map(group => (
+              <div
+                key={group.id}
+                class={['metric-group-list-item', { 'is-active': props.activeGroupId === group.id }]}
+                draggable={draggable.value}
+                onClick={() => emit('change', group.id)}
+                onDragend={handleDragend}
+                onDragover={(e: DragEvent) => handleDragover(e, group.id)}
+                onDragstart={(e: DragEvent) => handleDragstart(e, group.id)}
+                onDrop={handleDrop}
               >
-                {group.title}
-              </span>
-              {renderCount(countOf(group.id))}
-            </div>
-          ))}
+                {draggable.value && <i class='icon-monitor icon-mc-tuozhuai metric-group-list-drag' />}
+                <span
+                  class='metric-group-list-name'
+                  v-overflow-tips={{ content: group.title, delay: 300 }}
+                >
+                  {group.title}
+                </span>
+                {renderCount(countOf(group.id))}
+              </div>
+            ))}
+          </TransitionGroup>
           <div
             class={['metric-group-list-item', 'is-ungroup', { 'is-active': props.activeGroupId === UNGROUP_ID }]}
             onClick={() => emit('change', UNGROUP_ID)}

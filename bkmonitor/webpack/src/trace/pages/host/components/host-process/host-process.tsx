@@ -141,15 +141,12 @@ export default defineComponent({
           />
         </div>
         <ProcessTable
-          empty={
-            this.keyword
-              ? { type: 'search-empty', emptyText: this.t('搜索结果为空') }
-              : { type: 'empty', emptyText: this.t('暂无数据') }
-          }
           data={this.displayList}
+          emptyType={this.keyword ? 'search-empty' : 'empty'}
           loading={this.loading}
           sort={this.sortInfo}
           visibleColumns={this.visibleColumns}
+          onClearFilter={() => this.handleKeywordChange('')}
           onColumnsChange={(cols: string[]) => (this.visibleColumns = cols)}
           onRowClick={this.handleRowClick}
           onSortChange={this.handleSortChange}

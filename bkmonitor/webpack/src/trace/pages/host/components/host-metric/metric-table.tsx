@@ -103,7 +103,6 @@ export default defineComponent({
         width: 200,
         cell: (_h: unknown, { row }: { row: MetricItemModel }) => (
           <GroupSelect
-            behavior='simplicity'
             clearable={false}
             groupOptions={props.groupOptions}
             modelValue={row.groupId}
@@ -151,6 +150,7 @@ export default defineComponent({
         rowKey='id'
         scroll={{ type: 'virtual' }}
         selectedRowKeys={props.selectedIds}
+        hover
         onDragSort={(ctx: any) => emit('dragSort', (ctx as any).newData as MetricItemModel[])}
         onFilterChange={handleFilterChange}
         onSelectChange={(ids: any) => emit('selectChange', ids as string[])}

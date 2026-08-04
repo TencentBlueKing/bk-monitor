@@ -481,6 +481,7 @@ export const useEcharts = ({
       for (const entry of entries) {
         if (intersectionObserver.value && entry.intersectionRatio > 0) {
           options.value = await getEchartOptions();
+          chartId.value = random(8);
         }
       }
     });
@@ -537,6 +538,7 @@ export const useEcharts = ({
     for (const cb of cancelTokens) {
       cb?.();
     }
+    /** 是否开启视口请求判断 */
     if (viewportRequest?.enable) {
       if (!isInViewPort(viewportRequest.el.value)) {
         if (intersectionObserver.value) {
