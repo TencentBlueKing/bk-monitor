@@ -25,7 +25,7 @@
 import { defineComponent, type PropType } from 'vue';
 
 import type { IListItemData } from '../../../type';
-import TableListNew from './new';
+import TableListV2 from './table-list-v2';
 
 export default defineComponent({
   name: 'TableList',
@@ -46,7 +46,7 @@ export default defineComponent({
   emits: ['refresh-index-group'],
   setup(props, { emit }) {
     return () => (
-      <TableListNew
+      <TableListV2
         indexSet={props.indexSet}
         leftLoading={props.leftLoading}
         indexGroupList={props.indexGroupList}
