@@ -33,7 +33,6 @@ import homeRoutes from './modules/home';
 import profilingRoutes from './modules/profiling';
 import rotationRoutes from './modules/rotation';
 import rumRoutes from './modules/rum';
-
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
