@@ -53,12 +53,17 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const route = useRoute();
+    /** 是否锁定搜索条件（来自 URL query 参数，分享链接场景使用） */
     const isLockSearch = ((route.query.lockSearch || 'false') as string) === 'true';
+    /** 是否为分享链接入口（来自 URL query 参数） */
     const isShareLink = ((route.query.shareLink || 'false') as string) === 'true';
     const { timeRange, timezone, refreshImmediate, refreshInterval, scene, nodeId } = storeToRefs(useHostStore());
 
+    /** 缩放前的时间范围缓存，用于"复位"操作恢复 */
     const cacheTimeRange = shallowRef(null);
+    /** 是否显示"复位时间范围"按钮 */
     const showRestore = shallowRef(false);
+    /** 图表数据缩放回调：记录缩放前时间范围，更新当前时间范围并显示复位按钮 */
     const handleDataZoomChange = (value: any[]) => {
       if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
         cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
@@ -85,6 +90,7 @@ export default defineComponent({
     // 主机详情数据（基于选中节点动态生成）
     const { detailData, loading: detailLoading } = useHostDetail(topoTree.selectedNode);
 
+    /** 时间范围选择器禁用提示文案（分享链接锁定搜索时显示） */
     const timeRangeDisabledTip = computed(() => {
       return isShareLink && isLockSearch ? t('该分享链接仅包含当前时间范围') : '';
     });
@@ -164,7 +170,7 @@ export default defineComponent({
                 {this.scene === 'host' && <HostLocationBar selectedNode={this.topoTree.selectedNode.value} />}
               </div>
             ),
-            accessGuide: () => <AlarmTools />,
+            accessGuide: () => <AlarmTools selectedNode={this.topoTree.selectedNode.value} />,
           }}
         </CommonHeader>
         <div class='host-page-content'>
