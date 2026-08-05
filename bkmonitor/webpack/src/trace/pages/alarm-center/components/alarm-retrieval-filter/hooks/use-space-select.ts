@@ -29,9 +29,21 @@ import { shallowRef } from 'vue';
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { random } from 'monitor-common/utils/utils';
 
+import { useAuthorityStore } from '@/store/modules/authority';
+
+const SPACE_APPLY_ACTION_IDS = [
+  'view_business_v2',
+  'manage_event_v2',
+  'manage_downtime_v2',
+  'view_event_v2',
+  'view_host_v2',
+  'view_rule_v2',
+];
+
 export function useSpaceSelect() {
   const allowedBizList = shallowRef([]);
   const isMultiple = shallowRef(false);
+  const authorityStore = useAuthorityStore();
 
   /**
    * @description: 通过业务id 获取无权限申请url
@@ -39,25 +51,23 @@ export function useSpaceSelect() {
    * @return {*}
    */
   async function handleCheckAllowedByIds(values?: (number | string)[]) {
-    let allowedBizIdList = [];
-    if (!values?.length) {
-      allowedBizIdList = allowedBizList.value.filter(item => item.noAuth).map(item => item.id);
-    }
+    // 对齐旧版：有入参用入参；无入参时取列表中的无权限业务
+    const allowedBizIdList = values?.length
+      ? [...values]
+      : allowedBizList.value.filter(item => item.noAuth).map(item => item.id);
     if (!allowedBizIdList?.length) return;
+    const requestBizId = getAuthorizedRequestBizId();
+    const resources = allowedBizIdList.map(id => ({ id: Number(id), type: 'space' }));
     const applyObj = await checkAllowed({
-      action_ids: [
-        'view_business_v2',
-        'manage_event_v2',
-        'manage_downtime_v2',
-        'view_event_v2',
-        'view_host_v2',
-        'view_rule_v2',
-      ],
-      resources: allowedBizIdList.map(id => ({ id, type: 'space' })),
-    });
-    if (applyObj?.apply_url) {
-      window.open(applyObj?.apply_url, random(10));
-    }
+      action_ids: SPACE_APPLY_ACTION_IDS,
+      resources,
+      // 显式覆盖：当前 URL 业务无权限时不能用 cc_biz_id 发申请接口
+      ...(requestBizId != null ? { bk_biz_id: requestBizId } : {}),
+    }).catch(() => null);
+    const applyUrl = applyObj?.apply_url || applyObj?.applyUrl;
+    if (openApplyUrl(applyUrl)) return;
+    // 兜底：打开权限申请弹窗（与 v-authority / AuthorityModal 一致）
+    await authorityStore.getIntanceAuthDetail(SPACE_APPLY_ACTION_IDS, resources, requestBizId);
   }
 
   function handleChangeChoiceType(v: boolean) {
@@ -69,4 +79,18 @@ export function useSpaceSelect() {
     handleCheckAllowedByIds,
     handleChangeChoiceType,
   };
+}
+
+/** 取一个有权限的业务作为请求上下文，避免当前 cc_biz_id 无权限时 checkAllowed 403 */
+function getAuthorizedRequestBizId(): number | undefined {
+  const spaceList = window.space_list || [];
+  const authorized = spaceList.find(item => !item.is_demo && item.bk_biz_id != null);
+  if (authorized?.bk_biz_id != null) return +authorized.bk_biz_id;
+  return undefined;
+}
+
+function openApplyUrl(url?: string) {
+  if (!url) return false;
+  window.open(url, random(10));
+  return true;
 }
