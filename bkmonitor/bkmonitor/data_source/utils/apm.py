@@ -17,7 +17,6 @@ from django.utils.functional import classproperty
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
-
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils import types
 from constants.apm import ApmGlobalTablePrefix
