@@ -1518,6 +1518,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
             alert_doc = AlertDocument(**alert)
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
+            anomaly_ids = alert.get("extra_info", {}).get("origin_alarm", {}).get("trigger", {}).get("anomaly_ids", [])
+            alert["anomaly_timestamps"] = sorted(int(anomaly_id.split(".", 2)[1]) for anomaly_id in anomaly_ids)
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     alert["graph_panel"] = AIOPSManager.get_graph_panel(
