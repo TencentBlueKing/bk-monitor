@@ -19,9 +19,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
+
 import arrow
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
 
@@ -36,10 +39,12 @@ from apps.log_databus.constants import (
     ETL_PARAMS,
     REGISTERED_SYSTEM_DEFAULT,
     STORAGE_CLUSTER_TYPE,
+    CleanTemplateSyncStatus,
     EtlConfig,
     ETLProcessorChoices,
 )
 from apps.log_databus.exceptions import (
+    CleanTemplateNotExistException,
     CollectorActiveException,
     CollectorConfigNotExistException,
     CollectorResultTableIDDuplicateException,
@@ -51,6 +56,7 @@ from apps.log_databus.handlers.collector_scenario.custom_define import get_custo
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
+    CleanTemplate,
     CollectorConfig,
     ItsmEtlConfig,
     StorageCapacity,
@@ -68,6 +74,9 @@ from apps.utils.db import array_group
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
+
+
+_CLEAN_TEMPLATE_ID_NOT_PROVIDED = object()
 
 
 class EtlHandler:
@@ -150,6 +159,47 @@ class EtlHandler:
             collect_config.set_itsm_success()
         return data, True
 
+    def _validate_clean_template(self, clean_template_id):
+        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED or clean_template_id is None:
+            return None
+
+        try:
+            return CleanTemplate.objects.get(
+                clean_template_id=clean_template_id,
+                bk_biz_id=self.data.bk_biz_id,
+            )
+        except CleanTemplate.DoesNotExist:
+            raise CleanTemplateNotExistException(
+                CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
+            )
+
+    def _prepare_clean_template_config(self, clean_template_id, etl_config, etl_params, fields):
+        clean_template = self._validate_clean_template(clean_template_id)
+        if clean_template is None:
+            return clean_template, etl_config, etl_params, fields
+
+        return (
+            clean_template,
+            clean_template.clean_type,
+            copy.deepcopy(clean_template.etl_params or {}),
+            copy.deepcopy(clean_template.etl_fields or []),
+        )
+
+    def _update_clean_template(self, clean_template_id, clean_template):
+        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
+            return
+
+        update_fields = {
+            "clean_template_id": clean_template.clean_template_id if clean_template else None,
+            "clean_template_version": clean_template.config_version if clean_template else None,
+            "clean_template_sync_status": CleanTemplateSyncStatus.SUCCESS.value if clean_template else None,
+            "clean_template_sync_at": timezone.now() if clean_template else None,
+            "clean_template_sync_message": "",
+        }
+        CollectorConfig.objects.filter(collector_config_id=self.collector_config_id).update(**update_fields)
+        for field, value in update_fields.items():
+            setattr(self.data, field, value)
+
     def update_or_create(
         self,
         etl_config,
@@ -165,7 +215,17 @@ class EtlHandler:
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        clean_template_id=_CLEAN_TEMPLATE_ID_NOT_PROVIDED,
+        sync_modify_result_table=False,
     ):
+        # 模板配置是关联关系的唯一可信来源，并在外部调用前固定本次应用的配置和版本快照。
+        clean_template, etl_config, etl_params, fields = self._prepare_clean_template_config(
+            clean_template_id,
+            etl_config,
+            etl_params,
+            fields,
+        )
+
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
@@ -222,6 +282,7 @@ class EtlHandler:
             etl_params=etl_params,
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
+            sync_modify_result_table=sync_modify_result_table,
         )
 
         if not view_roles:
@@ -260,6 +321,8 @@ class EtlHandler:
         if self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
             custom_config = get_custom(self.data.custom_type)
             custom_config.after_etl_hook(self.data)
+
+        self._update_clean_template(clean_template_id, clean_template)
 
         return {
             "collector_config_id": self.data.collector_config_id,

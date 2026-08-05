@@ -345,6 +345,11 @@ class CleanTemplateVisibleException(BaseCollectorConfigException):
     MESSAGE = _("该业务{bk_biz} 不可编辑或删除该模板{name}")
 
 
+class CleanTemplateSyncingException(BaseCollectorConfigException):
+    ERROR_CODE = "706"
+    MESSAGE = _("清洗模板{clean_template_id}正在同步，请稍后重试")
+
+
 class ArchiveNotFound(BaseCollectorConfigException):
     ERROR_CODE = "800"
     MESSAGE = _("归档配置不存在")
