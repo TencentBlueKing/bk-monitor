@@ -58,17 +58,17 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    /** 从 store 获取当前选中进程 ID 和进程指标汇聚状态 */
-    const { hostProcessId, processMetricAggregationState, hostProcessKeyword: keyword } = storeToRefs(useHostStore());
+    /** 从 store 获取当前选中进程名称和进程指标汇聚状态 */
+    const { hostProcessName, processMetricAggregationState, hostProcessKeyword: keyword } = storeToRefs(useHostStore());
     /** 进程列表数据 hook（含加载状态、搜索、排序） */
     const { loading, displayList, sortInfo, handleKeywordChange, handleSortChange } = useProcessList({
       host: toRef(props, 'host'),
       /**
-       * @description 数据加载完成回调：当 URL 带有 hostProcessId 时自动打开对应进程详情
+       * @description 数据加载完成回调：当 URL 带有 hostProcessName 时自动打开对应进程详情
        * @param list - 加载完成的进程列表数据
        */
       loadDataEnd: (list: ProcessItem[]) => {
-        const row = list.find(item => item.id === hostProcessId.value);
+        const row = list.find(item => item.name === hostProcessName.value);
         if (row) {
           handleRowClick(row);
         }
@@ -95,18 +95,18 @@ export default defineComponent({
     const handleRowClick = (row: ProcessItem) => {
       activeProcess.value = row;
       detailShow.value = true;
-      hostProcessId.value = row.id;
+      hostProcessName.value = row.name;
     };
 
     /**
      * @description 处理进程详情抽屉显隐变化
      * @param show - 抽屉是否显示
-     * 关闭时重置选中进程 ID 和进程指标汇聚状态为默认值
+     * 关闭时重置选中进程名称和进程指标汇聚状态为默认值
      */
     const handleDetailShow = (show: boolean) => {
       detailShow.value = show;
       if (!show) {
-        hostProcessId.value = '';
+        hostProcessName.value = '';
         Object.assign(processMetricAggregationState.value, JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE)));
       }
     };

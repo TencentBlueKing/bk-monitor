@@ -128,7 +128,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} CPU 列 JSX
    */
   const renderCpuCell = (row: ProcessItem) => {
-    if (!(row.cpuUsage >= 0)) {
+    if (!row.cpuUsage) {
       return <span class='process-table-cpu__empty'>--</span>;
     }
     return (
@@ -155,7 +155,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 内存列 JSX
    */
   const renderMemoryCell = (row: ProcessItem) => {
-    if (!(row.memRss > 0)) {
+    if (!row.memRss) {
       return <span class='process-table-memory__empty'>--</span>;
     }
     return (
@@ -183,7 +183,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 文件句柄列 JSX
    */
   const renderFileHandleCell = (row: ProcessItem) => {
-    if (!(row.fdNum >= 0)) {
+    if (!row.fdNum) {
       return <span class='process-table-file-handle__empty'>--</span>;
     }
     const fdRate = parseFloat(row.fdUsageRate) || 0;

@@ -53,15 +53,17 @@ export type IHostBaseInfo = {
 
 /** 主机进程组件信息 */
 export type IHostComponent = {
+  bindIp: string;
   display_name: string;
-  ports: number[];
-  protocol: string;
+  id: string;
+  port: number;
+  startCommand: string;
   status: number;
+  user: string;
 };
 
 /** 带指标数据的主机列表项 */
 export interface IHostMetricInfo extends IHostBaseInfo {
-  id: string;
   alarm_count: IHostAlarmCount[];
   bk_host_innerip_v6: string;
   bk_host_outerip_v6: string;
@@ -70,6 +72,7 @@ export interface IHostMetricInfo extends IHostBaseInfo {
   cpu_load: number;
   cpu_usage: number;
   disk_in_use: number;
+  id: string;
   io_util: number;
   mem_usage: number;
   psc_mem_usage: number;

@@ -61,8 +61,8 @@ export const useHostUrlParams = () => {
       activeTab: hostStore.activeTab,
       /** 指标汇聚 Toolbar 状态（JSON 编码） */
       metricAggregationState: encodeURIComponent(JSON.stringify(hostStore.metricAggregationState)),
-      /** 当前选中的主机进程 ID（用于恢复进程详情选中状态） */
-      hostProcessId: hostStore.hostProcessId,
+      /** 当前选中的主机进程名称（用于恢复进程详情选中状态） */
+      hostProcessName: hostStore.hostProcessName,
       /** 主机进程详情侧栏指标视图 Toolbar 状态（JSON 编码） */
       processMetricAggregationState: encodeURIComponent(JSON.stringify(hostStore.processMetricAggregationState)),
       /** 进程列表搜索关键词（同步到 URL） */
@@ -110,8 +110,7 @@ export const useHostUrlParams = () => {
       nodeId,
       activeTab,
       dashboardId,
-      hostProcessId,
-      'var-display_name': varDisplayName,
+      hostProcessName,
       hostProcessKeyword,
     } = route.query;
     hostStore.nodeId = (nodeId || route.params.id || '') as string;
@@ -133,8 +132,8 @@ export const useHostUrlParams = () => {
       diskData: 'disk',
     };
     hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
-    /** 恢复主机进程 ID，兼容旧版 var-display_name 参数 */
-    hostStore.hostProcessId = (hostProcessId || varDisplayName || '') as string;
+    /** 恢复主机进程名称 */
+    hostStore.hostProcessName = (hostProcessName || '') as string;
     /** 恢复进程列表搜索关键词 */
     hostStore.hostProcessKeyword = (hostProcessKeyword || '') as string;
     hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
@@ -257,7 +256,7 @@ export const useHostUrlParams = () => {
       ...JSON.parse(JSON.stringify(DEFAULT_AGGREGATION_STATE)),
       columns: hostStore.metricAggregationState.columns,
     });
-    hostStore.hostProcessId = '';
+    hostStore.hostProcessName = '';
     /** 切换节点时清空进程搜索关键词 */
     hostStore.hostProcessKeyword = '';
     if (isHostNode(node)) {
