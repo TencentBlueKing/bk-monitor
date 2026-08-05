@@ -2980,7 +2980,14 @@ class BkRumDataSource(BkApmTraceDataSource):
     data_source_label = DataSourceLabel.BK_RUM
     data_type_label = DataTypeLabel.LOG
 
-    PRE_CALCULATE_OBJECT_FIELDS: set[str] = {}
+    # Span 对象字段
+    SPAN_OBJECT_FIELDS: set[str] = {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE, OtlpKey.STATUS}
+
+    # 预计算字段
+    PRE_CALCULATE_OBJECT_FIELDS: set[str] = set()
+
+    # 对象字段，需要进行存在性校验，选用 Set 结构以提升效率。
+    OBJECT_FIELDS: set[str] = SPAN_OBJECT_FIELDS | PRE_CALCULATE_OBJECT_FIELDS
 
     def _fetch_black_list(self) -> list[str | int]:
         return []
