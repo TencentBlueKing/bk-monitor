@@ -10,6 +10,9 @@ specific language governing permissions and limitations under the License.
 
 # ---------------------------------------------------------------------------
 # V4PermissionProvider — IAM v4 (RBAC) 鉴权 Provider
+#
+# 只实现"方言层"接口：接收编码后的 Dialect* 结构，直接组装 v4 平台 payload
+# 并调用 client。业务命名 ↔ v4 方言的编解码全部由基类和 V4NameCodec 完成。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -17,15 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..iam_engine.provider.base import PermissionProvider
-from ..iam_engine.provider.mixins import BatchMixin
-from ..iam_engine.core.types import (
-    ApplyURLRequest,
-    AuthRequest,
-    ResourceAuthResult,
-    to_action_id,
-    to_resource_type_id,
+from ..iam_engine.provider.codec import NameCodec
+from ..iam_engine.provider.dialect_types import (
+    DialectApplyURLRequest,
+    DialectAuthRequest,
+    DialectBatchByActionRequest,
+    DialectBatchByResourceRequest,
 )
 from .client import V4Client
+from .codec import V4NameCodec
 from .config import V4Options, V4SystemInfo
 
 if TYPE_CHECKING:
@@ -33,23 +36,24 @@ if TYPE_CHECKING:
     from ..iam_engine.schema.registry import SchemaRegistry
 
 
-class V4PermissionProvider(BatchMixin, PermissionProvider):
+class V4PermissionProvider(PermissionProvider):
     """IAM v4 RBAC 权限 Provider。
 
-    鉴权：is_allowed 对单资源直接调 direct_auth（避免不必要的批量开销）；
-    batch_by_resource / batch_by_action 由 BatchMixin 提供分片 + 串/并行。
-
-    配置：完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
-    Provider 不读 Django settings；具体字段参见 V4Options。
+    - 鉴权：is_allowed 直接调 direct_auth；batch_* 由基类自动分片 + 串/并行。
+    - 编解码：所有业务 ↔ v4 方言的转换由 V4NameCodec + 基类模板方法完成，
+      子类只处理"方言 ID → v4 payload"。
+    - 配置：完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
+      Provider 不读 Django settings；具体字段参见 V4Options。
     """
 
     name: ClassVar[str] = "v4"
+    codec_class: ClassVar[type[NameCodec]] = V4NameCodec
 
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         super().__init__(schema, **options)
         # 强类型解析 + 启动期校验（缺字段/类型错直接抛 ValueError）
         self._cfg: V4Options = V4Options.from_dict(options)
-        # BatchMixin 依赖的分片/并发参数
+        # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
         # Client 解耦：配置全部注入，不直接读 Django settings
@@ -69,88 +73,76 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
         return self._cfg.system
 
     # ================================================================
-    # is_allowed — 单资源走 direct_auth
+    # 方言层：单次鉴权
     # ================================================================
 
-    def is_allowed(self, request: AuthRequest) -> bool:
-        action_id = to_action_id(request.action_id)
-        resource = {"id": request.resource.id} if request.resource else None
+    def _is_allowed_dialect(self, request: DialectAuthRequest) -> bool:
+        v4_resource = self._to_v4_resource(request) if request.resource else None
         return self._client.direct_auth(
             subject_id=request.subject.id,
-            action_id=action_id,
-            resource=resource,
-        )
-
-    # ================================================================
-    # batch_by_resource  (BatchMixin 提供分片 + 串/并行)
-    # ================================================================
-
-    def _batch_by_resource_page(self, subject, action_id, batch):
-        action_id_str = to_action_id(action_id)
-        v4_resources = [{"id": r.id} for r in batch]
-        resp = self._client.direct_auth_by_resources(
-            subject_id=subject.id,
-            action_id=action_id_str,
-            resources=v4_resources,
-        )
-        rt_id = to_resource_type_id(batch[0].type) if batch and batch[0].type else ""
-        return [
-            ResourceAuthResult(
-                action_id=action_id_str,
-                resource_type=rt_id,
-                resource_id=rid,
-                allowed=allowed,
-            )
-            for rid, allowed in resp.items()
-        ]
-
-    # ================================================================
-    # batch_by_action  (BatchMixin 提供分片 + 串/并行)
-    # ================================================================
-
-    def _batch_by_action_page(self, subject, action_ids, resource):
-        v4_resource = {"id": resource.id} if resource else None
-        resp = self._client.direct_auth_by_actions(
-            subject_id=subject.id,
-            action_ids=list(action_ids),
+            action_id=request.action_id,
             resource=v4_resource,
         )
-        rt_id = to_resource_type_id(resource.type) if resource else ""
-        rid = resource.id if resource else ""
-        return [
-            ResourceAuthResult(
-                action_id=aid,
-                resource_type=rt_id,
-                resource_id=rid,
-                allowed=allowed,
-            )
-            for aid, allowed in resp.items()
-        ]
 
     # ================================================================
-    # get_apply_url
+    # 方言层：同 action、多 resource 单页
     # ================================================================
 
-    def get_apply_url(self, request: ApplyURLRequest) -> str:
+    def _batch_by_resource_dialect_page(
+        self,
+        request: DialectBatchByResourceRequest,
+    ) -> list[tuple[str, bool]]:
+        v4_resources = [{"id": rid} for rid in request.resource_ids]
+        resp = self._client.direct_auth_by_resources(
+            subject_id=request.subject.id,
+            action_id=request.action_id,
+            resources=v4_resources,
+        )
+        return [(rid, allowed) for rid, allowed in resp.items()]
+
+    # ================================================================
+    # 方言层：多 action、同 resource 单页
+    # ================================================================
+
+    def _batch_by_action_dialect_page(
+        self,
+        request: DialectBatchByActionRequest,
+    ) -> list[tuple[str, bool]]:
+        v4_resource = None
+        if request.resource:
+            v4_resource = {"id": request.resource.id}
+        resp = self._client.direct_auth_by_actions(
+            subject_id=request.subject.id,
+            action_ids=list(request.action_ids),
+            resource=v4_resource,
+        )
+        return [(aid, allowed) for aid, allowed in resp.items()]
+
+    # ================================================================
+    # 方言层：apply_url
+    # ================================================================
+
+    def _get_apply_url_dialect(self, request: DialectApplyURLRequest) -> str:
         permissions = []
-        for action_id in request.action_ids:
-            aid = to_action_id(action_id)
-            try:
-                action_def = self.schema.get_action(aid)
-            except Exception:
-                action_def = None
+        for aid in request.action_ids:
             resources = []
             for r in request.resources:
-                ancestors = [{"id": a.id, "type": to_resource_type_id(a.type)} for a in r.ancestor_chain]
-                resources.append(
-                    {
-                        "id": r.id,
-                        "type": action_def.resource_type if action_def else to_resource_type_id(r.type or ""),
-                        "ancestors": ancestors,
-                    }
-                )
+                ancestors = [{"id": a.id, "type": a.type} for a in r.ancestors]
+                resources.append({"id": r.id, "type": r.type, "ancestors": ancestors})
             permissions.append({"action_id": aid, "resources": resources})
         return self._client.generate_perm_apply_url(permissions)
+
+    # ================================================================
+    # 内部工具
+    # ================================================================
+
+    @staticmethod
+    def _to_v4_resource(request: DialectAuthRequest) -> dict:
+        """DialectAuthRequest 里的单个 resource → v4 平台 payload。
+
+        v4 的鉴权 body 只需要 {"id": ...}；apply_url 才需要 type/ancestors。
+        """
+        return {"id": request.resource.id} if request.resource else {}
 
     # ================================================================
     # health_check
@@ -174,7 +166,7 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
     def plan_migration(self, schema: SchemaRegistry) -> MigrationPlan:
         from .migrator import V4Migrator
 
-        migrator = V4Migrator(self._client, schema, self._cfg.system)
+        migrator = V4Migrator(self._client, schema, self._cfg.system, self.codec)
         return migrator.plan_migration()
 
     def apply_migration(
@@ -186,7 +178,7 @@ class V4PermissionProvider(BatchMixin, PermissionProvider):
     ) -> MigrationReport:
         from .migrator import V4Migrator
 
-        migrator = V4Migrator(self._client, self.schema, self._cfg.system)
+        migrator = V4Migrator(self._client, self.schema, self._cfg.system, self.codec)
         return migrator.apply_migration(
             plan,
             dry_run=dry_run,

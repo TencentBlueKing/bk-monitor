@@ -19,7 +19,9 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from ..iam_engine.core.exceptions import ProviderUnavailable
+from ..iam_engine.provider.codec import IdentityCodec, NameCodec
 from ..iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
+from ..iam_engine.schema.visibility import is_visible_to
 from .client import V4Client
 
 if TYPE_CHECKING:
@@ -30,7 +32,17 @@ logger = logging.getLogger(__name__)
 
 
 class V4Migrator:
-    """IAM v4 模型迁移器。"""
+    """IAM v4 模型迁移器。
+
+    可见性过滤：
+        本 Migrator 仅处理对 ``provider_name="v4"`` 可见的 schema 实体。
+        在 schema 实体的 ``extensions`` 里用 ``only_providers`` /
+        ``exclude_providers`` 声明归属或排除（见 ``schema.visibility``）。
+
+        本地不可见的实体：不会参与 diff（既不会被 CREATE，也不会因为在本地
+        缺失而把远端对应实体删除 — 因为本地 dialect_id 集合完全不包含它们，
+        无法与远端同名实体形成同一可见性下的 orphan）。
+    """
 
     # 拓扑顺序：创建时 System → ResourceType → Action → Role；删除时反向
     _KIND_ORDER: dict[EntityKind, int] = {
@@ -40,10 +52,19 @@ class V4Migrator:
         EntityKind.ROLE: 3,
     }
 
-    def __init__(self, client: V4Client, schema: SchemaRegistry, system_def: V4SystemInfo):
+    def __init__(
+        self,
+        client: V4Client,
+        schema: SchemaRegistry,
+        system_def: V4SystemInfo,
+        codec: NameCodec | None = None,
+    ):
         self._client = client
         self._schema = schema
         self._system = system_def
+        # 迁移器写往平台的字段（action_id / resource_type_id / resource ancestors 等）
+        # 需要经过 codec 编码为方言；未注入时用恒等 codec 保持向后兼容。
+        self._codec: NameCodec = codec or IdentityCodec()
 
     # ================================================================
     # plan_migration
@@ -203,40 +224,62 @@ class V4Migrator:
 
         # ResourceTypes
         for rt in self._schema.all_resource_types():
+            if not is_visible_to(rt, "v4"):
+                continue
+            d_rt_id = self._codec.encode_resource_type(rt.id)
+            d_anc = self._codec.encode_resource_type(rt.ancestor) if rt.ancestor else ""
             changes.append(
                 Change(
                     kind=EntityKind.RESOURCE_TYPE,
                     change_type=ChangeType.CREATE,
                     entity_id=rt.id,
-                    after={"id": rt.id, "name": rt.name, "ancestors": [rt.ancestor] if rt.ancestor else []},
+                    after={"id": d_rt_id, "name": rt.name, "ancestors": [d_anc] if d_anc else []},
                     reason="New resource type",
                 )
             )
 
         # Actions
         for a in self._schema.all_actions():
+            if not is_visible_to(a, "v4"):
+                continue
             changes.append(
                 Change(
                     kind=EntityKind.ACTION,
                     change_type=ChangeType.CREATE,
                     entity_id=a.id,
-                    after={"id": a.id, "name": a.name, "resource_type_id": a.resource_type},
+                    after={
+                        "id": self._codec.encode_action(a.id),
+                        "name": a.name,
+                        "resource_type_id": self._codec.encode_resource_type(a.resource_type)
+                        if a.resource_type
+                        else "",
+                    },
                     reason="New action",
                 )
             )
 
         # Roles
         for r in self._schema.all_roles():
+            if not is_visible_to(r, "v4"):
+                continue
             changes.append(
                 Change(
                     kind=EntityKind.ROLE,
                     change_type=ChangeType.CREATE,
                     entity_id=r.id,
                     after={
-                        "id": r.id,
+                        "id": self._codec.encode_role(r.id),
                         "name": r.name,
                         "description": r.description,
-                        "actions": [{"id": b.action_id, "resource_type_id": b.resource_type} for b in r.actions],
+                        "actions": [
+                            {
+                                "id": self._codec.encode_action(b.action_id),
+                                "resource_type_id": self._codec.encode_resource_type(b.resource_type)
+                                if b.resource_type
+                                else "",
+                            }
+                            for b in r.actions
+                        ],
                     },
                     reason="New role",
                 )
@@ -284,10 +327,12 @@ class V4Migrator:
 
     def _diff_resource_types(self, remote: dict[str, dict]) -> list[Change]:
         changes: list[Change] = []
-        local_rts = {rt.id: rt for rt in self._schema.all_resource_types()}
+        local_rts = {rt.id: rt for rt in self._schema.all_resource_types() if is_visible_to(rt, "v4")}
         for rt_id, rt in local_rts.items():
-            local = {"id": rt.id, "name": rt.name, "ancestors": [rt.ancestor] if rt.ancestor else []}
-            if rt_id not in remote:
+            d_rt_id = self._codec.encode_resource_type(rt.id)
+            d_anc = self._codec.encode_resource_type(rt.ancestor) if rt.ancestor else ""
+            local = {"id": d_rt_id, "name": rt.name, "ancestors": [d_anc] if d_anc else []}
+            if d_rt_id not in remote:
                 changes.append(
                     Change(
                         kind=EntityKind.RESOURCE_TYPE,
@@ -298,7 +343,7 @@ class V4Migrator:
                     )
                 )
             else:
-                rmt = remote[rt_id]
+                rmt = remote[d_rt_id]
                 rmt_anc = rmt.get("ancestors") or []
                 if isinstance(rmt_anc, str):
                     rmt_anc = [rmt_anc]
@@ -321,13 +366,14 @@ class V4Migrator:
                             entity_id=rt_id,
                         )
                     )
-        for rt_id in set(remote) - set(local_rts):
+        local_dialect_ids = {self._codec.encode_resource_type(rt_id) for rt_id in local_rts}
+        for d_rt_id in set(remote) - local_dialect_ids:
             changes.append(
                 Change(
                     kind=EntityKind.RESOURCE_TYPE,
                     change_type=ChangeType.DELETE,
-                    entity_id=rt_id,
-                    before=remote[rt_id],
+                    entity_id=self._codec.decode_resource_type(d_rt_id),
+                    before=remote[d_rt_id],
                     reason="Not in local schema",
                     destructive=True,
                 )
@@ -336,10 +382,12 @@ class V4Migrator:
 
     def _diff_actions(self, remote: dict[str, dict]) -> list[Change]:
         changes: list[Change] = []
-        local_actions = {a.id: a for a in self._schema.all_actions()}
+        local_actions = {a.id: a for a in self._schema.all_actions() if is_visible_to(a, "v4")}
         for aid, a in local_actions.items():
-            local = {"id": a.id, "name": a.name, "resource_type_id": a.resource_type}
-            if aid not in remote:
+            d_aid = self._codec.encode_action(a.id)
+            d_rt = self._codec.encode_resource_type(a.resource_type) if a.resource_type else ""
+            local = {"id": d_aid, "name": a.name, "resource_type_id": d_rt}
+            if d_aid not in remote:
                 changes.append(
                     Change(
                         kind=EntityKind.ACTION,
@@ -350,8 +398,8 @@ class V4Migrator:
                     )
                 )
             else:
-                rmt = remote[aid]
-                if rmt.get("name") != a.name or rmt.get("resource_type_id") != a.resource_type:
+                rmt = remote[d_aid]
+                if rmt.get("name") != a.name or rmt.get("resource_type_id") != d_rt:
                     changes.append(
                         Change(
                             kind=EntityKind.ACTION,
@@ -364,13 +412,14 @@ class V4Migrator:
                     )
                 else:
                     changes.append(Change(kind=EntityKind.ACTION, change_type=ChangeType.NOOP, entity_id=aid))
-        for aid in set(remote) - set(local_actions):
+        local_dialect_ids = {self._codec.encode_action(aid) for aid in local_actions}
+        for d_aid in set(remote) - local_dialect_ids:
             changes.append(
                 Change(
                     kind=EntityKind.ACTION,
                     change_type=ChangeType.DELETE,
-                    entity_id=aid,
-                    before=remote[aid],
+                    entity_id=self._codec.decode_action(d_aid),
+                    before=remote[d_aid],
                     reason="Not in local schema",
                     destructive=True,
                 )
@@ -379,11 +428,18 @@ class V4Migrator:
 
     def _diff_roles(self, remote: dict[str, dict]) -> list[Change]:
         changes: list[Change] = []
-        local_roles = {r.id: r for r in self._schema.all_roles()}
+        local_roles = {r.id: r for r in self._schema.all_roles() if is_visible_to(r, "v4")}
         for rid, r in local_roles.items():
-            local_actions = [{"id": b.action_id, "resource_type_id": b.resource_type} for b in r.actions]
-            local = {"id": r.id, "name": r.name, "description": r.description, "actions": local_actions}
-            if rid not in remote:
+            d_rid = self._codec.encode_role(r.id)
+            local_actions = [
+                {
+                    "id": self._codec.encode_action(b.action_id),
+                    "resource_type_id": self._codec.encode_resource_type(b.resource_type) if b.resource_type else "",
+                }
+                for b in r.actions
+            ]
+            local = {"id": d_rid, "name": r.name, "description": r.description, "actions": local_actions}
+            if d_rid not in remote:
                 changes.append(
                     Change(
                         kind=EntityKind.ROLE,
@@ -394,7 +450,7 @@ class V4Migrator:
                     )
                 )
             else:
-                rmt = remote[rid]
+                rmt = remote[d_rid]
                 rmt_actions = sorted(
                     [
                         {"id": a["id"], "resource_type_id": a.get("resource_type_id", "")}
@@ -416,13 +472,14 @@ class V4Migrator:
                     )
                 else:
                     changes.append(Change(kind=EntityKind.ROLE, change_type=ChangeType.NOOP, entity_id=rid))
-        for rid in set(remote) - set(local_roles):
+        local_dialect_ids = {self._codec.encode_role(rid) for rid in local_roles}
+        for d_rid in set(remote) - local_dialect_ids:
             changes.append(
                 Change(
                     kind=EntityKind.ROLE,
                     change_type=ChangeType.DELETE,
-                    entity_id=rid,
-                    before=remote[rid],
+                    entity_id=self._codec.decode_role(d_rid),
+                    before=remote[d_rid],
                     reason="Not in local schema",
                     destructive=True,
                 )
@@ -440,36 +497,50 @@ class V4Migrator:
             elif change.change_type == ChangeType.UPDATE:
                 self._client.update_system(change.after or {})
         elif change.kind == EntityKind.RESOURCE_TYPE:
+            d_entity_id = self._codec.encode_resource_type(change.entity_id)
             if change.change_type == ChangeType.CREATE:
                 self._client.batch_create_resource_types([change.after])
             elif change.change_type == ChangeType.UPDATE:
-                self._client.update_resource_type(change.entity_id, change.after or {})
+                self._client.update_resource_type(d_entity_id, change.after or {})
             elif change.change_type == ChangeType.DELETE:
-                self._client.delete_resource_type(change.entity_id)
+                self._client.delete_resource_type(d_entity_id)
         elif change.kind == EntityKind.ACTION:
+            d_entity_id = self._codec.encode_action(change.entity_id)
             if change.change_type == ChangeType.CREATE:
                 self._client.batch_create_actions([change.after])
             elif change.change_type == ChangeType.UPDATE:
-                self._client.update_action(change.entity_id, change.after or {})
+                self._client.update_action(d_entity_id, change.after or {})
             elif change.change_type == ChangeType.DELETE:
-                self._client.delete_action(change.entity_id)
+                self._client.delete_action(d_entity_id)
         elif change.kind == EntityKind.ROLE:
+            d_entity_id = self._codec.encode_role(change.entity_id)
             if change.change_type == ChangeType.CREATE:
                 self._client.batch_create_roles([change.after])
             elif change.change_type == ChangeType.UPDATE:
                 self._client.update_role(
-                    change.entity_id,
+                    d_entity_id,
                     {
                         "name": (change.after or {}).get("name", ""),
                         "description": (change.after or {}).get("description", ""),
                     },
                 )
-                self._client.batch_delete_role_actions(change.entity_id, [])
-                actions = (change.after or {}).get("actions", [])
-                if actions:
-                    self._client.batch_create_role_actions(change.entity_id, actions)
+                # 计算 actions 增量差异（v4 平台 DELETE/POST 均要求非空数组）
+                before_actions = (change.before or {}).get("actions", []) or []
+                after_actions = (change.after or {}).get("actions", []) or []
+
+                def _key(a: dict) -> tuple:
+                    return (a.get("id", ""), a.get("resource_type_id", ""))
+
+                before_map = {_key(a): a for a in before_actions}
+                after_map = {_key(a): a for a in after_actions}
+                to_remove = [before_map[k] for k in before_map.keys() - after_map.keys()]
+                to_add = [after_map[k] for k in after_map.keys() - before_map.keys()]
+                if to_remove:
+                    self._client.batch_delete_role_actions(d_entity_id, to_remove)
+                if to_add:
+                    self._client.batch_create_role_actions(d_entity_id, to_add)
             elif change.change_type == ChangeType.DELETE:
-                self._client.delete_role(change.entity_id)
+                self._client.delete_role(d_entity_id)
 
     # ================================================================
     # helpers
@@ -487,16 +558,19 @@ class V4Migrator:
     def _topology_sort(cls, changes: list[Change]) -> list[Change]:
         """按拓扑顺序排序 changes。
 
-        CREATE/UPDATE: System → RT(父→子) → Action → Role
-        DELETE: Role → Action → RT(子→父) → System
+        总体两阶段：CREATE/UPDATE 全部先执行 → DELETE 全部后执行。
+        CREATE/UPDATE 阶段内：System → RT(父→子) → Action → Role
+        DELETE 阶段内：Role → Action → RT(子→父) → System
+        （避免出现 "action 还被 role 引用就先删 action" 的问题）
         """
 
         def key(c: Change) -> tuple:
             kind_order = cls._KIND_ORDER.get(c.kind, 99)
             depth = cls._ancestor_depth(c)
+            # phase=0: CREATE/UPDATE/NOOP；phase=1: DELETE（整体后置）
             if c.change_type == ChangeType.DELETE:
-                return (-kind_order, -depth, c.entity_id)
-            return (kind_order, depth, c.entity_id)
+                return (1, -kind_order, -depth, c.entity_id)
+            return (0, kind_order, depth, c.entity_id)
 
         return sorted(changes, key=key)
 

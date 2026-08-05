@@ -47,7 +47,14 @@ class ResourceTypeDef:
                   完整祖先链由 SchemaRegistry.resolve_ancestor_types() 递归得到。
         description: 描述
         extensions: 各 Provider 私有字段（如 v3 的 selection_mode /
-                    related_instance_selections）
+                    related_instance_selections）。
+
+                    保留键（跨 Provider 通用，见 schema.visibility）：
+                        * only_providers: tuple[str, ...]
+                          白名单，只有列出的 provider 才对该实体可见（迁移器可见）；
+                        * exclude_providers: tuple[str, ...]
+                          黑名单，列出的 provider 对该实体不可见。
+                    未设置时视为对所有 provider 可见。
     """
 
     id: str
@@ -68,7 +75,11 @@ class ActionDef:
                        v4 只能关联一个（本字段的直接映射）
                        v3 支持关联多个 → 由业务侧继承本类扩展 related_resource_types
         description: 描述
-        extensions: 各 Provider 私有字段（如 v3 的 type/version/related_actions）
+        extensions: 各 Provider 私有字段（如 v3 的 type/version/related_actions）。
+
+                    保留键（跨 Provider 通用，见 schema.visibility）：
+                        * only_providers: tuple[str, ...]
+                        * exclude_providers: tuple[str, ...]
 
     工业级规范：
         - 每个 action 只关联单一 resource_type，符合 v4 现代 RBAC 模型
@@ -109,7 +120,11 @@ class RoleDef:
         name: 中文名
         description: 描述
         actions: 该角色包含的 (action_id, resource_type) 绑定列表
-        extensions: 各 Provider 私有字段
+        extensions: 各 Provider 私有字段。
+
+                    保留键（跨 Provider 通用，见 schema.visibility）：
+                        * only_providers: tuple[str, ...]
+                        * exclude_providers: tuple[str, ...]
     """
 
     id: str

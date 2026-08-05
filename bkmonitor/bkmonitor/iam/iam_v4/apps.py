@@ -16,8 +16,11 @@ class IamV4Config(AppConfig):
     verbose_name = "IAM v4 Provider"
 
     def ready(self):
-        # 注册资源回调 handler
-        from .callback import services
+        # 注入 v4 codec 并显式触发 handler 注册（装饰器已在 import 时生效，
+        # 这里只是保障 lazy import 场景下的确定性）。
+        from .callback.services import service
+        from .codec import V4NameCodec
         from .callback.handlers import register_all
 
-        register_all(services)
+        service.set_codec(V4NameCodec())
+        register_all()

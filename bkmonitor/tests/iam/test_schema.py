@@ -80,40 +80,49 @@ class TestSchemaRegistry:
         assert chain == ["space"]
 
 
-class TestBatchMixin:
-    """验证 BatchMixin 分片逻辑。"""
+class TestProviderBatching:
+    """验证 PermissionProvider 基类的分片 + 编解码逻辑。"""
 
     @staticmethod
-    def _make_fake(cls=None, **kwargs):
-        from bkmonitor.iam.iam_engine.provider.mixins import BatchMixin
-        from bkmonitor.iam.iam_engine.core.types import ResourceAuthResult
+    def _make_fake(**kwargs):
+        """构造一个"就地实现方言层 + 恒等 codec"的最小 Provider，验证基类分片。"""
+        from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
+        from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
 
-        base = cls if cls is not None else BatchMixin
+        class FakeProvider(PermissionProvider):
+            name = "fake"
 
-        class FakeProvider(base):
-            def _batch_by_resource_page(self, subject, action_id, batch):
-                return [
-                    ResourceAuthResult(
-                        action_id=action_id,
-                        resource_type="space",
-                        resource_id=r.id,
-                        allowed=True,
-                    )
-                    for r in batch
-                ]
+            def _is_allowed_dialect(self, request):  # pragma: no cover
+                return True
 
-            def _batch_by_action_page(self, subject, action_ids, resource):
-                return [
-                    ResourceAuthResult(
-                        action_id=aid,
-                        resource_type="",
-                        resource_id="",
-                        allowed=True,
-                    )
-                    for aid in action_ids
-                ]
+            def _batch_by_resource_dialect_page(self, request):
+                # 返回 [(dialect_resource_id, allowed), ...]
+                return [(rid, True) for rid in request.resource_ids]
 
-        p = FakeProvider()
+            def _batch_by_action_dialect_page(self, request):
+                # 返回 [(dialect_action_id, allowed), ...]
+                return [(aid, True) for aid in request.action_ids]
+
+            def _get_apply_url_dialect(self, request):  # pragma: no cover
+                return ""
+
+            def plan_migration(self, schema):  # pragma: no cover
+                raise NotImplementedError
+
+            def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):  # pragma: no cover
+                raise NotImplementedError
+
+            def health_check(self):  # pragma: no cover
+                return {"status": "ok", "provider": self.name}
+
+        # 用一个空 SchemaRegistry（本组测试不涉及 schema 反查）
+        schema = SchemaRegistry()
+        try:
+            schema.freeze()
+        except Exception:
+            # 若已 freeze / 无需 freeze，忽略
+            pass
+        p = FakeProvider(schema)
         for k, v in kwargs.items():
             setattr(p, k, v)
         return p
@@ -138,6 +147,8 @@ class TestBatchMixin:
         )
         assert len(result.items) == 10
         assert all(item.allowed for item in result.items)
+        # 结果保序：resource_id 与请求顺序一致
+        assert [item.resource_id for item in result.items] == [str(i) for i in range(10)]
 
     def test_batch_by_resource_single_chunk(self):
         """不超过 CHUNK_SIZE 时不走并行路径。"""
@@ -175,7 +186,7 @@ class TestBatchMixin:
         assert len(result.items) == 0
 
     def test_batch_by_resource_parallel(self):
-        """MAX_WORKERS > 1 且分片 > 1 时走并行路径。"""
+        """MAX_WORKERS > 1 且分片 > 1 时走并行路径，结果保序。"""
         from bkmonitor.iam.iam_engine.core.types import (
             BatchByResourceRequest,
             ResourceInstance,
@@ -193,6 +204,7 @@ class TestBatchMixin:
         )
         assert len(result.items) == 9
         assert all(item.allowed for item in result.items)
+        assert [item.resource_id for item in result.items] == [str(i) for i in range(9)]
 
     # ---- batch_by_action ----
 
@@ -204,7 +216,7 @@ class TestBatchMixin:
         result = p.batch_by_action(
             BatchByActionRequest(
                 subject=Subject(id="test"),
-                action_ids=action_ids,
+                action_ids=tuple(action_ids),
             )
         )
         assert len(result.items) == 10
@@ -217,7 +229,7 @@ class TestBatchMixin:
         result = p.batch_by_action(
             BatchByActionRequest(
                 subject=Subject(id="test"),
-                action_ids=[],
+                action_ids=(),
             )
         )
         assert len(result.items) == 0
@@ -230,14 +242,64 @@ class TestBatchMixin:
         result = p.batch_by_action(
             BatchByActionRequest(
                 subject=Subject(id="test"),
-                action_ids=action_ids,
+                action_ids=tuple(action_ids),
             )
         )
         assert len(result.items) == 9
         assert all(item.allowed for item in result.items)
 
-    def test_chunked_batch_mixin_alias(self):
-        """向后兼容别名。"""
-        from bkmonitor.iam.iam_engine.provider.mixins import BatchMixin, ChunkedBatchMixin
 
-        assert ChunkedBatchMixin is BatchMixin
+class TestProviderVisibility:
+    """验证 schema.visibility.is_visible_to 的 4 种分支。"""
+
+    @staticmethod
+    def _entity(extensions=None):
+        """构造一个最小的持有 extensions 的 schema 实体（用 ActionDef 代表即可）。"""
+        from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+
+        return ActionDef(id="a", name="A", extensions=extensions or {})
+
+    def test_no_extensions_visible_to_all(self):
+        """默认（不设置任何 extensions）→ 对所有 provider 可见（向后兼容）。"""
+        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+
+        entity = self._entity()
+        assert is_visible_to(entity, "v4") is True
+        assert is_visible_to(entity, "v3") is True
+        assert is_visible_to(entity, "anything") is True
+
+    def test_only_providers_whitelist(self):
+        """only_providers 白名单：不在名单里的 provider 不可见。"""
+        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+
+        entity = self._entity({"only_providers": ("v4",)})
+        assert is_visible_to(entity, "v4") is True
+        assert is_visible_to(entity, "v3") is False
+
+    def test_exclude_providers_blacklist(self):
+        """exclude_providers 黑名单：在名单里的 provider 不可见。"""
+        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+
+        entity = self._entity({"exclude_providers": ("v3",)})
+        assert is_visible_to(entity, "v4") is True
+        assert is_visible_to(entity, "v3") is False
+
+    def test_both_are_independent(self):
+        """同时设置 only + exclude：两者独立判断，任一命中即拒绝。"""
+        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+
+        entity = self._entity({"only_providers": ("v4", "v3"), "exclude_providers": ("v3",)})
+        # v4：在 only 里 + 不在 exclude 里 → 可见
+        assert is_visible_to(entity, "v4") is True
+        # v3：在 only 里但也在 exclude 里 → 不可见（exclude 命中）
+        assert is_visible_to(entity, "v3") is False
+        # x：不在 only 里 → 不可见（only 命中）
+        assert is_visible_to(entity, "x") is False
+
+    def test_empty_tuples_treated_as_unset(self):
+        """空 tuple 视为未设置：不参与过滤。"""
+        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+
+        entity = self._entity({"only_providers": (), "exclude_providers": ()})
+        assert is_visible_to(entity, "v4") is True
+        assert is_visible_to(entity, "v3") is True

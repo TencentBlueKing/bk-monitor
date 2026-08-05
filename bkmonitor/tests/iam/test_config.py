@@ -195,7 +195,7 @@ class TestV4ProviderConstruction:
         assert provider._cfg.base_url == "https://iam.example.com"
         assert provider._cfg.credentials.app_code == "app1"
         assert provider._cfg.system.id == "bk_monitor_v4"
-        # BatchMixin 需要的字段来自 options
+        # 分片参数字段来自 options
         assert provider.CHUNK_SIZE == 8
         assert provider.MAX_WORKERS == 2
 

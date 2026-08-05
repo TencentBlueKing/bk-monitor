@@ -295,3 +295,292 @@ class TestIAMv4FullLifecycle:
         assert isinstance(url, str)
         if url:
             assert url.startswith("http"), f"URL should start with http, got: {url}"
+
+
+# ==============================================================================
+# 改 action id 破坏性验证（手动配合）
+#
+# 运行前置：TestIAMv4FullLifecycle 已跑完，v4 平台已存在完整 schema。
+#
+# 全流程（每次改 actions.py 后需重启 pytest 进程，schema 在 AppConfig.ready 冻结）：
+#
+#   阶段 1 —— actions.py 里保持:
+#       TEST_ACTION = ActionDef(id="test_action", name="测试动作", resource_type="space")
+#   跑:  test_A_plan_create           （只 plan，看到 CREATE test_action）
+#        test_A_apply_create          （IAM_V4_APPLY=1 才真跑，把 test_action 迁移到平台）
+#
+#   阶段 2 —— 你手动去 v4 平台 UI，给 IAM_V4_TEST_USER 授权 test_action + space=TEST_SPACE_ID
+#   跑:  test_B_verify_granted        （鉴权应通过，确保基线正确）
+#
+#   阶段 3 —— 你手动改 actions.py:
+#       TEST_ACTION = ActionDef(id="test_action_v2", name="测试动作", resource_type="space")
+#   *重启 pytest 进程*
+#   跑:  test_C_plan_rename_destructive          （plan 应含 CREATE v2 + DELETE 旧，destructive=True）
+#        test_D_apply_without_destructive_blocked（默认 allow_destructive=False → skipped）
+#        test_E_apply_with_destructive           （IAM_V4_APPLY=1 才真跑，2 applied）
+#
+#   阶段 4 —— 验证策略丢失
+#   跑:  test_F_verify_permission_lost           （用户对 test_action_v2 应无权限，UI 上 test_action 策略消失）
+#
+#   阶段 5 —— 清理：手动删除 actions.py 里的 TEST_ACTION 定义，重启 pytest
+#   跑:  test_G_cleanup_plan                     （plan 应含 DELETE test_action_v2）
+#        test_G_cleanup_apply                    （IAM_V4_APPLY=1 才真跑）
+#
+# 关键环境变量：
+#   IAM_V4_APPLY=1     打开真实 apply 开关（不设置则所有 apply 步骤会被跳过）
+# ==============================================================================
+
+
+# 是否允许对真实 IAM 平台执行 apply
+_APPLY_ENABLED = os.getenv("IAM_V4_APPLY", "").lower() in ("1", "true", "yes")
+APPLY_SKIP_REASON = "未开启真实 apply（设置 IAM_V4_APPLY=1 才会执行）"
+
+
+def _get_test_action():
+    """动态取 Actions.TEST_ACTION，若未定义则返回 None（测试会 skip）。"""
+    return getattr(Actions, "TEST_ACTION", None)
+
+
+def _find_change(plan, kind_value: str, entity_id: str, change_type_value: str):
+    """在 plan.changes 里查找匹配项，未找到返回 None。"""
+    for c in plan.changes:
+        if c.kind.value == kind_value and c.entity_id == entity_id and c.change_type.value == change_type_value:
+            return c
+    return None
+
+
+@pytest.mark.skipif(_MISSING_CONFIG, reason=SKIP_REASON)
+class TestIAMv4ActionIdRename:
+    """改 action id 的破坏性变更全流程验证。"""
+
+    # ================================================================
+    # 阶段 1: 迁移 test_action 到平台
+    # ================================================================
+
+    def test_A_plan_create(self):
+        """阶段 1: actions.py 已加 TEST_ACTION(id=test_action)，plan 应包含 CREATE。"""
+        ta = _get_test_action()
+        if ta is None:
+            pytest.skip("请先在 actions.py 里加 TEST_ACTION = ActionDef(id='test_action', ...)")
+        if ta.id != "test_action":
+            pytest.skip(f"当前 TEST_ACTION.id={ta.id}，本步要求 id='test_action'")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+
+        change = _find_change(plan, "action", "test_action", "create")
+        print(f"\n  plan.summary: {plan.summary()}")
+        print(f"  destructive: {plan.has_destructive()}")
+        if change is None:
+            # 也许已经迁移过了；打印现有 changes 便于排查
+            print("  未找到 CREATE test_action。当前 changes（action）：")
+            for c in plan.changes:
+                if c.kind.value == "action":
+                    print(f"    [{c.change_type.value}] {c.entity_id}")
+            pytest.skip("test_action 已在平台上，跳过（如需重测请到平台 UI 删除）")
+        assert change is not None
+        print("  ✓ CREATE test_action 待应用")
+
+    @pytest.mark.skipif(not _APPLY_ENABLED, reason=APPLY_SKIP_REASON)
+    def test_A_apply_create(self):
+        """阶段 1: 真实 apply，把 test_action 迁移到 v4 平台。"""
+        ta = _get_test_action()
+        if ta is None or ta.id != "test_action":
+            pytest.skip("需要 actions.py 里 TEST_ACTION.id='test_action'")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+
+        report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
+        print(f"\n  applied={len(report.applied)} failed={len(report.failed)}")
+        for c in report.applied:
+            print(f"    ✓ [{c.kind.value}] {c.change_type.value} {c.entity_id}")
+        for c, err in report.failed:
+            print(f"    ✗ [{c.kind.value}] {c.change_type.value} {c.entity_id}: {err[:200]}")
+        assert len(report.failed) == 0
+
+        # 再次 plan，应该 test_action 不再在 create 列表里
+        plan2 = provider.plan_migration(fw.schema)
+        assert _find_change(plan2, "action", "test_action", "create") is None
+        print("  ✓ test_action 已存在于平台")
+
+    # ================================================================
+    # 阶段 2: 你手动授权后，验证基线
+    # ================================================================
+
+    def test_B_verify_granted(self):
+        """阶段 2 后手动跑: 你已在平台 UI 给 admin 授了 test_action + space=TEST_SPACE_ID。
+
+        手动步骤：
+          1. 登陆 v4 权限中心 UI
+          2. 进入 bk_monitor_v4 系统
+          3. 给用户 `{TEST_USER}` 授权：操作=测试动作(test_action)，资源=space id={TEST_SPACE_ID}
+          4. 提交后跑本用例
+        """
+        ta = _get_test_action()
+        if ta is None or ta.id != "test_action":
+            pytest.skip("需要 actions.py 里 TEST_ACTION.id='test_action'")
+
+        print("\n  确认手动授权已完成:")
+        print(f"    user={TEST_USER}")
+        print("    action=test_action")
+        print(f"    resource=space:{TEST_SPACE_ID}")
+
+        fw = get_framework()
+        allowed = fw.is_allowed(
+            AuthRequest(
+                subject=Subject(id=TEST_USER),
+                action_id="test_action",
+                resource=ResourceInstance(type=ResourceTypes.SPACE, id=TEST_SPACE_ID),
+            )
+        )
+        print(f"  is_allowed(test_action, space={TEST_SPACE_ID}) = {allowed}")
+        assert allowed is True, "预期已授权→allowed=True。若为 False，检查平台 UI 授权是否生效、TEST_USER 是否正确。"
+
+    # ================================================================
+    # 阶段 3: 你手动把 id 改成 test_action_v2 并重启 pytest 后
+    # ================================================================
+
+    def test_C_plan_rename_destructive(self):
+        """阶段 3: id 改为 test_action_v2 后重启 pytest，plan 应 CREATE 新 + DELETE 旧。"""
+        ta = _get_test_action()
+        if ta is None:
+            pytest.skip("需要 actions.py 保留 TEST_ACTION")
+        if ta.id != "test_action_v2":
+            pytest.skip(f"当前 TEST_ACTION.id={ta.id}，本步要求手动改成 'test_action_v2' 并重启 pytest")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+        print(f"\n  plan.summary: {plan.summary()}")
+        print(f"  destructive: {plan.has_destructive()}")
+
+        # 打印 action 相关 changes
+        print("  action 变更:")
+        for c in plan.changes:
+            if c.kind.value == "action" and c.entity_id in ("test_action", "test_action_v2"):
+                print(f"    [{c.change_type.value}] {c.entity_id}")
+
+        create = _find_change(plan, "action", "test_action_v2", "create")
+        delete = _find_change(plan, "action", "test_action", "delete")
+        assert create is not None, "期望有 CREATE test_action_v2"
+        assert delete is not None, "期望有 DELETE test_action（老 id 从远端消失）"
+        assert plan.has_destructive() is True, "含 DELETE 时应视为 destructive"
+
+    @pytest.mark.skipif(not _APPLY_ENABLED, reason=APPLY_SKIP_REASON)
+    def test_D_apply_without_destructive_blocked(self):
+        """阶段 3: 默认 allow_destructive=False，含 DELETE 的 plan 会被 skip。"""
+        ta = _get_test_action()
+        if ta is None or ta.id != "test_action_v2":
+            pytest.skip("需要 TEST_ACTION.id='test_action_v2'")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+        report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
+        print(f"\n  applied={len(report.applied)} skipped_reason={report.skipped_reason!r}")
+        assert len(report.applied) == 0
+        assert report.skipped_reason and "destructive" in report.skipped_reason.lower()
+        print("  ✓ destructive 保护生效")
+
+    @pytest.mark.skipif(not _APPLY_ENABLED, reason=APPLY_SKIP_REASON)
+    def test_E_apply_with_destructive(self):
+        """阶段 3: 加 allow_destructive=True，真跑 CREATE test_action_v2 + DELETE test_action。"""
+        ta = _get_test_action()
+        if ta is None or ta.id != "test_action_v2":
+            pytest.skip("需要 TEST_ACTION.id='test_action_v2'")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+        report = provider.apply_migration(plan, dry_run=False, allow_destructive=True)
+        print(f"\n  applied={len(report.applied)} failed={len(report.failed)}")
+        for c in report.applied:
+            print(f"    ✓ [{c.kind.value}] {c.change_type.value} {c.entity_id}")
+        for c, err in report.failed:
+            print(f"    ✗ [{c.kind.value}] {c.change_type.value} {c.entity_id}: {err[:200]}")
+        assert len(report.failed) == 0
+
+        # 再次 plan：应无 test_action / test_action_v2 相关 create / delete
+        plan2 = provider.plan_migration(fw.schema)
+        assert _find_change(plan2, "action", "test_action_v2", "create") is None
+        assert _find_change(plan2, "action", "test_action", "delete") is None
+        print("  ✓ 平台已完成 rename（本质：删旧建新）")
+
+    # ================================================================
+    # 阶段 4: 验证策略确实丢失
+    # ================================================================
+
+    def test_F_verify_permission_lost(self):
+        """阶段 4: rename 后，之前对 test_action 授的权不应自动继承到 test_action_v2。
+
+        手动步骤：
+          1. 到 v4 平台 UI 查看用户 `{TEST_USER}` 的策略
+          2. 之前的 test_action 那条策略应已消失（因为对应 action 被删除）
+          3. 用户对 test_action_v2 应无权限（需要重新授权）
+        """
+        ta = _get_test_action()
+        if ta is None or ta.id != "test_action_v2":
+            pytest.skip("需要 TEST_ACTION.id='test_action_v2' 且已完成 test_E")
+
+        fw = get_framework()
+        allowed = fw.is_allowed(
+            AuthRequest(
+                subject=Subject(id=TEST_USER),
+                action_id="test_action_v2",
+                resource=ResourceInstance(type=ResourceTypes.SPACE, id=TEST_SPACE_ID),
+            )
+        )
+        print(f"\n  is_allowed(test_action_v2, space={TEST_SPACE_ID}) = {allowed}")
+        print(f"  →请到平台 UI 确认: {TEST_USER} 的 test_action 策略应已消失")
+        assert allowed is False, "预期策略丢失→allowed=False。若为 True，说明平台自动继承了策略（不符合预期）。"
+
+    # ================================================================
+    # 阶段 5: 清理
+    # ================================================================
+
+    def test_G_cleanup_plan(self):
+        """阶段 5: 手动删除 actions.py 的 TEST_ACTION 后重启 pytest，plan 应含 DELETE test_action_v2。"""
+        ta = _get_test_action()
+        if ta is not None:
+            pytest.skip(
+                f"检测到 Actions.TEST_ACTION 仍存在(id={ta.id})；清理阶段应先在 actions.py 里删除 TEST_ACTION 定义"
+            )
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+        print(f"\n  plan.summary: {plan.summary()}")
+        print(f"  destructive: {plan.has_destructive()}")
+
+        delete = _find_change(plan, "action", "test_action_v2", "delete")
+        if delete is None:
+            # 可能已经 apply 过；打印现有 changes
+            print("  未找到 DELETE test_action_v2，当前 action changes:")
+            for c in plan.changes:
+                if c.kind.value == "action":
+                    print(f"    [{c.change_type.value}] {c.entity_id}")
+            pytest.skip("test_action_v2 已从平台移除，无需再 apply")
+        assert delete is not None
+        assert plan.has_destructive() is True
+
+    @pytest.mark.skipif(not _APPLY_ENABLED, reason=APPLY_SKIP_REASON)
+    def test_G_cleanup_apply(self):
+        """阶段 5: 真实 apply，删除平台上的 test_action_v2。"""
+        ta = _get_test_action()
+        if ta is not None:
+            pytest.skip("需要先从 actions.py 里删除 TEST_ACTION 定义并重启 pytest")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        plan = provider.plan_migration(fw.schema)
+        report = provider.apply_migration(plan, dry_run=False, allow_destructive=True)
+        print(f"\n  applied={len(report.applied)} failed={len(report.failed)}")
+        for c in report.applied:
+            print(f"    ✓ [{c.kind.value}] {c.change_type.value} {c.entity_id}")
+        for c, err in report.failed:
+            print(f"    ✗ [{c.kind.value}] {c.change_type.value} {c.entity_id}: {err[:200]}")
+        assert len(report.failed) == 0
+        print("  ✓ 清理完成")

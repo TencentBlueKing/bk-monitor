@@ -9,10 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# IAM v4 资源回调 handler 实现
+# IAM v4 资源回调 handler 实现（纯业务侧）
 #
 # 逻辑复用自 v3 的 monitor_web/iam/views.py 中 SpaceProvider /
 # ApmApplicationProvider / GrafanaDashboardProvider。
+#
+# 契约：
+#   * handler 内部 **只处理业务 ID**（未加 v4 方言前缀），所有 codec 编解码
+#     由 callback.services.CallbackService 装饰器统一完成。
+#   * handler 出参每项的 "id" 字段填业务 ID；装饰器会 encode 回 v4 方言。
+#   * handler 入参（fetch 的 ids、list 的 filter.parent.id）已被装饰器 decode
+#     为业务 ID，可直接使用。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -32,10 +39,9 @@ from constants.common import DEFAULT_TENANT_ID
 from metadata.models import Space, SpaceType
 from rum_web.models.application import Application as RumApplication
 
-from .services import register
+from .services import service
 
 logger = logging.getLogger(__name__)
-
 
 # ================================================================
 # space — 顶级资源，复用 v3 SpaceProvider
@@ -47,15 +53,16 @@ def _get_space_queryset(bk_tenant_id: str = DEFAULT_TENANT_ID):
 
 
 def _generate_space_resources(queryset):
+    """把 Space 对象列表转成 handler 出参格式（业务 ID）。
+
+    规则（业务身份编码，与 v3 一致）：
+      - bkcc 空间：bk_biz_id = int(space_id)，正数
+      - 非 bkcc 空间：bk_biz_id = -pk，负数
+    v4 方言（"space|3"）由 callback.services 层统一 encode，不在此处处理。
+    """
     space_types = {t.type_id: t.type_name for t in SpaceType.objects.all()}
     return [
         {
-            # 注意：由于 space_uid 长度会超过 IAM 平台的 32 位限制，资源 ID 使用 bk_biz_id。
-            # 规则：
-            #   - bkcc 空间：bk_biz_id = int(space_id)，为正数，ID 以数字开头，符合 IAM 规范。
-            #   - 非 bkcc 空间：bk_biz_id = -pk，为负数。** 负数 ID 以 "-" 开头，当前 IAM v4
-            #     要求 ID 以字母/数字开头，这个负号会导致回调校验失败。暂时对负数 bk_biz_id
-            #     不做特殊处理，保持与 v3 一致的编码；等 IAM v4 支持后再统一迁移。
             "id": str(space_uid_to_bk_biz_id(space.space_uid, space.id)),
             "display_name": f"[{space_types.get(space.space_type_id, space.space_type_id)}] {space.space_name}",
         }
@@ -63,6 +70,7 @@ def _generate_space_resources(queryset):
     ]
 
 
+@service.list_instance("space")
 def _list_space(filter_data: dict, page: dict) -> dict:
     queryset = _get_space_queryset()
     keyword = (filter_data.get("keyword") or "").strip()
@@ -76,12 +84,17 @@ def _list_space(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": results}
 
 
+@service.fetch_instance_info("space")
 def _fetch_space(ids: list[str], requires: list[str]) -> list[dict]:
+    """ids 已被装饰器 decode 为业务 ID（如 "3" / "-42"）。"""
     if not ids:
         return []
     conditions = []
     for raw_id in ids:
-        bk_biz_id = int(raw_id)
+        try:
+            bk_biz_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
         if bk_biz_id >= 0:
             conditions.append(Q(space_type_id=SpaceTypeEnum.BKCC.value) & Q(space_id=bk_biz_id))
         else:
@@ -103,10 +116,12 @@ def _fetch_space(ids: list[str], requires: list[str]) -> list[dict]:
 # ================================================================
 
 
+@service.list_instance("apm_application")
 def _list_apm(filter_data: dict, page: dict) -> dict:
     queryset = ApmApplication.objects.filter(bk_tenant_id=DEFAULT_TENANT_ID)
     parent = filter_data.get("parent", {})
     if parent.get("type") == "space" and parent.get("id"):
+        # parent.id 已被装饰器 decode 为业务 ID（如 "3"）
         queryset = queryset.filter(bk_biz_id=parent["id"])
     keyword = (filter_data.get("keyword") or "").strip()
     if keyword:
@@ -119,6 +134,7 @@ def _list_apm(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": results}
 
 
+@service.fetch_instance_info("apm_application")
 def _fetch_apm(ids: list[str], requires: list[str]) -> list[dict]:
     if not ids:
         return []
@@ -149,6 +165,7 @@ def _get_valid_org_ids() -> set[int]:
     return set(Org.objects.filter(name__in=bk_biz_ids).values_list("id", flat=True))
 
 
+@service.list_instance("grafana_dashboard")
 def _list_grafana(filter_data: dict, page: dict) -> dict:
     valid_org_ids = _get_valid_org_ids()
 
@@ -158,6 +175,7 @@ def _list_grafana(filter_data: dict, page: dict) -> dict:
     # 按 parent (space) 过滤
     parent = filter_data.get("parent", {})
     if parent.get("type") == "space" and parent.get("id"):
+        # parent.id 已被装饰器 decode 为业务 ID
         org = get_org_by_name(org_name=parent["id"])
         if not org:
             return {"count": 0, "results": []}
@@ -189,6 +207,7 @@ def _list_grafana(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": all_results[start : start + ps]}
 
 
+@service.fetch_instance_info("grafana_dashboard")
 def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
     if not ids:
         return []
@@ -233,10 +252,12 @@ def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
 # ================================================================
 
 
+@service.list_instance("rum_application")
 def _list_rum(filter_data: dict, page: dict) -> dict:
     queryset = RumApplication.objects.filter(bk_tenant_id=DEFAULT_TENANT_ID)
     parent = filter_data.get("parent", {})
     if parent.get("type") == "space" and parent.get("id"):
+        # parent.id 已被装饰器 decode 为业务 ID
         queryset = queryset.filter(bk_biz_id=parent["id"])
     keyword = (filter_data.get("keyword") or "").strip()
     if keyword:
@@ -249,6 +270,7 @@ def _list_rum(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": results}
 
 
+@service.fetch_instance_info("rum_application")
 def _fetch_rum(ids: list[str], requires: list[str]) -> list[dict]:
     if not ids:
         return []
@@ -264,12 +286,17 @@ def _fetch_rum(ids: list[str], requires: list[str]) -> list[dict]:
 
 
 # ================================================================
-# 注册
+# 注册入口（保留幂等函数，便于 Django ready 阶段显式调用；模块 import
+# 时装饰器已完成注册，此函数只是提供一个明确的入口和向后兼容占位）
 # ================================================================
 
 
-def register_all():
-    register("space", _list_space, _fetch_space)
-    register("apm_application", _list_apm, _fetch_apm)
-    register("grafana_dashboard", _list_grafana, _fetch_grafana)
-    register("rum_application", _list_rum, _fetch_rum)
+def register_all() -> None:
+    """显式确保 handler 被注册。装饰器在模块导入时已生效；本函数用于
+    Django ready 阶段做一次显式保障，避免因 lazy import 遗漏。"""
+    # 触发本模块加载即可（装饰器已经在导入时把 handler 挂到 service 上）
+    logger.debug(
+        "[iam_v4:callback] handlers registered: list=%d fetch=%d",
+        len(service._list_handlers),
+        len(service._fetch_handlers),
+    )

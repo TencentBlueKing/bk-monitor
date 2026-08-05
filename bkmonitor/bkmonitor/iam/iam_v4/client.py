@@ -148,9 +148,13 @@ class V4Client:
         return self._post(f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/{role_id}/actions/", actions)
 
     def batch_delete_role_actions(self, role_id: str, actions: list[dict]) -> dict:
+        # v4 平台约定：ids 通过 query string 传递，用 "," 连接：?ids=action1,action2
+        ids = [a["id"] for a in actions if a.get("id")]
+        if not ids:
+            return {}
         return self._delete(
             f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/{role_id}/actions/",
-            body=actions,
+            params={"ids": ",".join(ids)},
         )
 
     # ============================================================
@@ -225,11 +229,13 @@ class V4Client:
             )
         return _safe_json(resp)
 
-    def _delete(self, path: str, body: dict | None = None) -> dict:
+    def _delete(self, path: str, body: dict | None = None, params: dict | None = None) -> dict:
         try:
             kwargs = {"headers": self._auth_header, "timeout": self._timeout}
             if body:
                 kwargs["json"] = body
+            if params:
+                kwargs["params"] = params
             resp = requests.delete(self._url(path), **kwargs)
             resp.raise_for_status()
         except requests.Timeout:

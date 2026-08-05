@@ -11,39 +11,69 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# PermissionProvider —— 权限平台接入的唯一扩展契约
+# PermissionProvider —— 权限平台接入的唯一扩展契约（模板方法模式）
 #
 # 分层设计：
-#   * 高层能力（必选）：所有 Provider 必须实现，框架保证上层调用永远可用
+#   * 接口层（业务规范化命名）：所有 public 方法。基类实现，子类通常不覆盖。
 #       - is_allowed / batch_by_resource / batch_by_action / get_apply_url
-#   * 低层能力（可选）：通过 supports(Capability) 声明
-#       - query_policy / query_policy_by_actions
-#         （v3 独有；不支持则返回 None，业务层按需退化）
-#   * 迁移能力（必选）：所有 Provider 必须支持 plan/apply
+#     基类职责：
+#       1. 通过 NameCodec 把 core.types 结构编码成 Dialect* 结构（出站 encode）
+#       2. 完成批量分片 + 串/并行调用
+#       3. 委托给子类实现的"方言层"抽象方法
+#       4. 把方言层返回的方言 ID 解码回业务 ID（入站 decode）
+#
+#   * 方言层（平台方言命名，abstract）：子类必须实现。
+#       - _is_allowed_dialect
+#       - _batch_by_resource_dialect_page
+#       - _batch_by_action_dialect_page
+#       - _get_apply_url_dialect
+#     子类职责：只做"打平台 API"这一件事。入参出参都已经是方言 ID，
+#     子类不需要感知 codec。
+#
+#   * 迁移能力（必选）：所有 Provider 必须支持 plan/apply（不走方言层，
+#     Provider 自己组织 Migrator 时若涉及方言，可从 self.codec 拿到）。
+#
 #   * 运维能力（必选）：health_check
 #
+#   * 低层能力（可选）：query_policy / query_policy_by_actions
+#
 # 契约要点：
-#   1. 平台约束由 Provider 内部透明处理，不允许泄漏到调用方
+#   1. 平台约束（方言 ID / 特殊字段拼接）由 Provider 内部透明处理，不允许
+#      泄漏到调用方；上层永远只见业务规范化命名。
 #   2. 明确拒绝返回 False；异常代表系统失败（ProviderUnavailable / ...）
-#   3. 批量方法的分片、重试由 Provider 自行完成
+#   3. 批量方法的分片、并发由基类自动完成；子类只关心"一页方言请求"。
 #   4. "反向查询用户有哪些资源权限"走 query_policy 拿 AST，禁止用批量鉴权
 #      枚举全量候选池（父资源级授权会造成"展开为几十万子资源"的性能陷阱）
 # ---------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from ..core.exceptions import ProviderUnavailable
 from ..core.types import (
     ApplyURLRequest,
     AuthRequest,
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
+    ResourceAuthResult,
+    ResourceInstance,
     Subject,
     to_action_id,
+    to_resource_type_id,
 )
-
+from ..core.utils import chunked
 from ..schema.registry import SchemaRegistry
+from .codec import IdentityCodec, NameCodec
+from .dialect_types import (
+    DialectApplyURLRequest,
+    DialectAuthRequest,
+    DialectBatchByActionRequest,
+    DialectBatchByResourceRequest,
+    DialectResource,
+)
 
 if TYPE_CHECKING:
     from ..policy.expression import PolicyExpression
@@ -54,11 +84,13 @@ if TYPE_CHECKING:
 class PermissionProvider(ABC):
     """权限服务抽象接口 —— 唯一的扩展契约。
 
-    新增权限平台 = 新增本类子类；框架其余部分无需改动。
+    新增权限平台 = 新增本类子类 + 声明 codec_class + 实现方言层方法；
+    框架其余部分无需改动。
 
     构造约定：
         Provider 只吃两样东西：
-          - schema：框架统一构建的冻结 SchemaRegistry（跨 Provider 共享）
+          - schema：框架统一构建的冻结 SchemaRegistry（跨 Provider 共享，
+            使用业务规范化命名）
           - options：settings.IAM_FRAMEWORK.PROVIDERS[*].options 原样透传的字典
 
         options 里的结构（含 credentials、system 等）**完全由 Provider 自己决定**，
@@ -68,15 +100,31 @@ class PermissionProvider(ABC):
 
         Provider 内部日志用模块级 logging.getLogger(__name__) 即可；缓存策略
         （如需要）也应由 Provider 自持，不通过框架注入。
+
+    NameCodec 装配：
+        子类通过覆盖 codec_class 类属性来声明使用哪种 codec：
+            class V4PermissionProvider(PermissionProvider):
+                codec_class = V4NameCodec
+        未覆盖时默认使用 IdentityCodec（业务命名与平台方言完全一致）。
     """
 
     #: Provider 标识，用于日志/监控/命令行 --provider 参数。
     #: 子类必须覆盖为非空字符串（如 "v4"、"v3"）。
     name: ClassVar[str] = ""
 
+    #: 使用的 NameCodec 类。子类按需覆盖；默认恒等。
+    codec_class: ClassVar[type[NameCodec]] = IdentityCodec
+
+    # -------- 批量分片/并发参数（子类可覆盖）--------
+    #: 单次批量调用的最大条目数
+    CHUNK_SIZE: ClassVar[int] = 20
+    #: 并发 worker 数。1 = 串行，>1 = ThreadPoolExecutor 并行
+    MAX_WORKERS: ClassVar[int] = 1
+
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         self.schema = schema
         self.options = options
+        self.codec: NameCodec = self.codec_class()
 
     # ==================== 系统信息（供命令行/诊断使用） ====================
 
@@ -89,37 +137,239 @@ class PermissionProvider(ABC):
         """
         return None
 
-    # ==================== 能力声明 ====================
+    # ==================== 接口层（业务命名，final）====================
 
-    # ==================== 高层能力（必选） ====================
-
-    @abstractmethod
     def is_allowed(self, request: AuthRequest) -> bool:
         """单次鉴权。allowed=False 代表业务语义拒绝，非系统错误。"""
+        dialect_req = DialectAuthRequest(
+            subject=request.subject,
+            action_id=self.codec.encode_action(to_action_id(request.action_id)),
+            resource=self._encode_resource(request.resource) if request.resource else None,
+            environment=request.environment,
+        )
+        return self._is_allowed_dialect(dialect_req)
+
+    def batch_by_resource(self, request: BatchByResourceRequest) -> BatchAuthResult:
+        """同 action、多 resource 的批量鉴权。基类完成分片 + 并发；子类只处理单页。"""
+        action_id_biz = to_action_id(request.action_id)
+        dialect_action = self.codec.encode_action(action_id_biz)
+
+        if not request.resources:
+            return BatchAuthResult(items=())
+
+        # 假设一批同类型（框架契约）；type 取第一个即可
+        rt_biz = to_resource_type_id(request.resources[0].type)
+        dialect_rt = self.codec.encode_resource_type(rt_biz)
+
+        # 出站 encode：业务 ID → 方言 ID（保留原业务 ID 用于 decode 回填）
+        pairs: list[tuple[str, str]] = [(r.id, self.codec.encode_resource_id(rt_biz, r.id)) for r in request.resources]
+        chunks = [list(c) for c in chunked(pairs, self.CHUNK_SIZE)]
+
+        def run_chunk(chunk: list[tuple[str, str]]) -> list[tuple[str, bool]]:
+            page_req = DialectBatchByResourceRequest(
+                subject=request.subject,
+                action_id=dialect_action,
+                resource_type=dialect_rt,
+                resource_ids=tuple(d_rid for _, d_rid in chunk),
+                environment=request.environment,
+            )
+            return self._batch_by_resource_dialect_page(page_req)
+
+        raw_items = self._run_chunked(chunks, run_chunk)
+
+        # 入站 decode：方言 ID → 业务 ID
+        items = tuple(
+            ResourceAuthResult(
+                action_id=action_id_biz,
+                resource_type=rt_biz,
+                resource_id=self.codec.decode_resource_id(rt_biz, d_rid),
+                allowed=allowed,
+            )
+            for d_rid, allowed in raw_items
+        )
+        return BatchAuthResult(items=items)
+
+    def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
+        """多 action、同一 resource（或无 resource）的批量鉴权。"""
+        action_ids_biz = [to_action_id(a) for a in request.action_ids]
+        pairs: list[tuple[str, str]] = [(aid_biz, self.codec.encode_action(aid_biz)) for aid_biz in action_ids_biz]
+
+        dialect_resource = self._encode_resource(request.resource) if request.resource else None
+        rt_biz = to_resource_type_id(request.resource.type) if request.resource else ""
+        rid_biz = request.resource.id if request.resource else ""
+
+        if not pairs:
+            return BatchAuthResult(items=())
+
+        chunks = [list(c) for c in chunked(pairs, self.CHUNK_SIZE)]
+
+        def run_chunk(chunk: list[tuple[str, str]]) -> list[tuple[str, bool]]:
+            page_req = DialectBatchByActionRequest(
+                subject=request.subject,
+                action_ids=tuple(d_aid for _, d_aid in chunk),
+                resource=dialect_resource,
+                environment=request.environment,
+            )
+            return self._batch_by_action_dialect_page(page_req)
+
+        raw_items = self._run_chunked(chunks, run_chunk)
+
+        # 入站 decode：方言 action_id → 业务 action_id
+        items = tuple(
+            ResourceAuthResult(
+                action_id=self.codec.decode_action(d_aid),
+                resource_type=rt_biz,
+                resource_id=rid_biz,
+                allowed=allowed,
+            )
+            for d_aid, allowed in raw_items
+        )
+        return BatchAuthResult(items=items)
+
+    def get_apply_url(self, request: ApplyURLRequest) -> str:
+        """生成"跳转到权限申请页"的 URL。
+
+        apply_url 的特殊性：action 和 resource 是"交叉配对"的，resource 的
+        type 可能未填（业务侧只给 id），需要从 schema 反查 action 的
+        resource_type 才能确定。因此使用 _encode_resource_for_action。
+        """
+        # 编码 action_ids
+        action_ids_biz: list[str] = [to_action_id(a) for a in request.action_ids]
+        dialect_action_ids = tuple(self.codec.encode_action(a) for a in action_ids_biz)
+
+        # 编码 resources：type 优先从对应 action 反查（apply_url 常见场景）
+        # 若有多个 action，取第一个 action 的 resource_type 作为回退线索
+        primary_action_biz = action_ids_biz[0] if action_ids_biz else ""
+        dialect_resources = tuple(self._encode_resource_for_action(r, primary_action_biz) for r in request.resources)
+
+        dialect_req = DialectApplyURLRequest(
+            subject=request.subject,
+            action_ids=dialect_action_ids,
+            resources=dialect_resources,
+        )
+        return self._get_apply_url_dialect(dialect_req)
+
+    # ==================== 方言层（子类必须实现）====================
 
     @abstractmethod
-    def batch_by_resource(self, request: BatchByResourceRequest) -> BatchAuthResult:
-        """同 action、多 resource 的批量鉴权。
+    def _is_allowed_dialect(self, request: DialectAuthRequest) -> bool:
+        """子类实现：使用方言 ID 直接调平台 API，返回是否允许。"""
 
-        Provider 内部完成分片（如 v4 每批 20），调用方不应感知。
+    @abstractmethod
+    def _batch_by_resource_dialect_page(
+        self,
+        request: DialectBatchByResourceRequest,
+    ) -> list[tuple[str, bool]]:
+        """子类实现：处理"同 action、多 resource"的单页请求（≤ CHUNK_SIZE）。
+
+        Returns:
+            list[(dialect_resource_id, allowed)]
         """
 
     @abstractmethod
-    def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
-        """多 action、同一 resource（或无 resource）的批量鉴权。"""
+    def _batch_by_action_dialect_page(
+        self,
+        request: DialectBatchByActionRequest,
+    ) -> list[tuple[str, bool]]:
+        """子类实现：处理"多 action、同 resource"的单页请求（≤ CHUNK_SIZE）。
+
+        Returns:
+            list[(dialect_action_id, allowed)]
+        """
 
     @abstractmethod
-    def get_apply_url(self, request: ApplyURLRequest) -> str:
-        """生成"跳转到权限申请页"的 URL。"""
+    def _get_apply_url_dialect(self, request: DialectApplyURLRequest) -> str:
+        """子类实现：根据编码后的 apply_url 请求组装平台 payload 并返回 URL。"""
+
+    # ==================== 内部工具 ====================
+
+    def _encode_resource(self, r: ResourceInstance) -> DialectResource:
+        """常规资源编码：resource_type 直接从 r.type 拿。
+
+        用于 is_allowed / batch_by_action 等业务侧已明确填好 type 的场景。
+        """
+        rt = to_resource_type_id(r.type)
+        return DialectResource(
+            type=self.codec.encode_resource_type(rt),
+            id=self.codec.encode_resource_id(rt, r.id),
+            ancestors=tuple(self._encode_resource(a) for a in r.ancestor_chain),
+        )
+
+    def _encode_resource_for_action(
+        self,
+        r: ResourceInstance,
+        action_id_biz: str,
+    ) -> DialectResource:
+        """apply_url 场景资源编码：resource_type 优先从 action 定义反查。
+
+        业务侧调 get_apply_url 时，resource 的 type 字段可能没填（因为
+        action 唯一决定 resource_type），此时需要用规范化 action_id 查
+        schema 反推。schema 查不到时退化到 r.type。
+        """
+        rt = ""
+        if action_id_biz:
+            try:
+                rt = self.schema.get_action(action_id_biz).resource_type
+            except Exception:
+                rt = ""
+        if not rt:
+            rt = to_resource_type_id(r.type or "")
+        return DialectResource(
+            type=self.codec.encode_resource_type(rt),
+            id=self.codec.encode_resource_id(rt, r.id),
+            ancestors=tuple(self._encode_resource(a) for a in r.ancestor_chain),
+        )
+
+    def _run_chunked(
+        self,
+        chunks: list,
+        fn: Callable[[list], list[tuple[str, bool]]],
+    ) -> list[tuple[str, bool]]:
+        """串行或并行执行分片，按 chunk 原始顺序合并结果。
+
+        MAX_WORKERS <= 1 或只有一片 → 串行；否则 ThreadPoolExecutor 并行。
+        部分 chunk 失败时聚合所有异常并抛出 ProviderUnavailable。
+        """
+        if not chunks:
+            return []
+        if self.MAX_WORKERS <= 1 or len(chunks) <= 1:
+            items: list[tuple[str, bool]] = []
+            for chunk in chunks:
+                items.extend(fn(chunk))
+            return items
+
+        max_workers = min(self.MAX_WORKERS, len(chunks))
+        results_by_idx: dict[int, list[tuple[str, bool]]] = {}
+        errors: list[tuple[int, Exception]] = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(fn, chunk): i for i, chunk in enumerate(chunks)}
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    results_by_idx[idx] = future.result()
+                except Exception as e:
+                    errors.append((idx, e))
+        if errors:
+            raise ProviderUnavailable(
+                f"{type(self).__name__}: {len(errors)}/{len(chunks)} chunks failed: "
+                + "; ".join(f"[{i}] {e}" for i, e in errors[:3])
+            )
+        items = []
+        for idx in sorted(results_by_idx):
+            items.extend(results_by_idx[idx])
+        return items
 
     # ==================== 低层能力（可选） ====================
     #
     # query_policy / query_policy_by_actions 用于"反向查询"：
     # 不给候选池、直接问"用户对该 action 有哪些资源的权限"，返回中立的
-    # PolicyExpression AST。
+    # PolicyExpression AST（业务命名）。
     #
     # 不支持的 Provider 应保持默认返回 None，且 supports(POLICY_EXPRESSION)
     # 也返回 False；组合策略与业务层按 None 做能力退化。
+    #
+    # 注意：子类实现时，AST 里的字面量 ID 也必须通过 codec.decode_* 还原
+    # 成业务命名再返回；否则上层会拿到方言 ID 与业务对不上。
 
     def query_policy(
         self,

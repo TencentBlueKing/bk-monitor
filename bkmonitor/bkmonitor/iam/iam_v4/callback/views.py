@@ -23,8 +23,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import services
 from .auth import IamCallbackAuthentication
+from .services import service
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +49,11 @@ class ResourceCallbackView(APIView):
 
         try:
             if method == "list_instance":
-                result = services.list_instance(resource_type, filter_data, page)
+                result = service.dispatch_list_instance(resource_type, filter_data, page)
                 return Response({"code": 0, "message": "success", "data": result})
             elif method == "fetch_instance_info":
                 requires = request.data.get("requires", [])
-                result = services.fetch_instance_info(resource_type, filter_data.get("ids", []), requires)
+                result = service.dispatch_fetch_instance_info(resource_type, filter_data.get("ids", []), requires)
                 return Response({"code": 0, "message": "success", "data": result})
             else:
                 logger.warning("[iam_v4:callback] unknown method=%s", method)
