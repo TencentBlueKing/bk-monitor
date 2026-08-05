@@ -28,7 +28,7 @@ interface IWorkerViewResult {
 type WorkerResponse =
   | (IWorkerViewResult & {
       requestId: number;
-      type: 'COLLAPSE_ALL_DONE' | 'GET_RANGE_DONE' | 'SET_FILTER_DONE' | 'TOGGLE_DONE';
+      type: 'COLLAPSE_ALL_DONE' | 'EXPAND_ALL_DONE' | 'GET_RANGE_DONE' | 'SET_FILTER_DONE' | 'TOGGLE_DONE';
     })
   | {
       nodeCount: number;
@@ -143,6 +143,14 @@ export const useHostTopoTreeWorker = () => {
       type: 'COLLAPSE_ALL',
     });
 
+  /** 展开所有节点 */
+  const expandAll = (start: number, end: number) =>
+    postRequest<Extract<WorkerResponse, { type: 'EXPAND_ALL_DONE' }>>({
+      end,
+      start,
+      type: 'EXPAND_ALL',
+    });
+
   /** 销毁 Worker */
   onScopeDispose(() => {
     workerRef.value?.terminate();
@@ -156,6 +164,7 @@ export const useHostTopoTreeWorker = () => {
 
   return {
     collapseAll,
+    expandAll,
     getRange,
     init,
     setFilter,

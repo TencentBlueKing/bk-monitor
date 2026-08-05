@@ -29,9 +29,10 @@ import { type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { getHostTopoTreeByBizId } from '../services/host-service';
-import { handleCreateItemId } from '../utils/host-list-core';
+import { handleCreateCompares, handleCreateItemId } from '../utils/host-list-core';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
+import { useHostStore } from '@/store/modules/host';
 
 import type { IHostTopoHostNode, IHostTopoTreeNode } from '../types';
 import type { IHostTopoViewRow } from './use-host-topo-tree-worker';
@@ -44,7 +45,9 @@ const VIEW_OVERSCAN = 10;
  * 视图层（host-topo-tree）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
 export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
+  const { metricAggregationState } = useHostStore();
   const topoTreeWorker = useHostTopoTreeWorker();
+  const isAllExpand = shallowRef(false);
   /** 加载状态 */
   const loading = shallowRef(false);
   /** 原始树数据（接口/ mock 原样数据） */
@@ -113,7 +116,11 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   });
 
   /** 当前选中的是否为主机（决定 hover 其他主机时是否出现「对比」按钮） */
-  // const selectedIsHost = computed(() => !!selectedNode.value && isHostNode(selectedNode.value));
+  const selectedIsHost = computed(() => !!selectedNode.value && isHostNode(selectedNode.value));
+
+  const compareType = computed(() => metricAggregationState.compareType);
+
+  const compareTargets = computed(() => metricAggregationState.compareTargets);
 
   /** 受控选中态 */
   const selectedIds = computed<string[]>(() => (selectedNode.value ? [selectedNode.value.id] : []));
@@ -252,12 +259,29 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
     applyViewResult(result, start, end, version);
   };
 
-  /** 全部收起通过清空 Worker 展开集合完成，无需逐节点调用组件实例方法。 */
-  const handleCollapseAll = async () => {
-    resetViewport();
+  /** 主机对比 */
+  const handleCompare = (payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => {
+    const hostId = handleCreateItemId(payload.target);
+    const item = compareHostList.value.find(item => item.id === hostId);
+    const value = handleCreateCompares(item);
+    metricAggregationState.compareTargets = [...metricAggregationState.compareTargets, value];
+  };
+
+  /**
+   * 全部展开/收起
+   * 全部收起通过清空 Worker 展开集合完成，无需逐节点调用组件实例方法。
+   * */
+  const handleExpandAll = async () => {
+    isAllExpand.value = !isAllExpand.value;
+    let result = null;
     const { start, end } = getRange();
     const version = ++viewRequestVersion;
-    const result = await topoTreeWorker.collapseAll(start, end);
+    resetViewport();
+    if (isAllExpand.value) {
+      result = await topoTreeWorker.expandAll(start, end);
+    } else {
+      result = await topoTreeWorker.collapseAll(start, end);
+    }
     applyViewResult(result, start, end, version);
   };
 
@@ -266,11 +290,12 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   });
 
   return {
+    isAllExpand,
     loading,
     searchValue,
     hideEmptyNode,
     selectedNode,
-    // selectedIsHost,
+    selectedIsHost,
     selectedIds,
     compareHostList,
     visibleRows,
@@ -278,13 +303,16 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
     totalRows,
     rowHeight: TOPO_ROW_HEIGHT,
     viewportResetKey,
+    compareType,
+    compareTargets,
     loadTopoTree,
     handleRefresh,
     handleSelectNode,
     handleExpandNode,
     handleViewportChange,
-    handleCollapseAll,
+    handleExpandAll,
     handleSelectNodeOfNodeId,
+    handleCompare,
   };
 };
 

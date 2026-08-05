@@ -32,6 +32,7 @@
 import { isObject } from 'monitor-common/utils';
 
 import type { IValue, IWhereItem } from '../../../components/retrieval-filter/typing';
+import type { CompareTarget } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo, IHostModule } from '../types/host';
 import type { EHostQuickCategory, IHostCluster, IHostListRow } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
