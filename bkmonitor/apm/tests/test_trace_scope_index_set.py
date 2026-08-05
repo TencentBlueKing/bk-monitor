@@ -29,19 +29,24 @@ def mock_snapshot_rows(
     applications: list[dict[str, Any]],
     trace_datasources: list[dict[str, Any]],
     storages: list[dict[str, Any]],
-) -> None:
-    mocker.patch(
+) -> dict[str, MagicMock]:
+    application_filter = mocker.patch(
         "apm.core.handlers.trace_index_set.ApmApplication.objects.filter",
         return_value=FakeQuerySet(applications),
     )
-    mocker.patch(
+    trace_datasource_filter = mocker.patch(
         "apm.core.handlers.trace_index_set.TraceDataSource.objects.filter",
         return_value=FakeQuerySet(trace_datasources),
     )
-    mocker.patch(
+    storage_filter = mocker.patch(
         "apm.core.handlers.trace_index_set.ESStorage.objects.filter",
         return_value=FakeQuerySet(storages),
     )
+    return {
+        "applications": application_filter,
+        "trace_datasources": trace_datasource_filter,
+        "storages": storage_filter,
+    }
 
 
 @pytest.fixture
@@ -99,7 +104,7 @@ class TestTraceScopeIndexSetHandler:
         index_set_api_mocks: dict[str, MagicMock],
         mocker: MockerFixture,
     ) -> None:
-        mock_snapshot_rows(
+        snapshot_query_mocks = mock_snapshot_rows(
             mocker,
             applications=[
                 {"id": 1, "app_name": "exclusive", "bk_tenant_id": BK_TENANT_ID},
@@ -165,6 +170,19 @@ class TestTraceScopeIndexSetHandler:
         )
         index_set_api_mocks["update"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
+        snapshot_query_mocks["applications"].assert_called_once_with(
+            bk_biz_id=BK_BIZ_ID,
+            is_enabled=True,
+            is_enabled_trace=True,
+        )
+        snapshot_query_mocks["trace_datasources"].assert_called_once_with(
+            bk_biz_id=BK_BIZ_ID,
+            app_name__in=["exclusive", "shared-a", "shared-b"],
+        )
+        snapshot_query_mocks["storages"].assert_called_once_with(
+            bk_tenant_id__in={BK_TENANT_ID, DEFAULT_TENANT_ID},
+            table_id__in={"2_bkapm.trace_exclusive", "bkapm_shared.trace_0001"},
+        )
 
     def test_sync_updates_existing_index_set(
         self,
@@ -183,9 +201,20 @@ class TestTraceScopeIndexSetHandler:
 
         TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
 
-        index_set_api_mocks["update"].assert_called_once()
-        assert index_set_api_mocks["update"].call_args.kwargs["index_set_id"] == 42
-        assert index_set_api_mocks["update"].call_args.kwargs["indexes"] == indexes
+        index_set_api_mocks["update"].assert_called_once_with(
+            index_set_id=42,
+            bk_tenant_id=BK_TENANT_ID,
+            bk_biz_id=BK_BIZ_ID,
+            index_set_name="bkapm_cross_trace_2",
+            category_id="application_check",
+            scenario_id="es",
+            view_roles=[],
+            storage_cluster_id=11,
+            time_field="end_time",
+            time_field_type="date",
+            time_field_unit="microsecond",
+            indexes=indexes,
+        )
         index_set_api_mocks["create"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
 
@@ -311,6 +340,19 @@ class TestSyncTraceScopeIndexSet:
         resolve_tenant.assert_not_called()
         sync.assert_not_called()
 
+    def test_single_scope_task_propagates_scope_lock_error(self, settings, mocker: MockerFixture) -> None:
+        settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST = [BK_BIZ_ID]
+        mocker.patch("apm.task.tasks.bk_biz_id_to_bk_tenant_id", return_value=BK_TENANT_ID)
+        mocker.patch("apm.task.tasks.set_local_tenant_id")
+        cache_handler = mocker.patch("apm.task.tasks.ApmCacheHandler").return_value
+        cache_handler.distributed_lock.side_effect = LockError(msg="scope is already locked")
+        sync = mocker.patch("apm.task.tasks.TraceScopeIndexSetHandler.sync")
+
+        with pytest.raises(LockError, match="scope is already locked"):
+            tasks.sync_trace_scope_index_set.run(BK_BIZ_ID)
+
+        sync.assert_not_called()
+
     def test_batch_task_dispatches_each_whitelisted_scope(self, settings, mocker: MockerFixture) -> None:
         settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST = [2, -3]
         delay = mocker.patch("apm.task.tasks.sync_trace_scope_index_set.delay")
@@ -363,7 +405,7 @@ class TestSyncTraceScopeIndexSet:
         delay.assert_called_once_with(BK_BIZ_ID)
 
 
-def test_distributed_lock_passes_configured_wait_time(mocker: MockerFixture) -> None:
+def test_distributed_lock_raises_without_releasing_when_wait_time_expires(mocker: MockerFixture) -> None:
     handler = object.__new__(ApmCacheHandler)
     handler.redis_client = MagicMock()
     lock = mocker.patch("apm.core.handlers.apm_cache_handler.ApmLock").return_value
@@ -374,4 +416,17 @@ def test_distributed_lock_passes_configured_wait_time(mocker: MockerFixture) -> 
             pass
 
     lock.acquire.assert_called_once_with(2.5)
+    lock.release.assert_not_called()
+
+
+def test_distributed_lock_releases_acquired_lock_when_body_fails(mocker: MockerFixture) -> None:
+    handler = object.__new__(ApmCacheHandler)
+    handler.redis_client = MagicMock()
+    lock = mocker.patch("apm.core.handlers.apm_cache_handler.ApmLock").return_value
+    lock.acquire.return_value = True
+
+    with pytest.raises(RuntimeError, match="sync failed"):
+        with handler.distributed_lock("trace_scope_index_set", bk_biz_id=BK_BIZ_ID):
+            raise RuntimeError("sync failed")
+
     lock.release.assert_called_once_with()
