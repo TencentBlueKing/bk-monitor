@@ -50,6 +50,7 @@ from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
+from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.requests import (
     AuthRequest as EngineAuthRequest,
     BatchAuthRequest as EngineBatchAuthRequest,
@@ -57,6 +58,7 @@ from apps.iam.iam_engine.core.requests import (
     Subject as EngineSubject,
 )
 from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, BatchAuthDecision
+from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PermissionApplicationProvider
 from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.iam.mode import get_mode_provider
 from apps.iam.utils import gen_perms_apply_data
@@ -120,6 +122,14 @@ class Permission:
 
     def get_v4_provider(self):
         """V4 Provider 将在后续迭代中注入；未配置时路由器按 error 安全拒绝。"""
+        return None
+
+    def get_v4_permission_application_provider(self) -> PermissionApplicationProvider | None:
+        """V4 无权限申请能力将在后续迭代中注入。"""
+        return None
+
+    def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
+        """V4 授权写入能力将在后续迭代中注入。"""
         return None
 
     def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
@@ -243,11 +253,34 @@ class Permission:
         url = f"{url}&tab_key=independent" if "?" in url else f"{url}?tab_key=independent"
         return url
 
-    def get_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource] = None):
+    def get_apply_data(
+        self,
+        actions: list[ActionMeta | str],
+        resources: list[Resource] = None,
+        *,
+        mode: AuthMode | str | None = None,
+    ):
         """
         生成本系统无权限数据
         """
         resources = resources or []
+        resolved_mode = self._resolve_auth_mode(resources) if mode is None else AuthMode(mode)
+        application_provider = self._get_permission_application_provider(resolved_mode)
+        if application_provider is not None:
+            return application_provider.get_apply_data(actions, resources)
+
+        return self._get_v3_apply_data(actions, resources)
+
+    def _resolve_auth_mode(self, resources: list[Resource]) -> AuthMode:
+        engine_resources = tuple(self._to_engine_resource(resource) for resource in resources)
+        return self.mode_router.mode_provider.get_mode(engine_resources)
+
+    def _get_permission_application_provider(self, mode: AuthMode) -> PermissionApplicationProvider | None:
+        if mode is AuthMode.V4:
+            return self.get_v4_permission_application_provider()
+        return None
+
+    def _get_v3_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource]):
         # # 获取关联的动作，如果没有权限就一同显示
         # related_actions = fetch_related_actions(actions)
         #
@@ -329,7 +362,7 @@ class Permission:
         result = decision.allowed
 
         if not result and raise_exception:
-            apply_data, apply_url = self.get_apply_data([action], resources)
+            apply_data, apply_url = self.get_apply_data([action], resources, mode=decision.mode)
             raise PermissionDeniedError(
                 action_name=action.name,
                 apply_url=apply_url,
@@ -383,16 +416,27 @@ class Permission:
             decision.allowed,
             decision.degraded,
             decision.hit_provider_names,
-            tuple((result.provider_name, result.error_type) for result in error_results),
+            tuple((result.provider_name, result.error_type, result.reason) for result in error_results),
         )
 
     @staticmethod
     def _record_batch_decision(decision: BatchAuthDecision) -> None:
-        error_count = sum(
-            result.status is AuthStatus.ERROR for item in decision.items for result in item.decision.provider_results
+        error_results = tuple(
+            result
+            for item in decision.items
+            for result in item.decision.provider_results
+            if result.status is AuthStatus.ERROR
         )
-        if error_count:
-            logger.warning("[IAM Batch Decision] error_result_count=%s", error_count)
+        if not error_results:
+            return
+        errors = tuple(
+            dict.fromkeys((result.provider_name, result.error_type, result.reason) for result in error_results)
+        )
+        logger.warning(
+            "[IAM Batch Decision] error_result_count=%s errors=%s",
+            len(error_results),
+            errors,
+        )
 
     @classmethod
     def make_resource(cls, resource_type: str, instance_id: str) -> Resource:
@@ -512,14 +556,32 @@ class Permission:
         }
 
         grant_result = None
-
-        try:
-            grant_result = self.iam_client.grant_resource_creator_actions(application)
-            logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
-
-            if raise_exception:
-                raise e
+        for provider_name, writer in self._get_authorization_writers():
+            try:
+                result = writer.grant_resource_creator_actions(application)
+                if provider_name == AuthMode.V3.value:
+                    grant_result = result
+                logger.info(
+                    "[grant_creator_action] provider=%s success resource=%s result=%s",
+                    provider_name,
+                    resource.to_dict(),
+                    result,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "[grant_creator_action] provider=%s failed resource=%s error=%s",
+                    provider_name,
+                    resource.to_dict(),
+                    error,
+                )
+                if raise_exception:
+                    raise
 
         return grant_result
+
+    def _get_authorization_writers(self) -> tuple[tuple[str, AuthorizationWriter], ...]:
+        writers: list[tuple[str, AuthorizationWriter]] = [(AuthMode.V3.value, self.iam_client)]
+        v4_writer = self.get_v4_authorization_writer()
+        if v4_writer is not None:
+            writers.append((AuthMode.V4.value, v4_writer))
+        return tuple(writers)

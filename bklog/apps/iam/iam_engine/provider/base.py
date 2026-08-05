@@ -6,14 +6,14 @@ from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult
 
 
 class PermissionProvider(ABC):
-    """Common contract implemented by permission backends."""
+    """权限后端需要实现的通用契约。"""
 
     name: ClassVar[str]
 
     @abstractmethod
     def is_allowed(self, request: AuthRequest) -> AuthResult:
-        """Return allow, deny, or provider error without collapsing states."""
+        """返回允许、拒绝或 Provider 错误，不合并不同结果状态。"""
 
     @abstractmethod
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthResult:
-        """Return one provider result for every requested action and resource."""
+        """为每个请求的动作和资源返回一个 Provider 结果。"""

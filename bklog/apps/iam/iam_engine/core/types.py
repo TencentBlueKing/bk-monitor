@@ -5,7 +5,7 @@ from enum import Enum
 
 
 class AuthStatus(str, Enum):
-    """A provider's unmodified authorization outcome."""
+    """Provider 返回的原始鉴权结果。"""
 
     ALLOW = "allow"
     DENY = "deny"
@@ -14,7 +14,7 @@ class AuthStatus(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class AuthResult:
-    """Authorization result returned by one permission provider."""
+    """单个权限 Provider 返回的鉴权结果。"""
 
     status: AuthStatus
     provider_name: str
@@ -53,7 +53,7 @@ class AuthResult:
 
 @dataclass(frozen=True, slots=True)
 class AuthDecision:
-    """Final authorization decision plus the provider evidence behind it."""
+    """最终鉴权决策及其对应的 Provider 结果明细。"""
 
     allowed: bool
     provider_results: tuple[AuthResult, ...]

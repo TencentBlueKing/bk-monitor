@@ -9,7 +9,7 @@ from apps.iam.iam_engine.provider.base import PermissionProvider
 
 
 class LegacyV3Adapter(PermissionProvider):
-    """Expose the existing IAM V3 client through the engine provider contract."""
+    """通过 Engine Provider 契约封装现有的 IAM V3 客户端。"""
 
     name = "v3"
 

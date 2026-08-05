@@ -1,1 +1,1 @@
-"""IAM backend orchestration primitives shared by BKLog permission adapters."""
+"""供 BKLog 权限适配器共用的 IAM 后端编排基础能力。"""

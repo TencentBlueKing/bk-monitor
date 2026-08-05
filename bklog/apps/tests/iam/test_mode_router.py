@@ -1,31 +1,100 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase
 
-from apps.iam.iam_engine.core.config import AuthMode, DynamicModeConfigProvider
+from apps.feature_toggle.plugins.constants import IAM_V3_PERMISSION_TOGGLE, IAM_V4_PERMISSION_TOGGLE
+from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
 from apps.iam.iam_engine.core.types import AuthResult, AuthStatus, BatchAuthResult, BatchAuthResultItem
 from apps.iam.iam_engine.provider.router import ModeRouter
-from apps.iam.mode import IAM_PERMISSION_MODE_CONFIG_ID, _load_mode_from_global_config, get_mode_provider
+from apps.iam.mode import FeatureToggleModeProvider, get_mode_provider
 
 
-class DynamicModeConfigProviderTest(SimpleTestCase):
-    def test_missing_or_invalid_config_falls_back_to_v3(self):
-        for raw_mode in (None, "", "invalid"):
-            with self.subTest(raw_mode=raw_mode):
-                provider = DynamicModeConfigProvider(loader=lambda: raw_mode, ttl_seconds=0)
-                self.assertEqual(provider.get_mode(), AuthMode.V3)
+class FeatureToggleModeProviderTest(SimpleTestCase):
+    def test_toggle_matrix(self):
+        matrix = (
+            (True, False, AuthMode.V3),
+            (False, True, AuthMode.V4),
+            (True, True, AuthMode.UNION),
+        )
+        resources = self._make_resources(ResourceInstance(type="space", id="42"))
 
-    def test_loader_error_falls_back_to_v3(self):
-        loader = Mock(side_effect=RuntimeError("config unavailable"))
-        provider = DynamicModeConfigProvider(loader=loader, ttl_seconds=0)
+        for v3_enabled, v4_enabled, expected_mode in matrix:
+            with self.subTest(v3_enabled=v3_enabled, v4_enabled=v4_enabled):
+                toggle_values = {
+                    IAM_V3_PERMISSION_TOGGLE: v3_enabled,
+                    IAM_V4_PERMISSION_TOGGLE: v4_enabled,
+                }
+                switch = Mock(side_effect=lambda **kwargs: toggle_values[kwargs["name"]])
+                provider = FeatureToggleModeProvider(switch=switch)
+
+                self.assertEqual(provider.get_mode(resources), expected_mode)
+                self.assertEqual(
+                    switch.call_args_list,
+                    [
+                        call(name=IAM_V3_PERMISSION_TOGGLE, biz_id=42, default=True),
+                        call(name=IAM_V4_PERMISSION_TOGGLE, biz_id=42, default=False),
+                    ],
+                )
+
+    def test_both_toggles_disabled_falls_back_to_v3_and_records_error(self):
+        logger = Mock()
+        provider = FeatureToggleModeProvider(switch=Mock(return_value=False), logger=logger)
 
         self.assertEqual(provider.get_mode(), AuthMode.V3)
+        logger.error.assert_called_once_with(
+            "both IAM permission feature toggles are disabled, fallback to v3, biz_id=%s",
+            None,
+        )
 
-    def test_loader_accepts_normalized_auth_mode(self):
-        provider = DynamicModeConfigProvider(loader=lambda: AuthMode.UNION, ttl_seconds=0)
+    def test_toggle_error_falls_back_to_v3(self):
+        logger = Mock()
+        provider = FeatureToggleModeProvider(
+            switch=Mock(side_effect=RuntimeError("toggle unavailable")),
+            logger=logger,
+        )
 
-        self.assertEqual(provider.get_mode(), AuthMode.UNION)
+        self.assertEqual(provider.get_mode(), AuthMode.V3)
+        logger.exception.assert_called_once_with("failed to load IAM permission feature toggles, fallback to v3")
+
+    def test_business_id_is_resolved_from_resource_metadata(self):
+        resources = self._make_resources(
+            ResourceInstance(type="space", id="42"),
+            ResourceInstance(type="collection", id="1", attributes={"bk_biz_id": "42"}),
+            ResourceInstance(type="indices", id="2", attributes={"_bk_iam_path_": "/space,42/"}),
+        )
+        switch = Mock(side_effect=(True, False))
+        provider = FeatureToggleModeProvider(switch=switch)
+
+        self.assertEqual(provider.get_mode(resources), AuthMode.V3)
+        self.assertTrue(all(call.kwargs["biz_id"] == 42 for call in switch.call_args_list))
+
+    def test_multiple_business_ids_use_global_toggle(self):
+        resources = self._make_resources(
+            ResourceInstance(type="space", id="1"),
+            ResourceInstance(type="space", id="2"),
+        )
+        switch = Mock(side_effect=(True, False))
+        logger = Mock()
+        provider = FeatureToggleModeProvider(switch=switch, logger=logger)
+
+        self.assertEqual(provider.get_mode(resources), AuthMode.V3)
+        self.assertTrue(all(call.kwargs["biz_id"] is None for call in switch.call_args_list))
+        logger.warning.assert_called_once()
+
+    def test_invalid_business_metadata_is_ignored(self):
+        resources = self._make_resources(
+            ResourceInstance(
+                type="space",
+                id="not-a-business-id",
+                attributes={"bk_biz_id": "invalid", "_bk_iam_path_": None},
+            )
+        )
+        switch = Mock(side_effect=(True, False))
+        provider = FeatureToggleModeProvider(switch=switch)
+
+        self.assertEqual(provider.get_mode(resources), AuthMode.V3)
+        self.assertTrue(all(call.kwargs["biz_id"] is None for call in switch.call_args_list))
 
     def test_empty_resource_group_is_rejected(self):
         with self.assertRaisesMessage(ValueError, "resource group must not be empty"):
@@ -35,30 +104,27 @@ class DynamicModeConfigProviderTest(SimpleTestCase):
                 resource_groups=((),),
             )
 
+    def test_mode_reads_feature_toggles_for_each_request(self):
+        switch = Mock(side_effect=(True, False, True, True, False, True))
+        provider = FeatureToggleModeProvider(switch=switch)
 
-class GlobalConfigModeProviderTest(SimpleTestCase):
-    @patch("apps.log_search.models.GlobalConfig.objects")
-    def test_load_mode_uses_fixed_global_config_key(self, objects):
-        objects.filter.return_value.values_list.return_value.first.return_value = "union"
+        self.assertEqual(provider.get_mode(), AuthMode.V3)
+        self.assertEqual(provider.get_mode(), AuthMode.UNION)
+        self.assertEqual(provider.get_mode(), AuthMode.V4)
+        self.assertEqual(switch.call_count, 6)
 
-        self.assertEqual(_load_mode_from_global_config(), "union")
-        objects.filter.assert_called_once_with(config_id=IAM_PERMISSION_MODE_CONFIG_ID)
-
-    @override_settings(IAM_PERMISSION_MODE_CACHE_TTL=15)
-    def test_default_provider_uses_configured_ttl(self):
+    def test_default_provider_does_not_cache_toggle_values(self):
         get_mode_provider.cache_clear()
         self.addCleanup(get_mode_provider.cache_clear)
 
-        self.assertEqual(get_mode_provider().ttl_seconds, 15)
+        provider = get_mode_provider()
 
-    def test_mode_refreshes_after_ttl_without_process_restart(self):
-        modes = iter(("v3", "union"))
-        now = Mock(side_effect=(100.0, 105.0, 111.0))
-        provider = DynamicModeConfigProvider(loader=lambda: next(modes), ttl_seconds=10, clock=now)
+        self.assertIsInstance(provider, FeatureToggleModeProvider)
+        self.assertFalse(hasattr(provider, "_cache"))
 
-        self.assertEqual(provider.get_mode(), AuthMode.V3)
-        self.assertEqual(provider.get_mode(), AuthMode.V3)
-        self.assertEqual(provider.get_mode(), AuthMode.UNION)
+    @staticmethod
+    def _make_resources(*resources: ResourceInstance) -> tuple[ResourceInstance, ...]:
+        return resources
 
 
 class ModeRouterTest(SimpleTestCase):
@@ -173,6 +239,45 @@ class ModeRouterTest(SimpleTestCase):
 
         self.assertFalse(result.items[0].decision.allowed)
         self.assertEqual(result.items[0].decision.provider_results[0].error_type, "IncompleteBatchResult")
+
+    def test_batch_uses_one_mode_for_all_resources(self):
+        request = BatchAuthRequest(
+            subject=Subject(id="admin"),
+            action_ids=("view_collection_v2",),
+            resource_groups=(
+                (ResourceInstance(type="collection", id="1", attributes={"bk_biz_id": "10"}),),
+                (ResourceInstance(type="collection", id="2", attributes={"bk_biz_id": "10"}),),
+            ),
+        )
+        mode_provider = Mock(get_mode=Mock(return_value=AuthMode.UNION))
+        self.v3.batch_is_allowed.return_value = BatchAuthResult(
+            items=(
+                BatchAuthResultItem("view_collection_v2", "1", AuthResult.allow("v3")),
+                BatchAuthResultItem("view_collection_v2", "2", AuthResult.deny("v3")),
+            )
+        )
+        self.v4.batch_is_allowed.return_value = BatchAuthResult(
+            items=(
+                BatchAuthResultItem("view_collection_v2", "1", AuthResult.deny("v4")),
+                BatchAuthResultItem("view_collection_v2", "2", AuthResult.allow("v4")),
+            )
+        )
+        router = ModeRouter(mode_provider=mode_provider, v3_provider=self.v3, v4_provider=self.v4)
+
+        result = router.batch_is_allowed(request)
+
+        self.assertEqual(
+            result.as_allowed_dict(), {"1": {"view_collection_v2": True}, "2": {"view_collection_v2": True}}
+        )
+        self.assertEqual(tuple(item.decision.mode for item in result.items), ("union", "union"))
+        mode_provider.get_mode.assert_called_once_with(
+            (
+                request.resource_groups[0][0],
+                request.resource_groups[1][0],
+            )
+        )
+        self.v3.batch_is_allowed.assert_called_once_with(request)
+        self.v4.batch_is_allowed.assert_called_once_with(request)
 
     def _make_router(self, mode: AuthMode) -> ModeRouter:
         return ModeRouter(

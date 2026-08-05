@@ -6,7 +6,7 @@ from apps.iam.iam_engine.core.types import AuthDecision, AuthResult, AuthStatus
 
 
 class UnionDecisionPolicy:
-    """Allow when at least one provider explicitly allows the request."""
+    """只要至少一个 Provider 明确允许请求，Union 决策就允许请求。"""
 
     @staticmethod
     def decide(results: Iterable[AuthResult], mode: str = "union") -> AuthDecision:

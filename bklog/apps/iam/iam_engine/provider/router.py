@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest
+from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
 from apps.iam.iam_engine.core.types import (
     AuthDecision,
     AuthResult,
@@ -17,7 +17,7 @@ from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
 
 
 class ModeProvider(Protocol):
-    def get_mode(self) -> AuthMode: ...
+    def get_mode(self, resources: tuple[ResourceInstance, ...] = ()) -> AuthMode: ...
 
 
 class ModeRouter:
@@ -34,7 +34,7 @@ class ModeRouter:
         }
 
     def is_allowed(self, request: AuthRequest) -> AuthDecision:
-        mode = self.mode_provider.get_mode()
+        mode = self.mode_provider.get_mode(request.resources)
         provider_modes = self._provider_modes(mode)
         results = tuple(self._call_provider(provider_mode, request) for provider_mode in provider_modes)
         if mode is AuthMode.UNION:
@@ -42,7 +42,9 @@ class ModeRouter:
         return self._single_decision(results[0], mode)
 
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthDecision:
-        mode = self.mode_provider.get_mode()
+        # 认为批量鉴权请求只会发生在单业务下
+        resources = tuple(resource for resource_group in request.resource_groups for resource in resource_group)
+        mode = self.mode_provider.get_mode(resources)
         provider_modes = self._provider_modes(mode)
         provider_results = {
             provider_mode: self._call_batch_provider(provider_mode, request) for provider_mode in provider_modes
