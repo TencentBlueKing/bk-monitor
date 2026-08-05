@@ -41,7 +41,9 @@ class TestIssueSourceAnalysisConfig(TestCase):
 
         self.assertEqual(IssueSourceAnalysisConfig.objects.count(), 2)
 
-    def test_repository_alias_max_length_matches_bkci(self):
+    def test_repository_snapshot_field_lengths_match_bkci(self):
+        self.assertEqual(IssueSourceAnalysisConfig._meta.get_field("bkci_project_id").max_length, 128)
+        self.assertEqual(IssueSourceAnalysisRule._meta.get_field("bkci_project_id").max_length, 128)
         self.assertEqual(IssueSourceAnalysisConfig._meta.get_field("repository_alias").max_length, 255)
         self.assertEqual(IssueSourceAnalysisRule._meta.get_field("repository_alias").max_length, 255)
 
@@ -90,6 +92,7 @@ class TestIssueSourceAnalysisRule(TestCase):
 
         self.assertFalse(rule.is_enabled)
         self.assertEqual(rule.conditions, [])
+        self.assertIsNone(rule.bkci_project_id)
         self.assertIsNone(rule.repository_alias)
         self.assertEqual(rule.agent_ids, [])
         self.assertEqual(rule.skill_ids, [])

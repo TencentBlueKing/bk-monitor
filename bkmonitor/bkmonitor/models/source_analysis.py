@@ -64,6 +64,13 @@ class IssueSourceAnalysisRule(AbstractRecordModel):
     # {"field": str, "value": list[str], "method": str, "condition": str}
     # method 取 eq/neq/include/exclude/reg/nreg/issuperset；condition 取 and/or/""，最后一项固定为 ""。
     conditions = JsonField(default=list, blank=True, verbose_name="匹配条件")
+    bkci_project_id = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="蓝盾项目 ID 快照",
+    )
     repository_alias = models.CharField(
         max_length=255,
         null=True,
