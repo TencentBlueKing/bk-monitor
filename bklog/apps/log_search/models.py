@@ -35,6 +35,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from jinja2 import FileSystemLoader
 from jinja2.sandbox import SandboxedEnvironment as Environment
+from redis.exceptions import RedisError
 
 from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
@@ -43,8 +44,11 @@ from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EsSourceType
 from apps.log_search.constants import (
+    ASYNC_EXPORT_SCENE_ID,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportStatus,
+    ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
     INDEX_SET_NO_DATA_CHECK_PREFIX,
     INDEX_SET_NOT_EXISTED,
@@ -76,6 +80,8 @@ from apps.log_search.constants import (
     IndexSetDataType,
 )
 from apps.log_search.exceptions import (
+    AsyncExportRequestBusyException,
+    ConcurrentExportLimitException,
     CouldNotFindTemplateException,
     DefaultConfigNotAllowedDelete,
     IndexSetNameDuplicateException,
@@ -93,6 +99,7 @@ from apps.models import (
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
 from apps.utils.local import get_request_app_code, get_request_tenant_id
+from apps.utils.log import logger
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -1549,10 +1556,94 @@ class AsyncTask(OperateRecordModel):
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
 
+    @classmethod
+    def check_running_count_by_user(cls, username: str, is_scene: bool = False):
+        running_status = [
+            ExportStatus.DOWNLOAD_LOG,
+            ExportStatus.EXPORT_PACKAGE,
+            ExportStatus.EXPORT_UPLOAD,
+        ]
+        qs = cls.objects.filter(created_by=username, export_type=ExportType.ASYNC)
+
+        if is_scene:
+            qs = qs.filter(scenario_id=ASYNC_EXPORT_SCENE_ID)
+        else:
+            qs = qs.exclude(scenario_id=ASYNC_EXPORT_SCENE_ID)
+
+        if (
+            qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
+            >= settings.MAX_CONCURRENT_EXPORT_TASKS
+        ):
+            raise ConcurrentExportLimitException(
+                ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)
+            )
+
+    @classmethod
+    def async_export_task_create_with_running_limit(cls, username: str, is_scene: bool = False, **task_params):
+        """
+        校验并创建异步导出任务
+
+        Redis 启用且可用时，在用户导出分组锁内完成并发数复检与任务创建，避免并发请求击穿限制；
+        Redis 禁用或连接异常时降级为非原子校验，极端并发下任务数可能短暂超过限制。
+        """
+
+        def check_and_create_task():
+            cls.check_running_count_by_user(username, is_scene=is_scene)
+            task_params["created_by"] = username
+            task_params["export_type"] = ExportType.ASYNC
+            return cls.objects.create(**task_params)
+
+        if not settings.USE_REDIS:
+            return check_and_create_task()
+
+        task_group = ASYNC_EXPORT_SCENE_ID if is_scene else "default"
+        username_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()[:32]
+        lock_key = f"async_export_create:{task_group}:{username_hash}"
+
+        try:
+            lock = cache.lock(lock_key, timeout=30, blocking_timeout=5)
+            lock_acquired = lock.acquire()
+        except RedisError:
+            logger.exception(
+                "[AsyncTask.async_export_task_create_with_running_limit] Redis is unavailable, "
+                "falling back to non-atomic validation, lock_key=%s",
+                lock_key,
+            )
+            return check_and_create_task()
+
+        if not lock_acquired:
+            logger.warning(
+                "[AsyncTask.async_export_task_create_with_running_limit] failed to acquire lock, lock_key=%s",
+                lock_key,
+            )
+            raise AsyncExportRequestBusyException()
+
+        try:
+            with atomic():
+                return check_and_create_task()
+        finally:
+            try:
+                lock.release()
+            except RedisError:
+                logger.exception(
+                    "[AsyncTask.async_export_task_create_with_running_limit] failed to release lock, lock_key=%s",
+                    lock_key,
+                )
+
     class Meta:
         db_table = "export_task"
         verbose_name = _("导出任务")
         verbose_name_plural = _("42_导出任务")
+        indexes = [
+            models.Index(
+                fields=[
+                    "created_by",
+                    "export_type",
+                    "export_status",
+                ],
+                name="export_task_user_run_idx",
+            ),
+        ]
 
 
 class EmailTemplate(OperateRecordModel):

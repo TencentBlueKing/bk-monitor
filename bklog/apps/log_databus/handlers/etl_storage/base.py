@@ -747,6 +747,21 @@ class EtlStorage:
             )
         return rules
 
+    @staticmethod
+    def is_retain_content_enabled(etl_params: dict) -> bool:
+        """
+        是否保留清洗失败日志。仅用于 V4 清洗链路：未保留原文时，清洗失败的数据没有可读内容，
+        留在库里只占存储，因此在 V4 里把 enable_retain_content 收敛为 retain_original_text 的子开关。
+
+        仅限 V4：V3（Transfer）侧 option 的取值不走这里，保持原样下发。V3 的分隔符/正则 transformer
+        并不读取该 option（`TransformMapBySeparator` / `TransformMapByRegexp` 恒返回 nil error），
+        改动 V3 取值既无法带来丢弃效果，又会让存量采集项行为漂移。
+        :param etl_params: 清洗参数
+        """
+        if not etl_params.get("retain_original_text"):
+            return False
+        return bool(etl_params.get("enable_retain_content"))
+
     def _build_parse_failure_field_v4(self, etl_params: dict) -> list:
         """
         构建V4版本的清洗失败标记字段规则
@@ -754,6 +769,9 @@ class EtlStorage:
         :return: 清洗失败标记字段规则列表
         """
         rules = []
+        # 仅由 record_parse_failure 决定，不与 retain_original_text 联动：分隔符/正则在两条链路上
+        # 都没有丢弃失败记录的能力，若此时抹掉 __parse_failure，失败记录会退化成「字段全空且无法
+        # 判断失败原因」的数据，比保留标记更糟。须与 get_result_table_fields 的判定保持一致。
         if etl_params.get("record_parse_failure"):
             rules.append(
                 {
@@ -956,7 +974,7 @@ class EtlStorage:
                 },
             )
 
-        # 增加清洗失败标记
+        # 增加清洗失败标记（结果表字段为 V3/V4 共用，不随 retain_original_text 联动）
         if etl_params.get("record_parse_failure"):
             field_list.append(
                 {

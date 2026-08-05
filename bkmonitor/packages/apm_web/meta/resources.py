@@ -1076,7 +1076,7 @@ class ListApplicationResource(PageListResource):
             2. 有服务的其次
             3. 分组内按名称排序
             """
-            first, second, third = 1, 1, app.get("app_name", "")
+            first, second, third = 1, 1, normalize_app_name(app.get("app_name", ""))
             if (
                 app.get("trace_data_status") == DataStatus.NORMAL
                 or app.get("profiling_data_status") == DataStatus.NORMAL

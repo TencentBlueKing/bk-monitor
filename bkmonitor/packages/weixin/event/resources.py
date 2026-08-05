@@ -379,23 +379,59 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
     def group_by_target(self, alerts):
         """
         按监控目标分组展示
+
+        :return: 分组列表，每组包含目标维度信息及该目标下的事件列表
+        :rtype: list[dict]
+
+        返回示例::
+
+            [
+                {
+                    "strategy_id": 123,
+                    "level": 2,
+                    "name": "127.0.0.2",
+                    "events": [
+                        {
+                            "event_id": "a1b2c3d4",
+                            "target": "127.0.0.2",
+                            "duration": "10m 30s",
+                            "dimension_message": "ip=127.0.0.2",
+                        }
+                    ],
+                }
+            ]
         """
         result = {}
+        topo_links = None
 
         for alert in alerts:
             if not alert.event_document.target:
                 continue
 
-            # 如果不存在分组则初始化
-            key = self.get_target_display(alert)
-            if key not in result:
-                result[key] = {"target": key, "events": []}
+            # 缓存 topo_links，避免 TOPO 类型目标重复请求 CMDB
+            if alert.event_document.target_type == EventTargetType.TOPO and not topo_links:
+                topo_tree = api.cmdb.get_topo_tree(bk_biz_id=alert.event_document.bk_biz_id)
+                topo_links = topo_tree.convert_to_topo_link()
 
-            result[key]["events"].append(
+            target_display = self.get_target_display(alert, topo_links) or "--"
+
+            # 如果不存在分组则初始化
+            if target_display not in result:
+                result[target_display] = {
+                    "strategy_id": alert.strategy_id,
+                    "level": alert.severity,
+                    "name": target_display,
+                    "events": [],
+                }
+            # 取组内最高级别（severity 数值越小级别越高）
+            elif alert.severity < result[target_display]["level"]:
+                result[target_display]["level"] = alert.severity
+
+            result[target_display]["events"].append(
                 {
                     "event_id": alert.id,
-                    "level": alert.severity,
-                    "strategy_name": alert.event_document.alert_name,
+                    "target": target_display,
+                    "duration": hms_string(alert.duration or 0),
                     "dimension_message": AlertDimensionFormatter.get_dimensions_str(alert.dimensions),
                 }
             )

@@ -509,8 +509,8 @@ class PatternViewSet(APIViewSet):
     @detail_route(methods=["PUT"], url_path="update_remark")
     def update_remark(self, request, index_set_id):
         """
-        @api {post} /pattern/$index_set_id/remark/edit/ 日志聚类-编辑备注
-        @apiName set_remark
+        @api {put} /pattern/$index_set_id/update_remark/ 日志聚类-编辑备注
+        @apiName update_remark
         @apiGroup log_clustering
         @apiParam {String} signature 数据指纹
         @apiParam {String} remark 备注内容
@@ -563,7 +563,7 @@ class PatternViewSet(APIViewSet):
     @detail_route(methods=["DELETE"], url_path="delete_remark")
     def delete_remark(self, request, index_set_id):
         """
-        @api {delete} /pattern/$index_set_id/remark/ 日志聚类-删除备注
+        @api {delete} /pattern/$index_set_id/delete_remark/ 日志聚类-删除备注
         @apiName delete_remark
         @apiGroup log_clustering
         @apiParam {String} signature 数据指纹

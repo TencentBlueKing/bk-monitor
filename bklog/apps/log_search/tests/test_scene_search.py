@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
+from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID
 from apps.log_search.views.scene_search_views import (
     AllConditionsBuilder,
     ConditionFieldSerializer,
@@ -1598,7 +1599,7 @@ class TestSceneExportHistoryPagination(TestCase):
         for i in range(3):
             AsyncTask.objects.create(
                 request_param={"table_id_conditions": TABLE_ID_CONDITIONS},
-                scenario_id="scene",
+                scenario_id=ASYNC_EXPORT_SCENE_ID,
                 index_set_id=0,
                 bk_biz_id=2,
                 start_time="",

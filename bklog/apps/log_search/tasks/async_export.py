@@ -32,7 +32,7 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
 from django.conf import settings
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone, translation
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext as _
@@ -51,6 +51,7 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     ExportStatus,
+    ExportType,
     MsgModel,
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
@@ -304,6 +305,82 @@ def clean_expired_status():
     AsyncTask.objects.filter(export_status=ExportStatus.SUCCESS).filter(
         completed_at__lt=arrow.now().shift(seconds=-ASYNC_EXPORT_EXPIRED).datetime
     ).update(export_status=ExportStatus.DOWNLOAD_EXPIRED)
+
+
+@periodic_task(run_every=crontab(minute="20", hour="3"))
+def error_async_export_tasks_turn_to_failed():
+    """
+    将创建超过 24 小时且仍未启动或运行中的异步导出任务置为失败
+    """
+    logger.info("[error_async_export_tasks_turn_to_failed] begin, begin_time=%s", timezone.now())
+
+    expired_time = timezone.now() - datetime.timedelta(hours=24)
+    running_status = [
+        ExportStatus.DOWNLOAD_LOG,
+        ExportStatus.EXPORT_PACKAGE,
+        ExportStatus.EXPORT_UPLOAD,
+    ]
+
+    error_tasks = (
+        AsyncTask.objects.filter(
+            export_type=ExportType.ASYNC,
+            created_at__lt=expired_time,
+        )
+        .filter(Q(export_status__isnull=True) | Q(export_status__in=running_status))
+        .values(
+            "id",
+            "export_status",
+            "created_at",
+            "created_by",
+            "bk_biz_id",
+            "scenario_id",
+        )
+    )
+
+    updated_count = 0
+    failed_reason = _("异步导出任务超过 24 小时未启动或未完成，自动标记为失败")
+
+    for error_task in error_tasks.iterator(chunk_size=500):
+        original_export_status = error_task["export_status"]
+
+        task_queryset = AsyncTask.objects.filter(
+            id=error_task["id"],
+            export_type=ExportType.ASYNC,
+            created_at__lt=expired_time,
+        )
+
+        if original_export_status is None:
+            task_queryset = task_queryset.filter(export_status__isnull=True)
+        else:
+            task_queryset = task_queryset.filter(export_status=original_export_status)
+
+        affected_rows = task_queryset.update(
+            export_status=ExportStatus.FAILED,
+            failed_reason=failed_reason,
+            updated_at=timezone.now(),
+        )
+
+        if affected_rows < 1:
+            continue
+
+        updated_count += affected_rows
+
+        logger.warning(
+            "[error_async_export_tasks_turn_to_failed] task marked as failed, task_id=%s, original_export_status=%s, "
+            "created_at=%s, created_by=%s, bk_biz_id=%s, scenario_id=%s",
+            error_task["id"],
+            original_export_status,
+            error_task["created_at"],
+            error_task["created_by"],
+            error_task["bk_biz_id"],
+            error_task["scenario_id"],
+        )
+
+    logger.info(
+        "[error_async_export_tasks_turn_to_failed] finished, expired_time=%s, updated_count=%s",
+        expired_time,
+        updated_count,
+    )
 
 
 @periodic_task(run_every=crontab(minute="0", hour="3"))

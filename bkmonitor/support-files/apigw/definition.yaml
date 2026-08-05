@@ -150,6 +150,8 @@ grant_permissions:
       - bulk_save_subscribe
       - bulk_delete_subscribe
       - list_subscribe
+      - collector_plugin_list
+      - plugin_import_without_frontend
   - bk_app_code: bk_nodeman
     grant_dimension: "resource"
     resource_names:
