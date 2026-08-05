@@ -33,6 +33,7 @@ specific language governing permissions and limitations under the License.
 # ==============================================================================
 
 import os
+import time
 
 import pytest
 from django.conf import settings
@@ -48,6 +49,7 @@ from bkmonitor.iam.iam_engine.core.types import (
 from bkmonitor.iam.iam_engine.django.facade import get_framework
 from bkmonitor.iam.schema.actions import Actions
 from bkmonitor.iam.schema.resource_types import ResourceTypes
+from bkmonitor.iam.schema.roles import Roles
 
 # ---- 配置 ----
 
@@ -61,6 +63,10 @@ SKIP_REASON = "IAM v4 API 未配置（BK_IAM_V4_API_BASE_URL / BK_IAM_APP_CODE /
 TEST_USER = os.getenv("IAM_V4_TEST_USER", "admin")
 TEST_SPACE_ID = os.getenv("IAM_V4_TEST_SPACE_ID", "2")
 SYSTEM_ID = settings.BK_IAM_V4_SYSTEM_ID
+
+# 是否允许对真实 IAM 平台执行 apply
+_APPLY_ENABLED = os.getenv("IAM_V4_APPLY", "").lower() in ("1", "true", "yes")
+APPLY_SKIP_REASON = "未开启真实 apply（设置 IAM_V4_APPLY=1 才会执行）"
 
 
 # ==============================================================================
@@ -333,6 +339,70 @@ class TestIAMv4FullLifecycle:
                 for rid in item["ids"]:
                     assert not rid.startswith("space|"), f"space id 应已 decode，实际='{rid}'"
 
+    # ================================================================
+    # Step 11: 角色授权（有副作用，需 IAM_V4_APPLY=1 才真跑）
+    # ================================================================
+
+    def test_step11_add_authorization_invalid_args(self):
+        """add_authorization 参数校验：resource_type=None 但 resource_ids 非空 → ValueError。"""
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        with pytest.raises(ValueError):
+            provider.add_authorization(
+                subject=Subject(id=TEST_USER),
+                role=Roles.SPACE_VIEWER,
+                resource_type=None,
+                resource_ids=["2"],  # 非法：无关资源类型时应为空
+                expired_at=int(time.time()) + 3600,
+                operator=TEST_USER,
+            )
+        with pytest.raises(ValueError):
+            provider.add_authorization(
+                subject=Subject(id=TEST_USER),
+                role=Roles.SPACE_VIEWER,
+                resource_type=ResourceTypes.SPACE,
+                resource_ids=[],  # 非法：有资源类型时不能为空
+                expired_at=int(time.time()) + 3600,
+                operator=TEST_USER,
+            )
+        print("\n  ✓ 参数校验生效")
+
+    @pytest.mark.skipif(not _APPLY_ENABLED, reason=APPLY_SKIP_REASON)
+    def test_step11_add_authorization_space_viewer(self):
+        """真实授权：给 TEST_USER 授予 space_viewer 角色 + TEST_SPACE_ID。
+
+        运行前提：TestIAMv4FullLifecycle 已跑完，平台上 space_viewer 角色存在。
+        建议先在平台 UI 撤销 TEST_USER 的 space_viewer 授权（如有），以便观察本用例效果。
+        """
+        fw = get_framework()
+        provider = fw.providers["v4"]
+
+        # 授权 1 小时，避免污染长期数据
+        expired_at = int(time.time()) + 3600
+
+        provider.add_authorization(
+            subject=Subject(id=TEST_USER),
+            role=Roles.SPACE_VIEWER,
+            resource_type=ResourceTypes.SPACE,
+            resource_ids=[TEST_SPACE_ID],
+            expired_at=expired_at,
+            operator=TEST_USER,
+        )
+        print(
+            f"\n  ✓ 已授权: user={TEST_USER} role={Roles.SPACE_VIEWER.id} space={TEST_SPACE_ID} expired_at={expired_at}"
+        )
+
+        # 验证一个角色内 view_business 的 space 权限
+        allowed = fw.is_allowed(
+            AuthRequest(
+                subject=Subject(id=TEST_USER),
+                action_id=Actions.VIEW_BUSINESS.id,
+                resource=ResourceInstance(type=ResourceTypes.SPACE, id=TEST_SPACE_ID),
+            )
+        )
+        print(f"  is_allowed(view_business, space={TEST_SPACE_ID}) = {allowed}")
+        assert allowed is True, "预期授权后应鉴权通过"
+
 
 # ==============================================================================
 # 改 action id 破坏性验证（手动配合）
@@ -366,11 +436,6 @@ class TestIAMv4FullLifecycle:
 # 关键环境变量：
 #   IAM_V4_APPLY=1     打开真实 apply 开关（不设置则所有 apply 步骤会被跳过）
 # ==============================================================================
-
-
-# 是否允许对真实 IAM 平台执行 apply
-_APPLY_ENABLED = os.getenv("IAM_V4_APPLY", "").lower() in ("1", "true", "yes")
-APPLY_SKIP_REASON = "未开启真实 apply（设置 IAM_V4_APPLY=1 才会执行）"
 
 
 def _get_test_action():

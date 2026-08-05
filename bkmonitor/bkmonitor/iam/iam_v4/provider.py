@@ -33,7 +33,7 @@ from .codec import V4NameCodec
 from .config import V4Options, V4SystemInfo
 
 if TYPE_CHECKING:
-    from ..iam_engine.schema.definitions import ActionDef
+    from ..iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleDef
     from ..iam_engine.schema.diff import MigrationPlan, MigrationReport
     from ..iam_engine.schema.registry import SchemaRegistry
 
@@ -192,6 +192,84 @@ class V4PermissionProvider(PermissionProvider):
                     biz_ids.append(self.codec.decode_resource_id(rt_biz, d_id))
             results.append({"type": rt_biz, "ids": biz_ids})
         return results
+
+    # ================================================================
+    # 角色授权 —— IAM v4 独有能力
+    # ================================================================
+
+    def add_authorization(
+        self,
+        *,
+        subject: Subject,
+        role: RoleDef | str,
+        resource_type: ResourceTypeDef | str | None,
+        resource_ids: list[str],
+        expired_at: int,
+        operator: str,
+    ) -> None:
+        """给用户授予某个角色的权限（业务命名）。
+
+        典型场景：用户创建资源后自动授予该资源相关的角色权限。
+
+        Args:
+            subject: 授权对象
+            role: 角色（RoleDef 或业务 role_id）
+            resource_type: 授权维度（ResourceTypeDef / 业务 rt_id / None）；
+                None 表示无关资源类型的授权（此时 resource_ids 必须为空）
+            resource_ids: 授权的资源实例业务 ID 列表；
+                * 单个业务 ID：`["2", "3"]`
+                * `["*"]`：该资源类型下的无限制授权
+                * `[]`：仅在 resource_type=None 时合法（无关资源类型授权）
+            expired_at: unix 时间戳；最大 365 天后（平台限制）
+            operator: 操作人用户名（写入 X-Bkiam-Operator 请求头）
+
+        Raises:
+            ValueError: 参数不合法（resource_type 与 resource_ids 组合不匹配）
+            ProviderUnavailable: HTTP 层异常
+            ProviderError: IAM 业务错误
+        """
+        # 业务命名归一化
+        role_id_biz = role.id if hasattr(role, "id") else str(role)
+        if resource_type is None:
+            rt_id_biz = ""
+        elif hasattr(resource_type, "id"):
+            rt_id_biz = resource_type.id
+        else:
+            rt_id_biz = str(resource_type)
+
+        # 校验入参组合
+        if not rt_id_biz and resource_ids:
+            raise ValueError("resource_type=None 时 resource_ids 必须为空（无关资源类型授权）")
+        if rt_id_biz and not resource_ids:
+            raise ValueError(f"resource_type={rt_id_biz!r} 时必须提供至少一个 resource_id")
+
+        # 业务命名 → v4 方言编码
+        dialect_role = self.codec.encode_role(role_id_biz)
+        dialect_rt = self.codec.encode_resource_type(rt_id_biz) if rt_id_biz else ""
+
+        resources: list[dict] = []
+        for rid in resource_ids:
+            if rid == "*":
+                # 无限制授权：id="*"，type 保持关联资源类型
+                resources.append({"type": dialect_rt, "id": "*"})
+            else:
+                resources.append(
+                    {
+                        "type": dialect_rt,
+                        "id": self.codec.encode_resource_id(rt_id_biz, rid),
+                    }
+                )
+
+        payload = [
+            {
+                "subject": {"type": subject.type.value, "id": subject.id},
+                "role_id": dialect_role,
+                "related_resource_type_id": dialect_rt,
+                "resources": resources,
+                "expired_at": expired_at,
+            }
+        ]
+        self._client.add_authorization(payload, operator=operator)
 
     # ================================================================
     # 内部工具

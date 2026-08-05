@@ -74,6 +74,35 @@ class V4Client:
         resp = self._post(path, body)
         return {item["action_id"]: item["allowed"] for item in resp["data"]}
 
+    def add_authorization(self, authorizations: list[dict], operator: str) -> None:
+        """POST /mgmt/systems/{sys}/authorizations/ — 批量角色授权（每批最多 20 条）。
+
+        典型场景：用户创建资源后自动授予该资源相关的角色权限。
+
+        Args:
+            authorizations: [{
+                "subject": {"type": "user", "id": "user1"},
+                "role_id": "space_admin",
+                "related_resource_type_id": "space",   # 空串表示无关资源类型
+                "resources": [{"type": "space", "id": "1"}],  # id="*" 表示无限制授权
+                "expired_at": <unix ts, 最大 365 天后>,
+            }, ...]
+            operator: 操作人用户名（写入 X-Bkiam-Operator 请求头）
+
+        Raises:
+            ProviderUnavailable: HTTP 层异常
+            ProviderError: IAM 业务错误
+        """
+        if not authorizations:
+            return
+        path = f"/api/v1/open/rbac/mgmt/systems/{self._system_id}/authorizations/"
+        headers = {"X-Bkiam-Operator": operator}
+        # 平台单批上限 20，超出自动分片；保持简单——串行，避免与业务侧线程池策略冲突
+        batch_size = 20
+        for i in range(0, len(authorizations), batch_size):
+            chunk = authorizations[i : i + batch_size]
+            self._post(path, chunk, extra_headers=headers)
+
     def get_authorized_resources(self, subject_id: str, action_id: str) -> list[dict]:
         """POST /relation/authorized-resources/ — 查询用户对某 action 有权限的资源列表。
 
