@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, computed, ref } from 'vue';
+import { type PropType, computed, defineComponent, ref } from 'vue';
 
 import { Checkbox, Dropdown } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -88,7 +88,7 @@ export default defineComponent({
           placement: 'bottom-start',
           clickContentAutoHide: true,
           extCls: 'across-page-selection-popover',
-          offset: { crossAxis: 22, mainAxis: 22 },
+          offset: { crossAxis: 22, mainAxis: 0 },
         }}
       >
         {{

@@ -52,6 +52,7 @@ export default defineComponent({
   },
   emits: {
     selectIpCell: (_row: IHostListRow) => true,
+    processClick: (_row: IHostListRow, _processName: string) => true,
   },
   setup(props, { emit }) {
     const { where, filterExpanded, activeCategory, keyword } = storeToRefs(useHostStore());
@@ -150,6 +151,7 @@ export default defineComponent({
             onIpMark={ctx.handleIpMark}
             onPageChange={ctx.handlePageChange}
             onPageSizeChange={ctx.handlePageSizeChange}
+            onProcessClick={(...args) => emit('processClick', ...args)}
             onSelectChange={ctx.handleSelectChange}
             onSelectIpCell={handleSelectIpCell}
             onSortChange={ctx.handleSortChange}

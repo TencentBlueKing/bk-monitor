@@ -28,7 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue
 
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { useHostStore } from '../../../../store/modules/host';
 import { type HostContentTab, type HostPerspective, HOST_PERSPECTIVE_TAB_MAP } from '../../constants/constants';
@@ -61,6 +61,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const route = useRoute();
+    const router = useRouter();
     const { activeTab: hostActiveTab } = storeToRefs(useHostStore());
 
     /** 当前视角：选中主机叶子 → host 视角，否则 → topo 视角 */
@@ -96,6 +97,24 @@ export default defineComponent({
       emit('selectIpCell', row);
     };
 
+    /**
+     * @description 点击主机列表进程标签，新开页跳转至该主机的进程视图并默认打开进程详情
+     * @param {IHostListRow} row - 当前主机行数据
+     * @param {string} processName - 被点击的进程名称
+     */
+    const handleProcessClick = (row: IHostListRow, processName: string) => {
+      const targetRoute = router.resolve({
+        name: 'host',
+        query: {
+          ...route.query,
+          activeTab: 'process',
+          nodeId: String(row.bk_host_id),
+          hostProcessName: processName,
+        },
+      });
+      window.open(location.href.replace(location.hash, targetRoute.href), '_blank');
+    };
+
     /** 按激活 Tab 渲染对应内容组件 */
     const renderContent = () => {
       switch (activeTab.value) {
@@ -103,6 +122,7 @@ export default defineComponent({
           return (
             <HostList
               selectedNode={props.selectedNode}
+              onProcessClick={handleProcessClick}
               onSelectIpCell={handleSelectIpCell}
             />
           );

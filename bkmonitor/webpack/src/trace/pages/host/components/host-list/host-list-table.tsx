@@ -165,6 +165,7 @@ export default defineComponent({
     columnsChange: (_cols: string[]) => true,
     selectIpCell: (_row: IHostListRow) => true,
     ipMark: (_row: IHostListRow) => true,
+    processClick: (_row: IHostListRow, _processId: string) => true,
   },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
@@ -508,6 +509,7 @@ export default defineComponent({
                   'host-table-process__tag',
                   item.status === -1 ? 'host-table-process__tag--default' : `host-table-process__tag--${item.status}`,
                 ]}
+                onClick={() => emit('processClick', row, item.display_name)}
                 onMouseenter={e => handleTipsMouseenter(e, item, 'Thread')}
               >
                 {item.display_name}
@@ -541,6 +543,7 @@ export default defineComponent({
     const renderCheckboxHeader = () => {
       return (
         <AcrossPageSelection
+          class='across-page-selection'
           value={totalSelected.value}
           onChange={handleTotalSelectedChange}
         />
