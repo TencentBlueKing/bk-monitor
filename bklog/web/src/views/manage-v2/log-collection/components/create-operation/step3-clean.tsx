@@ -35,12 +35,16 @@ import { showMessage, visibleScopeSelectList } from '../../utils';
 import { deepClone, deepEqual } from '@/common/util';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
+import CleanTemplateDialog from '../business-comp/step3/clean-template-dialog';
+import CleanResultPreviewDialog from '../business-comp/step3/clean-result-preview-dialog';
 import InfoTips from '../common-comp/info-tips';
+import BklogPopover from '@/components/bklog-popover';
 import GrokModeSwitch from '@/views/manage-v2/grok-manage/components/grok-mode-switch';
 import GrokInput from '@/views/manage-v2/grok-manage/components/grok-input';
 import { useSpaceSelector } from '../../../hooks/use-space-selector';
 import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
+import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -171,6 +175,12 @@ export default defineComponent({
      */
     const templateList = ref([]);
     const templateListLoading = ref(false);
+    /** 选择清洗模板弹窗 */
+    const cleanTemplateDialogVisible = ref(false);
+    /** 清洗结果预览弹窗 */
+    const cleanResultPreviewDialogVisible = ref(false);
+    /** 当前选中的清洗模板（用于预览弹窗） */
+    const currentSelectedTemplate = ref(null);
 
     const visibleBkBiz = ref([]);
     const cacheVisibleList = ref([]);
@@ -188,7 +198,14 @@ export default defineComponent({
     const bkBizId = computed(() => store.getters.bkBizId);
     const mySpaceList = computed(() => store.state.mySpaceList);
 
-    const showCardConfig = computed(() => (!props.isTempField ? cardConfig.slice(0, -1) : cardConfig));
+    const showCardConfig = computed(() => {
+      let list = !props.isTempField ? cardConfig.slice(0, -1) : cardConfig;
+      // 未开启清洗时不显示"清洗结果"卡片
+      if (!isClean.value) {
+        list = list.filter(item => item.key !== 'cleanResult');
+      }
+      return list;
+    });
     /**
      * 分隔符
      */
@@ -257,6 +274,8 @@ export default defineComponent({
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
+    /** 清洗规则配置方式：manual 手动配置 / template 使用模板 */
+    const cleanRuleMode = ref<'manual' | 'template'>('manual');
 
     /**
      * 保存初始表单数据快照
@@ -967,39 +986,39 @@ export default defineComponent({
      * 应用模版下拉框
      *
      */
-    const renderTemplateSelect = () => (
-      <bk-select
-        class='template-select'
-        ext-popover-cls={'template-select-popover'}
-        loading={templateListLoading.value}
-        searchable
-      >
-        <span
-          class='form-link'
-          slot='trigger'
-        >
-          <i class='bklog-icon bklog-app-store link-icon' />
-          {t('应用模板')}
-        </span>
-        {templateList.value.map(item => (
-          <bk-option
-            id={item.clean_template_id}
-            key={item.clean_template_id}
-            name={item.name}
-          >
-            <div class='template-option'>
-              <span class='option-name'>{item.name}</span>{' '}
-              <span
-                class='option-btn'
-                on-click={() => applyTemplate(item)}
-              >
-                {t('应用')}
-              </span>
-            </div>
-          </bk-option>
-        ))}
-      </bk-select>
-    );
+    // const renderTemplateSelect = () => (
+    //   <bk-select
+    //     class='template-select'
+    //     ext-popover-cls={'template-select-popover'}
+    //     loading={templateListLoading.value}
+    //     searchable
+    //   >
+    //     <span
+    //       class='form-link'
+    //       slot='trigger'
+    //     >
+    //       <i class='bklog-icon bklog-app-store link-icon' />
+    //       {t('应用模板')}
+    //     </span>
+    //     {templateList.value.map(item => (
+    //       <bk-option
+    //         id={item.clean_template_id}
+    //         key={item.clean_template_id}
+    //         name={item.name}
+    //       >
+    //         <div class='template-option'>
+    //           <span class='option-name'>{item.name}</span>{' '}
+    //           <span
+    //             class='option-btn'
+    //             on-click={() => applyTemplate(item)}
+    //           >
+    //             {t('应用')}
+    //           </span>
+    //         </div>
+    //       </bk-option>
+    //     ))}
+    //   </bk-select>
+    // );
 
     /** 选择清洗模式 */
     const handleChangeCleaningMode = (mode: string) => {
@@ -1076,6 +1095,58 @@ export default defineComponent({
         console.warn(err);
       }
     };
+    /** 重新选择清洗模板：重新打开模板选择弹窗 */
+    const handleReselectTemplate = () => {
+      cleanTemplateDialogVisible.value = true;
+    };
+
+    /** 解除清洗模板绑定：清空当前选中的模板，并切换到手动配置清洗规则 */
+    const handleUnbindTemplate = () => {
+      currentSelectedTemplate.value = null;
+      cleanRuleMode.value = 'manual';
+    };
+
+    /** 解除绑定 popover 引用，用于手动关闭 */
+    const unbindPopoverRef = ref();
+
+    /** 解除绑定确认弹窗内容 */
+    const renderUnbindPopoverContent = () => (
+      <div class='unbind-popover-content'>
+        <div class='unbind-popover-icon'>
+          <i class='bk-icon icon-info' />
+        </div>
+        <div class='unbind-popover-main'>
+          <div class='unbind-popover-title'>{t('确定解除与模板的关联关系？')}</div>
+          <div class='unbind-popover-row'>
+            <span class='row-label'>{t('模板名称：')}</span>
+            <span class='row-value'>{currentSelectedTemplate.value?.name}</span>
+          </div>
+          <div class='unbind-popover-desc'>
+            {t('解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。')}
+          </div>
+          <div class='unbind-popover-footer'>
+            <bk-button
+              theme='primary'
+              size='small'
+              on-click={() => {
+                unbindPopoverRef.value?.hide();
+                // 延迟执行解绑，确保 popover 先关闭并移除 document click listener
+                setTimeout(() => handleUnbindTemplate(), 0);
+              }}
+            >
+              {t('确认解除')}
+            </bk-button>
+            <bk-button
+              size='small'
+              on-click={() => unbindPopoverRef.value?.hide()}
+            >
+              {t('取消')}
+            </bk-button>
+          </div>
+        </div>
+      </div>
+    );
+
     /** 清洗设置 */
     const renderSetting = () => (
       <div class='clean-setting'>
@@ -1132,6 +1203,211 @@ export default defineComponent({
             </div>
           </div>
         )}
+        <div class='label-form-box'>
+          <span class='label-title no-require'>{t('日志样例')}</span>
+          <div
+            class='form-box'
+            v-bkloading={{ isLoading: logOriginalLoading.value }}
+          >
+            <div class='example-box mt-5'>
+              <span
+                class='form-link'
+                on-click={() => {
+                  showReportLogSlider.value = true;
+                }}
+              >
+                <i class='bklog-icon bklog-audit link-icon' />
+                {t('上报日志')}
+              </span>
+              <span
+                class='form-link'
+                on-click={() => getDataLog('refresh')}
+              >
+                <i class='bklog-icon bklog-refresh2 link-icon' />
+                {t('刷新')}
+              </span>
+              <InfoTips
+                class='ml-12'
+                tips={t('作为清洗调试的原始数据')}
+              />
+            </div>
+            <bk-input
+              type='textarea'
+              value={logOriginal.value}
+              on-change={(val: string) => {
+                logOriginal.value = val;
+              }}
+            />
+          </div>
+        </div>
+        <div class='label-form-box'>
+          <span class='label-title no-require'>{t('开启清洗')}</span>
+          <div class='form-box mt-5 clean-enable-row'>
+            <bk-switcher
+              size='large'
+              theme='primary'
+              value={isClean.value}
+              disabled={props.isTempField || (props.isCleanField && !cleanCollectorId.value)}
+              on-change={(val: boolean) => {
+                const type = val ? 'bk_log_json' : 'bk_log_text';
+                cleaningMode.value = type;
+                if (!val) {
+                  formData.value.etl_params.retain_extra_json = false;
+                }
+              }}
+            />
+            {isClean.value && (
+              <div class='bk-button-group clean-rule-mode-group'>
+                <bk-button
+                  class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
+                  on-click={() => { cleanRuleMode.value = 'manual'; }}
+                >
+                  {t('手动配置清洗规则')}
+                </bk-button>
+                <bk-button
+                  class={{ 'is-selected': cleanRuleMode.value === 'template' }}
+                  on-click={() => {
+                    cleanRuleMode.value = 'template';
+                  }}
+                >
+                  {t('使用模板')}
+                </bk-button>
+              </div>
+            )}
+          </div>
+        </div>
+        {isClean.value && cleanRuleMode.value === 'manual' && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('清洗模式')}</span>
+            <div class='form-box'>
+              {/* <div class='example-box'>
+                {renderTemplateSelect()}
+                <span class='form-link'>
+                  <i class='bklog-icon bklog-help link-icon' />
+                  {t('说明文档')}
+                </span>
+              </div> */}
+              <div class='bk-button-group'>
+                {cleaningModeList.map(mode => (
+                  <bk-button
+                    key={mode.value}
+                    class={{ 'is-selected': mode.value === cleaningMode.value }}
+                    on-click={() => handleChangeCleaningMode(mode)}
+                  >
+                    {mode.label}
+                  </bk-button>
+                ))}
+              </div>
+              {renderCleaningMode()}
+            </div>
+          </div>
+        )}
+        {isClean.value && cleanRuleMode.value === 'template' && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('清洗模板')}</span>
+            <div class='form-box'>
+              {currentSelectedTemplate.value ? (
+                <div class='bound-template-wrapper'>
+                  {/* 已绑定模板卡片 */}
+                  <div class='bound-template-card'>
+                    {/* 左侧：类型 icon 块 */}
+                    <div class='template-card-icon-box'>
+                      <i class={getCleanTypeIcon(currentSelectedTemplate.value.clean_type)}></i>
+                    </div>
+                    {/* 中部：模板名 + 标签 + 描述 */}
+                    <div class='template-card-content'>
+                      <div class='template-card-header'>
+                        <span
+                          class='template-card-name'
+                          title={currentSelectedTemplate.value.name}
+                        >
+                          {currentSelectedTemplate.value.name}
+                        </span>
+                        <span class='template-card-tag'>
+                          <i class='bklog-icon bklog-feature-tezheng' />
+                          {(currentSelectedTemplate.value.etl_fields ?? []).length} | {getCleanTypeLabel(currentSelectedTemplate.value.clean_type)}
+                        </span>
+                      </div>
+                      <div
+                        class='template-card-desc'
+                        title={currentSelectedTemplate.value.description || ''}
+                      >
+                        {currentSelectedTemplate.value.description || t('适用于通用日志清洗场景')}
+                      </div>
+                    </div>
+                  </div>
+                  {/* 卡片外操作按钮 */}
+                  <div class='template-card-actions'>
+                    <span
+                      class='action-link'
+                      on-click={handleReselectTemplate}
+                    >
+                      <i class='bklog-icon bklog-edit' />
+                      {t('重新选择')}
+                    </span>
+                    <BklogPopover
+                      ref={unbindPopoverRef}
+                      trigger='click'
+                      options={{
+                        placement: 'bottom-end',
+                        theme: 'bklog-light',
+                        appendTo: document.body,
+                        arrow: false,
+                        hideOnClick: false,
+                      } as any}
+                      content={renderUnbindPopoverContent}
+                    >
+                      <span class='action-link'>
+                        <i class='bklog-icon bklog-jiebang' />
+                        {t('解除绑定')}
+                      </span>
+                    </BklogPopover>
+                  </div>
+                </div>
+              ) : (
+                <bk-button
+                  theme='primary'
+                  icon='plus'
+                  outline={true}
+                  on-click={() => {
+                    cleanTemplateDialogVisible.value = true;
+                  }}
+                >
+                  {t('选择清洗模板')}
+                </bk-button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    /** 清洗结果（字段列表） */
+    const renderCleanResult = () => (
+      <div class='clean-result'>
+        <div class='label-form-box'>
+          <span class='label-title no-require'>{t('字段列表')}</span>
+          <div class='form-box'>
+            <FieldList
+              ref={fieldListRef}
+              builtInFieldsList={builtInFieldsList.value}
+              data={formData.value.etl_fields || []}
+              extractMethod={cleaningMode.value}
+              loading={isDebugLoading.value || basicLoading.value}
+              refresh={isValueRefresh.value}
+              originalTextTokenizeOnChars={defaultParticipleStr.value}
+              selectEtlConfig={cleaningMode.value}
+              on-change={data => {
+                formData.value.etl_fields = data;
+              }}
+              on-refresh={() => debugHandler('refresh')}
+            />
+          </div>
+        </div>
+      </div>
+    );
+    /** 高级设置 */
+    const renderAdvanced = () => (
+      <div class='advanced-setting'>
         <div class='label-form-box'>
           <span class='label-title'>{t('原始日志')}</span>
           <div class='form-box'>
@@ -1203,114 +1479,6 @@ export default defineComponent({
             )}
           </div>
         </div>
-        <div class='label-form-box'>
-          <span class='label-title no-require'>{t('日志样例')}</span>
-          <div
-            class='form-box'
-            v-bkloading={{ isLoading: logOriginalLoading.value }}
-          >
-            <div class='example-box mt-5'>
-              <span
-                class='form-link'
-                on-click={() => {
-                  showReportLogSlider.value = true;
-                }}
-              >
-                <i class='bklog-icon bklog-audit link-icon' />
-                {t('上报日志')}
-              </span>
-              <span
-                class='form-link'
-                on-click={() => getDataLog('refresh')}
-              >
-                <i class='bklog-icon bklog-refresh2 link-icon' />
-                {t('刷新')}
-              </span>
-              <InfoTips
-                class='ml-12'
-                tips={t('作为清洗调试的原始数据')}
-              />
-            </div>
-            <bk-input
-              type='textarea'
-              value={logOriginal.value}
-              on-change={(val: string) => {
-                logOriginal.value = val;
-              }}
-            />
-          </div>
-        </div>
-        <div class='label-form-box'>
-          <span class='label-title no-require'>{t('开启清洗')}</span>
-          <div class='form-box mt-5'>
-            <bk-switcher
-              size='large'
-              theme='primary'
-              value={isClean.value}
-              disabled={props.isTempField || (props.isCleanField && !cleanCollectorId.value)}
-              on-change={(val: boolean) => {
-                const type = val ? 'bk_log_json' : 'bk_log_text';
-                cleaningMode.value = type;
-                if (!val) {
-                  formData.value.etl_params.retain_extra_json = false;
-                }
-              }}
-            />
-          </div>
-        </div>
-        {isClean.value && (
-          <div class='label-form-box'>
-            <span class='label-title no-require'>{t('清洗模式')}</span>
-            <div class='form-box'>
-              <div class='example-box'>
-                {/* 应用模版 */}
-                {renderTemplateSelect()}
-                <span class='form-link'>
-                  <i class='bklog-icon bklog-help link-icon' />
-                  {t('说明文档')}
-                </span>
-              </div>
-              <div class='bk-button-group'>
-                {cleaningModeList.map(mode => (
-                  <bk-button
-                    key={mode.value}
-                    class={{ 'is-selected': mode.value === cleaningMode.value }}
-                    on-click={() => handleChangeCleaningMode(mode)}
-                  >
-                    {mode.label}
-                  </bk-button>
-                ))}
-              </div>
-              {renderCleaningMode()}
-            </div>
-          </div>
-        )}
-        {isClean.value && (
-          <div class='label-form-box'>
-            <span class='label-title no-require'>{t('字段列表')}</span>
-            <div class='form-box'>
-              <FieldList
-                ref={fieldListRef}
-                builtInFieldsList={builtInFieldsList.value}
-                data={formData.value.etl_fields || []}
-                extractMethod={cleaningMode.value}
-                loading={isDebugLoading.value || basicLoading.value}
-                refresh={isValueRefresh.value}
-                originalTextTokenizeOnChars={defaultParticipleStr.value}
-                selectEtlConfig={cleaningMode.value}
-                on-change={data => {
-                  formData.value.etl_fields = data;
-                }}
-                on-refresh={() => debugHandler('refresh')}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    );
-    /** 高级设置 */
-    const renderAdvanced = () => (
-      <div class='advanced-setting'>
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('指定日志时间')}</span>
           <div class='form-box'>
@@ -1575,6 +1743,11 @@ export default defineComponent({
         renderFn: renderSetting,
       },
       {
+        title: t('清洗结果'),
+        key: 'cleanResult',
+        renderFn: renderCleanResult,
+      },
+      {
         title: t('高级设置'),
         key: 'advancedSetting',
         renderFn: renderAdvanced,
@@ -1770,6 +1943,62 @@ export default defineComponent({
         v-bkloading={{ isLoading: basicLoading.value }}
       >
         {cardRender(showCardConfig.value)}
+        <CleanTemplateDialog
+          visible={cleanTemplateDialogVisible.value}
+          bkBizId={bkBizId.value}
+          on-close={() => {
+            cleanTemplateDialogVisible.value = false;
+          }}
+          on-preview={template => {
+            // "浏览清洗结果"：关闭选择模板弹窗，打开预览弹窗
+            currentSelectedTemplate.value = template;
+            cleanTemplateDialogVisible.value = false;
+            cleanResultPreviewDialogVisible.value = true;
+          }}
+        />
+        <CleanResultPreviewDialog
+          visible={cleanResultPreviewDialogVisible.value}
+          bkBizId={bkBizId.value}
+          template={currentSelectedTemplate.value}
+          collectorConfigId={curCollect.value?.collector_config_id || ''}
+          logExample={logOriginal.value}
+          isTempField={props.isTempField}
+          originalTextTokenizeOnChars={defaultParticipleStr.value}
+          isEdit={props.isEdit}
+          isClone={props.isClone}
+          isCleanField={props.isCleanField}
+          on-close={() => {
+            cleanResultPreviewDialogVisible.value = false;
+          }}
+          on-refresh={() => {
+            getDataLog('refresh');
+          }}
+          on-confirm={(fields, logExample) => {
+            // 预览确认：把返回的字段合并到当前 etl_fields
+            if (Array.isArray(fields) && fields.length > 0) {
+              formData.value.etl_fields = fields.map(item => ({
+                ...structuredClone(rowTemplate.value),
+                ...item,
+              }));
+              if (currentSelectedTemplate.value?.clean_type) {
+                formData.value.etl_config = currentSelectedTemplate.value.clean_type;
+                cleaningMode.value = currentSelectedTemplate.value.clean_type;
+              }
+              // 同步模板的 etl_params（separator、separator_regexp 等清洗参数）
+              if (currentSelectedTemplate.value?.etl_params) {
+                formData.value.etl_params = {
+                  ...formData.value.etl_params,
+                  ...structuredClone(currentSelectedTemplate.value.etl_params),
+                };
+              }
+            }
+            // 同步弹窗中可能被修改的调试样例
+            if (typeof logExample === 'string') {
+              logOriginal.value = logExample;
+            }
+            cleanResultPreviewDialogVisible.value = false;
+          }}
+        />
         <ReportLogSlider
           isShow={showReportLogSlider.value}
           jsonText={jsonText.value}
