@@ -25,6 +25,7 @@ from apps.generic import APIViewSet
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.drf import BusinessActionPermission
 from apps.log_search.constants import (
+    ASYNC_EXPORT_SCENE_ID,
     ExportFileType,
     ExportStatus,
     ExportType,
@@ -1129,7 +1130,7 @@ class SceneSearchViewSet(APIViewSet):
 
         AsyncTask.objects.create(
             request_param=data,
-            scenario_id="scene",
+            scenario_id=ASYNC_EXPORT_SCENE_ID,
             index_set_id=0,
             result=True,
             completed_at=timezone.now(),

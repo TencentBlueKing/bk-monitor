@@ -12,12 +12,14 @@ import json
 import logging
 import time
 import traceback
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -42,12 +44,13 @@ from metadata.models.constants import (
 from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
+    BKBASE_NAMESPACE_BK_LOG,
     BKBASE_NAMESPACE_BK_MONITOR,
     DataLinkKind,
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.service import get_data_link_component_status
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.space.space import Space
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -844,24 +847,719 @@ def _check_and_delete_ds_consul_config(data_source: DataSource):
     logger.info("_check_and_delete_ds_consul_config:data_source->[%s],consul_config deleted", data_source.bk_data_id)
 
 
+ComponentBatchKey = tuple[str, str, str]
+DataLinkStatusKey = tuple[str, str]
+STORAGE_BINDING_KIND_MAP = {
+    DataLinkKind.ESSTORAGEBINDING.value: DataLinkKind.ELASTICSEARCH.value,
+    DataLinkKind.DORISBINDING.value: DataLinkKind.DORIS.value,
+    DataLinkKind.VMSTORAGEBINDING.value: DataLinkKind.VMSTORAGE.value,
+}
+STORAGE_BINDING_CLUSTER_TYPE_MAP = {
+    DataLinkKind.ESSTORAGEBINDING.value: ClusterInfo.TYPE_ES,
+    DataLinkKind.DORISBINDING.value: ClusterInfo.TYPE_DORIS,
+    DataLinkKind.VMSTORAGEBINDING.value: ClusterInfo.TYPE_VM,
+}
+STORAGE_BINDING_NAMESPACES = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+STORAGE_BINDING_FILTER_THRESHOLD = 1000
+
+
+def _normalize_data_link_tenant_id(bk_tenant_id: str | None) -> str:
+    return bk_tenant_id or DEFAULT_TENANT_ID
+
+
+def _parse_list_data_link_statuses(configs: Any) -> dict[str, str] | None:
+    """解析 list_data_link 返回值；无法证明列表完整时返回 None。"""
+    if not isinstance(configs, list) or not configs:
+        return None
+
+    statuses: dict[str, str] = {}
+    for config in configs:
+        if not isinstance(config, dict):
+            return None
+        metadata = config.get("metadata")
+        status = config.get("status")
+        if not isinstance(metadata, dict) or not isinstance(status, dict):
+            return None
+        name = metadata.get("name")
+        phase = status.get("phase")
+        if not isinstance(name, str) or not name or not isinstance(phase, str) or not phase or name in statuses:
+            return None
+        statuses[name] = phase
+    return statuses
+
+
+def _parse_storage_binding_reference(
+    config: Any,
+    *,
+    bk_tenant_id: str,
+    namespace: str,
+    binding_kind: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """解析 Storage Binding 引用，并返回基础检查结果和配置问题。"""
+    storage_kind = STORAGE_BINDING_KIND_MAP.get(binding_kind, "")
+    problems: list[str] = []
+
+    if not isinstance(config, dict):
+        config = {}
+        problems.append("invalid_config")
+
+    metadata = config.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        problems.append("invalid_config")
+
+    name = metadata.get("name")
+    if not isinstance(name, str) or not name:
+        name = ""
+        problems.append("invalid_config")
+
+    labels = metadata.get("labels", {})
+    if not isinstance(labels, dict):
+        labels = {}
+        problems.append("invalid_config")
+
+    annotations = metadata.get("annotations", {})
+    if not isinstance(annotations, dict):
+        annotations = {}
+        problems.append("invalid_config")
+
+    spec = config.get("spec")
+    if not isinstance(spec, dict):
+        spec = {}
+        problems.append("invalid_config")
+
+    storage = spec.get("storage")
+    if not isinstance(storage, dict):
+        storage = {}
+        problems.append("invalid_config")
+
+    storage_name = storage.get("name")
+    if not isinstance(storage_name, str) or not storage_name:
+        storage_name = ""
+        problems.append("storage_name_missing")
+
+    storage_namespace = storage.get("namespace") or namespace
+    if not isinstance(storage_namespace, str) or not storage_namespace:
+        storage_namespace = namespace
+        problems.append("invalid_config")
+
+    storage_tenant = storage.get("tenant")
+    if storage_tenant is not None and not isinstance(storage_tenant, str):
+        storage_tenant = None
+        problems.append("invalid_config")
+
+    expected_reference = ""
+    if storage_kind and storage_name:
+        reference_parts = [storage_kind]
+        if storage_tenant and storage_tenant != "default":
+            reference_parts.append(storage_tenant)
+        reference_parts.extend([storage_namespace, storage_name])
+        expected_reference = "/".join(reference_parts)
+
+    issue = {
+        "bk_tenant_id": bk_tenant_id,
+        "namespace": namespace,
+        "binding_kind": binding_kind,
+        "name": name,
+        "storage_kind": storage_kind,
+        "storage_name": storage_name,
+        "expected_reference": expected_reference,
+        "related_res_asset": labels.get("related_res_asset"),
+        "index1": annotations.get("index1"),
+    }
+    return issue, problems
+
+
+def _check_storage_binding_reference(
+    config: Any,
+    *,
+    bk_tenant_id: str,
+    namespace: str,
+    binding_kind: str,
+) -> dict[str, Any] | None:
+    """检查 Storage Binding 的存储资源引用是否与 spec.storage 一致。"""
+    issue, problems = _parse_storage_binding_reference(
+        config,
+        bk_tenant_id=bk_tenant_id,
+        namespace=namespace,
+        binding_kind=binding_kind,
+    )
+    storage_name = issue["storage_name"]
+    index1 = issue["index1"]
+    if index1 and (not isinstance(index1, str) or index1.rsplit("/", 1)[-1] != storage_name):
+        problems.append("index1_mismatch")
+
+    related_res_asset = issue["related_res_asset"]
+    if related_res_asset and (
+        not isinstance(related_res_asset, str) or related_res_asset.rsplit("/", 1)[-1] != storage_name
+    ):
+        problems.append("related_res_asset_mismatch")
+
+    if not problems:
+        return None
+
+    issue["problems"] = list(dict.fromkeys(problems))
+    return issue
+
+
+def _check_storage_binding_references(
+    configs: list[Any],
+    *,
+    bk_tenant_id: str,
+    namespace: str,
+    binding_kind: str,
+) -> list[dict[str, Any]]:
+    """批量检查同租户、命名空间和类型下的 Storage Binding。"""
+    issues = []
+    for config in configs:
+        issue = _check_storage_binding_reference(
+            config,
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            binding_kind=binding_kind,
+        )
+        if issue is not None:
+            issues.append(issue)
+    return issues
+
+
+def _merge_storage_binding_issue(
+    issues_by_key: dict[tuple[str, str, str], dict[str, Any]],
+    unkeyed_issues: list[dict[str, Any]],
+    issue: dict[str, Any],
+) -> None:
+    """按 namespace、kind、name 合并同一 Binding 的远端和本地检查结果。"""
+    name = issue.get("name")
+    if not name:
+        unkeyed_issues.append(issue)
+        return
+
+    key = (issue["namespace"], issue["binding_kind"], name)
+    existing = issues_by_key.get(key)
+    if existing is None:
+        issues_by_key[key] = issue
+        return
+
+    existing["problems"] = list(dict.fromkeys([*existing.get("problems", []), *issue.get("problems", [])]))
+    for field, value in issue.items():
+        if field != "problems":
+            existing[field] = value
+
+
+def _filter_queryset_by_keys(queryset, field: str, keys: set[str]):
+    """键数量较小时在 DB 侧过滤，过大时保持单次 tenant 范围扫描。"""
+    if len(keys) <= STORAGE_BINDING_FILTER_THRESHOLD:
+        return queryset.filter(**{f"{field}__in": keys})
+    return queryset
+
+
+def _load_local_binding_table_ids(
+    *,
+    bk_tenant_id: str,
+    remote_configs_by_batch: dict[tuple[str, str], list[Any]],
+) -> tuple[
+    dict[tuple[str, str, str], set[str]],
+    dict[tuple[str, str, str], dict[str, Any]],
+]:
+    """批量加载远端 Binding 对应的本地 Binding table_id。"""
+    table_ids_by_key: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    remote_config_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for (namespace, binding_kind), configs in remote_configs_by_batch.items():
+        for config in configs:
+            issue, _ = _parse_storage_binding_reference(
+                config,
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                binding_kind=binding_kind,
+            )
+            if issue["name"] and issue["storage_name"]:
+                remote_config_by_key[(namespace, binding_kind, issue["name"])] = config
+
+    for binding_kind, component_class in ((kind, COMPONENT_CLASS_MAP[kind]) for kind in STORAGE_BINDING_KIND_MAP):
+        remote_keys = {key for key in remote_config_by_key if key[1] == binding_kind}
+        if not remote_keys:
+            continue
+
+        remote_names = {key[2] for key in remote_keys}
+        queryset = component_class.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            namespace__in=STORAGE_BINDING_NAMESPACES,
+        )
+        queryset = _filter_queryset_by_keys(queryset, "name", remote_names)
+        for row in queryset.values("namespace", "name", "table_id").iterator(chunk_size=1000):
+            key = (row["namespace"], binding_kind, row["name"])
+            if key in remote_keys:
+                table_ids_by_key[key].add(row["table_id"] or "")
+
+    return table_ids_by_key, remote_config_by_key
+
+
+def _load_storage_cluster_ids(
+    *,
+    bk_tenant_id: str,
+    binding_kind: str,
+    table_ids: set[str],
+) -> tuple[dict[str, set[int]], dict[str, set[str]]]:
+    """批量加载 table_id 对应的本地集群 ID；第二个返回值是 Doris 表对应的缺失 origin table_id。"""
+    cluster_ids_by_table_id: dict[str, set[int]] = defaultdict(set)
+    missing_origin_table_ids: dict[str, set[str]] = defaultdict(set)
+    if not table_ids:
+        return cluster_ids_by_table_id, missing_origin_table_ids
+
+    if binding_kind == DataLinkKind.ESSTORAGEBINDING.value:
+        queryset = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+        queryset = _filter_queryset_by_keys(queryset, "table_id", table_ids)
+        for row in queryset.values("table_id", "storage_cluster_id").iterator(chunk_size=1000):
+            if row["table_id"] not in table_ids:
+                continue
+            cluster_ids_by_table_id.setdefault(row["table_id"], set())
+            if row["storage_cluster_id"] is not None:
+                cluster_ids_by_table_id[row["table_id"]].add(row["storage_cluster_id"])
+        return cluster_ids_by_table_id, missing_origin_table_ids
+
+    if binding_kind == DataLinkKind.VMSTORAGEBINDING.value:
+        queryset = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id)
+        queryset = _filter_queryset_by_keys(queryset, "result_table_id", table_ids)
+        for row in queryset.values("result_table_id", "vm_cluster_id", "storage_cluster_id").iterator(chunk_size=1000):
+            if row["result_table_id"] not in table_ids:
+                continue
+            cluster_ids_by_table_id.setdefault(row["result_table_id"], set())
+            cluster_id = row["vm_cluster_id"] or row["storage_cluster_id"]
+            if cluster_id is not None:
+                cluster_ids_by_table_id[row["result_table_id"]].add(cluster_id)
+        return cluster_ids_by_table_id, missing_origin_table_ids
+
+    rows_by_table_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    doris_queryset = models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+    if len(table_ids) <= STORAGE_BINDING_FILTER_THRESHOLD:
+        # 小批次先读取目标表，再一次性补齐虚拟表引用的 origin；查询次数与 Binding 数量无关。
+        for row in (
+            doris_queryset.filter(table_id__in=table_ids)
+            .values("table_id", "origin_table_id", "storage_cluster_id")
+            .iterator(chunk_size=1000)
+        ):
+            rows_by_table_id[row["table_id"]].append(row)
+
+        origin_table_ids = {
+            row["origin_table_id"]
+            for rows in rows_by_table_id.values()
+            for row in rows
+            if row["origin_table_id"] and row["origin_table_id"] not in rows_by_table_id
+        }
+        if origin_table_ids:
+            for row in (
+                doris_queryset.filter(table_id__in=origin_table_ids)
+                .values("table_id", "origin_table_id", "storage_cluster_id")
+                .iterator(chunk_size=1000)
+            ):
+                rows_by_table_id[row["table_id"]].append(row)
+    else:
+        # 大批次避免对无索引关联字段分块查询，改为单次租户范围流式扫描。
+        for row in doris_queryset.values("table_id", "origin_table_id", "storage_cluster_id").iterator(chunk_size=1000):
+            rows_by_table_id[row["table_id"]].append(row)
+
+    for table_id in table_ids:
+        for row in rows_by_table_id.get(table_id, []):
+            effective_table_id = row["origin_table_id"] or table_id
+            effective_rows = rows_by_table_id.get(effective_table_id, [])
+            if row["origin_table_id"] and not effective_rows:
+                missing_origin_table_ids[table_id].add(row["origin_table_id"])
+                continue
+            cluster_ids_by_table_id.setdefault(table_id, set())
+            for effective_row in effective_rows:
+                if effective_row["storage_cluster_id"] is not None:
+                    cluster_ids_by_table_id[table_id].add(effective_row["storage_cluster_id"])
+    return cluster_ids_by_table_id, missing_origin_table_ids
+
+
+def _normalize_cluster_domain(domain_name: Any) -> str:
+    return domain_name.strip().lower() if isinstance(domain_name, str) else ""
+
+
+def _is_ignored_vm_cmdb_binding(binding_name: str, table_id: str) -> bool:
+    """VM CMDB 派生表不参与本地存储关联检查。"""
+    return binding_name.endswith("_cmdb") or table_id.endswith("_cmdb")
+
+
+def _check_local_storage_binding_references(
+    *,
+    bk_tenant_id: str,
+    remote_configs_by_batch: dict[tuple[str, str], list[Any]],
+) -> list[dict[str, Any]]:
+    """批量检查远端 Binding 与本地 Storage/AccessVMRecord 最终指向的集群是否一致。"""
+    table_ids_by_key, remote_config_by_key = _load_local_binding_table_ids(
+        bk_tenant_id=bk_tenant_id,
+        remote_configs_by_batch=remote_configs_by_batch,
+    )
+    local_issues: list[dict[str, Any]] = []
+    issued_keys: set[tuple[str, str, str]] = set()
+    resolved_keys: dict[tuple[str, str, str], str] = {}
+
+    def add_issue(key: tuple[str, str, str], problems: list[str], **details) -> None:
+        namespace, binding_kind, _ = key
+        issue, _ = _parse_storage_binding_reference(
+            remote_config_by_key[key],
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            binding_kind=binding_kind,
+        )
+        issue.update(details)
+        issue["problems"] = problems
+        local_issues.append(issue)
+        issued_keys.add(key)
+
+    for key in remote_config_by_key:
+        table_ids = table_ids_by_key.get(key)
+        if table_ids is None:
+            continue
+        non_empty_table_ids = {table_id for table_id in table_ids if table_id}
+        if not non_empty_table_ids:
+            add_issue(key, ["local_table_id_missing"], table_ids=[])
+            continue
+        if len(non_empty_table_ids) > 1:
+            add_issue(key, ["local_binding_ambiguous"], table_ids=sorted(non_empty_table_ids))
+            continue
+        table_id = next(iter(non_empty_table_ids))
+        if key[1] == DataLinkKind.VMSTORAGEBINDING.value and _is_ignored_vm_cmdb_binding(key[2], table_id):
+            continue
+        resolved_keys[key] = table_id
+
+    cluster_ids_by_kind_and_table: dict[tuple[str, str], set[int]] = {}
+    for binding_kind in STORAGE_BINDING_KIND_MAP:
+        kind_table_ids = {table_id for key, table_id in resolved_keys.items() if key[1] == binding_kind}
+        if not kind_table_ids:
+            continue
+        cluster_ids_by_table_id, missing_origins_by_table_id = _load_storage_cluster_ids(
+            bk_tenant_id=bk_tenant_id,
+            binding_kind=binding_kind,
+            table_ids=kind_table_ids,
+        )
+        for table_id, cluster_ids in cluster_ids_by_table_id.items():
+            cluster_ids_by_kind_and_table[(binding_kind, table_id)] = cluster_ids
+        if binding_kind == DataLinkKind.DORISBINDING.value and missing_origins_by_table_id:
+            for key, table_id in resolved_keys.items():
+                missing_origins = missing_origins_by_table_id.get(table_id)
+                if key[1] == binding_kind and missing_origins:
+                    add_issue(
+                        key,
+                        ["local_storage_origin_missing"],
+                        table_ids=[table_id],
+                        missing_origin_table_ids=sorted(missing_origins),
+                    )
+
+    comparable_keys: dict[tuple[str, str, str], int] = {}
+    for key, table_id in resolved_keys.items():
+        cluster_ids = cluster_ids_by_kind_and_table.get((key[1], table_id))
+        if cluster_ids is None:
+            # Doris origin 缺失已在上面输出更精确的问题。
+            if key not in issued_keys:
+                add_issue(key, ["local_storage_record_missing"], table_ids=[table_id], local_cluster_ids=[])
+            continue
+        if not cluster_ids:
+            add_issue(key, ["local_cluster_id_missing"], table_ids=[table_id], local_cluster_ids=[])
+            continue
+        if len(cluster_ids) > 1:
+            add_issue(
+                key,
+                ["local_storage_cluster_ambiguous"],
+                table_ids=[table_id],
+                local_cluster_ids=sorted(cluster_ids),
+            )
+            continue
+        comparable_keys[key] = next(iter(cluster_ids))
+
+    if not comparable_keys:
+        return local_issues
+
+    cluster_types = set(STORAGE_BINDING_CLUSTER_TYPE_MAP.values())
+    cluster_by_id: dict[int, dict[str, Any]] = {}
+    cluster_by_type_and_name: dict[tuple[str, str], dict[str, Any]] = {}
+    for cluster in ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        cluster_type__in=cluster_types,
+    ).values("cluster_id", "cluster_type", "cluster_name", "domain_name"):
+        cluster_by_id[cluster["cluster_id"]] = cluster
+        cluster_by_type_and_name[(cluster["cluster_type"], cluster["cluster_name"])] = cluster
+
+    for key, local_cluster_id in comparable_keys.items():
+        table_id = resolved_keys[key]
+        local_cluster = cluster_by_id.get(local_cluster_id)
+        if local_cluster is None:
+            add_issue(
+                key,
+                ["local_cluster_info_missing"],
+                table_ids=[table_id],
+                local_cluster_ids=[local_cluster_id],
+            )
+            continue
+
+        issue, _ = _parse_storage_binding_reference(
+            remote_config_by_key[key],
+            bk_tenant_id=bk_tenant_id,
+            namespace=key[0],
+            binding_kind=key[1],
+        )
+        remote_cluster_name = issue["storage_name"]
+        common_details = {
+            "table_ids": [table_id],
+            "local_cluster_ids": [local_cluster_id],
+            "local_cluster_names": [local_cluster["cluster_name"]],
+            "local_cluster_id": local_cluster_id,
+            "local_cluster_name": local_cluster["cluster_name"],
+            "local_domain_name": local_cluster["domain_name"],
+        }
+        if local_cluster["cluster_name"] == remote_cluster_name:
+            continue
+
+        cluster_type = STORAGE_BINDING_CLUSTER_TYPE_MAP[key[1]]
+        remote_cluster = cluster_by_type_and_name.get((cluster_type, remote_cluster_name))
+        if remote_cluster is None:
+            add_issue(
+                key,
+                ["remote_cluster_info_missing"],
+                **common_details,
+                remote_cluster_id=None,
+                remote_cluster_name=remote_cluster_name,
+                remote_domain_name=None,
+            )
+            continue
+
+        local_domain = _normalize_cluster_domain(local_cluster["domain_name"])
+        remote_domain = _normalize_cluster_domain(remote_cluster["domain_name"])
+        if local_domain and remote_domain and local_domain == remote_domain:
+            continue
+
+        add_issue(
+            key,
+            ["local_storage_cluster_mismatch"],
+            **common_details,
+            remote_cluster_id=remote_cluster["cluster_id"],
+            remote_cluster_name=remote_cluster["cluster_name"],
+            remote_domain_name=remote_cluster["domain_name"],
+        )
+
+    return local_issues
+
+
+def batch_check_storage_binding_references(bk_tenant_id: str) -> list[dict[str, Any]]:
+    """检查指定租户在 bkmonitor、bklog 下的 ES、Doris、VM Storage Binding 引用。"""
+    issues_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+    unkeyed_issues: list[dict[str, Any]] = []
+    remote_configs_by_batch: dict[tuple[str, str], list[Any]] = {}
+    for namespace in STORAGE_BINDING_NAMESPACES:
+        for binding_kind in STORAGE_BINDING_KIND_MAP:
+            configs = api.bkdata.list_data_link(
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                kind=DataLinkKind.get_choice_value(binding_kind),
+            )
+            if not isinstance(configs, list):
+                raise ValueError(
+                    "batch_check_storage_binding_references: list_data_link returned invalid data, "
+                    f"tenant={bk_tenant_id}, namespace={namespace}, kind={binding_kind}"
+                )
+            remote_configs_by_batch[(namespace, binding_kind)] = configs
+            for issue in _check_storage_binding_references(
+                configs,
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                binding_kind=binding_kind,
+            ):
+                _merge_storage_binding_issue(issues_by_key, unkeyed_issues, issue)
+
+    for issue in _check_local_storage_binding_references(
+        bk_tenant_id=bk_tenant_id,
+        remote_configs_by_batch=remote_configs_by_batch,
+    ):
+        _merge_storage_binding_issue(issues_by_key, unkeyed_issues, issue)
+    return [*issues_by_key.values(), *unkeyed_issues]
+
+
+def _mark_component_links_untrusted(components: list[Any], untrusted_links: set[DataLinkStatusKey]) -> None:
+    for component in components:
+        if component.data_link_name:
+            untrusted_links.add((_normalize_data_link_tenant_id(component.bk_tenant_id), component.data_link_name))
+
+
+def _refresh_data_link_component_statuses() -> tuple[
+    dict[DataLinkStatusKey, list[str]], set[DataLinkStatusKey], dict[DataLinkStatusKey, int], int
+]:
+    """批量刷新全部本地 DataLink 组件，并返回用于汇总链路状态的信息。"""
+    statuses_by_link: dict[DataLinkStatusKey, list[str]] = defaultdict(list)
+    untrusted_links: set[DataLinkStatusKey] = set()
+    biz_id_by_link: dict[DataLinkStatusKey, int] = {}
+    changed_count = 0
+
+    for kind, component_class in COMPONENT_CLASS_MAP.items():
+        components_by_batch: dict[ComponentBatchKey, list[Any]] = defaultdict(list)
+        for component in component_class.objects.all().iterator(chunk_size=1000):
+            batch_key = (
+                _normalize_data_link_tenant_id(component.bk_tenant_id),
+                component.namespace,
+                kind,
+            )
+            components_by_batch[batch_key].append(component)
+
+        for (bk_tenant_id, namespace, component_kind), components in components_by_batch.items():
+            bkbase_kind = DataLinkKind.get_choice_value(component_kind)
+            try:
+                configs = api.bkdata.list_data_link(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    kind=bkbase_kind,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "bulk_refresh_data_link_status: list components failed, tenant->[%s], namespace->[%s], "
+                    "kind->[%s], error->[%s]",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                    error,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                continue
+
+            remote_statuses = _parse_list_data_link_statuses(configs)
+            if remote_statuses is None:
+                logger.warning(
+                    "bulk_refresh_data_link_status: list components returned empty or invalid data, "
+                    "tenant->[%s], namespace->[%s], kind->[%s], skip batch",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                continue
+
+            if component_kind in STORAGE_BINDING_KIND_MAP:
+                reference_issues = _check_storage_binding_references(
+                    configs,
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    binding_kind=component_kind,
+                )
+                for issue in reference_issues:
+                    logger.warning(
+                        "bulk_refresh_data_link_status: storage binding reference check failed, issue->[%s]", issue
+                    )
+
+            now = timezone.now()
+            changed_components = []
+            for component in components:
+                component_status = remote_statuses.get(component.name, DataLinkResourceStatus.TERMINATED.value)
+                if component.status != component_status:
+                    component.status = component_status
+                    component.last_modify_time = now
+                    changed_components.append(component)
+
+            try:
+                if changed_components:
+                    component_class.objects.bulk_update(
+                        changed_components,
+                        ["status", "last_modify_time"],
+                        batch_size=1000,
+                    )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "bulk_refresh_data_link_status: update components failed, tenant->[%s], namespace->[%s], "
+                    "kind->[%s], error->[%s]",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                    error,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                continue
+
+            changed_count += len(changed_components)
+            for component in components:
+                if component.data_link_name and kind != DataLinkKind.DATAID.value:
+                    link_key = (bk_tenant_id, component.data_link_name)
+                    statuses_by_link[link_key].append(component.status)
+                    biz_id_by_link.setdefault(link_key, component.bk_biz_id)
+                report_metadata_data_link_status_info(
+                    data_link_name=component.data_link_name,
+                    biz_id=str(component.bk_biz_id),
+                    kind=component.kind,
+                    status=component.status,
+                )
+
+    return statuses_by_link, untrusted_links, biz_id_by_link, changed_count
+
+
+def _refresh_bkbase_result_table_statuses(
+    statuses_by_link: dict[DataLinkStatusKey, list[str]],
+    untrusted_links: set[DataLinkStatusKey],
+    biz_id_by_link: dict[DataLinkStatusKey, int],
+) -> int:
+    """根据可信的本地组件状态汇总刷新 BkBaseResultTable.status。"""
+    bkbase_records = {
+        (_normalize_data_link_tenant_id(record.bk_tenant_id), record.data_link_name): record
+        for record in BkBaseResultTable.objects.all()
+    }
+    changed_records = []
+    now = timezone.now()
+    for link_key, component_statuses in statuses_by_link.items():
+        if link_key in untrusted_links or not component_statuses:
+            continue
+        bkbase_record = bkbase_records.get(link_key)
+        if bkbase_record is None:
+            continue
+
+        if all(status == DataLinkResourceStatus.OK.value for status in component_statuses):
+            status = DataLinkResourceStatus.OK.value
+        elif all(status == DataLinkResourceStatus.TERMINATED.value for status in component_statuses):
+            status = DataLinkResourceStatus.TERMINATED.value
+        else:
+            status = DataLinkResourceStatus.PENDING.value
+
+        if bkbase_record.status != status:
+            bkbase_record.status = status
+            bkbase_record.last_modify_time = now
+            changed_records.append(bkbase_record)
+
+        report_metadata_data_link_status_info(
+            data_link_name=bkbase_record.data_link_name,
+            biz_id=str(biz_id_by_link[link_key]),
+            kind=DataLinkKind.RESULTTABLE.value,
+            status=status,
+        )
+
+    if changed_records:
+        BkBaseResultTable.objects.bulk_update(
+            changed_records,
+            ["status", "last_modify_time"],
+            batch_size=1000,
+        )
+    return len(changed_records)
+
+
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def bulk_refresh_data_link_status(bkbase_rt_records):
-    """
-    并发刷新链路状态
-    """
-    # 统计&上报 任务状态指标
+def bulk_refresh_data_link_status():
+    """批量刷新全部本地 DataLink 组件状态及链路整体状态。"""
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="bulk_refresh_data_link_status", status=TASK_STARTED, process_target=None
     ).inc()
 
-    start_time = time.time()  # 记录开始时间
-    logger.info(
-        "bulk_refresh_data_link_status: start to refresh data_link status, bkbase_rt_records: %s", bkbase_rt_records
+    start_time = time.time()
+    logger.info("bulk_refresh_data_link_status: start to refresh all local data_link components")
+    statuses_by_link, untrusted_links, biz_id_by_link, changed_component_count = _refresh_data_link_component_statuses()
+    changed_bkbase_count = _refresh_bkbase_result_table_statuses(
+        statuses_by_link=statuses_by_link,
+        untrusted_links=untrusted_links,
+        biz_id_by_link=biz_id_by_link,
     )
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        executor.map(_refresh_data_link_status, bkbase_rt_records)
-    cost_time = time.time() - start_time  # 总耗时
-    logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
+    cost_time = time.time() - start_time
+    logger.info(
+        "bulk_refresh_data_link_status: finished, changed components->[%s], changed bkbase records->[%s], "
+        "untrusted links->[%s], cost_time->[%s]",
+        changed_component_count,
+        changed_bkbase_count,
+        len(untrusted_links),
+        cost_time,
+    )
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="bulk_refresh_data_link_status", status=TASK_FINISHED_SUCCESS, process_target=None
@@ -870,221 +1568,6 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
         task_name="bulk_refresh_data_link_status", process_target=None
     ).observe(cost_time)
     metrics.report_all()
-
-
-def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
-    """
-    刷新链路状态（各组件状态+整体状态）
-    @param bkbase_rt_record: BkBaseResultTable 计算平台结果表
-    """
-    # 统计&上报 任务状态指标
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="_refresh_data_link_status", status=TASK_STARTED, process_target=bkbase_rt_record.data_link_name
-    ).inc()
-
-    # 1. 获取基本信息
-    start_time = time.time()  # 记录开始时间
-    bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
-    data_link_name = bkbase_rt_record.data_link_name
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],bkbase_data_id_name->[%s]",
-        data_link_name,
-        bkbase_data_id_name,
-    )
-    data_link_ins = models.DataLink.objects.get(data_link_name=data_link_name)
-    data_link_strategy = data_link_ins.data_link_strategy
-    bk_tenant_id = bkbase_rt_record.bk_tenant_id
-    namespace = data_link_ins.namespace
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s] namespace->[%s]",
-        data_link_name,
-        data_link_strategy,
-        namespace,
-    )
-
-    # 2. 刷新数据源状态
-    # 优先按 bkbase_data_id_name 精确命中；考虑到复用场景 / 存量脏数据里 BkBaseResultTable.bkbase_data_name
-    # 可能记录的是旧生成名，这里再补一道按 DataLink.bk_data_id 的 fallback，最大程度兜住历史数据。
-    data_id_config = None
-    try:
-        data_id_config = models.DataIdConfig.objects.get(
-            bk_tenant_id=bk_tenant_id, namespace=namespace, name=bkbase_data_id_name
-        )
-    except models.DataIdConfig.DoesNotExist:
-        fallback_bk_data_id = data_link_ins.bk_data_id
-        if fallback_bk_data_id:
-            data_id_config = (
-                models.DataIdConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    namespace=namespace,
-                    bk_data_id=fallback_bk_data_id,
-                )
-                .order_by("-id")
-                .first()
-            )
-        if data_id_config is None:
-            logger.warning(
-                "_refresh_data_link_status: data_link_name->[%s],data_id_config name->[%s] and bk_data_id->[%s] "
-                "both miss, skip data source status refresh",
-                data_link_name,
-                bkbase_data_id_name,
-                fallback_bk_data_id,
-            )
-
-    if data_id_config is not None:
-        try:
-            with transaction.atomic():
-                data_id_status = get_data_link_component_status(
-                    bk_tenant_id=bk_tenant_id,
-                    kind=data_id_config.kind,
-                    namespace=data_id_config.namespace,
-                    component_name=data_id_config.name,
-                )
-                if data_id_config.status != data_id_status:
-                    logger.info(
-                        "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
-                        "with exist record,will change to->[%s]",
-                        data_link_name,
-                        data_id_config.status,
-                        data_id_status,
-                    )
-                    data_id_config.status = data_id_status
-                    data_id_config.data_link_name = data_link_name
-                    data_id_config.save()
-                report_metadata_data_link_status_info(
-                    data_link_name=data_link_name,
-                    biz_id=data_id_config.bk_biz_id,
-                    kind=data_id_config.kind,
-                    status=data_id_config.status,
-                )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "_refresh_data_link_status: data_link_name->[%s],refresh data_id_config->[%s] error->[%s]",
-                data_link_name,
-                data_id_config.name,
-                e,
-            )
-
-    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
-    if hasattr(data_link_ins, "get_related_component_classes"):
-        components = data_link_ins.get_related_component_classes()
-    else:
-        components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
-    all_components_ok = True
-    refreshed_component_keys: set[tuple[str, str, str]] = set()
-
-    # 4. 遍历链路关联的所有类型资源；
-    # 历史写法按 ``name=bkbase_rt_name`` 查，默认 RT/Binding/DataBus 三者同名。组件复用之后三者可能
-    # 各自复用 legacy name、互不相同，此处改为按 (bk_tenant_id, namespace, data_link_name) 过滤该 kind
-    # 下属于本链路的所有实例并逐条刷新。非复用链路同样兼容：三者同名时按 data_link_name 过滤一样命中。
-    for component in components:
-        component_queryset = component.objects.filter(
-            bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name
-        )
-        component_instances = list(component_queryset)
-        if not component_instances:
-            logger.warning(
-                "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
-                data_link_name,
-                component.kind,
-            )
-            all_components_ok = False
-            continue
-
-        for component_ins in component_instances:
-            try:
-                with transaction.atomic():
-                    component_key = (component_ins.kind, component_ins.namespace, component_ins.name)
-                    if component_key in refreshed_component_keys:
-                        continue
-                    refreshed_component_keys.add(component_key)
-
-                    component_status = get_data_link_component_status(
-                        bk_tenant_id=bk_tenant_id,
-                        kind=component_ins.kind,
-                        namespace=component_ins.namespace,
-                        component_name=component_ins.name,
-                    )
-                    logger.info(
-                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
-                        data_link_name,
-                        component_ins.name,
-                        component_ins.kind,
-                        component_status,
-                    )
-                    if component_status != DataLinkResourceStatus.OK.value:
-                        all_components_ok = False
-                    # 和DB中数据不一致时，才进行更新操作
-                    if component_ins.status != component_status:
-                        component_ins.status = component_status
-                        component_ins.save()
-                        logger.info(
-                            "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
-                            "status updated to->[%s]",
-                            data_link_name,
-                            component_ins.name,
-                            component_ins.kind,
-                            component_status,
-                        )
-
-                report_metadata_data_link_status_info(
-                    data_link_name=data_link_name,
-                    biz_id=component_ins.bk_biz_id,
-                    kind=component_ins.kind,
-                    status=component_ins.status,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
-                    "refresh failed,error->[%s]",
-                    data_link_name,
-                    component_ins.name,
-                    component_ins.kind,
-                    e,
-                )
-
-    # 5. 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
-    if all_components_ok:
-        bkbase_rt_record.status = DataLinkResourceStatus.OK.value
-    else:
-        bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
-    with transaction.atomic():
-        bkbase_rt_record.save()
-
-    if data_id_config is not None:
-        report_metadata_data_link_status_info(
-            data_link_name=data_link_name,
-            biz_id=data_id_config.bk_biz_id,
-            kind=DataLinkKind.RESULTTABLE.value,
-            status=bkbase_rt_record.status,
-        )
-
-    cost_time = time.time() - start_time
-
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
-        data_link_name,
-        all_components_ok,
-        bkbase_rt_record.status,
-    )
-
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="_refresh_data_link_status",
-        status=TASK_FINISHED_SUCCESS,
-        process_target=bkbase_rt_record.data_link_name,
-    ).inc()
-
-    # 6. 上报指标
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
-        task_name="_refresh_data_link_status", process_target=bkbase_rt_record.data_link_name
-    ).observe(cost_time)
-    metrics.report_all()
-
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] refresh status finished,cost time->[%s]",
-        data_link_name,
-        cost_time,
-    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

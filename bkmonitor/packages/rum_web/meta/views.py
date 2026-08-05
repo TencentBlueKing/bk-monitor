@@ -132,7 +132,7 @@ class ApplicationViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.RUM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     data_field=lambda d: d["data"],
-                    batch_create=True,
+                    instance_create_func=ResourceEnum.RUM_APPLICATION.create_instance_by_info,
                 )
             ],
         ),

@@ -145,6 +145,8 @@ MAX_QUICK_EXPORT_ASYNC_COUNT = 5000000
 MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT = 3
 # 异步导出时间
 ASYNC_EXPORT_TIME_RANGE = "customized"
+# 场景化检索导出任务场景标识
+ASYNC_EXPORT_SCENE_ID = "scene"
 # 异步导出目录
 ASYNC_APP_CODE = settings.APP_CODE.replace("-", "_")
 ASYNC_DIR = f"/tmp/{ASYNC_APP_CODE}"

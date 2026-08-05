@@ -745,6 +745,30 @@ class QueryClusterInfoResource(MetaDataAPIGWResource):
         registered_system = serializers.CharField(required=False, label="来源系统名称", default="")
 
 
+class GetClusterStatusResource(MetaDataAPIGWResource):
+    """批量查询存储集群运行状态。"""
+
+    action = "/app/metadata/get_cluster_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_ids = serializers.ListField(
+            label="存储集群ID列表",
+            child=serializers.IntegerField(min_value=1),
+            allow_empty=False,
+            min_length=1,
+            max_length=20,
+        )
+        timeout = serializers.IntegerField(
+            label="单次底层探测操作超时时间（秒）",
+            required=False,
+            default=5,
+            min_value=1,
+            max_value=30,
+        )
+        include_node_details = serializers.BooleanField(label="是否返回节点明细", required=False, default=False)
+
+
 class AccessBkDataByResultTable(MetaDataAPIGWResource):
     """
     创建降采样dataflow
