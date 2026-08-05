@@ -20,6 +20,7 @@ import time
 
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
@@ -47,6 +48,7 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.common import HTTP404Error
+from core.errors.issue import IssueRenameConflictError
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
@@ -967,12 +969,18 @@ class RenameIssueResource(Resource):
 
     def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
-        return api.issue.rename(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            issue_id=validated_request_data["issue_id"],
-            new_name=validated_request_data["new_name"],
-            operator=operator,
-        )
+        try:
+            return api.issue.rename(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                issue_id=validated_request_data["issue_id"],
+                new_name=validated_request_data["new_name"],
+                operator=operator,
+            )
+        except BKAPIError as e:
+            # 重命名冲突（同业务重名）：返回专有错误码（3327001）+ HTTP 409，前端据此转页面信息提示
+            if isinstance(e.data, dict) and str(e.data.get("code")) == str(IssueRenameConflictError.code):
+                raise IssueRenameConflictError(message=_("已存在同名 Issue，请更换名称"), data=e.data.get("data"))
+            raise
 
 
 class ListIssueActivitiesResource(Resource):
