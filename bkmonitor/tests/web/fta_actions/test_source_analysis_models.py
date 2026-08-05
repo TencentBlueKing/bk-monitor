@@ -21,25 +21,29 @@ class TestIssueSourceAnalysisConfig(TestCase):
         IssueSourceAnalysisConfig.objects.create(
             bk_biz_id=2,
             bkci_project_id="project-a",
-            repository_id="repo-a",
+            repository_alias="repo-a",
         )
 
         with self.assertRaises(IntegrityError), transaction.atomic():
             IssueSourceAnalysisConfig.objects.create(
                 bk_biz_id=2,
                 bkci_project_id="project-b",
-                repository_id="repo-b",
+                repository_alias="repo-b",
             )
 
-    def test_different_businesses_can_reuse_repository(self):
+    def test_different_businesses_can_reuse_repository_alias(self):
         for bk_biz_id in (2, 3):
             IssueSourceAnalysisConfig.objects.create(
                 bk_biz_id=bk_biz_id,
                 bkci_project_id="shared-project",
-                repository_id="shared-repo",
+                repository_alias="shared-repo",
             )
 
         self.assertEqual(IssueSourceAnalysisConfig.objects.count(), 2)
+
+    def test_repository_alias_max_length_matches_bkci(self):
+        self.assertEqual(IssueSourceAnalysisConfig._meta.get_field("repository_alias").max_length, 255)
+        self.assertEqual(IssueSourceAnalysisRule._meta.get_field("repository_alias").max_length, 255)
 
 
 class TestIssueSourceAnalysisRule(TestCase):
@@ -86,7 +90,7 @@ class TestIssueSourceAnalysisRule(TestCase):
 
         self.assertFalse(rule.is_enabled)
         self.assertEqual(rule.conditions, [])
-        self.assertIsNone(rule.repository_id)
+        self.assertIsNone(rule.repository_alias)
         self.assertEqual(rule.agent_ids, [])
         self.assertEqual(rule.skill_ids, [])
         self.assertEqual(rule.knowledge_base_ids, [])

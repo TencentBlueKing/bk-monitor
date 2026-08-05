@@ -26,7 +26,7 @@ class IssueSourceAnalysisConfig(AbstractRecordModel):
     id = models.BigAutoField(primary_key=True)
     bk_biz_id = models.IntegerField(unique=True, verbose_name="业务 ID")
     bkci_project_id = models.CharField(max_length=128, verbose_name="蓝盾项目 ID")
-    repository_id = models.CharField(max_length=128, verbose_name="代码库 ID")
+    repository_alias = models.CharField(max_length=255, verbose_name="蓝盾代码库别名")
 
 
 class IssueSourceAnalysisRule(AbstractRecordModel):
@@ -60,13 +60,16 @@ class IssueSourceAnalysisRule(AbstractRecordModel):
     priority = models.IntegerField(verbose_name="优先级")
     is_enabled = models.BooleanField(default=False, verbose_name="是否启用")
     is_default = models.BooleanField(default=False, verbose_name="是否默认规则")
+    # 条件项沿用告警分派结构：
+    # {"field": str, "value": list[str], "method": str, "condition": str}
+    # method 取 eq/neq/include/exclude/reg/nreg/issuperset；condition 取 and/or/""，最后一项固定为 ""。
     conditions = JsonField(default=list, blank=True, verbose_name="匹配条件")
-    repository_id = models.CharField(
-        max_length=128,
+    repository_alias = models.CharField(
+        max_length=255,
         null=True,
         blank=True,
         default=None,
-        verbose_name="代码库 ID 快照",
+        verbose_name="蓝盾代码库别名快照",
     )
     agent_ids = JsonField(default=list, blank=True, verbose_name="智能体 ID")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID")
