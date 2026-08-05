@@ -28,7 +28,7 @@ import { EFieldType } from '../../../components/retrieval-filter/typing';
 import { HOST_FILTER_FIELDS_ENUM } from './constants';
 
 import type { IFilterField } from '../../../components/retrieval-filter/typing';
-import type { EHostAggMethod, IHostQuickCard, IHostStatusConfig } from '../types';
+import type { IHostQuickCard, IHostStatusConfig, IStatusTipsConfig } from '../types';
 
 /** 默认每页条数（设计稿：默认每页 50 条） */
 export const HOST_LIST_DEFAULT_PAGE_SIZE = 50;
@@ -55,13 +55,6 @@ export const HOST_QUICK_CARD_LIST: IHostQuickCard[] = [
   { key: 'cpu', name: window.i18n.t('CPU 使用率超 80 %') },
   { key: 'mem', name: window.i18n.t('应用内存使用率超 80 %') },
   { key: 'disk', name: window.i18n.t('磁盘空间使用率超 80 %') },
-];
-
-/** 指标聚合方式列表（蓝字可点切换，参考容器监控） */
-export const HOST_AGG_METHOD_LIST: { id: EHostAggMethod; name: string }[] = [
-  { id: 'avg', name: 'avg' },
-  { id: 'max', name: 'max' },
-  { id: 'min', name: 'min' },
 ];
 
 /** 指标列 key（这些列展示「聚合方式 + 数值 + 进度条」） */
@@ -322,3 +315,41 @@ export const HOST_NUMBER_FILTER_FIELDS = new Set([
   'cpu_load',
   'alarm_count',
 ]);
+
+/** 主机采集状态 tip 配置（对齐 performance-table statusMap） */
+export const HOST_STATUS_TIPS_MAP: Record<number, IStatusTipsConfig> = {
+  2: {
+    tipsText: window.i18n.t('原因: Agent未安装或者状态异常'),
+    linkText: window.i18n.t('前往节点管理处理'),
+    linkUrl: `${window.bk_nodeman_host || ''}#/agent-manager/status`,
+  },
+  3: {
+    tipsText: window.i18n.t('原因:bkmonitorbeat未安装或者状态异常'),
+    linkText: window.i18n.t('前往节点管理处理'),
+    linkUrl: `${window.bk_nodeman_host || ''}#/plugin-manager/list`,
+  },
+};
+
+/** 进程状态 tip 配置（主机列表表格进程列使用，对齐 performance-table componentStatusMap） */
+export const PROCESS_STATUS_TIPS_MAP: Record<number, IStatusTipsConfig> = {
+  1: {
+    tipsText: window.i18n.t('原因:查看进程本身问题或者检查进程配置是否正常'),
+    docLink: 'processMonitor',
+  },
+  2: {
+    tipsText: window.i18n.t('原因:bkmonitorbeat进程采集器未安装或者状态异常'),
+    linkText: window.i18n.t('前往节点管理处理'),
+    linkUrl: `${window.bk_nodeman_host || ''}#/plugin-manager/list`,
+  },
+  3: {},
+};
+
+/** 指标列表头固定聚合图标映射（列 id -> icon class，对标旧版 table-store headerPreIcon） */
+export const HOST_METRIC_HEADER_ICON_MAP: Record<string, string> = {
+  cpu_load: 'icon-last',
+  cpu_usage: 'icon-last',
+  mem_usage: 'icon-last',
+  psc_mem_usage: 'icon-last',
+  disk_in_use: 'icon-max',
+  io_util: 'icon-max',
+};

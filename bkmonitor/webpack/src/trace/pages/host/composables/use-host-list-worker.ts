@@ -31,24 +31,23 @@ import { useDebounceFn } from '@vueuse/core';
 import workerSource from '../workers/host-list.worker.raw.js?raw';
 
 import type { IValue, IWhereItem } from '../../../components/retrieval-filter/typing';
-import type { EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
 import type { IHostMetricInfo } from '../types/host';
 import type { IHostBaseInfo } from '../types/host';
+import type { EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 export interface IHostListComputeParams {
-  activeCategory: EHostQuickCategory | '';
+  activeCategory: '' | EHostQuickCategory;
   keyword: string;
   page: number;
   pageSize: number;
   selectedNode: IHostTopoTreeNode | null;
   sortInfo: string;
+  stickyValue: Record<string, number>;
   where: IWhereItem[];
 }
 
 type WorkerResponse =
-  | { filterOptionsMap: Record<string, IValue[]>; rawRowCount: number; requestId: number; type: 'INIT_BASE_DONE' }
-  | { filterOptionsMap: Record<string, IValue[]>; requestId: number; type: 'MERGE_METRICS_DONE' }
   | {
       categoryStats: IHostQuickCardStats;
       pagedRows: IHostListRow[];
@@ -56,8 +55,10 @@ type WorkerResponse =
       total: number;
       type: 'COMPUTE_DONE';
     }
-  | { requestId: number; result: { count: number; list: IValue[] }; type: 'GET_FILTER_OPTIONS_DONE' }
+  | { filterOptionsMap: Record<string, IValue[]>; rawRowCount: number; requestId: number; type: 'INIT_BASE_DONE' }
+  | { filterOptionsMap: Record<string, IValue[]>; requestId: number; type: 'MERGE_METRICS_DONE' }
   | { ips: string[]; requestId: number; type: 'GET_SELECTED_IPS_DONE' }
+  | { requestId: number; result: { count: number; list: IValue[] }; type: 'GET_FILTER_OPTIONS_DONE' }
   | { requestId: number; rowKeys: string[]; type: 'GET_FILTERED_ROW_KEYS_DONE' };
 
 /** Worker postMessage 仅接受可结构化克隆的纯对象，需剥离 Vue 响应式代理 */
@@ -83,6 +84,7 @@ const serializeComputeParams = (params: IHostListComputeParams) => ({
   pageSize: params.pageSize,
   selectedNode: serializeTopoNodeForWorker(params.selectedNode),
   sortInfo: params.sortInfo,
+  stickyValue: cloneWorkerPayload(params.stickyValue),
   where: cloneWorkerPayload(params.where),
 });
 
@@ -102,7 +104,7 @@ const createBlobWorker = (): Worker => {
  * 放到独立线程，主线程仅持有当前页数据与轻量状态。
  */
 export const useHostListWorker = () => {
-  const worker = shallowRef<Worker | null>(null);
+  const worker = shallowRef<null | Worker>(null);
   let requestSeq = 0;
   let latestComputeId = 0;
   const pendingRequests = new Map<number, { reject: (reason?: unknown) => void; resolve: (value: unknown) => void }>();

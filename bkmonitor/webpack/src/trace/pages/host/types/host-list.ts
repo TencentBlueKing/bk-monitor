@@ -26,6 +26,9 @@
 
 import type { IHostMetricInfo } from './host';
 
+/** 快捷过滤卡片分类 key */
+export type EHostQuickCategory = 'alarm' | 'cpu' | 'disk' | 'mem';
+
 /** 集群信息（前端从主机模块的 topo_link 中提取） */
 export interface IHostCluster {
   id: string;
@@ -51,9 +54,6 @@ export interface IHostListRow extends IHostMetricInfo {
   totalAlarmCount: number;
 }
 
-/** 快捷过滤卡片分类 key */
-export type EHostQuickCategory = 'alarm' | 'cpu' | 'disk' | 'mem';
-
 /** 快捷过滤卡片配置 */
 export interface IHostQuickCard {
   /** 分类 key */
@@ -65,15 +65,12 @@ export interface IHostQuickCard {
 /** 快捷过滤卡片统计（各分类命中主机数） */
 export type IHostQuickCardStats = Record<EHostQuickCategory, number>;
 
-/** 指标聚合方式 */
-export type EHostAggMethod = 'avg' | 'max' | 'min';
-
 /** 采集状态展示配置 */
 export interface IHostStatusConfig {
-  /** 圆点颜色 */
-  color: string;
   /** 圆点背景色 */
   backgroundColor: string;
+  /** 圆点颜色 */
+  color: string;
   /** 状态名称（i18n key） */
   name: string;
 }
