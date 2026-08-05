@@ -399,7 +399,31 @@ class V4Migrator:
                 )
             else:
                 rmt = remote[d_aid]
-                if rmt.get("name") != a.name or rmt.get("resource_type_id") != d_rt:
+                rt_changed = rmt.get("resource_type_id", "") != d_rt
+                name_changed = rmt.get("name") != a.name
+                if rt_changed:
+                    # v4 update_action 仅支持改 name，resource_type_id 无法原地修改。
+                    # 必须走 delete + create（破坏性变更）。
+                    changes.append(
+                        Change(
+                            kind=EntityKind.ACTION,
+                            change_type=ChangeType.DELETE,
+                            entity_id=aid,
+                            before=rmt,
+                            reason="Action resource_type_id changed (recreate required)",
+                            destructive=True,
+                        )
+                    )
+                    changes.append(
+                        Change(
+                            kind=EntityKind.ACTION,
+                            change_type=ChangeType.CREATE,
+                            entity_id=aid,
+                            after=local,
+                            reason="Action resource_type_id changed (recreate required)",
+                        )
+                    )
+                elif name_changed:
                     changes.append(
                         Change(
                             kind=EntityKind.ACTION,
@@ -407,7 +431,7 @@ class V4Migrator:
                             entity_id=aid,
                             before=rmt,
                             after=local,
-                            reason="Action differs",
+                            reason="Action name differs",
                         )
                     )
                 else:
@@ -509,7 +533,8 @@ class V4Migrator:
             if change.change_type == ChangeType.CREATE:
                 self._client.batch_create_actions([change.after])
             elif change.change_type == ChangeType.UPDATE:
-                self._client.update_action(d_entity_id, change.after or {})
+                # v4 update_action 仅支持修改 name；resource_type_id 变更走 delete+create
+                self._client.update_action(d_entity_id, {"name": (change.after or {}).get("name", "")})
             elif change.change_type == ChangeType.DELETE:
                 self._client.delete_action(d_entity_id)
         elif change.kind == EntityKind.ROLE:

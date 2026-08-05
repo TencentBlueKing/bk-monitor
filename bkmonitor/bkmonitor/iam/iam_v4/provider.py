@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.codec import NameCodec
+from ..iam_engine.core.types import Subject, to_action_id
 from ..iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
     DialectAuthRequest,
@@ -32,6 +33,7 @@ from .codec import V4NameCodec
 from .config import V4Options, V4SystemInfo
 
 if TYPE_CHECKING:
+    from ..iam_engine.schema.definitions import ActionDef
     from ..iam_engine.schema.diff import MigrationPlan, MigrationReport
     from ..iam_engine.schema.registry import SchemaRegistry
 
@@ -131,6 +133,65 @@ class V4PermissionProvider(PermissionProvider):
                 resources.append({"id": r.id, "type": r.type, "ancestors": ancestors})
             permissions.append({"action_id": aid, "resources": resources})
         return self._client.generate_perm_apply_url(permissions)
+
+    # ================================================================
+    # 有权限的资源列表 —— IAM v4 独有能力
+    # ================================================================
+
+    def get_authorized_resources(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+    ) -> list[dict]:
+        """查询用户对某个 action 有权限的资源列表（业务命名）。
+
+        平台仅支持顶层资源类型查询（第一层）。返回结果可能包含：
+          * ``"*"``：该资源类型下的任意资源都有权限
+          * 父资源 ID：该父资源下所有子资源都有权限
+          * 子资源 ID：单个资源实例的权限
+
+        Args:
+            subject: 鉴权主体
+            action_id: 业务规范化 action_id（或 ActionDef）
+
+        Returns:
+            [{"type": <业务 rt_id>, "ids": [<业务 rid> 或 "*"]}, ...]
+            所有 type/ids 都已经过 codec 解码为业务命名。
+        """
+        action_id_biz = to_action_id(action_id)
+
+        # v4 平台限制：该接口只支持"关联资源的 action"（resource-free action 会被
+        # 平台 400 拒绝，报 "Only supports action related to resource."）。
+        # 前置从 schema 判断，resource-free 直接返回空，避免透传底层错误。
+        try:
+            action_def = self.schema.get_action(action_id_biz)
+            if not action_def.resource_type:
+                return []
+        except Exception:
+            # schema 里查不到时（未注册的 action_id），交给平台去返回业务错误
+            pass
+
+        dialect_action = self.codec.encode_action(action_id_biz)
+
+        raw = self._client.get_authorized_resources(
+            subject_id=subject.id,
+            action_id=dialect_action,
+        )
+
+        # 方言 → 业务命名回解
+        results: list[dict] = []
+        for item in raw:
+            d_type = item.get("type", "")
+            d_ids = item.get("ids") or []
+            rt_biz = self.codec.decode_resource_type(d_type) if d_type else ""
+            biz_ids: list[str] = []
+            for d_id in d_ids:
+                if d_id == "*":
+                    biz_ids.append("*")
+                else:
+                    biz_ids.append(self.codec.decode_resource_id(rt_biz, d_id))
+            results.append({"type": rt_biz, "ids": biz_ids})
+        return results
 
     # ================================================================
     # 内部工具

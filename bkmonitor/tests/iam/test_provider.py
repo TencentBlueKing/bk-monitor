@@ -296,6 +296,43 @@ class TestIAMv4FullLifecycle:
         if url:
             assert url.startswith("http"), f"URL should start with http, got: {url}"
 
+    # ================================================================
+    # Step 10: 查询用户对某 action 有权限的资源列表
+    # ================================================================
+
+    def test_step10_get_authorized_resources_resource_free_returns_empty(self):
+        """resource-free action：provider 前置拦截，直接返回 []（平台不支持该场景，会 400）。"""
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        result = provider.get_authorized_resources(
+            subject=Subject(id=TEST_USER),
+            action_id=Actions.VIEW_GLOBAL_SETTING.id,
+        )
+        print(f"\n  get_authorized_resources(user={TEST_USER}, action={Actions.VIEW_GLOBAL_SETTING.id})")
+        print(f"  result={result}  (resource-free action 应被前置拦截为 [])")
+        assert result == []
+
+    def test_step10_get_authorized_resources_view_business(self):
+        """有资源 action：查用户对 view_business 有权限的 space 列表。
+
+        期望 space id 已被 codec 解码回业务命名（纯数字或 "*"）。
+        """
+        fw = get_framework()
+        provider = fw.providers["v4"]
+        result = provider.get_authorized_resources(
+            subject=Subject(id=TEST_USER),
+            action_id=Actions.VIEW_BUSINESS.id,
+        )
+        print(f"\n  get_authorized_resources(user={TEST_USER}, action={Actions.VIEW_BUSINESS.id})")
+        for item in result:
+            print(f"    type={item['type']} ids={item['ids']}")
+        assert isinstance(result, list)
+        # 校验 codec decode：space 的 id 不应带 "space|" 前缀
+        for item in result:
+            if item["type"] == ResourceTypes.SPACE.id:
+                for rid in item["ids"]:
+                    assert not rid.startswith("space|"), f"space id 应已 decode，实际='{rid}'"
+
 
 # ==============================================================================
 # 改 action id 破坏性验证（手动配合）

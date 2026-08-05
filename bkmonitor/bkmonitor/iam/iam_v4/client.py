@@ -74,6 +74,27 @@ class V4Client:
         resp = self._post(path, body)
         return {item["action_id"]: item["allowed"] for item in resp["data"]}
 
+    def get_authorized_resources(self, subject_id: str, action_id: str) -> list[dict]:
+        """POST /relation/authorized-resources/ — 查询用户对某 action 有权限的资源列表。
+
+        仅建议用于顶层资源类型（第一层），否则平台会拒绝请求。
+
+        Args:
+            subject_id: 用户名
+            action_id: 操作 ID（方言 ID）
+
+        Returns:
+            list[{"type": <方言 rt_id>, "ids": [<方言 rid> 或 "*"]}]
+            "*" 表示该资源类型下的任意资源都有权限；父资源 ids 表示"该父资源下所有子资源"都有权限。
+        """
+        path = f"/api/v1/open/rbac/authorization/systems/{self._system_id}/relation/authorized-resources/"
+        body = {
+            "subject": {"type": "user", "id": subject_id},
+            "action_id": action_id,
+        }
+        resp = self._post(path, body)
+        return resp.get("data") or []
+
     # ============================================================
     # 模型管理 — System
     # ============================================================
