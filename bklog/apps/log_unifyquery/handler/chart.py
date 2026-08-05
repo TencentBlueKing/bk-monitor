@@ -80,7 +80,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             raise IndexSetDorisQueryException()
 
     @staticmethod
-    def get_result_table_option(result, option_name, default):
+    def get_from_result_table_option(result, option_name, default):
         for option in (result or {}).get("result_table_options", {}).values():
             if option.get(option_name) is not None:
                 return option[option_name]
@@ -91,12 +91,11 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
 
         start_time = time.time()
         result = UnifyQueryApi.query_ts_raw(self.base_dict)
+        result_schema = self.get_from_result_table_option(result, "result_schema", [])
         for record in result["list"]:
             # 删除内置字段
             for key in ["__data_label", "__index", "__result_table"]:
                 record.pop(key, None)
-
-        result_schema = self.get_result_table_option(result, "result_schema", [])
 
         return {
             "list": result["list"],
@@ -112,7 +111,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict["dry_run"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
-        final_sql = self.get_result_table_option(result, "sql", "")
+        final_sql = self.get_from_result_table_option(result, "sql", "")
 
         return {
             "sql": self.sql,
@@ -137,7 +136,9 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 break
             # 写入表头
             if not header_written:
-                result_schema = self.get_result_table_option(search_result, "result_schema", [])
+                result_schema = self.get_from_result_table_option(search_result, "result_schema", [])
+                if not result_schema:
+                    break
                 fields = [field["field_alias"] for field in result_schema]
                 csv_writer.writerow(fields)
                 header_written = True
