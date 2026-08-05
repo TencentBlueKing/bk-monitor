@@ -15,77 +15,91 @@ specific language governing permissions and limitations under the License.
 # 子资源 action 的 RoleActionBinding.resource_type 使用子资源自身类型。
 # ---------------------------------------------------------------------------
 
-from ..iam_engine.schema.definitions import RoleActionBinding, RoleDef
+from ..iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleActionBinding, RoleDef
+from .actions import Actions
+from .resource_types import ResourceTypes
+
+
+def _bind(action: ActionDef, resource_type: ResourceTypeDef | None = None) -> RoleActionBinding:
+    """把 ActionDef + ResourceTypeDef 归一为 RoleActionBinding。
+
+    Args:
+        action: 操作定义对象
+        resource_type: 授权维度；None 表示无关资源类型的授权
+    """
+    rt_id = resource_type.id if resource_type is not None else ""
+    return RoleActionBinding(action_id=action.id, resource_type=rt_id)
+
 
 # ---- View actions on space ----
 _view_space = [
-    "view_business",
-    "explore_metric",
-    "view_synthetic",
-    "view_host",
-    "view_event",
-    "view_plugin",
-    "view_collection",
-    "view_notify_team",
-    "view_rule",
-    "view_downtime",
-    "view_custom_metric",
-    "view_custom_event",
-    "view_dashboard",
-    "view_incident",
-    "export_config",
-    "using_dashboard_mcp",
-    "using_metrics_mcp",
-    "using_log_mcp",
-    "using_metadata_mcp",
-    "using_alarm_mcp",
-    "using_apm_mcp",
-    "using_operation_mcp",
+    Actions.VIEW_BUSINESS,
+    Actions.EXPLORE_METRIC,
+    Actions.VIEW_SYNTHETIC,
+    Actions.VIEW_HOST,
+    Actions.VIEW_EVENT,
+    Actions.VIEW_PLUGIN,
+    Actions.VIEW_COLLECTION,
+    Actions.VIEW_NOTIFY_TEAM,
+    Actions.VIEW_RULE,
+    Actions.VIEW_DOWNTIME,
+    Actions.VIEW_CUSTOM_METRIC,
+    Actions.VIEW_CUSTOM_EVENT,
+    Actions.VIEW_DASHBOARD,
+    Actions.VIEW_INCIDENT,
+    Actions.EXPORT_CONFIG,
+    Actions.USING_DASHBOARD_MCP,
+    Actions.USING_METRICS_MCP,
+    Actions.USING_LOG_MCP,
+    Actions.USING_METADATA_MCP,
+    Actions.USING_ALARM_MCP,
+    Actions.USING_APM_MCP,
+    Actions.USING_OPERATION_MCP,
 ]
 
 # ---- Manage actions on space ----
 _manage_space = [
-    "manage_synthetic",
-    "manage_host",
-    "manage_event",
-    "manage_plugin",
-    "manage_collection",
-    "manage_notify_team",
-    "manage_rule",
-    "manage_downtime",
-    "manage_custom_metric",
-    "manage_custom_event",
-    "manage_dashboard",
-    "manage_datasource",
-    "new_dashboard",
-    "import_config",
-    "manage_incident",
-    "manage_report",
-    "using_alarm_handling_mcp",
+    Actions.MANAGE_SYNTHETIC,
+    Actions.MANAGE_HOST,
+    Actions.MANAGE_EVENT,
+    Actions.MANAGE_PLUGIN,
+    Actions.MANAGE_COLLECTION,
+    Actions.MANAGE_NOTIFY_TEAM,
+    Actions.MANAGE_RULE,
+    Actions.MANAGE_DOWNTIME,
+    Actions.MANAGE_CUSTOM_METRIC,
+    Actions.MANAGE_CUSTOM_EVENT,
+    Actions.MANAGE_DASHBOARD,
+    Actions.MANAGE_DATASOURCE,
+    Actions.NEW_DASHBOARD,
+    Actions.IMPORT_CONFIG,
+    Actions.MANAGE_INCIDENT,
+    Actions.MANAGE_REPORT,
+    Actions.USING_ALARM_HANDLING_MCP,
 ]
 
 # ---- Sub-resource actions (by resource type) ----
 _view_sub = {
-    "apm_application": ["view_apm_application"],
-    "grafana_dashboard": ["view_single_dashboard"],
-    "rum_application": ["view_rum_application"],
+    ResourceTypes.APM_APPLICATION: [Actions.VIEW_APM_APPLICATION],
+    ResourceTypes.GRAFANA_DASHBOARD: [Actions.VIEW_SINGLE_DASHBOARD],
+    ResourceTypes.RUM_APPLICATION: [Actions.VIEW_RUM_APPLICATION],
 }
 _manage_sub = {
-    "apm_application": ["manage_apm_application"],
-    "grafana_dashboard": ["edit_single_dashboard"],
-    "rum_application": ["manage_rum_application"],
+    ResourceTypes.APM_APPLICATION: [Actions.MANAGE_APM_APPLICATION],
+    ResourceTypes.GRAFANA_DASHBOARD: [Actions.EDIT_SINGLE_DASHBOARD],
+    ResourceTypes.RUM_APPLICATION: [Actions.MANAGE_RUM_APPLICATION],
 }
 
 # ---- Resource-free actions ----
 _resource_free = [
-    "view_global_setting",
-    "manage_global_setting",
-    "view_self_state",
-    "manage_public_plugin",
-    "manage_public_action_config",
-    "manage_public_synthetic_location",
-    "use_public_synthetic_location",
-    "manage_calendar",
+    Actions.VIEW_GLOBAL_SETTING,
+    Actions.MANAGE_GLOBAL_SETTING,
+    Actions.VIEW_SELF_STATE,
+    Actions.MANAGE_PUBLIC_PLUGIN,
+    Actions.MANAGE_PUBLIC_ACTION_CONFIG,
+    Actions.MANAGE_PUBLIC_SYNTHETIC_LOCATION,
+    Actions.USE_PUBLIC_SYNTHETIC_LOCATION,
+    Actions.MANAGE_CALENDAR,
 ]
 
 
@@ -94,8 +108,8 @@ class Roles:
         id="space_viewer",
         name="业务查看",
         actions=tuple(
-            [RoleActionBinding(aid, "space") for aid in _view_space]
-            + [RoleActionBinding(aid, rt) for rt, aids in _view_sub.items() for aid in aids]
+            [_bind(a, ResourceTypes.SPACE) for a in _view_space]
+            + [_bind(a, rt) for rt, aids in _view_sub.items() for a in aids]
         ),
     )
 
@@ -103,10 +117,10 @@ class Roles:
         id="space_operator",
         name="业务运维",
         actions=tuple(
-            [RoleActionBinding(aid, "space") for aid in _view_space]
-            + [RoleActionBinding(aid, rt) for rt, aids in _view_sub.items() for aid in aids]
-            + [RoleActionBinding(aid, "space") for aid in _manage_space]
-            + [RoleActionBinding(aid, rt) for rt, aids in _manage_sub.items() for aid in aids]
+            [_bind(a, ResourceTypes.SPACE) for a in _view_space]
+            + [_bind(a, rt) for rt, aids in _view_sub.items() for a in aids]
+            + [_bind(a, ResourceTypes.SPACE) for a in _manage_space]
+            + [_bind(a, rt) for rt, aids in _manage_sub.items() for a in aids]
         ),
     )
 
@@ -114,10 +128,10 @@ class Roles:
         id="space_admin",
         name="业务管理",
         actions=tuple(
-            [RoleActionBinding(aid, "space") for aid in _view_space]
-            + [RoleActionBinding(aid, rt) for rt, aids in _view_sub.items() for aid in aids]
-            + [RoleActionBinding(aid, "space") for aid in _manage_space]
-            + [RoleActionBinding(aid, rt) for rt, aids in _manage_sub.items() for aid in aids]
-            + [RoleActionBinding(aid, "") for aid in _resource_free]
+            [_bind(a, ResourceTypes.SPACE) for a in _view_space]
+            + [_bind(a, rt) for rt, aids in _view_sub.items() for a in aids]
+            + [_bind(a, ResourceTypes.SPACE) for a in _manage_space]
+            + [_bind(a, rt) for rt, aids in _manage_sub.items() for a in aids]
+            + [_bind(a) for a in _resource_free]
         ),
     )
