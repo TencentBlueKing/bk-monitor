@@ -698,11 +698,6 @@ class IndexSetDorisQueryException(BaseException):
     MESSAGE = _("该索引集不支持doris查询")
 
 
-class DorisQueryDataNotReadyException(IndexSetDorisQueryException):
-    ERROR_CODE = "1007"
-    MESSAGE = _("存储集群接入中，数据暂未准备完成，请稍后重试")
-
-
 class SQLQueryException(BaseException):
     ERROR_CODE = "1005"
     MESSAGE = _("SQL查询异常: {name}")
