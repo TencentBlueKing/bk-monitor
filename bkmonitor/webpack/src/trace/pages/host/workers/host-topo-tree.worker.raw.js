@@ -394,6 +394,21 @@ self.onmessage = event => {
       invalidateRangeCache();
       postState(message.requestId, message.start, message.end, 'COLLAPSE_ALL_DONE');
       break;
+    case 'EXPAND_ALL':
+      expandedIds.clear();
+      searchCollapsedIds.clear();
+      searchExpandedIds.clear();
+      searchCollapseAll = false;
+      for (let index = 0; index < nodes.length; index += 1) {
+        const entry = nodes[index];
+        if (entry.children?.length) {
+          expandedIds.add(String(entry.data.id));
+        }
+      }
+      recomputeVisibility();
+      invalidateRangeCache();
+      postState(message.requestId, message.start, message.end, 'EXPAND_ALL_DONE');
+      break;
     default:
       break;
   }

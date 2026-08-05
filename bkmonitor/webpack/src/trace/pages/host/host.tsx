@@ -27,7 +27,7 @@
 import { computed, defineComponent, onMounted, provide, shallowRef } from 'vue';
 import { watch } from 'vue';
 
-import { Message, ResizeLayout } from 'bkui-vue';
+import { ResizeLayout } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -44,7 +44,7 @@ import { useHostTopoTree } from './composables/use-host-topo-tree';
 import { useHostUrlParams } from './composables/use-host-url-params';
 import { HOST_PAGE_HEADER_NAV_BAR_LIST } from './constants/constants';
 
-import type { IHostListRow, IHostTopoHostNode } from './types';
+import type { IHostListRow } from './types';
 
 import './host.scss';
 
@@ -106,14 +106,6 @@ export default defineComponent({
       getUrlParams();
     });
 
-    /** 主机对比：本期表格内容未开发，先以消息提示反馈交互（占位） */
-    const handleCompare = (payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => {
-      Message({
-        theme: 'primary',
-        message: `${t('主机对比')}：${payload.source.ip} vs ${payload.target.ip}`,
-      });
-    };
-
     /** 点击主机列表 IP 单元格时，设置 nodeId 并触发拓扑树定位聚焦到对应主机节点 */
     const handleSelectIpCell = (row: IHostListRow) => {
       nodeId.value = String(row.bk_host_id);
@@ -131,7 +123,6 @@ export default defineComponent({
       detailData,
       detailLoading,
       timeRangeDisabledTip,
-      handleCompare,
       handleSelectNode,
       handleSelectIpCell,
     };
@@ -182,7 +173,6 @@ export default defineComponent({
                   <HostTopoTree
                     context={this.topoTree}
                     onSelectNode={node => this.handleSelectNode(node)}
-                    // onCompare={this.handleCompare}
                   />
                 ),
                 main: () => (
