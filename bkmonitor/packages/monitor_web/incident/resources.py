@@ -1516,6 +1516,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
             )
             alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             alert_doc = AlertDocument(**alert)
+            if not alert_doc.event.bk_biz_id:
+                alert_doc.event.bk_biz_id = incident.bk_biz_id
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
             anomaly_ids = alert.get("extra_info", {}).get("origin_alarm", {}).get("trigger", {}).get("anomaly_ids", [])
