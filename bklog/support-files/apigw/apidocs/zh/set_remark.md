@@ -6,13 +6,28 @@
 
 ### 鉴权头
 
-| 参数名称 | 参数类型 | 必须 | 参数说明 |
-| --- | --- | --- | --- |
-| app_code | string | 是 | 蓝鲸应用 ID |
-| app_secret | string | 是 | 蓝鲸应用秘钥 |
-| bk_token | string | 是 | 蓝鲸用户登录态 Token，用于校验用户身份 |
+以下两种鉴权方式二选一，不得混用。鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为对应字段构成的 JSON 字符串。
 
-鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。也可以使用应用 + 用户 `access_token`，将 `bk_token` 替换为 `access_token`；不要通过 `bk_username` 直接传入用户名。
+| 鉴权方式 | 参数名称 | 参数类型 | 必须 | 参数说明 |
+| --- | --- | --- | --- | --- |
+| 应用凭据 + 用户登录态 | app_code | string | 是 | 蓝鲸应用 ID |
+| 应用凭据 + 用户登录态 | app_secret | string | 是 | 蓝鲸应用秘钥 |
+| 应用凭据 + 用户登录态 | bk_token | string | 是 | 蓝鲸用户登录态 Token，用于校验用户身份 |
+| Access Token | access_token | string | 是 | 同时包含应用和用户身份的 Access Token，必须单独使用 |
+
+应用凭据 + 用户登录态方式：
+
+```http
+X-Bkapi-Authorization: {"bk_app_code":"your app code","bk_app_secret":"your app secret","bk_token":"your user token"}
+```
+
+Access Token 方式：
+
+```http
+X-Bkapi-Authorization: {"access_token":"your access token"}
+```
+
+使用 `access_token` 时，不要同时传递 `bk_app_code`、`bk_app_secret`、`bk_token` 或 `bk_username`。
 
 ### 路径参数
 
