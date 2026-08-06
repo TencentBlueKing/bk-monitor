@@ -22,16 +22,16 @@ GET /rum/rum_api/rum_query/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - fields
 
-| 参数名称                 | 类型               | 描述       |
-|----------------------|------------------|----------|
-| name                 | String           | 名称       |
-| alias                | String           | 别名       |
-| type                 | String           | 类型       |
-| is_searched          | Boolean          | 是否支持搜索   |
-| is_dimensions        | Boolean          | 是否支持维度统计 |
-| can_displayed        | Boolean          | 是否支持展示   |
-| supported_operations | Array[Operation] | 支持的操作符   |
-| group_name           | String           | 分组名称     |
+| 参数名称                 | 类型               | 描述                       |
+|----------------------|------------------|--------------------------|
+| name                 | String           | 名称                       |
+| alias                | String           | 别名                       |
+| type                 | String           | 类型                       |
+| is_searched          | Boolean          | 是否支持搜索                   |
+| is_dimensions        | Boolean          | 是否支持维度统计                 |
+| can_displayed        | Boolean          | 是否支持展示                   |
+| supported_operations | Array[Operation] | 支持的操作符                   |
+| group_name           | String           | 分组名称，和 groups.name 是关联关系 |
 
 - Operation
 
@@ -131,60 +131,60 @@ POST /rum/rum_api/rum_query/list_flatten_spans/
 
 ### 2.2 Response
 
-| 参数名称                                       | 类型           | 描述                                                                                                                                                                                   |
-|--------------------------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| app_name                                   | String       | 应用名称                                                                                                                                                                                 |
-| bk_biz_id                                  | String       | 业务 ID                                                                                                                                                                                |
-| elapsed_time                               | Integer      | 耗时（微秒）                                                                                                                                                                               |
-| end_time                                   | Integer      | Span 结束时间戳（微秒）                                                                                                                                                                       |
-| events                                     | Array[Event] | 事件列表                                                                                                                                                                                 |
-| kind                                       | Integer      | 枚举值：<br/>- 未定义：0<br/>- 内部调用：1<br/>- 同步被调：2<br/>- 同步主调：3<br/>- 异步主调：4<br/>- 异步被调：5                                                                                                    |
-| links                                      | Array[Link]  | 关联链接                                                                                                                                                                                 |
-| parent_span_id                             | String       | 父 Span ID                                                                                                                                                                            |
-| span_id                                    | String       | Span ID                                                                                                                                                                              |
-| span_name                                  | String       | Span 名称                                                                                                                                                                              |
-| start_time                                 | Integer      | Span 开始时间戳（微秒）                                                                                                                                                                       |
-| time                                       | String       | 采集时间戳                                                                                                                                                                                |
-| trace_id                                   | String       | Trace ID                                                                                                                                                                             |
-| trace_state                                | String       | Trace 状态标识                                                                                                                                                                           |
-| attributes.action.id                       | String       | 操作 ID                                                                                                                                                                                |
-| attributes.browser.screen.height           | Integer      | 浏览器屏幕高度                                                                                                                                                                              |
-| attributes.browser.screen.width            | Integer      | 浏览器屏幕宽度                                                                                                                                                                              |
-| attributes.browser.viewport.height         | Integer      | 浏览器视口高度                                                                                                                                                                              |
-| attributes.browser.viewport.width          | Integer      | 浏览器视口宽度                                                                                                                                                                              |
-| attributes.device.id                       | String       | 设备 ID                                                                                                                                                                                |
-| attributes.network.effective_type          | String       | 网络有效类型                                                                                                                                                                               |
-| attributes.network.status                  | String       | 网络状态                                                                                                                                                                                 |
-| attributes.outcome.type                    | String       | 结果类型                                                                                                                                                                                 |
-| attributes.resource.render_blocking_status | String       | 资源渲染阻塞状态                                                                                                                                                                             |
-| attributes.resource.type                   | String       | 资源类型                                                                                                                                                                                 |
-| attributes.server.address                  | String       | 服务端地址                                                                                                                                                                                |
-| attributes.session.has_replay              | Boolean      | 是否有会话回放                                                                                                                                                                              |
-| attributes.session.id                      | String       | 会话 ID                                                                                                                                                                                |
-| attributes.session.type                    | String       | 会话类型                                                                                                                                                                                 |
-| attributes.span_type                       | String       | Span 子类型，枚举值：<br/>- 文档加载：document<br/>- 路由切换：route<br/>- 静态资源：resource<br/>- HTTP / API：http<br/>- 长任务：longtask<br/>- 用户交互：action<br/>- Web 指标：vital<br/>- 错误：error<br/>- 自定义：custom |
-| attributes.url.full                        | String       | 完整 URL                                                                                                                                                                               |
-| attributes.view.id                         | String       | 页面视图 ID                                                                                                                                                                              |
-| attributes.view.loading_type               | String       | 页面加载类型                                                                                                                                                                               |
-| attributes.view.url                        | String       | 页面 URL                                                                                                                                                                               |
-| attributes.view.url_template               | String       | 页面 URL 模板                                                                                                                                                                            |
-| resource.deployment.environment.name       | String       | 部署环境名称                                                                                                                                                                               |
-| resource.device.type                       | String       | 设备类型                                                                                                                                                                                 |
-| resource.service.name                      | String       | 服务名称                                                                                                                                                                                 |
-| resource.service.version                   | String       | 服务版本                                                                                                                                                                                 |
-| resource.session.sample_rate               | Integer      | 会话采样率                                                                                                                                                                                |
-| resource.telemetry.sdk.language            | String       | SDK 语言                                                                                                                                                                               |
-| resource.telemetry.sdk.name                | String       | SDK 名称                                                                                                                                                                               |
-| resource.telemetry.sdk.version             | String       | SDK 版本                                                                                                                                                                               |
-| resource.user_agent.name                   | String       | 用户代理名称（浏览器）                                                                                                                                                                          |
-| resource.user_agent.os.name                | String       | 用户代理操作系统                                                                                                                                                                             |
-| resource.user_agent.version                | String       | 用户代理版本                                                                                                                                                                               |
-| status.code                                | Integer      | 状态码（0=OK, 1=Error, 2=Unset）                                                                                                                                                          |
-| status.message                             | String       | 状态消息                                                                                                                                                                                 |
+| 参数名称                                       | 类型           | 描述                                                                                                                                                                                  |
+|--------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| app_name                                   | String       | 应用名称                                                                                                                                                                                |
+| bk_biz_id                                  | String       | 业务 ID                                                                                                                                                                               |
+| elapsed_time                               | Integer      | 耗时（微秒）                                                                                                                                                                              |
+| end_time                                   | Integer      | Span 结束时间戳（微秒）                                                                                                                                                                      |
+| events                                     | Array[Event] | 事件列表                                                                                                                                                                                |
+| kind                                       | Integer      | 枚举值：<br/>- 未定义：0<br/>- 内部调用：1<br/>- 同步被调：2<br/>- 同步主调：3<br/>- 异步主调：4<br/>- 异步被调：5                                                                                                   |
+| links                                      | Array[Link]  | 关联链接                                                                                                                                                                                |
+| parent_span_id                             | String       | 父 Span ID                                                                                                                                                                           |
+| span_id                                    | String       | Span ID                                                                                                                                                                             |
+| span_name                                  | String       | Span 名称                                                                                                                                                                             |
+| start_time                                 | Integer      | Span 开始时间戳（微秒）                                                                                                                                                                      |
+| time                                       | String       | 采集时间戳                                                                                                                                                                               |
+| trace_id                                   | String       | Trace ID                                                                                                                                                                            |
+| trace_state                                | String       | Trace 状态标识                                                                                                                                                                          |
+| attributes.action.id                       | String       | 操作 ID                                                                                                                                                                               |
+| attributes.browser.screen.height           | Integer      | 浏览器屏幕高度                                                                                                                                                                             |
+| attributes.browser.screen.width            | Integer      | 浏览器屏幕宽度                                                                                                                                                                             |
+| attributes.browser.viewport.height         | Integer      | 浏览器视口高度                                                                                                                                                                             |
+| attributes.browser.viewport.width          | Integer      | 浏览器视口宽度                                                                                                                                                                             |
+| attributes.device.id                       | String       | 设备 ID                                                                                                                                                                               |
+| attributes.network.effective_type          | String       | 网络有效类型                                                                                                                                                                              |
+| attributes.network.status                  | String       | 网络状态                                                                                                                                                                                |
+| attributes.outcome.type                    | String       | 结果类型                                                                                                                                                                                |
+| attributes.resource.render_blocking_status | String       | 资源渲染阻塞状态                                                                                                                                                                            |
+| attributes.resource.type                   | String       | 资源类型                                                                                                                                                                                |
+| attributes.server.address                  | String       | 服务端地址                                                                                                                                                                               |
+| attributes.session.has_replay              | Boolean      | 是否有会话回放                                                                                                                                                                             |
+| attributes.session.id                      | String       | 会话 ID                                                                                                                                                                               |
+| attributes.session.type                    | String       | 会话类型                                                                                                                                                                                |
+| attributes.span_type                       | String       | Span 类型，枚举值：<br/>- 文档加载：document<br/>- 路由切换：route<br/>- 静态资源：resource<br/>- HTTP / API：http<br/>- 长任务：longtask<br/>- 用户交互：action<br/>- Web 指标：vital<br/>- 错误：error<br/>- 自定义：custom |
+| attributes.url.full                        | String       | 完整 URL                                                                                                                                                                              |
+| attributes.view.id                         | String       | 页面视图 ID                                                                                                                                                                             |
+| attributes.view.loading_type               | String       | 页面加载类型                                                                                                                                                                              |
+| attributes.view.url                        | String       | 页面 URL                                                                                                                                                                              |
+| attributes.view.url_template               | String       | 页面 URL 模板                                                                                                                                                                           |
+| resource.deployment.environment.name       | String       | 部署环境名称                                                                                                                                                                              |
+| resource.device.type                       | String       | 设备类型                                                                                                                                                                                |
+| resource.service.name                      | String       | 服务名称                                                                                                                                                                                |
+| resource.service.version                   | String       | 服务版本                                                                                                                                                                                |
+| resource.session.sample_rate               | Integer      | 会话采样率                                                                                                                                                                               |
+| resource.telemetry.sdk.language            | String       | SDK 语言                                                                                                                                                                              |
+| resource.telemetry.sdk.name                | String       | SDK 名称                                                                                                                                                                              |
+| resource.telemetry.sdk.version             | String       | SDK 版本                                                                                                                                                                              |
+| resource.user_agent.name                   | String       | 用户代理名称（浏览器）                                                                                                                                                                         |
+| resource.user_agent.os.name                | String       | 用户代理操作系统                                                                                                                                                                            |
+| resource.user_agent.version                | String       | 用户代理版本                                                                                                                                                                              |
+| status.code                                | Integer      | 状态码（0=OK, 1=Error, 2=Unset）                                                                                                                                                         |
+| status.message                             | String       | 状态消息                                                                                                                                                                                |
 
 ```json
 {
-  "total": 0,
+  "total": 1,
   "data": [
     {
       "app_name": "transfer",
@@ -279,6 +279,7 @@ POST /rum/rum_api/rum_query/span_detail/
 ### 3.2 Response
 
 - rum_tree.spans.processID 用来和 processes 做关联
+
 ```json
 {
   "rum_tree": {
@@ -378,6 +379,10 @@ POST /rum/rum_api/rum_query/span_detail/
 
 POST /rum/rum_api/rum_query/fields_topk/
 
+| 参数名称 | 类型     | 描述                                       |
+|------|--------|------------------------------------------|
+| mode | string | 枚举值：<br/>- span<br/>- view<br/>- session |
+
 ### 4.1 Request
 
 ```json
@@ -469,11 +474,12 @@ POST /rum/rum_api/rum_query/field_statistics_info/
 
 ## 6 field_statistics_graph - 字段统计图表
 
-POST /rum/rum_api/rum_query/span_detail/
+POST /rum/rum_api/rum_query/field_statistics_graph/
 
 ### 6.1 Request
 
-- field.values 传 topk 接口的返回结果值
+- field.values 传 topk 接口的 list[*].value 的值
+
 ```json
 {
   "app_name": "rum-demo",
