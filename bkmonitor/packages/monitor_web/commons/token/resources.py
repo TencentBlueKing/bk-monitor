@@ -19,6 +19,7 @@ from bkmonitor.models.token import AuthType
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
+from monitor_web.commons.token.service import get_or_create_business_token
 
 
 class GetApiTokenResource(Resource):
@@ -79,19 +80,10 @@ class GetApiTokenResource(Resource):
         if not bk_biz_id:
             raise serializers.ValidationError("业务ID不能为空")
 
-        token = ApiAuthToken.objects.filter(
-            namespaces__contains=f"biz#{validated_request_data['bk_biz_id']}",
-            type=validated_request_data["type"],
+        token, _ = get_or_create_business_token(
             bk_tenant_id=bk_tenant_id,
-        ).last()
-
-        if not token:
-            token = ApiAuthToken.objects.create(
-                create_user=username,
-                name=f"{validated_request_data['bk_biz_id']}_{validated_request_data['type']}",
-                type=validated_request_data["type"],
-                namespaces=[f"biz#{validated_request_data['bk_biz_id']}"],
-                bk_tenant_id=bk_tenant_id,
-            )
-
+            bk_biz_id=bk_biz_id,
+            token_type=token_type,
+            operator=username,
+        )
         return token.token

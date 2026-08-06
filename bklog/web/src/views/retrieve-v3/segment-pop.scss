@@ -77,6 +77,19 @@
             margin-right: 4px;
           }
 
+          .bklog-trace-view {
+            display: inline-block;
+            width: 16px;
+            font-size: 16px;
+            line-height: 16px;
+            text-align: center;
+            vertical-align: middle;
+          }
+
+          .segment-btn-left {
+            align-items: center;
+          }
+
           .bklog-copy {
             margin-left: -4px;
             font-size: 24px;

@@ -39,7 +39,6 @@ from apps.log_search.constants import (
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
-    ExportType,
     IndexSetType,
 )
 from apps.log_search.exceptions import (
@@ -89,6 +88,9 @@ class UnifyQueryAsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user)
+
         # 判断是否存在 正在下载的相同检索参数的导出任务
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
             if AsyncTask.objects.filter(
@@ -113,7 +115,8 @@ class UnifyQueryAsyncExportHandlers:
             logger.error("can not create async_export task, reason: no data")
             raise PreCheckAsyncExportException()
 
-        async_task = AsyncTask.objects.create(
+        async_task = AsyncTask.async_export_task_create_with_running_limit(
+            username=self.request_user,
             **{
                 "request_param": self.search_dict,
                 "sorted_param": self.unify_query_handler.origin_order_by,
@@ -122,14 +125,12 @@ class UnifyQueryAsyncExportHandlers:
                 "bk_biz_id": self.bk_biz_id,
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
-                "export_type": ExportType.ASYNC,
                 "export_total_count": self.get_export_total_count(
                     request_size=self.search_dict.get("size"),
                     is_quick_export=is_quick_export,
                     max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
                 ),
-                "created_by": self.request_user,
-            }
+            },
         )
 
         url = self._get_url()
@@ -386,6 +387,9 @@ class UnifyQueryUnionAsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user)
+
         # 判断是否存在 正在下载的相同检索参数的导出任务
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
             if AsyncTask.objects.filter(
@@ -416,7 +420,8 @@ class UnifyQueryUnionAsyncExportHandlers:
             logger.error("can not create async_export task, reason: no data")
             raise PreCheckAsyncExportException()
 
-        async_task = AsyncTask.objects.create(
+        async_task = AsyncTask.async_export_task_create_with_running_limit(
+            username=self.request_user,
             **{
                 "request_param": self.search_dict,
                 "sorted_param": self.unify_query_handler.origin_order_by,
@@ -425,13 +430,11 @@ class UnifyQueryUnionAsyncExportHandlers:
                 "bk_biz_id": self.bk_biz_id,
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
-                "export_type": ExportType.ASYNC,
                 "export_total_count": self.get_union_export_total_count(
                     request_size=self.search_dict.get("size"),
                     is_quick_export=is_quick_export,
                 ),
-                "created_by": self.request_user,
-            }
+            },
         )
 
         url = self._get_url()

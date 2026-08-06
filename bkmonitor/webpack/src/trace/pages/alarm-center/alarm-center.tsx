@@ -356,7 +356,7 @@ export default defineComponent({
         return;
       }
 
-      // 请求拦截器已统一弹出错误提示；异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
+      // 异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
       const res = await updateIssueName({
         bk_biz_id: targetRow.bk_biz_id,
         issue_id: id,
@@ -875,6 +875,21 @@ export default defineComponent({
     };
 
     /**
+     * 缓存 URL 一次性入口参数（autoShowAlertAction / 旧版 batchAction）。
+     * urlParams watch 与 onBeforeMount 末尾的 setUrlParams 不会携带该字段，会冲掉 route.query，
+     * 列表数据返回后再读 route 会失效，故在 setup 阶段先行缓存。
+     */
+    const pendingAutoShowAlertAction = shallowRef<AlertAllActionEnum | undefined>(
+      (route?.query?.autoShowAlertAction as AlertAllActionEnum) || legacyBatchAction.value
+    );
+    const pendingAutoShowIsLegacy = shallowRef(!!route?.query?.batchAction);
+
+    const clearPendingAutoShowAlertAction = () => {
+      pendingAutoShowAlertAction.value = undefined;
+      pendingAutoShowIsLegacy.value = false;
+    };
+
+    /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
      * 同时兼容旧版 fta-solutions/pages/event 的 ?batchAction=alarmConfirm|quickShield 入口
@@ -882,8 +897,8 @@ export default defineComponent({
      * @returns {boolean} 是否自动打开了告警确认 | 告警屏蔽 dialog
      */
     const autoShowAlertDialog = () => {
-      const isLegacy = !!route?.query?.batchAction;
-      const alertAction = (route?.query?.autoShowAlertAction as AlertAllActionEnum) || legacyBatchAction.value;
+      const isLegacy = pendingAutoShowIsLegacy.value;
+      const alertAction = pendingAutoShowAlertAction.value;
       const isCanAutoShowAlertDialog = CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS.includes(alertAction);
       if (isLegacy && !/(^action_id).+/g.test(alarmStore.queryString || '')) {
         return false;
@@ -902,6 +917,7 @@ export default defineComponent({
         selectedRowData: data.value,
       });
       handleAlertDialogShow(alertAction, selectedRowKeys.value);
+      clearPendingAutoShowAlertAction();
       return true;
     };
 
@@ -1172,6 +1188,7 @@ export default defineComponent({
       impactScopeResource,
       handleImpactScopeClick,
       setUrlParams,
+      clearPendingAutoShowAlertAction,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
       handleAlertDialogHide,
@@ -1580,6 +1597,7 @@ export default defineComponent({
             onConfirm={this.handleAlertDialogConfirm}
             onUpdate:show={() => {
               this.handleAlertDialogHide();
+              this.clearPendingAutoShowAlertAction();
               this.setUrlParams({ autoShowAlertAction: '' });
             }}
           />

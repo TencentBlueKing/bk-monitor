@@ -23,6 +23,8 @@ check_unique_operation_ids = merge_resources.check_unique_operation_ids
 merge_resources_func = merge_resources.merge_resources
 
 _RESOURCES_DIR = _SCRIPT.parent.parent / "resources"
+_DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
+_METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
 
@@ -114,6 +116,18 @@ def test_alert_handling_mcp_contract():
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["alert_handling_mcp"]
+
+
+def test_result_table_storage_status_apigw_contract():
+    """结果表存储状态接口必须保持内部应用态注册，并提供对应中文文档。"""
+    method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_result_table_storage_status/"]["get"]
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+
+    assert method_data["operationId"] == "metadata_get_result_table_storage_status"
+    assert gateway_resource["isPublic"] is False
+    assert gateway_resource["backend"]["method"] == "get"
+    assert gateway_resource["backend"]["path"] == "/api/v3/meta/get_result_table_storage_status/"
+    assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 
 def test_repository_resources_have_unique_operation_ids():

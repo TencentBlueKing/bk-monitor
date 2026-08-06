@@ -94,3 +94,4 @@ src/local.**
 local.cookie
 .cookie
 .aafe.config.json
+test
