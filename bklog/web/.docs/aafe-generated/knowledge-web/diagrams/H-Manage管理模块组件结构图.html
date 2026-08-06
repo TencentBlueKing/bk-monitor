@@ -1,0 +1,74 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · H-Manage管理模块组件结构图 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · H-Manage管理模块组件结构图</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · H-Manage管理模块组件结构图</div><h2>H-Manage管理模块组件结构图</h2><p><code>.docs/diagrams/H-Manage管理模块组件结构图.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeyAncHJpbWFyeUNvbG9yJzogJyNlMGYyZjEnLCAncHJpbWFyeVRleHRDb2xvcic6ICcjMDA2OTVjJywgJ3ByaW1hcnlCb3JkZXJDb2xvcic6ICcjMDA5Njg4JywgJ2xpbmVDb2xvcic6ICcjNGRiNmFjJ319fSUlXG5ncmFwaCBUQlxuICAgIHN1YmdyYXBoIFwi566h55CG5qih5Z2X5aOzXCJcbiAgICAgICAgTUFOQUdFX0lOREVYW1wiQC92aWV3cy9tYW5hZ2UvaW5kZXgudnVlPGJyLz7lt6bkvqflr7zoiKogKyDlrZDlr7zoiKogKyDlj7PkvqflhoXlrrlcIl1cbiAgICBlbmRcblxuICAgIHN1YmdyYXBoIFwi5pel5b-X5o6l5YWlL-mHh-mbhlwiXG4gICAgICAgIEMxW1wiY29sbGVjdGlvbi1pdGVtL2xpc3Q8YnIvPumHh-mbhumhueWIl-ihqFwiXVxuICAgICAgICBDMltcImNvbGxlY3Rpb24taXRlbS9tYW5hZ2UvOmlkPGJyLz7ph4fpm4bpobnor6bmg4VcIl1cbiAgICAgICAgQzNbXCJjb2xsZWN0aW9uLWl0ZW0ve2FkZHxlZGl0fGZpZWxkfHN0b3JhZ2V8bWFza2luZ30vOmlkPGJyLz7mjqXlhaXmraXpqqRcIl1cbiAgICAgICAgQzRbXCJsb2ctaW5kZXgtc2V0L2xpc3Q8YnIvPue0ouW8lembhuWIl-ihqFwiXVxuICAgICAgICBDNVtcImxvZy1pbmRleC1zZXQve21hbmFnZXxlZGl0fG1hc2tpbmd9LzppZDxici8-57Si5byV6ZuG6K-m5oOFXCJdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcIuWuouaIt-err-aXpeW_l1wiXG4gICAgICAgIFQxW1widGdwYS10YXNrL2xpc3Q8YnIvPuWuouaIt-err-aXpeW_l-WIl-ihqFwiXVxuICAgICAgICBUMltcInRncGEtdGFzay9jbGVhbi1jb25maWc8YnIvPua4hea0l-mFjee9rlwiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCLlhbbku5bmlbDmja7mupBcIlxuICAgICAgICBPMVtcImJrLWRhdGEtY29sbGVjdGlvbjxici8-6K6h566X5bmz5Y-wXCJdXG4gICAgICAgIE8yW1wiZXMtY29sbGVjdGlvbjxici8-56ys5LiJ5pa5IEVTXCJdXG4gICAgICAgIE8zW1wiY3VzdG9tLXJlcG9ydDxici8-6Ieq5a6a5LmJ5LiK5oqlXCJdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcIuaXpeW_l-a4hea0l1wiXG4gICAgICAgIENMMVtcImNsZWFuLWxpc3QvbGlzdDxici8-5riF5rSX5YiX6KGoXCJdXG4gICAgICAgIENMMltcImNsZWFuLXRlbXBsYXRlcy9saXN0PGJyLz7muIXmtJfmqKHmnb9cIl1cbiAgICAgICAgQ0wzW1wibG9nLWRlc2Vuc2l0aXplL2xpc3Q8YnIvPuiEseaVj-WIl-ihqFwiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCLml6Xlv5flvZLmoaNcIlxuICAgICAgICBBMVtcImFyY2hpdmUtcmVwb3NpdG9yeTxici8-5b2S5qGj5LuT5bqTXCJdXG4gICAgICAgIEEyW1wiYXJjaGl2ZS1saXN0PGJyLz7lvZLmoaPliJfooahcIl1cbiAgICAgICAgQTNbXCJhcmNoaXZlLXJlc3RvcmU8YnIvPuW9kuaho-i_mOWOn1wiXVxuICAgIGVuZFxuXG4gICAgc3ViZ3JhcGggXCLml6Xlv5fmj5Dlj5ZcIlxuICAgICAgICBFMVtcIm1hbmFnZS1sb2ctZXh0cmFjdDxici8-5o-Q5Y-W6YWN572uXCJdXG4gICAgICAgIEUyW1wibG9nLWV4dHJhY3QtdGFzazxici8-5o-Q5Y-W5Lu75YqhXCJdXG4gICAgICAgIEUzW1wiZXh0cmFjdC1saW5rLW1hbmFnZTxici8-6ZO-6Lev566h55CGXCJdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcIuezu-e7n-iuvue9rlwiXG4gICAgICAgIFMxW1wiZXMtY2x1c3Rlci1tYW5hZ2U8YnIvPkVT6ZuG576k566h55CGXCJdXG4gICAgICAgIFMyW1wicmVwb3J0LW1hbmFnZTxici8-6K6i6ZiF566h55CGXCJdXG4gICAgICAgIFMzW1wiY29sbGVjdGlvbi10cmFjazxici8-5YWo6ZO-6Lev6L-96LiqXCJdXG4gICAgICAgIFM0W1wibWFuYWdlLWRhdGEtbGluay1jb25mPGJyLz7mlbDmja7pk77ot6_phY3nva5cIl1cbiAgICBlbmRcblxuICAgIE1BTkFHRV9JTkRFWCAtLT4gQzFcbiAgICBNQU5BR0VfSU5ERVggLS0-IEMyXG4gICAgTUFOQUdFX0lOREVYIC0tPiBDM1xuICAgIE1BTkFHRV9JTkRFWCAtLT4gQzRcbiAgICBNQU5BR0VfSU5ERVggLS0-IEM1XG4gICAgTUFOQUdFX0lOREVYIC0tPiBUMVxuICAgIE1BTkFHRV9JTkRFWCAtLT4gVDJcbiAgICBNQU5BR0VfSU5ERVggLS0-IE8xXG4gICAgTUFOQUdFX0lOREVYIC0tPiBPMlxuICAgIE1BTkFHRV9JTkRFWCAtLT4gTzNcbiAgICBNQU5BR0VfSU5ERVggLS0-IENMMVxuICAgIE1BTkFHRV9JTkRFWCAtLT4gQ0wyXG4gICAgTUFOQUdFX0lOREVYIC0tPiBDTDNcbiAgICBNQU5BR0VfSU5ERVggLS0-IEExXG4gICAgTUFOQUdFX0lOREVYIC0tPiBBMlxuICAgIE1BTkFHRV9JTkRFWCAtLT4gQTNcbiAgICBNQU5BR0VfSU5ERVggLS0-IEUxXG4gICAgTUFOQUdFX0lOREVYIC0tPiBFMlxuICAgIE1BTkFHRV9JTkRFWCAtLT4gRTNcbiAgICBNQU5BR0VfSU5ERVggLS0-IFMxXG4gICAgTUFOQUdFX0lOREVYIC0tPiBTMlxuICAgIE1BTkFHRV9JTkRFWCAtLT4gUzNcbiAgICBNQU5BR0VfSU5ERVggLS0-IFM0XG4ifQ">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: { &#39;primaryColor&#39;: &#39;#e0f2f1&#39;, &#39;primaryTextColor&#39;: &#39;#00695c&#39;, &#39;primaryBorderColor&#39;: &#39;#009688&#39;, &#39;lineColor&#39;: &#39;#4db6ac&#39;}}}%%
+graph TB
+    subgraph &quot;管理模块壳&quot;
+        MANAGE_INDEX[&quot;@/views/manage/index.vue&lt;br/&gt;左侧导航 + 子导航 + 右侧内容&quot;]
+    end
+
+    subgraph &quot;日志接入/采集&quot;
+        C1[&quot;collection-item/list&lt;br/&gt;采集项列表&quot;]
+        C2[&quot;collection-item/manage/:id&lt;br/&gt;采集项详情&quot;]
+        C3[&quot;collection-item/{add|edit|field|storage|masking}/:id&lt;br/&gt;接入步骤&quot;]
+        C4[&quot;log-index-set/list&lt;br/&gt;索引集列表&quot;]
+        C5[&quot;log-index-set/{manage|edit|masking}/:id&lt;br/&gt;索引集详情&quot;]
+    end
+
+    subgraph &quot;客户端日志&quot;
+        T1[&quot;tgpa-task/list&lt;br/&gt;客户端日志列表&quot;]
+        T2[&quot;tgpa-task/clean-config&lt;br/&gt;清洗配置&quot;]
+    end
+
+    subgraph &quot;其他数据源&quot;
+        O1[&quot;bk-data-collection&lt;br/&gt;计算平台&quot;]
+        O2[&quot;es-collection&lt;br/&gt;第三方 ES&quot;]
+        O3[&quot;custom-report&lt;br/&gt;自定义上报&quot;]
+    end
+
+    subgraph &quot;日志清洗&quot;
+        CL1[&quot;clean-list/list&lt;br/&gt;清洗列表&quot;]
+        CL2[&quot;clean-templates/list&lt;br/&gt;清洗模板&quot;]
+        CL3[&quot;log-desensitize/list&lt;br/&gt;脱敏列表&quot;]
+    end
+
+    subgraph &quot;日志归档&quot;
+        A1[&quot;archive-repository&lt;br/&gt;归档仓库&quot;]
+        A2[&quot;archive-list&lt;br/&gt;归档列表&quot;]
+        A3[&quot;archive-restore&lt;br/&gt;归档还原&quot;]
+    end
+
+    subgraph &quot;日志提取&quot;
+        E1[&quot;manage-log-extract&lt;br/&gt;提取配置&quot;]
+        E2[&quot;log-extract-task&lt;br/&gt;提取任务&quot;]
+        E3[&quot;extract-link-manage&lt;br/&gt;链路管理&quot;]
+    end
+
+    subgraph &quot;系统设置&quot;
+        S1[&quot;es-cluster-manage&lt;br/&gt;ES集群管理&quot;]
+        S2[&quot;report-manage&lt;br/&gt;订阅管理&quot;]
+        S3[&quot;collection-track&lt;br/&gt;全链路追踪&quot;]
+        S4[&quot;manage-data-link-conf&lt;br/&gt;数据链路配置&quot;]
+    end
+
+    MANAGE_INDEX --&gt; C1
+    MANAGE_INDEX --&gt; C2
+    MANAGE_INDEX --&gt; C3
+    MANAGE_INDEX --&gt; C4
+    MANAGE_INDEX --&gt; C5
+    MANAGE_INDEX --&gt; T1
+    MANAGE_INDEX --&gt; T2
+    MANAGE_INDEX --&gt; O1
+    MANAGE_INDEX --&gt; O2
+    MANAGE_INDEX --&gt; O3
+    MANAGE_INDEX --&gt; CL1
+    MANAGE_INDEX --&gt; CL2
+    MANAGE_INDEX --&gt; CL3
+    MANAGE_INDEX --&gt; A1
+    MANAGE_INDEX --&gt; A2
+    MANAGE_INDEX --&gt; A3
+    MANAGE_INDEX --&gt; E1
+    MANAGE_INDEX --&gt; E2
+    MANAGE_INDEX --&gt; E3
+    MANAGE_INDEX --&gt; S1
+    MANAGE_INDEX --&gt; S2
+    MANAGE_INDEX --&gt; S3
+    MANAGE_INDEX --&gt; S4
+</pre></main></div></body></html>

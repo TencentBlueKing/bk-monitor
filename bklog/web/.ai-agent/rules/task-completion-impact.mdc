@@ -1,0 +1,43 @@
+---
+description: 任务完成后必须询问影响分析与自测；UI 须先预生成测试路径再执行；自测后进入 Commit/PR/TAPD 回填询问。
+alwaysApply: true
+---
+
+# Task Completion Impact & Self-Test
+
+## 强制询问（Always）
+
+任务执行完毕、给出最终回复前，必须先问：
+
+> 是否需要分析当前任务的影响范围并提供测试参考？
+
+- 用户答「不需要 / 否 / No / 跳过」：简要说明可后续补做，不再追问影响分析；若随后进入提交意图，仍走 `tapd-submit-backfill.mdc`（可标 `self_test=skipped`）。
+- 用户答「是 / Yes / 需要 / Y」：进入 Skills 流程。
+
+## 确认后加载顺序
+
+1. `bklog/web/.ai-agent/skills/architecture-impact-test-forecast.md`
+2. `bklog/web/.ai-agent/skills/minimal-convergent-self-test.md`
+3. 自测结束后：`bklog/web/.ai-agent/skills/tapd-submit-backfill.md`（Commit → PR → 回填询问）
+4. 按需读取 architecture 相关 docs / memory
+
+## 硬约束
+
+- 自测必须按**本次 diff 影响范围最小收敛**，禁止无关全量回归。
+- 逻辑/数据处理变更：优先 Mock Props / 函数 I/O 单元测试，落盘到 `bklog/web/test/`（无则创建）。
+- **涉及 UI 渲染验证时**：先询问是否启用浏览器 MCP（Chrome DevTools / cursor-ide-browser）；**禁止自动开浏览器试错**。
+- 用户同意 UI 测试后，**必须再询问指定测试 URL**；未提供 URL 则标记 `not_run`，不得猜测环境地址。
+- **UI 执行前必须产出完整 `ui_test_paths`**（click / switch / fill / hover / assert 等），基于变更范围一次代码分析生成；执行阶段只跟路径走，禁止边测边大范围读代码。
+- 禁止在未实际执行的情况下声称测试 pass。
+
+## 自测完成后的强制衔接
+
+自测（或用户明确跳过）结束后，按 `tapd-submit-backfill.mdc`：
+
+1. 询问是否 Commit（bug/feat + TAPD ID 格式见该 Rule）
+2. 若 Commit → 尝试 PR
+3. **无论是否 Commit** → 询问是否回填 TAPD
+
+## 与 TAPD 回填的关系
+
+提交/提测/回填触发时，本流程产出（影响范围 + 自测结果 + UI 路径摘要）作为评论素材；回填规则见 `tapd-submit-backfill.mdc`。

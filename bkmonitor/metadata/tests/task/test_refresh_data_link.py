@@ -5,16 +5,59 @@ from unittest.mock import call
 import pytest
 
 from metadata import models
-from metadata.models.data_link.constants import DataLinkResourceStatus
+from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.task.refresh_data_link import refresh_data_link_status
 from metadata.task.tasks import (
+    _check_storage_binding_reference,
     _refresh_bkbase_result_table_statuses,
     _refresh_data_link_component_statuses,
+    batch_check_storage_binding_references,
 )
 
 
 def _remote_component(name: str, status: str) -> dict:
     return {"metadata": {"name": name}, "status": {"phase": status}}
+
+
+def _remote_storage_binding(
+    *,
+    binding_kind: str,
+    storage_kind: str,
+    name: str = "binding_name",
+    namespace: str = "bklog",
+    tenant: str | None = "default",
+    storage_name: str = "storage_name",
+    include_related_res_asset: bool = True,
+    related_res_asset: str | None = None,
+    include_index1: bool = True,
+    index1: str | None = None,
+    status: str = DataLinkResourceStatus.OK.value,
+) -> dict:
+    reference_parts = [storage_kind]
+    if tenant and tenant != "default":
+        reference_parts.append(tenant)
+    reference_parts.extend([namespace, storage_name])
+    expected_reference = "/".join(reference_parts)
+
+    labels = {"bk_biz_id": "2"}
+    if include_related_res_asset:
+        labels["related_res_asset"] = expected_reference if related_res_asset is None else related_res_asset
+    annotations = {}
+    if include_index1:
+        annotations["index1"] = expected_reference if index1 is None else index1
+
+    metadata = {"name": name, "namespace": namespace, "labels": labels, "annotations": annotations}
+    storage = {"kind": storage_kind, "namespace": namespace, "name": storage_name}
+    if tenant is not None:
+        metadata["tenant"] = tenant
+        storage["tenant"] = tenant
+
+    return {
+        "kind": binding_kind,
+        "metadata": metadata,
+        "spec": {"storage": storage},
+        "status": {"phase": status},
+    }
 
 
 def _create_bkbase_result_table(data_link_name: str, *, tenant: str = "system", status: str = "Creating"):
@@ -56,6 +99,31 @@ def _create_databus_component(name: str, data_link_name: str, *, status: str = "
     )
 
 
+def _create_cluster_info(
+    *,
+    cluster_name: str,
+    cluster_type: str,
+    domain_name: str,
+    tenant: str = "system",
+):
+    return models.ClusterInfo.objects.create(
+        bk_tenant_id=tenant,
+        cluster_name=cluster_name,
+        cluster_type=cluster_type,
+        domain_name=domain_name,
+        port=0,
+        description="",
+        is_default_cluster=False,
+    )
+
+
+def _mock_storage_binding_lists(mocker, configs_by_batch):
+    def list_side_effect(**kwargs):
+        return configs_by_batch.get((kwargs["namespace"], kwargs["kind"]), [])
+
+    return mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+
+
 def _refresh_and_aggregate():
     statuses_by_link, untrusted_links, biz_id_by_link, changed_count = _refresh_data_link_component_statuses()
     changed_bkbase_count = _refresh_bkbase_result_table_statuses(
@@ -77,6 +145,517 @@ def test_refresh_data_link_status_dispatches_task_without_records(mocker):
     refresh_data_link_status()
 
     delay.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("binding_kind", "storage_kind", "tenant", "namespace"),
+    [
+        (DataLinkKind.ESSTORAGEBINDING.value, DataLinkKind.ELASTICSEARCH.value, "tencent", "bklog"),
+        (DataLinkKind.DORISBINDING.value, DataLinkKind.DORIS.value, "default", "bklog"),
+        (DataLinkKind.VMSTORAGEBINDING.value, DataLinkKind.VMSTORAGE.value, "default", "bkmonitor"),
+    ],
+)
+def test_check_storage_binding_reference_accepts_valid_config(binding_kind, storage_kind, tenant, namespace):
+    config = _remote_storage_binding(
+        binding_kind=binding_kind,
+        storage_kind=storage_kind,
+        tenant=tenant,
+        namespace=namespace,
+    )
+
+    issue = _check_storage_binding_reference(
+        config,
+        bk_tenant_id=tenant,
+        namespace=namespace,
+        binding_kind=binding_kind,
+    )
+
+    assert issue is None
+
+
+def test_check_storage_binding_reference_allows_missing_related_res_asset_and_tenant():
+    config = _remote_storage_binding(
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.VMSTORAGE.value,
+        namespace="bkmonitor",
+        tenant=None,
+        include_related_res_asset=False,
+    )
+
+    issue = _check_storage_binding_reference(
+        config,
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+    )
+
+    assert issue is None
+
+
+def test_check_storage_binding_reference_compares_only_cluster_name():
+    config = _remote_storage_binding(
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.VMSTORAGE.value,
+        namespace="bkmonitor",
+        tenant="system",
+        related_res_asset="VmStorage/bkmonitor/storage_name",
+        index1="VmStorage/bkmonitor/storage_name",
+    )
+
+    issue = _check_storage_binding_reference(
+        config,
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+    )
+
+    assert issue is None
+
+
+def test_check_storage_binding_reference_allows_empty_references():
+    config = _remote_storage_binding(
+        binding_kind=DataLinkKind.DORISBINDING.value,
+        storage_kind=DataLinkKind.DORIS.value,
+        related_res_asset="",
+        index1="",
+    )
+
+    issue = _check_storage_binding_reference(
+        config,
+        bk_tenant_id="default",
+        namespace="bklog",
+        binding_kind=DataLinkKind.DORISBINDING.value,
+    )
+
+    assert issue is None
+
+
+def test_check_storage_binding_reference_reports_cluster_name_mismatches():
+    config = _remote_storage_binding(
+        binding_kind=DataLinkKind.DORISBINDING.value,
+        storage_kind=DataLinkKind.DORIS.value,
+        related_res_asset="Doris/bklog/old_storage",
+        index1="Doris/default/bklog/old_storage",
+    )
+
+    issue = _check_storage_binding_reference(
+        config,
+        bk_tenant_id="default",
+        namespace="bklog",
+        binding_kind=DataLinkKind.DORISBINDING.value,
+    )
+
+    assert issue["problems"] == ["index1_mismatch", "related_res_asset_mismatch"]
+
+
+def test_check_storage_binding_reference_reports_invalid_config():
+    issue = _check_storage_binding_reference(
+        {},
+        bk_tenant_id="tencent",
+        namespace="bklog",
+        binding_kind=DataLinkKind.ESSTORAGEBINDING.value,
+    )
+
+    assert issue["problems"] == ["invalid_config", "storage_name_missing"]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_storage_binding_references_checks_two_namespaces_and_three_kinds(mocker):
+    invalid_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.DORISBINDING.value,
+        storage_kind=DataLinkKind.DORIS.value,
+        namespace="bklog",
+        index1="Doris/bklog/old_storage",
+    )
+    list_data_link = mocker.patch("metadata.task.tasks.api.bkdata.list_data_link")
+
+    def list_side_effect(**kwargs):
+        if kwargs["namespace"] == "bklog" and kwargs["kind"] == "dorisbindings":
+            return [invalid_config]
+        return []
+
+    list_data_link.side_effect = list_side_effect
+
+    issues = batch_check_storage_binding_references("default")
+
+    assert len(issues) == 1
+    assert issues[0]["binding_kind"] == DataLinkKind.DORISBINDING.value
+    assert issues[0]["problems"] == ["index1_mismatch"]
+    assert list_data_link.call_args_list == [
+        call(bk_tenant_id="default", namespace="bkmonitor", kind="elasticsearchbindings"),
+        call(bk_tenant_id="default", namespace="bkmonitor", kind="dorisbindings"),
+        call(bk_tenant_id="default", namespace="bkmonitor", kind="vmstoragebindings"),
+        call(bk_tenant_id="default", namespace="bklog", kind="elasticsearchbindings"),
+        call(bk_tenant_id="default", namespace="bklog", kind="dorisbindings"),
+        call(bk_tenant_id="default", namespace="bklog", kind="vmstoragebindings"),
+    ]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_local_es_aliases_with_same_domain_are_consistent(mocker, django_assert_num_queries):
+    local_cluster = _create_cluster_info(
+        cluster_name="local_es",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name=" ES.EXAMPLE.COM ",
+    )
+    _create_cluster_info(
+        cluster_name="remote_es",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es.example.com",
+    )
+    remote_configs = []
+    for index in range(2):
+        table_id = f"table_{index}.__default__"
+        binding_name = f"es_binding_{index}"
+        models.ESStorageBindingConfig.objects.create(
+            bk_tenant_id="system",
+            namespace="bklog",
+            name=binding_name,
+            data_link_name=binding_name,
+            bk_biz_id=2,
+            status=DataLinkResourceStatus.OK.value,
+            table_id=table_id,
+            es_cluster_name="remote_es",
+        )
+        models.ESStorage.objects.create(
+            bk_tenant_id="system",
+            table_id=table_id,
+            storage_cluster_id=local_cluster.cluster_id,
+        )
+        remote_configs.append(
+            _remote_storage_binding(
+                binding_kind=DataLinkKind.ESSTORAGEBINDING.value,
+                storage_kind=DataLinkKind.ELASTICSEARCH.value,
+                name=binding_name,
+                namespace="bklog",
+                tenant="system",
+                storage_name="remote_es",
+            )
+        )
+
+    _mock_storage_binding_lists(mocker, {("bklog", "elasticsearchbindings"): remote_configs})
+
+    with django_assert_num_queries(3):
+        issues = batch_check_storage_binding_references("system")
+
+    assert issues == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_local_es_reports_cluster_and_domain_mismatch(mocker):
+    local_cluster = _create_cluster_info(
+        cluster_name="local_es",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="local-es.example.com",
+    )
+    remote_cluster = _create_cluster_info(
+        cluster_name="remote_es",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="remote-es.example.com",
+    )
+    models.ESStorageBindingConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bklog",
+        name="es_binding",
+        data_link_name="es_binding",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        table_id="es_table.__default__",
+        es_cluster_name="remote_es",
+    )
+    models.ESStorage.objects.create(
+        bk_tenant_id="system",
+        table_id="es_table.__default__",
+        storage_cluster_id=local_cluster.cluster_id,
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.ESSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.ELASTICSEARCH.value,
+        name="es_binding",
+        namespace="bklog",
+        tenant="system",
+        storage_name="remote_es",
+    )
+    _mock_storage_binding_lists(mocker, {("bklog", "elasticsearchbindings"): [remote_config]})
+
+    issues = batch_check_storage_binding_references("system")
+
+    assert len(issues) == 1
+    assert issues[0]["problems"] == ["local_storage_cluster_mismatch"]
+    assert issues[0]["local_cluster_id"] == local_cluster.cluster_id
+    assert issues[0]["local_cluster_name"] == "local_es"
+    assert issues[0]["local_domain_name"] == "local-es.example.com"
+    assert issues[0]["remote_cluster_id"] == remote_cluster.cluster_id
+    assert issues[0]["remote_cluster_name"] == "remote_es"
+    assert issues[0]["remote_domain_name"] == "remote-es.example.com"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_local_es_reports_missing_remote_cluster_info(mocker):
+    local_cluster = _create_cluster_info(
+        cluster_name="local_es",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="local-es.example.com",
+    )
+    models.ESStorageBindingConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bklog",
+        name="es_binding",
+        data_link_name="es_binding",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        table_id="es_table.__default__",
+        es_cluster_name="missing_remote_es",
+    )
+    models.ESStorage.objects.create(
+        bk_tenant_id="system",
+        table_id="es_table.__default__",
+        storage_cluster_id=local_cluster.cluster_id,
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.ESSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.ELASTICSEARCH.value,
+        name="es_binding",
+        namespace="bklog",
+        tenant="system",
+        storage_name="missing_remote_es",
+    )
+    _mock_storage_binding_lists(mocker, {("bklog", "elasticsearchbindings"): [remote_config]})
+
+    issues = batch_check_storage_binding_references("system")
+
+    assert len(issues) == 1
+    assert issues[0]["problems"] == ["remote_cluster_info_missing"]
+    assert issues[0]["local_cluster_id"] == local_cluster.cluster_id
+    assert issues[0]["remote_cluster_id"] is None
+    assert issues[0]["remote_cluster_name"] == "missing_remote_es"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_vm_uses_storage_cluster_id_fallback(mocker):
+    vm_cluster = _create_cluster_info(
+        cluster_name="vm_default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+    )
+    models.VMStorageBindingConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="vm_binding",
+        data_link_name="vm_binding",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        table_id="vm_table.__default__",
+        vm_cluster_name="vm_default",
+    )
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id="vm_table.__default__",
+        vm_cluster_id=None,
+        storage_cluster_id=vm_cluster.cluster_id,
+        bk_base_data_id=1001,
+        vm_result_table_id="2_vm_table",
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.VMSTORAGE.value,
+        name="vm_binding",
+        namespace="bkmonitor",
+        tenant="system",
+        storage_name="vm_default",
+    )
+    _mock_storage_binding_lists(mocker, {("bkmonitor", "vmstoragebindings"): [remote_config]})
+
+    assert batch_check_storage_binding_references("system") == []
+
+
+@pytest.mark.parametrize(
+    ("binding_name", "table_id"),
+    [
+        ("base_18879_sys_mem_cmdb", "tencent_18879_sys.mem_cmdb"),
+        ("base_10_system_proc_perf_cmdb", "tencent_10_system_proc.perf_cmdb"),
+        ("base_10_system_proc_port_cmdb", "tencent_10_system_proc.port_cmdb"),
+    ],
+)
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_vm_ignores_cmdb_without_access_vm_record(mocker, binding_name, table_id):
+    models.VMStorageBindingConfig.objects.create(
+        bk_tenant_id="tencent",
+        namespace="bkmonitor",
+        name=binding_name,
+        data_link_name=binding_name,
+        bk_biz_id=10,
+        status=DataLinkResourceStatus.OK.value,
+        table_id=table_id,
+        vm_cluster_name="monitor-bk2system",
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.VMSTORAGE.value,
+        name=binding_name,
+        namespace="bkmonitor",
+        tenant="tencent",
+        storage_name="monitor-bk2system",
+    )
+    _mock_storage_binding_lists(mocker, {("bkmonitor", "vmstoragebindings"): [remote_config]})
+
+    assert batch_check_storage_binding_references("tencent") == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_vm_does_not_ignore_non_cmdb_process_port(mocker):
+    binding_name = "base_10_system_proc_port"
+    models.VMStorageBindingConfig.objects.create(
+        bk_tenant_id="tencent",
+        namespace="bkmonitor",
+        name=binding_name,
+        data_link_name=binding_name,
+        bk_biz_id=10,
+        status=DataLinkResourceStatus.OK.value,
+        table_id="tencent_10_system_proc.port",
+        vm_cluster_name="monitor-bk2system",
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.VMSTORAGE.value,
+        name=binding_name,
+        namespace="bkmonitor",
+        tenant="tencent",
+        storage_name="monitor-bk2system",
+    )
+    _mock_storage_binding_lists(mocker, {("bkmonitor", "vmstoragebindings"): [remote_config]})
+
+    issues = batch_check_storage_binding_references("tencent")
+
+    assert len(issues) == 1
+    assert issues[0]["problems"] == ["local_storage_record_missing"]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_doris_uses_origin_storage(mocker):
+    doris_cluster = _create_cluster_info(
+        cluster_name="doris_default",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.example.com",
+    )
+    models.DorisStorageBindingConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bklog",
+        name="doris_binding",
+        data_link_name="doris_binding",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        table_id="virtual_doris.__default__",
+        doris_cluster_name="doris_default",
+    )
+    models.DorisStorage.objects.create(
+        bk_tenant_id="system",
+        table_id="real_doris.__default__",
+        storage_cluster_id=doris_cluster.cluster_id,
+    )
+    models.DorisStorage.objects.create(
+        bk_tenant_id="system",
+        table_id="virtual_doris.__default__",
+        origin_table_id="real_doris.__default__",
+        storage_cluster_id=999,
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.DORISBINDING.value,
+        storage_kind=DataLinkKind.DORIS.value,
+        name="doris_binding",
+        namespace="bklog",
+        tenant="system",
+        storage_name="doris_default",
+    )
+    _mock_storage_binding_lists(mocker, {("bklog", "dorisbindings"): [remote_config]})
+
+    assert batch_check_storage_binding_references("system") == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_batch_check_vm_reports_ambiguous_local_clusters(mocker):
+    models.VMStorageBindingConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="vm_binding",
+        data_link_name="vm_binding",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        table_id="vm_table.__default__",
+        vm_cluster_name="vm_default",
+    )
+    for index, cluster_id in enumerate((101, 102), start=1):
+        models.AccessVMRecord.objects.create(
+            bk_tenant_id="system",
+            result_table_id="vm_table.__default__",
+            vm_cluster_id=cluster_id,
+            bk_base_data_id=index,
+            vm_result_table_id=f"2_vm_table_{index}",
+        )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.VMSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.VMSTORAGE.value,
+        name="vm_binding",
+        namespace="bkmonitor",
+        tenant="system",
+        storage_name="vm_default",
+    )
+    _mock_storage_binding_lists(mocker, {("bkmonitor", "vmstoragebindings"): [remote_config]})
+
+    issues = batch_check_storage_binding_references("system")
+
+    assert len(issues) == 1
+    assert issues[0]["problems"] == ["local_storage_cluster_ambiguous"]
+    assert issues[0]["local_cluster_ids"] == [101, 102]
+
+
+def test_batch_check_storage_binding_references_propagates_api_error(mocker):
+    list_data_link = mocker.patch(
+        "metadata.task.tasks.api.bkdata.list_data_link",
+        side_effect=RuntimeError("bkbase unavailable"),
+    )
+
+    with pytest.raises(RuntimeError, match="bkbase unavailable"):
+        batch_check_storage_binding_references("tencent")
+
+    list_data_link.assert_called_once_with(
+        bk_tenant_id="tencent",
+        namespace="bkmonitor",
+        kind="elasticsearchbindings",
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_storage_binding_reference_issue_keeps_remote_status(mocker):
+    component = models.ESStorageBindingConfig.objects.create(
+        bk_tenant_id="tencent",
+        namespace="bklog",
+        name="es_binding",
+        data_link_name="es_link",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.CREATING.value,
+        es_cluster_name="new_es",
+    )
+    remote_config = _remote_storage_binding(
+        binding_kind=DataLinkKind.ESSTORAGEBINDING.value,
+        storage_kind=DataLinkKind.ELASTICSEARCH.value,
+        name=component.name,
+        namespace=component.namespace,
+        tenant=component.bk_tenant_id,
+        storage_name="new_es",
+        index1="ElasticSearch/tencent/bklog/old_es",
+    )
+    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+    warning = mocker.patch("metadata.task.tasks.logger.warning")
+
+    statuses_by_link, untrusted_links, _, changed_count = _refresh_data_link_component_statuses()
+
+    component.refresh_from_db()
+    assert component.status == DataLinkResourceStatus.OK.value
+    assert changed_count == 1
+    assert statuses_by_link[("tencent", "es_link")] == [DataLinkResourceStatus.OK.value]
+    assert untrusted_links == set()
+    warning.assert_called_once()
 
 
 @pytest.mark.django_db(databases="__all__")

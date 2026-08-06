@@ -17,7 +17,7 @@ from django.conf import settings
 from apm.core.handlers.bk_data.flow import ApmFlow
 from apm.models import TraceDataSource
 from bkmonitor.dataflow.task.apm_tail_sampling import APMTailSamplingTask
-from constants.apm import FlowType
+from constants.apm import FlowType, normalize_app_name
 from core.drf_resource import api
 from metadata.models import ClusterInfo
 
@@ -51,7 +51,7 @@ class TailSamplingFlow(ApmFlow):
 
     @property
     def deploy_name(self):
-        return f"bkapm_trace_{self.bk_biz_id}_{self.app_name}"
+        return f"bkapm_trace_{self.bk_biz_id}_{normalize_app_name(self.app_name)}"
 
     @property
     def cleans_description(self):
@@ -172,7 +172,7 @@ class TailSamplingFlow(ApmFlow):
 
     @property
     def cleans_table_id(self):
-        return f"{self.cleans_names}_{self.app_name.replace('-', '_')}"[:50]
+        return f"{self.cleans_names}_{normalize_app_name(self.app_name)}"[:50]
 
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):

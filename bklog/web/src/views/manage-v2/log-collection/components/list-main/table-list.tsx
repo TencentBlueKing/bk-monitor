@@ -150,8 +150,6 @@ interface IStorageUsageItem {
  */
 const HEIGHT_CONSTANTS = {
   MIN_TABLE_HEIGHT: 400, // 最小表格高度（至少显示 6-7 行数据）
-  COLUMNS_HEIGHT: 43, // 每列高度
-  FIXED_ELEMENTS_HEIGHT: 150, // 固定元素高度（头部、工具栏、分页器等）
   WINDOW_FIXED_HEIGHT: 400, // 窗口固定元素高度（用于后备方案）
 } as const;
 
@@ -349,51 +347,21 @@ export default defineComponent({
     };
 
     /**
-     * 根据屏幕大小计算表格最大可用高度
-     *
-     * 该方法用于动态计算表格组件的最大可用高度，确保表格能够自适应容器大小，
-     * 同时考虑固定元素（如头部、工具栏、分页器等）占用的空间。
-     *
-     * 计算逻辑：
-     * 1. 使用 nextTick 确保在 DOM 更新后执行，获取准确的容器尺寸
-     * 2. 优先使用容器高度进行计算，如果容器未挂载或高度无效，则使用窗口高度作为后备方案
-     * 3. 从容器高度中减去固定元素高度，得到表格可用高度
-     * 4. 确保计算出的高度不小于最小表格高度
-     * 5. 根据实际数据量和分页大小进行最终调整
+     * 根据表格主区域的实际可用高度计算内容区最大高度。
+     * TTable 的 maxHeight 只作用于内容区，因此需要扣除组件外置分页器的实际高度。
      */
     const calculateMaxTableHeight = () => {
       nextTick(() => {
-        // 如果容器未挂载或高度无效，使用窗口高度作为后备方案
-        if (!containerRef.value) {
-          maxTableHeight.value = calculateHeightByWindow();
+        const tableMain = tableMainRef.value;
+        const tableMainHeight = tableMain?.clientHeight || tableMain?.offsetHeight || 0;
+
+        if (tableMainHeight > 0) {
+          const paginationHeight = tableMain?.querySelector<HTMLElement>('.t-table__pagination')?.offsetHeight || 0;
+          maxTableHeight.value = Math.max(0, tableMainHeight - paginationHeight);
           return;
         }
 
-        const container = containerRef.value;
-        const containerHeight = container.clientHeight || container.offsetHeight;
-
-        if (!containerHeight || containerHeight <= 0) {
-          maxTableHeight.value = calculateHeightByWindow();
-          return;
-        }
-
-        // 计算表格最大可用高度：容器高度 - 所有固定元素高度
-        const calculatedMaxHeight = containerHeight - HEIGHT_CONSTANTS.FIXED_ELEMENTS_HEIGHT;
-
-        // 确保高度在合理范围内（不小于最小高度）
-        maxTableHeight.value = Math.max(HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT, calculatedMaxHeight);
-
-        // 根据实际数据量和分页大小进行最终调整
-        const listLen = tableList.value.length;
-        if (listLen === 0) {
-          maxTableHeight.value = HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT;
-          return;
-        }
-        const totalListHeight = listLen * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 36;
-
-        // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
-        // 否则根据实际数据行数计算高度（避免空白区域）
-        maxTableHeight.value = totalListHeight > maxTableHeight.value ? maxTableHeight.value : totalListHeight;
+        maxTableHeight.value = calculateHeightByWindow();
       });
     };
 
@@ -2058,7 +2026,8 @@ export default defineComponent({
             loading={isLoading.value}
             on-page-change={handlePageChange}
             pagination={pagination.value}
-            height={maxTableHeight.value}
+            height={tableList.value.length === 0 ? HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT : undefined}
+            maxHeight={tableList.value.length > 0 ? maxTableHeight.value : undefined}
             on-sort-change={sortChange}
             on-filter-change={handleFilterChange}
             filterValue={filterValue.value}

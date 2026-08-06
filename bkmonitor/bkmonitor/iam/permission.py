@@ -456,10 +456,17 @@ class Permission:
         """
         获取有对应action权限的空间列表
         """
+        space_list, _ = self.filter_space_list_by_action_with_scope(action, using_cache)
+        return space_list
+
+    def filter_space_list_by_action_with_scope(
+        self, action: ActionMeta | str, using_cache=True
+    ) -> tuple[list[dict], bool]:
+        """获取有对应 action 权限的空间列表，并返回 IAM 是否授予全量资源权限。"""
         space_list = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
         # 对后台API进行权限豁免
         if self.skip_check:
-            return space_list
+            return space_list, True
 
         # 拉取策略
         request = self.make_request(action=action)
@@ -468,17 +475,17 @@ class Permission:
             policies = self.iam_client._do_policy_query(request)
         except AuthAPIError as e:
             logger.exception("[IAM AuthAPI Error]: %s", e)
-            return []
+            return [], False
 
         if not policies:
-            return []
+            return [], False
 
         op = policies["op"]
         if op == OP.ANY:
-            return space_list
+            return space_list, True
         elif op == OP.IN:
             value = policies["value"]
-            return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list))
+            return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list)), False
 
         # 生成表达式
         expr = make_expression(policies)
@@ -491,7 +498,7 @@ class Permission:
             if self.iam_client._eval_expr(expr, obj_set):
                 results.append(space)
 
-        return results
+        return results, False
 
     @classmethod
     def setup_meta(cls):

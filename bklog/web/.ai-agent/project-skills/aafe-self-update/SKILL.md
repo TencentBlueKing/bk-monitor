@@ -39,6 +39,7 @@ Do not update project knowledge for purely local typo/style changes that do not 
 | Vue development style or workspace rule changed | .ai-agent/rules/vue-development-mode.mdc / .ai-agent/rules/workspace-boundary.mdc |
 | Reusable debugging/fix decision learned | .ai-agent/memory/decisions.md or .ai-agent/memory/experience.md |
 | New project skill category introduced | .ai-agent/project-skills/README.md and .ai-agent/project.md |
+| TAPD 回填 / Commit-PR 门禁 / 任务完成自测策略变更 | .ai-agent/rules/tapd-submit-backfill.mdc, task-completion-impact.mdc + skills/tapd-submit-backfill.md, minimal-convergent-self-test.md, architecture-impact-test-forecast.md；含 UI `ui_test_paths` 预生成与自测后询问 Commit/PR/回填；`.cursor/rules/bklog-web/` 仅保留 pointer |
 
 ## Minimal Update Format
 

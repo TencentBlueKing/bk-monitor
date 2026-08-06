@@ -1835,6 +1835,72 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /pattern/{index_set_id}/remark/:
+    post:
+      operationId: set_remark
+      description: 日志平台-设置聚类标注
+      tags:
+      - 聚类
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/pattern/{index_set_id}/remark/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /pattern/{index_set_id}/update_remark/:
+    put:
+      operationId: update_remark
+      description: 日志平台-编辑聚类标注
+      tags:
+      - 聚类
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/pattern/{index_set_id}/update_remark/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /pattern/{index_set_id}/delete_remark/:
+    delete:
+      operationId: delete_remark
+      description: 日志平台-删除聚类标注
+      tags:
+      - 聚类
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/pattern/{index_set_id}/delete_remark/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /list_bcs_collector/:
     get:
       operationId: list_bcs_collector

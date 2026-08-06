@@ -24,12 +24,12 @@ from apps.log_search.constants import (
     ASYNC_DIR,
     ASYNC_EXPORT_EMAIL_TEMPLATE,
     ASYNC_EXPORT_EXPIRED,
+    ASYNC_EXPORT_SCENE_ID,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     ExportStatus,
-    ExportType,
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MsgModel,
@@ -80,6 +80,9 @@ class SceneAsyncExportHandler:
             PreCheckAsyncExportException,
         )
 
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user, is_scene=True)
+
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
             if AsyncTask.objects.filter(
                 request_param=self.search_dict,
@@ -102,17 +105,17 @@ class SceneAsyncExportHandler:
             total_count=result.get("total", 0),
             is_quick_export=is_quick_export,
         )
-        async_task = AsyncTask.objects.create(
+        async_task = AsyncTask.async_export_task_create_with_running_limit(
+            username=self.request_user,
+            is_scene=True,
             request_param=self.search_dict,
             sorted_param=self.scene_handler.origin_order_by,
-            scenario_id="scene",
+            scenario_id=ASYNC_EXPORT_SCENE_ID,
             index_set_id=0,
             bk_biz_id=self.bk_biz_id,
             start_time=self.search_dict.get("start_time", ""),
             end_time=self.search_dict.get("end_time", ""),
-            export_type=ExportType.ASYNC,
             export_total_count=export_total_count,
-            created_by=self.request_user,
         )
 
         url = reverse("tasks-download-file", request=get_request())
@@ -144,7 +147,7 @@ class SceneAsyncExportHandler:
         query_set = AsyncTask.objects.filter(
             bk_biz_id=self.bk_biz_id,
             source_app_code=source_app_code,
-            scenario_id="scene",
+            scenario_id=ASYNC_EXPORT_SCENE_ID,
         )
         if table_id_conditions:
             query_set = query_set.filter(

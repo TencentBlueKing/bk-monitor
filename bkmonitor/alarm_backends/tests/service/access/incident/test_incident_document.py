@@ -16,6 +16,7 @@ reindex 的活跃故障都会 0 命中、误抛 IncidentNotFoundError。修复�
 int(time.time())，并按 -update_time 取 reindex 瞬态双副本中的最新那份。
 """
 
+from types import SimpleNamespace
 from unittest import TestCase, mock
 
 from bkmonitor.documents.incident import IncidentDocument
@@ -70,3 +71,18 @@ class TestIncidentDocumentGet(TestCase):
         """id 反解失败保持原 ValueError 行为；本次修复不触动异常路径。"""
         with self.assertRaises(ValueError):
             IncidentDocument.get("not-a-number", fetch_remote=False)
+
+
+class TestIncidentDocumentAlertReuse(TestCase):
+    def test_generate_handlers_reuses_provided_alert_documents(self):
+        incident = IncidentDocument(id="17100000001001", incident_id="1001")
+        snapshot = SimpleNamespace(
+            alert_entity_mapping={"1": SimpleNamespace(id="1")},
+        )
+        alert_document = SimpleNamespace(id="1", assignee=["alice"])
+
+        with mock.patch("bkmonitor.documents.incident.AlertDocument.get") as mock_get:
+            incident.generate_handlers(snapshot, alert_docs={"1": alert_document})
+
+        self.assertEqual(incident.handlers, ["alice"])
+        mock_get.assert_not_called()

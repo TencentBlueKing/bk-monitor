@@ -76,6 +76,7 @@ from metadata.service.data_source import (
     stop_or_enable_datasource,
 )
 from metadata.service.storage_details import ResultTableAndDataSource
+from metadata.service.result_table_storage_status import ResultTableStorageStatusService
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.bkbase import sync_bkbase_result_table_meta
@@ -926,6 +927,22 @@ class GetResultTableStorageResult(Resource):
 
         # 返回
         return result
+
+
+class GetResultTableStorageStatus(Resource):
+    """查询结果表关联 ES/Doris 存储的配置、历史分段和运行时状态。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        timeout = serializers.IntegerField(required=False, default=15, min_value=1, max_value=30, label="超时时间")
+
+    def perform_request(self, validated_request_data):
+        return ResultTableStorageStatusService(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            table_id=validated_request_data["table_id"],
+            timeout=validated_request_data["timeout"],
+        ).query()
 
 
 class QueryEventGroupResource(Resource):

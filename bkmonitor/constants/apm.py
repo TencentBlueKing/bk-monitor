@@ -28,6 +28,19 @@ APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 APM_TRACE_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?trace_.*")
 
 
+def normalize_app_name(app_name: str) -> str:
+    """
+    统一转义 app_name 中的非法字符（`.`、`-`）为 `_`，并统一小写化，
+    用于拼接 table_id / data_name / event_group_name / ES 索引名等下游资源名。
+    小写化用于允许 app_name 大小写混用，但下游存储命名保持规范。
+
+    单一归一化真源（Single Source of Truth）：APM 所有涉及下游资源命名的场景，
+    请统一 `from constants.apm import normalize_app_name` 后调用本函数，
+    严禁复制内联实现，避免规则漂移。
+    """
+    return app_name.strip().replace("-", "_").replace(".", "_").lower()
+
+
 class CachedEnum(Enum):
     @classmethod
     @cache

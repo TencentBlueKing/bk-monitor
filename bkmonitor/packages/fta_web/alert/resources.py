@@ -2174,7 +2174,9 @@ class AlertTopNResource(Resource):
             return resource.alert.alert_top_n_result(**validated_request_data)
 
         executor = ThreadPool(processes=1)
-        future = executor.apply_async(self.get_bucket_count, [validated_request_data])
+        # 必须传副本：紧随其后要 pop 掉时间范围换成分片区间，与子线程共享同一 dict 时，
+        # 基数聚合覆盖的区间取决于线程调度——多数情况下会退化成"仅当天"，而非请求的完整区间。
+        future = executor.apply_async(self.get_bucket_count, [dict(validated_request_data)])
 
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")

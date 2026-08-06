@@ -67,5 +67,6 @@
   "数据加载中...": "loading...",
   "至次日": "to {num} next day",
   "选择至次日": "to",
-  "选择至次日点": "next day"
+  "选择至次日点": "next day",
+  "选择操作符": "select operator"
 }
