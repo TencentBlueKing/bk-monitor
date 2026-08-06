@@ -443,6 +443,22 @@ BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+# IAM V4（bkiam 网关）独立地址；未配置时 V4 client 回退到 {BK_COMPONENT_API_URL}/api/bkiam/prod/
+BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL", "").strip()
+BK_IAM_V4_AUTH_PATH = os.getenv(
+    "BK_IAM_V4_AUTH_PATH",
+    "api/v1/open/rbac/authorization/systems/{system_id}/auth/",
+).strip()
+BK_IAM_V4_AUTH_BY_RESOURCES_PATH = os.getenv(
+    "BK_IAM_V4_AUTH_BY_RESOURCES_PATH",
+    "api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/",
+).strip()
+BK_IAM_V4_APPLY_URL_PATH = os.getenv(
+    "BK_IAM_V4_APPLY_URL_PATH",
+    "api/v1/open/application/permission-apply-urls/",
+).strip()
+BK_IAM_V4_TIMEOUT = int(os.getenv("BK_IAM_V4_TIMEOUT", "10"))
+BK_IAM_V4_BATCH_CHUNK_SIZE = int(os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100"))
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"

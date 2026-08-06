@@ -41,6 +41,7 @@ from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 
 from apps.iam.backends.legacy_v3 import LegacyV3Adapter
+from apps.iam.backends.v4 import V4PermissionProvider
 from apps.iam.exceptions import (
     ActionNotExistError,
     GetSystemInfoError,
@@ -107,6 +108,7 @@ class Permission:
 
         self._mode_router = None
         self._provider_bundles = None
+        self._v4_provider = None
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
@@ -144,12 +146,15 @@ class Permission:
         }
 
     def get_v4_provider(self):
-        """V4 Provider 将在后续迭代中注入；未配置时路由器按 error 安全拒绝。"""
-        return None
+        if self._v4_provider is None:
+            self._v4_provider = V4PermissionProvider.from_settings(
+                username=self.username,
+                bk_tenant_id=self.bk_tenant_id,
+            )
+        return self._v4_provider
 
     def get_v4_permission_application_provider(self) -> PermissionApplicationProvider | None:
-        """V4 无权限申请能力将在后续迭代中注入。"""
-        return None
+        return self.get_v4_provider()
 
     def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
         """V4 授权写入能力将在后续迭代中注入。"""
@@ -289,7 +294,18 @@ class Permission:
         resources = resources or []
         resolved_mode = self._resolve_safe_apply_mode(resources, mode)
         application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles)
-        return application.provider.get_apply_data(actions, resources)
+        try:
+            return application.provider.get_apply_data(actions, resources)
+        except Exception as error:  # pylint: disable=broad-except
+            if application.source_mode is AuthMode.V4 and resolved_mode is AuthMode.UNION:
+                logger.warning(
+                    "[IAM Apply] mode=%s v4 provider failed, fallback to v3: %s",
+                    resolved_mode.value,
+                    error,
+                )
+                v3_application = MigrationPolicy.resolve_application(AuthMode.V3, self.provider_bundles)
+                return v3_application.provider.get_apply_data(actions, resources)
+            raise
 
     def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
         """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 V3。

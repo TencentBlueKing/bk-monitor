@@ -9,6 +9,7 @@ from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
 from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
+from apps.iam.iam_engine.core.types import AuthResult
 
 
 @override_settings(
@@ -23,10 +24,13 @@ class PermissionFacadeTest(SimpleTestCase):
         self.mode_provider = Mock(get_mode=Mock(return_value=AuthMode.V3))
         self.client_patcher = patch.object(Permission, "get_iam_client", return_value=self.iam_client)
         self.mode_patcher = patch("apps.iam.handlers.permission.get_mode_provider", return_value=self.mode_provider)
+        self.v4_provider_patcher = patch.object(Permission, "get_v4_provider", return_value=None)
         self.client_patcher.start()
         self.mode_patcher.start()
+        self.v4_provider_patcher.start()
         self.addCleanup(self.client_patcher.stop)
         self.addCleanup(self.mode_patcher.stop)
+        self.addCleanup(self.v4_provider_patcher.stop)
 
     def test_v3_mode_keeps_boolean_allow_result(self):
         self.iam_client.is_allowed.return_value = True
@@ -56,13 +60,17 @@ class PermissionFacadeTest(SimpleTestCase):
 
     def test_v4_denial_uses_injected_permission_application_provider(self):
         self.mode_provider.get_mode.return_value = AuthMode.V4
+        v4_provider = Mock()
+        v4_provider.is_allowed.return_value = AuthResult.deny("v4")
         application_provider = Mock()
         application_provider.get_apply_data.return_value = (
             {"provider": "v4"},
             "https://iam-v4.example/apply",
         )
         permission = self._make_permission()
+        permission.get_v4_provider = Mock(return_value=v4_provider)
         permission.get_v4_permission_application_provider = Mock(return_value=application_provider)
+        permission._mode_router = None
 
         with self.assertRaises(PermissionDeniedError):
             permission.is_allowed(ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE, raise_exception=True)
@@ -92,6 +100,7 @@ class PermissionFacadeTest(SimpleTestCase):
 
     def test_v4_apply_without_provider_falls_back_to_v3(self):
         permission = self._make_permission()
+        permission.get_v4_permission_application_provider = Mock(return_value=None)
         permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
 
         result = permission.get_apply_data(
@@ -127,6 +136,7 @@ class PermissionFacadeTest(SimpleTestCase):
 
     def test_union_apply_falls_back_to_v3_without_v4_provider(self):
         permission = self._make_permission()
+        permission.get_v4_permission_application_provider = Mock(return_value=None)
         permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
 
         result = permission.get_apply_data(
@@ -182,6 +192,21 @@ class PermissionFacadeTest(SimpleTestCase):
             [],
         )
 
+    def test_union_apply_falls_back_to_v3_when_v4_provider_raises(self):
+        v4_provider = Mock()
+        v4_provider.get_apply_data.side_effect = RuntimeError("v4 apply unavailable")
+        permission = self._make_permission()
+        permission.get_v4_permission_application_provider = Mock(return_value=v4_provider)
+        permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
+
+        result = permission.get_apply_data(
+            [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+            mode=AuthMode.UNION,
+        )
+
+        self.assertEqual(result, ({"provider": "v3"}, "https://iam-v3.example/apply"))
+        v4_provider.get_apply_data.assert_called_once()
+
     def test_union_mode_allows_when_v3_allows_and_v4_is_not_configured(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.iam_client.is_allowed.return_value = True
@@ -192,12 +217,22 @@ class PermissionFacadeTest(SimpleTestCase):
     def test_v4_mode_denies_when_v4_provider_is_not_configured(self):
         self.mode_provider.get_mode.return_value = AuthMode.V4
         permission = self._make_permission()
+        permission.get_v4_provider = Mock(return_value=None)
+        permission._mode_router = None
 
         self.assertFalse(permission.is_allowed(ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE))
 
     def test_provider_error_observation_includes_reason(self):
         self.mode_provider.get_mode.return_value = AuthMode.V4
+        v4_provider = Mock()
+        v4_provider.is_allowed.return_value = AuthResult.error(
+            "v4",
+            reason="IAM v4 provider is not configured",
+            error_type="ProviderNotConfigured",
+        )
         permission = self._make_permission()
+        permission.get_v4_provider = Mock(return_value=v4_provider)
+        permission._mode_router = None
 
         with patch("apps.iam.handlers.permission.logger.warning") as warning:
             self.assertFalse(permission.is_allowed(ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE))
@@ -240,6 +275,8 @@ class PermissionFacadeTest(SimpleTestCase):
     def test_batch_provider_error_is_safely_denied_and_recorded(self):
         self.mode_provider.get_mode.return_value = AuthMode.V4
         permission = self._make_permission()
+        permission.get_v4_provider = Mock(return_value=None)
+        permission._mode_router = None
         resources = [[Resource("bk_log_search", "collection", "1", {})]]
 
         with patch("apps.iam.handlers.permission.logger.warning") as warning:
