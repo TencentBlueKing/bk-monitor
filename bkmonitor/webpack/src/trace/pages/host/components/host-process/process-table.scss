@@ -20,6 +20,16 @@
       height: 56px;
       font-size: 12px;
     }
+
+    .t-table__header {
+      .t-table__th-cell-inner {
+        .t-table__cell--title {
+          & > div:first-child {
+            min-width: 0;
+          }
+        }
+      }
+    }
   }
 
   // 表格内容不足时撑满容器剩余高度（仅在空数据时生效）
@@ -33,6 +43,7 @@
       }
 
       .t-table--layout-fixed {
+        width: 100% !important;
         height: 100%;
       }
     }
@@ -122,6 +133,14 @@
   // 通用文本省略（运行用户等 text 类型列）
   .process-table-text,
   .process-table-uptime {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // 表格文本溢出省略（单元格 + 表头共用，配合 useTableEllipsis 事件委托，溢出时弹 tooltip）
+  .process-list-ellipsis-cell {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
