@@ -242,3 +242,11 @@ Knowledge update: updated.
 - 根因：`grep/index.tsx` 初始 `is_loading: true`，但 `onMounted` 中 `requestGrepList` 在条数展示重构时被注释；切 Tab 不会触发 `SEARCHING_CHANGE`，请求永远不会发出。
 - 决策：挂载时若 `!RetrieveHelper.isSearching` 且已有 `grep_field`，调用 `reloadGrepDataAndTotal()`；无字段则清 loading；主检索进行中仍等 `SEARCHING_CHANGE(false)`。
 - 约束：不要只依赖事件驱动拉 Grep 数据；Tab 切入（尤其非 origin）不会自动 fire searching 事件。
+
+## 2026-08-06 UI 模式切语句模式保留查询条件
+
+- 问题：UI 模式配置 addition 后切到语句模式，条件被清空（story=1010158081136837143）。
+- 根因：`handleQueryTypeChange` 只切换 `search_mode`，未把 addition 转为 keyword；SQL 查询路径会丢弃 addition。
+- 决策：UI→语句时调用 `retrieve/generateQueryString`（与复制条件同 API），用返回 querystring **覆盖** keyword 并填充语句框；转换失败仍切换模式，但 `warning` 提示；转换后**不自动查询**。语句→UI 暂不转换。
+- 落点：`src/views/retrieve-v2/search-bar/index.vue`（v3 复用）。
+- 约束：不要在模式切换成功后调用 `handleBtnQueryClick`；不要合并旧 keyword（覆盖）。
