@@ -55,7 +55,6 @@ from kernel_api.rpc.functions.admin.datalink import (
     list_components,
 )
 from kernel_api.rpc.functions.admin.es_storage import (
-    _build_runtime_index_item,
     _contains_index_wildcard,
     _is_virtual_es_storage,
     _serialize_es_storage_config,
@@ -86,6 +85,7 @@ from kernel_api.rpc.functions.admin.storage_cluster_history import (
 )
 from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
+from metadata.service.es_storage import _build_runtime_index_item
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.plugin import (
     CollectorPluginConfig,
@@ -2733,6 +2733,7 @@ def test_es_storage_runtime_overview_uses_selected_runtime_cluster_without_mutat
         origin_table_id=None,
         storage_cluster_id=3,
         index_set="system_cpu",
+        need_create_index=True,
         search_format_v2=lambda: "v2_system_cpu_*",
         search_format_v1=lambda: "system_cpu_*",
     )
@@ -2802,15 +2803,16 @@ def test_es_storage_sample_uses_selected_runtime_cluster():
     assert storage.storage_cluster_id == 3
 
 
-def test_es_storage_runtime_index_item_keeps_stats_values_and_counts_shards():
+def test_es_storage_runtime_index_item_prefers_cat_docs_before_total_stats_and_counts_shards():
     item = _build_runtime_index_item(
         index_name="v2_system_cpu_20260521_0",
         stats={"total": {"docs": {"count": 0}, "store": {"size_in_bytes": 0}}},
         cat_meta={"health": "green", "status": "open", "pri": "2", "rep": "1", "docs.count": "99"},
     )
 
-    assert item["docs_count"] == 0
-    assert item["store_size"] == 0
+    assert item["docs_count"] == 99
+    assert item["store_size_bytes"] == 0
+    assert "stats" not in item
     assert item["primary_shards"] == 2
     assert item["replica_shards"] == 2
     assert item["replica_factor"] == 1

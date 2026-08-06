@@ -20,6 +20,7 @@ from rest_framework import serializers
 from constants.issue import IssueActivityType, IssuePriority, IssueStatus
 from core.drf_resource import Resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from core.errors.issue import IssueRenameConflictError
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueActivityNotFoundError,
@@ -211,8 +212,8 @@ class RenameResource(Resource):
                 new_name=validated_request_data["new_name"], operator=validated_request_data["operator"]
             )
         except IssueNameDuplicatedError as e:
-            # 同业务下已存在同名 Issue
-            raise serializers.ValidationError(str(e))
+            # 同业务下已存在同名 Issue：抛专有错误码（3327001），web 端据此识别并转页面提示
+            raise IssueRenameConflictError(message=str(e), data={"name": validated_request_data["new_name"]})
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
@@ -530,9 +531,7 @@ class RegenerateTitleResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        issue_ids = serializers.ListField(
-            label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=5
-        )
+        issue_ids = serializers.ListField(label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=5)
         # 操作人可选：运维显式补偿默认记 system（与自动派发路径一致），传入则记该账号便于审计
         operator = serializers.CharField(label="操作人", required=False, default="system")
 
@@ -561,8 +560,7 @@ class RegenerateTitleResource(Resource):
         executor = ThreadPoolExecutor(max_workers=len(issue_ids))
         try:
             future_map = {
-                executor.submit(regenerate_issue_llm_title, iid, bk_biz_id, operator=operator): iid
-                for iid in issue_ids
+                executor.submit(regenerate_issue_llm_title, iid, bk_biz_id, operator=operator): iid for iid in issue_ids
             }
             results = []
             for future, iid in future_map.items():

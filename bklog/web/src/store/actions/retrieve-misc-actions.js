@@ -3,7 +3,6 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import axios from 'axios';
-import { set } from 'vue';
 
 import http from '@/api';
 import { formatDate } from '@/common/util';
@@ -14,6 +13,7 @@ import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import RequestPool from '../request-pool.ts';
+import { BK_LOG_STORAGE } from '../store.type';
 import { storeRuntimeCacheService } from '../services/runtime-cache.service.js';
 
 const cacheApi = (name, scope, data, meta = {}) => {
@@ -57,9 +57,19 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
     && ['keyword'].includes(field.field_type)
     && !/^__dist_/.test(field.field_name);
 
-  const fields = (payloadFields.length ? payloadFields : rawFieldList)
-    .filter(filterFn)
-    .map(field => field.field_name);
+  // 配置了别名的字段，请求时必须使用别名（query_alias），否则存储侧无法识别该字段，导致聚合无结果
+  // 与 formatAdditionalFields 中 addition 字段的别名转换口径保持一致
+  const getRequestFieldName = field => field.query_alias || field.field_name;
+  const filteredFields = (payloadFields.length ? payloadFields : rawFieldList).filter(filterFn);
+  // 请求字段名（别名）-> 原始字段名列表映射，用于将接口返回的 aggs_items key 还原为 field_name
+  // 同一别名可能对应多个真实字段（rt 不相交时后端允许重名别名），需要全部记录以便响应扇出还原
+  const requestFieldNameMap = filteredFields.reduce((acc, field) => {
+    const requestName = getRequestFieldName(field);
+    (acc[requestName] = acc[requestName] ?? []).push(field.field_name);
+    return acc;
+  }, {});
+  // 多个字段可能共用同一个别名，去重后发起请求
+  const fields = [...new Set(filteredFields.map(getRequestFieldName))];
 
   if (!fields.length) return Promise.resolve(true);
 
@@ -75,7 +85,15 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
 
   const baseQueryData = {
     keyword: '*',
-    addition: formatAdditionalFields(state, payload?.addition ?? []),
+    // fields 已统一使用别名请求，addition 中的字段需同步转换为别名，保证同一请求内字段口径一致。
+    // 已开启别名展示时由 formatAdditionalFields 完成转换；未开启时这里直接对原始 addition 做转换。
+    // 两条路径只走其一，避免叠加转换（如别名恰好与另一真实字段同名时，二次查找会把字段错误改写）
+    addition: state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+      ? formatAdditionalFields(state, payload?.addition ?? [])
+      : (payload?.addition ?? []).map(item => ({
+        ...item,
+        field: rawFieldList.find(f => f.field_name === item.field)?.query_alias || item.field,
+      })),
     start_time: formatDate(startTime),
     end_time: formatDate(endTime),
     size: payload?.size ?? 100,
@@ -109,6 +127,20 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
       cancelToken: requestCancelToken,
     })
     .then((resp) => {
+      // 接口按请求字段（别名）返回 aggs_items，这里将 key 还原为 field_name
+      // 保证 fieldAggsItems 缓存与各消费方（统一按 field_name 取值）逻辑无需改动
+      const aggsItems = resp.data?.aggs_items ?? {};
+      resp.data = {
+        ...(resp.data ?? {}),
+        aggs_items: Object.keys(aggsItems).reduce((acc, key) => {
+          // 同一别名对应多个真实字段时扇出还原，保证每个字段的缓存都能填充
+          (requestFieldNameMap[key] ?? [key]).forEach((fieldName) => {
+            acc[fieldName] = aggsItems[key];
+          });
+          return acc;
+        }, {}),
+      };
+
       if (payload?.commit !== false) {
         commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
       }

@@ -1,16 +1,16 @@
 from types import SimpleNamespace
 from unittest import mock
 
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 from opentelemetry import context as otel_context
 from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY
 
-from common.context_processors import get_core_context
+from common.context_processors import get_basic_context, get_core_context
 
 
 def make_request(bk_token: str = "test-token"):
     request = RequestFactory().get("/")
-    request.user = SimpleNamespace(username="test-user")
+    request.user = SimpleNamespace(username="test-user", is_superuser=False)
     request.LANGUAGE_CODE = "zh-hans"
     request.COOKIES["bk_token"] = bk_token
     return request
@@ -87,3 +87,15 @@ def test_get_core_context_suppresses_token_request_instrumentation(mock_token_ve
 
     assert suppression_values == [True]
     assert otel_context.get_value(_SUPPRESS_INSTRUMENTATION_KEY) is None
+
+
+@override_settings(AIDEV_API_BASE_URL="https://example.com")
+def test_get_basic_context_disables_ai_assistant_by_environment_variable():
+    with (
+        mock.patch.dict("common.context_processors.os.environ", {"ENABLE_AI_ASSISTANT": "disabled"}),
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ENABLE_AI_ASSISTANT"] == "false"

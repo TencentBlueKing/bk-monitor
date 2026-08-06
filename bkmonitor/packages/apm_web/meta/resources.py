@@ -134,6 +134,7 @@ from constants.apm import (
     StandardFieldCategory,
     TailSamplingSupportMethod,
     TelemetryDataType,
+    normalize_app_name,
 )
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel
@@ -175,7 +176,7 @@ class CreateApplicationResource(Resource):
             )
 
         bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_.-]+$")
+        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-zA-Z0-9_.-]+$")
         app_alias = serializers.CharField(label="应用别名", max_length=255)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         plugin_id = serializers.CharField(
@@ -283,10 +284,21 @@ class CheckDuplicateNameResource(Resource):
         exists = serializers.BooleanField(label="是否存在")
 
     def perform_request(self, validated_request_data):
-        if Application.origin_objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        ).exists():
+        # 与 Application.check_application 保持一致的重名判定口径：
+        # 1) 大小写不敏感的精确重名（MyApp 与 myapp 视为同名）；
+        # 2) 归一化后重名（my.app / my-app / MyApp 归一化后均为 myapp）。
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+
+        if Application.origin_objects.filter(bk_biz_id=bk_biz_id, app_name__iexact=app_name).exists():
             return {"exists": True}
+
+        normalized = normalize_app_name(app_name)
+        exist_names = Application.origin_objects.filter(bk_biz_id=bk_biz_id).values_list("app_name", flat=True)
+        for exist_name in exist_names:
+            if normalize_app_name(exist_name) == normalized:
+                return {"exists": True}
+
         return {"exists": False}
 
 
@@ -1064,7 +1076,7 @@ class ListApplicationResource(PageListResource):
             2. 有服务的其次
             3. 分组内按名称排序
             """
-            first, second, third = 1, 1, app.get("app_name", "")
+            first, second, third = 1, 1, normalize_app_name(app.get("app_name", ""))
             if (
                 app.get("trace_data_status") == DataStatus.NORMAL
                 or app.get("profiling_data_status") == DataStatus.NORMAL

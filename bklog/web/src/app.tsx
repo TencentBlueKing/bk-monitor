@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineAsyncComponent, defineComponent, onMounted, ref, type Ref } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, nextTick, onMounted, ref, type Ref } from 'vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
@@ -119,12 +119,11 @@ export default defineComponent({
      * 公告状态变化
      * @param v
      */
-    const showAlertChange = (v: boolean) => {
+    const showAlertChange = async (v: boolean) => {
       store.commit('updateState', { showAlert: v });
 
-      if (refNoticeComponent.value) {
-        noticeComponentHeight.value = refNoticeComponent.value.$el.offsetHeight;
-      }
+      await nextTick();
+      noticeComponentHeight.value = v ? (refNoticeComponent.value?.$el?.offsetHeight ?? 0) : 0;
     };
 
     /**
@@ -134,7 +133,7 @@ export default defineComponent({
       if (!isAsIframe.value && !isHeadless.value) {
         return (
           <NoticeComponent
-            ref='refNoticeComponent'
+            ref={refNoticeComponent}
             api-url={join((window as any).SITE_URL, '/notice/announcements/')}
             on-show-alert-change={showAlertChange}
           />

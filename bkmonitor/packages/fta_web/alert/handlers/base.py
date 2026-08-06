@@ -17,6 +17,7 @@ from abc import ABC
 from collections.abc import Callable, Iterable
 from functools import reduce
 
+from django.conf import settings
 from django.utils import translation as dj_translation
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
@@ -29,12 +30,12 @@ from luqum.parser import lexer, parser
 from luqum.tree import AndOperation, FieldGroup, SearchField, Word
 
 from bkm_space.api import SpaceApi
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from constants.alert import EventTargetType
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
@@ -51,6 +52,7 @@ from fta_web.alert.handlers.translator import AbstractTranslator
 _FIELD_MAP_CACHE: dict[type, dict[str, QueryField]] = {}
 ES_TERMS_QUERY_MAX_SIZE = 65536
 MAX_FULLTEXT_BIZ_MATCHES = 1000
+TENANT_WIDE_AUTHORIZED_REQUEST_ATTR = "_fta_tenant_wide_biz_authorized"
 logger = logging.getLogger(__name__)
 
 
@@ -843,14 +845,69 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 req = get_request()
             except Exception:
                 return bk_biz_ids, []
-            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+            permission = Permission(username=req.user.username, bk_tenant_id=get_request_tenant_id())
+            spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
+            setattr(req, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, tenant_wide_authorized)
+            authorized_bizs = [space["bk_biz_id"] for space in spaces]
             if -1 not in bk_biz_ids:
                 authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
+        unauthorized_bizs = [biz_id for biz_id in unauthorized_bizs if biz_id != -1]
         return authorized_bizs, unauthorized_bizs
 
     def build_es_terms_query(self, field: str, values: list):
         return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
+
+    def is_tenant_wide_authorized(self) -> bool:
+        """当前请求是否明确选择全部业务，且 IAM 授予当前租户的全量业务权限。
+
+        此时业务维度不再有区分度，无需为授权业务逐个生成 term——管理员场景下授权业务
+        可达十万级，单次请求的 terms 子句实测能把 DSL 撑到 1MB 以上。
+
+        仅在单租户部署下成立：告警检索链路并不过滤 bk_tenant_id（该字段只写不读，且早期
+        索引里完全没有），多租户部署中业务 terms 同时承担着租户隔离，省掉就会跨租户泄漏。
+        """
+        if not hasattr(self, "_tenant_wide_authorized"):
+            self._tenant_wide_authorized = self._compute_tenant_wide_authorized()
+        return self._tenant_wide_authorized
+
+    def _compute_tenant_wide_authorized(self) -> bool:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return False
+
+        # 只有明确的"全部业务"请求才允许省略业务条件；显式业务列表必须保留调用方限定的范围
+        if -1 not in (getattr(self, "bk_biz_ids", None) or []) or getattr(self, "unauthorized_bizs", None):
+            return False
+
+        if not getattr(self, "authorized_bizs", None):
+            return False
+
+        try:
+            req = get_request()
+        except Exception:
+            return False
+
+        return bool(getattr(req, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, False))
+
+    def finalize_biz_condition(self, search_object: Search, queries: list) -> Search:
+        """收口业务可见性过滤：有子句取并集，无子句则显式判定放行还是查空。
+
+        末尾的 match_none 不可省略：授权业务为空时 build_es_terms_query 返回 None，子句
+        列表为空，若直接返回 search_object，业务过滤会从"查空"变成"索引范围内的全业务数据"。
+        """
+        if queries:
+            return search_object.filter(reduce(operator.or_, queries))
+
+        if not self.bk_biz_ids:
+            # 未指定业务范围：各 Handler 对该语义的处理不一致（部分已在上面追加"与我相关"
+            # 条件，部分历史上不加业务过滤），此处不收紧，避免影响无请求上下文的内部调用。
+            return search_object
+
+        if self.is_tenant_wide_authorized():
+            # 授权已覆盖租户全量空间，业务维度无需过滤
+            return search_object
+
+        return search_object.filter(Q("match_none"))
 
     def get_fulltext_biz_scope_ids(self) -> set[int] | None:
         """返回业务名称全文检索可扫描的显式业务范围；None 表示当前租户全量空间。"""

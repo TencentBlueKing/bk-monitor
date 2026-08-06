@@ -79,14 +79,14 @@
         .field-list-sticky {
           &.is-show {
             position: fixed;
-            top: calc(var(--top-searchbar-height) + var(--header-height) + var(--scene-toolbar-height, 0px));
+            top: calc(var(--top-searchbar-height) + var(--header-height) + var(--scene-toolbar-height, 0px) + var(--notice-component-height, 0px));
             bottom: 0;
             left: calc(var(--left-collection-width) + 8px);
-            height: calc(100vh - var(--top-searchbar-height) - var(--header-height) - var(--scene-toolbar-height, 0px));
+            height: calc(100vh - var(--top-searchbar-height) - var(--header-height) - var(--scene-toolbar-height, 0px) - var(--notice-component-height, 0px));
 
             .field-filter-box {
               .field-filter-container-new {
-                height: calc(100vh - var(--top-searchbar-height) - var(--scene-toolbar-height, 0px) - 100px);
+                height: calc(100vh - var(--top-searchbar-height) - var(--scene-toolbar-height, 0px) - 100px - var(--notice-component-height, 0px));
               }
             }
           }

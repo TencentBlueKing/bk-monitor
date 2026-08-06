@@ -38,7 +38,6 @@ from apps.log_search.constants import (
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     ExportStatus,
-    ExportType,
     IndexSetType,
 )
 from apps.log_search.exceptions import (
@@ -90,6 +89,9 @@ class AsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user)
+
         # 计算平台暂不支持快速下载
         if is_quick_export and self.search_handler.scenario_id == Scenario.BKDATA:
             raise BKBaseExportException()
@@ -104,7 +106,8 @@ class AsyncExportHandlers:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
 
-        async_task = AsyncTask.objects.create(
+        async_task = AsyncTask.async_export_task_create_with_running_limit(
+            username=self.request_user,
             **{
                 "request_param": self.search_dict,
                 "sorted_param": fields["async_export_fields"],
@@ -113,14 +116,12 @@ class AsyncExportHandlers:
                 "bk_biz_id": self.bk_biz_id,
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
-                "export_type": ExportType.ASYNC,
                 "export_total_count": self.get_export_total_count(
                     request_size=self.search_handler.size,
                     is_quick_export=is_quick_export,
                     max_async_count=self.search_handler.index_set.max_async_count,
                 ),
-                "created_by": self.request_user,
-            }
+            },
         )
 
         url = self._get_url()
@@ -381,6 +382,9 @@ class UnionAsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
+        # 校验用户正在运行导出的任务数量
+        AsyncTask.check_running_count_by_user(self.request_user)
+
         for index_set in self.union_search_handler.index_sets:
             # 计算平台暂不支持快速下载
             if is_quick_export and index_set.scenario_id == Scenario.BKDATA:
@@ -409,7 +413,8 @@ class UnionAsyncExportHandlers:
                 logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
                 raise PreCheckAsyncExportException()
 
-        async_task = AsyncTask.objects.create(
+        async_task = AsyncTask.async_export_task_create_with_running_limit(
+            username=self.request_user,
             **{
                 "request_param": self.search_dict,
                 "sorted_param": sort_fields_mappings,
@@ -418,12 +423,10 @@ class UnionAsyncExportHandlers:
                 "bk_biz_id": self.bk_biz_id,
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
-                "export_type": ExportType.ASYNC,
                 "export_total_count": self.get_union_export_total_count(
                     request_size=self.search_dict.get("size"), is_quick_export=is_quick_export
                 ),
-                "created_by": self.request_user,
-            }
+            },
         )
         url = self._get_url()
         search_url = self._get_search_url()

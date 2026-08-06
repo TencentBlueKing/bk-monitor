@@ -23,6 +23,7 @@ from pypinyin import lazy_pinyin
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
+from constants.apm import normalize_app_name
 from metadata.models.data_link.constants import (
     DataLinkKind,
     DataLinkResourceStatus,
@@ -125,18 +126,19 @@ PROFILING_DORIS_CLEAN_RULES = [
 
 
 def _sanitize_name(raw: str) -> str:
-    """清洗名称：中文原地转拼音、剔除特殊字符、去空格、点/减号转下划线、合并连续下划线"""
+    """清洗名称：中文原地转拼音、剔除特殊字符、去空格、点/减号转下划线、大写转小写、合并连续下划线"""
     parts = []
     for char in raw:
         if "\u4e00" <= char <= "\u9fff":
             parts.append(lazy_pinyin(char)[0])
         elif char == ".":
-            # 点号保留为下划线，与 ApmDataSourceConfigBase.normalize_app_name 一致
+            # 点号保留为下划线，与 constants.apm.normalize_app_name 一致
             parts.append("_")
         elif not re.match(MATCH_DATA_NAME_PATTERN, char):
             parts.append(char)
     refine = "".join(parts)
-    refine = refine.replace(" ", "").replace("-", "_")
+    # 统一小写化，与 constants.apm.normalize_app_name 一致
+    refine = refine.replace(" ", "").replace("-", "_").lower()
     return re.sub(r"_+", "_", refine)
 
 
@@ -249,12 +251,10 @@ class BkDataDorisProvider:
         cls, obj: "ProfileDataSource", maintainer: str, operator: str, name_stuffix: str = None
     ) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
-        # 保持与 ApmDataSourceConfigBase.normalize_app_name 一致：`-`、`.` 均转为 `_`
-        pure_app_name = (
-            obj.app_name.replace("-", "_").replace(".", "_")
-            if not name_stuffix
-            else f"{obj.app_name}{name_stuffix}".replace("-", "_").replace(".", "_")
-        )
+        # 保持与 constants.apm.normalize_app_name 一致：
+        # `-`、`.` 均转为 `_`，并统一小写化（放开 app_name 大小写后仍保持下游命名规范）
+        raw_name = obj.app_name if not name_stuffix else f"{obj.app_name}{name_stuffix}"
+        pure_app_name = normalize_app_name(raw_name)
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
             app_name=obj.app_name,

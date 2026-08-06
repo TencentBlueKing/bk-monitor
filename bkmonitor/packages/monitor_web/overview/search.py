@@ -718,7 +718,7 @@ class ApmApplicationSearchItem(SearchItem):
     Search item for apm application.
     """
 
-    RE_APP_NAME = re.compile(r"^[a-z0-9_.-]{1,50}$")
+    RE_APP_NAME = re.compile(r"^[a-zA-Z0-9_.-]{1,50}$")
 
     @classmethod
     def match(cls, query: str) -> bool:

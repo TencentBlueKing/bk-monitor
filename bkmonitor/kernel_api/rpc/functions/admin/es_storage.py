@@ -44,6 +44,7 @@ from kernel_api.rpc.functions.admin.storage_cluster_history import (
     resolve_runtime_storage_cluster,
 )
 from metadata import models
+from metadata.service.es_storage import query_es_storage_runtime
 
 FUNC_ES_STORAGE_LIST = "admin.es_storage.list"
 FUNC_ES_STORAGE_DETAIL = "admin.es_storage.detail"
@@ -364,172 +365,6 @@ def _mark_inspect_response(response: dict[str, Any]) -> dict[str, Any]:
     return response
 
 
-def _serialize_runtime_value(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {key: _serialize_runtime_value(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_serialize_runtime_value(item) for item in value]
-    return serialize_value(value)
-
-
-def _runtime_index_expression(es_storage: Any, index: str | None = None) -> str:
-    return index or es_storage.search_format_v2()
-
-
-def _runtime_index_stats_expression(es_storage: Any, index_version: str) -> str:
-    if index_version == "v1":
-        return es_storage.search_format_v1()
-    return es_storage.search_format_v2()
-
-
-def _parse_runtime_int(value: Any) -> int | None:
-    if value in (None, "") or isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        return int(value)
-    if isinstance(value, str):
-        normalized = value.strip().replace(",", "")
-        if not normalized:
-            return None
-        try:
-            return int(float(normalized))
-        except ValueError:
-            return None
-    return None
-
-
-def _nested_runtime_value(value: Any, path: tuple[str, ...]) -> Any:
-    current = value
-    for key in path:
-        if not isinstance(current, dict):
-            return None
-        current = current.get(key)
-    return current
-
-
-def _first_runtime_value(*values: Any) -> Any:
-    for value in values:
-        if value is not None:
-            return value
-    return None
-
-
-def _extract_runtime_docs_count(stats: dict[str, Any], cat_meta: dict[str, Any]) -> int | None:
-    return _parse_runtime_int(
-        _first_runtime_value(
-            _nested_runtime_value(stats, ("total", "docs", "count")),
-            _nested_runtime_value(stats, ("primaries", "docs", "count")),
-            cat_meta.get("docs.count"),
-        )
-    )
-
-
-def _extract_runtime_store_size(stats: dict[str, Any], cat_meta: dict[str, Any]) -> Any:
-    return _first_runtime_value(
-        _nested_runtime_value(stats, ("total", "store", "size_in_bytes")),
-        _nested_runtime_value(stats, ("primaries", "store", "size_in_bytes")),
-        cat_meta.get("store.size"),
-    )
-
-
-def _build_cat_indices_meta(
-    es_storage: Any,
-    index_names: list[str],
-    index_version: str,
-    warnings: list[dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    if not index_names:
-        return {}
-
-    try:
-        rows = es_storage.es_client.cat.indices(
-            index=_runtime_index_stats_expression(es_storage, index_version),
-            h="index,health,status,pri,rep,docs.count,store.size",
-            format="json",
-            bytes="b",
-        )
-    except Exception as error:  # pylint: disable=broad-except
-        _append_runtime_warning(warnings, "INDEX_CAT_UNAVAILABLE", "ES 索引 cat 信息查询失败", error)
-        return {}
-
-    if not isinstance(rows, list):
-        return {}
-
-    allowed = set(index_names)
-    return {
-        str(row.get("index")): row
-        for row in rows
-        if isinstance(row, dict) and row.get("index") is not None and str(row.get("index")) in allowed
-    }
-
-
-def _build_index_settings_meta(
-    es_storage: Any,
-    index_names: list[str],
-    index_version: str,
-    warnings: list[dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    if not index_names:
-        return {}
-
-    try:
-        rows = es_storage.es_client.indices.get_settings(
-            index=_runtime_index_stats_expression(es_storage, index_version)
-        )
-    except Exception as error:  # pylint: disable=broad-except
-        _append_runtime_warning(warnings, "INDEX_SETTINGS_UNAVAILABLE", "ES 索引 settings 查询失败", error)
-        return {}
-
-    if not isinstance(rows, dict):
-        return {}
-
-    allowed = set(index_names)
-    return {
-        str(index_name): meta
-        for index_name, meta in rows.items()
-        if isinstance(meta, dict) and str(index_name) in allowed
-    }
-
-
-def _extract_index_setting(settings_meta: dict[str, Any], key: str) -> Any:
-    return _nested_runtime_value(settings_meta, ("settings", "index", key))
-
-
-def _build_runtime_index_item(
-    index_name: str,
-    stats: dict[str, Any],
-    cat_meta: dict[str, Any],
-    settings_meta: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    settings_meta = settings_meta or {}
-    primary_shards = _parse_runtime_int(
-        _first_runtime_value(cat_meta.get("pri"), _extract_index_setting(settings_meta, "number_of_shards"))
-    )
-    replica_factor = _parse_runtime_int(
-        _first_runtime_value(cat_meta.get("rep"), _extract_index_setting(settings_meta, "number_of_replicas"))
-    )
-    replica_shards = (
-        primary_shards * replica_factor if primary_shards is not None and replica_factor is not None else None
-    )
-    shards = primary_shards + replica_shards if primary_shards is not None and replica_shards is not None else None
-
-    item = {
-        "index": index_name,
-        "health": cat_meta.get("health"),
-        "status": cat_meta.get("status"),
-        "docs_count": _extract_runtime_docs_count(stats, cat_meta),
-        "store_size": _extract_runtime_store_size(stats, cat_meta),
-        "primary_shards": primary_shards,
-        "replica_shards": replica_shards,
-        "replica_factor": replica_factor,
-        "shards": shards,
-        "stats": stats,
-    }
-    return {key: value for key, value in item.items() if value is not None}
-
-
 def _append_runtime_warning(
     warnings: list[dict[str, Any]], code: str, message: str, error: Exception | None = None
 ) -> None:
@@ -537,92 +372,6 @@ def _append_runtime_warning(
     if error is not None:
         warning["details"] = {"error": str(error)}
     warnings.append(warning)
-
-
-def _run_runtime_query(
-    *,
-    name: str,
-    es_storage: Any,
-    bk_tenant_id: str,
-    table_id: str,
-    query,
-    warnings: list[dict[str, Any]],
-    runtime_cluster: Any,
-) -> Any:
-    try:
-        return query(es_storage)
-    except Exception as error:  # pylint: disable=broad-except
-        if _is_virtual_es_storage(es_storage):
-            physical_storage = models.ESStorage.objects.filter(
-                bk_tenant_id=bk_tenant_id, table_id=es_storage.origin_table_id
-            ).first()
-            if physical_storage is not None:
-                physical_storage = clone_storage_with_runtime_cluster(physical_storage, runtime_cluster)
-                try:
-                    result = query(physical_storage)
-                    _append_runtime_warning(
-                        warnings,
-                        "RUNTIME_QUERY_FALLBACK_TO_PHYSICAL",
-                        f"{name} 查询虚拟表失败，已回退实体表: table_id={table_id}, origin_table_id={es_storage.origin_table_id}",
-                        error,
-                    )
-                    return result
-                except Exception as fallback_error:  # pylint: disable=broad-except
-                    _append_runtime_warning(
-                        warnings,
-                        "RUNTIME_QUERY_FAILED",
-                        f"{name} 查询失败，虚拟表和实体表回退均不可用: table_id={table_id}",
-                        fallback_error,
-                    )
-                    return None
-        _append_runtime_warning(warnings, "RUNTIME_QUERY_FAILED", f"{name} 查询失败: table_id={table_id}", error)
-        return None
-
-
-def _build_indices_overview(es_storage: Any, warnings: list[dict[str, Any]]) -> dict[str, Any]:
-    index_exist: bool | None = None
-    current_index_info: dict[str, Any] | None = None
-    index_names = es_storage.get_index_names()
-    stats_map, stats_version = es_storage.get_index_stats()
-    cat_meta_map = _build_cat_indices_meta(es_storage, index_names, stats_version, warnings)
-    settings_meta_map = _build_index_settings_meta(es_storage, index_names, stats_version, warnings)
-
-    try:
-        index_exist = es_storage.index_exist()
-    except Exception as error:  # pylint: disable=broad-except
-        _append_runtime_warning(warnings, "INDEX_EXIST_UNAVAILABLE", "ES 索引存在性查询失败", error)
-
-    try:
-        current_index_info = es_storage.current_index_info()
-    except Exception as error:  # pylint: disable=broad-except
-        _append_runtime_warning(warnings, "CURRENT_INDEX_INFO_UNAVAILABLE", "ES 当前索引信息查询失败", error)
-
-    return {
-        "index_names": index_names,
-        "index_stats": stats_map,
-        "index_version": stats_version,
-        "index_exist": index_exist,
-        "current_index_info": _serialize_runtime_value(current_index_info),
-        "items": [
-            _build_runtime_index_item(
-                index_name=index_name,
-                stats=stats_map.get(index_name, {}),
-                cat_meta=cat_meta_map.get(index_name, {}),
-                settings_meta=settings_meta_map.get(index_name, {}),
-            )
-            for index_name in index_names
-        ],
-    }
-
-
-def _build_aliases_overview(es_storage: Any, index: str | None = None) -> Any:
-    client = es_storage.get_client()
-    return client.indices.get_alias(index=_runtime_index_expression(es_storage, index))
-
-
-def _build_mapping_overview(es_storage: Any, index: str | None = None) -> Any:
-    client = es_storage.get_client()
-    return client.indices.get_mapping(index=_runtime_index_expression(es_storage, index))
 
 
 def _contains_index_wildcard(index: str) -> bool:
@@ -766,7 +515,7 @@ def get_es_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": "可选，租户 ID",
         "table_id": "必填，ESStorage.table_id",
         "include": f"可选，展开范围: {', '.join(sorted(RUNTIME_INCLUDE_VALUES))}",
-        "index": "可选，指定索引；不传时使用 ESStorage 现有 search_format_v2 规则",
+        "index": "可选，指定索引；不传时受管索引使用 v2/v1 日期规则，外部索引直接使用 index_set",
         "storage_cluster_id": "可选，当前集群或同一实体表迁移历史中的 ES 集群 ID，默认当前集群",
     },
     example_params={"bk_tenant_id": "system", "table_id": "system.cpu", "include": ["indices", "mapping"]},
@@ -783,53 +532,16 @@ def get_es_storage_runtime_overview(params: dict[str, Any]) -> dict[str, Any]:
         params.get("storage_cluster_id"),
         models.ClusterInfo.TYPE_ES,
     )
-    es_storage = clone_storage_with_runtime_cluster(es_storage, runtime_cluster)
-
-    warnings: list[dict[str, Any]] = []
-    data: dict[str, Any] = {
-        "table_id": table_id,
-        "origin_table_id": es_storage.origin_table_id,
-        "table_kind": _table_kind(es_storage),
-        "index_set": es_storage.index_set,
-        "index_pattern": {
-            "v2": es_storage.search_format_v2(),
-            "v1": es_storage.search_format_v1(),
-            "effective": _runtime_index_expression(es_storage, index),
-        },
-        "inspect": True,
-        "storage_cluster": _serialize_cluster_summary(runtime_cluster),
-    }
-
-    if "indices" in includes:
-        data["indices"] = _run_runtime_query(
-            name="indices",
-            es_storage=es_storage,
-            bk_tenant_id=bk_tenant_id,
-            table_id=table_id,
-            query=lambda storage: _build_indices_overview(storage, warnings),
-            warnings=warnings,
-            runtime_cluster=runtime_cluster,
-        )
-    if "aliases" in includes:
-        data["aliases"] = _run_runtime_query(
-            name="aliases",
-            es_storage=es_storage,
-            bk_tenant_id=bk_tenant_id,
-            table_id=table_id,
-            query=lambda storage: _build_aliases_overview(storage, index),
-            warnings=warnings,
-            runtime_cluster=runtime_cluster,
-        )
+    data, warnings = query_es_storage_runtime(
+        es_storage=es_storage,
+        bk_tenant_id=bk_tenant_id,
+        runtime_cluster=runtime_cluster,
+        includes=includes,
+        index=index,
+    )
+    data["inspect"] = True
+    data["storage_cluster"] = _serialize_cluster_summary(runtime_cluster)
     if "mapping" in includes:
-        data["mapping"] = _run_runtime_query(
-            name="mapping",
-            es_storage=es_storage,
-            bk_tenant_id=bk_tenant_id,
-            table_id=table_id,
-            query=lambda storage: _build_mapping_overview(storage, index),
-            warnings=warnings,
-            runtime_cluster=runtime_cluster,
-        )
         data["field_aliases"] = _build_field_aliases(table_id, bk_tenant_id, warnings)
 
     response = build_response(

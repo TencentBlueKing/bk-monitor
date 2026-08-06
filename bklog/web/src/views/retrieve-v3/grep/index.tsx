@@ -38,6 +38,11 @@ import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import GrepCli from './grep-cli';
 import GrepCliResult from './grep-cli-result';
 import GrepCliTotal from './grep-cli-total';
+import {
+  resolveGrepMountAction,
+  shouldHandleSearchingChange,
+  shouldReloadOnSearchingChange,
+} from './resolve-grep-request';
 import type { GrepRequestResult } from './types';
 import { axiosInstance } from '@/api';
 import http from '@/api/index';
@@ -306,8 +311,12 @@ export default defineComponent({
       }
     };
 
-    const handleSearchingChange = (isSearching: boolean) => {
-      handleRequestResult(!isSearching);
+    const handleSearchingChange = (payload: unknown) => {
+      // INDEX_SET_ID_CHANGE 也会走到这里，参数不是 boolean，忽略即可（由后续 SEARCHING_CHANGE 拉数）
+      if (!shouldHandleSearchingChange(payload)) {
+        return;
+      }
+      handleRequestResult(shouldReloadOnSearchingChange(payload), true);
     };
 
     const { addEvent } = useRetrieveEvent();
@@ -377,7 +386,14 @@ export default defineComponent({
 
       resetGrepRequestResult();
       setDefaultFieldValue();
-      // requestGrepList();
+      // 从图表分析等 Tab 切入时不会触发 SEARCHING_CHANGE，需在挂载时主动拉数；
+      // 主检索进行中则等待 SEARCHING_CHANGE(false)，避免重复请求。
+      const mountAction = resolveGrepMountAction(RetrieveHelper.isSearching, field.value);
+      if (mountAction === 'reload') {
+        reloadGrepDataAndTotal();
+      } else if (mountAction === 'idle') {
+        grepRequestResult.value.is_loading = false;
+      }
     });
 
     onBeforeUnmount(() => {

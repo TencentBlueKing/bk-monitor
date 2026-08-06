@@ -668,6 +668,10 @@ class SpaceTableIDRedis:
             table_id__in=selected_table_ids,
         ).values("table_id", "name", "value", "value_type")
         for option in options:
+            # 只保留查询选项
+            if option["name"] not in models.ResultTableOption.QUERY_OPTION_NAME_LIST:
+                continue
+
             try:
                 value = (
                     option["value"]

@@ -1,0 +1,48 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · E-HTTP请求处理流程 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · E-HTTP请求处理流程</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · E-HTTP请求处理流程</div><h2>E-HTTP请求处理流程</h2><p><code>.docs/diagrams/E-HTTP请求处理流程.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeyAncHJpbWFyeUNvbG9yJzogJyNmZmYzZTAnLCAncHJpbWFyeVRleHRDb2xvcic6ICcjZTY1MTAwJywgJ3ByaW1hcnlCb3JkZXJDb2xvcic6ICcjZmY5ODAwJywgJ2xpbmVDb2xvcic6ICcjZmZiNzRkJ319fSUlXG5mbG93Y2hhcnQgVERcbiAgICBzdWJncmFwaCBcIuivt-axguWPkei1t1wiXG4gICAgICAgIFNUQVJUKFtodHRwLnJlcXVlc3Qg6LCD55SoXSkgLS0-IEJVSUxEX0NPTkZJR1vmnoTlu7ror7fmsYLphY3nva48YnIvPnVybCwgbWV0aG9kLCBwYXJhbXNdXG4gICAgICAgIEJVSUxEX0NPTkZJRyAtLT4gQ0hFQ0tfQ0FDSEV7ZnJvbUNhY2hlP31cbiAgICAgICAgQ0hFQ0tfQ0FDSEUgLS0-fOaYr3wgSElUX0NBQ0hFe-e8k-WtmOWRveS4rT99XG4gICAgICAgIEhJVF9DQUNIRSAtLT585pivfCBSRVRVUk5fQ0FDSEVb6L-U5Zue57yT5a2YIFByb21pc2VdXG4gICAgICAgIEhJVF9DQUNIRSAtLT585ZCmfCBBRERfUVVFVUVcbiAgICAgICAgQ0hFQ0tfQ0FDSEUgLS0-fOWQpnwgQUREX1FVRVVFW-WKoOWFpSBSZXF1ZXN0UXVldWVdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcIuivt-axguaLpuaIquWZqFwiXG4gICAgICAgIEFERF9RVUVVRSAtLT4gUkVRX0lOVEVSQ0VQVE9SW1JlcXVlc3QgSW50ZXJjZXB0b3JdXG4gICAgICAgIFJFUV9JTlRFUkNFUFRPUiAtLT4gQUREX0hFQURFUlNb5re75YqgIEhlYWRlcnNdXG4gICAgICAgIEFERF9IRUFERVJTIC0tPiBIMVtYLUJrLVNwYWNlLVVpZDxici8-5aSW6YOo54mIXVxuICAgICAgICBBRERfSEVBREVSUyAtLT4gSDJbVHJhY2VwYXJlbnQ8YnIvPui_vei4qumTvui3r11cbiAgICAgICAgQUREX0hFQURFUlMgLS0-IEgzW1gtQktMT0ctVElNRVpPTkU8YnIvPuaXtuWMuuS_oeaBr11cbiAgICBlbmRcblxuICAgIHN1YmdyYXBoIFwi5ZON5bqU5aSE55CGXCJcbiAgICAgICAgSDEgLS0-IFNFTkRfUkVRW-WPkemAgeivt-axgl1cbiAgICAgICAgSDIgLS0-IFNFTkRfUkVRXG4gICAgICAgIEgzIC0tPiBTRU5EX1JFUVxuICAgICAgICBTRU5EX1JFUSAtLT4gUkVTUF9JTlRFUkNFUFRPUltSZXNwb25zZSBJbnRlcmNlcHRvcl1cbiAgICAgICAgUkVTUF9JTlRFUkNFUFRPUiAtLT4gQ0hFQ0tfQkxPQntCbG9iIOexu-Weiz99XG4gICAgICAgIENIRUNLX0JMT0IgLS0-fOaYr3wgQkxPQl9IQU5ETEVbQmxvYiDlpITnkIbpgLvovpFdXG4gICAgICAgIENIRUNLX0JMT0IgLS0-fOWQpnwgSEFORExFX1JFU1BbaGFuZGxlUmVzcG9uc2VdXG4gICAgZW5kXG5cbiAgICBzdWJncmFwaCBcIumUmeivr-WkhOeQhlwiXG4gICAgICAgIEhBTkRMRV9SRVNQIC0tPiBDSEVDS19TVUNDRVNTe-ivt-axguaIkOWKnz99XG4gICAgICAgIENIRUNLX1NVQ0NFU1MgLS0-fOaYr3wgUkVUVVJOX0RBVEFb6L-U5Zue5pWw5o2uXVxuICAgICAgICBDSEVDS19TVUNDRVNTIC0tPnzlkKZ8IEVSUk9SX0hBTkRMRXvplJnor6_nsbvlnot9XG4gICAgICAgIEVSUk9SX0hBTkRMRSAtLT58NDAxfCBMT0dJTl9NT0RBTFvlvLnlh7rnmbvlvZXmoYY8YnIvPuaIlui3s-i9rOeZu-W9lemhtV1cbiAgICAgICAgRVJST1JfSEFORExFIC0tPnw5OTAwNDAzfCBBVVRIX0RJQUxPR1vlhpnlhaUgYXV0aERpYWxvZ0RhdGE8YnIvPuinpuWPkemJtOadg-W8ueeql11cbiAgICAgICAgRVJST1JfSEFORExFIC0tPnzlhbbku5Z8IENIRUNLX01TR3tjYXRjaElzU2hvd01lc3NhZ2U_fVxuICAgICAgICBDSEVDS19NU0cgLS0-fOaYr3wgU0hPV19NU0dbYmtNZXNzYWdlIOaPkOekul1cbiAgICAgICAgQ0hFQ0tfTVNHIC0tPnzlkKZ8IFNJTEVOVFvpnZnpu5jlpITnkIZdXG4gICAgZW5kXG5cbiAgICBSRVRVUk5fQ0FDSEUgLS0-IEVORF9GTE9XKFvor7fmsYLnu5PmnZ9dKVxuICAgIFJFVFVSTl9EQVRBIC0tPiBFTkRfRkxPV1xuICAgIExPR0lOX01PREFMIC0tPiBFTkRfRkxPV1xuICAgIEFVVEhfRElBTE9HIC0tPiBFTkRfRkxPV1xuICAgIFNIT1dfTVNHIC0tPiBFTkRfRkxPV1xuICAgIFNJTEVOVCAtLT4gRU5EX0ZMT1dcbiAgICBCTE9CX0hBTkRMRSAtLT4gRU5EX0ZMT1dcbiJ9">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: { &#39;primaryColor&#39;: &#39;#fff3e0&#39;, &#39;primaryTextColor&#39;: &#39;#e65100&#39;, &#39;primaryBorderColor&#39;: &#39;#ff9800&#39;, &#39;lineColor&#39;: &#39;#ffb74d&#39;}}}%%
+flowchart TD
+    subgraph &quot;请求发起&quot;
+        START([http.request 调用]) --&gt; BUILD_CONFIG[构建请求配置&lt;br/&gt;url, method, params]
+        BUILD_CONFIG --&gt; CHECK_CACHE{fromCache?}
+        CHECK_CACHE --&gt;|是| HIT_CACHE{缓存命中?}
+        HIT_CACHE --&gt;|是| RETURN_CACHE[返回缓存 Promise]
+        HIT_CACHE --&gt;|否| ADD_QUEUE
+        CHECK_CACHE --&gt;|否| ADD_QUEUE[加入 RequestQueue]
+    end
+
+    subgraph &quot;请求拦截器&quot;
+        ADD_QUEUE --&gt; REQ_INTERCEPTOR[Request Interceptor]
+        REQ_INTERCEPTOR --&gt; ADD_HEADERS[添加 Headers]
+        ADD_HEADERS --&gt; H1[X-Bk-Space-Uid&lt;br/&gt;外部版]
+        ADD_HEADERS --&gt; H2[Traceparent&lt;br/&gt;追踪链路]
+        ADD_HEADERS --&gt; H3[X-BKLOG-TIMEZONE&lt;br/&gt;时区信息]
+    end
+
+    subgraph &quot;响应处理&quot;
+        H1 --&gt; SEND_REQ[发送请求]
+        H2 --&gt; SEND_REQ
+        H3 --&gt; SEND_REQ
+        SEND_REQ --&gt; RESP_INTERCEPTOR[Response Interceptor]
+        RESP_INTERCEPTOR --&gt; CHECK_BLOB{Blob 类型?}
+        CHECK_BLOB --&gt;|是| BLOB_HANDLE[Blob 处理逻辑]
+        CHECK_BLOB --&gt;|否| HANDLE_RESP[handleResponse]
+    end
+
+    subgraph &quot;错误处理&quot;
+        HANDLE_RESP --&gt; CHECK_SUCCESS{请求成功?}
+        CHECK_SUCCESS --&gt;|是| RETURN_DATA[返回数据]
+        CHECK_SUCCESS --&gt;|否| ERROR_HANDLE{错误类型}
+        ERROR_HANDLE --&gt;|401| LOGIN_MODAL[弹出登录框&lt;br/&gt;或跳转登录页]
+        ERROR_HANDLE --&gt;|9900403| AUTH_DIALOG[写入 authDialogData&lt;br/&gt;触发鉴权弹窗]
+        ERROR_HANDLE --&gt;|其他| CHECK_MSG{catchIsShowMessage?}
+        CHECK_MSG --&gt;|是| SHOW_MSG[bkMessage 提示]
+        CHECK_MSG --&gt;|否| SILENT[静默处理]
+    end
+
+    RETURN_CACHE --&gt; END_FLOW([请求结束])
+    RETURN_DATA --&gt; END_FLOW
+    LOGIN_MODAL --&gt; END_FLOW
+    AUTH_DIALOG --&gt; END_FLOW
+    SHOW_MSG --&gt; END_FLOW
+    SILENT --&gt; END_FLOW
+    BLOB_HANDLE --&gt; END_FLOW
+</pre></main></div></body></html>
