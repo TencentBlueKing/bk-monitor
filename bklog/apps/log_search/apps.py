@@ -24,6 +24,7 @@ import os
 from django.apps.config import AppConfig
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
+from django.db.models.signals import post_migrate
 
 from apps.iam import Permission
 from apps.utils.local import activate_request
@@ -52,8 +53,7 @@ class ApiConfig(AppConfig):
         self.init_bklog_api()
         self.sync_package_version()
         self.check_feature()
-        # 本地连接预发布 IAM 时禁用权限模型迁移，避免影响共享权限数据。
-        # post_migrate.connect(migrate_iam, sender=self)
+        post_migrate.connect(migrate_iam, sender=self)
         return True
 
     @classmethod
