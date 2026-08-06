@@ -28,11 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
+import introduce from '../../common/introduce';
+import GuidePage from '../../components/guide-page/guide-page';
 import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
 import type { AIBluekingShortcut } from '@/components/ai-whale/types';
 import type { Vue3WewebData } from '@/types/weweb/weweb';
+import type { Route } from 'vue-router';
 
 import './host.scss';
 const hostAppId = 'host-app';
@@ -65,7 +68,12 @@ export default class Host extends tsc<object> {
       },
     };
   }
+  // 是否显示引导页（navId 为 host 时，getShowGuidePageByRoute 内部复用 performance）
+  get showGuidePage() {
+    return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
+  }
   created() {
+    if (this.showGuidePage) return;
     if (!window.customElements.get('host-app')) {
       class HostAppElement extends HTMLElement {
         async connectedCallback() {
@@ -78,11 +86,13 @@ export default class Host extends tsc<object> {
     }
   }
   beforeDestroy() {
+    if (this.showGuidePage) return;
     this.unmountCallback?.();
     unmount(hostAppId);
     this.unmountCallback = undefined;
   }
   async mounted() {
+    if (this.showGuidePage) return;
     await loadApp({
       url: this.hostUrl,
       id: hostAppId,
@@ -93,16 +103,17 @@ export default class Host extends tsc<object> {
       scopeJs: true,
       scopeLocation: false,
     });
-    mount(hostAppId, this.hostApp.shadowRoot);
+    mount(hostAppId, this.hostApp.shadowRoot as ShadowRoot);
     setTimeout(() => {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
   }
-  beforeRouteLeave(_to, _fromm, next) {
+  beforeRouteLeave(_to: Route, _from: Route, next: () => void) {
     document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题
     next();
   }
   render() {
+    if (this.showGuidePage) return <GuidePage guideData={introduce.data.performance?.introduce ?? []} />;
     return (
       <div class='host-wrap'>
         <div class='host-wrap-iframe'>
