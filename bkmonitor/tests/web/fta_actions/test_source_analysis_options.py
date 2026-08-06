@@ -13,8 +13,8 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 
 from api.devops.default import (
-    ListCodeccProjectRepositoryResource,
-    ListCodeccProjectResource,
+    ListUserProjectResource,
+    ListUserRepositoryResource,
 )
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
@@ -30,33 +30,44 @@ from fta_web.issue.resources import (
 from fta_web.issue.views import SourceAnalysisOptionsViewSet
 
 
-class TestCodeccUserResources(SimpleTestCase):
+class TestDevopsUserResources(SimpleTestCase):
     def test_actions_follow_devops_gateway_contract(self):
-        self.assertEqual(ListCodeccProjectResource.action, "/apigw-user/codecc/v2/project/list")
-        self.assertEqual(ListCodeccProjectRepositoryResource.action, "/apigw-user/codecc/v2/project/repos")
+        self.assertEqual(ListUserProjectResource.action, "/v4/apigw-user/projects/project_list")
+        self.assertEqual(
+            ListUserRepositoryResource.action,
+            "/v4/apigw-user/repositories/projects/{project_id}/repository_info_list",
+        )
 
-        serializer = ListCodeccProjectRepositoryResource.RequestSerializer(data={"projectId": "project-a"})
+        serializer = ListUserRepositoryResource.RequestSerializer(data={"project_id": "project-a"})
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    def test_response_uses_codecc_envelope(self):
-        resource = ListCodeccProjectResource()
+        request_data = serializer.validated_data.copy()
+        self.assertTrue(
+            ListUserRepositoryResource()
+            .get_request_url(request_data)
+            .endswith("/v4/apigw-user/repositories/projects/project-a/repository_info_list")
+        )
+        self.assertEqual(request_data, {})
+
+    def test_repository_response_uses_devops_status_envelope(self):
+        resource = ListUserRepositoryResource()
         with patch.object(resource, "report_api_failure_metric"):
             self.assertEqual(
-                resource.render_response_data({}, {"code": 0, "message": "", "data": [{"project_id": "project-a"}]}),
-                [{"project_id": "project-a"}],
+                resource.render_response_data({}, {"status": 0, "message": "", "data": {"records": []}}),
+                {"records": []},
             )
             with self.assertRaises(BKAPIError):
-                resource.render_response_data({}, {"code": 1, "message": "failed", "data": None})
+                resource.render_response_data({}, {"status": 1, "message": "failed", "data": None})
 
 
 class TestSourceAnalysisOptionsHandler(SimpleTestCase):
     def test_projects_are_normalized(self):
         with patch.object(
             api.devops,
-            "list_codecc_project",
+            "list_user_project",
             return_value=[
-                {"project_id": "project-a", "project_name": "Project A"},
-                {"project_id": "project-b", "project_name": "Project B"},
+                {"project_code": "project-a", "project_name": "Project A"},
+                {"project_code": "project-b", "project_name": "Project B"},
             ],
         ):
             self.assertEqual(
@@ -70,25 +81,27 @@ class TestSourceAnalysisOptionsHandler(SimpleTestCase):
     def test_repositories_keep_git_alias_only(self):
         repositories = [
             {
-                "alias_name": "git-repo",
-                "repo_hash_id": "hash-a",
+                "aliasName": "git-repo",
+                "repositoryHashId": "hash-a",
                 "type": "CODE_GIT",
                 "url": "https://example.com/git-repo.git",
             },
-            {"alias_name": "svn-repo", "repo_hash_id": "hash-b", "type": "CODE_SVN"},
+            {"aliasName": "svn-repo", "repositoryHashId": "hash-b", "type": "CODE_SVN"},
         ]
-        with patch.object(api.devops, "list_codecc_project_repository", return_value=repositories) as list_repositories:
+        with patch.object(
+            api.devops, "list_user_repository", return_value={"records": repositories}
+        ) as list_repositories:
             self.assertEqual(
                 SourceAnalysisOptionsHandler.list_bkci_repositories("project-a"),
                 [{"id": "git-repo", "name": "git-repo", "scm_type": "GIT"}],
             )
 
-        list_repositories.assert_called_once_with(projectId="project-a")
+        list_repositories.assert_called_once_with(project_id="project-a")
 
     def test_invalid_upstream_shape_is_rejected(self):
         for upstream_data in (None, {}, ["invalid-item"]):
             with self.subTest(upstream_data=upstream_data):
-                with patch.object(api.devops, "list_codecc_project", return_value=upstream_data):
+                with patch.object(api.devops, "list_user_project", return_value=upstream_data):
                     with self.assertRaises(ValueError):
                         SourceAnalysisOptionsHandler.list_bkci_projects()
 

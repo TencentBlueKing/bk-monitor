@@ -125,32 +125,24 @@ class ListPipelineResource(DevopsBaseResource):
         return super().get_request_url(validated_request_data).format(project_id=validated_request_data["project_id"])
 
 
-class CodeccUserResource(DevopsBaseResource, metaclass=abc.ABCMeta):
-    """CodeCC 用户态资源公共响应处理。"""
+class ListUserRepositoryResource(DevopsBaseResource):
+    """查询当前用户在指定蓝盾项目下有权限使用的代码库。"""
 
+    action = "/v4/apigw-user/repositories/projects/{project_id}/repository_info_list"
+    method = "GET"
     IS_STANDARD_FORMAT = False
 
+    class RequestSerializer(serializers.Serializer):
+        project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+
+    def get_request_url(self, validated_request_data):
+        project_id = validated_request_data.pop("project_id")
+        return super().get_request_url(validated_request_data).format(project_id=project_id)
+
     def render_response_data(self, validated_request_data, response_data):
-        # CodeCC 用户态接口使用 {code, message, data}，与部分旧版 DevOps API 的响应格式不同。
-        if not isinstance(response_data, dict) or str(response_data.get("code")) != "0":
-            error_code = response_data.get("code", -1) if isinstance(response_data, dict) else -1
+        # 蓝盾 Repository V4 使用 {status, message, data}，需要在通用 APIResource 之外校验 status。
+        if not isinstance(response_data, dict) or response_data.get("status") != 0:
+            error_code = response_data.get("status", -1) if isinstance(response_data, dict) else -1
             self.report_api_failure_metric(error_code=error_code, exception_type=BKAPIError.__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=response_data)
         return response_data.get("data")
-
-
-class ListCodeccProjectResource(CodeccUserResource):
-    """查询当前用户可访问且已启用的蓝盾项目。"""
-
-    action = "/apigw-user/codecc/v2/project/list"
-    method = "GET"
-
-
-class ListCodeccProjectRepositoryResource(CodeccUserResource):
-    """查询当前用户在指定蓝盾项目下可使用的代码库。"""
-
-    action = "/apigw-user/codecc/v2/project/repos"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        projectId = serializers.CharField(label="蓝盾项目 ID", max_length=128)

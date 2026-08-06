@@ -14,7 +14,7 @@ from core.drf_resource import api
 class SourceAnalysisOptionsHandler:
     """封装源码分析配置页所需的蓝盾选项，并屏蔽上游字段差异。"""
 
-    GIT_REPOSITORY_TYPES = frozenset({"CODE_GIT", "CODE_GITLAB", "CODE_TGIT", "GITHUB", "SCM_GIT"})
+    GIT_REPOSITORY_TYPES = frozenset({"CODE_GIT", "CODE_GITLAB", "CODE_TGIT", "GITHUB"})
 
     @staticmethod
     def _validate_list(data, resource_name: str) -> list[dict]:
@@ -24,32 +24,32 @@ class SourceAnalysisOptionsHandler:
 
     @classmethod
     def list_bkci_projects(cls) -> list[dict]:
-        projects = cls._validate_list(api.devops.list_codecc_project(), "project")
+        projects = cls._validate_list(api.devops.list_user_project(), "project")
         options = []
         for project in projects:
-            project_id = project.get("project_id")
+            project_id = project.get("project_code")
             project_name = project.get("project_name")
             if not project_id or not project_name:
-                raise ValueError("project response misses project_id or project_name")
+                raise ValueError("project response misses project_code or project_name")
             options.append({"id": project_id, "name": project_name})
         return options
 
     @classmethod
     def list_bkci_repositories(cls, project_id: str) -> list[dict]:
-        repositories = cls._validate_list(
-            api.devops.list_codecc_project_repository(projectId=project_id),
-            "repository",
-        )
+        repository_page = api.devops.list_user_repository(project_id=project_id)
+        if not isinstance(repository_page, dict):
+            raise ValueError("invalid repository response")
+        repositories = cls._validate_list(repository_page.get("records"), "repository")
         options = []
         for repository in repositories:
             repository_type = str(repository.get("type") or "").upper()
             if repository_type not in cls.GIT_REPOSITORY_TYPES:
                 continue
 
-            alias = repository.get("alias_name")
+            alias = repository.get("aliasName")
             if not alias:
-                raise ValueError("repository response misses alias_name")
+                raise ValueError("repository response misses aliasName")
 
-            # repo_hash_id 仅用于蓝盾内部接口联查；配置和前端选项均以不可变的代码库别名为准。
+            # repositoryHashId 仅用于蓝盾内部接口联查；配置和前端选项均以不可变的代码库别名为准。
             options.append({"id": alias, "name": alias, "scm_type": "GIT"})
         return options
