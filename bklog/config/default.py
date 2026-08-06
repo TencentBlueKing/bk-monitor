@@ -443,7 +443,7 @@ BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-# IAM V4（bkiam 网关）；API path 默认值见 apps/iam/backends/v4/config.py
+# IAM V4（bkiam 网关）；必须显式配置 BKAPP_IAM_V4_API_BASE_URL，未配置时 V4 client 会记录错误并安全失败
 BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL", "").strip()
 BK_IAM_V4_TIMEOUT = int(os.getenv("BK_IAM_V4_TIMEOUT", "10"))
 BK_IAM_V4_BATCH_CHUNK_SIZE = int(os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100"))

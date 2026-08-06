@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from iam import Resource
 from iam.exceptions import AuthAPIError
@@ -206,6 +207,27 @@ class PermissionFacadeTest(SimpleTestCase):
 
         self.assertEqual(result, ({"provider": "v3"}, "https://iam-v3.example/apply"))
         v4_provider.get_apply_data.assert_called_once()
+
+    def test_pure_v4_apply_failure_logs_error_and_returns_degraded_data_instead_of_raising(self):
+        # 纯 V4 模式最终不再保留 V3 回退；申请数据生成失败时只记录错误并返回退化数据，
+        # 不能让异常从 get_apply_data 冒出去，否则 is_allowed(raise_exception=True) 会变成 500
+        # 而不是约定的 PermissionDeniedError。
+        v4_provider = Mock()
+        v4_provider.get_apply_data.side_effect = RuntimeError("v4 apply unavailable")
+        permission = self._make_permission()
+        permission.get_v4_permission_application_provider = Mock(return_value=v4_provider)
+        permission._get_v3_apply_data = Mock()
+
+        with patch("apps.iam.handlers.permission.logger.error") as error_log:
+            result = permission.get_apply_data(
+                [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+                mode=AuthMode.V4,
+            )
+
+        self.assertEqual(result, ({}, settings.BK_IAM_SAAS_HOST))
+        v4_provider.get_apply_data.assert_called_once()
+        permission._get_v3_apply_data.assert_not_called()
+        error_log.assert_called_once()
 
     def test_union_mode_allows_when_v3_allows_and_v4_is_not_configured(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION

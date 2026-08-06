@@ -297,7 +297,10 @@ class Permission:
         try:
             return application.provider.get_apply_data(actions, resources)
         except Exception as error:  # pylint: disable=broad-except
-            if application.source_mode is AuthMode.V4 and resolved_mode is AuthMode.UNION:
+            if application.source_mode is not AuthMode.V4:
+                raise
+
+            if resolved_mode is AuthMode.UNION:
                 logger.warning(
                     "[IAM Apply] mode=%s v4 provider failed, fallback to v3: %s",
                     resolved_mode.value,
@@ -305,7 +308,15 @@ class Permission:
                 )
                 v3_application = MigrationPolicy.resolve_application(AuthMode.V3, self.provider_bundles)
                 return v3_application.provider.get_apply_data(actions, resources)
-            raise
+
+            # 纯 V4 模式最终会不再保留 V3，这里不做“回退 V3”的迁移期兼容，
+            # 只记录错误并返回退化的申请数据，保证鉴权拒绝流程不会因为申请数据生成失败而变成 500。
+            logger.error(
+                "[IAM Apply] mode=%s v4 apply data generation failed: %s",
+                resolved_mode.value,
+                error,
+            )
+            return {}, settings.BK_IAM_SAAS_HOST
 
     def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
         """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 V3。
