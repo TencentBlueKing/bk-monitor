@@ -13,11 +13,12 @@ specific language governing permissions and limitations under the License.
 #
 # 覆盖：
 #   1. IdentityCodec 全恒等
-#   2. V4NameCodec 双射 & 边界（space 加前缀、非 space 恒等、decode 兜底）
+#   2. MonitorV4Codec 双射 & 边界（space 加前缀、非 space 恒等、decode 兜底）
 #   3. PermissionProvider 基类：is_allowed / batch_by_resource / batch_by_action /
 #      get_apply_url 出站 encode + 入站 decode 走通
 # ==============================================================================
 
+from bkmonitor.iam.definitions.codec import MonitorV4Codec
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -29,7 +30,6 @@ from bkmonitor.iam.iam_engine.core.types import (
 from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
 from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec, NameCodec
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_v4.codec import V4NameCodec
 
 
 # ==============================================================================
@@ -62,15 +62,15 @@ class TestIdentityCodec:
 
 
 # ==============================================================================
-# V4NameCodec
+# MonitorV4Codec
 # ==============================================================================
 
 
-class TestV4NameCodec:
-    """V4NameCodec 只对 space 加 "space|" 前缀。"""
+class TestMonitorV4Codec:
+    """MonitorV4Codec 只对 space 加 "space|" 前缀。"""
 
     def setup_method(self):
-        self.c: NameCodec = V4NameCodec()
+        self.c: NameCodec = MonitorV4Codec()
 
     # ---- space ----
 
@@ -78,11 +78,9 @@ class TestV4NameCodec:
         assert self.c.encode_resource_id("space", "3") == "space|3"
 
     def test_space_encode_negative(self):
-        """非 bkcc 空间（负数 bk_biz_id）也能加前缀，首字符变为字母。"""
         assert self.c.encode_resource_id("space", "-42") == "space|-42"
 
     def test_space_encode_idempotent(self):
-        """已带前缀不应再套一层（幂等，防御性）。"""
         assert self.c.encode_resource_id("space", "space|3") == "space|3"
 
     def test_space_decode(self):
@@ -90,7 +88,6 @@ class TestV4NameCodec:
         assert self.c.decode_resource_id("space", "space|-42") == "-42"
 
     def test_space_decode_no_prefix_fallback(self):
-        """无前缀的历史 ID：视作业务 ID 原样返回。"""
         assert self.c.decode_resource_id("space", "3") == "3"
 
     def test_space_round_trip(self):
@@ -104,7 +101,6 @@ class TestV4NameCodec:
         assert self.c.decode_resource_id("apm_application", "42") == "42"
 
     def test_grafana_dashboard_identity(self):
-        # 业务侧已是复合 ID，恒等即可
         assert self.c.encode_resource_id("grafana_dashboard", "1|abc-uid") == "1|abc-uid"
         assert self.c.decode_resource_id("grafana_dashboard", "1|abc-uid") == "1|abc-uid"
         assert self.c.encode_resource_id("grafana_dashboard", "folder:1|100") == "folder:1|100"
@@ -112,7 +108,7 @@ class TestV4NameCodec:
     def test_rum_application_identity(self):
         assert self.c.encode_resource_id("rum_application", "17") == "17"
 
-    # ---- 其他符号：全恒等（继承自 IdentityCodec） ----
+    # ---- 其他符号：全恒等 ----
 
     def test_action_identity(self):
         assert self.c.encode_action("view_business") == "view_business"
@@ -129,15 +125,11 @@ class TestV4NameCodec:
 
 # ==============================================================================
 # PermissionProvider 基类的编解码模板方法
-#
-# 用一个"记录方言层入参、返回可控出参"的假 Provider，验证：
-#   - 出站：接口层收到的业务 ID 到达方言层时已是方言 ID
-#   - 入站：方言层返回的方言 ID 在接口层拿到时已还原为业务 ID
 # ==============================================================================
 
 
 class _RecordingCodec(IdentityCodec):
-    """恒等基础上，把 encode/decode 加上明显的前缀 D:/B:，方便断言。"""
+    """恒等基础上，把 encode/decode 加上前缀 D:，方便断言。"""
 
     def encode_action(self, action_id: str) -> str:
         return f"D:{action_id}"
@@ -164,10 +156,9 @@ class _RecordingProvider(PermissionProvider):
     """记录方言层收到的入参，用于断言基类是否正确 encode。"""
 
     name = "recording"
-    codec_class = _RecordingCodec
 
     def __init__(self, schema: SchemaRegistry) -> None:
-        super().__init__(schema)
+        super().__init__(schema, codec_class="tests.iam.test_codec._RecordingCodec")
         self.last_is_allowed = None
         self.last_batch_by_resource = None
         self.last_batch_by_action = None
@@ -179,7 +170,6 @@ class _RecordingProvider(PermissionProvider):
 
     def _batch_by_resource_dialect_page(self, request):
         self.last_batch_by_resource = request
-        # 返回每个 dialect_resource_id → True
         return [(rid, True) for rid in request.resource_ids]
 
     def _batch_by_action_dialect_page(self, request):
@@ -190,13 +180,13 @@ class _RecordingProvider(PermissionProvider):
         self.last_apply_url = request
         return "https://example.com/apply"
 
-    def plan_migration(self, schema):  # pragma: no cover
+    def plan_migration(self, schema):
         raise NotImplementedError
 
-    def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):  # pragma: no cover
+    def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):
         raise NotImplementedError
 
-    def health_check(self):  # pragma: no cover
+    def health_check(self):
         return {"status": "ok", "provider": self.name}
 
 
@@ -253,12 +243,10 @@ class TestPermissionProviderEncoding:
                 ),
             )
         )
-        # 方言层收到的是方言 ID
         assert p.last_batch_by_resource is not None
         assert p.last_batch_by_resource.action_id == "D:view_business"
         assert p.last_batch_by_resource.resource_type == "D:space"
         assert p.last_batch_by_resource.resource_ids == ("D:3", "D:5")
-        # 上层拿到的是业务 ID
         ids = [item.resource_id for item in result.items]
         assert ids == ["3", "5"]
         assert all(item.action_id == "view_business" for item in result.items)
@@ -273,13 +261,11 @@ class TestPermissionProviderEncoding:
                 resource=ResourceInstance(type="space", id="3"),
             )
         )
-        # 方言层收到的是方言 ID
         assert p.last_batch_by_action is not None
         assert p.last_batch_by_action.action_ids == ("D:view_business", "D:manage_rule")
         assert p.last_batch_by_action.resource is not None
         assert p.last_batch_by_action.resource.type == "D:space"
         assert p.last_batch_by_action.resource.id == "D:3"
-        # 上层拿到的是业务 ID
         aids = [item.action_id for item in result.items]
         assert aids == ["view_business", "manage_rule"]
         assert all(item.resource_id == "3" for item in result.items)
@@ -302,7 +288,6 @@ class TestPermissionProviderEncoding:
         assert r.id == "D:3"
 
     def test_batch_by_resource_empty(self):
-        """空 resources 直接返回空 result，不触发方言层。"""
         p = _fresh_provider()
         result = p.batch_by_resource(
             BatchByResourceRequest(

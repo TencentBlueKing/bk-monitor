@@ -15,11 +15,14 @@ specific language governing permissions and limitations under the License.
 # ApmApplicationProvider / GrafanaDashboardProvider。
 #
 # 契约：
-#   * handler 内部 **只处理业务 ID**（未加 v4 方言前缀），所有 codec 编解码
-#     由 callback.services.CallbackService 装饰器统一完成。
-#   * handler 出参每项的 "id" 字段填业务 ID；装饰器会 encode 回 v4 方言。
-#   * handler 入参（fetch 的 ids、list 的 filter.parent.id）已被装饰器 decode
-#     为业务 ID，可直接使用。
+#   handler 内部只处理业务 ID（未加 v4 方言前缀），所有 codec 编解码
+#   由 CallbackService.dispatch_* 统一完成。
+#   handler 出参每项的 "id" 填业务 ID；dispatch 层会 encode 回 v4 方言。
+#   handler 入参（fetch 的 ids、list 的 filter.parent.id）已被 dispatch 层
+#   decode 为业务 ID，可直接使用。
+#
+# 注册：
+#   本模块 import 时即通过装饰器完成 handler 注册，无需额外调用。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -39,12 +42,12 @@ from constants.common import DEFAULT_TENANT_ID
 from metadata.models import Space, SpaceType
 from rum_web.models.application import Application as RumApplication
 
-from .services import service
+from ..iam_engine.callback.registry import register_fetch_instance_info, register_list_instance
 
 logger = logging.getLogger(__name__)
 
 # ================================================================
-# space — 顶级资源，复用 v3 SpaceProvider
+# space — 顶级资源
 # ================================================================
 
 
@@ -55,10 +58,9 @@ def _get_space_queryset(bk_tenant_id: str = DEFAULT_TENANT_ID):
 def _generate_space_resources(queryset):
     """把 Space 对象列表转成 handler 出参格式（业务 ID）。
 
-    规则（业务身份编码，与 v3 一致）：
+    规则（与 v3 一致）：
       - bkcc 空间：bk_biz_id = int(space_id)，正数
       - 非 bkcc 空间：bk_biz_id = -pk，负数
-    v4 方言（"space|3"）由 callback.services 层统一 encode，不在此处处理。
     """
     space_types = {t.type_id: t.type_name for t in SpaceType.objects.all()}
     return [
@@ -70,7 +72,7 @@ def _generate_space_resources(queryset):
     ]
 
 
-@service.list_instance("space")
+@register_list_instance("space")
 def _list_space(filter_data: dict, page: dict) -> dict:
     queryset = _get_space_queryset()
     keyword = (filter_data.get("keyword") or "").strip()
@@ -84,9 +86,8 @@ def _list_space(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": results}
 
 
-@service.fetch_instance_info("space")
+@register_fetch_instance_info("space")
 def _fetch_space(ids: list[str], requires: list[str]) -> list[dict]:
-    """ids 已被装饰器 decode 为业务 ID（如 "3" / "-42"）。"""
     if not ids:
         return []
     conditions = []
@@ -112,16 +113,15 @@ def _fetch_space(ids: list[str], requires: list[str]) -> list[dict]:
 
 
 # ================================================================
-# apm_application — 复用 v3 ApmApplicationProvider
+# apm_application
 # ================================================================
 
 
-@service.list_instance("apm_application")
+@register_list_instance("apm_application")
 def _list_apm(filter_data: dict, page: dict) -> dict:
     queryset = ApmApplication.objects.filter(bk_tenant_id=DEFAULT_TENANT_ID)
     parent = filter_data.get("parent", {})
     if parent.get("type") == "space" and parent.get("id"):
-        # parent.id 已被装饰器 decode 为业务 ID（如 "3"）
         queryset = queryset.filter(bk_biz_id=parent["id"])
     keyword = (filter_data.get("keyword") or "").strip()
     if keyword:
@@ -134,7 +134,7 @@ def _list_apm(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": results}
 
 
-@service.fetch_instance_info("apm_application")
+@register_fetch_instance_info("apm_application")
 def _fetch_apm(ids: list[str], requires: list[str]) -> list[dict]:
     if not ids:
         return []
@@ -150,7 +150,7 @@ def _fetch_apm(ids: list[str], requires: list[str]) -> list[dict]:
 
 
 # ================================================================
-# grafana_dashboard — 复用 v3 GrafanaDashboardProvider
+# grafana_dashboard
 # ================================================================
 
 _FOLDER_PREFIX = "folder:"
@@ -165,17 +165,15 @@ def _get_valid_org_ids() -> set[int]:
     return set(Org.objects.filter(name__in=bk_biz_ids).values_list("id", flat=True))
 
 
-@service.list_instance("grafana_dashboard")
+@register_list_instance("grafana_dashboard")
 def _list_grafana(filter_data: dict, page: dict) -> dict:
     valid_org_ids = _get_valid_org_ids()
 
     folders = Dashboard.objects.filter(is_folder=True, org_id__in=valid_org_ids)
     dashboards = Dashboard.objects.filter(is_folder=False, org_id__in=valid_org_ids)
 
-    # 按 parent (space) 过滤
     parent = filter_data.get("parent", {})
     if parent.get("type") == "space" and parent.get("id"):
-        # parent.id 已被装饰器 decode 为业务 ID
         org = get_org_by_name(org_name=parent["id"])
         if not org:
             return {"count": 0, "results": []}
@@ -185,11 +183,9 @@ def _list_grafana(filter_data: dict, page: dict) -> dict:
         folders = folders.filter(org_id=target_org_id)
         dashboards = dashboards.filter(org_id=target_org_id)
 
-    # 构建结果
     folder_results = [
         {"id": f"{_FOLDER_PREFIX}{f.org_id}|{f.id}", "display_name": f"[目录] {f.title}"} for f in folders
     ]
-    # folder_id -> title 映射
     folder_titles = {f.id: f.title for f in Dashboard.objects.filter(is_folder=True, org_id__in=valid_org_ids)}
     dashboard_results = []
     for d in dashboards:
@@ -207,7 +203,7 @@ def _list_grafana(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": all_results[start : start + ps]}
 
 
-@service.fetch_instance_info("grafana_dashboard")
+@register_fetch_instance_info("grafana_dashboard")
 def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
     if not ids:
         return []
@@ -216,7 +212,6 @@ def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
     for instance_id in ids:
         instance_id = str(instance_id)
         if instance_id.startswith(_FOLDER_PREFIX):
-            # Folder: "folder:{org_id}|{folder_id}"
             part = instance_id[len(_FOLDER_PREFIX) :]
             if "|" in part:
                 try:
@@ -231,7 +226,6 @@ def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
                 except (ValueError, IndexError):
                     continue
         else:
-            # Dashboard: "{org_id}|{uid}"
             uid = instance_id.split("|", 1)[1] if "|" in instance_id else instance_id
             dash = Dashboard.objects.filter(uid=uid, is_folder=False, org_id__in=valid_org_ids).first()
             if dash:
@@ -248,16 +242,15 @@ def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
 
 
 # ================================================================
-# rum_application — v3 无 Provider，仿照 APM 实现
+# rum_application
 # ================================================================
 
 
-@service.list_instance("rum_application")
+@register_list_instance("rum_application")
 def _list_rum(filter_data: dict, page: dict) -> dict:
     queryset = RumApplication.objects.filter(bk_tenant_id=DEFAULT_TENANT_ID)
     parent = filter_data.get("parent", {})
     if parent.get("type") == "space" and parent.get("id"):
-        # parent.id 已被装饰器 decode 为业务 ID
         queryset = queryset.filter(bk_biz_id=parent["id"])
     keyword = (filter_data.get("keyword") or "").strip()
     if keyword:
@@ -270,7 +263,7 @@ def _list_rum(filter_data: dict, page: dict) -> dict:
     return {"count": total, "results": results}
 
 
-@service.fetch_instance_info("rum_application")
+@register_fetch_instance_info("rum_application")
 def _fetch_rum(ids: list[str], requires: list[str]) -> list[dict]:
     if not ids:
         return []
@@ -283,20 +276,3 @@ def _fetch_rum(ids: list[str], requires: list[str]) -> list[dict]:
             r["_bk_iam_path_"] = f"/space,{item.bk_biz_id}/"
         result.append(r)
     return result
-
-
-# ================================================================
-# 注册入口（保留幂等函数，便于 Django ready 阶段显式调用；模块 import
-# 时装饰器已完成注册，此函数只是提供一个明确的入口和向后兼容占位）
-# ================================================================
-
-
-def register_all() -> None:
-    """显式确保 handler 被注册。装饰器在模块导入时已生效；本函数用于
-    Django ready 阶段做一次显式保障，避免因 lazy import 遗漏。"""
-    # 触发本模块加载即可（装饰器已经在导入时把 handler 挂到 service 上）
-    logger.debug(
-        "[iam_v4:callback] handlers registered: list=%d fetch=%d",
-        len(service._list_handlers),
-        len(service._fetch_handlers),
-    )

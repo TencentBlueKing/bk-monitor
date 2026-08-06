@@ -64,7 +64,7 @@ from ..core.types import (
     to_action_id,
     to_resource_type_id,
 )
-from ..core.utils import chunked
+from ..core.utils import chunked, import_class
 from ..schema.registry import SchemaRegistry
 from .codec import IdentityCodec, NameCodec
 from .dialect_types import (
@@ -84,8 +84,7 @@ if TYPE_CHECKING:
 class PermissionProvider(ABC):
     """权限服务抽象接口 —— 唯一的扩展契约。
 
-    新增权限平台 = 新增本类子类 + 声明 codec_class + 实现方言层方法；
-    框架其余部分无需改动。
+    新增权限平台 = 新增本类子类 + 实现方言层方法；框架其余部分无需改动。
 
     构造约定：
         Provider 只吃两样东西：
@@ -102,18 +101,20 @@ class PermissionProvider(ABC):
         （如需要）也应由 Provider 自持，不通过框架注入。
 
     NameCodec 装配：
-        子类通过覆盖 codec_class 类属性来声明使用哪种 codec：
-            class V4PermissionProvider(PermissionProvider):
-                codec_class = V4NameCodec
-        未覆盖时默认使用 IdentityCodec（业务命名与平台方言完全一致）。
+        options.codec_class 配置 codec 类的 dotted path，由基类在 __init__ 中实例化：
+            IAM_FRAMEWORK = {
+                "PROVIDERS": [{
+                    "options": {
+                        "codec_class": "myapp.iam.codec.MyCodec",
+                    },
+                }],
+            }
+        未配置时默认使用 IdentityCodec（业务命名与平台方言完全一致）。
     """
 
     #: Provider 标识，用于日志/监控/命令行 --provider 参数。
     #: 子类必须覆盖为非空字符串（如 "v4"、"v3"）。
     name: ClassVar[str] = ""
-
-    #: 使用的 NameCodec 类。子类按需覆盖；默认恒等。
-    codec_class: ClassVar[type[NameCodec]] = IdentityCodec
 
     # -------- 批量分片/并发参数（子类可覆盖）--------
     #: 单次批量调用的最大条目数
@@ -124,7 +125,11 @@ class PermissionProvider(ABC):
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         self.schema = schema
         self.options = options
-        self.codec: NameCodec = self.codec_class()
+        codec_cls_path: str = options.get("codec_class", "")
+        if codec_cls_path:
+            self.codec: NameCodec = import_class(codec_cls_path)()
+        else:
+            self.codec = IdentityCodec()
 
     # ==================== 系统信息（供命令行/诊断使用） ====================
 

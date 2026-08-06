@@ -1359,13 +1359,15 @@ BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor_v4")
 BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
 
 IAM_FRAMEWORK = {
-    "ACTIONS": "bkmonitor.iam.schema.actions.Actions",
-    "RESOURCE_TYPES": "bkmonitor.iam.schema.resource_types.ResourceTypes",
-    "ROLES": "bkmonitor.iam.schema.roles.Roles",
+    "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
+    "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
+    "ROLES": "bkmonitor.iam.definitions.roles.Roles",
     "PROVIDERS": [
         {
             "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
             "options": {
+                "codec_class": "bkmonitor.iam.definitions.codec.MonitorV4Codec",
+                "callback_module": "bkmonitor.iam.definitions.v4_callbacks",
                 "base_url": BK_IAM_V4_API_BASE_URL,
                 "credentials": {
                     "app_code": BK_IAM_APP_CODE,

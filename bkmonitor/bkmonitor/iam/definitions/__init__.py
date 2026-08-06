@@ -9,16 +9,23 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# IAM v4 资源回调模块
+# iam.definitions — 平台无关的权限模型定义
 #
-# auth.py  — IAM v4 Basic Auth 认证
-# views.py — IAMV4ResourceCallbackView（v4 回调端点）
+# Action / ResourceType / Role 的定义不绑定任何 IAM 版本（v3/v4），
+# 各版本 Provider 共用同一套 schema。
 #
-# 通用基础设施在 iam_engine/callback/：
-#   registry.py — 全局 handler 注册表 + register_* 装饰器
-#   service.py  — CallbackService（codec 感知分发）
+# 同时包含：
+#   - codec.py     — v4 命名编解码器（业务 ↔ 平台方言）
+#   - callbacks.py — v4 资源回调 handler 实现
 #
-# 业务 handler 实现位于 iam/definitions/v4_callbacks.py，
-# 由 V4PermissionProvider 在初始化时通过 callback_module 配置自动导入。
-# 业务在 URLconf 中自行挂载 IAMV4ResourceCallbackView。
+# 使用方式（在 IAM_FRAMEWORK 配置中）：
+#   "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
+#   "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
+#   "ROLES": "bkmonitor.iam.definitions.roles.Roles",
 # ---------------------------------------------------------------------------
+
+from .actions import Actions
+from .resource_types import ResourceTypes
+from .roles import Roles
+
+__all__ = ["Actions", "ResourceTypes", "Roles"]

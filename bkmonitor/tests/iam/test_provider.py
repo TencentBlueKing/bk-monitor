@@ -47,9 +47,9 @@ from bkmonitor.iam.iam_engine.core.types import (
     Subject,
 )
 from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.schema.actions import Actions
-from bkmonitor.iam.schema.resource_types import ResourceTypes
-from bkmonitor.iam.schema.roles import Roles
+from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
+from bkmonitor.iam.definitions.roles import Roles
 
 # ---- 配置 ----
 

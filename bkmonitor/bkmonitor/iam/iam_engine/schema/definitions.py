@@ -61,7 +61,7 @@ class ResourceTypeDef:
     name: str
     ancestor: str = ""
     description: str = ""
-    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
+    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING, hash=False)
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,7 @@ class ActionDef:
     name: str
     resource_type: str = ""
     description: str = ""
-    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
+    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING, hash=False)
 
 
 @dataclass(frozen=True)
@@ -131,4 +131,4 @@ class RoleDef:
     name: str
     description: str = ""
     actions: tuple[RoleActionBinding, ...] = ()
-    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
+    extensions: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING, hash=False)

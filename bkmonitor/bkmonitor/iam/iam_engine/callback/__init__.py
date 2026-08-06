@@ -9,19 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# iam.schema — 平台无关的权限模型定义
+# iam_engine.callback — IAM 资源回调基础设施
 #
-# Action / ResourceType / Role 的定义不绑定任何 IAM 版本（v3/v4），
-# 各版本 Provider 共用同一套 schema。
+# 提供与 IAM 版本无关的通用回调机制：
+#   registry.py — 全局 handler 注册表 + register_* 装饰器
+#   service.py  — CallbackService（codec 感知的 dispatch 层）
 #
-# 使用方式（在 IAM_FRAMEWORK 配置中）：
-#   "ACTIONS": "bkmonitor.iam.schema.actions.Actions",
-#   "RESOURCE_TYPES": "bkmonitor.iam.schema.resource_types.ResourceTypes",
-#   "ROLES": "bkmonitor.iam.schema.roles.Roles",
+# 各 Provider 版本（v3/v4/...）各自实现 HTTP 协议层（View + Auth），
+# 共用本模块的注册表 + CallbackService。
 # ---------------------------------------------------------------------------
-
-from .actions import Actions
-from .resource_types import ResourceTypes
-from .roles import Roles
-
-__all__ = ["Actions", "ResourceTypes", "Roles"]

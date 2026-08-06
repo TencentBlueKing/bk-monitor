@@ -12,16 +12,18 @@ specific language governing permissions and limitations under the License.
 # V4PermissionProvider — IAM v4 (RBAC) 鉴权 Provider
 #
 # 只实现"方言层"接口：接收编码后的 Dialect* 结构，直接组装 v4 平台 payload
-# 并调用 client。业务命名 ↔ v4 方言的编解码全部由基类和 V4NameCodec 完成。
+# 并调用 client。业务命名 ↔ v4 方言的编解码全部由基类和注入的 codec 完成。
+# codec 类通过 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 配置。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from ..iam_engine.provider.base import PermissionProvider
-from ..iam_engine.provider.codec import NameCodec
+from ..iam_engine.callback.service import CallbackService
 from ..iam_engine.core.types import Subject, to_action_id
+from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
     DialectAuthRequest,
@@ -29,7 +31,6 @@ from ..iam_engine.provider.dialect_types import (
     DialectBatchByResourceRequest,
 )
 from .client import V4Client
-from .codec import V4NameCodec
 from .config import V4Options, V4SystemInfo
 
 if TYPE_CHECKING:
@@ -41,24 +42,45 @@ if TYPE_CHECKING:
 class V4PermissionProvider(PermissionProvider):
     """IAM v4 RBAC 权限 Provider。
 
-    - 鉴权：is_allowed 直接调 direct_auth；batch_* 由基类自动分片 + 串/并行。
-    - 编解码：所有业务 ↔ v4 方言的转换由 V4NameCodec + 基类模板方法完成，
-      子类只处理"方言 ID → v4 payload"。
-    - 配置：完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
-      Provider 不读 Django settings；具体字段参见 V4Options。
+    鉴权：
+        is_allowed 直接调 direct_auth；batch_* 由基类自动分片 + 串/并行。
+
+    编解码：
+        codec 类通过 options.codec_class 配置（dotted path），
+        由基类 __init__ 实例化。子类只处理"方言 ID → v4 payload"。
+
+    配置：
+        完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
+        Provider 不读 Django settings；具体字段参见 V4Options。
+
+    回调：
+        每个 Provider 实例持有自己的 CallbackService，codec 由本 Provider 注入。
     """
 
+    #: Provider 标识，用于日志/监控/命令行 --provider 参数。
     name: ClassVar[str] = "v4"
-    codec_class: ClassVar[type[NameCodec]] = V4NameCodec
 
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
+        """初始化 v4 Provider。
+
+        从 options 中解析 V4Options、实例化 V4Client 和 CallbackService。
+        codec 由基类 PermissionProvider.__init__ 根据 options.codec_class 创建。
+
+        Args:
+            schema: 框架统一构建的冻结 SchemaRegistry。
+            **options: IAM_FRAMEWORK.PROVIDERS[*].options 原样透传的字典，
+                必须包含 V4Options 所需的所有字段。
+
+        Raises:
+            ValueError: options 字段缺失或类型不匹配。
+        """
         super().__init__(schema, **options)
         # 强类型解析 + 启动期校验（缺字段/类型错直接抛 ValueError）
         self._cfg: V4Options = V4Options.from_dict(options)
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
-        # Client 解耦：配置全部注入，不直接读 Django settings
+        # Client：配置全部注入，不直接读 Django settings
         self._client = V4Client(
             base_url=self._cfg.base_url,
             system_id=self._cfg.system.id,
@@ -66,12 +88,26 @@ class V4PermissionProvider(PermissionProvider):
             app_secret=self._cfg.credentials.app_secret,
             timeout=self._cfg.timeout,
         )
+        # 导入 callback handler 模块，触发 @register_xxx 装饰器注册
+        callback_module: str = options.get("callback_module", "")
+        if callback_module:
+            importlib.import_module(callback_module)
+        # 回调服务：持有本 Provider 的 codec
+        self.callback_service = CallbackService(self.codec)
 
     # ================================================================
-    # 系统信息（供命令行工具使用）
+    # 系统信息（供命令行/诊断使用）
     # ================================================================
 
     def get_system_info(self) -> V4SystemInfo:
+        """返回 Provider 的系统信息对象。
+
+        命令行工具（如 iam_generate_config）以 duck typing 消费
+        .id / .name / .description / .managers / .clients / .callback_url。
+
+        Returns:
+            V4SystemInfo: v4 平台的系统注册信息。
+        """
         return self._cfg.system
 
     # ================================================================
@@ -79,6 +115,14 @@ class V4PermissionProvider(PermissionProvider):
     # ================================================================
 
     def _is_allowed_dialect(self, request: DialectAuthRequest) -> bool:
+        """单次鉴权（方言层）。
+
+        Args:
+            request: 已编码为 v4 方言的鉴权请求。
+
+        Returns:
+            True 表示允许；False 表示业务语义拒绝，非系统错误。
+        """
         v4_resource = self._to_v4_resource(request) if request.resource else None
         return self._client.direct_auth(
             subject_id=request.subject.id,
@@ -94,6 +138,15 @@ class V4PermissionProvider(PermissionProvider):
         self,
         request: DialectBatchByResourceRequest,
     ) -> list[tuple[str, bool]]:
+        """同 action、多 resource 批量鉴权（方言层单页，≤ CHUNK_SIZE）。
+
+        Args:
+            request: 已编码为 v4 方言的批量鉴权请求。
+
+        Returns:
+            list[(dialect_resource_id, allowed)]: 每个资源的鉴权结果，
+            resource_id 为 v4 方言格式。
+        """
         v4_resources = [{"id": rid} for rid in request.resource_ids]
         resp = self._client.direct_auth_by_resources(
             subject_id=request.subject.id,
@@ -110,6 +163,15 @@ class V4PermissionProvider(PermissionProvider):
         self,
         request: DialectBatchByActionRequest,
     ) -> list[tuple[str, bool]]:
+        """多 action、同一 resource 批量鉴权（方言层单页）。
+
+        Args:
+            request: 已编码为 v4 方言的批量鉴权请求。
+
+        Returns:
+            list[(dialect_action_id, allowed)]: 每个 action 的鉴权结果，
+            action_id 为 v4 方言格式。
+        """
         v4_resource = None
         if request.resource:
             v4_resource = {"id": request.resource.id}
@@ -125,6 +187,14 @@ class V4PermissionProvider(PermissionProvider):
     # ================================================================
 
     def _get_apply_url_dialect(self, request: DialectApplyURLRequest) -> str:
+        """生成权限申请 URL（方言层）。
+
+        Args:
+            request: 已编码为 v4 方言的申请 URL 请求。
+
+        Returns:
+            str: IAM 平台的权限申请页面 URL。
+        """
         permissions = []
         for aid in request.action_ids:
             resources = []
@@ -146,29 +216,29 @@ class V4PermissionProvider(PermissionProvider):
         """查询用户对某个 action 有权限的资源列表（业务命名）。
 
         平台仅支持顶层资源类型查询（第一层）。返回结果可能包含：
-          * ``"*"``：该资源类型下的任意资源都有权限
-          * 父资源 ID：该父资源下所有子资源都有权限
-          * 子资源 ID：单个资源实例的权限
+          - ``"*"``：该资源类型下的任意资源都有权限
+          - 父资源 ID：该父资源下所有子资源都有权限
+          - 子资源 ID：单个资源实例的权限
 
         Args:
-            subject: 鉴权主体
-            action_id: 业务规范化 action_id（或 ActionDef）
+            subject: 鉴权主体。
+            action_id: 业务规范化 action_id（或 ActionDef）。
 
         Returns:
-            [{"type": <业务 rt_id>, "ids": [<业务 rid> 或 "*"]}, ...]
+            list[dict]: 如 ``[{"type": "space", "ids": ["3", "*"]}, ...]``，
             所有 type/ids 都已经过 codec 解码为业务命名。
+            resource-free action（action 不关联资源类型）直接返回空列表。
         """
         action_id_biz = to_action_id(action_id)
 
-        # v4 平台限制：该接口只支持"关联资源的 action"（resource-free action 会被
-        # 平台 400 拒绝，报 "Only supports action related to resource."）。
-        # 前置从 schema 判断，resource-free 直接返回空，避免透传底层错误。
+        # v4 平台限制：该接口只支持"关联资源的 action"。
+        # resource-free action 从 schema 判断，直接返回空。
         try:
             action_def = self.schema.get_action(action_id_biz)
             if not action_def.resource_type:
                 return []
         except Exception:
-            # schema 里查不到时（未注册的 action_id），交给平台去返回业务错误
+            # schema 里查不到时，交给平台去返回业务错误
             pass
 
         dialect_action = self.codec.encode_action(action_id_biz)
@@ -212,21 +282,21 @@ class V4PermissionProvider(PermissionProvider):
         典型场景：用户创建资源后自动授予该资源相关的角色权限。
 
         Args:
-            subject: 授权对象
-            role: 角色（RoleDef 或业务 role_id）
+            subject: 授权对象。
+            role: 角色（RoleDef 或业务 role_id）。
             resource_type: 授权维度（ResourceTypeDef / 业务 rt_id / None）；
-                None 表示无关资源类型的授权（此时 resource_ids 必须为空）
+                None 表示无关资源类型的授权（此时 resource_ids 必须为空）。
             resource_ids: 授权的资源实例业务 ID 列表；
-                * 单个业务 ID：`["2", "3"]`
-                * `["*"]`：该资源类型下的无限制授权
-                * `[]`：仅在 resource_type=None 时合法（无关资源类型授权）
-            expired_at: unix 时间戳；最大 365 天后（平台限制）
-            operator: 操作人用户名（写入 X-Bkiam-Operator 请求头）
+                - 单个业务 ID：``["2", "3"]``
+                - ``["*"]``：该资源类型下的无限制授权
+                - ``[]``：仅在 resource_type=None 时合法（无关资源类型授权）。
+            expired_at: Unix 时间戳；最大 365 天后（平台限制）。
+            operator: 操作人用户名（写入 X-Bkiam-Operator 请求头）。
 
         Raises:
-            ValueError: 参数不合法（resource_type 与 resource_ids 组合不匹配）
-            ProviderUnavailable: HTTP 层异常
-            ProviderError: IAM 业务错误
+            ValueError: 参数不合法（resource_type 与 resource_ids 组合不匹配）。
+            ProviderUnavailable: HTTP 层异常。
+            ProviderError: IAM 业务错误。
         """
         # 业务命名归一化
         role_id_biz = role.id if hasattr(role, "id") else str(role)
@@ -277,9 +347,15 @@ class V4PermissionProvider(PermissionProvider):
 
     @staticmethod
     def _to_v4_resource(request: DialectAuthRequest) -> dict:
-        """DialectAuthRequest 里的单个 resource → v4 平台 payload。
+        """DialectAuthRequest 里的单个 resource → v4 平台鉴权 payload。
 
         v4 的鉴权 body 只需要 {"id": ...}；apply_url 才需要 type/ancestors。
+
+        Args:
+            request: 已编码的方言鉴权请求。
+
+        Returns:
+            dict: v4 平台鉴权 API 的 resource 字段。
         """
         return {"id": request.resource.id} if request.resource else {}
 
@@ -288,6 +364,13 @@ class V4PermissionProvider(PermissionProvider):
     # ================================================================
 
     def health_check(self) -> dict:
+        """探活检查。
+
+        调用 v4 平台 retrieve_system 验证连通性和系统注册状态。
+
+        Returns:
+            dict: ``{"status": "ok"|"error", "provider": "v4", ...}``
+        """
         try:
             system = self._client.retrieve_system()
             return {
@@ -303,6 +386,14 @@ class V4PermissionProvider(PermissionProvider):
     # ================================================================
 
     def plan_migration(self, schema: SchemaRegistry) -> MigrationPlan:
+        """比对本地 schema 与远端 IAM 平台，生成变更计划（不执行）。
+
+        Args:
+            schema: 冻结的 SchemaRegistry。
+
+        Returns:
+            MigrationPlan: 包含 provider_name 和 changes 列表的变更计划。
+        """
         from .migrator import V4Migrator
 
         migrator = V4Migrator(self._client, schema, self._cfg.system, self.codec)
@@ -315,6 +406,16 @@ class V4PermissionProvider(PermissionProvider):
         dry_run: bool = False,
         allow_destructive: bool = False,
     ) -> MigrationReport:
+        """应用变更计划到远端 IAM 平台。
+
+        Args:
+            plan: plan_migration 的产物。
+            dry_run: 只演练，不真正提交。默认 False。
+            allow_destructive: 是否允许破坏性变更（DELETE 等）。默认 False。
+
+        Returns:
+            MigrationReport: 包含 applied/would_apply/failed/elapsed 等信息。
+        """
         from .migrator import V4Migrator
 
         migrator = V4Migrator(self._client, self.schema, self._cfg.system, self.codec)

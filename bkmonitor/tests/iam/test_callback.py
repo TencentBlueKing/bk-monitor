@@ -8,21 +8,35 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import pytest
+from bkmonitor.iam.definitions.codec import MonitorV4Codec
+from bkmonitor.iam.iam_engine.callback.registry import (
+    _fetch_handlers,
+    _list_handlers,
+    register_fetch_instance_info,
+    register_list_instance,
+)
+from bkmonitor.iam.iam_engine.callback.service import CallbackService
 from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
-from bkmonitor.iam.iam_v4.callback.services import CallbackService
-from bkmonitor.iam.iam_v4.codec import V4NameCodec
+
+
+@pytest.fixture(autouse=True)
+def _clear_registry():
+    """每个测试前后清理全局 handler 注册表，避免测试间污染。"""
+    _list_handlers.clear()
+    _fetch_handlers.clear()
+    yield
+    _list_handlers.clear()
+    _fetch_handlers.clear()
 
 
 class TestCallbackServicesIdentityCodec:
     """使用恒等 codec 验证注册/分发机制本身（不涉及方言）。"""
 
-    def _fresh_service(self) -> CallbackService:
-        return CallbackService(codec=IdentityCodec())
-
     def test_register_and_list_instance(self):
-        svc = self._fresh_service()
+        svc = CallbackService(codec=IdentityCodec())
 
-        @svc.list_instance("test_type")
+        @register_list_instance("test_type_identity")
         def _fake_list(filter_data, page):
             return {
                 "count": 2,
@@ -32,42 +46,37 @@ class TestCallbackServicesIdentityCodec:
                 ],
             }
 
-        @svc.fetch_instance_info("test_type")
+        @register_fetch_instance_info("test_type_identity")
         def _fake_fetch(ids, requires):
             return [{"id": i, "display_name": f"name-{i}"} for i in ids]
 
-        result = svc.dispatch_list_instance("test_type", {}, {"page": 1, "page_size": 10})
+        result = svc.dispatch_list_instance("test_type_identity", {}, {"page": 1, "page_size": 10})
         assert result["count"] == 2
         assert len(result["results"]) == 2
-        # 恒等 codec：id 保持不变
         assert result["results"][0]["id"] == "1"
 
-        result = svc.dispatch_fetch_instance_info("test_type", ["1", "2"], ["display_name"])
+        result = svc.dispatch_fetch_instance_info("test_type_identity", ["1", "2"], ["display_name"])
         assert len(result) == 2
         assert {r["id"] for r in result} == {"1", "2"}
 
     def test_unregistered_type(self):
-        svc = self._fresh_service()
+        svc = CallbackService(codec=IdentityCodec())
         assert svc.dispatch_list_instance("unknown_type", {}, {}) == {"count": 0, "results": []}
         assert svc.dispatch_fetch_instance_info("unknown_type", ["1"], []) == []
 
 
-class TestCallbackServicesWithV4Codec:
-    """使用 V4NameCodec 验证 codec 编解码在装饰器里的正确性。
+class TestCallbackServicesWithMonitorV4Codec:
+    """使用 MonitorV4Codec 验证 codec 编解码在 dispatch 层的正确性。
 
-    v4 codec 规则：
-      - space         : 出参 encode 加 "space|" 前缀；入参 decode 去前缀
-      - 其他资源类型   : 恒等
+    MonitorV4Codec 规则：
+      - space: 出参 encode 加 "space|" 前缀；入参 decode 去前缀
+      - 其他资源类型: 恒等
     """
 
-    def _fresh_service(self) -> CallbackService:
-        return CallbackService(codec=V4NameCodec())
-
     def test_space_list_encodes_id(self):
-        """list_instance 返回的 space id 应该被加上 space| 前缀。"""
-        svc = self._fresh_service()
+        svc = CallbackService(codec=MonitorV4Codec())
 
-        @svc.list_instance("space")
+        @register_list_instance("space")
         def _fake_list(filter_data, page):
             return {
                 "count": 2,
@@ -82,89 +91,177 @@ class TestCallbackServicesWithV4Codec:
         assert result["results"][1]["id"] == "space|-42"
 
     def test_space_fetch_decodes_input_and_encodes_output(self):
-        """fetch_instance_info：入参 ids 应被 decode 为业务 ID；出参再 encode 回方言。"""
-        svc = self._fresh_service()
+        svc = CallbackService(codec=MonitorV4Codec())
 
         received_ids: list[str] = []
 
-        @svc.fetch_instance_info("space")
+        @register_fetch_instance_info("space")
         def _fake_fetch(ids, requires):
             received_ids.extend(ids)
             return [{"id": i, "display_name": f"biz-{i}"} for i in ids]
 
-        # 平台传入方言 id
         result = svc.dispatch_fetch_instance_info("space", ["space|3", "space|-42"], [])
-        # handler 内部拿到的应是纯业务 ID
         assert received_ids == ["3", "-42"]
-        # handler 出参应被再次 encode 为方言 ID 返回给平台
         assert [r["id"] for r in result] == ["space|3", "space|-42"]
 
     def test_space_fetch_tolerates_no_prefix(self):
-        """无前缀的历史 ID：decode 时按业务 ID 兜底返回，不报错。"""
-        svc = self._fresh_service()
+        svc = CallbackService(codec=MonitorV4Codec())
 
         received_ids: list[str] = []
 
-        @svc.fetch_instance_info("space")
+        @register_fetch_instance_info("space")
         def _fake_fetch(ids, requires):
             received_ids.extend(ids)
             return [{"id": i, "display_name": f"biz-{i}"} for i in ids]
 
         result = svc.dispatch_fetch_instance_info("space", ["3"], [])
         assert received_ids == ["3"]
-        # 出参再 encode，仍然拼上前缀
         assert result[0]["id"] == "space|3"
 
     def test_non_space_resource_is_identity(self):
-        """apm_application / grafana_dashboard / rum_application 恒等，不加前缀。"""
-        svc = self._fresh_service()
+        svc = CallbackService(codec=MonitorV4Codec())
 
-        @svc.list_instance("apm_application")
+        @register_list_instance("apm_application_test")
         def _fake_list_apm(filter_data, page):
             return {"count": 1, "results": [{"id": "42", "display_name": "apm-42"}]}
 
-        @svc.fetch_instance_info("grafana_dashboard")
+        @register_fetch_instance_info("grafana_dashboard_test")
         def _fake_fetch_grafana(ids, requires):
             return [{"id": i, "display_name": f"dash-{i}"} for i in ids]
 
-        r1 = svc.dispatch_list_instance("apm_application", {}, {})
-        assert r1["results"][0]["id"] == "42"  # 不加前缀
+        r1 = svc.dispatch_list_instance("apm_application_test", {}, {})
+        assert r1["results"][0]["id"] == "42"
 
-        r2 = svc.dispatch_fetch_instance_info("grafana_dashboard", ["1|abc-uid"], [])
-        assert r2[0]["id"] == "1|abc-uid"  # 复合 ID 原样返回
+        r2 = svc.dispatch_fetch_instance_info("grafana_dashboard_test", ["1|abc-uid"], [])
+        assert r2[0]["id"] == "1|abc-uid"
 
     def test_list_instance_decodes_parent_id(self):
-        """list_instance 时，filter.parent.id 应被 decode 为业务 ID 传给 handler。"""
-        svc = self._fresh_service()
+        svc = CallbackService(codec=MonitorV4Codec())
 
         received_filter: dict = {}
 
-        @svc.list_instance("apm_application")
+        @register_list_instance("apm_parent_test")
         def _fake_list(filter_data, page):
             received_filter.update(filter_data)
             return {"count": 0, "results": []}
 
         svc.dispatch_list_instance(
-            "apm_application",
+            "apm_parent_test",
             {"parent": {"type": "space", "id": "space|3"}},
             {},
         )
-        # handler 拿到的 parent.id 应已去前缀
         assert received_filter["parent"]["id"] == "3"
 
-    def test_set_codec_hot_swap(self):
-        """set_codec 后，已注册的 handler wrapper 立即用新 codec（属性访问，非闭包晚绑定）。"""
-        svc = CallbackService(codec=IdentityCodec())
+    def test_different_codec_instances_share_registry(self):
+        """同一个 registry 可以被不同 codec 的 CallbackService 使用。"""
+        svc_id = CallbackService(codec=IdentityCodec())
+        svc_v4 = CallbackService(codec=MonitorV4Codec())
 
-        @svc.list_instance("space")
+        @register_list_instance("space")
         def _fake_list(filter_data, page):
             return {"count": 1, "results": [{"id": "3", "display_name": "x"}]}
 
-        # 初始恒等：id 不变
-        assert svc.dispatch_list_instance("space", {}, {})["results"][0]["id"] == "3"
-        # 热更 codec
-        svc.set_codec(V4NameCodec())
-        assert svc.dispatch_list_instance("space", {}, {})["results"][0]["id"] == "space|3"
+        r1 = svc_id.dispatch_list_instance("space", {}, {})
+        assert r1["results"][0]["id"] == "3"  # 恒等
+
+        r2 = svc_v4.dispatch_list_instance("space", {}, {})
+        assert r2["results"][0]["id"] == "space|3"  # MonitorV4Codec 加前缀
+
+
+class TestBkIamPathEncoding:
+    """验证 _bk_iam_path_ 的 codec 编解码。"""
+
+    def test_space_single_segment_encoded(self):
+        """space 单段路径中的 id 应被 encode。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_fetch_instance_info("space")
+        def _fake_fetch(ids, requires):
+            return [{"id": "3", "_bk_iam_path_": "/space,3/"}]
+
+        result = svc.dispatch_fetch_instance_info("space", ["space|3"], ["_bk_iam_path_"])
+        assert result[0]["id"] == "space|3"
+        assert result[0]["_bk_iam_path_"] == "/space,space|3/"
+
+    def test_space_multi_segment_encoded(self):
+        """多段路径中，每段的 id 都被 encode。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_fetch_instance_info("apm_application")
+        def _fake_fetch(ids, requires):
+            return [{"id": "42", "_bk_iam_path_": "/space,3/apm_application,42/"}]
+
+        result = svc.dispatch_fetch_instance_info("apm_application", ["42"], ["_bk_iam_path_"])
+        assert result[0]["_bk_iam_path_"] == "/space,space|3/apm_application,42/"
+
+    def test_non_space_path_identity(self):
+        """非 space 段落的 id 保持恒等。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_fetch_instance_info("grafana_dashboard")
+        def _fake_fetch(ids, requires):
+            return [{"id": "1|abc", "_bk_iam_path_": "/space,3/grafana_dashboard,1|abc/"}]
+
+        result = svc.dispatch_fetch_instance_info("grafana_dashboard", ["1|abc"], ["_bk_iam_path_"])
+        # space 段 encode，grafana_dashboard 段恒等
+        assert result[0]["_bk_iam_path_"] == "/space,space|3/grafana_dashboard,1|abc/"
+
+    def test_no_trailing_slash(self):
+        """无尾部斜杠的路径也正确处理。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_fetch_instance_info("space")
+        def _fake_fetch(ids, requires):
+            return [{"id": "3", "_bk_iam_path_": "/space,3"}]
+
+        result = svc.dispatch_fetch_instance_info("space", ["space|3"], ["_bk_iam_path_"])
+        assert result[0]["_bk_iam_path_"] == "/space,space|3"
+
+    def test_no_bk_iam_path_unchanged(self):
+        """不带 _bk_iam_path_ 的 item 不应报错，id 正常 encode。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_list_instance("space")
+        def _fake_list(filter_data, page):
+            return {"count": 1, "results": [{"id": "3", "display_name": "x"}]}
+
+        result = svc.dispatch_list_instance("space", {}, {})
+        assert result["results"][0]["id"] == "space|3"
+        assert "_bk_iam_path_" not in result["results"][0]
+
+    def test_bk_iam_path_non_string_skipped(self):
+        """_bk_iam_path_ 不是字符串时跳过，不抛异常。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_fetch_instance_info("space")
+        def _fake_fetch(ids, requires):
+            return [{"id": "3", "_bk_iam_path_": None}]
+
+        result = svc.dispatch_fetch_instance_info("space", ["space|3"], [])
+        assert result[0]["id"] == "space|3"
+        assert result[0]["_bk_iam_path_"] is None
+
+    def test_identity_codec_path_unchanged(self):
+        """恒等 codec 下 _bk_iam_path_ 保持不变。"""
+        svc = CallbackService(codec=IdentityCodec())
+
+        @register_fetch_instance_info("space")
+        def _fake_fetch(ids, requires):
+            return [{"id": "3", "_bk_iam_path_": "/space,3/apm_application,42/"}]
+
+        result = svc.dispatch_fetch_instance_info("space", ["3"], ["_bk_iam_path_"])
+        assert result[0]["_bk_iam_path_"] == "/space,3/apm_application,42/"
+
+    def test_path_single_segment_no_comma(self):
+        """路径段不含逗号时原样保留（畸形输入防御）。"""
+        svc = CallbackService(codec=MonitorV4Codec())
+
+        @register_fetch_instance_info("space")
+        def _fake_fetch(ids, requires):
+            return [{"id": "3", "_bk_iam_path_": "/top/"}]
+
+        result = svc.dispatch_fetch_instance_info("space", ["space|3"], [])
+        assert result[0]["_bk_iam_path_"] == "/top/"
 
 
 class TestCallbackAuth:
@@ -191,4 +288,4 @@ class TestCallbackAuth:
 
         t2 = auth._get_system_token()
         assert t2 == "test-token-123"
-        assert call_count == 1  # 缓存命中，不再调 API
+        assert call_count == 1
