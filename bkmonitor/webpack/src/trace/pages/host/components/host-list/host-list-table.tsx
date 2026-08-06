@@ -414,14 +414,43 @@ export default defineComponent({
               }}
             />
           )}
-          <span
-            class={['host-table-ip-mark', isMarked ? 'path-primary' : 'path-default']}
-            onClick={() => {
-              emit('ipMark', row);
-            }}
-          >
-            {t('置顶')}
-          </span>
+          {locale.value !== 'enUS' ? (
+            <svg
+              class={['host-table-ip-mark', isMarked ? 'path-primary' : 'path-default']}
+              viewBox='0 0 28 16'
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                emit('ipMark', row);
+              }}
+            >
+              <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z' />
+              <path
+                d='M5.1,11.3h1V7.5h2.6V7.1H5.3V6.3h3.4V5.9H5.7V4h7.7v2h-3.3v0.4h3.6v0.8h-3.6v0.4h2.8v3.8h1v0.8H5.1V11.3z M6.8,5.2h1.1V4.7H6.8V5.2z M11.7,8.2H7.3v0.3h4.4V8.2z M7.3,9.5h4.4V9.1H7.3V9.5z M7.3,10.4h4.4V10H7.3V10.4z M7.3,11.3h4.4v-0.3H7.3V11.3z M9,5.2h1.1V4.7H9V5.2z M12.2,5.2V4.7h-1.1v0.5H12.2z'
+                fill='#FFFFFF'
+              />
+              <path
+                d='M14.1,4.1h3.1v1.2h-0.8v5.4c0,0.4-0.1,0.6-0.2,0.8c-0.1,0.2-0.3,0.3-0.5,0.4s-0.7,0.1-1.4,0.1c0-0.4-0.1-0.7-0.2-1.1c0.3,0,0.5,0,0.8,0c0.2,0,0.4-0.1,0.4-0.4V5.3h-1.1V4.1z M19.4,7.5h1.2c0,0.9-0.1,1.6-0.2,2.1c0.8,0.5,1.7,1.1,2.5,1.7l-0.7,0.9c-0.6-0.5-1.3-1-2.2-1.7c-0.4,0.7-1.2,1.2-2.5,1.7c-0.2-0.3-0.4-0.7-0.7-1.1c0.6-0.2,1.2-0.4,1.6-0.7c0.4-0.3,0.7-0.7,0.8-1.1C19.3,8.9,19.4,8.3,19.4,7.5z M17.4,4h5.4v1.1h-2.3l-0.2,0.8h2.2v4h-1.2V7h-2.7v3h-1.2V5.9h1.5l0.2-0.8h-1.7V4z'
+                fill='#FFFFFF'
+              />
+            </svg>
+          ) : (
+            <svg
+              class={['host-table-ip-mark-en', isMarked ? 'path-primary' : 'path-default']}
+              viewBox='0 0 28 16'
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                emit('ipMark', row);
+              }}
+            >
+              <g>
+                <path d='M13.7,5.7c-0.5,0-1,0.2-1.3,0.6C12,6.8,11.8,7.4,11.9,8c0,0.6,0.1,1.1,0.5,1.6c0.3,0.4,0.8,0.7,1.3,0.6c0.5,0,1-0.2,1.3-0.6c0.3-0.5,0.5-1.1,0.5-1.7c0-0.6-0.1-1.2-0.5-1.7C14.7,5.9,14.2,5.7,13.7,5.7z' />
+                <path d='M20.2,5.7h-0.6v2.2h0.6c0.9,0,1.3-0.4,1.3-1.1C21.5,6,21.1,5.7,20.2,5.7z' />
+                <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z M10.2,5.8H8.3v5.6H6.8V5.8H4.9V4.6h5.3V5.8z M16.1,10.5c-0.6,0.7-1.5,1-2.4,1c-0.9,0-1.8-0.3-2.4-1c-0.6-0.7-0.9-1.5-0.9-2.4c0-1,0.3-1.9,0.9-2.6c0.6-0.7,1.5-1,2.5-1c0.9,0,1.7,0.3,2.3,1C16.7,6.2,17,7,17,7.9C17,8.9,16.7,9.8,16.1,10.5z M22.3,8.4C21.7,8.9,21,9.1,20.3,9l-0.8,0v2.4h-1.5V4.6h2.3c1.7,0,2.5,0.7,2.5,2.1C23.1,7.4,22.8,8,22.3,8.4z' />
+              </g>
+            </svg>
+          )}
         </div>
       );
     };
@@ -534,7 +563,7 @@ export default defineComponent({
       return (
         <div class='host-table-metric-header'>
           {iconClass && <i class={['icon-monitor', iconClass, 'host-table-metric-header__agg']} />}
-          <span class='host-table-metric-header__title'>{t(column.name)}</span>
+          <span class={['host-table-metric-header__title', HOST_LIST_ELLIPSIS_CELL_CLASS]}>{t(column.name)}</span>
         </div>
       );
     };
@@ -593,7 +622,7 @@ export default defineComponent({
 
     /** 构建某一列的 tdesign 配置 */
     const buildColumn = (config: IHostColumnConfig) => {
-      let title = () => <span>{t(config.name)}</span>;
+      let title = () => <span class={HOST_LIST_ELLIPSIS_CELL_CLASS}>{t(config.name)}</span>;
       if (config.type === 'checkbox') {
         title = () => renderCheckboxHeader();
       } else if (config.type === 'metric') {

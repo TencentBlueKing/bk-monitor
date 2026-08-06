@@ -28,6 +28,7 @@ import { type Ref, type ShallowRef, onBeforeUnmount, onMounted, shallowRef, watc
 
 import { useDebounceFn } from '@vueuse/core';
 import { Message } from 'bkui-vue';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { copyText } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
 
@@ -87,8 +88,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   const sortInfo = shallowRef('');
   /** 当前页码 */
   const page = shallowRef(1);
-  /** 每页条数 */
-  const pageSize = shallowRef(HOST_LIST_DEFAULT_PAGE_SIZE);
+  /** 每页条数（初始值取全局统一页码配置，未配置时回退到默认 50） */
+  const pageSize = shallowRef(commonPageSizeGet() ?? HOST_LIST_DEFAULT_PAGE_SIZE);
   /** 选中行 rowId 集合 */
   const selectedRowKeys = shallowRef<(number | string)[]>([]);
   /** 当前展示列 */
@@ -293,6 +294,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   };
   const handlePageSizeChange = (value: number) => {
     pageSize.value = value;
+    /** 持久化到全局统一页码配置，与其他模块保持一致 */
+    commonPageSizeSet(value);
     resetPage();
   };
   const handleSelectChange = async (keys: (number | string)[], isAcrossPage: boolean) => {

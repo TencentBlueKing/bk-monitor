@@ -223,7 +223,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
   const buildColumn = (config: IProcessColumnConfig) => {
     const base: Record<string, unknown> = {
       colKey: config.id,
-      title: config.name,
+      title: () => <span class={PROCESS_LIST_ELLIPSIS_CELL_CLASS}>{config.name}</span>,
       width: config.width,
       sorter: config.sortable,
       align: config.align,

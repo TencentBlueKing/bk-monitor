@@ -24,6 +24,14 @@
     .t-table {
       &__header {
         font-family: 'Microsoft YaHei', sans-serif;
+
+        .t-table__th-cell-inner {
+          .t-table__cell--title {
+            & > div:first-child {
+              min-width: 0;
+            }
+          }
+        }
       }
 
       &__th-id[data-colkey='id'] {
@@ -116,7 +124,8 @@
   }
 
   /** 置顶按钮 */
-  .host-table-ip-mark {
+  .host-table-ip-mark,
+  .host-table-ip-mark-en {
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -128,24 +137,55 @@
     font-size: 10px;
     cursor: pointer;
     border-radius: 2px;
+  }
 
+  .host-table-ip-mark-en {
+    &.path-primary {
+      path {
+        background: #fff;
+        fill: #3a84ff;
+      }
+    }
+
+    &.path-default {
+      display: none;
+
+      path {
+        background: #fff;
+        fill: #979ba5;
+      }
+    }
+  }
+
+  .host-table-ip-mark {
     &.path-primary {
       color: #fff;
       background: #3a84ff;
+
+      path:first-child {
+        fill: #3a84ff;
+      }
     }
 
     &.path-default {
       display: none;
       color: #fff;
       background: #979ba5;
+
+      path:first-child {
+        fill: #979ba5;
+      }
     }
   }
 }
 
 /** hover 行时显示未置顶按钮 */
 
-.host-list-table__body .t-table .t-table__body tr:hover .host-table-ip-mark.path-default {
-  display: inline-flex;
+.host-list-table__body .t-table .t-table__body tr:hover {
+  .host-table-ip-mark.path-default,
+  .host-table-ip-mark-en.path-default {
+    display: inline-flex;
+  }
 }
 
 /* stylelint-enable selector-class-pattern */
@@ -225,6 +265,7 @@
 .host-table-metric-header {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 
   &__agg.icon-monitor {
     width: 18px;
@@ -239,6 +280,7 @@
   }
 
   &__title {
+    max-width: 100%;
     line-height: 20px;
     color: #313238;
   }

@@ -86,7 +86,7 @@ export interface IHostColumnConfig {
  */
 export const HOST_LIST_COLUMNS: IHostColumnConfig[] = [
   { id: 'id', name: 'ID', type: 'checkbox', checked: true, disabled: true, width: 65 },
-  { id: 'host_display_name', name: window.i18n.t('主机'), type: 'ip', checked: true, disabled: true, minWidth: 140 },
+  { id: 'host_display_name', name: window.i18n.t('主机'), type: 'ip', checked: true, disabled: true, minWidth: 200 },
   { id: 'bk_host_innerip', name: window.i18n.t('内网 IP'), type: 'text', checked: true, minWidth: 130 },
   { id: 'bk_host_innerip_v6', name: window.i18n.t('内网 IPv6'), type: 'text', checked: false, minWidth: 180 },
   { id: 'bk_host_outerip', name: window.i18n.t('外网 IP'), type: 'text', checked: false, minWidth: 130 },
