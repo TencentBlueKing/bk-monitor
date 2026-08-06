@@ -1,12 +1,13 @@
 ### 功能描述
 
-查询结果表关联的 Elasticsearch（ES）和 Doris 存储配置、历史存储分段、集群连通性及运行时元信息。
+批量查询结果表关联的 Elasticsearch（ES）和 Doris 存储配置、历史存储分段、集群连通性及运行时元信息，单次最多查询 50 个结果表。
 
-- 历史分段包含已停用、已删除的 `StorageClusterRecord` 记录；同一集群只探测一次。
+- 历史分段包含已停用、已删除的 `StorageClusterRecord` 记录；单个结果表内同一集群只探测一次。不同结果表引用同一集群时，表相关运行时信息仍分别查询。
 - 虚拟结果表使用实体表的历史分段执行查询，同时保留请求结果表的信息。
 - ES 返回索引基础信息、文档数和存储大小；受管索引额外返回日期别名关系。不透传原始响应，不查询 mapping 或样例数据。
 - Doris 返回经过固定字段投影的 DorisBinding、物理库表、字段及分区信息。
-- 集群连通性检查或运行时查询失败时，接口仍返回其他集群的成功结果，并在对应的 `warnings`、`errors` 中说明原因。
+- 单个结果表、集群连通性检查或运行时查询失败时，接口仍返回其他结果表和集群的成功结果。
+- 集群探测使用进程内共享的两级调度器：总并发最多 20，同一租户下相同 `cluster_id` 的并发最多 5；待执行队列有固定上限。
 - 响应中的存储配置和集群信息已脱敏，不返回用户名、密码或证书。
 
 ### 请求方法与路径
@@ -19,8 +20,9 @@ GET /app/metadata/get_result_table_storage_status/
 
 | 字段 | 类型 | 必选 | 描述 |
 | --- | --- | --- | --- |
-| table_id | string | 是 | 结果表 ID，例如 `2_bkmonitor_time_series_50010.base` |
+| table_ids | array[string] | 是 | 结果表 ID 列表，长度 1–50，不允许重复 |
 | timeout | int | 否 | 单次集群连通性检查、ES API 或 Doris 连接/读取的超时时间，单位为秒；默认 15，取值范围 1–30 |
+| total_timeout | int | 否 | 整个批量请求的总等待时间，单位为秒；默认 60，取值范围 1–300。到期后取消未启动任务并停止等待运行中任务 |
 
 `bk_tenant_id` 由 APIGW 根据调用应用所属租户注入，调用方无需显式传递。
 
@@ -28,8 +30,12 @@ GET /app/metadata/get_result_table_storage_status/
 
 ```json
 {
-  "table_id": "2_bkmonitor_time_series_50010.base",
-  "timeout": 10
+  "table_ids": [
+    "2_bkmonitor_time_series_50010.base",
+    "2_bklog.demo"
+  ],
+  "timeout": 10,
+  "total_timeout": 60
 }
 ```
 
@@ -37,13 +43,27 @@ GET /app/metadata/get_result_table_storage_status/
 
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
-| result | bool | 请求是否成功。结果表不存在或请求参数非法时为 `false` |
+| result | bool | 请求参数是否合法；单个结果表查询失败不会使整个批次为 `false` |
 | code | int | 返回状态码 |
 | message | string | 返回信息 |
 | data | object | 存储状态数据 |
 | request_id | string | 请求 ID |
 
 #### data 字段说明
+
+| 字段 | 类型 | 描述 |
+| --- | --- | --- |
+| items | array | 按 `table_ids` 输入顺序返回的结果表查询项 |
+
+#### items 元素说明
+
+| 字段 | 类型 | 描述 |
+| --- | --- | --- |
+| table_id | string | 当前查询项对应的结果表 ID |
+| data | object/null | 查询成功时为原单表存储状态；失败时为 `null` |
+| error | object/null | 单表失败信息；成功时为 `null` |
+
+#### items[].data 字段说明
 
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
@@ -157,6 +177,10 @@ GET /app/metadata/get_result_table_storage_status/
   "message": "OK",
   "request_id": "408233306947415bb1772a86b9536867",
   "data": {
+    "items": [
+      {
+        "table_id": "2_bkmonitor_time_series_50010.base",
+        "data": {
     "result_table": {
       "table_id": "2_bkmonitor_time_series_50010.base",
       "bk_tenant_id": "system",
@@ -273,15 +297,22 @@ GET /app/metadata/get_result_table_storage_status/
     },
     "warnings": [],
     "errors": []
+        },
+        "error": null
+      }
+    ]
   }
 }
 ```
 
 ### 注意事项
 
-- 最多并发探测 4 个唯一集群；`timeout` 作用于每次下游 I/O，不是整个接口的总耗时上限。
+- `table_ids` 上限为 50，不兼容旧参数 `table_id`；批量结果严格保持输入顺序并隔离单表失败。
+- 同一进程内所有请求共享最多 20 个集群探测 worker；相同 `(bk_tenant_id, cluster_id)` 最多并发 5 个探测任务。集群探测待执行队列最多保留 100 个任务。
+- 结果表查询也使用进程内共享线程池，不再为每个请求单独创建线程池；最多运行 20 个结果表任务，最多排队 40 个。
+- `timeout` 作用于每次下游 I/O；`total_timeout` 是整个批量请求的总等待 deadline。deadline 到期后取消尚未启动的结果表及集群任务，已经进入下游 I/O 的任务不能被线程安全地强制中断，但接口不再继续等待。
 - 单个受管 ES 集群正常路径会依次执行 ping、索引 stats、cat、settings、aliases；v2 没有命中时 stats 还会回退查询 v1，理论上最多约为 `6 × timeout`。外部 ES 不查询 aliases，正常路径约为 `4 × timeout`。
 - 单个 Doris 集群会先用 `SELECT 1` 检查连通性，再建立运行时查询连接并执行 3 条 `information_schema` 元信息 SQL；连接和每次读取分别受 `timeout` 约束。因此调用方/APIGW 超时时间应高于单次 I/O timeout。
-- `result=true` 不代表每个集群探测均成功，请同时检查顶层及各 `cluster_results` 中的 `warnings`、`errors`。
+- `result=true` 不代表每个结果表或集群探测均成功，请同时检查 `items[].error` 及 `items[].data.cluster_results` 中的 `warnings`、`errors`。
 - 连通性检查失败时不会继续查询该集群的运行时信息，此时 `runtime_skipped=true`。
-- 当前框架没有可安全中断阻塞中下游 I/O 的请求取消信号；客户端提前断开后，已提交的集群 worker 仍会完成或等待自身 I/O timeout。
+- 当前框架没有可安全中断阻塞中下游 I/O 的请求取消信号；客户端提前断开本身不会触发取消，批次 deadline 会负责取消未启动任务。已经进入下游 I/O 的任务仍会完成或等待自身 I/O timeout。

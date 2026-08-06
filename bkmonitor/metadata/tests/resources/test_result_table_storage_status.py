@@ -1,10 +1,20 @@
 import datetime
+import threading
 
 import pytest
 
 from metadata import models
 from metadata.resources import GetResultTableStorageStatus
-from metadata.service.result_table_storage_status import ResultTableStorageStatusService, build_doris_storage_runtime
+from metadata.service.result_table_storage_status import (
+    BoundedExecutor,
+    ClusterProbeScheduler,
+    MAX_PROBE_WORKERS,
+    MAX_PROBE_WORKERS_PER_CLUSTER,
+    ResultTableStorageStatusBatchService,
+    ResultTableStorageStatusService,
+    SchedulerQueueFullError,
+    build_doris_storage_runtime,
+)
 
 
 TENANT_ID = "storage-status-tenant"
@@ -289,27 +299,194 @@ def test_virtual_result_table_uses_origin_history(mocker):
 
 def test_resource_timeout_serializer_defaults_and_validates_range():
     default_serializer = GetResultTableStorageStatus.RequestSerializer(
-        data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo"}
+        data={"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.demo"]}
     )
     assert default_serializer.is_valid(), default_serializer.errors
     assert default_serializer.validated_data["timeout"] == 15
+    assert default_serializer.validated_data["total_timeout"] == 60
 
     valid_serializer = GetResultTableStorageStatus.RequestSerializer(
-        data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo", "timeout": 30}
+        data={"bk_tenant_id": TENANT_ID, "table_ids": [f"2_bklog.demo_{index}" for index in range(50)], "timeout": 30}
     )
     assert valid_serializer.is_valid(), valid_serializer.errors
 
     for timeout in (0, 31):
         serializer = GetResultTableStorageStatus.RequestSerializer(
-            data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo", "timeout": timeout}
+            data={"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.demo"], "timeout": timeout}
         )
         assert not serializer.is_valid()
+
+    for total_timeout in (0, 301):
+        serializer = GetResultTableStorageStatus.RequestSerializer(
+            data={"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.demo"], "total_timeout": total_timeout}
+        )
+        assert not serializer.is_valid()
+
+    for table_ids in ([], ["2_bklog.demo"] * 2, [f"2_bklog.demo_{index}" for index in range(51)]):
+        serializer = GetResultTableStorageStatus.RequestSerializer(
+            data={"bk_tenant_id": TENANT_ID, "table_ids": table_ids}
+        )
+        assert not serializer.is_valid()
+
+    legacy_serializer = GetResultTableStorageStatus.RequestSerializer(
+        data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo"}
+    )
+    assert not legacy_serializer.is_valid()
 
 
 @pytest.mark.django_db(databases="__all__")
 def test_resource_request_reports_missing_result_table():
-    with pytest.raises(ValueError, match="结果表不存在"):
-        GetResultTableStorageStatus().request({"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.not_exists"})
+    result = GetResultTableStorageStatus().request({"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.not_exists"]})
+
+    assert result == {
+        "items": [
+            {
+                "table_id": "2_bklog.not_exists",
+                "data": None,
+                "error": {
+                    "code": "RESULT_TABLE_NOT_FOUND",
+                    "message": "结果表不存在: table_id=2_bklog.not_exists",
+                    "details": {"table_id": "2_bklog.not_exists"},
+                },
+            }
+        ]
+    }
+
+
+def test_batch_service_preserves_input_order_and_isolates_table_failure(mocker):
+    def query(service):
+        if service.table_id == "2_bklog.missing":
+            raise ValueError(f"结果表不存在: table_id={service.table_id}")
+        return {"result_table": {"table_id": service.table_id}}
+
+    mocker.patch.object(ResultTableStorageStatusService, "query", autospec=True, side_effect=query)
+
+    result = ResultTableStorageStatusBatchService(
+        bk_tenant_id=TENANT_ID,
+        table_ids=["2_bklog.second", "2_bklog.missing", "2_bklog.first"],
+    ).query()
+
+    assert [item["table_id"] for item in result["items"]] == [
+        "2_bklog.second",
+        "2_bklog.missing",
+        "2_bklog.first",
+    ]
+    assert result["items"][0]["data"]["result_table"]["table_id"] == "2_bklog.second"
+    assert result["items"][1]["data"] is None
+    assert result["items"][1]["error"]["code"] == "RESULT_TABLE_NOT_FOUND"
+    assert result["items"][2]["data"]["result_table"]["table_id"] == "2_bklog.first"
+
+
+def test_batch_service_stops_waiting_and_cancels_pending_tables_at_deadline(mocker):
+    executor = BoundedExecutor(max_workers=1, max_queued_tasks=1, thread_name_prefix="test-storage-table-query")
+    started = threading.Event()
+    release = threading.Event()
+
+    def query(_service):
+        started.set()
+        assert release.wait(timeout=3)
+        return {}
+
+    mocker.patch(
+        "metadata.service.result_table_storage_status.shared_table_query_executor",
+        executor,
+    )
+    mocker.patch.object(ResultTableStorageStatusService, "query", autospec=True, side_effect=query)
+
+    try:
+        result = ResultTableStorageStatusBatchService(
+            bk_tenant_id=TENANT_ID,
+            table_ids=["2_bklog.first", "2_bklog.second", "2_bklog.third"],
+            total_timeout=1,
+        ).query()
+        assert started.is_set()
+        assert [item["error"]["code"] for item in result["items"]] == [
+            "BATCH_DEADLINE_EXCEEDED",
+            "BATCH_DEADLINE_EXCEEDED",
+            "BATCH_DEADLINE_EXCEEDED",
+        ]
+    finally:
+        release.set()
+        executor.shutdown()
+
+
+def test_cluster_probe_scheduler_limits_same_cluster_to_five_concurrent_tasks():
+    assert MAX_PROBE_WORKERS == 20
+    assert MAX_PROBE_WORKERS_PER_CLUSTER == 5
+
+    scheduler = ClusterProbeScheduler(max_workers=20, max_workers_per_cluster=5, max_queued_tasks=10)
+    lock = threading.Lock()
+    five_started = threading.Event()
+    release = threading.Event()
+    active = 0
+    max_active = 0
+
+    def probe(index):
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+            if active == 5:
+                five_started.set()
+        try:
+            assert release.wait(timeout=2)
+            return index
+        finally:
+            with lock:
+                active -= 1
+
+    try:
+        futures = [scheduler.submit((TENANT_ID, 1), probe, index) for index in range(6)]
+        assert five_started.wait(timeout=1)
+        assert max_active == 5
+
+        release.set()
+        assert [future.result(timeout=2) for future in futures] == list(range(6))
+        assert max_active == 5
+    finally:
+        release.set()
+        scheduler.shutdown()
+
+
+def test_cluster_probe_scheduler_allows_different_clusters_in_parallel():
+    scheduler = ClusterProbeScheduler(max_workers=2, max_workers_per_cluster=1, max_queued_tasks=2)
+    barrier = threading.Barrier(2)
+
+    def probe(cluster_id):
+        barrier.wait(timeout=1)
+        return cluster_id
+
+    try:
+        first_future = scheduler.submit((TENANT_ID, 1), probe, 1)
+        second_future = scheduler.submit((TENANT_ID, 2), probe, 2)
+        assert first_future.result(timeout=2) == 1
+        assert second_future.result(timeout=2) == 2
+    finally:
+        scheduler.shutdown()
+
+
+def test_cluster_probe_scheduler_rejects_when_bounded_queue_stays_full():
+    scheduler = ClusterProbeScheduler(max_workers=1, max_workers_per_cluster=1, max_queued_tasks=1)
+    started = threading.Event()
+    release = threading.Event()
+
+    def probe():
+        started.set()
+        assert release.wait(timeout=2)
+
+    try:
+        first = scheduler.submit((TENANT_ID, 1), probe)
+        assert started.wait(timeout=1)
+        second = scheduler.submit((TENANT_ID, 1), probe)
+        with pytest.raises(SchedulerQueueFullError):
+            scheduler.submit((TENANT_ID, 1), probe, enqueue_timeout=0)
+
+        release.set()
+        first.result(timeout=2)
+        second.result(timeout=2)
+    finally:
+        release.set()
+        scheduler.shutdown()
 
 
 @pytest.mark.django_db(databases="__all__")
