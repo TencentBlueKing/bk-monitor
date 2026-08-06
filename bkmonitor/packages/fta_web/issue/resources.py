@@ -74,6 +74,93 @@ def _sanitize_for_log(value) -> str:
     return str(value).replace("\r", "").replace("\n", "")
 
 
+SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE = "source_analysis_upstream_unavailable"
+
+
+def _raise_source_analysis_upstream_unavailable(error: Exception) -> None:
+    logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
+    raise CustomException(
+        message=_("源码分析依赖的蓝盾服务暂时不可用，请稍后重试"),
+        data={"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE},
+    ) from error
+
+
+class ListSourceAnalysisBkciProjectsResource(Resource):
+    """查询当前用户可访问的蓝盾项目选项。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+
+    class ResponseSerializer(serializers.Serializer):
+        id = serializers.CharField(label="蓝盾项目 ID")
+        name = serializers.CharField(label="蓝盾项目名称")
+
+    many_response_data = True
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        try:
+            projects = api.devops.list_user_project()
+            if not isinstance(projects, list) or any(not isinstance(project, dict) for project in projects):
+                raise ValueError("invalid project response")
+
+            options = []
+            for project in projects:
+                # 蓝盾正式字段使用 camelCase；snake_case 仅用于兼容尚未升级的旧版本。
+                project_id = project.get("projectCode") or project.get("project_code")
+                project_name = project.get("projectName") or project.get("project_name")
+                if not project_id or not project_name:
+                    raise ValueError("project response misses projectCode or projectName")
+                options.append({"id": project_id, "name": project_name})
+            return options
+        except (BKAPIError, TypeError, ValueError) as error:
+            _raise_source_analysis_upstream_unavailable(error)
+
+
+class ListSourceAnalysisBkciRepositoriesResource(Resource):
+    """查询当前用户在指定蓝盾项目下可使用的 Git 代码库选项。"""
+
+    GIT_REPOSITORY_TYPES = frozenset({"CODE_GIT", "CODE_GITLAB", "CODE_TGIT", "GITHUB", "SCM_GIT"})
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+
+    class ResponseSerializer(serializers.Serializer):
+        id = serializers.CharField(label="代码库别名")
+        name = serializers.CharField(label="代码库名称")
+        scm_type = serializers.CharField(label="源码管理类型")
+
+    many_response_data = True
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        try:
+            repository_page = api.devops.list_user_repository(project_id=validated_request_data["project_id"])
+            if not isinstance(repository_page, dict):
+                raise ValueError("invalid repository response")
+
+            repositories = repository_page.get("records")
+            if not isinstance(repositories, list) or any(
+                not isinstance(repository, dict) for repository in repositories
+            ):
+                raise ValueError("invalid repository response")
+
+            options = []
+            for repository in repositories:
+                repository_type = str(repository.get("type") or "").upper()
+                if repository_type not in self.GIT_REPOSITORY_TYPES:
+                    continue
+
+                alias = repository.get("aliasName")
+                if not alias:
+                    raise ValueError("repository response misses aliasName")
+
+                # repositoryHashId 仅用于蓝盾内部接口联查；配置和前端选项均以不可变的代码库别名为准。
+                options.append({"id": alias, "name": alias, "scm_type": "GIT"})
+            return options
+        except (BKAPIError, TypeError, ValueError) as error:
+            _raise_source_analysis_upstream_unavailable(error)
+
+
 class IssueIDField(serializers.CharField):
     """Issue ID 合法性校验"""
 
