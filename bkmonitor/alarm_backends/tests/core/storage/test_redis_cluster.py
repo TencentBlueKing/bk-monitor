@@ -204,3 +204,77 @@ class TestRedisNodeConnectionConf:
         assert conf["host"] == "127.0.0.1"
         assert conf["port"] == 6379
         assert "db" in conf
+
+
+class TestStrategyRouterCacheTTL:
+    """CacheRouter 进程快照按 TTL 重载；改 DB 后无需重启即可在窗口内生效。"""
+
+    def setup_method(self):
+        redis_cluster.STRATEGY_ROUTER_CACHE = None
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 0.0
+        redis_cluster.STRATEGY_NODE_MAP = {}
+        redis_cluster.DEFAULT_NODE = None
+
+    def teardown_method(self):
+        self.setup_method()
+
+    def _router(self, score, node):
+        return mock.Mock(strategy_score=score, node=node)
+
+    def test_loads_once_within_ttl_and_reuses_node_map(self):
+        node_a = mock.Mock(id="a", node_alias="alarm-a")
+        routers = [self._router(1000, node_a)]
+        qs = mock.MagicMock()
+        qs.filter.return_value.select_related.return_value.order_by.return_value = routers
+
+        with mock.patch.object(redis_cluster, "get_cluster", return_value=mock.Mock(name="default")):
+            with mock.patch.object(redis_cluster, "CacheRouter") as cache_router:
+                with mock.patch.object(redis_cluster, "monotonic", side_effect=[100.0, 110.0, 120.0]):
+                    with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                        cache_router.objects = qs
+                        assert redis_cluster.get_node_by_strategy_id(1) is node_a
+                        assert redis_cluster.get_node_by_strategy_id(1) is node_a
+                        assert redis_cluster.get_node_by_strategy_id(2) is node_a
+
+        # 首次加载 1 次；TTL 内不再查库（sid=2 走内存表匹配，仍不触发 reload）
+        assert qs.filter.call_count == 1
+        assert redis_cluster.STRATEGY_NODE_MAP[1] is node_a
+        assert redis_cluster.STRATEGY_NODE_MAP[2] is node_a
+
+    def test_expires_reloads_and_clears_stale_node_map(self):
+        node_old = mock.Mock(id="old", node_alias="alarm-old")
+        node_new = mock.Mock(id="new", node_alias="alarm-new")
+        qs = mock.MagicMock()
+        qs.filter.return_value.select_related.return_value.order_by.side_effect = [
+            [self._router(1000, node_old)],
+            [self._router(1000, node_new)],
+        ]
+
+        with mock.patch.object(redis_cluster, "get_cluster", return_value=mock.Mock(name="default")):
+            with mock.patch.object(redis_cluster, "CacheRouter") as cache_router:
+                with mock.patch.object(redis_cluster, "monotonic", side_effect=[100.0, 140.0]):
+                    with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                        cache_router.objects = qs
+                        assert redis_cluster.get_node_by_strategy_id(1) is node_old
+                        # 距首次加载已超过 TTL，应重载并丢掉旧 NODE_MAP
+                        assert redis_cluster.get_node_by_strategy_id(1) is node_new
+
+        assert qs.filter.call_count == 2
+        assert redis_cluster.STRATEGY_NODE_MAP[1] is node_new
+
+    def test_empty_router_table_still_respects_ttl(self):
+        # 空表不能再用 falsy 判断，否则会每次调用都打 DB
+        qs = mock.MagicMock()
+        qs.filter.return_value.select_related.return_value.order_by.return_value = []
+
+        with mock.patch.object(redis_cluster, "get_cluster", return_value=mock.Mock(name="default")):
+            with mock.patch.object(redis_cluster, "CacheRouter") as cache_router:
+                with mock.patch.object(redis_cluster, "monotonic", side_effect=[100.0, 110.0]):
+                    with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                        cache_router.objects = qs
+                        with pytest.raises(Exception, match="策略ID超过设置的默认上限"):
+                            redis_cluster.get_node_by_strategy_id(1)
+                        with pytest.raises(Exception, match="策略ID超过设置的默认上限"):
+                            redis_cluster.get_node_by_strategy_id(1)
+
+        assert qs.filter.call_count == 1

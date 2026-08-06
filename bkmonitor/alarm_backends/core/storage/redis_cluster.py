@@ -8,6 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from time import monotonic
+
+from django.conf import settings
 from redis.exceptions import RedisError
 
 from alarm_backends.core.cluster import get_cluster
@@ -220,22 +223,57 @@ class PipelineProxy(KeyRouterMixin):
 
 
 STRATEGY_ROUTER_CACHE = None
+STRATEGY_ROUTER_CACHE_AT = 0.0
 STRATEGY_NODE_MAP = {}
 DEFAULT_NODE = None
+
+# CacheRouter 进程内快照 TTL（秒）。改 DB 路由后最多等该窗口即可生效，无需重启 worker。
+# 可用 settings.STRATEGY_ROUTER_CACHE_TTL 覆盖；热路径仅做 monotonic 比较，到期才查库。
+STRATEGY_ROUTER_CACHE_TTL = 30
+
+
+def _router_cache_ttl() -> float:
+    return float(getattr(settings, "STRATEGY_ROUTER_CACHE_TTL", STRATEGY_ROUTER_CACHE_TTL))
+
+
+def _refresh_strategy_router_cache(force: bool = False) -> None:
+    """按 TTL 重载 CacheRouter 快照；刷新时清空 STRATEGY_NODE_MAP，避免旧 sid→node 粘滞。"""
+    global STRATEGY_ROUTER_CACHE, STRATEGY_ROUTER_CACHE_AT, STRATEGY_NODE_MAP
+
+    now = monotonic()
+    ttl = _router_cache_ttl()
+
+    # 测试或运维可直接注入 STRATEGY_ROUTER_CACHE；AT<=0 表示尚未打戳，采纳后进入正常 TTL
+    if (
+        not force
+        and STRATEGY_ROUTER_CACHE is not None
+        and STRATEGY_ROUTER_CACHE_AT <= 0
+    ):
+        STRATEGY_ROUTER_CACHE_AT = now
+        return
+
+    if (
+        not force
+        and STRATEGY_ROUTER_CACHE is not None
+        and (now - STRATEGY_ROUTER_CACHE_AT) <= ttl
+    ):
+        return
+
+    STRATEGY_ROUTER_CACHE = list(
+        CacheRouter.objects.filter(cluster_name=get_cluster().name)
+        .select_related("node")
+        .order_by("strategy_score")
+    )
+    STRATEGY_ROUTER_CACHE_AT = now
+    STRATEGY_NODE_MAP.clear()
 
 
 def get_node_by_strategy_id(strategy_id: int):
     from django.utils.translation import gettext as _
 
-    global STRATEGY_ROUTER_CACHE, DEFAULT_NODE, STRATEGY_NODE_MAP
+    global DEFAULT_NODE, STRATEGY_NODE_MAP
 
-    # 获取路由表
-    if not STRATEGY_ROUTER_CACHE:
-        STRATEGY_ROUTER_CACHE = list(
-            CacheRouter.objects.filter(cluster_name=get_cluster().name)
-            .select_related("node")
-            .order_by("strategy_score")
-        )
+    _refresh_strategy_router_cache()
 
     # 优先从缓存中获取
     if STRATEGY_NODE_MAP.get(strategy_id):
