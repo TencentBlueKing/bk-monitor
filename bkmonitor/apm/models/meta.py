@@ -8,11 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .application import *  # noqa
-from .config import *  # noqa
-from .datasource import *  # noqa
-from .meta import *  # noqa
-from .profile import *  # noqa
-from .shared_datasource import *  # noqa
-from .subscription_config import *  # noqa
-from .topo import *  # noqa
+from django.db import models
+
+from bkmonitor.utils.model_manager import AbstractRecordModel
+from constants.common import DEFAULT_TENANT_ID
+
+
+class TraceScopeIndexSet(AbstractRecordModel):
+    """Trace 数据源域与 BKLog 索引集的映射。"""
+
+    bk_biz_id = models.IntegerField("业务 ID")
+    index_set_id = models.IntegerField("索引集 ID", db_index=True)
+    bk_tenant_id = models.CharField("租户 ID", max_length=64, default=DEFAULT_TENANT_ID)
+
+    class Meta:
+        unique_together = ("bk_tenant_id", "bk_biz_id")

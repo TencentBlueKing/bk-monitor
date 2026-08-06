@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID
-from apm.models import ApmApplication, TraceDataSource
+from apm.models import ApmApplication, TraceDataSource, TraceScopeIndexSet
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import ESStorage
@@ -60,72 +60,102 @@ class TraceScopeIndexSetHandler:
 
         app_names = [application["app_name"] for application in applications]
         trace_datasources: list[dict[str, Any]] = list(
-            TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name__in=app_names).values(
+            TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name__in=app_names)
+            .values(
                 "app_name",
                 "result_table_id",
                 "shared_datasource_id",
             )
+            .order_by("id")
         )
-        datasource_by_app_name: dict[str, dict[str, Any]] = {}
+        deduplicated_datasources: dict[str, dict[str, Any]] = {}
         for datasource in trace_datasources:
-            app_name = datasource["app_name"]
-            if app_name in datasource_by_app_name:
-                raise ValueError(f"multiple Trace datasources found: bk_biz_id={bk_biz_id}, app_name={app_name}")
-            datasource_by_app_name[app_name] = datasource
+            deduplicated_datasources[datasource["app_name"]] = datasource
 
         member_contexts: list[dict[str, Any]] = []
         for application in applications:
             app_name = application["app_name"]
-            datasource = datasource_by_app_name.get(app_name)
+            datasource = deduplicated_datasources.get(app_name)
             if datasource is None or not datasource["result_table_id"]:
-                raise ValueError(f"Trace result table is missing: bk_biz_id={bk_biz_id}, app_name={app_name}")
+                logger.warning(
+                    "[TraceScopeIndexSetHandler] skipped application without Trace result table: "
+                    "bk_biz_id=%s, app_name=%s",
+                    bk_biz_id,
+                    app_name,
+                )
+                continue
 
             is_shared = datasource["shared_datasource_id"] is not None
             member_contexts.append(
                 {
                     "app_name": app_name,
                     "result_table_id": datasource["result_table_id"],
-                    "storage_tenant_id": DEFAULT_TENANT_ID if is_shared else application["bk_tenant_id"],
-                    "member_bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID if is_shared else bk_biz_id,
+                    "tenant_id": DEFAULT_TENANT_ID if is_shared else application["bk_tenant_id"],
+                    "bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID if is_shared else bk_biz_id,
                 }
             )
 
-        storage_tenant_ids = {context["storage_tenant_id"] for context in member_contexts}
+        storage_tenant_ids = {context["tenant_id"] for context in member_contexts}
         result_table_ids = {context["result_table_id"] for context in member_contexts}
         storages: list[dict[str, Any]] = list(
             ESStorage.objects.filter(
                 bk_tenant_id__in=storage_tenant_ids,
                 table_id__in=result_table_ids,
-            ).values("bk_tenant_id", "table_id", "storage_cluster_id")
+            ).values("bk_tenant_id", "table_id", "storage_cluster_id", "index_set")
         )
-        storage_by_location: dict[tuple[str, str], int] = {
-            (storage["bk_tenant_id"], storage["table_id"]): storage["storage_cluster_id"] for storage in storages
+        storage_by_location: dict[tuple[str, str], dict[str, Any]] = {
+            (storage["bk_tenant_id"], storage["table_id"]): storage for storage in storages
         }
 
         deduplicated_indexes: dict[str, dict[str, Any]] = {}
         for context in member_contexts:
             result_table_id = context["result_table_id"]
-            storage_location = (context["storage_tenant_id"], result_table_id)
-            storage_cluster_id = storage_by_location.get(storage_location)
-            if storage_cluster_id is None:
-                raise ValueError(
-                    f"Trace storage is missing: bk_biz_id={bk_biz_id}, app_name={context['app_name']}, "
-                    f"bk_tenant_id={context['storage_tenant_id']}, result_table_id={result_table_id}"
+            storage = storage_by_location.get((context["tenant_id"], result_table_id))
+            if storage is None:
+                logger.warning(
+                    "[TraceScopeIndexSetHandler] skipped application without Trace storage: "
+                    "bk_biz_id=%s, app_name=%s, bk_tenant_id=%s, result_table_id=%s",
+                    bk_biz_id,
+                    context["app_name"],
+                    context["tenant_id"],
+                    result_table_id,
                 )
+                continue
+            if not storage["index_set"]:
+                logger.warning(
+                    "[TraceScopeIndexSetHandler] skipped application without Trace storage index_set: "
+                    "bk_biz_id=%s, app_name=%s, bk_tenant_id=%s, result_table_id=%s",
+                    bk_biz_id,
+                    context["app_name"],
+                    context["tenant_id"],
+                    result_table_id,
+                )
+                continue
 
             index = {
-                "bk_biz_id": context["member_bk_biz_id"],
-                "result_table_id": f"{result_table_id.replace('.', '_')}_*",
-                "storage_cluster_id": storage_cluster_id,
+                "bk_biz_id": context["bk_biz_id"],
+                "result_table_id": f"{storage['index_set']}_*",
+                "storage_cluster_id": storage["storage_cluster_id"],
             }
             existing_index = deduplicated_indexes.get(result_table_id)
             if existing_index is not None and existing_index != index:
-                raise ValueError(
-                    f"conflicting Trace index member found: bk_biz_id={bk_biz_id}, result_table_id={result_table_id}"
+                logger.warning(
+                    "[TraceScopeIndexSetHandler] replaced conflicting Trace index member: "
+                    "bk_biz_id=%s, result_table_id=%s",
+                    bk_biz_id,
+                    result_table_id,
                 )
-            deduplicated_indexes.setdefault(result_table_id, index)
+            deduplicated_indexes[result_table_id] = index
 
         return list(deduplicated_indexes.values())
+
+    @staticmethod
+    def _save_index_set_record(bk_tenant_id: str, bk_biz_id: int, index_set_id: int) -> None:
+        TraceScopeIndexSet.origin_objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            defaults={"index_set_id": index_set_id, "is_deleted": False, "is_enabled": True},
+        )
 
     @classmethod
     def sync(cls, bk_tenant_id: str, bk_biz_id: int) -> None:
@@ -140,11 +170,15 @@ class TraceScopeIndexSetHandler:
                     index_set_id=index_set["index_set_id"],
                 )
                 logger.info(
-                    "deleted empty Trace scope index set: bk_tenant_id=%s, bk_biz_id=%s, index_set_id=%s",
+                    "[TraceScopeIndexSetHandler] deleted empty Trace scope index set: "
+                    "bk_tenant_id=%s, bk_biz_id=%s, index_set_id=%s",
                     bk_tenant_id,
                     bk_biz_id,
                     index_set["index_set_id"],
                 )
+            record = TraceScopeIndexSet.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).first()
+            if record is not None:
+                record.delete()
             return
 
         params: dict[str, Any] = {
@@ -162,8 +196,10 @@ class TraceScopeIndexSetHandler:
         }
         if index_set is not None:
             api.log_search.update_index_set(index_set_id=index_set["index_set_id"], **params)
+            cls._save_index_set_record(bk_tenant_id, bk_biz_id, index_set["index_set_id"])
             logger.info(
-                "updated Trace scope index set: bk_tenant_id=%s, bk_biz_id=%s, index_set_id=%s, indexes=%s",
+                "[TraceScopeIndexSetHandler] updated Trace scope index set: "
+                "bk_tenant_id=%s, bk_biz_id=%s, index_set_id=%s, indexes=%s",
                 bk_tenant_id,
                 bk_biz_id,
                 index_set["index_set_id"],
@@ -171,10 +207,13 @@ class TraceScopeIndexSetHandler:
             )
             return
 
-        api.log_search.create_index_set(**params)
+        index_set = api.log_search.create_index_set(**params)
+        cls._save_index_set_record(bk_tenant_id, bk_biz_id, index_set["index_set_id"])
         logger.info(
-            "created Trace scope index set: bk_tenant_id=%s, bk_biz_id=%s, indexes=%s",
+            "[TraceScopeIndexSetHandler] created Trace scope index set: "
+            "bk_tenant_id=%s, bk_biz_id=%s, index_set_id=%s, indexes=%s",
             bk_tenant_id,
             bk_biz_id,
+            index_set["index_set_id"],
             len(indexes),
         )

@@ -303,6 +303,7 @@ def sync_trace_scope_index_set(bk_biz_id: int) -> None:
     set_local_tenant_id(bk_tenant_id)
     with ApmCacheHandler().distributed_lock(
         "trace_scope_index_set",
+        wait_time=20,
         bk_tenant_id=bk_tenant_id,
         bk_biz_id=bk_biz_id,
     ):

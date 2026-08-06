@@ -8,6 +8,7 @@ from pytest_mock import MockerFixture
 from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.trace_index_set import TraceScopeIndexSetHandler
+from apm.models import TraceScopeIndexSet
 from apm.task import tasks
 from constants.common import DEFAULT_TENANT_ID
 from core.errors.alarm_backends import LockError
@@ -51,18 +52,33 @@ def mock_snapshot_rows(
 
 @pytest.fixture
 def index_set_api_mocks(mocker: MockerFixture) -> dict[str, MagicMock]:
-    return {
+    record = MagicMock()
+    record_filter = mocker.patch("apm.core.handlers.trace_index_set.TraceScopeIndexSet.objects.filter")
+    record_filter.return_value.first.return_value = None
+    mocks = {
         "search": mocker.patch(
             "apm.core.handlers.trace_index_set.api.log_search.search_index_set.request.cacheless",
             return_value=[],
         ),
-        "create": mocker.patch("apm.core.handlers.trace_index_set.api.log_search.create_index_set"),
+        "create": mocker.patch(
+            "apm.core.handlers.trace_index_set.api.log_search.create_index_set",
+            return_value={"index_set_id": 43, "index_set_name": "bkapm_cross_trace_2"},
+        ),
         "update": mocker.patch("apm.core.handlers.trace_index_set.api.log_search.update_index_set"),
         "delete": mocker.patch("apm.core.handlers.trace_index_set.api.log_search.delete_index_set"),
+        "record_update_or_create": mocker.patch(
+            "apm.core.handlers.trace_index_set.TraceScopeIndexSet.origin_objects.update_or_create"
+        ),
+        "record_filter": record_filter,
+        "record": record,
     }
+    return mocks
 
 
 class TestTraceScopeIndexSetHandler:
+    def test_index_set_id_has_database_index(self) -> None:
+        assert TraceScopeIndexSet._meta.get_field("index_set_id").db_index is True
+
     @pytest.mark.parametrize(
         ("bk_biz_id", "expected"),
         [
@@ -133,11 +149,13 @@ class TestTraceScopeIndexSetHandler:
                     "bk_tenant_id": BK_TENANT_ID,
                     "table_id": "2_bkapm.trace_exclusive",
                     "storage_cluster_id": 11,
+                    "index_set": "exclusive_trace_index",
                 },
                 {
                     "bk_tenant_id": DEFAULT_TENANT_ID,
                     "table_id": "bkapm_shared.trace_0001",
                     "storage_cluster_id": 22,
+                    "index_set": "shared_trace_index",
                 },
             ],
         )
@@ -158,15 +176,20 @@ class TestTraceScopeIndexSetHandler:
             indexes=[
                 {
                     "bk_biz_id": BK_BIZ_ID,
-                    "result_table_id": "2_bkapm_trace_exclusive_*",
+                    "result_table_id": "exclusive_trace_index_*",
                     "storage_cluster_id": 11,
                 },
                 {
                     "bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID,
-                    "result_table_id": "bkapm_shared_trace_0001_*",
+                    "result_table_id": "shared_trace_index_*",
                     "storage_cluster_id": 22,
                 },
             ],
+        )
+        index_set_api_mocks["record_update_or_create"].assert_called_once_with(
+            bk_tenant_id=BK_TENANT_ID,
+            bk_biz_id=BK_BIZ_ID,
+            defaults={"index_set_id": 43, "is_deleted": False, "is_enabled": True},
         )
         index_set_api_mocks["update"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
@@ -217,6 +240,11 @@ class TestTraceScopeIndexSetHandler:
         )
         index_set_api_mocks["create"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
+        index_set_api_mocks["record_update_or_create"].assert_called_once_with(
+            bk_tenant_id=BK_TENANT_ID,
+            bk_biz_id=BK_BIZ_ID,
+            defaults={"index_set_id": 42, "is_deleted": False, "is_enabled": True},
+        )
 
     def test_sync_deletes_existing_index_set_when_scope_is_empty(
         self,
@@ -225,6 +253,7 @@ class TestTraceScopeIndexSetHandler:
     ) -> None:
         mocker.patch.object(TraceScopeIndexSetHandler, "build_indexes", return_value=[])
         index_set_api_mocks["search"].return_value = [{"index_set_id": 42, "index_set_name": "bkapm_cross_trace_2"}]
+        index_set_api_mocks["record_filter"].return_value.first.return_value = index_set_api_mocks["record"]
 
         TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
 
@@ -234,6 +263,7 @@ class TestTraceScopeIndexSetHandler:
         )
         index_set_api_mocks["create"].assert_not_called()
         index_set_api_mocks["update"].assert_not_called()
+        index_set_api_mocks["record"].delete.assert_called_once_with()
 
     def test_sync_does_not_write_when_scope_and_index_set_are_empty(
         self,
@@ -241,43 +271,75 @@ class TestTraceScopeIndexSetHandler:
         mocker: MockerFixture,
     ) -> None:
         mocker.patch.object(TraceScopeIndexSetHandler, "build_indexes", return_value=[])
+        index_set_api_mocks["record_filter"].return_value.first.return_value = index_set_api_mocks["record"]
 
         TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
 
         index_set_api_mocks["create"].assert_not_called()
         index_set_api_mocks["update"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
+        index_set_api_mocks["record"].delete.assert_called_once_with()
 
-    @pytest.mark.parametrize("missing", ["result_table", "storage"])
-    def test_sync_does_not_write_incomplete_snapshot(
+    @pytest.mark.parametrize("missing", ["result_table", "storage", "index_set"])
+    def test_sync_skips_incomplete_application_and_writes_valid_snapshot(
         self,
         missing: str,
         index_set_api_mocks: dict[str, MagicMock],
         mocker: MockerFixture,
     ) -> None:
         result_table_id = "" if missing == "result_table" else "2_bkapm.trace_demo"
+        storages = [
+            {
+                "bk_tenant_id": BK_TENANT_ID,
+                "table_id": "2_bkapm.trace_valid",
+                "storage_cluster_id": 11,
+                "index_set": "valid_trace_index",
+            }
+        ]
+        if missing == "index_set":
+            storages.append(
+                {
+                    "bk_tenant_id": BK_TENANT_ID,
+                    "table_id": result_table_id,
+                    "storage_cluster_id": 12,
+                    "index_set": "",
+                }
+            )
         mock_snapshot_rows(
             mocker,
-            applications=[{"id": 1, "app_name": "demo", "bk_tenant_id": BK_TENANT_ID}],
+            applications=[
+                {"id": 1, "app_name": "incomplete", "bk_tenant_id": BK_TENANT_ID},
+                {"id": 2, "app_name": "valid", "bk_tenant_id": BK_TENANT_ID},
+            ],
             trace_datasources=[
                 {
-                    "app_name": "demo",
+                    "app_name": "incomplete",
                     "result_table_id": result_table_id,
                     "shared_datasource_id": None,
-                }
+                },
+                {
+                    "app_name": "valid",
+                    "result_table_id": "2_bkapm.trace_valid",
+                    "shared_datasource_id": None,
+                },
             ],
-            storages=[],
+            storages=storages,
         )
 
-        with pytest.raises(ValueError, match="result table|storage"):
-            TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
+        TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
 
-        index_set_api_mocks["search"].assert_not_called()
-        index_set_api_mocks["create"].assert_not_called()
+        index_set_api_mocks["create"].assert_called_once()
+        assert index_set_api_mocks["create"].call_args.kwargs["indexes"] == [
+            {
+                "bk_biz_id": BK_BIZ_ID,
+                "result_table_id": "valid_trace_index_*",
+                "storage_cluster_id": 11,
+            }
+        ]
         index_set_api_mocks["update"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
 
-    def test_sync_rejects_conflicting_result_table_members(
+    def test_sync_keeps_latest_conflicting_result_table_member(
         self,
         index_set_api_mocks: dict[str, MagicMock],
         mocker: MockerFixture,
@@ -293,18 +355,72 @@ class TestTraceScopeIndexSetHandler:
                 {"app_name": "shared", "result_table_id": "same.trace", "shared_datasource_id": 1},
             ],
             storages=[
-                {"bk_tenant_id": BK_TENANT_ID, "table_id": "same.trace", "storage_cluster_id": 11},
-                {"bk_tenant_id": DEFAULT_TENANT_ID, "table_id": "same.trace", "storage_cluster_id": 22},
+                {
+                    "bk_tenant_id": BK_TENANT_ID,
+                    "table_id": "same.trace",
+                    "storage_cluster_id": 11,
+                    "index_set": "exclusive_trace_index",
+                },
+                {
+                    "bk_tenant_id": DEFAULT_TENANT_ID,
+                    "table_id": "same.trace",
+                    "storage_cluster_id": 22,
+                    "index_set": "shared_trace_index",
+                },
             ],
         )
 
-        with pytest.raises(ValueError, match="conflicting"):
-            TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
+        TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
 
-        index_set_api_mocks["search"].assert_not_called()
-        index_set_api_mocks["create"].assert_not_called()
+        assert index_set_api_mocks["create"].call_args.kwargs["indexes"] == [
+            {
+                "bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID,
+                "result_table_id": "shared_trace_index_*",
+                "storage_cluster_id": 22,
+            }
+        ]
         index_set_api_mocks["update"].assert_not_called()
         index_set_api_mocks["delete"].assert_not_called()
+
+    def test_sync_keeps_latest_trace_datasource_for_application(
+        self,
+        index_set_api_mocks: dict[str, MagicMock],
+        mocker: MockerFixture,
+    ) -> None:
+        mock_snapshot_rows(
+            mocker,
+            applications=[{"id": 1, "app_name": "demo", "bk_tenant_id": BK_TENANT_ID}],
+            trace_datasources=[
+                {
+                    "app_name": "demo",
+                    "result_table_id": "2_bkapm.trace_old",
+                    "shared_datasource_id": None,
+                },
+                {
+                    "app_name": "demo",
+                    "result_table_id": "2_bkapm.trace_latest",
+                    "shared_datasource_id": None,
+                },
+            ],
+            storages=[
+                {
+                    "bk_tenant_id": BK_TENANT_ID,
+                    "table_id": "2_bkapm.trace_latest",
+                    "storage_cluster_id": 12,
+                    "index_set": "latest_trace_index",
+                }
+            ],
+        )
+
+        TraceScopeIndexSetHandler.sync(BK_TENANT_ID, BK_BIZ_ID)
+
+        assert index_set_api_mocks["create"].call_args.kwargs["indexes"] == [
+            {
+                "bk_biz_id": BK_BIZ_ID,
+                "result_table_id": "latest_trace_index_*",
+                "storage_cluster_id": 12,
+            }
+        ]
 
 
 class TestSyncTraceScopeIndexSet:
@@ -325,6 +441,7 @@ class TestSyncTraceScopeIndexSet:
         set_tenant.assert_called_once_with(BK_TENANT_ID)
         cache_handler.distributed_lock.assert_called_once_with(
             "trace_scope_index_set",
+            wait_time=20,
             bk_tenant_id=BK_TENANT_ID,
             bk_biz_id=BK_BIZ_ID,
         )
