@@ -162,7 +162,7 @@ class ListSourceAnalysisBkciRepositoriesResource(Resource):
 
 
 class BaseListSourceAnalysisAidevOptionsResource(Resource):
-    """将 AIDEV 应用态分页结果转换为源码分析统一选项协议。"""
+    """将当前用户可见的 AIDEV 分页结果转换为源码分析统一选项协议。"""
 
     id_field: str
     name_field: str
@@ -185,8 +185,9 @@ class BaseListSourceAnalysisAidevOptionsResource(Resource):
         raise NotImplementedError
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 的资源范围由 BKM 应用绑定空间决定。
+        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
         params = {
+            "space_id": "all",
             "page": validated_request_data["page"],
             "page_size": validated_request_data["page_size"],
         }
@@ -222,7 +223,7 @@ class BaseListSourceAnalysisAidevOptionsResource(Resource):
 
 
 class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResource):
-    """查询当前 BKM 应用空间可用的 AIDEV Agent 选项。"""
+    """查询当前用户有权限的 AIDEV Agent 选项。"""
 
     id_field = "id"
     name_field = "agent_name"
@@ -232,7 +233,7 @@ class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResourc
 
 
 class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResource):
-    """查询当前 BKM 应用空间可用的 AIDEV Skill 选项。"""
+    """查询当前用户有权限的 AIDEV Skill 选项。"""
 
     id_field = "id"
     name_field = "skill_name"
@@ -242,13 +243,11 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
 
 
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
-    """查询当前 BKM 应用空间可用的 AIDEV 知识库选项。"""
+    """预留当前用户有权限的 AIDEV 知识库选项接口。"""
 
-    id_field = "id"
-    name_field = "name"
-
-    def list_aidev_resources(self, params: dict):
-        return api.aidev.list_knowledgebases(**params)
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # AIDEV 暂未提供用户态知识库列表接口；保留前端协议，支持后再接入真实数据。
+        return {"total": 0, "list": []}
 
 
 class IssueIDField(serializers.CharField):

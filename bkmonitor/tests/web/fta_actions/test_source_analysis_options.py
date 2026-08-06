@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -16,7 +17,7 @@ from api.devops.default import (
     ListUserProjectResource,
     ListUserRepositoryResource,
 )
-from api.aidev.default import ListAgentsResource, ListKnowledgebasesResource, ListSkillsResource
+from api.aidev.default import ListAgentsResource, ListSkillsResource
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import api
@@ -64,19 +65,26 @@ class TestDevopsUserResources(SimpleTestCase):
 
 
 class TestAidevResources(SimpleTestCase):
-    def test_actions_follow_aidev_app_gateway_contract(self):
-        self.assertEqual(ListAgentsResource.action, "/openapi/aidev/app/v1/agents/")
-        self.assertEqual(ListSkillsResource.action, "/openapi/aidev/app/v1/skills/")
-        self.assertEqual(ListKnowledgebasesResource.action, "/openapi/aidev/app/v1/knowledgebase/list/")
-        self.assertEqual(ListKnowledgebasesResource.method, "POST")
+    def test_actions_follow_aidev_private_gateway_contract(self):
+        self.assertEqual(ListAgentsResource.action, "/openapi/aidev/private/v1/agents/")
+        self.assertEqual(ListSkillsResource.action, "/openapi/aidev/private/v1/skills/")
 
-        for resource_class in (ListAgentsResource, ListSkillsResource, ListKnowledgebasesResource):
+        for resource_class in (ListAgentsResource, ListSkillsResource):
             with self.subTest(resource_class=resource_class.__name__):
                 self.assertFalse(resource_class.INSERT_BK_USERNAME_TO_REQUEST_DATA)
                 serializer = resource_class.RequestSerializer(data={"fuzzy": "source"})
                 self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertEqual(serializer.validated_data["space_id"], "all")
                 self.assertEqual(serializer.validated_data["page"], 1)
                 self.assertEqual(serializer.validated_data["page_size"], 20)
+
+    @patch("blueapps.utils.request_provider.get_local_request", return_value=object())
+    @patch("ai_agent.core.custom_config_manager.get_mcp_access_token", return_value="user-access-token")
+    def test_private_gateway_uses_current_user_access_token_only(self, get_access_token, get_request):
+        headers = ListAgentsResource().get_headers()
+
+        self.assertEqual(json.loads(headers["x-bkapi-authorization"]), {"access_token": "user-access-token"})
+        get_access_token.assert_called_once_with(request=get_request.return_value)
 
 
 class TestSourceAnalysisOptionsResources(SimpleTestCase):
@@ -161,12 +169,6 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 {"count": 1, "results": [{"id": 22, "skill_name": "代码检索 Skill"}]},
                 {"total": 1, "list": [{"id": "22", "name": "代码检索 Skill"}]},
             ),
-            (
-                ListSourceAnalysisKnowledgeBasesResource,
-                "list_knowledgebases",
-                [{"id": 33, "name": "故障知识库"}],
-                {"total": 1, "list": [{"id": "33", "name": "故障知识库"}]},
-            ),
         ]
         for resource_class, api_name, upstream_data, expected in cases:
             with self.subTest(resource_class=resource_class.__name__):
@@ -175,7 +177,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                         {"bk_biz_id": 2, "keyword": "source", "page": 2, "page_size": 10}
                     )
                 self.assertEqual(actual, expected)
-                list_resources.assert_called_once_with(fuzzy="source", page=2, page_size=10)
+                list_resources.assert_called_once_with(space_id="all", fuzzy="source", page=2, page_size=10)
 
     def test_aidev_options_omit_empty_keyword(self):
         with patch.object(api.aidev, "list_agents", return_value={"count": 0, "results": []}) as list_agents:
@@ -184,7 +186,16 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             )
 
         self.assertEqual(result, {"total": 0, "list": []})
-        list_agents.assert_called_once_with(page=1, page_size=20)
+        list_agents.assert_called_once_with(space_id="all", page=1, page_size=20)
+
+    def test_knowledge_base_options_remain_empty_until_aidev_supports_user_list(self):
+        resource = ListSourceAnalysisKnowledgeBasesResource()
+        with patch.object(resource, "list_aidev_resources") as list_resources:
+            self.assertEqual(
+                resource.perform_request({"bk_biz_id": 2, "keyword": "source", "page": 1, "page_size": 20}),
+                {"total": 0, "list": []},
+            )
+        list_resources.assert_not_called()
 
     def test_invalid_aidev_shape_is_rejected(self):
         for upstream_data in (None, {}, {"count": 1, "results": ["invalid-item"]}):
