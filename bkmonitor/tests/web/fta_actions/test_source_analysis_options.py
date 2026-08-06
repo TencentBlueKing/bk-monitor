@@ -78,8 +78,8 @@ class TestAidevResources(SimpleTestCase):
                 self.assertEqual(serializer.validated_data["page"], 1)
                 self.assertEqual(serializer.validated_data["page_size"], 20)
 
-    @patch("blueapps.utils.request_provider.get_local_request", return_value=object())
-    @patch("ai_agent.core.custom_config_manager.get_mcp_access_token", return_value="user-access-token")
+    @patch("api.aidev.default.get_local_request", return_value=object())
+    @patch("api.aidev.default.get_mcp_access_token", return_value="user-access-token")
     def test_private_gateway_uses_current_user_access_token_only(self, get_access_token, get_request):
         headers = ListAgentsResource().get_headers()
 

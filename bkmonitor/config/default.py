@@ -1325,6 +1325,8 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
 # 故障分析
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# BKFara 发布源码分析初始化资源后，通过环境变量注入实际路径；未配置时规则启用会安全失败并回滚。
+BK_INCIDENT_SOURCE_ANALYSIS_INIT_PATH = os.getenv("BKAPP_INCIDENT_SOURCE_ANALYSIS_INIT_PATH", "")
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知
