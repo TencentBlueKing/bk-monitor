@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 from json import JSONDecodeError
 
+from ai_agent.core.custom_config_manager import get_mcp_access_token
+from blueapps.utils.request_provider import get_local_request
 from django.conf import settings
 from django.http import StreamingHttpResponse
 from rest_framework import serializers
@@ -46,9 +48,6 @@ class AidevPrivateAPIGWResource(APIResource):
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     def get_headers(self):
-        from ai_agent.core.custom_config_manager import get_mcp_access_token
-        from blueapps.utils.request_provider import get_local_request
-
         headers = super().get_headers()
         # AIDEV private API 要求 access_token 单独鉴权，不能混入应用凭据。
         headers["x-bkapi-authorization"] = json.dumps(
