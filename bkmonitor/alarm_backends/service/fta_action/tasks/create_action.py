@@ -34,6 +34,7 @@ from bkmonitor.models import ActionInstance, ActionPlugin
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import (
+    AssignMode,
     DEFAULT_NOTICE_ACTION,
     ActionNoticeType,
     ActionPluginType,
@@ -676,6 +677,13 @@ class CreateActionProcessor:
             self.relation_id,
         )
         actions = self.get_action_relations()
+        assign_mode = self.notice.get("options", {}).get("assign_mode") or []
+        is_subscription_only_notice = (
+            len(actions) == 1
+            and actions[0].get("id") == self.notice.get("id")
+            and not self.notice.get("user_groups")
+            and AssignMode.BY_RULE not in assign_mode
+        )
         new_actions = []
         self.is_alert_shielded, shield_ids = self.get_alert_shield_result()
         # 创建推送队列的人员信息
@@ -862,7 +870,12 @@ class CreateActionProcessor:
                                 unique_notice_followers,
                             )
                     notify_info, follow_notify_info = merged_notice_info
-                    if not self.has_notice_receivers(notify_info) and not self.has_notice_receivers(follow_notify_info):
+                    # 当前通知时段没有接收人时，已有告警组或已命中分派仍需保留父动作，供周期任务后续补发。
+                    has_existing_notice_lifecycle = bool(self.notice.get("user_groups")) or assignee_manager.is_matched
+                    has_current_receivers = self.has_notice_receivers(notify_info) or self.has_notice_receivers(
+                        follow_notify_info
+                    )
+                    if not has_existing_notice_lifecycle and not has_current_receivers:
                         logger.info(
                             "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
                             "because no receiver matched",
@@ -891,6 +904,13 @@ class CreateActionProcessor:
         AssignCacheManager.clear()
         # 清理订阅缓存
         SubscribeCacheManager.clear()
+        if is_subscription_only_notice and not action_instances:
+            # 该通知关系仅为匹配订阅而保留；没有订阅命中时恢复原有早退语义，避免把告警误标为已通知。
+            logger.info(
+                "[create actions]skip alert document update for subscription-only alerts(%s) because no action created",
+                self.alert_ids,
+            )
+            return new_actions
         if action_instances:
             ActionInstance.objects.bulk_create(action_instances)
             new_actions.extend(

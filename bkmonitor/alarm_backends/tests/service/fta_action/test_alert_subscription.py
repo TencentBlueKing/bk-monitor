@@ -85,6 +85,7 @@ def build_create_action_case(subscription_notify_info):
     processor._notice_noise_reduce_processed = False
     processor.generate_uuid = "generate-uuid"
     processor.notice = {
+        "id": 9,
         "config_id": 1,
         "user_groups": [],
         "options": {"assign_mode": [AssignMode.BY_RULE]},
@@ -521,6 +522,51 @@ def test_empty_final_receivers_skip_notice_action_and_noise_reduce():
 
     processor.do_create_action.assert_not_called()
     noise_reduce_processor.assert_not_called()
+
+
+def test_subscription_only_alert_without_receivers_keeps_original_early_return():
+    processor, _, _ = build_create_action_case(({}, {}))
+    processor.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE]
+
+    run_create_action_case(processor)
+
+    processor.do_create_action.assert_not_called()
+    processor.update_alert_documents.assert_not_called()
+    processor._process_issue_aggregation.assert_not_called()
+
+
+def test_message_queue_does_not_mark_subscription_only_alert_without_receivers_as_notified():
+    processor, _, _ = build_create_action_case(({}, {}))
+    processor.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE]
+    processor.create_message_queue_action.side_effect = lambda new_actions: new_actions.append(99)
+
+    run_create_action_case(processor)
+
+    processor.do_create_action.assert_not_called()
+    processor.update_alert_documents.assert_not_called()
+    processor._process_issue_aggregation.assert_not_called()
+
+
+def test_configured_user_group_keeps_parent_notice_when_current_receivers_are_empty():
+    processor, _, _ = build_create_action_case(({}, {}))
+    processor.notice["user_groups"] = [1]
+
+    noise_reduce_processor = run_create_action_case(processor)
+
+    processor.do_create_action.assert_called_once()
+    assert processor.do_create_action.call_args.kwargs["notice_info"] == ({}, {})
+    noise_reduce_processor.assert_called_once()
+
+
+def test_matched_assignment_keeps_parent_notice_when_current_receivers_are_empty():
+    processor, _, assignee_manager = build_create_action_case(({}, {}))
+    assignee_manager.is_matched = True
+
+    noise_reduce_processor = run_create_action_case(processor)
+
+    processor.do_create_action.assert_called_once()
+    assert processor.do_create_action.call_args.kwargs["notice_info"] == ({}, {})
+    noise_reduce_processor.assert_called_once()
 
 
 def test_subscription_follower_is_recorded_without_assignment_match_manager():
