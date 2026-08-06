@@ -26,6 +26,7 @@
 
 import { applyGuidePage } from '../../common';
 import * as performanceAuth from '../../pages/performance/authority-map';
+import { beforeEnter } from '../utils';
 
 import type { RouteConfig } from 'vue-router';
 
@@ -64,6 +65,8 @@ export default applyGuidePage(
       components: {
         noCache: Host,
       },
+      // navId 保持 host；引导数据复用 performance，进入前单独拉取 introduce
+      beforeEnter: (_to, _from, next) => beforeEnter('performance', next),
       meta: {
         title: '主机监控',
         navId: 'host',
