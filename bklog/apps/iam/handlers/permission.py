@@ -40,6 +40,7 @@ from iam.apply.models import (
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 
+from apps.iam.backends.legacy_v3 import LegacyV3Adapter
 from apps.iam.exceptions import (
     ActionNotExistError,
     GetSystemInfoError,
@@ -49,6 +50,20 @@ from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
+from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
+from apps.iam.iam_engine.core.requests import (
+    AuthRequest as EngineAuthRequest,
+    BatchAuthRequest as EngineBatchAuthRequest,
+    ResourceInstance as EngineResourceInstance,
+    Subject as EngineSubject,
+)
+from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, BatchAuthDecision
+from apps.iam.iam_engine.migration.policy import BoundPermissionApplicationAdapter, MigrationPolicy
+from apps.iam.iam_engine.provider.bundle import ProviderBundle
+from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PermissionApplicationProvider
+from apps.iam.iam_engine.provider.router import ModeRouter
+from apps.iam.mode import get_mode_provider
 from apps.iam.utils import gen_perms_apply_data
 from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
 from apps.utils.log import logger
@@ -90,11 +105,55 @@ class Permission:
         if request and getattr(request, "skip_check", False):
             self.skip_check = True
 
+        self._mode_router = None
+        self._provider_bundles = None
+
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
         return CompatibleIAM(
             settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
         )
+
+    @property
+    def provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+        if self._provider_bundles is None:
+            self._provider_bundles = self._build_provider_bundles()
+        return self._provider_bundles
+
+    @property
+    def mode_router(self) -> ModeRouter:
+        if self._mode_router is None:
+            self._mode_router = ModeRouter(
+                mode_provider=get_mode_provider(),
+                bundles=self.provider_bundles,
+            )
+        return self._mode_router
+
+    def _build_provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+        return {
+            AuthMode.V3: ProviderBundle(
+                auth=LegacyV3Adapter(self.iam_client, settings.BK_IAM_SYSTEM_ID),
+                application=BoundPermissionApplicationAdapter(self._get_v3_apply_data),
+                writer=self.iam_client,
+            ),
+            AuthMode.V4: ProviderBundle(
+                auth=self.get_v4_provider(),
+                application=self.get_v4_permission_application_provider(),
+                writer=self.get_v4_authorization_writer(),
+            ),
+        }
+
+    def get_v4_provider(self):
+        """V4 Provider 将在后续迭代中注入；未配置时路由器按 error 安全拒绝。"""
+        return None
+
+    def get_v4_permission_application_provider(self) -> PermissionApplicationProvider | None:
+        """V4 无权限申请能力将在后续迭代中注入。"""
+        return None
+
+    def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
+        """V4 授权写入能力将在后续迭代中注入。"""
+        return None
 
     def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """
@@ -127,6 +186,38 @@ class Permission:
             environment=None,
         )
         return request
+
+    def make_engine_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> EngineAuthRequest:
+        action = get_action_by_id(action)
+        return EngineAuthRequest(
+            subject=EngineSubject(id=self.username, tenant_id=self.bk_tenant_id),
+            action_id=action,
+            resources=tuple(self._to_engine_resource(resource) for resource in (resources or [])),
+        )
+
+    def make_engine_batch_request(
+        self,
+        actions: list[ActionMeta | str],
+        resources: list[list[Resource]],
+    ) -> EngineBatchAuthRequest:
+        return EngineBatchAuthRequest(
+            subject=EngineSubject(id=self.username, tenant_id=self.bk_tenant_id),
+            action_ids=tuple(get_action_by_id(action) for action in actions),
+            resource_groups=tuple(
+                tuple(self._to_engine_resource(resource) for resource in resource_group) for resource_group in resources
+            ),
+        )
+
+    @staticmethod
+    def _to_engine_resource(resource: Resource) -> EngineResourceInstance:
+        attributes = dict(resource.attribute or {})
+        return EngineResourceInstance(
+            system=resource.system,
+            type=resource.type,
+            id=str(resource.id),
+            name=attributes.get("name", ""),
+            attributes=attributes,
+        )
 
     def _make_application(
         self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
@@ -185,11 +276,53 @@ class Permission:
         url = f"{url}&tab_key=independent" if "?" in url else f"{url}?tab_key=independent"
         return url
 
-    def get_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource] = None):
+    def get_apply_data(
+        self,
+        actions: list[ActionMeta | str],
+        resources: list[Resource] = None,
+        *,
+        mode: AuthMode | str | None = None,
+    ):
         """
         生成本系统无权限数据
         """
         resources = resources or []
+        resolved_mode = self._resolve_safe_apply_mode(resources, mode)
+        application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles)
+        return application.provider.get_apply_data(actions, resources)
+
+    def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
+        """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 V3。
+
+        调用方既可能显式传入 mode（例如 is_allowed 把 decision.mode 原样传回，可能是非法字符串），
+        也可能不传 mode 走 FeatureToggle 自动解析（可能因配置非法抛出 InvalidAuthModeError）。
+        这里统一兜底，避免任何一条路径把异常/非法值泄漏给直接调用 get_apply_data 的业务代码。
+        """
+        if mode is not None:
+            resolved_mode = AuthMode.safe_coerce(mode)
+            if resolved_mode.value != mode:
+                logger.warning(
+                    "[IAM Apply] invalid auth mode=%r is not a valid AuthMode, falling back to %s apply",
+                    mode,
+                    resolved_mode.value,
+                )
+            return resolved_mode
+
+        try:
+            return self._resolve_auth_mode(resources)
+        except InvalidAuthModeError as error:
+            logger.warning(
+                "[IAM Apply] failed to resolve auth mode (%s), falling back to %s apply",
+                error.reason,
+                AuthMode.V3.value,
+            )
+            return AuthMode.V3
+
+    def _resolve_auth_mode(self, resources: list[Resource]) -> AuthMode:
+        engine_resources = tuple(self._to_engine_resource(resource) for resource in resources)
+        return self.mode_router.mode_provider.get_mode(engine_resources)
+
+    def _get_v3_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource]):
         # # 获取关联的动作，如果没有权限就一同显示
         # related_actions = fetch_related_actions(actions)
         #
@@ -265,16 +398,13 @@ class Permission:
                 return True
         # ===== 针对demo业务的权限豁免 结束 ===== #
 
-        request = self.make_request(action, resources)
-
-        try:
-            result = self.iam_client.is_allowed(request)
-        except AuthAPIError as e:
-            logger.exception(f"[IAM AuthAPI Error]: {e}")
-            result = False
+        request = self.make_engine_request(action, resources)
+        decision = self.mode_router.is_allowed(request)
+        self._record_decision(action.id, decision)
+        result = decision.allowed
 
         if not result and raise_exception:
-            apply_data, apply_url = self.get_apply_data([action], resources)
+            apply_data, apply_url = self.get_apply_data([action], resources, mode=decision.mode)
             raise PermissionDeniedError(
                 action_name=action.name,
                 apply_url=apply_url,
@@ -297,8 +427,11 @@ class Permission:
         """
         查询某批资源某批操作是否有权限
         """
-        request = self.make_multi_action_request(actions)
-        result = self.iam_client.batch_resource_multi_actions_allowed(request, resources)
+        actions = [get_action_by_id(action) for action in actions]
+        request = self.make_engine_batch_request(actions, resources)
+        decision = self.mode_router.batch_is_allowed(request)
+        self._record_batch_decision(decision)
+        result = decision.as_allowed_dict()
 
         # ===== 针对demo业务的权限豁免 开始 ===== #
         for action in actions:
@@ -312,6 +445,40 @@ class Permission:
         # ===== 针对demo业务的权限豁免 结束 ===== #
 
         return result
+
+    @staticmethod
+    def _record_decision(action_id: str, decision: AuthDecision) -> None:
+        error_results = tuple(result for result in decision.provider_results if result.status is AuthStatus.ERROR)
+        if not error_results:
+            return
+        logger.warning(
+            "[IAM Decision] mode=%s action=%s allowed=%s degraded=%s hit=%s errors=%s",
+            decision.mode,
+            action_id,
+            decision.allowed,
+            decision.degraded,
+            decision.hit_provider_names,
+            tuple((result.provider_name, result.error_type, result.reason) for result in error_results),
+        )
+
+    @staticmethod
+    def _record_batch_decision(decision: BatchAuthDecision) -> None:
+        error_results = tuple(
+            result
+            for item in decision.items
+            for result in item.decision.provider_results
+            if result.status is AuthStatus.ERROR
+        )
+        if not error_results:
+            return
+        errors = tuple(
+            dict.fromkeys((result.provider_name, result.error_type, result.reason) for result in error_results)
+        )
+        logger.warning(
+            "[IAM Batch Decision] error_result_count=%s errors=%s",
+            len(error_results),
+            errors,
+        )
 
     @classmethod
     def make_resource(cls, resource_type: str, instance_id: str) -> Resource:
@@ -431,14 +598,25 @@ class Permission:
         }
 
         grant_result = None
-
-        try:
-            grant_result = self.iam_client.grant_resource_creator_actions(application)
-            logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
-
-            if raise_exception:
-                raise e
+        for provider_name, writer in MigrationPolicy.resolve_authorization_writers(self.provider_bundles):
+            try:
+                result = writer.grant_resource_creator_actions(application)
+                if provider_name == AuthMode.V3.value:
+                    grant_result = result
+                logger.info(
+                    "[grant_creator_action] provider=%s success resource=%s result=%s",
+                    provider_name,
+                    resource.to_dict(),
+                    result,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "[grant_creator_action] provider=%s failed resource=%s error=%s",
+                    provider_name,
+                    resource.to_dict(),
+                    error,
+                )
+                if raise_exception:
+                    raise
 
         return grant_result
