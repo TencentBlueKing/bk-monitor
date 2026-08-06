@@ -171,7 +171,7 @@ class TestTraceScopeIndexSetHandler:
             view_roles=[],
             storage_cluster_id=11,
             time_field="end_time",
-            time_field_type="date",
+            time_field_type="long",
             time_field_unit="microsecond",
             indexes=[
                 {
@@ -234,7 +234,7 @@ class TestTraceScopeIndexSetHandler:
             view_roles=[],
             storage_cluster_id=11,
             time_field="end_time",
-            time_field_type="date",
+            time_field_type="long",
             time_field_unit="microsecond",
             indexes=indexes,
         )

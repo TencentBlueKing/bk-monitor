@@ -190,7 +190,7 @@ class TraceScopeIndexSetHandler:
             "view_roles": [],
             "storage_cluster_id": indexes[0]["storage_cluster_id"],
             "time_field": "end_time",
-            "time_field_type": "date",
+            "time_field_type": "long",
             "time_field_unit": "microsecond",
             "indexes": indexes,
         }
