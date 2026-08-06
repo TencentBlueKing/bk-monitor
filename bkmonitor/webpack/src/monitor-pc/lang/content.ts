@@ -491,4 +491,6 @@ export default {
   '参考下表接入数据，如有疑问请联系 {link}':
     'Refer to the following table for data access, if you have any questions, please contact {link}',
   被调无需选择: 'Callee does not need to be selected',
+  '请选择下方应用进入 Trace 详情': 'Please select an application below to view Trace details',
+  '命中{0}个应用': '{0} application(s) matched',
 };
