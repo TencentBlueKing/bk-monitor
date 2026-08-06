@@ -21,7 +21,6 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
-from fta_web.issue.handlers.source_analysis import SourceAnalysisOptionsHandler
 from fta_web.issue.resources import (
     SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE,
     ListSourceAnalysisBkciProjectsResource,
@@ -60,22 +59,33 @@ class TestDevopsUserResources(SimpleTestCase):
                 resource.render_response_data({}, {"status": 1, "message": "failed", "data": None})
 
 
-class TestSourceAnalysisOptionsHandler(SimpleTestCase):
+class TestSourceAnalysisOptionsResources(SimpleTestCase):
     def test_projects_are_normalized(self):
         with patch.object(
             api.devops,
             "list_user_project",
             return_value=[
-                {"project_code": "project-a", "project_name": "Project A"},
-                {"project_code": "project-b", "project_name": "Project B"},
+                {"projectCode": "project-a", "projectName": "Project A"},
+                {"projectCode": "project-b", "projectName": "Project B"},
             ],
         ):
             self.assertEqual(
-                SourceAnalysisOptionsHandler.list_bkci_projects(),
+                ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
                 [
                     {"id": "project-a", "name": "Project A"},
                     {"id": "project-b", "name": "Project B"},
                 ],
+            )
+
+    def test_projects_fall_back_to_legacy_fields(self):
+        with patch.object(
+            api.devops,
+            "list_user_project",
+            return_value=[{"project_code": "legacy-project", "project_name": "Legacy Project"}],
+        ):
+            self.assertEqual(
+                ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
+                [{"id": "legacy-project", "name": "Legacy Project"}],
             )
 
     def test_repositories_keep_git_alias_only(self):
@@ -86,14 +96,25 @@ class TestSourceAnalysisOptionsHandler(SimpleTestCase):
                 "type": "CODE_GIT",
                 "url": "https://example.com/git-repo.git",
             },
-            {"aliasName": "svn-repo", "repositoryHashId": "hash-b", "type": "CODE_SVN"},
+            {
+                "aliasName": "scm-git-repo",
+                "repositoryHashId": "hash-b",
+                "type": "SCM_GIT",
+                "url": "https://example.com/scm-git-repo.git",
+            },
+            {"aliasName": "svn-repo", "repositoryHashId": "hash-c", "type": "CODE_SVN"},
         ]
         with patch.object(
             api.devops, "list_user_repository", return_value={"records": repositories}
         ) as list_repositories:
             self.assertEqual(
-                SourceAnalysisOptionsHandler.list_bkci_repositories("project-a"),
-                [{"id": "git-repo", "name": "git-repo", "scm_type": "GIT"}],
+                ListSourceAnalysisBkciRepositoriesResource().perform_request(
+                    {"bk_biz_id": 2, "project_id": "project-a"}
+                ),
+                [
+                    {"id": "git-repo", "name": "git-repo", "scm_type": "GIT"},
+                    {"id": "scm-git-repo", "name": "scm-git-repo", "scm_type": "GIT"},
+                ],
             )
 
         list_repositories.assert_called_once_with(project_id="project-a")
@@ -102,11 +123,10 @@ class TestSourceAnalysisOptionsHandler(SimpleTestCase):
         for upstream_data in (None, {}, ["invalid-item"]):
             with self.subTest(upstream_data=upstream_data):
                 with patch.object(api.devops, "list_user_project", return_value=upstream_data):
-                    with self.assertRaises(ValueError):
-                        SourceAnalysisOptionsHandler.list_bkci_projects()
+                    with self.assertRaises(CustomException) as error:
+                        ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
+                self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE})
 
-
-class TestSourceAnalysisOptionsResources(SimpleTestCase):
     def test_request_and_response_contract(self):
         project_request = ListSourceAnalysisBkciProjectsResource.RequestSerializer(data={"bk_biz_id": 2})
         self.assertTrue(project_request.is_valid(), project_request.errors)
@@ -121,7 +141,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
     def test_upstream_error_has_stable_reason(self):
         upstream_error = BKAPIError(system_name="devops", url="project/list", result={"message": "failed"})
-        with patch.object(SourceAnalysisOptionsHandler, "list_bkci_projects", side_effect=upstream_error):
+        with patch.object(api.devops, "list_user_project", side_effect=upstream_error):
             with self.assertRaises(CustomException) as error:
                 ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
 
