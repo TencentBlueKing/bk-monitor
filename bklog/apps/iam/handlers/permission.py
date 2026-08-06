@@ -51,6 +51,7 @@ from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
 from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import (
     AuthRequest as EngineAuthRequest,
     BatchAuthRequest as EngineBatchAuthRequest,
@@ -58,6 +59,8 @@ from apps.iam.iam_engine.core.requests import (
     Subject as EngineSubject,
 )
 from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, BatchAuthDecision
+from apps.iam.iam_engine.migration.policy import BoundPermissionApplicationAdapter, MigrationPolicy
+from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PermissionApplicationProvider
 from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.iam.mode import get_mode_provider
@@ -103,6 +106,7 @@ class Permission:
             self.skip_check = True
 
         self._mode_router = None
+        self._provider_bundles = None
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
@@ -111,14 +115,33 @@ class Permission:
         )
 
     @property
+    def provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+        if self._provider_bundles is None:
+            self._provider_bundles = self._build_provider_bundles()
+        return self._provider_bundles
+
+    @property
     def mode_router(self) -> ModeRouter:
         if self._mode_router is None:
             self._mode_router = ModeRouter(
                 mode_provider=get_mode_provider(),
-                v3_provider=LegacyV3Adapter(self.iam_client, settings.BK_IAM_SYSTEM_ID),
-                v4_provider=self.get_v4_provider(),
+                bundles=self.provider_bundles,
             )
         return self._mode_router
+
+    def _build_provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+        return {
+            AuthMode.V3: ProviderBundle(
+                auth=LegacyV3Adapter(self.iam_client, settings.BK_IAM_SYSTEM_ID),
+                application=BoundPermissionApplicationAdapter(self._get_v3_apply_data),
+                writer=self.iam_client,
+            ),
+            AuthMode.V4: ProviderBundle(
+                auth=self.get_v4_provider(),
+                application=self.get_v4_permission_application_provider(),
+                writer=self.get_v4_authorization_writer(),
+            ),
+        }
 
     def get_v4_provider(self):
         """V4 Provider 将在后续迭代中注入；未配置时路由器按 error 安全拒绝。"""
@@ -264,21 +287,40 @@ class Permission:
         生成本系统无权限数据
         """
         resources = resources or []
-        resolved_mode = self._resolve_auth_mode(resources) if mode is None else AuthMode(mode)
-        application_provider = self._get_permission_application_provider(resolved_mode)
-        if application_provider is not None:
-            return application_provider.get_apply_data(actions, resources)
+        resolved_mode = self._resolve_safe_apply_mode(resources, mode)
+        application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles)
+        return application.provider.get_apply_data(actions, resources)
 
-        return self._get_v3_apply_data(actions, resources)
+    def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
+        """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 V3。
+
+        调用方既可能显式传入 mode（例如 is_allowed 把 decision.mode 原样传回，可能是非法字符串），
+        也可能不传 mode 走 FeatureToggle 自动解析（可能因配置非法抛出 InvalidAuthModeError）。
+        这里统一兜底，避免任何一条路径把异常/非法值泄漏给直接调用 get_apply_data 的业务代码。
+        """
+        if mode is not None:
+            resolved_mode = AuthMode.safe_coerce(mode)
+            if resolved_mode.value != mode:
+                logger.warning(
+                    "[IAM Apply] invalid auth mode=%r is not a valid AuthMode, falling back to %s apply",
+                    mode,
+                    resolved_mode.value,
+                )
+            return resolved_mode
+
+        try:
+            return self._resolve_auth_mode(resources)
+        except InvalidAuthModeError as error:
+            logger.warning(
+                "[IAM Apply] failed to resolve auth mode (%s), falling back to %s apply",
+                error.reason,
+                AuthMode.V3.value,
+            )
+            return AuthMode.V3
 
     def _resolve_auth_mode(self, resources: list[Resource]) -> AuthMode:
         engine_resources = tuple(self._to_engine_resource(resource) for resource in resources)
         return self.mode_router.mode_provider.get_mode(engine_resources)
-
-    def _get_permission_application_provider(self, mode: AuthMode) -> PermissionApplicationProvider | None:
-        if mode in (AuthMode.V4, AuthMode.UNION):
-            return self.get_v4_permission_application_provider()
-        return None
 
     def _get_v3_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource]):
         # # 获取关联的动作，如果没有权限就一同显示
@@ -556,7 +598,7 @@ class Permission:
         }
 
         grant_result = None
-        for provider_name, writer in self._get_authorization_writers():
+        for provider_name, writer in MigrationPolicy.resolve_authorization_writers(self.provider_bundles):
             try:
                 result = writer.grant_resource_creator_actions(application)
                 if provider_name == AuthMode.V3.value:
@@ -578,10 +620,3 @@ class Permission:
                     raise
 
         return grant_result
-
-    def _get_authorization_writers(self) -> tuple[tuple[str, AuthorizationWriter], ...]:
-        writers: list[tuple[str, AuthorizationWriter]] = [(AuthMode.V3.value, self.iam_client)]
-        v4_writer = self.get_v4_authorization_writer()
-        if v4_writer is not None:
-            writers.append((AuthMode.V4.value, v4_writer))
-        return tuple(writers)

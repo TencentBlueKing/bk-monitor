@@ -1,24 +1,18 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import lru_cache
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject, Toggle
 from apps.feature_toggle.plugins.constants import IAM_PERMISSION_MODE
 from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import ResourceInstance
 
 _VALID_MODES = frozenset({AuthMode.V3.value, AuthMode.V4.value, AuthMode.UNION.value})
 
-
-class InvalidIAMPermissionModeError(Exception):
-    """IAM 鉴权模式配置非法，调用方应拒绝鉴权。"""
-
-    def __init__(self, mode_value: str, reason: str) -> None:
-        self.mode_value = mode_value
-        self.reason = reason
-        super().__init__(reason)
+InvalidIAMPermissionModeError = InvalidAuthModeError
 
 
 class FeatureToggleModeProvider:
@@ -46,12 +40,28 @@ class FeatureToggleModeProvider:
         if toggle is None:
             return AuthMode.V3
 
-        if toggle.status == "off":
-            reason = "IAM permission mode toggle is disabled"
+        # IAM 鉴权模式不按业务灰度，因此不复用 FeatureToggle 通用的 debug 白名单/黑名单语义，
+        # 只认可显式的 "on"；其余任何状态（包括 "off"、"debug"、未知值）都必须安全拒绝鉴权，
+        # 不能被当作已开启继续读取 feature_config.mode。
+        if toggle.status != "on":
+            status_value = str(toggle.status or "")
+            reason = f"IAM permission mode toggle status is not enabled: {status_value!r}"
             self.logger.error(reason)
-            raise InvalidIAMPermissionModeError("off", reason)
+            raise InvalidAuthModeError(status_value or "off", reason)
 
-        feature_config = toggle.feature_config or {}
+        # feature_config 是普通 JSONField，可以存任意 JSON 值（字符串、数组、数字……），
+        # 不能假设它一定是字典；类型不对时必须安全拒绝，不能让 AttributeError 泄漏到调用方。
+        feature_config = toggle.feature_config
+        if feature_config is None:
+            feature_config = {}
+        if not isinstance(feature_config, Mapping):
+            reason = (
+                f"IAM permission mode toggle feature_config is not a mapping: "
+                f"type={type(feature_config).__name__!r} value={feature_config!r}"
+            )
+            self.logger.error(reason)
+            raise InvalidAuthModeError("invalid_feature_config", reason)
+
         mode_value = feature_config.get("mode", AuthMode.V3.value)
         if not isinstance(mode_value, str):
             mode_value = str(mode_value)
@@ -60,7 +70,7 @@ class FeatureToggleModeProvider:
         if mode_value not in _VALID_MODES:
             reason = f"invalid IAM permission mode configured: {mode_value}"
             self.logger.error(reason)
-            raise InvalidIAMPermissionModeError(mode_value, reason)
+            raise InvalidAuthModeError(mode_value, reason)
 
         return AuthMode(mode_value)
 

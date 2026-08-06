@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol
 
 from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
 from apps.iam.iam_engine.core.types import (
     AuthDecision,
@@ -13,8 +15,8 @@ from apps.iam.iam_engine.core.types import (
     BatchAuthResult,
 )
 from apps.iam.iam_engine.provider.base import PermissionProvider
+from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
-from apps.iam.mode import InvalidIAMPermissionModeError
 
 
 class ModeProvider(Protocol):
@@ -25,19 +27,15 @@ class ModeRouter:
     def __init__(
         self,
         mode_provider: ModeProvider,
-        v3_provider: PermissionProvider,
-        v4_provider: PermissionProvider | None,
+        bundles: Mapping[AuthMode, ProviderBundle],
     ) -> None:
         self.mode_provider = mode_provider
-        self.providers = {
-            AuthMode.V3: v3_provider,
-            AuthMode.V4: v4_provider,
-        }
+        self.bundles = dict(bundles)
 
     def is_allowed(self, request: AuthRequest) -> AuthDecision:
         try:
             mode = self.mode_provider.get_mode(request.resources)
-        except InvalidIAMPermissionModeError as error:
+        except InvalidAuthModeError as error:
             return self._invalid_mode_decision(error)
         provider_modes = self._provider_modes(mode)
         results = tuple(self._call_provider(provider_mode, request) for provider_mode in provider_modes)
@@ -50,7 +48,7 @@ class ModeRouter:
         resources = tuple(resource for resource_group in request.resource_groups for resource in resource_group)
         try:
             mode = self.mode_provider.get_mode(resources)
-        except InvalidIAMPermissionModeError as error:
+        except InvalidAuthModeError as error:
             return self._invalid_mode_batch_decision(request, error)
         provider_modes = self._provider_modes(mode)
         provider_results = {
@@ -80,14 +78,20 @@ class ModeRouter:
             return AuthMode.V3, AuthMode.V4
         return (mode,)
 
+    def _auth_provider(self, mode: AuthMode) -> PermissionProvider | None:
+        bundle = self.bundles.get(mode)
+        if bundle is None:
+            return None
+        return bundle.auth
+
     def _call_provider(self, mode: AuthMode, request: AuthRequest) -> AuthResult:
-        provider = self.providers[mode]
+        provider = self._auth_provider(mode)
         if provider is None:
             return self._missing_provider(mode)
         return provider.is_allowed(request)
 
     def _call_batch_provider(self, mode: AuthMode, request: BatchAuthRequest) -> BatchAuthResult:
-        provider = self.providers[mode]
+        provider = self._auth_provider(mode)
         if provider is None:
             return BatchAuthResult()
         return provider.batch_is_allowed(request)
@@ -103,14 +107,14 @@ class ModeRouter:
         )
 
     @staticmethod
-    def _invalid_mode_result(error: InvalidIAMPermissionModeError) -> AuthResult:
+    def _invalid_mode_result(error: InvalidAuthModeError) -> AuthResult:
         return AuthResult.error(
             provider_name="mode",
             reason=error.reason,
             error_type="InvalidPermissionMode",
         )
 
-    def _invalid_mode_decision(self, error: InvalidIAMPermissionModeError) -> AuthDecision:
+    def _invalid_mode_decision(self, error: InvalidAuthModeError) -> AuthDecision:
         result = self._invalid_mode_result(error)
         return AuthDecision(
             allowed=False,
@@ -123,7 +127,7 @@ class ModeRouter:
     def _invalid_mode_batch_decision(
         self,
         request: BatchAuthRequest,
-        error: InvalidIAMPermissionModeError,
+        error: InvalidAuthModeError,
     ) -> BatchAuthDecision:
         return BatchAuthDecision(
             items=tuple(
@@ -141,7 +145,7 @@ class ModeRouter:
         )
 
     def _missing_batch_item(self, mode: AuthMode, action_id: str, resource_id: str) -> AuthResult:
-        provider = self.providers[mode]
+        provider = self._auth_provider(mode)
         if provider is None:
             return self._missing_provider(mode)
         return AuthResult.error(

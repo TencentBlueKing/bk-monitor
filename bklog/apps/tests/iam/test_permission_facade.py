@@ -8,6 +8,7 @@ from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
 from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 
 
 @override_settings(
@@ -134,6 +135,52 @@ class PermissionFacadeTest(SimpleTestCase):
         )
 
         self.assertEqual(result, ({"provider": "v3"}, "https://iam-v3.example/apply"))
+
+    def test_invalid_auth_mode_falls_back_to_v3_apply_instead_of_raising_value_error(self):
+        # 非法模式（例如 toggle status=off/bad）会让 decision.mode 携带原始非法字符串；
+        # get_apply_data 必须安全回退到 V3 申请，而不是把非法字符串传给 AuthMode() 抛出 ValueError，
+        # 否则 DRF 默认 raise_exception=True 的入口会返回 500 而不是约定的 PermissionDeniedError。
+        self.mode_provider.get_mode.side_effect = InvalidAuthModeError(
+            "bad", "invalid IAM permission mode configured: bad"
+        )
+        permission = self._make_permission()
+        permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
+
+        with self.assertRaises(PermissionDeniedError):
+            permission.is_allowed(ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE, raise_exception=True)
+
+        permission._get_v3_apply_data.assert_called_once_with(
+            [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+            [],
+        )
+
+    def test_invalid_auth_mode_apply_data_entry_also_falls_back_to_v3(self):
+        permission = self._make_permission()
+        permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
+
+        result = permission.get_apply_data(
+            [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+            mode="off",
+        )
+
+        self.assertEqual(result, ({"provider": "v3"}, "https://iam-v3.example/apply"))
+
+    def test_direct_apply_call_without_mode_falls_back_to_v3_when_mode_provider_is_invalid(self):
+        # 直接调用 get_apply_data() 不传 mode 是生产代码的真实入口（例如 IAM 申请数据接口、
+        # 场景检索无权限处理），不能只在 mode 显式传入时才安全兜底。
+        self.mode_provider.get_mode.side_effect = InvalidAuthModeError(
+            "bad", "invalid IAM permission mode configured: bad"
+        )
+        permission = self._make_permission()
+        permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
+
+        result = permission.get_apply_data([ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE])
+
+        self.assertEqual(result, ({"provider": "v3"}, "https://iam-v3.example/apply"))
+        permission._get_v3_apply_data.assert_called_once_with(
+            [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+            [],
+        )
 
     def test_union_mode_allows_when_v3_allows_and_v4_is_not_configured(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION
