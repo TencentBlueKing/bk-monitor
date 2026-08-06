@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import Any
 from urllib.parse import urljoin
 
@@ -97,15 +98,17 @@ class V4Client:
         except RequestException as error:
             raise V4TransportError(str(error) or "IAM V4 transport error") from error
 
-        if response.status_code == 429:
+        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             raise V4RateLimitError("IAM V4 rate limited", status_code=response.status_code)
 
-        if not (200 <= response.status_code < 300):
+        if not (HTTPStatus.OK <= response.status_code < HTTPStatus.MULTIPLE_CHOICES):
             reason = self._extract_error_reason(response)
-            error_type = V4RateLimitError if response.status_code == 429 else V4ClientError
-            raise error_type(reason or f"IAM V4 HTTP {response.status_code}", status_code=response.status_code)
+            raise V4ClientError(
+                reason or f"IAM V4 HTTP {response.status_code}",
+                status_code=response.status_code,
+            )
 
-        if response.status_code == 204 or not response.content:
+        if response.status_code == HTTPStatus.NO_CONTENT or not response.content:
             return None
 
         try:

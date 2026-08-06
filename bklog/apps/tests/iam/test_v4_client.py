@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from unittest.mock import Mock, patch
 
 import requests
@@ -36,7 +37,7 @@ class V4ClientTest(SimpleTestCase):
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_rate_limit_is_mapped_to_v4_rate_limit_error(self, request_mock):
-        response = Mock(status_code=429, content=b'{"error":{"code":"RATE_LIMIT"}}')
+        response = Mock(status_code=HTTPStatus.TOO_MANY_REQUESTS, content=b'{"error":{"code":"RATE_LIMIT"}}')
         response.json.return_value = {"error": {"code": "RATE_LIMIT", "message": "too many requests"}}
         request_mock.return_value = response
 
