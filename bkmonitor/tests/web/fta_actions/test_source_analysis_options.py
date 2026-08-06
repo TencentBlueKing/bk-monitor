@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -16,6 +17,7 @@ from api.devops.default import (
     ListUserProjectResource,
     ListUserRepositoryResource,
 )
+from api.aidev.default import ListAgentsResource, ListSkillsResource
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import api
@@ -25,6 +27,9 @@ from fta_web.issue.resources import (
     SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE,
     ListSourceAnalysisBkciProjectsResource,
     ListSourceAnalysisBkciRepositoriesResource,
+    ListSourceAnalysisAgentsResource,
+    ListSourceAnalysisKnowledgeBasesResource,
+    ListSourceAnalysisSkillsResource,
 )
 from fta_web.issue.views import SourceAnalysisOptionsViewSet
 
@@ -57,6 +62,29 @@ class TestDevopsUserResources(SimpleTestCase):
             )
             with self.assertRaises(BKAPIError):
                 resource.render_response_data({}, {"status": 1, "message": "failed", "data": None})
+
+
+class TestAidevResources(SimpleTestCase):
+    def test_actions_follow_aidev_private_gateway_contract(self):
+        self.assertEqual(ListAgentsResource.action, "/openapi/aidev/private/v1/agents/")
+        self.assertEqual(ListSkillsResource.action, "/openapi/aidev/private/v1/skills/")
+
+        for resource_class in (ListAgentsResource, ListSkillsResource):
+            with self.subTest(resource_class=resource_class.__name__):
+                self.assertFalse(resource_class.INSERT_BK_USERNAME_TO_REQUEST_DATA)
+                serializer = resource_class.RequestSerializer(data={"fuzzy": "source"})
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertEqual(serializer.validated_data["space_id"], "all")
+                self.assertEqual(serializer.validated_data["page"], 1)
+                self.assertEqual(serializer.validated_data["page_size"], 20)
+
+    @patch("blueapps.utils.request_provider.get_local_request", return_value=object())
+    @patch("ai_agent.core.custom_config_manager.get_mcp_access_token", return_value="user-access-token")
+    def test_private_gateway_uses_current_user_access_token_only(self, get_access_token, get_request):
+        headers = ListAgentsResource().get_headers()
+
+        self.assertEqual(json.loads(headers["x-bkapi-authorization"]), {"access_token": "user-access-token"})
+        get_access_token.assert_called_once_with(request=get_request.return_value)
 
 
 class TestSourceAnalysisOptionsResources(SimpleTestCase):
@@ -127,6 +155,58 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                         ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
                 self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE})
 
+    def test_aidev_options_are_normalized(self):
+        cases = [
+            (
+                ListSourceAnalysisAgentsResource,
+                "list_agents",
+                {"count": 1, "results": [{"id": 11, "agent_name": "源码分析 Agent"}]},
+                {"total": 1, "list": [{"id": "11", "name": "源码分析 Agent"}]},
+            ),
+            (
+                ListSourceAnalysisSkillsResource,
+                "list_skills",
+                {"count": 1, "results": [{"id": 22, "skill_name": "代码检索 Skill"}]},
+                {"total": 1, "list": [{"id": "22", "name": "代码检索 Skill"}]},
+            ),
+        ]
+        for resource_class, api_name, upstream_data, expected in cases:
+            with self.subTest(resource_class=resource_class.__name__):
+                with patch.object(api.aidev, api_name, return_value=upstream_data) as list_resources:
+                    actual = resource_class().perform_request(
+                        {"bk_biz_id": 2, "keyword": "source", "page": 2, "page_size": 10}
+                    )
+                self.assertEqual(actual, expected)
+                list_resources.assert_called_once_with(space_id="all", fuzzy="source", page=2, page_size=10)
+
+    def test_aidev_options_omit_empty_keyword(self):
+        with patch.object(api.aidev, "list_agents", return_value={"count": 0, "results": []}) as list_agents:
+            result = ListSourceAnalysisAgentsResource().perform_request(
+                {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
+            )
+
+        self.assertEqual(result, {"total": 0, "list": []})
+        list_agents.assert_called_once_with(space_id="all", page=1, page_size=20)
+
+    def test_knowledge_base_options_remain_empty_until_aidev_supports_user_list(self):
+        resource = ListSourceAnalysisKnowledgeBasesResource()
+        with patch.object(resource, "list_aidev_resources") as list_resources:
+            self.assertEqual(
+                resource.perform_request({"bk_biz_id": 2, "keyword": "source", "page": 1, "page_size": 20}),
+                {"total": 0, "list": []},
+            )
+        list_resources.assert_not_called()
+
+    def test_invalid_aidev_shape_is_rejected(self):
+        for upstream_data in (None, {}, {"count": 1, "results": ["invalid-item"]}):
+            with self.subTest(upstream_data=upstream_data):
+                with patch.object(api.aidev, "list_agents", return_value=upstream_data):
+                    with self.assertRaises(CustomException) as error:
+                        ListSourceAnalysisAgentsResource().perform_request(
+                            {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
+                        )
+                self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE})
+
     def test_request_and_response_contract(self):
         project_request = ListSourceAnalysisBkciProjectsResource.RequestSerializer(data={"bk_biz_id": 2})
         self.assertTrue(project_request.is_valid(), project_request.errors)
@@ -138,6 +218,15 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
         repository_response_fields = set(ListSourceAnalysisBkciRepositoriesResource.ResponseSerializer().fields)
         self.assertEqual(repository_response_fields, {"id", "name", "scm_type"})
+
+        aidev_request = ListSourceAnalysisAgentsResource.RequestSerializer(data={"bk_biz_id": 2})
+        self.assertTrue(aidev_request.is_valid(), aidev_request.errors)
+        self.assertEqual(aidev_request.validated_data["page"], 1)
+        self.assertEqual(aidev_request.validated_data["page_size"], 20)
+        self.assertEqual(set(ListSourceAnalysisAgentsResource.ResponseSerializer().fields), {"total", "list"})
+
+        oversized_page = ListSourceAnalysisAgentsResource.RequestSerializer(data={"bk_biz_id": 2, "page_size": 101})
+        self.assertFalse(oversized_page.is_valid())
 
     def test_upstream_error_has_stable_reason(self):
         upstream_error = BKAPIError(system_name="devops", url="project/list", result={"message": "failed"})
@@ -154,5 +243,5 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         self.assertEqual(permission.actions, [ActionEnum.VIEW_RULE])
         self.assertEqual(
             {route.endpoint for route in SourceAnalysisOptionsViewSet.resource_routes},
-            {"bkci_projects", "bkci_repositories"},
+            {"bkci_projects", "bkci_repositories", "agents", "skills", "knowledge_bases"},
         )

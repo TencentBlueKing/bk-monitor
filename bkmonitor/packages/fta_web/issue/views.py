@@ -29,6 +29,9 @@ class SourceAnalysisOptionsViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", resource.issue.list_source_analysis_bkci_projects, endpoint="bkci_projects"),
         ResourceRoute("GET", resource.issue.list_source_analysis_bkci_repositories, endpoint="bkci_repositories"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_agents, endpoint="agents"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_skills, endpoint="skills"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_knowledge_bases, endpoint="knowledge_bases"),
     ]
 
 

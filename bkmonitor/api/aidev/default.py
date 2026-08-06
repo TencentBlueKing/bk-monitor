@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 from json import JSONDecodeError
 
+from ai_agent.core.custom_config_manager import get_mcp_access_token
+from blueapps.utils.request_provider import get_local_request
 from django.conf import settings
 from django.http import StreamingHttpResponse
 from rest_framework import serializers
@@ -36,6 +38,45 @@ class AidevAPIGWResource(APIResource):
         headers["x-bkapi-authorization"] = json.dumps(authorization)
 
         return headers
+
+
+class AidevPrivateAPIGWResource(APIResource):
+    """使用当前登录用户 Access Token 调用 AIDEV 用户态接口。"""
+
+    base_url = settings.AIDEV_API_BASE_URL
+    module_name = "aidev"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    def get_headers(self):
+        headers = super().get_headers()
+        # AIDEV private API 要求 access_token 单独鉴权，不能混入应用凭据。
+        headers["x-bkapi-authorization"] = json.dumps(
+            {"access_token": get_mcp_access_token(request=get_local_request())}
+        )
+        return headers
+
+
+class ListAgentsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Agent。"""
+
+    action = "/openapi/aidev/private/v1/agents/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        space_id = serializers.CharField(required=False, default="all")
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+
+
+class ListSkillsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Skill。"""
+
+    action = "/openapi/aidev/private/v1/skills/"
+    method = "GET"
+
+    class RequestSerializer(ListAgentsResource.RequestSerializer):
+        pass
 
 
 class ChatCompletionResource(AidevAPIGWResource):
