@@ -4,10 +4,11 @@ import logging
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+from rest_framework import serializers
 
 from bkmonitor.utils.request import get_request, get_request_username
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import DevopsNotDeployedError
+from core.errors.api import BKAPIError, DevopsNotDeployedError
 
 logger = logging.getLogger("bcs_storage")
 
@@ -122,3 +123,34 @@ class ListPipelineResource(DevopsBaseResource):
 
     def get_request_url(self, validated_request_data):
         return super().get_request_url(validated_request_data).format(project_id=validated_request_data["project_id"])
+
+
+class CodeccUserResource(DevopsBaseResource, metaclass=abc.ABCMeta):
+    """CodeCC 用户态资源公共响应处理。"""
+
+    IS_STANDARD_FORMAT = False
+
+    def render_response_data(self, validated_request_data, response_data):
+        # CodeCC 用户态接口使用 {code, message, data}，与部分旧版 DevOps API 的响应格式不同。
+        if not isinstance(response_data, dict) or str(response_data.get("code")) != "0":
+            error_code = response_data.get("code", -1) if isinstance(response_data, dict) else -1
+            self.report_api_failure_metric(error_code=error_code, exception_type=BKAPIError.__name__)
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=response_data)
+        return response_data.get("data")
+
+
+class ListCodeccProjectResource(CodeccUserResource):
+    """查询当前用户可访问且已启用的蓝盾项目。"""
+
+    action = "/apigw-user/codecc/v2/project/list"
+    method = "GET"
+
+
+class ListCodeccProjectRepositoryResource(CodeccUserResource):
+    """查询当前用户在指定蓝盾项目下可使用的代码库。"""
+
+    action = "/apigw-user/codecc/v2/project/repos"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        projectId = serializers.CharField(label="蓝盾项目 ID", max_length=128)

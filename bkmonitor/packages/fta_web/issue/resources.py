@@ -54,6 +54,7 @@ from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
+from fta_web.issue.handlers.source_analysis import SourceAnalysisOptionsHandler
 from fta_web.issue.serializers import IssueSearchSerializer
 from fta_web.constants import TapdWorkspaceBindStatus
 from fta_web.issue.utils.tapd import (
@@ -72,6 +73,57 @@ logger = logging.getLogger("root")
 
 def _sanitize_for_log(value) -> str:
     return str(value).replace("\r", "").replace("\n", "")
+
+
+SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE = "source_analysis_upstream_unavailable"
+
+
+def _raise_source_analysis_upstream_unavailable(error: Exception) -> None:
+    logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
+    raise CustomException(
+        message=_("源码分析依赖的蓝盾服务暂时不可用，请稍后重试"),
+        data={"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE},
+    ) from error
+
+
+class ListSourceAnalysisBkciProjectsResource(Resource):
+    """查询当前用户可访问的蓝盾项目选项。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+
+    class ResponseSerializer(serializers.Serializer):
+        id = serializers.CharField(label="蓝盾项目 ID")
+        name = serializers.CharField(label="蓝盾项目名称")
+
+    many_response_data = True
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        try:
+            return SourceAnalysisOptionsHandler.list_bkci_projects()
+        except (BKAPIError, TypeError, ValueError) as error:
+            _raise_source_analysis_upstream_unavailable(error)
+
+
+class ListSourceAnalysisBkciRepositoriesResource(Resource):
+    """查询当前用户在指定蓝盾项目下可使用的 Git 代码库选项。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+
+    class ResponseSerializer(serializers.Serializer):
+        id = serializers.CharField(label="代码库别名")
+        name = serializers.CharField(label="代码库名称")
+        scm_type = serializers.CharField(label="源码管理类型")
+
+    many_response_data = True
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        try:
+            return SourceAnalysisOptionsHandler.list_bkci_repositories(validated_request_data["project_id"])
+        except (BKAPIError, TypeError, ValueError) as error:
+            _raise_source_analysis_upstream_unavailable(error)
 
 
 class IssueIDField(serializers.CharField):

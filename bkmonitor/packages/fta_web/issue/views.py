@@ -11,13 +11,25 @@ specific language governing permissions and limitations under the License.
 from django.urls import reverse
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
+
+
+class SourceAnalysisOptionsViewSet(ResourceViewSet):
+    """Issue 源码分析配置所需的只读选项接口。"""
+
+    def get_permissions(self):
+        return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.list_source_analysis_bkci_projects, endpoint="bkci_projects"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_bkci_repositories, endpoint="bkci_repositories"),
+    ]
 
 
 class IssueViewSet(ResourceViewSet):
