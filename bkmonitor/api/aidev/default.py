@@ -38,6 +38,42 @@ class AidevAPIGWResource(APIResource):
         return headers
 
 
+class ListAgentsResource(AidevAPIGWResource):
+    """获取当前 BKM 应用空间可用的 AIDEV Agent。"""
+
+    action = "/openapi/aidev/app/v1/agents/"
+    method = "GET"
+    # AIDEV 应用态列表不接收 bk_username 业务参数，鉴权信息只放请求头。
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+
+
+class ListSkillsResource(AidevAPIGWResource):
+    """获取当前 BKM 应用空间可用的 AIDEV Skill。"""
+
+    action = "/openapi/aidev/app/v1/skills/"
+    method = "GET"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(ListAgentsResource.RequestSerializer):
+        pass
+
+
+class ListKnowledgebasesResource(AidevAPIGWResource):
+    """获取当前 BKM 应用空间可用的 AIDEV 知识库。"""
+
+    action = "/openapi/aidev/app/v1/knowledgebase/list/"
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(ListAgentsResource.RequestSerializer):
+        pass
+
+
 class ChatCompletionResource(AidevAPIGWResource):
     """
     AIDEV LLM 网关 OpenAI 兼容对话接口（非流式）。

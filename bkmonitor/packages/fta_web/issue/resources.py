@@ -80,7 +80,7 @@ SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE = "source_analysis_upstream_unavailable"
 def _raise_source_analysis_upstream_unavailable(error: Exception) -> None:
     logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
     raise CustomException(
-        message=_("源码分析依赖的蓝盾服务暂时不可用，请稍后重试"),
+        message=_("源码分析依赖的上游服务暂时不可用，请稍后重试"),
         data={"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE},
     ) from error
 
@@ -159,6 +159,96 @@ class ListSourceAnalysisBkciRepositoriesResource(Resource):
             return options
         except (BKAPIError, TypeError, ValueError) as error:
             _raise_source_analysis_upstream_unavailable(error)
+
+
+class BaseListSourceAnalysisAidevOptionsResource(Resource):
+    """将 AIDEV 应用态分页结果转换为源码分析统一选项协议。"""
+
+    id_field: str
+    name_field: str
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        keyword = serializers.CharField(label="搜索关键词", required=False, allow_blank=True, default="")
+        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(label="每页数量", required=False, default=20, min_value=1, max_value=100)
+
+    class ResponseSerializer(serializers.Serializer):
+        class OptionSerializer(serializers.Serializer):
+            id = serializers.CharField(label="资源 ID")
+            name = serializers.CharField(label="资源名称")
+
+        total = serializers.IntegerField(label="总数")
+        list = OptionSerializer(label="资源列表", many=True)
+
+    def list_aidev_resources(self, params: dict):
+        raise NotImplementedError
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 的资源范围由 BKM 应用绑定空间决定。
+        params = {
+            "page": validated_request_data["page"],
+            "page_size": validated_request_data["page_size"],
+        }
+        if validated_request_data["keyword"]:
+            params["fuzzy"] = validated_request_data["keyword"]
+
+        try:
+            upstream_data = self.list_aidev_resources(params)
+            if isinstance(upstream_data, list):
+                items = upstream_data
+                total = len(items)
+            elif isinstance(upstream_data, dict):
+                items = upstream_data.get("results")
+                total = upstream_data.get("count")
+            else:
+                raise ValueError("invalid AIDEV response")
+
+            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+                raise ValueError("invalid AIDEV resource list")
+            if total is None:
+                total = len(items)
+
+            options = []
+            for item in items:
+                resource_id = item.get(self.id_field)
+                resource_name = item.get(self.name_field)
+                if resource_id is None or not resource_name:
+                    raise ValueError("AIDEV resource misses id or name")
+                options.append({"id": str(resource_id), "name": str(resource_name)})
+            return {"total": int(total), "list": options}
+        except (BKAPIError, TypeError, ValueError) as error:
+            _raise_source_analysis_upstream_unavailable(error)
+
+
+class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResource):
+    """查询当前 BKM 应用空间可用的 AIDEV Agent 选项。"""
+
+    id_field = "id"
+    name_field = "agent_name"
+
+    def list_aidev_resources(self, params: dict):
+        return api.aidev.list_agents(**params)
+
+
+class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResource):
+    """查询当前 BKM 应用空间可用的 AIDEV Skill 选项。"""
+
+    id_field = "id"
+    name_field = "skill_name"
+
+    def list_aidev_resources(self, params: dict):
+        return api.aidev.list_skills(**params)
+
+
+class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
+    """查询当前 BKM 应用空间可用的 AIDEV 知识库选项。"""
+
+    id_field = "id"
+    name_field = "name"
+
+    def list_aidev_resources(self, params: dict):
+        return api.aidev.list_knowledgebases(**params)
 
 
 class IssueIDField(serializers.CharField):
