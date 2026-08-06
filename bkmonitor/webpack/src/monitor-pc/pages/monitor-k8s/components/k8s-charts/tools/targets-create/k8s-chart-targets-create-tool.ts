@@ -130,8 +130,8 @@ export class K8sChartTargetsCreateTool {
             data_type_label: 'time_series',
             promql:
               context.groupByField === K8sTableColumnKeysEnum.NODE
-                ? `sum by(node)(kube_pod_container_resource_limits_cpu_cores{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`
-                : `sum by(bcs_cluster_id)(kube_pod_container_resource_limits_cpu_cores{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+                ? `sum by(node)(${K8sBasePromqlGenerator.createContainerResourceLimit(context, true, false)})`
+                : `sum by(bcs_cluster_id)(${K8sBasePromqlGenerator.createContainerResourceLimit(context, true, false)})`,
             interval: '$interval_second',
             alias: 'limit',
             filter_dict: {},
@@ -166,8 +166,8 @@ export class K8sChartTargetsCreateTool {
             data_type_label: 'time_series',
             promql:
               context.groupByField === K8sTableColumnKeysEnum.NODE
-                ? `sum by(node)(kube_pod_container_resource_limits_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`
-                : `sum by(bcs_cluster_id)(kube_pod_container_resource_limits_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+                ? `sum by(node)(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false, false)})`
+                : `sum by(bcs_cluster_id)(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false, false)})`,
             interval: '$interval_second',
             alias: 'limit',
             filter_dict: {},
@@ -203,7 +203,7 @@ export class K8sChartTargetsCreateTool {
             promql:
               context.groupByField === K8sTableColumnKeysEnum.WORKLOAD
                 ? K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true, true)
-                : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_limits_cpu_cores{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+                : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context, true, false)})`,
             interval: '$interval_second',
             alias: 'limit',
             filter_dict: {},
@@ -228,7 +228,7 @@ export class K8sChartTargetsCreateTool {
             promql:
               context.groupByField === K8sTableColumnKeysEnum.WORKLOAD
                 ? K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true, false)
-                : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_limits_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+                : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false, false)})`,
             interval: '$interval_second',
             alias: 'limit',
             filter_dict: {},
