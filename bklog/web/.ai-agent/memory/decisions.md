@@ -242,3 +242,11 @@ Knowledge update: updated.
 - 根因：`grep/index.tsx` 初始 `is_loading: true`，但 `onMounted` 中 `requestGrepList` 在条数展示重构时被注释；切 Tab 不会触发 `SEARCHING_CHANGE`，请求永远不会发出。
 - 决策：挂载时若 `!RetrieveHelper.isSearching` 且已有 `grep_field`，调用 `reloadGrepDataAndTotal()`；无字段则清 loading；主检索进行中仍等 `SEARCHING_CHANGE(false)`。
 - 约束：不要只依赖事件驱动拉 Grep 数据；Tab 切入（尤其非 origin）不会自动 fire searching 事件。
+
+## 2026-08-06 上下文原始日志检索 Stream + 存储隔离
+
+- 背景：上下文/实时 Tab 下半 `origin-log-result` 本地 `/search/` 原为 blob 全量解析，`renderMeta` 为空导致主线程分词，大数据崩溃（story=1010158081136824377）。
+- 决策：本地检索复用 `retrieveSearchWorkerService.searchStream`；独立 `queryKey`（`standalone: 'origin-log-result'`）；Worker `onFlush` 批 progress + `createRetrieveRowRenderMeta` 预分词；`JsonFormatter` 继续吃 `renderMeta`。
+- 隔离硬约束：禁止写 `indexSetQueryResult.row_keys`；禁止 `markActiveQuery(localKey)`；禁止主线程 `replaceRows/clearMemory`；主检索与本地检索按 `requestId` 分别 `cancelSearch`；卸载/重置只 `clearQuery(localKey)`。
+- **物理表隔离（加强）**：新增 IndexedDB 表 `relatedLogSearchRows`（db v5）；本地 Stream `rowStore: 'relatedLogSearchRows'` + `relatedLogSearchRowCacheService`；首次打开仍只读主检索 `retrieveRows`（props rowKey）；`fetchFullRowByKey` 双表查找。
+- 落点：`origin-log-result/index.tsx`、`db.ts`、`retrieve-row.repository.ts`、`retrieve-row-cache.service.ts`、`retrieve-search.worker.ts`、`resolve-related-log-target-row.ts`。

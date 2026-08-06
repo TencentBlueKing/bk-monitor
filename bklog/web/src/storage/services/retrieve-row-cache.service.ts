@@ -2,12 +2,13 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
-import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
-import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
 import {
-  createRetrieveRowRenderMeta,
-  type RetrieveRowRenderMeta,
-} from '../utils/retrieve-render-meta';
+  relatedLogSearchRowRepository,
+  retrieveRowRepository,
+  type RetrieveRowRepository,
+} from '../repositories/retrieve-row.repository';
+import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
+import { createRetrieveRowRenderMeta, type RetrieveRowRenderMeta } from '../utils/retrieve-render-meta';
 import { estimateValueBytes } from './retrieve-row-projection.service';
 import { storageHealthService } from './storage-health.service';
 
@@ -33,6 +34,19 @@ export class RetrieveRowCacheService {
   private volatileRows = new Map<string, Record<string, any>>();
   private maxRowMemoryBytes = 24 * 1024 * 1024;
   private rowMemoryBytes = 0;
+  private readonly repository: RetrieveRowRepository;
+  private readonly queryKeyPrefix: string;
+  private readonly logTag: string;
+
+  constructor(
+    repository: RetrieveRowRepository = retrieveRowRepository,
+    queryKeyPrefix = 'retrieve',
+    logTag = 'retrieve-row-cache',
+  ) {
+    this.repository = repository;
+    this.queryKeyPrefix = queryKeyPrefix;
+    this.logTag = logTag;
+  }
 
   createQueryKey(params: Record<string, any>) {
     const seed = JSON.stringify(params ?? {});
@@ -41,23 +55,24 @@ export class RetrieveRowCacheService {
       hash = (hash * 31 + seed.charCodeAt(i)) | 0;
     }
 
-    return ['retrieve', PAGE_INSTANCE_ID, Math.abs(hash), createRequestId('query')].join(':');
+    return [this.queryKeyPrefix, PAGE_INSTANCE_ID, Math.abs(hash), createRequestId('query')].join(':');
   }
 
   async replaceRows(queryKey: string, rows: Record<string, any>[], options: WriteOptions = {}) {
+    // 仅清空本实例内存，避免误伤主检索 / 本地检索另一侧的 LRU
     this.clearMemory();
     const keys = this.createRowKeys(queryKey, rows.length, 0);
     try {
-      await retrieveRowRepository.replaceRows(queryKey, rows, 0, options);
+      await this.repository.replaceRows(queryKey, rows, 0, options);
       this.rememberRows(keys, rows, options.fieldNames, false, options.renderMetas);
-      retrieveRowRepository.gc().catch(error => {
-        console.warn('[retrieve-row-cache] gc failed', error);
+      this.repository.gc().catch((error) => {
+        console.warn(`[${this.logTag}] gc failed`, error);
       });
       return keys;
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
-      console.warn('[retrieve-row-cache] replace rows failed, fallback to volatile memory', error);
+      console.warn(`[${this.logTag}] replace rows failed, fallback to volatile memory`, error);
       this.rememberRows(keys, rows, options.fieldNames, true, options.renderMetas);
       return keys;
     }
@@ -66,13 +81,13 @@ export class RetrieveRowCacheService {
   async appendRows(queryKey: string, rows: Record<string, any>[], startSeq: number, options: WriteOptions = {}) {
     const keys = this.createRowKeys(queryKey, rows.length, startSeq);
     try {
-      await retrieveRowRepository.appendRows(queryKey, rows, startSeq, options);
+      await this.repository.appendRows(queryKey, rows, startSeq, options);
       this.rememberRows(keys, rows, options.fieldNames, false, options.renderMetas);
       return keys;
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
-      console.warn('[retrieve-row-cache] append rows failed, fallback to volatile memory', error);
+      console.warn(`[${this.logTag}] append rows failed, fallback to volatile memory`, error);
       this.rememberRows(keys, rows, options.fieldNames, true, options.renderMetas);
       return keys;
     }
@@ -91,10 +106,10 @@ export class RetrieveRowCacheService {
     if (!keys.length) return [];
     try {
       if (await storageHealthService.ensureIndexedDBUsable()) {
-        const entities = await retrieveRowRepository.getEntitiesByKeys(keys);
+        const entities = await this.repository.getEntitiesByKeys(keys);
         return entities.map((entity, index) => {
           if (!entity) return undefined;
-          const renderRow = retrieveRowRepository.resolveRenderRow(entity);
+          const renderRow = this.repository.resolveRenderRow(entity);
           if (entity.row) {
             this.setRowMemory(keys[index], entity.row, entity.renderMeta);
           }
@@ -104,14 +119,14 @@ export class RetrieveRowCacheService {
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
-      console.warn('[retrieve-row-cache] get render entries failed', error);
+      console.warn(`[${this.logTag}] get render entries failed`, error);
     }
 
-    return keys.map(key => {
+    return keys.map((key) => {
       const row = this.volatileRows.get(key) || this.rowMemory.get(key)?.value;
       if (!row) return undefined;
       const renderMeta = this.rowMemory.get(key)?.renderMeta || createRetrieveRowRenderMeta(row);
-      const renderRow = retrieveRowRepository.resolveRenderRow({ row, renderMeta } as any) ?? row;
+      const renderRow = this.repository.resolveRenderRow({ row, renderMeta } as any) ?? row;
       return { row: renderRow, renderMeta };
     });
   }
@@ -120,15 +135,15 @@ export class RetrieveRowCacheService {
     if (!keys.length) return [];
     try {
       if (await storageHealthService.ensureIndexedDBUsable()) {
-        return retrieveRowRepository.getRenderMetasByKeys(keys);
+        return this.repository.getRenderMetasByKeys(keys);
       }
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
-      console.warn('[retrieve-row-cache] get render metas failed', error);
+      console.warn(`[${this.logTag}] get render metas failed`, error);
     }
 
-    return keys.map(key => {
+    return keys.map((key) => {
       const memoryEntry = this.rowMemory.get(key);
       const row = this.volatileRows.get(key) || memoryEntry?.value;
       return memoryEntry?.renderMeta || (row ? createRetrieveRowRenderMeta(row) : undefined);
@@ -137,7 +152,7 @@ export class RetrieveRowCacheService {
 
   async getRows(keys: string[]) {
     const missingKeySet = new Set<string>();
-    const output = keys.map(key => {
+    const output = keys.map((key) => {
       const value = this.volatileRows.get(key) || this.touchRow(key);
       if (!value) missingKeySet.add(key);
       return value;
@@ -146,7 +161,7 @@ export class RetrieveRowCacheService {
     if (missingKeySet.size && (await storageHealthService.ensureIndexedDBUsable())) {
       const missingKeys = Array.from(missingKeySet);
       try {
-        const dbRows = await retrieveRowRepository.getRowsByKeys(missingKeys);
+        const dbRows = await this.repository.getRowsByKeys(missingKeys);
         const rowMap = new Map<string, Record<string, any>>();
         missingKeys.forEach((key, index) => {
           const row = dbRows[index];
@@ -163,7 +178,7 @@ export class RetrieveRowCacheService {
       } catch (error) {
         storageHealthService.resetIndexedDBUsable();
         storageHealthService.notifyIndexedDBFallback();
-        console.warn('[retrieve-row-cache] get rows failed', error);
+        console.warn(`[${this.logTag}] get rows failed`, error);
       }
     }
 
@@ -172,7 +187,7 @@ export class RetrieveRowCacheService {
 
   async getCopyRows(keys: string[], options: CopyRowsOptions = {}) {
     if (!keys.length) return [];
-    return (await retrieveRowRepository.getCopyRowsByKeys(keys, options)).filter(Boolean);
+    return (await this.repository.getCopyRowsByKeys(keys, options)).filter(Boolean);
   }
 
   async getRowsByQuery(queryKey: string, offset = 0, limit?: number) {
@@ -180,15 +195,15 @@ export class RetrieveRowCacheService {
       return this.getRows(this.createMemoryKeysByQuery(queryKey, offset, limit));
     }
     try {
-      const entities = await retrieveRowRepository.getEntitiesByQuery(queryKey, offset, limit);
-      entities.forEach(entity => {
+      const entities = await this.repository.getEntitiesByQuery(queryKey, offset, limit);
+      entities.forEach((entity) => {
         if (entity?.row) this.setRowMemory(entity.key, entity.row);
       });
       return entities.map(entity => entity?.row).filter(Boolean);
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
-      console.warn('[retrieve-row-cache] get rows by query failed', error);
+      console.warn(`[${this.logTag}] get rows by query failed`, error);
       return this.getRows(this.createMemoryKeysByQuery(queryKey, offset, limit));
     }
   }
@@ -204,7 +219,7 @@ export class RetrieveRowCacheService {
   }
 
   async gc(options: { excludeQueryKeys?: string[] } = {}) {
-    return retrieveRowRepository.gc(Date.now(), options);
+    return this.repository.gc(Date.now(), options);
   }
 
   releaseQuery(queryKey: string) {
@@ -215,7 +230,7 @@ export class RetrieveRowCacheService {
   async clearQuery(queryKey: string) {
     if (!queryKey) return;
     this.releaseQuery(queryKey);
-    await retrieveRowRepository.clearQuery(queryKey);
+    await this.repository.clearQuery(queryKey);
   }
 
   private createRowKeys(queryKey: string, length: number, startSeq = 0) {
@@ -275,8 +290,8 @@ export class RetrieveRowCacheService {
   }
 
   private deleteByPrefix(memory: Map<string, RenderMemoryEntry>, queryKey: string) {
-    Array.from(memory.keys()).forEach(key => {
-      if (!key.startsWith(queryKey + ':')) return;
+    Array.from(memory.keys()).forEach((key) => {
+      if (!key.startsWith(`${queryKey}:`)) return;
       const entry = memory.get(key);
       memory.delete(key);
       this.rowMemoryBytes -= entry?.bytes ?? 0;
@@ -284,7 +299,7 @@ export class RetrieveRowCacheService {
   }
 
   private deleteVolatileByPrefix(memory: Map<string, any>, queryKey: string) {
-    Array.from(memory.keys()).forEach(key => {
+    Array.from(memory.keys()).forEach((key) => {
       if (key.startsWith(`${queryKey}:`)) {
         memory.delete(key);
       }
@@ -292,4 +307,15 @@ export class RetrieveRowCacheService {
   }
 }
 
-export const retrieveRowCacheService = new RetrieveRowCacheService();
+export const retrieveRowCacheService = new RetrieveRowCacheService(
+  retrieveRowRepository,
+  'retrieve',
+  'retrieve-row-cache',
+);
+
+/** 上下文/实时「原始日志检索结果」本地 Stream：独立表 + 独立内存 LRU */
+export const relatedLogSearchRowCacheService = new RetrieveRowCacheService(
+  relatedLogSearchRowRepository,
+  'related-log-search',
+  'related-log-search-row-cache',
+);
