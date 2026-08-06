@@ -276,7 +276,7 @@ class Permission:
         return self.mode_router.mode_provider.get_mode(engine_resources)
 
     def _get_permission_application_provider(self, mode: AuthMode) -> PermissionApplicationProvider | None:
-        if mode is AuthMode.V4:
+        if mode in (AuthMode.V4, AuthMode.UNION):
             return self.get_v4_permission_application_provider()
         return None
 

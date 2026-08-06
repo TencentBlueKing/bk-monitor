@@ -14,6 +14,7 @@ from apps.iam.iam_engine.core.types import (
 )
 from apps.iam.iam_engine.provider.base import PermissionProvider
 from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
+from apps.iam.mode import InvalidIAMPermissionModeError
 
 
 class ModeProvider(Protocol):
@@ -34,7 +35,10 @@ class ModeRouter:
         }
 
     def is_allowed(self, request: AuthRequest) -> AuthDecision:
-        mode = self.mode_provider.get_mode(request.resources)
+        try:
+            mode = self.mode_provider.get_mode(request.resources)
+        except InvalidIAMPermissionModeError as error:
+            return self._invalid_mode_decision(error)
         provider_modes = self._provider_modes(mode)
         results = tuple(self._call_provider(provider_mode, request) for provider_mode in provider_modes)
         if mode is AuthMode.UNION:
@@ -44,7 +48,10 @@ class ModeRouter:
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthDecision:
         # 认为批量鉴权请求只会发生在单业务下
         resources = tuple(resource for resource_group in request.resource_groups for resource in resource_group)
-        mode = self.mode_provider.get_mode(resources)
+        try:
+            mode = self.mode_provider.get_mode(resources)
+        except InvalidIAMPermissionModeError as error:
+            return self._invalid_mode_batch_decision(request, error)
         provider_modes = self._provider_modes(mode)
         provider_results = {
             provider_mode: self._call_batch_provider(provider_mode, request) for provider_mode in provider_modes
@@ -93,6 +100,36 @@ class ModeRouter:
             hit_provider_names=(result.provider_name,) if result.allowed else (),
             degraded=result.status is AuthStatus.ERROR,
             mode=mode.value,
+        )
+
+    @staticmethod
+    def _invalid_mode_result(error: InvalidIAMPermissionModeError) -> AuthResult:
+        return AuthResult.error(
+            provider_name="mode",
+            reason=error.reason,
+            error_type="InvalidPermissionMode",
+        )
+
+    def _invalid_mode_decision(self, error: InvalidIAMPermissionModeError) -> AuthDecision:
+        result = self._invalid_mode_result(error)
+        return AuthDecision(
+            allowed=False,
+            provider_results=(result,),
+            hit_provider_names=(),
+            degraded=True,
+            mode=error.mode_value,
+        )
+
+    def _invalid_mode_batch_decision(
+        self,
+        request: BatchAuthRequest,
+        error: InvalidIAMPermissionModeError,
+    ) -> BatchAuthDecision:
+        return BatchAuthDecision(
+            items=tuple(
+                BatchAuthDecisionItem(action_id, resource_id, self._invalid_mode_decision(error))
+                for action_id, resource_id in request.iter_keys()
+            )
         )
 
     @staticmethod

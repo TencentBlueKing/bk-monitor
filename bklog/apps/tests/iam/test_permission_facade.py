@@ -104,7 +104,27 @@ class PermissionFacadeTest(SimpleTestCase):
             [],
         )
 
-    def test_union_apply_keeps_v3_fallback_until_composition_is_defined(self):
+    def test_union_apply_uses_v4_provider_when_injected(self):
+        application_provider = Mock()
+        application_provider.get_apply_data.return_value = (
+            {"provider": "v4"},
+            "https://iam-v4.example/apply",
+        )
+        permission = self._make_permission()
+        permission.get_v4_permission_application_provider = Mock(return_value=application_provider)
+
+        result = permission.get_apply_data(
+            [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+            mode=AuthMode.UNION,
+        )
+
+        self.assertEqual(result, ({"provider": "v4"}, "https://iam-v4.example/apply"))
+        application_provider.get_apply_data.assert_called_once_with(
+            [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+            [],
+        )
+
+    def test_union_apply_falls_back_to_v3_without_v4_provider(self):
         permission = self._make_permission()
         permission._get_v3_apply_data = Mock(return_value=({"provider": "v3"}, "https://iam-v3.example/apply"))
 
