@@ -1,12 +1,12 @@
 ### 功能描述
 
-查询结果表关联的 Elasticsearch（ES）和 Doris 存储配置、历史存储分段、集群健康状态及运行时元信息。
+查询结果表关联的 Elasticsearch（ES）和 Doris 存储配置、历史存储分段、集群连通性及运行时元信息。
 
 - 历史分段包含已停用、已删除的 `StorageClusterRecord` 记录；同一集群只探测一次。
 - 虚拟结果表使用实体表的历史分段执行查询，同时保留请求结果表的信息。
 - ES 返回索引基础信息、文档数和存储大小；受管索引额外返回日期别名关系。不透传原始响应，不查询 mapping 或样例数据。
-- Doris 返回经过固定字段投影的 DorisBinding、物理库表、字段、分区及 `SHOW CREATE TABLE` 信息。
-- 集群健康探测或运行时查询失败时，接口仍返回其他集群的成功结果，并在对应的 `warnings`、`errors` 中说明原因。
+- Doris 返回经过固定字段投影的 DorisBinding、物理库表、字段及分区信息。
+- 集群连通性检查或运行时查询失败时，接口仍返回其他集群的成功结果，并在对应的 `warnings`、`errors` 中说明原因。
 - 响应中的存储配置和集群信息已脱敏，不返回用户名、密码或证书。
 
 ### 请求方法与路径
@@ -20,7 +20,7 @@ GET /app/metadata/get_result_table_storage_status/
 | 字段 | 类型 | 必选 | 描述 |
 | --- | --- | --- | --- |
 | table_id | string | 是 | 结果表 ID，例如 `2_bkmonitor_time_series_50010.base` |
-| timeout | int | 否 | 单次集群健康检查、ES API 或 Doris 连接/读取的超时时间，单位为秒；默认 15，取值范围 1–30 |
+| timeout | int | 否 | 单次集群连通性检查、ES API 或 Doris 连接/读取的超时时间，单位为秒；默认 15，取值范围 1–30 |
 
 `bk_tenant_id` 由 APIGW 根据调用应用所属租户注入，调用方无需显式传递。
 
@@ -51,7 +51,7 @@ GET /app/metadata/get_result_table_storage_status/
 | history_table_id | string/null | 历史分段实际所属结果表；虚拟结果表为实体表 `origin_table_id`，其他情况等于请求的 `table_id`。ES/Doris 指向不同实体表时为 `null`，并停止运行时探测 |
 | storage_configs | object | 当前 ES/Doris 安全配置，键为 `elasticsearch`、`doris`；未配置的类型值为 `null` |
 | segments | array | 完整历史存储分段，按启用时间、创建时间、记录 ID 排序 |
-| cluster_results | object | 按集群去重后的健康状态和运行时信息；key 为字符串形式的 `cluster_id`，顺序与历史集群首次出现顺序一致 |
+| cluster_results | object | 按集群去重后的连通性和运行时信息；key 为字符串形式的 `cluster_id`，顺序与历史集群首次出现顺序一致 |
 | warnings | array | 顶层告警，例如配置存在但历史分段缺失、虚拟表使用实体表配置 |
 | errors | array | 顶层错误，例如没有 ES/Doris 配置或配置不一致 |
 
@@ -80,9 +80,9 @@ GET /app/metadata/get_result_table_storage_status/
 | is_current_segment | bool | 是否存在 `is_current=true` 的关联历史分段 |
 | is_configured_current | bool | 当前 ESStorage/DorisStorage 是否指向该集群；配置缺少历史分段时仍可为 true |
 | cluster | object/null | 脱敏集群信息，包括 ID、名称、类型、域名、端口、版本及协议 |
-| health | object/null | `ClusterInfo.health_check` 标准化结果；未执行或集群配置缺失时为 `null` |
+| connectivity | object/null | 轻量连通性检查结果，仅包含 `is_connected` 和 `error`；未执行或集群配置缺失时为 `null` |
 | runtime | object/null | ES 或 Doris 运行时信息 |
-| runtime_skipped | bool | 是否因健康检查失败、配置缺失或不支持的存储类型而跳过运行时查询 |
+| runtime_skipped | bool | 是否因连通性检查失败、配置缺失或不支持的存储类型而跳过运行时查询 |
 | config_source | string | 运行时配置来源，当前固定为 `current_storage_config` |
 | warnings | array | 当前集群的告警列表 |
 | errors | array | 当前集群的错误列表 |
@@ -139,7 +139,6 @@ GET /app/metadata/get_result_table_storage_status/
 | table | object/null | 物理表摘要 |
 | columns | array | 按字段顺序返回的字段摘要 |
 | partitions | array | 按分区顺序返回的分区摘要 |
-| create_table | string/null | `SHOW CREATE TABLE` 返回的建表语句 |
 
 `table` 仅包含：`schema`、`name`、`type`、`engine`、`rows`、`data_length_bytes`、`index_length_bytes`、`create_time`、`update_time`、`collation`、`comment`。
 
@@ -212,9 +211,9 @@ GET /app/metadata/get_result_table_storage_status/
           "version": "7.10.2",
           "schema": "http"
         },
-        "health": {
-          "is_available": true,
-          "message": "集群连接正常"
+        "connectivity": {
+          "is_connected": true,
+          "error": null
         },
         "runtime": {
           "table_id": "2_bkmonitor_time_series_50010.base",
@@ -281,8 +280,8 @@ GET /app/metadata/get_result_table_storage_status/
 ### 注意事项
 
 - 最多并发探测 4 个唯一集群；`timeout` 作用于每次下游 I/O，不是整个接口的总耗时上限。
-- 单个受管 ES 集群正常路径会依次执行健康检查、索引 stats、cat、settings、aliases；v2 没有命中时 stats 还会回退查询 v1，理论上最多约为 `6 × timeout`。外部 ES 不查询 aliases，正常路径约为 `4 × timeout`。
-- 单个 Doris 集群会依次执行健康检查、连接及 4 条元信息 SQL；连接和每次读取分别受 `timeout` 约束。因此调用方/APIGW 超时时间应高于单次 I/O timeout。
+- 单个受管 ES 集群正常路径会依次执行 ping、索引 stats、cat、settings、aliases；v2 没有命中时 stats 还会回退查询 v1，理论上最多约为 `6 × timeout`。外部 ES 不查询 aliases，正常路径约为 `4 × timeout`。
+- 单个 Doris 集群会先用 `SELECT 1` 检查连通性，再建立运行时查询连接并执行 3 条 `information_schema` 元信息 SQL；连接和每次读取分别受 `timeout` 约束。因此调用方/APIGW 超时时间应高于单次 I/O timeout。
 - `result=true` 不代表每个集群探测均成功，请同时检查顶层及各 `cluster_results` 中的 `warnings`、`errors`。
-- 健康探测不可用时不会继续查询该集群的运行时信息，此时 `runtime_skipped=true`。
+- 连通性检查失败时不会继续查询该集群的运行时信息，此时 `runtime_skipped=true`。
 - 当前框架没有可安全中断阻塞中下游 I/O 的请求取消信号；客户端提前断开后，已提交的集群 worker 仍会完成或等待自身 I/O timeout。

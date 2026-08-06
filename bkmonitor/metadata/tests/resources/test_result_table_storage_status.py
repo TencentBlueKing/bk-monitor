@@ -57,16 +57,10 @@ def _create_segment(
     )
 
 
-def _available_health(cluster: models.ClusterInfo, timeout: int | None = None) -> dict:
+def _available_connectivity(cluster: models.ClusterInfo, timeout: int | None = None) -> dict:
     return {
-        "cluster_id": cluster.cluster_id,
-        "cluster_name": cluster.cluster_name,
-        "cluster_type": cluster.cluster_type,
-        "status": models.ClusterInfo.CHECK_STATUS_AVAILABLE,
         "is_connected": True,
-        "is_available": True,
         "error": None,
-        "details": {"timeout": timeout},
     }
 
 
@@ -109,11 +103,11 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
         is_current=True,
     )
 
-    health_check = mocker.patch.object(
+    connectivity_check = mocker.patch.object(
         models.ClusterInfo,
-        "health_check",
+        "check_connectivity",
         autospec=True,
-        side_effect=_available_health,
+        side_effect=_available_connectivity,
     )
     es_runtime = mocker.patch(
         "metadata.service.result_table_storage_status.query_es_storage_runtime",
@@ -157,7 +151,6 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
                     }
                 ],
                 "partitions": [{"PARTITION_NAME": "p20260301", "TABLE_ROWS": 3, "RAW_FIELD": "ignored"}],
-                "show_create_table": [{"Create Table": "CREATE TABLE ..."}],
             },
             "warnings": [],
             "errors": [],
@@ -184,20 +177,27 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
         {"name": "dtEventTimeStamp", "position": 1, "is_nullable": False, "data_type": "bigint"}
     ]
     assert doris_result["runtime"]["partitions"] == [{"name": "p20260301", "rows": 3}]
-    assert doris_result["runtime"]["create_table"] == "CREATE TABLE ..."
     assert result["storage_configs"][models.ClusterInfo.TYPE_ES]["storage_cluster_id"] == es_cluster.cluster_id
     assert "password" not in result["storage_configs"][models.ClusterInfo.TYPE_ES]
     assert "username" not in es_result["cluster"]
-    assert health_check.call_count == 2
-    assert {item.kwargs["timeout"] for item in health_check.call_args_list} == {15}
+    assert es_result["connectivity"] == {"is_connected": True, "error": None}
+    assert doris_result["connectivity"] == {"is_connected": True, "error": None}
+    assert "health" not in es_result
+    assert "health" not in doris_result
+    assert connectivity_check.call_count == 2
+    assert {item.kwargs["timeout"] for item in connectivity_check.call_args_list} == {15}
     es_runtime.assert_called_once()
     assert es_runtime.call_args.kwargs["timeout"] == 15
     doris_runtime.assert_called_once()
-    assert doris_runtime.call_args.kwargs == {"storage_cluster_id": doris_cluster.cluster_id, "timeout": 15}
+    assert doris_runtime.call_args.kwargs == {
+        "storage_cluster_id": doris_cluster.cluster_id,
+        "timeout": 15,
+        "include_create_table": False,
+    }
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_health_failure_skips_runtime_and_returns_error(mocker):
+def test_connectivity_failure_skips_runtime_and_returns_error(mocker):
     table_id = "2_bklog.storage_unavailable"
     _create_result_table(table_id, models.ClusterInfo.TYPE_ES)
     cluster = _create_cluster(92001, models.ClusterInfo.TYPE_ES)
@@ -215,13 +215,10 @@ def test_health_failure_skips_runtime_and_returns_error(mocker):
     )
     mocker.patch.object(
         models.ClusterInfo,
-        "health_check",
+        "check_connectivity",
         return_value={
-            "status": models.ClusterInfo.CHECK_STATUS_UNAVAILABLE,
             "is_connected": False,
-            "is_available": False,
             "error": {"code": "CONNECTION_FAILED", "message": "timeout", "details": {}},
-            "details": {},
         },
     )
     es_runtime = mocker.patch("metadata.service.result_table_storage_status.query_es_storage_runtime")
@@ -231,7 +228,7 @@ def test_health_failure_skips_runtime_and_returns_error(mocker):
     cluster_result = result["cluster_results"][str(cluster.cluster_id)]
     assert cluster_result["runtime_skipped"] is True
     assert cluster_result["runtime"] is None
-    assert cluster_result["errors"][0]["code"] == "STORAGE_HEALTH_CHECK_FAILED"
+    assert cluster_result["errors"][0]["code"] == "STORAGE_CONNECTIVITY_CHECK_FAILED"
     es_runtime.assert_not_called()
 
 
@@ -267,7 +264,7 @@ def test_virtual_result_table_uses_origin_history(mocker):
         datetime.datetime(2025, 12, 1, tzinfo=datetime.timezone.utc),
         is_current=False,
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     es_runtime = mocker.patch(
         "metadata.service.result_table_storage_status.query_es_storage_runtime",
         return_value=({"indices": {}, "aliases": {}}, []),
@@ -332,7 +329,7 @@ def test_runtime_error_is_returned_without_failing_whole_response(mocker):
         datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
         is_current=True,
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     mocker.patch.object(
         models.DorisStorage,
         "query_physical_storage_metadata",
@@ -401,7 +398,7 @@ def test_storage_config_without_segment_is_still_reported_as_current(mocker):
         need_create_index=False,
         index_set="external-*",
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     mocker.patch(
         "metadata.service.result_table_storage_status.query_es_storage_runtime",
         return_value=({"indices": {"count": 0, "items": []}, "aliases": {"queried": False}}, []),
@@ -453,7 +450,6 @@ def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fie
                         "partition_description": "LESS THAN ('2026-08-04')",
                     }
                 ],
-                "show_create_table": [{"CREATE TABLE": "CREATE TABLE `demo` (...)"}],
             },
         },
         connection_cluster_id=42,
@@ -479,7 +475,6 @@ def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fie
         "table": {"schema": "db", "name": "demo", "engine": "OLAP", "rows": 12, "data_length_bytes": 4096},
         "columns": [{"name": "value", "position": 2, "is_nullable": True, "column_type": "double"}],
         "partitions": [{"name": "p1", "method": "RANGE", "description": "LESS THAN ('2026-08-04')"}],
-        "create_table": "CREATE TABLE `demo` (...)",
     }
 
 
@@ -507,7 +502,7 @@ def test_historical_doris_uses_current_binding_with_explicit_best_effort_context
         datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
         is_current=True,
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     mocker.patch.object(
         models.DorisStorage,
         "query_physical_storage_metadata",
@@ -559,7 +554,7 @@ def test_conflicting_origin_tables_block_runtime_probe(mocker):
         storage_cluster_id=doris_cluster.cluster_id,
         bkbase_table_id="2_bklog_origin_doris",
     )
-    health_check = mocker.patch.object(models.ClusterInfo, "health_check")
+    connectivity_check = mocker.patch.object(models.ClusterInfo, "check_connectivity")
 
     result = ResultTableStorageStatusService(bk_tenant_id=TENANT_ID, table_id=table_id).query()
 
@@ -567,4 +562,4 @@ def test_conflicting_origin_tables_block_runtime_probe(mocker):
     assert result["segments"] == []
     assert result["cluster_results"] == {}
     assert result["errors"][0]["code"] == "STORAGE_ORIGIN_TABLE_CONFLICT"
-    health_check.assert_not_called()
+    connectivity_check.assert_not_called()

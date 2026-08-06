@@ -297,16 +297,6 @@ def _serialize_doris_partition(row: Any) -> dict[str, Any] | None:
     )
 
 
-def _extract_doris_create_table(rows: Any) -> Any:
-    if not isinstance(rows, list):
-        return None
-    for row in rows:
-        value = _mapping_value(row, "Create Table", "CREATE TABLE", "Create View", "CREATE VIEW")
-        if value is not None:
-            return serialize_es_runtime_value(value)
-    return None
-
-
 def build_doris_storage_runtime(
     raw_runtime: Any,
     *,
@@ -344,7 +334,6 @@ def build_doris_storage_runtime(
         "table": _serialize_doris_table(table_rows[0]) if table_rows else None,
         "columns": [item for row in column_rows if (item := _serialize_doris_column(row)) is not None],
         "partitions": [item for row in partition_rows if (item := _serialize_doris_partition(row)) is not None],
-        "create_table": _extract_doris_create_table(physical_metadata.get("show_create_table")),
     }
 
 
@@ -619,7 +608,7 @@ class ResultTableStorageStatusService:
                         "is_current_segment": target.has_current_segment,
                         "is_configured_current": target.is_configured_current,
                         "cluster": _serialize_cluster(cluster),
-                        "health": None,
+                        "connectivity": None,
                         "runtime": None,
                         "runtime_skipped": True,
                         "config_source": "current_storage_config",
@@ -685,7 +674,7 @@ class ResultTableStorageStatusService:
             "is_current_segment": target.has_current_segment,
             "is_configured_current": target.is_configured_current,
             "cluster": _serialize_cluster(cluster),
-            "health": None,
+            "connectivity": None,
             "runtime": None,
             "runtime_skipped": False,
             "config_source": "current_storage_config",
@@ -699,7 +688,7 @@ class ResultTableStorageStatusService:
         result: dict[str, Any],
         errors: list[dict[str, Any]],
     ) -> models.ClusterInfo | None:
-        """校验集群并执行健康检查；不可探测时统一标记 runtime_skipped"""
+        """校验集群并执行轻量连通性检查；不可探测时统一标记 runtime_skipped"""
 
         cluster = target.cluster
         if cluster is None:
@@ -726,17 +715,17 @@ class ResultTableStorageStatusService:
             )
             return None
 
-        health = cluster.health_check(timeout=self.timeout)
-        result["health"] = serialize_es_runtime_value(health)
-        if not health.get("is_available", False):
+        connectivity = cluster.check_connectivity(timeout=self.timeout)
+        result["connectivity"] = serialize_es_runtime_value(connectivity)
+        if not connectivity.get("is_connected", False):
             self._skip_runtime(
                 result,
                 errors,
                 _error(
-                    "STORAGE_HEALTH_CHECK_FAILED",
-                    "存储集群健康探测失败，已跳过运行时查询",
+                    "STORAGE_CONNECTIVITY_CHECK_FAILED",
+                    "存储集群连接失败，已跳过运行时查询",
                     cluster_id=target.cluster_id,
-                    health_error=health.get("error"),
+                    connection_error=connectivity.get("error"),
                 ),
             )
             return None
@@ -814,6 +803,7 @@ class ResultTableStorageStatusService:
         raw_runtime = storage.query_physical_storage_metadata(
             storage_cluster_id=cluster.cluster_id,
             timeout=self.timeout,
+            include_create_table=False,
         )
         raw_runtime = serialize_es_runtime_value(raw_runtime)
         warnings.extend(raw_runtime.get("warnings", []))
