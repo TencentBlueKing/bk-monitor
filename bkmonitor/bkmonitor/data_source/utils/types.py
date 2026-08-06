@@ -7,6 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-# TODO: 从 bkmonitor.data_source.utils.types 中导入类型，后续采用独立变更废弃
 
-from bkmonitor.data_source.utils.types import Literal, FilterValue, Filter, Page  # noqa
+from typing import Any
+
+Literal = int | str | float
+
+FilterValue = Literal | list[Literal]
+
+Filter = dict[str, FilterValue]
+
+Page = dict[str, int | list[dict[str, Any]]]
