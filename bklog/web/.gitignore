@@ -95,3 +95,5 @@ local.cookie
 .cookie
 .aafe.config.json
 test
+output
+.session_tmps

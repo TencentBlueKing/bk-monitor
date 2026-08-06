@@ -12,14 +12,20 @@ import {
   type RetrieveSearchIngestErrorCategory,
 } from '../utils/retrieve-search-ingest.logger';
 
+import type { RetrieveRowStoreName } from '../core/db';
+
 export interface SearchStreamRequest {
   baseURL: string;
   body: Record<string, any>;
   fieldMetadata?: Record<string, any>;
   fieldNames?: string[];
   headers?: Record<string, string>;
-  onProgress?: (progress: SearchStreamProgress) => void;
+  /** 请求 id 分配后立刻回调，便于调用方按 id 精确取消 */
+  onRequestId?: (_requestId: string) => void;
+  onProgress?: (_progress: SearchStreamProgress) => void;
   queryKey: string;
+  /** IndexedDB 落盘表，默认主检索 retrieveRows */
+  rowStore?: RetrieveRowStoreName;
   searchPath: string;
   startSeq?: number;
   timeout?: number;
@@ -48,9 +54,9 @@ export interface SearchStreamResult {
 }
 
 interface PendingSearchRequest {
-  onProgress?: (progress: SearchStreamProgress) => void;
-  reject: (error: Error) => void;
-  resolve: (value: SearchStreamResult) => void;
+  onProgress?: (_progress: SearchStreamProgress) => void;
+  reject: (_error: Error) => void;
+  resolve: (_value: SearchStreamResult) => void;
   startedAt: number;
   timer: ReturnType<typeof setTimeout> | null;
 }
@@ -74,6 +80,8 @@ class RetrieveSearchWorkerService {
   private searchQueue: Promise<void> = Promise.resolve();
   private pendingRequests = new Map<string, PendingSearchRequest>();
   private activeRequestId: string | null = null;
+  /** 排队尚未执行或主动取消的 requestId */
+  private canceledRequestIds = new Set<string>();
 
   constructor() {
     workerManagerService.register({
@@ -109,17 +117,30 @@ class RetrieveSearchWorkerService {
     }
   }
 
-  cancelActiveSearch() {
-    if (!this.activeRequestId) return;
-    const requestId = this.activeRequestId;
-    this.activeWorker?.postMessage({ id: requestId, pageInstanceId: PAGE_INSTANCE_ID, type: 'cancel' });
-    const pending = this.pendingRequests.get(requestId);
+  /**
+   * 按 requestId 取消检索。未传 id 时取消当前 active（兼容旧调用）。
+   * 排队中尚未 dispatch 的请求也会被标记取消，避免误跑。
+   */
+  cancelSearch(requestId?: string | null) {
+    const id = requestId || this.activeRequestId;
+    if (!id) return;
+
+    this.canceledRequestIds.add(id);
+    this.activeWorker?.postMessage({ id, pageInstanceId: PAGE_INSTANCE_ID, type: 'cancel' });
+
+    const pending = this.pendingRequests.get(id);
     if (pending) {
       if (pending.timer) clearTimeout(pending.timer);
-      this.pendingRequests.delete(requestId);
+      this.pendingRequests.delete(id);
       pending.reject(new Error('Search request canceled'));
     }
-    this.activeRequestId = null;
+    if (this.activeRequestId === id) {
+      this.activeRequestId = null;
+    }
+  }
+
+  cancelActiveSearch() {
+    this.cancelSearch(this.activeRequestId);
   }
 
   async testConnection(timeout = DEFAULT_DIAGNOSTIC_TIMEOUT) {
@@ -171,7 +192,10 @@ class RetrieveSearchWorkerService {
   }
 
   async searchStream(request: SearchStreamRequest): Promise<SearchStreamResult> {
-    const run = () => this.searchStreamInternal(request);
+    const id = createRequestId('search-stream');
+    request.onRequestId?.(id);
+
+    const run = () => this.searchStreamInternal(request, id);
     const task = this.searchQueue.then(run, run);
     this.searchQueue = task.then(
       () => undefined,
@@ -180,9 +204,14 @@ class RetrieveSearchWorkerService {
     return task;
   }
 
-  private async searchStreamInternal(request: SearchStreamRequest): Promise<SearchStreamResult> {
+  private async searchStreamInternal(request: SearchStreamRequest, id: string): Promise<SearchStreamResult> {
     const startedAt = Date.now();
     const timeout = request.timeout ?? computeIngestTimeout(8 * 1024 * 1024);
+
+    if (this.canceledRequestIds.has(id)) {
+      this.canceledRequestIds.delete(id);
+      throw new Error('Search request canceled');
+    }
 
     workerManagerService.incrementMetric(WORK_ID, 'searchStart');
     workerManagerService.update(WORK_ID, {
@@ -212,7 +241,11 @@ class RetrieveSearchWorkerService {
       throw new Error('IndexedDB is not usable in WebWorker search');
     }
 
-    const id = createRequestId('search-stream');
+    if (this.canceledRequestIds.has(id)) {
+      this.canceledRequestIds.delete(id);
+      throw new Error('Search request canceled');
+    }
+
     const worker = this.ensureWorker();
     this.activeRequestId = id;
     const url = buildSearchUrl(request.baseURL, request.searchPath);
@@ -223,6 +256,7 @@ class RetrieveSearchWorkerService {
         if (!pending) return;
         if (pending.timer) clearTimeout(pending.timer);
         this.pendingRequests.delete(id);
+        this.canceledRequestIds.delete(id);
         if (this.activeRequestId === id) {
           this.activeRequestId = null;
         }
@@ -251,6 +285,7 @@ class RetrieveSearchWorkerService {
           headers: request.headers || {},
           method: 'POST',
           queryKey: request.queryKey,
+          rowStore: request.rowStore || 'retrieveRows',
           startSeq: request.startSeq || 0,
           type: 'search-stream',
           url,
@@ -268,9 +303,9 @@ class RetrieveSearchWorkerService {
   private ensureWorker() {
     if (this.activeWorker) return this.activeWorker;
     const worker = this.createWorker();
-    worker.onmessage = (event) => this.handleWorkerMessage(event);
-    worker.onerror = (error) => this.handleWorkerRuntimeError(error);
-    worker.onmessageerror = (error) => this.handleWorkerMessageError(error);
+    worker.onmessage = event => this.handleWorkerMessage(event);
+    worker.onerror = error => this.handleWorkerRuntimeError(error);
+    worker.onmessageerror = error => this.handleWorkerMessageError(error);
     this.activeWorker = worker;
     return worker;
   }
@@ -303,13 +338,21 @@ class RetrieveSearchWorkerService {
 
     if (pending.timer) clearTimeout(pending.timer);
     this.pendingRequests.delete(id);
+    this.canceledRequestIds.delete(id);
     if (this.activeRequestId === id) {
       this.activeRequestId = null;
     }
 
     if (!message.ok) {
-      const errorCategory = (message.errorCategory || categorizeIngestError(message.error)) as RetrieveSearchIngestErrorCategory;
-      this.recordFailure(message.error || 'WebWorker search stream failed', errorCategory, Date.now() - pending.startedAt, message.queryKey, message.timings);
+      const errorCategory = (message.errorCategory
+        || categorizeIngestError(message.error)) as RetrieveSearchIngestErrorCategory;
+      this.recordFailure(
+        message.error || 'WebWorker search stream failed',
+        errorCategory,
+        Date.now() - pending.startedAt,
+        message.queryKey,
+        message.timings,
+      );
       pending.reject(new Error(message.error || 'WebWorker search stream failed'));
       return;
     }
@@ -349,7 +392,7 @@ class RetrieveSearchWorkerService {
   }
 
   private handleWorkerRuntimeError(error: ErrorEvent | string) {
-    const detail = error instanceof ErrorEvent
+    const detail =      error instanceof ErrorEvent
       ? `${error.message || 'WebWorker script load failed'}${error.filename ? ` (${error.filename}:${error.lineno}:${error.colno})` : ''}`
       : String(error);
     this.rejectAllPending(new Error(detail), 'worker-load');
@@ -369,12 +412,13 @@ class RetrieveSearchWorkerService {
       pending.reject(error);
     });
     this.pendingRequests.clear();
+    this.canceledRequestIds.clear();
     this.activeRequestId = null;
   }
 
-  private resetWorker(reason: string) {
+  private resetWorker(_reason: string) {
     if (!this.activeWorker) return;
-    // logRetrieveSearchIngest('warn', `reset retrieve-search worker: ${reason}`, {
+    // logRetrieveSearchIngest('warn', `reset retrieve-search worker: ${_reason}`, {
     //   pendingRequests: this.pendingRequests.size,
     //   source: 'worker',
     //   stage: 'prepare',
