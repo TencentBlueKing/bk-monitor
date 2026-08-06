@@ -156,10 +156,7 @@ class BaseQuery:
         :param end_time: 结束时间戳
         :return: 记录总数
         """
-        alias = "a"
-        queries = [q.alias(alias).metric(field="_index", method="COUNT", alias=alias) for q in queries]
-        qs = self.get_qs(start_time, end_time).time_agg(False).instant().limit(1)
-        return list(self._add_query(qs, queries))[0]["_result_"]
+        return self._query_field_aggregated_value(queries, start_time, end_time, "_index", "count")
 
     def _query_field_topk(
         self,
@@ -306,6 +303,7 @@ class BaseQuery:
         - expression 规则：max/min 使用 max(a)/min(a)，其余使用 "a"
         - distinct 保留多 RT 枚举合并去重方式，不直接合并各 RT 的 distinct 标量
         """
+        method = method.lower()
         if method == "distinct":
             return self._query_field_distinct_value(queries, start_time, end_time, field)
 
