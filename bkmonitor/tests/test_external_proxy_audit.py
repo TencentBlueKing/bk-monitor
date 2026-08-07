@@ -1,0 +1,222 @@
+import json
+import logging
+import os
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+import audit as audit_module
+import pytest
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, HttpResponse
+from django.test import RequestFactory
+
+from audit.apps import AuditConfig
+from audit.instance import push_event
+from bkmonitor.middlewares.request_middlewares import RequestProvider
+from monitor_adapter.home.views import dispatch_external_proxy
+
+
+def make_dashboard_request(status_code=200):
+    request = RequestFactory().get(
+        "/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2",
+        HTTP_X_REAL_IP="192.0.2.10",
+        HTTP_USER_AGENT="external-monitor-client",
+    )
+    request.user = SimpleNamespace(username="authorized-agent")
+    request.biz_id = "2"
+    request.org_name = "2"
+    request.external_user = "external-user"
+    return request, HttpResponse(status=status_code)
+
+
+@pytest.mark.parametrize(
+    ("response_status", "target_status", "result_code"),
+    [(200, None, 0), (403, None, 403), (200, 500, 500)],
+)
+def test_push_event_records_external_dashboard_context_and_result(response_status, target_status, result_code):
+    request, response = make_dashboard_request(response_status)
+    if target_status is not None:
+        request._audit_response_status = target_status
+
+    with (
+        patch("audit.instance.bk_audit_client.add_event") as add_event,
+        patch("audit.instance.bk_audit_client.export_events") as export_events,
+    ):
+        push_event(request, response)
+
+    event = add_event.call_args.kwargs
+    assert event["audit_context"].request is request
+    assert event["result_code"] == result_code
+    assert event["result_content"] == (f"HTTP {result_code}" if result_code else "")
+    assert event["extend_data"] == {
+        "external_user": "external-user",
+        "action_name": event["action"].name,
+        "bk_biz_id": "2",
+        "grafana_org_name": "2",
+        "request_method": "GET",
+        "response_status": target_status if target_status is not None else response_status,
+    }
+    export_events.assert_called_once_with()
+
+
+def test_push_event_does_not_break_request_when_export_fails(caplog):
+    request, response = make_dashboard_request()
+
+    with (
+        patch("audit.instance.bk_audit_client.add_event", side_effect=RuntimeError("export failed")),
+        patch("audit.instance.bk_audit_client.export_events") as export_events,
+        caplog.at_level(logging.ERROR, logger="audit.instance"),
+    ):
+        push_event(request, response)
+
+    export_events.assert_not_called()
+    assert "push audit event failed" in caplog.text
+
+
+def test_dispatch_external_proxy_uses_target_request_for_response_audit():
+    request = RequestFactory().post(
+        "/dispatch_external_proxy/",
+        data=json.dumps(
+            {
+                "url": "/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2",
+                "method": "GET",
+                "data": {},
+            }
+        ),
+        content_type="application/json",
+        HTTP_USER="external-user",
+        HTTP_X_REAL_IP="192.0.2.10",
+        HTTP_USER_AGENT="external-monitor-client",
+    )
+    request.session = {}
+    request.LANGUAGE_CODE = "zh-hans"
+    request.request_id = "request-id"
+    authorized_agent = SimpleNamespace(username="authorized-agent")
+    target_response = HttpResponse(status=500)
+    target_view = Mock(return_value=target_response)
+
+    def login(proxy_request, user):
+        proxy_request.user = user
+
+    with (
+        patch("monitor_adapter.home.views.is_external_proxy_token_valid", return_value=True),
+        patch(
+            "monitor_adapter.home.views.GlobalConfig.objects.get_or_create",
+            return_value=(SimpleNamespace(value={"2": "authorized-agent"}), False),
+        ),
+        patch("monitor_adapter.home.views.auth.authenticate", return_value=authorized_agent),
+        patch("monitor_adapter.home.views.auth.login", side_effect=login),
+        patch(
+            "monitor_adapter.home.views.resolve",
+            return_value=SimpleNamespace(func=target_view, kwargs={}),
+        ),
+    ):
+        response = dispatch_external_proxy(request)
+
+    target_request = target_view.call_args.args[0]
+    assert target_request.user is authorized_agent
+    assert target_request.external_user == "external-user"
+    assert target_request.biz_id == "2"
+    assert target_request.request_id == "request-id"
+    assert target_request.META["HTTP_X_REAL_IP"] == "192.0.2.10"
+    assert target_request.META["HTTP_USER_AGENT"] == "external-monitor-client"
+    assert target_request._audit_response_status == 500
+
+    # MonitorAPIMiddleware 会把 AJAX 5xx 归一化为 200，审计仍应使用代理目标的原始状态。
+    target_response.status_code = 200
+
+    with patch("bkmonitor.middlewares.request_middlewares.push_event") as audit_event:
+        response = RequestProvider(lambda _: HttpResponse()).process_response(request, response)
+
+    audit_event.assert_called_once_with(target_request, target_response)
+    assert response is target_response
+
+
+@pytest.mark.parametrize(("exception", "status_code"), [(Http404(), 404), (PermissionDenied(), 403)])
+def test_dispatch_external_proxy_preserves_django_exception_status(exception, status_code):
+    request = RequestFactory().post(
+        "/dispatch_external_proxy/",
+        data=json.dumps(
+            {
+                "url": "/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2",
+                "method": "GET",
+                "data": {},
+            }
+        ),
+        content_type="application/json",
+        HTTP_USER="external-user",
+    )
+    request.session = {}
+    request.LANGUAGE_CODE = "zh-hans"
+    authorized_agent = SimpleNamespace(username="authorized-agent")
+
+    def login(proxy_request, user):
+        proxy_request.user = user
+
+    with (
+        patch("monitor_adapter.home.views.is_external_proxy_token_valid", return_value=True),
+        patch(
+            "monitor_adapter.home.views.GlobalConfig.objects.get_or_create",
+            return_value=(SimpleNamespace(value={"2": "authorized-agent"}), False),
+        ),
+        patch("monitor_adapter.home.views.auth.authenticate", return_value=authorized_agent),
+        patch("monitor_adapter.home.views.auth.login", side_effect=login),
+        patch(
+            "monitor_adapter.home.views.resolve",
+            return_value=SimpleNamespace(func=Mock(side_effect=exception), kwargs={}),
+        ),
+        pytest.raises(type(exception)),
+    ):
+        dispatch_external_proxy(request)
+
+    assert request._audit_request._audit_response_status == status_code
+
+
+@pytest.mark.parametrize(
+    ("data_id", "token"),
+    [("", "token"), ("invalid", "token"), ("0", "token"), ("123", "")],
+)
+def test_audit_setup_requires_complete_otlp_configuration(data_id, token):
+    config = AuditConfig("audit", audit_module)
+    env = {
+        "BKAPP_OTEL_LOG_ENDPOINT": "https://example.invalid",
+        "BKAPP_OTEL_LOG_BK_DATA_ID": data_id,
+        "BKAPP_OTEL_LOG_BK_DATA_TOKEN": token,
+    }
+
+    with patch.dict(os.environ, env), patch("audit.apps.setup") as setup:
+        config.ready()
+
+    setup.assert_not_called()
+
+
+def test_audit_setup_failure_does_not_block_application_startup(caplog):
+    config = AuditConfig("audit", audit_module)
+    env = {
+        "BKAPP_OTEL_LOG_ENDPOINT": "https://example.invalid",
+        "BKAPP_OTEL_LOG_BK_DATA_ID": "123",
+        "BKAPP_OTEL_LOG_BK_DATA_TOKEN": "token",
+    }
+
+    with (
+        patch.dict(os.environ, env),
+        patch("audit.apps.setup", side_effect=RuntimeError("setup failed")),
+        caplog.at_level(logging.ERROR, logger="audit.apps"),
+    ):
+        config.ready()
+
+    assert "initialize audit exporter failed" in caplog.text
+
+
+def test_audit_setup_accepts_complete_otlp_configuration():
+    config = AuditConfig("audit", audit_module)
+    env = {
+        "BKAPP_OTEL_LOG_ENDPOINT": "https://example.invalid",
+        "BKAPP_OTEL_LOG_BK_DATA_ID": "123",
+        "BKAPP_OTEL_LOG_BK_DATA_TOKEN": "token",
+    }
+
+    with patch.dict(os.environ, env), patch("audit.apps.setup") as setup:
+        config.ready()
+
+    setup.assert_called_once()

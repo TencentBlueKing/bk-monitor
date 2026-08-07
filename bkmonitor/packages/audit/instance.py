@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 __doc__ = """
 from audit.instance import *
 from bk_audit.log.exporters import BaseExporter
@@ -27,6 +27,7 @@ setattr(request, "user", User())
 push_event(request)
 """
 
+import logging
 import re
 
 from audit.client import bk_audit_client
@@ -34,9 +35,10 @@ from bk_audit.log.models import AuditContext, AuditInstance
 
 from bkmonitor.iam import ActionEnum
 
+logger = logging.getLogger(__name__)
 
-class BaseMonitorInstance(object):
 
+class BaseMonitorInstance:
     action = None
     resource_id = ""
 
@@ -50,7 +52,7 @@ class BaseMonitorInstance(object):
 
     @property
     def resource_type(self):
-        class ResourceType(object):
+        class ResourceType:
             id = ""
 
         _resource_type = ResourceType()
@@ -67,39 +69,60 @@ class DashboardInstance(BaseMonitorInstance):
         self.instance_name = uid
 
 
-def push_event(request):
+def push_event(request, response=None):
     """
     基于request对象，自动上报审计日志
     """
-    key_params = ["user", "biz_id"]
-    # request 合法性验证
-    for key in key_params:
-        if not hasattr(request, key):
+    try:
+        key_params = ["user", "biz_id"]
+        # request 合法性验证
+        for key in key_params:
+            if not hasattr(request, key):
+                return
+
+        instance = None
+        for regex, instance_cls in InstanceFilter:
+            ret = regex.match(request.path)
+            if ret:
+                instance = instance_cls(**ret.groupdict())
+                break
+
+        if instance is None:
             return
 
-    instance = None
-    for regex, instance_cls in InstanceFilter:
-        ret = regex.match(request.path)
-        if ret:
-            instance = instance_cls(**ret.groupdict())
-            break
+        context = AuditContext(request=request)
 
-    if instance is None:
-        return
+        extend_data = {
+            "external_user": getattr(request, "external_user", ""),
+            "bk_biz_id": request.biz_id,
+            "request_method": request.method,
+        }
+        org_name = getattr(request, "org_name", "")
+        if org_name:
+            extend_data["grafana_org_name"] = org_name
+        extend_data.update(instance.extend_data)
 
-    context = AuditContext(request=request)
+        status_code = getattr(request, "_audit_response_status", getattr(response, "status_code", None))
+        result_code = 0
+        result_content = ""
+        if status_code is not None:
+            extend_data["response_status"] = status_code
+            if status_code >= 400:
+                result_code = status_code
+                result_content = f"HTTP {status_code}"
 
-    extend_data = {"external_user": getattr(request, "external_user", "")}
-    extend_data.update(instance.extend_data)
-
-    bk_audit_client.add_event(
-        action=instance.action,
-        resource_type=instance.resource_type,
-        audit_context=context,
-        instance=instance.instance,
-        extend_data=extend_data,
-    )
-    bk_audit_client.export_events()
+        bk_audit_client.add_event(
+            action=instance.action,
+            resource_type=instance.resource_type,
+            audit_context=context,
+            instance=instance.instance,
+            result_code=result_code,
+            result_content=result_content,
+            extend_data=extend_data,
+        )
+        bk_audit_client.export_events()
+    except Exception:
+        logger.exception("push audit event failed")
 
 
 InstanceFilter = (

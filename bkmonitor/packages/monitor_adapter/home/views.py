@@ -20,7 +20,8 @@ from blueapps.account.handlers.response import ResponseHandler
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import logout
-from django.http import HttpResponseForbidden, HttpResponseNotFound, JsonResponse
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, HttpResponseForbidden, HttpResponseNotFound, JsonResponse
 from django.shortcuts import redirect, render
 from django.test import RequestFactory
 from django.urls import Resolver404, resolve
@@ -277,9 +278,10 @@ def dispatch_external_proxy(request):
         )
         # 处理grafana接口请求头，TC适配腾讯云数据源，DS适配数据源鉴权参数
         meta_prefixs = ["HTTP_X_TC", "HTTP_X_DS", "HTTP_X_GRAFANA"]
+        audit_meta_keys = {"HTTP_X_REAL_IP", "HTTP_X_FORWARDED_FOR", "HTTP_USER_AGENT", "REMOTE_ADDR"}
         for key, value in request.META.items():
             key = key.upper()
-            if any(key.startswith(prefix) for prefix in meta_prefixs):
+            if key in audit_meta_keys or any(key.startswith(prefix) for prefix in meta_prefixs):
                 fake_request.META[key] = value
 
         # 绕过csrf鉴权
@@ -289,8 +291,12 @@ def dispatch_external_proxy(request):
         setattr(fake_request, "external_user", external_user)
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
+        if hasattr(request, "request_id"):
+            setattr(fake_request, "request_id", request.request_id)
         # use in get_core_context
         setattr(fake_request, "LANGUAGE_CODE", request.LANGUAGE_CODE)
+        # 内部请求绕过 Django 中间件，通过外层请求在响应阶段上报真实目标和结果。
+        setattr(request, "_audit_request", fake_request)
         setattr(local, "current_request", fake_request)
 
         # resolve view_func
@@ -298,15 +304,28 @@ def dispatch_external_proxy(request):
         view_func, kwargs = match.func, match.kwargs
 
         # call view_func
-        return view_func(fake_request, **kwargs)
+        response = view_func(fake_request, **kwargs)
+        setattr(fake_request, "_audit_response_status", response.status_code)
+        return response
 
     except Resolver404:
         logger.warning(f"dispatch_plugin_query: resolve view func 404 for: {url}")
-        return JsonResponse(
+        response = JsonResponse(
             {"result": False, "message": f"dispatch_plugin_query: resolve view func 404 for: {url}"}, status=404
         )
+        if "fake_request" in locals():
+            setattr(fake_request, "_audit_response_status", response.status_code)
+        return response
 
     except Exception as e:
+        if "fake_request" in locals():
+            if isinstance(e, Http404):
+                status_code = 404
+            elif isinstance(e, PermissionDenied):
+                status_code = 403
+            else:
+                status_code = getattr(e, "status_code", 500)
+            setattr(fake_request, "_audit_response_status", status_code)
         logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
 
