@@ -41,6 +41,7 @@ from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 
 from apps.iam.backends.legacy_v3 import LegacyV3Adapter
+from apps.iam.backends.v4 import V4PermissionProvider
 from apps.iam.exceptions import (
     ActionNotExistError,
     GetSystemInfoError,
@@ -59,7 +60,11 @@ from apps.iam.iam_engine.core.requests import (
     Subject as EngineSubject,
 )
 from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, BatchAuthDecision
-from apps.iam.iam_engine.migration.policy import BoundPermissionApplicationAdapter, MigrationPolicy
+from apps.iam.iam_engine.migration.policy import (
+    ApplicationResolution,
+    BoundPermissionApplicationAdapter,
+    MigrationPolicy,
+)
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PermissionApplicationProvider
 from apps.iam.iam_engine.provider.router import ModeRouter
@@ -107,6 +112,7 @@ class Permission:
 
         self._mode_router = None
         self._provider_bundles = None
+        self._v4_provider = None
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
@@ -144,12 +150,16 @@ class Permission:
         }
 
     def get_v4_provider(self):
-        """V4 Provider 将在后续迭代中注入；未配置时路由器按 error 安全拒绝。"""
-        return None
+        if self._v4_provider is None:
+            self._v4_provider = V4PermissionProvider.from_settings(
+                username=self.username,
+                bk_tenant_id=self.bk_tenant_id,
+                action_resolver=get_action_by_id,
+            )
+        return self._v4_provider
 
     def get_v4_permission_application_provider(self) -> PermissionApplicationProvider | None:
-        """V4 无权限申请能力将在后续迭代中注入。"""
-        return None
+        return self.get_v4_provider()
 
     def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
         """V4 授权写入能力将在后续迭代中注入。"""
@@ -289,6 +299,39 @@ class Permission:
         resources = resources or []
         resolved_mode = self._resolve_safe_apply_mode(resources, mode)
         application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles)
+        try:
+            return self._call_application_provider(application, actions, resources)
+        except Exception as error:  # pylint: disable=broad-except
+            if application.source_mode is not AuthMode.V4:
+                raise
+
+            if resolved_mode is AuthMode.UNION:
+                logger.warning(
+                    "[IAM Apply] mode=%s v4 provider failed, fallback to v3: %s",
+                    resolved_mode.value,
+                    error,
+                )
+                v3_application = MigrationPolicy.resolve_application(AuthMode.V3, self.provider_bundles)
+                return self._call_application_provider(v3_application, actions, resources)
+
+            # 纯 V4 模式最终会不再保留 V3，这里不做“回退 V3”的迁移期兼容，
+            # 只记录错误并返回退化的申请数据，保证鉴权拒绝流程不会因为申请数据生成失败而变成 500。
+            logger.error(
+                "[IAM Apply] mode=%s v4 apply data generation failed: %s",
+                resolved_mode.value,
+                error,
+            )
+            return {}, settings.BK_IAM_SAAS_HOST
+
+    def _call_application_provider(
+        self,
+        application: ApplicationResolution,
+        actions: list[ActionMeta | str],
+        resources: list[Resource],
+    ):
+        if application.source_mode is AuthMode.V4:
+            actions = [get_action_by_id(action) for action in actions]
+            resources = [self._to_engine_resource(resource) for resource in resources]
         return application.provider.get_apply_data(actions, resources)
 
     def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
