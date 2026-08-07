@@ -74,7 +74,7 @@ def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:
     return space.bk_tenant_id
 
 
-def is_biz_in_tenant(bk_biz_id: int, bk_tenant_id: str | None) -> bool:
+def is_biz_in_tenant(bk_biz_id: int | str, bk_tenant_id: str | None) -> bool:
     """
     判断业务是否归属于指定租户。
 
@@ -84,8 +84,9 @@ def is_biz_in_tenant(bk_biz_id: int, bk_tenant_id: str | None) -> bool:
         return True
 
     try:
-        return bk_biz_id_to_bk_tenant_id(bk_biz_id) == bk_tenant_id
-    except ValueError:
+        normalized_biz_id = int(bk_biz_id)
+        return bk_biz_id_to_bk_tenant_id(normalized_biz_id) == bk_tenant_id
+    except (TypeError, ValueError):
         return False
 
 

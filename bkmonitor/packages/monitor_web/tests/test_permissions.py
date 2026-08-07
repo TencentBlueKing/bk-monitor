@@ -40,6 +40,22 @@ def test_is_biz_in_tenant_checks_business_ownership(mocker):
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+def test_is_biz_in_tenant_normalizes_string_business_id(mocker):
+    get_biz_tenant = mocker.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
+
+    assert is_biz_in_tenant("2", "tenant-a") is True
+    get_biz_tenant.assert_called_once_with(2)
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+def test_is_biz_in_tenant_denies_invalid_business_id(mocker):
+    get_biz_tenant = mocker.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id")
+
+    assert is_biz_in_tenant("invalid", "tenant-a") is False
+    get_biz_tenant.assert_not_called()
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
 def test_is_biz_in_tenant_denies_unknown_business(mocker):
     mocker.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", side_effect=ValueError)
 
