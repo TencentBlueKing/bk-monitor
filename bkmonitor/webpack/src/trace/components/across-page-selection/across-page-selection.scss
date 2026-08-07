@@ -32,12 +32,13 @@
     }
   }
 
-  .all-checked {
+  .half-all-checked.bk-checkbox.is-indeterminated {
     .bk-checkbox-input {
       background-color: #fff;
+      border-color: #3a84ff;
 
       &::after {
-        border-color: #3a84ff;
+        background-color: #3a84ff;
       }
     }
   }

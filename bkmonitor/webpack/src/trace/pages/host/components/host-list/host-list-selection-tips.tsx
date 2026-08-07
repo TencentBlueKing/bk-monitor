@@ -23,14 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { HostSelectAllModeEnum, ProcessDetailTabEnum, ProcessPortStatusEnum } from '../constants/enum';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
-/** 主机列表全选模式取值 */
-export type HostSelectAllModeType = GetEnumTypeTool<typeof HostSelectAllModeEnum>;
+import { computed, defineComponent } from 'vue';
 
-/** 进程详情二级 Tab 取值 */
-export type ProcessDetailTabType = GetEnumTypeTool<typeof ProcessDetailTabEnum>;
+import { Button } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
-/** 进程端口状态取值 */
-export type ProcessPortStatusType = GetEnumTypeTool<typeof ProcessPortStatusEnum>;
+import './host-list-selection-tips.scss';
+
+export default defineComponent({
+  name: 'HostListSelectionTips',
+  props: {
+    /** 已选择数量 */
+    selectedCount: {
+      type: Number,
+      default: 0,
+    },
+  },
+  emits: {
+    /** 清除所有选择 */
+    clearAll: () => true,
+  },
+  setup(props, { emit }) {
+    const { t } = useI18n();
+
+    /** 是否显示 tips 条 */
+    const isVisible = computed(() => props.selectedCount > 0);
+
+    return () => (
+      <div
+        class='host-list-selection-tips'
+        v-show={isVisible.value}
+      >
+        <i18n-t
+          class='tips-text'
+          keypath='已选择{0}台主机'
+          tag='span'
+        >
+          <span class='space-count'> {props.selectedCount} </span>
+        </i18n-t>
+        <Button
+          class='tips-action'
+          theme='primary'
+          text
+          onClick={() => emit('clearAll')}
+        >
+          {t('清除所有数据')}
+        </Button>
+      </div>
+    );
+  },
+});

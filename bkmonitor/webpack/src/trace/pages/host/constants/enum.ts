@@ -24,6 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+/** 主机列表全选模式 */
+export const HostSelectAllModeEnum = {
+  /** 跨页全选 */
+  ACROSS: 'across',
+  /** 手动选择 */
+  NONE: 'none',
+  /** 本页全选 */
+  PAGE: 'page',
+} as const;
+
 export const ProcessDetailTabEnum = {
   /** 指标视图 */
   METRIC: 'metric',

@@ -64,7 +64,7 @@ export default defineComponent({
       keyword,
     });
 
-    const hasSelection = computed(() => ctx.selectedRowKeys.value.length > 0);
+    const hasSelection = computed(() => ctx.selectedRowKeys.value.size > 0);
 
     /** 点击主机列表 IP 单元格时，向上冒泡到页面层处理拓扑树聚焦 */
     const handleSelectIpCell = row => {
@@ -143,16 +143,18 @@ export default defineComponent({
             page={ctx.page.value}
             pageSize={ctx.pageSize.value}
             selectedRowKeys={ctx.selectedRowKeys.value}
+            selectType={ctx.selectType.value}
             sort={ctx.sortInfo.value}
             total={ctx.total.value}
             visibleColumns={ctx.visibleColumns.value}
             onClearFilter={ctx.handleClearFilter}
             onColumnsChange={ctx.handleColumnsChange}
+            onHeaderSelect={ctx.handleHeaderSelect}
             onIpMark={ctx.handleIpMark}
             onPageChange={ctx.handlePageChange}
             onPageSizeChange={ctx.handlePageSizeChange}
             onProcessClick={(...args) => emit('processClick', ...args)}
-            onSelectChange={ctx.handleSelectChange}
+            onRowCheck={ctx.handleRowCheck}
             onSelectIpCell={handleSelectIpCell}
             onSortChange={ctx.handleSortChange}
           />
