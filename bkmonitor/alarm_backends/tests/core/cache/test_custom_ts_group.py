@@ -112,7 +112,11 @@ def test_refresh_batches_by_tenant_and_preserves_failed_tenant_cache(mocker):
 
     def query_protocols(**kwargs):
         if kwargs["bk_tenant_id"] == "tenant-b":
-            raise RuntimeError("tenant-b unavailable")
+            raise BKAPIError(
+                system_name="monitor",
+                url="query_protocols",
+                result={"message": "tenant-b unavailable"},
+            )
         return [{"bk_data_id": 1001, "protocol": "prometheus"}]
 
     query_api = mocker.patch.object(api.monitor, "query_custom_time_series_protocols", side_effect=query_protocols)
@@ -129,3 +133,23 @@ def test_refresh_batches_by_tenant_and_preserves_failed_tenant_cache(mocker):
     pipeline.delete.assert_called_once_with(CustomTSGroupCacheManager.format_key(9999))
     pipeline.set.assert_any_call(CustomTSGroupCacheManager.CACHE_DATA_IDS_KEY, json.dumps([1001, 1002, 2001]))
     pipeline.execute.assert_called_once_with()
+
+
+def test_refresh_propagates_unexpected_error(mocker):
+    """刷新时非接口异常应直接暴露，避免被误判为租户刷新失败。"""
+    queryset = mocker.Mock()
+    queryset.only.return_value = [make_ts_group(1001)]
+    mocker.patch.object(TimeSeriesGroup.objects, "filter", return_value=queryset)
+
+    cache = mocker.Mock()
+    mocker.patch.object(CustomTSGroupCacheManager, "cache", cache)
+    mocker.patch.object(
+        api.monitor,
+        "query_custom_time_series_protocols",
+        side_effect=KeyError("unexpected response"),
+    )
+
+    with pytest.raises(KeyError, match="unexpected response"):
+        CustomTSGroupCacheManager.refresh()
+
+    cache.pipeline.return_value.execute.assert_not_called()

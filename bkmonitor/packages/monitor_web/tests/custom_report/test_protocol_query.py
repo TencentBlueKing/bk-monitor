@@ -5,7 +5,7 @@ from monitor_web.models.custom_report import CustomTSTable
 
 
 def test_query_all_business_protocols_in_current_tenant(mocker):
-    """全业务查询只返回当前租户数据，并且响应仅包含协议字段。"""
+    """全业务查询只返回当前租户的 Data ID 与协议字段。"""
     mocker.patch("monitor_web.custom_report.resources.metric.get_request_tenant_id", return_value="tenant-a")
     expected = [
         {"bk_data_id": 1001, "protocol": "json"},

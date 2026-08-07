@@ -123,7 +123,7 @@ class CustomTSGroupCacheManager(CacheManager):
                     bk_biz_id=0,
                     bk_data_ids=[],
                 )
-            except Exception:
+            except BKAPIError:
                 failed_tenants.append(bk_tenant_id)
                 cls.logger.exception(
                     "refresh custom time series protocols failed, bk_tenant_id: %s",
