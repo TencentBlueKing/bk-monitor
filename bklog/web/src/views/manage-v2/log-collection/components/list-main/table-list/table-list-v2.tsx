@@ -1030,12 +1030,15 @@ export default defineComponent({
                 {showSpaceSource && (
                   <span class={['space-source-bar', row.is_related_space ? 'related' : 'current']} />
                 )}
-                <span class='collection-type-icon'>
-                  {logTypeIcon && <i class={logTypeIcon} />}
-                </span>
+                {logTypeIcon && (
+                  <span class='collection-type-icon'>
+                    <i class={logTypeIcon} />
+                  </span>
+                )}
                 <span class='collection-name-content'>
                   <span
                     class='link collection-name-link'
+                    v-bk-overflow-tips
                     on-click={() => {
                       const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
                       const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
@@ -1073,7 +1076,7 @@ export default defineComponent({
           colKey: 'daily_usage',
           width: 150,
           cell: (h, { row }: { row: ITableRowData }) => (
-            <span class='storage-usage-cell'>
+            <span class='storage-usage-cell' v-bk-overflow-tips>
               {formatBytes(row.daily_usage)} / {formatBytes(row.total_usage)}
             </span>
           ),
@@ -1094,6 +1097,7 @@ export default defineComponent({
                   {row.storage_display_name ? (
                     <span
                       class='copyable-text storage-meta-text'
+                      v-bk-overflow-tips
                       on-click={() => handleCopy(row.storage_display_name, t('复制 {0} 成功', [t('存储集群')]))}
                     >
                       {row.storage_display_name}
@@ -1107,6 +1111,7 @@ export default defineComponent({
                   {retentionText ? (
                     <span
                       class='copyable-text storage-meta-text'
+                      v-bk-overflow-tips
                       on-click={() => handleCopy(retentionText, t('复制 {0} 成功', [t('过期时间')]))}
                     >
                       {retentionText}
@@ -1123,7 +1128,12 @@ export default defineComponent({
           title: t('接入类型'),
           colKey: 'log_access_type',
           width: 140,
-          cell: (h, { row }: { row: ITableRowData }) => <span>{row.log_access_type_name || '--'}</span>,
+          cell: (h, { row }: { row: ITableRowData }) => (
+            <span
+              class='cell-overflow-text'
+              v-bk-overflow-tips
+            >{row.log_access_type_name || '--'}</span>
+          ),
           filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
         },
         {
@@ -1169,7 +1179,8 @@ export default defineComponent({
             }
             return (
               <span
-                class='copyable-text'
+                class='cell-overflow-text copyable-text'
+                v-bk-overflow-tips
                 on-click={() => handleCopy(row.bk_data_name, t('复制 {0} 成功', [t('存储名')]))}
               >
                 {row.bk_data_name}
@@ -1191,8 +1202,8 @@ export default defineComponent({
           filter: getColumnsFilter(IFilterValues.value.updated_by),
           cell: (h, { row }: { row: ITableRowData }) => (
             <div class='double-line-cell'>
-              <span>{getName(row.updated_by)}</span>
-              <span>{row.updated_at || '--'}</span>
+              <span v-bk-overflow-tips>{getName(row.updated_by)}</span>
+              <span v-bk-overflow-tips>{row.updated_at || '--'}</span>
             </div>
           ),
         },
@@ -1232,7 +1243,12 @@ export default defineComponent({
           title: t('日志类型'),
           colKey: 'collector_scenario_id',
           width: 100,
-          cell: (h, { row }: { row: ITableRowData }) => <span>{row.collector_scenario_name || '--'}</span>,
+          cell: (h, { row }: { row: ITableRowData }) => (
+            <span
+              class='cell-overflow-text'
+              v-bk-overflow-tips
+            >{row.collector_scenario_name || '--'}</span>
+          ),
           filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
         },
         {
@@ -1242,8 +1258,8 @@ export default defineComponent({
           filter: getColumnsFilter(IFilterValues.value.created_by),
           cell: (h, { row }: { row: ITableRowData }) => (
             <div class='double-line-cell'>
-              <span>{getName(row.created_by)}</span>
-              <span>{row.created_at || '--'}</span>
+              <span v-bk-overflow-tips>{getName(row.created_by)}</span>
+              <span v-bk-overflow-tips>{row.created_at || '--'}</span>
             </div>
           ),
         },
@@ -2323,7 +2339,7 @@ export default defineComponent({
           <bk-alert
             class='table-style-update-alert'
             type='info'
-            title={t('管理页面于8月6号更新，更新后个性化设置会被重置覆盖。请重新调整配置表格样式。')}
+            title={t('管理页面于8月13号更新，更新后个性化设置会被重置覆盖。请重新调整配置表格样式。')}
             closable
             onClose={handleCloseTableStyleUpdateAlert}
           />
