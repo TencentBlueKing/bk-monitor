@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -14,7 +15,7 @@ from django.http.multipartparser import MultiPartParserError
 from django.test import RequestFactory
 
 from audit.apps import AuditConfig
-from audit.instance import push_event
+from audit.instance import DashboardInstance, push_event
 from bkmonitor.middlewares.request_middlewares import RequestProvider
 from core.errors.issue import IssueRenameConflictError
 from monitor_adapter.home.views import dispatch_external_proxy
@@ -145,6 +146,23 @@ def test_push_event_ignores_non_view_dashboard_requests(method, path):
     export_events.assert_not_called()
 
 
+def test_push_event_supports_route_specific_non_get_methods():
+    request = RequestFactory().post("/write/dashboard-uid")
+    request.user = SimpleNamespace(username="internal-user")
+    request.biz_id = "2"
+    route_filters = (({"POST"}, re.compile(r"/write/(?P<uid>[^/]+)"), DashboardInstance),)
+
+    with (
+        patch("audit.instance.InstanceFilter", route_filters),
+        patch("audit.instance.bk_audit_client.add_event") as add_event,
+        patch("audit.instance.bk_audit_client.export_events") as export_events,
+    ):
+        push_event(request, HttpResponse())
+
+    add_event.assert_called_once()
+    export_events.assert_called_once_with()
+
+
 def test_push_event_does_not_break_request_when_export_fails(caplog):
     request, response = make_dashboard_request()
 
@@ -270,6 +288,37 @@ def test_dispatch_external_proxy_preserves_django_exception_status(exception, st
         dispatch_external_proxy(request)
 
     assert request._audit_request._audit_response_status == status_code
+
+
+def test_dispatch_external_proxy_returns_403_when_authorizer_is_missing():
+    request = RequestFactory().post(
+        "/dispatch_external_proxy/",
+        data=json.dumps(
+            {
+                "url": "/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2",
+                "method": "GET",
+                "data": {},
+            }
+        ),
+        content_type="application/json",
+        HTTP_USER="external-user",
+    )
+    request.session = {}
+    request.LANGUAGE_CODE = "zh-hans"
+
+    with (
+        patch("monitor_adapter.home.views.is_external_proxy_token_valid", return_value=True),
+        patch(
+            "monitor_adapter.home.views.GlobalConfig.objects.get_or_create",
+            return_value=(SimpleNamespace(value={}), False),
+        ),
+        patch("monitor_adapter.home.views.auth.authenticate") as authenticate,
+    ):
+        response = dispatch_external_proxy(request)
+
+    assert response.status_code == 403
+    assert json.loads(response.content) == {"result": False, "message": "业务2无对应授权人"}
+    authenticate.assert_not_called()
 
 
 def test_audit_setup_requires_token():

@@ -271,7 +271,11 @@ def dispatch_external_proxy(request):
             authorizer_map, _ = GlobalConfig.objects.get_or_create(
                 key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
             )
-            user = auth.authenticate(username=authorizer_map.value[str(bk_biz_id)], tenant_id=DEFAULT_TENANT_ID)
+            authorizer = authorizer_map.value.get(str(bk_biz_id))
+            if not authorizer:
+                logger.error(f"业务{bk_biz_id}无对应授权人")
+                return JsonResponse({"result": False, "message": f"业务{bk_biz_id}无对应授权人"}, status=403)
+            user = auth.authenticate(username=authorizer, tenant_id=DEFAULT_TENANT_ID)
             auth.login(request, user)
             setattr(fake_request, "user", request.user)
         logger.info(
