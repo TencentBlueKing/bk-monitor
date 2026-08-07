@@ -6,7 +6,7 @@ from django.test import SimpleTestCase, override_settings
 
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.config import V4Options
-from apps.iam.backends.v4.exceptions import V4RateLimitError, V4ResponseError, V4TimeoutError
+from apps.iam.backends.v4.exceptions import V4RateLimitError, V4ResponseError, V4TimeoutError, V4TransportError
 
 
 @override_settings(APP_CODE="bk_log_search", SECRET_KEY="secret")
@@ -34,6 +34,27 @@ class V4ClientTest(SimpleTestCase):
 
         with self.assertRaises(V4TimeoutError):
             self.client.direct_auth(subject={"type": "user", "id": "admin"}, action_id="view_collection")
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_missing_gateway_is_reported_before_http_request(self, request_mock):
+        self.client.options = V4Options(
+            app_code="bk_log_search",
+            app_secret="secret",
+            gateway_url="",
+            system_id="bk_log_search",
+            timeout_seconds=1,
+            batch_chunk_size=100,
+            auth_path="api/v1/open/rbac/authorization/systems/{system_id}/auth/",
+            auth_by_resources_path="api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/",
+            apply_url_path="api/v1/open/application/permission-apply-urls/",
+        )
+
+        with self.assertLogs("iam.v4.client", level="ERROR") as logs:
+            with self.assertRaisesRegex(V4TransportError, "BKAPP_IAM_V4_API_BASE_URL"):
+                self.client.direct_auth(subject={"type": "user", "id": "admin"}, action_id="view_collection")
+
+        self.assertEqual(len(logs.output), 1)
+        request_mock.assert_not_called()
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_rate_limit_is_mapped_to_v4_rate_limit_error(self, request_mock):

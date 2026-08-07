@@ -2,6 +2,7 @@ from django.test import SimpleTestCase, override_settings
 
 from apps.iam.backends.v4.config import V4Options
 from apps.iam.backends.v4.gateway import resolve_v4_gateway_url
+from apps.iam.backends.v4.provider import V4PermissionProvider
 
 
 @override_settings(
@@ -18,7 +19,8 @@ class V4GatewayConfigTest(SimpleTestCase):
 
     def test_resolve_v4_gateway_url_returns_empty_without_explicit_config(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
-            self.assertEqual(resolve_v4_gateway_url(), "")
+            with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
+                self.assertEqual(resolve_v4_gateway_url(), "")
 
     def test_resolve_v4_gateway_url_does_not_derive_from_component_or_v3_gateway(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL="", BK_COMPONENT_API_URL="https://bkapi.example.com"):
@@ -36,3 +38,20 @@ class V4GatewayConfigTest(SimpleTestCase):
             options = V4Options.from_settings()
             self.assertEqual(options.gateway_url, "https://bkiam.apigw.o.woa.com/prod/")
             self.assertIn("{system_id}", options.auth_path)
+
+    def test_v4_options_without_gateway_are_quiet_until_request(self):
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
+            with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.gateway_url, "")
+
+    def test_v4_provider_construction_without_gateway_is_quiet(self):
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
+            with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
+                provider = V4PermissionProvider.from_settings(
+                    username="admin",
+                    bk_tenant_id="tenant-1",
+                )
+
+        self.assertEqual(provider.client.options.gateway_url, "")

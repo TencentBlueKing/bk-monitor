@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import urljoin
@@ -16,6 +17,8 @@ from apps.iam.backends.v4.exceptions import (
     V4TimeoutError,
     V4TransportError,
 )
+
+logger = logging.getLogger("iam.v4.client")
 
 
 class V4Client:
@@ -79,6 +82,10 @@ class V4Client:
         return str(url)
 
     def _request(self, method: str, path: str, *, body: dict | list | None = None) -> Any:
+        if not self.options.gateway_url:
+            logger.error("IAM V4 gateway is not configured; set BKAPP_IAM_V4_API_BASE_URL to the bkiam APIGateway root")
+            raise V4TransportError("IAM V4 gateway is not configured (BKAPP_IAM_V4_API_BASE_URL)")
+
         url = urljoin(self.options.gateway_url.rstrip("/") + "/", path.lstrip("/"))
         headers = {
             "Content-Type": "application/json",
