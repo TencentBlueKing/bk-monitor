@@ -578,6 +578,29 @@ def test_subscription_follower_is_recorded_without_assignment_match_manager():
     assert mock.call(["follower_subscriber"], []) in processor.get_alert_related_users.call_args_list
 
 
+def test_assignment_follower_robot_receivers_are_not_written_to_alert_followers():
+    processor, _, assignee_manager = build_create_action_case(({}, {"mail": ["follower_subscriber"]}))
+    assignee_manager.is_matched = True
+    assignee_manager.get_assignees.side_effect = lambda by_group=False, user_type=UserGroupType.MAIN: (
+        ["assigned_follower"] if user_type == UserGroupType.FOLLOWER else []
+    )
+    assignee_manager.get_notify_info.side_effect = lambda user_type=UserGroupType.MAIN: (
+        {
+            "mail": ["assigned_follower"],
+            "wxwork-bot": ["robot_chat_id"],
+            "bkchat|mail": ["bkchat_group_id"],
+        }
+        if user_type == UserGroupType.FOLLOWER
+        else {}
+    )
+    processor.get_alert_related_users = mock.Mock(side_effect=CreateActionProcessor.get_alert_related_users)
+
+    run_create_action_case(processor)
+
+    alerts_follower = processor.update_alert_documents.call_args.args[5]
+    assert alerts_follower == {"alert-id": ["assigned_follower", "follower_subscriber"]}
+
+
 def test_non_notice_action_does_not_read_subscription_rules():
     processor, _, assignee_manager = build_create_action_case(({}, {}))
 

@@ -398,7 +398,7 @@ class CreateActionProcessor:
                 if user not in target_notify_info[notice_way]:
                     target_notify_info[notice_way].append(user)
 
-    def get_merged_notice_info(self, assignee_manager):
+    def _get_merged_notice_details(self, assignee_manager):
         """合并默认、分派和订阅接收人，并保证主通知优先于关注通知。"""
         notify_info = assignee_manager.get_notify_info()
         follow_notify_info = assignee_manager.get_notify_info(user_type=UserGroupType.FOLLOWER)
@@ -414,7 +414,11 @@ class CreateActionProcessor:
             follow_notify_info[notice_way] = [
                 receiver for receiver in receivers if receiver not in notify_info.get(notice_way, [])
             ]
-        return notify_info, follow_notify_info
+        return (notify_info, follow_notify_info), subscription_follow_notify_info
+
+    def get_merged_notice_info(self, assignee_manager):
+        merged_notice_info, _ = self._get_merged_notice_details(assignee_manager)
+        return merged_notice_info
 
     @staticmethod
     def has_notice_receivers(notice_info):
@@ -845,10 +849,11 @@ class CreateActionProcessor:
 
                 if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
                     if merged_notice_info is None:
-                        merged_notice_info = self.get_merged_notice_info(assignee_manager)
-                        _, follow_notify_info = merged_notice_info
+                        merged_notice_info, subscription_follow_notify_info = self._get_merged_notice_details(
+                            assignee_manager
+                        )
                         notice_follower_users = []
-                        for notice_way, users in follow_notify_info.items():
+                        for notice_way, users in subscription_follow_notify_info.items():
                             if notice_way == "wxbot_mention_users" or not users:
                                 continue
                             if notice_way == NoticeWay.VOICE:
@@ -865,7 +870,7 @@ class CreateActionProcessor:
                                 alerts_follower[alert.id],
                             )
                             logger.info(
-                                "[alert_subscription] alert(%s) merged notice followers: %s",
+                                "[alert_subscription] alert(%s) subscription followers: %s",
                                 alert.id,
                                 unique_notice_followers,
                             )
