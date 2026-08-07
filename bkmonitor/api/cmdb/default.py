@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 import typing
+import uuid
 from collections import defaultdict
 from multiprocessing.pool import ApplyResult
 from typing import Any
@@ -179,7 +180,9 @@ def _get_topo_tree(bk_biz_id):
 
 
 class ServiceInstanceModuleIndex:
-    CACHE_KEY = "web_cache:cc_cache_always:service_instance_module_index:v1:{}:{}"
+    CACHE_KEY = "web_cache:cc_cache_always:service_instance_module_index:v2:{}:{}"
+    WRITE_ID_FIELD = "write_id"
+    INDEX_FIELD = "module_to_service_instance_ids"
 
     @classmethod
     def cache_key(cls, bk_biz_id: int) -> str:
@@ -195,12 +198,25 @@ class ServiceInstanceModuleIndex:
 
     @classmethod
     def set(cls, bk_biz_id: int, service_instances: list[dict]) -> None:
-        index = cls.build(service_instances)
-        cache.set(cls.cache_key(bk_biz_id), index, CacheType.CC_CACHE_ALWAYS.timeout)
+        cache_key = cls.cache_key(bk_biz_id)
+        cache_value = {
+            cls.WRITE_ID_FIELD: uuid.uuid4().hex,
+            cls.INDEX_FIELD: cls.build(service_instances),
+        }
+        cache.set(cache_key, cache_value, CacheType.CC_CACHE_ALWAYS.timeout)
+        persisted_value = cache.get(cache_key)
+        if (
+            not isinstance(persisted_value, dict)
+            or persisted_value.get(cls.WRITE_ID_FIELD) != cache_value[cls.WRITE_ID_FIELD]
+        ):
+            raise RuntimeError(_("服务实例拓扑索引写入校验失败"))
 
     @classmethod
     def get(cls, bk_biz_id: int) -> dict[str, list[int]] | None:
-        return cache.get(cls.cache_key(bk_biz_id))
+        cache_value = cache.get(cls.cache_key(bk_biz_id))
+        if cache_value is None:
+            return None
+        return cache_value[cls.INDEX_FIELD]
 
 
 @using_cache(CacheType.CC_CACHE_ALWAYS, is_cache_func=lambda res: res)

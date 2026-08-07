@@ -20,22 +20,34 @@ def test_service_instance_module_index_groups_ids_by_module():
 
 def test_service_instance_module_index_caches_empty_business(mocker):
     mocker.patch.object(cmdb, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
-    cache_set = mocker.patch.object(cmdb.cache, "set")
+    mocker.patch.object(cmdb.uuid, "uuid4", return_value=mock.Mock(hex="write-1"))
+    cache_set = mocker.patch.object(cmdb.cache, "set", return_value=False)
+    cache_get = mocker.patch.object(
+        cmdb.cache,
+        "get",
+        return_value={"write_id": "write-1", "module_to_service_instance_ids": {}},
+    )
 
     cmdb.ServiceInstanceModuleIndex.set(2, [])
 
     cache_set.assert_called_once_with(
-        "web_cache:cc_cache_always:service_instance_module_index:v1:tenant-a:2",
-        {},
+        "web_cache:cc_cache_always:service_instance_module_index:v2:tenant-a:2",
+        {"write_id": "write-1", "module_to_service_instance_ids": {}},
         cmdb.CacheType.CC_CACHE_ALWAYS.timeout,
     )
+    cache_get.assert_called_once_with("web_cache:cc_cache_always:service_instance_module_index:v2:tenant-a:2")
 
 
 def test_service_instance_module_index_distinguishes_empty_from_missing(mocker):
     mocker.patch.object(cmdb, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
-    mocker.patch.object(cmdb.cache, "get", return_value={})
+    mocker.patch.object(
+        cmdb.cache,
+        "get",
+        side_effect=[{"write_id": "write-1", "module_to_service_instance_ids": {}}, None],
+    )
 
     assert cmdb.ServiceInstanceModuleIndex.get(2) == {}
+    assert cmdb.ServiceInstanceModuleIndex.get(2) is None
 
 
 def test_service_instance_module_index_cache_key_contains_tenant(mocker):
@@ -62,6 +74,34 @@ def test_get_service_instance_by_biz_fails_when_index_write_fails(mocker):
     mocker.patch.object(cmdb.cache, "set", side_effect=RuntimeError("cache unavailable"))
 
     with pytest.raises(RuntimeError, match="cache unavailable"):
+        cmdb.get_service_instance_by_biz.cacheless(2)
+
+
+def test_get_service_instance_by_biz_fails_when_index_write_is_not_persisted(mocker):
+    mocker.patch.object(cmdb, "batch_request", return_value=SERVICE_INSTANCES)
+    mocker.patch.object(cmdb, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
+    mocker.patch.object(cmdb.cache, "set", return_value=False)
+    mocker.patch.object(cmdb.cache, "get", return_value=None)
+
+    with pytest.raises(RuntimeError, match="服务实例拓扑索引写入校验失败"):
+        cmdb.get_service_instance_by_biz.cacheless(2)
+
+
+def test_get_service_instance_by_biz_rejects_stale_index_with_same_ids(mocker):
+    mocker.patch.object(cmdb, "batch_request", return_value=SERVICE_INSTANCES)
+    mocker.patch.object(cmdb, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
+    mocker.patch.object(cmdb.uuid, "uuid4", return_value=mock.Mock(hex="current-write"))
+    mocker.patch.object(cmdb.cache, "set", return_value=False)
+    mocker.patch.object(
+        cmdb.cache,
+        "get",
+        return_value={
+            "write_id": "previous-write",
+            "module_to_service_instance_ids": cmdb.ServiceInstanceModuleIndex.build(SERVICE_INSTANCES),
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="服务实例拓扑索引写入校验失败"):
         cmdb.get_service_instance_by_biz.cacheless(2)
 
 
