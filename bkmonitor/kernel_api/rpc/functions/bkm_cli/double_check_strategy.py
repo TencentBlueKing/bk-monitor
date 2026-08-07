@@ -203,7 +203,7 @@ def _query_impact(params: dict[str, Any]) -> dict[str, Any]:
         "strategy": strategy,
         "detect": {"before": strategy_id in before_set, "after": strategy_id in after_set},
         "groups": groups,
-        "access_impact_complete": (bool(groups) or change == "disable")
+        "access_impact_complete": bool(groups)
         and all(group["runtime_group_found"] and group["target_strategy_member_found"] for group in groups),
         "configured_strategy_ids_before": before_ids,
         "configured_strategy_ids_after": after_ids,

@@ -193,3 +193,22 @@ def test_impact_marks_runtime_group_without_target_member_as_incomplete(mocker):
     )
 
     assert result["access_impact_complete"] is False
+
+
+def test_disable_stale_strategy_without_shared_group_evidence_is_incomplete(mocker):
+    from kernel_api.rpc.functions.bkm_cli import double_check_strategy
+
+    mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[2])
+    mocker.patch.object(
+        double_check_strategy,
+        "_strategy_summary",
+        return_value={"strategy_id": 2, "exists": False},
+    )
+    mocker.patch.object(double_check_strategy, "_strategy_groups", return_value=[])
+
+    result = double_check_strategy.query_double_check_strategies(
+        {"operation": "impact", "strategy_id": 2, "change": "disable"}
+    )
+
+    assert result["groups"] == []
+    assert result["access_impact_complete"] is False
