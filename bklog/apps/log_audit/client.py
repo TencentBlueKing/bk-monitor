@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,15 +19,21 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import os
+
 from bk_audit.client import BkAudit
 from bk_audit.contrib.django.formatters import DjangoFormatter
 from bk_audit.contrib.opentelemetry.exporters import OTLogExporter
 from bk_audit.contrib.opentelemetry.utils import ServiceNameHandler
+from bk_audit.log.exporters import LoggerExporter
 from django.conf import settings
 
-# LoggerExporter 为可选项用于 DEBUG 使用
+# 未配置上报 endpoint 时 apps.py 不会调 setup()，OTLogExporter 的日志器没有 handler，
+# 事件会被静默丢弃。退回 LoggerExporter 让事件至少落到 bk_audit 日志器，便于自证事件已生成。
+exporters = [OTLogExporter()] if os.getenv("BKAPP_OTEL_LOG_ENDPOINT", "") else [LoggerExporter()]
+
 bk_audit_client = BkAudit(
     settings.APP_CODE,
     settings.SECRET_KEY,
-    {"formatter": DjangoFormatter(), "exporters": [OTLogExporter()], "service_name_handler": ServiceNameHandler},
+    {"formatter": DjangoFormatter(), "exporters": exporters, "service_name_handler": ServiceNameHandler},
 )
