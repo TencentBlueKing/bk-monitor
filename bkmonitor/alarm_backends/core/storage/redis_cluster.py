@@ -172,7 +172,8 @@ class PipelineProxy(KeyRouterMixin):
         self._pipeline_pool = {}
         self.init_params = (args, kwargs)
         self.command_stack = []
-        self._owns_routing_pin = False
+        # 实例级快照：绑定本次 pipeline 批次，避免 thread-local pin 在入队失败/未 execute 时泄漏
+        self._routing_snapshot = None
 
     def pipeline_instance(self, node):
         if node.id not in self._pipeline_pool:
@@ -182,18 +183,28 @@ class PipelineProxy(KeyRouterMixin):
 
         return self._pipeline_pool[node.id]
 
-    def _ensure_routing_pin(self):
-        """pipeline 生命周期内钉死路由快照，避免 LPUSH/EXPIRE 等跨 TTL 落到不同节点。"""
-        if _get_routing_pin() is not None:
-            return
-        _refresh_strategy_router_cache()
-        _push_routing_pin({"routers": STRATEGY_ROUTER_CACHE, "node_map": {}})
-        self._owns_routing_pin = True
+    def _clear_routing_snapshot(self):
+        self._routing_snapshot = None
 
-    def _release_routing_pin(self):
-        if self._owns_routing_pin:
-            _pop_routing_pin()
-            self._owns_routing_pin = False
+    def _ensure_routing_snapshot(self):
+        """为当前 pipeline 批次钉死路由表（实例级，不污染线程全局 get_node）。
+
+        - 若外层已有 routing_snapshot()，复用其 routers 列表，保证嵌套一致。
+        - command_stack 为空时丢弃遗留 snapshot（上一批评途失败且未入队成功）。
+        """
+        if not self.command_stack and self._routing_snapshot is not None:
+            self._routing_snapshot = None
+
+        if self._routing_snapshot is not None:
+            return
+
+        outer = _get_routing_pin()
+        if outer is not None:
+            self._routing_snapshot = {"routers": outer["routers"], "node_map": {}}
+            return
+
+        _refresh_strategy_router_cache()
+        self._routing_snapshot = {"routers": STRATEGY_ROUTER_CACHE, "node_map": {}}
 
     def execute(self):
         p_result = {}
@@ -223,7 +234,7 @@ class PipelineProxy(KeyRouterMixin):
                     pipeline_instance.reset()
                 except Exception:
                     pass
-            self._release_routing_pin()
+            self._clear_routing_snapshot()
 
     def __getattr__(self, name):
         def handle(*args, **kwargs):
@@ -231,14 +242,24 @@ class PipelineProxy(KeyRouterMixin):
             if key is None:
                 if name not in self.ALLOWED_METHOD:
                     return self.execute()
-            self._ensure_routing_pin()
-            strategy_id = self.strategy_id_from_key(key)
-            cache_node = get_node_by_strategy_id(strategy_id)
-
-            pipeline = self.pipeline_instance(cache_node)
-            command = getattr(pipeline, name)
-            self.command_stack.append(cache_node.id)
-            return command(*args, **kwargs)
+            try:
+                self._ensure_routing_snapshot()
+                strategy_id = self.strategy_id_from_key(key)
+                # 直接走实例快照，不经 get_node_by_strategy_id，避免依赖/泄漏 thread-local pin
+                cache_node = _resolve_node(
+                    strategy_id,
+                    self._routing_snapshot["routers"],
+                    self._routing_snapshot["node_map"],
+                )
+                pipeline = self.pipeline_instance(cache_node)
+                command = getattr(pipeline, name)
+                self.command_stack.append(cache_node.id)
+                return command(*args, **kwargs)
+            except Exception:
+                # 本批次尚未成功入队任何命令：释放实例快照，避免粘住后续单命令路由
+                if not self.command_stack:
+                    self._clear_routing_snapshot()
+                raise
 
         return handle
 
@@ -257,7 +278,7 @@ STRATEGY_ROUTER_CACHE_RETRY_BACKOFF = 5
 
 
 class _RoutingPinState(threading.local):
-    """线程/协程局部：钉住一份路由快照，供 pipeline 或 routing_snapshot() 内多命令共用。"""
+    """线程局部：仅供 routing_snapshot() 钉住路由；PipelineProxy 使用实例级 snapshot，避免泄漏。"""
 
     def __init__(self):
         super().__init__()

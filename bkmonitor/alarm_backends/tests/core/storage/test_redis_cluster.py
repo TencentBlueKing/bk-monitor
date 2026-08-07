@@ -340,12 +340,70 @@ class TestStrategyRouterCacheTTL:
                 redis_cluster.STRATEGY_NODE_MAP.clear()
                 pp.expire(key, 60)
                 assert pp.command_stack == ["old", "old"]
+                # pipeline 只用实例快照，不得留下 thread-local pin
+                assert redis_cluster._get_routing_pin() is None
                 pipe_inst.execute.return_value = ["ok", True]
                 pp.execute()
 
         assert pp.command_stack == []
+        assert pp._routing_snapshot is None
         assert redis_cluster._get_routing_pin() is None
         assert all(call.args[0] is node_old for call in node_proxy.get_client.call_args_list)
+
+    def test_pipeline_setup_fail_does_not_leak_thread_pin(self):
+        """入队期 get_client/setup_client 失败不得泄漏 thread pin，否则路由永久钉死旧节点。"""
+        node_old = mock.Mock(id="old")
+        node_new = mock.Mock(id="new")
+        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_old)]
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 100.0
+        redis_cluster.STRATEGY_NODE_MAP = {}
+
+        node_proxy = mock.Mock()
+        node_proxy.get_client.side_effect = Exception("client setup failed")
+        key = mock.Mock(strategy_id=1)
+
+        with mock.patch.object(redis_cluster, "monotonic", return_value=100.0):
+            with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                pp = PipelineProxy(node_proxy)
+                with pytest.raises(Exception, match="client setup failed"):
+                    pp.lpush(key, "x")
+
+        assert pp.command_stack == []
+        assert pp._routing_snapshot is None
+        assert redis_cluster._get_routing_pin() is None
+
+        # 全局已切新节点：单命令路径应跟上，而不是永久解析 old
+        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_new)]
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 100.0
+        redis_cluster.STRATEGY_NODE_MAP.clear()
+        with mock.patch.object(redis_cluster, "monotonic", return_value=100.0):
+            with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                assert redis_cluster.get_node_by_strategy_id(1) is node_new
+
+    def test_pipeline_abandon_without_execute_does_not_leak_thread_pin(self):
+        node_old = mock.Mock(id="old")
+        node_new = mock.Mock(id="new")
+        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_old)]
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 100.0
+        redis_cluster.STRATEGY_NODE_MAP = {}
+
+        node_proxy = mock.Mock()
+        pipe_inst = mock.Mock()
+        node_proxy.get_client.return_value.pipeline.return_value = pipe_inst
+
+        with mock.patch.object(redis_cluster, "monotonic", return_value=100.0):
+            with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                pp = PipelineProxy(node_proxy)
+                pp.lpush(mock.Mock(strategy_id=1), "x")
+                # 遗弃：不调用 execute；实例 snapshot 可残留在本 proxy，但不得污染线程
+
+        assert redis_cluster._get_routing_pin() is None
+        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_new)]
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 100.0
+        redis_cluster.STRATEGY_NODE_MAP.clear()
+        with mock.patch.object(redis_cluster, "monotonic", return_value=100.0):
+            with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                assert redis_cluster.get_node_by_strategy_id(1) is node_new
 
     def test_routing_snapshot_keeps_same_node_across_ttl_boundary(self):
         node_old = mock.Mock(id="old")
@@ -366,15 +424,6 @@ class TestStrategyRouterCacheTTL:
         # 离开 pin 后按全局新表解析
         with mock.patch.object(redis_cluster, "monotonic", return_value=200.0):
             with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
-                # AT 仍是 100，已过期；但不会自动查库除非调用 refresh——get_node 会 refresh
-                qs = mock.MagicMock()
-                qs.filter.return_value.select_related.return_value.order_by.return_value = [
-                    self._router(10**12, node_new)
-                ]
-                with mock.patch.object(redis_cluster, "get_cluster", return_value=mock.Mock(name="default")):
-                    with mock.patch.object(redis_cluster, "CacheRouter") as cache_router:
-                        cache_router.objects = qs
-                        # 手动把 CACHE 设成 new 但 AT 过期会再查库；直接把 AT 刷新模拟已加载
-                        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_new)]
-                        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 200.0
-                        assert redis_cluster.get_node_by_strategy_id(1) is node_new
+                redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_new)]
+                redis_cluster.STRATEGY_ROUTER_CACHE_AT = 200.0
+                assert redis_cluster.get_node_by_strategy_id(1) is node_new
