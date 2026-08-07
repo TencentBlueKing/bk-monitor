@@ -1,0 +1,131 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { type PropType, computed, defineComponent, onMounted, provide } from 'vue';
+
+import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
+
+import { useMetricAggregation } from '../../composables/use-metric-aggregation';
+import { useMetricGroups } from '../../composables/use-metric-groups';
+import { buildScopedVars, DashboardPanel } from '../dashbords';
+import GroupManageDialog from './group-manage-dialog';
+import MetricToolbar from './metric-toolbar';
+import { useHostStore } from '@/store/modules/host';
+
+import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode, MetricCompareType } from '../../types';
+
+import './host-metric.scss';
+
+export default defineComponent({
+  name: 'HostMetric',
+  props: {
+    selectedNode: {
+      type: Object as PropType<IHostTopoTreeNode | null>,
+      default: null,
+    },
+    compareHostList: {
+      type: Array as PropType<IHostTopoHostNode[]>,
+      default: () => [],
+    },
+  },
+  setup(props) {
+    const { t } = useI18n();
+    // 向下游图表（useEcharts）提供时间范围与刷新信号
+    const { timeRange, refreshImmediate, metricAggregationState } = storeToRefs(useHostStore());
+
+    const aggregation = useMetricAggregation(metricAggregationState.value);
+    // 分组与指标数据：后端返回的 DashboardRow[]（展示）与 MetricGroupModel[]（管理）
+    const groupsCtrl = useMetricGroups({
+      keyword: () => aggregation.state.keyword,
+      ungroupTitle: () => t('未分组'),
+    });
+
+    // 是否选中的是主机或者是服务实例
+    const isCheckedHost = computed(() => {
+      return 'bk_host_id' in props.selectedNode;
+    });
+
+    /** 可选的对比类型 */
+    const compareListEnable = computed<MetricCompareType[]>(() => {
+      if (isCheckedHost.value) return ['none', 'target', 'time'];
+      return ['none', 'time'];
+    });
+
+    provide('timeRange', timeRange);
+    provide('refreshImmediate', refreshImmediate);
+    provide('viewOptions', aggregation.viewOptions);
+
+    /** 根据选中节点类型，生成当前目标的查询参数 */
+    const currentTarget = computed<CompareTarget>(() => {
+      if ('bk_host_id' in props.selectedNode) {
+        return {
+          bk_target_ip: props.selectedNode.ip,
+          bk_target_cloud_id: props.selectedNode.bk_cloud_id,
+          bk_host_id: props.selectedNode.bk_host_id,
+        };
+      }
+
+      return {
+        bk_inst_id: props.selectedNode.bk_inst_id,
+        bk_obj_id: props.selectedNode.bk_obj_id,
+      };
+    });
+
+    // 变量取值：仅请求态字段变化才会触发图表重新取数
+    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value, timeRange.value));
+
+    onMounted(() => {
+      groupsCtrl.load();
+    });
+
+    return () => (
+      <div class='host-metric'>
+        <MetricToolbar
+          compareListEnable={compareListEnable.value}
+          currentTarget={props.selectedNode.name}
+          targetList={props.compareHostList}
+          value={aggregation.state}
+          onChange={aggregation.updateState}
+          onOpenSetting={() => (groupsCtrl.settingShow.value = true)}
+        />
+        <DashboardPanel
+          class='host-metric__charts'
+          columns={aggregation.state.columns}
+          rows={groupsCtrl.rows.value}
+          scopedVars={scopedVars.value}
+        />
+        <GroupManageDialog
+          isShow={groupsCtrl.settingShow.value}
+          orderData={groupsCtrl.orderData.value}
+          submitLoading={groupsCtrl.loading.value}
+          onReset={groupsCtrl.handleReset}
+          onSave={groupsCtrl.handleSave}
+          onUpdate:isShow={(v: boolean) => (groupsCtrl.settingShow.value = v)}
+        />
+      </div>
+    );
+  },
+});

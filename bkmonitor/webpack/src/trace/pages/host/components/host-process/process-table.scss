@@ -1,0 +1,274 @@
+/* stylelint-disable selector-class-pattern */
+.process-table {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+
+  --trace-table-header-height: 42px;
+
+  // 表格容器（tdesign PrimaryTable 生成的 .t-table）
+  .t-table {
+    // 表头 42px
+    th {
+      height: 42px;
+      font-size: 12px;
+      background: #f5f7fa;
+    }
+
+    // 数据行 56px
+    td {
+      height: 56px;
+      font-size: 12px;
+    }
+
+    .t-table__header {
+      .t-table__th-cell-inner {
+        .t-table__cell--title {
+          & > div:first-child {
+            min-width: 0;
+          }
+        }
+      }
+    }
+  }
+
+  // 表格内容不足时撑满容器剩余高度（仅在空数据时生效）
+  .process-table-body {
+    &.process-table-body--empty {
+      height: 100%;
+
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+      }
+
+      .t-table--layout-fixed {
+        width: 100% !important;
+        height: 100%;
+      }
+    }
+  }
+
+  // 覆盖式骨架屏（loading 时覆盖表体）
+  .common-table-skeleton {
+    position: absolute;
+    top: var(--trace-table-header-height, 42px);
+    z-index: 100;
+    display: none;
+    height: calc(100% - var(--trace-table-header-height, 42px));
+    min-height: fit-content;
+    padding: 10px 8px;
+    background: #fff;
+
+    &.common-skeleton-show-body {
+      display: block;
+    }
+  }
+
+  // ===== 单元格内容组件 =====
+
+  // 进程名列：LOGO + 名称 + 副标题
+  .process-table-name {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    overflow: hidden;
+
+    &__logo {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: #e1ecff;
+      border-radius: 6px;
+      box-shadow: 0 2px 2px rgb(58 132 255 / 4%);
+    }
+
+    &__logo-text {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #3a84ff;
+    }
+
+    &__info {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 2px;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    &__title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #3a84ff;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    &__subtitle {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      color: #979ba5;
+      white-space: nowrap;
+    }
+  }
+
+  // 实例数列：普通文本展示（当前迭代不做点击交互）
+  .process-table-instance {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+  }
+
+  // 通用文本省略（运行用户等 text 类型列）
+  .process-table-text,
+  .process-table-uptime {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // 表格文本溢出省略（单元格 + 表头共用，配合 useTableEllipsis 事件委托，溢出时弹 tooltip）
+  .process-list-ellipsis-cell {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // 蓝色链接（进程名 / 主机 IP）
+  .process-table-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  // 端口列：状态圆点 + 协议地址
+  .process-table-port {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+
+    &__dot {
+      flex: 0 0 auto;
+      width: 8px;
+      height: 8px;
+      margin-right: 6px;
+      border-radius: 50%;
+    }
+
+    &__text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  // CPU 列：值 + 变化值 + 4px 圆角进度条
+  .process-table-cpu {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+
+    &__row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    &__value {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #4d4f56;
+    }
+
+    &__change {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    &__bar {
+      width: 100%;
+      height: 4px;
+      margin-top: 4px;
+      overflow: hidden;
+      background: #f0f1f5;
+      border-radius: 999px;
+    }
+
+    &__bar-inner {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    &__empty {
+      color: #c4c6cc;
+    }
+  }
+
+  // 内存 / 文件句柄列：值 + 占比 + 4px 圆角进度条
+  .process-table-memory,
+  .process-table-file-handle {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+
+    &__row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    &__value {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #4d4f56;
+    }
+
+    &__percent {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      color: #8f9fbd;
+    }
+
+    &__bar {
+      width: 100%;
+      height: 4px;
+      margin-top: 4px;
+      overflow: hidden;
+      background: #f0f1f5;
+      border-radius: 999px;
+    }
+
+    &__bar-inner {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    &__empty {
+      color: #c4c6cc;
+    }
+  }
+}

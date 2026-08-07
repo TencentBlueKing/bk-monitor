@@ -1,9 +1,13 @@
 """结果表 ES/Doris 存储配置、历史分段和运行时状态查询"""
 
 import json
+import logging
+from collections import deque
 from collections.abc import Mapping
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
+from threading import BoundedSemaphore, Condition, Lock
+from time import monotonic
 from typing import Any
 
 from django.db import close_old_connections
@@ -17,8 +21,181 @@ from metadata.service.es_storage import query_es_storage_runtime, serialize_es_r
 # =============================================================================
 
 SUPPORTED_STORAGE_TYPES = {models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS}
-MAX_PROBE_WORKERS = 4
+MAX_PROBE_WORKERS = 20
+MAX_PROBE_WORKERS_PER_CLUSTER = 5
+MAX_PROBE_QUEUED_TASKS = 100
+MAX_TABLE_QUERY_WORKERS = 20
+MAX_TABLE_QUERY_QUEUED_TASKS = 40
+MAX_BATCH_TABLE_COUNT = 50
+DEFAULT_BATCH_TOTAL_TIMEOUT = 60
+MIN_BATCH_TOTAL_TIMEOUT = 1
+MAX_BATCH_TOTAL_TIMEOUT = 300
 StorageConfig = models.ESStorage | models.DorisStorage
+
+logger = logging.getLogger(__name__)
+
+
+class SchedulerQueueFullError(Exception):
+    """共享调度器在 deadline 前无法接受更多任务。"""
+
+
+class ClusterProbeScheduler:
+    """进程内共享的两级集群探测调度器。"""
+
+    def __init__(self, *, max_workers: int, max_workers_per_cluster: int, max_queued_tasks: int):
+        self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="storage-cluster-probe")
+        self._max_workers = max_workers
+        self._max_workers_per_cluster = max_workers_per_cluster
+        self._max_queued_tasks = max_queued_tasks
+        self._condition = Condition(Lock())
+        self._queues: dict[tuple[str, int], deque[tuple[Future, Any, tuple[Any, ...], dict[str, Any]]]] = {}
+        self._ready_keys: deque[tuple[str, int]] = deque()
+        self._ready_key_set: set[tuple[str, int]] = set()
+        self._active_by_cluster: dict[tuple[str, int], int] = {}
+        self._active_total = 0
+        self._queued_total = 0
+
+    def submit(
+        self,
+        cluster_key: tuple[str, int],
+        function,
+        *args: Any,
+        enqueue_timeout: float | None = None,
+        **kwargs: Any,
+    ) -> Future:
+        deadline = monotonic() + enqueue_timeout if enqueue_timeout is not None else None
+        with self._condition:
+            while self._queued_total >= self._max_queued_tasks:
+                remaining = None if deadline is None else deadline - monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise SchedulerQueueFullError("集群探测队列已满")
+                self._condition.wait(timeout=remaining)
+
+            future = Future()
+            queue = self._queues.setdefault(cluster_key, deque())
+            queue.append((future, function, args, kwargs))
+            self._queued_total += 1
+            self._mark_ready_locked(cluster_key)
+            self._dispatch_locked()
+        future.add_done_callback(lambda completed: self._discard_cancelled(cluster_key, completed))
+        return future
+
+    def _mark_ready_locked(self, cluster_key: tuple[str, int]) -> None:
+        if not self._queues.get(cluster_key):
+            return
+        if self._active_by_cluster.get(cluster_key, 0) >= self._max_workers_per_cluster:
+            return
+        if cluster_key not in self._ready_key_set:
+            self._ready_keys.append(cluster_key)
+            self._ready_key_set.add(cluster_key)
+
+    def _dispatch_locked(self) -> None:
+        while self._active_total < self._max_workers and self._ready_keys:
+            cluster_key = self._ready_keys.popleft()
+            self._ready_key_set.remove(cluster_key)
+            queue = self._queues.get(cluster_key)
+            if not queue:
+                continue
+
+            future, function, args, kwargs = queue.popleft()
+            self._queued_total -= 1
+            if not queue:
+                del self._queues[cluster_key]
+
+            if future.cancelled():
+                self._condition.notify_all()
+                self._mark_ready_locked(cluster_key)
+                continue
+
+            self._active_total += 1
+            self._active_by_cluster[cluster_key] = self._active_by_cluster.get(cluster_key, 0) + 1
+            self._mark_ready_locked(cluster_key)
+            self._condition.notify_all()
+            self._executor.submit(self._run_task, cluster_key, future, function, args, kwargs)
+
+    def _run_task(
+        self,
+        cluster_key: tuple[str, int],
+        future: Future,
+        function,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:
+        try:
+            if future.set_running_or_notify_cancel():
+                try:
+                    future.set_result(function(*args, **kwargs))
+                except BaseException as error:  # 与 concurrent.futures.Executor 的异常传递语义保持一致
+                    future.set_exception(error)
+        finally:
+            with self._condition:
+                self._active_total -= 1
+                active = self._active_by_cluster[cluster_key] - 1
+                if active:
+                    self._active_by_cluster[cluster_key] = active
+                else:
+                    del self._active_by_cluster[cluster_key]
+                self._mark_ready_locked(cluster_key)
+                self._dispatch_locked()
+                self._condition.notify_all()
+
+    def _discard_cancelled(self, cluster_key: tuple[str, int], future: Future) -> None:
+        if not future.cancelled():
+            return
+        with self._condition:
+            queue = self._queues.get(cluster_key)
+            if not queue:
+                return
+            for task in queue:
+                if task[0] is future:
+                    queue.remove(task)
+                    self._queued_total -= 1
+                    if not queue:
+                        del self._queues[cluster_key]
+                        if cluster_key in self._ready_key_set:
+                            self._ready_key_set.remove(cluster_key)
+                            self._ready_keys.remove(cluster_key)
+                    self._condition.notify_all()
+                    return
+
+    def shutdown(self, wait_for_tasks: bool = True) -> None:
+        """仅供独立调度器测试或进程退出时显式清理。"""
+
+        self._executor.shutdown(wait=wait_for_tasks)
+
+
+class BoundedExecutor:
+    """进程内共享且有界的线程池。"""
+
+    def __init__(self, *, max_workers: int, max_queued_tasks: int, thread_name_prefix: str):
+        self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=thread_name_prefix)
+        self._capacity = BoundedSemaphore(max_workers + max_queued_tasks)
+
+    def submit(self, function, *args: Any, enqueue_timeout: float | None = None, **kwargs: Any) -> Future:
+        if not self._capacity.acquire(timeout=enqueue_timeout):
+            raise SchedulerQueueFullError("结果表查询队列已满")
+        try:
+            future = self._executor.submit(function, *args, **kwargs)
+        except BaseException:
+            self._capacity.release()
+            raise
+        future.add_done_callback(lambda _: self._capacity.release())
+        return future
+
+    def shutdown(self, wait_for_tasks: bool = True) -> None:
+        self._executor.shutdown(wait=wait_for_tasks)
+
+
+shared_cluster_probe_scheduler = ClusterProbeScheduler(
+    max_workers=MAX_PROBE_WORKERS,
+    max_workers_per_cluster=MAX_PROBE_WORKERS_PER_CLUSTER,
+    max_queued_tasks=MAX_PROBE_QUEUED_TASKS,
+)
+shared_table_query_executor = BoundedExecutor(
+    max_workers=MAX_TABLE_QUERY_WORKERS,
+    max_queued_tasks=MAX_TABLE_QUERY_QUEUED_TASKS,
+    thread_name_prefix="storage-table-query",
+)
 
 
 @dataclass(frozen=True)
@@ -345,10 +522,18 @@ def build_doris_storage_runtime(
 class ResultTableStorageStatusService:
     """查询结果表关联 ES/Doris 存储的配置、历史分段与运行时状态"""
 
-    def __init__(self, *, bk_tenant_id: str, table_id: str, timeout: int = 15):
+    def __init__(
+        self,
+        *,
+        bk_tenant_id: str,
+        table_id: str,
+        timeout: int = 15,
+        deadline_at: float | None = None,
+    ):
         self.bk_tenant_id = bk_tenant_id
         self.table_id = table_id
         self.timeout = timeout
+        self.deadline_at = deadline_at
 
     # -------------------------------------------------------------------------
     # 查询编排与元数据准备
@@ -594,35 +779,83 @@ class ResultTableStorageStatusService:
         if not targets:
             return {}
         results: dict[int, dict[str, Any]] = {}
-        with ThreadPoolExecutor(max_workers=min(MAX_PROBE_WORKERS, len(targets))) as executor:
-            future_map = {executor.submit(self._probe_target, target, storages): target for target in targets}
-            for future in as_completed(future_map):
+        future_map: dict[Future, StorageProbeTarget] = {}
+        for target in targets:
+            remaining = self._remaining_deadline()
+            if remaining is not None and remaining <= 0:
+                results[target.cluster_id] = self._build_probe_error_result(
+                    target,
+                    "BATCH_DEADLINE_EXCEEDED",
+                    "批量查询已超过总时间限制，未启动集群探测",
+                )
+                continue
+            try:
+                future = shared_cluster_probe_scheduler.submit(
+                    (self.bk_tenant_id, target.cluster_id),
+                    self._probe_target,
+                    target,
+                    storages,
+                    enqueue_timeout=remaining,
+                )
+            except SchedulerQueueFullError:
+                results[target.cluster_id] = self._build_probe_error_result(
+                    target,
+                    "STORAGE_PROBE_QUEUE_TIMEOUT",
+                    "集群探测队列繁忙，未能在批次总时间内提交任务",
+                )
+                continue
+            future_map[future] = target
+
+        pending = set(future_map)
+        while pending:
+            remaining = self._remaining_deadline()
+            if remaining is not None and remaining <= 0:
+                break
+            done, pending = wait(pending, timeout=remaining, return_when=FIRST_COMPLETED)
+            if not done:
+                break
+            for future in done:
                 target = future_map[future]
                 try:
                     results[target.cluster_id] = future.result()
                 except Exception as error:  # pylint: disable=broad-except
-                    cluster = target.cluster
-                    results[target.cluster_id] = {
-                        "storage_type": cluster.cluster_type if cluster is not None else "unknown",
-                        "is_current": target.has_current_segment or target.is_configured_current,
-                        "is_current_segment": target.has_current_segment,
-                        "is_configured_current": target.is_configured_current,
-                        "cluster": _serialize_cluster(cluster),
-                        "connectivity": None,
-                        "runtime": None,
-                        "runtime_skipped": True,
-                        "config_source": "current_storage_config",
-                        "warnings": [],
-                        "errors": [
-                            _error(
-                                "STORAGE_PROBE_UNEXPECTED_ERROR",
-                                "存储集群探测发生未预期异常",
-                                cluster_id=target.cluster_id,
-                                error=str(error),
-                            )
-                        ],
-                    }
+                    results[target.cluster_id] = self._build_probe_error_result(
+                        target,
+                        "STORAGE_PROBE_UNEXPECTED_ERROR",
+                        "存储集群探测发生未预期异常",
+                        error=str(error),
+                    )
+
+        for future in pending:
+            future.cancel()
+            target = future_map[future]
+            results[target.cluster_id] = self._build_probe_error_result(
+                target,
+                "BATCH_DEADLINE_EXCEEDED",
+                "批量查询已超过总时间限制，集群探测已取消或停止等待",
+            )
         return {str(target.cluster_id): results[target.cluster_id] for target in targets}
+
+    def _remaining_deadline(self) -> float | None:
+        if self.deadline_at is None:
+            return None
+        return self.deadline_at - monotonic()
+
+    def _deadline_exceeded(self) -> bool:
+        remaining = self._remaining_deadline()
+        return remaining is not None and remaining <= 0
+
+    def _build_probe_error_result(
+        self,
+        target: StorageProbeTarget,
+        code: str,
+        message: str,
+        **details: Any,
+    ) -> dict[str, Any]:
+        result = self._build_probe_result(target, [], [])
+        result["runtime_skipped"] = True
+        result["errors"].append(_error(code, message, cluster_id=target.cluster_id, **details))
+        return result
 
     def _probe_target(
         self,
@@ -643,6 +876,17 @@ class ResultTableStorageStatusService:
         warnings: list[dict[str, Any]] = []
         errors: list[dict[str, Any]] = []
         result = self._build_probe_result(target, warnings, errors)
+        if self._deadline_exceeded():
+            self._skip_runtime(
+                result,
+                errors,
+                _error(
+                    "BATCH_DEADLINE_EXCEEDED",
+                    "批量查询已超过总时间限制，未启动集群探测",
+                    cluster_id=target.cluster_id,
+                ),
+            )
+            return result
         if target.has_historical_segment:
             warnings.append(
                 _warning(
@@ -654,6 +898,17 @@ class ResultTableStorageStatusService:
 
         cluster = self._validate_probe_target(target, result, errors)
         if cluster is None:
+            return result
+        if self._deadline_exceeded():
+            self._skip_runtime(
+                result,
+                errors,
+                _error(
+                    "BATCH_DEADLINE_EXCEEDED",
+                    "集群连通性检查完成时批量查询已超时，跳过运行时查询",
+                    cluster_id=target.cluster_id,
+                ),
+            )
             return result
         if cluster.cluster_type == models.ClusterInfo.TYPE_ES:
             self._probe_es_runtime(target, cluster, storages.es, result, warnings, errors)
@@ -822,3 +1077,116 @@ class ResultTableStorageStatusService:
     ) -> None:
         errors.append(error)
         result["runtime_skipped"] = True
+
+
+class ResultTableStorageStatusBatchService:
+    """批量查询结果表存储状态，保持输入顺序并隔离单表失败。"""
+
+    def __init__(
+        self,
+        *,
+        bk_tenant_id: str,
+        table_ids: list[str],
+        timeout: int = 15,
+        total_timeout: int = DEFAULT_BATCH_TOTAL_TIMEOUT,
+    ):
+        if not table_ids or len(table_ids) > MAX_BATCH_TABLE_COUNT:
+            raise ValueError(f"table_ids 数量必须在 1 到 {MAX_BATCH_TABLE_COUNT} 之间")
+        if len(table_ids) != len(set(table_ids)):
+            raise ValueError("table_ids 不能包含重复项")
+        if not MIN_BATCH_TOTAL_TIMEOUT <= total_timeout <= MAX_BATCH_TOTAL_TIMEOUT:
+            raise ValueError(f"total_timeout 必须在 {MIN_BATCH_TOTAL_TIMEOUT} 到 {MAX_BATCH_TOTAL_TIMEOUT} 秒之间")
+        self.bk_tenant_id = bk_tenant_id
+        self.table_ids = table_ids
+        self.timeout = timeout
+        self.total_timeout = total_timeout
+
+    def query(self) -> dict[str, Any]:
+        results: dict[str, dict[str, Any]] = {}
+        deadline_at = monotonic() + self.total_timeout
+        future_map: dict[Future, str] = {}
+        submitted_count = 0
+
+        for table_id in self.table_ids:
+            remaining = deadline_at - monotonic()
+            if remaining <= 0:
+                break
+            try:
+                future = shared_table_query_executor.submit(
+                    self._query_table,
+                    table_id,
+                    deadline_at,
+                    enqueue_timeout=remaining,
+                )
+            except SchedulerQueueFullError:
+                break
+            future_map[future] = table_id
+            submitted_count += 1
+
+        remaining = max(0.0, deadline_at - monotonic())
+        done, pending = wait(future_map, timeout=remaining)
+        for future in done:
+            table_id = future_map[future]
+            try:
+                results[table_id] = future.result()
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception("query result table storage status future failed, table_id->[%s]", table_id)
+                results[table_id] = self._build_query_error(table_id, error)
+
+        for future in pending:
+            future.cancel()
+            table_id = future_map[future]
+            results[table_id] = self._build_deadline_error(table_id)
+
+        for table_id in self.table_ids[submitted_count:]:
+            results[table_id] = self._build_deadline_error(table_id)
+        return {"items": [results[table_id] for table_id in self.table_ids]}
+
+    def _query_table(self, table_id: str, deadline_at: float) -> dict[str, Any]:
+        close_old_connections()
+        try:
+            if monotonic() >= deadline_at:
+                return self._build_deadline_error(table_id)
+            data = ResultTableStorageStatusService(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=table_id,
+                timeout=self.timeout,
+                deadline_at=deadline_at,
+            ).query()
+            return {"table_id": table_id, "data": data, "error": None}
+        except ValueError as error:
+            return {
+                "table_id": table_id,
+                "data": None,
+                "error": _error("RESULT_TABLE_NOT_FOUND", str(error), table_id=table_id),
+            }
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception("query result table storage status failed, table_id->[%s]", table_id)
+            return self._build_query_error(table_id, error)
+        finally:
+            close_old_connections()
+
+    @staticmethod
+    def _build_query_error(table_id: str, error: Exception) -> dict[str, Any]:
+        return {
+            "table_id": table_id,
+            "data": None,
+            "error": _error(
+                "RESULT_TABLE_STORAGE_STATUS_QUERY_FAILED",
+                "结果表存储状态查询失败",
+                table_id=table_id,
+                error=str(error),
+            ),
+        }
+
+    @staticmethod
+    def _build_deadline_error(table_id: str) -> dict[str, Any]:
+        return {
+            "table_id": table_id,
+            "data": None,
+            "error": _error(
+                "BATCH_DEADLINE_EXCEEDED",
+                "批量结果表存储状态查询超过总时间限制",
+                table_id=table_id,
+            ),
+        }

@@ -75,7 +75,7 @@ interface ShowLoginModalOption {
 }
 declare global {
   interface HTMLElement {
-    ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
+    ___zrEVENTSAVED?: null | Record<string, any>; // echarts zrender instance
   }
   interface Window {
     __AuthMap__: Map<string, Map<string, boolean>>;

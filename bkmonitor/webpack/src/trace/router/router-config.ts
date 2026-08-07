@@ -76,6 +76,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'alarm-center',
   },
   {
+    id: 'host',
+    name: 'route-主机监控',
+    route: 'host',
+  },
+  {
     id: 'rum',
     name: 'route-RUM',
     route: 'rum',
