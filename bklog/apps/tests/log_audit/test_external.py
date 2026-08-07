@@ -19,18 +19,23 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import os
 from unittest import mock
 
 from bk_audit.log.exporters import BaseExporter
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
+from django.http import Http404
 from django.test import SimpleTestCase
+from rest_framework.exceptions import ValidationError
 
-from apps.log_audit.client import bk_audit_client
-from apps.log_audit.external import ExternalAuditRecorder
+from apps.iam import ActionEnum
+from apps.log_audit.client import bk_audit_client, otlp_report_enabled
+from apps.log_audit.external import ExternalAuditRecorder, resolve_exception_status_code
 
-EXTERNAL_USER = "external_user@tai"
-AUTHORIZER = "authorizer_user"
-SPACE_UID = "bkcc__615"
-INDEX_SET_ID = 12902
+EXTERNAL_USER = "external_tester@example.com"
+AUTHORIZER = "authorizer_tester"
+SPACE_UID = "bkcc__2"
+INDEX_SET_ID = 1
 
 CLIENT_IP = "127.0.0.2"
 PROXY_IP = "127.0.0.3"
@@ -90,14 +95,46 @@ class TestExternalAuditRecorder(SimpleTestCase):
         self.assertEqual(len(self.exporter.events), 1)
         event = self.exporter.events[0]
         self.assertEqual(event["username"], EXTERNAL_USER)
-        self.assertEqual(event["user_identify_src_username"], AUTHORIZER)
-        self.assertEqual(event["user_identify_src"], "po_external")
         self.assertEqual(event["scope_type"], "space_uid")
         self.assertEqual(event["scope_id"], SPACE_UID)
-        self.assertEqual(event["action_id"], "log_search")
-        self.assertEqual(event["resource_type_id"], "SearchViewSet")
         self.assertEqual(event["instance_id"], str(INDEX_SET_ID))
         self.assertEqual(event["result_code"], 0)
+
+    def test_authorizer_goes_to_extend_data_not_identify_src(self):
+        """
+        审计中心对 user_identify_src / user_identify_src_username 没有约定词表，
+        生态内唯一先例（bk-cmdb）用它们承载「经由哪个 app_code 代发」，语义上放不了授权人。
+        授权人只走 extend_data，避免占用含义待定的标准字段。
+        """
+        recorder = self.build_recorder(resource=INDEX_SET_ID)
+        recorder.push()
+
+        event = self.exporter.events[0]
+        self.assertEqual(event["user_identify_src"], "")
+        self.assertEqual(event["user_identify_src_username"], "")
+        self.assertEqual(event["extend_data"]["authorizer"], AUTHORIZER)
+
+    def test_action_matches_internal_definition(self):
+        """外部访问要和内部版上报同一个 action 与资源类型，审计中心才能按操作统一查询"""
+        recorder = self.build_recorder(resource=INDEX_SET_ID)
+        recorder.push()
+
+        event = self.exporter.events[0]
+        self.assertEqual(event["action_id"], ActionEnum.SEARCH_LOG.id)
+        self.assertEqual(event["resource_type_id"], "LogSearch")
+        # view_set / view_action 是外部代理独有的细粒度信息，放扩展字段保留
+        self.assertEqual(event["extend_data"]["view_set"], "SearchViewSet")
+        self.assertEqual(event["extend_data"]["view_action"], "search")
+        self.assertEqual(event["extend_data"]["external_user"], EXTERNAL_USER)
+        self.assertEqual(event["extend_data"]["authorizer"], AUTHORIZER)
+
+    def test_client_log_maps_to_download_action(self):
+        recorder = self.build_recorder(action_id="client_log", view_set="TGPATaskViewSet", view_action="download_file")
+        recorder.push()
+
+        event = self.exporter.events[0]
+        self.assertEqual(event["action_id"], ActionEnum.DOWNLOAD_CLIENT_LOG.id)
+        self.assertEqual(event["resource_type_id"], "ClientLog")
 
     def test_access_source_ip_from_outer_request(self):
         """fake_request 的 REMOTE_ADDR 恒为 127.0.0.1，IP 必须取自外层请求"""
@@ -144,7 +181,16 @@ class TestExternalAuditRecorder(SimpleTestCase):
 
     def test_unresolved_action_is_skipped(self):
         """action_id 为空是 AuditEvent 的必填校验项，跳过而不是抛 AssertionError"""
-        recorder = self.build_recorder(action_id="")
+        for action_id in ("", "not_an_external_action"):
+            with self.subTest(action_id=action_id):
+                self.exporter.events.clear()
+                recorder = self.build_recorder(action_id=action_id)
+                recorder.push()
+
+                self.assertEqual(self.exporter.events, [])
+
+    def test_empty_external_user_is_skipped(self):
+        recorder = self.build_recorder(external_user="")
         recorder.push()
 
         self.assertEqual(self.exporter.events, [])
@@ -157,3 +203,42 @@ class TestExternalAuditRecorder(SimpleTestCase):
         recorder.push()
 
         self.assertEqual(self.exporter.events, [])
+
+
+class TestOtlpReportEnabled(SimpleTestCase):
+    """这个开关决定审计事件能否到达审计中心，收紧条件会静默关掉现网上报"""
+
+    ENV = {"BKAPP_OTEL_LOG_ENDPOINT": "http://collector:4317", "BKAPP_OTEL_LOG_BK_DATA_TOKEN": "token"}
+
+    def test_endpoint_and_token_is_enough(self):
+        """现网只配 endpoint 与 token，bk-collector 按 token 路由，不能额外要求 data_id"""
+        with mock.patch.dict(os.environ, self.ENV, clear=True):
+            self.assertTrue(otlp_report_enabled())
+
+    def test_missing_endpoint_or_token_disables_report(self):
+        for missing in self.ENV:
+            with self.subTest(missing=missing), mock.patch.dict(os.environ, self.ENV, clear=True):
+                del os.environ[missing]
+                self.assertFalse(otlp_report_enabled())
+
+
+class TestResolveExceptionStatusCode(SimpleTestCase):
+    """异常统一记 500 会把越权和资源不存在都算成服务端故障"""
+
+    def test_django_builtin_exceptions(self):
+        self.assertEqual(resolve_exception_status_code(Http404()), 404)
+        self.assertEqual(resolve_exception_status_code(PermissionDenied()), 403)
+        self.assertEqual(resolve_exception_status_code(BadRequest()), 400)
+        self.assertEqual(resolve_exception_status_code(SuspiciousOperation()), 400)
+
+    def test_drf_exception_uses_own_status_code(self):
+        self.assertEqual(resolve_exception_status_code(ValidationError("invalid")), 400)
+
+    def test_unknown_exception_falls_back_to_500(self):
+        self.assertEqual(resolve_exception_status_code(ValueError("boom")), 500)
+
+    def test_non_int_status_code_falls_back_to_500(self):
+        class WeirdError(Exception):
+            status_code = "403"
+
+        self.assertEqual(resolve_exception_status_code(WeirdError()), 500)

@@ -19,43 +19,58 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from dataclasses import dataclass
-
 from bk_audit.constants.log import (
     DEFAULT_EMPTY_VALUE,
     DEFAULT_RESULT_CODE,
     AccessTypeEnum,
     UserIdentifyTypeEnum,
 )
-from bk_audit.log.models import AuditContext, AuditInstance
+from bk_audit.log.models import AuditContext
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
+from django.http import Http404
+from django.http.multipartparser import MultiPartParserError
 
 from apps.constants import ExternalPermissionActionEnum
 from apps.log_audit.client import bk_audit_client
+from apps.log_audit.instance import (
+    ClientLogInstance,
+    LogExtractInstance,
+    LogSearchInstance,
+)
 from apps.utils.log import logger
-
-# 审计中心「操作人账号来源」，用于把外部版身份与内部账号区分开
-USER_IDENTIFY_SRC = "po_external"
 
 # 审计中心「管理空间类型」
 SCOPE_TYPE = "space_uid"
+
+# 外部授权项到审计实例的映射。复用内部版的实例类，让同一个操作在内外版上报相同的
+# action 与资源类型，审计中心无需为外部访问单独登记操作定义。
+# log_common 归到检索，与内部版 InstanceFilter 对 meta 类接口的归类保持一致。
+ACTION_INSTANCE_MAP = {
+    ExternalPermissionActionEnum.LOG_SEARCH.value: LogSearchInstance,
+    ExternalPermissionActionEnum.LOG_EXTRACT.value: LogExtractInstance,
+    ExternalPermissionActionEnum.CLIENT_LOG.value: ClientLogInstance,
+    ExternalPermissionActionEnum.LOG_COMMON.value: LogSearchInstance,
+}
 
 # log_common 对应菜单、全局配置等元数据接口，不涉及日志数据访问，调用量大且无审计价值
 IGNORED_ACTION_IDS = frozenset({ExternalPermissionActionEnum.LOG_COMMON.value})
 
 
-@dataclass
-class _AuditId:
-    """bk_audit 通过 .id 读取操作与资源类型，这里提供最小载体"""
+def resolve_exception_status_code(exc: Exception) -> int:
+    """
+    把异常还原成 HTTP 状态码
 
-    id: str
-
-
-@dataclass
-class _AuditInstance:
-    """bk_audit 通过 AuditInstance 读取实例属性"""
-
-    instance_id: str
-    instance_name: str
+    统一记 500 会把资源不存在、越权、参数错误全算成服务端故障，掩盖真实的失败原因。
+    DRF 异常自带 status_code，Django 内建异常需要显式对照。
+    """
+    if isinstance(exc, Http404):
+        return 404
+    if isinstance(exc, PermissionDenied):
+        return 403
+    if isinstance(exc, MultiPartParserError | BadRequest | SuspiciousOperation):
+        return 400
+    status_code = getattr(exc, "status_code", None)
+    return status_code if isinstance(status_code, int) else 500
 
 
 def get_access_source_ip(request) -> str:
@@ -108,19 +123,22 @@ class ExternalAuditRecorder:
             )
 
     def _push(self):
-        # action_id 为空说明 URL 未解析成功，没有可归属的操作；username 为空则失去审计意义。
-        # 两者也都是 AuditEvent 的必填校验项，为空会直接抛 AssertionError
-        if not self.action_id or not self.external_user:
+        # action_id 未落在映射内说明 URL 没解析成功或接口不在外部开放清单里，没有可归属的操作；
+        # username 为空则失去审计意义。两者也都是 AuditEvent 的必填校验项，为空会直接抛 AssertionError
+        instance_cls = ACTION_INSTANCE_MAP.get(self.action_id)
+        if instance_cls is None or not self.external_user:
             return
         # 元数据类接口只有成功访问才忽略，被拒绝的访问一律留痕
         if self.result_code == DEFAULT_RESULT_CODE and self.action_id in IGNORED_ACTION_IDS:
             return
-        # 不传 request，避免 DjangoFormatter 用授权人覆写 username 等字段
+        instance = instance_cls(uid=str(self.resource) if self.resource else DEFAULT_EMPTY_VALUE)
+        # 不传 request，避免 DjangoFormatter 用授权人覆写 username 等字段。
+        # user_identify_src / user_identify_src_username 留空：审计中心对这两个字段没有约定词表，
+        # 生态内唯一先例（bk-cmdb）用它们承载「经由哪个 app_code 代发」，语义上放不了授权人。
+        # 授权人改由 extend_data.authorizer 承载。
         context = AuditContext(
             username=self.external_user,
             user_identify_type=UserIdentifyTypeEnum.PERSONAL,
-            user_identify_src=USER_IDENTIFY_SRC,
-            user_identify_src_username=self.authorizer,
             scope_type=SCOPE_TYPE,
             scope_id=self.space_uid,
             access_type=AccessTypeEnum.WEB,
@@ -128,20 +146,22 @@ class ExternalAuditRecorder:
             access_user_agent=self.request.META.get("HTTP_USER_AGENT", DEFAULT_EMPTY_VALUE),
             request_id=getattr(self.request, "request_id", DEFAULT_EMPTY_VALUE),
         )
-        instance_id = str(self.resource) if self.resource else DEFAULT_EMPTY_VALUE
+        extend_data = {
+            "external_user": self.external_user,
+            "authorizer": self.authorizer,
+            "space_uid": self.space_uid,
+            "view_set": self.view_set,
+            "view_action": self.view_action,
+        }
+        extend_data.update(instance.extend_data)
         bk_audit_client.add_event(
-            action=_AuditId(self.action_id),
-            resource_type=_AuditId(self.view_set),
-            instance=AuditInstance(_AuditInstance(instance_id=instance_id, instance_name=instance_id)),
+            action=instance.action,
+            resource_type=instance.resource_type,
+            instance=instance.instance,
             audit_context=context,
             event_content=f"{self.view_set}.{self.view_action}",
             result_code=self.result_code,
             result_content=self.result_content,
-            extend_data={
-                "view_set": self.view_set,
-                "view_action": self.view_action,
-                "authorizer": self.authorizer,
-                "space_uid": self.space_uid,
-            },
+            extend_data=extend_data,
         )
         bk_audit_client.export_events()

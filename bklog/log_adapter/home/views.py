@@ -33,7 +33,7 @@ from apps.constants import (
     ViewSetActionEnum,
 )
 from apps.iam import ActionEnum
-from apps.log_audit.external import ExternalAuditRecorder
+from apps.log_audit.external import ExternalAuditRecorder, resolve_exception_status_code
 from apps.log_commons.models import (
     AuthorizerSettings,
     ExternalPermission,
@@ -454,7 +454,7 @@ def dispatch_external_proxy(request):
         )
 
     except Exception as e:
-        audit_recorder.set_result(500, str(e))
+        audit_recorder.set_result(resolve_exception_status_code(e), str(e))
         logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
 
