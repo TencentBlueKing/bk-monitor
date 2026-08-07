@@ -93,7 +93,7 @@ def load_framework() -> IAMFramework:
             cls = import_string(dotted)
         schema_load_from_class(registry, cls)
     registry.freeze()
-    logger.info("schema registry frozen: %d action(s)", len(registry._actions))
+    logger.info("schema registry frozen: %d action(s)", len(registry.all_actions()))
 
     # 2. 构建 Provider 列表
     providers = []

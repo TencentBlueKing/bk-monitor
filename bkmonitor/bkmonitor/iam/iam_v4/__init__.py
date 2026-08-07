@@ -18,3 +18,6 @@ specific language governing permissions and limitations under the License.
 #   - migrator.py    — plan_migration / apply_migration
 #   - callback/      — 资源回调（IAM 查询资源实例）
 # ---------------------------------------------------------------------------
+
+#: Provider 标识 —— v4 包内唯一入口，所有引用 ``"v4"`` 的地方统一使用此常量。
+PROVIDER_NAME: str = "v4"

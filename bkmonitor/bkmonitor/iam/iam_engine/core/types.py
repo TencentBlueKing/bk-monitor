@@ -39,17 +39,21 @@ _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
 
 def to_action_id(action: ActionDef | str) -> str:
-    """Normalize action reference to string ID. Accepts ActionDef object or raw string."""
+    """Normalize action reference to string ID."""
     if isinstance(action, str):
         return action
-    return action.id  # type: ignore[union-attr]
+    if hasattr(action, "id"):
+        return action.id
+    raise TypeError(f"Expected ActionDef or str, got {type(action).__name__}")
 
 
 def to_resource_type_id(rt: ResourceTypeDef | str) -> str:
-    """Normalize resource type reference to string ID. Accepts ResourceTypeDef object or raw string."""
+    """Normalize resource type reference to string ID."""
     if isinstance(rt, str):
         return rt
-    return rt.id  # type: ignore[union-attr]
+    if hasattr(rt, "id"):
+        return rt.id
+    raise TypeError(f"Expected ResourceTypeDef or str, got {type(rt).__name__}")
 
 
 class SubjectType(str, Enum):

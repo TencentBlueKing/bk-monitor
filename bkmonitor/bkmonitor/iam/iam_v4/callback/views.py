@@ -119,6 +119,7 @@ class IAMV4ResourceCallbackView(APIView):
             CallbackService: v4 Provider 持有的回调分发器。
         """
         from ...iam_engine.django.facade import get_framework
+        from ...iam_v4 import PROVIDER_NAME
 
-        provider = get_framework().get_provider("v4")
+        provider = get_framework().providers[PROVIDER_NAME]
         return provider.callback_service

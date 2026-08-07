@@ -173,6 +173,7 @@ class CallbackService:
         for seg in path.split("/"):
             if not seg:
                 continue
+            # 按首个逗号分割 <type>,<id>；假设 resource_id 本身不含逗号
             parts = seg.split(",", 1)
             if len(parts) == 2:
                 rt, rid = parts[0], parts[1]

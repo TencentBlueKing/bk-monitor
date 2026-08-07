@@ -19,10 +19,11 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 from ..iam_engine.callback.service import CallbackService
 from ..iam_engine.core.types import ResourceInstance, Subject, to_action_id
+from ..iam_engine.core.utils import chunked
 from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
@@ -30,6 +31,7 @@ from ..iam_engine.provider.dialect_types import (
     DialectBatchByActionRequest,
     DialectBatchByResourceRequest,
 )
+from . import PROVIDER_NAME
 from .client import V4Client
 from .config import V4Options, V4SystemInfo
 
@@ -58,7 +60,7 @@ class V4PermissionProvider(PermissionProvider):
     """
 
     #: Provider 标识，用于日志/监控/命令行 --provider 参数。
-    name: ClassVar[str] = "v4"
+    name: str = PROVIDER_NAME
 
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         """初始化 v4 Provider。
@@ -397,29 +399,29 @@ class V4PermissionProvider(PermissionProvider):
         dialect_role = self.codec.encode_role(role_id_biz)
         dialect_rt = self.codec.encode_resource_type(rt_id_biz) if rt_id_biz else ""
 
-        resources: list[dict] = []
-        for rid in resource_ids:
-            if rid == "*":
-                # 无限制授权：id="*"，type 保持关联资源类型
-                resources.append({"type": dialect_rt, "id": "*"})
-            else:
-                resources.append(
-                    {
-                        "type": dialect_rt,
-                        "id": self.codec.encode_resource_id(rt_id_biz, rid),
-                    }
-                )
-
-        payload = [
-            {
-                "subject": {"type": subject.type.value, "id": subject.id},
-                "role_id": dialect_role,
-                "related_resource_type_id": dialect_rt,
-                "resources": resources,
-                "expired_at": expired_at,
-            }
-        ]
-        self._client.add_authorization(payload, operator=operator)
+        # 分片：resource_ids 按 CHUNK_SIZE 切片，每批独立调用平台 API
+        for rid_chunk in chunked(tuple(resource_ids), self.CHUNK_SIZE):
+            resources: list[dict] = []
+            for rid in rid_chunk:
+                if rid == "*":
+                    resources.append({"type": dialect_rt, "id": "*"})
+                else:
+                    resources.append(
+                        {
+                            "type": dialect_rt,
+                            "id": self.codec.encode_resource_id(rt_id_biz, rid),
+                        }
+                    )
+            payload = [
+                {
+                    "subject": {"type": subject.type.value, "id": subject.id},
+                    "role_id": dialect_role,
+                    "related_resource_type_id": dialect_rt,
+                    "resources": resources,
+                    "expired_at": expired_at,
+                }
+            ]
+            self._client.add_authorization(payload, operator=operator)
 
     # ================================================================
     # 内部工具

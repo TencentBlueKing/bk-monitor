@@ -270,6 +270,7 @@ class SchemaRegistry:
         return {
             "actions": {
                 a.id: {
+                    "id": a.id,
                     "name": a.name,
                     "resource_type": a.resource_type,
                     "description": a.description,
@@ -279,6 +280,7 @@ class SchemaRegistry:
             },
             "resource_types": {
                 rt.id: {
+                    "id": rt.id,
                     "name": rt.name,
                     "ancestor": rt.ancestor,
                     "description": rt.description,
@@ -288,6 +290,7 @@ class SchemaRegistry:
             },
             "roles": {
                 r.id: {
+                    "id": r.id,
                     "name": r.name,
                     "description": r.description,
                     "extensions": dict(r.extensions),

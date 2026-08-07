@@ -75,7 +75,7 @@ class V4Client:
         return {item["action_id"]: item["allowed"] for item in resp["data"]}
 
     def add_authorization(self, authorizations: list[dict], operator: str) -> None:
-        """POST /mgmt/systems/{sys}/authorizations/ — 批量角色授权（每批最多 20 条）。
+        """POST /mgmt/systems/{sys}/authorizations/ — 单批角色授权（调用方负责分片）。
 
         典型场景：用户创建资源后自动授予该资源相关的角色权限。
 
@@ -97,11 +97,7 @@ class V4Client:
             return
         path = f"/api/v1/open/rbac/mgmt/systems/{self._system_id}/authorizations/"
         headers = {"X-Bkiam-Operator": operator}
-        # 平台单批上限 20，超出自动分片；保持简单——串行，避免与业务侧线程池策略冲突
-        batch_size = 20
-        for i in range(0, len(authorizations), batch_size):
-            chunk = authorizations[i : i + batch_size]
-            self._post(path, chunk, extra_headers=headers)
+        self._post(path, authorizations, extra_headers=headers)
 
     def get_authorized_resources(self, subject_id: str, action_id: str) -> list[dict]:
         """POST /relation/authorized-resources/ — 查询用户对某 action 有权限的资源列表。
@@ -217,8 +213,8 @@ class V4Client:
         try:
             resp = self._post(path, body)
             return (resp.get("data") or {}).get("url", "")
-        except Exception:
-            logger.exception("[iam_v4:apply_url_fail] permissions=%s", permissions)
+        except ProviderError:
+            logger.warning("[iam_v4:apply_url_fail] permissions=%s", permissions)
             return ""
 
     # ============================================================
@@ -311,5 +307,5 @@ def _safe_json(resp) -> dict:
 def _safe_truncate(resp, max_len: int = 500) -> str:
     try:
         return resp.text[:max_len]
-    except Exception:
+    except AttributeError:
         return "<unreadable>"

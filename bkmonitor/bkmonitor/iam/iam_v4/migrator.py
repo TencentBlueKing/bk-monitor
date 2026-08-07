@@ -108,7 +108,12 @@ class V4Migrator:
         dry_run: bool = False,
         allow_destructive: bool = False,
     ) -> MigrationReport:
-        """执行迁移计划。按拓扑顺序执行变更，确保创建和删除的依赖正确。"""
+        """执行迁移计划。按拓扑顺序执行变更，确保创建和删除的依赖正确。
+
+        **不保证原子性**：变更按拓扑顺序逐个执行，前置变更成功后若后续变更失败，
+        已执行的变更不会回滚。调用方应在 apply 完成后检查 report.failed 决定
+        是否需要手动修复远端状态。
+        """
         report = MigrationReport(provider_name="v4", started_at=datetime.now(tz=timezone.utc))
 
         if plan.has_destructive() and not allow_destructive:
@@ -181,17 +186,18 @@ class V4Migrator:
             raise
 
     def _paginate(self, api_fn, key: str) -> dict[str, dict]:
-        """翻页拉取全量列表，按 id 索引。"""
+        """翻页拉取全量列表，按 id 索引。最多拉取 100 页防无限循环。"""
         items: dict[str, dict] = {}
         page = 1
-        while True:
+        while page <= 100:
             resp = api_fn(page=page, page_size=100)
             data = resp.get("data", {})
             results = data.get("results") or []
             for item in results:
                 items[item["id"]] = item
             pagination = data.get("pagination", {})
-            if page >= pagination.get("total_pages", 1):
+            total_pages = pagination.get("total_pages", 1)
+            if page >= total_pages or not results:
                 break
             page += 1
         return items

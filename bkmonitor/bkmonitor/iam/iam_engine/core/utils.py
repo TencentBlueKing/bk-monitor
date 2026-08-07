@@ -92,6 +92,10 @@ def retry(
 
     只重试指定类型的异常；其它异常（如 PermissionDenied）直接向上抛。
 
+    注意：默认 ``retry_on=Exception`` 会重试所有异常，包括业务语义异常。
+    对于鉴权类调用，调用方应显式传入 ``retry_on=(ProviderUnavailable,)``
+    等网络层异常类型，避免重试无意义的业务拒绝。
+
     Args:
         fn: 无参可调用；重试的执行单元
         attempts: 最大尝试次数（含首次），必须 >= 1

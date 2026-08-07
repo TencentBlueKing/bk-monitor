@@ -49,9 +49,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
-from ..core.exceptions import ProviderUnavailable
+from ..core.exceptions import ActionNotFound, ProviderUnavailable
 from ..core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -114,13 +114,13 @@ class PermissionProvider(ABC):
 
     #: Provider 标识，用于日志/监控/命令行 --provider 参数。
     #: 子类必须覆盖为非空字符串（如 "v4"、"v3"）。
-    name: ClassVar[str] = ""
+    name: str = ""
 
     # -------- 批量分片/并发参数（子类可覆盖）--------
     #: 单次批量调用的最大条目数
-    CHUNK_SIZE: ClassVar[int] = 20
+    CHUNK_SIZE: int = 20
     #: 并发 worker 数。1 = 串行，>1 = ThreadPoolExecutor 并行
-    MAX_WORKERS: ClassVar[int] = 1
+    MAX_WORKERS: int = 1
 
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         self.schema = schema
@@ -315,7 +315,7 @@ class PermissionProvider(ABC):
         if action_id_biz:
             try:
                 rt = self.schema.get_action(action_id_biz).resource_type
-            except Exception:
+            except ActionNotFound:
                 rt = ""
         if not rt:
             rt = to_resource_type_id(r.type or "")

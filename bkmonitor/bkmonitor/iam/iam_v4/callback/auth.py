@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import threading
 import time
 
 from rest_framework.authentication import BaseAuthentication
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 _CACHED_TOKEN: str | None = None
 _CACHED_TOKEN_EXPIRE_AT: float = 0
 _TOKEN_CACHE_TTL: int = 300  # 5 min
+_TOKEN_LOCK = threading.Lock()
 
 
 def _get_client() -> V4Client:
@@ -49,13 +51,14 @@ def _get_client() -> V4Client:
 
 def _get_system_token() -> str:
     global _CACHED_TOKEN, _CACHED_TOKEN_EXPIRE_AT
-    now = time.time()
-    if _CACHED_TOKEN is not None and now < _CACHED_TOKEN_EXPIRE_AT:
+    with _TOKEN_LOCK:
+        now = time.time()
+        if _CACHED_TOKEN is not None and now < _CACHED_TOKEN_EXPIRE_AT:
+            return _CACHED_TOKEN
+        client = _get_client()
+        _CACHED_TOKEN = client.get_auth_token()
+        _CACHED_TOKEN_EXPIRE_AT = now + _TOKEN_CACHE_TTL
         return _CACHED_TOKEN
-    client = _get_client()
-    _CACHED_TOKEN = client.get_auth_token()
-    _CACHED_TOKEN_EXPIRE_AT = now + _TOKEN_CACHE_TTL
-    return _CACHED_TOKEN
 
 
 class IamCallbackAuthentication(BaseAuthentication):
