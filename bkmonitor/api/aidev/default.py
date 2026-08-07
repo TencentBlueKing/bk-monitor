@@ -15,9 +15,12 @@ from ai_agent.core.custom_config_manager import get_mcp_access_token
 from blueapps.utils.request_provider import get_local_request
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.utils.translation import gettext as _
+from requests.exceptions import RequestException
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
+from core.errors.api import BKAPIError
 
 
 class AidevAPIGWResource(APIResource):
@@ -49,11 +52,33 @@ class AidevPrivateAPIGWResource(APIResource):
 
     def get_headers(self):
         headers = super().get_headers()
+        try:
+            access_token = get_mcp_access_token(request=get_local_request())
+        except Exception as error:
+            # Token helper 没有提供专用异常类型，这里统一收敛成 BKAPIError，
+            # 避免用户态凭证问题裸抛成 500，也不向调用方泄露凭证细节。
+            self.report_api_failure_metric(error_code=BKAPIError.code, exception_type=type(error).__name__)
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=_("获取当前用户 AIDEV 访问凭证失败"),
+            ) from error
+
         # AIDEV private API 要求 access_token 单独鉴权，不能混入应用凭据。
-        headers["x-bkapi-authorization"] = json.dumps(
-            {"access_token": get_mcp_access_token(request=get_local_request())}
-        )
+        headers["x-bkapi-authorization"] = json.dumps({"access_token": access_token})
         return headers
+
+    def perform_request(self, validated_request_data):
+        try:
+            return super().perform_request(validated_request_data)
+        except RequestException as error:
+            # 基类只处理了 ReadTimeout，连接失败一类的网络异常仍会裸抛。
+            self.report_api_failure_metric(error_code=getattr(error, "code", 0), exception_type=type(error).__name__)
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=_("AIDEV 接口请求失败"),
+            ) from error
 
 
 class ListAgentsResource(AidevPrivateAPIGWResource):

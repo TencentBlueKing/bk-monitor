@@ -93,3 +93,12 @@ class SourceAnalysisDefaultRuleConditionsInvalidError(IssueError):
     code = 3327011
     name = _lazy("源码分析默认规则条件无效")
     message_tpl = _lazy("默认规则的匹配条件必须为空")
+
+
+class SourceAnalysisInvalidStatusTransitionError(IssueError):
+    """执行记录状态迁移非法，通常源于并发改写同一条记录。message 携带迁移方向，仅用于排障。"""
+
+    code = 3327012
+    status_code = 409  # Conflict 语义，调用方应重新查询最新状态
+    name = _lazy("源码分析状态流转非法")
+    message_tpl = _lazy("源码分析记录状态已变更，请重新查询后重试")
