@@ -551,7 +551,10 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
     runtime_contract = _runtime_refresh_contract()
     if runtime_contract["mode"] != "ttl_refresh":
         raise CustomException(
-            message="manage-cache-routing apply is disabled until worker ttl_refresh capability is deployed"
+            message=(
+                "manage-cache-routing apply is disabled because the current API process code does not expose "
+                "ttl_refresh; this check does not verify alarm worker deployment"
+            )
         )
 
     from bkmonitor.models import CacheRouter

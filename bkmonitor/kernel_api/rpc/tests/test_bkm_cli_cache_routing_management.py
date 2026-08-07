@@ -497,7 +497,7 @@ def test_old_apply_cannot_be_reused_after_routes_cycle_back_to_same_shape(mocker
     advance.assert_not_called()
 
 
-def test_apply_is_disabled_until_worker_ttl_refresh_capability_is_deployed(mocker):
+def test_apply_is_disabled_when_api_process_code_does_not_expose_ttl_refresh(mocker):
     before = _snapshot()
     desired = [
         {"strategy_score": 200, "node_id": 1},
@@ -511,7 +511,10 @@ def test_apply_is_disabled_until_worker_ttl_refresh_capability_is_deployed(mocke
         return_value={"mode": "process_lifetime_cache"},
     )
 
-    with pytest.raises(CustomException, match="ttl_refresh"):
+    with pytest.raises(
+        CustomException,
+        match="current API process code does not expose ttl_refresh; this check does not verify alarm worker deployment",
+    ):
         cache_routing.manage_cache_routing(
             {
                 "operation": "apply",
