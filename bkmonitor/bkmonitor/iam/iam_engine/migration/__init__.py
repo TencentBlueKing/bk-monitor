@@ -8,4 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from bkmonitor.iam.iam_engine.django.management.commands.iam_generate_config import Command  # noqa
+# ---------------------------------------------------------------------------
+# iam_engine.migration — IAM Schema 迁移基础设施
+#
+# loader.py   — MigrationLoader：发现、加载、校验迁移文件
+# recorder.py — MigrationRecorder(Protocol) + InMemoryRecorder
+# planner.py  — MigrationPlanner：依赖解析 + 拓扑排序
+# ---------------------------------------------------------------------------

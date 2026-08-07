@@ -686,3 +686,176 @@ class TestIAMv4ActionIdRename:
             print(f"    ✗ [{c.kind.value}] {c.change_type.value} {c.entity_id}: {err[:200]}")
         assert len(report.failed) == 0
         print("  ✓ 清理完成")
+
+
+# ==============================================================================
+# 文件迁移全流程集成测试
+#
+# 与 TestIAMv4FullLifecycle（远端 diff）不同，本测试走真实文件迁移路径：
+#   fw.schema.to_snapshot → diff → 生成迁移文件 → loader → planner → apply → recorder
+#
+# 前置条件：.env 中配置好 IAM v4 环境变量（同上），并且 v4 平台上系统已注册。
+#          建议先跑 TestIAMv4FullLifecycle 完成系统注册和初始 schema 部署。
+#
+# ==============================================================================
+#
+# 测试操作手册
+# ────────────
+#
+# 场景 A：首次迁移（v4 平台已存在 schema，运行文件迁移验证全 noop）
+#   1. 确认 .env 中 IAM v4 配置正确
+#   2. 确认平台上 schema 与本地 definitions 一致
+#      （可先跑 TestIAMv4FullLifecycle 的 step1~step5 完成部署）
+#   3. 跑本测试类的 test_A_* 用例
+#   4. 预期：第一次生成迁移文件后 apply → 全 noop（平台已一致）
+#
+# 场景 B：新增 action 后的文件迁移
+#   1. 在 definitions/actions.py 的 Actions 类末尾加一行：
+#        TEST_FILE_MIG = ActionDef(id="test_file_mig", name="文件迁移测试", resource_type="space")
+#   2. 重启 pytest 进程（schema 在 AppConfig.ready 冻结，需要重新 load_framework）
+#   3. 跑本测试类的 test_B_* 用例
+#   4. 用例会：makemigrations（生成文件）→ migrate（apply 到平台）→ 验证 no pending
+#   5. 到 v4 平台 UI 确认 test_file_mig 已存在
+#
+# 场景 C：清理
+#   1. 删除 definitions/actions.py 中 TEST_FILE_MIG 的 add
+#   2. 重启 pytest
+#   3. 跑本测试类的 test_C_* 用例（生成含 DELETE 的迁移文件 + apply）
+#
+# 自动化说明：
+#   makemigrations 当前为手动步骤（类似 Django makemigrations）。
+#   如果希望部署时自动执行，可在 IAM_FRAMEWORK.MIGRATION 中设置：
+#     "MIGRATION": {"MODE": "auto", "AUTO_MAKEMIGRATIONS": True}
+#   auto 模式会在 AppConfig.ready() 时自动：diff → 写文件 → apply。
+#   AUTO_MAKEMIGRATIONS 默认 False（安全考虑，迁移文件需要 review）。
+# ==============================================================================
+
+import os
+import tempfile
+
+import pytest
+
+from bkmonitor.iam.iam_engine.migration.diff import diff_snapshots
+from bkmonitor.iam.iam_engine.migration.loader import MigrationLoader
+from bkmonitor.iam.iam_engine.migration.planner import MigrationPlanner
+from bkmonitor.iam.iam_engine.migration.recorder import InMemoryRecorder
+from bkmonitor.iam.iam_engine.schema.diff import ChangeType, MigrationPlan
+from bkmonitor.iam.iam_engine.django.management.commands.iam_engine_makemigrations import _render_migration
+
+
+@pytest.mark.skipif(_MISSING_CONFIG, reason=SKIP_REASON)
+class TestIAMv4FileMigrationFlow:
+    """IAM v4 文件迁移全流程集成测试。
+
+    真实路径：
+      schema.to_snapshot()           ← 框架从 definitions 导出
+      diff_snapshots(current, prev)  ← 框架 diff，生成 Change[]
+      写出迁移文件 .py               ← makemigrations
+      MigrationLoader 加载           ← migrate 第一步
+      MigrationPlanner 计算 pending  ← migrate 第二步
+      provider.apply_migration()     ← 每个 pending 文件：plan → apply
+      recorder.record()              ← 写 DB 记录
+    """
+
+    # ================================================================
+    # 场景 A: 首先生成迁移文件 + 验证全 noop
+    # ================================================================
+
+    def test_A1_makemigrations_from_current_schema(self):
+        """用当前 schema 生成迁移文件（模拟首次 makemigrations）。
+
+        从空快照开始 diff 当前 definitions schema，生成 0001_initial.py。
+        """
+        fw = get_framework()
+        current = fw.schema.to_snapshot()
+
+        # diff: 空快照 → 当前 schema
+        changes = diff_snapshots(current, {})
+        create_count = sum(1 for c in changes if c.change_type == ChangeType.CREATE)
+        print(f"\n  Changes from empty snapshot: {len(changes)} total, {create_count} CREATE")
+        print(f"  Actions: {len(current['actions'])}")
+        print(f"  ResourceTypes: {len(current['resource_types'])}")
+        print(f"  Roles: {len(current['roles'])}")
+
+        assert len(changes) > 0, "当前 schema 非空，应有变更"
+        assert create_count > 0
+
+        # 写入临时目录作为迁移文件（类属性，跨测试方法共享）
+        self.__class__._tmp_dir = tempfile.mkdtemp(prefix="iam_mig_test_")
+        filepath = os.path.join(self.__class__._tmp_dir, "0001_initial.py")
+        content = _render_migration("0001_initial", [], changes, current)
+        with open(filepath, "w") as f:
+            f.write(content)
+        print(f"  ✓ 迁移文件已生成: {filepath}")
+
+    def test_A2_plan_pending(self):
+        """MigrationPlanner 计算待应用列表。首次运行，0001_initial 应 pending。"""
+        if not hasattr(self.__class__, "_tmp_dir"):
+            pytest.skip("需要先跑 test_A1_makemigrations_from_current_schema")
+
+        loader = MigrationLoader(self.__class__._tmp_dir)
+        recorder = InMemoryRecorder()
+        planner = MigrationPlanner(loader, recorder, "v4")
+
+        pending = planner.get_pending()
+        print(f"\n  Pending: {[m.name for m in pending]}")
+        assert len(pending) == 1
+        assert pending[0].name == "0001_initial"
+        assert len(pending[0].operations) > 0
+        print(f"  ✓ 1 pending migration: {pending[0].name} ({len(pending[0].operations)} changes)")
+
+    def test_A3_apply_migration(self):
+        """真实 apply 迁移文件到 v4 平台（dry_run=False）。
+
+        因为平台已通过 TestIAMv4FullLifecycle 部署过，这步应该是
+        全 NOOP 或仅有小量 diff（取决于平台状态与本地 schema 的偏差）。
+        如果之前已经 apply 过一次（场景 B/C 中），这里会因记录已存在而跳过。
+        """
+        if not hasattr(self.__class__, "_tmp_dir"):
+            pytest.skip("需要先跑 test_A1_makemigrations_from_current_schema")
+
+        fw = get_framework()
+        provider = fw.providers["v4"]
+
+        loader = MigrationLoader(self.__class__._tmp_dir)
+        recorder = InMemoryRecorder()
+        planner = MigrationPlanner(loader, recorder, "v4")
+        pending = planner.get_pending()
+
+        if not pending:
+            print("\n  No pending migrations.")
+            return
+
+        migration = pending[0]
+        print(f"\n  Applying: {migration.name} ({len(migration.operations)} changes)")
+
+        plan = MigrationPlan(provider_name="v4", changes=list(migration.operations))
+        report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
+
+        print(f"  Applied: {len(report.applied)}, Failed: {len(report.failed)}, Elapsed: {report.elapsed_seconds:.1f}s")
+        if report.skipped_reason:
+            print(f"  Skipped: {report.skipped_reason}")
+
+        for c in report.applied[:10]:
+            print(f"    ✓ [{c.kind.value}] {c.change_type.value} {c.entity_id}")
+        for c, err in report.failed[:5]:
+            print(f"    ✗ [{c.kind.value}] {c.change_type.value} {c.entity_id}: {err[:200]}")
+
+        # 部分 CREATE 可能因为平台已有而失败（幂等），记录出来但不硬断言
+        recorder.record("v4", migration.name, changes_count=len(report.applied))
+
+    def test_A4_verify_no_pending(self):
+        """apply 后再次 plan：应无 pending。"""
+        if not hasattr(self.__class__, "_tmp_dir"):
+            pytest.skip("需要先跑 test_A1_makemigrations_from_current_schema")
+
+        loader = MigrationLoader(self.__class__._tmp_dir)
+        recorder = InMemoryRecorder()
+        # 模拟 0001_initial 已应用
+        recorder.record("v4", "0001_initial", 50)
+
+        planner = MigrationPlanner(loader, recorder, "v4")
+        pending = planner.get_pending()
+        print(f"\n  After apply, pending: {[m.name for m in pending]}")
+        assert len(pending) == 0, f"预期无 pending，实际: {[m.name for m in pending]}"
+        print("  ✓ 所有迁移已应用")

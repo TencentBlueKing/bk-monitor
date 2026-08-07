@@ -49,6 +49,7 @@ from ..core.exceptions import (
 from ..schema.definitions import (
     ActionDef,
     ResourceTypeDef,
+    RoleActionBinding,
     RoleDef,
 )
 
@@ -252,3 +253,95 @@ class SchemaRegistry:
     def roles_containing_action(self, action_id: str) -> list[RoleDef]:
         """反向查询：某 action 出现在哪些角色里。"""
         return [role for role in self._roles.values() if any(b.action_id == action_id for b in role.actions)]
+
+    # ------------------------------------------------------------------
+    # 快照导入/导出（供 migration makemigrations 使用）
+    # ------------------------------------------------------------------
+
+    def to_snapshot(self) -> dict:
+        """导出当前 schema 的完整可 diff 快照。
+
+        包含所有字段（id/name/resource_type/ancestor/description/extensions/actions），
+        各版本 Provider 通过 extensions 承载方言映射，快照必须保留。
+
+        Returns:
+            dict: 包含 actions/resource_types/roles 三个 key 的字典，与 from_snapshot 互逆。
+        """
+        return {
+            "actions": {
+                a.id: {
+                    "name": a.name,
+                    "resource_type": a.resource_type,
+                    "description": a.description,
+                    "extensions": dict(a.extensions),
+                }
+                for a in self._actions.values()
+            },
+            "resource_types": {
+                rt.id: {
+                    "name": rt.name,
+                    "ancestor": rt.ancestor,
+                    "description": rt.description,
+                    "extensions": dict(rt.extensions),
+                }
+                for rt in self._resource_types.values()
+            },
+            "roles": {
+                r.id: {
+                    "name": r.name,
+                    "description": r.description,
+                    "extensions": dict(r.extensions),
+                    "actions": [{"action_id": b.action_id, "resource_type": b.resource_type} for b in r.actions],
+                }
+                for r in self._roles.values()
+            },
+        }
+
+    @classmethod
+    def from_snapshot(cls, snapshot: dict) -> SchemaRegistry:
+        """从快照重建 SchemaRegistry（用于迁移 diff 对比）。
+
+        重建的 registry 不 freeze——调用方按需 freeze。
+
+        Args:
+            snapshot: to_snapshot() 产出的字典。
+
+        Returns:
+            已填充但未冻结的 SchemaRegistry 实例。
+        """
+        registry = cls()
+        for rt_id, data in snapshot.get("resource_types", {}).items():
+            registry.register_resource_type(
+                ResourceTypeDef(
+                    id=rt_id,
+                    name=data["name"],
+                    ancestor=data.get("ancestor", ""),
+                    description=data.get("description", ""),
+                    extensions=data.get("extensions", {}),
+                )
+            )
+        for a_id, data in snapshot.get("actions", {}).items():
+            registry.register_action(
+                ActionDef(
+                    id=a_id,
+                    name=data["name"],
+                    resource_type=data.get("resource_type", ""),
+                    description=data.get("description", ""),
+                    extensions=data.get("extensions", {}),
+                )
+            )
+        for r_id, data in snapshot.get("roles", {}).items():
+            bindings = tuple(
+                RoleActionBinding(action_id=b["action_id"], resource_type=b.get("resource_type", ""))
+                for b in data.get("actions", [])
+            )
+            registry.register_role(
+                RoleDef(
+                    id=r_id,
+                    name=data["name"],
+                    description=data.get("description", ""),
+                    extensions=data.get("extensions", {}),
+                    actions=bindings,
+                )
+            )
+        return registry

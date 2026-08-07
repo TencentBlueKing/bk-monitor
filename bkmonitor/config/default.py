@@ -63,6 +63,7 @@ INSTALLED_APPS = (
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
+    "bkmonitor.iam.iam_engine.django",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -1379,13 +1380,13 @@ IAM_FRAMEWORK = {
                     "description": "蓝鲸监控平台 IAM v4 权限系统",
                     "callback_url": BK_IAM_V4_CALLBACK_URL,
                     "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
-                    "clients": [APP_CODE],
+                    "clients": ["bluexun"],
                 },
             },
         },
     ],
     "COMPOSITION": {"policy": "single"},
-    "MIGRATION": {"mode": "manual"},
+    "MIGRATION": {"mode": "manual", "directory": "bkmonitor/iam/iam_migrations"},
 }
 
 # 聚合网关默认业务ID

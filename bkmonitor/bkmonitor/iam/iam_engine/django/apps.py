@@ -57,7 +57,7 @@ class IamEngineConfig(AppConfig):
 
         raw = getattr(settings, "IAM_FRAMEWORK", {})
         migration_cfg = raw.get("MIGRATION", {})
-        mode = migration_cfg.get("MODE", "manual")
+        mode = migration_cfg.get("mode", "manual")
 
         if mode == "manual":
             return
@@ -78,26 +78,102 @@ class IamEngineConfig(AppConfig):
             return
         self._migration_done = True
 
-        allow_destructive = migration_cfg.get("ALLOW_DESTRUCTIVE", False) or migration_cfg.get("MODE") == "auto_full"
+        # 多副本互斥：DB advisory lock 保证同一时刻只有一个 Pod/Worker 执行
+        if not _acquire_migration_lock():
+            logger.info("iam_engine auto migration skipped — another process is already running it")
+            return
 
-        # 注意：多副本部署的分布式互斥由各 Provider 的 apply_migration 实现自行
-        # 负责（例如 builtin/v4/migrator.py 内部用 RedisLock 包裹）。
-        # 框架层不引入锁依赖——不同 Provider 的锁后端需求不同（Redis / DB / 文件锁）。
+        try:
+            self._do_auto_migration(fw, migration_cfg)
+        finally:
+            _release_migration_lock()
+
+    def _do_auto_migration(self, fw, migration_cfg: dict) -> None:
+        allow_destructive = migration_cfg.get("allow_destructive", False) or migration_cfg.get("mode") == "auto_full"
+
+        from ..migration.loader import MigrationLoader
+        from ..migration.planner import MigrationPlanner
+        from ..schema.diff import ChangeType, EntityKind, MigrationPlan
+
+        directory = migration_cfg.get("directory", "")
+        recorder = None
 
         for provider in fw.providers.values():
             try:
+                # ① 系统迁移：远端 diff system info → apply
                 plan = provider.plan_migration(fw.schema)
-                if not plan.changes:
-                    logger.info("iam_engine migration: %s — no changes", provider.name)
+                system_changes = [
+                    c for c in plan.changes if c.kind == EntityKind.SYSTEM and c.change_type != ChangeType.NOOP
+                ]
+                if system_changes:
+                    logger.info("iam_engine migration: %s system — %d change(s)", provider.name, len(system_changes))
+                    system_plan = MigrationPlan(provider_name=provider.name, changes=system_changes)
+                    provider.apply_migration(system_plan, dry_run=False, allow_destructive=allow_destructive)
+
+                # ② 文件迁移：本地迁移文件 → apply 未应用的
+                if not directory:
                     continue
-                logger.info("iam_engine migration: %s — %s", provider.name, plan.summary())
-                provider.apply_migration(
-                    plan,
-                    dry_run=False,
-                    allow_destructive=allow_destructive,
-                )
+
+                if recorder is None:
+                    from ..django.migration_recorder import DjangoMigrationRecorder
+
+                    recorder = DjangoMigrationRecorder()
+
+                loader = MigrationLoader(directory)
+                planner = MigrationPlanner(loader, recorder, provider.name)
+                pending = planner.get_pending()
+
+                if not pending:
+                    continue
+
+                logger.info("iam_engine migration: %s file — %d pending", provider.name, len(pending))
+                for migration in pending:
+                    file_plan = MigrationPlan(provider_name=provider.name, changes=list(migration.operations))
+                    report = provider.apply_migration(file_plan, dry_run=False, allow_destructive=allow_destructive)
+                    if report.success:
+                        recorder.record(provider.name, migration.name, changes_count=len(report.applied))
+                        logger.info(
+                            "iam_engine migration: %s %s — %d applied",
+                            provider.name,
+                            migration.name,
+                            len(report.applied),
+                        )
+                    else:
+                        logger.error(
+                            "iam_engine migration: %s %s — %d failed, skipped=%s",
+                            provider.name,
+                            migration.name,
+                            len(report.failed),
+                            report.skipped_reason,
+                        )
+                        break
             except Exception:
                 logger.exception(
                     "iam_engine auto migration failed for provider=%s",
                     provider.name,
                 )
+
+
+# ---------------------------------------------------------------------------
+# 多副本互斥：DB advisory lock
+# ---------------------------------------------------------------------------
+
+_ACQUIRE_LOCK = "SELECT GET_LOCK('iam_migrate_auto', 0)"
+_RELEASE_LOCK = "SELECT RELEASE_LOCK('iam_migrate_auto')"
+
+
+def _acquire_migration_lock() -> bool:
+    """尝试获取迁移互斥锁。返回 True 表示获取成功。"""
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute(_ACQUIRE_LOCK)
+        return cursor.fetchone()[0] == 1
+
+
+def _release_migration_lock() -> None:
+    """释放迁移互斥锁。"""
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute(_RELEASE_LOCK)

@@ -60,21 +60,19 @@ class MigrationConfig:
 
     Attributes:
         mode: 迁移模式
-            - "auto": AppConfig.ready() 时自动 plan + apply（CREATE+UPDATE，不含 DELETE）
+            - "auto": AppConfig.ready() 时自动执行文件迁移 + 系统 diff（不含 DELETE）
             - "auto_full": 同上但包含 DELETE（生产不建议）
             - "semi_auto": Django post_migrate 信号触发；DELETE 只警告不执行
             - "manual": 仅通过 CLI 触发（生产推荐）
-        allow_destructive: 是否允许破坏性变更（删除、字段收窄等），默认 False
-        soft_delete: deprecated=True 的 action 软删除（加 [已废弃] 前缀），默认 True
-        continue_on_error: 单条 change 失败是否继续，默认 False
-        log_to_file: 是否将 MigrationReport 落文件
+        directory: 系统级迁移文件目录（所有 Provider 共用）
+        allow_destructive: 是否允许破坏性变更
+        auto_makemigrations: auto 模式下是否自动生成迁移文件（默认 False，需 review）
     """
 
-    mode: str = "auto"
+    mode: str = "manual"
+    directory: str = ""
     allow_destructive: bool = False
-    soft_delete: bool = True
-    continue_on_error: bool = False
-    log_to_file: bool = True
+    auto_makemigrations: bool = False
 
 
 @dataclass(frozen=True)
@@ -119,7 +117,13 @@ class FrameworkConfig:
             policy=raw.get("COMPOSITION", {}).get("policy", "single"),
             options=raw.get("COMPOSITION", {}).get("options", {}),
         )
-        migration = MigrationConfig(**raw.get("MIGRATION", {}))
+        migration_raw = raw.get("MIGRATION", {})
+        migration = MigrationConfig(
+            mode=migration_raw.get("mode", "manual"),
+            directory=migration_raw.get("directory", ""),
+            allow_destructive=migration_raw.get("allow_destructive", False),
+            auto_makemigrations=migration_raw.get("auto_makemigrations", False),
+        )
         return cls(
             actions_module=raw.get("ACTIONS", ""),
             resource_types_module=raw.get("RESOURCE_TYPES", ""),
