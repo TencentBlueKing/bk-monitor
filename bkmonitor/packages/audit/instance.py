@@ -76,6 +76,9 @@ def push_event(request, response=None):
     基于request对象，自动上报审计日志
     """
     try:
+        if request.method != "GET":
+            return
+
         key_params = ["user", "biz_id"]
         # request 合法性验证
         for key in key_params:
@@ -84,7 +87,7 @@ def push_event(request, response=None):
 
         instance = None
         for regex, instance_cls in InstanceFilter:
-            ret = regex.match(request.path)
+            ret = regex.fullmatch(request.path)
             if ret:
                 instance = instance_cls(**ret.groupdict())
                 break
@@ -136,6 +139,6 @@ def push_event(request, response=None):
 
 
 InstanceFilter = (
-    (re.compile(r"/grafana/api/dashboards/(?P<uid>home)"), DashboardInstance),
-    (re.compile(r"/grafana/api/dashboards/uid/(?P<uid>\S+)"), DashboardInstance),
+    (re.compile(r"/grafana/api/dashboards/(?P<uid>home)/?"), DashboardInstance),
+    (re.compile(r"/grafana/api/dashboards/uid/(?P<uid>[^/]+)/?"), DashboardInstance),
 )

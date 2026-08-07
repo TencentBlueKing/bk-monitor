@@ -30,6 +30,7 @@ def make_dashboard_request(status_code=200):
     request.biz_id = "2"
     request.org_name = "2"
     request.external_user = "external-user"
+    request.request_id = "request-id"
     return request, HttpResponse(status=status_code)
 
 
@@ -63,6 +64,9 @@ def test_push_event_records_external_dashboard_context_and_result(response_statu
         extend_data=event["extend_data"],
     )
     assert audit_event.username == "external-user"
+    assert audit_event.request_id == "request-id"
+    assert audit_event.access_source_ip == "<ip>"
+    assert audit_event.access_user_agent == "external-monitor-client"
     assert request.user.username == "authorized-agent"
     assert event["result_code"] == result_code
     assert event["result_content"] == (f"HTTP {result_code}" if result_code else "")
@@ -76,6 +80,69 @@ def test_push_event_records_external_dashboard_context_and_result(response_statu
         "response_status": target_status if target_status is not None else response_status,
     }
     export_events.assert_called_once_with()
+
+
+def test_push_event_preserves_internal_user_as_operator():
+    request = RequestFactory().get("/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2")
+    request.user = SimpleNamespace(username="internal-user")
+    request.biz_id = "2"
+
+    with (
+        patch("audit.instance.bk_audit_client.add_event") as add_event,
+        patch("audit.instance.bk_audit_client.export_events"),
+    ):
+        push_event(request, HttpResponse())
+
+    event = add_event.call_args.kwargs
+    assert event["audit_context"].request is request
+    assert event["audit_context"].request.user.username == "internal-user"
+    assert event["extend_data"]["external_user"] == ""
+    assert "authorizer" not in event["extend_data"]
+
+
+@pytest.mark.parametrize(
+    ("path", "instance_id"),
+    [
+        ("/grafana/api/dashboards/home", "home"),
+        ("/grafana/api/dashboards/uid/dashboard-uid/", "dashboard-uid"),
+    ],
+)
+def test_push_event_matches_supported_dashboard_view_routes(path, instance_id):
+    request = RequestFactory().get(path)
+    request.user = SimpleNamespace(username="internal-user")
+    request.biz_id = "2"
+
+    with (
+        patch("audit.instance.bk_audit_client.add_event") as add_event,
+        patch("audit.instance.bk_audit_client.export_events"),
+    ):
+        push_event(request, HttpResponse())
+
+    assert add_event.call_args.kwargs["instance"].instance_id == instance_id
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/grafana/api/dashboards/uid/dashboard-uid"),
+        ("get", "/grafana/api/dashboards/uid/dashboard-uid/permissions"),
+        ("get", "/grafana/api/dashboards/home/preferences"),
+        ("get", "/rest/v2/grafana/dashboards/"),
+    ],
+)
+def test_push_event_ignores_non_view_dashboard_requests(method, path):
+    request = getattr(RequestFactory(), method)(path)
+    request.user = SimpleNamespace(username="internal-user")
+    request.biz_id = "2"
+
+    with (
+        patch("audit.instance.bk_audit_client.add_event") as add_event,
+        patch("audit.instance.bk_audit_client.export_events") as export_events,
+    ):
+        push_event(request, HttpResponse())
+
+    add_event.assert_not_called()
+    export_events.assert_not_called()
 
 
 def test_push_event_does_not_break_request_when_export_fails(caplog):
