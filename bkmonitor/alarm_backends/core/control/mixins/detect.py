@@ -181,9 +181,9 @@ class DetectMixin:
             timestamp = int(timestamp)
             latest_point_with_all = max([latest_point_with_all, d.timestamp])
 
-            check_result = CheckResult(self.strategy.id, self.id, dimensions_md5, level)
             if redis_pipeline is None:
-                redis_pipeline = check_result.CHECK_RESULT
+                redis_pipeline = CheckResult.begin_pipeline_batch()
+            check_result = CheckResult(self.strategy.id, self.id, dimensions_md5, level)
 
             if d.record_id in anomaly_record_ids:
                 name = f"{timestamp}|{ANOMALY_LABEL}"

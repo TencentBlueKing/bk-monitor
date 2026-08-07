@@ -255,5 +255,5 @@ class TestProcessorViews(TestCase):
                         assert label == f"{records[1]['time']}|{records[1]['value']}"
 
     def test_check_result_pipeline(self):
-        redis_pipeline = CheckResult(strategy_id=1, item_id=2, dimensions_md5="md5_str", level="1").pipeline()
+        redis_pipeline = CheckResult.begin_pipeline_batch()
         assert redis_pipeline is CheckResult(strategy_id=1, item_id=2, dimensions_md5="md5_str", level="1").CHECK_RESULT
