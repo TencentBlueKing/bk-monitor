@@ -636,6 +636,8 @@ FEATURE_TOGGLE = {
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
     # 场景化检索
     "scene_search": os.environ.get("BKAPP_FEATURE_SCENE_SEARCH", "off"),
+    # 外部用户 PO+IAM OR 决策灰度开关（默认off走老逻辑；on全局开；debug+名单空间级灰度）
+    "external_permission_or_decision": os.environ.get("BKAPP_FEATURE_EXTERNAL_PERMISSION_OR_DECISION", "off"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"

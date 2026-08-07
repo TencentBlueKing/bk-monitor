@@ -73,8 +73,10 @@ export function useNavMenu(options: {
     }
     try {
       store.commit('updateSpace', space.space_uid);
+      // 增量场景：业务权限申请入口默认带上 VIEW_CLIENT_LOG，
+      // 避免用户仅申请到 VIEW_BUSINESS 后，客户端日志查看仍需二次申请造成断权体感
       const res = await store.dispatch('getApplyData', {
-        action_ids: [authorityMap.VIEW_BUSINESS],
+        action_ids: [authorityMap.VIEW_BUSINESS, authorityMap.VIEW_CLIENT_LOG_AUTH],
         resources: [
           {
             type: 'space',

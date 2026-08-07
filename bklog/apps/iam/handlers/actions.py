@@ -224,6 +224,16 @@ class ActionEnum:
         version=1,
     )
 
+    VIEW_CLIENT_LOG = ActionMeta(
+        id="view_client_log",
+        name=_("客户端日志查看"),
+        name_en="View Client Log",
+        type="view",
+        related_resource_types=[ResourceEnum.BUSINESS],
+        related_actions=[],
+        version=1,
+    )
+
     CREATE_CLIENT_LOG_TASK = ActionMeta(
         id="create_client_log_task",
         name=_("客户端日志采集任务创建"),

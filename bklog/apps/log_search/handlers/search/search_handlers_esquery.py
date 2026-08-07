@@ -2030,7 +2030,8 @@ class SearchHandler:
 
         if is_desensitize:
             bk_biz_id = self.search_dict.get("bk_biz_id", "")
-            request_user = get_request_username()
+            # 外部用户（经 PO 代理）以 external_user 本人身份判断脱敏白名单，而非 authorizer
+            request_user = get_request_external_username() or get_request_username()
             feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
             if feature_toggle and isinstance(feature_toggle.feature_config, dict):
                 user_white_list = feature_toggle.feature_config.get("user_white_list", {})
