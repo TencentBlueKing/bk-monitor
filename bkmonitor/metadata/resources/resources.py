@@ -1386,7 +1386,6 @@ class GetTimeSeriesGroupResource(Resource):
 
         return results
 
-
 class GetTimeSeriesMetricsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")

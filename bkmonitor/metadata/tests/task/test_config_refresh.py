@@ -9,17 +9,50 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from unittest.mock import call
 
 import pytest
 from mockredis.redis import mock_redis_client
 
 from metadata import config
-from metadata.task.config_refresh import clean_datasource_from_consul
+from metadata.task.config_refresh import _refresh_storage_config, clean_datasource_from_consul
 from metadata.tests.conftest import HashConsulMocker
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 
 from .conftest import DEFAULT_BK_DATA_ID, DEFAULT_TRANSFER_CLUSTER_ID
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+def test_refresh_storage_config_reports_success_for_single_backend(mocker):
+    metrics = mocker.patch("metadata.task.config_refresh.metrics")
+    refresher = mocker.Mock()
+    mocker.patch("metadata.task.config_refresh.time.time", side_effect=[100, 102])
+
+    _refresh_storage_config("refresh_consul_storage", "consul", refresher)
+
+    refresher.assert_called_once_with()
+    assert metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels.call_args_list == [
+        call(task_name="refresh_consul_storage", status=TASK_STARTED, process_target=None),
+        call(task_name="refresh_consul_storage", status=TASK_FINISHED_SUCCESS, process_target=None),
+    ]
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels.assert_called_once_with(
+        task_name="refresh_consul_storage", process_target=None
+    )
+
+
+def test_refresh_storage_config_reports_failure_for_single_backend(mocker):
+    metrics = mocker.patch("metadata.task.config_refresh.metrics")
+    refresher = mocker.Mock(side_effect=ValueError("unavailable"))
+    mocker.patch("metadata.task.config_refresh.time.time", side_effect=[100, 102])
+
+    with pytest.raises(RuntimeError, match="metadata redis storage config refresh failed"):
+        _refresh_storage_config("refresh_redis_storage", "redis", refresher)
+
+    assert metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels.call_args_list == [
+        call(task_name="refresh_redis_storage", status=TASK_STARTED, process_target=None),
+        call(task_name="refresh_redis_storage", status=TASK_FINISHED_FAILURE, process_target=None),
+    ]
 
 
 def test_clean_datasource(create_and_delete_record, mocker):

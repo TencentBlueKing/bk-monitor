@@ -33,7 +33,7 @@ from metadata.task.tasks import (
     clean_disable_es_storage,
     manage_es_storage,
 )
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -53,32 +53,54 @@ def refresh_consul_influxdb_tableinfo():
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshConsulStorage")
 def refresh_consul_storage():
-    """
-    刷新storage信息给unify-query使用
-    """
+    """刷新 Consul Storage 配置给 unify-query 使用。"""
+    _refresh_storage_config(
+        task_name="refresh_consul_storage",
+        backend="consul",
+        refresher=models.ClusterInfo.refresh_consul_storage_config,
+    )
+
+
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshRedisStorage")
+def refresh_redis_storage():
+    """刷新 Redis Storage 配置给 unify-query 使用。"""
+    _refresh_storage_config(
+        task_name="refresh_redis_storage",
+        backend="redis",
+        refresher=models.ClusterInfo.refresh_redis_storage_config,
+    )
+
+
+def _refresh_storage_config(task_name, backend, refresher):
+    """刷新单个 Storage 配置后端并独立上报任务状态。"""
 
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="refresh_consul_storage", status=TASK_STARTED, process_target=None
+        task_name=task_name, status=TASK_STARTED, process_target=None
     ).inc()
     start_time = time.time()
+    failed = False
     try:
-        logger.info("start to refresh metadata es storage info")
-        models.ClusterInfo.refresh_consul_storage_config()
-    except Exception as e:
-        logger.error(f"refresh es storage failed for ->{e}")
+        logger.info("start to refresh metadata storage info to %s", backend)
+        refresher()
+    except Exception:
+        failed = True
+        logger.exception("refresh metadata storage to %s failed", backend)
 
     cost_time = time.time() - start_time
 
+    task_status = TASK_FINISHED_FAILURE if failed else TASK_FINISHED_SUCCESS
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="refresh_consul_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+        task_name=task_name, status=task_status, process_target=None
     ).inc()
     # 统计耗时，上报指标
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_storage", process_target=None).observe(
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name=task_name, process_target=None).observe(
         cost_time
     )
     metrics.report_all()
-    logger.info(f"refresh_consul_storage:task finished, cost time: {cost_time}")
+    logger.info("%s: task finished, cost time: %s", task_name, cost_time)
+    if failed:
+        raise RuntimeError(f"metadata {backend} storage config refresh failed")
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")
