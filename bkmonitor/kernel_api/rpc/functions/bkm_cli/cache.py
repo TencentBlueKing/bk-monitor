@@ -632,46 +632,10 @@ def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
-    """列出当前集群的 alarm_backends Redis 缓存路由表（CacheRouter）+ 默认节点。
+    """列出 CacheRouter 快照，或为完整正数路由表生成变更预览。"""
+    from kernel_api.rpc.functions.bkm_cli.cache_routing import list_cache_routing as handler
 
-    用途：给 read-cache-key 的 routing 回显提供独立信源做双边对账——routing 回显与实际读取
-    共用 get_node_by_strategy_id（单边自指），本 op 直读 CacheRouter/CacheNode 表，可交叉核对
-    strategy_id -> node 映射全貌。纯只读：不调 CacheNode.default_node()（其 get_or_create 有写
-    副作用），改用 filter(is_default=True) 只读取。不回显 host/port（与 read-cache-key 一致）。
-
-    strategy_score 是区间的开区间上界（与 redis_cluster.get_node_by_strategy_id 一致）：
-    某 strategy_id 命中第一个 strategy_score > strategy_id 的路由行；strategy_id=0 走默认节点。
-    """
-    from alarm_backends.core.cluster import get_cluster
-    from bkmonitor.models import CacheNode, CacheRouter
-
-    cluster_name = get_cluster().name
-    routers = list(
-        CacheRouter.objects.filter(cluster_name=cluster_name).select_related("node").order_by("strategy_score")
-    )
-
-    items = []
-    prev_floor = 0
-    for router in routers:
-        items.append(
-            {
-                "strategy_score": router.strategy_score,
-                # 命中区间 [floor, ceil]：floor=上一行 score，ceil=本行 score-1
-                "score_range": {"floor": prev_floor, "ceil": router.strategy_score - 1},
-                "node": _node_identity(router.node),
-            }
-        )
-        prev_floor = router.strategy_score
-
-    # 默认节点（strategy_id=0 或路由表未命中时的落点）——只读查询，绝不触发 default_node() 的写
-    default_node = CacheNode.objects.filter(is_default=True, cluster_name=cluster_name).first()
-
-    return {
-        "cluster_name": cluster_name,
-        "router_count": len(items),
-        "routers": items,
-        "default_node": _node_identity(default_node) if default_node else None,
-    }
+    return handler(params)
 
 
 KernelRPCRegistry.register_function(
@@ -770,12 +734,17 @@ KernelRPCRegistry.register_function(
     func_name="bkm_cli.list_cache_routing",
     summary="列出 alarm_backends Redis 缓存路由表 (CacheRouter)",
     description=(
-        "只读列出当前集群 CacheRouter 路由表 + 默认节点，给 read-cache-key 的 routing 回显"
-        "提供独立信源做 strategy_id -> node 双边对账。不含 host/port/password。无入参。"
+        "只读返回当前集群 CacheRouter 快照、安全节点身份、最大策略 ID 与向上取整到 100 的分界建议；"
+        "也可为完整正数路由表生成受快照绑定的普通变更或计划节点 drain 预览。不含 host/port/password。"
     ),
     handler=lambda params: list_cache_routing(params or {}),
-    params_schema={},
-    example_params={},
+    params_schema={
+        "operation": "snapshot | preview | drain_preview，默认 snapshot",
+        "drain_node_id": "drain_preview 必填",
+        "expected_snapshot_id": "preview/drain_preview 必填",
+        "desired_routes": "preview/drain_preview 必填，完整的正数路由表",
+    },
+    example_params={"operation": "snapshot"},
 )
 
 BkmCliOpRegistry.register(
@@ -783,15 +752,19 @@ BkmCliOpRegistry.register(
     func_name="bkm_cli.list_cache_routing",
     summary="列出 alarm_backends Redis 缓存路由表 (CacheRouter)",
     description=(
-        "只读列出当前集群 CacheRouter 路由表（strategy_score 区间 -> node）+ 默认节点。"
-        "用于核对 read-cache-key routing 回显的 strategy_id -> node 落点（解单边自指）。"
-        "node 不含 host/port/password。strategy_score 是开区间上界：strategy_id 命中第一个 "
-        "strategy_score > strategy_id 的行；strategy_id=0 走 default_node。无入参。"
+        "只读快照默认操作保持兼容；preview/drain_preview 根据 expected_snapshot_id 和完整 desired_routes 返回"
+        "独立 plan_id、expected_after_snapshot_id 与精确 diff。drain 只允许解除一个非默认节点的正路由引用；"
+        "node 仅包含安全身份字段。"
     ),
     capability_level="readonly",
     risk_level="low",
     requires_confirmation=False,
     audit_tags=["cache", "redis", "readonly", "routing"],
-    params_schema={},
-    example_params={},
+    params_schema={
+        "operation": "snapshot | preview | drain_preview",
+        "drain_node_id": "integer, drain_preview required",
+        "expected_snapshot_id": "string, preview/drain_preview required",
+        "desired_routes": "array, preview/drain_preview required",
+    },
+    example_params={"operation": "snapshot"},
 )
