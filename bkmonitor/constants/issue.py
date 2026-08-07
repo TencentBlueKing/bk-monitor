@@ -77,6 +77,9 @@ class SourceAnalysisStatus:
     """源码分析执行记录主状态。
 
     四方链路的外部任务状态统一映射到这四个值，失败的具体位置由 SourceAnalysisFailureStage 单独承载。
+
+    以下各源码分析常量类的 CHOICES / LABELS 只供序列化层拼展示文案，不要挂到 Model 字段的 choices 上：
+    翻译文案会被冻结进迁移文件，切换 locale 后会生成无关的 AlterField。
     """
 
     PENDING = "pending"

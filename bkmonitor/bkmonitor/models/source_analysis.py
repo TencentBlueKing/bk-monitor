@@ -9,21 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-import time
-import uuid
 
 from django.db import models
 from django.utils import timezone
 
 from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.issue_id import generate_issue_style_id
 from bkmonitor.utils.model_manager import AbstractRecordModel
-from constants.issue import (
-    SourceAnalysisFailureStage,
-    SourceAnalysisResultType,
-    SourceAnalysisStage,
-    SourceAnalysisStatus,
-    SourceAnalysisTriggerType,
-)
+from constants.issue import SourceAnalysisStatus, SourceAnalysisTriggerType
 from core.errors.issue import SourceAnalysisInvalidStatusTransitionError
 
 logger = logging.getLogger(__name__)
@@ -32,13 +25,7 @@ __all__ = [
     "IssueSourceAnalysisConfig",
     "IssueSourceAnalysisExecution",
     "IssueSourceAnalysisRule",
-    "generate_analysis_id",
 ]
-
-
-def generate_analysis_id() -> str:
-    """与 IssueDocument.id 同款：10 位秒级时间戳 + 8 位随机后缀，便于按 ID 前缀还原发起时间。"""
-    return f"{int(time.time())}{uuid.uuid4().hex[:8]}"
 
 
 class IssueSourceAnalysisConfig(AbstractRecordModel):
@@ -113,6 +100,10 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
 
     Issue 本体存放在 ES，这里只按字符串关联 issue_id，与 IssueMergeRelation、IssueTapdRelation 保持一致。
     执行链路为 analysis_id -> bkfara_task_id -> bkci_build_id，analysis_id 同时是 BKM 到 BKFara 的任务幂等键。
+
+    status、stage、trigger_type、failure_stage、result_type 的取值分别由 constants.issue 下的同名常量类定义。
+    这些字段刻意不声明 choices：状态流转统一走条件更新，choices 在此不产生任何校验，
+    反而会把带翻译的展示文案冻结进迁移，导致非中文 locale 下生成无关的 AlterField。
     """
 
     class Meta:
@@ -147,14 +138,16 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     }
 
     id = models.BigAutoField(primary_key=True)
+    # 与 IssueDocument.id 同款形态，可按 ID 前缀还原发起时间
     analysis_id = models.CharField(
         max_length=64,
         unique=True,
-        default=generate_analysis_id,
+        default=generate_issue_style_id,
         verbose_name="分析记录 ID",
     )
     bk_biz_id = models.IntegerField(db_index=True, verbose_name="业务 ID")
     issue_id = models.CharField(max_length=64, verbose_name="Issue ID")
+    # 由 status 派生，不接受调用方直接赋值，取值规则见 _resolve_active_key
     active_key = models.CharField(
         max_length=64,
         null=True,
@@ -165,13 +158,11 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
 
     status = models.CharField(
         max_length=32,
-        choices=SourceAnalysisStatus.CHOICES,
         default=SourceAnalysisStatus.PENDING,
         verbose_name="主状态",
     )
     stage = models.CharField(
         max_length=32,
-        choices=SourceAnalysisStage.CHOICES,
         null=True,
         blank=True,
         default=None,
@@ -179,7 +170,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     )
     trigger_type = models.CharField(
         max_length=16,
-        choices=SourceAnalysisTriggerType.CHOICES,
         default=SourceAnalysisTriggerType.INITIAL,
         verbose_name="触发方式",
     )
@@ -215,7 +205,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
 
     failure_stage = models.CharField(
         max_length=32,
-        choices=SourceAnalysisFailureStage.CHOICES,
         null=True,
         blank=True,
         default=None,
@@ -230,7 +219,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
 
     result_type = models.CharField(
         max_length=32,
-        choices=SourceAnalysisResultType.CHOICES,
         null=True,
         blank=True,
         default=None,
@@ -244,6 +232,29 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
 
     started_at = models.DateTimeField(null=True, blank=True, default=None, verbose_name="开始执行时间")
     finished_at = models.DateTimeField(null=True, blank=True, default=None, verbose_name="终态时间")
+
+    def _resolve_active_key(self, status: str) -> str | None:
+        """活动位由状态派生：活动态占位、终态让位。唯一约束的正确性依赖这一处规则。"""
+
+        return self.issue_id if status in SourceAnalysisStatus.ACTIVE_STATUSES else None
+
+    def save(self, *args, **kwargs):
+        """写库前统一回填活动位，调用方不需要也不应该自己维护 active_key。"""
+
+        self.active_key = self._resolve_active_key(self.status)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "active_key" not in update_fields:
+            kwargs["update_fields"] = [*update_fields, "active_key"]
+        return super().save(*args, **kwargs)
+
+    def delete(self, hard: bool = False, *args, **kwargs):
+        """软删除同样要让出活动位，否则该 Issue 会被一条应用层已不可见的记录长期挡住。"""
+
+        result = super().delete(hard, *args, **kwargs)
+        if not hard:
+            type(self).origin_objects.filter(pk=self.pk).update(active_key=None)
+            self.active_key = None
+        return result
 
     def mark_running(self, stage: str) -> None:
         """推进到执行中。允许 running -> running，用于活动期间只更新阶段。"""
@@ -263,7 +274,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
             result_payload=result_payload,
             result_schema_version=result_schema_version,
             finished_at=timezone.now(),
-            active_key=None,
         )
 
     def mark_failed(
@@ -285,14 +295,17 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
             failure_retryable=failure_retryable,
             failure_request_id=failure_request_id,
             finished_at=timezone.now(),
-            active_key=None,
         )
 
     def _transition(self, target_status: str, **updates) -> None:
         """按当前库内状态做条件更新，避免并发下两个调用方同时改写同一条记录。"""
 
         allowed_from = [source for source, targets in self.STATUS_TRANSITIONS.items() if target_status in targets]
-        updates.update(status=target_status, update_time=timezone.now())
+        updates.update(
+            status=target_status,
+            active_key=self._resolve_active_key(target_status),
+            update_time=timezone.now(),
+        )
         updated_rows = type(self).objects.filter(pk=self.pk, status__in=allowed_from).update(**updates)
         if not updated_rows:
             logger.warning(

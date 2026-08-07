@@ -15,8 +15,8 @@ from bkmonitor.models import (
     IssueSourceAnalysisConfig,
     IssueSourceAnalysisExecution,
     IssueSourceAnalysisRule,
-    generate_analysis_id,
 )
+from bkmonitor.utils.issue_id import generate_issue_style_id, parse_timestamp_by_id
 from constants.issue import (
     SourceAnalysisFailureStage,
     SourceAnalysisResultType,
@@ -136,10 +136,10 @@ class TestIssueSourceAnalysisExecution(TestCase):
 
     @classmethod
     def create_execution(cls, **kwargs):
+        # 刻意不传 active_key：活动位由模型托管，调用方传了也会被覆盖
         defaults = {
             "bk_biz_id": 2,
             "issue_id": cls.ISSUE_ID,
-            "active_key": cls.ISSUE_ID,
             "alert_id": "alert-1748392000001",
             "bkci_project_id": "project-a",
             "repository_alias": "repo-a",
@@ -147,13 +147,15 @@ class TestIssueSourceAnalysisExecution(TestCase):
         defaults.update(kwargs)
         return IssueSourceAnalysisExecution.objects.create(**defaults)
 
-    def test_analysis_id_reuses_issue_document_format(self):
-        analysis_id = generate_analysis_id()
+    def test_analysis_id_reuses_issue_document_generator(self):
+        # 与 IssueDocument.id 共用同一个生成器，形态一致才能按 ID 前缀还原发起时间
+        field = IssueSourceAnalysisExecution._meta.get_field("analysis_id")
+        self.assertIs(field.default, generate_issue_style_id)
 
+        analysis_id = generate_issue_style_id()
         self.assertEqual(len(analysis_id), 18)
-        # 前 10 位是秒级时间戳，可直接还原发起时间
-        self.assertGreater(int(analysis_id[:10]), 0)
-        self.assertNotEqual(analysis_id, generate_analysis_id())
+        self.assertGreater(parse_timestamp_by_id(analysis_id), 0)
+        self.assertNotEqual(analysis_id, generate_issue_style_id())
 
     def test_analysis_id_is_generated_by_default(self):
         execution = self.create_execution()
@@ -164,11 +166,50 @@ class TestIssueSourceAnalysisExecution(TestCase):
         self.assertEqual(execution.attempt, 1)
         self.assertIsNone(execution.retry_of_analysis_id)
 
+    def test_active_key_is_filled_by_model_on_create(self):
+        # 调用方没传 active_key 也要占住活动位，否则唯一约束在 NULL 上形同虚设
+        execution = self.create_execution()
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.active_key, self.ISSUE_ID)
+
+    def test_active_key_ignores_caller_supplied_value(self):
+        execution = self.create_execution(active_key="whatever")
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.active_key, self.ISSUE_ID)
+
     def test_issue_allows_only_one_active_execution(self):
         self.create_execution()
 
         with self.assertRaises(IntegrityError), transaction.atomic():
             self.create_execution()
+
+    def test_soft_deleted_execution_releases_active_slot(self):
+        first = self.create_execution()
+
+        first.delete()
+
+        # 软删后记录对应用层不可见，活动位必须一并让出，否则该 Issue 再也发起不了分析
+        self.assertIsNone(first.active_key)
+        self.assertEqual(IssueSourceAnalysisExecution.objects.count(), 0)
+        self.assertIsNone(IssueSourceAnalysisExecution.origin_objects.get(pk=first.pk).active_key)
+
+        second = self.create_execution()
+        self.assertEqual(second.active_key, self.ISSUE_ID)
+
+    def test_multiple_terminal_executions_coexist(self):
+        for _ in range(3):
+            execution = self.create_execution()
+            execution.mark_failed(
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="TASK_CREATE_FAILED",
+                failure_message="创建分析任务失败",
+                failure_retryable=True,
+            )
+
+        # 终态记录 active_key 均为 NULL，唯一约束不应把历史记录互相挡住
+        self.assertEqual(IssueSourceAnalysisExecution.objects.filter(issue_id=self.ISSUE_ID).count(), 3)
 
     def test_terminal_execution_releases_active_slot(self):
         first = self.create_execution()
@@ -187,7 +228,7 @@ class TestIssueSourceAnalysisExecution(TestCase):
 
     def test_different_issues_can_run_concurrently(self):
         self.create_execution()
-        self.create_execution(issue_id="1785376900ffffffff", active_key="1785376900ffffffff")
+        self.create_execution(issue_id="1785376900ffffffff")
 
         self.assertEqual(IssueSourceAnalysisExecution.objects.count(), 2)
 
@@ -291,3 +332,9 @@ class TestIssueSourceAnalysisExecution(TestCase):
         first.agent_ids.append("agent-a")
 
         self.assertEqual(second.agent_ids, [])
+
+    def test_enum_fields_declare_no_choices(self):
+        # choices 里的翻译文案会被冻结进迁移，切 locale 后会生成无关的 AlterField
+        for field_name in ("status", "stage", "trigger_type", "failure_stage", "result_type"):
+            field = IssueSourceAnalysisExecution._meta.get_field(field_name)
+            self.assertFalse(field.choices, f"{field_name} 不应声明 choices")
