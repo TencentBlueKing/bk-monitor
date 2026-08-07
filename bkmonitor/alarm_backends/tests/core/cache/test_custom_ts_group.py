@@ -1,6 +1,5 @@
 """自定义指标协议缓存测试。"""
 
-import json
 from types import SimpleNamespace
 
 import pytest
@@ -95,7 +94,7 @@ def test_get_falls_back_to_detail_when_new_api_is_unavailable(mocker):
 
 
 def test_refresh_batches_by_tenant_and_preserves_failed_tenant_cache(mocker):
-    """刷新应按租户批量查询，失败租户不覆盖，并清理已删除 Data ID。"""
+    """刷新应按租户批量查询，失败租户不覆盖已有缓存。"""
     groups = [
         make_ts_group(1001, builtin=False),
         make_ts_group(1002, builtin=True),
@@ -106,7 +105,6 @@ def test_refresh_batches_by_tenant_and_preserves_failed_tenant_cache(mocker):
     filter_groups = mocker.patch.object(TimeSeriesGroup.objects, "filter", return_value=queryset)
 
     cache = mocker.Mock()
-    cache.get.return_value = json.dumps([1001, 1002, 2001, 9999])
     pipeline = cache.pipeline.return_value
     mocker.patch.object(CustomTSGroupCacheManager, "cache", cache)
 
@@ -130,8 +128,7 @@ def test_refresh_batches_by_tenant_and_preserves_failed_tenant_cache(mocker):
     pipeline.set.assert_any_call(CustomTSGroupCacheManager.format_key(1001), "prometheus")
     pipeline.set.assert_any_call(CustomTSGroupCacheManager.format_key(1002), "prometheus")
     assert mocker.call(CustomTSGroupCacheManager.format_key(2001), "json") not in pipeline.set.call_args_list
-    pipeline.delete.assert_called_once_with(CustomTSGroupCacheManager.format_key(9999))
-    pipeline.set.assert_any_call(CustomTSGroupCacheManager.CACHE_DATA_IDS_KEY, json.dumps([1001, 1002, 2001]))
+    pipeline.delete.assert_not_called()
     pipeline.execute.assert_called_once_with()
 
 

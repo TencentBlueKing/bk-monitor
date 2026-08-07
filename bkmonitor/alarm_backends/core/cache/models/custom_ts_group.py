@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -28,7 +27,6 @@ class CustomTSGroupCacheManager(CacheManager):
 
     # 缓存key
     CACHE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".ts_group{bk_data_id}"
-    CACHE_DATA_IDS_KEY = CacheManager.CACHE_KEY_PREFIX + ".ts_group_data_ids"
 
     @classmethod
     def format_key(cls, bk_data_id: int) -> str:
@@ -137,11 +135,6 @@ class CustomTSGroupCacheManager(CacheManager):
                 pipeline.set(cls.format_key(ts_group.bk_data_id), protocol)
                 refreshed_count += 1
 
-        current_data_ids = {ts_group.bk_data_id for ts_group in ts_groups}
-        cached_data_ids = set(json.loads(cls.cache.get(cls.CACHE_DATA_IDS_KEY) or "[]"))
-        for bk_data_id in cached_data_ids - current_data_ids:
-            pipeline.delete(cls.format_key(bk_data_id))
-        pipeline.set(cls.CACHE_DATA_IDS_KEY, json.dumps(sorted(current_data_ids)))
         pipeline.execute()
 
         cls.logger.info(
