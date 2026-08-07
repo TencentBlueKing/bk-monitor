@@ -1,5 +1,6 @@
 """bkm-cli 二次确认策略配置查询与受控管理。"""
 
+import json
 from typing import Any
 
 from django.conf import settings
@@ -10,7 +11,7 @@ from bkmonitor.models.strategy import StrategyModel
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
-from kernel_api.rpc.functions.bkm_cli.strategy import _build_strategy_config, _inspect_shared_group
+from kernel_api.rpc.functions.bkm_cli.strategy import _build_strategy_config
 
 
 CONFIG_KEY = "DOUBLE_CHECK_SUM_STRATEGY_IDS"
@@ -128,27 +129,48 @@ def _validate_strategy_for_enable(strategy_id: int) -> dict[str, Any]:
 
 
 def _strategy_groups(strategy_id: int) -> list[dict[str, Any]]:
-    _, config = _strategy_config(strategy_id)
-    group_keys = {
-        item.get("strategy_group_key") or item.get("query_md5")
-        for item in config.get("items") or []
-        if item.get("strategy_group_key") or item.get("query_md5")
-    }
+    """从单次 Redis hash 快照反查策略的全部运行态共享组。
+
+    陈旧策略已经没有 StrategyModel，无法靠静态配置计算 group key。这里使用一次
+    HGETALL 保证完整性并避免逐组 HGET 的 N+1；该路径仅用于低频管理 impact 查询。
+    """
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    raw_groups = StrategyCacheManager.get_all_groups()
+    if not isinstance(raw_groups, dict):
+        raise CustomException(message="共享查询组缓存结构异常")
+
     groups = []
-    for group_key in sorted(group_keys):
-        detail = _inspect_shared_group({"strategy_group_key": group_key})
+    for raw_group_key, raw_detail in raw_groups.items():
+        try:
+            detail = json.loads(raw_detail)
+        except (TypeError, ValueError) as error:
+            raise CustomException(message=f"共享查询组缓存结构异常: {raw_group_key}") from error
+        if not isinstance(detail, dict):
+            raise CustomException(message=f"共享查询组缓存结构异常: {raw_group_key}")
+        if str(strategy_id) not in detail:
+            continue
+
+        member_strategy_ids = []
+        for raw_member_strategy_id, raw_item_ids in detail.items():
+            try:
+                member_strategy_id = int(raw_member_strategy_id)
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(raw_item_ids, list):
+                raise CustomException(message=f"共享查询组缓存结构异常: {raw_group_key}")
+            member_strategy_ids.append(member_strategy_id)
+
         groups.append(
             {
-                "strategy_group_key": group_key,
-                "runtime_group_found": detail["found"],
-                "bk_biz_id": detail["bk_biz_id"],
-                "member_strategy_ids": [member["strategy_id"] for member in detail["members"]],
-                "target_strategy_member_found": any(
-                    member["strategy_id"] == strategy_id for member in detail["members"]
-                ),
+                "strategy_group_key": str(raw_group_key),
+                "runtime_group_found": True,
+                "bk_biz_id": detail.get("bk_biz_id"),
+                "member_strategy_ids": sorted(member_strategy_ids),
+                "target_strategy_member_found": True,
             }
         )
-    return groups
+    return sorted(groups, key=lambda group: group["strategy_group_key"])
 
 
 def _query_list() -> dict[str, Any]:
@@ -203,8 +225,9 @@ def _query_impact(params: dict[str, Any]) -> dict[str, Any]:
         "strategy": strategy,
         "detect": {"before": strategy_id in before_set, "after": strategy_id in after_set},
         "groups": groups,
-        "access_impact_complete": bool(groups)
-        and all(group["runtime_group_found"] and group["target_strategy_member_found"] for group in groups),
+        "access_impact_complete": all(
+            group["runtime_group_found"] and group["target_strategy_member_found"] for group in groups
+        ),
         "configured_strategy_ids_before": before_ids,
         "configured_strategy_ids_after": after_ids,
     }

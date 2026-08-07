@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 import pytest
@@ -195,7 +196,8 @@ def test_impact_marks_runtime_group_without_target_member_as_incomplete(mocker):
     assert result["access_impact_complete"] is False
 
 
-def test_disable_stale_strategy_without_shared_group_evidence_is_incomplete(mocker):
+def test_disable_stale_strategy_uses_one_runtime_group_snapshot(mocker):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
     from kernel_api.rpc.functions.bkm_cli import double_check_strategy
 
     mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[2])
@@ -204,11 +206,80 @@ def test_disable_stale_strategy_without_shared_group_evidence_is_incomplete(mock
         "_strategy_summary",
         return_value={"strategy_id": 2, "exists": False},
     )
-    mocker.patch.object(double_check_strategy, "_strategy_groups", return_value=[])
+    strategy_config = mocker.patch.object(double_check_strategy, "_strategy_config", return_value=(None, {}))
+    get_all_groups = mocker.patch.object(
+        StrategyCacheManager,
+        "get_all_groups",
+        return_value={
+            "group-b": json.dumps({"3": [30], "bk_biz_id": 7}),
+            "group-a": json.dumps({"2": [20], "1": [10], "bk_biz_id": 7, "interval_list": [60]}),
+        },
+    )
+
+    result = double_check_strategy.query_double_check_strategies(
+        {"operation": "impact", "strategy_id": 2, "change": "disable"}
+    )
+
+    assert result["groups"] == [
+        {
+            "strategy_group_key": "group-a",
+            "runtime_group_found": True,
+            "bk_biz_id": 7,
+            "member_strategy_ids": [1, 2],
+            "target_strategy_member_found": True,
+            "configured_member_strategy_ids_before": [2],
+            "configured_member_strategy_ids_after": [],
+            "access_protected_before": True,
+            "access_protected_after": False,
+        }
+    ]
+    assert result["access_impact_complete"] is True
+    get_all_groups.assert_called_once_with()
+    strategy_config.assert_not_called()
+
+
+def test_disable_stale_strategy_is_actionable_after_complete_empty_runtime_snapshot(mocker):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+    from kernel_api.rpc.functions.bkm_cli import double_check_strategy
+
+    mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[2])
+    mocker.patch.object(
+        double_check_strategy,
+        "_strategy_summary",
+        return_value={"strategy_id": 2, "exists": False},
+    )
+    strategy_config = mocker.patch.object(double_check_strategy, "_strategy_config", return_value=(None, {}))
+    get_all_groups = mocker.patch.object(StrategyCacheManager, "get_all_groups", return_value={})
 
     result = double_check_strategy.query_double_check_strategies(
         {"operation": "impact", "strategy_id": 2, "change": "disable"}
     )
 
     assert result["groups"] == []
-    assert result["access_impact_complete"] is False
+    assert result["access_impact_complete"] is True
+    get_all_groups.assert_called_once_with()
+    strategy_config.assert_not_called()
+
+
+def test_impact_stops_when_runtime_group_snapshot_is_malformed(mocker):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+    from kernel_api.rpc.functions.bkm_cli import double_check_strategy
+
+    mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[2])
+    mocker.patch.object(
+        double_check_strategy,
+        "_strategy_summary",
+        return_value={"strategy_id": 2, "exists": False},
+    )
+    get_all_groups = mocker.patch.object(
+        StrategyCacheManager,
+        "get_all_groups",
+        return_value={"group-a": "not-json"},
+    )
+
+    with pytest.raises(CustomException, match="共享查询组缓存结构异常: group-a"):
+        double_check_strategy.query_double_check_strategies(
+            {"operation": "impact", "strategy_id": 2, "change": "disable"}
+        )
+
+    get_all_groups.assert_called_once_with()
