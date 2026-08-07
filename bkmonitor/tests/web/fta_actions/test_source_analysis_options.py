@@ -21,10 +21,9 @@ from api.aidev.default import ListAgentsResource, ListSkillsResource
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import api
-from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
+from core.errors.issue import SourceAnalysisUpstreamUnavailableError
 from fta_web.issue.resources import (
-    SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE,
     ListSourceAnalysisBkciProjectsResource,
     ListSourceAnalysisBkciRepositoriesResource,
     ListSourceAnalysisAgentsResource,
@@ -151,9 +150,9 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         for upstream_data in (None, {}, ["invalid-item"]):
             with self.subTest(upstream_data=upstream_data):
                 with patch.object(api.devops, "list_user_project", return_value=upstream_data):
-                    with self.assertRaises(CustomException) as error:
+                    with self.assertRaises(SourceAnalysisUpstreamUnavailableError) as error:
                         ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
-                self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE})
+                self.assertEqual(error.exception.data, {"reason": SourceAnalysisUpstreamUnavailableError.reason})
 
     def test_aidev_options_are_normalized(self):
         cases = [
@@ -201,11 +200,11 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         for upstream_data in (None, {}, {"count": 1, "results": ["invalid-item"]}):
             with self.subTest(upstream_data=upstream_data):
                 with patch.object(api.aidev, "list_agents", return_value=upstream_data):
-                    with self.assertRaises(CustomException) as error:
+                    with self.assertRaises(SourceAnalysisUpstreamUnavailableError) as error:
                         ListSourceAnalysisAgentsResource().perform_request(
                             {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
                         )
-                self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE})
+                self.assertEqual(error.exception.data, {"reason": SourceAnalysisUpstreamUnavailableError.reason})
 
     def test_request_and_response_contract(self):
         project_request = ListSourceAnalysisBkciProjectsResource.RequestSerializer(data={"bk_biz_id": 2})
@@ -231,10 +230,10 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
     def test_upstream_error_has_stable_reason(self):
         upstream_error = BKAPIError(system_name="devops", url="project/list", result={"message": "failed"})
         with patch.object(api.devops, "list_user_project", side_effect=upstream_error):
-            with self.assertRaises(CustomException) as error:
+            with self.assertRaises(SourceAnalysisUpstreamUnavailableError) as error:
                 ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisUpstreamUnavailableError.reason})
 
     def test_viewset_uses_view_rule_permission(self):
         permission = SourceAnalysisOptionsViewSet().get_permissions()[0]

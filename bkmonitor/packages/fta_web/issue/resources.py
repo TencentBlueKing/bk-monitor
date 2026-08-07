@@ -18,7 +18,6 @@ import re
 from threading import BoundedSemaphore
 import time
 
-from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -56,7 +55,19 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.common import HTTP404Error
-from core.errors.issue import IssueRenameConflictError
+from core.errors.issue import (
+    IssueRenameConflictError,
+    SourceAnalysisConfigNotFoundError,
+    SourceAnalysisDefaultRuleCannotDeleteError,
+    SourceAnalysisDefaultRuleConditionsInvalidError,
+    SourceAnalysisDefaultRulePriorityImmutableError,
+    SourceAnalysisFlowInitializationFailedError,
+    SourceAnalysisRepositoryInvalidError,
+    SourceAnalysisResourceNotFoundError,
+    SourceAnalysisRuleIncompleteError,
+    SourceAnalysisRulePriorityConflictError,
+    SourceAnalysisUpstreamUnavailableError,
+)
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
@@ -82,33 +93,13 @@ def _sanitize_for_log(value) -> str:
     return str(value).replace("\r", "").replace("\n", "")
 
 
-SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE = "source_analysis_upstream_unavailable"
-SOURCE_ANALYSIS_CONFIG_NOT_FOUND = "source_analysis_config_not_found"
-SOURCE_ANALYSIS_REPOSITORY_INVALID = "source_analysis_repository_invalid"
-SOURCE_ANALYSIS_RESOURCE_NOT_FOUND = "source_analysis_resource_not_found"
-SOURCE_ANALYSIS_RULE_INCOMPLETE = "source_analysis_rule_incomplete"
-SOURCE_ANALYSIS_RULE_PRIORITY_CONFLICT = "source_analysis_rule_priority_conflict"
-SOURCE_ANALYSIS_DEFAULT_RULE_CANNOT_DELETE = "source_analysis_default_rule_cannot_delete"
-SOURCE_ANALYSIS_DEFAULT_RULE_PRIORITY_IMMUTABLE = "source_analysis_default_rule_priority_immutable"
-SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED = "source_analysis_flow_initialization_failed"
-
 SOURCE_ANALYSIS_CONDITION_METHODS = ("eq", "neq", "include", "exclude", "reg", "nreg", "issuperset")
 SOURCE_ANALYSIS_CONDITION_CONNECTORS = ("and", "or", "")
 
 
 def _raise_source_analysis_upstream_unavailable(error: Exception) -> None:
     logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
-    raise CustomException(
-        message=_("源码分析依赖的上游服务暂时不可用，请稍后重试"),
-        data={"reason": SOURCE_ANALYSIS_UPSTREAM_UNAVAILABLE},
-    ) from error
-
-
-def _raise_source_analysis_error(reason: str, message: str, error: Exception | None = None) -> None:
-    exception = CustomException(message=message, data={"reason": reason})
-    if error is None:
-        raise exception
-    raise exception from error
+    raise SourceAnalysisUpstreamUnavailableError() from error
 
 
 def _timestamp(value) -> int | None:
@@ -259,10 +250,7 @@ def _validate_source_analysis_repository(bk_biz_id: int, bkci_project_id: str, r
         {"bk_biz_id": bk_biz_id, "project_id": bkci_project_id}
     )
     if not any(repository["id"] == repository_alias for repository in repositories):
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_REPOSITORY_INVALID,
-            _("所选代码库不存在、不属于该蓝盾项目或不是 Git 代码库"),
-        )
+        raise SourceAnalysisRepositoryInvalidError()
 
 
 def _list_all_visible_aidev_ids(list_resources: Callable, id_field: str) -> set[str]:
@@ -296,10 +284,7 @@ def _list_all_visible_aidev_ids(list_resources: Callable, id_field: str) -> set[
 def _validate_source_analysis_resources(rule: IssueSourceAnalysisRule) -> None:
     # AIDEV 暂无用户态知识库列表；非空知识库 ID 不能被证明属于当前用户，必须拒绝保存为启用规则。
     if rule.knowledge_base_ids:
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_RESOURCE_NOT_FOUND,
-            _("存在当前用户不可用的源码分析资源"),
-        )
+        raise SourceAnalysisResourceNotFoundError()
 
     try:
         visible_agents = _list_all_visible_aidev_ids(api.aidev.list_agents, "id")
@@ -308,10 +293,7 @@ def _validate_source_analysis_resources(rule: IssueSourceAnalysisRule) -> None:
         _raise_source_analysis_upstream_unavailable(error)
 
     if not set(rule.agent_ids).issubset(visible_agents) or not set(rule.skill_ids).issubset(visible_skills):
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_RESOURCE_NOT_FOUND,
-            _("存在当前用户不可用的源码分析资源"),
-        )
+        raise SourceAnalysisResourceNotFoundError()
 
 
 def _validate_source_analysis_rule_ready(
@@ -319,15 +301,9 @@ def _validate_source_analysis_rule_ready(
     config: IssueSourceAnalysisConfig | None,
 ) -> None:
     if config is None:
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_CONFIG_NOT_FOUND,
-            _("请先配置源码分析使用的蓝盾项目和代码库"),
-        )
+        raise SourceAnalysisConfigNotFoundError()
     if not rule.agent_ids or (not rule.is_default and not rule.conditions):
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_RULE_INCOMPLETE,
-            _("启用规则必须配置匹配条件和至少一个智能体"),
-        )
+        raise SourceAnalysisRuleIncompleteError()
     _validate_source_analysis_resources(rule)
 
 
@@ -338,11 +314,8 @@ def _is_source_analysis_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
 def _ensure_source_analysis_flow_initialized(bk_biz_id: int, bkci_project_id: str) -> None:
     """调用 BKFara 幂等初始化；路径未发布或调用失败时让当前事务回滚。"""
 
-    if not settings.BK_INCIDENT_SOURCE_ANALYSIS_INIT_PATH:
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED,
-            _("源码分析流程初始化服务尚未配置，请稍后重试"),
-        )
+    if not api.bk_incident.ensure_source_analysis_flow.action:
+        raise SourceAnalysisFlowInitializationFailedError()
     try:
         api.bk_incident.ensure_source_analysis_flow(
             bk_biz_id=bk_biz_id,
@@ -350,11 +323,7 @@ def _ensure_source_analysis_flow_initialized(bk_biz_id: int, bkci_project_id: st
         )
     except (BKAPIError, TypeError, ValueError) as error:
         logger.warning("Source analysis flow initialization failed: %s", type(error).__name__)
-        _raise_source_analysis_error(
-            SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED,
-            _("源码分析流程初始化失败，请稍后重试"),
-            error,
-        )
+        raise SourceAnalysisFlowInitializationFailedError() from error
 
 
 class ListSourceAnalysisBkciProjectsResource(Resource):
@@ -642,11 +611,7 @@ class CreateSourceAnalysisRuleResource(Resource):
                 if rule.is_enabled:
                     _ensure_source_analysis_flow_initialized(bk_biz_id, rule.bkci_project_id)
         except IntegrityError as error:
-            _raise_source_analysis_error(
-                SOURCE_ANALYSIS_RULE_PRIORITY_CONFLICT,
-                _("该业务下已存在相同优先级的源码分析规则"),
-                error,
-            )
+            raise SourceAnalysisRulePriorityConflictError() from error
         return _serialize_source_analysis_rule(rule)
 
 
@@ -688,15 +653,9 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
                 rule = self.get_rule(bk_biz_id, rule_id, for_update=True)
                 config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
                 if rule.is_default and "priority" in validated_request_data:
-                    _raise_source_analysis_error(
-                        SOURCE_ANALYSIS_DEFAULT_RULE_PRIORITY_IMMUTABLE,
-                        _("默认规则优先级不可修改"),
-                    )
+                    raise SourceAnalysisDefaultRulePriorityImmutableError()
                 if rule.is_default and validated_request_data.get("conditions"):
-                    _raise_source_analysis_error(
-                        SOURCE_ANALYSIS_RULE_INCOMPLETE,
-                        _("默认规则的匹配条件必须为空"),
-                    )
+                    raise SourceAnalysisDefaultRuleConditionsInvalidError()
 
                 for field, value in validated_request_data.items():
                     setattr(rule, field, value)
@@ -709,11 +668,7 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
                 if rule.is_enabled:
                     _ensure_source_analysis_flow_initialized(bk_biz_id, rule.bkci_project_id)
         except IntegrityError as error:
-            _raise_source_analysis_error(
-                SOURCE_ANALYSIS_RULE_PRIORITY_CONFLICT,
-                _("该业务下已存在相同优先级的源码分析规则"),
-                error,
-            )
+            raise SourceAnalysisRulePriorityConflictError() from error
         return _serialize_source_analysis_rule(rule)
 
 
@@ -730,10 +685,7 @@ class DeleteSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
                 for_update=True,
             )
             if rule.is_default:
-                _raise_source_analysis_error(
-                    SOURCE_ANALYSIS_DEFAULT_RULE_CANNOT_DELETE,
-                    _("默认规则不可删除"),
-                )
+                raise SourceAnalysisDefaultRuleCannotDeleteError()
             # 优先级有数据库唯一约束，物理删除才能允许用户重新使用同一优先级。
             rule.delete(hard=True)
         return None

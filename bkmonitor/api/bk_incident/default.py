@@ -177,12 +177,10 @@ class GetTaskStatusResource(IncidentBaseResource):
 class EnsureSourceAnalysisFlowResource(IncidentBaseResource):
     """幂等初始化或对齐业务源码分析流程。"""
 
+    # TODO: BKFara 发布源码分析初始化资源后补充实际路径。
+    action = ""
     method = "POST"
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
-
-    @property
-    def action(self):
-        return settings.BK_INCIDENT_SOURCE_ANALYSIS_INIT_PATH
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")

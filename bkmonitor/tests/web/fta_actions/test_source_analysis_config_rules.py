@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase
 from django.urls import resolve
 from rest_framework import permissions
 
@@ -19,16 +19,19 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisRule
 from bkmonitor.utils.user import set_local_username
-from core.drf_resource.exceptions import CustomException
+from core.errors.issue import (
+    SourceAnalysisConfigNotFoundError,
+    SourceAnalysisDefaultRuleCannotDeleteError,
+    SourceAnalysisDefaultRuleConditionsInvalidError,
+    SourceAnalysisDefaultRulePriorityImmutableError,
+    SourceAnalysisFlowInitializationFailedError,
+    SourceAnalysisRepositoryInvalidError,
+    SourceAnalysisResourceNotFoundError,
+    SourceAnalysisRuleIncompleteError,
+    SourceAnalysisRulePriorityConflictError,
+    SourceAnalysisUpstreamUnavailableError,
+)
 from fta_web.issue.resources import (
-    SOURCE_ANALYSIS_CONFIG_NOT_FOUND,
-    SOURCE_ANALYSIS_DEFAULT_RULE_CANNOT_DELETE,
-    SOURCE_ANALYSIS_DEFAULT_RULE_PRIORITY_IMMUTABLE,
-    SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED,
-    SOURCE_ANALYSIS_REPOSITORY_INVALID,
-    SOURCE_ANALYSIS_RESOURCE_NOT_FOUND,
-    SOURCE_ANALYSIS_RULE_INCOMPLETE,
-    SOURCE_ANALYSIS_RULE_PRIORITY_CONFLICT,
     CreateSourceAnalysisRuleResource,
     DeleteSourceAnalysisRuleResource,
     GetSourceAnalysisConfigResource,
@@ -104,17 +107,35 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
             knowledge_base_ids=["10"],
         )
 
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisResourceNotFoundError) as error:
             _validate_source_analysis_resources(rule)
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_RESOURCE_NOT_FOUND})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisResourceNotFoundError.reason})
 
-    @override_settings(BK_INCIDENT_SOURCE_ANALYSIS_INIT_PATH="")
     def test_missing_bkfara_endpoint_fails_closed(self):
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as error:
             _ensure_source_analysis_flow_initialized(2, "project-a")
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisFlowInitializationFailedError.reason})
+
+    def test_source_analysis_errors_use_issue_error_codes_and_stable_reasons(self):
+        error_classes = [
+            SourceAnalysisUpstreamUnavailableError,
+            SourceAnalysisConfigNotFoundError,
+            SourceAnalysisRepositoryInvalidError,
+            SourceAnalysisResourceNotFoundError,
+            SourceAnalysisRuleIncompleteError,
+            SourceAnalysisRulePriorityConflictError,
+            SourceAnalysisDefaultRuleCannotDeleteError,
+            SourceAnalysisDefaultRulePriorityImmutableError,
+            SourceAnalysisFlowInitializationFailedError,
+            SourceAnalysisDefaultRuleConditionsInvalidError,
+        ]
+
+        self.assertEqual(len({error.code for error in error_classes}), len(error_classes))
+        for error_class in error_classes:
+            with self.subTest(error_class=error_class.__name__):
+                self.assertEqual(error_class().data, {"reason": error_class.reason})
 
     def test_viewsets_select_read_and_write_permissions(self):
         for viewset_class in (SourceAnalysisConfigViewSet, SourceAnalysisRulesViewSet):
@@ -132,10 +153,12 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
 
     def test_urls_expose_finalized_http_methods(self):
         config = resolve("/fta/issue/source_analysis_config/")
+        config_save = resolve("/fta/issue/source_analysis_config/save/")
         rules = resolve("/fta/issue/source_analysis_rules/")
         rule_detail = resolve("/fta/issue/source_analysis_rules/10/")
 
-        self.assertEqual(config.func.actions, {"get": "list", "put": "save"})
+        self.assertEqual(config.func.actions, {"get": "list"})
+        self.assertEqual(config_save.func.actions, {"put": "save"})
         self.assertEqual(rules.func.actions, {"get": "list", "post": "create"})
         self.assertEqual(
             rule_detail.func.actions,
@@ -206,18 +229,18 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
     @patch.object(ListSourceAnalysisBkciRepositoriesResource, "perform_request", return_value=[])
     def test_save_config_rejects_repository_outside_project(self, _list_repositories):
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisRepositoryInvalidError) as error:
             SaveSourceAnalysisConfigResource().perform_request(
                 {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "missing"}
             )
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_REPOSITORY_INVALID})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisRepositoryInvalidError.reason})
         self.assertFalse(IssueSourceAnalysisConfig.objects.exists())
 
     @patch("fta_web.issue.resources._validate_source_analysis_repository")
     @patch(
         "fta_web.issue.resources._ensure_source_analysis_flow_initialized",
-        side_effect=CustomException(data={"reason": SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED}),
+        side_effect=SourceAnalysisFlowInitializationFailedError(),
     )
     def test_project_change_rolls_back_when_flow_initialization_fails(self, ensure_initialized, _validate_repository):
         self.create_config()
@@ -229,7 +252,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             repository_alias="repo-a",
         )
 
-        with self.assertRaises(CustomException):
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError):
             SaveSourceAnalysisConfigResource().perform_request(
                 {"bk_biz_id": 2, "bkci_project_id": "project-b", "repository_alias": "repo-b"}
             )
@@ -270,10 +293,10 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             },
         )
 
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisConfigNotFoundError) as error:
             CreateSourceAnalysisRuleResource().perform_request(data)
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_CONFIG_NOT_FOUND})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisConfigNotFoundError.reason})
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
     @patch("fta_web.issue.resources._validate_source_analysis_resources")
@@ -302,7 +325,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
     @patch("fta_web.issue.resources._validate_source_analysis_resources")
     @patch(
         "fta_web.issue.resources._ensure_source_analysis_flow_initialized",
-        side_effect=CustomException(data={"reason": SOURCE_ANALYSIS_FLOW_INITIALIZATION_FAILED}),
+        side_effect=SourceAnalysisFlowInitializationFailedError(),
     )
     def test_enabled_rule_save_rolls_back_when_flow_initialization_fails(
         self, _ensure_initialized, _validate_resources
@@ -320,7 +343,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             },
         )
 
-        with self.assertRaises(CustomException):
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError):
             CreateSourceAnalysisRuleResource().perform_request(data)
 
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
@@ -332,10 +355,10 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             {"bk_biz_id": 2, "name": "duplicate", "priority": 10},
         )
 
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisRulePriorityConflictError) as error:
             CreateSourceAnalysisRuleResource().perform_request(data)
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_RULE_PRIORITY_CONFLICT})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisRulePriorityConflictError.reason})
 
     def test_list_is_priority_descending_with_default_last(self):
         self.create_rule(name="low", priority=1)
@@ -354,18 +377,18 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         )
         data["rule_id"] = default_rule.id
 
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisDefaultRulePriorityImmutableError) as error:
             UpdateSourceAnalysisRuleResource().perform_request(data)
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_DEFAULT_RULE_PRIORITY_IMMUTABLE})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisDefaultRulePriorityImmutableError.reason})
 
     def test_delete_rejects_default_and_hard_deletes_custom_rule(self):
         default_rule = self.create_rule(name="default", priority=-1, is_default=True)
         custom_rule = self.create_rule(priority=10)
 
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisDefaultRuleCannotDeleteError) as error:
             DeleteSourceAnalysisRuleResource().perform_request({"bk_biz_id": 2, "rule_id": default_rule.id})
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_DEFAULT_RULE_CANNOT_DELETE})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisDefaultRuleCannotDeleteError.reason})
 
         DeleteSourceAnalysisRuleResource().perform_request({"bk_biz_id": 2, "rule_id": custom_rule.id})
         self.assertFalse(IssueSourceAnalysisRule.origin_objects.filter(id=custom_rule.id).exists())
@@ -378,9 +401,9 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         data = validate(SourceAnalysisRulePatchSerializer, {"bk_biz_id": 2, "is_enabled": True})
         data["rule_id"] = rule.id
 
-        with self.assertRaises(CustomException) as error:
+        with self.assertRaises(SourceAnalysisRuleIncompleteError) as error:
             UpdateSourceAnalysisRuleResource().perform_request(data)
 
-        self.assertEqual(error.exception.data, {"reason": SOURCE_ANALYSIS_RULE_INCOMPLETE})
+        self.assertEqual(error.exception.data, {"reason": SourceAnalysisRuleIncompleteError.reason})
         rule.refresh_from_db()
         self.assertFalse(rule.is_enabled)

@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from django.urls import reverse
 from rest_framework import permissions
-from rest_framework.response import Response
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
@@ -46,7 +45,6 @@ class SourceAnalysisConfigViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("GET", resource.issue.get_source_analysis_config),
-        # ResourceRouter 的集合路由不映射 PUT，urls.py 将该 action 显式绑定到集合 URL。
         ResourceRoute("PUT", resource.issue.save_source_analysis_config, endpoint="save"),
     ]
 
@@ -63,14 +61,8 @@ class SourceAnalysisRulesViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.create_source_analysis_rule),
         ResourceRoute("GET", resource.issue.get_source_analysis_rule, pk_field="rule_id"),
         ResourceRoute("PATCH", resource.issue.update_source_analysis_rule, pk_field="rule_id"),
+        ResourceRoute("DELETE", resource.issue.delete_source_analysis_rule, pk_field="rule_id"),
     ]
-
-    def destroy(self, request, *args, **kwargs):
-        # ResourceViewSet 对 DELETE 默认只读取 body；协议把 bk_biz_id 放在 query string，需在薄视图层合并。
-        params = request.query_params.copy()
-        params.update({"rule_id": kwargs[self.lookup_field]})
-        data = resource.issue.delete_source_analysis_rule.request(params)
-        return Response(data)
 
 
 class IssueViewSet(ResourceViewSet):
