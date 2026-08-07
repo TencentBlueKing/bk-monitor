@@ -1715,6 +1715,18 @@ class CollectorHandler:
         index_set.tag_ids = list(merged)
         index_set.save(update_fields=["tag_ids"])
 
+    @staticmethod
+    def _get_current_allocation_min_days(result_table: dict) -> int:
+        # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。
+        allocation_min_days = result_table["storage_config"].get("warm_phase_days") or 0
+        if not allocation_min_days:
+            return 0
+
+        storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+        cluster_config = StorageHandler(storage_cluster_id).get_cluster_info_by_id().get("cluster_config", {})
+        hot_warm_enabled = cluster_config.get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled", False)
+        return allocation_min_days if hot_warm_enabled else 0
+
     def create_or_update_clean_config(self, is_update, params, sync_modify_result_table=False):
         if is_update:
             table_id = self.data.table_id
@@ -1726,18 +1738,11 @@ class CollectorHandler:
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
-            allocation_min_days = 0
-            if sync_modify_result_table and "allocation_min_days" not in params:
-                storage_cluster_id = result_table["cluster_config"]["cluster_id"]
-                cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
-                hot_warm_enabled = (
-                    cluster_info["cluster_config"]
-                    .get("custom_option", {})
-                    .get("hot_warm_config", {})
-                    .get("is_enabled", False)
-                )
-                if hot_warm_enabled:
-                    allocation_min_days = result_table["storage_config"].get("warm_phase_days") or 0
+            current_storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+            target_storage_cluster_id = params.get("storage_cluster_id", current_storage_cluster_id)
+            allocation_min_days = params.get("allocation_min_days", 0)
+            if "allocation_min_days" not in params and target_storage_cluster_id == current_storage_cluster_id:
+                allocation_min_days = self._get_current_allocation_min_days(result_table)
 
             default_etl_params = {
                 "table_id": table_id.split(".")[-1],
@@ -1745,10 +1750,8 @@ class CollectorHandler:
                 "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
-                "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
+                "storage_cluster_id": current_storage_cluster_id,
                 "retention": result_table["storage_config"].get("retention", 0),
-                # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。
-                # 模板同步仅在当前集群支持冷热时继承该值；显式传参会在下方覆盖。
                 "allocation_min_days": allocation_min_days,
                 "etl_config": self.data.etl_config,
             }
