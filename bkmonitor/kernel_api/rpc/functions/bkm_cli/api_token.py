@@ -52,10 +52,16 @@ def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> in
         if required:
             raise CustomException(message=f"{field_name} 为必填项")
         return None
-    try:
-        return int(value)
-    except (TypeError, ValueError) as error:
-        raise CustomException(message=f"{field_name} 必须是整数") from error
+    if isinstance(value, bool):
+        raise CustomException(message=f"{field_name} 必须是整数")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        digits = text[1:] if text.startswith(("-", "+")) else text
+        if digits.isdigit():
+            return int(text)
+    raise CustomException(message=f"{field_name} 必须是整数")
 
 
 def _get_bk_tenant_id(params: dict[str, Any], *, required: bool = False) -> str:
@@ -83,10 +89,7 @@ def _normalize_business_namespaces(params: dict[str, Any], *, required: bool) ->
     for item in value:
         if item in (None, ""):
             continue
-        try:
-            biz_id = int(item)
-        except (TypeError, ValueError) as error:
-            raise CustomException(message=f"biz_ids 只能包含整数: {item}") from error
+        biz_id = _normalize_int(item, "biz_ids", required=True)
         if biz_id == 0:
             raise CustomException(message="biz_ids 不能包含 0")
         if biz_id not in biz_ids:

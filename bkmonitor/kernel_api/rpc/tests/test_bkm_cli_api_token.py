@@ -73,6 +73,22 @@ def test_query_tenant_prefers_explicit_value_then_request_context(monkeypatch):
     assert api_token._get_bk_tenant_id({}) == "request-tenant"
 
 
+@pytest.mark.parametrize("value", [7.5, True, "7.5"])
+def test_token_id_rejects_fractional_boolean_and_decimal_string(value):
+    from kernel_api.rpc.functions.bkm_cli import api_token
+
+    with pytest.raises(CustomException, match="必须是整数"):
+        api_token._normalize_int(value, "id", required=True)
+
+
+@pytest.mark.parametrize("biz_ids", [[1.5], [True], [0]])
+def test_business_namespaces_reject_fractional_boolean_and_zero_ids(biz_ids):
+    from kernel_api.rpc.functions.bkm_cli import api_token
+
+    with pytest.raises(CustomException, match="biz_ids"):
+        api_token._normalize_business_namespaces({"biz_ids": biz_ids}, required=True)
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_query_defaults_to_api_and_never_returns_raw_token_or_params():
     from kernel_api.rpc.functions.bkm_cli.api_token import query_api_tokens
