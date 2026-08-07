@@ -254,6 +254,9 @@ def dispatch_external_proxy(request):
 
         # transfer request.user 进行外部权限替换
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        if not external_user:
+            logger.warning("dispatch_plugin_query: external user is required")
+            return JsonResponse({"result": False, "message": "external user is required"}, status=403)
 
         # 如果参数不带 bk_biz_id，尝试从有权限的业务列表里选一个
         if not bk_biz_id:

@@ -321,6 +321,48 @@ def test_dispatch_external_proxy_returns_403_when_authorizer_is_missing():
     authenticate.assert_not_called()
 
 
+def test_dispatch_external_proxy_returns_403_when_external_user_is_missing():
+    request = RequestFactory().post(
+        "/dispatch_external_proxy/",
+        data=json.dumps(
+            {
+                "url": "/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2",
+                "method": "GET",
+                "data": {},
+            }
+        ),
+        content_type="application/json",
+    )
+    request.session = {}
+    request.LANGUAGE_CODE = "zh-hans"
+    authorized_agent = SimpleNamespace(username="authorized-agent")
+    target_view = Mock(return_value=HttpResponse())
+
+    def login(proxy_request, user):
+        proxy_request.user = user
+
+    with (
+        patch("monitor_adapter.home.views.is_external_proxy_token_valid", return_value=True),
+        patch(
+            "monitor_adapter.home.views.GlobalConfig.objects.get_or_create",
+            return_value=(SimpleNamespace(value={"2": "authorized-agent"}), False),
+        ),
+        patch("monitor_adapter.home.views.auth.authenticate", return_value=authorized_agent) as authenticate,
+        patch("monitor_adapter.home.views.auth.login", side_effect=login),
+        patch(
+            "monitor_adapter.home.views.resolve",
+            return_value=SimpleNamespace(func=target_view, kwargs={}),
+        ),
+    ):
+        response = dispatch_external_proxy(request)
+
+    assert response.status_code == 403
+    assert json.loads(response.content) == {"result": False, "message": "external user is required"}
+    authenticate.assert_not_called()
+    target_view.assert_not_called()
+    assert not hasattr(request, "_audit_request")
+
+
 def test_audit_setup_requires_token():
     config = AuditConfig("audit", audit_module)
     env = {
