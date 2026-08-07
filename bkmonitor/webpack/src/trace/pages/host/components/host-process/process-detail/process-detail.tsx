@@ -163,8 +163,8 @@ export default defineComponent({
     /** 变量取值：仅请求态字段变化才会触发图表重新取数 */
     const scopedVars = computed<ScopedVarMap>(() => ({
       ...buildScopedVars(aggregation.state, currentTarget.value),
-      // 进程态需把进程唯一标识下发，等价于旧版 scene 变量 $display_name
-      ...(props.process?.id ? { display_name: props.process.id } : {}),
+      // 进程态需把进程名下发给图表查询，等价于旧版 variables.display_name
+      ...(props.process?.name ? { display_name: props.process.name } : {}),
     }));
 
     /**
@@ -271,7 +271,11 @@ export default defineComponent({
                   style={{ backgroundColor: portConfig?.color || '#c4c6cc' }}
                   class='process-detail-kv-dot'
                 />
-                <span class='process-detail-kv-value'>{`${process.protocol} ${process.bindIp}: ${process.port}`}</span>
+                <span class='process-detail-kv-value'>
+                  {process.protocol && process.bindIp && process.port
+                    ? `${process.protocol} ${process.bindIp}:${process.port}`
+                    : '--'}
+                </span>
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('启动命令')}：</span>
