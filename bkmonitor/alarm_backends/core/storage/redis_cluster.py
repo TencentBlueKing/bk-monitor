@@ -134,8 +134,17 @@ class RedisProxy(KeyRouterMixin):
         self._client_pool = {}
 
     def pipeline(self, *args, **kwargs):
+        """每次调用视为一个新的逻辑批次入口。
+
+        RedisDataKey 长期缓存本 Proxy，本方法又复用同一 PipelineProxy；
+        若上一任务入队后未 execute 就异常退出，必须在此清掉残留的
+        command_stack / 路由快照 / 原生 pipeline 缓冲，否则下一任务会重放旧命令
+        并可能无限期写旧节点。
+        """
         if self._pipeline is None:
             self._pipeline = PipelineProxy(self, *args, **kwargs)
+        else:
+            self._pipeline.begin_batch(*args, **kwargs)
         return self._pipeline
 
     def get_client(self, node):
@@ -174,6 +183,19 @@ class PipelineProxy(KeyRouterMixin):
         self.command_stack = []
         # 实例级快照：绑定本次 pipeline 批次，避免 thread-local pin 在入队失败/未 execute 时泄漏
         self._routing_snapshot = None
+
+    def begin_batch(self, *args, **kwargs):
+        """开启新逻辑批次：丢弃上一批评途残留（含原生 redis pipeline 已缓冲命令）。"""
+        self.init_params = (args, kwargs)
+        self.command_stack = []
+        self._routing_snapshot = None
+        for pipeline_instance in self._pipeline_pool.values():
+            try:
+                pipeline_instance.reset()
+            except Exception:
+                pass
+        # 清空池，避免 reset 语义不全时旧缓冲命令被带进下一批
+        self._pipeline_pool = {}
 
     def pipeline_instance(self, node):
         if node.id not in self._pipeline_pool:
@@ -234,6 +256,7 @@ class PipelineProxy(KeyRouterMixin):
                     pipeline_instance.reset()
                 except Exception:
                     pass
+            self._pipeline_pool = {}
             self._clear_routing_snapshot()
 
     def __getattr__(self, name):

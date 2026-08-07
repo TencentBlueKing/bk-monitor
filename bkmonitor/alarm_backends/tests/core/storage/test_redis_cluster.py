@@ -405,6 +405,73 @@ class TestStrategyRouterCacheTTL:
             with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
                 assert redis_cluster.get_node_by_strategy_id(1) is node_new
 
+    def test_next_pipeline_call_resets_abandoned_batch(self):
+        """上一任务入队后未 execute：下一次 pipeline() 必须清残留，并按新路由开新批次。"""
+        node_old = mock.Mock(id="old")
+        node_new = mock.Mock(id="new")
+        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_old)]
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 100.0
+        redis_cluster.STRATEGY_NODE_MAP = {}
+
+        pipes = {}
+
+        class FakePipe:
+            def __init__(self, node_id):
+                self.node_id = node_id
+                self.cmds = []
+
+            def lpush(self, *args, **kwargs):
+                self.cmds.append(f"{self.node_id}:lpush")
+                return True
+
+            def expire(self, *args, **kwargs):
+                self.cmds.append(f"{self.node_id}:expire")
+                return True
+
+            def execute(self):
+                out = list(self.cmds)
+                self.cmds.clear()
+                return out
+
+            def reset(self):
+                self.cmds.clear()
+
+        def get_client(node):
+            client = mock.Mock()
+
+            def _pipeline(*args, **kwargs):
+                if node.id not in pipes:
+                    pipes[node.id] = FakePipe(node.id)
+                return pipes[node.id]
+
+            client.pipeline = _pipeline
+            return client
+
+        proxy = redis_cluster.RedisProxy("service")
+        proxy.get_client = get_client
+
+        with mock.patch.object(redis_cluster, "monotonic", return_value=100.0):
+            with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                p1 = proxy.pipeline(transaction=False)
+                p1.lpush(mock.Mock(strategy_id=1), "abandoned")
+                assert p1.command_stack == ["old"]
+
+                redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_new)]
+                redis_cluster.STRATEGY_NODE_MAP.clear()
+
+                p2 = proxy.pipeline(transaction=False)
+                assert p1 is p2
+                assert p2.command_stack == []
+                assert p2._routing_snapshot is None
+                p2.lpush(mock.Mock(strategy_id=1), "y")
+                p2.expire(mock.Mock(strategy_id=1), 60)
+                assert p2.command_stack == ["new", "new"]
+                result = p2.execute()
+
+        assert result == ["new:lpush", "new:expire"]
+        assert all(c.startswith("new:") for c in result)
+        assert "old" not in "".join(result)
+
     def test_routing_snapshot_keeps_same_node_across_ttl_boundary(self):
         node_old = mock.Mock(id="old")
         node_new = mock.Mock(id="new")
