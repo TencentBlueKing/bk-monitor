@@ -676,10 +676,7 @@ class CleanTemplateViewSet(ModelViewSet):
         clean_template = self.get_object()
         data = self.params_valid(CleanTemplatePreviewSerializer)
         return Response(
-            CleanTemplateHandler(
-                clean_template_id=clean_template.clean_template_id,
-                bk_biz_id=clean_template.bk_biz_id,
-            ).preview(data=data["data"])
+            CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).preview(data=data["data"])
         )
 
     @list_route(methods=["POST"])

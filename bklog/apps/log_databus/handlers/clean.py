@@ -128,13 +128,12 @@ class CleanTemplateHandler:
     SYNC_LOCK_TTL = getattr(settings, "CLEAN_TEMPLATE_SYNC_LOCK_TTL", 30 * 60)
     SYNC_MAX_WORKERS = getattr(settings, "CLEAN_TEMPLATE_SYNC_MAX_WORKERS", 5)
 
-    def __init__(self, clean_template_id=None, bk_biz_id=None):
+    def __init__(self, clean_template_id=None):
         self.clean_template_id = clean_template_id
-        self.bk_biz_id = bk_biz_id
         self.data = None
         if clean_template_id:
             try:
-                self.data = self._get_template_queryset().get(clean_template_id=self.clean_template_id)
+                self.data = CleanTemplate.objects.get(clean_template_id=self.clean_template_id)
             except CleanTemplate.DoesNotExist:
                 raise CleanTemplateNotExistException(
                     CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
@@ -169,12 +168,6 @@ class CleanTemplateHandler:
             )
         return clean_templates
 
-    def _get_template_queryset(self):
-        queryset = CleanTemplate.objects
-        if self.bk_biz_id is not None:
-            queryset = queryset.filter(bk_biz_id=self.bk_biz_id)
-        return queryset
-
     @staticmethod
     def get_active_collectors_queryset(clean_template_id: int, bk_biz_id: int):
         """查询当前引用模板且在线上生效的采集项。"""
@@ -195,7 +188,7 @@ class CleanTemplateHandler:
 
     def _refresh_template(self):
         try:
-            self.data = self._get_template_queryset().get(clean_template_id=self.clean_template_id)
+            self.data = CleanTemplate.objects.get(clean_template_id=self.clean_template_id)
         except CleanTemplate.DoesNotExist:
             raise CleanTemplateNotExistException(
                 CleanTemplateNotExistException.MESSAGE.format(clean_template_id=self.clean_template_id)

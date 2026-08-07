@@ -110,12 +110,6 @@ class TestCleanTemplate(TestCase):
         self.assertEqual(updated["config_version"], 2)
         self.assertEqual(updated["bk_biz_id"], 706)
 
-    def test_business_scope_is_enforced(self):
-        result = self.create_template()
-
-        with self.assertRaises(CleanTemplateNotExistException):
-            CleanTemplateHandler(result["clean_template_id"], bk_biz_id=999)
-
     def test_list_collectors_marks_only_active_outdated_collectors(self):
         template = self.create_template()
         template_id = template["clean_template_id"]
