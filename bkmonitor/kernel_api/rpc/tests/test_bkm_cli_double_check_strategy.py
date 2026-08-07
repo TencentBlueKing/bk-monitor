@@ -145,55 +145,62 @@ def test_impact_reports_group_level_access_and_explicit_detect_scope(mocker):
     assert result["access_impact_complete"] is True
 
 
-def test_impact_marks_missing_runtime_group_as_incomplete(mocker):
+@pytest.mark.parametrize(
+    "runtime_groups",
+    [
+        {},
+        {"group-a": json.dumps({"1": [10], "bk_biz_id": 7})},
+    ],
+)
+def test_enable_active_eligible_strategy_without_runtime_membership_is_incomplete(mocker, runtime_groups):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
     from kernel_api.rpc.functions.bkm_cli import double_check_strategy
 
     mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[])
-    mocker.patch.object(double_check_strategy, "_validate_strategy_for_enable", return_value={"strategy_id": 2})
     mocker.patch.object(
         double_check_strategy,
-        "_strategy_groups",
-        return_value=[
-            {
-                "strategy_group_key": "group-a",
-                "member_strategy_ids": [],
-                "runtime_group_found": False,
-                "target_strategy_member_found": False,
-            }
-        ],
+        "_validate_strategy_for_enable",
+        return_value={"strategy_id": 2, "exists": True, "is_enabled": True, "is_invalid": False},
     )
+    get_all_groups = mocker.patch.object(StrategyCacheManager, "get_all_groups", return_value=runtime_groups)
 
     result = double_check_strategy.query_double_check_strategies(
         {"operation": "impact", "strategy_id": 2, "change": "enable"}
     )
 
-    assert result["strategy"] == {"strategy_id": 2}
+    assert result["groups"] == []
     assert result["access_impact_complete"] is False
+    get_all_groups.assert_called_once_with()
 
 
-def test_impact_marks_runtime_group_without_target_member_as_incomplete(mocker):
+def test_disable_active_access_eligible_strategy_without_runtime_membership_is_incomplete(mocker):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
     from kernel_api.rpc.functions.bkm_cli import double_check_strategy
 
-    mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[])
-    mocker.patch.object(double_check_strategy, "_validate_strategy_for_enable", return_value={"strategy_id": 2})
+    mocker.patch.object(double_check_strategy, "_configured_strategy_ids", return_value=[2])
     mocker.patch.object(
         double_check_strategy,
-        "_strategy_groups",
-        return_value=[
-            {
-                "strategy_group_key": "group-a",
-                "member_strategy_ids": [1],
-                "runtime_group_found": True,
-                "target_strategy_member_found": False,
-            }
-        ],
+        "_strategy_summary",
+        return_value={"strategy_id": 2, "exists": True, "is_enabled": True, "is_invalid": False},
     )
+    strategy_config = mocker.patch.object(
+        double_check_strategy,
+        "_strategy_config",
+        return_value=(
+            mock.sentinel.strategy,
+            {"items": [{"query_configs": [{"data_source_label": "bk_monitor", "data_type_label": "time_series"}]}]},
+        ),
+    )
+    get_all_groups = mocker.patch.object(StrategyCacheManager, "get_all_groups", return_value={})
 
     result = double_check_strategy.query_double_check_strategies(
-        {"operation": "impact", "strategy_id": 2, "change": "enable"}
+        {"operation": "impact", "strategy_id": 2, "change": "disable"}
     )
 
+    assert result["groups"] == []
     assert result["access_impact_complete"] is False
+    get_all_groups.assert_called_once_with()
+    strategy_config.assert_called_once_with(2)
 
 
 def test_disable_stale_strategy_uses_one_runtime_group_snapshot(mocker):

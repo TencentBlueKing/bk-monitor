@@ -11,7 +11,7 @@ from bkmonitor.models.strategy import StrategyModel
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
-from kernel_api.rpc.functions.bkm_cli.strategy import _build_strategy_config
+from kernel_api.rpc.functions.bkm_cli.strategy import _build_strategy_config, _is_strategy_group_eligible
 
 
 CONFIG_KEY = "DOUBLE_CHECK_SUM_STRATEGY_IDS"
@@ -173,6 +173,15 @@ def _strategy_groups(strategy_id: int) -> list[dict[str, Any]]:
     return sorted(groups, key=lambda group: group["strategy_group_key"])
 
 
+def _access_runtime_group_expected(strategy_id: int, strategy: dict[str, Any]) -> bool:
+    """判断当前有效策略是否按 access 语义应存在运行态共享组。"""
+    if not strategy.get("exists") or not strategy.get("is_enabled") or strategy.get("is_invalid"):
+        return False
+
+    _, config = _strategy_config(strategy_id)
+    return any(_is_strategy_group_eligible(item) for item in config.get("items") or [])
+
+
 def _query_list() -> dict[str, Any]:
     configured_strategy_ids = _configured_strategy_ids()
     strategies = {strategy.id: strategy for strategy in StrategyModel.objects.filter(id__in=configured_strategy_ids)}
@@ -217,6 +226,10 @@ def _query_impact(params: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    runtime_membership_missing = not groups and (
+        change == "enable" or _access_runtime_group_expected(strategy_id, strategy)
+    )
+
     return {
         "operation": "impact",
         "change": change,
@@ -225,9 +238,8 @@ def _query_impact(params: dict[str, Any]) -> dict[str, Any]:
         "strategy": strategy,
         "detect": {"before": strategy_id in before_set, "after": strategy_id in after_set},
         "groups": groups,
-        "access_impact_complete": all(
-            group["runtime_group_found"] and group["target_strategy_member_found"] for group in groups
-        ),
+        "access_impact_complete": not runtime_membership_missing
+        and all(group["runtime_group_found"] and group["target_strategy_member_found"] for group in groups),
         "configured_strategy_ids_before": before_ids,
         "configured_strategy_ids_after": after_ids,
     }
