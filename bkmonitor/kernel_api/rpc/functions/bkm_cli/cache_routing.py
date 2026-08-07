@@ -16,6 +16,9 @@ import hashlib
 import json
 import logging
 import re
+from bisect import bisect_right
+from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 from django.db import router as db_router
@@ -33,6 +36,9 @@ MAX_POSITIVE_ROUTES = 1000
 DB_INT_MAX = 2_147_483_647
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 REVISION_KEY_PREFIX = "BKM_CLI_CACHE_ROUTING_REVISION"
+HARD_CHANGE_PERCENT = 50
+HARD_CHANGE_RATIO = HARD_CHANGE_PERCENT / 100
+STRATEGY_ITERATOR_CHUNK_SIZE = 2000
 
 LIST_ALLOWED_FIELDS = {"operation", "expected_snapshot_id", "desired_routes", "bk_tenant_id"}
 MANAGE_ALLOWED_FIELDS = {
@@ -262,12 +268,113 @@ def _route_diff(
     return {"create": created, "update": updated, "delete": deleted}
 
 
+def _build_impact_summary(
+    snapshot: dict[str, Any], desired_routes: list[dict[str, int]], strategy_rows: Iterable[Any]
+) -> dict[str, Any]:
+    before_routes = [route for route in snapshot["raw_routes"] if route["strategy_score"] > 0]
+    before_scores = [route["strategy_score"] for route in before_routes]
+    before_nodes = [route["node_id"] for route in before_routes]
+    after_scores = [route["strategy_score"] for route in desired_routes]
+    after_nodes = [route["node_id"] for route in desired_routes]
+
+    total = 0
+    enabled_total = 0
+    affected = 0
+    affected_enabled = 0
+    before_ownership: dict[int, int] = defaultdict(int)
+    after_ownership: dict[int, int] = defaultdict(int)
+    movements: dict[tuple[int | None, int | None], list[int]] = defaultdict(lambda: [0, 0])
+
+    for strategy in strategy_rows:
+        strategy_id = int(_get_value(strategy, "id"))
+        if strategy_id <= 0 or strategy_id > snapshot["max_strategy_id"]:
+            continue
+        is_enabled = bool(_get_value(strategy, "is_enabled"))
+        total += 1
+        enabled_total += int(is_enabled)
+
+        before_index = bisect_right(before_scores, strategy_id)
+        before_node_id = before_nodes[before_index] if before_index < len(before_nodes) else None
+        after_index = bisect_right(after_scores, strategy_id)
+        after_node_id = after_nodes[after_index] if after_index < len(after_nodes) else None
+        if before_node_id is not None:
+            before_ownership[before_node_id] += 1
+        if after_node_id is not None:
+            after_ownership[after_node_id] += 1
+        if before_node_id == after_node_id:
+            continue
+
+        affected += 1
+        affected_enabled += int(is_enabled)
+        movement = movements[(before_node_id, after_node_id)]
+        movement[0] += 1
+        movement[1] += int(is_enabled)
+
+    affected_ratio = round(affected / total, 6) if total else 0.0
+    affected_enabled_ratio = round(affected_enabled / enabled_total, 6) if enabled_total else 0.0
+    effective_ratio = max(affected_ratio, affected_enabled_ratio)
+    drained_node_ids = sorted(node_id for node_id in before_ownership if after_ownership.get(node_id, 0) == 0)
+    before_owned_nodes = sorted(node_id for node_id, count in before_ownership.items() if count)
+    after_owned_nodes = sorted(node_id for node_id, count in after_ownership.items() if count)
+    collapsed_to_single_node = len(before_owned_nodes) > 1 and len(after_owned_nodes) == 1
+
+    block_reasons: list[str] = []
+    if (total and affected * 100 >= total * HARD_CHANGE_PERCENT) or (
+        enabled_total and affected_enabled * 100 >= enabled_total * HARD_CHANGE_PERCENT
+    ):
+        block_reasons.append(
+            f"route change affects {affected}/{total} strategies ({affected_ratio:.2%}) and "
+            f"{affected_enabled}/{enabled_total} enabled strategies ({affected_enabled_ratio:.2%}); "
+            f"effective ratio {effective_ratio:.2%} reaches the hard limit {HARD_CHANGE_RATIO:.2%}"
+        )
+    if drained_node_ids:
+        block_reasons.append(f"route change would drain strategy ownership from node IDs: {drained_node_ids}")
+    if collapsed_to_single_node:
+        block_reasons.append(
+            f"route change would collapse strategy ownership from {len(before_owned_nodes)} nodes "
+            f"to one node_id={after_owned_nodes[0]}"
+        )
+
+    node_movements = [
+        {
+            "before_node_id": before_node_id,
+            "after_node_id": after_node_id,
+            "strategy_count": counts[0],
+            "enabled_strategy_count": counts[1],
+        }
+        for (before_node_id, after_node_id), counts in sorted(
+            movements.items(),
+            key=lambda item: (
+                -1 if item[0][0] is None else item[0][0],
+                -1 if item[0][1] is None else item[0][1],
+            ),
+        )
+    ]
+    return {
+        "scope": "current_alarm_cluster_strategy_rows",
+        "hard_limit_ratio": HARD_CHANGE_RATIO,
+        "total_strategy_count": total,
+        "affected_strategy_count": affected,
+        "affected_ratio": affected_ratio,
+        "enabled_strategy_count": enabled_total,
+        "affected_enabled_strategy_count": affected_enabled,
+        "affected_enabled_ratio": affected_enabled_ratio,
+        "effective_affected_ratio": effective_ratio,
+        "node_movements": node_movements,
+        "drained_node_ids": drained_node_ids,
+        "collapsed_to_single_node": collapsed_to_single_node,
+        "apply_allowed": not block_reasons,
+        "block_reasons": block_reasons,
+    }
+
+
 def _build_plan(
     snapshot: dict[str, Any],
     desired_routes: Any,
     expected_snapshot_id: Any,
     *,
     check_current_snapshot: bool,
+    strategy_rows: Iterable[Any],
 ) -> dict[str, Any]:
     if not isinstance(expected_snapshot_id, str) or not expected_snapshot_id.strip():
         raise CustomException(message="expected_snapshot_id is required")
@@ -285,12 +392,15 @@ def _build_plan(
             message=f"desired cache routing topology is invalid: {after['topology_validation']['errors']}"
         )
     diff = _route_diff(snapshot["raw_routes"], desired)
+    impact_summary = _build_impact_summary(snapshot, desired, strategy_rows)
+    impact_digest = _canonical_digest({"impact_summary": impact_summary})
     plan_id = _canonical_digest(
         {
             "plan_schema": PLAN_SCHEMA,
             "cluster_name": snapshot["cluster_name"],
             "expected_snapshot_id": expected_snapshot_id,
             "desired_routes": desired,
+            "impact_digest": impact_digest,
         }
     )
     return {
@@ -301,19 +411,28 @@ def _build_plan(
         "desired_routes": desired,
         "changed": any(diff.values()),
         "diff": diff,
+        "impact_summary": impact_summary,
+        "impact_digest": impact_digest,
         "before": snapshot,
         "after": after,
     }
 
 
-def _build_preview(snapshot: dict[str, Any], desired_routes: Any, expected_snapshot_id: Any) -> dict[str, Any]:
+def _build_preview(
+    snapshot: dict[str, Any],
+    desired_routes: Any,
+    expected_snapshot_id: Any,
+    *,
+    strategy_rows: Iterable[Any],
+) -> dict[str, Any]:
     plan = _build_plan(
         snapshot,
         desired_routes,
         expected_snapshot_id,
         check_current_snapshot=True,
+        strategy_rows=strategy_rows,
     )
-    return {
+    result = {
         **plan,
         "operation": "preview",
         "states": {
@@ -323,12 +442,37 @@ def _build_preview(snapshot: dict[str, Any], desired_routes: Any, expected_snaps
             "capacity": "not_evaluated",
         },
     }
+    if not plan["impact_summary"]["apply_allowed"]:
+        reasons = "; ".join(plan["impact_summary"]["block_reasons"])
+        result["next_actions"] = [
+            f"Do not call manage-cache-routing for this plan: {reasons}",
+            "Split the route change into independently previewed and validated plans, or use the separately governed "
+            "manual recovery path.",
+        ]
+    return result
 
 
 def _cluster_name() -> str:
     from alarm_backends.core.cluster import get_cluster
 
     return get_cluster().name
+
+
+def _load_cluster_strategy_rows(*, using: str, max_strategy_id: int) -> Iterator[dict[str, Any]]:
+    from alarm_backends.cluster import TargetType
+    from alarm_backends.core.cluster import get_cluster
+    from bkmonitor.models import StrategyModel
+
+    cluster = get_cluster()
+    queryset = (
+        StrategyModel.objects.using(using)
+        .filter(id__lte=max_strategy_id)
+        .order_by("id")
+        .values("id", "bk_biz_id", "is_enabled")
+    )
+    for row in queryset.iterator(chunk_size=STRATEGY_ITERATOR_CHUNK_SIZE):
+        if cluster.match(TargetType.biz, row["bk_biz_id"]):
+            yield {"id": row["id"], "is_enabled": row["is_enabled"]}
 
 
 def _revision_key(cluster_name: str) -> str:
@@ -472,7 +616,13 @@ def list_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
             },
         }
 
-    preview = _build_preview(snapshot, params.get("desired_routes"), params.get("expected_snapshot_id"))
+    strategy_rows = _load_cluster_strategy_rows(using=using, max_strategy_id=snapshot["max_strategy_id"])
+    preview = _build_preview(
+        snapshot,
+        params.get("desired_routes"),
+        params.get("expected_snapshot_id"),
+        strategy_rows=strategy_rows,
+    )
     preview["runtime_refresh_contract"] = contract
     return preview
 
@@ -567,6 +717,10 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
             params.get("desired_routes"),
             expected_snapshot_id,
             check_current_snapshot=False,
+            strategy_rows=_load_cluster_strategy_rows(
+                using=using,
+                max_strategy_id=before["max_strategy_id"],
+            ),
         )
         if plan["plan_id"] != expected_plan_id:
             raise CustomException(message="plan_id does not match the locked routing plan")
@@ -574,9 +728,22 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
             raise CustomException(message="expected_after_snapshot_id does not match the locked routing plan")
         if before["snapshot_id"] != expected_snapshot_id:
             raise CustomException(message="cache routing snapshot is stale; take a new snapshot and preview again")
+        if not plan["impact_summary"]["apply_allowed"]:
+            reasons = "; ".join(plan["impact_summary"]["block_reasons"])
+            raise CustomException(message=f"route change is blocked: {reasons}")
 
         _write_positive_routes(before, plan["desired_routes"], using=using)
         _advance_routing_revision(before, using=using)
+        impact_after_write = _build_impact_summary(
+            before,
+            plan["desired_routes"],
+            _load_cluster_strategy_rows(
+                using=using,
+                max_strategy_id=before["max_strategy_id"],
+            ),
+        )
+        if _canonical_digest({"impact_summary": impact_after_write}) != plan["impact_digest"]:
+            raise CustomException(message="strategy impact changed during apply; transaction rolled back")
         after = _load_routing_snapshot(using=using, lock=False)
         if after["reserved_routes"] != before["reserved_routes"]:
             raise CustomException(message="reserved CacheRouter rows changed unexpectedly; transaction rolled back")
@@ -586,13 +753,16 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
             )
 
     logger.info(
-        "CacheRouter apply completed cluster=%s operator=%s plan_id=%s create=%d update=%d delete=%d changed=%s",
+        "CacheRouter apply completed cluster=%s operator=%s plan_id=%s create=%d update=%d delete=%d "
+        "affected=%d total=%d changed=%s",
         before["cluster_name"],
         operator,
         expected_plan_id,
         len(plan["diff"]["create"]),
         len(plan["diff"]["update"]),
         len(plan["diff"]["delete"]),
+        plan["impact_summary"]["affected_strategy_count"],
+        plan["impact_summary"]["total_strategy_count"],
         plan["changed"],
     )
     return {
@@ -602,6 +772,8 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
         "previous_snapshot_id": expected_snapshot_id,
         "snapshot_id": after["snapshot_id"],
         "diff": plan["diff"],
+        "impact_summary": plan["impact_summary"],
+        "impact_digest": plan["impact_digest"],
         "routing": after,
         "runtime_refresh_contract": runtime_contract,
         "states": {
@@ -618,7 +790,8 @@ KernelRPCRegistry.register_function(
     summary="受控替换 alarm_backends Redis 正数路由表",
     description=(
         "使用预览产生的 snapshot_id、plan_id 和 expected_after_snapshot_id 在单一事务内替换 CacheRouter "
-        "正数路由行；保留 score<=0 行，不管理 CacheNode 连接信息。必须 confirmed=true 且申明独占变更窗口。"
+        "正数路由行；保留 score<=0 行，不管理 CacheNode 连接信息。必须 confirmed=true 且申明独占变更窗口；"
+        "当前集群至少半数策略改指、节点策略归属清空或多节点收缩为单节点时硬拒绝。"
     ),
     handler=manage_cache_routing,
     params_schema={
@@ -637,7 +810,9 @@ BkmCliOpRegistry.register(
     op_id="manage-cache-routing",
     func_name="bkm_cli.manage_cache_routing",
     summary="受控变更 alarm_backends Redis 路由",
-    description="仅替换 CacheRouter 正数路由行；要求预览绑定、人工确认、独占变更窗口和事务内精确回读。",
+    description=(
+        "仅替换 CacheRouter 正数路由行；要求预览绑定、人工确认、独占变更窗口、策略影响硬门禁和事务内精确回读。"
+    ),
     capability_level="admin",
     risk_level="mutation",
     requires_confirmation=True,

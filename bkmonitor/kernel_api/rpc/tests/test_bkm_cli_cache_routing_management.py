@@ -53,6 +53,43 @@ def _snapshot(*, target: bool = False, revision: int = 0):
     )
 
 
+def _impact_snapshot(*, first_score: int = 3, include_third_node: bool = False):
+    stock = _node(1, "alarm-stock", is_default=True)
+    increment = _node(2, "alarm-increment")
+    nodes = [stock, increment]
+    routes = [_router(first_score, stock)]
+    if include_third_node:
+        archive = _node(3, "alarm-archive")
+        nodes.append(archive)
+        routes.extend([_router(6, increment), _router(11, archive)])
+    else:
+        routes.append(_router(11, increment))
+    return cache_routing._build_snapshot("default", nodes, routes, max_strategy_id=10)
+
+
+def _strategy_rows(count: int = 10, *, disabled_ids: set[int] | None = None):
+    disabled_ids = disabled_ids or set()
+    return [{"id": strategy_id, "is_enabled": strategy_id not in disabled_ids} for strategy_id in range(1, count + 1)]
+
+
+def _preview_with_strategies(mocker, snapshot, desired_routes, strategy_rows):
+    mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=snapshot)
+    mocker.patch.object(
+        cache_routing,
+        "_load_cluster_strategy_rows",
+        return_value=strategy_rows,
+        create=True,
+    )
+    mocker.patch.object(cache_routing.db_router, "db_for_read", return_value="monitor_api")
+    return cache_routing.list_cache_routing(
+        {
+            "operation": "preview",
+            "expected_snapshot_id": snapshot["snapshot_id"],
+            "desired_routes": desired_routes,
+        }
+    )
+
+
 def test_snapshot_is_stable_safe_and_rounds_max_id_to_next_hundred():
     first = _snapshot()
     second = _snapshot()
@@ -91,7 +128,7 @@ def test_preview_is_bound_to_snapshot_plan_and_expected_after_state():
         {"strategy_score": 1000, "node_id": 2},
     ]
 
-    preview = cache_routing._build_preview(before, desired, before["snapshot_id"])
+    preview = cache_routing._build_preview(before, desired, before["snapshot_id"], strategy_rows=[])
 
     assert preview["changed"] is True
     assert preview["diff"] == {
@@ -109,14 +146,269 @@ def test_preview_is_bound_to_snapshot_plan_and_expected_after_state():
     }
 
 
+def test_preview_reports_real_strategy_assignment_impact_and_allows_small_change(mocker):
+    before = _impact_snapshot()
+    desired = [
+        {"strategy_score": 2, "node_id": 1},
+        {"strategy_score": 11, "node_id": 2},
+    ]
+
+    preview = _preview_with_strategies(mocker, before, desired, _strategy_rows())
+
+    assert preview["impact_summary"] == {
+        "scope": "current_alarm_cluster_strategy_rows",
+        "hard_limit_ratio": 0.5,
+        "total_strategy_count": 10,
+        "affected_strategy_count": 1,
+        "affected_ratio": 0.1,
+        "enabled_strategy_count": 10,
+        "affected_enabled_strategy_count": 1,
+        "affected_enabled_ratio": 0.1,
+        "effective_affected_ratio": 0.1,
+        "node_movements": [
+            {
+                "before_node_id": 1,
+                "after_node_id": 2,
+                "strategy_count": 1,
+                "enabled_strategy_count": 1,
+            }
+        ],
+        "drained_node_ids": [],
+        "collapsed_to_single_node": False,
+        "apply_allowed": True,
+        "block_reasons": [],
+    }
+    assert preview["impact_digest"].startswith("sha256:")
+
+
+def test_preview_blocks_half_or_more_strategies_and_single_node_collapse(mocker):
+    before = _impact_snapshot(first_score=6)
+    desired = [{"strategy_score": 11, "node_id": 2}]
+
+    preview = _preview_with_strategies(mocker, before, desired, _strategy_rows())
+
+    impact = preview["impact_summary"]
+    assert impact["affected_strategy_count"] == 5
+    assert impact["affected_ratio"] == 0.5
+    assert impact["effective_affected_ratio"] == 0.5
+    assert impact["drained_node_ids"] == [1]
+    assert impact["collapsed_to_single_node"] is True
+    assert impact["apply_allowed"] is False
+    assert any("hard limit" in reason for reason in impact["block_reasons"])
+    assert any("drain" in reason for reason in impact["block_reasons"])
+    assert any("collapse" in reason for reason in impact["block_reasons"])
+    assert preview["next_actions"][0].startswith("Do not call manage-cache-routing")
+
+
+def test_preview_uses_enabled_strategy_ratio_to_avoid_disabled_rows_diluting_risk(mocker):
+    before = _impact_snapshot()
+    desired = [
+        {"strategy_score": 2, "node_id": 1},
+        {"strategy_score": 11, "node_id": 2},
+    ]
+    disabled_ids = set(range(1, 11)) - {2}
+
+    preview = _preview_with_strategies(
+        mocker,
+        before,
+        desired,
+        _strategy_rows(disabled_ids=disabled_ids),
+    )
+
+    impact = preview["impact_summary"]
+    assert impact["affected_ratio"] == 0.1
+    assert impact["affected_enabled_ratio"] == 1.0
+    assert impact["effective_affected_ratio"] == 1.0
+    assert impact["drained_node_ids"] == []
+    assert impact["apply_allowed"] is False
+    assert any("hard limit" in reason for reason in impact["block_reasons"])
+
+
+def test_preview_blocks_draining_a_node_even_when_total_impact_is_below_half(mocker):
+    before = _impact_snapshot(first_score=2, include_third_node=True)
+    desired = [
+        {"strategy_score": 6, "node_id": 2},
+        {"strategy_score": 11, "node_id": 3},
+    ]
+
+    preview = _preview_with_strategies(mocker, before, desired, _strategy_rows())
+
+    impact = preview["impact_summary"]
+    assert impact["affected_strategy_count"] == 1
+    assert impact["affected_ratio"] == 0.1
+    assert impact["drained_node_ids"] == [1]
+    assert impact["collapsed_to_single_node"] is False
+    assert impact["apply_allowed"] is False
+    assert impact["block_reasons"] == ["route change would drain strategy ownership from node IDs: [1]"]
+
+
+def test_plan_id_binds_the_strategy_impact_seen_during_preview(mocker):
+    before = _impact_snapshot()
+    desired = [
+        {"strategy_score": 2, "node_id": 1},
+        {"strategy_score": 11, "node_id": 2},
+    ]
+    mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=before)
+    mocker.patch.object(
+        cache_routing,
+        "_load_cluster_strategy_rows",
+        side_effect=[_strategy_rows(), _strategy_rows(9)],
+        create=True,
+    )
+    mocker.patch.object(cache_routing.db_router, "db_for_read", return_value="monitor_api")
+    params = {
+        "operation": "preview",
+        "expected_snapshot_id": before["snapshot_id"],
+        "desired_routes": desired,
+    }
+
+    first = cache_routing.list_cache_routing(params)
+    second = cache_routing.list_cache_routing(params)
+
+    assert first["impact_digest"] != second["impact_digest"]
+    assert first["plan_id"] != second["plan_id"]
+
+
+def test_strategy_impact_population_is_limited_to_the_current_alarm_cluster(mocker):
+    class FakeStrategyQuerySet:
+        def using(self, alias):
+            assert alias == "monitor_api"
+            return self
+
+        def filter(self, **kwargs):
+            assert kwargs == {"id__lte": 10}
+            return self
+
+        def order_by(self, *args):
+            assert args == ("id",)
+            return self
+
+        def values(self, *args):
+            assert args == ("id", "bk_biz_id", "is_enabled")
+            return self
+
+        def iterator(self, *, chunk_size):
+            assert chunk_size == 2000
+            return iter(
+                [
+                    {"id": 1, "bk_biz_id": 100, "is_enabled": True},
+                    {"id": 2, "bk_biz_id": 200, "is_enabled": False},
+                ]
+            )
+
+    strategy_model = SimpleNamespace(objects=FakeStrategyQuerySet())
+    cluster = SimpleNamespace(match=lambda target_type, biz_id: biz_id == 100)
+    mocker.patch("bkmonitor.models.StrategyModel", strategy_model)
+    mocker.patch("alarm_backends.core.cluster.get_cluster", return_value=cluster)
+
+    assert hasattr(cache_routing, "_load_cluster_strategy_rows"), "cluster strategy impact loader is missing"
+    rows = list(cache_routing._load_cluster_strategy_rows(using="monitor_api", max_strategy_id=10))
+
+    assert rows == [{"id": 1, "is_enabled": True}]
+
+
+def test_apply_recomputes_impact_and_blocks_before_writing(mocker):
+    before = _impact_snapshot(first_score=6)
+    desired = [{"strategy_score": 11, "node_id": 2}]
+    after = cache_routing._after_snapshot(before, desired)
+    load = mocker.patch.object(cache_routing, "_load_routing_snapshot", side_effect=[before, before, after])
+    mocker.patch.object(
+        cache_routing,
+        "_load_cluster_strategy_rows",
+        return_value=_strategy_rows(),
+        create=True,
+    )
+    write = mocker.patch.object(cache_routing, "_write_positive_routes")
+    advance = mocker.patch.object(cache_routing, "_advance_routing_revision")
+    mocker.patch.object(cache_routing.db_router, "db_for_read", return_value="monitor_api")
+    mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
+    mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
+    mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "ttl_refresh"})
+    preview = cache_routing.list_cache_routing(
+        {
+            "operation": "preview",
+            "expected_snapshot_id": before["snapshot_id"],
+            "desired_routes": desired,
+        }
+    )
+
+    with pytest.raises(CustomException, match="route change is blocked") as exc:
+        cache_routing.manage_cache_routing(
+            {
+                "operation": "apply",
+                "expected_snapshot_id": before["snapshot_id"],
+                "expected_after_snapshot_id": preview["expected_after_snapshot_id"],
+                "plan_id": preview["plan_id"],
+                "desired_routes": desired,
+                "confirmed": True,
+                "operator": "test-operator",
+                "exclusive_change_window": True,
+            }
+        )
+
+    assert "5/10 strategies (50.00%)" in str(exc.value)
+    assert "hard limit 50.00%" in str(exc.value)
+    assert "drain strategy ownership" in str(exc.value)
+    assert "collapse strategy ownership" in str(exc.value)
+    assert load.call_count == 2
+    write.assert_not_called()
+    advance.assert_not_called()
+
+
+def test_apply_rolls_back_when_strategy_impact_changes_after_route_write(mocker):
+    before = _impact_snapshot()
+    desired = [
+        {"strategy_score": 2, "node_id": 1},
+        {"strategy_score": 11, "node_id": 2},
+    ]
+    after = cache_routing._after_snapshot(before, desired)
+    initial_rows = _strategy_rows()
+    changed_rows = _strategy_rows(disabled_ids={1, 3, 4, 5, 6, 7, 8, 9, 10})
+    preview = cache_routing._build_preview(
+        before,
+        desired,
+        before["snapshot_id"],
+        strategy_rows=initial_rows,
+    )
+    mocker.patch.object(cache_routing, "_load_routing_snapshot", side_effect=[before, after])
+    load_strategies = mocker.patch.object(
+        cache_routing,
+        "_load_cluster_strategy_rows",
+        side_effect=[initial_rows, changed_rows],
+    )
+    write = mocker.patch.object(cache_routing, "_write_positive_routes")
+    advance = mocker.patch.object(cache_routing, "_advance_routing_revision")
+    mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
+    mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
+    mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "ttl_refresh"})
+
+    with pytest.raises(CustomException, match="strategy impact changed during apply"):
+        cache_routing.manage_cache_routing(
+            {
+                "operation": "apply",
+                "expected_snapshot_id": before["snapshot_id"],
+                "expected_after_snapshot_id": preview["expected_after_snapshot_id"],
+                "plan_id": preview["plan_id"],
+                "desired_routes": desired,
+                "confirmed": True,
+                "operator": "test-operator",
+                "exclusive_change_window": True,
+            }
+        )
+
+    assert load_strategies.call_count == 2
+    write.assert_called_once_with(before, desired, using="monitor_api")
+    advance.assert_called_once_with(before, using="monitor_api")
+
+
 def test_preview_rejects_stale_snapshot_and_terminal_shrink():
     before = _snapshot()
     desired = [{"strategy_score": 999, "node_id": 2}]
 
     with pytest.raises(CustomException, match="snapshot"):
-        cache_routing._build_preview(before, desired, "sha256:stale")
+        cache_routing._build_preview(before, desired, "sha256:stale", strategy_rows=[])
     with pytest.raises(CustomException, match="terminal"):
-        cache_routing._build_preview(before, desired, before["snapshot_id"])
+        cache_routing._build_preview(before, desired, before["snapshot_id"], strategy_rows=[])
 
 
 def test_preview_can_repair_terminal_coverage_after_strategy_ids_grow():
@@ -137,6 +429,7 @@ def test_preview_can_repair_terminal_coverage_after_strategy_ids_grow():
             {"strategy_score": 1100, "node_id": 2},
         ],
         before["snapshot_id"],
+        strategy_rows=[],
     )
 
     assert preview["after"]["topology_validation"] == {"valid": True, "errors": []}
@@ -149,21 +442,31 @@ def test_monotonic_revision_prevents_old_plan_reuse_after_aba_route_cycle():
         {"strategy_score": 200, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    plan_a_to_b = cache_routing._build_preview(state_a_v0, routes_b, state_a_v0["snapshot_id"])
+    plan_a_to_b = cache_routing._build_preview(
+        state_a_v0,
+        routes_b,
+        state_a_v0["snapshot_id"],
+        strategy_rows=[],
+    )
     state_b_v1 = plan_a_to_b["after"]
 
     routes_a = [
         {"strategy_score": 100, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    plan_b_to_a = cache_routing._build_preview(state_b_v1, routes_a, state_b_v1["snapshot_id"])
+    plan_b_to_a = cache_routing._build_preview(
+        state_b_v1,
+        routes_a,
+        state_b_v1["snapshot_id"],
+        strategy_rows=[],
+    )
     state_a_v2 = plan_b_to_a["after"]
 
     assert state_a_v2["raw_routes"] == state_a_v0["raw_routes"]
     assert state_a_v2["revision"] == 2
     assert state_a_v2["snapshot_id"] != state_a_v0["snapshot_id"]
     with pytest.raises(CustomException):
-        cache_routing._build_preview(state_a_v2, routes_b, state_a_v0["snapshot_id"])
+        cache_routing._build_preview(state_a_v2, routes_b, state_a_v0["snapshot_id"], strategy_rows=[])
 
 
 def test_apply_uses_locked_snapshot_writes_and_exact_readback(mocker):
@@ -173,11 +476,12 @@ def test_apply_uses_locked_snapshot_writes_and_exact_readback(mocker):
         {"strategy_score": 200, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    preview = cache_routing._build_preview(before, desired, before["snapshot_id"])
+    preview = cache_routing._build_preview(before, desired, before["snapshot_id"], strategy_rows=[])
     load = mocker.patch.object(cache_routing, "_load_routing_snapshot", side_effect=[before, after])
     write = mocker.patch.object(cache_routing, "_write_positive_routes")
     advance = mocker.patch.object(cache_routing, "_advance_routing_revision")
     mocker.patch.object(cache_routing, "_cluster_name", return_value="default")
+    mocker.patch.object(cache_routing, "_load_cluster_strategy_rows", return_value=[])
     mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
     mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
     mocker.patch.object(
@@ -435,10 +739,11 @@ def test_replaying_old_apply_is_stale_even_when_target_already_matches(mocker):
         {"strategy_score": 200, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    old_preview = cache_routing._build_preview(old, desired, old["snapshot_id"])
+    old_preview = cache_routing._build_preview(old, desired, old["snapshot_id"], strategy_rows=[])
     mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=current)
     write = mocker.patch.object(cache_routing, "_write_positive_routes")
     mocker.patch.object(cache_routing, "_cluster_name", return_value="default")
+    mocker.patch.object(cache_routing, "_load_cluster_strategy_rows", return_value=[])
     mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
     mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
     mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "ttl_refresh"})
@@ -465,17 +770,28 @@ def test_old_apply_cannot_be_reused_after_routes_cycle_back_to_same_shape(mocker
         {"strategy_score": 200, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    old_plan = cache_routing._build_preview(state_a_v0, routes_b, state_a_v0["snapshot_id"])
+    old_plan = cache_routing._build_preview(
+        state_a_v0,
+        routes_b,
+        state_a_v0["snapshot_id"],
+        strategy_rows=[],
+    )
     state_b_v1 = old_plan["after"]
     routes_a = [
         {"strategy_score": 100, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    state_a_v2 = cache_routing._build_preview(state_b_v1, routes_a, state_b_v1["snapshot_id"])["after"]
+    state_a_v2 = cache_routing._build_preview(
+        state_b_v1,
+        routes_a,
+        state_b_v1["snapshot_id"],
+        strategy_rows=[],
+    )["after"]
 
     mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=state_a_v2)
     write = mocker.patch.object(cache_routing, "_write_positive_routes")
     advance = mocker.patch.object(cache_routing, "_advance_routing_revision")
+    mocker.patch.object(cache_routing, "_load_cluster_strategy_rows", return_value=[])
     mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
     mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
     mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "ttl_refresh"})
@@ -503,7 +819,7 @@ def test_apply_is_disabled_when_api_process_code_does_not_expose_ttl_refresh(moc
         {"strategy_score": 200, "node_id": 1},
         {"strategy_score": 1000, "node_id": 2},
     ]
-    preview = cache_routing._build_preview(before, desired, before["snapshot_id"])
+    preview = cache_routing._build_preview(before, desired, before["snapshot_id"], strategy_rows=[])
     load = mocker.patch.object(cache_routing, "_load_routing_snapshot")
     mocker.patch.object(
         cache_routing,
@@ -547,6 +863,7 @@ def test_runtime_refresh_contract_does_not_claim_worker_deployment_verification(
         {"route_key": "forbidden"},
         {"source_env": "forbidden"},
         {"cluster_name": "forbidden"},
+        {"force": True},
         {"unknown": "forbidden"},
     ],
 )
