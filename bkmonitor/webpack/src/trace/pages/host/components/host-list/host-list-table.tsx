@@ -31,16 +31,13 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
-  ref,
   shallowRef,
   useTemplateRef,
-  watch,
 } from 'vue';
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
-import { Pagination } from 'bkui-vue';
-import BkCheckbox from 'bkui-vue/lib/checkbox';
+import { Checkbox, Pagination } from 'bkui-vue';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
@@ -64,11 +61,13 @@ import {
 } from '../../constants/host-list';
 import AbnormalTips from './abnormal-tips/index';
 import HostListIpStatusTips from './host-list-ip-status-tips';
+import HostListSelectionTips from './host-list-selection-tips';
 import UnresolveList from './unresolve-list/index';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { IHostAlarmCount, IHostComponent, IStatusTipsConfig } from '../../types/host';
 import type { IHostListRow } from '../../types/host-list';
+import type { SlotReturnValue } from 'tdesign-vue-next';
 import type { TippyContent } from 'vue-tippy';
 
 import './host-list-table.scss';
@@ -135,10 +134,15 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 选中行 key */
+    /** 选中行 key 集合（Set，O(1) 判定；其余场景按需转数组） */
     selectedRowKeys: {
-      type: Array as PropType<(number | string)[]>,
-      default: () => [],
+      type: Set as PropType<Set<number | string>>,
+      default: () => new Set(),
+    },
+    /** 全选框状态：由父组件计算后下发，对齐 performance-table 的 allCheckValue */
+    selectType: {
+      type: Number as PropType<SelectTypeEnum>,
+      default: SelectType.UN_SELECTED,
     },
     /** 指标数据加载中（指标列展示骨架） */
     metricLoading: {
@@ -161,7 +165,8 @@ export default defineComponent({
     clearFilter: () => true,
     pageChange: (_v: number) => true,
     pageSizeChange: (_v: number) => true,
-    selectChange: (_keys: (number | string)[], _isAcrossPage: boolean) => true,
+    headerSelect: (_type: SelectTypeEnum) => true,
+    rowCheck: (_id: string, _checked: boolean) => true,
     columnsChange: (_cols: string[]) => true,
     selectIpCell: (_row: IHostListRow) => true,
     ipMark: (_row: IHostListRow) => true,
@@ -177,8 +182,6 @@ export default defineComponent({
     const tipsContentRef = useTemplateRef<HTMLElement>('tipsContent');
     const unresolveContentRef = useTemplateRef<HTMLElement>('unresolveContent');
 
-    const totalSelected = ref<SelectTypeEnum>(SelectType.UN_SELECTED);
-    const checkedRowsMap = ref<Record<string, boolean>>({});
     /** 表格体最大高度（自适应屏幕，表内滚动，表头/分页不滚走） */
     const bodyHeight = shallowRef(400);
     /** 进程异常 tip 数据 */
@@ -213,7 +216,7 @@ export default defineComponent({
     };
 
     const destroyUnresolvePopover = () => {
-      unresolvePopoverInstance?.hide(100);
+      unresolvePopoverInstance?.hide();
       unresolvePopoverInstance?.destroy();
       unresolvePopoverInstance = null;
     };
@@ -252,7 +255,7 @@ export default defineComponent({
           unresolvePopoverInstance = null;
         },
       });
-      unresolvePopoverInstance.show(100);
+      unresolvePopoverInstance.show();
     };
 
     const handleUnresolveLeave = () => {
@@ -341,28 +344,6 @@ export default defineComponent({
       fields: HOST_LIST_COLUMNS.map(column => ({ label: t(column.name), field: column.id, disabled: column.disabled })),
       checked: props.visibleColumns,
     }));
-
-    watch(
-      () => [totalSelected.value, checkedRowsMap.value],
-      () => {
-        if (totalSelected.value === SelectType.ALL_SELECTED) {
-          // 跨页全选
-          emit('selectChange', [], true);
-          return;
-        }
-
-        const checkedIps = Object.entries(checkedRowsMap.value).reduce<string[]>((acc, [id, isChecked]) => {
-          if (isChecked) {
-            acc.push(id);
-          }
-          return acc;
-        }, []);
-        emit('selectChange', checkedIps, false);
-      },
-      {
-        deep: true,
-      }
-    );
 
     /** 点击 IP 单元格时触发 selectIpCell 事件，由父组件处理拓扑树聚焦 */
     const handleSelectIpCell = (row: IHostListRow) => {
@@ -525,7 +506,7 @@ export default defineComponent({
       return (
         <TagOverflow
           class='host-table-process'
-          getLabel={(item: IHostComponent) => item.display_name}
+          getLabel={item => (item as IHostComponent).display_name}
           list={components}
           overflowClass='host-table-process__tag host-table-process__tag--3'
           recalcKey={props.visibleColumns.join(',')}
@@ -573,51 +554,21 @@ export default defineComponent({
       return (
         <AcrossPageSelection
           class='across-page-selection'
-          value={totalSelected.value}
-          onChange={handleTotalSelectedChange}
+          value={props.selectType}
+          onChange={(type: SelectTypeEnum) => {
+            emit('headerSelect', type);
+          }}
         />
       );
     };
 
-    /** 处理全选变化 */
-    const handleTotalSelectedChange = (value: SelectTypeEnum) => {
-      console.log('value = ', value);
-      totalSelected.value = value;
-      if (value === SelectType.SELECTED || value === SelectType.ALL_SELECTED) {
-        // 全选
-        for (const row of props.data) {
-          checkedRowsMap.value[row.id] = true;
-        }
-        return;
-      }
-
-      if (value === SelectType.UN_SELECTED) {
-        // 取消全选
-        checkedRowsMap.value = {};
-      }
-    };
-
-    /** 渲染 checkbox 单元格 */
     const renderCheckboxCell = (row: IHostListRow) => {
       return (
-        <BkCheckbox
-          checked={checkedRowsMap.value[row.id] || false}
-          onChange={(isChecked: boolean) => handleCheckboxChange(row.id, isChecked)}
+        <Checkbox
+          modelValue={props.selectedRowKeys.has(String(row.id))}
+          onChange={(isChecked: boolean) => emit('rowCheck', row.id, isChecked)}
         />
       );
-    };
-
-    /** 处理单个 checkbox 变化 */
-    const handleCheckboxChange = (id: string, isChecked: boolean) => {
-      checkedRowsMap.value[id] = isChecked;
-      const checkedCount = Object.values(checkedRowsMap.value).filter(Boolean).length;
-      if (checkedCount === props.data.length) {
-        totalSelected.value = SelectType.SELECTED;
-      } else if (checkedCount === 0) {
-        totalSelected.value = SelectType.UN_SELECTED;
-      } else {
-        totalSelected.value = SelectType.HALF_SELECTED;
-      }
     };
 
     /** 构建某一列的 tdesign 配置 */
@@ -635,6 +586,7 @@ export default defineComponent({
         width: config.width,
         sorter: config.sortable,
         ellipsis: false,
+        fixed: config.fixed,
       };
       base.cell = (_: unknown, { row }: { row: IHostListRow }) => {
         switch (config.type) {
@@ -696,6 +648,17 @@ export default defineComponent({
                 />
               ),
             }}
+            firstFullRow={
+              props.selectedRowKeys.size
+                ? () =>
+                    (
+                      <HostListSelectionTips
+                        selectedCount={props.selectedRowKeys.size}
+                        onClearAll={() => emit('headerSelect', SelectType.UN_SELECTED)}
+                      />
+                    ) as unknown as SlotReturnValue
+                : null
+            }
             bkUiSettings={tableSettings.value}
             columns={tableColumns.value}
             data={props.data}
@@ -706,14 +669,12 @@ export default defineComponent({
             reserveSelectedRowOnPaginate={true}
             resizable={true}
             rowKey='id'
-            selectedRowKeys={props.selectedRowKeys}
             showSortColumnBgColor={true}
             size='small'
             sort={tableSort.value}
             tableLayout='fixed'
             // @ts-expect-error
             onDisplayColumnsChange={(cols: string[]) => emit('columnsChange', cols)}
-            // onSelectChange={(keys: (number | string)[]) => emit('selectChange', keys)}
             onSortChange={handleSortChange}
           />
         </div>

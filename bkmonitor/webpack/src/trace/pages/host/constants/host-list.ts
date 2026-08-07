@@ -67,6 +67,8 @@ export interface IHostColumnConfig {
   checked: boolean;
   /** 是否禁止在字段设置中取消（主机列固定展示） */
   disabled?: boolean;
+  /** 固定列 */
+  fixed?: 'left' | 'right';
   /** 字段 key */
   id: string;
   /** 列宽 */
@@ -85,8 +87,16 @@ export interface IHostColumnConfig {
  * 主机列表全部列配置（默认勾选项对齐设计稿主视图，其余可在「字段设置」中开启）。
  */
 export const HOST_LIST_COLUMNS: IHostColumnConfig[] = [
-  { id: 'id', name: 'ID', type: 'checkbox', checked: true, disabled: true, width: 65 },
-  { id: 'host_display_name', name: window.i18n.t('主机'), type: 'ip', checked: true, disabled: true, minWidth: 200 },
+  { id: 'id', name: 'ID', type: 'checkbox', checked: true, disabled: true, width: 65, fixed: 'left' },
+  {
+    id: 'host_display_name',
+    name: window.i18n.t('主机'),
+    type: 'ip',
+    checked: true,
+    disabled: true,
+    minWidth: 200,
+    fixed: 'left',
+  },
   { id: 'bk_host_innerip', name: window.i18n.t('内网 IP'), type: 'text', checked: true, minWidth: 130 },
   { id: 'bk_host_innerip_v6', name: window.i18n.t('内网 IPv6'), type: 'text', checked: false, minWidth: 180 },
   { id: 'bk_host_outerip', name: window.i18n.t('外网 IP'), type: 'text', checked: false, minWidth: 130 },
