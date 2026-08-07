@@ -1750,7 +1750,7 @@ class CollectorHandler:
                 "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
-                "storage_cluster_id": current_storage_cluster_id,
+                "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
                 "retention": result_table["storage_config"].get("retention", 0),
                 "allocation_min_days": allocation_min_days,
                 "etl_config": self.data.etl_config,
