@@ -185,7 +185,7 @@ class PipelineProxy(KeyRouterMixin):
         self._routing_snapshot = None
 
     def begin_batch(self, *args, **kwargs):
-        """开启新逻辑批次：丢弃上一批评途残留（含原生 redis pipeline 已缓冲命令）。"""
+        """开启新逻辑批次：丢弃上一批遗留状态（含原生 redis pipeline 已缓冲命令）。"""
         self.init_params = (args, kwargs)
         self.command_stack = []
         self._routing_snapshot = None
@@ -212,7 +212,7 @@ class PipelineProxy(KeyRouterMixin):
         """为当前 pipeline 批次钉死路由表（实例级，不污染线程全局 get_node）。
 
         - 若外层已有 routing_snapshot()，复用其 routers 列表，保证嵌套一致。
-        - command_stack 为空时丢弃遗留 snapshot（上一批评途失败且未入队成功）。
+        - command_stack 为空时丢弃遗留 snapshot（上一批失败且未入队成功）。
         """
         if not self.command_stack and self._routing_snapshot is not None:
             self._routing_snapshot = None

@@ -12,6 +12,8 @@ from unittest import mock
 
 import pytest
 
+from alarm_backends.core.cache import key
+from alarm_backends.core.detect_result import CheckResult
 from alarm_backends.core.storage import redis_cluster
 from alarm_backends.core.storage.redis import REDIS_SOCKET_TIMEOUT_FLOOR
 from alarm_backends.core.storage.redis_cluster import (
@@ -150,7 +152,8 @@ class TestPipelineProxyCascade:
     @pytest.fixture
     def node(self, mocker):
         _node = _Node("node-A")
-        mocker.patch.object(redis_cluster, "get_node_by_strategy_id", return_value=_node)
+        mocker.patch.object(redis_cluster, "_refresh_strategy_router_cache")
+        mocker.patch.object(redis_cluster, "_resolve_node", return_value=_node)
         mocker.patch.object(RedisProxy, "get_client", side_effect=lambda n: _FakeClient(n))
         return _node
 
@@ -471,6 +474,36 @@ class TestStrategyRouterCacheTTL:
         assert result == ["new:lpush", "new:expire"]
         assert all(c.startswith("new:") for c in result)
         assert "old" not in "".join(result)
+
+    def test_check_result_new_batch_resets_abandoned_pipeline(self, mocker):
+        """CheckResult 类缓存不能绕过 RedisProxy 的新批次入口。"""
+        node_old = _Node("old")
+        node_new = _Node("new")
+        redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_old)]
+        redis_cluster.STRATEGY_ROUTER_CACHE_AT = 100.0
+        redis_cluster.STRATEGY_NODE_MAP = {}
+
+        proxy = RedisProxy("service")
+        get_client = mocker.patch.object(proxy, "get_client", side_effect=lambda node: _FakeClient(node))
+        mocker.patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", proxy)
+        mocker.patch.object(CheckResult, "_pipeline", None)
+
+        with mock.patch.object(redis_cluster, "monotonic", return_value=100.0):
+            with mock.patch.object(redis_cluster, "_router_cache_ttl", return_value=30.0):
+                first_batch = CheckResult.begin_pipeline_batch()
+                first_batch.get(_key(1))
+
+                redis_cluster.STRATEGY_ROUTER_CACHE = [self._router(10**12, node_new)]
+                redis_cluster.STRATEGY_NODE_MAP.clear()
+
+                next_batch = CheckResult.begin_pipeline_batch()
+                check_result = CheckResult(strategy_id=101, item_id=1, dimensions_md5="md5", level=1)
+                assert check_result.CHECK_RESULT is next_batch
+                next_batch.get(_key(2))
+                result = next_batch.execute()
+
+        assert result == ["val:snap:101:2"]
+        assert get_client.call_args_list[-1].args[0] is node_new
 
     def test_routing_snapshot_keeps_same_node_across_ttl_boundary(self):
         node_old = mock.Mock(id="old")
