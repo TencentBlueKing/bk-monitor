@@ -8,7 +8,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
+from monitor_web.strategies.metric_list_cache import BaseMetricCacheManager, BkmonitorMetricCacheManager
+
+
+def test_truncate_metric_fields_by_model_field_length():
+    metric = {
+        "result_table_id": "a" * 257,
+        "result_table_name": "索引表" * 100,
+        "readable_name": "a" * 256,
+        "metric_field": "count",
+    }
+
+    BaseMetricCacheManager.truncate_metric_fields(metric)
+
+    assert metric["result_table_id"] == "a" * 256
+    assert metric["result_table_name"] == ("索引表" * 100)[:256]
+    assert metric["readable_name"] == "a" * 255
+    assert metric["metric_field"] == "count"
 
 
 class TestBkmonitorMetricCacheManager:
