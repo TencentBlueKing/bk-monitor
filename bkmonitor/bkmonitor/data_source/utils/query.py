@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number
@@ -26,6 +27,10 @@ class BaseQuery:
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
+
+    DATA_SOURCE: str = "bkmonitor"
+    # 字段别名映射
+    FIELD_ALIAS_MAP: dict[str, str] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -349,3 +354,21 @@ class BaseQuery:
                 continue
             distinct_values.add(record.get(field))
         return len(distinct_values)
+
+    @classmethod
+    def _query_fields(cls, table_ids: list[str], start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
+        field_map: dict[str, dict[str, Any]] = {}
+        for table_id in table_ids:
+            fields = api.unify_query.query_info_field_map(
+                {
+                    "data_source": cls.DATA_SOURCE,
+                    "table_id": table_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                }
+            ).get("data", [])
+            for field_dict in fields:
+                field_name = field_dict.get("field_name", "")
+                field_dict["alias_name"] = cls.FIELD_ALIAS_MAP.get(field_name, "")
+                field_map[field_name] = field_dict
+        return field_map

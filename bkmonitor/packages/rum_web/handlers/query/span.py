@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 from typing import Any
 
 from bkmonitor.data_source.utils import types
@@ -17,11 +18,15 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
+from rum_web.constants import RUM_FIELD_ALIAS
+
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_RUM)
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
+    DATA_SOURCE = "bkapm"
+    FIELD_ALIAS_MAP = copy.deepcopy(RUM_FIELD_ALIAS)
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources
@@ -101,3 +106,6 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
         return super()._query_option_values(
             self.get_queries(filters, query_string), start_time, end_time, fields, limit
         )
+
+    def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
+        return super()._query_fields([ds.table_id for ds in self.data_sources], start_time, end_time)
