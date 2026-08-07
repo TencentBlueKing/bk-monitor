@@ -4,7 +4,7 @@ from itertools import chain
 import arrow
 from django.core.paginator import Paginator
 from django.db.models import F, Q, Value
-from django.db.models.functions import Replace, StrIndex, Substr
+from django.db.models.functions import Replace
 
 from apps.api import TransferApi, BkDataMetaApi
 from apps.log_databus.constants import (
@@ -85,6 +85,7 @@ class LogCollectorHandler:
                 bk_data_name = f"{table_id_prefix}{table_id}"
             else:
                 bk_data_name = ""
+            name_en = self.build_name_en(item.get("collector_config_name_en"), table_id)
             # 获取日志接入类型
             scenario_id = item.get("scenario_id")
             collector_scenario_id = item.get("collector_scenario_id", "")
@@ -114,6 +115,7 @@ class LogCollectorHandler:
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
+                    "name_en": name_en,
                     "bk_data_id": item.get("bk_data_id", ""),
                     "name": collector_config_name if collector_config_name else index_set_name,
                     "collector_config_id": item.get("collector_config_id", ""),
@@ -155,13 +157,21 @@ class LogCollectorHandler:
         return result_list
 
     @staticmethod
-    def get_collector_table_fields(table_id: str | None) -> tuple[str, str]:
-        """Convert the stored result table ID to the fields exposed by the collector list API."""
-        if not table_id:
-            return "", ""
+    def build_name_en(collector_config_name_en: str | None, table_id: str | None = "") -> str:
+        """采集项英文名，历史数据缺失英文名时回退到结果表点号后的部分。"""
+        return (collector_config_name_en or "") or (table_id or "").rpartition(".")[2]
 
-        _, data_name = table_id.split(".")
-        return data_name, table_id.replace(".", "_")
+    @staticmethod
+    def normalize_searchable_text(value) -> str:
+        """归一化待匹配文本，使结果表名的点号写法与下划线写法互相命中。"""
+        return str(value or "").replace(".", "_").casefold()
+
+    @classmethod
+    def get_collector_table_fields(
+        cls, table_id: str | None, collector_config_name_en: str | None = ""
+    ) -> tuple[str, str]:
+        """Convert the stored collector fields to the name_en / bk_data_name exposed by the collector list API."""
+        return cls.build_name_en(collector_config_name_en, table_id), (table_id or "").replace(".", "_")
 
     @staticmethod
     def build_index_set_bk_data_name(result_table_ids) -> str:
@@ -294,21 +304,23 @@ class LogCollectorHandler:
 
         return data
 
-    @staticmethod
-    def filter_by_queries(data: list[dict], queries: list) -> list[dict]:
+    @classmethod
+    def filter_by_queries(cls, data: list[dict], queries: list) -> list[dict]:
         """Filter records when every query matches at least one exposed searchable field."""
         normalized_queries = [
-            str(query).strip().casefold() for query in (queries or []) if query is not None and str(query).strip()
+            cls.normalize_searchable_text(str(query).strip())
+            for query in (queries or [])
+            if query is not None and str(query).strip()
         ]
         if not normalized_queries:
             return data
 
-        searchable_fields = ("name", "bk_data_id", "table_id", "bk_data_name", "storage_display_name")
+        searchable_fields = ("name", "name_en", "bk_data_id", "table_id", "bk_data_name", "storage_display_name")
         return [
             item
             for item in data
             if all(
-                any(query in str(item.get(field) or "").casefold() for field in searchable_fields)
+                any(query in cls.normalize_searchable_text(item.get(field)) for field in searchable_fields)
                 for query in normalized_queries
             )
         ]
@@ -431,7 +443,7 @@ class LogCollectorHandler:
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
-        table_id_list: list = None,
+        name_en_list: list = None,
         bk_data_name_list: list = None,
         bk_data_id_list: list = None,
         collector_scenario_id_list: list = None,
@@ -451,7 +463,7 @@ class LogCollectorHandler:
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
-        :param table_id_list: 数据名
+        :param name_en_list: 数据名（采集项英文名）
         :param bk_data_name_list: 存储名
         :param bk_data_id_list: 数据ID
         :param collector_scenario_id_list: 日志类型
@@ -490,8 +502,9 @@ class LogCollectorHandler:
         if keyword:
             keyword_filter = (
                 Q(collector_config_name__icontains=keyword)
+                | Q(collector_config_name_en__icontains=keyword)
                 | Q(table_id__icontains=keyword)
-                | Q(exposed_bk_data_name__icontains=keyword)
+                | Q(exposed_bk_data_name__icontains=keyword.replace(".", "_"))
             )
             if keyword.isdigit():
                 keyword_filter |= Q(bk_data_id=int(keyword))
@@ -534,20 +547,10 @@ class LogCollectorHandler:
             qs = qs.filter(created_by__in=created_by_list)
         if updated_by_list:
             qs = qs.filter(updated_by__in=updated_by_list)
-        if table_id_list:
-            query = Q()
-            for table_id in table_id_list:
-                query |= Q(exposed_table_id__icontains=table_id)
-            qs = qs.alias(
-                exposed_table_id=Substr(
-                    F("table_id"),
-                    StrIndex(F("table_id"), Value(".")) + 1,
-                )
-            ).filter(query)
         if bk_data_name_list:
             query = Q()
             for bk_data_name in bk_data_name_list:
-                query |= Q(exposed_bk_data_name__icontains=str(bk_data_name))
+                query |= Q(exposed_bk_data_name__icontains=str(bk_data_name).replace(".", "_"))
             qs = qs.filter(query)
         if bk_data_id_list:
             qs = qs.filter(bk_data_id__in=bk_data_id_list)
@@ -558,6 +561,16 @@ class LogCollectorHandler:
         for item in collector_configs:
             item["created_at"] = arrow.get(item["created_at"]).to(timezone).format("YYYY-MM-DD HH:mm:ss")
             item["updated_at"] = arrow.get(item["updated_at"]).to(timezone).format("YYYY-MM-DD HH:mm:ss")
+
+        # 英文名带回退逻辑，无法在 DB 侧表达，与展示保持同源以免出现「列表可见但搜不到」
+        if name_en_list:
+            collector_configs = [
+                item
+                for item in collector_configs
+                if self.fuzzy_match_any(
+                    self.build_name_en(item["collector_config_name_en"], item["table_id"]), name_en_list
+                )
+            ]
 
         collector_configs = CollectorHandler.add_cluster_info(collector_configs)
         self.fill_container_fields(collector_configs)
@@ -674,27 +687,33 @@ class LogCollectorHandler:
             index_set_data_objs_map[index_set_data_obj.index_set_id].append(index_set_data_obj)
 
         if result_table_id_list:
-            requested_result_table_id_list = {str(result_table).lower() for result_table in result_table_id_list}
+            requested_result_table_id_list = {
+                self.normalize_searchable_text(result_table) for result_table in result_table_id_list
+            }
             matched_index_set_ids = []
             for index_set_id, index_set_data_objs in index_set_data_objs_map.items():
-                index_set_result_table_id = self.build_index_set_bk_data_name(
-                    [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
+                index_set_result_table_id = self.normalize_searchable_text(
+                    self.build_index_set_bk_data_name(
+                        [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
+                    )
                 )
                 for requested_result_table_id in requested_result_table_id_list:
-                    if requested_result_table_id in index_set_result_table_id.lower():
+                    if requested_result_table_id in index_set_result_table_id:
                         matched_index_set_ids.append(index_set_id)
 
             log_index_sets = log_index_sets.filter(index_set_id__in=matched_index_set_ids)
 
         if keyword:
-            normalized_keyword = keyword.lower()
+            normalized_keyword = self.normalize_searchable_text(keyword)
             keyword_index_set_ids = [
                 index_set_id
                 for index_set_id, index_set_data_objs in index_set_data_objs_map.items()
                 if normalized_keyword
-                in self.build_index_set_bk_data_name(
-                    [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
-                ).lower()
+                in self.normalize_searchable_text(
+                    self.build_index_set_bk_data_name(
+                        [index_set_data_obj.result_table_id for index_set_data_obj in index_set_data_objs]
+                    )
+                )
             ]
             log_index_sets = log_index_sets.filter(
                 Q(index_set_name__icontains=keyword) | Q(index_set_id__in=keyword_index_set_ids)
@@ -780,7 +799,7 @@ class LogCollectorHandler:
         scenario_id_list = []
         name_list = []
         bk_data_name_list = []
-        table_id_list = []
+        name_en_list = []
         bk_data_id_list = []
         collector_scenario_id_list = []
         created_by_list = []
@@ -798,8 +817,8 @@ class LogCollectorHandler:
                 name_list = item["value"]
             elif item["key"] == "bk_data_name":
                 bk_data_name_list = item["value"]
-            elif item["key"] == "table_id":
-                table_id_list = item["value"]
+            elif item["key"] == "name_en":
+                name_en_list = item["value"]
             elif item["key"] == "bk_data_id":
                 bk_data_id_list = item["value"]
             elif item["key"] == "collector_scenario_id":
@@ -827,7 +846,7 @@ class LogCollectorHandler:
             parent_index_set_id=data.get("parent_index_set_id"),
             scenario_id_list=scenario_id_list,
             collector_config_name_list=name_list,
-            table_id_list=table_id_list,
+            name_en_list=name_en_list,
             bk_data_name_list=bk_data_name_list,
             bk_data_id_list=bk_data_id_list,
             collector_scenario_id_list=collector_scenario_id_list,
@@ -845,7 +864,7 @@ class LogCollectorHandler:
         lists_to_check = [
             collector_scenario_id_list,
             status_list,
-            table_id_list,
+            name_en_list,
             bk_data_id_list,
         ]
         if any(chain.from_iterable(lists_to_check)):
@@ -967,7 +986,12 @@ class LogCollectorHandler:
 
         collector_fields = list(
             CollectorConfig.objects.filter(**query_collector_condition).values(
-                "collector_config_name", "table_id", "bk_data_id", "created_by", "updated_by"
+                "collector_config_name",
+                "collector_config_name_en",
+                "table_id",
+                "bk_data_id",
+                "created_by",
+                "updated_by",
             )
         )
 
@@ -986,12 +1010,12 @@ class LogCollectorHandler:
             if index_set_data.result_table_id:
                 result_table_ids_map[index_set_data.index_set_id].append(index_set_data.result_table_id)
 
-        table_ids = []
+        name_ens = []
         bk_data_names = []
 
         for item in collector_fields:
-            table_id, bk_data_name = self.get_collector_table_fields(item["table_id"])
-            table_ids.append(table_id)
+            name_en, bk_data_name = self.get_collector_table_fields(item["table_id"], item["collector_config_name_en"])
+            name_ens.append(name_en)
             bk_data_names.append(bk_data_name)
 
         bk_data_names.extend(
@@ -1017,7 +1041,7 @@ class LogCollectorHandler:
         return {
             "name": name_dict,
             "bk_data_id": self.build_field_enum(item["bk_data_id"] for item in collector_fields),
-            "table_id": self.build_field_enum(table_ids),
+            "name_en": self.build_field_enum(name_ens),
             "bk_data_name": self.build_field_enum(bk_data_names),
             "storage_display_name": cluster_name_dict,
             "created_by": created_by_dict,

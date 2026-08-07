@@ -39,8 +39,8 @@ interface IAvailableItem {
   name: string;
   /** 数据ID */
   bk_data_id?: number | string;
-  /** 数据名 */
-  table_id?: number | string;
+  /** 数据名（采集项英文名） */
+  name_en?: string;
   /** 日志接入类型 */
   log_access_type?: string;
   /** 是否关联空间 */
@@ -428,10 +428,10 @@ export default defineComponent({
                           <span class='field-name-text'>{item.name}</span>
                         </div>
                         {/* 第二行：数据id和数据名 */}
-                        {(item.bk_data_id || item.table_id) && (
+                        {(item.bk_data_id || item.name_en) && (
                           <div class='field-row-id'>
                             {item.bk_data_id && <span class='field-id-text'>[{item.bk_data_id}]</span>}
-                            {item.table_id && <span class='field-table-id-text'>{item.table_id}</span>}
+                            {item.name_en && <span class='field-table-id-text'>{item.name_en}</span>}
                           </div>
                         )}
                       </div>

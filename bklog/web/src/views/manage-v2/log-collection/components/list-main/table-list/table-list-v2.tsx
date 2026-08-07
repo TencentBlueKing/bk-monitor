@@ -80,6 +80,8 @@ interface ITableRowData {
   total_usage?: number;
   bk_data_name?: string;
   table_id?: number | string;
+  /** 数据名（采集项英文名） */
+  name_en?: string;
   bk_data_id?: number | string;
   parent_index_sets?: Array<{ index_set_id?: number | string; index_set_name: string;[key: string]: unknown }>;
   parent_index_set_ids?: Array<number | string>;
@@ -136,7 +138,7 @@ interface ISearchSelectValue {
 
 interface ICollectorSearchEnums {
   name: IEnumItem[];
-  table_id: IEnumItem[];
+  name_en: IEnumItem[];
   bk_data_id: IEnumItem[];
   storage_display_name: IEnumItem[];
   bk_data_name: IEnumItem[];
@@ -220,7 +222,7 @@ const DELAY_CONSTANTS = {
 const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
   collector_config_name: 'name',
   storage_usage: 'daily_usage',
-  table_id: 'table_id',
+  name_en: 'name_en',
   bk_data_name: 'bk_data_name',
   index_set_id: 'index_set_name',
   log_access_type: 'log_access_type',
@@ -411,14 +413,14 @@ export default defineComponent({
     const searchSelectValues = ref<ISearchSelectValue[]>([]);
     const collectorSearchEnums = ref<ICollectorSearchEnums>({
       name: [],
-      table_id: [],
+      name_en: [],
       bk_data_id: [],
       storage_display_name: [],
       bk_data_name: [],
     });
     const searchFieldOptions = [
       { id: 'name', name: t('采集名') },
-      { id: 'table_id', name: t('数据名') },
+      { id: 'name_en', name: t('数据名') },
       { id: 'bk_data_id', name: t('数据ID') },
       { id: 'storage_display_name', name: t('存储集群') },
       { id: 'bk_data_name', name: t('存储名') },
@@ -1052,12 +1054,12 @@ export default defineComponent({
                         [{row.bk_data_id}]
                       </span>
                     )}
-                    {row.table_id && (
+                    {row.name_en && (
                       <span
                         class='collection-data-name-text copyable-text'
-                        on-click={() => handleCopy(row.table_id, t('复制 {0} 成功', [t('数据名')]))}
+                        on-click={() => handleCopy(row.name_en, t('复制 {0} 成功', [t('数据名')]))}
                       >
-                        {row.table_id}
+                        {row.name_en}
                       </span>
                     )}
                   </span>
@@ -1841,7 +1843,7 @@ export default defineComponent({
           const updatedByList = fieldEnums.updated_by || [];
           collectorSearchEnums.value = {
             name: fieldEnums.name || [],
-            table_id: fieldEnums.table_id || [],
+            name_en: fieldEnums.name_en || [],
             bk_data_id: fieldEnums.bk_data_id || [],
             storage_display_name: fieldEnums.storage_display_name || [],
             bk_data_name: fieldEnums.bk_data_name || [],
