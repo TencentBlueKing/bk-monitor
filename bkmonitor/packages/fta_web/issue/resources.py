@@ -360,12 +360,6 @@ class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
 
-    class ResponseSerializer(serializers.Serializer):
-        id = serializers.CharField(label="蓝盾项目 ID")
-        name = serializers.CharField(label="蓝盾项目名称")
-
-    many_response_data = True
-
     def perform_request(self, validated_request_data: dict) -> list[dict]:
         try:
             projects = api.devops.list_user_project()
@@ -393,13 +387,6 @@ class ListSourceAnalysisBkciRepositoriesResource(SourceAnalysisBaseResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
         project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
-
-    class ResponseSerializer(serializers.Serializer):
-        id = serializers.CharField(label="代码库别名")
-        name = serializers.CharField(label="代码库名称")
-        scm_type = serializers.CharField(label="源码管理类型")
-
-    many_response_data = True
 
     def perform_request(self, validated_request_data: dict) -> list[dict]:
         try:
@@ -441,14 +428,6 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
         keyword = serializers.CharField(label="搜索关键词", required=False, allow_blank=True, default="")
         page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
         page_size = serializers.IntegerField(label="每页数量", required=False, default=20, min_value=1, max_value=100)
-
-    class ResponseSerializer(serializers.Serializer):
-        class OptionSerializer(serializers.Serializer):
-            id = serializers.CharField(label="资源 ID")
-            name = serializers.CharField(label="资源名称")
-
-        total = serializers.IntegerField(label="总数")
-        list = OptionSerializer(label="资源列表", many=True)
 
     def list_aidev_resources(self, params: dict):
         raise NotImplementedError

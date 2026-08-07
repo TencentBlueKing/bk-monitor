@@ -204,7 +204,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                             {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
                         )
 
-    def test_request_and_response_contract(self):
+    def test_request_contract(self):
         project_request = ListSourceAnalysisBkciProjectsResource.RequestSerializer(data={"bk_biz_id": 2})
         self.assertTrue(project_request.is_valid(), project_request.errors)
 
@@ -213,14 +213,10 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         )
         self.assertTrue(repository_request.is_valid(), repository_request.errors)
 
-        repository_response_fields = set(ListSourceAnalysisBkciRepositoriesResource.ResponseSerializer().fields)
-        self.assertEqual(repository_response_fields, {"id", "name", "scm_type"})
-
         aidev_request = ListSourceAnalysisAgentsResource.RequestSerializer(data={"bk_biz_id": 2})
         self.assertTrue(aidev_request.is_valid(), aidev_request.errors)
         self.assertEqual(aidev_request.validated_data["page"], 1)
         self.assertEqual(aidev_request.validated_data["page_size"], 20)
-        self.assertEqual(set(ListSourceAnalysisAgentsResource.ResponseSerializer().fields), {"total", "list"})
 
         oversized_page = ListSourceAnalysisAgentsResource.RequestSerializer(data={"bk_biz_id": 2, "page_size": 101})
         self.assertFalse(oversized_page.is_valid())
