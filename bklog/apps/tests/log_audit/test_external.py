@@ -101,11 +101,7 @@ class TestExternalAuditRecorder(SimpleTestCase):
         self.assertEqual(event["result_code"], 0)
 
     def test_authorizer_goes_to_extend_data_not_identify_src(self):
-        """
-        审计中心对 user_identify_src / user_identify_src_username 没有约定词表，
-        生态内唯一先例（bk-cmdb）用它们承载「经由哪个 app_code 代发」，语义上放不了授权人。
-        授权人只走 extend_data，避免占用含义待定的标准字段。
-        """
+        """审计中心对这两个标准字段没有约定词表，含义待定，授权人只走 extend_data"""
         recorder = self.build_recorder(resource=INDEX_SET_ID)
         recorder.push()
 

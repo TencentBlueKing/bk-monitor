@@ -133,9 +133,8 @@ class ExternalAuditRecorder:
             return
         instance = instance_cls(uid=str(self.resource) if self.resource else DEFAULT_EMPTY_VALUE)
         # 不传 request，避免 DjangoFormatter 用授权人覆写 username 等字段。
-        # user_identify_src / user_identify_src_username 留空：审计中心对这两个字段没有约定词表，
-        # 生态内唯一先例（bk-cmdb）用它们承载「经由哪个 app_code 代发」，语义上放不了授权人。
-        # 授权人改由 extend_data.authorizer 承载。
+        # user_identify_src / user_identify_src_username 留空，授权人改由 extend_data.authorizer 承载：
+        # 审计中心对这两个字段没有约定词表，含义待定，不占用。
         context = AuditContext(
             username=self.external_user,
             user_identify_type=UserIdentifyTypeEnum.PERSONAL,
