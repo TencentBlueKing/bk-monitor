@@ -24,7 +24,7 @@ from collections.abc import Callable
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from apps.log_databus.constants import AsyncStatus, CleanTemplateSyncStatus, EtlConfig
@@ -127,6 +127,35 @@ class CleanHandler:
 class CleanTemplateHandler:
     SYNC_LOCK_TTL = getattr(settings, "CLEAN_TEMPLATE_SYNC_LOCK_TTL", 30 * 60)
     SYNC_MAX_WORKERS = getattr(settings, "CLEAN_TEMPLATE_SYNC_MAX_WORKERS", 5)
+
+    @staticmethod
+    def fill_template_stats(clean_templates):
+        clean_templates = list(clean_templates)
+        if not clean_templates:
+            return clean_templates
+
+        clean_template_ids = [clean_template.clean_template_id for clean_template in clean_templates]
+        bk_biz_ids = {clean_template.bk_biz_id for clean_template in clean_templates}
+        active_collector_count_map = dict(
+            CollectorConfig.objects.filter(
+                clean_template_id__in=clean_template_ids,
+                bk_biz_id__in=bk_biz_ids,
+                is_active=True,
+            )
+            .values("clean_template_id")
+            .annotate(total=Count("collector_config_id"))
+            .values_list("clean_template_id", "total")
+        )
+        for clean_template in clean_templates:
+            clean_template.field_count = sum(
+                not field.get("is_delete", False) and not field.get("is_built_in", False)
+                for field in (clean_template.etl_fields or [])
+            )
+            clean_template.active_collector_count = active_collector_count_map.get(
+                clean_template.clean_template_id,
+                0,
+            )
+        return clean_templates
 
     def __init__(self, clean_template_id=None, bk_biz_id=None):
         self.clean_template_id = clean_template_id

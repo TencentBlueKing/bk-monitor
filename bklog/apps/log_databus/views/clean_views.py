@@ -20,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 from django.conf import settings
-from django.db.models import Count
 from rest_framework import permissions, serializers
 from rest_framework.response import Response
 
@@ -29,7 +28,7 @@ from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.log_databus.handlers.clean import CleanHandler, CleanTemplateHandler
 from apps.log_databus.handlers.etl import EtlHandler
-from apps.log_databus.models import BKDataClean, CleanTemplate, CollectorConfig
+from apps.log_databus.models import BKDataClean, CleanTemplate
 from apps.log_databus.serializers import (
     CleanRefreshSerializer,
     CleanSerializer,
@@ -277,44 +276,6 @@ class CleanTemplateViewSet(ModelViewSet):
     def get_queryset(self):
         return self.model.objects.all()
 
-    def get_object(self):
-        clean_template = super().get_object()
-        if not settings.IGNORE_IAM_PERMISSION:
-            self.assert_allowed(
-                ActionEnum.VIEW_BUSINESS,
-                [ResourceEnum.BUSINESS.create_instance(clean_template.bk_biz_id)],
-            )
-        return clean_template
-
-    @staticmethod
-    def fill_template_stats(clean_templates):
-        clean_templates = list(clean_templates)
-        if not clean_templates:
-            return clean_templates
-
-        clean_template_ids = [clean_template.clean_template_id for clean_template in clean_templates]
-        bk_biz_ids = {clean_template.bk_biz_id for clean_template in clean_templates}
-        active_collector_count_map = dict(
-            CollectorConfig.objects.filter(
-                clean_template_id__in=clean_template_ids,
-                bk_biz_id__in=bk_biz_ids,
-                is_active=True,
-            )
-            .values("clean_template_id")
-            .annotate(total=Count("collector_config_id"))
-            .values_list("clean_template_id", "total")
-        )
-        for clean_template in clean_templates:
-            clean_template.field_count = sum(
-                not field.get("is_delete", False) and not field.get("is_built_in", False)
-                for field in (clean_template.etl_fields or [])
-            )
-            clean_template.active_collector_count = active_collector_count_map.get(
-                clean_template.clean_template_id,
-                0,
-            )
-        return clean_templates
-
     def list(self, request, *args, **kwargs):
         """
         @api {get} /databus/clean_template/?page=$page&pagesize=$pagesize&bk_biz_id=$bk_biz_id 1_清洗模板-列表
@@ -401,7 +362,9 @@ class CleanTemplateViewSet(ModelViewSet):
             queryset = queryset.filter(updated_by=updated_by)
 
         # 由于接口已经支持不分页，因此直接全量查询再分页
-        clean_templates = self.fill_template_stats(queryset.order_by("-updated_at", "-clean_template_id"))
+        clean_templates = CleanTemplateHandler.fill_template_stats(
+            queryset.order_by("-updated_at", "-clean_template_id")
+        )
         ordering = data.get("ordering")
         if ordering:
             clean_templates.sort(key=lambda item: getattr(item, ordering.lstrip("-")), reverse=ordering.startswith("-"))
