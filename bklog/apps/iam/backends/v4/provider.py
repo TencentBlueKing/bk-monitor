@@ -5,7 +5,8 @@ from typing import Any, cast
 
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
-from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size
+from apps.iam.backends.v4.concurrency import map_chunks_concurrently
+from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size, normalize_batch_max_workers
 from apps.iam.backends.v4.exceptions import V4ClientError
 from apps.iam.iam_engine.core.requests import (
     ActionDefinition,
@@ -16,8 +17,11 @@ from apps.iam.iam_engine.core.requests import (
     ResourceTypeDefinition,
     to_definition_id,
 )
-from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
+from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem, AuthorizedResourceScope
 from apps.iam.iam_engine.provider.base import PermissionProvider
+
+
+WILDCARD_RESOURCE_ID = "*"
 
 
 def _chunked(items: list, chunk_size: int):
@@ -37,12 +41,15 @@ class V4PermissionProvider(PermissionProvider):
         codec: V4ResourceCodec | None = None,
         action_resolver: Callable[[str], ActionDefinition] | None = None,
         batch_chunk_size: int | None = None,
+        batch_max_workers: int | None = None,
     ) -> None:
         self.client = client
         self.codec = codec or BklogNameCodec()
         self.action_resolver = action_resolver
         configured_chunk_size = client.options.batch_chunk_size if batch_chunk_size is None else batch_chunk_size
         self.batch_chunk_size = normalize_batch_chunk_size(configured_chunk_size)
+        configured_workers = client.options.batch_max_workers if batch_max_workers is None else batch_max_workers
+        self.batch_max_workers = normalize_batch_max_workers(configured_workers)
 
     @classmethod
     def from_settings(
@@ -79,76 +86,137 @@ class V4PermissionProvider(PermissionProvider):
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthResult:
         subject = self._build_subject(request)
         resources_by_id = self._collect_resources(request)
-        items: list[BatchAuthResultItem] = []
-
-        for action_ref in request.action_ids:
-            action_id = to_definition_id(action_ref)
-            encoded_action_id = self.codec.encode_action(action_id)
-            action = self._resolve_action(action_ref)
-            matched_resources = self._resources_for_action(action_ref, resources_by_id)
-
-            if action.related_resource_types and not matched_resources:
-                items.extend(
-                    [
-                        BatchAuthResultItem(
-                            action_id,
-                            resource_id,
-                            AuthResult.error(
-                                self.name,
-                                reason=f"missing resource for action={action_id}",
-                                error_type="IncompleteBatchResult",
-                            ),
-                        )
-                        for current_action_id, resource_id in request.iter_keys()
-                        if current_action_id == action_id
-                    ]
-                )
-                continue
-
-            if not matched_resources:
-                try:
-                    allowed = self.client.direct_auth(subject=subject, action_id=encoded_action_id)
-                except V4ClientError as error:
-                    items.extend(self._error_items_for_action(action_id, request, error))
-                    continue
-
-                for resource_id in self._resource_ids_for_action(action_id, request):
-                    result = AuthResult.allow(self.name) if allowed else AuthResult.deny(self.name)
-                    items.append(BatchAuthResultItem(action_id, resource_id, result))
-                continue
-
-            encoded_resources = [self.codec.encode_resource_for_auth(resource) for resource in matched_resources]
-            action_results: dict[str, AuthResult] = {}
-            for chunk in _chunked(encoded_resources, self.batch_chunk_size):
-                try:
-                    chunk_results = self.client.direct_auth_by_resources(
-                        subject=subject,
-                        action_id=encoded_action_id,
-                        resources=chunk,
-                    )
-                except V4ClientError as error:
-                    for resource in chunk:
-                        action_results[str(resource["id"])] = AuthResult.error(
-                            self.name,
-                            reason=error.reason,
-                            error_type=error.error_type,
-                        )
-                    continue
-
-                for resource_id, allowed in chunk_results.items():
-                    action_results[resource_id] = AuthResult.allow(self.name) if allowed else AuthResult.deny(self.name)
-
-            for resource_id in self._resource_ids_for_action(action_id, request):
-                result = action_results.get(resource_id)
-                if result is None:
-                    result = AuthResult.error(
-                        self.name,
-                        reason=f"missing IAM V4 batch result for action={action_id}, resource={resource_id}",
-                        error_type="IncompleteBatchResult",
-                    )
-                items.append(BatchAuthResultItem(action_id, resource_id, result))
-
+        action_refs = list(request.action_ids)
+        per_action_items = map_chunks_concurrently(
+            action_refs,
+            lambda action_ref: self._batch_auth_one_action(
+                subject=subject,
+                action_ref=action_ref,
+                request=request,
+                resources_by_id=resources_by_id,
+            ),
+            max_workers=self.batch_max_workers,
+        )
+        items = [item for action_items in per_action_items for item in action_items]
         return BatchAuthResult(items=tuple(items))
+
+    def _batch_auth_one_action(
+        self,
+        *,
+        subject: dict[str, str],
+        action_ref: DefinitionRef,
+        request: BatchAuthRequest,
+        resources_by_id: dict[str, ResourceInstance],
+    ) -> list[BatchAuthResultItem]:
+        action_id = to_definition_id(action_ref)
+        encoded_action_id = self.codec.encode_action(action_id)
+        action = self._resolve_action(action_ref)
+        matched_resources = self._resources_for_action(action_ref, resources_by_id)
+
+        if action.related_resource_types and not matched_resources:
+            return [
+                BatchAuthResultItem(
+                    action_id,
+                    resource_id,
+                    AuthResult.error(
+                        self.name,
+                        reason=f"missing resource for action={action_id}",
+                        error_type="IncompleteBatchResult",
+                    ),
+                )
+                for current_action_id, resource_id in request.iter_keys()
+                if current_action_id == action_id
+            ]
+
+        if not matched_resources:
+            try:
+                allowed = self.client.direct_auth(subject=subject, action_id=encoded_action_id)
+            except V4ClientError as error:
+                return list(self._error_items_for_action(action_id, request, error))
+
+            return [
+                BatchAuthResultItem(
+                    action_id,
+                    resource_id,
+                    AuthResult.allow(self.name) if allowed else AuthResult.deny(self.name),
+                )
+                for resource_id in self._resource_ids_for_action(action_id, request)
+            ]
+
+        encoded_resources = [self.codec.encode_resource_for_auth(resource) for resource in matched_resources]
+        chunks = list(_chunked(encoded_resources, self.batch_chunk_size))
+        action_results: dict[str, AuthResult] = {}
+
+        def _auth_chunk(chunk: list[dict[str, Any]]) -> dict[str, AuthResult]:
+            chunk_action_results: dict[str, AuthResult] = {}
+            try:
+                chunk_results = self.client.direct_auth_by_resources(
+                    subject=subject,
+                    action_id=encoded_action_id,
+                    resources=chunk,
+                )
+            except V4ClientError as error:
+                for resource in chunk:
+                    chunk_action_results[str(resource["id"])] = AuthResult.error(
+                        self.name,
+                        reason=error.reason,
+                        error_type=error.error_type,
+                    )
+                return chunk_action_results
+
+            for resource_id, allowed in chunk_results.items():
+                chunk_action_results[resource_id] = (
+                    AuthResult.allow(self.name) if allowed else AuthResult.deny(self.name)
+                )
+            return chunk_action_results
+
+        for chunk_results in map_chunks_concurrently(
+            chunks,
+            _auth_chunk,
+            max_workers=self.batch_max_workers,
+        ):
+            action_results.update(chunk_results)
+
+        items: list[BatchAuthResultItem] = []
+        for resource_id in self._resource_ids_for_action(action_id, request):
+            result = action_results.get(resource_id)
+            if result is None:
+                result = AuthResult.error(
+                    self.name,
+                    reason=f"missing IAM V4 batch result for action={action_id}, resource={resource_id}",
+                    error_type="IncompleteBatchResult",
+                )
+            items.append(BatchAuthResultItem(action_id, resource_id, result))
+        return items
+
+    def list_authorized_resources(
+        self,
+        *,
+        action_id: str,
+        resource_type: str = "space",
+        subject: dict[str, str] | None = None,
+    ) -> AuthorizedResourceScope:
+        encoded_action_id = self.codec.encode_action(to_definition_id(action_id))
+        encoded_resource_type = self.codec.encode_resource_type(resource_type)
+        request_subject = subject or {"type": "user", "id": self.client.username}
+        try:
+            payload = self.client.list_authorized_resource(
+                subject=request_subject,
+                action_id=encoded_action_id,
+                resource_type=encoded_resource_type,
+            )
+        except V4ClientError as error:
+            return AuthorizedResourceScope.error(
+                encoded_resource_type,
+                provider_name=self.name,
+                reason=error.reason,
+                error_type=error.error_type,
+            )
+
+        ids = payload.get("ids") or []
+        if ids == ["*"] or (len(ids) == 1 and ids[0] == WILDCARD_RESOURCE_ID):
+            return AuthorizedResourceScope.wildcard(encoded_resource_type, provider_name=self.name)
+        return AuthorizedResourceScope.concrete(encoded_resource_type, set(ids), provider_name=self.name)
 
     def get_apply_data(
         self,

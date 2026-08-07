@@ -1821,6 +1821,40 @@ class Space(SoftDeleteModel):
         return spaces
 
     @classmethod
+    def get_spaces_by_bk_biz_ids(cls, bk_tenant_id: str, bk_biz_ids: list | set) -> list:
+        """按租户与 bk_biz_id 列表定向查询空间详情，字段与 get_all_spaces 一致。"""
+        biz_ids = []
+        for biz_id in bk_biz_ids or []:
+            try:
+                biz_ids.append(int(biz_id))
+            except (TypeError, ValueError):
+                continue
+        if not biz_ids:
+            return []
+
+        placeholders = ", ".join(["%s"] * len(biz_ids))
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id,
+                       space_type_id,
+                       space_type_name,
+                       space_id,
+                       space_name,
+                       space_uid,
+                       space_code,
+                       bk_biz_id,
+                       bk_tenant_id,
+                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                FROM log_search_space
+                WHERE bk_tenant_id = %s AND bk_biz_id IN ({placeholders})
+                """,
+                (bk_tenant_id, *biz_ids),
+            )
+            columns = [col[0] for col in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    @classmethod
     def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_need_default: bool = True) -> str | None:
         """
         获取空间的租户ID

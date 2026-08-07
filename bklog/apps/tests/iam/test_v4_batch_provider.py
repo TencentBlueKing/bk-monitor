@@ -14,10 +14,12 @@ class V4BatchProviderTest(SimpleTestCase):
     def setUp(self):
         self.client = Mock()
         self.client.options.system_id = "bk_log_search"
+        self.client.options.batch_max_workers = 4
         self.provider = V4PermissionProvider(
             self.client,
             action_resolver=get_action_by_id,
             batch_chunk_size=100,
+            batch_max_workers=4,
         )
 
     def _make_request(self, resource_count: int, action_count: int = 1) -> BatchAuthRequest:
@@ -99,3 +101,111 @@ class V4BatchProviderTest(SimpleTestCase):
         self.provider.batch_is_allowed(request)
 
         self.assertEqual(self.client.direct_auth_by_resources.call_count, 2)
+
+    def test_multiple_actions_merge_per_action_results(self):
+        def _side_effect(**kwargs):
+            action_id = kwargs["action_id"]
+            allowed = action_id == "view_collection"
+            return {resource["id"]: allowed for resource in kwargs["resources"]}
+
+        self.client.direct_auth_by_resources.side_effect = _side_effect
+        request = self._make_request(resource_count=3, action_count=2)
+
+        result = self.provider.batch_is_allowed(request)
+        by_key = {(item.action_id, item.resource_id): item.result for item in result.items}
+
+        self.assertTrue(by_key[("view_collection_v2", "1")].allowed)
+        self.assertTrue(by_key[("view_collection_v2", "3")].allowed)
+        self.assertFalse(by_key[("manage_collection_v2", "1")].allowed)
+        self.assertFalse(by_key[("manage_collection_v2", "2")].allowed)
+
+    def test_multiple_actions_run_concurrently(self):
+        import threading
+        import time
+
+        started = threading.Event()
+        release = threading.Event()
+        seen_actions = []
+
+        def _side_effect(**kwargs):
+            action_id = kwargs["action_id"]
+            seen_actions.append(action_id)
+            if action_id == "view_collection":
+                started.set()
+                release.wait(timeout=1)
+            else:
+                if not started.wait(timeout=1):
+                    return {resource["id"]: False for resource in kwargs["resources"]}
+                release.set()
+            return {resource["id"]: True for resource in kwargs["resources"]}
+
+        self.client.direct_auth_by_resources.side_effect = _side_effect
+        request = self._make_request(resource_count=5, action_count=2)
+
+        started_at = time.monotonic()
+        result = self.provider.batch_is_allowed(request)
+        elapsed = time.monotonic() - started_at
+
+        self.assertEqual(self.client.direct_auth_by_resources.call_count, 2)
+        self.assertTrue(all(item.result.allowed for item in result.items))
+        self.assertLess(elapsed, 0.5)
+        self.assertEqual(len(seen_actions), 2)
+
+    def test_concurrent_chunks_merge_results(self):
+        def _side_effect(**kwargs):
+            return {resource["id"]: int(resource["id"]) % 2 == 1 for resource in kwargs["resources"]}
+
+        self.client.direct_auth_by_resources.side_effect = _side_effect
+        provider = V4PermissionProvider(
+            self.client,
+            action_resolver=get_action_by_id,
+            batch_chunk_size=100,
+            batch_max_workers=4,
+        )
+        result = provider.batch_is_allowed(self._make_request(resource_count=250))
+
+        self.assertEqual(self.client.direct_auth_by_resources.call_count, 3)
+        allowed = {item.resource_id for item in result.items if item.result.allowed}
+        self.assertEqual(allowed, {str(i) for i in range(1, 251, 2)})
+
+    def test_partial_chunk_error_keeps_other_chunks(self):
+        def _side_effect(**kwargs):
+            resource_ids = [resource["id"] for resource in kwargs["resources"]]
+            if "1" in resource_ids:
+                raise V4ResponseError("first chunk failed")
+            return {resource_id: True for resource_id in resource_ids}
+
+        self.client.direct_auth_by_resources.side_effect = _side_effect
+        provider = V4PermissionProvider(
+            self.client,
+            action_resolver=get_action_by_id,
+            batch_chunk_size=100,
+            batch_max_workers=4,
+        )
+        result = provider.batch_is_allowed(self._make_request(resource_count=250))
+
+        by_id = {item.resource_id: item.result for item in result.items}
+        self.assertEqual(by_id["1"].status, AuthStatus.ERROR)
+        self.assertEqual(by_id["100"].status, AuthStatus.ERROR)
+        self.assertTrue(by_id["101"].allowed)
+        self.assertTrue(by_id["250"].allowed)
+
+    def test_max_workers_one_keeps_serial_semantics(self):
+        call_order = []
+
+        def _side_effect(**kwargs):
+            resource_ids = [resource["id"] for resource in kwargs["resources"]]
+            call_order.append(resource_ids[0])
+            return {resource_id: True for resource_id in resource_ids}
+
+        self.client.direct_auth_by_resources.side_effect = _side_effect
+        provider = V4PermissionProvider(
+            self.client,
+            action_resolver=get_action_by_id,
+            batch_chunk_size=100,
+            batch_max_workers=1,
+        )
+        result = provider.batch_is_allowed(self._make_request(resource_count=250))
+
+        self.assertEqual(call_order, ["1", "101", "201"])
+        self.assertTrue(all(item.result.allowed for item in result.items))

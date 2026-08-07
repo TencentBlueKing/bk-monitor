@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase, override_settings
 
-from apps.iam.backends.v4.config import V4Options
+from apps.iam.backends.v4.config import V4Options, normalize_batch_max_workers
 from apps.iam.backends.v4.gateway import resolve_v4_gateway_url
 from apps.iam.backends.v4.provider import V4PermissionProvider
 
@@ -60,6 +60,32 @@ class V4GatewayConfigTest(SimpleTestCase):
 
         self.assertEqual(options.batch_chunk_size, 100)
 
+    def test_v4_batch_max_workers_is_capped(self):
+        with self.settings(BK_IAM_V4_BATCH_MAX_WORKERS=16):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.batch_max_workers, 8)
+
+    def test_v4_batch_max_workers_invalid_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_BATCH_MAX_WORKERS=0):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.batch_max_workers, 4)
+
+    def test_v4_batch_max_workers_non_numeric_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_BATCH_MAX_WORKERS="invalid"):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.batch_max_workers, 4)
+
+    def test_normalize_batch_max_workers_handles_none_and_type_error(self):
+        self.assertEqual(normalize_batch_max_workers(None), 4)
+        with self.assertLogs("iam.v4.config", level="WARNING"):
+            self.assertEqual(normalize_batch_max_workers(["bad"]), 4)
+
     def test_v4_options_without_gateway_are_quiet_until_request(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
             with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
@@ -76,3 +102,24 @@ class V4GatewayConfigTest(SimpleTestCase):
                 )
 
         self.assertEqual(provider.client.options.gateway_url, "")
+
+    def test_v4_options_use_dedicated_system_id(self):
+        with self.settings(
+            BK_IAM_SYSTEM_ID="bk_log_search",
+            BK_IAM_V4_SYSTEM_ID="bklog_test",
+        ):
+            options = V4Options.from_settings()
+
+        self.assertEqual(options.system_id, "bklog_test")
+
+    def test_v4_options_fall_back_to_v3_system_id_when_not_configured(self):
+        with self.settings(
+            BK_IAM_SYSTEM_ID="bk_log_search",
+            BK_IAM_V4_SYSTEM_ID="",
+        ):
+            from apps.iam.backends.v4.config import resolve_effective_v4_system_id
+
+            options = V4Options.from_settings()
+            self.assertEqual(resolve_effective_v4_system_id(), "bk_log_search")
+
+        self.assertEqual(options.system_id, "bk_log_search")

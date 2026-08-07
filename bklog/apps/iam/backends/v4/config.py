@@ -10,9 +10,12 @@ from apps.iam.backends.v4.gateway import resolve_v4_gateway_url
 # IAM V4 开放 API 路径默认值；特殊环境可通过 Django settings 覆盖。
 DEFAULT_AUTH_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/auth/"
 DEFAULT_AUTH_BY_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/"
+DEFAULT_AUTHORIZED_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/relation/authorized-resources/"
 DEFAULT_APPLY_URL_PATH = "api/v1/open/application/permission-apply-urls/"
 DEFAULT_BATCH_CHUNK_SIZE = 100
 MAX_BATCH_CHUNK_SIZE = 100
+DEFAULT_BATCH_MAX_WORKERS = 4
+MAX_BATCH_MAX_WORKERS = 8
 
 logger = logging.getLogger("iam.v4.config")
 
@@ -49,6 +52,53 @@ def normalize_batch_chunk_size(value: int | str | None) -> int:
     return configured
 
 
+def normalize_batch_max_workers(value: int | str | None) -> int:
+    """归一化 V4 批量鉴权 chunk 并发度；<=1 表示串行。"""
+    try:
+        configured = int(value) if value is not None else DEFAULT_BATCH_MAX_WORKERS
+    except (TypeError, ValueError):
+        logger.warning(
+            "invalid BK_IAM_V4_BATCH_MAX_WORKERS=%r, falling back to %s",
+            value,
+            DEFAULT_BATCH_MAX_WORKERS,
+        )
+        return DEFAULT_BATCH_MAX_WORKERS
+
+    if configured < 1:
+        logger.warning(
+            "invalid BK_IAM_V4_BATCH_MAX_WORKERS=%s, falling back to %s",
+            configured,
+            DEFAULT_BATCH_MAX_WORKERS,
+        )
+        return DEFAULT_BATCH_MAX_WORKERS
+
+    if configured > MAX_BATCH_MAX_WORKERS:
+        logger.warning(
+            "BK_IAM_V4_BATCH_MAX_WORKERS=%s exceeds limit %s, using %s",
+            configured,
+            MAX_BATCH_MAX_WORKERS,
+            MAX_BATCH_MAX_WORKERS,
+        )
+        return MAX_BATCH_MAX_WORKERS
+
+    return configured
+
+
+def resolve_callback_app_credentials() -> tuple[str, str]:
+    """V4 资源回调验签使用的 APP 凭证；未单独配置时与全局 APP 一致。"""
+    app_code = str(getattr(settings, "BK_IAM_V4_CALLBACK_APP_CODE", "") or "").strip()
+    app_secret = str(getattr(settings, "BK_IAM_V4_CALLBACK_APP_SECRET", "") or "").strip()
+    if app_code and app_secret:
+        return app_code, app_secret
+    return settings.APP_CODE, settings.SECRET_KEY
+
+
+def resolve_effective_v4_system_id() -> str:
+    """有效 V4 system ID：BK_IAM_V4_SYSTEM_ID 为空时回退 BK_IAM_SYSTEM_ID。"""
+    v4_system_id = str(getattr(settings, "BK_IAM_V4_SYSTEM_ID", "") or "").strip()
+    return v4_system_id or settings.BK_IAM_SYSTEM_ID
+
+
 @dataclass(frozen=True, slots=True)
 class V4Options:
     app_code: str
@@ -57,28 +107,42 @@ class V4Options:
     system_id: str
     timeout_seconds: float
     batch_chunk_size: int
+    batch_max_workers: int
     auth_path: str
     auth_by_resources_path: str
+    authorized_resources_path: str
     apply_url_path: str
 
     @classmethod
-    def from_settings(cls, *, bk_tenant_id: str = "") -> V4Options:
+    def from_settings(cls, *, bk_tenant_id: str = "", for_resource_callback: bool = False) -> V4Options:
         del bk_tenant_id  # 租户信息通过每次请求的请求头传递，不放入选项
-        system_id = settings.BK_IAM_SYSTEM_ID
+        system_id = resolve_effective_v4_system_id()
+        if for_resource_callback:
+            app_code, app_secret = resolve_callback_app_credentials()
+        else:
+            app_code, app_secret = settings.APP_CODE, settings.SECRET_KEY
         return cls(
-            app_code=settings.APP_CODE,
-            app_secret=settings.SECRET_KEY,
+            app_code=app_code,
+            app_secret=app_secret,
             gateway_url=resolve_v4_gateway_url(),
             system_id=system_id,
             timeout_seconds=float(getattr(settings, "BK_IAM_V4_TIMEOUT", 10)),
             batch_chunk_size=normalize_batch_chunk_size(
                 getattr(settings, "BK_IAM_V4_BATCH_CHUNK_SIZE", DEFAULT_BATCH_CHUNK_SIZE)
             ),
+            batch_max_workers=normalize_batch_max_workers(
+                getattr(settings, "BK_IAM_V4_BATCH_MAX_WORKERS", DEFAULT_BATCH_MAX_WORKERS)
+            ),
             auth_path=getattr(settings, "BK_IAM_V4_AUTH_PATH", DEFAULT_AUTH_PATH),
             auth_by_resources_path=getattr(
                 settings,
                 "BK_IAM_V4_AUTH_BY_RESOURCES_PATH",
                 DEFAULT_AUTH_BY_RESOURCES_PATH,
+            ),
+            authorized_resources_path=getattr(
+                settings,
+                "BK_IAM_V4_AUTHORIZED_RESOURCES_PATH",
+                DEFAULT_AUTHORIZED_RESOURCES_PATH,
             ),
             apply_url_path=getattr(settings, "BK_IAM_V4_APPLY_URL_PATH", DEFAULT_APPLY_URL_PATH),
         )

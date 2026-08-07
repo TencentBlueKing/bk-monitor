@@ -62,3 +62,16 @@ class PermissionDeniedError(BaseIAMError):
             "apply_url": apply_url,
         }
         super().__init__(message, data=data, code="9900403")
+
+
+class IAMDependencyError(BaseIAMError):
+    """权限中心依赖异常，不能伪装成普通无权限。"""
+
+    ERROR_CODE = "503"
+    MESSAGE = gettext_lazy("权限中心依赖异常")
+
+    def __init__(self, reason: str = "", *, provider: str = ""):
+        detail = reason or self.MESSAGE
+        if provider:
+            detail = f"[{provider}] {detail}"
+        super().__init__(detail, code="9900503")

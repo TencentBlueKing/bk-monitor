@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Protocol
+from collections.abc import Callable, Mapping
+from typing import Protocol, TypeVar
 
+from apps.iam.backends.v4.concurrency import run_pair_concurrently
 from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
@@ -17,6 +18,8 @@ from apps.iam.iam_engine.core.types import (
 from apps.iam.iam_engine.provider.base import PermissionProvider
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
+
+T = TypeVar("T")
 
 
 class ModeProvider(Protocol):
@@ -38,7 +41,10 @@ class ModeRouter:
         except InvalidAuthModeError as error:
             return self._invalid_mode_decision(error)
         provider_modes = self._provider_modes(mode)
-        results = tuple(self._call_provider(provider_mode, request) for provider_mode in provider_modes)
+        results = self._map_providers(
+            provider_modes,
+            lambda provider_mode: self._call_provider(provider_mode, request),
+        )
         if mode is AuthMode.UNION:
             return UnionDecisionPolicy.decide(results, mode=mode.value)
         return self._single_decision(results[0], mode)
@@ -51,9 +57,11 @@ class ModeRouter:
         except InvalidAuthModeError as error:
             return self._invalid_mode_batch_decision(request, error)
         provider_modes = self._provider_modes(mode)
-        provider_results = {
-            provider_mode: self._call_batch_provider(provider_mode, request) for provider_mode in provider_modes
-        }
+        provider_result_list = self._map_providers(
+            provider_modes,
+            lambda provider_mode: self._call_batch_provider(provider_mode, request),
+        )
+        provider_results = dict(zip(provider_modes, provider_result_list, strict=True))
         provider_result_maps = {mode_: result.by_key() for mode_, result in provider_results.items()}
 
         items = []
@@ -77,6 +85,21 @@ class ModeRouter:
         if mode is AuthMode.UNION:
             return AuthMode.V3, AuthMode.V4
         return (mode,)
+
+    @staticmethod
+    def _map_providers(
+        provider_modes: tuple[AuthMode, ...],
+        call: Callable[[AuthMode], T],
+    ) -> tuple[T, ...]:
+        """按 provider_modes 顺序调用；union 双栈时并行执行。"""
+        if len(provider_modes) == 1:
+            return (call(provider_modes[0]),)
+        left_mode, right_mode = provider_modes
+        left, right = run_pair_concurrently(
+            lambda: call(left_mode),
+            lambda: call(right_mode),
+        )
+        return (left, right)
 
     def _auth_provider(self, mode: AuthMode) -> PermissionProvider | None:
         bundle = self.bundles.get(mode)
