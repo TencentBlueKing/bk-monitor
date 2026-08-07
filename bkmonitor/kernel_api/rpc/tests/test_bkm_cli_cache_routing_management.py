@@ -67,6 +67,32 @@ def _impact_snapshot(*, first_score: int = 3, include_third_node: bool = False):
     return cache_routing._build_snapshot("default", nodes, routes, max_strategy_id=10)
 
 
+def _drain_snapshot(*, target_enabled: bool = True, reserved_target: bool = False):
+    stock = _node(1, "alarm-stock", is_default=True)
+    draining = _node(2, "alarm-draining", is_enable=target_enabled)
+    increment = _node(3, "alarm-increment")
+    routes = [
+        _router(2, stock),
+        _router(4, draining),
+        _router(6, increment),
+        _router(8, draining),
+        _router(11, increment),
+    ]
+    if reserved_target:
+        routes.append(_router(-1, draining))
+    return cache_routing._build_snapshot("default", [stock, draining, increment], routes, max_strategy_id=10)
+
+
+def _drain_desired():
+    return [
+        {"strategy_score": 2, "node_id": 1},
+        {"strategy_score": 4, "node_id": 3},
+        {"strategy_score": 6, "node_id": 3},
+        {"strategy_score": 8, "node_id": 1},
+        {"strategy_score": 11, "node_id": 3},
+    ]
+
+
 def _strategy_rows(count: int = 10, *, disabled_ids: set[int] | None = None):
     disabled_ids = disabled_ids or set()
     return [{"id": strategy_id, "is_enabled": strategy_id not in disabled_ids} for strategy_id in range(1, count + 1)]
@@ -240,6 +266,238 @@ def test_preview_blocks_draining_a_node_even_when_total_impact_is_below_half(moc
     assert impact["collapsed_to_single_node"] is False
     assert impact["apply_allowed"] is False
     assert impact["block_reasons"] == ["route change would drain strategy ownership from node IDs: [1]"]
+
+
+def test_drain_preview_allows_exact_non_default_three_to_two_with_non_contiguous_routes():
+    before = _drain_snapshot()
+    desired = _drain_desired()
+
+    preview = cache_routing._build_drain_preview(
+        before,
+        desired,
+        before["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=_strategy_rows(),
+    )
+    ordinary = cache_routing._build_preview(
+        before,
+        desired,
+        before["snapshot_id"],
+        strategy_rows=_strategy_rows(),
+    )
+
+    assert preview["operation"] == "drain_preview"
+    assert preview["plan_schema"] == "drain-positive-routes/v1"
+    assert preview["impact_summary"]["affected_ratio"] == 0.4
+    assert preview["impact_summary"]["drained_node_ids"] == [2]
+    assert preview["impact_summary"]["collapsed_to_single_node"] is False
+    assert preview["impact_summary"]["apply_allowed"] is True
+    assert ordinary["impact_summary"]["apply_allowed"] is False
+    assert preview["diff"] == {
+        "create": [],
+        "update": [
+            {"strategy_score": 4, "before_node_id": 2, "after_node_id": 3},
+            {"strategy_score": 8, "before_node_id": 2, "after_node_id": 1},
+        ],
+        "delete": [],
+    }
+    assert preview["drain_summary"] == {
+        "drain_node": {
+            "id": 2,
+            "node_alias": "alarm-draining",
+            "cluster_name": "default",
+            "cache_type": "RedisCache",
+            "is_default": False,
+            "is_enable": True,
+        },
+        "changed_strategy_scores": [4, 8],
+        "positive_route_references_before": 2,
+        "remaining_positive_route_references": 0,
+        "reserved_route_references": 0,
+        "cache_node_mutated": False,
+        "safe_to_disable_or_delete": False,
+        "block_reasons": [],
+    }
+
+
+def test_drain_preview_blocks_exactly_half_and_two_to_one():
+    stock = _node(1, "alarm-stock", is_default=True)
+    draining = _node(2, "alarm-draining")
+    archive = _node(3, "alarm-archive")
+    half = cache_routing._build_snapshot(
+        "default",
+        [stock, draining, archive],
+        [_router(2, stock), _router(7, draining), _router(11, archive)],
+        max_strategy_id=10,
+    )
+    two_to_one = cache_routing._build_snapshot(
+        "default",
+        [stock, draining],
+        [_router(2, stock), _router(4, draining), _router(11, stock)],
+        max_strategy_id=10,
+    )
+
+    half_preview = cache_routing._build_drain_preview(
+        half,
+        [
+            {"strategy_score": 2, "node_id": 1},
+            {"strategy_score": 7, "node_id": 3},
+            {"strategy_score": 11, "node_id": 3},
+        ],
+        half["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=_strategy_rows(),
+    )
+    collapse_preview = cache_routing._build_drain_preview(
+        two_to_one,
+        [
+            {"strategy_score": 2, "node_id": 1},
+            {"strategy_score": 4, "node_id": 1},
+            {"strategy_score": 11, "node_id": 1},
+        ],
+        two_to_one["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=_strategy_rows(),
+    )
+
+    assert half_preview["impact_summary"]["affected_ratio"] == 0.5
+    assert any("hard limit" in reason for reason in half_preview["impact_summary"]["block_reasons"])
+    assert half_preview["impact_summary"]["apply_allowed"] is False
+    assert collapse_preview["impact_summary"]["affected_ratio"] == 0.2
+    assert collapse_preview["impact_summary"]["collapsed_to_single_node"] is True
+    assert any("collapse" in reason for reason in collapse_preview["impact_summary"]["block_reasons"])
+    assert collapse_preview["impact_summary"]["apply_allowed"] is False
+
+
+@pytest.mark.parametrize(
+    ("snapshot", "desired", "drain_node_id", "reason"),
+    [
+        (_drain_snapshot(), _drain_desired(), 1, "default node"),
+        (_drain_snapshot(target_enabled=False), _drain_desired(), 2, "must be enabled"),
+        (
+            _drain_snapshot(reserved_target=True),
+            _drain_desired(),
+            2,
+            "reserved CacheRouter rows",
+        ),
+        (
+            _drain_snapshot(),
+            [
+                {"strategy_score": 2, "node_id": 3},
+                {"strategy_score": 4, "node_id": 3},
+                {"strategy_score": 6, "node_id": 3},
+                {"strategy_score": 8, "node_id": 1},
+                {"strategy_score": 11, "node_id": 3},
+            ],
+            2,
+            "non-target route score=2",
+        ),
+        (
+            _drain_snapshot(),
+            [
+                {"strategy_score": 2, "node_id": 1},
+                {"strategy_score": 4, "node_id": 3},
+                {"strategy_score": 6, "node_id": 3},
+                {"strategy_score": 8, "node_id": 2},
+                {"strategy_score": 11, "node_id": 3},
+            ],
+            2,
+            "still references drain_node_id",
+        ),
+        (
+            _drain_snapshot(),
+            [
+                {"strategy_score": 2, "node_id": 1},
+                {"strategy_score": 4, "node_id": 3},
+                {"strategy_score": 6, "node_id": 3},
+                {"strategy_score": 8, "node_id": 1},
+                {"strategy_score": 9, "node_id": 1},
+                {"strategy_score": 11, "node_id": 3},
+            ],
+            2,
+            "preserve the exact positive strategy_score set",
+        ),
+    ],
+)
+def test_drain_preview_blocks_unsafe_structural_variants(snapshot, desired, drain_node_id, reason):
+    preview = cache_routing._build_drain_preview(
+        snapshot,
+        desired,
+        snapshot["snapshot_id"],
+        drain_node_id=drain_node_id,
+        strategy_rows=_strategy_rows(),
+    )
+
+    assert preview["impact_summary"]["apply_allowed"] is False
+    assert any(reason in block_reason for block_reason in preview["impact_summary"]["block_reasons"])
+
+
+def test_drain_preview_allows_zero_impact_referenced_node_and_rejects_unreferenced_node():
+    before = _drain_snapshot()
+    extra = _node(4, "alarm-unused")
+    with_unused = cache_routing._build_snapshot(
+        "default",
+        [*before["nodes"], extra],
+        before["raw_routes"],
+        max_strategy_id=10,
+    )
+
+    preview = cache_routing._build_drain_preview(
+        before,
+        _drain_desired(),
+        before["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=[],
+    )
+    unreferenced = cache_routing._build_drain_preview(
+        with_unused,
+        [route for route in with_unused["raw_routes"] if route["strategy_score"] > 0],
+        with_unused["snapshot_id"],
+        drain_node_id=4,
+        strategy_rows=[],
+    )
+
+    assert preview["impact_summary"]["affected_strategy_count"] == 0
+    assert preview["impact_summary"]["apply_allowed"] is True
+    assert unreferenced["impact_summary"]["apply_allowed"] is False
+    assert any(
+        "no positive CacheRouter references" in reason for reason in unreferenced["impact_summary"]["block_reasons"]
+    )
+
+
+@pytest.mark.parametrize("drain_node_id", [True, 0, -1, 2_147_483_648, "2", 99])
+def test_drain_preview_rejects_invalid_or_missing_target_node(drain_node_id):
+    before = _drain_snapshot()
+
+    with pytest.raises(CustomException, match="drain_node_id"):
+        cache_routing._build_drain_preview(
+            before,
+            _drain_desired(),
+            before["snapshot_id"],
+            drain_node_id=drain_node_id,
+            strategy_rows=_strategy_rows(),
+        )
+
+
+def test_drain_plan_id_binds_target_node():
+    before = _drain_snapshot()
+
+    valid = cache_routing._build_drain_preview(
+        before,
+        _drain_desired(),
+        before["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=_strategy_rows(),
+    )
+    different_target = cache_routing._build_drain_preview(
+        before,
+        _drain_desired(),
+        before["snapshot_id"],
+        drain_node_id=3,
+        strategy_rows=_strategy_rows(),
+    )
+
+    assert valid["plan_id"] != different_target["plan_id"]
 
 
 def test_plan_id_binds_the_strategy_impact_seen_during_preview(mocker):
@@ -516,6 +774,103 @@ def test_apply_uses_locked_snapshot_writes_and_exact_readback(mocker):
         "traffic_landing": "not_evaluated",
         "capacity": "not_evaluated",
     }
+
+
+def test_drain_apply_recomputes_locked_plan_and_only_writes_route_rows(mocker):
+    before = _drain_snapshot()
+    desired = _drain_desired()
+    after = cache_routing._after_snapshot(before, desired)
+    strategies = _strategy_rows()
+    preview = cache_routing._build_drain_preview(
+        before,
+        desired,
+        before["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=strategies,
+    )
+    load = mocker.patch.object(cache_routing, "_load_routing_snapshot", side_effect=[before, after])
+    write = mocker.patch.object(cache_routing, "_write_positive_routes")
+    advance = mocker.patch.object(cache_routing, "_advance_routing_revision")
+    load_strategies = mocker.patch.object(
+        cache_routing,
+        "_load_cluster_strategy_rows",
+        side_effect=[strategies, strategies],
+    )
+    mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
+    mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
+    mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "ttl_refresh"})
+
+    result = cache_routing.manage_cache_routing(
+        {
+            "operation": "drain_apply",
+            "drain_node_id": 2,
+            "expected_snapshot_id": before["snapshot_id"],
+            "expected_after_snapshot_id": preview["expected_after_snapshot_id"],
+            "plan_id": preview["plan_id"],
+            "desired_routes": desired,
+            "confirmed": True,
+            "operator": "test-operator",
+            "exclusive_change_window": True,
+        }
+    )
+
+    assert load.call_count == 2
+    assert load_strategies.call_count == 2
+    write.assert_called_once_with(before, desired, using="monitor_api")
+    advance.assert_called_once_with(before, using="monitor_api")
+    assert result["operation"] == "drain_apply"
+    assert result["drain_summary"]["remaining_positive_route_references"] == 0
+    assert result["drain_summary"]["cache_node_mutated"] is False
+    assert result["drain_summary"]["safe_to_disable_or_delete"] is False
+
+
+def test_drain_apply_rejects_blocked_plan_before_route_write(mocker):
+    stock = _node(1, "alarm-stock", is_default=True)
+    draining = _node(2, "alarm-draining")
+    before = cache_routing._build_snapshot(
+        "default",
+        [stock, draining],
+        [_router(2, stock), _router(4, draining), _router(11, stock)],
+        max_strategy_id=10,
+    )
+    desired = [
+        {"strategy_score": 2, "node_id": 1},
+        {"strategy_score": 4, "node_id": 1},
+        {"strategy_score": 11, "node_id": 1},
+    ]
+    strategies = _strategy_rows()
+    preview = cache_routing._build_drain_preview(
+        before,
+        desired,
+        before["snapshot_id"],
+        drain_node_id=2,
+        strategy_rows=strategies,
+    )
+    mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=before)
+    mocker.patch.object(cache_routing, "_load_cluster_strategy_rows", return_value=strategies)
+    write = mocker.patch.object(cache_routing, "_write_positive_routes")
+    advance = mocker.patch.object(cache_routing, "_advance_routing_revision")
+    mocker.patch.object(cache_routing.db_router, "db_for_write", return_value="monitor_api")
+    mocker.patch.object(cache_routing.transaction, "atomic", return_value=nullcontext())
+    mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "ttl_refresh"})
+
+    with pytest.raises(CustomException, match="collapse strategy ownership"):
+        cache_routing.manage_cache_routing(
+            {
+                "operation": "drain_apply",
+                "drain_node_id": 2,
+                "expected_snapshot_id": before["snapshot_id"],
+                "expected_after_snapshot_id": preview["expected_after_snapshot_id"],
+                "plan_id": preview["plan_id"],
+                "desired_routes": desired,
+                "confirmed": True,
+                "operator": "test-operator",
+                "exclusive_change_window": True,
+            }
+        )
+
+    write.assert_not_called()
+    advance.assert_not_called()
 
 
 def test_snapshot_loader_pins_every_query_to_requested_database_and_locks(mocker):
@@ -852,6 +1207,58 @@ def test_runtime_refresh_contract_does_not_claim_worker_deployment_verification(
     assert contract["capability_source"] == "api_process_code"
     assert contract["worker_deployment_verified"] is False
     assert contract["runtime_validation_required"] is True
+
+
+def test_drain_operations_require_target_and_generic_operations_reject_it(mocker):
+    before = _drain_snapshot()
+    mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=before)
+    mocker.patch.object(cache_routing, "_load_cluster_strategy_rows", return_value=_strategy_rows())
+    mocker.patch.object(cache_routing.db_router, "db_for_read", return_value="monitor_api")
+
+    with pytest.raises(CustomException, match="drain_node_id"):
+        cache_routing.list_cache_routing(
+            {
+                "operation": "preview",
+                "drain_node_id": 2,
+                "expected_snapshot_id": before["snapshot_id"],
+                "desired_routes": _drain_desired(),
+            }
+        )
+    with pytest.raises(CustomException, match="drain_node_id"):
+        cache_routing.list_cache_routing(
+            {
+                "operation": "drain_preview",
+                "expected_snapshot_id": before["snapshot_id"],
+                "desired_routes": _drain_desired(),
+            }
+        )
+    with pytest.raises(CustomException, match="drain_node_id"):
+        cache_routing.manage_cache_routing(
+            {
+                "operation": "apply",
+                "drain_node_id": 2,
+                "expected_snapshot_id": before["snapshot_id"],
+                "expected_after_snapshot_id": before["snapshot_id"],
+                "plan_id": before["snapshot_id"],
+                "desired_routes": _drain_desired(),
+                "confirmed": True,
+                "operator": "test-operator",
+                "exclusive_change_window": True,
+            }
+        )
+    with pytest.raises(CustomException, match="drain_node_id"):
+        cache_routing.manage_cache_routing(
+            {
+                "operation": "drain_apply",
+                "expected_snapshot_id": before["snapshot_id"],
+                "expected_after_snapshot_id": before["snapshot_id"],
+                "plan_id": before["snapshot_id"],
+                "desired_routes": _drain_desired(),
+                "confirmed": True,
+                "operator": "test-operator",
+                "exclusive_change_window": True,
+            }
+        )
 
 
 @pytest.mark.parametrize(

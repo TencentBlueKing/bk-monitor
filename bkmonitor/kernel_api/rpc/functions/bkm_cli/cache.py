@@ -735,13 +735,14 @@ KernelRPCRegistry.register_function(
     summary="列出 alarm_backends Redis 缓存路由表 (CacheRouter)",
     description=(
         "只读返回当前集群 CacheRouter 快照、安全节点身份、最大策略 ID 与向上取整到 100 的分界建议；"
-        "也可为完整正数路由表生成受快照绑定的变更预览。不含 host/port/password。"
+        "也可为完整正数路由表生成受快照绑定的普通变更或计划节点 drain 预览。不含 host/port/password。"
     ),
     handler=lambda params: list_cache_routing(params or {}),
     params_schema={
-        "operation": "snapshot | preview，默认 snapshot",
-        "expected_snapshot_id": "preview 必填",
-        "desired_routes": "preview 必填，完整的正数路由表",
+        "operation": "snapshot | preview | drain_preview，默认 snapshot",
+        "drain_node_id": "drain_preview 必填",
+        "expected_snapshot_id": "preview/drain_preview 必填",
+        "desired_routes": "preview/drain_preview 必填，完整的正数路由表",
     },
     example_params={"operation": "snapshot"},
 )
@@ -751,17 +752,19 @@ BkmCliOpRegistry.register(
     func_name="bkm_cli.list_cache_routing",
     summary="列出 alarm_backends Redis 缓存路由表 (CacheRouter)",
     description=(
-        "只读快照默认操作保持兼容；preview 根据 expected_snapshot_id 和完整 desired_routes 返回 plan_id、"
-        "expected_after_snapshot_id 与精确 diff。node 仅包含安全身份字段。"
+        "只读快照默认操作保持兼容；preview/drain_preview 根据 expected_snapshot_id 和完整 desired_routes 返回"
+        "独立 plan_id、expected_after_snapshot_id 与精确 diff。drain 只允许解除一个非默认节点的正路由引用；"
+        "node 仅包含安全身份字段。"
     ),
     capability_level="readonly",
     risk_level="low",
     requires_confirmation=False,
     audit_tags=["cache", "redis", "readonly", "routing"],
     params_schema={
-        "operation": "snapshot | preview",
-        "expected_snapshot_id": "string, preview required",
-        "desired_routes": "array, preview required",
+        "operation": "snapshot | preview | drain_preview",
+        "drain_node_id": "integer, drain_preview required",
+        "expected_snapshot_id": "string, preview/drain_preview required",
+        "desired_routes": "array, preview/drain_preview required",
     },
     example_params={"operation": "snapshot"},
 )

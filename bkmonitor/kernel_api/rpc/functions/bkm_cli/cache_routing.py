@@ -32,6 +32,7 @@ from kernel_api.rpc.functions.bkm_cli.cache import _node_identity
 
 SNAPSHOT_SCHEMA = "cache-routing-snapshot/v1"
 PLAN_SCHEMA = "replace-positive-routes/v1"
+DRAIN_PLAN_SCHEMA = "drain-positive-routes/v1"
 MAX_POSITIVE_ROUTES = 1000
 DB_INT_MAX = 2_147_483_647
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -40,13 +41,14 @@ HARD_CHANGE_PERCENT = 50
 HARD_CHANGE_RATIO = HARD_CHANGE_PERCENT / 100
 STRATEGY_ITERATOR_CHUNK_SIZE = 2000
 
-LIST_ALLOWED_FIELDS = {"operation", "expected_snapshot_id", "desired_routes", "bk_tenant_id"}
+LIST_ALLOWED_FIELDS = {"operation", "expected_snapshot_id", "desired_routes", "drain_node_id", "bk_tenant_id"}
 MANAGE_ALLOWED_FIELDS = {
     "operation",
     "expected_snapshot_id",
     "expected_after_snapshot_id",
     "plan_id",
     "desired_routes",
+    "drain_node_id",
     "confirmed",
     "operator",
     "exclusive_change_window",
@@ -269,7 +271,11 @@ def _route_diff(
 
 
 def _build_impact_summary(
-    snapshot: dict[str, Any], desired_routes: list[dict[str, int]], strategy_rows: Iterable[Any]
+    snapshot: dict[str, Any],
+    desired_routes: list[dict[str, int]],
+    strategy_rows: Iterable[Any],
+    *,
+    permitted_drained_node_id: int | None = None,
 ) -> dict[str, Any]:
     before_routes = [route for route in snapshot["raw_routes"] if route["strategy_score"] > 0]
     before_scores = [route["strategy_score"] for route in before_routes]
@@ -327,8 +333,9 @@ def _build_impact_summary(
             f"{affected_enabled}/{enabled_total} enabled strategies ({affected_enabled_ratio:.2%}); "
             f"effective ratio {effective_ratio:.2%} reaches the hard limit {HARD_CHANGE_RATIO:.2%}"
         )
-    if drained_node_ids:
-        block_reasons.append(f"route change would drain strategy ownership from node IDs: {drained_node_ids}")
+    blocked_drained_node_ids = [node_id for node_id in drained_node_ids if node_id != permitted_drained_node_id]
+    if blocked_drained_node_ids:
+        block_reasons.append(f"route change would drain strategy ownership from node IDs: {blocked_drained_node_ids}")
     if collapsed_to_single_node:
         block_reasons.append(
             f"route change would collapse strategy ownership from {len(before_owned_nodes)} nodes "
@@ -368,6 +375,102 @@ def _build_impact_summary(
     }
 
 
+def _normalize_drain_node_id(snapshot: dict[str, Any], value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 < value <= DB_INT_MAX:
+        raise CustomException(message="drain_node_id must be a positive signed 32-bit integer")
+    if value not in {node["id"] for node in snapshot["nodes"]}:
+        raise CustomException(message=f"drain_node_id={value} is unavailable in the current cluster")
+    return value
+
+
+def _build_drain_summary(
+    snapshot: dict[str, Any],
+    desired_routes: list[dict[str, int]],
+    drain_node_id: int,
+) -> dict[str, Any]:
+    node_by_id = {node["id"]: node for node in snapshot["nodes"]}
+    drain_node = node_by_id[drain_node_id]
+    before_routes = [route for route in snapshot["raw_routes"] if route["strategy_score"] > 0]
+    before_by_score = {route["strategy_score"]: route["node_id"] for route in before_routes}
+    desired_by_score = {route["strategy_score"]: route["node_id"] for route in desired_routes}
+    target_scores = sorted(score for score, node_id in before_by_score.items() if node_id == drain_node_id)
+    remaining_target_scores = sorted(
+        route["strategy_score"] for route in desired_routes if route["node_id"] == drain_node_id
+    )
+    reserved_references = sum(route["node_id"] == drain_node_id for route in snapshot["reserved_routes"])
+    changed_scores = sorted(
+        score
+        for score in before_by_score.keys() & desired_by_score.keys()
+        if before_by_score[score] != desired_by_score[score]
+    )
+
+    block_reasons: list[str] = []
+    if drain_node["is_default"]:
+        block_reasons.append("drain_node_id must not be the default node")
+    if not drain_node["is_enable"]:
+        block_reasons.append("drain_node_id must be enabled before a planned drain")
+    if not snapshot["topology_validation"]["valid"]:
+        block_reasons.append("current cache routing topology must be valid before a planned drain")
+    if not target_scores:
+        block_reasons.append(f"drain_node_id={drain_node_id} has no positive CacheRouter references")
+    if reserved_references:
+        block_reasons.append(f"reserved CacheRouter rows still reference drain_node_id={drain_node_id}")
+
+    before_scores = [route["strategy_score"] for route in before_routes]
+    desired_scores = [route["strategy_score"] for route in desired_routes]
+    if before_scores != desired_scores:
+        block_reasons.append("drain plan must preserve the exact positive strategy_score set and order")
+
+    for score, before_node_id in before_by_score.items():
+        after_node_id = desired_by_score.get(score)
+        if before_node_id != drain_node_id and after_node_id is not None and after_node_id != before_node_id:
+            block_reasons.append(f"drain plan changes non-target route score={score}")
+    if remaining_target_scores:
+        block_reasons.append(
+            f"desired_routes still references drain_node_id={drain_node_id} at scores={remaining_target_scores}"
+        )
+
+    return {
+        "drain_node": drain_node,
+        "changed_strategy_scores": changed_scores,
+        "positive_route_references_before": len(target_scores),
+        "remaining_positive_route_references": len(remaining_target_scores),
+        "reserved_route_references": reserved_references,
+        "cache_node_mutated": False,
+        "safe_to_disable_or_delete": False,
+        "block_reasons": block_reasons,
+    }
+
+
+def _build_impact_contract(
+    snapshot: dict[str, Any],
+    desired_routes: list[dict[str, int]],
+    strategy_rows: Iterable[Any],
+    *,
+    drain_node_id: int | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    impact_summary = _build_impact_summary(
+        snapshot,
+        desired_routes,
+        strategy_rows,
+        permitted_drained_node_id=drain_node_id,
+    )
+    if drain_node_id is None:
+        return impact_summary, None
+
+    drain_summary = _build_drain_summary(snapshot, desired_routes, drain_node_id)
+    impact_summary["block_reasons"].extend(drain_summary["block_reasons"])
+    impact_summary["apply_allowed"] = not impact_summary["block_reasons"]
+    return impact_summary, drain_summary
+
+
+def _impact_digest(impact_summary: dict[str, Any], drain_summary: dict[str, Any] | None) -> str:
+    payload: dict[str, Any] = {"impact_summary": impact_summary}
+    if drain_summary is not None:
+        payload["drain_summary"] = drain_summary
+    return _canonical_digest(payload)
+
+
 def _build_plan(
     snapshot: dict[str, Any],
     desired_routes: Any,
@@ -375,6 +478,7 @@ def _build_plan(
     *,
     check_current_snapshot: bool,
     strategy_rows: Iterable[Any],
+    drain_node_id: int | None = None,
 ) -> dict[str, Any]:
     if not isinstance(expected_snapshot_id, str) or not expected_snapshot_id.strip():
         raise CustomException(message="expected_snapshot_id is required")
@@ -385,6 +489,8 @@ def _build_plan(
         raise CustomException(message="cache routing snapshot is stale; take a new snapshot and preview again")
     desired = _normalize_desired_routes(desired_routes)
     _validate_desired_routes(snapshot, desired)
+    if drain_node_id is not None:
+        drain_node_id = _normalize_drain_node_id(snapshot, drain_node_id)
 
     after = _after_snapshot(snapshot, desired)
     if not after["topology_validation"]["valid"]:
@@ -392,20 +498,26 @@ def _build_plan(
             message=f"desired cache routing topology is invalid: {after['topology_validation']['errors']}"
         )
     diff = _route_diff(snapshot["raw_routes"], desired)
-    impact_summary = _build_impact_summary(snapshot, desired, strategy_rows)
-    impact_digest = _canonical_digest({"impact_summary": impact_summary})
-    plan_id = _canonical_digest(
-        {
-            "plan_schema": PLAN_SCHEMA,
-            "cluster_name": snapshot["cluster_name"],
-            "expected_snapshot_id": expected_snapshot_id,
-            "desired_routes": desired,
-            "impact_digest": impact_digest,
-        }
+    impact_summary, drain_summary = _build_impact_contract(
+        snapshot,
+        desired,
+        strategy_rows,
+        drain_node_id=drain_node_id,
     )
-    return {
-        "plan_schema": PLAN_SCHEMA,
-        "plan_id": plan_id,
+    impact_digest = _impact_digest(impact_summary, drain_summary)
+    plan_schema = DRAIN_PLAN_SCHEMA if drain_node_id is not None else PLAN_SCHEMA
+    plan_payload = {
+        "plan_schema": plan_schema,
+        "cluster_name": snapshot["cluster_name"],
+        "expected_snapshot_id": expected_snapshot_id,
+        "desired_routes": desired,
+        "impact_digest": impact_digest,
+    }
+    if drain_node_id is not None:
+        plan_payload["drain_node_id"] = drain_node_id
+    result = {
+        "plan_schema": plan_schema,
+        "plan_id": _canonical_digest(plan_payload),
         "expected_snapshot_id": expected_snapshot_id,
         "expected_after_snapshot_id": after["snapshot_id"],
         "desired_routes": desired,
@@ -416,6 +528,9 @@ def _build_plan(
         "before": snapshot,
         "after": after,
     }
+    if drain_summary is not None:
+        result["drain_summary"] = drain_summary
+    return result
 
 
 def _build_preview(
@@ -448,6 +563,41 @@ def _build_preview(
             f"Do not call manage-cache-routing for this plan: {reasons}",
             "Split the route change into independently previewed and validated plans, or use the separately governed "
             "manual recovery path.",
+        ]
+    return result
+
+
+def _build_drain_preview(
+    snapshot: dict[str, Any],
+    desired_routes: Any,
+    expected_snapshot_id: Any,
+    *,
+    drain_node_id: Any,
+    strategy_rows: Iterable[Any],
+) -> dict[str, Any]:
+    plan = _build_plan(
+        snapshot,
+        desired_routes,
+        expected_snapshot_id,
+        check_current_snapshot=True,
+        strategy_rows=strategy_rows,
+        drain_node_id=drain_node_id,
+    )
+    result = {
+        **plan,
+        "operation": "drain_preview",
+        "states": {
+            "configuration": "previewed",
+            "worker_activation": "not_evaluated",
+            "traffic_landing": "not_evaluated",
+            "capacity": "not_evaluated",
+        },
+    }
+    if not plan["impact_summary"]["apply_allowed"]:
+        reasons = "; ".join(plan["impact_summary"]["block_reasons"])
+        result["next_actions"] = [
+            f"Do not call manage-cache-routing drain_apply for this plan: {reasons}",
+            "Use independently previewed rebalance steps, or the separately governed recovery/default-node path.",
         ]
     return result
 
@@ -594,15 +744,15 @@ def _validate_keys(params: Any, allowed_fields: set[str]) -> dict[str, Any]:
 def list_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
     params = _validate_keys(params or {}, LIST_ALLOWED_FIELDS)
     operation = params.get("operation") or "snapshot"
-    if operation not in {"snapshot", "preview"}:
-        raise CustomException(message="operation only supports snapshot or preview")
+    if operation not in {"snapshot", "preview", "drain_preview"}:
+        raise CustomException(message="operation only supports snapshot, preview, or drain_preview")
     from bkmonitor.models import CacheRouter
 
     using = db_router.db_for_read(CacheRouter) or "default"
     snapshot = _load_routing_snapshot(using=using, lock=False)
     contract = _runtime_refresh_contract()
     if operation == "snapshot":
-        if "expected_snapshot_id" in params or "desired_routes" in params:
+        if "expected_snapshot_id" in params or "desired_routes" in params or "drain_node_id" in params:
             raise CustomException(message="snapshot operation does not accept preview fields")
         return {
             **snapshot,
@@ -617,12 +767,25 @@ def list_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
         }
 
     strategy_rows = _load_cluster_strategy_rows(using=using, max_strategy_id=snapshot["max_strategy_id"])
-    preview = _build_preview(
-        snapshot,
-        params.get("desired_routes"),
-        params.get("expected_snapshot_id"),
-        strategy_rows=strategy_rows,
-    )
+    if operation == "preview":
+        if "drain_node_id" in params:
+            raise CustomException(message="preview operation does not accept drain_node_id")
+        preview = _build_preview(
+            snapshot,
+            params.get("desired_routes"),
+            params.get("expected_snapshot_id"),
+            strategy_rows=strategy_rows,
+        )
+    else:
+        if "drain_node_id" not in params:
+            raise CustomException(message="drain_node_id is required for drain_preview")
+        preview = _build_drain_preview(
+            snapshot,
+            params.get("desired_routes"),
+            params.get("expected_snapshot_id"),
+            drain_node_id=params.get("drain_node_id"),
+            strategy_rows=strategy_rows,
+        )
     preview["runtime_refresh_contract"] = contract
     return preview
 
@@ -687,8 +850,13 @@ def _required_digest(params: dict[str, Any], field: str) -> str:
 
 def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
     params = _validate_keys(params, MANAGE_ALLOWED_FIELDS)
-    if params.get("operation") != "apply":
-        raise CustomException(message="operation must be apply")
+    operation = params.get("operation")
+    if operation not in {"apply", "drain_apply"}:
+        raise CustomException(message="operation must be apply or drain_apply")
+    if operation == "apply" and "drain_node_id" in params:
+        raise CustomException(message="apply operation does not accept drain_node_id")
+    if operation == "drain_apply" and "drain_node_id" not in params:
+        raise CustomException(message="drain_node_id is required for drain_apply")
     if params.get("confirmed") is not True:
         raise CustomException(message="confirmed must be true")
     if params.get("exclusive_change_window") is not True:
@@ -721,6 +889,7 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
                 using=using,
                 max_strategy_id=before["max_strategy_id"],
             ),
+            drain_node_id=params.get("drain_node_id") if operation == "drain_apply" else None,
         )
         if plan["plan_id"] != expected_plan_id:
             raise CustomException(message="plan_id does not match the locked routing plan")
@@ -734,15 +903,16 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
 
         _write_positive_routes(before, plan["desired_routes"], using=using)
         _advance_routing_revision(before, using=using)
-        impact_after_write = _build_impact_summary(
+        impact_after_write, drain_after_write = _build_impact_contract(
             before,
             plan["desired_routes"],
             _load_cluster_strategy_rows(
                 using=using,
                 max_strategy_id=before["max_strategy_id"],
             ),
+            drain_node_id=params.get("drain_node_id") if operation == "drain_apply" else None,
         )
-        if _canonical_digest({"impact_summary": impact_after_write}) != plan["impact_digest"]:
+        if _impact_digest(impact_after_write, drain_after_write) != plan["impact_digest"]:
             raise CustomException(message="strategy impact changed during apply; transaction rolled back")
         after = _load_routing_snapshot(using=using, lock=False)
         if after["reserved_routes"] != before["reserved_routes"]:
@@ -753,8 +923,9 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
             )
 
     logger.info(
-        "CacheRouter apply completed cluster=%s operator=%s plan_id=%s create=%d update=%d delete=%d "
+        "CacheRouter apply completed operation=%s cluster=%s operator=%s plan_id=%s create=%d update=%d delete=%d "
         "affected=%d total=%d changed=%s",
+        operation,
         before["cluster_name"],
         operator,
         expected_plan_id,
@@ -765,8 +936,8 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
         plan["impact_summary"]["total_strategy_count"],
         plan["changed"],
     )
-    return {
-        "operation": "apply",
+    result = {
+        "operation": operation,
         "changed": plan["changed"],
         "plan_id": expected_plan_id,
         "previous_snapshot_id": expected_snapshot_id,
@@ -783,6 +954,9 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
             "capacity": "not_evaluated",
         },
     }
+    if "drain_summary" in plan:
+        result["drain_summary"] = plan["drain_summary"]
+    return result
 
 
 KernelRPCRegistry.register_function(
@@ -791,12 +965,14 @@ KernelRPCRegistry.register_function(
     description=(
         "使用预览产生的 snapshot_id、plan_id 和 expected_after_snapshot_id 在单一事务内替换 CacheRouter "
         "正数路由行；保留 score<=0 行，不管理 CacheNode 连接信息。必须 confirmed=true 且申明独占变更窗口；"
-        "当前集群至少半数策略改指、节点策略归属清空或多节点收缩为单节点时硬拒绝。"
+        "普通 apply 在当前集群至少半数策略改指、节点策略归属清空或多节点收缩为单节点时硬拒绝；"
+        "drain_apply 只允许将一个已启用非默认节点的既有正路由原位改指，仍拒绝至少半数改指和收缩为单节点。"
     ),
     handler=manage_cache_routing,
     params_schema={
-        "operation": "apply",
-        "expected_snapshot_id": "list-cache-routing preview 使用的前置快照",
+        "operation": "apply | drain_apply",
+        "drain_node_id": "drain_apply 必填；当前集群已启用的非默认节点 ID",
+        "expected_snapshot_id": "list-cache-routing preview/drain_preview 使用的前置快照",
         "expected_after_snapshot_id": "preview 计算的目标快照",
         "plan_id": "preview 计算的计划标识",
         "desired_routes": "完整、按 strategy_score 升序的正数路由表",
@@ -811,14 +987,16 @@ BkmCliOpRegistry.register(
     func_name="bkm_cli.manage_cache_routing",
     summary="受控变更 alarm_backends Redis 路由",
     description=(
-        "仅替换 CacheRouter 正数路由行；要求预览绑定、人工确认、独占变更窗口、策略影响硬门禁和事务内精确回读。"
+        "仅替换 CacheRouter 正数路由行；普通 apply 与计划缩容 drain_apply 使用独立 plan，均要求预览绑定、"
+        "人工确认、独占变更窗口、策略影响硬门禁和事务内精确回读。drain 不修改 CacheNode。"
     ),
     capability_level="admin",
     risk_level="mutation",
     requires_confirmation=True,
     audit_tags=["cache", "redis", "routing", "mutation", "human-confirmation"],
     params_schema={
-        "operation": "apply",
+        "operation": "apply | drain_apply",
+        "drain_node_id": "integer, drain_apply required",
         "expected_snapshot_id": "string",
         "expected_after_snapshot_id": "string",
         "plan_id": "string",
