@@ -662,6 +662,34 @@ class CustomTimeSeriesList(Resource):
         }
 
 
+class QueryCustomTimeSeriesProtocols(Resource):
+    """查询自定义指标上报协议，供后台批量刷新缓存使用。"""
+
+    many_response_data = True
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID，0 表示全部业务"), default=0)
+        bk_data_ids = serializers.ListField(
+            label=_("数据 ID 列表，空列表表示不按数据 ID 过滤"),
+            child=serializers.IntegerField(),
+            required=False,
+            default=list,
+        )
+
+    class ResponseSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(label=_("数据 ID"))
+        protocol = serializers.ChoiceField(label=_("上报协议"), choices=CustomTSTable.PROTOCOL_CHOICES)
+
+    def perform_request(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        queryset = CustomTSTable.objects.filter(bk_tenant_id=get_request_tenant_id())
+        if params["bk_biz_id"]:
+            queryset = queryset.filter(bk_biz_id=params["bk_biz_id"])
+        if params["bk_data_ids"]:
+            queryset = queryset.filter(bk_data_id__in=params["bk_data_ids"])
+
+        return list(queryset.order_by("bk_data_id").values("bk_data_id", "protocol"))
+
+
 class CustomTimeSeriesDetail(Resource):
     """
     自定义时序详情
