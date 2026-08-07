@@ -128,6 +128,18 @@ class CleanTemplateHandler:
     SYNC_LOCK_TTL = getattr(settings, "CLEAN_TEMPLATE_SYNC_LOCK_TTL", 30 * 60)
     SYNC_MAX_WORKERS = getattr(settings, "CLEAN_TEMPLATE_SYNC_MAX_WORKERS", 5)
 
+    def __init__(self, clean_template_id=None, bk_biz_id=None):
+        self.clean_template_id = clean_template_id
+        self.bk_biz_id = bk_biz_id
+        self.data = None
+        if clean_template_id:
+            try:
+                self.data = self._get_template_queryset().get(clean_template_id=self.clean_template_id)
+            except CleanTemplate.DoesNotExist:
+                raise CleanTemplateNotExistException(
+                    CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
+                )
+
     @staticmethod
     def fill_template_stats(clean_templates):
         clean_templates = list(clean_templates)
@@ -156,18 +168,6 @@ class CleanTemplateHandler:
                 0,
             )
         return clean_templates
-
-    def __init__(self, clean_template_id=None, bk_biz_id=None):
-        self.clean_template_id = clean_template_id
-        self.bk_biz_id = bk_biz_id
-        self.data = None
-        if clean_template_id:
-            try:
-                self.data = self._get_template_queryset().get(clean_template_id=self.clean_template_id)
-            except CleanTemplate.DoesNotExist:
-                raise CleanTemplateNotExistException(
-                    CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
-                )
 
     def _get_template_queryset(self):
         queryset = CleanTemplate.objects
