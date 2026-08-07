@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import audit as audit_module
 import pytest
+from bk_audit.contrib.django.formatters import DjangoFormatter
 from blueapps.utils.local import request_local_injection
 from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
 from django.http import Http404, HttpResponse
@@ -48,12 +49,27 @@ def test_push_event_records_external_dashboard_context_and_result(response_statu
         push_event(request, response)
 
     event = add_event.call_args.kwargs
-    assert event["audit_context"].request is request
+    audit_event = DjangoFormatter().build_event(
+        action=event["action"],
+        resource_type=event["resource_type"],
+        audit_context=event["audit_context"],
+        instance=event["instance"],
+        event_id=None,
+        event_content="",
+        start_time=0,
+        end_time=0,
+        result_code=event["result_code"],
+        result_content=event["result_content"],
+        extend_data=event["extend_data"],
+    )
+    assert audit_event.username == "external-user"
+    assert request.user.username == "authorized-agent"
     assert event["result_code"] == result_code
     assert event["result_content"] == (f"HTTP {result_code}" if result_code else "")
     assert event["extend_data"] == {
         "external_user": "external-user",
         "action_name": event["action"].name,
+        "authorizer": "authorized-agent",
         "bk_biz_id": "2",
         "grafana_org_name": "2",
         "request_method": "GET",
@@ -189,19 +205,14 @@ def test_dispatch_external_proxy_preserves_django_exception_status(exception, st
     assert request._audit_request._audit_response_status == status_code
 
 
-@pytest.mark.parametrize(
-    ("data_id", "token"),
-    [("", "token"), ("invalid", "token"), ("0", "token"), ("123", "")],
-)
-def test_audit_setup_requires_complete_otlp_configuration(data_id, token):
+def test_audit_setup_requires_token():
     config = AuditConfig("audit", audit_module)
     env = {
         "BKAPP_OTEL_LOG_ENDPOINT": "https://example.invalid",
-        "BKAPP_OTEL_LOG_BK_DATA_ID": data_id,
-        "BKAPP_OTEL_LOG_BK_DATA_TOKEN": token,
+        "BKAPP_OTEL_LOG_BK_DATA_TOKEN": "",
     }
 
-    with patch.dict(os.environ, env), patch("audit.apps.setup") as setup:
+    with patch.dict(os.environ, env, clear=True), patch("audit.apps.setup") as setup:
         config.ready()
 
     setup.assert_not_called()
@@ -211,12 +222,11 @@ def test_audit_setup_failure_does_not_block_application_startup(caplog):
     config = AuditConfig("audit", audit_module)
     env = {
         "BKAPP_OTEL_LOG_ENDPOINT": "https://example.invalid",
-        "BKAPP_OTEL_LOG_BK_DATA_ID": "123",
         "BKAPP_OTEL_LOG_BK_DATA_TOKEN": "token",
     }
 
     with (
-        patch.dict(os.environ, env),
+        patch.dict(os.environ, env, clear=True),
         patch("audit.apps.setup", side_effect=RuntimeError("setup failed")),
         caplog.at_level(logging.ERROR, logger="audit.apps"),
     ):
@@ -225,15 +235,14 @@ def test_audit_setup_failure_does_not_block_application_startup(caplog):
     assert "initialize audit exporter failed" in caplog.text
 
 
-def test_audit_setup_accepts_complete_otlp_configuration():
+def test_audit_setup_accepts_configuration_without_data_id():
     config = AuditConfig("audit", audit_module)
     env = {
         "BKAPP_OTEL_LOG_ENDPOINT": "https://example.invalid",
-        "BKAPP_OTEL_LOG_BK_DATA_ID": "123",
         "BKAPP_OTEL_LOG_BK_DATA_TOKEN": "token",
     }
 
-    with patch.dict(os.environ, env), patch("audit.apps.setup") as setup:
+    with patch.dict(os.environ, env, clear=True), patch("audit.apps.setup") as setup:
         config.ready()
 
     setup.assert_called_once()

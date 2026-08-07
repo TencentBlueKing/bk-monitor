@@ -29,6 +29,8 @@ push_event(request)
 
 import logging
 import re
+from copy import copy
+from types import SimpleNamespace
 
 from audit.client import bk_audit_client
 from bk_audit.log.models import AuditContext, AuditInstance
@@ -90,13 +92,21 @@ def push_event(request, response=None):
         if instance is None:
             return
 
-        context = AuditContext(request=request)
+        external_user = getattr(request, "external_user", "")
+        authorizer = getattr(request.user, "username", "")
+        audit_request = request
+        if external_user:
+            audit_request = copy(request)
+            audit_request.user = SimpleNamespace(username=external_user)
+        context = AuditContext(request=audit_request)
 
         extend_data = {
-            "external_user": getattr(request, "external_user", ""),
+            "external_user": external_user,
             "bk_biz_id": request.biz_id,
             "request_method": request.method,
         }
+        if external_user and authorizer:
+            extend_data["authorizer"] = authorizer
         org_name = getattr(request, "org_name", "")
         if org_name:
             extend_data["grafana_org_name"] = org_name

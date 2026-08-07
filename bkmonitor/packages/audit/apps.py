@@ -22,21 +22,14 @@ class AuditConfig(AppConfig):
     name = "audit"
 
     # BKAPP_OTEL_LOG_ENDPOINT: 审计中心获取上报endpoint
-    # BKAPP_OTEL_LOG_BK_DATA_ID: 审计中心获取上报data id
     # BKAPP_OTEL_LOG_BK_DATA_TOKEN: 审计中心获取上报token
     def ready(self):
         if not os.getenv("BKAPP_OTEL_LOG_ENDPOINT"):
             return
 
-        data_id = os.getenv("BKAPP_OTEL_LOG_BK_DATA_ID", "")
         token = os.getenv("BKAPP_OTEL_LOG_BK_DATA_TOKEN", "")
-        try:
-            data_id_valid = int(data_id) > 0
-        except (TypeError, ValueError):
-            data_id_valid = False
-
-        if not data_id_valid or not token:
-            logger.error("audit exporter is disabled because OTLP data id or token is invalid")
+        if not token:
+            logger.error("audit exporter is disabled because OTLP token is missing")
             return
 
         try:
