@@ -287,7 +287,7 @@ export default class HostDetail extends Vue<MonitorVue> {
     this.nodeInfo = [
       {
         id: 'bk_inst_id',
-        title: this.$t('ID'),
+        title: 'ID',
         value: '',
       },
       {

@@ -28,8 +28,8 @@ import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { promiseTimeout } from '@vueuse/core';
 
-import { type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
-import { NULL_VALUE_NAME } from './utils';
+import { type EMethod, type IFilterItem, EFieldType, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
+import { getCascadeValueSplit, NULL_VALUE_NAME } from './utils';
 
 import './kv-tag.scss';
 
@@ -49,10 +49,22 @@ export default defineComponent({
       }
       return false;
     });
-    const tipContent = computed(
-      () =>
-        `<div style="max-width: 600px;">${props.value.key.id} ${props.value.method.name} ${props.value.value.map(v => v.id).join(' OR ')}<div>`
-    );
+    const tipContent = computed(() => {
+      return `${props.value.key.id} ${props.value.method.id} ${props.value.value
+        .map(v => {
+          let id = v.id;
+          if (props.fieldInfo?.type === EFieldType.cascade) {
+            id = getCascadeValueSplit(String(id))?.join('');
+          }
+          // 传入完整参数对象：value 为候选项，key 为字段 id，isTips 标记悬浮提示场景
+          return props.tagValueDisplayFormatter(id, {
+            value: v,
+            key: props.value.key.id,
+            isTips: true,
+          });
+        })
+        .join(` ${props.groupRelation || 'OR'} `)}`;
+    });
 
     watch(
       () => props.value,
@@ -142,7 +154,7 @@ export default defineComponent({
             allowHTML: true,
             content: (
               <div style='max-width: 600px; word-break: break-all; word-wrap: break-word; white-space: normal'>
-                {`${this.value.key.id} ${this.value.method.id} ${this.value.value.map(v => v.id).join(` ${this.groupRelation || 'OR'} `)}`}
+                {this.tipContent}
               </div>
             ),
           }}
@@ -153,7 +165,9 @@ export default defineComponent({
                 ? this.localValue.key.id
                 : `${this.localValue.key.name} (${this.localValue.key.id})`}
             </span>
-            <span class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id) }]}>
+            <span
+              class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id as EMethod) }]}
+            >
               {this.localValue.method.name}
             </span>
           </div>
@@ -175,7 +189,14 @@ export default defineComponent({
                     key={`${index}_key`}
                     class='value-name'
                   >
-                    {['string', 'number', 'boolean'].includes(typeof item.name) ? `${item.name}` : NULL_VALUE_NAME}
+                    {['string', 'number', 'boolean'].includes(typeof item.name)
+                      // tag 展示场景：isTips=false，集群模块字段会被还原为可读名称路径
+                      ? this.tagValueDisplayFormatter(item.name, {
+                          key: this.localValue.key.id,
+                          value: item,
+                          isTips: false,
+                        })
+                      : NULL_VALUE_NAME}
                   </span>,
                 ])}
                 {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}

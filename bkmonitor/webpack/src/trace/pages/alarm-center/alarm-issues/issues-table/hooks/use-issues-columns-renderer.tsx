@@ -33,12 +33,12 @@ import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
+import { isEllipsisActiveLine } from '../../../../../utils/dom-helper';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
-import { isEllipsisActiveLine } from '../../../../trace-explore/components/trace-explore-table/utils/dom-helper';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
