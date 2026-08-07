@@ -45,7 +45,6 @@ def test_get_queries_protocol_with_tenant_on_cache_miss(mocker):
     assert protocol == "prometheus"
     query_protocols.assert_called_once_with(
         bk_tenant_id="tenant-a",
-        bk_biz_id=2,
         bk_data_ids=[1001],
     )
     cache.set.assert_called_once_with(CustomTSGroupCacheManager.format_key(1001), "prometheus")

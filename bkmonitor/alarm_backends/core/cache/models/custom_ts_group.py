@@ -12,7 +12,6 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from alarm_backends.core.cache.base import CacheManager
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -41,8 +40,7 @@ class CustomTSGroupCacheManager(CacheManager):
     def query_protocol(cls, ts_group: "TimeSeriesGroup") -> str:
         """通过专用接口查询单个自定义指标协议。"""
         protocol_infos = api.monitor.query_custom_time_series_protocols(
-            bk_tenant_id=ts_group.bk_tenant_id or DEFAULT_TENANT_ID,
-            bk_biz_id=ts_group.bk_biz_id,
+            bk_tenant_id=ts_group.bk_tenant_id,
             bk_data_ids=[ts_group.bk_data_id],
         )
         if not protocol_infos:
@@ -53,7 +51,7 @@ class CustomTSGroupCacheManager(CacheManager):
     def query_protocol_from_detail(cls, ts_group: "TimeSeriesGroup") -> str:
         """兼容新接口不可用时通过原详情接口查询协议。"""
         ts_info = api.metadata.custom_time_series_detail(
-            bk_tenant_id=ts_group.bk_tenant_id or DEFAULT_TENANT_ID,
+            bk_tenant_id=ts_group.bk_tenant_id,
             time_series_group_id=ts_group.time_series_group_id,
             bk_biz_id=ts_group.bk_biz_id,
             model_only=True,
@@ -109,7 +107,7 @@ class CustomTSGroupCacheManager(CacheManager):
         )
         tenant_groups: dict[str, list[TimeSeriesGroup]] = defaultdict(list)
         for ts_group in ts_groups:
-            tenant_groups[ts_group.bk_tenant_id or DEFAULT_TENANT_ID].append(ts_group)
+            tenant_groups[ts_group.bk_tenant_id].append(ts_group)
 
         pipeline = cls.cache.pipeline()
         refreshed_count = 0
