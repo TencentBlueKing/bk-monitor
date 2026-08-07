@@ -809,7 +809,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
                 {"key": "current_collector", "value": "current_collector"},
             ],
         )
-        self.assertEqual(result["table_id"], [{"key": "current_collector", "value": "current_collector"}])
+        self.assertEqual(result["name_en"], [{"key": "current_collector", "value": "current_collector"}])
         self.assertEqual(result["bk_data_id"], [{"key": 1500586, "value": 1500586}])
         self.assertEqual(
             result["bk_data_name"],
@@ -826,7 +826,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             ],
         )
 
-    def test_get_log_collectors_filters_by_table_id_bk_data_id_and_bk_data_name(self):
+    def test_get_log_collectors_filters_by_name_en_bk_data_id_and_bk_data_name(self):
         handler = LogCollectorHandler(CURRENT_SPACE_UID)
         base_data = {
             "space_uid": CURRENT_SPACE_UID,
@@ -835,7 +835,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         }
 
         for key, value in [
-            ("table_id", "current_collector"),
+            ("name_en", "current_collector"),
             ("bk_data_id", self.current_collector.bk_data_id),
             ("bk_data_name", "2_BKLOG_CURRENT_COLLECTOR"),
             ("bk_data_name", "CURRENT_COLLECTOR"),
@@ -850,7 +850,7 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
 
         for key, value in [
-            ("table_id", "2_bklog_current_collector"),
+            ("name_en", "2_bklog_current_collector"),
             ("bk_data_name", "missing_collector"),
         ]:
             result = handler.get_log_collectors(
@@ -921,6 +921,147 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         matched_item = next(item for item in result["list"] if item["index_set_id"] == index_set.index_set_id)
         self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")
         self.assertNotIn(other_index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
+
+    @staticmethod
+    def _split_table_id(data):
+        """模拟 CollectorHandler.add_cluster_info 对 table_id 的拆分行为。"""
+        for item in data:
+            if item.get("table_id"):
+                table_id_prefix, _, table_id = item["table_id"].partition(".")
+                item["table_id_prefix"] = f"{table_id_prefix}_"
+                item["table_id"] = table_id
+        return data
+
+    def _create_pending_collector(self):
+        """构造一个尚未创建结果表的采集项（table_id 为空，仅有采集项英文名）。"""
+        return CollectorConfig.objects.create(
+            collector_config_id=3,
+            collector_config_name="待完成采集项",
+            collector_config_name_en="pending_collector_en",
+            collector_scenario_id="row",
+            bk_biz_id=CURRENT_BK_BIZ_ID,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type="TOPO",
+            target_nodes=[],
+            target_subscription_diff={},
+            description="pending",
+            is_active=True,
+            bk_data_id=1500588,
+            table_id=None,
+        )
+
+    def test_name_en_exposes_collector_config_name_en_with_table_id_fallback(self):
+        """数据名取采集项英文名；英文名缺失的历史数据回退到结果表点号后的部分。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        # 未建结果表的采集项直接取英文名，不再展示为空
+        self.assertEqual(collectors[pending_collector.pk]["name_en"], "pending_collector_en")
+        # 英文名为空的历史数据回退到结果表后缀
+        self.assertEqual(collectors[self.current_collector.pk]["name_en"], "current_collector")
+
+    def test_table_id_stays_empty_for_collector_without_result_table(self):
+        """table_id 保持原语义，前端据此判断采集项未完成、拦截跳转详情页。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        self.assertFalse(collectors[pending_collector.pk]["table_id"])
+        self.assertTrue(collectors[self.current_collector.pk]["table_id"])
+
+    def test_name_en_is_searchable_and_enumerable(self):
+        """数据名必须同时能被筛选和枚举命中，避免列表可见但搜不到。"""
+        pending_collector = self._create_pending_collector()
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+
+        result = handler.get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "name_en", "value": ["PENDING_COLLECTOR"]}],
+            }
+        )
+        self.assertEqual(
+            [item["collector_config_id"] for item in self._collectors_from_result(result)],
+            [pending_collector.pk],
+        )
+
+        with (
+            patch.object(LogCollectorHandler, "get_bkdata_cluster_names", return_value=set()),
+            patch.object(LogCollectorHandler, "get_metadata_cluster_names", return_value=set()),
+        ):
+            enums = handler.get_collector_field_enums(include_related_spaces=False)
+
+        self.assertIn({"key": "pending_collector_en", "value": "pending_collector_en"}, enums["name_en"])
+        # 未建表的采集项没有存储名，不应污染存储名枚举
+        self.assertEqual(
+            enums["bk_data_name"],
+            [{"key": "2_bklog_current_collector", "value": "2_bklog_current_collector"}],
+        )
+
+    def test_get_log_collectors_matches_dotted_and_underscored_result_table(self):
+        """结果表名的点号写法与下划线写法应当互相命中。"""
+        with patch(
+            "apps.log_databus.handlers.collector_handler.log.CollectorHandler.add_cluster_info",
+            side_effect=self._split_table_id,
+        ):
+            for value in ("2_bklog.current_collector", "2_bklog_current_collector"):
+                with self.subTest(value=value):
+                    result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                        {
+                            "space_uid": CURRENT_SPACE_UID,
+                            "page": PAGE,
+                            "pagesize": PAGESIZE,
+                            "conditions": [{"key": "query", "value": [value]}],
+                        }
+                    )
+                    self.assertEqual(
+                        [item["collector_config_id"] for item in self._collectors_from_result(result)],
+                        [self.current_collector.pk],
+                    )
+
+    def test_get_log_collectors_filters_bk_data_name_with_dotted_value(self):
+        """存储名筛选传入带点号的结果表名同样应当命中。"""
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "bk_data_name", "value": ["2_bklog.current_collector"]}],
+            }
+        )
+        self.assertEqual(
+            [item["collector_config_id"] for item in self._collectors_from_result(result)],
+            [self.current_collector.pk],
+        )
+
+    def test_get_log_collectors_matches_index_set_with_underscored_result_table(self):
+        """索引集的结果表以点号存储，用下划线写法搜索也应当命中。"""
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "query", "value": ["2_bkbase_first"]}],
+            }
+        )
+        self.assertEqual([item["index_set_id"] for item in result["list"]], [index_set.index_set_id])
 
     def test_filter_by_queries_matches_all_searchable_fields_and_multiple_queries(self):
         data = [
