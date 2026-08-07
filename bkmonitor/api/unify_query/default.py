@@ -396,13 +396,16 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     class RequestSerializer(serializers.Serializer):
         space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
+        data_source = serializers.CharField(required=False, allow_blank=True)
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
         keys = serializers.ListField(required=False)
         limit = serializers.IntegerField(required=False, default=1000)
         metric_name = serializers.CharField(required=False, allow_null=True)
+        query_string = serializers.CharField(required=False, allow_blank=True)
         start_time = serializers.CharField(required=False)
         end_time = serializers.CharField(required=False)
+        bk_tenant_id = serializers.CharField(label="租户ID", required=False, allow_blank=True, allow_null=True)
 
 
 class GetPromqlLabelValuesResource(UnifyQueryAPIResource):

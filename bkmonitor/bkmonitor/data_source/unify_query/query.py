@@ -919,15 +919,85 @@ class UnifyQuery:
 
         return data, total
 
-    def query_dimensions(self, dimension_field: list | str, limit, start_time, end_time, *args, **kwargs):
+    def _query_dimensions_using_unify_query(
+        self,
+        dimension_field: list[str] | str,
+        limit: int,
+        start_time: int | None,
+        end_time: int | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> list[Any]:
+        data_source: DataSource = self.data_sources[0]
+        config: dict[str, Any] = data_source.to_unify_query_config()[0]
+        keys: list[str] = config["dimensions"][:1]
+        if not keys:
+            return self._query_dimensions_using_datasource(
+                dimension_field=dimension_field,
+                limit=limit,
+                start_time=start_time,
+                end_time=end_time,
+                *args,
+                **kwargs,
+            )
+
+        start_time, end_time = self.process_time_range(start_time, end_time)
+        space_uid: str | None = kwargs["space_uid"] if "space_uid" in kwargs else self.space_uid
+        params: dict[str, Any] = {
+            "info_type": "tag_values",
+            "data_source": config["data_source"],
+            "table_id": config["table_id"],
+            "keys": keys,
+            "space_uid": space_uid,
+            "bk_tenant_id": self.bk_tenant_id,
+            "start_time": str(start_time // 1000),
+            "end_time": str(end_time // 1000),
+            "limit": limit,
+            "query_string": config.get("query_string") or "*",
+        }
+        if config.get("field_name"):
+            params["metric_name"] = config["field_name"]
+        if config.get("conditions"):
+            params["conditions"] = config["conditions"]
+
+        response: dict[str, Any] = api.unify_query.get_dimension_data(**params)
+        return response["values"].get(keys[0], [])
+
+    def _query_dimensions_using_datasource(
+        self,
+        dimension_field: list[str] | str,
+        limit: int,
+        start_time: int | None,
+        end_time: int | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> list[Any] | dict[str, Any]:
+        data_source: DataSource = self.data_sources[0]
+        return data_source.query_dimensions(
+            dimension_field=dimension_field,
+            limit=limit,
+            start_time=start_time,
+            end_time=end_time,
+            *args,
+            **kwargs,
+        )
+
+    def query_dimensions(
+        self,
+        dimension_field: list[str] | str,
+        limit: int,
+        start_time: int | None,
+        end_time: int | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> list[Any] | dict[str, Any]:
         """
         查询维度
         """
-        if len(self.data_sources) == 1:
-            return self.data_sources[0].query_dimensions(
-                dimension_field=dimension_field, limit=limit, start_time=start_time, end_time=end_time, *args, **kwargs
-            )
-        else:
+        if not self.data_sources:
+            return []
+
+        if len(self.data_sources) > 1:
             if isinstance(dimension_field, list):
                 dimension_field = dimension_field[0]
             points = self.query_data(start_time, end_time)
@@ -938,3 +1008,45 @@ class UnifyQuery:
                     continue
                 dimensions.add(dimension)
             return list(dimensions)
+
+        exc: Exception | None = None
+        data: list[Any] | dict[str, Any] = []
+        labels: dict[str, str] = self.get_observe_labels()
+        data_source: DataSource = self.data_sources[0]
+        use_unify_query: bool = data_source.supports_unify_query_dimensions and self.use_unify_query()
+        if use_unify_query:
+            labels["api"] = "unify_query"
+            try:
+                with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
+                    data = self._query_dimensions_using_unify_query(
+                        dimension_field=dimension_field,
+                        limit=limit,
+                        start_time=start_time,
+                        end_time=end_time,
+                        *args,
+                        **kwargs,
+                    )
+            except Exception as error:
+                exc = error
+        else:
+            labels["api"] = "query_api"
+            try:
+                with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
+                    data = self._query_dimensions_using_datasource(
+                        dimension_field=dimension_field,
+                        limit=limit,
+                        start_time=start_time,
+                        end_time=end_time,
+                        *args,
+                        **kwargs,
+                    )
+            except Exception as error:
+                exc = error
+
+        metrics.DATASOURCE_QUERY_COUNT.labels(**labels, status=metrics.StatusEnum.from_exc(exc), exception=exc).inc()
+        metrics.report_all()
+
+        if exc:
+            raise exc
+
+        return data

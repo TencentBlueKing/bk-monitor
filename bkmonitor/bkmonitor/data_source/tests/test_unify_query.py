@@ -9,11 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 from contextlib import nullcontext
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
-from api.unify_query.default import QueryRawResource
+from api.unify_query.default import GetDimensionDataResource, QueryRawResource
 from bkmonitor.data_source.unify_query.builder import QueryHelper
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 
@@ -26,8 +27,16 @@ def mock_query_metrics(mocker):
     count_metric = mocker.patch("bkmonitor.data_source.unify_query.query.metrics.DATASOURCE_QUERY_COUNT")
     count_metric.labels.return_value.inc.return_value = None
 
-    mocker.patch("bkmonitor.data_source.unify_query.query.metrics.report_all")
-    mocker.patch("bkmonitor.data_source.unify_query.query.metrics.StatusEnum.from_exc", return_value="success")
+    report_all = mocker.patch("bkmonitor.data_source.unify_query.query.metrics.report_all")
+    status_from_exc = mocker.patch(
+        "bkmonitor.data_source.unify_query.query.metrics.StatusEnum.from_exc", return_value="success"
+    )
+    return {
+        "time": time_metric,
+        "count": count_metric,
+        "report_all": report_all,
+        "status_from_exc": status_from_exc,
+    }
 
 
 def build_unify_query() -> UnifyQuery:
@@ -37,6 +46,35 @@ def build_unify_query() -> UnifyQuery:
     data_source.data_type_label = "time_series"
     data_source.table = "system.cpu_summary"
     return UnifyQuery(bk_biz_id=2, data_sources=[data_source], expression="a")
+
+
+def build_dimension_unify_query(supports_unify_query_dimensions: bool = True) -> tuple[UnifyQuery, MagicMock]:
+    data_source = MagicMock()
+    data_source.metrics = [{"field": "event.count", "method": "COUNT"}]
+    data_source.data_source_label = "bk_monitor"
+    data_source.data_type_label = "log"
+    data_source.table = "2_bkmonitor_event_1500137"
+    data_source.supports_unify_query_dimensions = supports_unify_query_dimensions
+    query = UnifyQuery(
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        data_sources=[data_source],
+        expression="",
+    )
+    return query, data_source
+
+
+def build_dimension_config(**overrides: Any) -> dict[str, Any]:
+    config: dict[str, Any] = {
+        "data_source": "bkmonitor",
+        "table_id": "2_bkmonitor_event_1500137",
+        "field_name": "event.count",
+        "dimensions": ["event_name"],
+        "conditions": {},
+        "query_string": "*",
+    }
+    config.update(overrides)
+    return config
 
 
 class TestUnifyQuery:
@@ -244,6 +282,223 @@ class TestUnifyQuery:
         datasource.query_data.assert_called_once()
         assert series_stat == {}
 
+    @pytest.mark.parametrize(
+        ("supports_unify_query_dimensions", "gray_switch_enabled"),
+        [(False, True), (True, False)],
+    )
+    def test_query_dimensions_uses_datasource(
+        self, mocker, mock_query_metrics, supports_unify_query_dimensions, gray_switch_enabled
+    ):
+        query, data_source = build_dimension_unify_query(supports_unify_query_dimensions)
+        data_source.query_dimensions.return_value = ["login_count"]
+        use_unify_query = mocker.patch.object(query, "use_unify_query", return_value=gray_switch_enabled)
+
+        result = query.query_dimensions(
+            dimension_field=["event_name"],
+            limit=100,
+            start_time=1_000,
+            end_time=2_000,
+            interval=60,
+            space_uid=None,
+        )
+
+        assert result == ["login_count"]
+        if supports_unify_query_dimensions:
+            use_unify_query.assert_called_once_with()
+        else:
+            use_unify_query.assert_not_called()
+        data_source.query_dimensions.assert_called_once_with(
+            dimension_field=["event_name"],
+            limit=100,
+            start_time=1_000,
+            end_time=2_000,
+            interval=60,
+            space_uid=None,
+        )
+        mock_query_metrics["time"].labels.assert_called_once_with(
+            data_source_label="bk_monitor",
+            data_type_label="log",
+            role=mocker.ANY,
+            result_table="2_bkmonitor_event_1500137",
+            api="query_api",
+        )
+
+    def test_query_dimensions_uses_unify_query(self, mocker, mock_query_metrics):
+        query, data_source = build_dimension_unify_query()
+        data_source.to_unify_query_config.return_value = [
+            build_dimension_config(
+                dimensions=["event_name", "dimensions.bk_target_ip"],
+                conditions={
+                    "field_list": [{"field_name": "event_name", "op": "eq", "value": ["login_count"]}],
+                    "condition_list": [],
+                },
+                query_string="event.content:error",
+            )
+        ]
+        mocker.patch.object(query, "use_unify_query", return_value=True)
+        get_dimension_data = mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.get_dimension_data",
+            return_value={"values": {"event_name": ["login_count"]}},
+        )
+
+        result = query.query_dimensions(
+            dimension_field=["event_name", "dimensions.bk_target_ip"],
+            limit=100,
+            start_time=1_234_567,
+            end_time=2_345_678,
+            interval=60,
+            space_uid="bkcc__2",
+        )
+
+        assert result == ["login_count"]
+        data_source.query_dimensions.assert_not_called()
+        get_dimension_data.assert_called_once_with(
+            info_type="tag_values",
+            data_source="bkmonitor",
+            table_id="2_bkmonitor_event_1500137",
+            metric_name="event.count",
+            conditions={
+                "field_list": [{"field_name": "event_name", "op": "eq", "value": ["login_count"]}],
+                "condition_list": [],
+            },
+            query_string="event.content:error",
+            keys=["event_name"],
+            space_uid="bkcc__2",
+            bk_tenant_id="system",
+            start_time="1234",
+            end_time="2345",
+            limit=100,
+        )
+        mock_query_metrics["time"].labels.assert_called_once_with(
+            data_source_label="bk_monitor",
+            data_type_label="log",
+            role=mocker.ANY,
+            result_table="2_bkmonitor_event_1500137",
+            api="unify_query",
+        )
+
+    def test_query_dimensions_defaults_empty_query_string_and_omits_empty_optional_config(
+        self, mocker, mock_query_metrics
+    ):
+        query, data_source = build_dimension_unify_query()
+        data_source.to_unify_query_config.return_value = [
+            build_dimension_config(
+                data_source="bklog",
+                table_id="bklog_index_set_104",
+                field_name="",
+                dimensions=["path"],
+                query_string="",
+            )
+        ]
+        mocker.patch.object(query, "use_unify_query", return_value=True)
+        get_dimension_data = mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.get_dimension_data",
+            return_value={"values": {"path": ["/var/log/messages"]}},
+        )
+
+        result = query.query_dimensions(
+            dimension_field="path",
+            limit=10,
+            start_time=1_000,
+            end_time=2_000,
+            space_uid=None,
+        )
+
+        assert result == ["/var/log/messages"]
+        get_dimension_data.assert_called_once_with(
+            info_type="tag_values",
+            data_source="bklog",
+            table_id="bklog_index_set_104",
+            keys=["path"],
+            space_uid=None,
+            bk_tenant_id="system",
+            start_time="1",
+            end_time="2",
+            limit=10,
+            query_string="*",
+        )
+
+    def test_query_dimensions_falls_back_when_unify_query_config_has_no_dimensions(self, mocker, mock_query_metrics):
+        query, data_source = build_dimension_unify_query()
+        data_source.to_unify_query_config.return_value = [build_dimension_config(dimensions=[])]
+        data_source.query_dimensions.return_value = ["login_count"]
+        mocker.patch.object(query, "use_unify_query", return_value=True)
+        get_dimension_data = mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.get_dimension_data")
+
+        result = query.query_dimensions(
+            dimension_field="event_name",
+            limit=10,
+            start_time=1_000,
+            end_time=2_000,
+            interval=60,
+        )
+
+        assert result == ["login_count"]
+        get_dimension_data.assert_not_called()
+        data_source.query_dimensions.assert_called_once_with(
+            dimension_field="event_name",
+            limit=10,
+            start_time=1_000,
+            end_time=2_000,
+            interval=60,
+        )
+
+    def test_query_dimensions_reports_and_reraises_unify_query_error(self, mocker, mock_query_metrics):
+        query, data_source = build_dimension_unify_query()
+        data_source.to_unify_query_config.return_value = [build_dimension_config()]
+        error = RuntimeError("unify-query failed")
+        mock_query_metrics["status_from_exc"].return_value = "failed"
+        mocker.patch.object(query, "use_unify_query", return_value=True)
+        mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.get_dimension_data", side_effect=error)
+
+        with pytest.raises(RuntimeError, match="unify-query failed") as exc_info:
+            query.query_dimensions(
+                dimension_field="event_name",
+                limit=10,
+                start_time=1_000,
+                end_time=2_000,
+            )
+
+        assert exc_info.value is error
+        mock_query_metrics["status_from_exc"].assert_called_once_with(error)
+        mock_query_metrics["count"].labels.assert_called_once_with(
+            data_source_label="bk_monitor",
+            data_type_label="log",
+            role=mocker.ANY,
+            result_table="2_bkmonitor_event_1500137",
+            api="unify_query",
+            status="failed",
+            exception=error,
+        )
+        mock_query_metrics["report_all"].assert_called_once_with()
+
+    def test_query_dimensions_keeps_multi_source_behavior(self, mocker):
+        first_query, first_data_source = build_dimension_unify_query()
+        second_data_source = MagicMock()
+        second_data_source.metrics = [{"field": "event.count", "method": "COUNT"}]
+        first_query.data_sources.append(second_data_source)
+        query_data = mocker.patch.object(
+            first_query,
+            "query_data",
+            return_value=[{"event_name": "login"}, {"event_name": None}, {"event_name": "login"}],
+        )
+
+        result = first_query.query_dimensions(
+            dimension_field=["event_name", "dimensions.bk_target_ip"],
+            limit=10,
+            start_time=1_000,
+            end_time=2_000,
+        )
+
+        assert result == ["login"]
+        query_data.assert_called_once_with(1_000, 2_000)
+        first_data_source.query_dimensions.assert_not_called()
+
+    def test_query_dimensions_returns_empty_for_no_data_sources(self):
+        query = UnifyQuery(bk_biz_id=2, data_sources=[], expression="")
+
+        assert query.query_dimensions("event_name", 10, 1_000, 2_000) == []
+
 
 class TestQueryRawResource:
     def test_es_batch_is_optional_without_implicit_default(self):
@@ -276,3 +531,30 @@ class TestQueryRawResource:
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["is_es_batch"] is True
+
+
+class TestGetDimensionDataResource:
+    def test_accepts_unify_query_dimension_params(self):
+        serializer = GetDimensionDataResource.RequestSerializer(
+            data={
+                "info_type": "tag_values",
+                "data_source": "bklog",
+                "table_id": "bklog_index_set_104",
+                "keys": ["path"],
+                "query_string": "log:error",
+                "bk_tenant_id": "system",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["data_source"] == "bklog"
+        assert serializer.validated_data["query_string"] == "log:error"
+        assert serializer.validated_data["bk_tenant_id"] == "system"
+
+    def test_keeps_optional_params_backward_compatible(self):
+        serializer = GetDimensionDataResource.RequestSerializer(data={"info_type": "tag_values"})
+
+        assert serializer.is_valid(), serializer.errors
+        assert "data_source" not in serializer.validated_data
+        assert "query_string" not in serializer.validated_data
+        assert "bk_tenant_id" not in serializer.validated_data
