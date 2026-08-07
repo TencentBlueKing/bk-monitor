@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 from django.test import SimpleTestCase
 
-from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
+from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.exceptions import V4ResponseError, V4TimeoutError
 from apps.iam.backends.v4.provider import V4PermissionProvider, _chunked
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
@@ -27,6 +27,9 @@ class BklogNameCodecTest(SimpleTestCase):
         self.assertEqual(codec.encode_action("view_collection"), "view_collection")
         self.assertEqual(codec.encode_resource_type("space"), "space")
 
+    def test_root_resource_type_matches_bklog_model(self):
+        self.assertEqual(BKLOG_ROOT_RESOURCE_TYPE_ID, ResourceEnum.BUSINESS.id)
+
     def test_normalize_iam_path_adds_path_delimiters(self):
         self.assertEqual(self.codec.normalize_iam_path("space,215"), "/space,215/")
 
@@ -38,6 +41,27 @@ class BklogNameCodecTest(SimpleTestCase):
         )
 
         self.assertEqual(self.codec.build_ancestors(resource), [{"type": "space", "id": "215"}])
+
+    def test_build_ancestors_uses_resource_type_from_iam_path(self):
+        resource = ResourceInstance(
+            type="host",
+            id="28",
+            attributes={"_bk_iam_path_": "/biz,215/"},
+        )
+
+        self.assertEqual(self.codec.build_ancestors(resource), [{"type": "biz", "id": "215"}])
+
+    def test_build_ancestors_preserves_multiple_path_segments(self):
+        resource = ResourceInstance(
+            type="host",
+            id="28",
+            attributes={"_bk_iam_path_": "/biz,215/set,3/"},
+        )
+
+        self.assertEqual(
+            self.codec.build_ancestors(resource),
+            [{"type": "biz", "id": "215"}, {"type": "set", "id": "3"}],
+        )
 
     def test_build_ancestors_falls_back_to_biz_id(self):
         resource = ResourceInstance(type="collection", id="28", attributes={"bk_biz_id": "215"})

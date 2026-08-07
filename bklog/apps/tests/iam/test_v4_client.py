@@ -191,6 +191,16 @@ class V4ClientTest(SimpleTestCase):
                 expected_resource_ids=["1"],
             )
 
+    def test_batch_response_rejects_unknown_resource(self):
+        with self.assertRaisesRegex(V4ResponseError, "unknown.*2"):
+            self.client._extract_resource_results(
+                [
+                    {"resource_id": "1", "allowed": True},
+                    {"resource_id": "2", "allowed": False},
+                ],
+                expected_resource_ids=["1"],
+            )
+
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_no_content_response_is_not_treated_as_json(self, request_mock):
         request_mock.return_value = Mock(status_code=HTTPStatus.NO_CONTENT, content=b"")

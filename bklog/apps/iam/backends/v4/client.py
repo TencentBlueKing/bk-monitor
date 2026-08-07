@@ -156,6 +156,8 @@ class V4Client:
         if not isinstance(data, list):
             raise V4ResponseError("IAM V4 batch auth response must be a list")
 
+        expected_resource_ids = [str(resource_id) for resource_id in expected_resource_ids]
+        expected_resource_id_set = set(expected_resource_ids)
         results: dict[str, bool] = {}
         for item in data:
             if not isinstance(item, dict):
@@ -168,6 +170,10 @@ class V4Client:
             if resource_id in results:
                 raise V4ResponseError(f"duplicate IAM V4 batch result for resource={resource_id}")
             results[resource_id] = allowed
+
+        unknown_ids = [resource_id for resource_id in results if resource_id not in expected_resource_id_set]
+        if unknown_ids:
+            raise V4ResponseError(f"unknown IAM V4 batch results for resources={unknown_ids}")
 
         missing_ids = [resource_id for resource_id in expected_resource_ids if resource_id not in results]
         if missing_ids:

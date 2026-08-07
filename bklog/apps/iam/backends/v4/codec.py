@@ -4,12 +4,19 @@ import re
 
 from apps.iam.iam_engine.core.requests import ResourceInstance, to_definition_id
 
-_SPACE_PATH_PATTERN = re.compile(r"(?:^|/)space,(-?\d+)(?:/|$)")
+_IAM_PATH_SEGMENT_PATTERN = re.compile(r"(?:^|/)(?P<type>[^/,]+),(?P<id>[^/]+)(?=/|$)")
 _V2_ACTION_SUFFIX = "_v2"
+
+# BKLog 权限模型的根资源类型：仓库模型 support-files/iam/initial.json 与
+# IAM V4 dev/bklog_test（2026-08-07 查询）均注册为 space。
+# 正式 bk_log_search V4 模型注册后，灰度前仍需在目标环境重新核对。
+BKLOG_ROOT_RESOURCE_TYPE_ID = "space"
 
 
 class V4ResourceCodec:
     """将引擎资源编码成 IAM V4 鉴权和申请接口需要的格式。"""
+
+    root_resource_type_id = ""
 
     def encode_action(self, action_id: str) -> str:
         return to_definition_id(action_id)
@@ -25,7 +32,7 @@ class V4ResourceCodec:
             iam_path = next(iter(iam_path), "")
         if iam_path:
             attributes["_bk_iam_path_"] = self.normalize_iam_path(str(iam_path))
-        elif resource_type == "space":
+        elif resource_type == self.root_resource_type_id:
             attributes.pop("_bk_iam_path_", None)
         return {
             "id": str(resource.id),
@@ -51,7 +58,7 @@ class V4ResourceCodec:
 
     def build_ancestors(self, resource: ResourceInstance) -> list[dict[str, str]]:
         resource_type = self.encode_resource_type(to_definition_id(resource.type))
-        if resource_type == "space":
+        if resource_type == self.root_resource_type_id:
             return []
 
         attributes = dict(resource.attributes)
@@ -59,24 +66,37 @@ class V4ResourceCodec:
         if isinstance(iam_path, list | tuple | set):
             iam_path = next(iter(iam_path), "")
         if iam_path:
-            match = _SPACE_PATH_PATTERN.search(self.normalize_iam_path(str(iam_path)))
-            if match:
-                return [{"type": "space", "id": match.group(1)}]
+            matches = _IAM_PATH_SEGMENT_PATTERN.finditer(self.normalize_iam_path(str(iam_path)))
+            ancestors = [
+                {
+                    "type": self.encode_resource_type(match.group("type")),
+                    "id": match.group("id"),
+                }
+                for match in matches
+            ]
+            if ancestors:
+                return ancestors
 
         biz_id = attributes.get("bk_biz_id")
-        if biz_id is not None and str(biz_id).lstrip("-").isdigit():
-            return [{"type": "space", "id": str(biz_id)}]
+        if self.root_resource_type_id and biz_id is not None and str(biz_id).lstrip("-").isdigit():
+            return [{"type": self.root_resource_type_id, "id": str(biz_id)}]
 
-        for ancestor in resource.ancestor_chain:
-            ancestor_type = self.encode_resource_type(to_definition_id(ancestor.type))
-            if ancestor_type == "space":
-                return [{"type": "space", "id": str(ancestor.id)}]
+        if resource.ancestor_chain:
+            return [
+                {
+                    "type": self.encode_resource_type(to_definition_id(ancestor.type)),
+                    "id": str(ancestor.id),
+                }
+                for ancestor in resource.ancestor_chain
+            ]
 
         return []
 
 
 class BklogNameCodec(V4ResourceCodec):
     """在通用 V4 编码上适配日志平台的 Action 命名。"""
+
+    root_resource_type_id = BKLOG_ROOT_RESOURCE_TYPE_ID
 
     def encode_action(self, action_id: str) -> str:
         action_id = to_definition_id(action_id)
