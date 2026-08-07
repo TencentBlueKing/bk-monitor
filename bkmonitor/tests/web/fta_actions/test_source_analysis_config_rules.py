@@ -63,12 +63,13 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
                 "name": "rule",
                 "priority": 1,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
-                "agent_ids": ["2", "1", "2"],
+                "agent_id": "1",
                 "skill_ids": ["3", "3"],
             },
         )
 
-        self.assertEqual(data["agent_ids"], ["1", "2"])
+        # agent 是单值，不参与去重排序
+        self.assertEqual(data["agent_id"], "1")
         self.assertEqual(data["skill_ids"], ["3"])
 
     def test_condition_chain_requires_empty_last_connector(self):
@@ -103,9 +104,22 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
             bk_biz_id=2,
             name="rule",
             priority=1,
-            agent_ids=["1"],
+            agent_id="1",
             knowledge_base_ids=["10"],
         )
+
+        with self.assertRaises(SourceAnalysisResourceNotFoundError):
+            SourceAnalysisBaseResource.validate_resources(rule)
+
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1", "2"})
+    def test_visible_agent_passes_validation(self, _list_visible):
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, name="rule", priority=1, agent_id="2")
+
+        SourceAnalysisBaseResource.validate_resources(rule)
+
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1", "2"})
+    def test_invisible_agent_is_rejected(self, _list_visible):
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, name="rule", priority=1, agent_id="99")
 
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
             SourceAnalysisBaseResource.validate_resources(rule)
@@ -248,7 +262,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.create_rule(
             is_enabled=True,
             conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
-            agent_ids=["1"],
+            agent_id="1",
             bkci_project_id="project-a",
             repository_alias="repo-a",
         )
@@ -271,14 +285,14 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "bk_biz_id": 2,
                 "name": "draft",
                 "priority": 10,
-                "agent_ids": ["2", "1", "2"],
+                "agent_id": "1",
             },
         )
 
         result = CreateSourceAnalysisRuleResource().perform_request(data)
 
         self.assertFalse(result["is_enabled"])
-        self.assertEqual(result["agent_ids"], ["1", "2"])
+        self.assertEqual(result["agent_id"], "1")
         self.assertIsNone(result["bkci_project_id"])
 
     def test_enabled_rule_requires_config(self):
@@ -290,7 +304,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "priority": 10,
                 "is_enabled": True,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
-                "agent_ids": ["1"],
+                "agent_id": "1",
             },
         )
 
@@ -311,7 +325,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "priority": 10,
                 "is_enabled": True,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
-                "agent_ids": ["1"],
+                "agent_id": "1",
             },
         )
 
@@ -340,7 +354,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "priority": 10,
                 "is_enabled": True,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
-                "agent_ids": ["1"],
+                "agent_id": "1",
             },
         )
 

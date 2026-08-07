@@ -90,7 +90,8 @@ class IssueSourceAnalysisRule(AbstractRecordModel):
         default=None,
         verbose_name="蓝盾代码库别名快照",
     )
-    agent_ids = JsonField(default=list, blank=True, verbose_name="智能体 ID")
+    # 一条规则只驱动一个智能体，Skill 与知识库则是挂在该智能体上的多值输入
+    agent_id = models.CharField(max_length=64, default="", blank=True, verbose_name="智能体 ID")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID")
     knowledge_base_ids = JsonField(default=list, blank=True, verbose_name="知识库 ID")
 
@@ -190,7 +191,8 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     rule_priority = models.IntegerField(null=True, blank=True, default=None, verbose_name="命中规则优先级快照")
     bkci_project_id = models.CharField(max_length=128, verbose_name="蓝盾项目 ID 快照")
     repository_alias = models.CharField(max_length=255, verbose_name="蓝盾代码库别名快照")
-    agent_ids = JsonField(default=list, blank=True, verbose_name="智能体 ID 快照")
+    # 发起分析要求规则完整，此处必有值
+    agent_id = models.CharField(max_length=64, verbose_name="智能体 ID 快照")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID 快照")
     knowledge_base_ids = JsonField(default=list, blank=True, verbose_name="知识库 ID 快照")
 
