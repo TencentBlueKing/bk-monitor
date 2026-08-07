@@ -151,22 +151,26 @@
     }
 
     .toolbar-sort-select {
+      --sort-control-height: 32px;
+
       display: flex;
-      align-items: center;
-      height: 32px;
+      align-items: stretch;
+      height: var(--sort-control-height);
 
       .usage-sort-popover-trigger {
         display: flex;
-        align-items: center;
-        height: 32px;
+        align-items: stretch;
+        height: var(--sort-control-height);
       }
 
       .sort-prefix-icon {
-        width: 31px;
-        height: 31px;
-        line-height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--sort-control-height);
+        height: var(--sort-control-height);
+        line-height: 1;
         color: #63656e;
-        text-align: center;
         background: #fafbfd;
         border: 1px solid #c4c6cc;
         border-right: 0;
@@ -174,6 +178,16 @@
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
         border-bottom-left-radius: 2px;
+      }
+
+      .sort-field-select,
+      .sort-direction-select {
+        height: var(--sort-control-height);
+
+        .bk-select-name {
+          height: var(--sort-control-height);
+          line-height: calc(var(--sort-control-height) - 2px);
+        }
       }
 
       .sort-field-select {
@@ -283,6 +297,14 @@
     }
 
     .log-collection-table {
+      .t-pagination__total {
+        font-size: 12px;
+      }
+
+      .t-table__pagination .t-pagination__select .t-input__inner {
+        font-size: 12px;
+      }
+
       .collection-name-cell {
         display: flex;
         gap: 8px;
@@ -355,7 +377,6 @@
         display: flex;
         gap: 5px;
         align-items: center;
-        font-family: Menlo, Monaco, Consolas, monospace;
         font-size: 12px;
         line-height: 20px;
         color: #4e5e7a;
@@ -371,9 +392,18 @@
       }
 
       .storage-usage-cell {
+        display: block;
         overflow: hidden;
         line-height: 20px;
         color: #4d4f56;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cell-overflow-text {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }

@@ -73,6 +73,10 @@
     margin-left: 4px;
     border: none;
     box-shadow: none;
+
+    &.is-disabled {
+      background-color: transparent;
+    }
   }
 
   &:hover,
