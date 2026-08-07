@@ -290,6 +290,10 @@ class EtlStorage:
             "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
             "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
+            # 3 位毫秒 + 小写 z（RFC3339，k8s/istio 常见形如 2026-01-01T00:00:00.123Z 或带 +08:00 偏移）。
+            # 用 %+ 以同时兼容 Zulu(Z) 与数字偏移量，避免 %:z 无法解析字面 Z 的问题。
+            "YYYY-MM-DDTHH:mm:ss.SSSz": {"format": "%+", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSz": {"format": "%+", "zone": None},
             "ISO8601": {"format": "%+", "zone": None},
             "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
