@@ -40,12 +40,10 @@ from fta_web.issue.resources import (
     ListSourceAnalysisBkciRepositoriesResource,
     ListSourceAnalysisRulesResource,
     SaveSourceAnalysisConfigResource,
+    SourceAnalysisBaseResource,
     SourceAnalysisRulePatchSerializer,
     SourceAnalysisRuleWriteSerializer,
     UpdateSourceAnalysisRuleResource,
-    _ensure_source_analysis_flow_initialized,
-    _list_all_visible_aidev_ids,
-    _validate_source_analysis_resources,
 )
 from fta_web.issue.views import SourceAnalysisConfigViewSet, SourceAnalysisRulesViewSet
 
@@ -94,7 +92,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
             ]
         )
 
-        ids = _list_all_visible_aidev_ids(list_resources, "id")
+        ids = SourceAnalysisBaseResource.list_visible_aidev_ids(list_resources, "id")
 
         self.assertEqual(len(ids), 201)
         self.assertEqual(list_resources.call_count, 2)
@@ -110,11 +108,11 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         )
 
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
-            _validate_source_analysis_resources(rule)
+            SourceAnalysisBaseResource.validate_resources(rule)
 
     def test_missing_bkfara_endpoint_fails_closed(self):
         with self.assertRaises(SourceAnalysisFlowInitializationFailedError):
-            _ensure_source_analysis_flow_initialized(2, "project-a")
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
 
     def test_source_analysis_errors_use_unique_issue_error_codes(self):
         error_classes = [
@@ -210,8 +208,8 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             },
         )
 
-    @patch("fta_web.issue.resources._validate_source_analysis_repository")
-    @patch("fta_web.issue.resources._ensure_source_analysis_flow_initialized")
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized")
     def test_save_config_creates_default_and_syncs_rule_snapshots(self, ensure_initialized, validate_repository):
         custom_rule = self.create_rule()
 
@@ -237,9 +235,10 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         self.assertFalse(IssueSourceAnalysisConfig.objects.exists())
 
-    @patch("fta_web.issue.resources._validate_source_analysis_repository")
-    @patch(
-        "fta_web.issue.resources._ensure_source_analysis_flow_initialized",
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    @patch.object(
+        SourceAnalysisBaseResource,
+        "ensure_flow_initialized",
         side_effect=SourceAnalysisFlowInitializationFailedError(),
     )
     def test_project_change_rolls_back_when_flow_initialization_fails(self, ensure_initialized, _validate_repository):
@@ -298,8 +297,8 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
-    @patch("fta_web.issue.resources._validate_source_analysis_resources")
-    @patch("fta_web.issue.resources._ensure_source_analysis_flow_initialized")
+    @patch.object(SourceAnalysisBaseResource, "validate_resources")
+    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized")
     def test_enabled_rule_validates_resources_and_initializes_flow(self, ensure_initialized, validate_resources):
         self.create_config()
         data = validate(
@@ -321,9 +320,10 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.assertTrue(result["is_enabled"])
         self.assertEqual((result["bkci_project_id"], result["repository_alias"]), ("project-a", "repo-a"))
 
-    @patch("fta_web.issue.resources._validate_source_analysis_resources")
-    @patch(
-        "fta_web.issue.resources._ensure_source_analysis_flow_initialized",
+    @patch.object(SourceAnalysisBaseResource, "validate_resources")
+    @patch.object(
+        SourceAnalysisBaseResource,
+        "ensure_flow_initialized",
         side_effect=SourceAnalysisFlowInitializationFailedError(),
     )
     def test_enabled_rule_save_rolls_back_when_flow_initialization_fails(
