@@ -227,12 +227,14 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.assertEqual((custom_rule.bkci_project_id, custom_rule.repository_alias), ("project-a", "repo-a"))
 
     @patch.object(ListSourceAnalysisBkciRepositoriesResource, "perform_request", return_value=[])
-    def test_save_config_rejects_repository_outside_project(self, _list_repositories):
+    def test_save_config_rejects_repository_outside_project(self, list_repositories):
         with self.assertRaises(SourceAnalysisRepositoryInvalidError):
             SaveSourceAnalysisConfigResource().perform_request(
                 {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "missing"}
             )
 
+        # 代码库选项经标准 Resource 调用链取得，参数需通过 RequestSerializer 校验后传入
+        self.assertEqual(list_repositories.call_args.args[0], {"bk_biz_id": 2, "project_id": "project-a"})
         self.assertFalse(IssueSourceAnalysisConfig.objects.exists())
 
     @patch.object(SourceAnalysisBaseResource, "validate_repository")

@@ -170,8 +170,10 @@ class SourceAnalysisBaseResource(Resource):
 
     @classmethod
     def validate_repository(cls, bk_biz_id: int, bkci_project_id: str, repository_alias: str) -> None:
-        repositories = ListSourceAnalysisBkciRepositoriesResource().perform_request(
-            {"bk_biz_id": bk_biz_id, "project_id": bkci_project_id}
+        """校验代码库别名属于该蓝盾项目，选项口径与前端下拉列表保持一致。"""
+
+        repositories = resource.issue.list_source_analysis_bkci_repositories(
+            bk_biz_id=bk_biz_id, project_id=bkci_project_id
         )
         if not any(repository["id"] == repository_alias for repository in repositories):
             raise SourceAnalysisRepositoryInvalidError()
