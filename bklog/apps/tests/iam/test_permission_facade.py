@@ -6,10 +6,11 @@ from iam import Resource
 from iam.exceptions import AuthAPIError
 
 from apps.iam.exceptions import PermissionDeniedError
-from apps.iam.handlers.actions import ActionEnum
+from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.permission import Permission
 from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
+from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
 from apps.iam.iam_engine.core.types import AuthResult
 
 
@@ -97,6 +98,40 @@ class PermissionFacadeTest(SimpleTestCase):
         application_provider.get_apply_data.assert_called_once_with(
             [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
             [],
+        )
+
+    def test_v4_apply_converts_v3_sdk_resources_at_permission_boundary(self):
+        application_provider = Mock()
+        application_provider.get_apply_data.return_value = (
+            {"provider": "v4"},
+            "https://iam-v4.example/apply",
+        )
+        permission = self._make_permission()
+        permission.get_v4_permission_application_provider = Mock(return_value=application_provider)
+        resource = Resource(
+            "bk_log_search",
+            "collection",
+            "1",
+            {"name": "collection-1", "_bk_iam_path_": "/space,10/"},
+        )
+
+        permission.get_apply_data(
+            [ActionEnum.VIEW_COLLECTION],
+            [resource],
+            mode=AuthMode.V4,
+        )
+
+        application_provider.get_apply_data.assert_called_once_with(
+            [ActionEnum.VIEW_COLLECTION],
+            [
+                EngineResourceInstance(
+                    system="bk_log_search",
+                    type="collection",
+                    id="1",
+                    name="collection-1",
+                    attributes={"name": "collection-1", "_bk_iam_path_": "/space,10/"},
+                )
+            ],
         )
 
     def test_v4_apply_without_provider_falls_back_to_v3(self):
@@ -229,6 +264,16 @@ class PermissionFacadeTest(SimpleTestCase):
         permission._get_v3_apply_data.assert_not_called()
         error_log.assert_called_once()
 
+    def test_v3_apply_error_is_not_hidden_by_v4_degradation_logic(self):
+        permission = self._make_permission()
+        permission._get_v3_apply_data = Mock(side_effect=RuntimeError("v3 apply unavailable"))
+
+        with self.assertRaisesMessage(RuntimeError, "v3 apply unavailable"):
+            permission.get_apply_data(
+                [ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE],
+                mode=AuthMode.V3,
+            )
+
     def test_union_mode_allows_when_v3_allows_and_v4_is_not_configured(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.iam_client.is_allowed.return_value = True
@@ -353,3 +398,22 @@ class PermissionFacadeTest(SimpleTestCase):
     @staticmethod
     def _make_permission() -> Permission:
         return Permission(username="admin", bk_tenant_id="tenant-1")
+
+
+@override_settings(BK_IAM_SYSTEM_ID="bk_log_search", BK_APP_TENANT_ID="default")
+class V4ProviderConstructionTest(SimpleTestCase):
+    @patch("apps.iam.handlers.permission.V4PermissionProvider.from_settings")
+    @patch.object(Permission, "get_iam_client", return_value=Mock())
+    def test_v4_provider_is_built_lazily_once_with_platform_action_resolver(self, _, from_settings):
+        provider = Mock()
+        from_settings.return_value = provider
+        permission = Permission(username="admin", bk_tenant_id="tenant-1")
+
+        self.assertIs(permission.get_v4_provider(), provider)
+        self.assertIs(permission.get_v4_provider(), provider)
+
+        from_settings.assert_called_once_with(
+            username="admin",
+            bk_tenant_id="tenant-1",
+            action_resolver=get_action_by_id,
+        )

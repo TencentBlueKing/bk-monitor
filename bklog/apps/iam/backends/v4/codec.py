@@ -4,24 +4,18 @@ import re
 
 from apps.iam.iam_engine.core.requests import ResourceInstance, to_definition_id
 
-_BIZ_PATH_PATTERN = re.compile(r"(?:^|/)(?:biz|space),(-?\d+)(?:/|$)")
+_SPACE_PATH_PATTERN = re.compile(r"(?:^|/)space,(-?\d+)(?:/|$)")
 _V2_ACTION_SUFFIX = "_v2"
 
 
-class BklogNameCodec:
-    """在 Provider 边界将 BKLog 业务命名转换为 IAM V4 格式。"""
+class V4ResourceCodec:
+    """将引擎资源编码成 IAM V4 鉴权和申请接口需要的格式。"""
 
     def encode_action(self, action_id: str) -> str:
-        action_id = to_definition_id(action_id)
-        if action_id.endswith(_V2_ACTION_SUFFIX):
-            return action_id[: -len(_V2_ACTION_SUFFIX)]
-        return action_id
+        return to_definition_id(action_id)
 
     def encode_resource_type(self, resource_type: str) -> str:
-        resource_type = to_definition_id(resource_type)
-        if resource_type == "biz":
-            return "space"
-        return resource_type
+        return to_definition_id(resource_type)
 
     def encode_resource_for_auth(self, resource: ResourceInstance) -> dict:
         resource_type = self.encode_resource_type(to_definition_id(resource.type))
@@ -46,8 +40,9 @@ class BklogNameCodec:
             payload["ancestors"] = ancestors
         return payload
 
-    def normalize_iam_path(self, iam_path: str) -> str:
-        normalized = iam_path.replace("/biz,", "/space,").replace(",biz,", ",space,")
+    @staticmethod
+    def normalize_iam_path(iam_path: str) -> str:
+        normalized = iam_path
         if not normalized.startswith("/"):
             normalized = f"/{normalized}"
         if not normalized.endswith("/"):
@@ -64,7 +59,7 @@ class BklogNameCodec:
         if isinstance(iam_path, list | tuple | set):
             iam_path = next(iter(iam_path), "")
         if iam_path:
-            match = _BIZ_PATH_PATTERN.search(self.normalize_iam_path(str(iam_path)))
+            match = _SPACE_PATH_PATTERN.search(self.normalize_iam_path(str(iam_path)))
             if match:
                 return [{"type": "space", "id": match.group(1)}]
 
@@ -78,3 +73,13 @@ class BklogNameCodec:
                 return [{"type": "space", "id": str(ancestor.id)}]
 
         return []
+
+
+class BklogNameCodec(V4ResourceCodec):
+    """在通用 V4 编码上适配日志平台的 Action 命名。"""
+
+    def encode_action(self, action_id: str) -> str:
+        action_id = to_definition_id(action_id)
+        if action_id.endswith(_V2_ACTION_SUFFIX):
+            return action_id[: -len(_V2_ACTION_SUFFIX)]
+        return action_id

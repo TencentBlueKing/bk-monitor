@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from http import HTTPStatus
 from typing import Any
@@ -8,7 +9,6 @@ from urllib.parse import urljoin
 import requests
 from requests.exceptions import RequestException, Timeout
 
-from apps.api.base import get_request_api_headers
 from apps.iam.backends.v4.config import V4Options
 from apps.iam.backends.v4.exceptions import (
     V4ClientError,
@@ -85,12 +85,21 @@ class V4Client:
         if not self.options.gateway_url:
             logger.error("IAM V4 gateway is not configured; set BKAPP_IAM_V4_API_BASE_URL to the bkiam APIGateway root")
             raise V4TransportError("IAM V4 gateway is not configured (BKAPP_IAM_V4_API_BASE_URL)")
+        tenant_id = str(self.bk_tenant_id or "").strip()
+        if not tenant_id:
+            raise V4TransportError("IAM V4 request requires a non-empty bk_tenant_id")
 
         url = urljoin(self.options.gateway_url.rstrip("/") + "/", path.lstrip("/"))
         headers = {
             "Content-Type": "application/json",
-            "X-Bkapi-Authorization": get_request_api_headers({"bk_username": self.username}),
-            "X-Bk-Tenant-Id": self.bk_tenant_id,
+            "X-Bkapi-Authorization": json.dumps(
+                {
+                    "bk_app_code": self.options.app_code,
+                    "bk_app_secret": self.options.app_secret,
+                    "bk_username": self.username,
+                }
+            ),
+            "X-Bk-Tenant-Id": tenant_id,
         }
         try:
             response = requests.request(

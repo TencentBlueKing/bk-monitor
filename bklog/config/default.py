@@ -446,7 +446,7 @@ BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_A
 # IAM V4（bkiam 网关）；必须显式配置 BKAPP_IAM_V4_API_BASE_URL，未配置时 V4 client 会记录错误并安全失败
 BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL", "").strip()
 BK_IAM_V4_TIMEOUT = int(os.getenv("BK_IAM_V4_TIMEOUT", "10"))
-BK_IAM_V4_BATCH_CHUNK_SIZE = int(os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100"))
+BK_IAM_V4_BATCH_CHUNK_SIZE = int(os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "20"))
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"

@@ -10,6 +10,7 @@ from apps.iam.backends.v4.gateway import resolve_v4_gateway_url
 DEFAULT_AUTH_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/auth/"
 DEFAULT_AUTH_BY_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/"
 DEFAULT_APPLY_URL_PATH = "api/v1/open/application/permission-apply-urls/"
+MAX_BATCH_CHUNK_SIZE = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +35,13 @@ class V4Options:
             gateway_url=resolve_v4_gateway_url(),
             system_id=system_id,
             timeout_seconds=float(getattr(settings, "BK_IAM_V4_TIMEOUT", 10)),
-            batch_chunk_size=int(getattr(settings, "BK_IAM_V4_BATCH_CHUNK_SIZE", 100)),
+            batch_chunk_size=max(
+                1,
+                min(
+                    int(getattr(settings, "BK_IAM_V4_BATCH_CHUNK_SIZE", MAX_BATCH_CHUNK_SIZE)),
+                    MAX_BATCH_CHUNK_SIZE,
+                ),
+            ),
             auth_path=getattr(settings, "BK_IAM_V4_AUTH_PATH", DEFAULT_AUTH_PATH),
             auth_by_resources_path=getattr(
                 settings,

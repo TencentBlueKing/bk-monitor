@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from typing import Any
-
-from iam import Resource
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 
 from apps.iam.backends.v4.client import V4Client
-from apps.iam.backends.v4.codec import BklogNameCodec
-from apps.iam.backends.v4.config import V4Options
+from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
+from apps.iam.backends.v4.config import MAX_BATCH_CHUNK_SIZE, V4Options
 from apps.iam.backends.v4.exceptions import V4ClientError
-from apps.iam.handlers.actions import ActionMeta, get_action_by_id
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, to_definition_id
+from apps.iam.iam_engine.core.requests import (
+    ActionDefinition,
+    AuthRequest,
+    BatchAuthRequest,
+    DefinitionRef,
+    ResourceInstance,
+    ResourceTypeDefinition,
+    to_definition_id,
+)
 from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
 from apps.iam.iam_engine.provider.base import PermissionProvider
 
@@ -28,18 +34,29 @@ class V4PermissionProvider(PermissionProvider):
         self,
         client: V4Client,
         *,
-        codec: BklogNameCodec | None = None,
+        codec: V4ResourceCodec | None = None,
+        action_resolver: Callable[[str], ActionDefinition] | None = None,
         batch_chunk_size: int | None = None,
     ) -> None:
         self.client = client
         self.codec = codec or BklogNameCodec()
-        self.batch_chunk_size = batch_chunk_size or client.options.batch_chunk_size
+        self.action_resolver = action_resolver
+        configured_chunk_size = client.options.batch_chunk_size if batch_chunk_size is None else batch_chunk_size
+        if configured_chunk_size <= 0:
+            raise ValueError("batch_chunk_size must be positive")
+        self.batch_chunk_size = min(configured_chunk_size, MAX_BATCH_CHUNK_SIZE)
 
     @classmethod
-    def from_settings(cls, *, username: str, bk_tenant_id: str) -> V4PermissionProvider:
+    def from_settings(
+        cls,
+        *,
+        username: str,
+        bk_tenant_id: str,
+        action_resolver: Callable[[str], ActionDefinition] | None = None,
+    ) -> V4PermissionProvider:
         options = V4Options.from_settings()
         client = V4Client(options, username=username, bk_tenant_id=bk_tenant_id)
-        return cls(client)
+        return cls(client, action_resolver=action_resolver)
 
     def is_allowed(self, request: AuthRequest) -> AuthResult:
         subject = self._build_subject(request)
@@ -69,8 +86,8 @@ class V4PermissionProvider(PermissionProvider):
         for action_ref in request.action_ids:
             action_id = to_definition_id(action_ref)
             encoded_action_id = self.codec.encode_action(action_id)
+            action = self._resolve_action(action_ref)
             matched_resources = self._resources_for_action(action_ref, resources_by_id)
-            action = get_action_by_id(action_ref)
 
             if action.related_resource_types and not matched_resources:
                 items.extend(
@@ -137,19 +154,19 @@ class V4PermissionProvider(PermissionProvider):
 
     def get_apply_data(
         self,
-        actions: list[ActionMeta | str],
-        resources: list[Resource] | None = None,
+        actions: list[ActionDefinition | str],
+        resources: list[ResourceInstance] | None = None,
     ) -> tuple[dict[str, Any], str]:
         resources = resources or []
         permissions = []
-        for action in actions:
-            action = get_action_by_id(action)
+        for action_ref in actions:
+            action = self._resolve_action(action_ref)
             encoded_action_id = self.codec.encode_action(action.id)
             permission: dict[str, Any] = {"action_id": encoded_action_id, "resources": []}
-            if action.related_resource_types and resources:
-                for resource in resources:
-                    engine_resource = self._from_iam_resource(resource)
-                    permission["resources"].append(self.codec.encode_resource_for_apply(engine_resource))
+            matched_resources = self._match_resources(action.related_resource_types, resources)
+            permission["resources"].extend(
+                self.codec.encode_resource_for_apply(resource) for resource in matched_resources
+            )
             permissions.append(permission)
 
         try:
@@ -180,20 +197,39 @@ class V4PermissionProvider(PermissionProvider):
 
     def _resources_for_action(
         self,
-        action_ref: ActionMeta | str,
+        action_ref: DefinitionRef,
         resources_by_id: dict[str, ResourceInstance],
     ) -> list[ResourceInstance]:
-        action = get_action_by_id(action_ref)
+        action = self._resolve_action(action_ref)
         if not action.related_resource_types:
             return []
 
-        allowed_types = {resource_type.id for resource_type in action.related_resource_types}
-        matched = []
-        for resource in resources_by_id.values():
-            resource_type = self.codec.encode_resource_type(to_definition_id(resource.type))
-            if resource_type in allowed_types:
-                matched.append(resource)
-        return matched
+        return self._match_resources(action.related_resource_types, list(resources_by_id.values()))
+
+    def _resolve_action(self, action_ref: DefinitionRef) -> ActionDefinition:
+        if isinstance(action_ref, str):
+            if self.action_resolver is None:
+                raise ValueError(f"action resolver is required for action={action_ref}")
+            return self.action_resolver(action_ref)
+        return cast(ActionDefinition, action_ref)
+
+    def _match_resources(
+        self,
+        related_resource_types: Sequence[ResourceTypeDefinition],
+        resources: list[ResourceInstance],
+    ) -> list[ResourceInstance]:
+        if not related_resource_types:
+            return []
+
+        allowed_resources = {
+            (resource_type.system_id, self.codec.encode_resource_type(resource_type.id))
+            for resource_type in related_resource_types
+        }
+        return [
+            resource
+            for resource in resources
+            if (resource.system, self.codec.encode_resource_type(to_definition_id(resource.type))) in allowed_resources
+        ]
 
     @staticmethod
     def _resource_ids_for_action(action_id: str, request: BatchAuthRequest) -> list[str]:
@@ -211,14 +247,3 @@ class V4PermissionProvider(PermissionProvider):
             for current_action_id, resource_id in request.iter_keys()
             if current_action_id == action_id
         ]
-
-    @staticmethod
-    def _from_iam_resource(resource: Resource) -> ResourceInstance:
-        attributes = dict(resource.attribute or {})
-        return ResourceInstance(
-            system=resource.system,
-            type=resource.type,
-            id=str(resource.id),
-            name=attributes.get("name", ""),
-            attributes=attributes,
-        )
