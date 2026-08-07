@@ -189,6 +189,28 @@ class EtlHandler:
         if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
             return
 
+        if clean_template is not None:
+            # 加事务和行锁，避免并发导致绑定到已经删除的模板
+            with transaction.atomic():
+                active_template = (
+                    CleanTemplate.objects.select_for_update()
+                    .filter(
+                        clean_template_id=clean_template.clean_template_id,
+                        is_deleted=False,
+                    )
+                    .first()
+                )
+                if active_template is None:
+                    raise CleanTemplateNotExistException(
+                        CleanTemplateNotExistException.MESSAGE.format(
+                            clean_template_id=clean_template.clean_template_id
+                        )
+                    )
+                self._save_clean_template_association(clean_template)
+            return
+        self._save_clean_template_association(clean_template)
+
+    def _save_clean_template_association(self, clean_template):
         update_fields = {
             "clean_template_id": clean_template.clean_template_id if clean_template else None,
             "clean_template_version": clean_template.config_version if clean_template else None,

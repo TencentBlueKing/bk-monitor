@@ -306,6 +306,21 @@ class TestCleanTemplate(TestCase):
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.SUCCESS.value)
 
+    def test_etl_does_not_associate_deleted_template(self):
+        template = self.create_template()
+        collector = self.create_collector()
+        handler = EtlHandler(collector.collector_config_id)
+        clean_template = CleanTemplate.objects.get(clean_template_id=template["clean_template_id"])
+
+        clean_template.delete()
+        with self.assertRaises(CleanTemplateNotExistException):
+            handler._update_clean_template(template["clean_template_id"], clean_template)
+
+        collector.refresh_from_db()
+        self.assertIsNone(collector.clean_template_id)
+        self.assertIsNone(collector.clean_template_version)
+        self.assertIsNone(collector.clean_template_sync_status)
+
     def test_etl_rejects_template_from_another_business(self):
         template = self.create_template()
         collector = self.create_collector(bk_biz_id=999)
