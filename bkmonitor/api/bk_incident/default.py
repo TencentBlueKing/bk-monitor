@@ -174,6 +174,23 @@ class GetTaskStatusResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
 
+class EnsureSourceAnalysisFlowResource(IncidentBaseResource):
+    """幂等初始化或对齐业务源码分析流程。"""
+
+    # TODO: BKFara 发布源码分析初始化资源后补充实际路径。
+    action = ""
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+
+    def perform_request(self, validated_request_data):
+        # 源码分析协议直接使用 bk_biz_id，不沿用 IncidentBaseResource 的 scope_value 转换。
+        return APIResource.perform_request(self, validated_request_data)
+
+
 class GetIncidentDiagnosisResource(IncidentBaseResource):
     """
     获取故障诊断面板数据(incident_diagnosis.sub_panels)
