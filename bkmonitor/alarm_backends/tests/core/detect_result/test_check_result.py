@@ -24,6 +24,7 @@ class TestDetectResult(TestCase):
 
     def setUp(self):
         CacheNode.refresh_from_settings()
+        CheckResult.begin_pipeline_batch()
 
     def test_md5_to_dimension_key(self):
         check_result = CheckResult(

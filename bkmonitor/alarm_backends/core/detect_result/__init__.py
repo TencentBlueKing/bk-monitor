@@ -63,7 +63,7 @@ class CheckResult(Result):
 
         后台批次入口必须先调用 begin_pipeline_batch()，避免复用上一批未执行的命令。
 
-        >>>redis_pipeline = CheckResult.pipeline()
+        >>>redis_pipeline = CheckResult.begin_pipeline_batch()
         >>>assert redis_pipeline is CheckResult(
         ...    strategy_id=1, item_id=2, dimensions_md5="md5_str", level="1").CHECK_RESULT
         """
