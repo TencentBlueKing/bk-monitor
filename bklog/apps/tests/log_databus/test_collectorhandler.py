@@ -25,7 +25,8 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from apps.exceptions import ApiResultError
-from apps.log_databus.constants import LogPluginInfo
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, LogPluginInfo, STORAGE_CLUSTER_TYPE
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector.host import HostCollectorHandler
 
 BK_DATA_ID = 1
@@ -315,3 +316,44 @@ class TestCollectorHandler(TestCase):
             )[0],
             ["127.0.0.1"],
         )
+
+
+class TestCollectorClusterInfo(TestCase):
+    @patch.object(CollectorHandler, "bulk_cluster_infos")
+    def test_add_cluster_info_maps_storage_expiration_to_retention(self, mock_bulk_cluster_infos):
+        es_table_id = "2_bklog.es_collector"
+        doris_table_id = "2_bklog.doris_collector"
+        mock_bulk_cluster_infos.return_value = {
+            es_table_id: {
+                "storage_config": {"retention": 7},
+                "cluster_config": {"cluster_id": 1, "cluster_name": "es"},
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+            },
+            doris_table_id: {
+                "storage_config": {"expire_days": 30},
+                "cluster_config": {"cluster_id": 2, "cluster_name": "doris"},
+                "cluster_type": DORIS_CLUSTER_TYPE,
+            },
+        }
+        collector_data = [
+            {
+                "table_id": es_table_id,
+                "category_id": "os",
+                "custom_type": "log",
+                "created_at": "2024-01-01 00:00:00",
+                "updated_at": "2024-01-01 00:00:00",
+            },
+            {
+                "table_id": doris_table_id,
+                "category_id": "os",
+                "custom_type": "log",
+                "created_at": "2024-01-01 00:00:00",
+                "updated_at": "2024-01-01 00:00:00",
+            },
+        ]
+
+        result = CollectorHandler.add_cluster_info(collector_data)
+
+        self.assertEqual(result[0]["retention"], 7)
+        self.assertEqual(result[1]["retention"], 30)
+        mock_bulk_cluster_infos.assert_called_once_with(result_table_list=[es_table_id, doris_table_id])

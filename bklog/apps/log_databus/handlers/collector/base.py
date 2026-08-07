@@ -959,7 +959,9 @@ class CollectorHandler:
             _data["storage_display_name"] = (
                 cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
             )
-            _data["retention"] = cluster_info["storage_config"].get("retention", 0)
+            storage_cluster_type = cluster_info.get("cluster_type") or _data.get("storage_cluster_type")
+            retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
+            _data["retention"] = cluster_info["storage_config"].get(retention_field, 0)
             # table_id
             if _data.get("table_id"):
                 table_id_prefix, table_id = _data["table_id"].split(".")
@@ -1875,9 +1877,7 @@ class CollectorHandler:
 
     @staticmethod
     def get_or_create_parent_index_set_ids_by_parent_index_set_names(
-        parent_index_set_names,
-        bk_biz_id: int | None = None,
-        space_uid: str | None = None
+        parent_index_set_names, bk_biz_id: int | None = None, space_uid: str | None = None
     ) -> list | None:
         if parent_index_set_names is None:
             return None
