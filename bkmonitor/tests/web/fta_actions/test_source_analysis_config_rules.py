@@ -19,7 +19,9 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisRule
 from bkmonitor.utils.user import set_local_username
+from core.drf_resource.exceptions import custom_exception_handler
 from core.errors.issue import (
+    IssueError,
     SourceAnalysisConfigNotFoundError,
     SourceAnalysisDefaultRuleCannotDeleteError,
     SourceAnalysisDefaultRuleConditionsInvalidError,
@@ -107,18 +109,14 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
             knowledge_base_ids=["10"],
         )
 
-        with self.assertRaises(SourceAnalysisResourceNotFoundError) as error:
+        with self.assertRaises(SourceAnalysisResourceNotFoundError):
             _validate_source_analysis_resources(rule)
 
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisResourceNotFoundError.reason})
-
     def test_missing_bkfara_endpoint_fails_closed(self):
-        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as error:
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError):
             _ensure_source_analysis_flow_initialized(2, "project-a")
 
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisFlowInitializationFailedError.reason})
-
-    def test_source_analysis_errors_use_issue_error_codes_and_stable_reasons(self):
+    def test_source_analysis_errors_use_unique_issue_error_codes(self):
         error_classes = [
             SourceAnalysisUpstreamUnavailableError,
             SourceAnalysisConfigNotFoundError,
@@ -135,7 +133,10 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         self.assertEqual(len({error.code for error in error_classes}), len(error_classes))
         for error_class in error_classes:
             with self.subTest(error_class=error_class.__name__):
-                self.assertEqual(error_class().data, {"reason": error_class.reason})
+                self.assertTrue(issubclass(error_class, IssueError))
+                response = custom_exception_handler(error_class(), {})
+                self.assertEqual(response.data["code"], error_class.code)
+                self.assertIsNone(response.data["data"])
 
     def test_viewsets_select_read_and_write_permissions(self):
         for viewset_class in (SourceAnalysisConfigViewSet, SourceAnalysisRulesViewSet):
@@ -229,12 +230,11 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
     @patch.object(ListSourceAnalysisBkciRepositoriesResource, "perform_request", return_value=[])
     def test_save_config_rejects_repository_outside_project(self, _list_repositories):
-        with self.assertRaises(SourceAnalysisRepositoryInvalidError) as error:
+        with self.assertRaises(SourceAnalysisRepositoryInvalidError):
             SaveSourceAnalysisConfigResource().perform_request(
                 {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "missing"}
             )
 
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisRepositoryInvalidError.reason})
         self.assertFalse(IssueSourceAnalysisConfig.objects.exists())
 
     @patch("fta_web.issue.resources._validate_source_analysis_repository")
@@ -293,10 +293,9 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             },
         )
 
-        with self.assertRaises(SourceAnalysisConfigNotFoundError) as error:
+        with self.assertRaises(SourceAnalysisConfigNotFoundError):
             CreateSourceAnalysisRuleResource().perform_request(data)
 
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisConfigNotFoundError.reason})
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
     @patch("fta_web.issue.resources._validate_source_analysis_resources")
@@ -348,17 +347,15 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
-    def test_duplicate_priority_has_stable_reason(self):
+    def test_duplicate_priority_raises_specific_error(self):
         self.create_rule(priority=10)
         data = validate(
             SourceAnalysisRuleWriteSerializer,
             {"bk_biz_id": 2, "name": "duplicate", "priority": 10},
         )
 
-        with self.assertRaises(SourceAnalysisRulePriorityConflictError) as error:
+        with self.assertRaises(SourceAnalysisRulePriorityConflictError):
             CreateSourceAnalysisRuleResource().perform_request(data)
-
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisRulePriorityConflictError.reason})
 
     def test_list_is_priority_descending_with_default_last(self):
         self.create_rule(name="low", priority=1)
@@ -377,18 +374,15 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         )
         data["rule_id"] = default_rule.id
 
-        with self.assertRaises(SourceAnalysisDefaultRulePriorityImmutableError) as error:
+        with self.assertRaises(SourceAnalysisDefaultRulePriorityImmutableError):
             UpdateSourceAnalysisRuleResource().perform_request(data)
-
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisDefaultRulePriorityImmutableError.reason})
 
     def test_delete_rejects_default_and_hard_deletes_custom_rule(self):
         default_rule = self.create_rule(name="default", priority=-1, is_default=True)
         custom_rule = self.create_rule(priority=10)
 
-        with self.assertRaises(SourceAnalysisDefaultRuleCannotDeleteError) as error:
+        with self.assertRaises(SourceAnalysisDefaultRuleCannotDeleteError):
             DeleteSourceAnalysisRuleResource().perform_request({"bk_biz_id": 2, "rule_id": default_rule.id})
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisDefaultRuleCannotDeleteError.reason})
 
         DeleteSourceAnalysisRuleResource().perform_request({"bk_biz_id": 2, "rule_id": custom_rule.id})
         self.assertFalse(IssueSourceAnalysisRule.origin_objects.filter(id=custom_rule.id).exists())
@@ -401,9 +395,8 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         data = validate(SourceAnalysisRulePatchSerializer, {"bk_biz_id": 2, "is_enabled": True})
         data["rule_id"] = rule.id
 
-        with self.assertRaises(SourceAnalysisRuleIncompleteError) as error:
+        with self.assertRaises(SourceAnalysisRuleIncompleteError):
             UpdateSourceAnalysisRuleResource().perform_request(data)
 
-        self.assertEqual(error.exception.data, {"reason": SourceAnalysisRuleIncompleteError.reason})
         rule.refresh_from_db()
         self.assertFalse(rule.is_enabled)
