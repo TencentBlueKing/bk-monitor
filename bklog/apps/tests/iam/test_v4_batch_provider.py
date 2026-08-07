@@ -17,7 +17,7 @@ class V4BatchProviderTest(SimpleTestCase):
         self.provider = V4PermissionProvider(
             self.client,
             action_resolver=get_action_by_id,
-            batch_chunk_size=20,
+            batch_chunk_size=100,
         )
 
     def _make_request(self, resource_count: int, action_count: int = 1) -> BatchAuthRequest:
@@ -51,7 +51,7 @@ class V4BatchProviderTest(SimpleTestCase):
         self.provider.batch_is_allowed(request)
 
         self.assertEqual(self.client.direct_auth.call_count, 0)
-        self.assertEqual(self.client.direct_auth_by_resources.call_count, 13)
+        self.assertEqual(self.client.direct_auth_by_resources.call_count, 3)
 
     def test_batch_chunks_by_configured_size(self):
         self.client.direct_auth_by_resources.side_effect = lambda **kwargs: {
@@ -62,22 +62,23 @@ class V4BatchProviderTest(SimpleTestCase):
         self.provider.batch_is_allowed(request)
 
         chunk_sizes = [len(call.kwargs["resources"]) for call in self.client.direct_auth_by_resources.call_args_list]
-        self.assertEqual(chunk_sizes, [20, 20, 20, 20, 20, 20, 5])
+        self.assertEqual(chunk_sizes, [100, 25])
 
     def test_batch_size_is_capped_at_v4_contract_limit(self):
-        provider = V4PermissionProvider(
-            self.client,
-            action_resolver=get_action_by_id,
-            batch_chunk_size=100,
-        )
         self.client.direct_auth_by_resources.side_effect = lambda **kwargs: {
             resource["id"]: True for resource in kwargs["resources"]
         }
 
-        provider.batch_is_allowed(self._make_request(resource_count=101))
+        with self.assertLogs("iam.v4.config", level="WARNING"):
+            provider = V4PermissionProvider(
+                self.client,
+                action_resolver=get_action_by_id,
+                batch_chunk_size=101,
+            )
+            provider.batch_is_allowed(self._make_request(resource_count=101))
 
         chunk_sizes = [len(call.kwargs["resources"]) for call in self.client.direct_auth_by_resources.call_args_list]
-        self.assertEqual(chunk_sizes, [20, 20, 20, 20, 20, 1])
+        self.assertEqual(chunk_sizes, [100, 1])
 
     def test_partial_batch_response_marks_missing_items_as_error(self):
         self.client.direct_auth_by_resources.side_effect = V4ResponseError("missing IAM V4 batch results")

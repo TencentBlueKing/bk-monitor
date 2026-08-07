@@ -101,7 +101,7 @@ class V4PermissionProviderTest(SimpleTestCase):
     def setUp(self):
         self.client = Mock()
         self.client.options.system_id = "bk_log_search"
-        self.client.options.batch_chunk_size = 20
+        self.client.options.batch_chunk_size = 100
         self.provider = V4PermissionProvider(self.client, action_resolver=get_action_by_id)
 
     def test_single_allow_result(self):
@@ -322,9 +322,11 @@ class V4PermissionProviderTest(SimpleTestCase):
         with self.assertRaisesMessage(ValueError, "action resolver is required"):
             provider.get_apply_data(["view_collection_v2"], [])
 
-    def test_non_positive_batch_size_is_rejected(self):
-        with self.assertRaisesMessage(ValueError, "batch_chunk_size must be positive"):
-            V4PermissionProvider(self.client, batch_chunk_size=0)
+    def test_non_positive_batch_size_falls_back_to_default(self):
+        with self.assertLogs("iam.v4.config", level="WARNING"):
+            provider = V4PermissionProvider(self.client, batch_chunk_size=0)
+
+        self.assertEqual(provider.batch_chunk_size, 100)
 
     def test_chunk_helper_rejects_non_positive_size(self):
         with self.assertRaisesMessage(ValueError, "chunk_size must be positive"):

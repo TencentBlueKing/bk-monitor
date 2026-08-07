@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
-from apps.iam.backends.v4.config import MAX_BATCH_CHUNK_SIZE, V4Options
+from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size
 from apps.iam.backends.v4.exceptions import V4ClientError
 from apps.iam.iam_engine.core.requests import (
     ActionDefinition,
@@ -42,9 +42,7 @@ class V4PermissionProvider(PermissionProvider):
         self.codec = codec or BklogNameCodec()
         self.action_resolver = action_resolver
         configured_chunk_size = client.options.batch_chunk_size if batch_chunk_size is None else batch_chunk_size
-        if configured_chunk_size <= 0:
-            raise ValueError("batch_chunk_size must be positive")
-        self.batch_chunk_size = min(configured_chunk_size, MAX_BATCH_CHUNK_SIZE)
+        self.batch_chunk_size = normalize_batch_chunk_size(configured_chunk_size)
 
     @classmethod
     def from_settings(

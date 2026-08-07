@@ -39,17 +39,26 @@ class V4GatewayConfigTest(SimpleTestCase):
             self.assertEqual(options.gateway_url, "https://bkiam.apigw.o.woa.com/prod/")
             self.assertIn("{system_id}", options.auth_path)
 
-    def test_v4_batch_chunk_size_is_capped_at_contract_limit(self):
-        with self.settings(BK_IAM_V4_BATCH_CHUNK_SIZE=100):
-            options = V4Options.from_settings()
+    def test_v4_batch_chunk_size_is_capped_at_iam_contract_limit(self):
+        with self.settings(BK_IAM_V4_BATCH_CHUNK_SIZE=101):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
 
-        self.assertEqual(options.batch_chunk_size, 20)
+        self.assertEqual(options.batch_chunk_size, 100)
 
-    def test_v4_batch_chunk_size_keeps_positive_safe_minimum(self):
+    def test_v4_batch_chunk_size_invalid_value_falls_back_to_default(self):
         with self.settings(BK_IAM_V4_BATCH_CHUNK_SIZE=0):
-            options = V4Options.from_settings()
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
 
-        self.assertEqual(options.batch_chunk_size, 1)
+        self.assertEqual(options.batch_chunk_size, 100)
+
+    def test_v4_batch_chunk_size_non_numeric_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_BATCH_CHUNK_SIZE="invalid"):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.batch_chunk_size, 100)
 
     def test_v4_options_without_gateway_are_quiet_until_request(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):

@@ -37,7 +37,7 @@ class V4IntegrationContractTest(SimpleTestCase):
                 gateway_url="https://bkiam.example/",
                 system_id="bk_log_search",
                 timeout_seconds=1,
-                batch_chunk_size=20,
+                batch_chunk_size=100,
                 auth_path="api/v1/open/rbac/authorization/systems/{system_id}/auth/",
                 auth_by_resources_path="api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/",
                 apply_url_path="api/v1/open/application/permission-apply-urls/",
