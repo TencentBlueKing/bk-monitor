@@ -22,7 +22,7 @@ import importlib
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..iam_engine.callback.service import CallbackService
-from ..iam_engine.core.types import Subject, to_action_id
+from ..iam_engine.core.types import ResourceInstance, Subject, to_action_id
 from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
@@ -203,6 +203,86 @@ class V4PermissionProvider(PermissionProvider):
                 resources.append({"id": r.id, "type": r.type, "ancestors": ancestors})
             permissions.append({"action_id": aid, "resources": resources})
         return self._client.generate_perm_apply_url(permissions)
+
+    # ================================================================
+    # 权限申请数据 —— 与 V3 gen_perms_apply_data 兼容
+    # ================================================================
+
+    def get_apply_data(
+        self,
+        action_ids: list[str],
+        resources: list[ResourceInstance],
+        subject: Subject,  # noqa: ARG002 保留签名一致性
+    ) -> dict | None:
+        """生成 IAM Application 格式的权限申请数据。
+
+        纯本地拼接，不调 V4 IAM 平台 API。资源展示名称通过 callback_service
+        分发到对应 handler 查询（数据库 / 缓存）。
+
+        Args:
+            action_ids: 业务 action_id 列表
+            resources: 被拒的资源实例列表
+            subject: 鉴权主体（未用，保留签名）
+
+        Returns:
+            IAM Application 格式 dict，字段与 V3 gen_perms_apply_data 兼容。
+        """
+        system_id = self._cfg.system.id
+        actions_data: list[dict] = []
+
+        for action_id_biz in action_ids:
+            try:
+                action_def = self.schema.get_action(action_id_biz)
+            except Exception:
+                action_def = None
+
+            action_name = action_def.name if action_def else action_id_biz
+            dialect_action_id = self.codec.encode_action(action_id_biz)
+
+            related_resource_types: list[dict] = []
+            rt_id: str = action_def.resource_type if action_def else ""
+
+            if rt_id and resources:
+                instance_ids = [r.id for r in resources]
+                # 通过回调服务补全展示名称
+                display_map: dict[str, str] = {}
+                if hasattr(self, "callback_service"):
+                    try:
+                        info = self.callback_service.dispatch_fetch_instance_info(rt_id, instance_ids, ["display_name"])
+                        display_map = {
+                            self.codec.decode_resource_id(rt_id, item["id"]): item.get("display_name", item["id"])
+                            for item in info
+                        }
+                    except Exception:
+                        display_map = {}
+                # 未命中回调服务时回退到 resource.id
+                instances: list[list[dict]] = [
+                    [
+                        {
+                            "type": rt_id,
+                            "id": self.codec.encode_resource_id(rt_id, r.id),
+                            "name": display_map.get(r.id, r.id),
+                        }
+                    ]
+                    for r in resources
+                ]
+                related_resource_types.append(
+                    {
+                        "system_id": system_id,
+                        "id": rt_id,
+                        "instances": instances,
+                    }
+                )
+
+            actions_data.append(
+                {
+                    "id": dialect_action_id,
+                    "name": action_name,
+                    "related_resource_types": related_resource_types,
+                }
+            )
+
+        return {"system": system_id, "actions": actions_data}
 
     # ================================================================
     # 有权限的资源列表 —— IAM v4 独有能力

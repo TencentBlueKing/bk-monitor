@@ -109,12 +109,22 @@ class MigrationFailed(MigrationError):
 class PermissionDenied(IamEngineError):
     """鉴权被拒绝。
 
-    这不是"框架故障"，而是"业务语义"，单独一层便于上层针对性处理
-    （例如生成申请 URL、返回 403 等）。
+    这不是"框架故障"，而是"业务语义"。同时声明 status_code / code /
+    default_detail 供 DRF 兼容层（custom_exception_handler）使用，
+    使其能直接格式化为项目统一的 403 响应。
+
+    字段：
+        action_id:   被拒的 action（业务命名）
+        apply_url:   权限中心申请页 URL
+        detail_data: Provider 生成的权限申请数据（IAM Application 格式）
     """
+
+    status_code = 403
+    code = 9900403
+    default_detail = "权限校验不通过"
 
     def __init__(self, action_id: str = "", apply_url: str = "", detail: dict | None = None):
         self.action_id = action_id
         self.apply_url = apply_url
-        self.detail = detail or {}
-        super().__init__(f"permission denied: action={action_id}")
+        self.detail_data = detail or {}
+        super().__init__(f"permission denied: action={action_id}", code=self.code)

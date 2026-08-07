@@ -22,6 +22,7 @@ from ...core.types import (
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
+    ResourceInstance,
     Subject,
 )
 from ...provider.base import PermissionProvider
@@ -150,6 +151,15 @@ class CompositionPolicy(ABC):
     def get_apply_url(self, request: ApplyURLRequest) -> str:
         """申请 URL 只能由主 Provider 生成（不同平台 URL 语义不同）。"""
         return self.primary().get_apply_url(request)
+
+    def get_apply_data(
+        self,
+        action_ids: list[str],
+        resources: list[ResourceInstance],
+        subject: Subject,
+    ) -> dict | None:
+        """权限申请数据由主 Provider 生成（不同平台格式不同）。"""
+        return self.primary().get_apply_data(action_ids, resources, subject)
 
     # ---- 数据查询：框架只收集，不合并 ----
 

@@ -15,7 +15,9 @@ from typing import TYPE_CHECKING
 
 from rest_framework import permissions as drf_permissions
 
+from ..core.exceptions import PermissionDenied
 from ..core.types import (
+    ApplyURLRequest,
     AuthRequest,
     BatchByResourceRequest,
     ResourceInstance,
@@ -111,19 +113,36 @@ class IAMPermission(drf_permissions.BasePermission):
     # ------------------------------------------------------------------
 
     def _is_any_action_allowed(self, request, resource: ResourceInstance | None) -> bool:
-        """逐个 action 鉴权，任一通过即放行（OR 语义）。"""
+        """逐个 action 鉴权，任一通过即放行（OR 语义）。
+
+        全部 denied 时生成 apply_url + apply_data，抛出 PermissionDenied
+        供上层（custom_exception_handler）格式化为统一 403 响应。
+        """
         fw = get_framework()
-        for action_id in self._actions:
-            allowed = fw.is_allowed(
-                AuthRequest(
-                    subject=Subject(id=request.user.username, type=SubjectType.USER),
-                    action_id=action_id,
-                    resource=resource,
-                )
-            )
+        subject = Subject(id=request.user.username, type=SubjectType.USER)
+        action_ids_biz = [to_action_id(a) for a in self._actions]
+
+        for action_id in action_ids_biz:
+            allowed = fw.is_allowed(AuthRequest(subject=subject, action_id=action_id, resource=resource))
             if allowed:
                 return True
-        return False
+
+        # 全部 denied —— 生成申请链接和申请数据，抛 PermissionDenied
+        resources = (resource,) if resource else ()
+        apply_url = fw.get_apply_url(
+            ApplyURLRequest(
+                subject=subject,
+                action_ids=tuple(action_ids_biz),
+                resources=resources,
+            )
+        )
+        apply_data = fw.get_apply_data(action_ids_biz, list(resources), subject)
+
+        raise PermissionDenied(
+            action_id=action_ids_biz[-1],
+            apply_url=apply_url,
+            detail={"permission": apply_data} if apply_data else None,
+        )
 
     def _resolve_resource_id(self, request, view) -> str | None:
         """解析资源 ID。优先级：callable > str(方法名) > view.kwargs["pk"]。"""

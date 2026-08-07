@@ -133,6 +133,15 @@ class ProviderRouter:
     def get_apply_url(self, request: ApplyURLRequest) -> str:
         return self.policy.get_apply_url(request)
 
+    def get_apply_data(
+        self,
+        action_ids: list[str],
+        resources: list[ResourceInstance],
+        subject: Subject,
+    ) -> dict | None:
+        """权限申请数据由组合策略的主 Provider 生成。"""
+        return self.policy.get_apply_data(action_ids, resources, subject)
+
     # ==================== 数据通路（通用收集，不经过 bypass） ====================
 
     def query_policies(

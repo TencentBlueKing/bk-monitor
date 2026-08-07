@@ -376,6 +376,35 @@ class PermissionProvider(ABC):
     # 注意：子类实现时，AST 里的字面量 ID 也必须通过 codec.decode_* 还原
     # 成业务命名再返回；否则上层会拿到方言 ID 与业务对不上。
 
+    # ==================== 权限申请数据（可选） ====================
+
+    def get_apply_data(
+        self,
+        action_ids: list[str],
+        resources: list[ResourceInstance],
+        subject: Subject,
+    ) -> dict | None:
+        """生成 IAM Application 格式的权限申请数据（前端 "permission" 字段）。
+
+        入参全部为业务命名。Provider 自己负责：
+          - 通过 codec 将 ID 编码为平台方言
+          - 通过 callback / 数据库补全资源展示名称
+          - 组装为 IAM 标准 Application 结构
+
+        默认返回 None（不支持）；子类覆盖即可启用。
+
+        Args:
+            action_ids: 业务 action_id 列表
+            resources: 被拒的资源实例列表（ResourceInstance）
+            subject: 鉴权主体
+
+        Returns:
+            IAM Application 格式的 dict，或 None
+        """
+        return None
+
+    # ==================== 低层能力（可选） ====================
+
     def query_policy(
         self,
         subject: Subject,

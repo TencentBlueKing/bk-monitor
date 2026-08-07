@@ -43,6 +43,7 @@ from ..core.types import (
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
+    ResourceInstance,
     Subject,
 )
 from ..provider.base import PermissionProvider
@@ -127,6 +128,18 @@ class IAMFramework:
     def get_apply_url(self, request: ApplyURLRequest) -> str:
         """生成权限申请 URL。由 composition 的 primary Provider 生成。"""
         return self._router.get_apply_url(request)
+
+    def get_apply_data(
+        self,
+        action_ids: list[str],
+        resources: list[ResourceInstance],
+        subject: Subject,
+    ) -> dict | None:
+        """生成权限申请数据（前端 "permission" 字段）。
+
+        由 composition 的 primary Provider 生成，Provider 不支持时返回 None。
+        """
+        return self._router.get_apply_data(action_ids, resources, subject)
 
     # ==================== 数据通路 ====================
 
