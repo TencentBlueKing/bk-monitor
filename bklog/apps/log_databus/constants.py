@@ -1198,7 +1198,9 @@ def build_scene_labels(scene: str, **dynamic_tags) -> dict:
 # Collectors created by the BlueKing PaaS platform. Their result tables are named
 # `{app_code}__{module_name}__{json|stdout}`, which is the only place the three
 # bk_paas dynamic tags can be recovered from.
-PAAS_APP_CODES = {"bk_paas", "bk_paas3"}
+# `paasv3cli` is the app code PaaS uses on cloud (上云) deployments; on-premise
+# deployments report as `bk_paas` / `bk_paas3`.
+PAAS_APP_CODES = {"bk_paas", "bk_paas3", "paasv3cli"}
 PAAS_TABLE_NAME_RE = re.compile(r"^(?P<app_code>.+?)__(?P<module_name>.+)__(?P<stream>json|stdout)$")
 
 

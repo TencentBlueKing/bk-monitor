@@ -1526,6 +1526,23 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
             },
         )
 
+    def test_paas_cloud_app_code_goes_bk_paas(self):
+        """上云环境 PaaS 用 paasv3cli 作为 app code，同样应归 bk_paas。"""
+        handler = self._new_handler(
+            bk_app_code="paasv3cli",
+            table_id="space_4228233_bklog.log_search_4__po__stdout",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(
+            labels,
+            {
+                "scene": "bk_paas",
+                "app_code": "log_search_4",
+                "module_name": "po",
+                "stream": "stdout",
+            },
+        )
+
     def test_paas_json_stream(self):
         handler = self._new_handler(
             bk_app_code="bk_paas3",
