@@ -11,7 +11,20 @@ specific language governing permissions and limitations under the License.
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
-from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisRule
+from bkmonitor.models import (
+    IssueSourceAnalysisConfig,
+    IssueSourceAnalysisExecution,
+    IssueSourceAnalysisRule,
+    generate_analysis_id,
+)
+from constants.issue import (
+    SourceAnalysisFailureStage,
+    SourceAnalysisResultType,
+    SourceAnalysisStage,
+    SourceAnalysisStatus,
+    SourceAnalysisTriggerType,
+)
+from core.errors.issue import SourceAnalysisInvalidStatusTransitionError
 
 
 class TestIssueSourceAnalysisConfig(TestCase):
@@ -114,3 +127,167 @@ class TestIssueSourceAnalysisRule(TestCase):
         priorities = list(IssueSourceAnalysisRule.objects.values_list("priority", flat=True))
 
         self.assertEqual(priorities, [100, 0, -1])
+
+
+class TestIssueSourceAnalysisExecution(TestCase):
+    databases = {"default", "monitor_api"}
+
+    ISSUE_ID = "1785376798a3f4b1c2"
+
+    @classmethod
+    def create_execution(cls, **kwargs):
+        defaults = {
+            "bk_biz_id": 2,
+            "issue_id": cls.ISSUE_ID,
+            "active_key": cls.ISSUE_ID,
+            "alert_id": "alert-1748392000001",
+            "bkci_project_id": "project-a",
+            "repository_alias": "repo-a",
+        }
+        defaults.update(kwargs)
+        return IssueSourceAnalysisExecution.objects.create(**defaults)
+
+    def test_analysis_id_reuses_issue_document_format(self):
+        analysis_id = generate_analysis_id()
+
+        self.assertEqual(len(analysis_id), 18)
+        # 前 10 位是秒级时间戳，可直接还原发起时间
+        self.assertGreater(int(analysis_id[:10]), 0)
+        self.assertNotEqual(analysis_id, generate_analysis_id())
+
+    def test_analysis_id_is_generated_by_default(self):
+        execution = self.create_execution()
+
+        self.assertTrue(execution.analysis_id)
+        self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
+        self.assertEqual(execution.trigger_type, SourceAnalysisTriggerType.INITIAL)
+        self.assertEqual(execution.attempt, 1)
+        self.assertIsNone(execution.retry_of_analysis_id)
+
+    def test_issue_allows_only_one_active_execution(self):
+        self.create_execution()
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            self.create_execution()
+
+    def test_terminal_execution_releases_active_slot(self):
+        first = self.create_execution()
+        first.mark_running(SourceAnalysisStage.ANALYZING)
+        first.mark_failed(
+            failure_stage=SourceAnalysisFailureStage.RESULT_VALIDATE,
+            failure_code="RESULT_SCHEMA_INVALID",
+            failure_message="分析结果格式校验失败",
+            failure_retryable=True,
+        )
+
+        second = self.create_execution(trigger_type=SourceAnalysisTriggerType.RETRY, attempt=2)
+
+        self.assertIsNone(first.active_key)
+        self.assertEqual(second.active_key, self.ISSUE_ID)
+
+    def test_different_issues_can_run_concurrently(self):
+        self.create_execution()
+        self.create_execution(issue_id="1785376900ffffffff", active_key="1785376900ffffffff")
+
+        self.assertEqual(IssueSourceAnalysisExecution.objects.count(), 2)
+
+    def test_mark_running_records_started_at_once(self):
+        execution = self.create_execution()
+
+        execution.mark_running(SourceAnalysisStage.SOURCE_PREPARING)
+        started_at = execution.started_at
+
+        # running -> running 只推进阶段，不覆盖首次开始时间
+        execution.mark_running(SourceAnalysisStage.ANALYZING)
+
+        self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+        self.assertEqual(execution.stage, SourceAnalysisStage.ANALYZING)
+        self.assertEqual(execution.started_at, started_at)
+
+    def test_mark_success_clears_stage_and_active_key(self):
+        execution = self.create_execution()
+        execution.mark_running(SourceAnalysisStage.VALIDATING)
+
+        execution.mark_success(
+            result_type=SourceAnalysisResultType.INSUFFICIENT_EVIDENCE,
+            result_payload={"schema_version": "1.0.0"},
+            result_schema_version="1.0.0",
+        )
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.SUCCESS)
+        self.assertIsNone(execution.stage)
+        self.assertIsNone(execution.active_key)
+        self.assertIsNotNone(execution.finished_at)
+        self.assertEqual(execution.result_payload, {"schema_version": "1.0.0"})
+
+    def test_mark_failed_records_failure_detail(self):
+        execution = self.create_execution()
+
+        execution.mark_failed(
+            failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+            failure_code="RESULT_NOT_JSON",
+            failure_message="分析结果不是合法 JSON",
+            failure_retryable=False,
+            failure_request_id="req-source-analysis-20260730-041",
+        )
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.TASK_CREATE)
+        self.assertFalse(execution.failure_retryable)
+        self.assertIsNone(execution.active_key)
+
+    def test_terminal_execution_rejects_further_transition(self):
+        execution = self.create_execution()
+        execution.mark_running(SourceAnalysisStage.ANALYZING)
+        execution.mark_success(
+            result_type=SourceAnalysisResultType.HIGH_CONFIDENCE,
+            result_payload={},
+            result_schema_version="1.0.0",
+        )
+
+        with self.assertRaises(SourceAnalysisInvalidStatusTransitionError):
+            execution.mark_running(SourceAnalysisStage.ANALYZING)
+
+    def test_concurrent_transition_loses_race(self):
+        execution = self.create_execution()
+        stale = IssueSourceAnalysisExecution.objects.get(pk=execution.pk)
+
+        execution.mark_failed(
+            failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
+            failure_code="CODE_CHECKOUT_FAILED",
+            failure_message="代码检出失败",
+            failure_retryable=True,
+        )
+
+        # 另一个持有旧状态的调用方不能再改写已进入终态的记录
+        with self.assertRaises(SourceAnalysisInvalidStatusTransitionError):
+            stale.mark_running(SourceAnalysisStage.ANALYZING)
+
+    def test_latest_execution_comes_first(self):
+        first = self.create_execution()
+        first.mark_failed(
+            failure_stage=SourceAnalysisFailureStage.AI_ANALYSIS,
+            failure_code="RESULT_SCHEMA_INVALID",
+            failure_message="分析结果格式校验失败",
+            failure_retryable=True,
+        )
+        second = self.create_execution(
+            trigger_type=SourceAnalysisTriggerType.RETRY,
+            attempt=2,
+            retry_of_analysis_id=first.analysis_id,
+        )
+
+        latest = IssueSourceAnalysisExecution.objects.filter(bk_biz_id=2, issue_id=self.ISSUE_ID).first()
+
+        self.assertEqual(latest.pk, second.pk)
+        self.assertEqual(latest.retry_of_analysis_id, first.analysis_id)
+
+    def test_json_snapshot_defaults_are_not_shared(self):
+        first = IssueSourceAnalysisExecution(bk_biz_id=2, issue_id=self.ISSUE_ID)
+        second = IssueSourceAnalysisExecution(bk_biz_id=2, issue_id=self.ISSUE_ID)
+
+        first.agent_ids.append("agent-a")
+
+        self.assertEqual(second.agent_ids, [])

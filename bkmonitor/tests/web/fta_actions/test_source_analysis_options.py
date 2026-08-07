@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 from unittest.mock import patch
 
+import requests
 from django.test import SimpleTestCase
 
 from api.devops.default import (
@@ -84,6 +85,27 @@ class TestAidevResources(SimpleTestCase):
 
         self.assertEqual(json.loads(headers["x-bkapi-authorization"]), {"access_token": "user-access-token"})
         get_access_token.assert_called_once_with(request=get_request.return_value)
+
+    @patch("api.aidev.default.get_local_request", return_value=object())
+    @patch("api.aidev.default.get_mcp_access_token", side_effect=Exception("token unavailable"))
+    def test_private_gateway_converts_token_error(self, get_access_token, get_request):
+        resource = ListAgentsResource()
+
+        with patch.object(resource, "report_api_failure_metric"), self.assertRaises(BKAPIError):
+            resource.get_headers()
+
+        get_access_token.assert_called_once_with(request=get_request.return_value)
+
+    def test_private_gateway_converts_connection_error(self):
+        resource = ListAgentsResource()
+
+        with (
+            patch.object(resource, "get_headers", return_value={}),
+            patch.object(resource, "report_api_failure_metric"),
+            patch.object(resource.session, "get", side_effect=requests.ConnectionError("connection unavailable")),
+            self.assertRaises(BKAPIError),
+        ):
+            resource.perform_request({"space_id": "all", "page": 1, "page_size": 20})
 
 
 class TestSourceAnalysisOptionsResources(SimpleTestCase):
