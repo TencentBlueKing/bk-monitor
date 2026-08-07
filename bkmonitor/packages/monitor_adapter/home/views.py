@@ -17,11 +17,13 @@ from urllib.parse import urlsplit
 from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
 from blueapps.account.handlers.response import ResponseHandler
+from blueapps.utils.request_provider import get_local_request_id
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import logout
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
 from django.http import Http404, HttpResponseForbidden, HttpResponseNotFound, JsonResponse
+from django.http.multipartparser import MultiPartParserError
 from django.shortcuts import redirect, render
 from django.test import RequestFactory
 from django.urls import Resolver404, resolve
@@ -283,6 +285,10 @@ def dispatch_external_proxy(request):
             key = key.upper()
             if key in audit_meta_keys or any(key.startswith(prefix) for prefix in meta_prefixs):
                 fake_request.META[key] = value
+        # fake_request 不经过 Blueapps 中间件，显式复用外层请求已生成的 request_id。
+        request_id = get_local_request_id()
+        fake_request.META["HTTP_X_REQUEST_ID"] = request_id
+        setattr(fake_request, "request_id", request_id)
 
         # 绕过csrf鉴权
         setattr(fake_request, "csrf_processing_done", True)
@@ -291,8 +297,6 @@ def dispatch_external_proxy(request):
         setattr(fake_request, "external_user", external_user)
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
-        if hasattr(request, "request_id"):
-            setattr(fake_request, "request_id", request.request_id)
         # use in get_core_context
         setattr(fake_request, "LANGUAGE_CODE", request.LANGUAGE_CODE)
         # 内部请求绕过 Django 中间件，通过外层请求在响应阶段上报真实目标和结果。
@@ -323,6 +327,8 @@ def dispatch_external_proxy(request):
                 status_code = 404
             elif isinstance(e, PermissionDenied):
                 status_code = 403
+            elif isinstance(e, MultiPartParserError | BadRequest | SuspiciousOperation):
+                status_code = 400
             else:
                 status_code = getattr(e, "status_code", 500)
             setattr(fake_request, "_audit_response_status", status_code)

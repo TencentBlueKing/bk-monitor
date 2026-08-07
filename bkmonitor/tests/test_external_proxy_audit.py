@@ -6,20 +6,23 @@ from unittest.mock import Mock, patch
 
 import audit as audit_module
 import pytest
-from django.core.exceptions import PermissionDenied
+from blueapps.utils.local import request_local_injection
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
 from django.http import Http404, HttpResponse
+from django.http.multipartparser import MultiPartParserError
 from django.test import RequestFactory
 
 from audit.apps import AuditConfig
 from audit.instance import push_event
 from bkmonitor.middlewares.request_middlewares import RequestProvider
+from core.errors.issue import IssueRenameConflictError
 from monitor_adapter.home.views import dispatch_external_proxy
 
 
 def make_dashboard_request(status_code=200):
     request = RequestFactory().get(
         "/grafana/api/dashboards/uid/dashboard-uid?bk_biz_id=2",
-        HTTP_X_REAL_IP="192.0.2.10",
+        HTTP_X_REAL_IP="<ip>",
         HTTP_USER_AGENT="external-monitor-client",
     )
     request.user = SimpleNamespace(username="authorized-agent")
@@ -85,12 +88,13 @@ def test_dispatch_external_proxy_uses_target_request_for_response_audit():
         ),
         content_type="application/json",
         HTTP_USER="external-user",
-        HTTP_X_REAL_IP="192.0.2.10",
+        HTTP_X_REAL_IP="<ip>",
+        HTTP_X_REQUEST_ID="request-id",
         HTTP_USER_AGENT="external-monitor-client",
     )
     request.session = {}
     request.LANGUAGE_CODE = "zh-hans"
-    request.request_id = "request-id"
+    assert not hasattr(request, "request_id")
     authorized_agent = SimpleNamespace(username="authorized-agent")
     target_response = HttpResponse(status=500)
     target_view = Mock(return_value=target_response)
@@ -99,6 +103,7 @@ def test_dispatch_external_proxy_uses_target_request_for_response_audit():
         proxy_request.user = user
 
     with (
+        request_local_injection({"request_id": "request-id"}),
         patch("monitor_adapter.home.views.is_external_proxy_token_valid", return_value=True),
         patch(
             "monitor_adapter.home.views.GlobalConfig.objects.get_or_create",
@@ -118,7 +123,8 @@ def test_dispatch_external_proxy_uses_target_request_for_response_audit():
     assert target_request.external_user == "external-user"
     assert target_request.biz_id == "2"
     assert target_request.request_id == "request-id"
-    assert target_request.META["HTTP_X_REAL_IP"] == "192.0.2.10"
+    assert target_request.META["HTTP_X_REAL_IP"] == "<ip>"
+    assert target_request.META["HTTP_X_REQUEST_ID"] == "request-id"
     assert target_request.META["HTTP_USER_AGENT"] == "external-monitor-client"
     assert target_request._audit_response_status == 500
 
@@ -132,7 +138,18 @@ def test_dispatch_external_proxy_uses_target_request_for_response_audit():
     assert response is target_response
 
 
-@pytest.mark.parametrize(("exception", "status_code"), [(Http404(), 404), (PermissionDenied(), 403)])
+@pytest.mark.parametrize(
+    ("exception", "status_code"),
+    [
+        (Http404(), 404),
+        (PermissionDenied(), 403),
+        (MultiPartParserError(), 400),
+        (BadRequest(), 400),
+        (SuspiciousOperation(), 400),
+        (IssueRenameConflictError(message="conflict"), 409),
+        (RuntimeError("failed"), 500),
+    ],
+)
 def test_dispatch_external_proxy_preserves_django_exception_status(exception, status_code):
     request = RequestFactory().post(
         "/dispatch_external_proxy/",
