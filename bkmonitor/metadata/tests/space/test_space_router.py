@@ -57,6 +57,26 @@ def test_push_and_publish_space_router_does_not_fallback_empty_tenant():
         )
 
 
+@pytest.mark.parametrize("table_id_list", [None, []])
+def test_push_and_publish_space_router_skips_detail_when_table_id_list_empty(table_id_list):
+    target_space = SimpleNamespace(bk_tenant_id="system")
+    with (
+        patch("metadata.task.tasks.models.Space.objects.get", return_value=target_space),
+        patch.object(SpaceTableIDRedis, "push_space_table_ids") as mock_push_space,
+        patch.object(SpaceTableIDRedis, "push_data_label_table_ids") as mock_push_data_label,
+        patch.object(SpaceTableIDRedis, "push_table_id_detail") as mock_push_detail,
+    ):
+        push_and_publish_space_router(
+            space_type="bkcc",
+            space_id="1",
+            table_id_list=table_id_list,
+        )
+
+    mock_push_space.assert_called_once_with(space_type="bkcc", space_id="1", is_publish=True)
+    mock_push_data_label.assert_not_called()
+    mock_push_detail.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "data_id_list, table_id_list, expected_data",
     [
