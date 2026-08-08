@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number
@@ -26,6 +27,10 @@ class BaseQuery:
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
+
+    DATA_SOURCE: str = "bkmonitor"
+    # 字段别名映射
+    FIELD_ALIAS_MAP: dict[str, str] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -349,3 +354,59 @@ class BaseQuery:
                 continue
             distinct_values.add(record.get(field))
         return len(distinct_values)
+
+    @classmethod
+    def _query_fields(cls, table_ids: list[str], start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
+        """并发查询多个结果表的字段信息，合并为字段名到字段详情的映射。
+
+        :param table_ids: 结果表 ID 列表
+        :param start_time: 开始时间戳（秒级）
+        :param end_time: 结束时间戳（秒级）
+        :return: 字段名到字段详情字典的映射，每项字段详情包含以下键：
+            - alias_name: 字段别名，由 FIELD_ALIAS_MAP 注入；为空表示未配置别名
+            - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_type: ES 字段类型，如 keyword（不分词字符串）、text（分词字符串）等
+            - origin_field: 原始顶层字段名，主要用于嵌套字段（如 attributes.http.url 的原始字段为
+              attributes）；普通字段与 field_name 相同
+            - is_agg: 是否支持聚合、分组、排序
+            - is_analyzed: 是否经过文本分析器分词，keyword 通常为 False，text 通常为 True
+            - is_case_sensitive: 是否区分大小写，True 表示 AppA 与 appa 视为不同值
+            - tokenize_on_chars: 分词使用的分隔字符列表，主要对 text 类型生效，keyword 通常为空
+        """
+        param_list: list[tuple[str, int, int]] = [(table_id, start_time, end_time) for table_id in table_ids]
+        field_map: dict[str, dict[str, Any]] = {}
+        for field_list in ThreadPool().map_ignore_exception(cls._query_info_field_map, param_list):
+            for field_dict in field_list:
+                field_name = field_dict.get("field_name", "")
+                field_dict["alias_name"] = cls.FIELD_ALIAS_MAP.get(field_name, "")
+                field_map[field_name] = field_dict
+        return field_map
+
+    @classmethod
+    def _query_info_field_map(cls, table_id: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
+        """查询单个结果表的字段信息列表。
+
+        调用 unify_query.query_info_field_map 接口获取指定结果表在给定时间范围内的字段元数据。
+
+        :param table_id: 结果表 ID
+        :param start_time: 开始时间戳（秒级）
+        :param end_time: 结束时间戳（秒级）
+        :return: 字段信息列表，每项为包含以下键的字典：
+            - alias_name: 字段别名，为空表示未配置别名
+            - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_type: ES 字段类型，如 keyword（不分词字符串）、text（分词字符串）等
+            - origin_field: 原始顶层字段名，主要用于嵌套字段（如 attributes.http.url 的原始字段为
+              attributes）；普通字段与 field_name 相同
+            - is_agg: 是否支持聚合、分组、排序
+            - is_analyzed: 是否经过文本分析器分词，keyword 通常为 False，text 通常为 True
+            - is_case_sensitive: 是否区分大小写，True 表示 AppA 与 appa 视为不同值
+            - tokenize_on_chars: 分词使用的分隔字符列表，主要对 text 类型生效，keyword 通常为空
+        """
+        return api.unify_query.query_info_field_map(
+            {
+                "data_source": cls.DATA_SOURCE,
+                "table_id": table_id,
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+        ).get("data", [])
