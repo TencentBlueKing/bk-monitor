@@ -160,6 +160,12 @@ class AIServiceControlMixin(serializers.Serializer):
     service_name = serializers.CharField(
         label="service环境选择", required=False, default="default", help_text="指定AI服务的环境名称，用于多环境部署场景"
     )
+    serving_resource_name = serializers.CharField(
+        label="Serving资源名称",
+        required=False,
+        allow_blank=True,
+        help_text="指定独立Serving资源名称；未设置时使用环境默认资源，设置为空字符串时不追加资源后缀",
+    )
     grey_to_bkfara = serializers.BooleanField(
         label="是否迁移到bkfara", required=False, default=False, help_text="是否使用新的bkfara服务，用于灰度发布控制"
     )
