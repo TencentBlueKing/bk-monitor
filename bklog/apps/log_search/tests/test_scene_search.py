@@ -1430,6 +1430,10 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
         handler.data.collector_scenario_id = "row"
         handler.data.custom_type = "log"
         handler.data.collector_config_id = 1
+        # 默认非 PaaS 来源，避免 MagicMock 的自动属性影响 bk_paas 分支判定
+        handler.data.bk_app_code = "bk_log_search"
+        handler.data.table_id = "2_bklog.demo_collector"
+        handler.data.collector_config_name_en = "demo_collector"
         for k, v in data_attrs.items():
             setattr(handler.data, k, v)
         return handler
@@ -1504,6 +1508,98 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
         handler = self._new_handler(collector_scenario_id="client")
         labels = handler._build_scene_labels()
         self.assertEqual(labels["scene"], "client")
+
+    def test_paas_collector_goes_bk_paas_with_dynamic_tags(self):
+        """bk_app_code 命中 + 表名可解析 → bk_paas，并带出三个动态标签。"""
+        handler = self._new_handler(
+            bk_app_code="bk_paas3",
+            table_id="space_4336327_bklog.fusion_system_mcp__default__stdout",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(
+            labels,
+            {
+                "scene": "bk_paas",
+                "app_code": "fusion_system_mcp",
+                "module_name": "default",
+                "stream": "stdout",
+            },
+        )
+
+    def test_paas_cloud_app_code_goes_bk_paas(self):
+        """上云环境 PaaS 用 paasv3cli 作为 app code，同样应归 bk_paas。"""
+        handler = self._new_handler(
+            bk_app_code="paasv3cli",
+            table_id="space_4228233_bklog.log_search_4__po__stdout",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(
+            labels,
+            {
+                "scene": "bk_paas",
+                "app_code": "log_search_4",
+                "module_name": "po",
+                "stream": "stdout",
+            },
+        )
+
+    def test_paas_json_stream(self):
+        handler = self._new_handler(
+            bk_app_code="bk_paas3",
+            table_id="space_10438_bklog.bkai_cli__default__json",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["stream"], "json")
+        self.assertEqual(labels["app_code"], "bkai_cli")
+
+    def test_paas_beats_container_judgement(self):
+        """PaaS 采集项多为 custom + custom_type=log，会被判成容器；bk_paas 必须优先。"""
+        handler = self._new_handler(
+            bk_app_code="bk_paas3",
+            table_id="space_185_bklog.ai_harako_test__default__stdout",
+            collector_scenario_id="custom",
+            custom_type="log",
+            is_custom_container=True,
+            is_container_collector=True,
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "bk_paas")
+
+    def test_paas_falls_back_to_name_en_when_table_id_empty(self):
+        """新建采集项时 table_id 尚未落库，应回退到 collector_config_name_en。"""
+        handler = self._new_handler(
+            bk_app_code="bk_paas3",
+            table_id="",
+            collector_config_name_en="my_app__api__json",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "bk_paas")
+        self.assertEqual(labels["module_name"], "api")
+
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler._detect_container_stream")
+    def test_paas_app_code_with_unparsable_name_falls_back(self, mock_stream):
+        """bk_app_code 命中但表名不合规范时，退回原有判定链，不强行标 bk_paas。"""
+        mock_stream.return_value = ""
+        handler = self._new_handler(
+            bk_app_code="bk_paas3",
+            table_id="space_1_bklog.legacy_table",
+            collector_config_name_en="legacy_table",
+            is_custom_container=True,
+            is_container_collector=True,
+            collector_scenario_id="custom",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "k8s")
+
+    def test_paas_like_name_from_other_app_is_not_bk_paas(self):
+        """非 PaaS 来源即便命名相似也不归 bk_paas —— bk_app_code 才是主判据。"""
+        handler = self._new_handler(
+            bk_app_code="bk_log_search",
+            table_id="2_bklog.some_app__default__stdout",
+            collector_scenario_id="syslog",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "host")
 
 
 # =========================================================================

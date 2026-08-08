@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
+
 import markdown
 from django.conf import settings
 from django.db.models import TextChoices
@@ -1191,6 +1193,30 @@ def build_scene_labels(scene: str, **dynamic_tags) -> dict:
         if value:
             labels[key] = str(value)
     return labels
+
+
+# Collectors created by the BlueKing PaaS platform. Their result tables are named
+# `{app_code}__{module_name}__{json|stdout}`, which is the only place the three
+# bk_paas dynamic tags can be recovered from.
+# `paasv3cli` is the app code PaaS uses on cloud (上云) deployments; on-premise
+# deployments report as `bk_paas` / `bk_paas3`.
+PAAS_APP_CODES = {"bk_paas", "bk_paas3", "paasv3cli"}
+PAAS_TABLE_NAME_RE = re.compile(r"^(?P<app_code>.+?)__(?P<module_name>.+)__(?P<stream>json|stdout)$")
+
+
+def parse_paas_table_name(table_id: str) -> tuple | None:
+    """Parse (app_code, module_name, stream) out of a PaaS result table id.
+
+    `space_4336327_bklog.fusion_system_mcp__default__stdout`
+        -> ("fusion_system_mcp", "default", "stdout")
+    Returns None when the name does not follow the PaaS convention.
+    """
+    if not table_id:
+        return None
+    match = PAAS_TABLE_NAME_RE.match(table_id.split(".", 1)[-1])
+    if not match:
+        return None
+    return match.group("app_code"), match.group("module_name"), match.group("stream")
 
 
 # doris 集群默认日志过期天数

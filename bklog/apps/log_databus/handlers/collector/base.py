@@ -64,6 +64,8 @@ from apps.log_databus.constants import (
     RETRIEVE_CHAIN,
     Environment,
     build_scene_labels,
+    parse_paas_table_name,
+    PAAS_APP_CODES,
     STORAGE_CLUSTER_TYPE,
 )
 from apps.log_databus.exceptions import (
@@ -1657,12 +1659,24 @@ class CollectorHandler:
         """Build ResultTable.labels based on collector scenario and environment.
 
         判定优先级：
-        1. OTLP 日志上报（custom + otlp_log）→ trpc（tRPC 服务通过 OTLP 上报，
+        1. 蓝鲸 PaaS 应用日志（bk_app_code 命中 + 结果表名可解析）→ bk_paas。
+           必须排在容器判定之前：PaaS 采集项多为 custom + custom_type=log，
+           会被 is_custom_container 判成容器，从而误标成 k8s。
+        2. OTLP 日志上报（custom + otlp_log）→ trpc（tRPC 服务通过 OTLP 上报，
            按场景化检索设计方案归 trpc 场景；独立于容器判定，即使部署在 k8s）
-        2. 容器日志（is_container_collector = is_container_environment OR
+        3. 容器日志（is_container_collector = is_container_environment OR
            is_custom_container）→ k8s（同时覆盖 BCS 容器采集和 custom + custom_type=log）
-        3. 兜底按 COLLECTOR_SCENARIO_TO_SCENE 映射（默认 host）
+        4. 兜底按 COLLECTOR_SCENARIO_TO_SCENE 映射（默认 host）
         """
+        if self.data.bk_app_code in PAAS_APP_CODES:
+            # 新建采集项时 table_id 尚未落库，回退到 collector_config_name_en，
+            # 与本类中 etl_params 的取名逻辑保持同一条回退链。
+            paas_name = parse_paas_table_name(self.data.table_id or self.data.collector_config_name_en)
+            if paas_name:
+                app_code, module_name, stream = paas_name
+                return build_scene_labels(
+                    "bk_paas", app_code=app_code, module_name=module_name, stream=stream
+                )
         if (
             self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
             and self.data.custom_type == CustomTypeEnum.OTLP_LOG.value
