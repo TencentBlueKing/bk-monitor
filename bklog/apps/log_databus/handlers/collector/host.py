@@ -1240,6 +1240,9 @@ class HostCollectorHandler(CollectorHandler):
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
+        if any(field in params for field in ("etl_config", "etl_params", "fields")):
+            # 快速更新显式修改清洗配置后，不再由原模板管理。
+            params["clean_template_id"] = None
         bkdata_biz_id = self.data.bkdata_biz_id if self.data.bkdata_biz_id else self.data.bk_biz_id
         bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=self.data.collector_config_name_en

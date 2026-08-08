@@ -1139,6 +1139,7 @@ class EtlStorage:
         total_shards_per_node: int = None,
         labels: dict = None,
         storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        sync_modify_result_table: bool = False,
     ):
         """
         创建或更新结果表
@@ -1158,6 +1159,7 @@ class EtlStorage:
         :param target_fields: 定位字段
         :param total_shards_per_node: 每个节点的分片总数
         :param storage_cluster_type: 存储集群类型
+        :param sync_modify_result_table: 是否同步更新结果表并向上抛出更新异常
         """
         from apps.log_databus.handlers.collector import CollectorHandler
 
@@ -1361,7 +1363,10 @@ class EtlStorage:
             params["table_id"] = table_id
             from apps.log_databus.tasks.collector import modify_result_table
 
-            modify_result_table.delay(params)
+            if sync_modify_result_table:
+                modify_result_table(params, raise_exception=True)
+            else:
+                modify_result_table.delay(params)
 
         if not instance.table_id:
             instance.table_id = table_id

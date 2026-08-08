@@ -32,7 +32,7 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
-from apps.log_databus.handlers.etl import EtlHandler
+from apps.log_databus.handlers.etl.base import EtlHandler, _CLEAN_TEMPLATE_ID_NOT_PROVIDED
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
@@ -63,9 +63,19 @@ class TransferEtlHandler(EtlHandler):
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        clean_template_id=_CLEAN_TEMPLATE_ID_NOT_PROVIDED,
+        sync_modify_result_table=False,
         *args,
         **kwargs,
     ):
+        # 模板配置是关联关系的唯一可信来源，并在外部调用前固定本次应用的配置和版本快照。
+        clean_template, etl_config, etl_params, fields = self._prepare_clean_template_config(
+            clean_template_id,
+            etl_config,
+            etl_params,
+            fields,
+        )
+
         etl_params = etl_params or {}
         user_fields = copy.deepcopy(fields)
 
@@ -169,6 +179,7 @@ class TransferEtlHandler(EtlHandler):
             target_fields=target_fields,
             total_shards_per_node=total_shards_per_node,
             labels=labels,
+            sync_modify_result_table=sync_modify_result_table,
         )
 
         if not view_roles:
@@ -228,6 +239,7 @@ class TransferEtlHandler(EtlHandler):
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )
+        self._update_clean_template(clean_template_id, clean_template)
 
         return {
             "collector_config_id": self.data.collector_config_id,

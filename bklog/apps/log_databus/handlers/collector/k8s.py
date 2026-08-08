@@ -472,6 +472,9 @@ class K8sCollectorHandler(CollectorHandler):
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
+        if any(field in params for field in ("etl_config", "etl_params", "fields")):
+            # 快速更新显式修改清洗配置后，不再由原模板管理。
+            params["clean_template_id"] = None
         # 补充缺少的清洗配置参数
         params.setdefault("fields", [])
         # 更新采集项

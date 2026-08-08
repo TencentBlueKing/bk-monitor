@@ -19,10 +19,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
+from rest_framework import permissions, serializers
+from rest_framework.response import Response
+
 from apps.generic import ModelViewSet
-from apps.iam import ActionEnum, ResourceEnum
+from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
-from apps.log_databus.constants import VisibleEnum
 from apps.log_databus.handlers.clean import CleanHandler, CleanTemplateHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import BKDataClean, CleanTemplate
@@ -30,17 +33,67 @@ from apps.log_databus.serializers import (
     CleanRefreshSerializer,
     CleanSerializer,
     CleanSyncSerializer,
-    CleanTemplateDestroySerializer,
+    CleanTemplateCollectorSerializer,
     CleanTemplateListFilterSerializer,
     CleanTemplateListSerializer,
+    CleanTemplateOperatorListSerializer,
+    CleanTemplatePreviewSerializer,
     CleanTemplateSerializer,
+    CleanTemplateUpdateSerializer,
     CollectorEtlSerializer,
 )
 from apps.log_databus.utils.clean import CleanFilterUtils
 from apps.utils.drf import detail_route, list_route
-from django.db.models import Q
-from rest_framework import serializers
-from rest_framework.response import Response
+
+
+class CleanTemplateCollectorsManagePermission(permissions.BasePermission):
+    """同步模板前校验当前业务关联采集项的管理权限。"""
+
+    def has_permission(self, request, view):
+        # 关联采集项及其业务归属需要从模板对象获取，在对象权限阶段校验。
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        collectors = list(
+            CleanTemplateHandler.get_collectors_to_sync_queryset(
+                obj.clean_template_id,
+                obj.bk_biz_id,
+                obj.config_version,
+            ).values(
+                "collector_config_id",
+                "collector_config_name",
+                "bk_biz_id",
+            )
+        )
+        # 固化已鉴权集合，避免鉴权后新建立的关联被本次同步带入。
+        view.sync_collector_config_ids = [collector["collector_config_id"] for collector in collectors]
+        if settings.IGNORE_IAM_PERMISSION or not collectors:
+            return True
+
+        permission = Permission(request=request)
+        resources = [
+            [
+                ResourceEnum.COLLECTION.create_simple_instance(
+                    collector["collector_config_id"],
+                    attribute={
+                        "id": str(collector["collector_config_id"]),
+                        "name": collector["collector_config_name"],
+                        "bk_biz_id": str(collector["bk_biz_id"]),
+                    },
+                )
+            ]
+            for collector in collectors
+        ]
+        permission_result = permission.batch_is_allowed([ActionEnum.MANAGE_COLLECTION], resources)
+        for resource in resources:
+            collector_config_id = resource[0].id
+            if not permission_result.get(collector_config_id, {}).get(ActionEnum.MANAGE_COLLECTION.id):
+                permission.is_allowed(
+                    ActionEnum.MANAGE_COLLECTION,
+                    resource,
+                    raise_exception=True,
+                )
+        return True
 
 
 class CleanViewSet(ModelViewSet):
@@ -202,32 +255,26 @@ class CleanTemplateViewSet(ModelViewSet):
     """
 
     lookup_field = "clean_template_id"
+    lookup_value_regex = r"\d+"
     model = CleanTemplate
-    filter_fields_exclude = ["etl_params", "etl_fields"]
+    filter_fields_exclude = ["etl_params", "etl_fields", "visible_type", "visible_bk_biz_id", "alias_settings"]
     search_fields = ("name",)
 
     def get_permissions(self):
-        return [ViewBusinessPermission()]
+        permissions_list = [ViewBusinessPermission()]
+        if self.action == "sync_collectors":
+            permissions_list.append(CleanTemplateCollectorsManagePermission())
+        return permissions_list
 
     def get_serializer_class(self, *args, **kwargs):
         action_serializer_map = {
             "list": CleanTemplateListSerializer,
+            "retrieve": CleanTemplateListSerializer,
         }
         return action_serializer_map.get(self.action, serializers.Serializer)
 
     def get_queryset(self):
-        qs = self.model.objects
-        if self.request.query_params.get("bk_biz_id"):
-            bk_biz_id = int(self.request.query_params.get("bk_biz_id"))
-            qs = qs.filter(
-                Q(bk_biz_id=bk_biz_id)
-                | Q(visible_type=VisibleEnum.ALL_BIZ.value)
-                | Q(
-                    visible_type=VisibleEnum.MULTI_BIZ.value,
-                    visible_bk_biz_id__contains=f",{bk_biz_id},",
-                )
-            )
-        return qs.all()
+        return self.model.objects.all()
 
     def list(self, request, *args, **kwargs):
         """
@@ -236,17 +283,25 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiGroup 23_clean_template
         @apiDescription 获取清洗模板列表
         @apiParam {Int} bk_biz_id 业务id
+        @apiParam {String} [keyword] 模板名称关键字
+        @apiParam {String} [clean_type] 清洗类型
+        @apiParam {String} [created_by] 创建人
+        @apiParam {String} [updated_by] 更新人
+        @apiParam {String} [ordering] 排序字段，可选 field_count、-field_count、
+            active_collector_count、-active_collector_count
+        @apiParam {Int} [page] 页码，必须与pagesize同时传递
+        @apiParam {Int} [pagesize] 每页数量，必须与page同时传递，最大1000
         @apiSuccessExample {json} 成功返回
         {
             "message":"",
             "code":0,
             "data":{
-                "count":10,
-                "total_page":1,
-                "results":[
+                "total":10,
+                "list":[
                     {
                         "clean_template_id":1,
                         "name": "test",
+                        "description": "模板描述",
                         "clean_type":"bk_log_text",
                         "etl_params":{
                             "retain_original_text":true,
@@ -280,40 +335,66 @@ class CleanTemplateViewSet(ModelViewSet):
                             }
                         ],
                         "bk_biz_id": 0,
-                        "visible_bk_biz_id": "",
-                        "visible_type": "current_biz"
+                        "alias_settings": [],
+                        "config_version": 1,
+                        "field_count": 2,
+                        "active_collector_count": 2,
+                        "created_at": "2026-07-30 10:00:00",
+                        "created_by": "admin",
+                        "updated_at": "2026-07-30 10:00:00",
+                        "updated_by": "admin"
                     }
                 ]
             },
             "result":true
         }
         """
-        queryset = self.get_queryset()
-
         data = self.params_valid(CleanTemplateListFilterSerializer)
-        name_filter = data.get("keyword")
-        if name_filter:
-            queryset = queryset.filter(name__contains=name_filter)
+        queryset = self.get_queryset().filter(bk_biz_id=data["bk_biz_id"])
 
-        clean_type = data.get("clean_type")
-        if clean_type:
+        if name_filter := data.get("keyword"):
+            queryset = queryset.filter(name__icontains=name_filter)
+        if clean_type := data.get("clean_type"):
             queryset = queryset.filter(clean_type=clean_type)
+        if created_by := data.get("created_by"):
+            queryset = queryset.filter(created_by=created_by)
+        if updated_by := data.get("updated_by"):
+            queryset = queryset.filter(updated_by=updated_by)
 
-        page = self.paginate_queryset(queryset)
+        # 由于接口已经支持不分页，因此直接全量查询再分页
+        clean_templates = CleanTemplateHandler.fill_template_stats(
+            queryset.order_by("-updated_at", "-clean_template_id")
+        )
+        ordering = data.get("ordering")
+        if ordering:
+            clean_templates.sort(key=lambda item: getattr(item, ordering.lstrip("-")), reverse=ordering.startswith("-"))
+
+        page = self.paginate_queryset(clean_templates)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(clean_templates, many=True)
         return Response(serializer.data)
+
+    @list_route(methods=["GET"], url_path="operators")
+    def list_operators(self, request, *args, **kwargs):
+        """返回当前业务清洗模板的创建人和更新人枚举。"""
+        data = self.params_valid(CleanTemplateOperatorListSerializer)
+        operators = self.get_queryset().filter(bk_biz_id=data["bk_biz_id"]).values_list("created_by", "updated_by")
+        return Response(
+            {
+                "created_by": sorted({created_by for created_by, _ in operators if created_by}),
+                "updated_by": sorted({updated_by for _, updated_by in operators if updated_by}),
+            }
+        )
 
     def retrieve(self, request, *args, clean_template_id=None, **kwargs):
         """
-        @api {get} /databus/clean_template/$clean_template_id/?bk_biz_id=$bk_biz_id 2_清洗模板-详情
+        @api {get} /databus/clean_template/$clean_template_id/ 2_清洗模板-详情
         @apiName retrieve_clean_template
         @apiGroup 23_clean_template
         @apiDescription 清洗模板详情
-        @apiParam {Int} bk_biz_id 业务id
         @apiSuccessExample {json} 成功返回
         {
             "message":"",
@@ -321,6 +402,7 @@ class CleanTemplateViewSet(ModelViewSet):
             "data":{
                 "name": "xxx",
                 "clean_template_id":1,
+                "description": "模板描述",
                 "clean_type":"bk_log_text",
                 "etl_params":{
                     "retain_original_text":true,
@@ -354,13 +436,17 @@ class CleanTemplateViewSet(ModelViewSet):
                     }
                 ],
                 "bk_biz_id": 0,
-                "visible_bk_biz_id": [],
-                "visible_type": "current_biz",
+                "alias_settings": [],
+                "config_version": 1,
+                "created_at": "2026-07-30 10:00:00",
+                "created_by": "admin",
+                "updated_at": "2026-07-30 10:00:00",
+                "updated_by": "admin"
             },
             "result":true
         }
         """
-        return Response(CleanTemplateHandler(clean_template_id=clean_template_id).retrieve())
+        return super().retrieve(request, *args, clean_template_id=clean_template_id, **kwargs)
 
     def update(self, request, *args, clean_template_id=None, **kwargs):
         """
@@ -368,8 +454,6 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiName update_clean_template
         @apiGroup 23_clean_template
         @apiDescription 更新清洗模板
-        @apiParam {String} visible_type 可见类型, 支持 current_biz, multi_biz, all_biz
-        @apiParam {list} visible_bk_biz_id 可见业务id范围
         @apiParamExample {json} 成功请求
         {
             "name": "xxx",
@@ -404,10 +488,7 @@ class CleanTemplateViewSet(ModelViewSet):
                         "time_format":"yyyy-MM-dd HH:mm:ss"
                     }
                 }
-            ],
-            "bk_biz_id": 0,
-            "visible_bk_biz_id": [1, 2, 3],
-            "visible_type": "multi_biz",
+            ]
         }
         @apiSuccessExample {json} 成功返回
         {
@@ -419,16 +500,17 @@ class CleanTemplateViewSet(ModelViewSet):
             "result": true
         }
         """
-        data = self.params_valid(CleanTemplateSerializer)
-        return Response(CleanTemplateHandler(clean_template_id=clean_template_id).create_or_update(params=data))
+        clean_template = self.get_object()
+        data = self.params_valid(CleanTemplateUpdateSerializer)
+        return Response(
+            CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).create_or_update(params=data)
+        )
 
     def create(self, request, *args, **kwargs):
         """
         @api {post} /databus/clean_template/ 3_清洗模板-新建
         @apiName create_clean_template
         @apiGroup 23_clean_template
-        @apiParam {String} visible_type 可见类型, 支持 current_biz, multi_biz, all_biz
-        @apiParam {list} visible_bk_biz_id 可见业务id范围
         @apiDescription 新建清洗模板
         @apiParamExample {json} 成功请求
         {
@@ -465,9 +547,7 @@ class CleanTemplateViewSet(ModelViewSet):
                     }
                 }
             ],
-            "bk_biz_id": 0,
-            "visible_bk_biz_id": [1, 2, 3],
-            "visible_type": "multi_biz",
+            "bk_biz_id": 0
         }
         @apiSuccessExample {json} 成功返回
         {
@@ -488,7 +568,6 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiName destry_clean_template
         @apiGroup 23_clean_template
         @apiDescription 删除清洗模板
-        @apiParam {Int} bk_biz_id 业务id
         @apiSuccessExample {json} 成功返回
         {
             "message": "",
@@ -497,13 +576,113 @@ class CleanTemplateViewSet(ModelViewSet):
             "result": true
         }
         """
-        data = self.params_valid(CleanTemplateDestroySerializer)
-        return Response(CleanTemplateHandler(clean_template_id=clean_template_id).destroy(data["bk_biz_id"]))
+        clean_template = self.get_object()
+        return Response(CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).destroy())
+
+    @detail_route(methods=["GET"], url_path="collectors")
+    def list_collectors(self, request, *args, clean_template_id=None, **kwargs):
+        """
+        @api {get} /databus/clean_template/$clean_template_id/collectors/ 6_清洗模板-关联采集项
+        @apiName list_clean_template_collectors
+        @apiGroup 23_clean_template
+        @apiDescription 查询清洗模板关联的采集项
+        @apiSuccess {Int} collector_config_id 采集项ID
+        @apiSuccess {String} collector_config_name 采集项名称
+        @apiSuccess {Int} bk_biz_id 业务ID
+        @apiSuccess {String} bk_biz_name 业务名称
+        @apiSuccess {Int} clean_template_config_version 模板当前配置版本
+        @apiSuccess {Int} clean_template_version 采集项已应用的模板版本
+        @apiSuccess {String} clean_template_sync_status 最近一次同步状态
+        @apiSuccess {String} clean_template_sync_at 最近一次同步完成时间
+        @apiSuccess {String} clean_template_sync_message 最近一次同步信息
+        @apiSuccess {Boolean} is_outdated 是否待同步
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": [
+                {
+                    "collector_config_id": 1,
+                    "collector_config_name": "collector_name",
+                    "bk_biz_id": 2,
+                    "bk_biz_name": "business_name",
+                    "clean_template_config_version": 2,
+                    "clean_template_version": 1,
+                    "clean_template_sync_status": "SUCCESS",
+                    "clean_template_sync_at": "2026-07-30T10:00:00Z",
+                    "clean_template_sync_message": "",
+                    "is_outdated": true
+                }
+            ],
+            "result": true
+        }
+        """
+        clean_template = self.get_object()
+        collectors = CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).list_collectors()
+        return Response(CleanTemplateCollectorSerializer(collectors, many=True).data)
+
+    @detail_route(methods=["POST"], url_path="sync")
+    def sync_collectors(self, request, *args, clean_template_id=None, **kwargs):
+        """
+        @api {post} /databus/clean_template/$clean_template_id/sync/ 7_清洗模板-同步关联采集项
+        @apiName sync_clean_template_collectors
+        @apiGroup 23_clean_template
+        @apiDescription 仅将模板配置同步到当前业务中失败、未同步或版本落后的关联采集项
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": [
+                {
+                    "id": 1,
+                    "name": "collector_name",
+                    "status": "SUCCESS",
+                    "description": "Sync clean template successfully"
+                },
+                {
+                    "id": 2,
+                    "name": "collector_name_2",
+                    "status": "FAILED",
+                    "description": "Failed to sync clean template, reason: ..."
+                }
+            ],
+            "result": true
+        }
+        """
+        clean_template = self.get_object()
+        return Response(
+            CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).sync_collectors(
+                collector_config_ids=self.sync_collector_config_ids
+            )
+        )
+
+    @detail_route(methods=["POST"], url_path="etl_preview")
+    def template_etl_preview(self, request, *args, clean_template_id=None, **kwargs):
+        """
+        @api {post} /databus/clean_template/$clean_template_id/etl_preview/ 8_清洗模板-使用模板预览
+        @apiName clean_template_detail_etl_preview
+        @apiGroup 23_clean_template
+        @apiDescription 使用已保存的模板配置解析日志样例，并返回模板字段匹配情况
+        @apiParam {String} data 日志样例
+        @apiSuccess {Int} clean_template_id 清洗模板ID
+        @apiSuccess {String} etl_config 模板清洗类型
+        @apiSuccess {String} data 本次预览使用的日志样例
+        @apiSuccess {Float} match_rate 字段匹配率
+        @apiSuccess {Int} normal_count 正常字段数
+        @apiSuccess {Int} abnormal_count 异常字段数
+        @apiSuccess {List} fields 模板字段及其值、状态和异常原因
+        @apiSuccess {String} fields.inferred_field_type 类型匹配时为模板类型，不匹配时为推断类型，空值时为null
+        """
+        clean_template = self.get_object()
+        data = self.params_valid(CleanTemplatePreviewSerializer)
+        return Response(
+            CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).preview(data=data["data"])
+        )
 
     @list_route(methods=["POST"])
     def etl_preview(self, request, collector_config_id=None):
         """
-        @api {post} /databus/clean_template/etl_preview/ 6_清洗模板-预览提取结果
+        @api {post} /databus/clean_template/etl_preview/ 9_清洗模板-预览提取结果
         @apiName clean_template_etl_preview
         @apiDescription 清洗模板-预览提取结果
         @apiGroup 23_clean_template
