@@ -107,17 +107,24 @@ class TestIssueSourceAnalysisRule(TestCase):
         self.assertEqual(rule.conditions, [])
         self.assertIsNone(rule.bkci_project_id)
         self.assertIsNone(rule.repository_alias)
-        self.assertEqual(rule.agent_ids, [])
+        self.assertEqual(rule.agent_id, "")
         self.assertEqual(rule.skill_ids, [])
         self.assertEqual(rule.knowledge_base_ids, [])
+
+    def test_rule_binds_single_agent(self):
+        # 一条规则只驱动一个智能体，不接受列表
+        rule = self.create_rule(agent_id="agent-a")
+
+        rule.refresh_from_db()
+        self.assertEqual(rule.agent_id, "agent-a")
 
     def test_json_field_defaults_are_not_shared(self):
         first = IssueSourceAnalysisRule(bk_biz_id=2, name="first", priority=1)
         second = IssueSourceAnalysisRule(bk_biz_id=2, name="second", priority=2)
 
-        first.agent_ids.append("agent-a")
+        first.skill_ids.append("skill-a")
 
-        self.assertEqual(second.agent_ids, [])
+        self.assertEqual(second.skill_ids, [])
 
     def test_default_ordering_is_priority_descending(self):
         self.create_rule(name="default", priority=-1, is_default=True)
@@ -143,6 +150,7 @@ class TestIssueSourceAnalysisExecution(TestCase):
             "alert_id": "alert-1748392000001",
             "bkci_project_id": "project-a",
             "repository_alias": "repo-a",
+            "agent_id": "agent-a",
         }
         defaults.update(kwargs)
         return IssueSourceAnalysisExecution.objects.create(**defaults)
@@ -329,9 +337,9 @@ class TestIssueSourceAnalysisExecution(TestCase):
         first = IssueSourceAnalysisExecution(bk_biz_id=2, issue_id=self.ISSUE_ID)
         second = IssueSourceAnalysisExecution(bk_biz_id=2, issue_id=self.ISSUE_ID)
 
-        first.agent_ids.append("agent-a")
+        first.skill_ids.append("skill-a")
 
-        self.assertEqual(second.agent_ids, [])
+        self.assertEqual(second.skill_ids, [])
 
     def test_enum_fields_declare_no_choices(self):
         # choices 里的翻译文案会被冻结进迁移，切 locale 后会生成无关的 AlterField

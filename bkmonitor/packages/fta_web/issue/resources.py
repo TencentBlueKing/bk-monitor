@@ -159,7 +159,7 @@ class SourceAnalysisBaseResource(Resource):
             "conditions": rule.conditions,
             "bkci_project_id": rule.bkci_project_id,
             "repository_alias": rule.repository_alias,
-            "agent_ids": rule.agent_ids,
+            "agent_id": rule.agent_id,
             "skill_ids": rule.skill_ids,
             "knowledge_base_ids": rule.knowledge_base_ids,
             "created_by": rule.create_user,
@@ -218,17 +218,18 @@ class SourceAnalysisBaseResource(Resource):
             raise SourceAnalysisResourceNotFoundError()
 
         try:
-            visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id")
+            visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id") if rule.agent_id else set()
             visible_skills = cls.list_visible_aidev_ids(api.aidev.list_skills, "id") if rule.skill_ids else set()
         except (BKAPIError, TypeError, ValueError) as error:
             cls.raise_upstream_unavailable(error)
 
-        if not set(rule.agent_ids).issubset(visible_agents) or not set(rule.skill_ids).issubset(visible_skills):
+        agent_visible = not rule.agent_id or rule.agent_id in visible_agents
+        if not agent_visible or not set(rule.skill_ids).issubset(visible_skills):
             raise SourceAnalysisResourceNotFoundError()
 
     @staticmethod
     def is_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
-        return bool(rule.agent_ids and (rule.is_default or rule.conditions))
+        return bool(rule.agent_id and (rule.is_default or rule.conditions))
 
     @classmethod
     def validate_rule_local(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
@@ -304,12 +305,7 @@ class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
     priority = serializers.IntegerField(label="优先级", min_value=0)
     is_enabled = serializers.BooleanField(label="是否启用", required=False, default=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False, default=list)
-    agent_ids = serializers.ListField(
-        label="智能体 ID",
-        child=serializers.CharField(allow_blank=False),
-        required=False,
-        default=list,
-    )
+    agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True, default="")
     skill_ids = serializers.ListField(
         label="Skill ID",
         child=serializers.CharField(allow_blank=False),
@@ -333,7 +329,7 @@ class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
         return conditions
 
     def validate(self, attrs: dict) -> dict:
-        for field in ("agent_ids", "skill_ids", "knowledge_base_ids"):
+        for field in ("skill_ids", "knowledge_base_ids"):
             attrs[field] = SourceAnalysisBaseResource.unique_resource_ids(attrs[field])
         return attrs
 
@@ -343,14 +339,14 @@ class SourceAnalysisRulePatchSerializer(SourceAnalysisRuleWriteSerializer):
     priority = serializers.IntegerField(label="优先级", min_value=0, required=False)
     is_enabled = serializers.BooleanField(label="是否启用", required=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False)
-    agent_ids = serializers.ListField(label="智能体 ID", child=serializers.CharField(allow_blank=False), required=False)
+    agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True)
     skill_ids = serializers.ListField(label="Skill ID", child=serializers.CharField(allow_blank=False), required=False)
     knowledge_base_ids = serializers.ListField(
         label="知识库 ID", child=serializers.CharField(allow_blank=False), required=False
     )
 
     def validate(self, attrs: dict) -> dict:
-        for field in ("agent_ids", "skill_ids", "knowledge_base_ids"):
+        for field in ("skill_ids", "knowledge_base_ids"):
             if field in attrs:
                 attrs[field] = SourceAnalysisBaseResource.unique_resource_ids(attrs[field])
         return attrs
