@@ -29,6 +29,7 @@ from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from kernel_api.rpc.functions.bkm_cli.cache import _node_identity
+from kernel_api.rpc.functions.bkm_cli.management import validate_management_request
 
 SNAPSHOT_SCHEMA = "cache-routing-snapshot/v1"
 PLAN_SCHEMA = "replace-positive-routes/v1"
@@ -857,11 +858,13 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message="apply operation does not accept drain_node_id")
     if operation == "drain_apply" and "drain_node_id" not in params:
         raise CustomException(message="drain_node_id is required for drain_apply")
-    if params.get("confirmed") is not True:
-        raise CustomException(message="confirmed must be true")
     if params.get("exclusive_change_window") is not True:
         raise CustomException(message="exclusive_change_window must be true")
-    operator = _required_text(params, "operator")
+    operator = validate_management_request(
+        params,
+        allowed_fields=MANAGE_ALLOWED_FIELDS,
+        max_operator_length=128,
+    )
     expected_snapshot_id = _required_digest(params, "expected_snapshot_id")
     expected_after_snapshot_id = _required_digest(params, "expected_after_snapshot_id")
     expected_plan_id = _required_digest(params, "plan_id")
@@ -939,6 +942,7 @@ def manage_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
     result = {
         "operation": operation,
         "changed": plan["changed"],
+        "requested_operator": operator,
         "plan_id": expected_plan_id,
         "previous_snapshot_id": expected_snapshot_id,
         "snapshot_id": after["snapshot_id"],
@@ -977,7 +981,7 @@ KernelRPCRegistry.register_function(
         "plan_id": "preview 计算的计划标识",
         "desired_routes": "完整、按 strategy_score 升序的正数路由表",
         "confirmed": "必须为 true",
-        "operator": "操作人",
+        "operator": "当前人工授权中明确给出的实际执行人",
         "exclusive_change_window": "必须为 true",
     },
 )
@@ -1002,7 +1006,7 @@ BkmCliOpRegistry.register(
         "plan_id": "string",
         "desired_routes": "array",
         "confirmed": "boolean, must be true",
-        "operator": "string",
+        "operator": "string，当前人工授权中明确给出的实际执行人",
         "exclusive_change_window": "boolean, must be true",
     },
 )
