@@ -894,13 +894,13 @@ def parse_topo_target(bk_biz_id: int, dimensions: list[str], target: list[dict])
 
     # 根据实例类型设置查询方法
     if is_service_instance:
-        node_query_func = api.cmdb.get_service_instance_by_topo_node
-        template_query_func = api.cmdb.get_service_instance_by_template
+        node_query_func = api.cmdb.get_service_instance_ids_by_topo_node
+        template_query_func = api.cmdb.get_service_instance_ids_by_template
     else:
         node_query_func = api.cmdb.get_host_by_topo_node
         template_query_func = api.cmdb.get_host_by_template
 
-    instance_nodes: list[ServiceInstance | Host] = []
+    instance_nodes: list[ServiceInstance | Host | int] = []
     # 根据拓扑节点查询实例
     if topo_nodes:
         instance_nodes.extend(node_query_func(bk_biz_id=bk_biz_id, topo_nodes=topo_nodes))
@@ -931,7 +931,7 @@ def parse_topo_target(bk_biz_id: int, dimensions: list[str], target: list[dict])
 
     for node in instance_nodes:
         if is_service_instance:
-            result["service_instance_id"].add(str(node.service_instance_id))
+            result["service_instance_id"].add(str(node))
         elif is_host_id:
             result["bk_host_id"].add(str(node.bk_host_id))
         elif is_ip:
