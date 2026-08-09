@@ -28,6 +28,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.action.alert_assign import AssignRuleMatch
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
@@ -36,9 +37,10 @@ from bkmonitor.documents.issue import (
     IssueDocumentWriteError,
     IssueNotFoundError,
 )
-from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
+from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver, MergeResolverContext
 from bkmonitor.models import (
     IssueSourceAnalysisConfig,
+    IssueSourceAnalysisExecution,
     IssueSourceAnalysisRule,
     QueryConfigModel,
     TapdWorkspaceBinding,
@@ -50,7 +52,14 @@ from bkmonitor.utils.request import get_request_username, get_request
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user, set_local_username
-from constants.issue import IssuePriority, IssueStatus, IssueActivityType
+from constants.issue import (
+    IssueActivityType,
+    IssuePriority,
+    IssueStatus,
+    SourceAnalysisStage,
+    SourceAnalysisStatus,
+    SourceAnalysisTriggerType,
+)
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -284,6 +293,150 @@ class SourceAnalysisBaseResource(Resource):
         except (BKAPIError, TypeError, ValueError) as error:
             logger.warning("Source analysis flow initialization failed: %s", type(error).__name__)
             raise SourceAnalysisFlowInitializationFailedError() from error
+
+
+class SourceAnalysisExecutionBaseResource(Resource):
+    """Issue 源码分析执行入口的公共业务逻辑。
+
+    本类只负责选择当前输入并落执行记录，不创建 BKFara 任务。后续执行接口复用这里的
+    首次触发结果，再把异步编排交给独立阶段处理。
+    """
+
+    ISSUE_QUERY_FALLBACK_BUFFER = 7 * 86400
+
+    @staticmethod
+    def db_alias() -> str:
+        return IssueSourceAnalysisExecution.objects.db
+
+    @staticmethod
+    def resolve_display_issue_id(bk_biz_id: int, issue_id: str) -> str:
+        """活动 member 与主 Issue 共用同一个分析活动位。"""
+
+        context = MergeResolverContext(bk_biz_id)
+        context.load()
+        return IssueMergeResolver.resolve_display_id(issue_id, context)
+
+    @staticmethod
+    def get_active_execution(bk_biz_id: int, issue_id: str) -> IssueSourceAnalysisExecution | None:
+        return IssueSourceAnalysisExecution.objects.filter(bk_biz_id=bk_biz_id, active_key=issue_id).first()
+
+    @classmethod
+    def get_latest_alert(cls, bk_biz_id: int, issue_id: str) -> AlertDocument | None:
+        """查询主 Issue（含活动 member）在触发时刻的最新告警。"""
+
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        if issue.first_alert_time:
+            start_time = int(issue.first_alert_time)
+        else:
+            # Issue 创建通常晚于首个告警，缺少 first_alert_time 时向前放宽索引范围。
+            start_time = int(issue.create_time) - cls.ISSUE_QUERY_FALLBACK_BUFFER
+
+        handler = AlertQueryHandler(
+            bk_biz_ids=[bk_biz_id],
+            start_time=start_time,
+            end_time=int(time.time()),
+            conditions=[{"key": "issue_id", "value": [issue_id], "method": "eq"}],
+            ordering=["-create_time", "-seq_id"],
+            page=1,
+            page_size=1,
+            allow_partial=False,
+        )
+        search_result, _ = handler.search_raw()
+        # search_raw 保留 AlertDocument 供运行时匹配；完整性检查与公开 search() 路径保持一致。
+        handler._check_search_response_completeness(search_result)
+        return next(iter(search_result), None)
+
+    @staticmethod
+    def get_alert_match_dimensions(alert: AlertDocument) -> dict:
+        """沿用后台告警分派的 CMDB 补全及运行时维度构造口径。"""
+
+        # alarm_backends.service 顶层会初始化调度器与 Redis；延迟到真实触发时加载，
+        # 避免 Resource 模块导入阶段启动后台服务，同时仍复用线上分派的完整匹配器。
+        from alarm_backends.service.fta_action.tasks.alert_assign import BackendAssignMatchManager
+
+        manager = BackendAssignMatchManager(
+            alert,
+            notice_users=list(getattr(alert, "assignee", []) or []),
+        )
+        return manager.dimensions
+
+    @classmethod
+    def get_matched_rule(cls, bk_biz_id: int, alert: AlertDocument) -> IssueSourceAnalysisRule | None:
+        """按优先级降序返回首条命中的完整启用规则。"""
+
+        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-priority", "id")
+        executable_rules = []
+        for rule in rules:
+            if not (
+                SourceAnalysisBaseResource.is_rule_complete(rule) and rule.bkci_project_id and rule.repository_alias
+            ):
+                logger.warning(
+                    "Skip incomplete enabled source analysis rule: bk_biz_id=%s, rule_id=%s",
+                    bk_biz_id,
+                    rule.id,
+                )
+                continue
+            executable_rules.append(rule)
+
+        if not executable_rules:
+            return None
+
+        dimensions = cls.get_alert_match_dimensions(alert)
+        for rule in executable_rules:
+            rule_match = AssignRuleMatch({"id": rule.id, "conditions": rule.conditions}, alert=alert)
+            if rule_match.is_matched(dimensions):
+                return rule
+        return None
+
+    @classmethod
+    def create_initial_execution(
+        cls, bk_biz_id: int, issue_id: str, operator: str
+    ) -> tuple[IssueSourceAnalysisExecution | None, bool]:
+        """创建首次执行记录；返回 ``(记录, 是否本次新建)``。
+
+        无最新告警或无命中规则时不创建记录。并发请求由数据库唯一约束裁决，落败方返回
+        已存在的活动记录，避免把一次并发竞争误报成触发失败。
+        """
+
+        display_issue_id = cls.resolve_display_issue_id(bk_biz_id, issue_id)
+        active_execution = cls.get_active_execution(bk_biz_id, display_issue_id)
+        if active_execution:
+            return active_execution, False
+
+        alert = cls.get_latest_alert(bk_biz_id, display_issue_id)
+        if alert is None:
+            return None, False
+        rule = cls.get_matched_rule(bk_biz_id, alert)
+        if rule is None:
+            return None, False
+
+        try:
+            with transaction.atomic(using=cls.db_alias()):
+                execution = IssueSourceAnalysisExecution.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    issue_id=display_issue_id,
+                    status=SourceAnalysisStatus.PENDING,
+                    stage=SourceAnalysisStage.WAITING,
+                    trigger_type=SourceAnalysisTriggerType.INITIAL,
+                    attempt=1,
+                    alert_id=alert.id,
+                    rule_id=rule.id,
+                    rule_name=rule.name,
+                    rule_priority=rule.priority,
+                    bkci_project_id=rule.bkci_project_id,
+                    repository_alias=rule.repository_alias,
+                    agent_id=rule.agent_id,
+                    skill_ids=list(rule.skill_ids),
+                    knowledge_base_ids=list(rule.knowledge_base_ids),
+                    create_user=operator,
+                    update_user=operator,
+                )
+            return execution, True
+        except IntegrityError:
+            active_execution = cls.get_active_execution(bk_biz_id, display_issue_id)
+            if active_execution:
+                return active_execution, False
+            raise
 
 
 class SourceAnalysisConditionSerializer(serializers.Serializer):
