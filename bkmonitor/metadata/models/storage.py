@@ -3449,7 +3449,7 @@ class ESStorage(models.Model, StorageResultTable):
         if not force_move:
             for index in last_indexes:
                 index_info = es_storage.get_index_info(index)
-                if index_info["status"] == "red":
+                if index_info.get("index_status") == "red":
                     print(f"索引->[{index}]状态为red，因此要强制进行写别名的移动")
                     force_move = True
                     break
