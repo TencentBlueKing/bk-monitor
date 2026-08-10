@@ -21,21 +21,38 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
+
+/** trace Worker 源码以字符串打入主 bundle，运行时通过 Blob URL 创建 Worker */
+const setupTraceWorkerWebpack = config => {
+  const workerRawRule = {
+    resourceQuery: /raw/,
+    type: 'asset/source',
+  };
+  const oneOfRule = config.module.rules.find(rule => rule.oneOf);
+  if (oneOfRule) {
+    oneOfRule.oneOf.unshift(workerRawRule);
+    return;
+  }
+  config.module.rules.unshift(workerRawRule);
+};
+
 module.exports = async (baseConfig, { production, app }) => {
   const distUrl = path.resolve(`./${transformDistDir(app)}/`);
   const config = baseConfig;
+  let activePort = devConfig.port;
 
   if (app === 'trace') {
     config.module.rules.unshift(...createTraceWebpackIfdefRules(__dirname, production));
+    setupTraceWorkerWebpack(config);
   }
   if (!production) {
     // 自动配port
-    const port = await require('portfinder').getPortPromise({
+    activePort = await require('portfinder').getPortPromise({
       port: devConfig.port,
       stopPort: 8888,
     });
     config.devServer = {
-      port,
+      port: activePort,
       host: devConfig.host,
       allowedHosts: 'all',
       server: 'http',
@@ -79,7 +96,7 @@ module.exports = async (baseConfig, { production, app }) => {
           env: {
             NODE_ENV: JSON.stringify('development'),
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
-            devUrl: JSON.stringify(`${devConfig.host}:${port}`),
+            devUrl: JSON.stringify(`${devConfig.host}:${activePort}`),
             devHost: JSON.stringify(`${devConfig.host}`),
             defaultBizId: JSON.stringify(`${devConfig.defaultBizId || 2}`),
             APP: JSON.stringify(`${app}`),

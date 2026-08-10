@@ -457,8 +457,16 @@ class AccessDataProcess(BaseAccessDataProcess):
                     f"strategy_group_key({self.strategy_group_key}) strategy({first_item.strategy.id}) "
                     f"query records is partial, one of points: {points[:1]}"
                 )
-                if first_item.strategy.id in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
-                    logger.warning(f"double_check strategy({first_item.strategy.id}) is partial: skip query results")
+                configured_strategy_ids = set(settings.DOUBLE_CHECK_SUM_STRATEGY_IDS)
+                protected_strategy_ids = {
+                    item.strategy.id for item in self.items if item.strategy.id in configured_strategy_ids
+                }
+                if protected_strategy_ids:
+                    logger.warning(
+                        "double_check strategy group(%s) configured strategies(%s) is partial: skip query results",
+                        self.strategy_group_key,
+                        sorted(protected_strategy_ids),
+                    )
                     points = []
         except BKAPIError as e:
             logger.error(e)

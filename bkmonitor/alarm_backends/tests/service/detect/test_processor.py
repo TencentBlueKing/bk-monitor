@@ -14,6 +14,7 @@ from unittest import TestCase
 
 import mock
 import pytest
+from django.conf import settings
 from six.moves import map
 
 from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
@@ -119,6 +120,21 @@ class TestProcessorViews(TestCase):
         ):
             processor = DetectProcess("1")
             processor.process()
+
+    def test_double_check_remains_scoped_to_explicit_strategy_id(self):
+        processor = object.__new__(DetectProcess)
+        processor.strategy_id = "2"
+        processor.outputs = {1: [{"anomaly": {}}]}
+        item = mock.MagicMock()
+        item.id = 1
+
+        with mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [1]):
+            processor.double_check(item)
+        item.double_check.assert_not_called()
+
+        with mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [2]):
+            processor.double_check(item)
+        item.double_check.assert_called_once_with(outputs=processor.outputs[item.id])
 
     def test_processor_handle(self):
         with mock.patch(
@@ -255,5 +271,5 @@ class TestProcessorViews(TestCase):
                         assert label == f"{records[1]['time']}|{records[1]['value']}"
 
     def test_check_result_pipeline(self):
-        redis_pipeline = CheckResult(strategy_id=1, item_id=2, dimensions_md5="md5_str", level="1").pipeline()
+        redis_pipeline = CheckResult.begin_pipeline_batch()
         assert redis_pipeline is CheckResult(strategy_id=1, item_id=2, dimensions_md5="md5_str", level="1").CHECK_RESULT

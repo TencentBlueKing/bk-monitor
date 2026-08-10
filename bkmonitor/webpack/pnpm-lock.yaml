@@ -170,8 +170,8 @@ importers:
         specifier: 0.0.13
         version: 0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/monitor-trace-explore':
-        specifier: 0.0.33
-        version: 0.0.33(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.34
+        version: 0.0.34(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -543,8 +543,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.3.30
-        version: 2.3.30
+        specifier: 2.3.31
+        version: 2.3.31
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -670,8 +670,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: 2.0.25
-        version: 2.0.25
+        specifier: 2.0.27
+        version: 2.0.27
       '@blueking/monitor-vue2-components':
         specifier: 0.0.0-beta.8
         version: 0.0.0-beta.8
@@ -1653,8 +1653,8 @@ packages:
   '@blueking/monitor-alarm-center@0.0.13':
     resolution: {integrity: sha512-kEFElyeArues/UWaWLNiIakoKehos4e2irduVQdgpo+lvvg4+oPVrUfYdCEKc+T8QvkFWVlxRhP78ggIYiZncQ==}
 
-  '@blueking/monitor-apm-log@2.3.30':
-    resolution: {integrity: sha512-I7Et9Zye9Eus8mNnPdNs6ODgdfu2bihtepiajY+zUry+xjHBwePOSuY28mHmO+4D18M9R2qDeG1d63cEuh2GGg==}
+  '@blueking/monitor-apm-log@2.3.31':
+    resolution: {integrity: sha512-q976G4evUr8SRnuCi7Zu9JJlXpwz11JVjQBKVjZ0mPqojNKVwBF44ts+OIHt6SU4OidYYFvzPV43yhvNZT2jDQ==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1662,11 +1662,11 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.33':
-    resolution: {integrity: sha512-QzjwnUsXgp9M1dHCkfrbDJ6BRFfvJbJUujZfQCurqzDjw2wW9dRGVh3LfMhuajTbHCz1WSj++6rt6FpdUxPBEg==}
+  '@blueking/monitor-trace-explore@0.0.34':
+    resolution: {integrity: sha512-jySQWKU04nTjPuOruL9hOjUq0gy1+Z3DXUNO4oFlab5sNJOcE7V8OWedh9VGEJ5n7si+Uxlz9osjHeOBJRyMOA==}
 
-  '@blueking/monitor-trace-log@2.0.25':
-    resolution: {integrity: sha512-6E/I1hzqvTpSpN0FwqVSAgO/ZxIaRlExXUSfOrMFaucvPEjjm84H0iaAeacrbCiQEbmuZ1p8WoD3g2Z4CdPfaA==}
+  '@blueking/monitor-trace-log@2.0.27':
+    resolution: {integrity: sha512-t+iJHtGwG9LJiDz1BryLmVbfQcXgFdp2iWzguQJcPIwTkYlrXvRtA5L8Nebloya0UrdIFeODTiMGbkikEMVfMg==}
 
   '@blueking/monitor-vue2-components@0.0.0-beta.8':
     resolution: {integrity: sha512-sEbhCszh8f5SXREBygdw2Lu+q8KBUQJz7zmfaZJMjbWAiF0ZrQF6D9zz2ptPi1tuz0nCx0IYg4pm4sgIPt3wiQ==}
@@ -10832,14 +10832,14 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-apm-log@2.3.30': {}
+  '@blueking/monitor-apm-log@2.3.31': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.33(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-trace-explore@0.0.34(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
@@ -10850,7 +10850,7 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-trace-log@2.0.25': {}
+  '@blueking/monitor-trace-log@2.0.27': {}
 
   '@blueking/monitor-vue2-components@0.0.0-beta.8':
     dependencies:
@@ -17114,7 +17114,7 @@ snapshots:
     dependencies:
       urijs: 1.19.11
 
-  postcss-html@0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39):
+  postcss-html@0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-less@3.1.4)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39):
     dependencies:
       htmlparser2: 3.10.1
       postcss: 7.0.39
@@ -18518,7 +18518,7 @@ snapshots:
       micromatch: 4.0.8
       normalize-selector: 0.2.0
       postcss: 7.0.39
-      postcss-html: 0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39)
+      postcss-html: 0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-less@3.1.4)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39)
       postcss-less: 3.1.4
       postcss-media-query-parser: 0.2.3
       postcss-resolve-nested-selector: 0.1.6

@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+// 走 highlight-range 而非 page-highlight：本模块会被 Worker 引入，不能带上 vue。
 import {
   mapGlobalRangesToSegments,
   parseResultMarkedText,
   type HighlightRange,
-} from '@/views/retrieve-core/page-highlight';
+} from '@/views/retrieve-core/highlight-range';
 
 export type LuceneSegmentToken = {
   text: string;

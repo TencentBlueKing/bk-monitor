@@ -232,6 +232,15 @@ export const getRouteConfig = () => {
               href: '#/performance',
               canStore: true,
             },
+            {
+              name: '主机监控',
+              icon: 'icon-monitor icon-zhuji menu-icon',
+              id: 'host',
+              path: '/trace/host',
+              href: '#/trace/host',
+              canStore: false,
+              isBeta: true,
+            },
           ],
         },
         // {

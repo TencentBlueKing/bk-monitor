@@ -57,7 +57,8 @@ class RequestProvider(MiddlewareMixin):
             traceparent = getattr(request, MCP_TRACEPARENT_ATTR, "")
             if traceparent:
                 response["Traceparent"] = traceparent
-        push_event(request)
+        audit_request = getattr(request, "_audit_request", request)
+        push_event(audit_request, response)
         local.clear()
         response["X-Content-Type-Options"] = "nosniff"
         return response

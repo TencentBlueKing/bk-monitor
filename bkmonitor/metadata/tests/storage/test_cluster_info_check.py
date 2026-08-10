@@ -42,6 +42,62 @@ def assert_standard_check_fields(result: dict):
     }
 
 
+def test_check_connectivity_es_only_pings(mocker):
+    client = mocker.Mock()
+    client.ping.return_value = True
+    client_factory = mocker.patch(
+        "metadata.models.storage.es_tools.get_client_by_datasource_info",
+        return_value=client,
+    )
+
+    result = make_cluster(ClusterInfo.TYPE_ES, port=9200).check_connectivity(timeout=3)
+
+    assert result == {"is_connected": True, "error": None}
+    client.ping.assert_called_once_with(params={"request_timeout": 3})
+    client.cluster.health.assert_not_called()
+    client.cat.allocation.assert_not_called()
+    assert client_factory.call_args.args[0]["domain_name"] == "127.0.0.1"
+    assert client_factory.call_args.args[0]["port"] == 9200
+
+
+def test_check_connectivity_es_ping_failure(mocker):
+    client = mocker.Mock()
+    client.ping.return_value = False
+    mocker.patch("metadata.models.storage.es_tools.get_client_by_datasource_info", return_value=client)
+
+    result = make_cluster(ClusterInfo.TYPE_ES, port=9200).check_connectivity(timeout=3)
+
+    assert result["is_connected"] is False
+    assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_CONNECTION_FAILED
+
+
+def test_check_connectivity_doris_only_selects_one(mocker):
+    cursor = mocker.Mock()
+    cursor.__enter__ = mocker.Mock(return_value=cursor)
+    cursor.__exit__ = mocker.Mock(return_value=None)
+    cursor.fetchone.return_value = {"1": 1}
+    connection = mocker.Mock()
+    connection.cursor.return_value = cursor
+    connect = mocker.patch("metadata.models.storage.pymysql.connect", return_value=connection)
+
+    result = make_cluster(ClusterInfo.TYPE_DORIS, port=9030).check_connectivity(timeout=2)
+
+    assert result == {"is_connected": True, "error": None}
+    cursor.execute.assert_called_once_with("SELECT 1")
+    connection.close.assert_called_once()
+    connect.assert_called_once_with(
+        host="127.0.0.1",
+        port=9030,
+        user="",
+        password="",
+        charset="utf8mb4",
+        cursorclass=mocker.ANY,
+        connect_timeout=2,
+        read_timeout=2,
+        write_timeout=2,
+    )
+
+
 def test_health_check_kafka_cluster_available(mocker):
     metadata = SimpleNamespace(brokers={1: object(), 2: object()}, topics={"topic_a": object()})
     admin_client = mocker.Mock()

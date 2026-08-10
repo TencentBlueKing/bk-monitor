@@ -23,6 +23,7 @@ from alarm_backends.core.cache import key
 from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
 from bkmonitor.models import CacheNode
 from bkmonitor.utils.common_utils import count_md5
+from constants.strategy import MULTI_METRIC_DATA_SOURCES
 
 from .config import (
     RAW_DATA,
@@ -54,6 +55,29 @@ class TestAccessDataProcess:
 
     def teardown_method(self):
         pass
+
+    @pytest.mark.parametrize(
+        ("configured_strategy_ids", "expected"),
+        [([2], []), ([3], query_record)],
+    )
+    def test_partial_query_uses_all_shared_group_members(self, configured_strategy_ids, expected):
+        first_item = mock.MagicMock()
+        first_item.strategy.id = 1
+        first_item.data_source_types = set(MULTI_METRIC_DATA_SOURCES)
+        first_item.data_source_labels = set()
+        first_item.query_record.return_value = query_record
+        first_item.query.is_partial = True
+
+        second_item = mock.MagicMock()
+        second_item.strategy.id = 2
+
+        data_process = AccessDataProcess("shared-query-group")
+        data_process.items = [first_item, second_item]
+        data_process.from_timestamp = 1
+        data_process.until_timestamp = 2
+
+        with mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", configured_strategy_ids):
+            assert data_process.query_data(now_timestamp=3) == expected
 
     @mock.patch(
         "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3

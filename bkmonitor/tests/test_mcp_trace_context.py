@@ -82,11 +82,11 @@ def test_api_renderer_adds_trace_id_only_for_mcp_request():
 
 
 def test_request_provider_adds_mcp_trace_headers(monkeypatch):
-    monkeypatch.setattr("bkmonitor.middlewares.request_middlewares.push_event", lambda request: None)
+    monkeypatch.setattr("bkmonitor.middlewares.request_middlewares.push_event", lambda request, response: None)
     request = make_mcp_request("00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01")
     ensure_mcp_trace_context(request)
 
-    response = RequestProvider().process_response(request, HttpResponse())
+    response = RequestProvider(lambda _: HttpResponse()).process_response(request, HttpResponse())
 
     assert response["X-Bk-Trace-Id"] == "cccccccccccccccccccccccccccccccc"
     assert response["X-Bkapi-Trace-Id"] == "cccccccccccccccccccccccccccccccc"
