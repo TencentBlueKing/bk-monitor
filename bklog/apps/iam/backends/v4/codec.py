@@ -5,6 +5,11 @@ import re
 from apps.iam.iam_engine.core.requests import ResourceInstance, to_definition_id
 
 _IAM_PATH_SEGMENT_PATTERN = re.compile(r"(?:^|/)(?P<type>[^/,]+),(?P<id>[^/]+)(?=/|$)")
+
+# bk_log_search 的 IAM V4 模型按「干净命名」重新注册，不保留 V3 时期的 _v2 后缀
+# （V3 用 _v2 区分两代 action，见 apps/iam/handlers/compatible.py；V4 无此历史包袱）。
+# 因此 V4 侧统一剥掉后缀，与 BKLOG_ROOT_RESOURCE_TYPE_ID = "space" 是配套前提，
+# 二者需在目标环境一并核对。
 _V2_ACTION_SUFFIX = "_v2"
 
 # BKLog 权限模型的根资源类型：仓库模型 support-files/iam/initial.json 与
