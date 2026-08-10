@@ -329,8 +329,17 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return canonical_issue_id, list(dict.fromkeys(alert_issue_ids))
 
     @staticmethod
-    def get_active_execution(bk_biz_id: int, issue_id: str) -> IssueSourceAnalysisExecution | None:
-        return IssueSourceAnalysisExecution.objects.filter(bk_biz_id=bk_biz_id, active_key=issue_id).first()
+    def get_active_execution(bk_biz_id: int, issue_ids: list[str]) -> IssueSourceAnalysisExecution | None:
+        """查询当前合并组内已有的活动执行。
+
+        活动记录创建后 Issue 仍可能被合并，记录上的 ``active_key`` 不会随关系迁移。
+        因此必须覆盖主 Issue 和全部活动 member，避免合并后以主 Issue 再创建一条活动记录。
+        """
+
+        return IssueSourceAnalysisExecution.objects.filter(
+            bk_biz_id=bk_biz_id,
+            active_key__in=issue_ids,
+        ).first()
 
     @classmethod
     def get_latest_alert(cls, bk_biz_id: int, issue_id: str, alert_issue_ids: list[str]) -> AlertDocument | None:
@@ -413,7 +422,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         """
 
         canonical_issue_id, alert_issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
-        active_execution = cls.get_active_execution(bk_biz_id, canonical_issue_id)
+        active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
         if active_execution:
             return active_execution, False
 
@@ -447,7 +456,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 )
             return execution, True
         except IntegrityError:
-            active_execution = cls.get_active_execution(bk_biz_id, canonical_issue_id)
+            active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
             if active_execution:
                 return active_execution, False
             raise

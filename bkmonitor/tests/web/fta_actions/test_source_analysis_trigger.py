@@ -240,6 +240,24 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         self.assertFalse(created)
         get_latest_alert.assert_not_called()
 
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_member_active_before_merge_is_reused_by_main(self, get_latest_alert):
+        active_execution = self.create_execution(issue_id=self.MEMBER_ISSUE_ID)
+        IssueMergeRelation.objects.create(
+            bk_biz_id=self.BK_BIZ_ID,
+            main_issue_id=self.ISSUE_ID,
+            member_issue_id=self.MEMBER_ISSUE_ID,
+        )
+
+        execution, created = SourceAnalysisExecutionBaseResource.create_initial_execution(
+            self.BK_BIZ_ID, self.ISSUE_ID, "admin"
+        )
+
+        self.assertEqual(execution.id, active_execution.id)
+        self.assertFalse(created)
+        self.assertEqual(IssueSourceAnalysisExecution.objects.count(), 1)
+        get_latest_alert.assert_not_called()
+
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
     def test_merged_member_uses_main_issue_active_slot(self, get_latest_alert, _get_alert_match_dimensions):
