@@ -2025,4 +2025,10 @@ export default {
   影响范围维度: 'Impact scope dimension',
 
   单据类型: 'Ticket type',
+
+  // 主机
+  对比方法: 'Comparison method',
+  节点: 'Node',
+  ID: 'ID',
+  启动命令: 'Start command',
 };

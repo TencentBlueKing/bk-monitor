@@ -1,6 +1,11 @@
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e3f2fd', 'primaryTextColor': '#1565c0', 'primaryBorderColor': '#1976d2', 'lineColor': '#42a5f5'}}}%%
 flowchart TD
-  START([用户访问 /retrieve/:indexId]) --> ROUTER[Vue Router]
+  START([浏览器访问 /retrieve/:indexId]) --> HTML[index.html 静态壳]
+  HTML --> BOOT[bootstrap-loading 首屏占位]
+  HTML --> MAIN[main.js + preload]
+  MAIN --> PRELOAD_API[并行: space / userInfo / globals]
+  PRELOAD_API --> MOUNT[挂载 #app 并淡出 bootstrap-loading]
+  MOUNT --> ROUTER[Vue Router]
   ROUTER --> HUB[RetrieveHub]
   HUB --> INIT[默认加载 retrieve-v3<br/>use-app-init]
 

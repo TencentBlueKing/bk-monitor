@@ -127,6 +127,22 @@ class CustomTimeSeriesDetailResource(MonitorAPIGWResource):
     method = "GET"
 
 
+class QueryCustomTimeSeriesProtocolsResource(MonitorAPIGWResource):
+    """批量查询自定义指标上报协议。"""
+
+    action = "/app/custom_metric/query_protocols/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID，0 表示全部业务", default=0)
+        bk_data_ids = serializers.ListField(
+            label="数据 ID 列表，空列表表示不按数据 ID 过滤",
+            child=serializers.IntegerField(),
+            required=False,
+            default=list,
+        )
+
+
 class BatchCreateActionBackendResource(MonitorAPIGWResource):
     """
     批量创建处理任务

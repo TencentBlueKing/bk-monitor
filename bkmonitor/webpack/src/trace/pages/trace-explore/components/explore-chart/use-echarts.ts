@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, computed, inject, shallowRef, toValue, watch } from 'vue';
+import { type MaybeRef, type Ref, computed, inject, onBeforeUnmount, onMounted, shallowRef, toValue, watch } from 'vue';
 
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
@@ -35,6 +35,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
+import { useChartViewOption } from './use-chart-view-option';
 import {
   handleGetMinPrecision,
   handleSetMarkPoints,
@@ -56,13 +57,19 @@ export interface ChartInteractionState {
   isMouseOver: MaybeRef<boolean>;
 }
 export interface ChartOptions {
+  // biome-ignore lint/suspicious/noExplicitAny: API 返回类型通用
   $api: Record<string, () => Promise<any>>;
   chartRef: Ref<HTMLElement>;
   customOptions: CustomOptions;
   interactionState?: ChartInteractionState;
   panel: MaybeRef<PanelModel>;
+  // biome-ignore lint/suspicious/noExplicitAny: API 参数类型通用
   params: MaybeRef<Record<string, any>>;
   downSampleRangeComputed?: (timeRange: number[]) => string | undefined;
+  viewportRequest?: {
+    el: Ref<HTMLElement>;
+    enable: boolean;
+  };
 }
 
 export interface CustomOptions {
@@ -412,7 +419,7 @@ export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOption
       containLabel: true,
       left: 10,
       right: 10,
-      top: 10,
+      top: 20,
       bottom: 10,
       backgroundColor: 'transparent',
     },
@@ -446,16 +453,52 @@ export const useEcharts = ({
   params,
   customOptions,
   interactionState,
+  viewportRequest,
   downSampleRangeComputed,
 }: ChartOptions) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
-
+  const { applyPeakMarkPoint, watchHighlightPeak } = useChartViewOption();
   let cancelTokens = [];
   /** 请求版本号，用于丢弃 lazyRender 阶段的过期回调 */
   let currentRequestId = 0;
+
+  const intersectionObserver = shallowRef<IntersectionObserver>(null);
+  const isInViewPort = el => {
+    if (!el) return false;
+    const { top, bottom } = el.getBoundingClientRect();
+    return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
+  };
+
+  // 注册Intersection监听
+  const registerObserver = el => {
+    if (intersectionObserver.value) {
+      unregisterObserver(el);
+    }
+    intersectionObserver.value = new IntersectionObserver(async entries => {
+      for (const entry of entries) {
+        if (intersectionObserver.value && entry.intersectionRatio > 0) {
+          options.value = await getEchartOptions();
+          chartId.value = random(8);
+        }
+      }
+    });
+    // 临时使用此方法解决，自定义指标直接全选分组时，偶现前两个图表不会请求数据
+    setTimeout(() => {
+      intersectionObserver.value.observe(el);
+    }, 50);
+  };
+
+  const unregisterObserver = el => {
+    if (intersectionObserver.value) {
+      intersectionObserver.value.unobserve(el);
+      intersectionObserver.value.disconnect();
+      intersectionObserver.value = null;
+    }
+  };
+
   const loading = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
@@ -472,9 +515,39 @@ export const useEcharts = ({
   });
   const series = shallowRef([]);
 
+  /** 根据已合并的 series 列表构建 echarts options */
+  const buildOptions = (seriesList: any[]) => {
+    if (!seriesList.length) return undefined;
+    const { xAxis, seriesData, xData } = createSeries(seriesList, customOptions.series);
+    applyPeakMarkPoint(seriesData, xData, xAxis);
+    const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
+    const echartOptions = createOptions(xAxis, yAxis, seriesData, customOptions.options);
+    const { tooltipsOptions } = useChartTooltips(chartRef, {
+      isMouseOver: interactionState?.isMouseOver ?? true,
+      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
+      options: echartOptions,
+      customTooltipsOptions: customOptions.tooltips,
+    });
+    return {
+      ...echartOptions,
+      tooltip: tooltipsOptions.value,
+    };
+  };
+
   const getEchartOptions = async () => {
     for (const cb of cancelTokens) {
       cb?.();
+    }
+    /** 是否开启视口请求判断 */
+    if (viewportRequest?.enable) {
+      if (!isInViewPort(viewportRequest.el.value)) {
+        if (intersectionObserver.value) {
+          unregisterObserver(viewportRequest.el.value);
+        }
+        viewportRequest.el.value && registerObserver(viewportRequest.el.value);
+        return;
+      }
+      unregisterObserver(viewportRequest.el.value);
     }
     cancelTokens = [];
     const requestId = ++currentRequestId;
@@ -522,6 +595,7 @@ export const useEcharts = ({
               metricList.value.push(metric);
             }
           }
+          metricList.value = [...metricList.value];
           const targetCopy = { ...target };
           if (query_config) {
             targetCopy.data = query_config;
@@ -538,24 +612,6 @@ export const useEcharts = ({
             : [];
         })
         .catch(() => []);
-    };
-
-    /** 根据已合并的 series 列表构建 echarts options */
-    const buildOptions = (seriesList: any[]) => {
-      if (!seriesList.length) return undefined;
-      const { xAxis, seriesData } = createSeries(seriesList, customOptions.series);
-      const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
-      const echartOptions = createOptions(xAxis, yAxis, seriesData, customOptions.options);
-      const { tooltipsOptions } = useChartTooltips(chartRef, {
-        isMouseOver: interactionState?.isMouseOver ?? true,
-        hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
-        options: echartOptions,
-        customTooltipsOptions: customOptions.tooltips,
-      });
-      return {
-        ...echartOptions,
-        tooltip: tooltipsOptions.value,
-      };
     };
 
     /** 把 Promise.allSettled 结果展开为 series 列表 */
@@ -611,6 +667,25 @@ export const useEcharts = ({
       immediate: true,
     }
   );
+  watchHighlightPeak(() => {
+    const nextOptions = buildOptions(series.value);
+    if (nextOptions) {
+      options.value = nextOptions;
+      chartId.value = random(8);
+    }
+  });
+
+  onMounted(() => {
+    if (viewportRequest?.enable) {
+      registerObserver(viewportRequest.el.value);
+    }
+  });
+
+  onBeforeUnmount(() => {
+    if (intersectionObserver.value) {
+      unregisterObserver(viewportRequest.el.value);
+    }
+  });
   return {
     loading,
     options,

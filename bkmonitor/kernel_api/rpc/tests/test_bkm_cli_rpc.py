@@ -58,6 +58,86 @@ def test_bkm_cli_op_call_resolves_op_id_to_whitelisted_registered_function():
     assert result["audit"]["audit_tags"] == ["phase1"]
 
 
+def test_bkm_cli_mutation_audit_reports_declared_operator_and_trusted_caller(mocker):
+    request_username = mocker.patch("bkmonitor.utils.request.get_request_username", return_value="trusted-caller")
+    KernelRPCRegistry.register_function(
+        func_name="bkm_cli.test_manage",
+        summary="test manage",
+        description="test manage",
+        handler=lambda params: {"requested_operator": params["operator"]},
+    )
+    BkmCliOpRegistry.register(
+        op_id="test-manage",
+        func_name="bkm_cli.test_manage",
+        capability_level="admin",
+        risk_level="mutation",
+        requires_confirmation=True,
+        audit_tags=["admin", "mutation"],
+        params_schema={"operator": "实际执行人", "confirmed": "必须为 true"},
+        example_params={"operator": "alice", "confirmed": False},
+    )
+
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "test-manage", "params": {"operator": "alice", "confirmed": True}}
+    )
+
+    assert result["audit"]["declared_operator"] == "alice"
+    assert result["audit"]["request_caller"] == "trusted-caller"
+    request_username.assert_called_once_with()
+
+
+def test_bkm_cli_readonly_audit_does_not_claim_declared_operator(mocker):
+    request_username = mocker.patch("bkmonitor.utils.request.get_request_username")
+    KernelRPCRegistry.register_function(
+        func_name="bkm_cli.test_query",
+        summary="test query",
+        description="test query",
+        handler=lambda params: {"ok": True},
+    )
+    BkmCliOpRegistry.register(
+        op_id="test-query",
+        func_name="bkm_cli.test_query",
+        capability_level="admin",
+        risk_level="readonly",
+        requires_confirmation=False,
+        audit_tags=["admin", "readonly"],
+        params_schema={},
+        example_params={},
+    )
+
+    result = BkmCliOpCallResource().perform_request({"op_id": "test-query", "params": {}})
+
+    assert "declared_operator" not in result["audit"]
+    assert "request_caller" not in result["audit"]
+    request_username.assert_not_called()
+
+
+def test_bkm_cli_mutation_audit_rejects_non_string_declared_operator(mocker):
+    mocker.patch("bkmonitor.utils.request.get_request_username", return_value="")
+    KernelRPCRegistry.register_function(
+        func_name="bkm_cli.test_malformed_manage",
+        summary="test malformed manage",
+        description="test malformed manage",
+        handler=lambda params: {"requested_operator": {"unexpected": "value"}},
+    )
+    BkmCliOpRegistry.register(
+        op_id="test-malformed-manage",
+        func_name="bkm_cli.test_malformed_manage",
+        capability_level="admin",
+        risk_level="mutation",
+        requires_confirmation=True,
+        audit_tags=["admin", "mutation"],
+        params_schema={"operator": "实际执行人", "confirmed": "必须为 true"},
+        example_params={"operator": "alice", "confirmed": False},
+    )
+
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "test-malformed-manage", "params": {"operator": "alice", "confirmed": True}}
+    )
+
+    assert "declared_operator" not in result["audit"]
+
+
 def test_bkm_cli_op_call_rejects_unknown_op_id():
     with pytest.raises(CustomException) as exc:
         BkmCliOpCallResource().perform_request({"op_id": "missing-op", "params": {}})

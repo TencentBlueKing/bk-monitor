@@ -1,0 +1,360 @@
+/* stylelint-disable selector-class-pattern */
+.host-list-table {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  /** 主机列表溢出省略单元格（配合 useTableEllipsis 事件委托，溢出时弹 tooltip，避免微前端下错位） */
+  .host-list-ellipsis-cell {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__body {
+    flex: 0 0 auto;
+    min-height: 0;
+
+    &--empty {
+      flex: 1;
+    }
+
+    .t-table {
+      &__header {
+        font-family: 'Microsoft YaHei', sans-serif;
+
+        .t-table__th-cell-inner {
+          .t-table__cell--title {
+            & > div:first-child {
+              min-width: 0;
+            }
+          }
+        }
+      }
+
+      &__th-id[data-colkey='id'] {
+        padding: 0;
+
+        .t-table__th-cell-inner {
+          width: 100%;
+          height: 100%;
+
+          .across-page-selection {
+            width: 100%;
+            height: 100%;
+
+            .bk-dropdown-reference {
+              width: 100%;
+              height: 100%;
+            }
+          }
+        }
+      }
+
+      &__th-cpu_usage,
+      &__th-mem_usage,
+      &__th-disk_in_use {
+        .t-table__filter-icon-wrap {
+          margin-top: 20px;
+        }
+      }
+    }
+
+    // 表格内容不足时撑满容器剩余高度（仅在空数据时生效）
+    .host-list-table--empty {
+      height: 100%;
+
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+      }
+
+      .t-table--layout-fixed {
+        height: 100%;
+      }
+    }
+  }
+
+  &__pagination {
+    flex: 0 0 auto;
+    padding: 0;
+    margin-top: 12px;
+    background: #fff;
+
+    .bk-pagination-limit {
+      flex: 1;
+    }
+  }
+
+  // 36 行高，显示更多内容
+  .t-table td,
+  .t-table th {
+    height: 36px;
+  }
+}
+
+/** 主机蓝链 */
+
+.host-table-ip-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+
+  .host-table-ip {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /** IP 状态图标（不监控/不告警） */
+  .host-table-ip-status {
+    flex-shrink: 0;
+    margin-left: 6px;
+    font-size: 18px;
+    color: #ffb848;
+
+    &.icon-menu-shield,
+    &.icon-celvepingbi {
+      font-size: 16px;
+    }
+  }
+
+  /** 置顶按钮 */
+  .host-table-ip-mark,
+  .host-table-ip-mark-en {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-width: 28px;
+    height: 16px;
+    margin-left: 6px;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+
+  .host-table-ip-mark-en {
+    &.path-primary {
+      path {
+        background: #fff;
+        fill: #3a84ff;
+      }
+    }
+
+    &.path-default {
+      display: none;
+
+      path {
+        background: #fff;
+        fill: #979ba5;
+      }
+    }
+  }
+
+  .host-table-ip-mark {
+    &.path-primary {
+      color: #fff;
+      background: #3a84ff;
+
+      path:first-child {
+        fill: #3a84ff;
+      }
+    }
+
+    &.path-default {
+      display: none;
+      color: #fff;
+      background: #979ba5;
+
+      path:first-child {
+        fill: #979ba5;
+      }
+    }
+  }
+}
+
+/** hover 行时显示未置顶按钮 */
+
+.host-list-table__body .t-table .t-table__body tr:hover {
+  .host-table-ip-mark.path-default,
+  .host-table-ip-mark-en.path-default {
+    display: inline-flex;
+  }
+}
+
+/* stylelint-enable selector-class-pattern */
+
+/** 采集状态圆点 */
+.host-table-status {
+  display: flex;
+  align-items: center;
+
+  &__dot-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    margin-right: 6px;
+    border-radius: 50%;
+  }
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+}
+
+/** 未恢复告警色块（对齐 performance-table .status-label） */
+.host-table-alarm {
+  display: inline-block;
+  min-width: 20px;
+  padding: 2px 7px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #fff;
+  text-align: center;
+  background: #dcdee5;
+  border-radius: 2px;
+
+  &--unresolve:hover {
+    cursor: pointer;
+  }
+}
+
+/** 指标列：数值 + 贴边进度条 */
+.host-table-metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+
+  &__value {
+    font-size: 12px;
+    line-height: 16px;
+    color: #313238;
+  }
+
+  &__bar {
+    width: 100%;
+    height: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  &__bar-inner {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.3s;
+  }
+
+  &__empty {
+    color: #c4c6cc;
+  }
+}
+
+/** 指标列表头：固定聚合图标 + 标题（纵向布局，对标旧版逻辑但保持新版样式） */
+.host-table-metric-header {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  &__agg.icon-monitor {
+    width: 18px;
+    height: 18px;
+    margin-bottom: -2px;
+    font-size: 14px;
+    color: #3a84ff;
+
+    &.icon-max {
+      font-size: 11px;
+    }
+  }
+
+  &__title {
+    max-width: 100%;
+    line-height: 20px;
+    color: #313238;
+  }
+}
+
+/** 进程标签状态色（布局与溢出由 TagOverflow 负责） */
+.host-table-process {
+  &__tag {
+    display: inline-block;
+    max-width: 100%;
+    padding: 3px 7px;
+    margin-left: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    line-height: 16px;
+    vertical-align: middle;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    /* stylelint-disable-next-line selector-class-pattern */
+    & ~ .host-table-process__tag {
+      margin-left: 6px;
+    }
+  }
+
+  /* 1 异常 / 2 无数据 / 3 正常 */
+  &__tag--1 {
+    color: #ea3636;
+    border: 1px solid #fd9c9c;
+  }
+
+  &__tag--2 {
+    color: #c4c6cc;
+    border: 1px solid #dcdee5;
+  }
+
+  &__tag--3 {
+    color: #63656e;
+    border: 1px solid #dcdee5;
+  }
+
+  &__tag--default {
+    color: #63656e;
+    border: 1px solid #dcdee5;
+  }
+
+  &__empty {
+    font-size: 12px;
+    line-height: 22px;
+    color: #c4c6cc;
+  }
+}
+
+/** 指标加载骨架 */
+.host-table-skeleton {
+  width: 60%;
+  height: 14px;
+  background: linear-gradient(90deg, #f0f1f5 25%, #e1e3e8 37%, #f0f1f5 63%);
+  background-size: 400% 100%;
+  border-radius: 2px;
+  animation: host-table-skeleton-loading 1.4s ease infinite;
+}
+
+@keyframes host-table-skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}

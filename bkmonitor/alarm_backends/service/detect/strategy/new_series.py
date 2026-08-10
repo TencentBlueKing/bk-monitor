@@ -361,8 +361,8 @@ class NewSeries(BasicAlgorithmsCollection):
             seen_before = {}
             for i in range(0, len(fps), CHUNK_SIZE):
                 chunk = fps[i : i + CHUNK_SIZE]
-                # RedisProxy 会复用首次创建的 PipelineProxy，首次即启用事务，确保后续首块 ZADD+EXPIRE
-                # 不会因复用此前的非事务读 pipeline 而失去原子性。
+                # 每个读批次都显式启用事务，RedisProxy 会同步更新复用 PipelineProxy 的批次参数，
+                # 确保后续首块 ZADD+EXPIRE 不会沿用非事务 pipeline。
                 pipe = client.pipeline(transaction=True)
                 for fp in chunk:
                     pipe.zscore(seen_key, fp)

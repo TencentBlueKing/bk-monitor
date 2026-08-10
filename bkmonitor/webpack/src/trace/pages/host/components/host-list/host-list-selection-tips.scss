@@ -1,0 +1,19 @@
+.host-list-selection-tips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .tips-text {
+    font-size: 12px;
+    color: #4d4f56;
+
+    .space-count {
+      margin: 0 2px;
+      font-weight: 700;
+    }
+  }
+
+  .tips-action {
+    margin-left: 12px;
+  }
+}

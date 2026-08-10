@@ -339,6 +339,72 @@ class Permission:
             raise GetSystemInfoError(_("获取系统信息错误：{message}").format(message))
         return data
 
+    # IAM v1 策略在 CompatibleIAM 中已经转换为 space.id；这里只优化转换后的稳定形态。
+    _FLATTENABLE_FIELD = "space.id"
+    _FLATTENABLE_ANY_FIELDS = frozenset({_FLATTENABLE_FIELD, ""})
+
+    @classmethod
+    def _try_flatten_space_policy(cls, policies: dict) -> dict | None:
+        """
+        将仅包含 any、space.id eq/in 和 OR 的策略树转换为全量标记或 ID 集合。
+
+        为保证与 IAM SDK 的类型比较语义一致，策略值必须已经是字符串；
+        任一节点格式或算子不满足约束时，返回 None 交给原始表达式求值逻辑。
+
+        返回：
+          {"mode": "any"}                   -> 策略恒真，全放行
+          {"mode": "flat", "allowed": set} -> 已抽取 biz_id 白名单
+          None                              -> 无法平坦化，走兜底
+        """
+
+        def analyze(node):
+            if not isinstance(node, dict):
+                return None
+
+            op = node.get("op")
+            if op == "any":
+                # IAM 的全量策略可能使用 space.id 或空 field；
+                # 其他字段交回 SDK，避免改变异常和权限语义。
+                if node.get("field") not in cls._FLATTENABLE_ANY_FIELDS or "value" not in node:
+                    return None
+                return {"mode": "any"}
+
+            if op == "eq":
+                value = node.get("value")
+                if node.get("field") != cls._FLATTENABLE_FIELD or not isinstance(value, str):
+                    return None
+                return {"mode": "flat", "allowed": {value}}
+
+            if op == "in":
+                value = node.get("value")
+                if (
+                    node.get("field") != cls._FLATTENABLE_FIELD
+                    or not isinstance(value, list | tuple)
+                    or not all(isinstance(item, str) for item in value)
+                ):
+                    return None
+                return {"mode": "flat", "allowed": set(value)}
+
+            if op != "OR":
+                return None
+
+            content = node.get("content")
+            if not isinstance(content, list | tuple):
+                return None
+
+            allowed = set()
+            for child in content:
+                result = analyze(child)
+                if result is None:
+                    return None
+                if result["mode"] == "any":
+                    return {"mode": "any"}
+                allowed.update(result["allowed"])
+
+            return {"mode": "flat", "allowed": allowed}
+
+        return analyze(policies)
+
     def filter_space_list_by_action(
         self, action: ActionMeta | str, bk_tenant_id: str = "", space_list: list = None
     ) -> list:
@@ -370,6 +436,24 @@ class Permission:
                     return [space]
             return []
 
+        # 平坦化快路径：只优化可证明等价的策略树，其他形态回退 IAM SDK。
+        flat = self._try_flatten_space_policy(policies)
+        demo_biz_id = str(settings.DEMO_BIZ_ID)
+
+        if flat is not None and flat["mode"] == "any":
+            results = []
+            for space in space_list:
+                # 原始 SDK 路径会在 any 求值前读取并转换 bk_biz_id；保留异常数据的处理语义。
+                _ = str(space["bk_biz_id"])
+                results.append(space)
+            return results
+
+        if flat is not None and flat["mode"] == "flat":
+            allowed_ids: set[str] = flat["allowed"]
+            visible_ids = allowed_ids | {demo_biz_id}
+            return [space for space in space_list if str(space["bk_biz_id"]) in visible_ids]
+
+        # SDK 支持但无法安全平坦化的算子和树结构继续走原始求值逻辑。
         # 生成表达式
         expr = make_expression(policies)
 
@@ -382,7 +466,7 @@ class Permission:
             is_allowed = self.iam_client._eval_expr(expr, obj_set)
 
             # 针对demo业务权限豁免
-            if is_allowed or str(settings.DEMO_BIZ_ID) == str(space["bk_biz_id"]):
+            if is_allowed or demo_biz_id == str(space["bk_biz_id"]):
                 results.append(space)
 
         return results

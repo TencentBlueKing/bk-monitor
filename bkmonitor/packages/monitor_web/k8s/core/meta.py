@@ -504,6 +504,17 @@ class K8sResourceMeta:
         )
         return f"(kube_pod_container_resource_requests{{{filter_string}}} or ({running_sidecar}))"
 
+    def pod_limits_with_sidecar_expr(self, filter_string, resource):
+        """容器 limit 求和口径（含运行中的 init / 原生 sidecar），用于使用率分母。"""
+        unit = "core" if resource == "cpu" else "byte"
+        resource_filter = f'resource="{resource}",unit="{unit}",{filter_string}'
+        running_sidecar = (
+            f"kube_pod_init_container_resource_limits{{{resource_filter}}}"
+            " * on(namespace,pod,container) group_left() "
+            f"(kube_pod_init_container_status_running{{{self.bcs_cluster_id_filter}}} == 1)"
+        )
+        return f"(kube_pod_container_resource_limits{{{resource_filter}}} or ({running_sidecar}))"
+
 
 class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     resource_field = "pod_name"
@@ -591,7 +602,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
+      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "cpu")}
     )))"""
         )
         return promql
@@ -630,7 +641,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
+      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "memory")}
     )))"""
         )
         return promql
@@ -1611,7 +1622,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
+      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "cpu")}
     )))"""
         )
         return promql
@@ -1650,7 +1661,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
+      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "memory")}
     )))"""
         )
         return promql
@@ -1901,7 +1912,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
+      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "cpu")}
     )))"""
         )
         return promql
@@ -1940,7 +1951,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
+      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "memory")}
     )))"""
         )
         return promql

@@ -12,6 +12,7 @@ import json
 
 from rest_framework import serializers
 
+from bkmonitor.utils import request as request_context
 from core.drf_resource import Resource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -50,16 +51,24 @@ class BkmCliOpCallResource(Resource):
         # 在服务桥唯一出口统一归一是根治：杜绝该类 bug 在任意 bkm_cli.* 函数处再复发。
         raw_result = KernelRPCRegistry.execute(op.func_name, params)
         result = json.loads(json.dumps(raw_result, default=str))
+        audit = {
+            "capability_level": op.capability_level,
+            "risk_level": op.risk_level,
+            "requires_confirmation": op.requires_confirmation,
+            "audit_tags": op.audit_tags,
+        }
+        if op.requires_confirmation:
+            declared_operator = result.get("requested_operator") if isinstance(result, dict) else None
+            if isinstance(declared_operator, str) and declared_operator.strip():
+                audit["declared_operator"] = declared_operator.strip()
+            request_caller = request_context.get_request_username()
+            if isinstance(request_caller, str) and request_caller.strip():
+                audit["request_caller"] = request_caller.strip()
 
         return {
             "op_id": op.op_id,
             "func_name": op.func_name,
             "protocol": "bkm_cli_op_call",
             "result": result,
-            "audit": {
-                "capability_level": op.capability_level,
-                "risk_level": op.risk_level,
-                "requires_confirmation": op.requires_confirmation,
-                "audit_tags": op.audit_tags,
-            },
+            "audit": audit,
         }

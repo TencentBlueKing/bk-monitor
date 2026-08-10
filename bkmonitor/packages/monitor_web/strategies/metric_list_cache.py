@@ -275,6 +275,17 @@ class BaseMetricCacheManager:
             .annotate(use_frequency=Count("metric_id"))
         }
 
+    @staticmethod
+    def truncate_metric_fields(metric: dict[str, Any]) -> None:
+        """按缓存表字段长度截断可能超长的结果表及派生字段。"""
+        for field_name in ("result_table_id", "result_table_name", "readable_name"):
+            value = metric.get(field_name, "")
+            if not value:
+                continue
+            max_length = MetricListCache._meta.get_field(field_name).max_length
+            if len(value) > max_length:
+                metric[field_name] = value[:max_length]
+
     def _run(self):
         """
         对比数据库已有数据， 实现指标缓存的增量更新
@@ -306,9 +317,7 @@ class BaseMetricCacheManager:
         processed_metric_ids: set[str] = set()
         for table in self.get_tables():
             for metric in self.get_metrics_by_table(table):
-                # 处理result_table_id长度
-                if len(metric.get("result_table_id", "")) > 256:
-                    metric["result_table_id"] = metric["result_table_id"][:256]
+                self.truncate_metric_fields(metric)
 
                 if metric.get("result_table_id", "") in ["bkunifylogbeat_task.base", "bkunifylogbeat_common.base"]:
                     continue
@@ -349,6 +358,7 @@ class BaseMetricCacheManager:
                 if metric_instance is None:
                     _metric = MetricListCache(bk_tenant_id=self.bk_tenant_id, **metric)
                     metric["readable_name"] = _metric.get_human_readable_name()
+                    self.truncate_metric_fields(metric)
                     _metric.readable_name = metric["readable_name"]
                     _metric.metric_md5 = count_md5(metric)
 
@@ -358,6 +368,7 @@ class BaseMetricCacheManager:
 
                 # readable_name 可能会因用户修改data_label而变更，因此跟随周期任务自动更新
                 metric["readable_name"] = metric_instance.get_human_readable_name()
+                self.truncate_metric_fields(metric)
 
                 metric["metric_md5"] = count_md5(metric)
                 # 处理更新逻辑

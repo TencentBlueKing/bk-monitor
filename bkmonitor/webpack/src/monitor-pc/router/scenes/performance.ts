@@ -23,80 +23,111 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { applyGuidePage } from '../../common';
 import * as performanceAuth from '../../pages/performance/authority-map';
+import { beforeEnter } from '../utils';
 
 import type { RouteConfig } from 'vue-router';
 
 const Performance = () => import(/* webpackChunkName: 'Performance' */ '../../pages/performance/performance-wrapper');
 const PerformanceDetail = () =>
   import(/* webpackChunkName: 'PerformanceDetail' */ '../../pages/performance/performance-detail/performance-detail');
-export default applyGuidePage([
-  {
-    path: '/performance',
-    name: 'performance',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: Performance,
-    },
-    meta: {
-      title: '主机监控',
-      navId: 'performance',
-      authority: {
-        page: performanceAuth.VIEW_AUTH,
+
+const Host = () => import(/* webpackChunkName: 'Host' */ '../../pages/host/host');
+
+export default applyGuidePage(
+  [
+    {
+      path: '/performance',
+      name: 'performance',
+      props: {
+        noCache: true,
       },
-      route: {
-        parent: 'scenes',
+      components: {
+        noCache: Performance,
       },
-      noNavBar: true,
-    },
-  },
-  {
-    path: '/performance/detail/:id/:process?',
-    name: 'performance-detail',
-    components: {
-      noCache: PerformanceDetail,
-    },
-    props: {
-      noCache: true,
-    },
-    meta: {
-      needBack: true,
-      navId: 'performance',
-      authority: {
-        map: performanceAuth,
-        page: performanceAuth.VIEW_AUTH,
-      },
-      customContent: true,
-      noNavBar: true,
-      route: {
-        parent: 'performance',
+      meta: {
+        title: '主机监控',
+        navId: 'performance',
+        authority: {
+          page: performanceAuth.VIEW_AUTH,
+        },
+        route: {
+          parent: 'scenes',
+        },
+        noNavBar: true,
       },
     },
-  },
-  {
-    path: '/performance/detail-new/:id/:process?',
-    name: 'performance-detail-new',
-    components: {
-      noCache: PerformanceDetail,
-    },
-    props: {
-      noCache: true,
-    },
-    meta: {
-      needBack: true,
-      navId: 'performance',
-      authority: {
-        map: performanceAuth,
-        page: performanceAuth.VIEW_AUTH,
+    {
+      path: '/trace/host/:id?',
+      name: 'host',
+      components: {
+        noCache: Host,
       },
-      customContent: true,
-      noNavBar: true,
-      route: {
-        parent: 'performance',
+      // navId 保持 host；引导数据复用 performance，进入前单独拉取 introduce
+      beforeEnter: (_to, _from, next) => beforeEnter('performance', next),
+      meta: {
+        title: '主机监控',
+        navId: 'host',
+        navClass: 'host-retrieval-nav',
+        noChangeLoading: true,
+        noNavBar: true,
+        route: {
+          parent: 'scenes',
+        },
+        authority: {
+          map: performanceAuth,
+          page: performanceAuth.VIEW_AUTH,
+        },
       },
     },
-  },
-] as RouteConfig[]);
+    {
+      path: '/performance/detail/:id/:process?',
+      name: 'performance-detail',
+      components: {
+        noCache: PerformanceDetail,
+      },
+      props: {
+        noCache: true,
+      },
+      meta: {
+        needBack: true,
+        navId: 'performance',
+        authority: {
+          map: performanceAuth,
+          page: performanceAuth.VIEW_AUTH,
+        },
+        customContent: true,
+        noNavBar: true,
+        route: {
+          parent: 'performance',
+        },
+      },
+    },
+    {
+      path: '/performance/detail-new/:id/:process?',
+      name: 'performance-detail-new',
+      components: {
+        noCache: PerformanceDetail,
+      },
+      props: {
+        noCache: true,
+      },
+      meta: {
+        needBack: true,
+        navId: 'performance',
+        authority: {
+          map: performanceAuth,
+          page: performanceAuth.VIEW_AUTH,
+        },
+        customContent: true,
+        noNavBar: true,
+        route: {
+          parent: 'performance',
+        },
+      },
+    },
+  ] as RouteConfig[],
+  ['host']
+);

@@ -69,8 +69,7 @@ export function handleExplore(targets: IDataQuery[], timeRange: string[], autoNa
     window.open(url);
   } else {
     window.open(
-      `${commOpenUrl('#/data-retrieval/', targetBizId.toString())}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${
-        timeRange[0]
+      `${commOpenUrl('#/data-retrieval/', targetBizId.toString())}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${timeRange[0]
       }&to=${timeRange[1]}`
     );
   }
@@ -95,7 +94,7 @@ export const handleRelateAlert = (targets: IDataQuery[], timeRange: string[]) =>
   });
   let queryString = '';
   Object.keys(metricIdMap).forEach(metricId => {
-    queryString += `${queryString.length ? ' or ' : ''}指标ID : ${metricId}`;
+    queryString += `${queryString.length ? ' or ' : ''}metric : ${metricId}`;
   });
   if (queryString.length) {
     openAlarmCenter(
@@ -161,5 +160,5 @@ export function handleStoreImage(title: string, targetEl: HTMLElement, customSav
       if (customSave) return dataUrl;
       downFile(dataUrl, `${title}.png`);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
