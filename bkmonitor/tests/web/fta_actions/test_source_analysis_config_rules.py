@@ -62,7 +62,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
                 "bk_biz_id": 2,
                 "name": "rule",
                 "priority": 1,
-                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
                 "agent_id": "1",
                 "skill_ids": ["3", "3"],
             },
@@ -72,18 +72,34 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         self.assertEqual(data["agent_id"], "1")
         self.assertEqual(data["skill_ids"], ["3"])
 
-    def test_condition_chain_requires_empty_last_connector(self):
+    def test_condition_chain_requires_first_connector_to_be_and(self):
         serializer = SourceAnalysisRuleWriteSerializer(
             data={
                 "bk_biz_id": 2,
                 "name": "rule",
                 "priority": 1,
-                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "or"}],
             }
         )
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("conditions", serializer.errors)
+
+    def test_condition_chain_uses_previous_connector_semantics(self):
+        data = validate(
+            SourceAnalysisRuleWriteSerializer,
+            {
+                "bk_biz_id": 2,
+                "name": "rule",
+                "priority": 1,
+                "conditions": [
+                    {"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"},
+                    {"field": "alert.name", "value": ["cpu"], "method": "eq", "condition": "or"},
+                ],
+            },
+        )
+
+        self.assertEqual([condition["condition"] for condition in data["conditions"]], ["and", "or"])
 
     def test_aidev_validation_reads_all_pages(self):
         list_resources = Mock(
@@ -261,7 +277,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.create_config()
         self.create_rule(
             is_enabled=True,
-            conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
+            conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
             agent_id="1",
             bkci_project_id="project-a",
             repository_alias="repo-a",
@@ -303,7 +319,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "name": "enabled",
                 "priority": 10,
                 "is_enabled": True,
-                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
                 "agent_id": "1",
             },
         )
@@ -324,7 +340,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "name": "enabled",
                 "priority": 10,
                 "is_enabled": True,
-                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
                 "agent_id": "1",
             },
         )
@@ -353,7 +369,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 "name": "enabled",
                 "priority": 10,
                 "is_enabled": True,
-                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": ""}],
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
                 "agent_id": "1",
             },
         )

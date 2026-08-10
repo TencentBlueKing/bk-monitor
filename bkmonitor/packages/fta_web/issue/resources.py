@@ -28,6 +28,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
@@ -36,9 +37,10 @@ from bkmonitor.documents.issue import (
     IssueDocumentWriteError,
     IssueNotFoundError,
 )
-from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
+from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver, MergeResolverContext
 from bkmonitor.models import (
     IssueSourceAnalysisConfig,
+    IssueSourceAnalysisExecution,
     IssueSourceAnalysisRule,
     QueryConfigModel,
     TapdWorkspaceBinding,
@@ -50,7 +52,14 @@ from bkmonitor.utils.request import get_request_username, get_request
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user, set_local_username
-from constants.issue import IssuePriority, IssueStatus, IssueActivityType
+from constants.issue import (
+    IssueActivityType,
+    IssuePriority,
+    IssueStatus,
+    SourceAnalysisStage,
+    SourceAnalysisStatus,
+    SourceAnalysisTriggerType,
+)
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -102,7 +111,7 @@ class SourceAnalysisBaseResource(Resource):
     """
 
     CONDITION_METHODS = ("eq", "neq", "include", "exclude", "reg", "nreg", "issuperset")
-    CONDITION_CONNECTORS = ("and", "or", "")
+    CONDITION_CONNECTORS = ("and", "or")
 
     # 校验 AI 资源权限需要遍历当前用户可见的全部资源，这里约定分页大小与翻页安全上限
     AIDEV_PAGE_SIZE = 200
@@ -286,6 +295,201 @@ class SourceAnalysisBaseResource(Resource):
             raise SourceAnalysisFlowInitializationFailedError() from error
 
 
+class SourceAnalysisExecutionBaseResource(Resource):
+    """Issue 源码分析执行入口的公共业务逻辑。
+
+    本类只负责选择当前输入并落执行记录，不创建 BKFara 任务。后续执行接口复用这里的
+    首次触发结果，再把异步编排交给独立阶段处理。
+    """
+
+    ISSUE_QUERY_FALLBACK_BUFFER = 7 * 86400
+
+    @staticmethod
+    def db_alias() -> str:
+        return IssueSourceAnalysisExecution.objects.db
+
+    @staticmethod
+    def resolve_issue_scope(bk_biz_id: int, issue_id: str) -> tuple[str, list[str]]:
+        """严格解析执行记录归属 Issue 与参与最新告警查询的物理 Issue。
+
+        展示链路允许合并关系查询失败时 fail-open，但执行链路不能在关系未知时按 member
+        创建活动记录，否则 main 与 member 可能分别占用活动位。这里复用同一个已加载上下文
+        同时确定 canonical Issue 和完整告警范围；加载降级时终止触发，让用户稍后重试。
+        """
+
+        context = MergeResolverContext(bk_biz_id)
+        context.load()
+        if context.degraded:
+            logger.warning("Source analysis issue merge scope unavailable: bk_biz_id=%s", bk_biz_id)
+            raise SourceAnalysisUpstreamUnavailableError()
+
+        canonical_issue_id = context.main_of(issue_id) or issue_id
+        alert_issue_ids = [canonical_issue_id]
+        alert_issue_ids.extend(member["member_issue_id"] for member in context.members_of(canonical_issue_id))
+        return canonical_issue_id, list(dict.fromkeys(alert_issue_ids))
+
+    @staticmethod
+    def get_active_execution(bk_biz_id: int, issue_ids: list[str]) -> IssueSourceAnalysisExecution | None:
+        """查询当前合并组内已有的活动执行。
+
+        活动记录创建后 Issue 仍可能被合并，记录上的 ``active_key`` 不会随关系迁移。
+        因此必须覆盖主 Issue 和全部活动 member，避免合并后以主 Issue 再创建一条活动记录。
+        """
+
+        return IssueSourceAnalysisExecution.objects.filter(
+            bk_biz_id=bk_biz_id,
+            active_key__in=issue_ids,
+        ).first()
+
+    @classmethod
+    def get_latest_alert(cls, bk_biz_id: int, issue_id: str, alert_issue_ids: list[str]) -> AlertDocument | None:
+        """查询主 Issue（含活动 member）在触发时刻的最新告警。"""
+
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        if issue.first_alert_time:
+            start_time = int(issue.first_alert_time)
+        else:
+            # Issue 创建通常晚于首个告警，缺少 first_alert_time 时向前放宽索引范围。
+            start_time = int(issue.create_time) - cls.ISSUE_QUERY_FALLBACK_BUFFER
+
+        handler = AlertQueryHandler(
+            bk_biz_ids=[bk_biz_id],
+            start_time=start_time,
+            end_time=int(time.time()),
+            # 提前传入严格解析出的完整物理 ID；即使 AlertQueryHandler 的展示层扩展随后
+            # fail-open，也不会把已知 member 从本次触发的告警范围中丢失。
+            conditions=[{"key": "issue_id", "value": alert_issue_ids, "method": "eq"}],
+            ordering=["-create_time", "-seq_id"],
+            page=1,
+            page_size=1,
+            allow_partial=False,
+        )
+        search_result, _ = handler.search_raw()
+        # search_raw 保留 AlertDocument 供运行时匹配；完整性检查与公开 search() 路径保持一致。
+        handler._check_search_response_completeness(search_result)
+        return next(iter(search_result), None)
+
+    @staticmethod
+    def get_alert_cmdb_attributes(alert: AlertDocument) -> dict | None:
+        """通过公共 CMDB API 加载匹配需要的主机、集群和模块属性。"""
+
+        event = alert.event
+        bk_biz_id = event.bk_biz_id
+        bk_host_id = getattr(event, "bk_host_id", None)
+        if bk_host_id:
+            hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[bk_host_id])
+        else:
+            ip = getattr(event, "ip", None)
+            if not ip:
+                return None
+            host_query = {"ip": ip}
+            bk_cloud_id = getattr(event, "bk_cloud_id", None)
+            if bk_cloud_id is not None:
+                host_query["bk_cloud_id"] = bk_cloud_id
+            hosts = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=[host_query])
+
+        if not hosts:
+            return None
+
+        host = hosts[0]
+        sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(host.bk_set_ids)) if host.bk_set_ids else []
+        modules = (
+            api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=list(host.bk_module_ids))
+            if host.bk_module_ids
+            else []
+        )
+        return {"host": host, "sets": sets, "modules": modules}
+
+    @staticmethod
+    def get_alert_match_dimensions(alert: AlertDocument) -> dict:
+        """沿用后台告警分派的 CMDB 补全及运行时维度构造口径。"""
+
+        manager = AlertAssignMatchManager(
+            alert,
+            notice_users=list(getattr(alert, "assignee", []) or []),
+            cmdb_attrs=SourceAnalysisExecutionBaseResource.get_alert_cmdb_attributes(alert),
+        )
+        return manager.dimensions
+
+    @classmethod
+    def get_matched_rule(cls, bk_biz_id: int, alert: AlertDocument) -> IssueSourceAnalysisRule | None:
+        """按优先级降序返回首条命中的完整启用规则。"""
+
+        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-priority", "id")
+        executable_rules = []
+        for rule in rules:
+            if not (
+                SourceAnalysisBaseResource.is_rule_complete(rule) and rule.bkci_project_id and rule.repository_alias
+            ):
+                logger.warning(
+                    "Skip incomplete enabled source analysis rule: bk_biz_id=%s, rule_id=%s",
+                    bk_biz_id,
+                    rule.id,
+                )
+                continue
+            executable_rules.append(rule)
+
+        if not executable_rules:
+            return None
+
+        dimensions = cls.get_alert_match_dimensions(alert)
+        for rule in executable_rules:
+            rule_match = AssignRuleMatch({"id": rule.id, "conditions": rule.conditions}, alert=alert)
+            if rule_match.is_matched(dimensions):
+                return rule
+        return None
+
+    @classmethod
+    def create_initial_execution(
+        cls, bk_biz_id: int, issue_id: str, operator: str
+    ) -> tuple[IssueSourceAnalysisExecution | None, bool]:
+        """创建首次执行记录；返回 ``(记录, 是否本次新建)``。
+
+        无最新告警或无命中规则时不创建记录。并发请求由数据库唯一约束裁决，落败方返回
+        已存在的活动记录，避免把一次并发竞争误报成触发失败。
+        """
+
+        canonical_issue_id, alert_issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
+        active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
+        if active_execution:
+            return active_execution, False
+
+        alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, alert_issue_ids)
+        if alert is None:
+            return None, False
+        rule = cls.get_matched_rule(bk_biz_id, alert)
+        if rule is None:
+            return None, False
+
+        try:
+            with transaction.atomic(using=cls.db_alias()):
+                execution = IssueSourceAnalysisExecution.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    issue_id=canonical_issue_id,
+                    status=SourceAnalysisStatus.PENDING,
+                    stage=SourceAnalysisStage.WAITING,
+                    trigger_type=SourceAnalysisTriggerType.INITIAL,
+                    attempt=1,
+                    alert_id=alert.id,
+                    rule_id=rule.id,
+                    rule_name=rule.name,
+                    rule_priority=rule.priority,
+                    bkci_project_id=rule.bkci_project_id,
+                    repository_alias=rule.repository_alias,
+                    agent_id=rule.agent_id,
+                    skill_ids=list(rule.skill_ids),
+                    knowledge_base_ids=list(rule.knowledge_base_ids),
+                    create_user=operator,
+                    update_user=operator,
+                )
+            return execution, True
+        except IntegrityError:
+            active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
+            if active_execution:
+                return active_execution, False
+            raise
+
+
 class SourceAnalysisConditionSerializer(serializers.Serializer):
     field = serializers.CharField(label="条件字段", allow_blank=False)
     value = serializers.ListField(
@@ -295,7 +499,7 @@ class SourceAnalysisConditionSerializer(serializers.Serializer):
     )
     method = serializers.ChoiceField(label="匹配方法", choices=SourceAnalysisBaseResource.CONDITION_METHODS)
     condition = serializers.ChoiceField(
-        label="与下一条件的连接符", choices=SourceAnalysisBaseResource.CONDITION_CONNECTORS
+        label="与上一条件的连接符", choices=SourceAnalysisBaseResource.CONDITION_CONNECTORS
     )
 
 
@@ -320,12 +524,10 @@ class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
     )
 
     def validate_conditions(self, conditions: list[dict]) -> list[dict]:
-        if not conditions:
-            return conditions
-        if any(item["condition"] not in {"and", "or"} for item in conditions[:-1]):
-            raise serializers.ValidationError(_("除最后一项外，条件连接符只能为 and 或 or"))
-        if conditions[-1]["condition"] != "":
-            raise serializers.ValidationError(_("最后一项条件的连接符必须为空字符串"))
+        if conditions and conditions[0]["condition"] != "and":
+            # 告警分派产品形态把 connector 存在当前条件上，表示与上一条件的关系；
+            # 第一项没有上一条件，固定为 and 并在展示和匹配时忽略。
+            raise serializers.ValidationError(_("第一项条件的连接符必须为 and"))
         return conditions
 
     def validate(self, attrs: dict) -> dict:
