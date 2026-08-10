@@ -54,6 +54,7 @@ export interface EchartSeriesItem {
   markPoint?: IMarkPointConfig;
   name: string;
   raw_data: SeriesItem;
+  showSymbol?: boolean | string;
   stack?: string;
   type?: string;
   unit?: string;

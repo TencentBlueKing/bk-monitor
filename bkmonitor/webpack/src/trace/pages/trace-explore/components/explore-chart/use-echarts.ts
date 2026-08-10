@@ -43,6 +43,7 @@ import {
   handleSetThresholdArea,
   handleSetThresholdLine,
   mergeOverlappingArrays,
+  processLineSymbols,
 } from './utils';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
@@ -177,7 +178,6 @@ export const createSeries = (series: SeriesItem[], customSeries?: CustomOptions[
       type: data.type,
       stack: data.stack,
       unit: data.unit,
-      // @ts-expect-error
       connectNulls: false,
       sampling: 'none',
       showAllSymbol: 'auto',
@@ -227,6 +227,9 @@ export const createSeries = (series: SeriesItem[], customSeries?: CustomOptions[
       xAxisDataMap.set(reuseAxisIndex, [...xData]);
     }
   }
+  // 用补了 null 后的 data 判断孤立点并设置最终 symbol 大小
+  processLineSymbols(seriesData);
+
   return {
     xData: Array.from(xAllData).sort(),
     seriesData: customSeries?.(seriesData) ?? seriesData,
@@ -353,10 +356,11 @@ export const createYAxis = (yData: EchartSeriesItem[], type?: string) => {
   });
 };
 export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOptions['options']) => {
+  const hasShowSymbol = series.some(item => item.showSymbol);
   const options = {
     useUTC: false,
-    animation: false,
-    animationThreshold: 2000,
+    animation: hasShowSymbol,
+    animationThreshold: hasShowSymbol ? 1 : 2000,
     animationDurationUpdate: 0,
     animationDuration: 20,
     animationDelay: 300,
