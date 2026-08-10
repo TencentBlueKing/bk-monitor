@@ -22,26 +22,97 @@ the project delivered to anyone in the future.
 import copy
 
 from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, CleanTemplateSyncStatus
+from apps.log_databus.exceptions import CleanTemplateNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
-from apps.log_databus.handlers.etl import EtlHandler
+from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
-from apps.log_databus.models import CollectorConfig
+from apps.log_databus.models import CleanTemplate, CollectorConfig
+from apps.log_databus.utils.clean_template_operation import lock_clean_template_collector_operation
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
 
 
+_CLEAN_TEMPLATE_ID_NOT_PROVIDED = object()
+
+
 class TransferEtlHandler(EtlHandler):
+    def _validate_clean_template(self, clean_template_id):
+        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED or clean_template_id is None:
+            return None
+
+        try:
+            return CleanTemplate.objects.get(
+                clean_template_id=clean_template_id,
+                bk_biz_id=self.data.bk_biz_id,
+            )
+        except CleanTemplate.DoesNotExist:
+            raise CleanTemplateNotExistException(
+                CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
+            )
+
+    def _prepare_clean_template_config(self, clean_template_id, etl_config, etl_params, fields):
+        clean_template = self._validate_clean_template(clean_template_id)
+        if clean_template is None:
+            return clean_template, etl_config, etl_params, fields
+
+        return (
+            clean_template,
+            clean_template.clean_type,
+            copy.deepcopy(clean_template.etl_params or {}),
+            copy.deepcopy(clean_template.etl_fields or []),
+        )
+
+    def _update_clean_template(self, clean_template_id, clean_template):
+        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
+            return
+
+        if clean_template is not None:
+            # 加事务和行锁，避免并发导致绑定到已经删除的模板
+            with transaction.atomic():
+                active_template = (
+                    CleanTemplate.objects.select_for_update()
+                    .filter(
+                        clean_template_id=clean_template.clean_template_id,
+                        is_deleted=False,
+                    )
+                    .first()
+                )
+                if active_template is None:
+                    raise CleanTemplateNotExistException(
+                        CleanTemplateNotExistException.MESSAGE.format(
+                            clean_template_id=clean_template.clean_template_id
+                        )
+                    )
+                self._save_clean_template_association(clean_template)
+            return
+        self._save_clean_template_association(clean_template)
+
+    def _save_clean_template_association(self, clean_template):
+        update_fields = {
+            "clean_template_id": clean_template.clean_template_id if clean_template else None,
+            "clean_template_version": clean_template.config_version if clean_template else None,
+            "clean_template_sync_status": CleanTemplateSyncStatus.SUCCESS.value if clean_template else None,
+            "clean_template_sync_at": timezone.now() if clean_template else None,
+            "clean_template_sync_message": "",
+        }
+        CollectorConfig.objects.filter(collector_config_id=self.collector_config_id).update(**update_fields)
+        for field, value in update_fields.items():
+            setattr(self.data, field, value)
+
+    @lock_clean_template_collector_operation
     def update_or_create(
         self,
         etl_config,
@@ -63,9 +134,19 @@ class TransferEtlHandler(EtlHandler):
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        clean_template_id=_CLEAN_TEMPLATE_ID_NOT_PROVIDED,
+        sync_modify_result_table=False,
         *args,
         **kwargs,
     ):
+        # 模板配置是关联关系的唯一可信来源，并在外部调用前固定本次应用的配置和版本快照。
+        clean_template, etl_config, etl_params, fields = self._prepare_clean_template_config(
+            clean_template_id,
+            etl_config,
+            etl_params,
+            fields,
+        )
+
         etl_params = etl_params or {}
         user_fields = copy.deepcopy(fields)
 
@@ -169,6 +250,7 @@ class TransferEtlHandler(EtlHandler):
             target_fields=target_fields,
             total_shards_per_node=total_shards_per_node,
             labels=labels,
+            sync_modify_result_table=sync_modify_result_table,
         )
 
         if not view_roles:
@@ -228,6 +310,10 @@ class TransferEtlHandler(EtlHandler):
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )
+        # 模板批量同步由调用方基于 RUNNING 状态完成最终写回，
+        # 避免覆盖并发的手动解除关联。
+        if not sync_modify_result_table:
+            self._update_clean_template(clean_template_id, clean_template)
 
         return {
             "collector_config_id": self.data.collector_config_id,

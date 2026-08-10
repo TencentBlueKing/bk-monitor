@@ -1328,6 +1328,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} fields.option.time_format 时间格式
         @apiParam {Int} storage_cluster_id 存储集群ID
         @apiParam {Int} retention 保留时间
+        @apiParam {Int} [clean_template_id] 来源清洗模板ID；传入后清洗类型、参数和字段以模板为准，传null或不传则解除关联
         @apiParam {Int} [storage_replies] 副本数量
         @apiParam {Int} es_shards es分片数量
         @apiParam {list} view_roles 查看权限
@@ -1392,6 +1393,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(CollectorEtlStorageSerializer)
+        data.setdefault("clean_template_id", None)
         etl_handler = EtlHandler.get_instance(collector_config_id)
         data, can_apply = etl_handler.itsm_pre_hook(data, collector_config_id)
         if not can_apply:
@@ -2419,6 +2421,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} etl_params.separator 分隔符，当etl_config=="bk_log_delimiter"时需要传递
         @apiParam {String} etl_params.separator_regexp 正则表达式，当etl_config=="bk_log_regexp"时需要传递
         @apiParam {Bool} etl_params.retain_original_text 是否保留原文
+        @apiParam {Int} [clean_template_id] 清洗模板ID；传入后清洗类型、参数和字段以模板为准，传null或不传则解除关联
         @apiParam {list} fields 字段列表
         @apiParam {String} fields.field_name 字段名称
         @apiParam {String} [fields.alias_name] 别名

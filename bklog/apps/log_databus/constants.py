@@ -293,6 +293,18 @@ class AsyncStatus:
     DONE = "DONE"
 
 
+class CleanTemplateSyncStatus(ChoicesEnum):
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+    _choices_labels = (
+        (RUNNING, _("同步中")),
+        (SUCCESS, _("同步成功")),
+        (FAILED, _("同步失败")),
+    )
+
+
 FIELD_TEMPLATE = {
     "field_name": "",
     "alias_name": "",

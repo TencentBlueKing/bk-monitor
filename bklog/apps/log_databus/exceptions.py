@@ -340,9 +340,14 @@ class ProjectNoteExistException(BaseCollectorConfigException):
     MESSAGE = _("该业务{bk_biz_id}未找到对应project")
 
 
-class CleanTemplateVisibleException(BaseCollectorConfigException):
-    ERROR_CODE = "704"
-    MESSAGE = _("该业务{bk_biz} 不可编辑或删除该模板{name}")
+class CleanTemplateSyncingException(BaseCollectorConfigException):
+    ERROR_CODE = "706"
+    MESSAGE = _("清洗模板{clean_template_id}正在同步，请稍后重试")
+
+
+class CleanTemplateCollectorOperatingException(BaseCollectorConfigException):
+    ERROR_CODE = "707"
+    MESSAGE = _("采集项{collector_config_id}正在执行清洗模板相关操作，请稍后重试")
 
 
 class ArchiveNotFound(BaseCollectorConfigException):
