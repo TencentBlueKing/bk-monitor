@@ -34,21 +34,19 @@ FUNC_MANAGE_API_TOKEN = "bkm_cli.manage_api_token"
 QUERY_OPERATIONS = {"capabilities", "list", "detail"}
 MUTATION_OPERATIONS = {"grant", "update", "revoke"}
 API_MUTABLE_FIELDS = {"allow_all_biz", "biz_ids"}
-MANAGE_ALLOWED_FIELDS = {
+MANAGE_COMMON_FIELDS = {
     "operation",
     "confirmed",
     "operator",
     "bk_tenant_id",
-    "id",
-    "type",
-    "app_code",
-    "allow_all_biz",
-    "biz_ids",
-    # 保留现有领域错误信息，不把这些已知但禁止写入的字段归为未知字段。
-    "name",
-    "is_enabled",
-    "expire_time",
     "dry_run",
+}
+MANAGE_ALLOWED_FIELDS_BY_OPERATION = {
+    "grant": MANAGE_COMMON_FIELDS
+    | {"type", "app_code", "allow_all_biz", "biz_ids", "name", "is_enabled", "expire_time"},
+    "update": MANAGE_COMMON_FIELDS
+    | {"id", "type", "app_code", "allow_all_biz", "biz_ids", "name", "is_enabled", "expire_time"},
+    "revoke": MANAGE_COMMON_FIELDS | {"id"},
 }
 
 WORKFLOW_MANAGED_TYPES = {AuthType.AsCode, AuthType.Grafana, AuthType.Entity, AuthType.User}
@@ -290,12 +288,12 @@ def query_api_tokens(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _require_mutation_confirmation(params: dict[str, Any]) -> str:
+def _require_mutation_confirmation(params: dict[str, Any], *, operation: str) -> str:
     if "dry_run" in params:
         raise CustomException(message="API Token 管理不支持 dry_run；请先查询现状并取得人工确认")
     return validate_management_request(
         params,
-        allowed_fields=MANAGE_ALLOWED_FIELDS,
+        allowed_fields=MANAGE_ALLOWED_FIELDS_BY_OPERATION[operation],
         max_operator_length=32,
     )
 
@@ -453,7 +451,7 @@ def manage_api_token(params: dict[str, Any]) -> dict[str, Any]:
     operation = _normalize_text(params.get("operation"), "operation", required=True)
     if operation not in MUTATION_OPERATIONS:
         raise CustomException(message=f"operation 仅支持: {sorted(MUTATION_OPERATIONS)}")
-    operator = _require_mutation_confirmation(params)
+    operator = _require_mutation_confirmation(params, operation=operation)
     bk_tenant_id = _get_bk_tenant_id(params, required=True)
 
     if operation == "grant":
