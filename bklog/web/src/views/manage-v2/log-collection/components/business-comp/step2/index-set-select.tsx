@@ -89,7 +89,7 @@ export default defineComponent({
     return () => (
       <bk-select
         class='index-set-select-box'
-        ext-popover-cls='index-set-checkbox-popover'
+        ext-popover-cls='managev2-index-set-checkbox-popover'
         loading={indexGroupLoading.value}
         value={props.value}
         display-tag

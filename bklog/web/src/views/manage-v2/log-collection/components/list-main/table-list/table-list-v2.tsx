@@ -952,7 +952,7 @@ export default defineComponent({
           class='index-set-inline-select'
           disabled={isUpdating}
           display-tag
-          ext-popover-cls='index-set-checkbox-popover'
+          ext-popover-cls='managev2-index-set-checkbox-popover'
           loading={isUpdating}
           multiple
           searchable
