@@ -1,0 +1,57 @@
+.index-set-checkbox-popover {
+  .bk-options {
+    .bk-option {
+      margin: 0;
+      color: #4d4f56;
+      background: #fff;
+
+      &:hover,
+      &.is-highlight {
+        color: #4d4f56;
+        background: #f5f7fa;
+      }
+
+      &.is-selected {
+        color: #4d4f56;
+        background: #fff;
+
+        &:hover,
+        &.is-highlight {
+          background: #f5f7fa;
+        }
+      }
+    }
+
+    .bk-option-content {
+      padding: 0;
+    }
+
+    .bk-option-content-default {
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 32px;
+      padding: 6px 8px 6px 12px;
+    }
+
+    .bk-option-checkbox {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+      line-height: 20px;
+    }
+
+    .bk-option-content .bk-option-checkbox .bk-checkbox-text {
+      min-width: 0;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

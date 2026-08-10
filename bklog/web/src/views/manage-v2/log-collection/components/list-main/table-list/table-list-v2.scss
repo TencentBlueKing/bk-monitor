@@ -1,3 +1,5 @@
+@import '../../business-comp/step2/index-set-option';
+
 .v2-log-collection-table {
   width: 100%;
   height: 100%;
@@ -702,49 +704,188 @@
     }
   }
 
-  .index-set-inline-display {
-    display: flex;
-    align-items: center;
+  .index-set-select-trigger,
+  .index-set-readonly-display {
+    width: 100%;
     min-width: 0;
+  }
 
-    .index-set-inline-tags {
-      min-width: 0;
-      flex: 1;
+  // 停用（terminated）时所属索引集为只读展示，整格禁用手势（与标签列停用行为对齐）
+  .index-set-readonly-display {
+    cursor: not-allowed;
+
+    .tag-item,
+    .tag-more-indicator,
+    .tag-more-empty {
+      cursor: not-allowed;
+    }
+  }
+
+  .tag-more-select-trigger {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    align-content: center;
+    align-items: center;
+    width: 100%;
+    height: 58px;
+    padding: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid transparent;
+
+    .tag-more-trigger-frame {
+      position: absolute;
+      box-sizing: border-box;
+      z-index: 0;
+      pointer-events: none;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      transition: background-color .15s ease, border-color .15s ease;
     }
 
-    .index-set-inline-edit {
-      margin-left: 6px;
-      color: #979ba5;
-      cursor: pointer;
-      opacity: 0;
-      transition: color .15s ease, opacity .15s ease;
-
-      &:hover {
-        color: #3a84ff;
-      }
+    > .tag-item,
+    > .tag-more-indicator,
+    > .tag-more-empty {
+      position: relative;
+      z-index: 1;
     }
 
     &:hover {
-      .index-set-inline-edit {
-        opacity: 1;
+      .tag-more-trigger-frame {
+        background: #eaebf0;
+      }
+
+      .tag-item,
+      .tag-more-indicator {
+        background: #fff;
+      }
+    }
+
+    &.is-open {
+      .tag-more-trigger-frame {
+        background: #fff;
+        border-color: #3a84ff;
+      }
+
+      .tag-item,
+      .tag-more-indicator {
+        background: #f0f1f5;
+      }
+    }
+
+    &.is-disabled {
+      cursor: not-allowed;
+      background: #fff;
+
+      &:hover {
+        background: #fff;
+
+        .tag-more-trigger-frame {
+          background: transparent;
+          border-color: transparent;
+        }
+
+        .tag-item,
+        .tag-more-indicator {
+          background: #f0f1f5;
+        }
       }
     }
   }
 
-  .index-set-inline-select-wrap {
-    width: 100%;
-    min-width: 180px;
-    position: relative;
+  .tag-more-cell-select.is-disabled {
+    background: #fff;
+  }
+
+  // 标签列保留整格布局和 tooltip，仅允许实际标签框区域触发选择器；空标签仍整格可点击。
+  .tag-more-cell-select {
+    cursor: default;
+
+    .bk-tooltip-ref {
+      pointer-events: none;
+    }
+
+    .tag-more-label-select-trigger {
+      pointer-events: none;
+      cursor: default;
+
+      &.is-empty,
+      > .tag-more-trigger-frame,
+      > .tag-item,
+      > .tag-more-indicator,
+      > .tag-item .tag-item-close {
+        pointer-events: auto;
+        cursor: pointer;
+      }
+
+      &.is-disabled,
+      &.is-disabled > .tag-more-trigger-frame,
+      &.is-disabled > .tag-item,
+      &.is-disabled > .tag-more-indicator,
+      &.is-disabled > .tag-item .tag-item-close {
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  // 索引集与标签列使用相同的内容框命中规则；空状态仍由整格触发。
+  .index-set-inline-select {
+    cursor: default;
+
+    .bk-tooltip-ref {
+      pointer-events: none;
+    }
+  }
+
+  .index-set-select-trigger {
+    pointer-events: none;
+    cursor: default;
+
+    &.is-empty,
+    > .tag-more-trigger-frame,
+    > .tag-item,
+    > .tag-more-indicator {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+  }
+
+  .index-set-inline-select.is-focus,
+  .tag-more-cell-select.is-focus {
+    .tag-more-select-trigger {
+      .tag-more-trigger-frame {
+        background: #fff;
+        border-color: #3a84ff;
+      }
+
+      .tag-item,
+      .tag-more-indicator {
+        background: #f0f1f5;
+      }
+    }
   }
 
   .index-set-inline-select {
     width: 100%;
-    min-width: 180px;
-    min-height: 30px;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+
+    &.is-focus {
+      border: none;
+      box-shadow: none;
+    }
   }
 
-  td.index-set-name-cell {
-    padding: 4px 8px 4px 10px!important;
+  td.index-set-name-cell,
+  td.tags-cell {
+    padding: 3px 8px 3px 10px!important;
   }
 }
 .related-space-tip-content {
@@ -776,5 +917,19 @@
     gap: 8px;
     justify-content: flex-end;
     margin-top: 12px;
+  }
+}
+
+.index-set-inline-extension {
+  .add-index-set-btn {
+    display: block;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .icon-plus-circle {
+    margin-right: 5px;
   }
 }

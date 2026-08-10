@@ -15,8 +15,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: default;
-    transition: all 0.2s ease;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
   }
 
   .tag-item-label {
@@ -32,11 +32,20 @@
     }
 
     .tag-item-close {
+      position: absolute;
+      top: 50%;
+      right: 2px;
+      z-index: 1;
       display: none;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
       font-size: 18px;
+      color: inherit;
       cursor: pointer;
-      margin-left: 2px;
-      flex-shrink: 0;
+      background-color: inherit;
+      transform: translateY(-50%);
     }
 
     &:hover .tag-item-close {
@@ -56,7 +65,7 @@
     color: #63656e;
     cursor: pointer;
     margin-left: 4px;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
   }
   .measure-box {
     position: absolute;
@@ -64,6 +73,35 @@
     height: 0;
     overflow: hidden;
     white-space: nowrap;
+  }
+}
+
+.tag-more-multi-line {
+  flex-wrap: wrap;
+  row-gap: 4px;
+  align-content: center;
+  overflow: hidden;
+
+  .tag-item,
+  .tag-more-indicator {
+    flex-shrink: 0;
+  }
+
+  .tag-more-add-btn {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.tag-more-cell-select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+
+  &.is-focus {
+    border: none;
+    box-shadow: none;
   }
 }
 

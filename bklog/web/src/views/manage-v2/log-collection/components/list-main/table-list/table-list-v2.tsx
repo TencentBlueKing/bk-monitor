@@ -46,11 +46,15 @@ import {
 } from '../../../utils';
 import { copyMessage, projectManages } from '@/common/util';
 import useResizeObserver from '@/hooks/use-resize-observe';
+import AddIndexSet from '../../business-comp/step2/add-index-set';
 import CollectIssuedSlider from '../../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
 import { useCollectList } from '../../../hook/useCollectList';
 import { useTableLocalSetting } from '../../../hook/use-table-local-setting';
-import TagMore from '../../common-comp/tag-more';
+import TagMore, {
+  type ITagMoreContentBounds,
+  type ITagMoreTriggerSlotData,
+} from '../../common-comp/tag-more';
 import type { IListItemData } from '../../../type';
 import StopTypeDialog from '../stop-type-dialog';
 import AddExistingCollectDialog from '../add-existing-collect-dialog';
@@ -62,6 +66,19 @@ import './table-list-v2.scss';
 
 const CancelToken = axios.CancelToken;
 const TABLE_STYLE_UPDATE_ALERT_STORAGE_KEY = 'BKLOG_COLLECTION_TABLE_STYLE_UPDATE_ALERT_CLOSED';
+const TAG_MORE_TRIGGER_FRAME_PADDING = 4;
+
+const getTagMoreTriggerFrameStyle = (contentBounds: ITagMoreContentBounds | null) => {
+  if (!contentBounds) {
+    return { display: 'none' };
+  }
+  return {
+    height: `${contentBounds.height + TAG_MORE_TRIGGER_FRAME_PADDING * 2}px`,
+    left: `${contentBounds.left - TAG_MORE_TRIGGER_FRAME_PADDING}px`,
+    top: `${contentBounds.top - TAG_MORE_TRIGGER_FRAME_PADDING}px`,
+    width: `${contentBounds.width + TAG_MORE_TRIGGER_FRAME_PADDING * 2}px`,
+  };
+};
 
 /**
  * 表格行数据类型定义
@@ -393,9 +410,15 @@ export default defineComponent({
       ids: Array<number | string>;
       sets: ITableRowData['parent_index_sets'];
     }>>({});
-    const indexSetSelectRef = ref<{ close?:() => void } | null>(null);
-    const pendingIndexSetSubmitRowId = ref<number | string>('');
-    const editingIndexSetRowMap = new Map<string, ITableRowData>();
+    const indexSetOptionList = ref<IListItemData[]>([...(props.indexGroupList || [])]);
+    const isAddIndexSet = ref(false);
+    const addIndexSetRef = ref<{ autoFocus?:() => void } | null>(null);
+
+    watch(
+      () => props.indexGroupList,
+      list => (indexSetOptionList.value = [...(list || [])]),
+      { deep: true },
+    );
 
     // 容器和表格高度相关
     const containerRef = ref<HTMLElement | null>(null);
@@ -672,7 +695,7 @@ export default defineComponent({
     };
 
     const buildParentIndexSets = (ids: Array<number | string>) => {
-      const indexSetMap = new Map((props.indexGroupList || []).map(item => [String(item.index_set_id), item]));
+      const indexSetMap = new Map(indexSetOptionList.value.map(item => [String(item.index_set_id), item]));
       return ids.map((id) => {
         const matched = indexSetMap.get(String(id));
         return {
@@ -799,8 +822,6 @@ export default defineComponent({
 
     const handleParentIndexSetSubmit = async (row: ITableRowData) => {
       const rowId = getRowUniqueId(row);
-      editingIndexSetRowMap.delete(String(rowId));
-      pendingIndexSetSubmitRowId.value = '';
       if (updatingIndexSetRowId.value === rowId) {
         return;
       }
@@ -844,77 +865,18 @@ export default defineComponent({
       }
     };
 
-    const isIndexSetSelectElement = (target: HTMLElement) => {
-      return !!target.closest(
-        [
-          '.index-set-inline-select-wrap',
-          '.bk-select-dropdown',
-          '.bk-select-popover',
-          '.bk-select-extension',
-          '.bk-option',
-          '.bk-options',
-          '.bk-popover',
-          '.bk-pop2-content',
-          '.tippy-box',
-        ].join(','),
-      );
+    const handleAddIndexSet = () => {
+      isAddIndexSet.value = true;
+      setTimeout(() => addIndexSetRef.value?.autoFocus?.());
     };
 
-    const waitIndexSetSelectPopoverClosed = () => {
-      return new Promise((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            window.setTimeout(resolve, 80);
-          });
-        });
-      });
+    const handleCancelAddIndexSet = () => {
+      isAddIndexSet.value = false;
     };
 
-    const submitParentIndexSetAfterSelectClose = async (row: ITableRowData) => {
-      const rowId = getRowUniqueId(row);
-      if (updatingIndexSetRowId.value === rowId || pendingIndexSetSubmitRowId.value === rowId) {
-        return;
-      }
-
-      pendingIndexSetSubmitRowId.value = rowId;
-      indexSetSelectRef.value?.close?.();
-      await waitIndexSetSelectPopoverClosed();
-
-      if (editingIndexSetRowId.value !== rowId) {
-        pendingIndexSetSubmitRowId.value = '';
-        return;
-      }
-
-      await handleParentIndexSetSubmit(row);
-    };
-
-    const exitIndexSetEdit = () => {
-      const rowId = editingIndexSetRowId.value;
-      if (!rowId || updatingIndexSetRowId.value === rowId || pendingIndexSetSubmitRowId.value === rowId) {
-        return;
-      }
-
-      const editingRow = editingIndexSetRowMap.get(String(rowId));
-      if (!editingRow) {
-        clearEditingIndexSetDraftIds(rowId);
-        editingIndexSetRowId.value = '';
-        return;
-      }
-
-      void submitParentIndexSetAfterSelectClose(editingRow);
-    };
-
-    const handleDocumentMouseDown = (event: MouseEvent) => {
-      if (!editingIndexSetRowId.value) {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (!target || isIndexSetSelectElement(target)) {
-        return;
-      }
-
-      exitIndexSetEdit();
+    const handleSubmitAddIndexSet = () => {
+      handleCancelAddIndexSet();
+      emit('refresh-index-group');
     };
 
     const renderParentIndexSetCell = (row: ITableRowData) => {
@@ -929,72 +891,125 @@ export default defineComponent({
       const isEditing = editingIndexSetRowId.value === rowId;
       const isUpdating = updatingIndexSetRowId.value === rowId;
       const canEdit = isRowIndexSetEditable(row);
+      const hasPermission = !!row.permission?.[getRowEditAuthKey(row)];
+      const renderTrigger = (isOpen = false, requestAuth = false) => (
+        <TagMore
+          maxRows={2}
+          tags={indexSetName}
+          {...{
+            scopedSlots: {
+              trigger: ({ content, contentBounds, isEmpty, triggerRef }: ITagMoreTriggerSlotData) => (
+                <div
+                  ref={triggerRef}
+                  class={[
+                    'tag-more-container tag-more-multi-line index-set-select-trigger tag-more-select-trigger',
+                    { 'is-empty': isEmpty, 'is-open': isOpen },
+                  ]}
+                  v-bkloading={{ isLoading: isUpdating, size: 'mini' }}
+                  v-cursor={{ active: requestAuth }}
+                  on-click={(event: MouseEvent) => {
+                    if (requestAuth) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleEditOperation(row, 'edit');
+                    }
+                  }}
+                >
+                  {!isEmpty && (
+                    <span
+                      class='tag-more-trigger-frame'
+                      style={getTagMoreTriggerFrameStyle(contentBounds)}
+                    />
+                  )}
+                  {content}
+                </div>
+              ),
+            },
+          }}
+        >
+        </TagMore>
+      );
 
-      if (isEditing) {
+      if (!canEdit) {
         return (
-          <div
-            class='index-set-inline-select-wrap'
-            v-bkloading={{ isLoading: isUpdating, size: 'mini' }}
-          >
-            <bk-select
-              ref={indexSetSelectRef}
-              class='index-set-inline-select'
-              disabled={isUpdating}
-              display-tag
-              loading={isUpdating}
-              multiple
-              searchable
-              value={draftSelectedIds}
-              auto-height={false}
-              onChange={(val: Array<number | string>) => {
-                setEditingIndexSetDraftIds(rowId, val || []);
-              }}
-              onToggle={(isOpen: boolean) => {
-                if (!isOpen) {
-                  void submitParentIndexSetAfterSelectClose(row);
-                }
-              }}
-            >
-              {(props.indexGroupList || []).map((option: IListItemData) => (
-                <bk-option
-                  id={option.index_set_id}
-                  key={option.index_set_id}
-                  name={option.index_set_name}
-                />
-              ))}
-            </bk-select>
+          <div class='index-set-readonly-display'>
+            {parentIndexSets.length > 0 ? (
+              <TagMore
+                maxRows={2}
+                tags={indexSetName}
+              />
+            ) : <span>--</span>}
           </div>
         );
       }
 
+      if (!hasPermission) {
+        return renderTrigger(false, true);
+      }
+
       return (
-        <div class='index-set-inline-display'>
-          <span class='index-set-inline-tags'>
-            {parentIndexSets.length > 0 ? (
-              <TagMore
-                tags={indexSetName}
-                title={t('所属索引集')}
+        <bk-select
+          class='index-set-inline-select'
+          disabled={isUpdating}
+          display-tag
+          ext-popover-cls='index-set-checkbox-popover'
+          loading={isUpdating}
+          multiple
+          searchable
+          selected-style='checkbox'
+          value={draftSelectedIds}
+          onChange={(val: Array<number | string>) => {
+            setEditingIndexSetDraftIds(rowId, val || []);
+          }}
+          onToggle={(isOpen: boolean) => {
+            if (isOpen) {
+              isAddIndexSet.value = false;
+              setEditingIndexSetDraftIds(rowId, getRowParentIndexSetIds(row));
+              editingIndexSetRowId.value = rowId;
+              return;
+            }
+            isAddIndexSet.value = false;
+            if (editingIndexSetRowId.value === rowId) {
+              editingIndexSetRowId.value = '';
+              void handleParentIndexSetSubmit(row);
+            }
+          }}
+          {...{
+            scopedSlots: {
+              trigger: () => renderTrigger(isEditing),
+            },
+          }}
+        >
+          {indexSetOptionList.value.map((option: IListItemData) => (
+            <bk-option
+              id={option.index_set_id}
+              key={option.index_set_id}
+              name={option.index_set_name}
+            />
+          ))}
+          <div
+            class='index-set-inline-extension'
+            slot='extension'
+          >
+            {isAddIndexSet.value ? (
+              <AddIndexSet
+                ref={addIndexSetRef}
+                isAdd={true}
+                isFrom={false}
+                on-cancel={handleCancelAddIndexSet}
+                on-submit={handleSubmitAddIndexSet}
               />
             ) : (
-              '--'
+              <span
+                class='add-index-set-btn'
+                onClick={handleAddIndexSet}
+              >
+                <i class='bk-icon icon-plus-circle' />
+                {t('新增索引集')}
+              </span>
             )}
-          </span>
-          {canEdit && (
-            <span
-              class='bk-icon icon-edit-line index-set-inline-edit'
-              v-cursor={{ active: !row.permission?.[getRowEditAuthKey(row)] }}
-              on-click={() => {
-                if (!row.permission?.[getRowEditAuthKey(row)]) {
-                  handleEditOperation(row, 'edit');
-                  return;
-                }
-                setEditingIndexSetDraftIds(rowId, getRowParentIndexSetIds(row));
-                editingIndexSetRowMap.set(String(rowId), row);
-                editingIndexSetRowId.value = rowId;
-              }}
-            />
-          )}
-        </div>
+          </div>
+        </bk-select>
       );
     };
 
@@ -1154,17 +1169,68 @@ export default defineComponent({
             );
           },
           colKey: 'tags',
+          className: 'tags-cell',
           showTips: false,
           cell: (h, { row }: { row: ITableRowData }) => (
-          <TagMore
-            mode='label'
-            tags={row.tags || []}
-            rowData={row}
-            selectLabelList={selectLabelList.value}
-            title={t('标签')}
-            on-refresh-label-list={() => fetchLabelList()}
-            on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
-          />
+            <TagMore
+              maxRows={2}
+              mode='label'
+              tags={row.tags || []}
+              rowData={row}
+              selectLabelList={selectLabelList.value}
+              on-refresh-label-list={() => fetchLabelList()}
+              on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
+              {...{
+                scopedSlots: {
+                  trigger: ({ content, contentBounds, disabled, isEmpty, isOpen, triggerRef }: ITagMoreTriggerSlotData) => {
+                    if (disabled) {
+                      return (
+                        <div
+                          key='disabled-label-trigger'
+                          ref={triggerRef}
+                          class={[
+                            'tag-more-container tag-more-multi-line tag-more-select-trigger tag-more-label-select-trigger is-disabled',
+                            { 'is-empty': isEmpty },
+                          ]}
+                          v-bk-tooltips={{
+                            content: t('停用状态下无法添加标签'),
+                            delay: 300,
+                          }}
+                        >
+                          {!isEmpty && (
+                            <span
+                              class='tag-more-trigger-frame'
+                              style={getTagMoreTriggerFrameStyle(contentBounds)}
+                            />
+                          )}
+                          {content}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key='active-label-trigger'
+                        ref={triggerRef}
+                        class={[
+                          'tag-more-container tag-more-multi-line tag-more-select-trigger',
+                          'tag-more-label-select-trigger',
+                          { 'is-empty': isEmpty, 'is-open': isOpen },
+                        ]}
+                      >
+                        {!isEmpty && (
+                          <span
+                            class='tag-more-trigger-frame'
+                            style={getTagMoreTriggerFrameStyle(contentBounds)}
+                          />
+                        )}
+                        {content}
+                      </div>
+                    );
+                  },
+                },
+              }}
+            />
           ),
           width: 200,
         },
@@ -1599,7 +1665,6 @@ export default defineComponent({
         calculateMaxTableHeight();
         // 监听窗口大小变化
         window.addEventListener('resize', handleWindowResize);
-        document.addEventListener('mousedown', handleDocumentMouseDown, true);
       });
     });
 
@@ -1612,7 +1677,6 @@ export default defineComponent({
       isUnmounted = true;
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
-      document.removeEventListener('mousedown', handleDocumentMouseDown, true);
       listInterfaceCancel.value?.();
     });
 
@@ -2524,7 +2588,7 @@ export default defineComponent({
             pagination={pagination.value}
             height={tableList.value.length === 0 ? HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT : undefined}
             maxHeight={tableList.value.length > 0 ? maxTableHeight.value : undefined}
-            rowHeight={56}
+            rowHeight={64}
             on-sort-change={sortChange}
             on-filter-change={handleFilterChange}
             filterValue={filterValue.value}
