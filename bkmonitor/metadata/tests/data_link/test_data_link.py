@@ -1032,6 +1032,35 @@ def test_merge_existing_component_configs_reraises_non_not_found_errors(create_o
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records):
+    data_link_ins = DataLink.objects.create(
+        data_link_name="data_link_test",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+    config = {
+        "kind": DataLinkKind.RESULTTABLE.value,
+        "metadata": {"name": "result_table", "namespace": "bkmonitor"},
+        "spec": {"alias": "result_table"},
+    }
+    not_found = BKAPIError(
+        system_name="bkdata",
+        url="/v4/namespaces/{namespace}/{kind}/{name}/",
+        result={
+            "code": "1558025",
+            "data": "resource not found",
+            "message": "resource not found",
+        },
+    )
+
+    with patch(
+        "metadata.models.data_link.data_link.api.bkdata.get_data_link",
+        side_effect=not_found,
+    ):
+        assert data_link_ins.merge_existing_component_configs([config]) == [config]
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_configs_transaction_failure(create_or_delete_records):
     """
     测试在 compose_configs 操作中途发生错误时，事务是否能正确回滚

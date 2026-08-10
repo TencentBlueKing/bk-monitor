@@ -2219,7 +2219,12 @@ class DataLink(models.Model):
         except BKAPIError as error:
             # 这里必须直接区分 not found 与其它 API 异常：资源不存在可以继续 apply，
             # 权限、网关或服务异常则要抛出，避免误判为“无旧配置”后覆盖 BKBase 侧真实状态。
-            if f"resource {name} of kind {kind} not found".lower() in error.message.lower():
+            error_data = error.data if isinstance(error.data, dict) else {}
+            is_bkbase_v4_not_found = (
+                str(error_data.get("code")) == "1558025" and error_data.get("data") == "resource not found"
+            )
+            is_legacy_not_found = f"resource {name} of kind {kind} not found".lower() in error.message.lower()
+            if is_bkbase_v4_not_found or is_legacy_not_found:
                 return None
             logger.error(
                 "get_existing_component_config: bkbase api error,kind->[%s],name->[%s],namespace->[%s],error->[%s]",
