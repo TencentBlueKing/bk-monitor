@@ -27,6 +27,7 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
+from alarm_backends.service.alert.manager.checker.utils import is_auto_level_intelligent_detect
 from bkmonitor.data_source import CustomEventDataSource
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import AlgorithmModel
@@ -121,15 +122,9 @@ class RecoverStatusChecker(BaseChecker):
         recovery_with_nodata = False
         try:
             recovery_configs_map = Strategy.get_recovery_configs(strategy)
-            if self.check_is_multi_indicator_strategy(item):
-                recovery_configs = list(recovery_configs_map.values())[0]
-            else:
-                for level in map(str, [alert.event_severity, alert.severity]):
-                    if level in recovery_configs_map:
-                        recovery_configs = recovery_configs_map[level]
-                        break
-                else:
-                    recovery_configs = recovery_configs_map[str(alert.event_severity)]
+            recovery_configs = self.select_level_config(
+                recovery_configs_map, item, [alert.event_severity, alert.severity]
+            )
             recovery_window_size = recovery_configs["check_window_size"]
             status_setter = recovery_configs["status_setter"]
             # 新增无数据恢复配置: "recovery-nodata"
@@ -144,10 +139,9 @@ class RecoverStatusChecker(BaseChecker):
         recovery_window_offset = window_unit * recovery_window_size
 
         try:
-            if self.check_is_multi_indicator_strategy(item):
-                trigger_config = list(Strategy.get_trigger_configs(strategy).values())[0]
-            else:
-                trigger_config = Strategy.get_trigger_configs(strategy)[str(alert.event_severity)]
+            trigger_config = self.select_level_config(
+                Strategy.get_trigger_configs(strategy), item, [alert.event_severity]
+            )
             trigger_window_size = trigger_config["check_window_size"]
             trigger_count = trigger_config["trigger_count"]
         except (ValueError, TypeError, IndexError, KeyError):
@@ -427,10 +421,10 @@ class RecoverStatusChecker(BaseChecker):
 
     @classmethod
     def check_is_multi_indicator_strategy(cls, strategy_item) -> bool:
-        """检查策略是否包含动态告警级别.
+        """检查是否为 AIOps 多指标异常检测策略.
 
         :param strategy_item: 策略配置
-        :return: 是否包含动态告警级别
+        :return: 是否为多指标异常检测策略
         """
         if (
             len(strategy_item["algorithms"]) > 0
@@ -439,3 +433,23 @@ class RecoverStatusChecker(BaseChecker):
             return True
 
         return False
+
+    @classmethod
+    def check_use_technical_level_config(cls, strategy_item) -> bool:
+        """检查是否应使用算法技术级别对应的触发、恢复配置."""
+
+        return is_auto_level_intelligent_detect(strategy_item)
+
+    @classmethod
+    def select_level_config(cls, configs_map, strategy_item, candidate_levels):
+        if cls.check_is_multi_indicator_strategy(strategy_item):
+            return list(configs_map.values())[0]
+
+        if cls.check_use_technical_level_config(strategy_item):
+            return configs_map["2"]
+
+        for level in map(str, candidate_levels):
+            if level in configs_map:
+                return configs_map[level]
+
+        return configs_map[str(candidate_levels[0])]

@@ -388,6 +388,30 @@ AIOPS_PRE_DETECT_LATENCY = Gauge(
     labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
 )
 
+AIOPS_SAS_REQUEST_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_request_latency",
+    documentation="SAS 异常等级评分请求耗时",
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, INF),
+)
+
+AIOPS_SAS_RESULT_COUNT = Counter(
+    name="bkmonitor_aiops_sas_result_count_total",
+    documentation="SAS 异常等级评分结果统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_FALLBACK_COUNT = Counter(
+    name="bkmonitor_aiops_sas_fallback_count_total",
+    documentation="SAS 异常等级评分回退统计",
+    labelnames=("reason",),
+)
+
+AIOPS_SAS_ALERT_LEVEL_COUNT = Counter(
+    name="bkmonitor_aiops_sas_alert_level_count_total",
+    documentation="SAS 动态告警等级分布",
+    labelnames=("alert_level",),
+)
+
 TRIGGER_PROCESS_LATENCY = Histogram(
     name="bkmonitor_trigger_process_latency",
     documentation="告警从 detect 到 trigger 模块的整体处理延迟",

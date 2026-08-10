@@ -1086,6 +1086,13 @@ class Algorithm(AbstractConfig):
         serializer_class = self.Serializer.AlgorithmSerializers.get(self.type)
         merged_config = copy.deepcopy(self.config)
 
+        if (
+            self.type == AlgorithmModel.AlgorithmChoices.IntelligentDetect
+            and "alert_level_mode" not in self.config
+            and "alert_level_mode" in algorithm.config
+        ):
+            merged_config["alert_level_mode"] = algorithm.config["alert_level_mode"]
+
         if isinstance(algorithm.config.get("args"), Mapping) and isinstance(self.config.get("args"), Mapping):
             merged_config["args"] = {**copy.deepcopy(algorithm.config["args"]), **copy.deepcopy(self.config["args"])}
 
@@ -1935,7 +1942,48 @@ class Strategy(AbstractConfig):
             if attrs.get("source") != DATALINK_SOURCE and is_builtin_name:
                 raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
             self.validate_new_series(attrs)
+            self.validate_dynamic_alert_level(attrs)
             return attrs
+
+        @staticmethod
+        def validate_dynamic_alert_level(attrs):
+            """校验单指标智能异常检测的自动告警等级组合。"""
+            items = attrs.get("items") or []
+            auto_algorithms = [
+                algorithm
+                for item in items
+                for algorithm in item.get("algorithms") or []
+                if isinstance(algorithm.get("config"), Mapping)
+                and algorithm["config"].get("alert_level_mode") == "auto"
+            ]
+            if not auto_algorithms:
+                return
+
+            if len(items) != 1:
+                raise ValidationError(detail=_("自动告警等级仅支持单个监控项"))
+
+            item = items[0]
+            query_configs = item.get("query_configs") or []
+            algorithms = item.get("algorithms") or []
+            detects = attrs.get("detects") or []
+            if len(query_configs) != 1:
+                raise ValidationError(detail=_("自动告警等级仅支持单个查询配置"))
+            if len(algorithms) != 1 or len(auto_algorithms) != 1:
+                raise ValidationError(detail=_("自动告警等级仅支持单个智能异常检测算法"))
+
+            algorithm = algorithms[0]
+            if algorithm.get("type") != AlgorithmModel.AlgorithmChoices.IntelligentDetect:
+                raise ValidationError(detail=_("自动告警等级仅支持智能异常检测算法"))
+            intelligent_detect_config = query_configs[0].get("intelligent_detect") or {}
+            if (
+                not isinstance(intelligent_detect_config, Mapping)
+                or intelligent_detect_config.get("use_sdk") is not True
+            ):
+                raise ValidationError(detail=_("自动告警等级仅支持 SDK 检测模式"))
+            if algorithm.get("level") != 2:
+                raise ValidationError(detail=_("自动告警等级的技术级别必须为预警"))
+            if len(detects) != 1 or detects[0].get("level") != 2:
+                raise ValidationError(detail=_("自动告警等级仅支持唯一的预警触发配置"))
 
         @staticmethod
         def validate_new_series(attrs):
@@ -2642,6 +2690,44 @@ class Strategy(AbstractConfig):
         else:
             IssueConfig.delete(self.id)
 
+    def inherit_dynamic_alert_level_mode(self):
+        """兼容旧客户端：更新时省略模式字段则继承已有自动级别配置。"""
+        if self.id <= 0:
+            return
+
+        algorithms = list(chain(*(item.algorithms for item in self.items)))
+        existing_auto_algorithms = list(
+            AlgorithmModel.objects.filter(
+                strategy_id=self.id,
+                type=AlgorithmModel.AlgorithmChoices.IntelligentDetect,
+            )
+        )
+        existing_auto_algorithms = [
+            algorithm
+            for algorithm in existing_auto_algorithms
+            if isinstance(algorithm.config, Mapping) and algorithm.config.get("alert_level_mode") == "auto"
+        ]
+        if not existing_auto_algorithms:
+            return
+        if len(existing_auto_algorithms) != 1:
+            raise ValidationError(detail=_("已有自动告警等级配置异常，请先修复策略配置"))
+
+        existing_algorithm = existing_auto_algorithms[0]
+        matched_algorithms = [algorithm for algorithm in algorithms if algorithm.id == existing_algorithm.id]
+        if not matched_algorithms and len(algorithms) == 1:
+            # 批量局部更新不携带算法 ID，唯一算法可安全对应到已有自动级别算法
+            matched_algorithms = algorithms
+        if len(matched_algorithms) != 1:
+            raise ValidationError(detail=_("已有自动告警等级仅可通过显式选择手动级别退出"))
+
+        algorithm = matched_algorithms[0]
+        if algorithm.type != AlgorithmModel.AlgorithmChoices.IntelligentDetect or not isinstance(
+            algorithm.config, Mapping
+        ):
+            raise ValidationError(detail=_("已有自动告警等级仅可通过显式选择手动级别退出"))
+        if "alert_level_mode" not in algorithm.config:
+            algorithm.config["alert_level_mode"] = "auto"
+
     @transaction.atomic
     def save_actions(self):
         """保存actions配置."""
@@ -2689,6 +2775,8 @@ class Strategy(AbstractConfig):
         """
         保存策略配置
         """
+        self.inherit_dynamic_alert_level_mode()
+
         # grafana策略标记
         if self.items[0].query_configs[0].data_source_label == DataSourceLabel.DASHBOARD:
             self.type = StrategyModel.StrategyType.Dashboard
@@ -2700,6 +2788,7 @@ class Strategy(AbstractConfig):
 
         self.supplement_inst_target_dimension()
         need_access_aiops, algorithm_name = self.check_aiops_access()
+        self.Serializer.validate_dynamic_alert_level(self.to_dict())
 
         if not rollback:
             history = StrategyHistoryModel.objects.create(

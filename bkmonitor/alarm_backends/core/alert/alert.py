@@ -94,6 +94,10 @@ class Alert:
         self.init_severity()
 
     def init_severity(self):
+        # 告警分派设置的级别优先于算法动态级别，缓存重载时不能被覆盖
+        if self.severity_source == AssignMode.BY_RULE:
+            return
+
         # 智能监控如果有动态告警级别配置，则从extra_info里获取实际事件级别
         try:
             # 尝试取数据中的extra_info

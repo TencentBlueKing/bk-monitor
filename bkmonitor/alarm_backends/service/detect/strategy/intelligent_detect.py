@@ -11,9 +11,13 @@ specific language governing permissions and limitations under the License.
 """
 IntelligentDetect：智能异常检测算法基于计算平台的计算结果，再基于结果表的is_anomaly{1,2,3}来进行判断。
 """
+import concurrent.futures
 import copy
 import json
 import logging
+import math
+import time
+from collections import Counter, defaultdict
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -24,6 +28,7 @@ from alarm_backends.service.detect.strategy import (
     SDKPreDetectMixin,
 )
 from core.drf_resource import api
+from core.prometheus import metrics
 
 logger = logging.getLogger("detect")
 
@@ -41,6 +46,10 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
+    SAS_PREDICT_FUNC = api.aiops_sdk.sas_predict
+
+    AUTO_ALERT_LEVEL_MODE = "auto"
+    DEFAULT_ALERT_LEVEL = 2
 
     def generate_sdk_predict_params(self) -> dict:
         return {
@@ -79,6 +88,204 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 "{% if previous_point is not None %}, 前一时刻值{{ previous_point.value | auto_unit:unit }}{% endif %}"
             ),
         )
+
+    def detect_records(self, data_points, level):
+        anomaly_points = super().detect_records(data_points, level)
+        if not anomaly_points or self.validated_config.get("alert_level_mode", "manual") != self.AUTO_ALERT_LEVEL_MODE:
+            return anomaly_points
+
+        query_config = anomaly_points[0].data_point.item.query_configs[0]
+        if (query_config.get("intelligent_detect") or {}).get("use_sdk") is not True:
+            return anomaly_points
+
+        for anomaly_point in anomaly_points:
+            self._set_fallback(anomaly_point, "request_failed")
+
+        item = anomaly_points[0].data_point.item
+        try:
+            self.apply_auto_alert_level(anomaly_points)
+        except Exception as error:
+            # SAS 是 KPI 的增量下游，任何异常都不能丢弃已经确认的 KPI 异常点
+            logger.warning(
+                "strategy(%s) apply SAS alert level failed: %s",
+                item.strategy.id,
+                error.__class__.__name__,
+                exc_info=True,
+            )
+        finally:
+            try:
+                self._report_sas_metrics(anomaly_points)
+            except Exception as error:
+                logger.warning("strategy(%s) report SAS metrics failed: %s", item.strategy.id, error.__class__.__name__)
+        return anomaly_points
+
+    @classmethod
+    def score_to_alert_level(cls, score):
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            raise ValueError("invalid_score")
+
+        score = float(score)
+        if not math.isfinite(score) or not 0 <= score <= 1:
+            raise ValueError("invalid_score")
+
+        fatal_threshold = settings.AIOPS_SAS_FATAL_THRESHOLD
+        warning_threshold = settings.AIOPS_SAS_WARNING_THRESHOLD
+        if not (
+            isinstance(fatal_threshold, (int, float))
+            and isinstance(warning_threshold, (int, float))
+            and not isinstance(fatal_threshold, bool)
+            and not isinstance(warning_threshold, bool)
+            and math.isfinite(float(fatal_threshold))
+            and math.isfinite(float(warning_threshold))
+            and 0 <= float(warning_threshold) < float(fatal_threshold) <= 1
+        ):
+            raise ValueError("invalid_threshold")
+
+        if score >= float(fatal_threshold):
+            return 1
+        if score >= float(warning_threshold):
+            return 2
+        return 3
+
+    @staticmethod
+    def _set_alert_level_message(anomaly_point, message):
+        raw_extra_info = anomaly_point.data_point.values.get("extra_info", "")
+        try:
+            extra_info = (
+                json.loads(raw_extra_info) if isinstance(raw_extra_info, str) else copy.deepcopy(raw_extra_info)
+            )
+            if not isinstance(extra_info, dict):
+                extra_info = {}
+        except (TypeError, ValueError):
+            extra_info = {}
+
+        extra_info["alert_level_msg"] = message
+        anomaly_point.data_point.values["extra_info"] = json.dumps(
+            extra_info, ensure_ascii=False, separators=(",", ":")
+        )
+
+    def _set_fallback(self, anomaly_point, reason):
+        self._set_alert_level_message(
+            anomaly_point,
+            {
+                "alert_level": self.DEFAULT_ALERT_LEVEL,
+                "severity_score": None,
+                "status": "fallback",
+                "reason": reason,
+            },
+        )
+
+    @staticmethod
+    def _normalize_timestamp(value):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        if not math.isfinite(float(value)) or int(value) != value:
+            return None
+        return int(value)
+
+    def _apply_sas_response(self, anomaly_points, response):
+        if not isinstance(response, list):
+            for anomaly_point in anomaly_points:
+                self._set_fallback(anomaly_point, "invalid_response")
+            return
+
+        results_by_timestamp = defaultdict(list)
+        for result in response:
+            if not isinstance(result, dict):
+                continue
+            timestamp = self._normalize_timestamp(result.get("timestamp"))
+            if timestamp is not None:
+                results_by_timestamp[timestamp].append(result)
+
+        for anomaly_point in anomaly_points:
+            timestamp = anomaly_point.data_point.timestamp * 1000
+            matched_results = results_by_timestamp.get(timestamp, [])
+            if not matched_results:
+                self._set_fallback(anomaly_point, "missing_result")
+                continue
+            if len(matched_results) > 1:
+                self._set_fallback(anomaly_point, "duplicate_result")
+                continue
+
+            score = matched_results[0].get("severity_score")
+            try:
+                alert_level = self.score_to_alert_level(score)
+            except ValueError as error:
+                self._set_fallback(anomaly_point, str(error))
+                continue
+
+            self._set_alert_level_message(
+                anomaly_point,
+                {
+                    "alert_level": alert_level,
+                    "severity_score": float(score),
+                    "status": "success",
+                },
+            )
+
+    def _report_sas_metrics(self, anomaly_points):
+        result_counter = Counter()
+        for anomaly_point in anomaly_points:
+            extra_info = json.loads(anomaly_point.data_point.values["extra_info"])
+            message = extra_info["alert_level_msg"]
+            result_counter[message["status"]] += 1
+            metrics.AIOPS_SAS_ALERT_LEVEL_COUNT.labels(alert_level=str(message["alert_level"])).inc()
+            if message["status"] == "fallback":
+                metrics.AIOPS_SAS_FALLBACK_COUNT.labels(reason=message["reason"]).inc()
+
+        for status, count in result_counter.items():
+            metrics.AIOPS_SAS_RESULT_COUNT.labels(status=status).inc(count)
+
+    def apply_auto_alert_level(self, anomaly_points):
+        item = anomaly_points[0].data_point.item
+
+        anomaly_groups = {}
+        for anomaly_point in anomaly_points:
+            dimension_key = anomaly_point.data_point.record_id.rsplit(".", 1)[0]
+            if dimension_key not in anomaly_groups:
+                anomaly_groups[dimension_key] = {
+                    "dimensions": self.generate_dimensions(anomaly_point.data_point),
+                    "anomaly_points": [],
+                }
+            anomaly_groups[dimension_key]["anomaly_points"].append(anomaly_point)
+
+        future_groups = {}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SAS_PREDICT_CONCURRENCY) as executor:
+            for group in anomaly_groups.values():
+                group_points = group["anomaly_points"]
+                data = [
+                    {
+                        "timestamp": point.data_point.timestamp * 1000,
+                        "value": point.data_point.value,
+                        "is_anomaly": point.data_point.values.get("is_anomaly", 1),
+                    }
+                    for point in group_points
+                ]
+                started_at = time.monotonic()
+                future = executor.submit(
+                    self.SAS_PREDICT_FUNC,
+                    data=data,
+                    dimensions=group["dimensions"],
+                    predict_args={"predict_start_time": min(point["timestamp"] for point in data)},
+                    interval=int(item.query_configs[0]["agg_interval"]),
+                    extra_data={},
+                    serving_config={"pre_service_name": "default", "serving_with_ts_depend": True},
+                    bk_tenant_id=item.bk_tenant_id,
+                )
+                future_groups[future] = (group_points, started_at)
+
+            for future in concurrent.futures.as_completed(future_groups):
+                group_points, started_at = future_groups[future]
+                try:
+                    self._apply_sas_response(group_points, future.result())
+                except Exception as error:
+                    logger.warning("strategy(%s) SAS predict failed: %s", item.strategy.id, error.__class__.__name__)
+                try:
+                    metrics.AIOPS_SAS_REQUEST_LATENCY.observe(time.monotonic() - started_at)
+                except Exception as error:
+                    logger.warning(
+                        "strategy(%s) report SAS latency failed: %s", item.strategy.id, error.__class__.__name__
+                    )
 
     def extra_context(self, context):
         values = getattr(context.data_point, "values", {})

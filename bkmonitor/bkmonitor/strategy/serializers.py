@@ -175,6 +175,7 @@ class IntelligentDetectSerializer(AIServiceControlMixin, serializers.Serializer)
 
     args = serializers.DictField(required=True)
     plan_id = serializers.IntegerField(required=True)
+    alert_level_mode = serializers.ChoiceField(required=False, choices=["manual", "auto"])
     visual_type = serializers.ChoiceField(
         default=VisualType.NONE, choices=[VisualType.NONE, VisualType.SCORE, VisualType.BOUNDARY]
     )
