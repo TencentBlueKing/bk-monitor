@@ -17,6 +17,7 @@
 
 - `data_link.py`：`DataLink` 主模型，维护策略枚举、策略分发、链路申请、删除与元数据同步。
 - `data_link_configs.py`：配置模型层，定义 `DataId`/`ResultTable`/`StorageBinding`/`Databus` 等组件配置与模板渲染逻辑。
+- `tags/`：Databus `metadata.labels` 可扩展标签生成框架（从 datasource / resulttable 推导，创建链路时同步写入）。
 - `service.py`：面向调用方的服务函数（申请 data_id、查询组件状态与配置）。
 - `utils.py`：命名规整、模板渲染、字段组装等通用工具。
 - `constants.py`：链路类型、资源状态、命名空间、默认转换格式等常量。
@@ -330,7 +331,25 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 
 ---
 
-## 11. 维护注意事项
+## 11. Databus 扩展标签
+
+创建链路时，`DataBusConfig.compose_*` 会同步组装 `metadata.labels`：
+
+1. 调用 `build_databus_labels(...)`，由注册表中的生成器从 `DataSource` / `ResultTable` 推导扩展标签；
+2. 强制写入系统保留键 `bk_biz_id`（不可被扩展规则覆盖）；
+3. 随 `api.bkdata.apply_data_link` 一并下发。
+
+扩展方式：
+
+- 实现 `DatabusLabelGenerator`，在 `generate(context)` 中返回标签字典；
+- 通过 `get_databus_label_registry().register(...)` 注册；
+- 或直接修改默认生成器：`tags/generators/datasource.py`、`tags/generators/resulttable.py`。
+
+首版默认生成器返回空字典，仅打通扩展挂点与创建时写入路径。
+
+---
+
+## 12. 维护注意事项
 
 - 事务：策略组装普遍依赖 `transaction.atomic`，避免部分配置写入。
 - 幂等：优先使用 `update_or_create`，避免重复创建同名组件。
@@ -340,10 +359,11 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 
 ---
 
-## 12. 相关文件
+## 13. 相关文件
 
 - `metadata/models/data_link/data_link.py`
 - `metadata/models/data_link/data_link_configs.py`
+- `metadata/models/data_link/tags/`
 - `metadata/models/data_link/service.py`
 - `metadata/models/data_link/utils.py`
 - `metadata/models/data_link/constants.py`

@@ -342,6 +342,8 @@ class DataLink(models.Model):
             databus_config = databus_ins.compose_log_config(
                 sinks=sinks,
                 rules=CUSTOM_EVENT_CLEAN_RULES,
+                data_source=data_source,
+                table_id=table_id,
             )
 
         config_list = [es_rt_config, es_binding_config, databus_config]
@@ -504,7 +506,12 @@ class DataLink(models.Model):
                 [
                     result_table.compose_config(fields=fields),
                     *bingding_configs,
-                    databus.compose_log_config(sinks=databus_sinks, rules=clean_rules),
+                    databus.compose_log_config(
+                        sinks=databus_sinks,
+                        rules=clean_rules,
+                        data_source=data_source,
+                        table_id=table_id,
+                    ),
                 ]
             )
 
@@ -594,7 +601,12 @@ class DataLink(models.Model):
         return [
             vm_table_id_ins.compose_config(),
             vm_storage_ins.compose_config(),
-            data_bus_ins.compose_config(sinks=[sink_item], transform_format=transform_format_map[data_link_strategy]),
+            data_bus_ins.compose_config(
+                sinks=[sink_item],
+                transform_format=transform_format_map[data_link_strategy],
+                data_source=data_source,
+                table_id=table_id,
+            ),
         ]
 
     def compose_basereport_time_series_configs(
@@ -781,7 +793,9 @@ class DataLink(models.Model):
 
         # 组装data bus配置
         data_bus_config = data_bus_ins.compose_config(
-            sinks=conditional_sink, transform_format=BASEREPORT_DATABUS_FORMAT
+            sinks=conditional_sink,
+            transform_format=BASEREPORT_DATABUS_FORMAT,
+            data_source=data_source,
         )
 
         # 添加conditional sink和data bus配置到配置列表
@@ -890,6 +904,7 @@ class DataLink(models.Model):
                 sinks=[basereport_sink_ref],
                 transform_format=BASEREPORT_DATABUS_FORMAT,
                 transform_options={"extra_dims": True},
+                data_source=data_source,
             )
         )
 
@@ -1001,7 +1016,10 @@ class DataLink(models.Model):
                 write_alias_format=write_alias,
                 unique_field_list=unique_field_list,
             )
-            databus_config = databus_ins.compose_base_event_config()
+            databus_config = databus_ins.compose_base_event_config(
+                data_source=data_source,
+                table_id=table_id,
+            )
 
             config_list.extend([es_rt_config, es_binding_config, databus_config])
             logger.info(
@@ -1193,7 +1211,11 @@ class DataLink(models.Model):
         if settings.ENABLE_MULTI_TENANT_MODE:
             conditional_sink[0]["tenant"] = self.bk_tenant_id
 
-        data_bus_config = data_bus_ins.compose_config(sinks=conditional_sink)
+        data_bus_config = data_bus_ins.compose_config(
+            sinks=conditional_sink,
+            data_source=data_source,
+            table_id=table_id,
+        )
         config_list.extend([vm_conditional_sink_config, data_bus_config])
         return config_list
 
@@ -1322,7 +1344,7 @@ class DataLink(models.Model):
             # 显式透传 RT 的 name，避免复用后 RT/Binding 被独立 claim 成不同 name 时
             # binding payload 的 spec.data.name 仍然指向 binding 自己的 name（不存在的 RT）。
             vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id, rt_name=vm_table_id_ins.name),
-            data_bus_ins.compose_config(sinks),
+            data_bus_ins.compose_config(sinks, data_source=data_source, table_id=table_id),
         ]
         return configs
 
@@ -1450,7 +1472,12 @@ class DataLink(models.Model):
             # RT / Binding name 被独立 claim 成不同值时，binding payload 的
             # spec.data.name 仍然指向 "binding.name" 这个并不存在的 RT。
             vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
-            data_bus_ins.compose_config(sinks=sinks, transform_format=transform_format),
+            data_bus_ins.compose_config(
+                sinks=sinks,
+                transform_format=transform_format,
+                data_source=data_source,
+                table_id=table_id,
+            ),
         ]
         return configs
 

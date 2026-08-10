@@ -27,6 +27,7 @@ logger = logging.getLogger("metadata")
 
 if TYPE_CHECKING:
     from metadata.models.data_source import DataSource
+    from metadata.models.result_table import ResultTable
     from metadata.models.storage import ClusterInfo
 
 
@@ -534,6 +535,43 @@ class DataBusConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
+    def compose_metadata_labels(
+        self,
+        *,
+        labels: dict[str, Any] | None = None,
+        data_source: "DataSource | None" = None,
+        table_id: str | None = None,
+        result_table: "ResultTable | None" = None,
+    ) -> dict[str, str]:
+        """组装 Databus metadata.labels。
+
+        扩展标签由可插拔生成器从 datasource / resulttable 推导；``bk_biz_id`` 始终作为系统保留键强制写入。
+
+        Args:
+            labels: 调用方显式传入的额外标签。
+            data_source: 数据源实例。
+            table_id: 监控侧结果表 ID。
+            result_table: 结果表实例。
+
+        Returns:
+            最终写入 BKBase Databus 配置的 labels。
+        """
+        from metadata.models.data_link.tags import build_databus_labels
+
+        composed_labels = build_databus_labels(
+            data_source=data_source,
+            result_table=result_table,
+            table_id=table_id,
+            bk_tenant_id=self.bk_tenant_id,
+            bk_data_id=self.bk_data_id or None,
+            extra_labels=labels,
+        )
+        # bk_biz_id 为系统保留标签，始终以链路配置侧计算结果为准
+        return {
+            **composed_labels,
+            "bk_biz_id": str(self.datalink_biz_ids.label_biz_id),
+        }
+
     def compose_config(
         self,
         sinks: list,
@@ -541,6 +579,10 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
         transform_options: dict[str, Any] | None = None,
+        labels: dict[str, Any] | None = None,
+        data_source: "DataSource | None" = None,
+        table_id: str | None = None,
+        result_table: "ResultTable | None" = None,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -551,6 +593,10 @@ class DataBusConfig(DataLinkResourceConfigBase):
         @param transform_name: 转换名称
         @param transform_format: 转换格式
         @param transform_options: 转换额外配置
+        @param labels: 额外 labels，会与生成器产出合并
+        @param data_source: 用于推导扩展标签的数据源
+        @param table_id: 用于推导扩展标签的结果表 ID
+        @param result_table: 用于推导扩展标签的结果表实例
         """
         tpl = """
         {
@@ -561,7 +607,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                "labels": {{labels}}
             },
             "spec": {
                 "maintainers": {{maintainers}},
@@ -590,10 +636,16 @@ class DataBusConfig(DataLinkResourceConfigBase):
         }
         if transform_options:
             transform.update(transform_options)
+        metadata_labels = self.compose_metadata_labels(
+            labels=labels,
+            data_source=data_source,
+            table_id=table_id,
+            result_table=result_table,
+        )
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,
+            "labels": json.dumps(metadata_labels),
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
@@ -611,7 +663,15 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose vm databus config",
         )
 
-    def compose_log_config(self, sinks: list[dict[str, Any]], rules: list[dict[str, Any]]) -> dict[str, Any]:
+    def compose_log_config(
+        self,
+        sinks: list[dict[str, Any]],
+        rules: list[dict[str, Any]],
+        labels: dict[str, Any] | None = None,
+        data_source: "DataSource | None" = None,
+        table_id: str | None = None,
+        result_table: "ResultTable | None" = None,
+    ) -> dict[str, Any]:
         """
         常规日志清洗总线配置
         """
@@ -624,7 +684,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                "labels": {{labels}}
             },
             "spec": {
                 "maintainers": {{maintainers}},
@@ -653,10 +713,16 @@ class DataBusConfig(DataLinkResourceConfigBase):
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        metadata_labels = self.compose_metadata_labels(
+            labels=labels,
+            data_source=data_source,
+            table_id=table_id,
+            result_table=result_table,
+        )
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "labels": json.dumps(metadata_labels),
             "maintainers": json.dumps(maintainer),
             "sinks": json.dumps(sinks),
             "rules": json.dumps(rules),
@@ -673,7 +739,13 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose data_id config",
         )
 
-    def compose_base_event_config(self):
+    def compose_base_event_config(
+        self,
+        labels: dict[str, Any] | None = None,
+        data_source: "DataSource | None" = None,
+        table_id: str | None = None,
+        result_table: "ResultTable | None" = None,
+    ):
         """
         基础事件清洗总线配置（固定逻辑）
         原先的1000 基础事件
@@ -688,7 +760,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     "tenant": "{{ tenant }}",
                     {% endif %}
                     "namespace": "{{namespace}}",
-                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                    "labels": {{labels}}
                 },
                 "spec": {
                     "maintainers": {{maintainers}},
@@ -716,10 +788,16 @@ class DataBusConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        metadata_labels = self.compose_metadata_labels(
+            labels=labels,
+            data_source=data_source,
+            table_id=table_id,
+            result_table=result_table,
+        )
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "labels": json.dumps(metadata_labels),
             "maintainers": json.dumps(maintainer),
         }
 
