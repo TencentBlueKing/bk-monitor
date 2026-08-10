@@ -1445,16 +1445,16 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
-        bcs_cluster_id: str,
         storage_cluster_name: str,
+        federation_routes: list[dict[str, Any]],
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成联邦子集群时序数据链路配置
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID
-        @param bcs_cluster_id: 联邦子集群ID
         @param storage_cluster_name: 存储集群名称
+        @param federation_routes: 已由联邦领域服务完成租户过滤、冲突检查和排序的路由列表
         @return: config_list 配置列表
         """
         logger.info(
@@ -1466,8 +1466,6 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-
-        from metadata.models.bcs import BcsFederalClusterInfo
 
         # 联邦子集群场景下，这里的bkbase_data_name会有一个fed_的前缀
         bkbase_raw_data_name = get_bkbase_raw_data_id_name(data_source=data_source, table_id=table_id)
@@ -1483,31 +1481,22 @@ class DataLink(models.Model):
             bkbase_vmrt_name,
         )
 
-        federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
-        if not federal_records:
-            logger.warning(
-                "compose_federal_sub_configs: bcs_cluster_id->[%s],data_link_name->[%s],data_id->[%s] does "
-                "not belong to any federal topo.return",
-                bcs_cluster_id,
-                self.data_link_name,
-                data_source.bk_data_id,
+        if not federation_routes:
+            raise ValueError(
+                f"compose_federal_sub_configs: data_link_name({self.data_link_name}) federation_routes is empty"
             )
-            return []
 
         config_list, conditions = [], []
-        for record in federal_records:
-            if not record.fed_builtin_metric_table_id:
-                continue
-
+        for route in federation_routes:
             # 联邦代理集群的RT名
-            proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
-            relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
+            proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(route["target_metric_table_id"])
+            relabels = [{"name": "bcs_cluster_id", "value": route["fed_cluster_id"]}]
             logger.info(
                 "compose_federal_sub_configs: data_link_name->[%s] start to compose for fed_cluster_id->[%s],"
                 "match_labels ->[%s]",
                 self.data_link_name,
-                record.fed_cluster_id,
-                record.fed_namespaces,
+                route["fed_cluster_id"],
+                route["namespaces"],
             )
             # 联邦集群链路格式调整,由原先的每一个Namespace一个Condition变更为每一个联邦拓扑一个Condition，通过any方式进行匹配
             sinks = [
@@ -1521,17 +1510,15 @@ class DataLink(models.Model):
                 sinks[0]["tenant"] = self.bk_tenant_id
 
             condition = {
-                "match_labels": [{"name": "namespace", "any": record.fed_namespaces}],
+                "match_labels": [{"name": "namespace", "any": route["namespaces"]}],
                 "relabels": relabels,
                 "sinks": sinks,
             }
             conditions.append(condition)
 
         logger.info(
-            "compose_federal_sub_configs: data_link_name->[%s],bcs_cluster_id->[%s] will use conditions->[%s]to "
-            "compose configs",
+            "compose_federal_sub_configs: data_link_name->[%s] will use conditions->[%s]to compose configs",
             self.data_link_name,
-            bcs_cluster_id,
             conditions,
         )
 
@@ -2424,6 +2411,7 @@ class DataLink(models.Model):
         不变式：
         - ``bkbase_rt_name == ResultTableConfig.name``
         - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
+        - 联邦子集链路不声明独立 ResultTable，兼容使用 ``ConditionalSinkConfig.name`` 回填上述两个字段
         - ``bkbase_data_name == DataBusConfig.data_id_name``
         - ``storage_type`` / ``storage_cluster_id`` 与 ``ClusterInfo`` 实际记录保持一致。
         """
@@ -2526,6 +2514,24 @@ class DataLink(models.Model):
                     else f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
                 }
             )
+        elif self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
+            conditional_sink = (
+                ConditionalSinkConfig.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                )
+                .order_by("-last_modify_time", "-id")
+                .first()
+            )
+            if conditional_sink:
+                bkbase_rt_name = conditional_sink.name
+                defaults.update(
+                    {
+                        "bkbase_rt_name": bkbase_rt_name,
+                        "bkbase_table_id": f"{conditional_sink.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
+                    }
+                )
         if databus:
             defaults["bkbase_data_name"] = databus.data_id_name
 

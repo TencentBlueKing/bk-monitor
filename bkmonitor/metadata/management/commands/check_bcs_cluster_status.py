@@ -983,17 +983,31 @@ class Command(BaseCommand):
 
             # 2. 计算当前集群在拓扑中的角色（可能多个）
             roles = []
-            if BcsFederalClusterInfo.objects.filter(fed_cluster_id=cluster_info.cluster_id, is_deleted=False).exists():
+            if BcsFederalClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                fed_cluster_id=cluster_info.cluster_id,
+                is_deleted=False,
+            ).exists():
                 roles.append("代理集群(fed)")
-            if BcsFederalClusterInfo.objects.filter(host_cluster_id=cluster_info.cluster_id, is_deleted=False).exists():
+            if BcsFederalClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                host_cluster_id=cluster_info.cluster_id,
+                is_deleted=False,
+            ).exists():
                 roles.append("HOST 集群")
-            if BcsFederalClusterInfo.objects.filter(sub_cluster_id=cluster_info.cluster_id, is_deleted=False).exists():
+            if BcsFederalClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                sub_cluster_id=cluster_info.cluster_id,
+                is_deleted=False,
+            ).exists():
                 roles.append("子集群(sub)")
             current_role = " + ".join(roles) if roles else "无联邦关系"
 
             # 3. 仅当作为代理集群时校验配置完整性
             fed_clusters = BcsFederalClusterInfo.objects.filter(
-                fed_cluster_id=cluster_info.cluster_id, is_deleted=False
+                bk_tenant_id=self.bk_tenant_id,
+                fed_cluster_id=cluster_info.cluster_id,
+                is_deleted=False,
             )
 
             federation_details = []
@@ -1133,7 +1147,9 @@ class Command(BaseCommand):
             # 2. 检查集群的DataIDResource资源配置状态
             dataid_resources = []
             is_fed_cluster = BcsFederalClusterInfo.objects.filter(
-                fed_cluster_id=cluster_info.cluster_id, is_deleted=False
+                bk_tenant_id=self.bk_tenant_id,
+                fed_cluster_id=cluster_info.cluster_id,
+                is_deleted=False,
             ).exists()
 
             # 判定该代理集群是否启用 V4 联邦汇聚链路（决定 -fed CRD 缺失的严重程度）
@@ -2571,7 +2587,9 @@ class Command(BaseCommand):
 
         # 检查是否是联邦代理集群
         is_federal = BcsFederalClusterInfo.objects.filter(
-            fed_cluster_id=cluster_info.cluster_id, is_deleted=False
+            bk_tenant_id=self.bk_tenant_id,
+            fed_cluster_id=cluster_info.cluster_id,
+            is_deleted=False,
         ).exists()
 
         try:
@@ -3430,6 +3448,7 @@ class Command(BaseCommand):
                 Q(fed_cluster_id=cluster_info.cluster_id)
                 | Q(host_cluster_id=cluster_info.cluster_id)
                 | Q(sub_cluster_id=cluster_info.cluster_id),
+                bk_tenant_id=cluster_info.bk_tenant_id,
                 is_deleted=False,
             ).exists()
         except Exception:
@@ -3449,6 +3468,7 @@ class Command(BaseCommand):
                 Q(fed_cluster_id=current_cluster_id)
                 | Q(host_cluster_id=current_cluster_id)
                 | Q(sub_cluster_id=current_cluster_id),
+                bk_tenant_id=self.bk_tenant_id,
                 is_deleted=False,
             ).values_list("fed_cluster_id", flat=True)
         )
@@ -3464,6 +3484,7 @@ class Command(BaseCommand):
 
             upper_fed_ids = BcsFederalClusterInfo.objects.filter(
                 Q(sub_cluster_id=fed_id) | Q(host_cluster_id=fed_id),
+                bk_tenant_id=self.bk_tenant_id,
                 is_deleted=False,
             ).values_list("fed_cluster_id", flat=True)
             for upper_fed_id in upper_fed_ids:
@@ -3480,7 +3501,13 @@ class Command(BaseCommand):
 
         lines = ["    联邦拓扑:"]
         for fed_id in fed_ids:
-            recs = list(BcsFederalClusterInfo.objects.filter(fed_cluster_id=fed_id, is_deleted=False))
+            recs = list(
+                BcsFederalClusterInfo.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    fed_cluster_id=fed_id,
+                    is_deleted=False,
+                )
+            )
             if not recs:
                 continue
 

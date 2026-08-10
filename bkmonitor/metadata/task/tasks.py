@@ -57,8 +57,6 @@ from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_bkbase_data_link,
-    create_fed_bkbase_data_link,
-    get_vm_cluster_id_name,
     report_metadata_data_link_status_info,
 )
 from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
@@ -1572,40 +1570,21 @@ def bulk_refresh_data_link_status():
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_create_fed_data_link(sub_clusters):
-    from metadata.models import DataSource, DataSourceResultTable
+    """兼容旧队列任务名，实际创建逻辑统一转发到联邦 reconciliation service。"""
+    from metadata.service.federation_data_link import ensure_federal_subset_data_link
 
     logger.info("bulk_create_fed_data_link: start to bulk create fed datalinks for->[%s]", sub_clusters)
-    for sub_cluster_id in sub_clusters:
+    for sub_cluster_id in sorted(set(sub_clusters)):
         # 打印日志记录更新的子集群ID
         logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
         try:
             sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
-            ds = DataSource.objects.get(bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID)
-            table_id = DataSourceResultTable.objects.get(
-                bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID
-            ).table_id
-            vm_cluster = get_vm_cluster_id_name(
+            ensure_federal_subset_data_link(
                 bk_tenant_id=sub_cluster.bk_tenant_id,
-                space_type=SpaceTypes.BKCC.value,
-                space_id=str(sub_cluster.bk_biz_id),
-            )
-
-            logger.info(
-                "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
-                sub_cluster_id,
-                sub_cluster.K8sMetricDataID,
-                table_id,
-            )
-
-            create_fed_bkbase_data_link(
-                bk_biz_id=sub_cluster.bk_biz_id,
-                monitor_table_id=table_id,
-                data_source=ds,
-                storage_cluster_name=vm_cluster.get("cluster_name"),
-                bcs_cluster_id=sub_cluster.cluster_id,
+                sub_cluster_id=sub_cluster_id,
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
+            logger.exception("update_fed_bkbase data_link failed, sub_cluster_id->[%s],error->[%s]", sub_cluster_id, e)
             continue
 
 

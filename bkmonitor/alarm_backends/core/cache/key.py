@@ -591,6 +591,16 @@ SERVICE_LOCK_METADATA_MANAGE_ES_STORAGE = register_key_with_config(
     }
 )
 
+SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK = register_key_with_config(
+    {
+        "label": "[metadata]BCS联邦数据链路租户锁",
+        "key_type": "string",
+        "key_tpl": "metadata.reconcile_federation_data_link.lock.{bk_tenant_id}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
 ACCESS_END_TIME_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取的结束时间",

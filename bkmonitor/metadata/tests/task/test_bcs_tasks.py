@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 
 from metadata import models
+from metadata.service.federation_data_link import FederationNamespaceConflictError, reconcile_federation_data_links
 from metadata.task.bcs import discover_bcs_clusters, sync_federation_clusters
 from metadata.tests.common_utils import consul_client
 
@@ -263,13 +264,14 @@ def test_sync_federation_clusters(create_or_delete_records):
     """
     测试同步联邦拓扑信息
     """
-    bkbase_data_name_10002_fed = "fed_bkm_bcs_BCS-K8S-10002_k8s_metric"
+    bkbase_data_name_10002_fed = "fed_bkm_bcs_BCS_K8S_10002_k8s_metric"
     bkbase_vmrt_name_10002_fed = "bkm_1001_bkmonitor_time_series_60011_fed"
-    bkbase_data_name_10003_fed = "fed_bkm_bcs_BCS-K8S-10003_k8s_metric"
+    bkbase_data_name_10003_fed = "fed_bkm_bcs_BCS_K8S_10003_k8s_metric"
     bkbase_vmrt_name_10003_fed = "bkm_1001_bkmonitor_time_series_60012_fed"
-    with patch.object(
-        models.DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
-    ) as mock_apply_with_retry:  # noqa
+    with (
+        patch.object(models.DataLink, "get_existing_component_config", return_value=None),
+        patch.object(models.DataLink, "apply_data_link_with_retry", return_value={"status": "success"}),
+    ):
         bcs_api_fed_returns = {
             "BCS-K8S-10001": {
                 "host_cluster_id": "BCS-K8S-11111",  # host_cluster无需关注
@@ -285,7 +287,8 @@ def test_sync_federation_clusters(create_or_delete_records):
                 },
             },
         }
-        sync_federation_clusters(fed_clusters=bcs_api_fed_returns)
+        plan = sync_federation_clusters(fed_clusters=bcs_api_fed_returns)
+        reconcile_federation_data_links(bk_tenant_id="system", plan=plan)
 
         fed_record_10002_part1 = models.BcsFederalClusterInfo.objects.get(
             sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-10001", is_deleted=False
@@ -309,7 +312,6 @@ def test_sync_federation_clusters(create_or_delete_records):
         assert set(fed_record_10003.fed_namespaces) == {"nss1", "nss2"}
         assert fed_record_10003.fed_builtin_metric_table_id == "1001_bkmonitor_time_series_70010.__default__"
 
-        # 这里由于是异步触发，所以测试时需要去到sync_federation_clusters中将bulk_create_fed_data_link改为同步执行以便测试
         bkbase_rt_10002_fed = models.BkBaseResultTable.objects.get(data_link_name=bkbase_data_name_10002_fed)
         assert bkbase_rt_10002_fed.monitor_table_id == "1001_bkmonitor_time_series_60011.__default__"
         assert bkbase_rt_10002_fed.bkbase_rt_name == bkbase_vmrt_name_10002_fed
@@ -321,7 +323,6 @@ def test_sync_federation_clusters(create_or_delete_records):
         databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
         assert databus_ins.namespace == "bkmonitor"
         assert databus_ins.name == bkbase_vmrt_name_10002_fed
-
         # 10003 子集群对应的链路
 
         bkbase_rt_10003_fed = models.BkBaseResultTable.objects.get(data_link_name=bkbase_data_name_10003_fed)
@@ -353,7 +354,8 @@ def test_sync_federation_clusters(create_or_delete_records):
             },
         }
 
-        sync_federation_clusters(fed_clusters=bcs_api_fed_returns_2)
+        plan = sync_federation_clusters(fed_clusters=bcs_api_fed_returns_2)
+        reconcile_federation_data_links(bk_tenant_id="system", plan=plan)
 
         fed_record_10002_after_part1 = models.BcsFederalClusterInfo.objects.get(
             sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-10001", is_deleted=False
@@ -389,3 +391,58 @@ def test_sync_federation_clusters(create_or_delete_records):
         databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
         assert databus_ins.namespace == "bkmonitor"
         assert databus_ins.name == bkbase_vmrt_name_10002_fed
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_federation_clusters_is_tenant_scoped(create_or_delete_records):
+    pair = {
+        "fed_cluster_id": "BCS-K8S-10001",
+        "host_cluster_id": "BCS-K8S-11111",
+        "sub_cluster_id": "BCS-K8S-10002",
+        "fed_namespaces": ["default"],
+    }
+    models.BcsFederalClusterInfo.objects.create(bk_tenant_id="system", **pair)
+    models.BcsFederalClusterInfo.objects.create(bk_tenant_id="tenant-b", **pair)
+
+    plan = sync_federation_clusters(fed_clusters={}, bk_tenant_id="system")
+
+    assert plan.removed_proxy_cluster_ids == ["BCS-K8S-10001"]
+    assert plan.removed_sub_cluster_ids == ["BCS-K8S-10002"]
+    assert models.BcsFederalClusterInfo.objects.get(
+        bk_tenant_id="system",
+        fed_cluster_id=pair["fed_cluster_id"],
+        sub_cluster_id=pair["sub_cluster_id"],
+    ).is_deleted
+    assert not models.BcsFederalClusterInfo.objects.get(
+        bk_tenant_id="tenant-b",
+        fed_cluster_id=pair["fed_cluster_id"],
+        sub_cluster_id=pair["sub_cluster_id"],
+    ).is_deleted
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_federation_clusters_rejects_overlapping_namespaces_before_update(create_or_delete_records):
+    existing = models.BcsFederalClusterInfo.objects.create(
+        bk_tenant_id="system",
+        fed_cluster_id="BCS-K8S-10001",
+        host_cluster_id="BCS-K8S-11111",
+        sub_cluster_id="BCS-K8S-10002",
+        fed_namespaces=["stable"],
+    )
+    invalid_topology = {
+        "BCS-K8S-10001": {
+            "host_cluster_id": "BCS-K8S-11111",
+            "sub_clusters": {"BCS-K8S-10002": ["shared"]},
+        },
+        "BCS-K8S-70001": {
+            "host_cluster_id": "BCS-K8S-11111",
+            "sub_clusters": {"BCS-K8S-10002": ["shared"]},
+        },
+    }
+
+    with pytest.raises(FederationNamespaceConflictError, match="shared"):
+        sync_federation_clusters(fed_clusters=invalid_topology, bk_tenant_id="system")
+
+    existing.refresh_from_db()
+    assert existing.fed_namespaces == ["stable"]
+    assert not existing.is_deleted
