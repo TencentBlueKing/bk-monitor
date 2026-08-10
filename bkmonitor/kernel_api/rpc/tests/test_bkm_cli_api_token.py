@@ -161,6 +161,35 @@ def test_mutation_rejects_dry_run():
         )
 
 
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"unexpected": None}, "不支持的参数"),
+        ({"operator": "<provided-during-current-approval>"}, "实际执行人"),
+        ({"operator": "your-username"}, "实际执行人"),
+        ({"operator": "a" * 33}, "长度不能超过 32"),
+    ],
+)
+def test_mutation_rejects_unknown_fields_placeholder_and_oversized_operator(mocker, override, message):
+    from kernel_api.rpc.functions.bkm_cli import api_token
+
+    grant = mocker.patch.object(api_token, "_grant_api_token", return_value={"changed": True})
+    params = {
+        "bk_tenant_id": "system",
+        "operation": "grant",
+        "operator": "alice",
+        "confirmed": True,
+        "app_code": "demo-app",
+        "biz_ids": [2],
+    }
+    params.update(override)
+
+    with pytest.raises(CustomException, match=message):
+        api_token.manage_api_token(params)
+
+    grant.assert_not_called()
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_grant_api_token_records_operator_and_uses_model_database(mocker):
     from kernel_api.rpc.functions.bkm_cli.api_token import manage_api_token
@@ -184,6 +213,7 @@ def test_grant_api_token_records_operator_and_uses_model_database(mocker):
 
     token = ApiAuthToken.objects.get(id=result["token"]["id"])
     assert result["changed"] is True
+    assert result["requested_operator"] == "alice"
     assert result["token"]["namespaces"] == ["biz#2", "biz#-4779"]
     assert "token" not in result["token"]
     assert token.type == AuthType.API

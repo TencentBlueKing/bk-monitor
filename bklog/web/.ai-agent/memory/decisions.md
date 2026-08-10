@@ -251,6 +251,13 @@ Knowledge update: updated.
 - 隔离硬约束：禁止写 `indexSetQueryResult.row_keys`；禁止 `markActiveQuery(localKey)`；禁止主线程 `replaceRows/clearMemory`；主检索与本地检索按 `requestId` 分别 `cancelSearch`；卸载/重置只 `clearQuery(localKey)`。
 - **物理表隔离（加强）**：新增 IndexedDB 表 `relatedLogSearchRows`（db v5）；本地 Stream `rowStore: 'relatedLogSearchRows'` + `relatedLogSearchRowCacheService`；首次打开仍只读主检索 `retrieveRows`（props rowKey）；`fetchFullRowByKey` 双表查找。
 - 落点：`origin-log-result/index.tsx`、`db.ts`、`retrieve-row.repository.ts`、`retrieve-row-cache.service.ts`、`retrieve-search.worker.ts`、`resolve-related-log-target-row.ts`。
+## 2026-08-06 UI 模式切语句模式保留查询条件
+
+- 问题：UI 模式配置 addition 后切到语句模式，条件被清空（story=1010158081136837143）。
+- 根因：`handleQueryTypeChange` 只切换 `search_mode`，未把 addition 转为 keyword；SQL 查询路径会丢弃 addition。
+- 决策：UI→语句时调用 `retrieve/generateQueryString`（与复制条件同 API），用返回 querystring **覆盖** keyword 并填充语句框；转换失败仍切换模式，但 `warning` 提示；转换后**不自动查询**。语句→UI 暂不转换。
+- 落点：`src/views/retrieve-v2/search-bar/index.vue`（v3 复用）。
+- 约束：不要在模式切换成功后调用 `handleBtnQueryClick`；不要合并旧 keyword（覆盖）。
 ## 2026-07-28 Trace 宿主下划词弹层可用性修复
 
 - 场景：监控 Trace 检索/详情「关联日志」tab 通过 `@blueking/monitor-trace-log` 引入，入口 `src/views/retrieve-v3/monitor/trace.ts` 的 `initWindowState()` 置 `window.__IS_MONITOR_TRACE__ = true`。
