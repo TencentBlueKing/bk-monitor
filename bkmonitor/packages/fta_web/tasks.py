@@ -27,6 +27,7 @@ from monitor_web.strategies.user_groups import create_default_notice_group
 logger = logging.getLogger("celery")
 
 DEFAULT_SOPS_ACTION_PLUGIN_ID = "4"
+SOURCE_ANALYSIS_POLL_INTERVAL = 10
 
 
 def get_sops_action_plugin_id():
@@ -433,3 +434,27 @@ def sync_tapd_issue_status():
         )
     except Exception as e:
         logger.exception("[sync_tapd_issue_status] failed, error: %s", e)
+
+
+@shared_task(ignore_result=True, queue="celery_resource")
+def run_source_analysis_execution(analysis_id: str):
+    """推进一次源码分析；活动任务按短周期自调度，服务重启后由补偿任务重新接管。"""
+
+    from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
+
+    should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(analysis_id)
+    if should_poll:
+        run_source_analysis_execution.apply_async(
+            args=(analysis_id,),
+            countdown=SOURCE_ANALYSIS_POLL_INTERVAL,
+        )
+
+
+@shared_task(ignore_result=True, queue="celery_resource")
+def recover_source_analysis_executions():
+    """补偿超过恢复窗口仍未推进的活动任务，覆盖消息丢失和 Worker 重启。"""
+
+    from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
+
+    for analysis_id in SourceAnalysisExecutionBaseResource.get_recoverable_analysis_ids():
+        run_source_analysis_execution.apply_async(args=(analysis_id,))
