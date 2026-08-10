@@ -15,7 +15,7 @@ import time
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.core.cache.key import ANOMALY_LIST_KEY, ANOMALY_SIGNAL_KEY, TRIGGER_EVENT_RATE_LIMIT_KEY
 from alarm_backends.core.control.strategy import Strategy
-from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routing_snapshot
 from alarm_backends.service.trigger.checker import AnomalyChecker
 from core.errors.alarm_backends import StrategyNotFound
 from core.prometheus import metrics
@@ -57,27 +57,40 @@ class TriggerProcessor:
             return snapshot
 
     def pull(self):
-        self.anomaly_points = ANOMALY_LIST_KEY.client.lrange(self.anomaly_list_key, -self.MAX_PROCESS_COUNT, -1)
-        # 对列表做翻转，按数据从旧到新的顺序处理
-        self.anomaly_points.reverse()
+        # lrange + ltrim 必须落在同一路由快照：列表长度依赖首读结果，无法无脑打进一个 pipeline，
+        # 用 routing_snapshot 避免 TTL 边界把读/裁切拆到不同 Redis 节点。
+        with routing_snapshot():
+            self.anomaly_points = ANOMALY_LIST_KEY.client.lrange(
+                self.anomaly_list_key, -self.MAX_PROCESS_COUNT, -1
+            )
+            # 对列表做翻转，按数据从旧到新的顺序处理
+            self.anomaly_points.reverse()
+            if self.anomaly_points:
+                metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(
+                    len(self.anomaly_points)
+                )
+                ANOMALY_LIST_KEY.client.ltrim(
+                    self.anomaly_list_key, 0, -len(self.anomaly_points) - 1
+                )
         if self.anomaly_points:
-            metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.anomaly_points))
-            ANOMALY_LIST_KEY.client.ltrim(self.anomaly_list_key, 0, -len(self.anomaly_points) - 1)
             if len(self.anomaly_points) == self.MAX_PROCESS_COUNT:
                 # 拉取到的数量若等于最大数量，说明还没拉取完，下次需要再次拉取处理
                 signal_key = f"{self.strategy_id}.{self.item_id}"
                 ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), signal_key, delay=1)
                 logger.info(
-                    f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) pull {len(self.anomaly_points)} record."
+                    f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
+                    f"pull {len(self.anomaly_points)} record."
                     "queue has data, process next time"
                 )
             else:
                 logger.info(
-                    f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) pull {len(self.anomaly_points)} record"
+                    f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
+                    f"pull {len(self.anomaly_points)} record"
                 )
         else:
             logger.warning(
-                f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) pull {len(self.anomaly_points)} record"
+                f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
+                f"pull {len(self.anomaly_points)} record"
             )
 
     def _filter_by_rate_limit(self, event_records):

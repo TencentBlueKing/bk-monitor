@@ -1,0 +1,69 @@
+@import '../alarm-center/styles/mixins';
+
+.host-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family: 'Microsoft YaHei', sans-serif;
+
+  &-header {
+    z-index: 2;
+    display: flex;
+    flex: 0 0 52px;
+    width: 100%;
+
+    &-left {
+      display: flex;
+      align-items: center;
+      height: 100%;
+
+      .host-location-bar {
+        margin-left: 32px;
+      }
+    }
+
+    &-nav {
+      @include common-nav-bar;
+    }
+  }
+
+  &-content {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+
+    &-layout {
+      height: 100%;
+
+      aside {
+        z-index: 0;
+        box-shadow: 0 0 4px 0 #00000029;
+      }
+    }
+
+    &-inner-layout {
+      height: 100%;
+
+      aside {
+        z-index: 1;
+        background-color: #fff;
+      }
+    }
+
+    &-main {
+      width: 100%;
+      height: 100%;
+      padding: 16px;
+      overflow: hidden;
+      background: #f5f7fa;
+    }
+  }
+
+  &-process-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #f5f7fa;
+  }
+}

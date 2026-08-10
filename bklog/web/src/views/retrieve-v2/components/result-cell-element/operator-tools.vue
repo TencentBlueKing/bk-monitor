@@ -174,6 +174,7 @@
       handleClick: Function,
     },
     emits: ['handleAi'],
+    inject: ['handleRelatedTraceClick'],
     data() {
       return {
         showAllHandle: false,
@@ -275,6 +276,15 @@
           const traceId = this.getTraceIdFromRowData();
           if (apmRelation?.is_active && traceId) {
             const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
+            if (this.isMonitorApm) {
+              this.handleRelatedTraceClick({
+                appName,
+                bkBizId,
+                traceId,
+              });
+              return;
+            }
+
             const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
             if (path) {
               const url = `${window.MONITOR_URL ?? ''}${path}`;

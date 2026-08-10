@@ -9,11 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 from . import (  # noqa
+    api_token,
     assignment,
     bcs_metadata,
     cache,
+    cache_routing,
     commands,
     db,
+    double_check_strategy,
     es,
     issue,
     kafka_sample,
@@ -23,11 +26,14 @@ from . import (  # noqa
 )
 
 __all__ = [
+    "api_token",
     "assignment",
     "bcs_metadata",
     "cache",
+    "cache_routing",
     "commands",
     "db",
+    "double_check_strategy",
     "es",
     "issue",
     "kafka_sample",

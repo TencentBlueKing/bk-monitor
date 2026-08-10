@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -24,233 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, onBeforeUnmount } from 'vue';
+import type { MaybeRef } from 'vue';
 
-import { get } from '@vueuse/core';
-import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
-
-import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME, ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME } from '../constants';
-import { isEllipsisActiveLine, isEllipsisActiveSingleLine } from '../utils/dom-helper';
+import { type UseTablePopoverOptions, useTablePopover } from '../../../../../hooks/use-table-popover';
+import { isEllipsisActiveSingleLine } from '../../../../../utils/dom-helper';
+import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME } from '../constants';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
 
-export interface UseTablePopoverOptions {
-  popoverOptions?: Partial<TippyOptions>;
-  getContentOptions: (
-    el: HTMLElement,
-    event: MouseEvent
-  ) => {
-    content: PopoverContent;
-    popoverTarget?: HTMLElement;
-  }; // 自定义内容获取
-  // popover 隐藏回调
-  onHide?: () => void;
-  trigger: {
-    /** 延迟触发/防抖 时间 */
-    delay?: number;
-    /** 需要监听的触发类型（默认为 'mouseenter'） */
-    eventType?: PopoverTriggerEventType;
-    /** 触发元素 */
-    selector: ICSSSelector;
-  };
-}
-
-/** 事件委托根节点类型（支持组件实例或原生 DOM） */
 type DelegationRoot = MaybeRef<HTMLElement> | MaybeRef<InstanceType<typeof PrimaryTable>>;
 
-type ICSSSelector = string;
-type PopoverContent = HTMLElement | JSX.Element | number | string;
-
-type PopoverTriggerEventType = 'click' | 'mouseenter';
-
-export const useTablePopover = (delegationRoot: DelegationRoot, options: UseTablePopoverOptions) => {
-  let popoverInstance = null;
-  let mouseenterDebouncedTimer = null;
-  let popoverDelayTimer = null;
-
-  /** 统一获取事件委托根 DOM（兼容组件实例和原生 DOM） */
-  const getRootDom = () => {
-    // biome-ignore lint/suspicious/noExplicitAny: 需要兼容组件实例和原生 DOM
-    const root = get(delegationRoot) as any;
-    // 如果是组件实例，返回 $el；否则直接返回 DOM
-    return root?.$el || root;
-  };
-
-  onBeforeUnmount(() => {
-    handlePopoverHide();
-    destroyDelegationListeners();
-  });
-
-  /**
-   * @description 初始化事件委托监听器
-   *
-   */
-  const initListeners = () => {
-    // 先销毁之前的事件委托监听器，避免重复绑定导致内存泄漏
-    destroyDelegationListeners();
-
-    const rootDom = getRootDom();
-    if (!rootDom) {
-      console.trace(
-        `Event delegation initialization failed because the 'delegationRoot' was not found. Please verify the element selector or ensure proper DOM loading timing.`
-      );
-      return;
-    }
-    switch (options.trigger.eventType) {
-      case 'click':
-        rootDom.addEventListener('click', handleEventTrigger, true);
-        break;
-      default:
-        rootDom.addEventListener('mouseenter', handleEventTrigger, true);
-        rootDom.addEventListener('mouseleave', handleMouseleave, true);
-        break;
-    }
-  };
-
-  /**
-   * @description 销毁事件委托监听器
-   *
-   */
-  const destroyDelegationListeners = () => {
-    const rootDom = getRootDom();
-    if (!rootDom) return;
-    switch (options.trigger.eventType) {
-      case 'click':
-        rootDom.removeEventListener('click', handleEventTrigger, true);
-        break;
-      default:
-        rootDom?.removeEventListener?.('mouseenter', handleEventTrigger, true);
-        rootDom?.removeEventListener?.('mouseleave', handleMouseleave, true);
-        break;
-    }
-  };
-
-  /**
-   * @description 处理鼠标移入事件
-   * @param {MouseEvent} e 鼠标事件对象
-   *
-   */
-  const handleEventTrigger = (e: MouseEvent) => {
-    if (mouseenterDebouncedTimer) {
-      clearTimeout(mouseenterDebouncedTimer);
-      mouseenterDebouncedTimer = null;
-    }
-    // 兼容微前端环境下，e.target 在异步任务中会被置空的场景
-    const target = e.target as HTMLElement;
-    const handleFn = () => {
-      const targetDom: HTMLElement = target?.closest?.(options.trigger.selector);
-      if (!targetDom) return;
-
-      const { content, popoverTarget } = options.getContentOptions(targetDom, e) || {};
-
-      if (content != null) {
-        handlePopoverShow(popoverTarget || targetDom, content as string);
-      }
-    };
-    if (options.trigger.delay === 0) {
-      handleFn();
-    } else {
-      mouseenterDebouncedTimer = setTimeout(() => {
-        handleFn();
-      }, options.trigger.delay || 200);
-    }
-  };
-
-  /**
-   * @description 处理鼠标移出事件
-   * @param {MouseEvent} e 鼠标事件对象
-   *
-   */
-  const handleMouseleave = (e: MouseEvent) => {
-    const targetDom = e.target as HTMLElement;
-    if (!targetDom.matches(options.trigger.selector)) return;
-    clearTimer();
-  };
-
-  /**
-   * @description 打开 popover 气泡弹窗
-   *
-   */
-  const handlePopoverShow = (target: HTMLElement, content: TippyContent) => {
-    if (popoverInstance || popoverDelayTimer) {
-      handlePopoverHide();
-    }
-    popoverInstance = useTippy(target, {
-      content: () => content,
-      appendTo: () => document.body,
-      trigger: options?.trigger?.eventType,
-      placement: 'top',
-      theme: 'dark max-width-50vw text-wrap',
-      arrow: true,
-      onHidden: () => {
-        options?.onHide?.();
-        handlePopoverHide();
-      },
-      ...options.popoverOptions,
-    });
-    const popoverCache = popoverInstance;
-    popoverDelayTimer = setTimeout(() => {
-      if (popoverCache === popoverInstance) {
-        popoverInstance?.show?.(0);
-      } else {
-        popoverCache?.hide?.(0);
-        popoverCache?.destroy?.();
-      }
-    }, 100);
-  };
-
-  /**
-   * @description 关闭 popover 气泡弹窗
-   *
-   */
-  const handlePopoverHide = () => {
-    clearTimer();
-    popoverInstance?.hide?.(0);
-    popoverInstance?.destroy?.();
-    popoverInstance = null;
-  };
-
-  /**
-   * @description 清除鼠标移入事件防抖定时器
-   *
-   */
-  const clearTimer = () => {
-    clearTimeout(mouseenterDebouncedTimer);
-    clearTimeout(popoverDelayTimer);
-    mouseenterDebouncedTimer = null;
-    popoverDelayTimer = null;
-  };
-
-  return {
-    handlePopoverShow,
-    handlePopoverHide,
-    initListeners,
-  };
-};
-
 /**
- * @description 表格文本溢出省略弹出popover处理
- *
- */
-export const useTableEllipsis = (
-  delegationRoot: DelegationRoot,
-  options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
-) =>
-  useTablePopover(delegationRoot, {
-    trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}` },
-    getContentOptions: triggerDom => {
-      const { isEllipsisActive, content } = isEllipsisActiveLine(triggerDom);
-      if (!isEllipsisActive) return;
-      return { content };
-    },
-    popoverOptions: {
-      ...(options?.popoverOptions || {}),
-    },
-  });
-
-/**
- * @description 表格列描述弹出popover处理
- *
+ * @description trace-explore 表格列描述弹出 popover 处理（页面专属，依赖 dataset.colDescription 约定）
  */
 export const useTableHeaderDescription = (
   delegationRoot: DelegationRoot,

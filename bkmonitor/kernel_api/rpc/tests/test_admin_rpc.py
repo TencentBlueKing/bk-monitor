@@ -49,6 +49,7 @@ from kernel_api.rpc.functions.admin.common import build_response
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
 from kernel_api.rpc.functions.admin import es_storage as admin_es_storage
+from kernel_api.rpc.functions.admin import result_table as admin_result_table
 from kernel_api.rpc.functions.admin.datalink import (
     get_component_detail,
     get_datalink_component_config,
@@ -65,7 +66,7 @@ from kernel_api.rpc.functions.admin.query_route import (
     _normalize_string_list,
     _resolve_space_identity,
 )
-from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin.result_table import _build_result_table_storages, _serialize_result_table_detail
 from kernel_api.rpc.functions.admin.render_image_task import _serialize_render_image_task
 from kernel_api.rpc.functions.admin import space as admin_space
 from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
@@ -153,6 +154,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bcs_cluster.bk_collector_config_detail",
         "admin.bcs_cluster.bkmonitor_operator_release_list",
         "admin.bcs_cluster.bkmonitor_operator_release_detail",
+        "admin.bcs_federal_cluster.list",
+        "admin.bcs_federal_cluster.detail",
+        "admin.bcs_federal_cluster.sub_cluster_list",
+        "admin.bcs_federal_cluster.sub_cluster_namespace_list",
         "admin.datasource.kafka_sample",
         "admin.es_storage.list",
         "admin.es_storage.detail",
@@ -1294,6 +1299,67 @@ def test_result_table_detail_serializer_does_not_return_fields():
 
     assert item["table_id"] == "system.cpu"
     assert "fields" not in item
+
+
+def test_result_table_detail_storages_include_tenant_scoped_doris_storage():
+    es_storage = SimpleNamespace(
+        id=1,
+        table_id="2_bklog.demo",
+        origin_table_id=None,
+        bk_tenant_id="system",
+        storage_cluster_id=3,
+        date_format="%Y%m%d",
+        slice_size=500,
+        slice_gap=120,
+        retention=30,
+        warm_phase_days=0,
+        time_zone=8,
+        source_type="log",
+        need_create_index=True,
+        archive_index_days=0,
+    )
+    doris_storage = SimpleNamespace(
+        id=2,
+        table_id="2_bklog.demo",
+        bk_tenant_id="system",
+        bkbase_table_id="591_2_bklog_demo",
+        origin_table_id=None,
+        source_type="log",
+        index_set="2_bklog_demo",
+        table_type="primary_table",
+        expire_days=30,
+        storage_cluster_id=4,
+    )
+    es_queryset = _FakeQuerySet([es_storage])
+    doris_queryset = _FakeQuerySet([doris_storage])
+
+    with (
+        patch.object(admin_result_table.models.ESStorage.objects, "filter", return_value=es_queryset) as es_filter,
+        patch.object(
+            admin_result_table.models.DorisStorage.objects, "filter", return_value=doris_queryset
+        ) as doris_filter,
+    ):
+        storages = _build_result_table_storages("system", "2_bklog.demo")
+
+    es_filter.assert_called_once_with(bk_tenant_id="system", table_id="2_bklog.demo")
+    doris_filter.assert_called_once_with(bk_tenant_id="system", table_id="2_bklog.demo")
+    assert es_queryset.ordering == [("id",)]
+    assert doris_queryset.ordering == [("id",)]
+    assert storages["es"][0]["storage_cluster_id"] == 3
+    assert storages["doris"] == [
+        {
+            "table_id": "2_bklog.demo",
+            "bk_tenant_id": "system",
+            "bkbase_table_id": "591_2_bklog_demo",
+            "origin_table_id": None,
+            "source_type": "log",
+            "index_set": "2_bklog_demo",
+            "table_type": "primary_table",
+            "expire_days": 30,
+            "storage_cluster_id": 4,
+            "table_kind": "physical",
+        }
+    ]
 
 
 def test_datalink_component_list_accepts_cluster_config_kind():

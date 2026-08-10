@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from enum import Enum
+
 from django.utils.translation import gettext_lazy as _lazy
 
 
@@ -25,6 +27,7 @@ class DataSourceLabel:
     BK_LOG_SEARCH = "bk_log_search"
     BK_FTA = "bk_fta"
     BK_APM = "bk_apm"
+    BK_RUM = "bk_rum"
     PROMETHEUS = "prometheus"
     DASHBOARD = "dashboard"
 
@@ -36,6 +39,7 @@ DATA_SOURCE_LABEL_ALIAS = {
     DataSourceLabel.BK_LOG_SEARCH: _lazy("日志平台指标"),
     DataSourceLabel.BK_FTA: _lazy("关联告警"),
     DataSourceLabel.BK_APM: _lazy("Trace明细指标"),
+    DataSourceLabel.BK_RUM: _lazy("RUM 明细指标"),
     DataSourceLabel.PROMETHEUS: _lazy("Prometheus"),
     DataSourceLabel.DASHBOARD: _lazy("DASHBOARD"),
 }
@@ -151,6 +155,18 @@ DATA_CATEGORY = [
         "data_type_label": DataTypeLabel.LOG,
         "data_source_label": DataSourceLabel.BK_APM,
     },
+    {
+        "type": "bk_rum_timeseries",
+        "name": _lazy("Rum 明细指标"),
+        "data_type_label": DataTypeLabel.TIME_SERIES,
+        "data_source_label": DataSourceLabel.BK_RUM,
+    },
+    {
+        "type": "bk_rum",
+        "name": "Rum",
+        "data_type_label": DataTypeLabel.LOG,
+        "data_source_label": DataSourceLabel.BK_RUM,
+    },
 ]
 
 
@@ -233,6 +249,7 @@ UnifyQueryDataSources = [
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+    (DataSourceLabel.BK_RUM, DataTypeLabel.LOG),
     (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
@@ -244,3 +261,14 @@ GrayUnifyQueryDataSources = [
 DATA_LINK_V3_VERSION_NAME = "V3"
 # V4链路版本
 DATA_LINK_V4_VERSION_NAME = "V4"
+
+
+class OperatorGroupRelation(str, Enum):
+    """操作符组间关系"""
+
+    AND = "AND"
+    OR = "OR"
+
+    @classmethod
+    def choices(cls):
+        return [(relation.name, relation.value) for relation in cls]

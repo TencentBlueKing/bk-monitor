@@ -19,7 +19,6 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 - 约束：不要监听 `indexSetQueryResult.value?.list` 引用来重置状态；不要把 `setRenderList` 默认值改为 `pageSize`，否则会破坏已加载结果的增量展示；不要在 `resetRowListState` 中重置 `pageIndex/hasMoreList`。
 - 验证：`npm run build:apm` 构建通过；`git diff --check` 通过。
 
-
 ## 2026-05-22 LogRows monitor/apm 大数据性能约束复盘
 
 - 背景：`retrieve-v3/monitor/apm.ts` 独立包中，`monitor.tsx` 的 `timeRange` 等 props 改变会触发 `requestIndexSetQuery`，`LogRows` 曾因 `tableRowConfig.get(row).value` 在新 row 未注册时崩溃。
@@ -36,6 +35,7 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 - 验证：`npx eslint src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`、`git diff --check`、`npm run build:apm` 通过。
 
 ## 2026-05-22 log-rows pagination response size fix
+
 - 问题：首屏骨架屏修复后，monitor 包在 `total_count` 很大时只加载到 100 条即显示“已加载所有数据”。
 - 根因：`loadMoreTableData` 对 `store.dispatch('requestIndexSetQuery', { isPagination: true })` 的返回值使用 `resp?.length !== pageSize` 判断是否还有更多；实际 store 返回对象 `{ length, size, ... }`，部分入口/构建下 `resp.length` 可能不可用或判断不兼容，导致错误将 `hasMoreList` 置为 `false`。
 - 决策：新增 `getPaginationResponseSize(resp)`，兼容 `resp.length`、`resp.size`、数组返回与 `resp.data.list.length`；只有明确 `responseSize < pageSize` 时才关闭 `hasMoreList`，未知响应长度时保持可继续加载，避免大总量日志被误判为加载完成。
@@ -61,6 +61,7 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 Context: `src/store/index.js` `requestIndexSetQuery` receives `data.list` / `origin_log_list` from log search API. Individual field values can be extremely large and cause Vue render / JSON expand performance issues.
 
 Decision:
+
 - Before committing query results to `indexSetQueryResult`, normalize parsed rows with a render-safe truncation pass.
 - Only truncate values whose runtime type is `string` and whose length exceeds `32 * 1024` chars.
 - Preserve all non-string values unchanged.
@@ -68,6 +69,7 @@ Decision:
 - Apply to both `list` and `origin_log_list`, so table cells and expand JSON view share the same render-safe data.
 
 Constraint:
+
 - Do not deep-watch result lists.
 - Do not clone or stringify whole rows for truncation.
 - Keep row object structure stable for `parseTableRowData`, expand view and JSON rendering.
@@ -120,7 +122,6 @@ Constraint:
 - Vue2 环境中避免依赖 `v-model` 的 `update:modelValue` 语义；调用 `FuzzyMatchMode` 时显式传 `:value="condition.fuzzy_match_mode"` 并通过 `@input` 更新，确保 tab 点击立即生效。
 - 模糊匹配输入区改为 `bk-input type="textarea"`，默认 3 行，高度可 `resize: vertical` 调整；键盘事件对该 textarea 放行普通 Enter/方向键，只保留 Cmd/Ctrl+Enter 提交和 Esc 收起。
 
-
 ## 2026-06-02 模糊匹配弹层 Vue2 响应式与宽度修复
 
 - 场景：`src/views/retrieve-v2/search-bar/ui-mode/ui-input-option.vue` 的模糊匹配模式按钮点击后 active/preview 不刷新，且父级 tippy 宽度限制导致模式按钮区域显示异常。
@@ -131,7 +132,6 @@ Constraint:
   - `ui-input-option.vue` 暴露 `isFuzzyMatchAvailable`，由外层 `ui-input.vue` 在 tippy show 阶段设置 `maxWidth: 960/800`；
   - 保持内部模糊匹配内容宽度为 920px。
 - 验证：静态脚本覆盖事件绑定、Vue2 set、默认字段、tippy maxWidth 链路和模式提交值；ESLint、`git diff --check`、`npm run build` 均通过。
-
 
 ## 2026-06-02 - 模糊匹配组件封闭化
 
@@ -148,7 +148,6 @@ Constraint:
 - “检索内容”、`BatchInput`、`清空`、右侧“匹配模式 ?”统一迁移到 `fuzzy-match-mode.vue` 内部实现；批量输入结果由组件内合并为换行文本并按当前模式输出最终 value。
 - 父组件仍只允许 `<FuzzyMatchMode v-model="fuzzyMatchValue" :type="fuzzyMatchEngine" />` 调用形态。
 
-
 ## 2026-06-03 编辑采集项稳定性排查
 
 - 场景：`manage-v2/log-collection` 编辑采集项在生产偶现页面卡死/Chrome Error 5，接口数据量小，重点排查前端状态与副作用链路。
@@ -159,6 +158,7 @@ Constraint:
   3. `field-list` 这类会动态初始化 tippy 的组件必须集中调度 timer，重复触发前先清理旧 timer，避免实例和延迟任务堆积。
   4. 编辑页路由 query 应避免重复字段，减少异常导航状态。
 - 已落地：`create-operation/index.tsx` 轮询卸载保护；`step3-clean.tsx` 详情请求卸载保护；`step4-storage.tsx` 详情回填同步 store 并 fallback formData；`field-list.tsx` tippy 初始化 timer 清理；`useCollectList.ts` 清理重复 `query.collectorId`。
+
 ## 2026-06-04 检索结果行操作改为 hover 浮层
 
 - 文件：`src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`、`log-rows.scss`、`log-row-attributes.ts`。
@@ -188,6 +188,7 @@ Constraint:
 - Problem: rendering `.bklog-row-hover-operator` inside each row caused the first row overlay to enter sticky header area and be clipped by `.bklog-row-box { overflow: hidden; }`; changing/removing transform is not acceptable.
 - Decision: render a single `.bklog-row-hover-operator` as a direct child of `.bklog-result-container`, position it absolutely from the hovered row's bounding rect, and keep `transform: translate(0, -32px)` in the overlay visible state. This escapes `.bklog-row-box` clipping while preserving the designed upward animation.
 - Verification: browser test on `http://appdev.woa.com:8001` confirmed operator is direct child of `.bklog-result-container`, `handle-content` is visible (`76x28`, opacity 1), overlaps sticky header but has `z-index: 200` vs header `z-index: 2`, and is not clipped by row-box.
+
 ## 2026-06-04 Fuzzy Match tag relation/focus fixes
 
 - Scope: `src/views/retrieve-v2/search-bar/ui-mode/fuzzy-match-mode.vue`.
@@ -250,3 +251,75 @@ Knowledge update: updated.
 - 隔离硬约束：禁止写 `indexSetQueryResult.row_keys`；禁止 `markActiveQuery(localKey)`；禁止主线程 `replaceRows/clearMemory`；主检索与本地检索按 `requestId` 分别 `cancelSearch`；卸载/重置只 `clearQuery(localKey)`。
 - **物理表隔离（加强）**：新增 IndexedDB 表 `relatedLogSearchRows`（db v5）；本地 Stream `rowStore: 'relatedLogSearchRows'` + `relatedLogSearchRowCacheService`；首次打开仍只读主检索 `retrieveRows`（props rowKey）；`fetchFullRowByKey` 双表查找。
 - 落点：`origin-log-result/index.tsx`、`db.ts`、`retrieve-row.repository.ts`、`retrieve-row-cache.service.ts`、`retrieve-search.worker.ts`、`resolve-related-log-target-row.ts`。
+## 2026-07-28 Trace 宿主下划词弹层可用性修复
+
+- 场景：监控 Trace 检索/详情「关联日志」tab 通过 `@blueking/monitor-trace-log` 引入，入口 `src/views/retrieve-v3/monitor/trace.ts` 的 `initWindowState()` 置 `window.__IS_MONITOR_TRACE__ = true`。
+- 根因：`log-rows.tsx` 的 `handleRowMouseup` 存在 `__IS_MONITOR_TRACE__ && getSelection().length > 1` 提前 return（来源 commit 82220b971a「APM、Trace 新版日志组件及功能」），该条件即划词场景本身，等于在 trace 下关闭了整个划词入口，tippy 实例从未创建。
+- 决策：删除该 guard。选区拖拽已由 `RetrieveHelper.isMouseSelectionUpEvent`（位移 > 4px）与 `isClickOnSelection` 收敛进弹层分支，不会误触发行展开，无需额外宿主判断。
+- 约束：宿主差异化只能按场景（具体 cell / 展开区）判定，禁止用 `__IS_MONITOR_TRACE__ + 选中长度` 之类的间接条件屏蔽通用交互。
+- 连带修复：`use-segment-pop.ts` 的 trace 过滤分支漏判 `item.disabled`，导致 `delineate: true` 时把 `not`、`trace-view` 也渲染出来（5 项而非预期 3 项 复制/高亮/添加到本次检索）。trace 分支改为 `!['new-search-page-is','add-to-ai'].includes(item.id) && !item.disabled`。
+- 发布纪律：2.0.27 的调试 `console.log` 只存在于本地工作区、未进入 git HEAD，说明该版本是从 dirty 工作树打包发布的。发版前必须确认工作区干净。
+
+## 2026-07-28 划词弹层定位基准改为选区矩形（虚拟 reference）
+
+- 现象：guard 移除后 trace 宿主内弹层能出现，但被定位到视口左上角。
+- 根因（两处叠加）：
+  1. 参考节点 `.bklog-selection-pop-target` 是 `position: fixed`（视口坐标），但 tippy 默认 popper `strategy: 'absolute'`（文档坐标），坐标系不一致，宿主内换算错位。
+  2. 该节点通过 `document.body.querySelector('.bklog-selection-pop-target')` 全局按 class 复用。APM / Trace 在宿主页是两个独立构建产物，会共用同一节点并互相覆盖定位基准——与 `use-segment-pop.ts` 里 `data-segment-owner` 要解决的是同一类问题。
+- 决策：
+  - 定位基准改为 tippy 的 `getReferenceClientRect`，直接返回选区矩形，占位节点只承担 reference 身份（`hideOnClick` 等依赖真实节点），其自身几何不再参与定位。
+  - 补 `popperOptions: { strategy: 'fixed' }`，与 `search-bar/ui-mode/ui-input.vue`、`search-bar/sql-mode/sql-query.vue` 的宿主兼容策略统一。
+  - 占位节点改为每个组件实例独占，并在 `onBeforeUnmount` 移除（原实现从不回收）。
+  - `getReferenceClientRect` 实时读取 `savedSelection`（来自下方 Shadow DOM 感知选区），滚动时弹层跟随文本；选区失效时退回鼠标位置，避免把全 0 矩形交给 popper。
+- 连带修复：`PopInstanceUtil.getMergeTippyOptions` 会把所有函数型 tippyOptions 包装成「先调用方、后默认钩子」并 `return oldFn(...)`。默认配置里没有同名函数时 `oldFn` 退化为 `() => {}`，导致返回值被吞掉（`getReferenceClientRect` 会拿到 undefined）。改为：默认配置中不存在同名函数时原样透传。现有调用方只传 `onShow/onShown/onHide/onHidden` 四个默认钩子，行为不变。
+- 约束：视口坐标（`getClientRects`）作为 popper 参考系时，必须搭配 `strategy: 'fixed'`；不要用「按 class 查找的全局 DOM 节点」承载定位状态。
+
+## 2026-07-28 Trace Shadow DOM 选区读写统一到 selection-util
+
+- 场景：监控 Trace 通过 bk-weweb `setShadowDom` 把日志组件挂在 `<trace-explore>` 的 shadow root 内。
+- 根因：浏览器会把 `window.getSelection()` 的 Range **retarget** 到 shadow host 所在文档树——端点变成 `div.trace-wrap-iframe`、offset 变成 host 下标。结果：
+  - `range.toString()` 为空 → 复制 / 高亮 / 添加到本次检索全部失效；
+  - `getClientRects()` 退化成整个宿主容器 → `isClickOnSelection` 把容器内任意点击都判成点在选区上。
+- 决策：新增 `src/common/selection-util.ts`，所有划词相关选区读写统一走此模块，禁止直接读 `window.getSelection()`：
+  1. `Selection.getComposedRanges({ shadowRoots })`（标准 API，兼容早期 rest 参数签名）；
+  2. 回退 `ShadowRoot.getSelection()`（Chromium 私有 API，兜住 Chrome 137 之前）；
+  3. 两者都失败时退回 document 选区，保持非 shadow 宿主行为不变。
+- 落地调用点：
+  - `log-rows.tsx`：`getSelectionRange(refRootElement ?? e.target)` 保存划词 Range；弹层操作后用 `restoreSelectionRange` 回写（shadow 端点用 `setBaseAndExtent`，`addRange` 会被 retarget 丢弃）；
+  - `retrieve-helper.tsx`：`isClickOnSelection` 改为 `getSelectionRanges(e.target)`；
+  - `use-json-formatter.ts`：段点击守卫改为 `getSelectionText(e.target)`。
+- 约束：读取选区必须传入 contextNode（组件根或事件 target）以定位 shadow root 链；回写禁止只靠 `removeAllRanges + addRange`。
+- 附带：`ip-selector.vue` / `search-result-panel/index.vue` 将 `defineProps` 挪到 `#if MONITOR_APP` 条件编译块之前，避免 apm/trace 条件编译裁剪异步组件时影响 props 声明顺序。
+
+## 2026-07-29 Monitor 嵌入包 retrieve-search / trend-chart Worker Blob 内联
+
+- 场景：APM / Trace 日志组件通过 `scripts/create-monitor.js` 预构建为 CommonJS npm 包（`@blueking/monitor-apm-log`、`@blueking/monitor-trace-log`）。宿主只引入 `main` + `css/main.css`，检索链路已走 `retrieveSearchWorkerService` → `retrieve-search.worker.ts`（另有趋势图 `trend-chart-worker.ts`）。
+- 根因（三类叠加）：
+  1. `output.publicPath: ""` 且运行时 `__webpack_require__.b = undefined`，`new Worker(new URL("548.js", undefined))` 相对站点根找文件；宿主也不会把 `node_modules` 里的 worker chunk 打进静态资源。
+  2. 全局 `chunkFormat: "commonjs"` 落到 worker chunk；`548.js` 还异步依赖 `495.js`，worker 内缺少可用的 `importScripts` 拉 chunk，即使拷贝文件也极易挂。
+  3. 日志主站在 `main.js` 调 `performanceMonitorService.init(router)` 注册 `__BKLOG_WORKERS__`；monitor 入口 `initWindowState` 原先只设 `__IS_MONITOR_*`，嵌入运行时无 Work 诊断面。
+- 决策：Monitor 构建把 Worker **内联为 Blob**，宿主零改动；日志主站继续用 `new Worker(new URL(..., import.meta.url))`。
+  - 工厂拆分：默认工厂与 worker 同目录（`src/storage/workers/create-retrieve-search-worker.ts`、`src/hooks/workers/create-trend-chart-worker.ts`）；Monitor 变体放在 `src/views/retrieve-v3/monitor/worker-factories/`，用 `worker-loader?inline=no-fallback`。
+  - `create-monitor.js` 用 `NormalModuleReplacementPlugin` 在构建期把默认工厂替换为 monitor 变体（跳过 `worker-factories` 自身，防循环）；`DropExternalWorkerAssetsPlugin` 删除残留数字 chunk / `*.worker.js` / 散落 `*.ts` 资产，npm 包仍以 `main.js` + `css/` 为主。
+  - `optimization.splitChunks: false`，尽量单 main；`workerChunkLoading: "import-scripts"` 仅兜底残留路径。
+  - `apm.ts` / `trace.ts` 的 `initWindowState` 补调 `performanceMonitorService.init()`（不强制绑 fakeRouter），注册 `workerManager` / `window.__BKLOG_WORKERS__`。
+- 依赖：devDependency 增加 `worker-loader@3`。
+- 验证：`npm run build:trace` / `build:apm` 产物无外部 `548.js`/`495.js`；`main.js` 内可见 `URL.createObjectURL` + worker-loader 工厂；控制台 `window.__BKLOG_WORKERS__.ping('retrieve-search-ingest')` 应 `ok: true`。
+- 约束 / 权衡：
+  - 不要让宿主去拷贝/托管独立 worker 静态文件作为默认方案；嵌入场景以 Blob 内联为准。
+  - main.js 体积会增大（内联 worker + 如 json-bignumber 等依赖），换取加载稳定。
+  - 禁止把 monitor 专用 `worker-loader` 工厂放进 `storage/utils` 或 hooks 根目录，避免与主站路径混淆；默认工厂跟 worker，monitor 变体跟 monitor 入口。
+  - 若日后宿主愿意托管静态 worker，可再加 `external chunk + __BKLOG_MONITOR_PUBLIC_PATH__` 双模式；当前不实现。
+
+## 2026-07-31 内联 Worker 里的 `require is not defined`
+
+- 现象：APM / Trace 嵌入包运行到 Worker 时报 `Uncaught ReferenceError: require is not defined (blob:.../xxx:5730:38)`，该行是 `const external_vue_namespaceObject = require("vue");`。
+- 根因：`worker-loader` 会把**父编译**的 externals 原样套到 Worker 子编译上（`worker-loader/dist/index.js` 中 `if (compilerOptions.externals) new ExternalsPlugin(getExternalsType(compilerOptions), ...)`）。Monitor 构建是 CommonJS 库（`externalsType: "commonjs"`，externals 含 `vue` / `dayjs`），于是 Worker 产物里出现 `require(...)`，而 Blob Worker 没有 CommonJS 运行时。
+  - `retrieve-search.worker` 命中 `require("vue")`；`trend-chart-worker` 命中 `require("dayjs")` 及其 utc / timezone 插件。
+- 决策（两层）：
+  1. 构建层根治：新增 `scripts/inline-worker-loader.js` 包装 `worker-loader`，在 `pitch` 的同步窗口内把父编译选项临时改为「Worker 自包含」（清 `externals` / `externalsType`，`output.library` 置空，`chunkFormat: "array-push"` + `chunkLoading: "import-scripts"`），返回前还原。`webpack` 的 `createChildCompiler` 同步展开 `compiler.options`，`ExternalsPlugin` 也在同步段构造，故同 tick 改完即还原是安全的。经由 `create-monitor.js` 的 `resolveLoader.alias` 以 `monitor-inline-worker-loader` 注入，两个 worker 工厂改引该名字。
+  2. 源码层收口：Worker 依赖图不应触达 vue。`page-highlight.ts` 持有 `reactive` 状态，把其中纯计算部分（`HighlightRange` / `HighlightSegment` / `parseResultMarkedText` / `mapGlobalRangesToSegments` / `escapeHtml`）拆到 `src/views/retrieve-core/highlight-range.ts`，`page-highlight.ts` 再导出以保持既有引用；`optimizedSplit` 从 DOM 工具集 `hooks/hooks-helper.ts` 移到 `hooks/optimized-split.ts`。`lucene.segment.ts`、`storage/utils/retrieve-render-meta.ts` 一律改引纯模块。
+- 验证：`MONITOR_APP=apm|trace bkmonitor-cli build --log` 后，从 `main.js` 抽出内联 worker 源码，裸 `require(` 为 0、无 vue 引用，并可在 `vm` 沙箱内求值通过（`self.onmessage` 已装载）；主站 `MONITOR_APP=log` 构建仍走 `new Worker(new URL(...))` 独立 chunk，不受影响。
+- 约束：
+  - Worker 侧模块禁止 import `vue` / `page-highlight.ts` / `hooks-helper.ts` 等带 vue 或 DOM 模块级副作用的文件；需要复用的纯逻辑先下沉到无框架依赖的模块。
+  - Monitor 构建新增 externals 时无需再关心 Worker，包装 loader 会让其打进 Blob；但 Worker 内仍禁止动态 `import()`，避免产生需要 `importScripts` 的异步分片。

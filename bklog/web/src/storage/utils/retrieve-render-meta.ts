@@ -4,11 +4,12 @@
  */
 
 import LuceneSegment from '@/hooks/lucene.segment';
-import { optimizedSplit } from '@/hooks/hooks-helper';
+import { optimizedSplit } from '@/hooks/optimized-split';
+// 走 highlight-range 而非 page-highlight：本模块会被 Worker 引入，不能带上 vue。
 import {
   parseResultMarkedText,
   type HighlightRange,
-} from '@/views/retrieve-core/page-highlight';
+} from '@/views/retrieve-core/highlight-range';
 
 export interface RetrieveTextSegment {
   text: string;

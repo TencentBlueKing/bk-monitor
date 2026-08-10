@@ -1,0 +1,102 @@
+.host-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+
+  &__filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+  }
+}
+
+/** 真实内容容器 */
+.host-list-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/** loading 时页面级骨架屏 */
+.host-list-skeleton {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  &__cards {
+    display: flex;
+    gap: 16px;
+  }
+
+  &__card {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 64px;
+    padding: 0 24px;
+    background: #f5f7fa;
+    border-radius: 2px;
+
+    &-icon {
+      flex-shrink: 0;
+      width: 42px;
+      height: 42px;
+      margin-right: 16px;
+      border-radius: 4px;
+    }
+
+    &-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    &-name {
+      width: 60px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    &-num {
+      width: 40px;
+      height: 20px;
+      border-radius: 2px;
+    }
+  }
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 16px 0;
+
+    &-btn {
+      width: 80px;
+      height: 32px;
+      border-radius: 2px;
+    }
+
+    &-search {
+      width: 520px;
+      height: 32px;
+      border-radius: 2px;
+    }
+  }
+
+  &__table {
+    flex: 1;
+    min-height: 0;
+    padding: 10px 8px;
+    background: #fff;
+
+    .common-table-skeleton-comp {
+      height: 100%;
+    }
+  }
+}

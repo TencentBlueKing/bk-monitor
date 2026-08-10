@@ -24,6 +24,8 @@ class DataQueryHandler:
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
             (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_RUM, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_RUM, DataTypeLabel.TIME_SERIES),
         ]:
             q = ESDataQuery((data_source_label, data_type_label))
         elif data_source_label == DataSourceLabel.BK_LOG_SEARCH and data_type_label == DataTypeLabel.LOG:

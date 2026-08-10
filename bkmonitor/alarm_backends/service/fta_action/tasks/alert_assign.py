@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import logging
 import time
 from collections import defaultdict
@@ -17,6 +18,7 @@ from alarm_backends.core.cache.subscribe import SubscribeCacheManager
 from alarm_backends.core.context import ActionContext
 from alarm_backends.service.fta_action import AlertAssignee
 from bkmonitor.action.alert_assign import (
+    AlertMatchContext,
     AlertAssignMatchManager,
     AssignRuleMatch,
     UpgradeRuleMatch,
@@ -26,6 +28,24 @@ from bkmonitor.utils.range import load_condition_instance
 from constants.action import ActionNoticeType, AssignMode, UserGroupType, NoticeWay
 
 logger = logging.getLogger("fta_action.run")
+
+
+def get_backend_cmdb_attrs(alert: AlertDocument):
+    action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True)
+    return {
+        "host": action_context.target.host,
+        "sets": action_context.target.sets,
+        "modules": action_context.target.modules,
+    }
+
+
+class BackendAlertMatchContext(AlertMatchContext):
+    """告警后台条件匹配上下文，仅构造维度，不读取或执行分派规则。"""
+
+    def __init__(self, alert: AlertDocument, notice_users=None, cmdb_attrs=None):
+        if cmdb_attrs is None:
+            cmdb_attrs = get_backend_cmdb_attrs(alert)
+        super().__init__(alert, notice_users=notice_users, cmdb_attrs=cmdb_attrs)
 
 
 class BackendAssignMatchManager(AlertAssignMatchManager):
@@ -43,12 +63,7 @@ class BackendAssignMatchManager(AlertAssignMatchManager):
         cmdb_attrs=None,
     ):
         if cmdb_attrs is None:
-            action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True)
-            cmdb_attrs = {
-                "host": action_context.target.host,
-                "sets": action_context.target.sets,
-                "modules": action_context.target.modules,
-            }
+            cmdb_attrs = get_backend_cmdb_attrs(alert)
         super().__init__(alert, notice_users, group_rules, assign_mode, notice_type, cmdb_attrs)
 
     def get_matched_rules(self) -> list[AssignRuleMatch]:
@@ -105,6 +120,8 @@ class AlertAssigneeManager:
         self.matched_group = None
         self.is_matched = False
         self.match_manager = self.get_match_manager()
+        self._subscription_match_context = None
+        self._subscription_notify_info = None
         self.notice_appointees_object = self.get_notice_appointees_object()
         self._is_new = new_alert
 
@@ -122,30 +139,9 @@ class AlertAssigneeManager:
             )
             return
 
-        # 需要获取所有的通知人员信息，包含chatID
-        # 获取原始通知人员信息（字典格式转换为用户列表）
-        origin_receivers = self.get_origin_notice_all_receivers()
-        notice_users = []
-        if origin_receivers:
-            # 从通知配置中提取所有用户
-            for notice_way, users in origin_receivers.items():
-                if notice_way != "wxbot_mention_users" and isinstance(users, list):
-                    if notice_way == NoticeWay.VOICE:
-                        # 语音通知的人员是列表的列表
-                        for user_list in users:
-                            if isinstance(user_list, list):  # 添加类型检查
-                                notice_users.extend(user_list)
-                            else:
-                                # 处理异常情况：如果不是列表，当作单个用户处理
-                                notice_users.append(user_list)
-                    else:
-                        notice_users.extend(users)
-            # 去重
-            notice_users = list(set(notice_users))
-
         manager = BackendAssignMatchManager(
             self.alert,
-            notice_users=notice_users,
+            notice_users=self.get_origin_notice_users(),
             assign_mode=self.assign_mode,
             notice_type=self.notice_type,
         )
@@ -185,55 +181,104 @@ class AlertAssigneeManager:
         返回格式与 get_notify_info 一致: {notice_way: [user_list]}
         """
 
+        if self._subscription_notify_info is not None:
+            return self._subscription_notify_info
+
         notify_info = defaultdict(list)
         follow_notify_info = defaultdict(list)
 
         bk_biz_id = self.alert.event.bk_biz_id
         strategy_id = str(self.alert.strategy["id"]) if self.alert.strategy else "-"
 
-        # 复用分派的维度构建逻辑
-        if not self.match_manager:
-            return notify_info, follow_notify_info
-
-        # 实例化新的dict，避免告警订阅相关处理，影响告警分派
-        dimensions = dict(**self.match_manager.dimensions)
-        # 新增告警级别支持（仅用于告警订阅匹配，告警分配不支持）
-        dimensions.update(
-            {
-                "alert.severity": str(self.match_manager.origin_severity),
-            }
-        )
-
         # 获取该业务下所有订阅用户
-        usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)
+        try:
+            usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)
+        except Exception:
+            logger.exception(
+                "[alert_subscription] strategy(%s) alert(%s) failed to load subscription users",
+                strategy_id,
+                self.alert.id,
+            )
+            self._subscription_notify_info = (notify_info, follow_notify_info)
+            return self._subscription_notify_info
+        if not usernames:
+            self._subscription_notify_info = (notify_info, follow_notify_info)
+            return self._subscription_notify_info
+
+        try:
+            # 订阅匹配独立于告警分派。存在分派匹配上下文时复用其维度；否则只构造维度，不执行分派规则匹配。
+            if not self._subscription_match_context:
+                self._subscription_match_context = self.match_manager or BackendAlertMatchContext(
+                    self.alert,
+                    notice_users=self.get_origin_notice_users(),
+                )
+
+            # 实例化新的dict，避免告警订阅相关处理，影响告警分派
+            dimensions = dict(**self._subscription_match_context.dimensions)
+            # 新增告警级别支持（仅用于告警订阅匹配，告警分配不支持）
+            dimensions.update(
+                {
+                    "alert.severity": str(self._subscription_match_context.origin_severity),
+                }
+            )
+        except Exception:
+            logger.exception(
+                "[alert_subscription] strategy(%s) alert(%s) failed to build match context",
+                strategy_id,
+                self.alert.id,
+            )
+            self._subscription_notify_info = (notify_info, follow_notify_info)
+            return self._subscription_notify_info
 
         for username in usernames:
             # 获取用户的订阅规则
-            user_rules = SubscribeCacheManager.get_rules_by_user(bk_biz_id, username)
+            try:
+                user_rules = SubscribeCacheManager.get_rules_by_user(bk_biz_id, username)
+            except Exception:
+                logger.exception(
+                    "[alert_subscription] strategy(%s) alert(%s) user(%s) failed to load rules",
+                    strategy_id,
+                    self.alert.id,
+                    username,
+                )
+                continue
 
             # 收集该用户所有匹配规则的通知方式与命中规则ID（规则ID用于日志输出）
             matched_notice_ways = set()
             matched_user_type = "follower"  # 默认为follower
             matched_rule_ids = set()
 
-            for rule in user_rules:
-                # 支持动态分组：将 dynamic_group 转换为 bk_host_id 列表
-                for condition in rule.get("conditions", []):
-                    if condition.get("field") == "dynamic_group":
-                        condition["value"] = self.match_manager.get_host_ids_by_dynamic_groups(condition["value"])
-                        condition["field"] = "bk_host_id"
+            for cached_rule in user_rules:
+                rule_id = cached_rule.get("id") if isinstance(cached_rule, dict) else None
+                try:
+                    rule = copy.deepcopy(cached_rule)
+                    # 支持动态分组：将 dynamic_group 转换为 bk_host_id 列表
+                    for condition in rule.get("conditions", []):
+                        if condition.get("field") == "dynamic_group":
+                            condition["value"] = self._subscription_match_context.get_host_ids_by_dynamic_groups(
+                                condition["value"]
+                            )
+                            condition["field"] = "bk_host_id"
 
-                if self._is_subscription_rule_matched(rule, dimensions):
-                    user_type = rule.get("user_type", "follower")
-                    notice_ways = rule.get("notice_ways", [])
+                    if self._is_subscription_rule_matched(rule, dimensions):
+                        user_type = rule.get("user_type", "follower")
+                        notice_ways = rule.get("notice_ways", [])
 
-                    # 如果有main类型，优先使用main
-                    if user_type == "main":
-                        matched_user_type = "main"
+                        # 同一用户命中任一 main 规则时，沿用现有语义：其全部命中渠道均按 main 通知。
+                        if user_type == "main":
+                            matched_user_type = "main"
 
-                    matched_notice_ways.update(notice_ways)
-                    if rule.get("id") is not None:
-                        matched_rule_ids.add(str(rule.get("id")))
+                        matched_notice_ways.update(notice_ways)
+                        if rule_id is not None:
+                            matched_rule_ids.add(str(rule_id))
+                except Exception:
+                    logger.exception(
+                        "[alert_subscription] strategy(%s) alert(%s) user(%s) rule(%s) match failed",
+                        strategy_id,
+                        self.alert.id,
+                        username,
+                        rule_id if rule_id is not None else "-",
+                    )
 
             # 如果有匹配的规则，添加用户到通知列表
             if matched_notice_ways:
@@ -242,7 +287,8 @@ class AlertAssigneeManager:
 
                 # 将用户添加到所有匹配的通知渠道中
                 for notice_way in matched_notice_ways:
-                    target_notify_info[notice_way].append(username)
+                    receiver = [username] if notice_way == NoticeWay.VOICE else username
+                    target_notify_info[notice_way].append(receiver)
                 logger.info(
                     "[alert_subscription] strategy(%s) alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
                     strategy_id,
@@ -271,7 +317,8 @@ class AlertAssigneeManager:
             total_follower,
         )
 
-        return notify_info, follow_notify_info
+        self._subscription_notify_info = (notify_info, follow_notify_info)
+        return self._subscription_notify_info
 
     def _is_subscription_rule_matched(self, rule, dimensions):
         """
@@ -396,6 +443,20 @@ class AlertAssigneeManager:
         if self.origin_notice_users_object is None:
             return {}
         return self.origin_notice_users_object.get_notice_receivers()
+
+    def get_origin_notice_users(self):
+        """将默认通知配置展平为分派和订阅条件使用的用户列表。"""
+        origin_receivers = self.get_origin_notice_all_receivers()
+        notice_users = []
+        for notice_way, users in origin_receivers.items():
+            if notice_way == "wxbot_mention_users" or not isinstance(users, list):
+                continue
+            if notice_way == NoticeWay.VOICE:
+                for user_list in users:
+                    notice_users.extend(user_list if isinstance(user_list, list) else [user_list])
+            else:
+                notice_users.extend(users)
+        return list(set(notice_users))
 
     def get_origin_supervisor_object(self):
         """

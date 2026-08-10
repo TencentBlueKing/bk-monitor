@@ -137,6 +137,7 @@ DEFAULT_CRONTAB = [
     # 策略增量更新
     ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
+    ("alarm_backends.core.cache.models.custom_ts_group", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
@@ -174,6 +175,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
+    # apm Trace 数据源域索引集兜底同步 每 10 分钟触发
+    ("apm.task.tasks.sync_trace_scope_index_sets", "*/10 * * * *", "global"),
     # apm_ebpf 定时检查业务集群是否安装DeepFlow 每15分钟触发
     ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/15 * * * *", "global"),
     # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发

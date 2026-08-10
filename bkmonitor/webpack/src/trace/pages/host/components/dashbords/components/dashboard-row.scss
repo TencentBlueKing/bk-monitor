@@ -1,0 +1,53 @@
+.dashboard-row {
+  display: flex;
+  flex-direction: column;
+
+  &-header {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 24px;
+    padding-left: 8px;
+    cursor: pointer;
+    user-select: none;
+
+    &.is-collapsed {
+      background: #eaebf0;
+      border-radius: 4px;
+    }
+  }
+
+  &-arrow {
+    font-size: 12px;
+    color: #979ba5;
+    transition: transform 0.2s ease;
+
+    &.is-collapsed {
+      transform: rotate(-90deg);
+    }
+  }
+
+  &-title {
+    font-size: 14px;
+    color: #313238;
+  }
+
+  &-count {
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  &-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    padding-top: 12px;
+
+    .monitor-cross-drag {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+}

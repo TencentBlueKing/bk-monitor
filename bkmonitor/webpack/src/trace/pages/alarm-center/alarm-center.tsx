@@ -356,7 +356,7 @@ export default defineComponent({
         return;
       }
 
-      // 请求拦截器已统一弹出错误提示；异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
+      // 异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
       const res = await updateIssueName({
         bk_biz_id: targetRow.bk_biz_id,
         issue_id: id,
