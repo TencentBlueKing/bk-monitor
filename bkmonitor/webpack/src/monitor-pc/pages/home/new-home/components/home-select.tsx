@@ -354,7 +354,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             // trace 应用展示别名(app_alias) + 应用名，区别于普通项的搜索词高亮
             <span class='app-name-wrap'>
               <span class='app-alias'>{item.app_alias || ''}</span>
-              <span class='app-name'>{item.app_alias ? `(${item.app_alias})` : ''}</span>
+              <span class='app-name'>{item.app_name ? `（${item.app_name}）` : ''}</span>
             </span>
           )}
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
