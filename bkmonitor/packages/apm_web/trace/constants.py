@@ -12,7 +12,7 @@ from enum import Enum
 
 from django.utils.translation import gettext_lazy as _
 
-from constants.elasticsearch import QueryStringOperators
+from bkmonitor.data_source.constants import OperatorEnum, OPERATORS  # noqa
 
 
 class EnabledStatisticsDimension(Enum):
@@ -24,133 +24,6 @@ class EnabledStatisticsDimension(Enum):
     INTEGER = "integer"
     LONG = "long"
     DOUBLE = "double"
-
-
-class OperatorEnum:
-    """操作符枚举"""
-
-    class OperatorOptions:
-        """操作符选项"""
-
-        IS_WILDCARD = {"label": _("使用通配符"), "name": "is_wildcard", "default": False}
-        GROUP_RELATION = {
-            "label": _("组间关系"),
-            "name": "group_relation",
-            "default": "OR",
-            "children": [
-                {"label": "AND", "value": "AND"},
-                {"label": "OR", "value": "OR"},
-            ],
-        }
-
-    EXISTS = {"operator": "exists", "label": _("存在"), "placeholder": _("确认字段已存在")}
-    NOT_EXISTS = {"operator": "not exists", "label": _("不存在"), "placeholder": _("确认字段不存在")}
-    EQUAL = {"operator": "equal", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
-    NOT_EQUAL = {"operator": "not_equal", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
-    LIKE = {"operator": "like", "label": _("包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
-    NOT_LIKE = {"operator": "not_like", "label": _("不包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
-    GT = {"operator": "gt", "label": ">", "placeholder": _("请选择或直接输入")}
-    LT = {"operator": "lt", "label": "<", "placeholder": _("请选择或直接输入")}
-    GTE = {"operator": "gte", "label": ">=", "placeholder": _("请选择或直接输入")}
-    LTE = {"operator": "lte", "label": "<=", "placeholder": _("请选择或直接输入")}
-
-    LIKE_WILDCARD = {
-        "operator": "like",
-        "label": _("包含"),
-        "placeholder": _("请选择或直接输入，Enter分隔"),
-        "options": [OperatorOptions.IS_WILDCARD, OperatorOptions.GROUP_RELATION],
-    }
-    NOT_LIKE_WOLDCARD = {
-        "operator": "not_like",
-        "label": _("不包含"),
-        "placeholder": _("请选择或直接输入，Enter分隔"),
-        "options": [OperatorOptions.IS_WILDCARD, OperatorOptions.GROUP_RELATION],
-    }
-
-    QueryStringOperatorMapping = {
-        EXISTS["operator"]: QueryStringOperators.EXISTS,
-        NOT_EXISTS["operator"]: QueryStringOperators.NOT_EXISTS,
-        EQUAL["operator"]: QueryStringOperators.EQUAL,
-        NOT_EQUAL["operator"]: QueryStringOperators.NOT_EQUAL,
-        LIKE["operator"]: QueryStringOperators.INCLUDE,
-        NOT_LIKE["operator"]: QueryStringOperators.NOT_INCLUDE,
-        GT["operator"]: QueryStringOperators.GT,
-        LT["operator"]: QueryStringOperators.LT,
-        GTE["operator"]: QueryStringOperators.GTE,
-        LTE["operator"]: QueryStringOperators.LTE,
-        "between": QueryStringOperators.BETWEEN,
-    }
-
-
-OPERATORS = {
-    "keyword": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-        OperatorEnum.LIKE,
-        OperatorEnum.NOT_LIKE,
-    ],
-    "text": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.LIKE_WILDCARD,
-        OperatorEnum.NOT_LIKE_WOLDCARD,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
-    "integer": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.GT,
-        OperatorEnum.GTE,
-        OperatorEnum.LT,
-        OperatorEnum.LTE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
-    "long": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.GT,
-        OperatorEnum.GTE,
-        OperatorEnum.LT,
-        OperatorEnum.LTE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
-    "double": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.GT,
-        OperatorEnum.GTE,
-        OperatorEnum.LT,
-        OperatorEnum.LTE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
-    "date": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.GT,
-        OperatorEnum.GTE,
-        OperatorEnum.LT,
-        OperatorEnum.LTE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
-    "boolean": [OperatorEnum.EQUAL, OperatorEnum.NOT_EQUAL, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
-    "conflict": [
-        OperatorEnum.EQUAL,
-        OperatorEnum.NOT_EQUAL,
-        OperatorEnum.GT,
-        OperatorEnum.GTE,
-        OperatorEnum.LT,
-        OperatorEnum.LTE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
-}
 
 
 TRACE_FIELD_ALIAS = {

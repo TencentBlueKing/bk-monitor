@@ -137,17 +137,4 @@ RUM_APPLICATION_DEFAULT_METRIC = {
 RUM_APPLICATION_METRIC = "BKMONITOR_{}_{}_RUM_APPLICATION_METRIC_{}_{}"
 
 # RUM 字段别名
-RUM_FIELD_ALIAS = {
-    # Span 视角
-    "elapsed_time": _("耗时"),
-    "end_time": _("结束时间"),
-    "kind": _("类型"),
-    "links": _("关联信息"),
-    "parent_span_id": _("父 Span ID"),
-    "span_id": "Span ID",
-    "span_name": _("接口名称"),
-    "start_time": _("开始时间"),
-    "time": _("时间"),
-    "trace_id": "Trace ID",
-    "trace_state": _("Trace 状态"),
-}
+RUM_FIELD_ALIAS = {}
