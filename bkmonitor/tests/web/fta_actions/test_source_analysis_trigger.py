@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from types import SimpleNamespace
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, Mock, patch
 
 from django.db import IntegrityError
 from django.test import TestCase
@@ -17,6 +17,7 @@ from django.test import TestCase
 from bkmonitor.models import IssueSourceAnalysisExecution, IssueSourceAnalysisRule
 from bkmonitor.models.issue import IssueMergeRelation
 from constants.issue import SourceAnalysisStage, SourceAnalysisStatus, SourceAnalysisTriggerType
+from core.errors.issue import SourceAnalysisUpstreamUnavailableError
 from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
 
 
@@ -41,7 +42,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
                     "field": "alert.strategy_id",
                     "value": ["100"],
                     "method": "eq",
-                    "condition": "",
+                    "condition": "and",
                 }
             ],
             "bkci_project_id": "project-a",
@@ -77,7 +78,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         latest_alert = self.alert()
         handler_class.return_value.search_raw.return_value = ([latest_alert], None)
 
-        result = SourceAnalysisExecutionBaseResource.get_latest_alert(self.BK_BIZ_ID, self.ISSUE_ID)
+        result = SourceAnalysisExecutionBaseResource.get_latest_alert(self.BK_BIZ_ID, self.ISSUE_ID, [self.ISSUE_ID])
 
         self.assertIs(result, latest_alert)
         get_issue_or_raise.assert_called_once_with(self.ISSUE_ID, bk_biz_id=self.BK_BIZ_ID)
@@ -105,7 +106,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
                     "field": "alert.strategy_id",
                     "value": ["999"],
                     "method": "eq",
-                    "condition": "",
+                    "condition": "and",
                 }
             ],
         )
@@ -141,6 +142,53 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         self.assertEqual(execution.attempt, 1)
         self.assertEqual(execution.create_user, "admin")
         self.assertEqual(execution.update_user, "admin")
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions")
+    def test_rule_matching_uses_alarm_assign_previous_connector_semantics(self, get_alert_match_dimensions):
+        expected_rule = self.create_rule(
+            conditions=[
+                {
+                    "field": "alert.strategy_id",
+                    "value": ["100"],
+                    "method": "eq",
+                    "condition": "and",
+                },
+                {
+                    "field": "alert.name",
+                    "value": ["not matched"],
+                    "method": "eq",
+                    "condition": "or",
+                },
+            ]
+        )
+        get_alert_match_dimensions.return_value = {
+            "alert.strategy_id": "100",
+            "alert.name": "cpu high load",
+        }
+
+        matched_rule = SourceAnalysisExecutionBaseResource.get_matched_rule(self.BK_BIZ_ID, self.alert())
+
+        self.assertEqual(matched_rule.id, expected_rule.id)
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions")
+    def test_rule_matching_preserves_alarm_assign_and_or_grouping(self, get_alert_match_dimensions):
+        expected_rule = self.create_rule(
+            conditions=[
+                {"field": "alert.strategy_id", "value": ["100"], "method": "eq", "condition": "and"},
+                {"field": "alert.name", "value": ["not matched"], "method": "eq", "condition": "or"},
+                {"field": "alert.scenario", "value": ["not matched"], "method": "eq", "condition": "and"},
+            ]
+        )
+        get_alert_match_dimensions.return_value = {
+            "alert.strategy_id": "100",
+            "alert.name": "cpu high load",
+            "alert.scenario": "os",
+        }
+
+        matched_rule = SourceAnalysisExecutionBaseResource.get_matched_rule(self.BK_BIZ_ID, self.alert())
+
+        # 告警分派语义为 A OR (B AND C)，而不是旧源码分析协议表达的 (A AND B) OR C。
+        self.assertEqual(matched_rule.id, expected_rule.id)
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)
     def test_no_alert_does_not_create_execution(self, _get_latest_alert):
@@ -210,7 +258,25 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         self.assertTrue(created)
         self.assertEqual(execution.issue_id, self.ISSUE_ID)
         self.assertEqual(execution.active_key, self.ISSUE_ID)
-        get_latest_alert.assert_called_once_with(self.BK_BIZ_ID, self.ISSUE_ID)
+        get_latest_alert.assert_called_once_with(
+            self.BK_BIZ_ID,
+            self.ISSUE_ID,
+            [self.ISSUE_ID, self.MEMBER_ISSUE_ID],
+        )
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_merge_scope_degradation_stops_creation(self, get_latest_alert):
+        merge_context = Mock(degraded=True)
+
+        with (
+            patch("fta_web.issue.resources.MergeResolverContext", return_value=merge_context),
+            self.assertRaises(SourceAnalysisUpstreamUnavailableError),
+        ):
+            SourceAnalysisExecutionBaseResource.create_initial_execution(self.BK_BIZ_ID, self.ISSUE_ID, "admin")
+
+        merge_context.load.assert_called_once_with()
+        get_latest_alert.assert_not_called()
+        self.assertFalse(IssueSourceAnalysisExecution.objects.exists())
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
