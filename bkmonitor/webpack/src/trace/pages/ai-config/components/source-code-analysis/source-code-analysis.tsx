@@ -23,26 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import aiConfigRoutes from './ai-config';
-import aiSettingsRoutes from './ai-settings';
-import alarmDispath from './alarm-dispath';
-import alarmGroupRoutes from './alarm-group';
-import alarmShieldRoutes from './alarm-shield';
-import ftaRoutes from './fta-meal';
-import metricsManagerRoutes from './metrics-manager';
-import newReportRoutes from './new-report';
-import rotationRoutes from './rotation';
-import strategyRoutes from './strategy-config';
+import { defineComponent } from 'vue';
 
-export default [
-  ...alarmGroupRoutes,
-  ...ftaRoutes,
-  ...strategyRoutes,
-  ...alarmShieldRoutes,
-  ...metricsManagerRoutes,
-  ...alarmDispath,
-  ...aiSettingsRoutes,
-  ...aiConfigRoutes,
-  ...rotationRoutes,
-  ...newReportRoutes,
-];
+/**
+ * @description 源码 AI 分析：功能待开发，当前仅占位
+ */
+export default defineComponent({
+  name: 'SourceCodeAnalysis',
+  setup() {
+    return () => <div class='source-code-analysis' />;
+  },
+});

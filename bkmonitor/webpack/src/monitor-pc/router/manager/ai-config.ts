@@ -23,26 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import aiConfigRoutes from './ai-config';
-import aiSettingsRoutes from './ai-settings';
-import alarmDispath from './alarm-dispath';
-import alarmGroupRoutes from './alarm-group';
-import alarmShieldRoutes from './alarm-shield';
-import ftaRoutes from './fta-meal';
-import metricsManagerRoutes from './metrics-manager';
-import newReportRoutes from './new-report';
-import rotationRoutes from './rotation';
-import strategyRoutes from './strategy-config';
+import type { RouteConfig } from 'vue-router';
 
+const AiConfig = () => import(/* webpackChunkName: 'ai-config' */ '../../pages/ai-config/ai-config');
 export default [
-  ...alarmGroupRoutes,
-  ...ftaRoutes,
-  ...strategyRoutes,
-  ...alarmShieldRoutes,
-  ...metricsManagerRoutes,
-  ...alarmDispath,
-  ...aiSettingsRoutes,
-  ...aiConfigRoutes,
-  ...rotationRoutes,
-  ...newReportRoutes,
-];
+  {
+    name: 'ai-config',
+    path: '/trace/ai-config',
+    components: {
+      noCache: AiConfig,
+    },
+    meta: {
+      title: window.i18n.t('route-AI设置'),
+      noNavBar: false,
+      navId: 'ai-config',
+      noChangeLoading: true,
+      route: {
+        parent: 'manager',
+      },
+    },
+  },
+] as RouteConfig[];

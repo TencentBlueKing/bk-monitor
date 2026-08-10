@@ -23,26 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import aiConfigRoutes from './ai-config';
-import aiSettingsRoutes from './ai-settings';
-import alarmDispath from './alarm-dispath';
-import alarmGroupRoutes from './alarm-group';
-import alarmShieldRoutes from './alarm-shield';
-import ftaRoutes from './fta-meal';
-import metricsManagerRoutes from './metrics-manager';
-import newReportRoutes from './new-report';
-import rotationRoutes from './rotation';
-import strategyRoutes from './strategy-config';
+import { defineComponent } from 'vue';
 
-export default [
-  ...alarmGroupRoutes,
-  ...ftaRoutes,
-  ...strategyRoutes,
-  ...alarmShieldRoutes,
-  ...metricsManagerRoutes,
-  ...alarmDispath,
-  ...aiSettingsRoutes,
-  ...aiConfigRoutes,
-  ...rotationRoutes,
-  ...newReportRoutes,
-];
+import './config-card.scss';
+
+/**
+ * @description 配置分区头：左侧图标 + 标题 + 描述，内容由默认插槽提供（无独立描边卡片）
+ */
+export default defineComponent({
+  name: 'ConfigCard',
+  props: {
+    /** icon-monitor 图标类名，如 icon-zhibiaojiansuo */
+    icon: {
+      type: String,
+      required: true,
+    },
+    title: {
+      type: String,
+      default: '',
+    },
+    description: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots }) {
+    return () => (
+      <div class='config-card'>
+        <div class='config-card-header'>
+          <span class='header-icon'>
+            <i class={['icon-monitor', props.icon]} />
+          </span>
+          <div class='header-text'>
+            <span class='header-title'>{props.title}</span>
+            <span class='header-desc'>{props.description}</span>
+          </div>
+        </div>
+        <div class='config-card-content'>{slots.default?.()}</div>
+      </div>
+    );
+  },
+});

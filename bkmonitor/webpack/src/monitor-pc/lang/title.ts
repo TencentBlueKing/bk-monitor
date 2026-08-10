@@ -39,6 +39,8 @@ export default {
   判断最终是否要产生告警: 'Determine whether to generate an alarm in the end',
   剩下的告警基于当前规则发送通知: 'The remaining alarms send notifications based on the current rules',
   场景智能异常检测: 'Intelligent Anomaly Detection in Scenarios',
+  异常检测: 'Anomaly Detection',
+  '源码 AI 分析': 'Source Code AI Analysis',
   如标准输出: 'Such as Standard Output', // 查看语境
   实例名配置: 'Instance Name Configuration',
   待升级目标: 'Targets to be Upgraded',

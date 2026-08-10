@@ -1,0 +1,32 @@
+.anomaly-detection {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  align-items: flex-start;
+  width: 100%;
+
+  /* 灰底表单块：设计稿定宽 800，表单行宽 640 */
+  .config-form-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 800px;
+    padding: 16px 48px;
+    background: #f5f7fa;
+    border-radius: 4px;
+
+    .scheme-select {
+      width: 640px;
+    }
+  }
+
+  .block-title {
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .save-button {
+    min-width: 88px;
+  }
+}

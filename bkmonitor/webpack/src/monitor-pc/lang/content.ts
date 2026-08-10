@@ -227,6 +227,8 @@ export default {
   '暂无 AI 功能': 'No AI function yet',
   '支持单指标异常检测、时序预测、离群检测等智能检测算法':
     'Supports single-index anomaly detection, time series prediction, outlier detection and other intelligent detection algorithms',
+  '为单指标异常检测，配置默认的方案': 'Configure the default plan for single-metric anomaly detection',
+  针对不同场景分别配置智能检测方案: 'Configure intelligent detection plans separately for different scenarios',
   '匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：':
     'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':

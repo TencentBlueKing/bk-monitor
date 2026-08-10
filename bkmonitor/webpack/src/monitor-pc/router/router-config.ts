@@ -360,9 +360,9 @@ export const getRouteConfig = () => {
                 {
                   name: 'AI设置',
                   icon: 'icon-monitor icon-AI menu-icon',
-                  id: 'ai-settings',
-                  path: '/ai-settings',
-                  href: '#/ai-settings',
+                  id: 'ai-config',
+                  path: '/trace/ai-config',
+                  href: '#/trace/ai-config',
                   canStore: true,
                 },
               ],

@@ -23,26 +23,50 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import aiConfigRoutes from './ai-config';
-import aiSettingsRoutes from './ai-settings';
-import alarmDispath from './alarm-dispath';
-import alarmGroupRoutes from './alarm-group';
-import alarmShieldRoutes from './alarm-shield';
-import ftaRoutes from './fta-meal';
-import metricsManagerRoutes from './metrics-manager';
-import newReportRoutes from './new-report';
-import rotationRoutes from './rotation';
-import strategyRoutes from './strategy-config';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export default [
-  ...alarmGroupRoutes,
-  ...ftaRoutes,
-  ...strategyRoutes,
-  ...alarmShieldRoutes,
-  ...metricsManagerRoutes,
-  ...alarmDispath,
-  ...aiSettingsRoutes,
-  ...aiConfigRoutes,
-  ...rotationRoutes,
-  ...newReportRoutes,
-];
+import { unmount } from '@blueking/bk-weweb';
+
+import './ai-config.scss';
+
+const wewebId = 'trace';
+Component.registerHooks(['beforeRouteLeave']);
+/**
+ * AI 设置页面容器：以微前端方式加载 trace（Vue3）中的 ai-config 页面
+ */
+@Component
+export default class AiConfig extends tsc<object> {
+  get aiConfigHost() {
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
+  }
+  get aiConfigUrl() {
+    return process.env.NODE_ENV === 'development'
+      ? `${this.aiConfigHost}/?bizId=${this.$store.getters.bizId}/#/trace/ai-config`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/ai-config`;
+  }
+  get aiConfigData() {
+    return JSON.stringify({
+      host: this.aiConfigHost,
+      parentRoute: '/trace/',
+    });
+  }
+  beforeRouteLeave(_to, _from, next) {
+    unmount(wewebId);
+    next();
+  }
+  render() {
+    return (
+      <div class='ai-config-wrap'>
+        <bk-weweb
+          id={wewebId}
+          class='ai-config-iframe'
+          data={this.aiConfigData}
+          setShadowDom={true}
+          showSourceCode={true}
+          url={this.aiConfigUrl}
+        />
+      </div>
+    );
+  }
+}

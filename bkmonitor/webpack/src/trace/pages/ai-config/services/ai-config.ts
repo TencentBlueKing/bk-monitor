@@ -23,26 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import aiConfigRoutes from './ai-config';
-import aiSettingsRoutes from './ai-settings';
-import alarmDispath from './alarm-dispath';
-import alarmGroupRoutes from './alarm-group';
-import alarmShieldRoutes from './alarm-shield';
-import ftaRoutes from './fta-meal';
-import metricsManagerRoutes from './metrics-manager';
-import newReportRoutes from './new-report';
-import rotationRoutes from './rotation';
-import strategyRoutes from './strategy-config';
+import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
+import { listIntelligentModels } from 'monitor-api/modules/strategies';
 
-export default [
-  ...alarmGroupRoutes,
-  ...ftaRoutes,
-  ...strategyRoutes,
-  ...alarmShieldRoutes,
-  ...metricsManagerRoutes,
-  ...alarmDispath,
-  ...aiSettingsRoutes,
-  ...aiConfigRoutes,
-  ...rotationRoutes,
-  ...newReportRoutes,
-];
+import type { EIntelligentAlgorithm, IAiSetting, ISchemeItem } from '../typings';
+
+/** 获取 AI 设置配置，失败返回 null 由调用方决定降级表现 */
+export const getAiSetting = (): Promise<IAiSetting | null> => fetchAiSetting().catch(() => null);
+
+/** 保存 AI 设置配置，返回是否成功 */
+export const updateAiSetting = (params: IAiSetting): Promise<boolean> =>
+  saveAiSetting(params)
+    .then(() => true)
+    .catch(() => false);
+
+/** 获取指定算法下可选的智能检测方案列表 */
+export const getSchemeList = (algorithm: EIntelligentAlgorithm): Promise<ISchemeItem[]> =>
+  listIntelligentModels({ algorithm }).catch(() => []);

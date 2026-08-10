@@ -25,6 +25,7 @@
  */
 import { createRouter, createWebHashHistory } from 'vue-router';
 
+import aiConfigRoutes from './modules/ai-config';
 import alarmCenterRoutes from './modules/alarm-center';
 import alarmShield from './modules/alarm-shield';
 import Report from './modules/email-subscription';
@@ -48,6 +49,7 @@ const router = createRouter({
       ...failureRoutes,
       ...alarmCenterRoutes,
       ...hostRoutes,
+      ...aiConfigRoutes,
     ].map(item => ({
       ...item,
       path: `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}${item.path}`.replace(/\/\//gim, '/'),
