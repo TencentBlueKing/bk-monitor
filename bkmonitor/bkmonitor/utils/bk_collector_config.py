@@ -19,6 +19,7 @@ from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5, safe_int
+from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -48,9 +49,11 @@ class BkCollectorConfig:
         return bk_host_ids
 
     @classmethod
-    def get_target_host_ids_by_bk_tenant_id(cls, bk_tenant_id) -> list[int]:
+    def get_target_host_ids_by_bk_tenant_id(cls, bk_tenant_id, exclude_blacklisted_biz: bool = False) -> list[int]:
         """
         获取指定租户下所有的 Proxy 机器列表 (不包含直连区域)
+
+        :param exclude_blacklisted_biz: 是否剔除业务黑名单中的 Proxy，默认不剔除以保持兼容
         """
         bk_host_ids = []
         cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
@@ -74,6 +77,12 @@ class BkCollectorConfig:
                 if p["status"] != "RUNNING":
                     logger.warning(
                         "proxy({}) can not be use with bk-collector, it's not running".format(p["bk_host_id"])
+                    )
+                elif exclude_blacklisted_biz and is_biz_id_in_black_list(p["bk_biz_id"]):
+                    logger.warning(
+                        "proxy(%s) can not be use with bk-collector, business(%s) is in black list",
+                        p["bk_host_id"],
+                        p["bk_biz_id"],
                     )
                 else:
                     bk_host_ids.append(p["bk_host_id"])
