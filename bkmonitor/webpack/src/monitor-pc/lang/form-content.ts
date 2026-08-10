@@ -223,4 +223,5 @@ export default {
   时间窗口接近: 'Time window close to each other',
   日志聚类一致: 'Log clustering consistent',
   人工确认同根因: 'Manual confirmation same root cause',
+  命令执行时间: 'Command execution time',
 };
