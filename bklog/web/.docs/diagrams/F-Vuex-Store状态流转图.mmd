@@ -1,16 +1,21 @@
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#f3e5f5', 'primaryTextColor': '#7b1fa2', 'primaryBorderColor': '#9c27b0', 'lineColor': '#ba68c8'}}}%%
 flowchart LR
+  SHELL[index.html<br/>#app 挂载前仅静态占位]
+  PRELOAD[preload.ts]
   UI[retrieve-v3 / 结果组件]
   ACTION[retrieve-search-actions]
   FIELD[字段缓存服务]
   WORKER[retrieve-search-worker.service]
   WW[WebWorker<br/>fetch + NDJSON/JSON]
   REPO[retrieve-row.repository]
-  IDB[(IndexedDB<br/>retrieveRows)]
+  IDB[(IndexedDB<br/>retrieveRows / fieldMetas)]
   CACHE[retrieve-row-cache.service]
   STATE[(Vuex)]
-  API[/search/* API]
+  API[/meta|space|user|search API/]
 
+  SHELL -->|JS 就绪后进入| PRELOAD
+  PRELOAD -->|spaceUid / bkBizId / userMeta / globals| STATE
+  PRELOAD --> API
   UI -->|dispatch 字段/查询| ACTION
   ACTION -->|commit 参数、字段、loading| STATE
   ACTION --> FIELD
