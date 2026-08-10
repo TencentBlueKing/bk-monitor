@@ -713,6 +713,7 @@
   // 停用（terminated）时所属索引集为只读展示，整格禁用手势（与标签列停用行为对齐）
   .index-set-readonly-display {
     cursor: not-allowed;
+    padding-left: 4px;
 
     .tag-item,
     .tag-more-indicator,
