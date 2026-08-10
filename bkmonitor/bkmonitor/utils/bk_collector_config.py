@@ -49,11 +49,9 @@ class BkCollectorConfig:
         return bk_host_ids
 
     @classmethod
-    def get_target_host_ids_by_bk_tenant_id(cls, bk_tenant_id, exclude_blacklisted_biz: bool = False) -> list[int]:
+    def get_target_host_ids_by_bk_tenant_id(cls, bk_tenant_id) -> list[int]:
         """
-        获取指定租户下所有的 Proxy 机器列表 (不包含直连区域)
-
-        :param exclude_blacklisted_biz: 是否剔除业务黑名单中的 Proxy，默认不剔除以保持兼容
+        获取指定租户下所有非黑名单业务的 Proxy 机器列表 (不包含直连区域)
         """
         bk_host_ids = []
         cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
@@ -78,7 +76,7 @@ class BkCollectorConfig:
                     logger.warning(
                         "proxy({}) can not be use with bk-collector, it's not running".format(p["bk_host_id"])
                     )
-                elif exclude_blacklisted_biz and is_biz_id_in_black_list(p["bk_biz_id"]):
+                elif is_biz_id_in_black_list(p["bk_biz_id"]):
                     logger.warning(
                         "proxy(%s) can not be use with bk-collector, business(%s) is in black list",
                         p["bk_host_id"],

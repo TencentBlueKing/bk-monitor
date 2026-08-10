@@ -61,7 +61,7 @@ class PlatformConfig(BkCollectorConfig):
         platform_config = cls.get_platform_config()
 
         # 2. 下发给给定租户下
-        proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id, exclude_blacklisted_biz=True)
+        proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id)
         try:
             if bk_tenant_id == DEFAULT_TENANT_ID:
                 # 如果是 默认租户，需要增加全局配置中的主机
