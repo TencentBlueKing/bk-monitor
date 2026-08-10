@@ -137,7 +137,8 @@ class LogCollectorHandler:
                     "tags": item.get("tags", ""),
                     "category_id": item.get("category_id", ""),
                     "category_name": item.get("category_name", ""),
-                    "is_editable": item.get("is_editable", ""),
+                    # 采集项没有该字段，缺省即「不受此标记限制」；不可用空串，前端 !is_editable 会误判为不可编辑
+                    "is_editable": item.get("is_editable", True),
                     "scenario_id": scenario_id,
                     "scenario_name": scenario_choices.get(scenario_id, ""),
                     "status": item.get("status", ""),

@@ -1026,6 +1026,18 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         # 英文名为空的历史数据回退到结果表后缀
         self.assertEqual(collectors[self.current_collector.pk]["name_en"], "current_collector")
 
+    def test_is_editable_defaults_to_true_for_collector(self):
+        """采集项没有 is_editable，缺省须为 True；空串在前端 !is_editable 下会被误判为不可编辑。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        for collector_id in (pending_collector.pk, self.current_collector.pk):
+            self.assertIs(collectors[collector_id]["is_editable"], True)
+
     def test_table_id_stays_empty_for_collector_without_result_table(self):
         """table_id 保持原语义，前端据此判断采集项未完成、拦截跳转详情页。"""
         pending_collector = self._create_pending_collector()
