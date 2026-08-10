@@ -83,6 +83,7 @@ import builtins
 
 CACHE_EXPIRE_TIME = 300
 METADATA_CLUSTER_STATUS_BATCH_SIZE = 20
+METADATA_RESULT_TABLE_STATUS_BATCH_SIZE = 50
 
 
 class StorageHandler:
@@ -753,23 +754,17 @@ class StorageHandler:
         return cluster_info
 
     def _get_cluster_detail_info(self, cluster_info: builtins.list[dict]):
-        multi_execute_func = MultiExecuteFunc()
-
-        def get_cluster_stats(cluster_id: int):
-            return EsRoute(
-                scenario_id=Scenario.ES, storage_cluster_id=cluster_id, raise_exception=False
-            ).cluster_stats()
-
+        cluster_ids = [
+            cluster.get("cluster_config", {}).get("cluster_id")
+            for cluster in cluster_info
+            if cluster.get("cluster_type", STORAGE_CLUSTER_TYPE) == STORAGE_CLUSTER_TYPE
+            and cluster.get("cluster_config", {}).get("cluster_id") is not None
+        ]
+        statuses = self._get_cluster_statuses(cluster_ids)
         for cluster in cluster_info:
-            if cluster.get("cluster_type", STORAGE_CLUSTER_TYPE) == DORIS_CLUSTER_TYPE:
-                continue
-            cluster_id = cluster.get("cluster_config").get("cluster_id")
-            multi_execute_func.append(cluster_id, get_cluster_stats, cluster_id)
-        result = multi_execute_func.run()
-        for cluster in cluster_info:
-            cluster_id = cluster.get("cluster_config").get("cluster_id")
-            cluster_stats = result.get(cluster_id)
-            cluster["cluster_stats"] = cluster_stats
+            cluster_id = cluster.get("cluster_config", {}).get("cluster_id")
+            status = statuses.get(cluster_id)
+            cluster["cluster_stats"] = self._build_cluster_status(status)["cluster_stats"] if status else None
         return cluster_info
 
     @staticmethod
@@ -1235,6 +1230,12 @@ class StorageHandler:
         :param cluster_list:
         :return:
         """
+        statuses = cls._get_cluster_statuses(cluster_list)
+        return {cluster_id: cls._build_cluster_status(status) for cluster_id, status in statuses.items()}
+
+    @staticmethod
+    def _get_cluster_statuses(cluster_list):
+        cluster_list = list(dict.fromkeys(cluster_list))
         result = {}
         for start in range(0, len(cluster_list), METADATA_CLUSTER_STATUS_BATCH_SIZE):
             cluster_ids = cluster_list[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
@@ -1243,7 +1244,7 @@ class StorageHandler:
                 cluster_id = status.get("cluster_id")
                 if cluster_id is None:
                     continue
-                result[cluster_id] = cls._build_cluster_status(status)
+                result[cluster_id] = status
         return result
 
     @staticmethod
@@ -1279,13 +1280,30 @@ class StorageHandler:
 
     @classmethod
     def get_result_table_indices(cls, table_id):
-        storage_status = TransferApi.get_result_table_storage_status({"table_ids": [table_id]})
-        item = next(
-            (item for item in storage_status.get("items", []) if item.get("table_id") == table_id),
-            None,
-        )
+        return cls.get_result_tables_indices([table_id]).get(table_id, [])
+
+    @classmethod
+    def get_result_tables_indices(cls, table_ids):
+        table_ids = list(dict.fromkeys(table_ids))
+        result = {table_id: [] for table_id in table_ids}
+        for start in range(0, len(table_ids), METADATA_RESULT_TABLE_STATUS_BATCH_SIZE):
+            batch_table_ids = table_ids[start : start + METADATA_RESULT_TABLE_STATUS_BATCH_SIZE]
+            storage_status = TransferApi.get_result_table_storage_status({"table_ids": batch_table_ids})
+            for item in storage_status.get("items", []):
+                table_id = item.get("table_id")
+                if table_id not in result:
+                    continue
+                result[table_id] = cls._get_result_table_indices_from_status(item)
+        return result
+
+    @classmethod
+    def _get_result_table_indices_from_status(cls, item):
         if not item or item.get("error"):
-            logger.error("[storage] get result table storage status failed, table_id=%s, item=%s", table_id, item)
+            logger.error(
+                "[storage] get result table storage status failed, table_id=%s, item=%s",
+                item.get("table_id") if item else None,
+                item,
+            )
             return []
 
         data = item.get("data") or {}
@@ -1304,12 +1322,12 @@ class StorageHandler:
             "uuid": index.get("uuid"),
             "health": index.get("health"),
             "status": index.get("status"),
-            "pri": index.get("primary_shards"),
-            "rep": index.get("replica_factor"),
-            "docs.count": index.get("docs_count"),
-            "docs.deleted": index.get("docs_deleted"),
-            "store.size": index.get("store_size_bytes"),
-            "pri.store.size": index.get("primary_store_size_bytes"),
+            "pri": index.get("primary_shards") or 0,
+            "rep": index.get("replica_factor") or 0,
+            "docs.count": index.get("docs_count") or 0,
+            "docs.deleted": index.get("docs_deleted") or 0,
+            "store.size": index.get("store_size_bytes") or 0,
+            "pri.store.size": index.get("primary_store_size_bytes") or 0,
         }
 
     def _send_detective(

@@ -36,6 +36,8 @@ from apps.log_databus.exceptions import (
 )
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import DorisVisibleConfigUpdateSerializer
+from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.models import Scenario
 
 BLUEKING_BK_BIZ_ID = 2
 OWNER_BIZ = 5
@@ -381,6 +383,33 @@ class TestMetadataStorageStatus(TestCase):
 
         self.assertEqual(StorageHandler.get_result_table_indices(table_id), [])
 
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_tables_indices_batches_fifty_table_ids(self, mock_get_storage_status):
+        def get_storage_status(params):
+            return {
+                "items": [
+                    {
+                        "table_id": table_id,
+                        "data": {
+                            "storage_configs": {"elasticsearch": {"storage_cluster_id": 7}},
+                            "cluster_results": {"7": {"runtime": {"indices": {"items": []}}}},
+                        },
+                        "error": None,
+                    }
+                    for table_id in params["table_ids"]
+                ]
+            }
+
+        mock_get_storage_status.side_effect = get_storage_status
+        table_ids = [f"2_bklog.table_{index}" for index in range(51)]
+
+        result = StorageHandler.get_result_tables_indices(table_ids)
+
+        self.assertEqual(set(result), set(table_ids))
+        self.assertEqual(mock_get_storage_status.call_count, 2)
+        self.assertEqual(mock_get_storage_status.call_args_list[0].args[0]["table_ids"], table_ids[:50])
+        self.assertEqual(mock_get_storage_status.call_args_list[1].args[0]["table_ids"], table_ids[50:])
+
     @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
     def test_batch_connectivity_detect_adapts_status_and_batches_twenty_ids(self, mock_get_cluster_status):
         def get_cluster_status(params):
@@ -442,3 +471,65 @@ class TestMetadataStorageStatus(TestCase):
         result = StorageHandler.batch_connectivity_detect([8], bk_biz_id=2)
 
         self.assertEqual(result[8], {"status": False, "cluster_stats": None})
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    def test_cluster_detail_uses_metadata_status_for_es(self, mock_get_cluster_status):
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 7,
+                "cluster_type": "elasticsearch",
+                "is_available": True,
+                "nodes": {"total": 2},
+                "capacity": {"total_bytes": 1000},
+                "details": {"health_status": "green", "number_of_nodes": 3},
+            }
+        ]
+        clusters = [
+            {"cluster_type": "elasticsearch", "cluster_config": {"cluster_id": 7}},
+            {"cluster_type": DORIS_CLUSTER_TYPE, "cluster_config": {"cluster_id": 8}},
+        ]
+
+        result = StorageHandler()._get_cluster_detail_info(clusters)
+
+        mock_get_cluster_status.assert_called_once_with({"cluster_ids": [7]})
+        self.assertEqual(result[0]["cluster_stats"]["status"], "green")
+        self.assertIsNone(result[1]["cluster_stats"])
+
+    @patch.object(StorageHandler, "get_result_tables_indices")
+    @patch.object(IndexSetHandler, "_get_data")
+    def test_log_index_set_indices_use_metadata_status(self, mock_get_data, mock_get_indices):
+        index_set = MagicMock(scenario_id=Scenario.LOG, storage_cluster_id=7)
+        index_set.get_indexes.return_value = [{"result_table_id": "2_bklog.test"}]
+        mock_get_data.return_value = index_set
+        mock_get_indices.return_value = {
+            "2_bklog.test": [
+                {
+                    "index": "2_bklog_test_20260810_0",
+                    "health": "green",
+                    "pri": 2,
+                    "rep": 1,
+                    "docs.count": 20,
+                    "docs.deleted": 2,
+                    "store.size": 2048,
+                    "pri.store.size": 1024,
+                }
+            ]
+        }
+
+        result = IndexSetHandler(1).indices()
+
+        mock_get_indices.assert_called_once_with(["2_bklog.test"])
+        self.assertEqual(result["list"][0]["stat"]["health"], "green")
+        self.assertEqual(result["list"][0]["stat"]["docs.count"], 20)
+
+    @patch.object(StorageHandler, "get_result_tables_indices", return_value={"2_bklog.test": []})
+    @patch.object(IndexSetHandler, "_get_data")
+    def test_log_index_set_without_physical_indices_keeps_legacy_placeholder(self, mock_get_data, _mock_get_indices):
+        index_set = MagicMock(scenario_id=Scenario.LOG, storage_cluster_id=7)
+        index_set.get_indexes.return_value = [{"result_table_id": "2_bklog.test"}]
+        mock_get_data.return_value = index_set
+
+        result = IndexSetHandler(1).indices()
+
+        self.assertEqual(result["list"][0]["stat"]["health"], "--")
+        self.assertEqual(result["list"][0]["details"], "--")

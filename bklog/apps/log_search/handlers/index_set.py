@@ -709,6 +709,13 @@ class IndexSetHandler(APIModel):
         scenario_id = index_set_obj.scenario_id
         storage_cluster_id = index_set_obj.storage_cluster_id
         index_list: list = [x.get("result_table_id") for x in index_set_data]
+        if scenario_id == Scenario.LOG:
+            indices_for_index = {
+                table_id: indices
+                for table_id, indices in StorageHandler.get_result_tables_indices(index_list).items()
+                if indices
+            }
+            return self._indices_result(indices_for_index, index_list)
         if scenario_id == Scenario.ES:
             multi_execute_func = MultiExecuteFunc()
             for index in index_list:
