@@ -767,6 +767,7 @@ def test_apply_uses_locked_snapshot_writes_and_exact_readback(mocker):
     write.assert_called_once_with(before, desired, using="monitor_api")
     advance.assert_called_once_with(before, using="monitor_api")
     assert result["changed"] is True
+    assert result["requested_operator"] == "test-operator"
     assert result["snapshot_id"] == after["snapshot_id"]
     assert result["states"] == {
         "configuration": "readback_verified",
@@ -1289,6 +1290,31 @@ def test_apply_rejects_missing_gates_and_client_routing_fields(override):
 
     with pytest.raises(CustomException):
         cache_routing.manage_cache_routing(params)
+
+
+def test_apply_rejects_placeholder_operator_before_runtime_or_database_access(mocker):
+    runtime_contract = mocker.patch.object(
+        cache_routing,
+        "_runtime_refresh_contract",
+        side_effect=AssertionError("must reject placeholder before runtime access"),
+    )
+    digest = f"sha256:{'0' * 64}"
+
+    with pytest.raises(CustomException, match="实际执行人"):
+        cache_routing.manage_cache_routing(
+            {
+                "operation": "apply",
+                "expected_snapshot_id": digest,
+                "expected_after_snapshot_id": digest,
+                "plan_id": digest,
+                "desired_routes": [{"strategy_score": 1000, "node_id": 1}],
+                "confirmed": True,
+                "operator": "your-operator",
+                "exclusive_change_window": True,
+            }
+        )
+
+    runtime_contract.assert_not_called()
 
 
 def test_manage_operation_is_registered_as_confirmed_admin_mutation():

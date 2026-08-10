@@ -11,6 +11,7 @@ from bkmonitor.models.strategy import StrategyModel
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.rpc.functions.bkm_cli.management import validate_management_request
 from kernel_api.rpc.functions.bkm_cli.strategy import _build_strategy_config, _is_strategy_group_eligible
 
 
@@ -22,6 +23,7 @@ FUNC_MANAGE_DOUBLE_CHECK_STRATEGY = "bkm_cli.manage_double_check_strategy"
 
 QUERY_OPERATIONS = {"capabilities", "list", "impact"}
 MUTATION_OPERATIONS = {"enable", "disable"}
+MANAGE_ALLOWED_FIELDS = {"operation", "strategy_id", "confirmed", "operator", "bk_tenant_id", "dry_run"}
 
 DOUBLE_CHECK_DATA_SCOPES = {
     ("bk_monitor", "time_series"),
@@ -278,9 +280,11 @@ def query_double_check_strategies(params: dict[str, Any]) -> dict[str, Any]:
 def _require_mutation_confirmation(params: dict[str, Any]) -> str:
     if "dry_run" in params:
         raise CustomException(message="二次确认策略管理不支持 dry_run；请先查询影响并取得人工确认")
-    if params.get("confirmed") is not True:
-        raise CustomException(message="写操作必须先取得人工确认，并传入 confirmed=true")
-    return _normalize_text(params.get("operator"), "operator", required=True, max_length=32)
+    return validate_management_request(
+        params,
+        allowed_fields=MANAGE_ALLOWED_FIELDS,
+        max_operator_length=32,
+    )
 
 
 def _clear_dynamic_setting_cache(name: str) -> None:
@@ -299,9 +303,14 @@ def _clear_dynamic_setting_cache(name: str) -> None:
         "operation": "必填，enable/disable",
         "strategy_id": "必填，正整数",
         "confirmed": "必填，必须为 true",
-        "operator": "必填，最近操作人",
+        "operator": "必填，当前人工授权中明确给出的实际执行人",
     },
-    example_params={"operation": "enable", "strategy_id": 1, "confirmed": False, "operator": "admin"},
+    example_params={
+        "operation": "enable",
+        "strategy_id": 1,
+        "confirmed": False,
+        "operator": "<actual-implementer>",
+    },
 )
 def manage_double_check_strategy(params: dict[str, Any]) -> dict[str, Any]:
     operation = _normalize_text(params.get("operation"), "operation", required=True)
@@ -374,7 +383,12 @@ BkmCliOpRegistry.register(
         "operation": "enable/disable",
         "strategy_id": "正整数",
         "confirmed": "boolean，必须为 true",
-        "operator": "string，最近操作人",
+        "operator": "string，当前人工授权中明确给出的实际执行人",
     },
-    example_params={"operation": "enable", "strategy_id": 1, "confirmed": False, "operator": "admin"},
+    example_params={
+        "operation": "enable",
+        "strategy_id": 1,
+        "confirmed": False,
+        "operator": "<actual-implementer>",
+    },
 )

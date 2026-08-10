@@ -41,6 +41,29 @@ def test_management_requires_confirmation_operator_and_rejects_dry_run(params):
         manage_double_check_strategy(params)
 
 
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"unexpected": None}, "不支持的参数"),
+        ({"operator": "${OPERATOR}"}, "实际执行人"),
+        ({"operator": "a" * 33}, "长度不能超过 32"),
+    ],
+)
+def test_management_rejects_unknown_fields_placeholder_and_oversized_operator(override, message):
+    from kernel_api.rpc.functions.bkm_cli.double_check_strategy import _require_mutation_confirmation
+
+    params = {
+        "operation": "disable",
+        "strategy_id": 2,
+        "confirmed": True,
+        "operator": "alice",
+    }
+    params.update(override)
+
+    with pytest.raises(CustomException, match=message):
+        _require_mutation_confirmation(params)
+
+
 def test_enable_updates_global_config_and_returns_database_readback(mocker):
     from kernel_api.rpc.functions.bkm_cli import double_check_strategy
 
