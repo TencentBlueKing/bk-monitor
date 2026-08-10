@@ -1031,6 +1031,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
                     (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
                     (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+                    (DataSourceLabel.BK_RUM, DataTypeLabel.LOG),
                     (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
                     (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
                 )

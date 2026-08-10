@@ -388,5 +388,11 @@ export default {
     'Custom split criteria, e.g. Same BlueShift release after a consolidated appearance',
   '自定义新增合并依据，例如：同一蓝盾发布后集中出现':
     'Custom add merge criteria, e.g. Same BlueShift release after a consolidated appearance',
+  '{n} 列': '{n} columns',
   '搜索 项目': 'Search Project',
+  '搜索 指标名称': 'Search Metric Name',
+  '搜索 指标分组': 'Search Metric Group',
+  请输入分组名称: 'Please enter group name',
+  '搜索 IP / 主机名 / 节点名称': 'Search IP / Hostname / Node Name',
+  '输入 进程名': 'Enter Process Name',
 };

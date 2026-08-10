@@ -1,4 +1,6 @@
 /* stylelint-disable declaration-no-important */
+
+/* stylelint-disable no-descending-specificity */
 .new-home-select {
   position: absolute;
   z-index: 10;
@@ -160,7 +162,7 @@
   height: 250px;
   padding-top: 30px;
   border-radius: 2px;
-  box-shadow: 0 4px 10px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 10px 10px rgb(0 0 0 / 15%);
 
   .bk-exception-img.part-img .exception-image {
     height: 96px;
@@ -201,7 +203,7 @@
   font-size: 12px;
   background: #fff;
   border-radius: 2px;
-  box-shadow: 0 4px 10px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 10px 10px rgb(0 0 0 / 15%);
 
   .item-list {
     min-height: 100px;
@@ -291,10 +293,10 @@
         margin: 0 4px;
         font-size: 14px;
         line-height: 24px;
+        vertical-align: inherit;
         color: #a3b1cc;
         text-align: center;
-        vertical-align: inherit;
-        background: #ffffff;
+        background: #fff;
         border-radius: 1px;
       }
 
@@ -315,8 +317,8 @@
   .icon-delete-wrap {
     display: none;
     font-size: 13px;
-    color: #4d4f56;
     vertical-align: middle;
+    color: #4d4f56;
 
     &:hover {
       color: #3a84ff;
@@ -328,7 +330,7 @@
   .new-home-select-group-item {
     width: 100%;
     height: 32px;
-    padding: 0 16px 0 24px;
+    padding: 0 8px 0 24px;
     line-height: 32px;
     color: #4d4f56;
     cursor: pointer;
@@ -342,6 +344,12 @@
       }
     }
 
+    &.active {
+      padding: 0 7px 0 23px;
+      line-height: 30px;
+      border: 1px solid #3a84ff;
+    }
+
     &.disabled {
       color: #c4c6cc;
       cursor: not-allowed;
@@ -349,12 +357,13 @@
 
     .history-item-name {
       display: inline-block;
+
       // width: 96%;
       width: calc(100% - 34px);
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
       vertical-align: top;
+      white-space: nowrap;
       cursor: pointer;
     }
   }
@@ -365,11 +374,47 @@
 
   .new-home-select-item-title {
     padding-left: 12px;
+    font-size: 16px;
     color: #979ba5;
     cursor: none;
 
     &:hover {
       background: none;
+    }
+  }
+
+  .new-home-select-item-title-trace-tip {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 24px;
+    white-space: nowrap;
+    background: #f6f8fb;
+
+    .trace-id {
+      font-size: 14px;
+      font-weight: 500;
+      color: #4d4f56;
+    }
+
+    .help-tips {
+      margin: 0 0 0 auto;
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .count-tag {
+      display: flex;
+      align-content: center;
+      align-items: center;
+      height: 20px;
+      padding: 0 18px;
+      margin: 0 0 0 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #3a84ff;
+      background: #e1ecff;
+      border-radius: 9px;
     }
   }
 
@@ -390,12 +435,32 @@
       color: #f59500;
     }
 
+    .app-name-wrap {
+      display: flex;
+      align-items: center;
+
+      .app-alias {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        font-weight: 500;
+        color: #4d4f56;
+        white-space: nowrap;
+      }
+
+      .app-name {
+        font-weight: 400;
+        color: #979ba5;
+        white-space: nowrap;
+      }
+    }
+
     .item-business {
       width: 130px;
       overflow: hidden;
+      text-overflow: ellipsis;
       color: #a3b1cc;
       text-align: right;
-      text-overflow: ellipsis;
       white-space: nowrap;
     }
 
@@ -430,6 +495,7 @@
 /** 展示在顶部导航栏的时候的样式处理 */
 .home-select-bar-tool {
   top: calc(10px + var(--notice-alert-height));
+
   // right: 262px;
   right: 235px;
   z-index: 2000; // 与旧版 global-search-modal 一致；需高于告警分派配置页 sticky 表头 z-index: 666
@@ -461,6 +527,7 @@
   .home-select-input {
     width: 93%;
     padding: 5px 0 0 16px;
+
     // margin: 3px 0 1px;
     margin: 0;
     font-size: 12px;

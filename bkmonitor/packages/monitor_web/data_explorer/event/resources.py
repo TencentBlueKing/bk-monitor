@@ -21,6 +21,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
+from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.common_utils import format_percent
@@ -74,7 +75,6 @@ from .utils import (
     get_qs_from_req_data,
     is_dimensions,
     format_field,
-    sort_fields,
 )
 
 logger = logging.getLogger(__name__)

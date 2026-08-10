@@ -209,14 +209,32 @@ class GetResultTableStorageResource(MetaDataAPIGWResource):
 
 
 class GetResultTableStorageStatusResource(MetaDataAPIGWResource):
-    """查询结果表 ES/Doris 存储状态和历史分段。"""
+    """批量查询结果表 ES/Doris 存储状态和历史分段。"""
 
     action = "/app/metadata/get_result_table_storage_status/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
-        table_id = serializers.CharField(required=True, label="结果表ID")
+        table_ids = serializers.ListField(
+            required=True,
+            min_length=1,
+            max_length=50,
+            child=serializers.CharField(label="结果表ID"),
+            label="结果表ID列表",
+        )
         timeout = serializers.IntegerField(required=False, default=15, min_value=1, max_value=30, label="超时时间")
+        total_timeout = serializers.IntegerField(
+            required=False,
+            default=60,
+            min_value=1,
+            max_value=300,
+            label="批量查询总超时时间",
+        )
+
+        def validate_table_ids(self, value):
+            if len(value) != len(set(value)):
+                raise serializers.ValidationError("结果表ID不能重复")
+            return value
 
 
 class GetTsDataResource(MetaDataAPIGWResource):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -47,6 +47,12 @@ class CustomMetricViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.custom_report.custom_time_series_list, endpoint="custom_time_series"),
         # 自定义指标详情
         ResourceRoute("GET", resource.custom_report.custom_time_series_detail, endpoint="custom_time_series_detail"),
+        # 批量查询自定义指标上报协议
+        ResourceRoute(
+            "POST",
+            resource.custom_report.query_custom_time_series_protocols,
+            endpoint="query_custom_time_series_protocols",
+        ),
         # 校验自定义指标名称是否合法
         ResourceRoute(
             "GET", resource.custom_report.validate_custom_ts_group_name, endpoint="validate_custom_ts_group_name"

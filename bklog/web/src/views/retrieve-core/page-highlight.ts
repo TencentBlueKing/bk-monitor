@@ -4,7 +4,23 @@
  */
 import { reactive } from 'vue';
 
+import {
+  escapeHtml,
+  mapGlobalRangesToSegments,
+  parseResultMarkedText,
+  type HighlightRange,
+  type HighlightSegment,
+} from './highlight-range';
 import StaticUtil from './static.util';
+
+// 纯计算部分独立在 highlight-range.ts，Worker 侧只引那一份以避开 vue。
+export {
+  escapeHtml,
+  mapGlobalRangesToSegments,
+  parseResultMarkedText,
+  type HighlightRange,
+  type HighlightSegment,
+};
 
 export type PageHighlightAccuracy = 'exactly' | 'partially';
 
@@ -23,19 +39,6 @@ export interface PageHighlightState {
   accuracy: PageHighlightAccuracy;
   colors: string[][];
   version: number;
-}
-
-export interface HighlightRange {
-  start: number;
-  end: number;
-  keywordIndex?: number;
-}
-
-export interface HighlightSegment {
-  text: string;
-  resultHighlighted?: boolean;
-  pageHighlighted?: boolean;
-  pageHighlightIndex?: number;
 }
 
 export const pageHighlightState = reactive<PageHighlightState>({
@@ -157,49 +160,6 @@ export const collectPageHighlightRanges = (text: string, keywords = pageHighligh
 };
 
 /**
- * 将全局字符范围映射到各分词局部坐标。
- * @param normalizeEmptyAsQuotes 与渲染层一致：空串按 "" 计入拼接偏移（页面划词高亮用）
- */
-export const mapGlobalRangesToSegments = (
-  segments: Array<{ text?: string } | string>,
-  globalRanges: HighlightRange[],
-  normalizeEmptyAsQuotes = false,
-): HighlightRange[][] => {
-  const texts = segments.map((segment) => {
-    const text = typeof segment === 'string' ? segment : String(segment?.text ?? '');
-    return normalizeEmptyAsQuotes && !text.length ? '""' : text;
-  });
-
-  if (!texts.length) {
-    return [];
-  }
-
-  if (!globalRanges.length) {
-    return texts.map(() => []);
-  }
-
-  const perSegmentRanges: HighlightRange[][] = texts.map(() => []);
-  let offset = 0;
-
-  texts.forEach((text, index) => {
-    const start = offset;
-    const end = offset + text.length;
-    globalRanges.forEach((range) => {
-      if (range.end > start && range.start < end) {
-        perSegmentRanges[index].push({
-          start: Math.max(0, range.start - start),
-          end: Math.min(text.length, range.end - start),
-          keywordIndex: range.keywordIndex,
-        });
-      }
-    });
-    offset = end;
-  });
-
-  return perSegmentRanges;
-};
-
-/**
  * 在分词拼接后的完整文本上匹配页面高亮，再映射回每个分词的局部范围。
  * 用于跨分词连续划选（如 mirrors.tencent.com/tgingame）保持同一关键词的完整高亮，含中间标点。
  * 拼接文本需与渲染文本一致（空串展示为 ""）。
@@ -222,27 +182,6 @@ export const buildSegmentPageHighlightRanges = (
     collectPageHighlightRanges(texts.join(''), keywords),
     true,
   );
-};
-
-export const parseResultMarkedText = (value: unknown) => {
-  const source = String(value ?? '');
-  const markRanges: HighlightRange[] = [];
-  let plainText = '';
-  let cursor = 0;
-  const markReg = /<mark(?:\s[^>]*)?>([\s\S]*?)<\/mark>/gi;
-  let match = markReg.exec(source);
-
-  while (match) {
-    plainText += source.slice(cursor, match.index);
-    const start = plainText.length;
-    plainText += match[1];
-    markRanges.push({ start, end: plainText.length });
-    cursor = match.index + match[0].length;
-    match = markReg.exec(source);
-  }
-
-  plainText += source.slice(cursor);
-  return { plainText, markRanges };
 };
 
 export const mergeHighlightSegments = ({
@@ -293,13 +232,6 @@ export const mergeHighlightSegments = ({
 
   return segments;
 };
-
-export const escapeHtml = (value: unknown) => String(value)
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;');
 
 export const buildHighlightHtml = ({
   text,

@@ -8,11 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
+import threading
+from contextlib import contextmanager
+from time import monotonic
+
+from django.conf import settings
 from redis.exceptions import RedisError
 
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache, gen_resilient_socket_conf
 from bkmonitor.models import CacheNode, CacheRouter
+
+logger = logging.getLogger("alarm_backends")
 
 
 class PipelineResultMismatch(RedisError):
@@ -126,8 +134,17 @@ class RedisProxy(KeyRouterMixin):
         self._client_pool = {}
 
     def pipeline(self, *args, **kwargs):
+        """每次调用视为一个新的逻辑批次入口。
+
+        RedisDataKey 长期缓存本 Proxy，本方法又复用同一 PipelineProxy；
+        若上一任务入队后未 execute 就异常退出，必须在此清掉残留的
+        command_stack / 路由快照 / 原生 pipeline 缓冲，否则下一任务会重放旧命令
+        并可能无限期写旧节点。
+        """
         if self._pipeline is None:
             self._pipeline = PipelineProxy(self, *args, **kwargs)
+        else:
+            self._pipeline.begin_batch(*args, **kwargs)
         return self._pipeline
 
     def get_client(self, node):
@@ -164,6 +181,21 @@ class PipelineProxy(KeyRouterMixin):
         self._pipeline_pool = {}
         self.init_params = (args, kwargs)
         self.command_stack = []
+        # 实例级快照：绑定本次 pipeline 批次，避免 thread-local pin 在入队失败/未 execute 时泄漏
+        self._routing_snapshot = None
+
+    def begin_batch(self, *args, **kwargs):
+        """开启新逻辑批次：丢弃上一批遗留状态（含原生 redis pipeline 已缓冲命令）。"""
+        self.init_params = (args, kwargs)
+        self.command_stack = []
+        self._routing_snapshot = None
+        for pipeline_instance in self._pipeline_pool.values():
+            try:
+                pipeline_instance.reset()
+            except Exception:
+                pass
+        # 清空池，避免 reset 语义不全时旧缓冲命令被带进下一批
+        self._pipeline_pool = {}
 
     def pipeline_instance(self, node):
         if node.id not in self._pipeline_pool:
@@ -172,6 +204,29 @@ class PipelineProxy(KeyRouterMixin):
             )
 
         return self._pipeline_pool[node.id]
+
+    def _clear_routing_snapshot(self):
+        self._routing_snapshot = None
+
+    def _ensure_routing_snapshot(self):
+        """为当前 pipeline 批次钉死路由表（实例级，不污染线程全局 get_node）。
+
+        - 若外层已有 routing_snapshot()，复用其 routers 列表，保证嵌套一致。
+        - command_stack 为空时丢弃遗留 snapshot（上一批失败且未入队成功）。
+        """
+        if not self.command_stack and self._routing_snapshot is not None:
+            self._routing_snapshot = None
+
+        if self._routing_snapshot is not None:
+            return
+
+        outer = _get_routing_pin()
+        if outer is not None:
+            self._routing_snapshot = {"routers": outer["routers"], "node_map": {}}
+            return
+
+        _refresh_strategy_router_cache()
+        self._routing_snapshot = {"routers": STRATEGY_ROUTER_CACHE, "node_map": {}}
 
     def execute(self):
         p_result = {}
@@ -201,6 +256,8 @@ class PipelineProxy(KeyRouterMixin):
                     pipeline_instance.reset()
                 except Exception:
                     pass
+            self._pipeline_pool = {}
+            self._clear_routing_snapshot()
 
     def __getattr__(self, name):
         def handle(*args, **kwargs):
@@ -208,50 +265,210 @@ class PipelineProxy(KeyRouterMixin):
             if key is None:
                 if name not in self.ALLOWED_METHOD:
                     return self.execute()
-            strategy_id = self.strategy_id_from_key(key)
-            cache_node = get_node_by_strategy_id(strategy_id)
-
-            pipeline = self.pipeline_instance(cache_node)
-            command = getattr(pipeline, name)
-            self.command_stack.append(cache_node.id)
-            return command(*args, **kwargs)
+            try:
+                self._ensure_routing_snapshot()
+                strategy_id = self.strategy_id_from_key(key)
+                # 直接走实例快照，不经 get_node_by_strategy_id，避免依赖/泄漏 thread-local pin
+                cache_node = _resolve_node(
+                    strategy_id,
+                    self._routing_snapshot["routers"],
+                    self._routing_snapshot["node_map"],
+                )
+                pipeline = self.pipeline_instance(cache_node)
+                command = getattr(pipeline, name)
+                self.command_stack.append(cache_node.id)
+                return command(*args, **kwargs)
+            except Exception:
+                # 本批次尚未成功入队任何命令：释放实例快照，避免粘住后续单命令路由
+                if not self.command_stack:
+                    self._clear_routing_snapshot()
+                raise
 
         return handle
 
 
 STRATEGY_ROUTER_CACHE = None
+STRATEGY_ROUTER_CACHE_AT = 0.0
+STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT = 0.0
 STRATEGY_NODE_MAP = {}
 DEFAULT_NODE = None
 
+# CacheRouter 进程内快照 TTL（秒）。改 DB 路由后最多等该窗口即可生效，无需重启 worker。
+# 可用 settings.STRATEGY_ROUTER_CACHE_TTL 覆盖；热路径仅做 monotonic 比较，到期才查库。
+STRATEGY_ROUTER_CACHE_TTL = 30
+# 刷新失败后的最小重试间隔，避免 DB 抖动时逐命令打库放大。
+STRATEGY_ROUTER_CACHE_RETRY_BACKOFF = 5
 
-def get_node_by_strategy_id(strategy_id: int):
-    from django.utils.translation import gettext as _
 
-    global STRATEGY_ROUTER_CACHE, DEFAULT_NODE, STRATEGY_NODE_MAP
+class _RoutingPinState(threading.local):
+    """线程局部：仅供 routing_snapshot() 钉住路由；PipelineProxy 使用实例级 snapshot，避免泄漏。"""
 
-    # 获取路由表
-    if not STRATEGY_ROUTER_CACHE:
-        STRATEGY_ROUTER_CACHE = list(
+    def __init__(self):
+        super().__init__()
+        self.stack = []
+
+
+_routing_pin_state = _RoutingPinState()
+
+
+def _get_routing_pin():
+    stack = getattr(_routing_pin_state, "stack", None)
+    if not stack:
+        return None
+    return stack[-1]
+
+
+def _push_routing_pin(pin: dict) -> None:
+    if not hasattr(_routing_pin_state, "stack"):
+        _routing_pin_state.stack = []
+    _routing_pin_state.stack.append(pin)
+
+
+def _pop_routing_pin() -> None:
+    stack = getattr(_routing_pin_state, "stack", None)
+    if stack:
+        stack.pop()
+
+
+def _reset_routing_pin_for_tests() -> None:
+    _routing_pin_state.stack = []
+
+
+@contextmanager
+def routing_snapshot():
+    """在非 pipeline 的多命令逻辑操作中钉死路由（如 trigger lrange + ltrim）。
+
+    进入时刷新（或 stale-while-error 保旧），块内 get_node_by_strategy_id 只读 pin，
+    不受全局 TTL 边界影响。可嵌套；与 PipelineProxy 自动 pin 兼容（已有外层则复用）。
+    """
+    outer = _get_routing_pin() is not None
+    if not outer:
+        _refresh_strategy_router_cache()
+        _push_routing_pin({"routers": STRATEGY_ROUTER_CACHE, "node_map": {}})
+    try:
+        yield
+    finally:
+        if not outer:
+            _pop_routing_pin()
+
+
+def _router_cache_ttl() -> float:
+    return float(getattr(settings, "STRATEGY_ROUTER_CACHE_TTL", STRATEGY_ROUTER_CACHE_TTL))
+
+
+def _router_cache_retry_backoff() -> float:
+    return float(
+        getattr(settings, "STRATEGY_ROUTER_CACHE_RETRY_BACKOFF", STRATEGY_ROUTER_CACHE_RETRY_BACKOFF)
+    )
+
+
+def _lookup_node_in_routers(strategy_id: int, routers):
+    if not routers:
+        return None
+    for router in routers:
+        if router.strategy_score > strategy_id:
+            return router.node
+    return None
+
+
+def _rebase_node_map(new_routers) -> None:
+    """按新路由表重算已缓存 sid→node；未变化的 sid 保留同一 node 对象引用可减少抖动。"""
+    global STRATEGY_NODE_MAP
+    if not STRATEGY_NODE_MAP:
+        return
+    rebased = {}
+    for sid, old_node in STRATEGY_NODE_MAP.items():
+        if sid == 0:
+            continue
+        new_node = _lookup_node_in_routers(sid, new_routers)
+        if new_node is None:
+            continue
+        rebased[sid] = new_node if new_node.id != getattr(old_node, "id", None) else old_node
+    STRATEGY_NODE_MAP = rebased
+
+
+def _report_router_refresh_fail() -> None:
+    try:
+        from core.prometheus import metrics
+
+        metrics.STRATEGY_ROUTER_CACHE_REFRESH_FAIL.labels(cluster=get_cluster().name).inc()
+    except Exception:
+        # 指标上报失败不影响主路径
+        pass
+
+
+def _refresh_strategy_router_cache(force: bool = False) -> None:
+    """按 TTL 重载 CacheRouter 快照；失败时 stale-while-error，并限制重试频率。"""
+    global STRATEGY_ROUTER_CACHE, STRATEGY_ROUTER_CACHE_AT, STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT
+
+    now = monotonic()
+    ttl = _router_cache_ttl()
+
+    # 测试或运维可直接注入 STRATEGY_ROUTER_CACHE；AT<=0 表示尚未打戳，采纳后进入正常 TTL
+    if not force and STRATEGY_ROUTER_CACHE is not None and STRATEGY_ROUTER_CACHE_AT <= 0:
+        STRATEGY_ROUTER_CACHE_AT = now
+        return
+
+    if not force and STRATEGY_ROUTER_CACHE is not None and (now - STRATEGY_ROUTER_CACHE_AT) <= ttl:
+        return
+
+    # TTL 已过但处于失败退避窗口：继续用旧快照，避免逐命令打库
+    if (
+        not force
+        and STRATEGY_ROUTER_CACHE is not None
+        and now < STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT
+    ):
+        return
+
+    try:
+        new_routers = list(
             CacheRouter.objects.filter(cluster_name=get_cluster().name)
             .select_related("node")
             .order_by("strategy_score")
         )
+    except Exception:
+        if STRATEGY_ROUTER_CACHE is not None:
+            STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT = now + _router_cache_retry_backoff()
+            logger.warning(
+                "strategy router cache refresh failed, keep stale snapshot until %.3f",
+                STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT,
+                exc_info=True,
+            )
+            _report_router_refresh_fail()
+            return
+        raise
 
-    # 优先从缓存中获取
-    if STRATEGY_NODE_MAP.get(strategy_id):
-        return STRATEGY_NODE_MAP[strategy_id]
+    STRATEGY_ROUTER_CACHE = new_routers
+    STRATEGY_ROUTER_CACHE_AT = now
+    STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT = 0.0
+    _rebase_node_map(new_routers)
 
-    # 如果策略ID为0，则返回默认节点
+
+def _resolve_node(strategy_id: int, routers, node_map: dict):
+    from django.utils.translation import gettext as _
+
+    global DEFAULT_NODE
+
+    if strategy_id in node_map:
+        return node_map[strategy_id]
+
     if strategy_id == 0:
         if not DEFAULT_NODE:
             DEFAULT_NODE = CacheNode.default_node()
+        node_map[strategy_id] = DEFAULT_NODE
         return DEFAULT_NODE
 
-    # 根据策略ID获取对应的节点
-    for router in STRATEGY_ROUTER_CACHE:
-        if router.strategy_score > strategy_id:
-            STRATEGY_NODE_MAP[strategy_id] = router.node
-            return router.node
+    node = _lookup_node_in_routers(strategy_id, routers)
+    if node is None:
+        raise Exception(_("策略ID超过设置的默认上限"))
+    node_map[strategy_id] = node
+    return node
 
-    # 如果策略ID超过了设置的默认上限，则抛出异常
-    raise Exception(_("策略ID超过设置的默认上限"))
+
+def get_node_by_strategy_id(strategy_id: int):
+    pin = _get_routing_pin()
+    if pin is not None:
+        return _resolve_node(strategy_id, pin["routers"], pin["node_map"])
+
+    _refresh_strategy_router_cache()
+    return _resolve_node(strategy_id, STRATEGY_ROUTER_CACHE, STRATEGY_NODE_MAP)

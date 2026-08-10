@@ -29,18 +29,28 @@ import type { PropType } from 'vue';
 export enum EFieldType {
   // 全文检索输入框
   all = 'all',
+  // 布尔类型tag输入框
   boolean = 'boolean',
+  // 级联选择器
+  cascade = 'cascade',
+  // 日期类型 (TODO)
   date = 'date',
   // 是否为耗时组件
   duration = 'duration',
   // input输入框
   input = 'input',
+  // 数字类型tag输入框
   integer = 'integer',
+  // 字符串类型tag输入框
   keyword = 'keyword',
+  // 数字类型tag输入框
   long = 'long',
+  // 数字类型输入框
+  numberInput = 'number_input',
   // textarea 输入框
   text = 'text',
 }
+
 export enum EMethod {
   containsMatchPhrase = 'contains match phrase',
   eq = 'equal',
@@ -284,6 +294,25 @@ export const qsSelectorOptionsDescMap = {
   ],
 };
 
+/**
+ * 检索过滤已选条件 tag 的 value 展示格式化函数类型
+ * @param val 原始值
+ * @param params.isTips 是否为悬浮提示场景
+ * @param params.key 字段 id
+ * @param params.value 候选项（含 id / name）
+ */
+export type TTagValueDisplayFormatter = (
+  val: boolean | number | string,
+  params?: {
+    isTips: boolean;
+    key: string;
+    value: {
+      id: number | string;
+      name: number | string;
+    };
+  }
+) => JSX.Element | string;
+
 export const RETRIEVAL_FILTER_PROPS = {
   // 字段列表
   fields: {
@@ -431,6 +460,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Array as PropType<string[]>,
     default: () => [],
   },
+  // ui 模式下已选条件tag的value显示值格式化
+  tagValueDisplayFormatter: {
+    type: Function as PropType<TTagValueDisplayFormatter>,
+    default: (val, _fieldId) => `${val}`,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -496,6 +530,11 @@ export const UI_SELECTOR_PROPS = {
   noValueOfMethods: {
     type: Array as PropType<string[]>,
     default: () => [],
+  },
+  // ui 模式下已选条件tag的value显示值格式化
+  tagValueDisplayFormatter: {
+    type: Function as PropType<TTagValueDisplayFormatter>,
+    default: (val, _fieldId) => `${val}`,
   },
 };
 export const UI_SELECTOR_EMITS = {
@@ -794,6 +833,10 @@ export const QS_SELECTOR_OPTIONS_EMITS = {
   select: (_v: string) => true,
 } as const;
 export const KV_TAG_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFilterField>,
+    default: () => null,
+  },
   value: {
     type: Object as PropType<IFilterItem>,
     default: () => null,
@@ -805,6 +848,11 @@ export const KV_TAG_PROPS = {
   hasTagHidden: {
     type: Boolean,
     default: true,
+  },
+  // ui 模式下已选条件tag的value显示值格式化
+  tagValueDisplayFormatter: {
+    type: Function as PropType<TTagValueDisplayFormatter>,
+    default: (val, _fieldId) => `${val}`,
   },
 };
 export const KV_TAG_EMITS = {

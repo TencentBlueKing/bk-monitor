@@ -42,6 +42,7 @@ BkMonitorQuerySchema = Schema(
             DataSourceLabel.BK_FTA,
             DataSourceLabel.BK_LOG_SEARCH,
             DataSourceLabel.BK_APM,
+            DataSourceLabel.BK_RUM,
             DataSourceLabel.PROMETHEUS,
             DataSourceLabel.DASHBOARD,
         ),

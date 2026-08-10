@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
+
 from api.cmdb.define import Host, TopoNode
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.utils import time_tools
@@ -19,6 +21,8 @@ from core.drf_resource.base import Resource
 from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
 from monitor_web.constants import AGENT_STATUS
+
+logger = logging.getLogger(__name__)
 
 
 class HostPerformanceResource(CacheResource):
@@ -32,11 +36,26 @@ class HostPerformanceResource(CacheResource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
     @staticmethod
-    def get_process_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+    def get_process_status(
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+    ):
         """
         获取进程信息
+
+        注意：CMDB 进程基本信息（名称/端口/命令等）为当前快照，不支持历史查询；
+        start_time/end_time 仅作用于进程存活状态判定（system.proc_port 的 proc_exists 指标）。
+        选择历史时间后，进程列表仍反映当前 CMDB 数据，但进程启停状态与所选时间窗口一致。
         """
-        result = resource.cc.get_process_info(bk_biz_id=bk_biz_id, hosts=hosts)
+        result = resource.cc.get_process_info(
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+        )
         for bk_host_id in result:
             if bk_host_id not in data:
                 continue
@@ -46,6 +65,11 @@ class HostPerformanceResource(CacheResource):
                     "ports": process["ports"],
                     "protocol": process["protocol"],
                     "status": process["status"],
+                    "id": process.get("id"),
+                    "bindIp": process.get("bindIp"),
+                    "port": process.get("port"),
+                    "startCommand": process.get("startCommand"),
+                    "user": process.get("user"),
                 }
                 for process in result[bk_host_id]
             ]
@@ -342,46 +366,103 @@ class SearchHostMetricResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_host_ids = serializers.ListField(label="主机ID", child=serializers.IntegerField())
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束 TSDB 性能指标查询区间，
+        # 不传则保持默认"最近三分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
         # 主机场景，以关联资源身份请求
         def validate_bk_biz_id(self, value):
             return validate_bk_biz_id(value)
 
     @staticmethod
-    def get_agent_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+    def get_agent_status(
+        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+    ):
         """
         获取Agent状态
         """
-        agent_statuses = resource.cc.get_agent_status(bk_biz_id=bk_biz_id, hosts=hosts)
+        agent_statuses = resource.cc.get_agent_status(
+            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+        )
         for bk_host_id, status in agent_statuses.items():
             if bk_host_id not in data:
                 continue
             data[bk_host_id]["status"] = status
 
     @staticmethod
-    def get_performance_data(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+    def get_performance_data(
+        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+    ):
         """
         获取指标信息
         """
-        result = resource.cc.get_host_performance_data(bk_biz_id=bk_biz_id, hosts=hosts)
+        result = resource.cc.get_host_performance_data(
+            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+        )
         for bk_host_id, metrics in result.items():
             if bk_host_id not in data:
                 continue
             data[bk_host_id].update(metrics)
 
     @staticmethod
-    def get_process_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+    def get_process_status(
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+    ):
         """
         获取进程信息
+
+        注意：CMDB 进程基本信息（名称/端口/命令等）为当前快照，不支持历史查询；
+        start_time/end_time 仅作用于进程存活状态判定（system.proc_port 的 proc_exists 指标）。
+        选择历史时间后，进程列表仍反映当前 CMDB 数据，但进程启停状态与所选时间窗口一致。
         """
-        result = resource.cc.get_process_info(bk_biz_id=bk_biz_id, hosts=hosts)
+        result = resource.cc.get_process_info(
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+        )
         for bk_host_id in result:
             if bk_host_id not in data:
                 continue
 
             data[bk_host_id]["component"] = [
-                {"display_name": process["name"], "status": process["status"]} for process in result[bk_host_id]
+                {
+                    "display_name": process["name"],
+                    "status": process["status"],
+                    "id": process.get("id"),
+                    "bindIp": process.get("bindIp"),
+                    "port": process.get("port"),
+                    "startCommand": process.get("startCommand"),
+                    "user": process.get("user"),
+                }
+                for process in result[bk_host_id]
             ]
+
+    @staticmethod
+    def get_alarm_count(
+        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+    ):
+        """
+        获取告警信息
+        """
+        try:
+            result = resource.cc.get_host_alarm_count(
+                bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+            )
+            for bk_host_id in result:
+                if bk_host_id not in data:
+                    continue
+                data[bk_host_id]["alarm_count"] = sorted(
+                    [{"level": level, "count": count} for level, count in result[bk_host_id].items()],
+                    key=lambda x: x["level"],
+                )
+        except Exception:  # NOCC:broad-except(设计如此:)
+            logger.exception("get_alarm_count failed, bk_biz_id=%s", bk_biz_id)
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -395,6 +476,7 @@ class SearchHostMetricResource(Resource):
                 "mem_usage": None,
                 "psc_mem_usage": None,
                 "component": [],
+                "alarm_count": [],
             }
             for bk_host_id in params["bk_host_ids"]
         }
@@ -402,9 +484,22 @@ class SearchHostMetricResource(Resource):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=params["bk_host_ids"])
 
         pool = ThreadPool()
-        pool.apply_async(self.get_agent_status, args=(bk_biz_id, hosts, data))
-        pool.apply_async(self.get_performance_data, args=(bk_biz_id, hosts, data))
-        pool.apply_async(self.get_process_status, args=(bk_biz_id, hosts, data))
+        pool.apply_async(
+            self.get_agent_status,
+            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
+        )
+        pool.apply_async(
+            self.get_performance_data,
+            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
+        )
+        pool.apply_async(
+            self.get_process_status,
+            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
+        )
+        pool.apply_async(
+            self.get_alarm_count,
+            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
+        )
         pool.close()
         pool.join()
         return data

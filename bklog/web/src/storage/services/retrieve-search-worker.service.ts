@@ -4,6 +4,10 @@
  */
 import { storageHealthService } from './storage-health.service';
 import { workerManagerService } from './worker-manager.service';
+import {
+  createRetrieveSearchWorker,
+  getRetrieveSearchWorkerUrl,
+} from '../workers/create-retrieve-search-worker';
 import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
 import {
   categorizeIngestError,
@@ -101,12 +105,7 @@ class RetrieveSearchWorkerService {
   }
 
   getWorkerUrl() {
-    try {
-      return new URL('../workers/retrieve-search.worker.ts', import.meta.url).toString();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `resolve-worker-url-failed:${message}`;
-    }
+    return getRetrieveSearchWorkerUrl();
   }
 
   cancelActiveSearch() {
@@ -413,7 +412,7 @@ class RetrieveSearchWorkerService {
   }
 
   private createWorker() {
-    return new Worker(new URL('../workers/retrieve-search.worker.ts', import.meta.url));
+    return createRetrieveSearchWorker()
   }
 }
 

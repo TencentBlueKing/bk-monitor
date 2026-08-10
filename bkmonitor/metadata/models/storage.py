@@ -283,6 +283,89 @@ class ClusterInfo(models.Model):
                 ),
             )
 
+    def check_connectivity(self, timeout: int | None = None) -> dict[str, Any]:
+        """仅检查 ES/Doris 集群能否建立连接，不采集健康、节点或容量信息。"""
+
+        if timeout is None:
+            timeout = self.DEFAULT_CHECK_TIMEOUT
+        checker_name = {
+            self.TYPE_ES: "_check_es_connectivity",
+            self.TYPE_DORIS: "_check_doris_connectivity",
+        }.get(self.cluster_type)
+
+        if not checker_name:
+            return {
+                "is_connected": False,
+                "error": self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_UNSUPPORTED_CLUSTER_TYPE,
+                    message=f"暂不支持检查集群连通性: {self.cluster_type}",
+                    details={"cluster_type": self.cluster_type},
+                ),
+            }
+
+        try:
+            if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+                raise ValueError("timeout 必须是大于 0 的整数")
+            getattr(self, checker_name)(timeout=timeout)
+        except ValueError as error:
+            return {
+                "is_connected": False,
+                "error": self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_INVALID_CONFIG,
+                    message="集群连接配置不完整或不合法",
+                    details=self._format_check_exception(error),
+                ),
+            }
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception(
+                "ClusterInfo.check_connectivity failed, cluster_id->[%s], cluster_type->[%s]",
+                self.cluster_id,
+                self.cluster_type,
+            )
+            return {
+                "is_connected": False,
+                "error": self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_CONNECTION_FAILED,
+                    message="集群连接失败",
+                    details=self._format_check_exception(error),
+                ),
+            }
+        return {"is_connected": True, "error": None}
+
+    def _check_es_connectivity(self, timeout: int) -> None:
+        client = es_tools.get_client_by_datasource_info(
+            {
+                "port": self.port,
+                "schema": self.schema,
+                "version": self.version,
+                "domain_name": self.domain_name,
+                "is_ssl_verify": self.is_ssl_verify,
+                "auth_info": {"password": self.password, "username": self.username},
+            }
+        )
+        if not client.ping(params={"request_timeout": timeout}):
+            raise ConnectionError("Elasticsearch ping 失败")
+
+    def _check_doris_connectivity(self, timeout: int) -> None:
+        self._validate_check_endpoint()
+        connection = pymysql.connect(
+            host=self.domain_name,
+            port=int(self.port),
+            user=self.username or "",
+            password=self.password or "",
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=timeout,
+            read_timeout=timeout,
+            write_timeout=timeout,
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+        finally:
+            connection.close()
+
     def _build_cluster_check_result(
         self,
         status: str,
@@ -3366,7 +3449,7 @@ class ESStorage(models.Model, StorageResultTable):
         if not force_move:
             for index in last_indexes:
                 index_info = es_storage.get_index_info(index)
-                if index_info["status"] == "red":
+                if index_info.get("index_status") == "red":
                     print(f"索引->[{index}]状态为red，因此要强制进行写别名的移动")
                     force_move = True
                     break
@@ -6326,7 +6409,12 @@ class DorisStorage(models.Model, StorageResultTable):
         }
 
     def _query_doris_physical_metadata(
-        self, database: str, table: str, connection_config: dict[str, Any], timeout: int = 10
+        self,
+        database: str,
+        table: str,
+        connection_config: dict[str, Any],
+        timeout: int = 10,
+        include_create_table: bool = True,
     ) -> dict:
         connection = pymysql.connect(
             host=connection_config["host"],
@@ -6374,16 +6462,18 @@ class DorisStorage(models.Model, StorageResultTable):
                 )
                 partitions = cursor.fetchall()
 
-                quoted_table = ".".join([self._quote_doris_identifier(database), self._quote_doris_identifier(table)])
-                cursor.execute(f"SHOW CREATE TABLE {quoted_table}")
-                create_table = cursor.fetchall()
-
-                return {
+                result = {
                     "tables": tables,
                     "columns": columns,
                     "partitions": partitions,
-                    "show_create_table": create_table,
                 }
+                if include_create_table:
+                    quoted_table = ".".join(
+                        [self._quote_doris_identifier(database), self._quote_doris_identifier(table)]
+                    )
+                    cursor.execute(f"SHOW CREATE TABLE {quoted_table}")
+                    result["show_create_table"] = cursor.fetchall()
+                return result
         finally:
             connection.close()
 
@@ -6542,7 +6632,10 @@ class DorisStorage(models.Model, StorageResultTable):
         return result
 
     def query_physical_storage_metadata(
-        self, storage_cluster_id: int | None = None, timeout: int = 10
+        self,
+        storage_cluster_id: int | None = None,
+        timeout: int = 10,
+        include_create_table: bool = True,
     ) -> dict[str, Any]:
         """
         查询 DorisStorage 关联物理表的原始元信息。
@@ -6672,6 +6765,7 @@ class DorisStorage(models.Model, StorageResultTable):
                     table=physical_table["table"],
                     connection_config=connection_config,
                     timeout=timeout,
+                    include_create_table=include_create_table,
                 )
             except Exception as error:  # pylint: disable=broad-except
                 errors.append(

@@ -11,6 +11,14 @@ import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import NoIndexSet from '../result-comp/no-index-set';
 import LogResult from './log-result/index';
 
+const DEFAULT_FIELDS_WIDTH = 200;
+
+const props = defineProps({
+  activeTab: { type: String, default: '' },
+});
+const emit = defineEmits(['update:active-tab']);
+
+
 // #if MONITOR_APP !== 'trace'
 const SearchResultChart = defineAsyncComponent(() =>
   import(/* webpackChunkName: 'retrieve-search-result-chart' */ '../search-result-chart/index.tsx'),
@@ -34,13 +42,6 @@ const LogClustering = defineAsyncComponent(() =>
 // #else
 // #code const LogClustering = () => null;
 // #endif
-
-const DEFAULT_FIELDS_WIDTH = 200;
-
-const props = defineProps({
-  activeTab: { type: String, default: '' },
-});
-const emit = defineEmits(['update:active-tab']);
 
 const store = useStore();
 const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
@@ -236,50 +237,51 @@ const rightContentStyle = computed(() => {
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
-        <div
-          v-show="isOriginShow"
-          :class="[
-            'trend-chart-reserved',
-            RetrieveHelper.randomTrendGraphClassName,
-            { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
-          ]"
-          :style="{ height: `${heightNum}px` }"
-        >
-          <SearchResultChart
-            v-if="shouldRenderTrendChart"
-            @change-queue-res="changeQueueRes"
-            @change-total-count="changeTotalCount"
-            @toggle-change="handleToggleChange"
-            @trend-ready="handleTrendReady"
-          />
+        <template v-if="!__IS_MONITOR_TRACE__">
           <div
-            v-if="isTrendChartPending || !shouldRenderTrendChart"
-            class="trend-chart-skeleton"
-            aria-hidden="true"
+            v-show="isOriginShow"
+            :class="[
+              'trend-chart-reserved',
+              RetrieveHelper.randomTrendGraphClassName,
+              { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
+            ]"
+            :style="{ height: `${heightNum}px` }"
           >
-            <div class="trend-chart-skeleton-title">
-              <span class="trend-chart-skeleton-caret" />
-              <span class="trend-chart-skeleton-title-line" />
-              <span class="trend-chart-skeleton-meta-line" />
-            </div>
+            <SearchResultChart
+              v-if="shouldRenderTrendChart"
+              @change-queue-res="changeQueueRes"
+              @change-total-count="changeTotalCount"
+              @toggle-change="handleToggleChange"
+              @trend-ready="handleTrendReady"
+            />
             <div
-              v-if="isTrendChartShow"
-              class="trend-chart-skeleton-body"
+              v-if="isTrendChartPending || !shouldRenderTrendChart"
+              class="trend-chart-skeleton"
+              aria-hidden="true"
             >
-              <span
-                v-for="index in 36"
-                :key="index"
-                class="trend-chart-skeleton-bar"
-                :style="{ height: `${24 + ((index * 17) % 78)}px` }"
-              />
+              <div class="trend-chart-skeleton-title">
+                <span class="trend-chart-skeleton-caret" />
+                <span class="trend-chart-skeleton-title-line" />
+                <span class="trend-chart-skeleton-meta-line" />
+              </div>
+              <div
+                v-if="isTrendChartShow"
+                class="trend-chart-skeleton-body"
+              >
+                <span
+                  v-for="index in 36"
+                  :key="index"
+                  class="trend-chart-skeleton-bar"
+                  :style="{ height: `${24 + ((index * 17) % 78)}px` }"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          v-show="isOriginShow"
-          class="split-line"
-        />
-
+          <div
+            v-show="isOriginShow"
+            class="split-line"
+          />
+        </template>
         <keep-alive>
           <LogResult
             v-if="isOriginShow"

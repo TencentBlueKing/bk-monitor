@@ -22,6 +22,7 @@ from functools import wraps
 from iam import Resource
 from rest_framework import permissions
 
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from core.errors.iam import PermissionDeniedError
 
 from . import Permission
@@ -78,6 +79,8 @@ class BusinessActionPermission(IAMPermission):
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
+        if not is_biz_in_tenant(request.biz_id, getattr(request.user, "tenant_id", None)):
+            return False
         self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
         return super().has_permission(request, view)
 
@@ -87,6 +90,8 @@ class BusinessActionPermission(IAMPermission):
         if hasattr(obj, "bk_biz_id"):
             bk_biz_id = obj.bk_biz_id
         if bk_biz_id:
+            if not is_biz_in_tenant(bk_biz_id, getattr(request.user, "tenant_id", None)):
+                return False
             self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
             return super().has_object_permission(request, view, obj)
         # 没有就尝试取请求的业务ID

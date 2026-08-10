@@ -72,26 +72,27 @@ export function useAlarmTable() {
       ordering: ordering.value ? [ordering.value] : [],
     };
     const res = await alarmStore.alarmService.getFilterTableList(params, { signal });
-    // 获取告警关联事件数 和 关联告警信息
-    await alarmStore.alarmService
-      .getAlterRelevance(res.data as (ActionTableItem | AlertTableItem | IncidentTableItem)[], { signal })
-      .then(result => {
-        if (!result) return;
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        const { event_count, extend_info } = result;
-        for (const item of res.data as AlertTableItem[]) {
-          item.event_count = event_count?.[item.id];
-          item.extend_info = extend_info?.[item.id];
-          item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
-        }
-      });
     // 检查请求是否已被中止，确保不会更新过期数据
     if (signal.aborted) return;
+    for (const item of res.data as AlertTableItem[]) {
+      item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
+    }
     total.value = res.total;
     data.value = res.data;
     enabledSpaces.value = (res.enabled_spaces ?? []).map(Number);
     wxCsLink.value = res.wx_cs_link ?? '';
     loading.value = false;
+    const currentData = data.value as (ActionTableItem | AlertTableItem | IncidentTableItem)[];
+    // 获取告警关联事件数和关联告警信息，异步回填且不阻塞列表展示
+    void alarmStore.alarmService.getAlterRelevance(currentData, { signal }).then(result => {
+      if (!result || signal.aborted) return;
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const { event_count, extend_info } = result;
+      for (const item of currentData as AlertTableItem[]) {
+        item.event_count = event_count?.[item.id];
+        item.extend_info = extend_info?.[item.id];
+      }
+    });
   };
 
   // 由于在 setup(create) | BeforeMount 时机可能需要获取路由参数对变量进行初始化

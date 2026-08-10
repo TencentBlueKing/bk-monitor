@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -40,6 +40,11 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 空状态类型 */
+    type: {
+      type: String as PropType<'empty' | 'search-empty'>,
+      default: 'search-empty',
+    },
   },
   emits: {
     dataSourceConfigClick: () => true,
@@ -54,49 +59,51 @@ export default defineComponent({
       <EmptyStatus
         class='explore-table-empty'
         showOperation={this.showOperation}
-        type='search-empty'
+        type={this.type}
       >
-        <div class='search-empty-content'>
-          <div class='tips'>
-            <span>{this.t('请调整关键字')}</span>&nbsp;
-            <span>{this.t('或')}</span>&nbsp;
-            <span
-              class='link'
-              onClick={() => this.$emit('clearFilter')}
+        {this.type === 'search-empty' && (
+          <div class='search-empty-content'>
+            <div class='tips'>
+              <span>{this.t('请调整关键字')}</span>&nbsp;
+              <span>{this.t('或')}</span>&nbsp;
+              <span
+                class='link'
+                onClick={() => this.$emit('clearFilter')}
+              >
+                {this.t('清空检索条件')}
+              </span>
+            </div>
+            {/* <div class='tips'>{this.t('您可以按照以下方式优化检索结果')}</div>
+            <div class='description'>
+              1. {this.t('检查')}
+              <span
+                class='link'
+                onClick={() => this.$emit('dataSourceConfigClick')}
+              >
+                {this.t('数据源配置')}
+              </span>
+              {this.t('情况')}
+            </div>
+            <div class='description'>2. {this.t('检查右上角的时间范围')}</div>
+            <div class='description'>3. {this.t('是否启用了采样，采样不保证全量数据')}</div>
+            <div class='description'>
+              4. {this.t('优化查询语句')}
+              <div class='sub-description'>{`${this.t('带字段全文检索更高效')}：log:abc`}</div>
+              <div class='sub-description'>{`${this.t('模糊检索使用通配符')}：log:abc* ${this.t('或')} log:ab?c`}</div>
+              <div class='sub-description'>{`${this.t('双引号匹配完整字符串')}: log:"ERROR MSG"`}</div>
+              <div class='sub-description'>{`${this.t('数值字段范围匹配')}: count:[1 TO 5]`}</div>
+              <div class='sub-description'>{`${this.t('正则匹配')}：name:/joh?n(ath[oa]n/`}</div>
+              <div class='sub-description'>{`${this.t('组合检索注意大写')}：log: (error OR info)`}</div>
+            </div>
+            <div
+              style='margin-top: 8px'
+              class='description link'
             >
-              {this.t('清空检索条件')}
-            </span>
+              {this.t('查看更多语法规则')}
+              <span class='icon-monitor icon-fenxiang' />
+            </div> */}
           </div>
-          {/* <div class='tips'>{this.t('您可以按照以下方式优化检索结果')}</div>
-          <div class='description'>
-            1. {this.t('检查')}
-            <span
-              class='link'
-              onClick={() => this.$emit('dataSourceConfigClick')}
-            >
-              {this.t('数据源配置')}
-            </span>
-            {this.t('情况')}
-          </div>
-          <div class='description'>2. {this.t('检查右上角的时间范围')}</div>
-          <div class='description'>3. {this.t('是否启用了采样，采样不保证全量数据')}</div>
-          <div class='description'>
-            4. {this.t('优化查询语句')}
-            <div class='sub-description'>{`${this.t('带字段全文检索更高效')}：log:abc`}</div>
-            <div class='sub-description'>{`${this.t('模糊检索使用通配符')}：log:abc* ${this.t('或')} log:ab?c`}</div>
-            <div class='sub-description'>{`${this.t('双引号匹配完整字符串')}: log:"ERROR MSG"`}</div>
-            <div class='sub-description'>{`${this.t('数值字段范围匹配')}: count:[1 TO 5]`}</div>
-            <div class='sub-description'>{`${this.t('正则匹配')}：name:/joh?n(ath[oa]n/`}</div>
-            <div class='sub-description'>{`${this.t('组合检索注意大写')}：log: (error OR info)`}</div>
-          </div>
-          <div
-            style='margin-top: 8px'
-            class='description link'
-          >
-            {this.t('查看更多语法规则')}
-            <span class='icon-monitor icon-fenxiang' />
-          </div> */}
-        </div>
+        )}
       </EmptyStatus>
     );
   },
