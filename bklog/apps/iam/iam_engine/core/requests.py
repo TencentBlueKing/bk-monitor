@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Protocol
@@ -8,6 +8,14 @@ from typing import Any, Protocol
 
 class IdentifiedDefinition(Protocol):
     id: str
+
+
+class ResourceTypeDefinition(IdentifiedDefinition, Protocol):
+    system_id: str
+
+
+class ActionDefinition(IdentifiedDefinition, Protocol):
+    related_resource_types: Sequence[ResourceTypeDefinition]
 
 
 DefinitionRef = IdentifiedDefinition | str
