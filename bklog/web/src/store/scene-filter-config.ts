@@ -121,6 +121,13 @@ export const getDefaultOp = (ops: string[] | undefined): string => {
   return ops?.[0] ?? 'eq';
 };
 
+/** 字段联想请求需携带 table_id_conditions / start_time / end_time 的场景白名单 */
+export const TABLE_ID_CONDITION_SCENES: SceneType[] = [
+  SceneType.Host,
+  SceneType.PaaS,
+  SceneType.Service,
+];
+
 export const getAllSceneFieldOpKeys = (sceneConfigs: SceneConfig[]): string[] => {
   const keys = new Set<string>();
   (sceneConfigs ?? []).forEach(scene => scene.fields.forEach((field) => {
