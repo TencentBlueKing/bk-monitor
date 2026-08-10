@@ -12,7 +12,7 @@ from enum import Enum
 
 from django.utils.translation import gettext_lazy as _
 
-from bkmonitor.data_source.constants import OperatorEnum, OPERATORS  # noqa
+from bkmonitor.data_source.constants import OperatorEnum, OTEL_FIELD_OPERATIONS as OPERATORS  # noqa
 
 
 class EnabledStatisticsDimension(Enum):
