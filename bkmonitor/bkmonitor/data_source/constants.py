@@ -122,14 +122,14 @@ class FieldTypeEnum(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
         return [
-            (cls.KEYWORD.value, cls.KEYWORD.value),
-            (cls.TEXT.value, cls.TEXT.value),
-            (cls.INTEGER.value, cls.INTEGER.value),
-            (cls.LONG.value, cls.LONG.value),
-            (cls.DOUBLE.value, cls.DOUBLE.value),
-            (cls.DATE.value, cls.DATE.value),
-            (cls.BOOLEAN.value, cls.BOOLEAN.value),
-            (cls.CONFLICT.value, cls.CONFLICT.value),
+            (cls.KEYWORD.value, cls.KEYWORD.label),
+            (cls.TEXT.value, cls.TEXT.label),
+            (cls.INTEGER.value, cls.INTEGER.label),
+            (cls.LONG.value, cls.LONG.label),
+            (cls.DOUBLE.value, cls.DOUBLE.label),
+            (cls.DATE.value, cls.DATE.label),
+            (cls.BOOLEAN.value, cls.BOOLEAN.label),
+            (cls.CONFLICT.value, cls.CONFLICT.label),
         ]
 
 

@@ -379,7 +379,7 @@ class BaseQuery:
         }
 
     @classmethod
-    def resolve_field_alias(cls, field_name):
+    def resolve_field_alias(cls, field_name: str) -> str:
         for mapping in reversed(cls.FIELD_ALIAS_MAP_LIST):
             if field_name in mapping:
                 return mapping[field_name]
