@@ -28,7 +28,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from bkmonitor.action.alert_assign import AssignRuleMatch
+from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
@@ -370,16 +370,44 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return next(iter(search_result), None)
 
     @staticmethod
+    def get_alert_cmdb_attributes(alert: AlertDocument) -> dict | None:
+        """通过公共 CMDB API 加载匹配需要的主机、集群和模块属性。"""
+
+        event = alert.event
+        bk_biz_id = event.bk_biz_id
+        bk_host_id = getattr(event, "bk_host_id", None)
+        if bk_host_id:
+            hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[bk_host_id])
+        else:
+            ip = getattr(event, "ip", None)
+            if not ip:
+                return None
+            host_query = {"ip": ip}
+            bk_cloud_id = getattr(event, "bk_cloud_id", None)
+            if bk_cloud_id is not None:
+                host_query["bk_cloud_id"] = bk_cloud_id
+            hosts = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=[host_query])
+
+        if not hosts:
+            return None
+
+        host = hosts[0]
+        sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(host.bk_set_ids)) if host.bk_set_ids else []
+        modules = (
+            api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=list(host.bk_module_ids))
+            if host.bk_module_ids
+            else []
+        )
+        return {"host": host, "sets": sets, "modules": modules}
+
+    @staticmethod
     def get_alert_match_dimensions(alert: AlertDocument) -> dict:
         """沿用后台告警分派的 CMDB 补全及运行时维度构造口径。"""
 
-        # alarm_backends.service 顶层会初始化调度器与 Redis；延迟到真实触发时加载，
-        # 避免 Resource 模块导入阶段启动后台服务，同时仍复用线上分派的完整匹配器。
-        from alarm_backends.service.fta_action.tasks.alert_assign import BackendAssignMatchManager
-
-        manager = BackendAssignMatchManager(
+        manager = AlertAssignMatchManager(
             alert,
             notice_users=list(getattr(alert, "assignee", []) or []),
+            cmdb_attrs=SourceAnalysisExecutionBaseResource.get_alert_cmdb_attributes(alert),
         )
         return manager.dimensions
 

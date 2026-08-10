@@ -71,6 +71,72 @@ class TestSourceAnalysisInitialTrigger(TestCase):
     def alert() -> SimpleNamespace:
         return SimpleNamespace(id=TestSourceAnalysisInitialTrigger.ALERT_ID, assignee=[])
 
+    @patch("fta_web.issue.resources.api.cmdb.get_module")
+    @patch("fta_web.issue.resources.api.cmdb.get_set")
+    @patch("fta_web.issue.resources.api.cmdb.get_host_by_ip")
+    @patch("fta_web.issue.resources.api.cmdb.get_host_by_id")
+    def test_alert_cmdb_attributes_query_by_host_id(self, get_host_by_id, get_host_by_ip, get_set, get_module):
+        host = SimpleNamespace(bk_set_ids=[20], bk_module_ids=[30])
+        alert = SimpleNamespace(
+            event=SimpleNamespace(
+                bk_biz_id=self.BK_BIZ_ID,
+                bk_host_id=10,
+                ip="127.0.0.1",
+                bk_cloud_id=0,
+            )
+        )
+        get_host_by_id.return_value = [host]
+        get_set.return_value = ["set"]
+        get_module.return_value = ["module"]
+
+        attributes = SourceAnalysisExecutionBaseResource.get_alert_cmdb_attributes(alert)
+
+        self.assertEqual(attributes, {"host": host, "sets": ["set"], "modules": ["module"]})
+        get_host_by_id.assert_called_once_with(bk_biz_id=self.BK_BIZ_ID, bk_host_ids=[10])
+        get_host_by_ip.assert_not_called()
+        get_set.assert_called_once_with(bk_biz_id=self.BK_BIZ_ID, bk_set_ids=[20])
+        get_module.assert_called_once_with(bk_biz_id=self.BK_BIZ_ID, bk_module_ids=[30])
+
+    @patch("fta_web.issue.resources.api.cmdb.get_module")
+    @patch("fta_web.issue.resources.api.cmdb.get_set")
+    @patch("fta_web.issue.resources.api.cmdb.get_host_by_ip")
+    @patch("fta_web.issue.resources.api.cmdb.get_host_by_id")
+    def test_alert_cmdb_attributes_fall_back_to_ip(self, get_host_by_id, get_host_by_ip, get_set, get_module):
+        alert = SimpleNamespace(
+            event=SimpleNamespace(
+                bk_biz_id=self.BK_BIZ_ID,
+                bk_host_id=None,
+                ip="127.0.0.1",
+                bk_cloud_id=0,
+            )
+        )
+        get_host_by_ip.return_value = []
+
+        attributes = SourceAnalysisExecutionBaseResource.get_alert_cmdb_attributes(alert)
+
+        self.assertIsNone(attributes)
+        get_host_by_id.assert_not_called()
+        get_host_by_ip.assert_called_once_with(
+            bk_biz_id=self.BK_BIZ_ID,
+            ips=[{"ip": "127.0.0.1", "bk_cloud_id": 0}],
+        )
+        get_set.assert_not_called()
+        get_module.assert_not_called()
+
+    @patch("fta_web.issue.resources.AlertAssignMatchManager")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_cmdb_attributes")
+    def test_alert_match_dimensions_use_common_manager(self, get_cmdb_attributes, manager_class):
+        alert = self.alert()
+        cmdb_attributes = {"host": object(), "sets": [], "modules": []}
+        get_cmdb_attributes.return_value = cmdb_attributes
+        manager_class.return_value.dimensions = {"alert.strategy_id": "100"}
+
+        dimensions = SourceAnalysisExecutionBaseResource.get_alert_match_dimensions(alert)
+
+        self.assertEqual(dimensions, {"alert.strategy_id": "100"})
+        get_cmdb_attributes.assert_called_once_with(alert)
+        manager_class.assert_called_once_with(alert, notice_users=[], cmdb_attrs=cmdb_attributes)
+
     @patch("fta_web.issue.resources.AlertQueryHandler")
     @patch("fta_web.issue.resources.IssueDocument.get_issue_or_raise")
     def test_latest_alert_query_uses_latest_ordering(self, get_issue_or_raise, handler_class):
