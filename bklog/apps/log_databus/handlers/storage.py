@@ -72,7 +72,6 @@ from apps.log_esquery.utils.es_client import (
 )
 from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_search.models import BizProperty, Scenario
-from apps.utils.cache import cache_five_minute
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -83,6 +82,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 import builtins
 
 CACHE_EXPIRE_TIME = 300
+METADATA_CLUSTER_STATUS_BATCH_SIZE = 20
 
 
 class StorageHandler:
@@ -1235,74 +1235,81 @@ class StorageHandler:
         :param cluster_list:
         :return:
         """
-        multi_execute_func = MultiExecuteFunc()
-        for _cluster_id in cluster_list:
-            multi_execute_func.append(
-                _cluster_id, cls._get_cluster_status_and_stats, {"cluster_id": _cluster_id, "bk_biz_id": bk_biz_id}
-            )
-
-        multi_execute_func.append(
-            "doris_cluster_infos", TransferApi.get_cluster_info, {"cluster_type": DORIS_CLUSTER_TYPE}
-        )
-
-        result = multi_execute_func.run()
-
-        doris_cluster_infos = result.pop("doris_cluster_infos", [])
-
-        doris_ids = {
-            info.get("cluster_config", {}).get("cluster_id")
-            for info in doris_cluster_infos
-            if info.get("cluster_config", {}).get("cluster_id")
-        }
-
-        # 取交集
-        doris_ids = doris_ids & set(result.keys())
-
-        # doris 集群连接状态默认为 True
-        for doris_id in doris_ids:
-            result[doris_id] = {"status": True, "cluster_stats": None}
-
+        result = {}
+        for start in range(0, len(cluster_list), METADATA_CLUSTER_STATUS_BATCH_SIZE):
+            cluster_ids = cluster_list[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
+            statuses = TransferApi.get_cluster_status({"cluster_ids": cluster_ids})
+            for status in statuses:
+                cluster_id = status.get("cluster_id")
+                if cluster_id is None:
+                    continue
+                result[cluster_id] = cls._build_cluster_status(status)
         return result
 
     @staticmethod
-    def _get_cluster_status_and_stats(params):
-        @cache_five_minute("connect_info_{cluster_id}")
-        def _cache_status_and_stats(*, cluster_id, bk_biz_id):
-            cluster_stats_info = None
-            _status = False
-            try:
-                _status = BkLogApi.connectivity_detect(
-                    params={"bk_biz_id": bk_biz_id, "cluster_id": cluster_id, "default_auth": True},
-                )
-                cluster_stats = EsRoute(
-                    scenario_id=Scenario.ES, storage_cluster_id=cluster_id, raise_exception=False
-                ).cluster_stats()
-                if cluster_stats:
-                    cluster_stats_info = StorageHandler._build_cluster_stats(cluster_stats)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(f"[storage] get cluster status failed => [{e}]")
-            # connectivity_detect连通性正常返回的事[True, Version], 失败的时候返回的是False
-            if isinstance(_status, list):
-                _status = _status[0]
-            return {"status": _status, "cluster_stats": cluster_stats_info}
+    def _build_cluster_status(status):
+        if status.get("cluster_type") != STORAGE_CLUSTER_TYPE:
+            return {"status": bool(status.get("is_available")), "cluster_stats": None}
 
-        cluster_id = params.get("cluster_id")
-        bk_biz_id = params.get("bk_biz_id")
-        return _cache_status_and_stats(cluster_id=cluster_id, bk_biz_id=bk_biz_id)
+        details = status.get("details") or {}
+        nodes = status.get("nodes") or {}
+        capacity = status.get("capacity") or {}
+        shard_values = [
+            details.get("active_shards"),
+            details.get("initializing_shards"),
+            details.get("unassigned_shards"),
+        ]
+        shards_total = sum(value for value in shard_values if value is not None) if any(
+            value is not None for value in shard_values
+        ) else None
+        return {
+            "status": bool(status.get("is_available")),
+            "cluster_stats": {
+                "node_count": details.get("number_of_nodes"),
+                "shards_total": shards_total,
+                "shards_pri": None,
+                "data_node_count": nodes.get("total"),
+                "indices_count": None,
+                "indices_docs_count": None,
+                "indices_store": details.get("indices_store_bytes"),
+                "total_store": capacity.get("total_bytes"),
+                "status": details.get("health_status"),
+            },
+        }
+
+    @classmethod
+    def get_result_table_indices(cls, table_id):
+        storage_status = TransferApi.get_result_table_storage_status({"table_ids": [table_id]})
+        item = next(
+            (item for item in storage_status.get("items", []) if item.get("table_id") == table_id),
+            None,
+        )
+        if not item or item.get("error"):
+            logger.error("[storage] get result table storage status failed, table_id=%s, item=%s", table_id, item)
+            return []
+
+        data = item.get("data") or {}
+        es_storage = (data.get("storage_configs") or {}).get(STORAGE_CLUSTER_TYPE) or {}
+        cluster_id = es_storage.get("storage_cluster_id")
+        cluster_results = data.get("cluster_results") or {}
+        cluster_status = cluster_results.get(str(cluster_id)) or cluster_results.get(cluster_id) or {}
+        runtime = cluster_status.get("runtime") or {}
+        indices = (runtime.get("indices") or {}).get("items") or []
+        return cls.sort_indices([cls._build_result_table_index(index) for index in indices])
 
     @staticmethod
-    def _build_cluster_stats(cluster_stats):
-        nodes_count = cluster_stats["nodes"]["count"]
+    def _build_result_table_index(index):
         return {
-            "node_count": cluster_stats["nodes"]["count"]["total"],
-            "shards_total": cluster_stats["indices"]["shards"].get("total", 0),
-            "shards_pri": cluster_stats["indices"]["shards"].get("primaries", 0),
-            "data_node_count": nodes_count.get("data_hot") or nodes_count.get("data_content") or nodes_count["data"],
-            "indices_count": cluster_stats["indices"]["count"],
-            "indices_docs_count": cluster_stats["indices"]["docs"]["count"],
-            "indices_store": cluster_stats["indices"]["store"]["size_in_bytes"],
-            "total_store": cluster_stats["nodes"]["fs"]["total_in_bytes"],
-            "status": cluster_stats["status"],
+            "index": index.get("index"),
+            "uuid": index.get("uuid"),
+            "health": index.get("health"),
+            "status": index.get("status"),
+            "pri": index.get("primary_shards"),
+            "rep": index.get("replica_factor"),
+            "docs.count": index.get("docs_count"),
+            "docs.deleted": index.get("docs_deleted"),
+            "store.size": index.get("store_size_bytes"),
+            "pri.store.size": index.get("primary_store_size_bytes"),
         }
 
     def _send_detective(

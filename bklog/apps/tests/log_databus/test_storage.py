@@ -294,3 +294,151 @@ class TestDorisVisibleConfigSerializer(TestCase):
             data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "all_biz"}}
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class TestMetadataStorageStatus(TestCase):
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_adapts_metadata_fields_and_sorts(self, mock_get_storage_status):
+        table_id = "2_bklog.test"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": {
+                        "storage_configs": {"elasticsearch": {"storage_cluster_id": 7}},
+                        "cluster_results": {
+                            "7": {
+                                "runtime": {
+                                    "indices": {
+                                        "items": [
+                                            {
+                                                "index": "2_bklog_test_20260809_0",
+                                                "uuid": "old",
+                                                "health": "yellow",
+                                                "status": "open",
+                                                "docs_count": 10,
+                                                "docs_deleted": 1,
+                                                "store_size_bytes": 1024,
+                                                "primary_store_size_bytes": 512,
+                                                "primary_shards": 2,
+                                                "replica_factor": 1,
+                                            },
+                                            {
+                                                "index": "2_bklog_test_20260810_0",
+                                                "uuid": "new",
+                                                "health": "green",
+                                                "status": "open",
+                                                "docs_count": 20,
+                                                "docs_deleted": 2,
+                                                "store_size_bytes": 2048,
+                                                "primary_store_size_bytes": 1024,
+                                                "primary_shards": 3,
+                                                "replica_factor": 2,
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                    },
+                    "error": None,
+                }
+            ]
+        }
+
+        result = StorageHandler.get_result_table_indices(table_id)
+
+        self.assertEqual([item["uuid"] for item in result], ["new", "old"])
+        self.assertEqual(
+            result[0],
+            {
+                "index": "2_bklog_test_20260810_0",
+                "uuid": "new",
+                "health": "green",
+                "status": "open",
+                "pri": 3,
+                "rep": 2,
+                "docs.count": 20,
+                "docs.deleted": 2,
+                "store.size": 2048,
+                "pri.store.size": 1024,
+            },
+        )
+        mock_get_storage_status.assert_called_once_with({"table_ids": [table_id]})
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_returns_empty_for_item_error(self, mock_get_storage_status):
+        table_id = "2_bklog.test"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": None,
+                    "error": {"code": "RESULT_TABLE_NOT_FOUND", "message": "not found"},
+                }
+            ]
+        }
+
+        self.assertEqual(StorageHandler.get_result_table_indices(table_id), [])
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    def test_batch_connectivity_detect_adapts_status_and_batches_twenty_ids(self, mock_get_cluster_status):
+        def get_cluster_status(params):
+            return [
+                {
+                    "cluster_id": cluster_id,
+                    "cluster_type": "elasticsearch",
+                    "is_available": True,
+                    "nodes": {"total": 2, "available": 2},
+                    "capacity": {"total_bytes": 1000},
+                    "details": {
+                        "health_status": "yellow",
+                        "number_of_nodes": 3,
+                        "active_shards": 10,
+                        "initializing_shards": 1,
+                        "unassigned_shards": 2,
+                        "indices_store_bytes": 800,
+                    },
+                }
+                for cluster_id in params["cluster_ids"]
+            ]
+
+        mock_get_cluster_status.side_effect = get_cluster_status
+
+        result = StorageHandler.batch_connectivity_detect(list(range(1, 23)), bk_biz_id=2)
+
+        self.assertEqual(mock_get_cluster_status.call_count, 2)
+        self.assertEqual(mock_get_cluster_status.call_args_list[0].args[0]["cluster_ids"], list(range(1, 21)))
+        self.assertEqual(mock_get_cluster_status.call_args_list[1].args[0]["cluster_ids"], [21, 22])
+        self.assertTrue(result[1]["status"])
+        self.assertEqual(
+            result[1]["cluster_stats"],
+            {
+                "node_count": 3,
+                "shards_total": 13,
+                "shards_pri": None,
+                "data_node_count": 2,
+                "indices_count": None,
+                "indices_docs_count": None,
+                "indices_store": 800,
+                "total_store": 1000,
+                "status": "yellow",
+            },
+        )
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    def test_batch_connectivity_detect_uses_metadata_doris_status(self, mock_get_cluster_status):
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 8,
+                "cluster_type": DORIS_CLUSTER_TYPE,
+                "is_available": False,
+                "nodes": {"total": 2, "available": 0},
+                "capacity": {"total_bytes": 1000},
+                "details": {},
+            }
+        ]
+
+        result = StorageHandler.batch_connectivity_detect([8], bk_biz_id=2)
+
+        self.assertEqual(result[8], {"status": False, "cluster_stats": None})
