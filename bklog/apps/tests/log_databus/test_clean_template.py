@@ -34,7 +34,7 @@ from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CleanTemplate, CollectorConfig
 from apps.log_databus.views.clean_views import CleanTemplateViewSet
-from apps.log_search.models import Space
+from apps.log_search.models import LogIndexSet, Space
 
 
 CREATE_PARAMS = {
@@ -170,19 +170,22 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertEqual(updated["config_version"], 2)
         self.assertEqual(updated["bk_biz_id"], 706)
 
-    def test_list_collectors_marks_only_active_outdated_collectors(self):
+    def test_list_collectors_returns_active_collectors_with_index_set(self):
         template = self.create_template()
         template_id = template["clean_template_id"]
-        outdated = self.create_collector(
-            collector_config_name="outdated",
+        index_set = LogIndexSet.objects.create(
+            index_set_name="collector-index-set",
+            space_uid="bkcc__706",
+            scenario_id="log",
+        )
+        collector = self.create_collector(
+            collector_config_name="with-index-set",
             clean_template_id=template_id,
-            clean_template_version=None,
+            index_set_id=index_set.index_set_id,
         )
         self.create_collector(
-            collector_config_name="current",
+            collector_config_name="without-index-set",
             clean_template_id=template_id,
-            clean_template_version=1,
-            clean_template_sync_status=CleanTemplateSyncStatus.SUCCESS.value,
         )
         self.create_collector(
             collector_config_name="inactive",
@@ -192,11 +195,16 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
 
         result = CleanTemplateHandler(template_id).list_collectors()
 
-        self.assertEqual([item["collector_config_name"] for item in result], ["outdated", "current"])
-        self.assertEqual(result[0]["collector_config_id"], outdated.collector_config_id)
-        self.assertTrue(result[0]["is_outdated"])
-        self.assertFalse(result[1]["is_outdated"])
-        self.assertEqual(result[0]["bk_biz_name"], "test")
+        self.assertEqual(
+            [item["collector_config_name"] for item in result],
+            ["with-index-set", "without-index-set"],
+        )
+        self.assertEqual(result[0]["collector_config_id"], collector.collector_config_id)
+        self.assertEqual(result[0]["index_set_id"], index_set.index_set_id)
+        self.assertEqual(result[0]["index_set_name"], "collector-index-set")
+        self.assertIsNone(result[1]["index_set_id"])
+        self.assertIsNone(result[1]["index_set_name"])
+        self.assertNotIn("bk_biz_name", result[0])
 
 
 class TestCleanTemplateSync(CleanTemplateTestCase):

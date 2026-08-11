@@ -345,11 +345,6 @@ class CleanTemplateSyncingException(BaseCollectorConfigException):
     MESSAGE = _("清洗模板{clean_template_id}正在同步，请稍后重试")
 
 
-class CleanTemplateCollectorOperatingException(BaseCollectorConfigException):
-    ERROR_CODE = "707"
-    MESSAGE = _("采集项{collector_config_id}正在执行清洗模板相关操作，请稍后重试")
-
-
 class ArchiveNotFound(BaseCollectorConfigException):
     ERROR_CODE = "800"
     MESSAGE = _("归档配置不存在")

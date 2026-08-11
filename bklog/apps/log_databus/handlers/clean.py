@@ -38,7 +38,7 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import BKDataClean, CleanTemplate, CollectorConfig
 from apps.log_databus.tasks.bkdata import sync_clean
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
-from apps.log_search.models import Space
+from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
 from apps.utils.lock import RedisLock
 from apps.utils.log import logger
@@ -259,28 +259,24 @@ class CleanTemplateHandler:
                 "collector_config_id",
                 "collector_config_name",
                 "bk_biz_id",
-                "clean_template_version",
-                "clean_template_sync_status",
-                "clean_template_sync_at",
-                "clean_template_sync_message",
+                "index_set_id",
             )
             .order_by("collector_config_id")
         )
-        space_names = dict(
-            Space.objects.filter(bk_biz_id__in={collector["bk_biz_id"] for collector in collectors}).values_list(
-                "bk_biz_id", "space_name"
+        index_set_names = dict(
+            LogIndexSet.objects.filter(
+                index_set_id__in={
+                    collector["index_set_id"] for collector in collectors if collector["index_set_id"] is not None
+                }
+            ).values_list(
+                "index_set_id",
+                "index_set_name",
             )
         )
         return [
             {
                 **collector,
-                "bk_biz_name": space_names.get(collector["bk_biz_id"], str(collector["bk_biz_id"])),
-                "clean_template_config_version": self.data.config_version,
-                "is_outdated": (
-                    collector["clean_template_sync_status"] == CleanTemplateSyncStatus.FAILED.value
-                    or collector["clean_template_version"] is None
-                    or collector["clean_template_version"] < self.data.config_version
-                ),
+                "index_set_name": index_set_names.get(collector["index_set_id"]),
             }
             for collector in collectors
         ]

@@ -596,13 +596,8 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiSuccess {Int} collector_config_id 采集项ID
         @apiSuccess {String} collector_config_name 采集项名称
         @apiSuccess {Int} bk_biz_id 业务ID
-        @apiSuccess {String} bk_biz_name 业务名称
-        @apiSuccess {Int} clean_template_config_version 模板当前配置版本
-        @apiSuccess {Int} clean_template_version 采集项已应用的模板版本
-        @apiSuccess {String} clean_template_sync_status 最近一次同步状态
-        @apiSuccess {String} clean_template_sync_at 最近一次同步完成时间
-        @apiSuccess {String} clean_template_sync_message 最近一次同步信息
-        @apiSuccess {Boolean} is_outdated 是否待同步
+        @apiSuccess {Int/Null} index_set_id 索引集ID
+        @apiSuccess {String/Null} index_set_name 索引集名称
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -612,13 +607,8 @@ class CleanTemplateViewSet(ModelViewSet):
                     "collector_config_id": 1,
                     "collector_config_name": "collector_name",
                     "bk_biz_id": 2,
-                    "bk_biz_name": "business_name",
-                    "clean_template_config_version": 2,
-                    "clean_template_version": 1,
-                    "clean_template_sync_status": "SUCCESS",
-                    "clean_template_sync_at": "2026-07-30T10:00:00Z",
-                    "clean_template_sync_message": "",
-                    "is_outdated": true
+                    "index_set_id": 3,
+                    "index_set_name": "index_set_name"
                 }
             ],
             "result": true
