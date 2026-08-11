@@ -34,6 +34,7 @@ from apps.log_databus.exceptions import (
     StorageNotExistException,
     StorageNotPermissionException,
 )
+from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import DorisVisibleConfigUpdateSerializer
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -358,12 +359,12 @@ class TestMetadataStorageStatus(TestCase):
                 "uuid": "new",
                 "health": "green",
                 "status": "open",
-                "pri": 3,
-                "rep": 2,
-                "docs.count": 20,
-                "docs.deleted": 2,
-                "store.size": 2048,
-                "pri.store.size": 1024,
+                "pri": "3",
+                "rep": "2",
+                "docs.count": "20",
+                "docs.deleted": "2",
+                "store.size": "2048",
+                "pri.store.size": "1024",
             },
         )
         mock_get_storage_status.assert_called_once_with({"table_ids": [table_id]})
@@ -472,6 +473,22 @@ class TestMetadataStorageStatus(TestCase):
 
         self.assertEqual(result[8], {"status": False, "cluster_stats": None})
 
+    @patch(
+        "apps.log_databus.handlers.storage.TransferApi.get_cluster_status",
+        side_effect=RuntimeError("metadata unavailable"),
+    )
+    def test_batch_connectivity_detect_degrades_when_metadata_request_fails(self, mock_get_cluster_status):
+        result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=2)
+
+        mock_get_cluster_status.assert_called_once_with({"cluster_ids": [7, 8]})
+        self.assertEqual(
+            result,
+            {
+                7: {"status": False, "cluster_stats": None},
+                8: {"status": False, "cluster_stats": None},
+            },
+        )
+
     @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
     def test_cluster_detail_uses_metadata_status_for_es(self, mock_get_cluster_status):
         mock_get_cluster_status.return_value = [
@@ -533,3 +550,14 @@ class TestMetadataStorageStatus(TestCase):
 
         self.assertEqual(result["list"][0]["stat"]["health"], "--")
         self.assertEqual(result["list"][0]["details"], "--")
+
+    @patch.object(StorageHandler, "get_result_table_indices", return_value=[{"index": "2_bklog_test_20260810_0"}])
+    def test_collector_indices_info_uses_metadata_storage_status(self, mock_get_indices):
+        handler = MagicMock()
+        handler.data.table_id = "2_bklog.test"
+        handler.data.storage_cluster_type = "elasticsearch"
+
+        result = CollectorHandler.indices_info(handler)
+
+        mock_get_indices.assert_called_once_with("2_bklog.test")
+        self.assertEqual(result, [{"index": "2_bklog_test_20260810_0"}])

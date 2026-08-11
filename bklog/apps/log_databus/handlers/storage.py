@@ -1239,12 +1239,25 @@ class StorageHandler:
         result = {}
         for start in range(0, len(cluster_list), METADATA_CLUSTER_STATUS_BATCH_SIZE):
             cluster_ids = cluster_list[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
-            statuses = TransferApi.get_cluster_status({"cluster_ids": cluster_ids})
+            try:
+                statuses = TransferApi.get_cluster_status({"cluster_ids": cluster_ids})
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("[storage] get cluster statuses failed, cluster_ids=%s", cluster_ids)
+                statuses = []
             for status in statuses:
                 cluster_id = status.get("cluster_id")
                 if cluster_id is None:
                     continue
                 result[cluster_id] = status
+            for cluster_id in cluster_ids:
+                result.setdefault(
+                    cluster_id,
+                    {
+                        "cluster_id": cluster_id,
+                        "cluster_type": None,
+                        "is_available": False,
+                    },
+                )
         return result
 
     @staticmethod
@@ -1322,12 +1335,12 @@ class StorageHandler:
             "uuid": index.get("uuid"),
             "health": index.get("health"),
             "status": index.get("status"),
-            "pri": index.get("primary_shards") or 0,
-            "rep": index.get("replica_factor") or 0,
-            "docs.count": index.get("docs_count") or 0,
-            "docs.deleted": index.get("docs_deleted") or 0,
-            "store.size": index.get("store_size_bytes") or 0,
-            "pri.store.size": index.get("primary_store_size_bytes") or 0,
+            "pri": str(index.get("primary_shards") or 0),
+            "rep": str(index.get("replica_factor") or 0),
+            "docs.count": str(index.get("docs_count") or 0),
+            "docs.deleted": str(index.get("docs_deleted") or 0),
+            "store.size": str(index.get("store_size_bytes") or 0),
+            "pri.store.size": str(index.get("primary_store_size_bytes") or 0),
         }
 
     def _send_detective(
