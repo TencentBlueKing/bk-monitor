@@ -27,6 +27,7 @@ _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
+_LOG_COLLECTION_UPDATE_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_update_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -116,6 +117,27 @@ def test_alert_handling_mcp_contract():
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["alert_handling_mcp"]
+
+
+def test_log_collection_update_mcp_contract():
+    """采集更新 MCP 只提供 Fast Update，并使用写请求后端。"""
+    paths = _load_paths(_LOG_COLLECTION_UPDATE_MCP_FILE)
+
+    assert set(paths) == {"/mcp/fast_update_log_collector/"}
+    method_data = paths["/mcp/fast_update_log_collector/"]["post"]
+    assert method_data["operationId"] == "fast_update_log_collector"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert "environment" not in schema["properties"]
+    assert "etl_config" not in schema["properties"]
+    assert method_data["x-bk-apigateway-resource"]["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_update/fast_update/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
 
 
 def test_result_table_storage_status_apigw_contract():

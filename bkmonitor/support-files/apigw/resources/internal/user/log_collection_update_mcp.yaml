@@ -1,0 +1,57 @@
+paths:
+  /mcp/fast_update_log_collector/:
+    post:
+      operationId: fast_update_log_collector
+      description: Update collection-only fields of one Linux, Windows, or container log collector. This tool never updates cleaning rules, fields, storage, index sets, or environment. For container collectors, configs is the complete replacement list. Use returned task_ids with get_log_collector_status. 仅更新日志采集配置，不修改清洗、字段、存储、索引集或环境；容器 configs 为完整替换列表。
+      tags: [log_collection_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bk_biz_id, collector_config_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                collector_config_id: {type: integer, description: Log collector configuration ID. 日志采集项ID。}
+                collector_config_name: {type: string, maxLength: 50, description: Collector display name. 采集项名称。}
+                description: {type: string, maxLength: 100, nullable: true, description: Collector description. 描述。}
+                target_object_type: {type: string, description: Host collector target object type. 主机采集目标类型。}
+                target_node_type: {type: string, description: Host collector target node type. 主机采集节点类型。}
+                target_nodes:
+                  type: array
+                  description: Complete host target list. 主机采集目标列表。
+                  items: {type: object}
+                params: {type: object, description: Host collection paths and matching parameters. 主机采集路径与匹配参数。}
+                data_encoding: {type: string, description: Host log character encoding. 主机日志字符集。}
+                collector_scenario_id: {type: string, description: Container log scenario. 容器日志类型。}
+                configs:
+                  type: array
+                  minItems: 1
+                  description: Complete replacement list of container log configs. 容器日志配置完整替换列表。
+                  items: {type: object}
+                add_pod_label: {type: boolean, description: Include Pod labels. 是否添加 Pod 标签。}
+                add_pod_annotation: {type: boolean, description: Include Pod annotations. 是否添加 Pod 注解。}
+                extra_labels:
+                  type: array
+                  description: Additional labels. 额外标签。
+                  items: {type: object}
+                yaml_config_enabled: {type: boolean, description: Enable YAML configuration mode. 是否使用 YAML 配置模式。}
+                yaml_config: {type: string, description: Base64-encoded YAML configuration. Base64 编码的 YAML 配置。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/fast_update/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

@@ -472,13 +472,20 @@ class K8sCollectorHandler(CollectorHandler):
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
-        # 补充缺少的清洗配置参数
-        params.setdefault("fields", [])
+        update_clean_config = params.pop("update_clean_config", True)
+        if update_clean_config:
+            # 兼容旧调用方：缺省仍补全清洗字段并同步清洗、存储配置。
+            params.setdefault("fields", [])
         # 更新采集项
         self.update_container_config(params)
-        params["table_id"] = self.data.collector_config_name_en
-        self.create_or_update_clean_config(True, params)
-        return {"collector_config_id": self.data.collector_config_id}
+        if update_clean_config:
+            params["table_id"] = self.data.collector_config_name_en
+            self.create_or_update_clean_config(True, params)
+        return {
+            "collector_config_id": self.data.collector_config_id,
+            "subscription_id": self.data.subscription_id,
+            "task_id_list": self.data.task_id_list,
+        }
 
     def create_container_config(self, data):
         # 使用采集插件补全参数

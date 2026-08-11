@@ -1803,6 +1803,7 @@ class FastCollectorCreateSerializer(
 class FastContainerCollectorUpdateSerializer(
     CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
 ):
+    update_clean_config = serializers.BooleanField(label=_("是否同步更新清洗配置"), required=False, default=True)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50, required=False)
     description = serializers.CharField(label=_("备注说明"), max_length=100, required=False, allow_blank=True)
     collector_scenario_id = serializers.ChoiceField(
@@ -1833,6 +1834,7 @@ class FastContainerCollectorUpdateSerializer(
 class FastCollectorUpdateSerializer(
     CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
 ):
+    update_clean_config = serializers.BooleanField(label=_("是否同步更新清洗配置"), required=False, default=True)
     collector_config_name = serializers.CharField(label=_("采集名称"), required=False, max_length=50)
     description = serializers.CharField(
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True

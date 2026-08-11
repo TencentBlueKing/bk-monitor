@@ -1240,6 +1240,7 @@ class HostCollectorHandler(CollectorHandler):
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
+        update_clean_config = params.pop("update_clean_config", True)
         bkdata_biz_id = self.data.bkdata_biz_id if self.data.bkdata_biz_id else self.data.bk_biz_id
         bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=self.data.collector_config_name_en
@@ -1335,10 +1336,15 @@ class HostCollectorHandler(CollectorHandler):
                 # 创建数据平台data_id
                 async_create_bkdata_data_id.delay(self.data.collector_config_id)
 
-        params["table_id"] = self.data.collector_config_name_en
-        self.create_or_update_clean_config(True, params)
+        if update_clean_config:
+            params["table_id"] = self.data.collector_config_name_en
+            self.create_or_update_clean_config(True, params)
 
-        return {"collector_config_id": self.data.collector_config_id}
+        return {
+            "collector_config_id": self.data.collector_config_id,
+            "subscription_id": self.data.subscription_id,
+            "task_id_list": self.data.task_id_list,
+        }
 
     def _run_subscription_task(self, action=None, scope: dict[str, Any] = None):
         """
