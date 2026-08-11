@@ -49,7 +49,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         @for $i from 1 through 3 {
           &.status-#{$i} {
             display: flex;
-            color: list.nth($alarmColor, $i);
+            color: nth($alarmColor, $i);
           }
         }
 
