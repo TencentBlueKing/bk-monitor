@@ -232,6 +232,12 @@ export class FormItem {
   }
 }
 
+/** 同步智能等级表单项的自动等级可用性。 */
+export const syncAiLevelAutoEnabled = (formItems: FormItem[], autoEnabled: boolean) => {
+  const levelItem = formItems.find(item => item.type === 'ai-level');
+  if (levelItem) levelItem.autoEnabled = autoEnabled;
+};
+
 /** 获取模型描述信息 */
 export const handleCreateModelOptionsDetail = (item: any, interval: number) => ({
   name: item.name,

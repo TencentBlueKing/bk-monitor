@@ -17,6 +17,7 @@ from unittest import mock
 
 import pytest
 from django.test import override_settings
+from requests import ConnectionError, HTTPError
 
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.intelligent_detect import IntelligentDetect
@@ -56,6 +57,8 @@ def patch_sas_metrics(monkeypatch):
         "AIOPS_SAS_REQUEST_COUNT",
         "AIOPS_SAS_REQUEST_LATENCY",
         "AIOPS_SAS_REQUEST_POINT_COUNT",
+        "AIOPS_SAS_CLIENT_REQUEST_COUNT",
+        "AIOPS_SAS_CLIENT_REQUEST_LATENCY",
         "AIOPS_SAS_BATCH_COUNT",
         "AIOPS_SAS_BATCH_LATENCY",
         "AIOPS_SAS_BATCH_POINT_COUNT",
@@ -306,6 +309,10 @@ def test_sas_metrics_cover_feature_request_batch_result_and_projection(monkeypat
         "partial",
         "success",
     }
+    assert increment_total(recorders["AIOPS_SAS_CLIENT_REQUEST_COUNT"], status="success") == 2
+    assert {labels["status"] for labels, _value in recorders["AIOPS_SAS_CLIENT_REQUEST_LATENCY"].observations} == {
+        "success"
+    }
     assert increment_total(recorders["AIOPS_SAS_BATCH_COUNT"], status="partial") == 1
     assert len(recorders["AIOPS_SAS_BATCH_LATENCY"].observations) == 1
     assert recorders["AIOPS_SAS_BATCH_LATENCY"].observations[0][0] == {"status": "partial"}
@@ -344,6 +351,7 @@ def test_manual_mode_reports_feature_coverage_without_sas_requests(monkeypatch):
     assert increment_total(recorders["AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT"], mode="manual", stage="input") == 2
     assert increment_total(recorders["AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT"], mode="manual", stage="anomaly") == 1
     assert recorders["AIOPS_SAS_REQUEST_COUNT"].increments == []
+    assert recorders["AIOPS_SAS_CLIENT_REQUEST_COUNT"].increments == []
     assert recorders["AIOPS_SAS_BATCH_COUNT"].increments == []
 
 
@@ -377,8 +385,11 @@ def test_invalid_score_falls_back_without_dropping_kpi_anomaly(score):
     AIOPS_SAS_FATAL_THRESHOLD=0.8,
     AIOPS_SAS_WARNING_THRESHOLD=0.5,
 )
-@pytest.mark.parametrize("response", [[], {"result": True, "data": []}, None])
-def test_invalid_response_falls_back_without_dropping_kpi_anomaly(response):
+@pytest.mark.parametrize(
+    ("response", "expected_reason"),
+    [([], "missing_result"), ({"result": True, "data": []}, "invalid_response"), (None, "invalid_response")],
+)
+def test_invalid_response_falls_back_without_dropping_kpi_anomaly(response, expected_reason):
     item = make_item()
     point = make_point(item, "host-a", 1_780_000_000)
     detector = make_detector()
@@ -391,6 +402,7 @@ def test_invalid_response_falls_back_without_dropping_kpi_anomaly(response):
     level_msg = json.loads(anomaly_points[0].data_point.values["extra_info"])["alert_level_msg"]
     assert level_msg["alert_level"] == 2
     assert level_msg["status"] == "fallback"
+    assert level_msg["reason"] == expected_reason
 
 
 @override_settings(
@@ -398,12 +410,23 @@ def test_invalid_response_falls_back_without_dropping_kpi_anomaly(response):
     AIOPS_SAS_FATAL_THRESHOLD=0.8,
     AIOPS_SAS_WARNING_THRESHOLD=0.5,
 )
-def test_sas_request_failure_falls_back_without_dropping_kpi_anomaly():
+@pytest.mark.parametrize(
+    ("error", "expected_reason", "expected_status"),
+    [
+        (TimeoutError("sas timeout"), "request_timeout", "timeout"),
+        (ConnectionError("sas connect failed"), "connection_failed", "connect_error"),
+        (HTTPError("sas http failed"), "http_error", "http_error"),
+    ],
+)
+def test_sas_request_failure_is_classified_without_dropping_kpi_anomaly(
+    monkeypatch, error, expected_reason, expected_status
+):
+    recorders = patch_sas_metrics(monkeypatch)
     item = make_item()
     point = make_point(item, "host-a", 1_780_000_000)
     detector = make_detector()
     detector._local_pre_detect_results = {point.record_id: make_kpi_result(point)}
-    detector.SAS_PREDICT_FUNC = mock.Mock(side_effect=TimeoutError("sas timeout"))
+    detector.SAS_PREDICT_FUNC = mock.Mock(side_effect=error)
 
     anomaly_points = detector.detect_records([point], 2)
 
@@ -413,8 +436,54 @@ def test_sas_request_failure_falls_back_without_dropping_kpi_anomaly():
         "alert_level": 2,
         "severity_score": None,
         "status": "fallback",
-        "reason": "request_failed",
+        "reason": expected_reason,
     }
+    assert increment_total(recorders["AIOPS_SAS_CLIENT_REQUEST_COUNT"], status=expected_status) == 1
+    assert recorders["AIOPS_SAS_CLIENT_REQUEST_LATENCY"].observations[0][0] == {"status": expected_status}
+
+
+@override_settings(
+    AIOPS_SAS_PREDICT_CONCURRENCY=1,
+    AIOPS_SAS_BATCH_TIMEOUT=0.02,
+    AIOPS_SAS_FATAL_THRESHOLD=0.8,
+    AIOPS_SAS_WARNING_THRESHOLD=0.5,
+)
+def test_sas_batch_budget_returns_without_waiting_for_all_dimension_groups(monkeypatch):
+    recorders = patch_sas_metrics(monkeypatch)
+    item = make_item()
+    points = [make_point(item, "host-a", 1_780_000_000), make_point(item, "host-b", 1_780_000_000)]
+    detector = make_detector()
+    detector._local_pre_detect_results = {point.record_id: make_kpi_result(point) for point in points}
+    request_started = threading.Event()
+    release_request = threading.Event()
+    request_finished = threading.Event()
+
+    def slow_sas_request(**_kwargs):
+        request_started.set()
+        try:
+            release_request.wait(timeout=1)
+            return []
+        finally:
+            request_finished.set()
+
+    detector.SAS_PREDICT_FUNC = mock.Mock(side_effect=slow_sas_request)
+
+    started_at = time.monotonic()
+    try:
+        anomaly_points = detector.detect_records(points, 2)
+        elapsed = time.monotonic() - started_at
+    finally:
+        release_request.set()
+        request_finished.wait(timeout=1)
+
+    assert request_started.is_set()
+    assert elapsed < 0.5
+    assert detector.SAS_PREDICT_FUNC.call_count == 1
+    assert [
+        json.loads(point.data_point.values["extra_info"])["alert_level_msg"]["reason"] for point in anomaly_points
+    ] == ["batch_timeout", "batch_timeout"]
+    assert recorders["AIOPS_SAS_BATCH_REQUEST_COUNT"].observations == [({}, 1)]
+    assert increment_total(recorders["AIOPS_SAS_FALLBACK_COUNT"], reason="batch_timeout") == 2
 
 
 @override_settings(

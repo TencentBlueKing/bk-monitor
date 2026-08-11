@@ -21,6 +21,8 @@ from collections import Counter, defaultdict
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import HTTPError, JSONDecodeError as RequestsJSONDecodeError, Timeout as RequestsTimeout
 
 from alarm_backends.service.detect.strategy import (
     ExprDetectAlgorithms,
@@ -28,6 +30,7 @@ from alarm_backends.service.detect.strategy import (
     SDKPreDetectMixin,
 )
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from core.prometheus import metrics
 
 logger = logging.getLogger("detect")
@@ -275,6 +278,72 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
         return "fallback"
 
     @staticmethod
+    def _classify_sas_request_error(error):
+        error_chain = []
+        seen = set()
+        current_error = error
+        while current_error is not None and id(current_error) not in seen:
+            error_chain.append(current_error)
+            seen.add(id(current_error))
+            current_error = current_error.__cause__ or current_error.__context__
+
+        if any(isinstance(item, (TimeoutError, RequestsTimeout)) for item in error_chain):
+            return "timeout", "request_timeout"
+        if any(isinstance(item, RequestsConnectionError) for item in error_chain):
+            return "connect_error", "connection_failed"
+        if any(isinstance(item, HTTPError) for item in error_chain):
+            return "http_error", "http_error"
+        if any(isinstance(item, (json.JSONDecodeError, RequestsJSONDecodeError)) for item in error_chain):
+            return "invalid_response", "invalid_response"
+        if any(isinstance(item, BKAPIError) for item in error_chain):
+            return "api_error", "api_error"
+        return "unexpected_error", "request_failed"
+
+    def _call_sas_predict(self, item, request_kwargs):
+        started_at = time.monotonic()
+        status = "success"
+        try:
+            return self.SAS_PREDICT_FUNC(**request_kwargs)
+        except Exception as error:
+            status, _reason = self._classify_sas_request_error(error)
+            raise
+        finally:
+            try:
+                metrics.AIOPS_SAS_CLIENT_REQUEST_COUNT.labels(status=status).inc()
+                metrics.AIOPS_SAS_CLIENT_REQUEST_LATENCY.labels(status=status).observe(time.monotonic() - started_at)
+            except Exception as error:
+                logger.warning(
+                    "strategy(%s) report SAS client request metrics failed: %s",
+                    item.strategy.id,
+                    error.__class__.__name__,
+                )
+
+    def _consume_sas_future(self, item, future, group_points, submitted_at):
+        try:
+            response = future.result()
+        except Exception as error:
+            _status, reason = self._classify_sas_request_error(error)
+            for anomaly_point in group_points:
+                self._set_fallback(anomaly_point, reason)
+            logger.warning("strategy(%s) SAS predict failed: %s", item.strategy.id, error.__class__.__name__)
+        else:
+            try:
+                self._apply_sas_response(group_points, response)
+            except Exception as error:
+                for anomaly_point in group_points:
+                    self._set_fallback(anomaly_point, "request_failed")
+                logger.warning("strategy(%s) apply SAS response failed: %s", item.strategy.id, error.__class__.__name__)
+        finally:
+            try:
+                self._report_sas_request_metrics(group_points, time.monotonic() - submitted_at)
+            except Exception as error:
+                logger.warning(
+                    "strategy(%s) report SAS request metrics failed: %s",
+                    item.strategy.id,
+                    error.__class__.__name__,
+                )
+
+    @staticmethod
     def _report_feature_metrics(mode, input_point_count, anomaly_point_count):
         metrics.AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT.labels(mode=mode, stage="input").inc(input_point_count)
         metrics.AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT.labels(mode=mode, stage="anomaly").inc(anomaly_point_count)
@@ -325,46 +394,90 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 }
             anomaly_groups[dimension_key]["anomaly_points"].append(anomaly_point)
 
-        future_groups = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SAS_PREDICT_CONCURRENCY) as executor:
-            for group in anomaly_groups.values():
-                group_points = group["anomaly_points"]
-                data = [
+        requests_to_submit = []
+        for group in anomaly_groups.values():
+            group_points = group["anomaly_points"]
+            data = [
+                {
+                    "timestamp": point.data_point.timestamp * 1000,
+                    "value": point.data_point.value,
+                    "is_anomaly": point.data_point.values.get("is_anomaly", 1),
+                }
+                for point in group_points
+            ]
+            requests_to_submit.append(
+                (
+                    group_points,
                     {
-                        "timestamp": point.data_point.timestamp * 1000,
-                        "value": point.data_point.value,
-                        "is_anomaly": point.data_point.values.get("is_anomaly", 1),
-                    }
-                    for point in group_points
-                ]
-                started_at = time.monotonic()
-                future = executor.submit(
-                    self.SAS_PREDICT_FUNC,
-                    data=data,
-                    dimensions=group["dimensions"],
-                    predict_args={"predict_start_time": min(point["timestamp"] for point in data)},
-                    interval=int(item.query_configs[0]["agg_interval"]),
-                    extra_data={},
-                    serving_config={"pre_service_name": "default", "serving_with_ts_depend": True},
-                    bk_tenant_id=item.bk_tenant_id,
+                        "data": data,
+                        "dimensions": group["dimensions"],
+                        "predict_args": {"predict_start_time": min(point["timestamp"] for point in data)},
+                        "interval": int(item.query_configs[0]["agg_interval"]),
+                        "extra_data": {},
+                        "serving_config": {"pre_service_name": "default", "serving_with_ts_depend": True},
+                        "bk_tenant_id": item.bk_tenant_id,
+                    },
                 )
-                future_groups[future] = (group_points, started_at)
+            )
 
-            for future in concurrent.futures.as_completed(future_groups):
-                group_points, started_at = future_groups[future]
-                try:
-                    self._apply_sas_response(group_points, future.result())
-                except Exception as error:
-                    logger.warning("strategy(%s) SAS predict failed: %s", item.strategy.id, error.__class__.__name__)
-                try:
-                    self._report_sas_request_metrics(group_points, time.monotonic() - started_at)
-                except Exception as error:
-                    logger.warning(
-                        "strategy(%s) report SAS request metrics failed: %s",
-                        item.strategy.id,
-                        error.__class__.__name__,
-                    )
-        return len(future_groups)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SAS_PREDICT_CONCURRENCY)
+        deadline = time.monotonic() + settings.AIOPS_SAS_BATCH_TIMEOUT
+        pending = {}
+        next_request_index = 0
+        request_count = 0
+
+        def submit_requests():
+            nonlocal next_request_index, request_count
+            while (
+                len(pending) < settings.AIOPS_SAS_PREDICT_CONCURRENCY
+                and next_request_index < len(requests_to_submit)
+                and time.monotonic() < deadline
+            ):
+                group_points, request_kwargs = requests_to_submit[next_request_index]
+                next_request_index += 1
+                submitted_at = time.monotonic()
+                future = executor.submit(self._call_sas_predict, item, request_kwargs)
+                pending[future] = (group_points, submitted_at)
+                request_count += 1
+
+        try:
+            submit_requests()
+            while pending:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                done, _not_done = concurrent.futures.wait(
+                    pending, timeout=remaining, return_when=concurrent.futures.FIRST_COMPLETED
+                )
+                if not done:
+                    break
+                for future in done:
+                    group_points, submitted_at = pending.pop(future)
+                    self._consume_sas_future(item, future, group_points, submitted_at)
+                submit_requests()
+
+            for future, (group_points, submitted_at) in pending.items():
+                for anomaly_point in group_points:
+                    self._set_fallback(anomaly_point, "batch_timeout")
+                if future.cancel():
+                    request_count -= 1
+                else:
+                    try:
+                        self._report_sas_request_metrics(group_points, time.monotonic() - submitted_at)
+                    except Exception as error:
+                        logger.warning(
+                            "strategy(%s) report SAS request metrics failed: %s",
+                            item.strategy.id,
+                            error.__class__.__name__,
+                        )
+
+            for group_points, _request_kwargs in requests_to_submit[next_request_index:]:
+                for anomaly_point in group_points:
+                    self._set_fallback(anomaly_point, "batch_timeout")
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        return request_count
 
     def extra_context(self, context):
         values = getattr(context.data_point, "values", {})

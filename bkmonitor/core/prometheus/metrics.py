@@ -390,7 +390,7 @@ AIOPS_PRE_DETECT_LATENCY = Gauge(
 
 AIOPS_SAS_REQUEST_LATENCY = Histogram(
     name="bkmonitor_aiops_sas_request_latency",
-    documentation="SAS 异常等级评分请求耗时",
+    documentation="SAS 异常等级评分任务侧等待耗时，包含线程池调度时间",
     labelnames=("status",),
     buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
 )
@@ -405,6 +405,19 @@ AIOPS_SAS_REQUEST_POINT_COUNT = Histogram(
     name="bkmonitor_aiops_sas_request_point_count",
     documentation="单次 SAS 异常等级评分请求包含的异常点数量",
     buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_CLIENT_REQUEST_COUNT = Counter(
+    name="bkmonitor_aiops_sas_client_request_count_total",
+    documentation="SAS 客户端实际调用统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_CLIENT_REQUEST_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_client_request_latency",
+    documentation="SAS 客户端实际调用耗时，不包含线程池调度时间",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
 )
 
 AIOPS_SAS_BATCH_COUNT = Counter(

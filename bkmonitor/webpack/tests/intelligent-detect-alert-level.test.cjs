@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -18,6 +19,18 @@ const {
   serializeAiAlertLevelValue,
   switchAiAlertLevelMode,
 } = require('../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/alert-level.ts');
+const {
+  FormItem,
+  syncAiLevelAutoEnabled,
+} = require('../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/components/form/utils.ts');
+
+const intelligentDetectSource = fs.readFileSync(
+  path.resolve(
+    __dirname,
+    '../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect.tsx'
+  ),
+  'utf8'
+);
 
 test('SDK 新建单指标异常检测默认使用自动级别并全选输出范围', () => {
   assert.deepEqual(createAiAlertLevelValue(undefined, true), {
@@ -85,4 +98,25 @@ test('复用级别组件兼容既有算法的数字和数组模型', () => {
   });
   assert.equal(serializeAiLevelSelectValue({ mode: 'manual', level: 3, alertLevels: [] }, false), 3);
   assert.deepEqual(serializeAiLevelSelectValue({ mode: 'auto', level: 2, alertLevels: [1, 3] }, false), [1, 3]);
+});
+
+test('算法组合变化时实时同步自动等级可用性', () => {
+  const levelItem = new FormItem({
+    autoEnabled: true,
+    field: 'level',
+    label: '告警级别',
+    type: 'ai-level',
+    value: { mode: 'manual', level: 2, alertLevels: [] },
+  });
+  const modelItem = new FormItem({ field: 'model', label: '模型', type: 'model-select', value: '' });
+
+  syncAiLevelAutoEnabled([levelItem, modelItem], false);
+
+  assert.equal(levelItem.autoEnabled, false);
+  assert.equal(modelItem.autoEnabled, false);
+});
+
+test('智能异常检测组件监听自动等级可用性属性', () => {
+  assert.match(intelligentDetectSource, /@Watch\('autoLevelEnabled'/);
+  assert.match(intelligentDetectSource, /syncAiLevelAutoEnabled\(this\.staticFormItem, autoLevelEnabled\)/);
 });

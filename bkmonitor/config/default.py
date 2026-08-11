@@ -1933,6 +1933,10 @@ AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/api/aiops
 # 异常等级评分接口
 AIOPS_SAS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_SAS_PREDICT_SDK", "/aiops/serving/default/")
 AIOPS_SAS_TIMEOUT = max(1, int(os.getenv("BKAPP_AIOPS_SAS_TIMEOUT", 15)))
+# SAS 是 KPI 检测后的增量阶段，批次总预算不超过单请求超时，避免拖长 detect 主链路
+AIOPS_SAS_BATCH_TIMEOUT = max(
+    1, min(int(os.getenv("BKAPP_AIOPS_SAS_BATCH_TIMEOUT", AIOPS_SAS_TIMEOUT)), AIOPS_SAS_TIMEOUT)
+)
 
 
 def _parse_aiops_sas_threshold(name, default):

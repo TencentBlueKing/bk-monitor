@@ -39,7 +39,7 @@ import {
   serializeAiAlertLevelValue,
 } from '../../alert-level';
 import Form from '../form/form';
-import { type IFormDataItem, FormItem } from '../form/utils';
+import { type IFormDataItem, FormItem, syncAiLevelAutoEnabled } from '../form/utils';
 
 import type { IModelData } from '../time-series-forecast/time-series-forecast';
 
@@ -314,6 +314,11 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
   @Watch('strategyId', { immediate: true })
   strategyIdChange(val: number) {
     if (val && `${val}` !== '0') this.getStatusMessage();
+  }
+
+  @Watch('autoLevelEnabled')
+  autoLevelEnabledChange(autoLevelEnabled: boolean) {
+    syncAiLevelAutoEnabled(this.staticFormItem, autoLevelEnabled);
   }
 
   /** 获取头部提示信息 */
