@@ -547,11 +547,17 @@ class SourceAnalysisExecutionBaseResource(Resource):
         if execution is None or execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
             return False
 
-        # 周期恢复只挑选 stale 记录；每次真实处理先续租，避免正常轮询被重复补偿。
-        IssueSourceAnalysisExecution.objects.filter(
+        # update_time 同时作为版本号。记录在读取后已被推进或已进入终态时，条件更新失败，
+        # 当前 Worker 立即停止，避免继续使用过期快照调用 BKFara。
+        lease_time = timezone.now()
+        claimed = IssueSourceAnalysisExecution.objects.filter(
             pk=execution.pk,
             status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
-        ).update(update_time=timezone.now())
+            update_time=execution.update_time,
+        ).update(update_time=lease_time)
+        if not claimed:
+            return False
+        execution.update_time = lease_time
 
         if not execution.bkfara_task_id:
             return cls._create_and_execute_bkfara_task(execution)
@@ -566,7 +572,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
         except Exception as error:
             return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_EXECUTE, error)
-        return cls._apply_bkfara_task_state(execution, task_state, execute_when_created=True)
+        if isinstance(task_state, dict) and task_state.get("status") == cls.BKFARA_CREATED:
+            cls._save_bkci_identifiers(execution, task_state)
+            return cls._execute_bkfara_task(execution)
+        return cls._apply_bkfara_task_state(execution, task_state)
 
     @classmethod
     def _create_and_execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
@@ -641,17 +650,15 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     SourceAnalysisFailureStage.TASK_EXECUTE,
                     execute_error,
                 )
-            return cls._apply_bkfara_task_state(execution, task_state, execute_when_created=False)
+            return cls._apply_bkfara_task_state(execution, task_state)
 
-        return cls._apply_bkfara_task_state(execution, task_state, execute_when_created=False)
+        return cls._apply_bkfara_task_state(execution, task_state)
 
     @classmethod
     def _apply_bkfara_task_state(
         cls,
         execution: IssueSourceAnalysisExecution,
         task_state: dict,
-        *,
-        execute_when_created: bool,
     ) -> bool:
         if not isinstance(task_state, dict) or task_state.get("status") not in cls.BKFARA_STATUSES:
             logger.warning(
@@ -663,7 +670,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         cls._save_bkci_identifiers(execution, task_state)
         status = task_state["status"]
         if status == cls.BKFARA_CREATED:
-            return cls._execute_bkfara_task(execution) if execute_when_created else True
+            return True
         if status == cls.BKFARA_RUNNING:
             stage = task_state.get("stage")
             if stage not in cls.SOURCE_ANALYSIS_STAGES:
@@ -700,10 +707,13 @@ class SourceAnalysisExecutionBaseResource(Resource):
         if not updates:
             return
         updates["update_time"] = timezone.now()
-        IssueSourceAnalysisExecution.objects.filter(
+        updated = IssueSourceAnalysisExecution.objects.filter(
             pk=execution.pk,
             status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
         ).update(**updates)
+        if not updated:
+            execution.refresh_from_db()
+            return
         for field, value in updates.items():
             setattr(execution, field, value)
 

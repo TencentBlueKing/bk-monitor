@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import timedelta
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -35,7 +35,7 @@ class NonRetryableBKFaraError(Exception):
 
 
 class TestSourceAnalysisMockContract(TestCase):
-    def test_request_and_response_serializers_define_temporary_boundary(self):
+    def test_request_serializers_define_temporary_boundary(self):
         create_request = CreateSourceAnalysisTaskResource.RequestSerializer(
             data={"bk_biz_id": 2, "analysis_id": "analysis-1"}
         )
@@ -57,26 +57,24 @@ class TestSourceAnalysisMockContract(TestCase):
             }
         )
         self.assertTrue(execute_request.is_valid(), execute_request.errors)
-
-        query_response = GetSourceAnalysisTaskResource.ResponseSerializer(
-            data={
-                "status": "failed",
-                "bkci_pipeline_id": "pipeline-1",
-                "failure": {
-                    "stage": "ai_analysis",
-                    "code": "ANALYSIS_FAILED",
-                    "message": "analysis failed",
-                    "retryable": True,
-                    "request_id": "request-1",
-                },
-            }
-        )
-        self.assertTrue(query_response.is_valid(), query_response.errors)
+        self.assertIsNone(CreateSourceAnalysisTaskResource.ResponseSerializer)
+        self.assertIsNone(ExecuteSourceAnalysisTaskResource.ResponseSerializer)
+        self.assertIsNone(GetSourceAnalysisTaskResource.ResponseSerializer)
 
     def test_resources_keep_endpoint_unbound_until_bkfara_publishes_contract(self):
         self.assertEqual(CreateSourceAnalysisTaskResource.action, "")
         self.assertEqual(ExecuteSourceAnalysisTaskResource.action, "")
         self.assertEqual(GetSourceAnalysisTaskResource.action, "")
+
+    @patch("api.bk_incident.default.APIResource.perform_request", return_value={"task_id": "task-1"})
+    def test_source_analysis_base_preserves_bk_biz_id(self, perform_request):
+        request_data = {"bk_biz_id": 2, "analysis_id": "analysis-1"}
+        resource = CreateSourceAnalysisTaskResource()
+
+        result = resource.perform_request(request_data)
+
+        self.assertEqual(result, {"task_id": "task-1"})
+        perform_request.assert_called_once_with(resource, request_data)
 
 
 class TestSourceAnalysisOrchestration(TestCase):
@@ -159,6 +157,33 @@ class TestSourceAnalysisOrchestration(TestCase):
         get_task.assert_called_once_with(bk_biz_id=2, task_id="task-1")
         create_task.assert_not_called()
         execute_task.assert_not_called()
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    @patch("fta_web.issue.resources.api.bk_incident.create_source_analysis_task")
+    def test_stale_worker_stops_when_execution_version_has_advanced(self, create_task, get_task):
+        execution = self.create_execution()
+        IssueSourceAnalysisExecution.objects.filter(pk=execution.pk).update(
+            update_time=execution.update_time + timedelta(seconds=1)
+        )
+        real_filter = IssueSourceAnalysisExecution.objects.filter
+
+        def return_stale_execution(*args, **kwargs):
+            if kwargs == {"analysis_id": execution.analysis_id}:
+                result = MagicMock()
+                result.first.return_value = execution
+                return result
+            return real_filter(*args, **kwargs)
+
+        with patch.object(
+            IssueSourceAnalysisExecution.objects,
+            "filter",
+            side_effect=return_stale_execution,
+        ):
+            should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertFalse(should_poll)
+        create_task.assert_not_called()
+        get_task.assert_not_called()
 
     @patch("fta_web.issue.resources.api.bk_incident.execute_source_analysis_task")
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
@@ -282,6 +307,22 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
         self.assertEqual(execution.stage, SourceAnalysisStage.VALIDATING)
         self.assertIsNone(execution.result_payload)
+
+    def test_bkci_identifiers_are_not_applied_when_execution_is_terminal(self):
+        execution = self.create_execution(status=SourceAnalysisStatus.RUNNING)
+        IssueSourceAnalysisExecution.objects.filter(pk=execution.pk).update(
+            status=SourceAnalysisStatus.FAILED,
+            active_key=None,
+        )
+
+        SourceAnalysisExecutionBaseResource._save_bkci_identifiers(
+            execution,
+            {"bkci_pipeline_id": "pipeline-1", "bkci_build_id": "build-1"},
+        )
+
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.bkci_pipeline_id)
+        self.assertIsNone(execution.bkci_build_id)
 
     def test_recovery_only_returns_stale_active_records(self):
         stale = self.create_execution(issue_id="issue-stale")
