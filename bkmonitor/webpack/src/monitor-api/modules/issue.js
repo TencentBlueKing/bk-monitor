@@ -29,6 +29,14 @@ export const createTapd = request('POST', 'fta/issue/issue/create_tapd/');
 export const listIssueTapdRelations = request('POST', 'fta/issue/issue/tapd_relations/');
 export const linkIssueToTapd = request('POST', 'fta/issue/issue/link_tapd/');
 
+// Issue AI 分析快览与源码分析
+export const getAIAnalysisOverview = request('GET', 'fta/issue/issue/ai_analysis_overview/');
+export const getSourceAnalysis = request('GET', 'fta/issue/issue/source_analysis/');
+export const startSourceAnalysis = request('POST', 'fta/issue/issue/start_source_analysis/');
+export const retrySourceAnalysis = request('POST', 'fta/issue/issue/retry_source_analysis/');
+export const reanalyzeSourceAnalysis = request('POST', 'fta/issue/issue/reanalyze_source_analysis/');
+export const getSourceAnalysisRaw = request('GET', 'fta/issue/issue/source_analysis_raw/');
+
 /** 获取用户 TAPD 工作空间列表 */
 export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
 export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
@@ -65,6 +73,12 @@ export default {
   createTapd,
   listIssueTapdRelations,
   linkIssueToTapd,
+  getAIAnalysisOverview,
+  getSourceAnalysis,
+  startSourceAnalysis,
+  retrySourceAnalysis,
+  reanalyzeSourceAnalysis,
+  getSourceAnalysisRaw,
   getUserWorkspace,
   searchTapdItems,
   unbindWorkspace,
