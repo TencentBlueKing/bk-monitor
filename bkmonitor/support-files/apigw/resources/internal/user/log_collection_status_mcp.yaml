@@ -1,0 +1,44 @@
+paths:
+  /mcp/get_log_collector_status/:
+    post:
+      operationId: get_log_collector_status
+      description: Query one log collector's deployment task and subscription status across Linux, Windows, and container environments. Use task_ids returned by Fast Create/Fast Update when available. Poll again after retry_after_seconds while is_terminal is false. 查询单个日志采集项的统一任务与订阅状态；可直接传入创建或更新接口返回的任务 ID，并按返回的轮询语义继续查询。
+      tags: [log_collection_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bk_biz_id, collector_config_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                collector_config_id: {type: integer, description: Log collector configuration ID. 日志采集项ID。}
+                task_ids:
+                  type: array
+                  maxItems: 100
+                  description: Task IDs returned by Fast Create/Fast Update. Omit to use the collector's latest task IDs. 创建或更新接口返回的任务ID；不传则查询采集项最近一次任务。
+                  items: {type: string}
+                detail_limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  description: Maximum instance details returned for each phase. 每个阶段最多返回的实例明细数。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_status/get_status/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
