@@ -623,6 +623,13 @@ class SourceAnalysisExecutionBaseResource(Resource):
         try:
             task_state = api.bk_incident.execute_source_analysis_task(**cls.build_execute_task_params(execution))
         except Exception as execute_error:
+            error_data = getattr(execute_error, "data", None)
+            if isinstance(error_data, dict) and error_data.get("retryable") is False:
+                return cls._handle_upstream_error(
+                    execution,
+                    SourceAnalysisFailureStage.TASK_EXECUTE,
+                    execute_error,
+                )
             # 执行请求可能已被 BKFara 接收。先查状态，避免因客户端超时重复启动流水线。
             try:
                 task_state = api.bk_incident.get_source_analysis_task(
@@ -650,7 +657,14 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "Invalid BKFara source analysis task state: analysis_id=%s",
                 execution.analysis_id,
             )
-            return True
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message="BKFara 任务状态响应非法",
+                failure_retryable=False,
+            )
+            return False
 
         cls._save_bkci_identifiers(execution, task_state)
         status = task_state["status"]

@@ -218,6 +218,23 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.bkci_build_id, "build-1")
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
 
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    @patch("fta_web.issue.resources.api.bk_incident.execute_source_analysis_task")
+    def test_non_retryable_execute_error_marks_failure_without_recovery_query(self, execute_task, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1")
+        get_task.return_value = {"status": "created"}
+        execute_task.side_effect = NonRetryableBKFaraError()
+
+        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertFalse(should_poll)
+        get_task.assert_called_once_with(bk_biz_id=2, task_id="task-1")
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.TASK_EXECUTE)
+        self.assertEqual(execution.failure_code, "INVALID_ARGUMENT")
+        self.assertFalse(execution.failure_retryable)
+
     @patch("fta_web.issue.resources.api.bk_incident.create_source_analysis_task")
     def test_retryable_create_error_keeps_pending_record(self, create_task):
         execution = self.create_execution()
@@ -256,6 +273,20 @@ class TestSourceAnalysisOrchestration(TestCase):
         execution.refresh_from_db()
         self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
         self.assertEqual(execution.failure_code, "BKFARA_INVALID_RESPONSE")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_invalid_task_state_is_terminal_protocol_error(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {"status": "unknown"}
+
+        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertFalse(should_poll)
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.TASK_EXECUTE)
+        self.assertEqual(execution.failure_code, "BKFARA_INVALID_RESPONSE")
+        self.assertFalse(execution.failure_retryable)
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_remote_failure_maps_failure_metadata(self, get_task):
