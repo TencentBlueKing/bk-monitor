@@ -447,7 +447,10 @@ export default defineComponent({
       const loadedDetailSpan = transformTraceTree(traceTree)?.spans?.[0];
       if (!loadedDetailSpan) return null;
 
-      loadedSpan.value = loadedDetailSpan;
+      loadedSpan.value = {
+        ...sourceSpan,
+        ...loadedDetailSpan,
+      };
       return result.origin_data;
     }
 

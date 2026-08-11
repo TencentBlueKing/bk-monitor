@@ -55,17 +55,23 @@ def _get_app_meta(bk_biz_id: int, app_name: str) -> dict[str, Any]:
 
 
 class QueryProxy:
-    def __init__(self, bk_biz_id, app_name):
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
+    def __init__(self, bk_biz_id: int, app_name: str):
+        self.bk_biz_id: int = bk_biz_id
+        self.app_name: str = app_name
         self._query_cache: dict[str, BaseQuery] = {}
 
-    def _build_data_sources(self, trace_level_table_ids: list[str] | None = None) -> list[TraceDatasourceTarget]:
+    def _build_data_sources(
+        self, trace_level_table_ids: list[str] | None = None, bk_biz_id: int | None = None, app_name: str | None = None
+    ) -> list[TraceDatasourceTarget]:
         levels: list[LevelTarget] = []
         if trace_level_table_ids:
             levels.append(LevelTarget(name=TraceQuery.LEVEL_NAME, table_ids=trace_level_table_ids))
 
-        return [TraceDatasourceTarget.build(**_get_app_meta(self.bk_biz_id, self.app_name), levels=levels)]
+        target_bk_biz_id: int = self.bk_biz_id
+        target_app_name: str = self.app_name
+        if bk_biz_id is not None and app_name is not None:
+            target_bk_biz_id, target_app_name = bk_biz_id, app_name
+        return [TraceDatasourceTarget.build(**_get_app_meta(target_bk_biz_id, target_app_name), levels=levels)]
 
     def _get_trace_query(self, result_table_id: str) -> TraceQuery:
         return TraceQuery(self._build_data_sources(trace_level_table_ids=[result_table_id]))
@@ -178,9 +184,12 @@ class QueryProxy:
                 bk_biz_id=trace_relation["bk_biz_id"], app_name=trace_relation["app_name"]
             ).first()
             if relation_app:
-                # 跨应用 Span 查询：需透传 relation_app 的真实 result_table_id，
-                # 确保共享 Trace 结果表场景下 TraceQueryGuard 能拿到与 relation_app 绑定的 table_id 和 应用上下文。
-                relation_spans = SpanQuery(self._build_data_sources()).query_by_trace_id(trace_id)
+                relation_spans = SpanQuery(
+                    self._build_data_sources(
+                        bk_biz_id=relation_app.bk_biz_id,
+                        app_name=relation_app.app_name,
+                    )
+                ).query_by_trace_id(trace_id)
                 client = Permission()
                 permission = client.is_allowed(
                     ActionEnum.VIEW_APM_APPLICATION,

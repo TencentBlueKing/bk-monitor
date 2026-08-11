@@ -24,6 +24,7 @@ from apm import constants, types
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models.meta import TraceScopeIndexSet
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.apm import OtlpKey, TraceDataSourceConfig
 
 logger = logging.getLogger("apm")
@@ -60,7 +61,8 @@ class SpanQuery(BaseQuery):
 
     def _query_by_trace_id(self, trace_id: str, limit: int = constants.DISCOVER_BATCH_SIZE) -> list[dict[str, Any]]:
         queries: list[QueryConfigBuilder] = [
-            q.filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id}) for q in self.build_queries(time_field=OtlpKey.START_TIME)
+            q.order_by(OtlpKey.START_TIME).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
+            for q in self.build_queries(time_field=OtlpKey.START_TIME)
         ]
         return list(self._add_query(self.get_qs().limit(limit), queries))
 
@@ -68,10 +70,16 @@ class SpanQuery(BaseQuery):
         return [QueryConfigBuilder(self.USING).table(trace_scope_table).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})]
 
     def _cross_query_by_trace_id(self, trace_id: str) -> list[dict[str, Any]]:
-        trace_scope_table: str | None = TraceScopeIndexSet.get_table(self.bk_biz_id)
+        bk_tenant_id: str = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        trace_scope_table: str | None = TraceScopeIndexSet.get_table(self.bk_biz_id, bk_tenant_id)
         if trace_scope_table is None:
-            logger.warning(f"[SpanQuery] trace_scope_table not found for bk_biz_id: {self.bk_biz_id}")
-            return []
+            logger.warning(
+                "[SpanQuery] trace_scope_table not found, fallback to application datasource: "
+                "bk_tenant_id=%s, bk_biz_id=%s",
+                bk_tenant_id,
+                self.bk_biz_id,
+            )
+            return self._query_by_trace_id(trace_id)
 
         qs: UnifyQuerySet = self.get_qs().is_es_batch().limit(constants.DISCOVER_BATCH_SIZE)
         spans: list[dict[str, Any]] = list(self._add_query(qs, self._build_cross_queries(trace_id, trace_scope_table)))
