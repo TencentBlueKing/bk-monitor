@@ -1393,7 +1393,6 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(CollectorEtlStorageSerializer)
-        data.setdefault("clean_template_id", None)
         etl_handler = EtlHandler.get_instance(collector_config_id)
         data, can_apply = etl_handler.itsm_pre_hook(data, collector_config_id)
         if not can_apply:
