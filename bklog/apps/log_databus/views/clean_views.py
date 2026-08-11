@@ -20,11 +20,12 @@ the project delivered to anyone in the future.
 """
 
 from django.conf import settings
-from rest_framework import permissions, serializers
+from rest_framework import serializers
 from rest_framework.response import Response
 
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, Permission, ResourceEnum
+from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.log_databus.handlers.clean import CleanHandler, CleanTemplateHandler
 from apps.log_databus.handlers.etl import EtlHandler
@@ -43,56 +44,6 @@ from apps.log_databus.serializers import (
 )
 from apps.log_databus.utils.clean import CleanFilterUtils
 from apps.utils.drf import detail_route, list_route
-
-
-class CleanTemplateCollectorsManagePermission(permissions.BasePermission):
-    """同步模板前校验当前业务关联采集项的管理权限。"""
-
-    def has_permission(self, request, view):
-        # 关联采集项及其业务归属需要从模板对象获取，在对象权限阶段校验。
-        return True
-
-    def has_object_permission(self, request, view, obj):
-        collectors = list(
-            CleanTemplateHandler.get_collectors_to_sync_queryset(
-                obj.clean_template_id,
-                obj.bk_biz_id,
-                obj.config_version,
-            ).values(
-                "collector_config_id",
-                "collector_config_name",
-                "bk_biz_id",
-            )
-        )
-        # 固化已鉴权集合，避免鉴权后新建立的关联被本次同步带入。
-        view.sync_collector_config_ids = [collector["collector_config_id"] for collector in collectors]
-        if settings.IGNORE_IAM_PERMISSION or not collectors:
-            return True
-
-        permission = Permission(request=request)
-        resources = [
-            [
-                ResourceEnum.COLLECTION.create_simple_instance(
-                    collector["collector_config_id"],
-                    attribute={
-                        "id": str(collector["collector_config_id"]),
-                        "name": collector["collector_config_name"],
-                        "bk_biz_id": str(collector["bk_biz_id"]),
-                    },
-                )
-            ]
-            for collector in collectors
-        ]
-        permission_result = permission.batch_is_allowed([ActionEnum.MANAGE_COLLECTION], resources)
-        for resource in resources:
-            collector_config_id = resource[0].id
-            if not permission_result.get(collector_config_id, {}).get(ActionEnum.MANAGE_COLLECTION.id):
-                permission.is_allowed(
-                    ActionEnum.MANAGE_COLLECTION,
-                    resource,
-                    raise_exception=True,
-                )
-        return True
 
 
 class CleanViewSet(ModelViewSet):
@@ -258,12 +209,59 @@ class CleanTemplateViewSet(ModelViewSet):
     model = CleanTemplate
     filter_fields_exclude = ["etl_params", "etl_fields", "visible_type", "visible_bk_biz_id", "alias_settings"]
     search_fields = ("name",)
+    permission_classes = (ViewBusinessPermission,)
 
-    def get_permissions(self):
-        permissions_list = [ViewBusinessPermission()]
-        if self.action == "sync_collectors":
-            permissions_list.append(CleanTemplateCollectorsManagePermission())
-        return permissions_list
+    @staticmethod
+    def _get_authorized_sync_collector_ids(request, clean_template):
+        """返回本批次已通过采集管理权限校验的采集项 ID。"""
+        collectors = list(
+            CleanTemplateHandler.get_collectors_to_sync_queryset(
+                clean_template.clean_template_id,
+                clean_template.bk_biz_id,
+                clean_template.config_version,
+            )
+            .values(
+                "collector_config_id",
+                "collector_config_name",
+                "bk_biz_id",
+            )
+            .order_by("collector_config_id")
+        )
+        collector_ids = [collector["collector_config_id"] for collector in collectors]
+        if settings.IGNORE_IAM_PERMISSION or not collectors:
+            return collector_ids
+
+        permission = Permission(request=request)
+        resources = [
+            [
+                ResourceEnum.COLLECTION.create_simple_instance(
+                    collector["collector_config_id"],
+                    attribute={
+                        "id": str(collector["collector_config_id"]),
+                        "name": collector["collector_config_name"],
+                        "bk_biz_id": str(collector["bk_biz_id"]),
+                    },
+                )
+            ]
+            for collector in collectors
+        ]
+        permission_result = permission.batch_is_allowed([ActionEnum.MANAGE_COLLECTION], resources)
+        denied_resources = [
+            resource[0]
+            for resource in resources
+            if not permission_result.get(resource[0].id, {}).get(ActionEnum.MANAGE_COLLECTION.id)
+        ]
+        if denied_resources:
+            apply_data, apply_url = permission.get_apply_data(
+                [ActionEnum.MANAGE_COLLECTION],
+                denied_resources,
+            )
+            raise PermissionDeniedError(
+                action_name=ActionEnum.MANAGE_COLLECTION.name,
+                permission=apply_data,
+                apply_url=apply_url,
+            )
+        return collector_ids
 
     def get_serializer_class(self, *args, **kwargs):
         action_serializer_map = {
@@ -647,9 +645,10 @@ class CleanTemplateViewSet(ModelViewSet):
         }
         """
         clean_template = self.get_object()
+        collector_config_ids = self._get_authorized_sync_collector_ids(request, clean_template)
         return Response(
             CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).sync_collectors(
-                collector_config_ids=self.sync_collector_config_ids
+                collector_config_ids=collector_config_ids
             )
         )
 

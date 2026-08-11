@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import copy
 from collections.abc import Callable
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
@@ -125,8 +124,7 @@ class CleanHandler:
 
 
 class CleanTemplateHandler:
-    SYNC_LOCK_TTL = getattr(settings, "CLEAN_TEMPLATE_SYNC_LOCK_TTL", 30 * 60)
-    SYNC_MAX_WORKERS = getattr(settings, "CLEAN_TEMPLATE_SYNC_MAX_WORKERS", 5)
+    SYNC_LOCK_TTL = 5 * 60
 
     def __init__(self, clean_template_id=None):
         self.clean_template_id = clean_template_id
@@ -325,7 +323,7 @@ class CleanTemplateHandler:
             collectors = collectors.filter(collector_config_id__in=collector_config_ids)
         collectors = list(collectors.order_by("collector_config_id"))
 
-        multi_execute_func = MultiExecuteFunc(max_workers=self.SYNC_MAX_WORKERS)
+        multi_execute_func = MultiExecuteFunc()
         for collector in collectors:
             multi_execute_func.append(
                 result_key=collector.collector_config_id,

@@ -22,9 +22,12 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
+from apps.iam import ActionEnum
+from apps.iam.exceptions import PermissionDeniedError
+from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_databus.constants import CleanTemplateSyncStatus
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
@@ -207,6 +210,86 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertNotIn("bk_biz_name", result[0])
 
 
+@override_settings(IGNORE_IAM_PERMISSION=False)
+class TestCleanTemplateSyncPermission(CleanTemplateTestCase):
+    @staticmethod
+    def _request():
+        return APIRequestFactory().post("/databus/clean_template/1/sync/")
+
+    def test_view_uses_business_permission_by_default(self):
+        self.assertEqual(CleanTemplateViewSet.permission_classes, (ViewBusinessPermission,))
+
+    def test_all_collectors_allowed_returns_authorized_ids(self):
+        template_data = self.create_template()
+        template = CleanTemplate.objects.get(clean_template_id=template_data["clean_template_id"])
+        collectors = [
+            self.create_collector(
+                collector_config_name=f"collector-{index}",
+                clean_template_id=template.clean_template_id,
+                clean_template_version=None,
+            )
+            for index in range(2)
+        ]
+        permission_result = {
+            str(collector.collector_config_id): {ActionEnum.MANAGE_COLLECTION.id: True} for collector in collectors
+        }
+
+        request = self._request()
+        with patch("apps.log_databus.views.clean_views.Permission") as permission_class:
+            permission_class.return_value.batch_is_allowed.return_value = permission_result
+            collector_ids = CleanTemplateViewSet._get_authorized_sync_collector_ids(request, template)
+
+        self.assertEqual(collector_ids, [collector.collector_config_id for collector in collectors])
+        permission_class.assert_called_once_with(request=request)
+        actions, resources = permission_class.return_value.batch_is_allowed.call_args.args
+        self.assertEqual(actions, [ActionEnum.MANAGE_COLLECTION])
+        self.assertEqual([resource[0].id for resource in resources], [str(item) for item in collector_ids])
+        self.assertTrue(all(resource[0].attribute.get("_bk_iam_path_") == "/space,706/" for resource in resources))
+        permission_class.return_value.get_apply_data.assert_not_called()
+
+    def test_denied_collectors_are_aggregated_into_one_permission_error(self):
+        template_data = self.create_template()
+        template = CleanTemplate.objects.get(clean_template_id=template_data["clean_template_id"])
+        collectors = [
+            self.create_collector(
+                collector_config_name=f"denied-{index}",
+                clean_template_id=template.clean_template_id,
+                clean_template_version=None,
+            )
+            for index in range(2)
+        ]
+        permission_result = {
+            str(collector.collector_config_id): {ActionEnum.MANAGE_COLLECTION.id: False} for collector in collectors
+        }
+
+        with patch("apps.log_databus.views.clean_views.Permission") as permission_class:
+            permission = permission_class.return_value
+            permission.batch_is_allowed.return_value = permission_result
+            permission.get_apply_data.return_value = ({"actions": []}, "http://apply")
+            with self.assertRaises(PermissionDeniedError) as context:
+                CleanTemplateViewSet._get_authorized_sync_collector_ids(self._request(), template)
+
+        self.assertEqual(context.exception.code, "9900403")
+        self.assertEqual(context.exception.data["apply_url"], "http://apply")
+        actions, denied_resources = permission.get_apply_data.call_args.args
+        self.assertEqual(actions, [ActionEnum.MANAGE_COLLECTION])
+        self.assertEqual(
+            [resource.id for resource in denied_resources],
+            [str(collector.collector_config_id) for collector in collectors],
+        )
+        self.assertEqual([resource.attribute["name"] for resource in denied_resources], ["denied-0", "denied-1"])
+
+    def test_empty_sync_target_skips_iam(self):
+        template_data = self.create_template()
+        template = CleanTemplate.objects.get(clean_template_id=template_data["clean_template_id"])
+
+        with patch("apps.log_databus.views.clean_views.Permission") as permission_class:
+            collector_ids = CleanTemplateViewSet._get_authorized_sync_collector_ids(self._request(), template)
+
+        self.assertEqual(collector_ids, [])
+        permission_class.assert_not_called()
+
+
 class TestCleanTemplateSync(CleanTemplateTestCase):
     def test_sync_collector_records_success_and_failure(self):
         template = self.create_template()
@@ -357,7 +440,7 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         )
 
         class InlineExecutor:
-            def __init__(self, max_workers):
+            def __init__(self):
                 self.tasks = []
 
             def append(self, result_key, func, params, multi_func_params):
