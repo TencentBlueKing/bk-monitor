@@ -16,7 +16,8 @@ specific language governing permissions and limitations under the License.
 #       业务 action_id → V3 平台 action_id：
 #           经历了 V1→V2 迁移的 action 带 _v2 后缀，
 #           新增 action 的 V3 平台 ID 与业务 ID 一致（恒等）。
-#           映射表从 ActionDef.extensions["v3"]["action_id"] 构建。
+#           映射表从 Actions 定义类直接提取（同包的 actions.py），
+#           无需 schema 注入。
 #
 #   resource_type / resource_id / role：
 #       V3 全部恒等映射，继承 IdentityCodec。
@@ -24,51 +25,80 @@ specific language governing permissions and limitations under the License.
 # 配置方式：
 #   在 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 中配置本类的 dotted path：
 #       "codec_class": "bkmonitor.iam.definitions.codec_v3.MonitorV3Codec"
-#   Provider 在初始化时自动加载。
+#   Provider 在初始化时自动加载，无需手动传参。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from ..iam_engine.provider.codec import IdentityCodec
 
-if TYPE_CHECKING:
-    from ..iam_engine.schema.registry import SchemaRegistry
+
+def _build_v3_mappings():
+    """从 Actions 定义类直接提取 v3 action_id 映射表（模块加载时执行一次）。
+
+    使用与 schema.loaders.load_from_class 相同的 vars() 遍历模式，
+    保证与 schema 注册的 action 集合完全一致。
+    """
+    from .actions import Actions
+
+    fwd: dict[str, str] = {}
+    rev: dict[str, str] = {}
+    action_types: dict[str, str] = {}
+
+    for name, action in vars(Actions).items():
+        if name.startswith("_"):
+            continue
+        if not hasattr(action, "id"):
+            continue
+        v3_ext = action.extensions.get("v3", {})
+        v3_action_id = v3_ext.get("action_id", "")
+        action_type = v3_ext.get("type", "")
+        # 只对与业务 ID 不同的 action_id 建立映射（带 _v2 后缀的历史迁移 action）
+        if v3_action_id and v3_action_id != action.id:
+            fwd[action.id] = v3_action_id
+            rev[v3_action_id] = action.id
+        # 缓存 action type，用于读写策略判断
+        if action_type:
+            action_types[action.id] = action_type
+
+    return fwd, rev, action_types
+
+
+_FWD, _REV, _ACTION_TYPES = _build_v3_mappings()
 
 
 class MonitorV3Codec(IdentityCodec):
     """V3 action_id 映射编解码器。
 
     仅覆盖 encode_action / decode_action；其他符号全部恒等。
-    映射表在构造时从 SchemaRegistry 的 extensions["v3"]["action_id"] 构建，
-    只存储 action_id 与业务 ID 不同的条目，恒等 action 走 dict.get 兜底。
+    映射表在模块加载时从 Actions 定义类提取，无 schema 依赖。
+
+    支持通过构造参数覆盖映射表（测试/自定义场景）：
+        MonitorV3Codec(action_id_map={"view_business": "view_business_v2"},
+                       action_types={"view_business": "view"})
     """
 
-    def __init__(self, schema: SchemaRegistry | None = None):
+    def __init__(
+        self,
+        action_id_map: dict[str, str] | None = None,
+        action_types: dict[str, str] | None = None,
+    ):
         """初始化 V3 编解码器。
 
         Args:
-            schema: 已冻结的 SchemaRegistry，从 extensions["v3"] 构建映射表。
-                    为 None 时所有操作恒等（用于测试/兜底）。
+            action_id_map: 业务 action_id → V3 平台 action_id 映射。
+                           为 None 时使用从 Actions 类自动提取的默认映射。
+            action_types: 业务 action_id → type 映射（"view"/"manage"）。
+                          为 None 时使用从 Actions 类自动提取的默认映射。
         """
         super().__init__()
-        self._fwd: dict[str, str] = {}  # 业务 action_id → V3 平台 action_id
-        self._rev: dict[str, str] = {}  # V3 平台 action_id → 业务 action_id
-        self._action_types: dict[str, str] = {}  # 业务 action_id → type ("view"/"manage")
-
-        if schema is not None:
-            for action_def in schema.all_actions():
-                v3_ext = dict(action_def.extensions.get("v3", {}))
-                v3_action_id = v3_ext.get("action_id", "")
-                action_type = v3_ext.get("type", "")
-                # 只对与业务 ID 不同的 action_id 建立映射（带 _v2 后缀的历史迁移 action）
-                if v3_action_id and v3_action_id != action_def.id:
-                    self._fwd[action_def.id] = v3_action_id
-                    self._rev[v3_action_id] = action_def.id
-                # 缓存 action type，用于读写策略判断
-                if action_type:
-                    self._action_types[action_def.id] = action_type
+        if action_id_map is not None:
+            self._fwd: dict[str, str] = dict(action_id_map)
+            self._rev: dict[str, str] = {v: k for k, v in self._fwd.items()}
+        else:
+            self._fwd = _FWD
+            self._rev = _REV
+        self._action_types: dict[str, str] = dict(action_types) if action_types is not None else _ACTION_TYPES
 
     # ================================================================
     # action_id 编解码

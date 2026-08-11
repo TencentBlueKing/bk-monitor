@@ -126,8 +126,9 @@ class PermissionProvider(ABC):
         self.schema = schema
         self.options = options
         codec_cls_path: str = options.get("codec_class", "")
+        codec_kwargs: dict = options.get("codec_kwargs", {})
         if codec_cls_path:
-            self.codec: NameCodec = import_class(codec_cls_path)()
+            self.codec: NameCodec = import_class(codec_cls_path)(**codec_kwargs)
         else:
             self.codec = IdentityCodec()
 
@@ -436,8 +437,17 @@ class PermissionProvider(ABC):
     # ==================== 迁移契约 ====================
 
     @abstractmethod
-    def plan_migration(self, schema: SchemaRegistry) -> MigrationPlan:
-        """比对本地 schema 与远端 IAM 平台，生成变更计划（不执行）。"""
+    def plan_migration(self, schema: SchemaRegistry, *, scope: str = "full") -> MigrationPlan:
+        """从本地 definitions + Provider 配置生成迁移计划（不查远端）。
+
+        输出的是"本地期望状态"的 Change 列表，供 apply_migration 消费。
+        apply_migration 负责查远端、reconcile、执行。
+
+        Args:
+            schema: 冻结的 SchemaRegistry。
+            scope: "system" 只生成系统注册的 Change；
+                   "full" 生成系统+操作+资源类型+角色的全量 Change。
+        """
 
     @abstractmethod
     def apply_migration(
@@ -447,12 +457,20 @@ class PermissionProvider(ABC):
         dry_run: bool = False,
         allow_destructive: bool = False,
     ) -> MigrationReport:
-        """应用变更计划。
+        """应用变更计划（查远端 + reconcile + 执行）。
+
+        Provider 内部必须：
+          1. 根据 plan 中的 Change 类型决定查询远端哪些数据
+          2. 将每个 Change 与远端实际状态做 reconcile：
+             CREATE + 远端已有 → 跳过
+             UPDATE + 远端没有 → 降级为 CREATE
+             DELETE + 远端没有 → 跳过
+          3. 执行 reconcile 后的实际操作
 
         Args:
-            plan: plan_migration 的产物
-            dry_run: 只演练，不真正提交
-            allow_destructive: 是否允许破坏性变更（默认禁止）
+            plan: plan_migration 或迁移文件产出的 Change 列表。
+            dry_run: 只演练，不真正提交。
+            allow_destructive: 是否允许破坏性变更（默认禁止）。
         """
 
     # ==================== 运维 ====================

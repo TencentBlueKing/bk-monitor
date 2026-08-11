@@ -106,7 +106,7 @@ class TestProviderBatching:
             def _get_apply_url_dialect(self, request):  # pragma: no cover
                 return ""
 
-            def plan_migration(self, schema):  # pragma: no cover
+            def plan_migration(self, schema, *, scope="full"):  # pragma: no cover
                 raise NotImplementedError
 
             def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):  # pragma: no cover

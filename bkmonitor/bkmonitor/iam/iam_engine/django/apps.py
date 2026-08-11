@@ -93,24 +93,20 @@ class IamEngineConfig(AppConfig):
 
         from ..migration.loader import MigrationLoader
         from ..migration.planner import MigrationPlanner
-        from ..schema.diff import ChangeType, EntityKind, MigrationPlan
+        from ..schema.diff import MigrationPlan
 
         directory = migration_cfg.get("directory", "")
         recorder = None
 
         for provider in fw.providers.values():
             try:
-                # ① 系统迁移：远端 diff system info → apply
-                plan = provider.plan_migration(fw.schema)
-                system_changes = [
-                    c for c in plan.changes if c.kind == EntityKind.SYSTEM and c.change_type != ChangeType.NOOP
-                ]
-                if system_changes:
-                    logger.info("iam_engine migration: %s system — %d change(s)", provider.name, len(system_changes))
-                    system_plan = MigrationPlan(provider_name=provider.name, changes=system_changes)
-                    provider.apply_migration(system_plan, dry_run=False, allow_destructive=allow_destructive)
+                # ① 系统迁移：plan_migration(scope="system") → apply_migration
+                plan = provider.plan_migration(fw.schema, scope="system")
+                report = provider.apply_migration(plan, dry_run=False, allow_destructive=allow_destructive)
+                if report.applied:
+                    logger.info("iam_engine migration: %s system — %d applied", provider.name, len(report.applied))
 
-                # ② 文件迁移：本地迁移文件 → apply 未应用的
+                # ② 文件迁移：本地迁移文件 → apply_migration
                 if not directory:
                     continue
 

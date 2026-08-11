@@ -12,8 +12,10 @@ specific language governing permissions and limitations under the License.
 # iam_migrate — 系统迁移 + 文件迁移
 #
 # 流程（每个 provider）：
-#   ① plan_migration(fw.schema) → 仅取 SYSTEM 变更 → apply — 系统信息远端 diff
-#   ② 迁移文件 → 未应用的按依赖序 apply → 记录 DB — 本地文件迁移
+#   ① plan_migration(scope="system") → apply_migration — 系统注册/更新
+#   ② 迁移文件 → 未应用的按依赖序 apply_migration — 资源/操作/角色
+#
+# apply_migration 内部负责查远端、reconcile、执行。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -25,11 +27,11 @@ from ....django.facade import get_framework
 from ....django.migration_recorder import DjangoMigrationRecorder
 from ....migration.loader import MigrationLoader
 from ....migration.planner import MigrationPlanner
-from ....schema.diff import ChangeType, EntityKind, MigrationPlan
+from ....schema.diff import MigrationPlan
 
 
 class Command(BaseCommand):
-    help = "应用 IAM schema 迁移：系统信息（远端 diff）+ 迁移文件（本地）。"
+    help = "应用 IAM schema 迁移：系统注册 + 迁移文件。"
 
     def add_arguments(self, parser):
         parser.add_argument("--provider", default=None, help="Provider 名（如 v4）；不指定则全部执行")
@@ -38,7 +40,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--directory",
             default=None,
-            help="迁移文件目录（默认从 provider options.migration_directory 读取）",
+            help="迁移文件目录（默认从 IAM_FRAMEWORK.MIGRATION.directory 读取）",
         )
 
     def handle(self, **options):
@@ -111,33 +113,30 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
 
     def _migrate_system(self, provider, fw, dry_run: bool) -> None:
-        """对比远端系统信息并应用变更。
+        """系统注册/更新。
 
-        调 provider.plan_migration()，只取其中 kind=SYSTEM 的变更来 apply。
-        NOOP 时跳过，无需 DB 记录。
+        plan_migration(scope="system") 生成系统计划（纯本地），
+        apply_migration 查远端、reconcile、按需 create/update。
         """
         try:
-            plan = provider.plan_migration(fw.schema)
+            plan = provider.plan_migration(fw.schema, scope="system")
         except Exception as e:
             self.stderr.write(self.style.WARNING(f"[{provider.name}] system plan failed: {e}"))
             return
 
-        system_changes = [c for c in plan.changes if c.kind == EntityKind.SYSTEM and c.change_type != ChangeType.NOOP]
-        if not system_changes:
-            self.stdout.write(f"[{provider.name}] system: no changes.")
-            return
+        report = provider.apply_migration(plan, dry_run=dry_run, allow_destructive=False)
 
-        self.stdout.write(f"[{provider.name}] system: {len(system_changes)} change(s)")
-        for c in system_changes:
-            self.stdout.write(f"  {c.change_type.value} system: {c.reason}")
-
-        if not dry_run:
-            system_plan = MigrationPlan(provider_name=provider.name, changes=system_changes)
-            report = provider.apply_migration(system_plan, dry_run=False, allow_destructive=False)
-            if report.success:
-                self.stdout.write(self.style.SUCCESS(f"  [{provider.name}] system: applied."))
+        if report.success:
+            if report.applied:
+                self.stdout.write(
+                    self.style.SUCCESS(f"[{provider.name}] system: applied {len(report.applied)} change(s).")
+                )
+            elif report.would_apply:
+                self.stdout.write(f"[{provider.name}] system: would apply {len(report.would_apply)} change(s).")
             else:
-                self.stderr.write(self.style.ERROR(f"  [{provider.name}] system: {len(report.failed)} failure(s)"))
+                self.stdout.write(f"[{provider.name}] system: no changes.")
+        else:
+            self.stderr.write(self.style.ERROR(f"[{provider.name}] system: {len(report.failed)} failure(s)"))
 
     # ------------------------------------------------------------------
 

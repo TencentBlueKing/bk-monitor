@@ -1380,7 +1380,7 @@ IAM_FRAMEWORK = {
                     "description": "蓝鲸监控平台 IAM v4 权限系统",
                     "callback_url": BK_IAM_V4_CALLBACK_URL,
                     "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
-                    "clients": ["bluexun"],
+                    "clients": [APP_CODE, "bluexun"],
                 },
             },
         },

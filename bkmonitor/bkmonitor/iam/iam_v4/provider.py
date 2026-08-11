@@ -467,19 +467,17 @@ class V4PermissionProvider(PermissionProvider):
     # plan_migration / apply_migration
     # ================================================================
 
-    def plan_migration(self, schema: SchemaRegistry) -> MigrationPlan:
-        """比对本地 schema 与远端 IAM 平台，生成变更计划（不执行）。
+    def plan_migration(self, schema: SchemaRegistry, *, scope: str = "full") -> MigrationPlan:
+        """从本地 definitions + V4Options 生成迁移计划（不查远端）。
 
         Args:
             schema: 冻结的 SchemaRegistry。
-
-        Returns:
-            MigrationPlan: 包含 provider_name 和 changes 列表的变更计划。
+            scope: "system" / "full"。
         """
         from .migrator import V4Migrator
 
         migrator = V4Migrator(self._client, schema, self._cfg.system, self.codec)
-        return migrator.plan_migration()
+        return migrator.plan_migration(scope=scope)
 
     def apply_migration(
         self,
@@ -488,15 +486,12 @@ class V4PermissionProvider(PermissionProvider):
         dry_run: bool = False,
         allow_destructive: bool = False,
     ) -> MigrationReport:
-        """应用变更计划到远端 IAM 平台。
+        """应用变更计划（查远端 + reconcile + 执行）。
 
         Args:
-            plan: plan_migration 的产物。
-            dry_run: 只演练，不真正提交。默认 False。
-            allow_destructive: 是否允许破坏性变更（DELETE 等）。默认 False。
-
-        Returns:
-            MigrationReport: 包含 applied/would_apply/failed/elapsed 等信息。
+            plan: plan_migration 或迁移文件产出的 Change 列表。
+            dry_run: 只演练，不真正提交。
+            allow_destructive: 是否允许破坏性变更。
         """
         from .migrator import V4Migrator
 

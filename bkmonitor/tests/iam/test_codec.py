@@ -180,7 +180,7 @@ class _RecordingProvider(PermissionProvider):
         self.last_apply_url = request
         return "https://example.com/apply"
 
-    def plan_migration(self, schema):
+    def plan_migration(self, schema, *, scope="full"):
         raise NotImplementedError
 
     def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):

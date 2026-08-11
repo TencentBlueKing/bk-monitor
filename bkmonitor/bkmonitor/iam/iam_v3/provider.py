@@ -323,15 +323,11 @@ class V3PermissionProvider(PermissionProvider):
                     for r in request.resources:
                         if r.type == rrt_dict["id"]:
                             instances.append(ResourceInstance([ResourceNode(type=r.type, id=r.id, name=r.id)]))
-                    selection_mode = rrt_dict.get("selection_mode", "instance")
-                    related_instance_selections = rrt_dict.get("related_instance_selections", [])
                     related_types.append(
                         RelatedResourceType(
                             system_id=rrt_dict["system_id"],
-                            id=rrt_dict["id"],
+                            type=rrt_dict["id"],
                             instances=instances,
-                            selection_mode=selection_mode if isinstance(selection_mode, str) else "",
-                            related_instance_selections=list(related_instance_selections),
                         )
                     )
                 actions.append(ActionWithResources(dialect_aid, related_types))
@@ -430,14 +426,89 @@ class V3PermissionProvider(PermissionProvider):
             return {"status": "error", "provider": self.name, "error": str(e)[:200]}
 
     # ================================================================
-    # plan_migration / apply_migration（Phase 1：空实现）
+    # plan_migration / apply_migration
     # ================================================================
 
-    def plan_migration(self, schema: SchemaRegistry) -> MigrationPlan:
-        """Phase 1：返回空变更计划。V3 迁移走原有 JSON migration 方式。"""
-        from ..iam_engine.schema.diff import MigrationPlan
+    def plan_migration(self, schema: SchemaRegistry, *, scope: str = "full") -> MigrationPlan:
+        """从本地 definitions + V3Options 生成迁移计划（不查远端）。
 
-        return MigrationPlan(provider_name=self.name, changes=[])
+        Args:
+            schema: 冻结的 SchemaRegistry。
+            scope: "system" 只生成系统注册 Change；
+                   "full" 生成系统+资源类型+操作的全量 Change。
+
+        Returns:
+            MigrationPlan: 包含 provider_name 和 changes 列表的变更计划。
+        """
+        from ..iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
+
+        changes: list[Change] = []
+
+        # ---- System ----
+        system_info = {
+            "id": self._cfg.system.id,
+            "name": self._cfg.system.name,
+            "description": self._cfg.system.description,
+            "managers": list(self._cfg.system.managers),
+            "clients": list(self._cfg.system.clients),
+        }
+        changes.append(
+            Change(
+                kind=EntityKind.SYSTEM,
+                change_type=ChangeType.CREATE,
+                entity_id=self._cfg.system.id,
+                after=system_info,
+                reason="System registration (local plan)",
+            )
+        )
+
+        if scope == "system":
+            return MigrationPlan(provider_name=self.name, changes=changes)
+
+        # ---- Resource Types ----
+        for rt in schema.all_resource_types():
+            v3_ext = dict(rt.extensions.get("v3", {}))
+            if not v3_ext:
+                continue
+            changes.append(
+                Change(
+                    kind=EntityKind.RESOURCE_TYPE,
+                    change_type=ChangeType.CREATE,
+                    entity_id=rt.id,
+                    after={
+                        "id": rt.id,
+                        "name": rt.name,
+                        "system_id": v3_ext.get("system_id", "bk_monitorv3"),
+                        "selection_mode": v3_ext.get("selection_mode", "instance"),
+                        "related_instance_selections": v3_ext.get("related_instance_selections", []),
+                    },
+                    reason="New resource type",
+                )
+            )
+
+        # ---- Actions ----
+        for action in schema.all_actions():
+            v3_ext = dict(action.extensions.get("v3", {}))
+            if not v3_ext:
+                continue
+            dialect_id = self.codec.encode_action(action.id)
+            changes.append(
+                Change(
+                    kind=EntityKind.ACTION,
+                    change_type=ChangeType.CREATE,
+                    entity_id=action.id,
+                    after={
+                        "id": dialect_id,
+                        "name": action.name,
+                        "type": v3_ext.get("type", ""),
+                        "version": v3_ext.get("version", 1),
+                        "related_resource_types": self._build_related_resource_types(action),
+                    },
+                    reason="New action",
+                )
+            )
+
+        return MigrationPlan(provider_name=self.name, changes=changes)
 
     def apply_migration(
         self,
@@ -446,7 +517,223 @@ class V3PermissionProvider(PermissionProvider):
         dry_run: bool = False,
         allow_destructive: bool = False,
     ) -> MigrationReport:
-        """Phase 1：空操作。V3 迁移走原有 JSON migration 方式。"""
-        from ..iam_engine.schema.diff import MigrationReport
+        """应用变更计划（查远端 + reconcile + 执行）。
 
-        return MigrationReport(provider_name=self.name)
+        根据 plan 中的 Change 类型决定查询范围：
+          - 只有 SYSTEM → 只查远端系统信息
+          - 包含 ACTION/RT → 查远端全量
+
+        Args:
+            plan: plan_migration 或迁移文件产出的 Change 列表。
+            dry_run: 只演练，不真正提交。
+            allow_destructive: 是否允许破坏性变更。
+        """
+        from ..iam_engine.schema.diff import ChangeType, EntityKind, MigrationPlan, MigrationReport
+
+        report = MigrationReport(provider_name=self.name)
+
+        if plan.has_destructive() and not allow_destructive:
+            report.skipped_reason = "Destructive changes blocked; set allow_destructive=True"
+            return report
+
+        # ---- SYSTEM reconcile：查远端系统，决定实际操作 ----
+        system_changes = [c for c in plan.changes if c.kind == EntityKind.SYSTEM and c.change_type != ChangeType.NOOP]
+        has_system = bool(system_changes)
+        if has_system:
+            ok, _msg, data = self._iam_client._client.query(self._cfg.system.id)
+            remote_system = data.get("base_info") if ok else None
+            reconciled_system = self._reconcile_system_changes(system_changes, remote_system)
+            other_changes = [c for c in plan.changes if c.kind != EntityKind.SYSTEM]
+            plan = MigrationPlan(provider_name=self.name, changes=reconciled_system + other_changes)
+
+        # ---- ACTION / RT reconcile：查远端全量 ----
+        has_entities = any(c.kind in (EntityKind.ACTION, EntityKind.RESOURCE_TYPE) for c in plan.changes)
+        remote_actions: set[str] = set()
+        remote_rts: set[str] = set()
+        if has_entities:
+            ok, _msg, data = self._iam_client._client.query(self._cfg.system.id)
+            if ok:
+                remote_actions = {a["id"] for a in (data.get("actions") or [])}
+                remote_rts = {r["id"] for r in (data.get("resource_types") or [])}
+
+        # SDK Client
+        from iam.contrib.iam_migration.utils.do_migrate import Client
+
+        client = Client(
+            self._cfg.credentials.app_code,
+            self._cfg.credentials.app_secret,
+            self._cfg.base_url,
+            bk_tenant_id=self._cfg.bk_tenant_id,
+        )
+
+        for change in plan.changes:
+            if change.change_type == ChangeType.NOOP:
+                continue
+
+            actual = self._reconcile_change(change, remote_actions, remote_rts)
+            if actual is None:
+                continue
+
+            if dry_run:
+                report.would_apply.append(actual)
+                continue
+
+            try:
+                self._execute_change(client, actual)
+                report.applied.append(actual)
+            except Exception as e:
+                report.failed.append((actual, str(e)[:500]))
+
+        return report
+
+    # ================================================================
+    # 内部：reconcile
+    # ================================================================
+
+    def _reconcile_system_changes(self, system_changes: list, remote_system: dict | None) -> list:
+        """用远端系统信息 reconcile 本地的 SYSTEM Change。
+
+        remote_system=None → 系统未注册 → 保留 CREATE。
+        remote_system 已存在且匹配 → 替换为 NOOP。
+        remote_system 已存在但不同 → 替换为 UPDATE。
+        """
+        from ..iam_engine.schema.diff import Change, ChangeType, EntityKind
+
+        local = {
+            "id": self._cfg.system.id,
+            "name": self._cfg.system.name,
+            "description": self._cfg.system.description,
+            "managers": list(self._cfg.system.managers),
+            "clients": list(self._cfg.system.clients),
+        }
+        if remote_system is None:
+            return system_changes  # 系统未注册，保留原样（CREATE）
+
+        keys = {"id", "name", "description", "managers", "clients"}
+        if self._system_dicts_equal(local, remote_system, keys):
+            # 远端一致 → NOOP
+            return [Change(kind=EntityKind.SYSTEM, change_type=ChangeType.NOOP, entity_id=self._cfg.system.id)]
+        # 远端不同 → UPDATE
+        return [
+            Change(
+                kind=EntityKind.SYSTEM,
+                change_type=ChangeType.UPDATE,
+                entity_id=self._cfg.system.id,
+                before=remote_system,
+                after=local,
+                reason="System config differs",
+            )
+        ]
+
+    @staticmethod
+    def _system_dicts_equal(local: dict, remote: dict, keys: set) -> bool:
+        for k in keys:
+            lv = local.get(k)
+            rv = remote.get(k)
+            if isinstance(lv, list) and isinstance(rv, list):
+                if sorted(lv) != sorted(rv):
+                    return False
+            elif lv != rv:
+                return False
+        return True
+
+    @staticmethod
+    def _reconcile_change(change, remote_actions: set[str], remote_rts: set[str]):
+        """将单个 Change 与远端实际状态做 reconcile。"""
+        from ..iam_engine.schema.diff import Change, ChangeType, EntityKind
+
+        kind = change.kind
+        if kind == EntityKind.SYSTEM:
+            return None  # SYSTEM 已在 apply_migration 主循环前单独 reconcile，这里不应再出现
+
+        dialect_id = change.after.get("id", change.entity_id) if change.after else change.entity_id
+
+        if kind == EntityKind.ACTION:
+            exists = dialect_id in remote_actions
+        elif kind == EntityKind.RESOURCE_TYPE:
+            exists = dialect_id in remote_rts
+        else:
+            return change
+
+        if change.change_type == ChangeType.CREATE and exists:
+            return None  # 远端已有，跳过
+        if change.change_type == ChangeType.UPDATE and not exists:
+            return Change(
+                kind=kind,
+                change_type=ChangeType.CREATE,
+                entity_id=change.entity_id,
+                after=change.after,
+                reason=f"UPDATE→CREATE (not found remote): {change.reason}",
+            )
+        if change.change_type == ChangeType.DELETE and not exists:
+            return None
+        return change
+
+    # ================================================================
+    # 内部：执行
+    # ================================================================
+
+    def _execute_change(self, client, change) -> None:
+        """按 Change 类型调用 V3 SDK Client 执行。"""
+        from ..iam_engine.schema.diff import ChangeType, EntityKind
+
+        system_id = self._cfg.system.id
+
+        if change.kind == EntityKind.SYSTEM:
+            if change.change_type == ChangeType.CREATE:
+                ok, _msg = client.add_system(system_id, change.after)
+            elif change.change_type == ChangeType.UPDATE:
+                ok, _msg = client.update_system(system_id, change.after)
+            else:
+                return
+            if not ok:
+                raise RuntimeError(f"System {change.change_type.value} failed: {_msg}")
+
+        elif change.kind == EntityKind.ACTION:
+            data = change.after
+            if change.change_type == ChangeType.CREATE:
+                ok, _msg = client.add_action(system_id, data)
+            elif change.change_type == ChangeType.UPDATE:
+                ok, _msg = client.update_action(system_id, data)
+            elif change.change_type == ChangeType.DELETE:
+                ok, _msg = client.delete_action(system_id, data)
+            else:
+                return
+            if not ok:
+                raise RuntimeError(f"Action {change.change_type.value} {data.get('id')} failed: {_msg}")
+
+        elif change.kind == EntityKind.RESOURCE_TYPE:
+            data = change.after
+            if change.change_type == ChangeType.CREATE:
+                ok, _msg = client.add_resource_type(system_id, data)
+            elif change.change_type == ChangeType.UPDATE:
+                ok, _msg = client.update_resource_type(system_id, data)
+            elif change.change_type == ChangeType.DELETE:
+                ok, _msg = client.delete_resource_type(system_id, data)
+            else:
+                return
+            if not ok:
+                raise RuntimeError(f"ResourceType {change.change_type.value} {data.get('id')} failed: {_msg}")
+
+    # ================================================================
+    # 内部：从 schema 拼 V3 的 related_resource_types
+    # ================================================================
+
+    def _build_related_resource_types(self, action_def) -> list[dict]:
+        """从 ActionDef.resource_type + ResourceTypeDef.extensions["v3"] 拼出 V3 格式。"""
+        rt_id = action_def.resource_type
+        if not rt_id:
+            return []
+        try:
+            rt_def = self.schema.get_resource_type(rt_id)
+            v3_ext = dict(rt_def.extensions.get("v3", {}))
+        except Exception:
+            v3_ext = {}
+        return [
+            {
+                "system_id": v3_ext.get("system_id", "bk_monitorv3"),
+                "id": rt_id,
+                "selection_mode": v3_ext.get("selection_mode", "instance"),
+                "related_instance_selections": v3_ext.get("related_instance_selections", []),
+            }
+        ]

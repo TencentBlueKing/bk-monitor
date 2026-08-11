@@ -34,17 +34,17 @@ logger = logging.getLogger(__name__)
 class V4Migrator:
     """IAM v4 模型迁移器。
 
-    可见性过滤：
-        本 Migrator 仅处理对 ``provider_name="v4"`` 可见的 schema 实体。
-        在 schema 实体的 ``extensions`` 里用 ``only_providers`` /
-        ``exclude_providers`` 声明归属或排除（见 ``schema.visibility``）。
+    plan_migration(scope) —— 从本地 schema + 系统配置生成迁移计划（不查远端）。
+        scope="system" 只生成系统注册 Change；
+        scope="full" 生成系统+资源类型+操作+角色的全量 Change。
 
-        本地不可见的实体：不会参与 diff（既不会被 CREATE，也不会因为在本地
-        缺失而把远端对应实体删除 — 因为本地 dialect_id 集合完全不包含它们，
-        无法与远端同名实体形成同一可见性下的 orphan）。
+    apply_migration(plan) —— 查远端 + reconcile + 执行。
+        根据 plan 中的 Change 类型决定查询范围，将每个 Change 与远端实际状态
+        做 reconcile（CREATE+已有→跳过, UPDATE+没有→降级CREATE, DELETE+没有→跳过）。
+
+    可见性过滤：仅处理对 provider_name="v4" 可见的 schema 实体。
     """
 
-    # 拓扑顺序：创建时 System → ResourceType → Action → Role；删除时反向
     _KIND_ORDER: dict[EntityKind, int] = {
         EntityKind.SYSTEM: 0,
         EntityKind.RESOURCE_TYPE: 1,
@@ -62,43 +62,45 @@ class V4Migrator:
         self._client = client
         self._schema = schema
         self._system = system_def
-        # 迁移器写往平台的字段（action_id / resource_type_id / resource ancestors 等）
-        # 需要经过 codec 编码为方言；未注入时用恒等 codec 保持向后兼容。
         self._codec: NameCodec = codec or IdentityCodec()
 
     # ================================================================
-    # plan_migration
+    # plan_migration —— 纯本地生成（不查远端）
     # ================================================================
 
-    def plan_migration(self) -> MigrationPlan:
-        """拉取远端状态，与本地 schema diff，生成 MigrationPlan。
+    def plan_migration(self, *, scope: str = "full") -> MigrationPlan:
+        """从本地 definitions + 系统配置生成迁移计划。
 
-        - 系统未注册（404）→ 全部本地实体标记 CREATE
-        - IAM 平台故障（超时/500/403）→ ProviderUnavailable 直接抛出，调用方感知
-        - 系统已注册 → 正常 diff
+        通过 _diff_system(None) / _diff_*(空 dict) 得到全量 CREATE Change。
+        scope="system" 时只包含系统，其余 entity 不参与。
+
+        Args:
+            scope: "system" / "full"。
         """
-        remote_system = self._fetch_remote_system()
+        changes: list[Change] = []
 
-        if remote_system is None:
-            # 系统未注册，无需查远端 rt/action/role，全部 CREATE
-            changes = self._plan_all_create()
-        else:
-            changes: list[Change] = []
-            changes.extend(self._diff_system(remote_system))
-            changes.extend(self._diff_resource_types(self._fetch_remote_resource_types()))
-            changes.extend(self._diff_actions(self._fetch_remote_actions()))
-            changes.extend(self._diff_roles(self._fetch_remote_roles()))
+        # System —— 通过 _diff_system(None) 得到 CREATE
+        changes.extend(self._diff_system(None))
+
+        if scope == "system":
+            plan = MigrationPlan(provider_name="v4", changes=self._topology_sort(changes))
+            logger.info("[iam_v4:migration:plan:system] %d change(s)", len(changes))
+            return plan
+
+        # ResourceTypes / Actions / Roles —— 通过 _diff_*(空 dict) 全部标记 CREATE
+        changes.extend(self._diff_resource_types({}))
+        changes.extend(self._diff_actions({}))
+        changes.extend(self._diff_roles({}))
 
         plan = MigrationPlan(provider_name="v4", changes=self._topology_sort(changes))
         logger.info(
-            "[iam_v4:migration:plan] summary=%s destructive=%s",
+            "[iam_v4:migration:plan:full] summary=%s",
             plan.summary(),
-            plan.has_destructive(),
         )
         return plan
 
     # ================================================================
-    # apply_migration
+    # apply_migration —— 查远端 + reconcile + 执行
     # ================================================================
 
     def apply_migration(
@@ -108,11 +110,9 @@ class V4Migrator:
         dry_run: bool = False,
         allow_destructive: bool = False,
     ) -> MigrationReport:
-        """执行迁移计划。按拓扑顺序执行变更，确保创建和删除的依赖正确。
+        """应用迁移计划（查远端 + reconcile + 执行）。
 
-        **不保证原子性**：变更按拓扑顺序逐个执行，前置变更成功后若后续变更失败，
-        已执行的变更不会回滚。调用方应在 apply 完成后检查 report.failed 决定
-        是否需要手动修复远端状态。
+        入参 plan 可以来自 plan_migration 或迁移文件。
         """
         report = MigrationReport(provider_name="v4", started_at=datetime.now(tz=timezone.utc))
 
@@ -124,19 +124,53 @@ class V4Migrator:
 
         sorted_changes = self._topology_sort(plan.changes)
 
+        # ---- SYSTEM reconcile：查远端系统，用 _diff_system 决定实际操作 ----
+        has_system = self._has_entity_kinds(plan, {EntityKind.SYSTEM})
+        if has_system:
+            remote_system = self._fetch_remote_system()
+            system_reconciled = self._diff_system(remote_system)
+            # 用 reconcile 后的 system change 替换 plan 中原有的
+            sorted_changes = system_reconciled + [c for c in sorted_changes if c.kind != EntityKind.SYSTEM]
+
+        # ---- ACTION / RT / ROLE reconcile：查远端全量 ----
+        has_entities = self._has_entity_kinds(plan, {EntityKind.ACTION, EntityKind.RESOURCE_TYPE, EntityKind.ROLE})
+        remote_actions: dict[str, dict] = {}
+        remote_rts: dict[str, dict] = {}
+        remote_roles: dict[str, dict] = {}
+        if has_entities:
+            try:
+                remote_actions = self._fetch_remote_actions()
+            except Exception:
+                pass
+            try:
+                remote_rts = self._fetch_remote_resource_types()
+            except Exception:
+                pass
+            try:
+                remote_roles = self._fetch_remote_roles()
+            except Exception:
+                pass
+
         for change in sorted_changes:
             if change.change_type == ChangeType.NOOP:
                 continue
-            if dry_run:
-                report.would_apply.append(change)
+
+            # reconcile：将"本地期望"与"远端实际"对照，决定真实操作
+            actual = self._reconcile_change(change, remote_actions, remote_rts, remote_roles)
+            if actual is None:
                 continue
+
+            if dry_run:
+                report.would_apply.append(actual)
+                continue
+
             try:
-                self._apply_change(change)
-                report.applied.append(change)
-                logger.info("[iam_v4:migration:apply] %s %s", change.change_type.value, change.entity_id)
+                self._apply_change(actual)
+                report.applied.append(actual)
+                logger.info("[iam_v4:migration:apply] %s %s", actual.change_type.value, actual.entity_id)
             except Exception as e:
-                report.failed.append((change, str(e)[:500]))
-                logger.error("[iam_v4:migration:fail] %s %s: %s", change.change_type.value, change.entity_id, e)
+                report.failed.append((actual, str(e)[:500]))
+                logger.error("[iam_v4:migration:fail] %s %s: %s", actual.change_type.value, actual.entity_id, e)
 
         report.finished_at = datetime.now(tz=timezone.utc)
         logger.info(
@@ -149,11 +183,61 @@ class V4Migrator:
         return report
 
     # ================================================================
+    # reconcile
+    # ================================================================
+
+    @staticmethod
+    def _has_entity_kinds(plan: MigrationPlan, kinds: set[EntityKind]) -> bool:
+        return any(c.kind in kinds for c in plan.changes)
+
+    @staticmethod
+    def _reconcile_change(
+        change: Change,
+        remote_actions: dict[str, dict],
+        remote_rts: dict[str, dict],
+        remote_roles: dict[str, dict],
+    ) -> Change | None:
+        """将单个 Change 与远端实际状态做 reconcile。
+
+        Returns:
+            应执行的 Change；None 表示无需操作（跳过）。
+        """
+        kind = change.kind
+
+        # SYSTEM 由调用方单独处理，这里原样返回
+        if kind == EntityKind.SYSTEM:
+            return change
+
+        dialect_id = change.after.get("id", change.entity_id) if change.after else change.entity_id
+
+        if kind == EntityKind.ACTION:
+            exists = dialect_id in remote_actions
+        elif kind == EntityKind.RESOURCE_TYPE:
+            exists = dialect_id in remote_rts
+        elif kind == EntityKind.ROLE:
+            exists = dialect_id in remote_roles
+        else:
+            return change
+
+        if change.change_type == ChangeType.CREATE and exists:
+            return None
+        if change.change_type == ChangeType.UPDATE and not exists:
+            return Change(
+                kind=kind,
+                change_type=ChangeType.CREATE,
+                entity_id=change.entity_id,
+                after=change.after,
+                reason=f"UPDATE→CREATE (not found remote): {change.reason}",
+            )
+        if change.change_type == ChangeType.DELETE and not exists:
+            return None
+        return change
+
+    # ================================================================
     # 远端数据拉取（404 与真错误区分对待）
     # ================================================================
 
     def _fetch_remote_system(self) -> dict | None:
-        """拉取远端 system。404 → None（未注册），其他异常 → 向上抛。"""
         try:
             return self._client.retrieve_system()
         except ProviderUnavailable as e:
@@ -186,7 +270,6 @@ class V4Migrator:
             raise
 
     def _paginate(self, api_fn, key: str) -> dict[str, dict]:
-        """翻页拉取全量列表，按 id 索引。最多拉取 100 页防无限循环。"""
         items: dict[str, dict] = {}
         page = 1
         while page <= 100:
@@ -203,98 +286,7 @@ class V4Migrator:
         return items
 
     # ================================================================
-    # 全量 CREATE（系统未注册时使用）
-    # ================================================================
-
-    def _plan_all_create(self) -> list[Change]:
-        """系统不存在时，所有本地实体标记为 CREATE。"""
-        changes: list[Change] = []
-
-        # System
-        changes.append(
-            Change(
-                kind=EntityKind.SYSTEM,
-                change_type=ChangeType.CREATE,
-                entity_id=self._system.id,
-                after={
-                    "id": self._system.id,
-                    "name": self._system.name,
-                    "description": self._system.description,
-                    "managers": list(self._system.managers),
-                    "clients": list(self._system.clients),
-                    "callback_url": self._system.callback_url,
-                },
-                reason="System not registered in IAM v4",
-            )
-        )
-
-        # ResourceTypes
-        for rt in self._schema.all_resource_types():
-            if not is_visible_to(rt, "v4"):
-                continue
-            d_rt_id = self._codec.encode_resource_type(rt.id)
-            d_anc = self._codec.encode_resource_type(rt.ancestor) if rt.ancestor else ""
-            changes.append(
-                Change(
-                    kind=EntityKind.RESOURCE_TYPE,
-                    change_type=ChangeType.CREATE,
-                    entity_id=rt.id,
-                    after={"id": d_rt_id, "name": rt.name, "ancestors": [d_anc] if d_anc else []},
-                    reason="New resource type",
-                )
-            )
-
-        # Actions
-        for a in self._schema.all_actions():
-            if not is_visible_to(a, "v4"):
-                continue
-            changes.append(
-                Change(
-                    kind=EntityKind.ACTION,
-                    change_type=ChangeType.CREATE,
-                    entity_id=a.id,
-                    after={
-                        "id": self._codec.encode_action(a.id),
-                        "name": a.name,
-                        "resource_type_id": self._codec.encode_resource_type(a.resource_type)
-                        if a.resource_type
-                        else "",
-                    },
-                    reason="New action",
-                )
-            )
-
-        # Roles
-        for r in self._schema.all_roles():
-            if not is_visible_to(r, "v4"):
-                continue
-            changes.append(
-                Change(
-                    kind=EntityKind.ROLE,
-                    change_type=ChangeType.CREATE,
-                    entity_id=r.id,
-                    after={
-                        "id": self._codec.encode_role(r.id),
-                        "name": r.name,
-                        "description": r.description,
-                        "actions": [
-                            {
-                                "id": self._codec.encode_action(b.action_id),
-                                "resource_type_id": self._codec.encode_resource_type(b.resource_type)
-                                if b.resource_type
-                                else "",
-                            }
-                            for b in r.actions
-                        ],
-                    },
-                    reason="New role",
-                )
-            )
-
-        return changes
-
-    # ================================================================
-    # Diff 逻辑（系统已注册时使用）
+    # Diff 逻辑（_diff_system(None) → CREATE，_diff_*(空dict) → 全量 CREATE）
     # ================================================================
 
     def _diff_system(self, remote: dict | None) -> list[Change]:
@@ -313,7 +305,7 @@ class V4Migrator:
                     change_type=ChangeType.CREATE,
                     entity_id=self._system.id,
                     after=local,
-                    reason="System not registered in IAM v4",
+                    reason="System registration (local plan)",
                 )
             ]
         remote_data = remote.get("data", remote)
@@ -365,13 +357,7 @@ class V4Migrator:
                         )
                     )
                 else:
-                    changes.append(
-                        Change(
-                            kind=EntityKind.RESOURCE_TYPE,
-                            change_type=ChangeType.NOOP,
-                            entity_id=rt_id,
-                        )
-                    )
+                    changes.append(Change(kind=EntityKind.RESOURCE_TYPE, change_type=ChangeType.NOOP, entity_id=rt_id))
         local_dialect_ids = {self._codec.encode_resource_type(rt_id) for rt_id in local_rts}
         for d_rt_id in set(remote) - local_dialect_ids:
             changes.append(
@@ -408,8 +394,6 @@ class V4Migrator:
                 rt_changed = rmt.get("resource_type_id", "") != d_rt
                 name_changed = rmt.get("name") != a.name
                 if rt_changed:
-                    # v4 update_action 仅支持改 name，resource_type_id 无法原地修改。
-                    # 必须走 delete + create（破坏性变更）。
                     changes.append(
                         Change(
                             kind=EntityKind.ACTION,
@@ -539,7 +523,6 @@ class V4Migrator:
             if change.change_type == ChangeType.CREATE:
                 self._client.batch_create_actions([change.after])
             elif change.change_type == ChangeType.UPDATE:
-                # v4 update_action 仅支持修改 name；resource_type_id 变更走 delete+create
                 self._client.update_action(d_entity_id, {"name": (change.after or {}).get("name", "")})
             elif change.change_type == ChangeType.DELETE:
                 self._client.delete_action(d_entity_id)
@@ -555,7 +538,6 @@ class V4Migrator:
                         "description": (change.after or {}).get("description", ""),
                     },
                 )
-                # 计算 actions 增量差异（v4 平台 DELETE/POST 均要求非空数组）
                 before_actions = (change.before or {}).get("actions", []) or []
                 after_actions = (change.after or {}).get("actions", []) or []
 
@@ -579,7 +561,6 @@ class V4Migrator:
 
     @staticmethod
     def _ancestor_depth(change: Change) -> int:
-        """计算资源类型的祖先深度（用于拓扑排序）。顶级资源=0，子资源=祖先数。"""
         ancestors = (change.after or {}).get("ancestors", []) or (change.before or {}).get("ancestors", [])
         if isinstance(ancestors, str):
             ancestors = [ancestors]
@@ -598,7 +579,6 @@ class V4Migrator:
         def key(c: Change) -> tuple:
             kind_order = cls._KIND_ORDER.get(c.kind, 99)
             depth = cls._ancestor_depth(c)
-            # phase=0: CREATE/UPDATE/NOOP；phase=1: DELETE（整体后置）
             if c.change_type == ChangeType.DELETE:
                 return (1, -kind_order, -depth, c.entity_id)
             return (0, kind_order, depth, c.entity_id)

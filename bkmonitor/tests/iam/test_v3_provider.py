@@ -32,6 +32,7 @@ from bkmonitor.iam.iam_engine.provider.dialect_types import (
     DialectAuthRequest,
     DialectBatchByActionRequest,
     DialectBatchByResourceRequest,
+    DialectResource,
 )
 from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
@@ -171,7 +172,7 @@ class TestV3ProviderDialectMethods:
             DialectAuthRequest(
                 subject=CoreSubject(id="alice"),
                 action_id="view_business_v2",
-                resource={"type": "space", "id": "3", "ancestors": ()},
+                resource=DialectResource(type="space", id="3"),
             )
         )
         assert result is True
@@ -246,7 +247,7 @@ class TestV3ProviderDialectMethods:
             DialectBatchByActionRequest(
                 subject=CoreSubject(id="alice"),
                 action_ids=("view_business_v2", "manage_synthetic_v2"),
-                resource={"type": "space", "id": "3", "ancestors": ()},
+                resource=DialectResource(type="space", id="3"),
             )
         )
         assert result == [("view_business_v2", True), ("manage_synthetic_v2", False)]
@@ -277,7 +278,7 @@ class TestV3ProviderDialectMethods:
             DialectApplyURLRequest(
                 subject=CoreSubject(id="alice"),
                 action_ids=("view_business_v2",),
-                resources=({"type": "space", "id": "3", "ancestors": ()},),
+                resources=(DialectResource(type="space", id="3"),),
             )
         )
         assert url == "https://iam.example.com/apply"
@@ -338,19 +339,75 @@ class TestV3ProviderDialectMethods:
 
     # ---------- plan_migration / apply_migration ----------
 
-    def test_plan_migration_returns_empty(self):
-        """Phase 1：plan 返回空变更计划。"""
+    def test_plan_migration_system_scope(self):
+        """scope="system"：只生成 SYSTEM Change。"""
         p = _make_provider()
-        plan = p.plan_migration(_build_test_schema())
+        plan = p.plan_migration(_build_test_schema(), scope="system")
         assert plan.provider_name == "v3"
-        assert plan.changes == []
+        assert len(plan.changes) == 1
+        assert plan.changes[0].kind.name == "SYSTEM"
 
-    def test_apply_migration_returns_empty(self):
-        """Phase 1：apply 返回空报告。"""
+    def test_plan_migration_full_scope(self):
+        """scope="full"：生成 SYSTEM + ACTION + RT Change。"""
         p = _make_provider()
-        from bkmonitor.iam.iam_engine.schema.diff import MigrationPlan
+        plan = p.plan_migration(_build_test_schema(), scope="full")
+        assert plan.provider_name == "v3"
+        kinds = {c.kind.name for c in plan.changes}
+        assert "SYSTEM" in kinds
+        assert "ACTION" in kinds
+        assert "RESOURCE_TYPE" in kinds
 
-        plan = MigrationPlan(provider_name="v3", changes=[])
+    def test_apply_migration_system_only(self):
+        """plan 只有 SYSTEM：不查远端 actions/RTs，直接执行系统注册。"""
+        p = _make_provider()
+        mock_client = MagicMock()
+        mock_client.query.return_value = (False, "not found", None)
+        p._iam_client._client = mock_client
+
+        from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
+
+        plan = MigrationPlan(
+            provider_name="v3",
+            changes=[
+                Change(
+                    kind=EntityKind.SYSTEM,
+                    change_type=ChangeType.CREATE,
+                    entity_id="bk_monitorv3",
+                    after={"id": "bk_monitorv3", "name": "监控平台", "description": "", "managers": [], "clients": []},
+                ),
+            ],
+        )
         report = p.apply_migration(plan)
+        # 即使远端返回系统不存在，apply 也会尝试创建
         assert report.provider_name == "v3"
+
+    def test_apply_migration_skip_existing(self):
+        """scope="full"：远端已有 → reconcile 跳过。"""
+        p = _make_provider()
+        mock_client = MagicMock()
+        mock_client.query.return_value = (
+            True,
+            "ok",
+            {
+                "actions": [{"id": "view_business_v2"}],
+                "resource_types": [{"id": "space"}],
+            },
+        )
+        p._iam_client._client = mock_client
+
+        from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
+
+        plan = MigrationPlan(
+            provider_name="v3",
+            changes=[
+                Change(
+                    kind=EntityKind.ACTION,
+                    change_type=ChangeType.CREATE,
+                    entity_id="view_business",
+                    after={"id": "view_business_v2"},
+                ),
+            ],
+        )
+        report = p.apply_migration(plan)
         assert report.success is True
+        assert report.applied == []  # 远端已有，跳过
