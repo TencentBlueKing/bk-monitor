@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 # MCP auth logs: grep by tag, e.g. `grep '\[MCP_AUTH\]'` or `event=permission_denied`
 MCP_AUTH_LOG_TAG = "MCP_AUTH"
 
-APP_CODE_TOKENS: dict[str, list[str]] = {}
-APP_CODE_UPDATE_TIME = None
+APP_CODE_TOKENS: dict[str, dict[str, list[str]]] = {}
+APP_CODE_UPDATE_TIME: dict[str, float] = {}
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
 
 OPENCLAW_RECOVERING_MCP_TOOLS = {
@@ -58,22 +58,32 @@ def is_match_api_token(request, bk_tenant_id: str, app_code: str) -> bool:
     global APP_CODE_TOKENS
     global APP_CODE_UPDATE_TIME
 
-    # 更新缓存
-    if APP_CODE_UPDATE_TIME is None or time.time() - APP_CODE_UPDATE_TIME > APP_CODE_TOKEN_CACHE_TIME:
+    tenant_update_time = APP_CODE_UPDATE_TIME.get(bk_tenant_id)
+
+    # 按租户更新缓存，避免一个租户的应用授权被其他租户复用。
+    if (
+        bk_tenant_id not in APP_CODE_TOKENS
+        or tenant_update_time is None
+        or time.time() - tenant_update_time > APP_CODE_TOKEN_CACHE_TIME
+    ):
         result = {}
         records = ApiAuthToken.objects.filter(type=AuthType.API, bk_tenant_id=bk_tenant_id)
         for record in records:
-            if not record.params.get("app_code"):
+            params = record.params if isinstance(record.params, dict) else {}
+            record_app_code = params.get("app_code")
+            if not isinstance(record_app_code, str) or not record_app_code:
                 continue
-            result[record.params["app_code"]] = record.namespaces
-        APP_CODE_UPDATE_TIME = time.time()
-        APP_CODE_TOKENS = result
+            result[record_app_code] = record.namespaces
+        APP_CODE_UPDATE_TIME[bk_tenant_id] = time.time()
+        APP_CODE_TOKENS[bk_tenant_id] = result
+
+    tenant_tokens = APP_CODE_TOKENS[bk_tenant_id]
 
     # 如果app_code没有对应的token，直接放行
-    if app_code not in APP_CODE_TOKENS:
+    if app_code not in tenant_tokens:
         return True
 
-    namespaces = APP_CODE_TOKENS[app_code]
+    namespaces = tenant_tokens[app_code]
 
     # 校验命名空间
     if "biz#all" in namespaces or f"biz#{request.biz_id}" in namespaces:

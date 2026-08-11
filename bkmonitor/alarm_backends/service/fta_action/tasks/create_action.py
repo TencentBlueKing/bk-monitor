@@ -40,6 +40,7 @@ from constants.action import (
     ActionPluginType,
     ActionSignal,
     IntervalNotifyMode,
+    NoticeWay,
     UserGroupType,
     VoiceNoticeMode,
 )
@@ -370,6 +371,7 @@ class CreateActionProcessor:
         self.strategy = Strategy(strategy_id).config or (self.alerts[0].strategy if self.alerts else {})
         self.generate_uuid = self.get_generate_uuid()
         self.noise_reduce_result = False
+        self._notice_noise_reduce_processed = False
         self.notice = {}
         self.notice_type = notice_type
 
@@ -396,6 +398,55 @@ class CreateActionProcessor:
                 if user not in target_notify_info[notice_way]:
                     target_notify_info[notice_way].append(user)
 
+    def _get_merged_notice_details(self, assignee_manager):
+        """合并默认、分派和订阅接收人，并保证主通知优先于关注通知。"""
+        notify_info = assignee_manager.get_notify_info()
+        follow_notify_info = assignee_manager.get_notify_info(user_type=UserGroupType.FOLLOWER)
+        if not notify_info and self.notice_type != ActionNoticeType.UPGRADE:
+            notify_configs = {notice_way: [] for notice_way in follow_notify_info.keys()}
+            notify_info = assignee_manager.get_appointee_notify_info(notify_configs)
+
+        subscription_notify_info, subscription_follow_notify_info = assignee_manager.get_subscription_notify_info()
+        self._merge_notify_info(notify_info, subscription_notify_info)
+        self._merge_notify_info(follow_notify_info, subscription_follow_notify_info)
+
+        for notice_way, receivers in follow_notify_info.items():
+            follow_notify_info[notice_way] = [
+                receiver for receiver in receivers if receiver not in notify_info.get(notice_way, [])
+            ]
+        return (notify_info, follow_notify_info), subscription_follow_notify_info
+
+    def get_merged_notice_info(self, assignee_manager):
+        merged_notice_info, _ = self._get_merged_notice_details(assignee_manager)
+        return merged_notice_info
+
+    @staticmethod
+    def has_notice_receivers(notice_info):
+        """判断通知信息中是否至少包含一个实际接收人。"""
+        for notice_way, receivers in notice_info.items():
+            if notice_way == "wxbot_mention_users":
+                continue
+            for receiver in receivers:
+                if isinstance(receiver, list):
+                    if any(receiver):
+                        return True
+                elif receiver:
+                    return True
+        return False
+
+    def process_notice_noise_reduce(self, alert):
+        """在首个实际创建的普通通知动作前执行一次降噪。"""
+        if self.notice_type == ActionNoticeType.UPGRADE or self._notice_noise_reduce_processed:
+            return
+        self._notice_noise_reduce_processed = True
+        self.noise_reduce_result = NoiseReduceRecordProcessor(
+            self.notice,
+            self.signal,
+            self.strategy_id,
+            alert,
+            self.generate_uuid,
+        ).process()
+
     def get_action_relations(self):
         # 获取对应signal的 处理套餐/告警通知配置
         if self.strategy:
@@ -407,30 +458,8 @@ class CreateActionProcessor:
             actions = []
 
         if self.notice.get("config_id"):
-            # 检查通知组是否为空，如果为空则跳过创建 notice action
-            # 但如果 assign_mode 包含 BY_RULE，先添加到 actions 列表
-            # 后续在 do_create_actions() 中会根据分派结果决定是否实际创建（如果分派未命中则跳过）
-            user_groups = self.notice.get("user_groups", [])
-            assign_mode = self.notice.get("options", {}).get("assign_mode", [])
-            has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
-
-            if not user_groups and not has_by_rule:
-                # 通知组为空且未配置分派模式时，不创建 notice action，仅保留 message_queue action
-                logger.info(
-                    "[create actions]skip notice action for strategy(%s) signal(%s) because user_groups is empty and assign_mode is not BY_RULE",
-                    self.strategy_id,
-                    self.signal,
-                )
-            else:
-                # 增加通知操作，并进行降噪处理
-                # 如果配置了 BY_RULE，先添加到 actions 列表，后续在 do_create_actions() 中会检查分派是否命中
-                # 如果分派未命中，则跳过创建 notice action
-                actions.append(self.notice)
-                if self.notice_type != ActionNoticeType.UPGRADE:
-                    # 升级的通知不做降噪处理
-                    self.noise_reduce_result = NoiseReduceRecordProcessor(
-                        self.notice, self.signal, self.strategy_id, self.alerts[0], self.generate_uuid
-                    ).process()
+            # 订阅只能在具体告警上判断是否命中，因此通知关系不能在策略级提前丢弃。
+            actions.append(self.notice)
 
         if self.relation_id:
             # 指定了关联关系，默认用指定的关联关系
@@ -652,6 +681,13 @@ class CreateActionProcessor:
             self.relation_id,
         )
         actions = self.get_action_relations()
+        assign_mode = self.notice.get("options", {}).get("assign_mode") or []
+        is_subscription_only_notice = (
+            len(actions) == 1
+            and actions[0].get("id") == self.notice.get("id")
+            and not self.notice.get("user_groups")
+            and AssignMode.BY_RULE not in assign_mode
+        )
         new_actions = []
         self.is_alert_shielded, shield_ids = self.get_alert_shield_result()
         # 创建推送队列的人员信息
@@ -756,29 +792,7 @@ class CreateActionProcessor:
             # 告警关注人
             alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_follower[alert.id])
 
-            # 获取订阅的 follower 用户并合并到 alerts_follower
-            if assignee_manager and assignee_manager.match_manager:
-                subscription_notify_info, subscription_follow_notify_info = (
-                    assignee_manager.get_subscription_notify_info()
-                )
-                # 从订阅的 follower 通知信息中提取所有用户（格式: {notice_way: [user_list]}）
-                subscription_follower_users = []
-                for notice_way, users in subscription_follow_notify_info.items():
-                    # 排除特殊字段（如 wxbot_mention_users）
-                    if notice_way != "wxbot_mention_users" and users:
-                        subscription_follower_users.extend(users)
-                # 去重并合并到 alerts_follower
-                if subscription_follower_users:
-                    # 使用集合去重，保持顺序
-                    unique_subscription_followers = list(dict.fromkeys(subscription_follower_users))
-                    alerts_follower[alert.id] = self.get_alert_related_users(
-                        unique_subscription_followers, alerts_follower[alert.id]
-                    )
-                    logger.info(
-                        "[alert_subscription] alert(%s) added subscription followers: %s",
-                        alert.id,
-                        unique_subscription_followers,
-                    )
+            merged_notice_info = None
 
             for action in actions + itsm_actions:
                 cid = str(action["config_id"])
@@ -833,22 +847,49 @@ class CreateActionProcessor:
 
                     continue
 
-                # 如果是 notice action，且 user_groups 为空，则检查是否需要跳过创建
-                # assignee_manager.is_matched 只有在配置了 BY_RULE 且分派命中时才为 True
-                # 如果未配置 BY_RULE，is_matched 为 False；如果配置了 BY_RULE 但未命中，is_matched 也为 False
-                # 因此只需要检查 is_matched 即可
                 if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
-                    user_groups = self.notice.get("user_groups", [])
-                    if not user_groups and not assignee_manager.is_matched:
-                        # 通知组为空且分派未命中（包括未配置 BY_RULE 或配置了但未命中），跳过创建 notice action
+                    if merged_notice_info is None:
+                        merged_notice_info, subscription_follow_notify_info = self._get_merged_notice_details(
+                            assignee_manager
+                        )
+                        notice_follower_users = []
+                        for notice_way, users in subscription_follow_notify_info.items():
+                            if notice_way == "wxbot_mention_users" or not users:
+                                continue
+                            if notice_way == NoticeWay.VOICE:
+                                for user_list in users:
+                                    notice_follower_users.extend(
+                                        user_list if isinstance(user_list, list) else [user_list]
+                                    )
+                            else:
+                                notice_follower_users.extend(users)
+                        if notice_follower_users:
+                            unique_notice_followers = list(dict.fromkeys(notice_follower_users))
+                            alerts_follower[alert.id] = self.get_alert_related_users(
+                                unique_notice_followers,
+                                alerts_follower[alert.id],
+                            )
+                            logger.info(
+                                "[alert_subscription] alert(%s) subscription followers: %s",
+                                alert.id,
+                                unique_notice_followers,
+                            )
+                    notify_info, follow_notify_info = merged_notice_info
+                    # 当前通知时段没有接收人时，已有告警组或已命中分派仍需保留父动作，供周期任务后续补发。
+                    has_existing_notice_lifecycle = bool(self.notice.get("user_groups")) or assignee_manager.is_matched
+                    has_current_receivers = self.has_notice_receivers(notify_info) or self.has_notice_receivers(
+                        follow_notify_info
+                    )
+                    if not has_existing_notice_lifecycle and not has_current_receivers:
                         logger.info(
                             "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
-                            "because user_groups is empty and assign rule not matched",
+                            "because no receiver matched",
                             alert.id,
                             self.strategy_id,
                             self.signal,
                         )
                         continue
+                    self.process_notice_noise_reduce(alert)
 
                 action_instances.append(
                     self.do_create_action(
@@ -858,6 +899,7 @@ class CreateActionProcessor:
                         action_relation=action,
                         assignee_manager=assignee_manager,
                         shield_ids=shield_ids,
+                        notice_info=merged_notice_info,
                     )
                 )
             if assignee_manager.match_manager:
@@ -867,6 +909,13 @@ class CreateActionProcessor:
         AssignCacheManager.clear()
         # 清理订阅缓存
         SubscribeCacheManager.clear()
+        if is_subscription_only_notice and not action_instances:
+            # 该通知关系仅为匹配订阅而保留；没有订阅命中时恢复原有早退语义，避免把告警误标为已通知。
+            logger.info(
+                "[create actions]skip alert document update for subscription-only alerts(%s) because no action created",
+                self.alert_ids,
+            )
+            return new_actions
         if action_instances:
             ActionInstance.objects.bulk_create(action_instances)
             new_actions.extend(
@@ -1105,6 +1154,7 @@ class CreateActionProcessor:
         action_relation=None,
         assignee_manager=None,
         shield_ids=None,
+        notice_info=None,
     ):
         """
         根据套餐配置创建处理记录
@@ -1141,24 +1191,7 @@ class CreateActionProcessor:
         if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
             # 通知套餐，父 action_instance 创建
             is_parent_action = True
-            notify_info = assignee_manager.get_notify_info()
-            follow_notify_info = assignee_manager.get_notify_info(user_type=UserGroupType.FOLLOWER)
-            if not notify_info and self.notice_type != ActionNoticeType.UPGRADE:
-                # 如果没有负责人的通知信息，需要将负责人通知信息带上，默认以当前适配到的通知方式为准
-                notify_configs = {notice_way: [] for notice_way in follow_notify_info.keys()}
-                notify_info = assignee_manager.get_appointee_notify_info(notify_configs)
-
-            # 获取并合并订阅用户信息
-            subscription_notify_info, subscription_follow_notify_info = assignee_manager.get_subscription_notify_info()
-            self._merge_notify_info(notify_info, subscription_notify_info)
-            self._merge_notify_info(follow_notify_info, subscription_follow_notify_info)
-
-            # 如果当前用户即是负责人，又是通知人, 需要进行去重, 以通知人为准
-            for notice_way, receivers in follow_notify_info.items():
-                valid_receivers = [
-                    receiver for receiver in receivers if receiver not in notify_info.get(notice_way, [])
-                ]
-                follow_notify_info[notice_way] = valid_receivers
+            notify_info, follow_notify_info = notice_info or self.get_merged_notice_info(assignee_manager)
             inputs["notify_info"] = notify_info
             inputs["follow_notify_info"] = follow_notify_info
             # 设置语音通知模式

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import logging
 import os
 
 from audit.client import bk_audit_client
 from bk_audit.contrib.opentelemetry.setup import setup
 from django.apps import AppConfig
+
+logger = logging.getLogger(__name__)
 
 
 class AuditConfig(AppConfig):
@@ -24,4 +27,12 @@ class AuditConfig(AppConfig):
         if not os.getenv("BKAPP_OTEL_LOG_ENDPOINT"):
             return
 
-        setup(bk_audit_client)
+        token = os.getenv("BKAPP_OTEL_LOG_BK_DATA_TOKEN", "")
+        if not token:
+            logger.error("audit exporter is disabled because OTLP token is missing")
+            return
+
+        try:
+            setup(bk_audit_client)
+        except Exception:
+            logger.exception("initialize audit exporter failed")

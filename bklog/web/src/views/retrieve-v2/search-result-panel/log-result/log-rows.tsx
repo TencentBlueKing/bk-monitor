@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref, inject, reactive } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { getSelectionRange, restoreSelectionRange } from '@/common/selection-util';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
 import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
@@ -70,8 +71,19 @@ import useHeaderRender from './use-render-header';
 
 import './log-rows.scss';
 
+/**
+ * 日志检索结果行列表（table / 原始日志两种展示）。
+ *
+ * 职责概览：
+ * - 列布局与列宽分配（固定列 + 可见字段列）
+ * - 前端本地分页 / 后端 append 分页与首屏骨架
+ * - 行展开、hover 操作栏、划词弹层（复制 / 高亮 / 添加到检索）
+ * - 横向滚动与 wheel 预加载
+ */
+
 const FullRowViewerComponent = FullRowViewer as any;
 
+/** 单行运行时配置（展开态、行高、粘性定位等），按 row 对象或 rowKey 缓存 */
 type RowConfig = {
   expand?: boolean;
   isIntersect?: boolean;
@@ -82,10 +94,12 @@ type RowConfig = {
 
 export default defineComponent({
   props: {
+    /** 内容展示类型：`table` 表格列模式 / 其它为原始日志模式 */
     contentType: {
       type: String,
       default: 'table',
     },
+    /** 行工具栏点击回调（AI、全文查看、上下文等） */
     handleClickTools: {
       type: Function,
       default: undefined,
@@ -95,22 +109,37 @@ export default defineComponent({
     const store = useStore();
     const { $t } = useLocale();
 
+    // —— DOM 引用 ——
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
+    /** 划词弹层 tippy 内容容器 */
     const refSegmentContent: Ref<HTMLElement> = ref();
     const { handleOperation, getObjectValue, handleAddCondition } = useTextAction(emit, 'origin');
 
+    // —— 划词选区状态 ——
+    /** mouseup 时固化的选区 Range，供弹层操作回写 / 还原 */
     let savedSelection: Range = null;
     /** mouseup 时固化的划选原文，避免弹层点击后 live Range 文本漂移 */
     let savedSelectionText = '';
+    /** 划选结束时的鼠标坐标，用于多矩形选区里挑最近的定位矩形 */
+    let selectionAnchorPoint: { x: number; y: number } = null;
+    /** 划词弹层的视口定位矩形（可随滚动刷新） */
+    let selectionReferenceRect: DOMRect = null;
+    /** tippy reference 占位节点（实际定位走 getReferenceClientRect） */
+    let selectionPopAnchorEl: HTMLElement = null;
+    /** 是否在行上按下，用于区分行内点击与外部 mouseup */
     let mousedownOnRow = false;
+    /** hover 操作栏延迟隐藏定时器 */
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
+    /** 字段设置布局变化后的延迟 reflow 定时器列表 */
     const layoutTimers: number[] = [];
 
+    /** 行 hover 浮动操作栏（AI / 全文 / 上下文等）的可见态与定位 */
     const hoverOperatorState = reactive({
       visible: false,
+      /** 鼠标或焦点仍在操作栏上时为 true，阻止延迟隐藏 */
       interacting: false,
       row: null,
       rowIndex: -1,
@@ -118,6 +147,19 @@ export default defineComponent({
       right: 12,
     });
 
+    /**
+     * 划词弹层的定位基准是选区矩形，这里实时读取而不是复用一次性快照，
+     * 这样列表滚动时弹层能继续跟住被选中的文本。
+     */
+    const resolveSelectionReferenceRect = () => {
+      if (savedSelection && selectionAnchorPoint) {
+        selectionReferenceRect = getSelectionReferenceRect(savedSelection, selectionAnchorPoint);
+      }
+
+      return selectionReferenceRect ?? new DOMRect(0, 0, 1, 1);
+    };
+
+    /** 划词 tippy 实例：挂载到 body，fixed 策略兼容 monitor 宿主 */
     const popInstanceUtil = new PopInstanceUtil({
       refContent: () => refSegmentContent.value,
       tippyOptions: {
@@ -125,23 +167,43 @@ export default defineComponent({
         theme: 'segment-light',
         placement: 'bottom',
         appendTo: document.body,
+        /**
+         * 选区矩形来自 Range.getClientRects()，是视口坐标；
+         * 因此 popper 必须使用 fixed 策略，否则会按文档坐标换算 —— 在
+         * monitor 宿主（__IS_MONITOR_TRACE__）里弹层会被丢到视口左上角。
+         * 与 search-bar 的 ui-input / sql-query 保持同一套宿主兼容策略。
+         */
+        getReferenceClientRect: () => resolveSelectionReferenceRect(),
         popperOptions: {
           strategy: 'fixed',
         },
       },
     });
 
-    const getSelectionReferenceRect = (range: Range, e: MouseEvent) => {
+    /**
+     * 从选区 Range 中选取最接近鼠标落点的可视矩形，作为 tippy 定位基准。
+     * 多行跨选时 getClientRects() 会返回多个矩形，直接用 bounding 矩形会偏中间。
+     */
+    const getSelectionReferenceRect = (range: Range, point: { x: number; y: number }) => {
       const rects = Array.from(range.getClientRects()).filter(rect => rect.width && rect.height);
 
       if (!rects.length) {
-        return range.getBoundingClientRect();
+        const boundingRect = range.getBoundingClientRect();
+        if (boundingRect.width || boundingRect.height) {
+          return boundingRect;
+        }
+
+        /**
+         * 选区已经拿不到任何可用矩形（例如 Range 已失效）时退回到鼠标位置。
+         * 不能把全 0 的矩形交给 popper，否则弹层会被定位到视口左上角。
+         */
+        return new DOMRect(point.x, point.y, 1, 1);
       }
 
       return rects.reduce((closestRect, rect) => {
         const getDistance = (targetRect: DOMRect) => {
-          const offsetX = e.clientX < targetRect.left ? targetRect.left - e.clientX : Math.max(e.clientX - targetRect.right, 0);
-          const offsetY = e.clientY < targetRect.top ? targetRect.top - e.clientY : Math.max(e.clientY - targetRect.bottom, 0);
+          const offsetX = point.x < targetRect.left ? targetRect.left - point.x : Math.max(point.x - targetRect.right, 0);
+          const offsetY = point.y < targetRect.top ? targetRect.top - point.y : Math.max(point.y - targetRect.bottom, 0);
           return offsetX ** 2 + offsetY ** 2;
         };
 
@@ -149,8 +211,11 @@ export default defineComponent({
       }, rects[rects.length - 1]);
     };
 
+    /** 表格模式下可用的全量字段列（无可见字段时的兜底） */
     const fullColumns = ref([]);
+    /** 当前内容展示类型，跟随 props.contentType */
     const showCtxType = ref(props.contentType);
+
     /**
      * 划词「添加到本次检索」入口。
      *
@@ -167,26 +232,28 @@ export default defineComponent({
       enableMinimalTokenCompletion: false,
     });
 
-    const setSelectionPopTargetHandler = (rect: DOMRect) => {
-      let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
-      if (!virtualTarget) {
-        virtualTarget = document.createElement('span');
-        virtualTarget.className = 'bklog-selection-pop-target';
-        virtualTarget.style.setProperty('position', 'fixed');
-        virtualTarget.style.setProperty('visibility', 'hidden');
-        virtualTarget.style.setProperty('pointer-events', 'none');
-        virtualTarget.style.setProperty('z-index', '-1');
-        document.body.appendChild(virtualTarget);
+    const getSelectionTextByRange = (range?: Range | null) => stripSelectionMarkup(range?.toString?.() ?? '');
+
+    /**
+     * tippy 需要一个真实节点作为 reference（hideOnClick 等逻辑依赖它），
+     * 但实际定位完全由 getReferenceClientRect 提供，所以这里只是一个身份占位节点。
+     *
+     * 必须每个组件实例独占一个节点：APM 与 Trace 在宿主页里是两个独立构建产物，
+     * 若按 class 去 body 上查找复用同一个节点，两个包会互相覆盖对方的定位基准。
+     */
+    const getSelectionPopAnchor = () => {
+      if (!selectionPopAnchorEl?.isConnected) {
+        selectionPopAnchorEl = document.createElement('span');
+        selectionPopAnchorEl.className = 'bklog-selection-pop-target';
+        selectionPopAnchorEl.style.cssText
+          = 'position: fixed; top: 0; left: 0; width: 1px; height: 1px; visibility: hidden; pointer-events: none; z-index: -1;';
+        document.body.appendChild(selectionPopAnchorEl);
       }
 
-      virtualTarget.style.setProperty('left', `${rect.left}px`);
-      virtualTarget.style.setProperty('top', `${rect.top}px`);
-      virtualTarget.style.setProperty('width', `${Math.max(rect.width, 1)}px`);
-      virtualTarget.style.setProperty('height', `${Math.max(rect.height, 1)}px`);
-
-      return virtualTarget;
+      return selectionPopAnchorEl;
     };
 
+    /** 划词分段操作弹层（复制 / 添加到检索 / 高亮 / AI 等） */
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       aiBluekingEnabled: store.state.features.isAiAssistantActive,
@@ -195,7 +262,7 @@ export default defineComponent({
       allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
-        const selectionValue = savedSelectionText || stripSelectionMarkup(savedSelection?.toString() ?? '');
+        const selectionValue = savedSelectionText || getSelectionTextByRange(savedSelection);
         // 复制只处理剪贴板，不参与任何检索条件添加；显式提前返回，避免后续事件链误落到“添加到本次检索”。
         if (type === 'copy') {
           handleOperation('copy', { value: selectionValue });
@@ -219,6 +286,7 @@ export default defineComponent({
           handleOperation(type, { value: selectionValue, operation: type });
         }
         popInstanceUtil.hide();
+        restoreSelectionRange(savedSelection);
 
         // 添加到检索后必须清空选区：若还原划选，下次点击会被判定为“点在选区上”
         // 从而误走划词链路，表现为同词多次操作 KEY/操作符漂移。
@@ -234,32 +302,55 @@ export default defineComponent({
       },
     });
 
+    // —— 分页与渲染列表 ——
+    /** 前端本地分页页码（从 1 开始） */
+    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick');
+
     const pageIndex = ref(1);
-    // 前端本地分页
+    /** 前端本地分页每页条数 */
     const pageSize = ref(50);
     const isRending = ref(false);
 
+    /** 按 row 对象弱引用缓存行配置（展开态等） */
     let tableRowConfig = new WeakMap();
+    /** 按 rowKey 强引用缓存行配置，跨对象重建时仍可命中 */
     const tableRowConfigByKey = new Map();
+    /** 检索进行中（首屏搜索） */
     const isPageLoading = ref(RetrieveHelper.isSearching);
+    /** 后端 append 分页请求进行中 */
     const isPaginationLoading = ref(false);
-    // 前端本地分页loadmore触发器
+    // 前端本地分页 loadmore 触发器：
     // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
     const localUpdateCounter = ref(0);
+    /** 是否还有更多数据可加载（本地分页未耗尽或后端仍有下一页） */
     const hasMoreList = ref(true);
+    /**
+     * 当前实际渲染的行列表（非响应式，配合 localUpdateCounter 驱动视图更新）。
+     * 项结构：{ item, renderMeta, [ROW_KEY] }
+     */
     let renderList = Object.freeze([]);
+    /** 递增令牌：丢弃过期的 setRenderList / IndexedDB 异步结果 */
     let renderTaskToken = 0;
+    /** 递增令牌：丢弃过期的后端分页响应 */
     let paginationRequestToken = 0;
+    /** 后端分页单飞锁，避免 IntersectionObserver 与 wheel 预加载并发取消 */
     let paginationRequestPromise: Promise<boolean> | null = null;
     const isRequesting = ref(false);
     let requestingTimer: ReturnType<typeof setTimeout> = null;
+    /**
+     * 分页 append 结束时跳过「loading 结束重置横向滚动」：
+     * append 不应把用户已滚动的位置拉回左侧。
+     */
     let skipNextLoadingEndReset = false;
+    /** 全文行查看器（字段截断后的完整内容） */
     const fullRowViewerState = reactive({
       visible: false,
       rowKey: '',
       rowData: null as Record<string, any> | null,
       truncatedFields: [] as string[],
     });
+
+    // —— Store 派生状态 ——
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const filteredFieldList = computed(() => store.getters.filteredFieldList);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -271,15 +362,21 @@ export default defineComponent({
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
+    /** 展开行 KV 视图可展示的字段名列表 */
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
+    /** 字段宽度等配置的作用域（索引集 / 默认） */
     const fieldScope = computed(() => indexFieldInfo.value.field_scope || store.state.indexId || 'default');
+    /** IndexedDB 行缓存 key 列表；有值时优先走缓存渲染路径 */
     const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
     const tableDataSize = computed(() => rowKeys.value.length || (indexSetQueryResult.value?.list?.length ?? 0));
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    /** 内存中的结果 list（无 row_keys 时的兜底数据源） */
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
+    /** 日志级别着色配置 */
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+    /** 单元格 JSON 内容最多展示行数 */
     const limitRow = computed(() => {
       // if (store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]) {
       //   return 'auto';
@@ -288,6 +385,7 @@ export default defineComponent({
       return store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES];
     });
 
+    /** 通知消费方字段宽度计算结果已更新 */
     const bumpFieldWidthVersion = () => {
       store.commit('updateState', { fieldWidthVersion: store.state.fieldWidthVersion + 1 });
     };
@@ -303,8 +401,14 @@ export default defineComponent({
     const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
     const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
     const isSceneMode = computed(() => store.getters.isSceneMode);
+    /** 列布局版本号：变更时强制 getFieldColumns 重算 */
     const columnLayoutVersion = ref(0);
+    /**
+     * 首屏列宽布局未稳定前为 true，此时用骨架屏挡住真实行，
+     * 避免 monitor 包外部挂载时首帧列宽抖动。
+     */
     const isFirstPageLayoutPending = ref(false);
+    /** 递增令牌：取消过期的 scheduleFirstPageTableReveal */
     let firstPageLayoutToken = 0;
 
     /**
@@ -375,6 +479,12 @@ export default defineComponent({
 
     const getRowCacheKey = (row, index: number) => rowKeys.value[index] ?? `${row?.dtEventTimeStamp ?? 'row'}_${index}`;
 
+    /**
+     * 按目标长度同步 renderList。
+     * - 有 rowKeys：从 IndexedDB 增量读取，尽量复用已有前缀，避免整表重建
+     * - 无 rowKeys：直接从 tableList 切片构造
+     * @param length 目标渲染条数；缺省为当前 tableDataSize
+     */
     const setRenderList = (length?: number) => {
       renderTaskToken += 1;
       const taskToken = renderTaskToken;
@@ -447,7 +557,10 @@ export default defineComponent({
     const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
-
+    /**
+     * 行对象 → 渲染元信息（截断字段、rowKey）的弱引用映射。
+     * 避免把 meta 挂到业务 row 上造成污染，同时随 GC 自动回收。
+     */
     const rowComponentMetaMap = new WeakMap<
       Record<string, any>,
       { renderMeta?: RetrieveRowRenderMeta; rowKey?: string }
@@ -462,11 +575,13 @@ export default defineComponent({
     const getRowRenderMeta = (row?: Record<string, any>) => row ? rowComponentMetaMap.get(row)?.renderMeta : undefined;
     const getRowComponentKey = (row: Record<string, any> | undefined) => row ? rowComponentMetaMap.get(row)?.rowKey : undefined;
 
+    /** 行内是否有字段被截断，决定是否展示「全文」入口 */
     const shouldShowFullRowAction = (row: Record<string, any>) => {
       const meta = getRowRenderMeta(row);
       return !!meta?.hasTruncatedField;
     };
 
+    /** 打开全文查看器；若已打开则先关后开以强制刷新内容 */
     const openFullRowViewer = (row: Record<string, any>, rowIndex: number) => {
       const rowKey = getRowComponentKey(row) || rowKeys.value[rowIndex] || '';
       const meta = getRowRenderMeta(row);
@@ -484,6 +599,7 @@ export default defineComponent({
       fullRowViewerState.visible = true;
     };
 
+    /** 原始日志模式的两列：时间 + 原文 JSON */
     const originalColumns = computed(() => {
       const formatDate = store.state.isFormatDate;
       // 依赖划词高亮 version，确保时间列在关键字变化后同步重绘
@@ -557,6 +673,9 @@ export default defineComponent({
       ];
     });
 
+    /**
+     * 将索引字段描述转为表头/单元格列配置（含排序头、JSON 单元格渲染）。
+     */
     const formatColumn = (field) => {
       return {
         field: field.field_name,
@@ -605,6 +724,7 @@ export default defineComponent({
       };
     };
 
+    /** 将列宽配置统一为数字；百分比宽度退回 fallback */
     const getNumericWidth = (width, fallback = 0) => {
       if (typeof width === 'number') {
         return width;
@@ -618,8 +738,10 @@ export default defineComponent({
       return Number.isNaN(parsedWidth) ? fallback : parsedWidth;
     };
 
+    /** 字段列与容器宽度之间的安全间隙，避免贴边出现横向溢出抖动 */
     const TABLE_WIDTH_SAFE_GAP = 4;
 
+    /** 左侧固定列总宽度（展开 / 序号 / 来源 / 采集项） */
     const getFixedColumnsWidth = () => {
       const expandColumnWidth = 36;
       const rowIndexColumnWidth = tableShowRowIndex.value ? 50 : 0;
@@ -629,12 +751,14 @@ export default defineComponent({
       return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth + collectorColumnWidth;
     };
 
+    /** 字段列可分配的剩余宽度 */
     const getFieldsAvailableWidth = () => offsetWidth.value - getFixedColumnsWidth() - TABLE_WIDTH_SAFE_GAP;
 
     const getColumnWidthTotal = (columnList: Record<string, any>[]) => {
       return columnList.reduce((total, item) => total + getNumericWidth(item.width, item.minWidth), 0);
     };
 
+    /** 多余宽度优先分给 log / text / 宽列，避免空白挤在窄字段上 */
     const getExtraWidthTargetColumns = (columnList: Record<string, any>[]) => {
       const longTextColumns = columnList.filter((item) => {
         return item.field === 'log' || item.field_type === 'text' || getNumericWidth(item.width) >= 800;
@@ -643,6 +767,9 @@ export default defineComponent({
       return longTextColumns;
     };
 
+    /**
+     * 当字段列总宽小于可用宽度时，把差额均分给长文本列。
+     */
     const distributeExtraWidthToLongTextColumns = (columnList: Record<string, any>[]) => {
       const availableWidth = getFieldsAvailableWidth();
       if (availableWidth <= 0 || columnList.length === 0) {
@@ -675,6 +802,7 @@ export default defineComponent({
     };
 
     // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
+    /** 字段列配置：table 模式走可见字段，否则走原始日志双列 */
     const getFieldColumns = computed(() => {
       columnLayoutVersion.value;
       // 别名开关变化时重建 title / header 文案，不改 column key
@@ -714,6 +842,7 @@ export default defineComponent({
       return originalColumns.value;
     });
 
+    /** 展开后高亮展开面板内的检索命中 */
     const hanldeAfterExpandClick = (target: HTMLElement) => {
       const expandTarget = target
         .closest('.bklog-row-container')
@@ -723,6 +852,7 @@ export default defineComponent({
       }
     };
 
+    /** 左侧固定列：展开、行号、联合检索来源、场景化采集项 */
     const leftColumns = computed(() => [
       {
         field: '',
@@ -808,6 +938,7 @@ export default defineComponent({
       },
     ]);
 
+    /** 行 AI 助手入口：高亮当前行并回调父级工具栏 */
     const handleRowAIClcik = (e: MouseEvent, row: any, rowIndex: number) => {
       const displayRowIndex = ensureTableRowConfig(row, rowIndex).value[ROW_INDEX] + 1;
       const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
@@ -819,13 +950,23 @@ export default defineComponent({
       props.handleClickTools('ai', row, indexSetOperatorConfig.value, displayRowIndex);
     };
 
-    // 替换原有的handleIconClick
+    /** 单元格图标操作（复制、添加到检索等）统一转发到 useTextAction */
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
       handleOperation(type, { content, field, row, isLink, depth, isNestedField, operation: type });
     };
 
-    // 替换原有的handleMenuClick
+    /** JSON / 分词菜单点击：时间字段需取原始时间戳构造检索条件 */
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field?: any }) => {
+      if (window.__IS_MONITOR_APM__ && isLink && option.operation === 'trace-view') {
+        const apmRelation = store.state.indexSetFieldConfig?.apm_relation;
+        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
+        handleRelatedTraceClick({
+          appName,
+          bkBizId,
+          traceId: option.value,
+        });
+        return;
+      }
       const timeTypes = ['date', 'date_nanos'];
       const field = fieldOption?.field ?? getFieldByName(option.fieldName);
       const fieldType = field?.field_type ?? option.fieldType;
@@ -850,6 +991,9 @@ export default defineComponent({
     };
 
     const { renderHead } = useHeaderRender();
+    /**
+     * 可见字段为空时的兜底渲染字段：优先 log/body，否则取前 4 个可渲染字段。
+     */
     const getFallbackRenderFields = (fields: Record<string, any>[] = []) => {
       const renderableFields = fields.filter(field =>
         field?.field_name
@@ -865,6 +1009,10 @@ export default defineComponent({
         : renderableFields.slice(0, 4);
     };
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
+    /**
+     * 构建 fullColumns：时间 → log → 其它索引字段，并基于样本行估算默认列宽。
+     * 清空全部可见字段后表格依赖此列表兜底展示。
+     */
     const setFullColumns = () => {
       /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
       const dataFields: Record<string, any>[] = [];
@@ -917,6 +1065,7 @@ export default defineComponent({
       fullColumns.value = sortFieldsList;
     };
 
+    /** 行配置默认值（目前仅 expand=false） */
     const getRowConfigWithCache = () => {
       return [['expand', false]].reduce((cfg, item: [keyof RowConfig, any]) => {
         cfg[item[0]] = item[1];
@@ -937,6 +1086,10 @@ export default defineComponent({
       return getRowComponentKey(row) || rowKeys.value[index] || '';
     };
 
+    /**
+     * 获取或创建行运行时配置（展开态、显示序号等）。
+     * 优先按 rowKey 命中，再回落到 WeakMap(row)，保证对象重建后状态不丢。
+     */
     const ensureTableRowConfig = (row, index: number) => {
       if (!row) {
         return createRowConfigRef(index);
@@ -964,6 +1117,7 @@ export default defineComponent({
       return config;
     };
 
+    /** 延迟关闭 isRequesting，避免短间隔内重复触发加载态闪烁 */
     const debounceSetLoading = (delay = 120) => {
       requestingTimer && clearTimeout(requestingTimer);
       requestingTimer = setTimeout(() => {
@@ -971,6 +1125,7 @@ export default defineComponent({
       }, delay);
     };
 
+    /** 行展开面板渲染配置（KV 字段列表） */
     const expandOption = {
       render: ({ row, rowIndex }) => {
         const config = ensureTableRowConfig(row, rowIndex);
@@ -1006,9 +1161,15 @@ export default defineComponent({
       },
     };
 
+    /** 首屏渲染前同步结果区尺寸（由下方 useLazyRender 后再赋值实现） */
     let syncResultBoxRectBeforeRender = () => {};
+    /** 首屏列宽稳定后再揭开真实行（由下方赋值实现） */
     let scheduleFirstPageTableReveal = () => {};
 
+    /**
+     * 数据量变化时刷新 renderList；
+     * 若仍在等首屏布局，先同步尺寸并调度揭开。
+     */
     const resetRowListState = () => {
       const shouldWaitFirstPageLayout = isFirstPageLayoutPending.value && tableDataSize.value > 0;
 
@@ -1084,6 +1245,10 @@ export default defineComponent({
     };
 
     let visibleFieldsLayoutToken = 0;
+    /**
+     * 可见字段变化后重算列宽并触发横向布局刷新。
+     * 用 layoutToken 丢弃过期的异步样本行读取结果。
+     */
     const refreshVisibleFieldsColumnLayout = async () => {
       const layoutToken = ++visibleFieldsLayoutToken;
       if (!visibleFields.value.length) {
@@ -1177,6 +1342,7 @@ export default defineComponent({
     let isColumnWidthChanging = false;
     let columnWidthChangeTimer: number;
 
+    /** 标记列宽拖拽进行中，短暂抑制 resize 时重置横向滚动 */
     const markColumnWidthChanging = () => {
       isColumnWidthChanging = true;
       window.clearTimeout(columnWidthChangeTimer);
@@ -1185,6 +1351,7 @@ export default defineComponent({
       }, 300);
     };
 
+    /** 列宽变更后尽量保持用户当前的横向滚动位置 */
     const preserveHorizontalScrollAfterColumnResize = (preferredScrollLeft: number) => {
       nextTick(() => {
         requestAnimationFrame(() => {
@@ -1197,6 +1364,9 @@ export default defineComponent({
       });
     };
 
+    /**
+     * 用户拖拽列宽：缩小时把差额补给 log/长文本列，并持久化到用户字段配置。
+     */
     const handleColumnWidthChange = (w, col) => {
       const prevScrollLeft = scrollXOffsetLeft;
       markColumnWidthChanging();
@@ -1254,6 +1424,7 @@ export default defineComponent({
       preserveHorizontalScrollAfterColumnResize(prevScrollLeft);
     };
 
+    /** 从分页接口响应中解析本页条数，用于判断是否还有下一页 */
     const getPaginationResponseSize = (resp) => {
       if (typeof resp?.length === 'number') {
         return resp.length;
@@ -1274,6 +1445,11 @@ export default defineComponent({
       return null;
     };
 
+    /**
+     * 加载更多：
+     * 1) 本地分页未耗尽 → 仅扩大 renderList
+     * 2) 本地已展示完当前已拉取数据 → 发起后端 append 分页（单飞）
+     */
     const loadMoreTableData = () => {
       // IntersectionObserver 与 wheel 预加载可能在同一帧命中。Promise 锁用于保证后端分页严格单飞，
       // 不依赖会被渲染定时器重置的 isRequesting，避免后一请求取消前一请求。
@@ -1361,6 +1537,7 @@ export default defineComponent({
     let scrollXOffsetLeft = 0;
     const refScrollXBar = ref();
 
+    /** 回到顶部后重置为第一页可见窗口 */
     const afterScrollTop = () => {
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
@@ -1372,8 +1549,7 @@ export default defineComponent({
       }
     };
 
-    // 监听滚动条滚动位置
-    // 判定是否需要拉取更多数据
+    // 监听滚动条滚动位置，判定是否需要拉取更多数据
     const { offsetWidth, scrollWidth, computeRect, computeRectSync, getScrollElement } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
@@ -1381,11 +1557,15 @@ export default defineComponent({
       refLoadMoreElement,
     });
 
+    /** 首屏渲染前同步结果区宽度，并 bump 列布局版本 */
     syncResultBoxRectBeforeRender = () => {
       computeRectSync(refResultRowBox.value);
       triggerColumnLayoutReflow();
     };
 
+    /**
+     * 双 rAF + nextTick：等浏览器完成列宽布局后再关闭首屏骨架，避免列宽抖动。
+     */
     scheduleFirstPageTableReveal = () => {
       const token = firstPageLayoutToken;
       nextTick(() => {
@@ -1415,6 +1595,7 @@ export default defineComponent({
       });
     };
 
+    /** 同步表头 transform 与内容区 scrollLeft，实现自定义横向滚动 */
     const setRowboxTransform = () => {
       if (refResultRowBox.value && refRootElement.value) {
         refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
@@ -1429,6 +1610,7 @@ export default defineComponent({
       return showCtxType.value === 'table' && scrollWidth.value > offsetWidth.value;
     });
 
+    /** 容器宽度变化后重算横向滚动，必要时清零偏移 */
     const syncResultBoxLayout = () => {
       nextTick(() => {
         requestAnimationFrame(() => {
@@ -1448,6 +1630,7 @@ export default defineComponent({
       });
     };
 
+    /** 左侧字段设置面板显隐/宽度变化时重置横向滚动并多次延迟 reflow */
     const handleFieldSettingLayoutChange = () => {
       scrollXOffsetLeft = 0;
       refScrollXBar.value?.scrollLeft(0);
@@ -1474,11 +1657,13 @@ export default defineComponent({
       },
     );
 
+    // —— Wheel 预加载与横向滚动 ——
     const isPreloading = ref(false);     // 是否正在预加载
     const preloadThreshold = 32 * 50;        // 距离底部多少 px 开始预加载
     let lastPreloadTime = 0;
     const preloadCooldown = 300;         // ms
 
+    /** 向下滚动且接近底部时触发预加载（带冷却） */
     const shouldPreloadOnScrollDown = (event: WheelEvent) => {
       if (!hasMoreList.value) return false;
       if (isPreloading.value) return false;
@@ -1560,6 +1745,7 @@ export default defineComponent({
       return showCtxType.value === 'table' && tableDataSize.value > 0;
     });
 
+    /** 是否存在真实业务异常（排除用户主动 cancel） */
     const hasResultException = computed(() => {
       const rawExceptionMsg = indexSetQueryResult.value?.exception_msg ?? '';
       return indexSetQueryResult.value?.is_error || (!!rawExceptionMsg && !/^cancel$/gi.test(rawExceptionMsg));
@@ -1575,6 +1761,7 @@ export default defineComponent({
       return indexFieldInfo.value.is_loading && visibleFields.value.length === 0;
     });
 
+    /** 无数据且检索中：进入首屏骨架条件之一 */
     const shouldEnterFirstPageSkeleton = computed(() => {
       return (
         !hasResultException.value
@@ -1584,6 +1771,7 @@ export default defineComponent({
       );
     });
 
+    /** 是否展示首屏骨架（含字段加载中、布局待稳定） */
     const shouldShowFirstPageSkeleton = computed(() => {
       if (hasResultException.value || isPaginationLoading.value) {
         return false;
@@ -1592,6 +1780,7 @@ export default defineComponent({
       return shouldEnterFirstPageSkeleton.value || isFieldLoadingForFirstPage.value || isFirstPageLayoutPending.value;
     });
 
+    /** 骨架展示期间屏蔽表头与真实行渲染 */
     const shouldBlockTableRender = computed(() => {
       return shouldShowFirstPageSkeleton.value;
     });
@@ -1637,6 +1826,7 @@ export default defineComponent({
       return <ScrollTop on-scroll-top={afterScrollTop} />;
     };
 
+    /** 将列宽配置转为单元格内联 style（支持 number / 百分比 / 100% 通栏） */
     const getColumnWidth = (column, fullWidth = false) => {
       if (fullWidth) {
         return {
@@ -1658,6 +1848,7 @@ export default defineComponent({
       };
     };
 
+    /** 最终渲染列 = 左侧固定列 + 字段列，过滤 disabled */
     const allColumns = computed(() => {
       const columns = [...leftColumns.value, ...getFieldColumns.value].filter(
         item => !(item as any).disabled,
@@ -1665,6 +1856,7 @@ export default defineComponent({
       return columns;
     });
 
+    // —— 行 hover 浮动操作栏 ——
     const clearHoverOperatorHideTimer = () => {
       if (hoverOperatorHideTimer) {
         clearTimeout(hoverOperatorHideTimer);
@@ -1692,6 +1884,10 @@ export default defineComponent({
       scheduleHideHoverOperator();
     };
 
+    /**
+     * 按行相对视口位置更新浮动操作栏坐标。
+     * 使用 fixed 浮层，避免被 .bklog-result-container overflow 裁切。
+     */
     const updateHoverOperatorPosition = (rowEl: HTMLElement) => {
       const rootEl = refRootElement.value;
       if (!rootEl || !rowEl) {
@@ -1779,6 +1975,7 @@ export default defineComponent({
       );
     };
 
+    /** 渲染单行单元格 +（可选）展开面板 */
     const renderRowCells = (row, rowIndex) => {
       const { expand } = ensureTableRowConfig(row, rowIndex).value;
       let hasFullWidth = false;
@@ -1810,6 +2007,7 @@ export default defineComponent({
       ];
     };
 
+    /** 行 mousedown：记录按下态并清空旧选区，为划词 / 点击展开做准备 */
     const handleRowMousedown = (e: MouseEvent) => {
       mousedownOnRow = true;
 
@@ -1823,34 +2021,43 @@ export default defineComponent({
       savedSelectionText = '';
     };
 
+    /**
+     * 行 mouseup：
+     * - 有划选文本 → 弹出划词操作层
+     * - 点击展开图标 / 行空白 → 切换展开
+     * - 点击分词等内容 → 不联动外层行展开
+     */
     const handleRowMouseup = (e: MouseEvent, item: any, rowIndex: number) => {
       if (!mousedownOnRow) {
         RetrieveHelper.setMousedownEvent(null);
         return;
       }
+
       // 选中文本不弹出复制等选项框
-      if (window.__IS_MONITOR_TRACE__ && window.getSelection().toString().length > 1) {
-        RetrieveHelper.setMousedownEvent(null);
-        return;
-      }
+      // if (window.__IS_MONITOR_TRACE__ && window.getSelection().toString().length > 1) {
+      //   RetrieveHelper.setMousedownEvent(null);
+      //   return;
+      // }
 
       mousedownOnRow = false;
 
       if (RetrieveHelper.isClickOnSelection(e, 2) || RetrieveHelper.isMouseSelectionUpEvent(e)) {
         RetrieveHelper.stopEventPropagation(e);
         RetrieveHelper.setMousedownEvent(null);
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          // cloneRange + 固化文本：弹层点击/高亮重绘后 live Range 可能失效或 toString 漂移
-          // 必须在 mouseup 当下固化，避免后续点击分词/检索刷新冲掉 DOM 后解析漂移
-          savedSelection = selection.getRangeAt(0).cloneRange();
-          savedSelectionText = stripSelectionMarkup(savedSelection.toString());
-          hoverOperatorState.row = item;
-          hoverOperatorState.rowIndex = rowIndex;
-          const rect = getSelectionReferenceRect(savedSelection, e);
-          const target = setSelectionPopTargetHandler(rect);
+
+        /**
+         * 选区必须按行容器所在的 shadow root 读取：monitor Trace 宿主把日志组件挂在
+         * `<trace-explore>` 的 shadow root 内，document 选区会被 retarget 到 shadow host 所在的树，
+         * 拿到的 Range 端点是 `div.trace-wrap-iframe`，toString() 为空串，
+         * 复制 / 高亮 / 添加到本次检索都会失效。
+         */
+        const selectionRange = getSelectionRange(refRootElement.value ?? (e.target as Node));
+        if (getSelectionTextByRange(selectionRange).length) {
+          savedSelection = selectionRange;
+          selectionAnchorPoint = { x: e.clientX, y: e.clientY };
+          selectionReferenceRect = getSelectionReferenceRect(savedSelection, selectionAnchorPoint);
           popInstanceUtil.uninstallInstance();
-          popInstanceUtil.show(target, true, true);
+          popInstanceUtil.show(getSelectionPopAnchor(), true, true);
         }
         return;
       }
@@ -1921,6 +2128,7 @@ export default defineComponent({
       });
     };
 
+    /** 渲染当前页可见行（含日志级别 class、hover 操作态） */
     const renderRowVNode = () => {
       if (shouldBlockTableRender.value) {
         return null;
@@ -1987,6 +2195,7 @@ export default defineComponent({
       return '';
     });
 
+    /** 更新底部 load-more 占位文案与宽度 */
     const updateLoader = () => {
       if (refLoadMoreElement.value) {
         const targetElement = refLoadMoreElement.value.firstElementChild as HTMLElement;
@@ -2061,6 +2270,7 @@ export default defineComponent({
     });
 
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
+    /** 空态 / 异常态展示类型，供 LogResultException 消费 */
     const exceptionType = computed(() => {
       if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {
         if (shouldShowFirstPageSkeleton.value) {
@@ -2141,6 +2351,9 @@ export default defineComponent({
       paginationRequestToken += 1;
       clearHoverOperatorHideTimer();
       popInstanceUtil.uninstallInstance();
+      selectionPopAnchorEl?.remove();
+      selectionPopAnchorEl = null;
+      savedSelection = null;
       window.clearTimeout(columnWidthChangeTimer);
       requestingTimer && clearTimeout(requestingTimer);
       while (layoutTimers.length) {

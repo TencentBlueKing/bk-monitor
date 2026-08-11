@@ -137,7 +137,8 @@ class LogCollectorHandler:
                     "tags": item.get("tags", ""),
                     "category_id": item.get("category_id", ""),
                     "category_name": item.get("category_name", ""),
-                    "is_editable": item.get("is_editable", ""),
+                    # 采集项没有该字段，缺省即「不受此标记限制」；不可用空串，前端 !is_editable 会误判为不可编辑
+                    "is_editable": item.get("is_editable", True),
                     "scenario_id": scenario_id,
                     "scenario_name": scenario_choices.get(scenario_id, ""),
                     "status": item.get("status", ""),
@@ -481,11 +482,12 @@ class LogCollectorHandler:
             # 非日志采集查询，直接返回
             return []
 
+        # 采集插件通过 is_display 批量隐藏旗下采集项，且默认不可见，列表须与旧接口口径一致
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
             query_bk_biz_ids = self.get_query_ids_by_collector_source(collector_source, is_bk_biz_id=True)
-            qs = CollectorConfig.objects.filter(bk_biz_id__in=query_bk_biz_ids)
+            qs = CollectorConfig.objects.filter(bk_biz_id__in=query_bk_biz_ids, is_display=True)
         else:
-            qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+            qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id, is_display=True)
 
         if exclude_not_completed:
             qs = qs.filter(table_id__isnull=False)
@@ -917,7 +919,7 @@ class LogCollectorHandler:
 
     def get_collector_count(self):
         """获取采集项总数"""
-        collector_count = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).count()
+        collector_count = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id, is_display=True).count()
         index_set_count = (
             LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
             .exclude(scenario_id=Scenario.LOG)
@@ -974,14 +976,15 @@ class LogCollectorHandler:
         :param include_related_spaces: 是否包含关联空间中的采集项
         :return: 包含创建人和更新人枚举值的字典
         """
+        # 枚举须与列表同源，否则筛选项里会出现列表中不存在的采集项
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
-            query_collector_condition = {"bk_biz_id__in": self.all_related_bk_biz_ids}
+            query_collector_condition = {"bk_biz_id__in": self.all_related_bk_biz_ids, "is_display": True}
             query_index_set_condition = {
                 "collector_config_id__isnull": True,
                 "space_uid__in": self.all_related_space_uids,
             }
         else:
-            query_collector_condition = {"bk_biz_id": self.bk_biz_id}
+            query_collector_condition = {"bk_biz_id": self.bk_biz_id, "is_display": True}
             query_index_set_condition = {"collector_config_id__isnull": True, "space_uid": self.space_uid}
 
         collector_fields = list(

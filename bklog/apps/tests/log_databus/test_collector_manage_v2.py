@@ -951,6 +951,67 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             table_id=None,
         )
 
+    def _create_hidden_collector(self):
+        """构造一个被采集插件标记为不可见的采集项（is_display=False）。"""
+        return CollectorConfig.objects.create(
+            collector_config_id=4,
+            collector_config_name="插件隐藏采集项",
+            collector_config_name_en="hidden_plugin_collector",
+            collector_scenario_id="custom",
+            bk_biz_id=CURRENT_BK_BIZ_ID,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type="TOPO",
+            target_nodes=[],
+            target_subscription_diff={},
+            description="hidden",
+            is_active=True,
+            bk_data_id=1500599,
+            table_id="2_bklog.hidden_plugin_collector",
+            is_display=False,
+        )
+
+    def test_get_log_collectors_excludes_not_displayed_collector(self):
+        """采集插件通过 is_display 隐藏的采集项不应出现在采集接入列表中。"""
+        hidden_collector = self._create_hidden_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collector_ids = [item["collector_config_id"] for item in self._collectors_from_result(result)]
+        self.assertNotIn(hidden_collector.pk, collector_ids)
+        self.assertIn(self.current_collector.pk, collector_ids)
+
+    def test_not_displayed_collector_is_absent_from_field_enums(self):
+        """枚举须与列表同源，隐藏采集项不应污染筛选项。"""
+        self._create_hidden_collector()
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+
+        with (
+            patch.object(LogCollectorHandler, "get_bkdata_cluster_names", return_value=set()),
+            patch.object(LogCollectorHandler, "get_metadata_cluster_names", return_value=set()),
+        ):
+            enums = handler.get_collector_field_enums(include_related_spaces=False)
+
+        self.assertNotIn(
+            {"key": "hidden_plugin_collector", "value": "hidden_plugin_collector"},
+            enums["name_en"],
+        )
+        self.assertNotIn(
+            {"key": "2_bklog_hidden_plugin_collector", "value": "2_bklog_hidden_plugin_collector"},
+            enums["bk_data_name"],
+        )
+
+    def test_get_collector_count_excludes_not_displayed_collector(self):
+        """采集项总数须与列表口径一致，否则总数与实际条目对不上。"""
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+        count_before = handler.get_collector_count()
+
+        self._create_hidden_collector()
+
+        self.assertEqual(handler.get_collector_count(), count_before)
+
     def test_name_en_exposes_collector_config_name_en_with_table_id_fallback(self):
         """数据名取采集项英文名；英文名缺失的历史数据回退到结果表点号后的部分。"""
         pending_collector = self._create_pending_collector()
@@ -964,6 +1025,18 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         self.assertEqual(collectors[pending_collector.pk]["name_en"], "pending_collector_en")
         # 英文名为空的历史数据回退到结果表后缀
         self.assertEqual(collectors[self.current_collector.pk]["name_en"], "current_collector")
+
+    def test_is_editable_defaults_to_true_for_collector(self):
+        """采集项没有 is_editable，缺省须为 True；空串在前端 !is_editable 下会被误判为不可编辑。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        for collector_id in (pending_collector.pk, self.current_collector.pk):
+            self.assertIs(collectors[collector_id]["is_editable"], True)
 
     def test_table_id_stays_empty_for_collector_without_result_table(self):
         """table_id 保持原语义，前端据此判断采集项未完成、拦截跳转详情页。"""

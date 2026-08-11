@@ -200,11 +200,21 @@ export default class PopInstanceUtil {
 
     for (const key of Object.keys(this.tippyOptions)) {
       if (typeof this.tippyOptions[key] === 'function') {
-        const oldFn = options[key] ?? (() => {});
+        const defaultFn = options[key];
+
+        /**
+         * 只有默认配置里存在同名钩子（onShow/onShown/onHide/onHidden）时才需要串联执行。
+         * 其余函数型配置（例如 getReferenceClientRect）必须原样透传：
+         * 包装后会丢掉调用方的返回值，tippy 拿到 undefined 会定位异常。
+         */
+        if (typeof defaultFn !== 'function') {
+          options[key] = this.tippyOptions[key];
+          continue;
+        }
 
         options[key] = (...args) => {
           this.tippyOptions[key](...args);
-          return oldFn(...args);
+          return defaultFn(...args);
         };
       } else if (this.tippyOptions[key] !== undefined && this.tippyOptions[key] !== null) {
         options[key] = this.tippyOptions[key];

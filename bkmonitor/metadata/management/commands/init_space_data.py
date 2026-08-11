@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import argparse
+
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
@@ -22,7 +24,8 @@ class Command(BaseCommand):
         parser.add_argument("--init_type", action="store", default="True", help="init space type")
         parser.add_argument("--sync_bkcc", action="store", default="True", help="sync bkcc biz data")
         parser.add_argument("--sync_bcs", action="store", default="True", help="init bcs project data")
-        parser.add_argument("--init_redis", action="store", default="True", help="push space to redis")
+        # 兼容存量部署脚本；路由刷新已由 bk-monitor-worker 周期任务接管。
+        parser.add_argument("--init_redis", action="store", default=None, help=argparse.SUPPRESS)
 
     def handle(self, *args, **options):
         # 修复内置dataid脏数据
@@ -34,10 +37,15 @@ class Command(BaseCommand):
             call_command("sync_cmdb_space")
         if options["sync_bcs"] in ["True", "true"]:
             call_command("sync_bcs_space")
-        if options["init_redis"] in ["True", "true"]:
-            call_command("init_redis_data")
 
-        print("init space data successfully")
+        if options["init_redis"] is not None:
+            self.stdout.write(
+                self.style.WARNING(
+                    "参数 --init_redis 已废弃，空间路由由 bk-monitor-worker 周期任务刷新，本命令不再主动刷新 Redis"
+                )
+            )
+
+        self.stdout.write("init space data successfully")
 
     @staticmethod
     def fix_dirty_datasource():

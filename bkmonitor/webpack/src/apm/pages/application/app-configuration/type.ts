@@ -77,7 +77,7 @@ export interface IAppInfo {
   // 类型状态
   metric_data_status: TDataStatus;
   no_data_period: number;
-  owner: string;
+  owners: string[];
   plugin_id: string;
   profiling_data_status: TDataStatus;
   trace_data_status: TDataStatus;

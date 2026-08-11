@@ -1,5 +1,5 @@
 import { parseTableRowData } from '@/common/util';
-import { retrieveRowCacheService } from '@/storage';
+import { relatedLogSearchRowCacheService, retrieveRowCacheService } from '@/storage';
 import type { Store } from 'vuex';
 
 export interface RelatedLogTargetRowOptions {
@@ -19,8 +19,11 @@ export interface RelatedLogTargetRowResult {
 
 export async function fetchFullRowByKey(rowKey?: string, fallbackRow?: Record<string, any>) {
   if (rowKey) {
-    const [fullRow] = await retrieveRowCacheService.getRows([rowKey]);
-    if (fullRow) return fullRow;
+    // 主检索种子 rowKey → retrieveRows；下半本地 Stream → relatedLogSearchRows
+    const [mainRow] = await retrieveRowCacheService.getRows([rowKey]);
+    if (mainRow) return mainRow;
+    const [relatedRow] = await relatedLogSearchRowCacheService.getRows([rowKey]);
+    if (relatedRow) return relatedRow;
   }
   return fallbackRow;
 }
@@ -90,7 +93,9 @@ export async function resolveRelatedLogTargetRow(
   };
 }
 
-export function getRelatedLogResolveOptions(store: Store<any>): Omit<RelatedLogTargetRowOptions, 'rowKey' | 'fallbackRow'> {
+export function getRelatedLogResolveOptions(
+  store: Store<any>,
+): Omit<RelatedLogTargetRowOptions, 'rowKey' | 'fallbackRow'> {
   return {
     contextFields: store.state.indexSetOperatorConfig?.contextAndRealtime?.extra?.context_fields,
     timeField: store.state.indexFieldInfo?.time_field,

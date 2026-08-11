@@ -49,6 +49,7 @@ declare global {
     bk_docs_site_url: string;
     bk_incident_saas_host: string;
     bk_log_search_url: string;
+    bk_nodeman_host: string;
     bk_url: string;
     bkchat_manage_url: string;
     bklogsearch_host: string;

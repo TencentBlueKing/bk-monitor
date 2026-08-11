@@ -230,6 +230,67 @@ def test_incident_diagnosis_preserves_interaction_metadata():
     assert 'display_content = raw_sub_panel.get("display")' in resource_source
 
 
+def test_incident_alert_view_returns_anomaly_timestamps():
+    source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
+    resource_start = source.index("class IncidentAlertViewResource")
+    resource_end = source.index("class AlertIncidentDetailResource", resource_start)
+    resource_source = source[resource_start:resource_end]
+
+    class FakeIncidentBaseResource:
+        def get_snapshot_alerts(self, snapshot, **kwargs):
+            return [
+                {
+                    "id": "alert-1",
+                    "category": "application",
+                    "dimensions": [],
+                    "extra_info": {
+                        "origin_alarm": {
+                            "trigger": {
+                                "anomaly_ids": [
+                                    "hash.1763554200.strategy.item.level",
+                                    "hash.1763554080.strategy.item.level",
+                                ]
+                            }
+                        }
+                    },
+                }
+            ]
+
+    class FakeIncidentDocument:
+        @classmethod
+        def get(cls, _id):
+            return SimpleNamespace(
+                snapshot=SimpleNamespace(content=SimpleNamespace(to_dict=lambda: {})),
+                extra_info=None,
+                feedback=None,
+            )
+
+    class FakeAlertDocument:
+        def __init__(self, **kwargs):
+            self.event = SimpleNamespace()
+            self.extra_info = kwargs["extra_info"]
+
+    namespace = {
+        "IncidentBaseResource": FakeIncidentBaseResource,
+        "serializers": _serializers,
+        "AlertSearchSerializer": object,
+        "MAX_INCIDENT_ALERT_SIZE": 300,
+        "IncidentDocument": FakeIncidentDocument,
+        "IncidentSnapshot": lambda content: SimpleNamespace(alert_entity_mapping={}),
+        "AlertDocument": FakeAlertDocument,
+        "AIOPSManager": SimpleNamespace(get_graph_panel=lambda *args, **kwargs: {}),
+        "resource": SimpleNamespace(
+            commons=SimpleNamespace(get_label=lambda: [{"id": "application", "children": [{"id": "application"}]}])
+        ),
+    }
+    exec(resource_source, namespace)
+
+    result = namespace["IncidentAlertViewResource"]().perform_request({"id": 1})
+    alert = result[0]["alerts"][0]
+
+    assert alert["anomaly_timestamps"] == [1763554080, 1763554200]
+
+
 def test_incident_list_returns_bkci_enabled_space_as_monitor_negative_biz_id():
     source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
 

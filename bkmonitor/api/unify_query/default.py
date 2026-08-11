@@ -145,6 +145,30 @@ class UnifyQueryAPIResource(Resource):
 class QueryDataResource(UnifyQueryAPIResource):
     """
     查询数据
+
+    返回示例：
+    {
+      "series": [
+        {
+          "name": "_result0",
+          "metric_name": "system.cpu_summary.usage",
+          "columns": ["_time", "_value", "bk_target_ip"],
+          "types": ["time", "double", "string"],
+          "group_keys": ["bk_target_ip"],
+          "group_values": ["127.0.1.10"],
+          "values": [
+            [1657848000, 12.5, "127.0.1.11"],
+            [1657848060, 13.1, "127.0.1.12"]
+          ],
+          "stat": {"avg": 12.8, "max": 13.1, "min": 12.5, "count": 2}
+        }
+      ],
+      "status": {"series_limit_reached": false, "is_partial": false},
+      "trace_id": "a1b2c3d4",
+      "is_partial": false,
+      "result_table_id": ["system.cpu_summary"]
+    }
+
     """
 
     method = "POST"

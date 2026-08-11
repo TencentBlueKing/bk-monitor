@@ -301,6 +301,27 @@ def test_query_physical_storage_metadata_queries_doris_raw_metadata(doris_storag
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_query_physical_storage_metadata_can_skip_show_create_table(doris_storage, mocker):
+    doris_binding = build_doris_binding(
+        annotations={"PhysicalTableName": "mapleleaf_2.bklog_2_test_2"},
+    )
+    mocker.patch(
+        "metadata.models.data_link.data_link_configs.DorisStorageBindingConfig.component_config",
+        new_callable=PropertyMock,
+        return_value=doris_binding,
+    )
+    fake_cursor = FakeDorisCursor()
+    fake_connection = FakeDorisConnection(fake_cursor)
+    mocker.patch("metadata.models.storage.pymysql.connect", return_value=fake_connection)
+
+    result = doris_storage.query_physical_storage_metadata(include_create_table=False)
+
+    assert len(fake_cursor.execute_calls) == 3
+    assert all("SHOW CREATE TABLE" not in sql for sql, _params in fake_cursor.execute_calls)
+    assert "show_create_table" not in result["physical_metadata"]
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_query_physical_storage_metadata_escapes_identifiers(doris_storage, mocker):
     doris_binding = build_doris_binding(storage_config={"db": "maple`leaf", "table": "bklog`table"})
     mocker.patch(

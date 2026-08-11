@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,18 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from metadata.models import (
-    DataSource,
-    ResultTable,
-    Space,
-    SpaceDataSource,
-    TimeSeriesGroup,
-)
+from metadata.models import DataSource, ResultTable, SpaceDataSource, TimeSeriesGroup
 from monitor_web.models import CustomTSTable
 
 logger = logging.getLogger("metadata")
@@ -85,11 +79,6 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(f"update spacedatasource occur error: {e}")
                 return
-            finally:
-                from metadata.task.sync_space import push_and_publish_space_router
-
-                if Space.objects.filter(space_id=bk_biz_id).exists():
-                    push_and_publish_space_router(space_id=bk_biz_id)
 
     def add_arguments(self, parser):
         parser.add_argument("--group_name", type=str, required=True, help="时序分组名")
