@@ -230,16 +230,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
         self.assertIsNone(execution.bkfara_task_id)
 
-    def test_unbound_mock_endpoint_waits_for_periodic_recovery(self):
-        execution = self.create_execution()
-
-        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
-
-        self.assertFalse(should_poll)
-        execution.refresh_from_db()
-        self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
-        self.assertIsNone(execution.bkfara_task_id)
-
     @patch("fta_web.issue.resources.api.bk_incident.create_source_analysis_task")
     def test_non_retryable_create_error_marks_failure(self, create_task):
         execution = self.create_execution()

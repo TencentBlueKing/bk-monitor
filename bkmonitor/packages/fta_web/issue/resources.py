@@ -562,9 +562,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
         if not execution.bkfara_task_id:
             return cls._create_and_execute_bkfara_task(execution)
 
-        if not api.bk_incident.get_source_analysis_task.action:
-            logger.info("BKFara source analysis query endpoint is not configured")
-            return False
         try:
             task_state = api.bk_incident.get_source_analysis_task(
                 bk_biz_id=execution.bk_biz_id,
@@ -579,9 +576,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def _create_and_execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
-        if not api.bk_incident.create_source_analysis_task.action:
-            logger.info("BKFara source analysis create endpoint is not configured")
-            return False
         try:
             result = api.bk_incident.create_source_analysis_task(
                 bk_biz_id=execution.bk_biz_id,
@@ -624,21 +618,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def _execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
-        if not api.bk_incident.execute_source_analysis_task.action:
-            logger.info("BKFara source analysis execute endpoint is not configured")
-            return False
         if not cls._mark_running(execution, SourceAnalysisStage.SOURCE_PREPARING):
             return False
         try:
             task_state = api.bk_incident.execute_source_analysis_task(**cls.build_execute_task_params(execution))
         except Exception as execute_error:
             # 执行请求可能已被 BKFara 接收。先查状态，避免因客户端超时重复启动流水线。
-            if not api.bk_incident.get_source_analysis_task.action:
-                return cls._handle_upstream_error(
-                    execution,
-                    SourceAnalysisFailureStage.TASK_EXECUTE,
-                    execute_error,
-                )
             try:
                 task_state = api.bk_incident.get_source_analysis_task(
                     bk_biz_id=execution.bk_biz_id,
