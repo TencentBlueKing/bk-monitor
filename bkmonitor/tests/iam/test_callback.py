@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
-from bkmonitor.iam.definitions.codec import MonitorV4Codec
+from bkmonitor.iam.definitions.codec_v4 import MonitorV4Codec
 from bkmonitor.iam.iam_engine.callback.registry import (
     _fetch_handlers,
     _list_handlers,

@@ -9,23 +9,16 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# iam.definitions — 平台无关的权限模型定义
+# iam_v3 — IAM v3 (ABAC) Provider 实现
 #
-# Action / ResourceType / Role 的定义不绑定任何 IAM 版本（v3/v4），
-# 各版本 Provider 共用同一套 schema。
+# 依赖 iam_engine 框架，将现有 CompatibleIAM SDK 客户端封装为新框架的 Provider：
+#   - config.py      — Provider 配置契约（V3Options / V3Credentials / V3SystemInfo）
+#   - provider.py    — V3PermissionProvider
+#   codec 在 definitions/codec_v3.py —— V3NameCodec（业务 action_id ↔ V3 平台 action_id 映射）
 #
-# 同时包含：
-#   - codec_v4.py     — v4 命名编解码器（业务 ↔ 平台方言）
-#   - callbacks.py — v4 资源回调 handler 实现
-#
-# 使用方式（在 IAM_FRAMEWORK 配置中）：
-#   "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
-#   "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
-#   "ROLES": "bkmonitor.iam.definitions.roles.Roles",
+# Phase 1 范围：鉴权（is_allowed / batch_* / get_apply_url）、
+# 最小 migration 支持（空实现）、health_check。
 # ---------------------------------------------------------------------------
 
-from .actions import Actions
-from .resource_types import ResourceTypes
-from .roles import Roles
-
-__all__ = ["Actions", "ResourceTypes", "Roles"]
+#: Provider 标识 —— v3 包内唯一入口，所有引用 ``"v3"`` 的地方统一使用此常量。
+PROVIDER_NAME: str = "v3"

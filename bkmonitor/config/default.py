@@ -1367,7 +1367,7 @@ IAM_FRAMEWORK = {
         {
             "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
             "options": {
-                "codec_class": "bkmonitor.iam.definitions.codec.MonitorV4Codec",
+                "codec_class": "bkmonitor.iam.definitions.codec_v4.MonitorV4Codec",
                 "callback_module": "bkmonitor.iam.definitions.v4_callbacks",
                 "base_url": BK_IAM_V4_API_BASE_URL,
                 "credentials": {
