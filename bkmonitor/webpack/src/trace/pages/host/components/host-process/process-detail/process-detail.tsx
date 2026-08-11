@@ -106,6 +106,9 @@ export default defineComponent({
     const refreshImmediate = shallowRef('');
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
+    const timeShift = computed(() =>
+      processMetricAggregationState.value.compareType === 'time' ? processMetricAggregationState.value.timeShift : []
+    );
 
     const cacheTimeRange = shallowRef(null);
     const showRestore = shallowRef(false);
@@ -141,6 +144,7 @@ export default defineComponent({
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
     provide('viewOptions', aggregation.viewOptions);
+    provide('timeOffset', timeShift);
 
     /** 根据选中节点类型，生成当前目标的查询参数 */
     const currentTarget = computed<CompareTarget | null>(() => {
