@@ -54,6 +54,7 @@ from ..iam_engine.provider.dialect_types import (
 )
 from . import PROVIDER_NAME
 from .config import V3Options, V3SystemInfo
+from ..iam_engine.schema.definitions import ResourceTypeDef
 
 if TYPE_CHECKING:
     from ..iam_engine.schema.diff import MigrationPlan, MigrationReport
@@ -331,6 +332,33 @@ class V3PermissionProvider(PermissionProvider):
             subject=self._iam_client.make_subject(subject.id),
             action_to_resources_list=action_to_resources_list,
         )
+
+    # ================================================================
+    # grant_creator_action — 创建者授权
+    # ================================================================
+
+    def grant_creator_action(
+        self,
+        resource_type: ResourceTypeDef | str,
+        resource_id: str,
+        creator: str,
+        expired_at: int | None = None,
+    ) -> None:
+        """V3: 调 grant_resource_creator_actions API，无需角色/过期时间。"""
+        from ..iam_engine.core.types import to_resource_type_id
+
+        rt_id = to_resource_type_id(resource_type)
+        dialect_rt = self.codec.encode_resource_type(rt_id)
+        dialect_rid = self.codec.encode_resource_id(rt_id, resource_id)
+
+        application = {
+            "system": self._cfg.system.id,
+            "type": dialect_rt,
+            "id": dialect_rid,
+            "name": resource_id,
+            "creator": creator,
+        }
+        self._iam_client.grant_resource_creator_actions(application)
 
     # ================================================================
     # 内部：action 元数据辅助方法

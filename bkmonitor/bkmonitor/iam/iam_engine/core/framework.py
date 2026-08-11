@@ -49,7 +49,7 @@ from ..core.types import (
 from ..provider.base import PermissionProvider
 
 if TYPE_CHECKING:
-    from ..schema.definitions import ActionDef
+    from ..schema.definitions import ActionDef, ResourceTypeDef
 from ..provider.composition.base import CompositionPolicy
 from ..provider.router import ProviderRouter
 from ..schema.registry import SchemaRegistry
@@ -140,6 +140,18 @@ class IAMFramework:
         由 composition 的 primary Provider 生成，Provider 不支持时返回 None。
         """
         return self._router.get_apply_data(action_ids, resources, subject)
+
+    # ==================== 创建者授权 ====================
+
+    def grant_creator_action(
+        self,
+        resource_type: ResourceTypeDef | str,
+        resource_id: str,
+        creator: str,
+        expired_at: int | None = None,
+    ) -> None:
+        """授予资源创建者对该资源的管理权限。由 composition 的 primary Provider 执行。"""
+        return self._router.grant_creator_action(resource_type, resource_id, creator, expired_at)
 
     # ==================== 数据通路 ====================
 

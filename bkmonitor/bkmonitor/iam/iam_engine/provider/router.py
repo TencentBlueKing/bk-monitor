@@ -44,7 +44,7 @@ from ..provider.composition.base import CompositionPolicy
 if TYPE_CHECKING:
     from ..crosscutting.bypass import BypassRule
     from ..policy.expression import PolicyExpression
-    from ..schema.definitions import ActionDef
+    from ..schema.definitions import ActionDef, ResourceTypeDef
 
 
 class ProviderRouter:
@@ -141,6 +141,18 @@ class ProviderRouter:
     ) -> dict | None:
         """权限申请数据由组合策略的主 Provider 生成。"""
         return self.policy.get_apply_data(action_ids, resources, subject)
+
+    # ==================== 创建者授权 ====================
+
+    def grant_creator_action(
+        self,
+        resource_type: ResourceTypeDef | str,
+        resource_id: str,
+        creator: str,
+        expired_at: int | None = None,
+    ) -> None:
+        """授予创建者权限。由组合策略的主 Provider 执行。"""
+        return self.policy.grant_creator_action(resource_type, resource_id, creator, expired_at)
 
     # ==================== 数据通路（通用收集，不经过 bypass） ====================
 

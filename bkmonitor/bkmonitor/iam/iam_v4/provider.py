@@ -287,6 +287,38 @@ class V4PermissionProvider(PermissionProvider):
         return {"system": system_id, "actions": actions_data}
 
     # ================================================================
+    # grant_creator_action — 创建者授权
+    # ================================================================
+
+    def grant_creator_action(
+        self,
+        resource_type: ResourceTypeDef | str,
+        resource_id: str,
+        creator: str,
+        expired_at: int | None = None,
+    ) -> None:
+        """V4: 调 add_authorization API，默认角色 space_operator，默认 30 天过期。"""
+        import time
+
+        from ..iam_engine.core.types import to_resource_type_id
+
+        rt_id = to_resource_type_id(resource_type)
+        dialect_rt = self.codec.encode_resource_type(rt_id)
+        dialect_rid = self.codec.encode_resource_id(rt_id, resource_id)
+
+        if expired_at is None:
+            expired_at = int(time.time()) + 30 * 24 * 3600  # 默认 30 天
+
+        authorization = {
+            "subject": {"type": "user", "id": creator},
+            "role_id": "space_operator",
+            "related_resource_type_id": dialect_rt,
+            "resources": [{"type": dialect_rt, "id": dialect_rid}],
+            "expired_at": expired_at,
+        }
+        self._client.add_authorization([authorization], operator=creator)
+
+    # ================================================================
     # 有权限的资源列表 —— IAM v4 独有能力
     # ================================================================
 

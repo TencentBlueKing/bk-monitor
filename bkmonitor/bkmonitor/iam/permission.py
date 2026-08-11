@@ -8,48 +8,54 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+# ---------------------------------------------------------------------------
+# Permission — IAM 鉴权适配层（Facade）
+#
+# 改造说明 (2026-08, Step 3):
+#   鉴权核心已委托给 IAMFramework（is_allowed / batch_is_allowed / get_apply_url）。
+#   Permission 保留：Django 身份解析、token 分享检查、skip_check 绕过、
+#   SaaS 空间全家桶、Grafana/Kernel API 兼容路径。
+#
+#   仍保留的旧依赖方法（等框架能力补齐后迁移）：
+#     - grant_creator_action  → 已委托框架 _fw.grant_creator_action()
+#     - filter_space_list_by_action → 需框架 query_policy 能力
+#     - make_request → Grafana 穿透（收口后删）
+#     - get_iam_client → Grafana/Kernel API 穿透
+#     - make_resource / batch_make_resource → 等 resource.py 改造
+# ---------------------------------------------------------------------------
+
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 
 from django.conf import settings
-from iam import (
-    MultiActionRequest,
-    ObjectSet,
-    Request,
-    Resource,
-    Subject,
-    make_expression,
-)
-from iam.apply.models import (
-    ActionWithoutResources,
-    ActionWithResources,
-    Application,
-    RelatedResourceType,
-    ResourceInstance,
-    ResourceNode,
-)
+from iam import Action, ObjectSet, make_expression
 from iam.eval.expression import OP
 from iam.exceptions import AuthAPIError
-from iam.meta import setup_action, setup_resource, setup_system
-from iam.utils import gen_perms_apply_data
 
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
-from bkmonitor.iam.action import (
-    MINI_ACTION_IDS,
-    ActionEnum,
-    ActionMeta,
-    _all_actions,
-    get_action_by_id,
-)
+from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, get_action_by_id
 from bkmonitor.iam.compatible import CompatibleIAM
+from bkmonitor.iam.definitions.codec_v3 import MonitorV3Codec
+from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied
+from bkmonitor.iam.iam_engine.core.types import (
+    ApplyURLRequest,
+    AuthRequest,
+    BatchByResourceRequest,
+    ResourceInstance as FwResource,
+    Subject as FwSubject,
+    SubjectType,
+    to_action_id,
+)
+from bkmonitor.iam.iam_engine.django.facade import get_framework
 from bkmonitor.iam.resource import Business as BusinessResource
-from bkmonitor.iam.resource import _all_resources, get_resource_by_id
+from bkmonitor.iam.resource import get_resource_by_id
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
 from constants.common import DEFAULT_TENANT_ID
-from core.errors.api import BKAPIError
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
 
@@ -84,8 +90,10 @@ api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace
 
 class Permission:
     """
-    权限中心鉴权封装
+    权限中心鉴权封装 — IAMFramework 适配层。
     """
+
+    _codec = MonitorV3Codec()
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
         if username and bk_tenant_id:
@@ -108,15 +116,21 @@ class Permission:
                     raise ValueError("must provide `username` or `request` param to init")
                 self.bk_tenant_id = DEFAULT_TENANT_ID
 
+        # 旧 CompatibleIAM（Grafana/Kernel API 穿透 + filter_space_list_by_action）
         self.iam_client = self.get_iam_client(self.bk_tenant_id)
         self.request = request
 
-        # 是否跳过权限中心校验
-        # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
+        # 新框架引用
+        self._fw = get_framework()
+
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
         if request and hasattr(request, "skip_check"):
             logger.info(f"Permission: request.skip_check: {request.skip_check}")
             self.skip_check = request.skip_check
+
+    # ================================================================
+    # 身份 + CompatibleIAM 客户端（Grafana/Kernel API 穿透用）
+    # ================================================================
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
@@ -127,189 +141,22 @@ class Permission:
 
         return CompatibleIAM(app_code, secret_key, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id)
 
-    def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
+    # ================================================================
+    # 鉴权 — 框架委托
+    # ================================================================
+
+    def is_allowed(self, action, resources: list = None, raise_exception: bool = False):
         """
-        新建实例关联权限授权
-        :param resource: 资源实例
-        :param creator: 资源创建者
-        :param raise_exception: 是否抛出异常
-        :return:
+        校验用户是否有动作的权限（委托 IAMFramework）。
         """
-        application = {
-            "system": resource.system,
-            "type": resource.type,
-            "id": resource.id,
-            "name": resource.attribute.get("name", resource.id) if resource.attribute else resource.id,
-            "creator": creator or self.username,
-        }
-
-        grant_result = None
-
-        try:
-            grant_result = self.iam_client.grant_resource_creator_actions(application)
-            logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
-            if raise_exception:
-                raise e
-
-        return grant_result
-
-    def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
-        """
-        获取请求对象
-        """
-        action = get_action_by_id(action)
-        resources = resources or []
-        request = Request(
-            system=settings.BK_IAM_SYSTEM_ID,
-            subject=Subject("user", self.username),
-            action=action,
-            resources=resources,
-            environment=None,
-        )
-        return request
-
-    def make_multi_action_request(
-        self, actions: list[ActionMeta | str], resources: list[Resource] = None
-    ) -> MultiActionRequest:
-        """
-        获取多个动作请求对象
-        """
-        resources = resources or []
-        actions = [get_action_by_id(action) for action in actions]
-        request = MultiActionRequest(
-            system=settings.BK_IAM_SYSTEM_ID,
-            subject=Subject("user", self.username),
-            actions=actions,
-            resources=resources,
-            environment=None,
-        )
-        return request
-
-    def _make_application(
-        self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
-    ) -> Application:
-        resources = resources or []
-        actions = []
-
-        for action_id in action_ids:
-            # 对于没有关联资源的动作，则不传资源
-            related_resources_types = []
-            try:
-                action = get_action_by_id(action_id)
-                action_id = action.id
-                related_resources_types = action.related_resource_types
-            except ActionNotExistError:
-                pass
-
-            if not related_resources_types:
-                actions.append(ActionWithoutResources(action_id))
-            else:
-                related_resources = []
-                for related_resource in related_resources_types:
-                    instances = []
-                    for r in resources:
-                        if r.system == related_resource["system_id"] and r.type == related_resource["id"]:
-                            instances.append(
-                                ResourceInstance(
-                                    [ResourceNode(type=r.type, id=r.id, name=r.attribute.get("name", r.id))]
-                                )
-                            )
-
-                    related_resources.append(
-                        RelatedResourceType(
-                            system_id=related_resource["system_id"],
-                            type=related_resource["id"],
-                            instances=instances,
-                        )
-                    )
-
-                actions.append(ActionWithResources(action_id, related_resources))
-
-        application = Application(system_id, actions=actions)
-        return application
-
-    def get_apply_url(
-        self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
-    ):
-        """
-        处理无权限 - 跳转申请列表
-        """
-        # 获取每个操作的依赖操作，一并申请
-        # related_actions = []
-        # for action_id in action_ids:
-        #     # 对于没有关联资源的动作，则不传资源
-        #     try:
-        #         action = get_action_by_id(action_id)
-        #     except ActionNotExistError:
-        #         continue
-        #     related_actions.append(action_id)
-        #     related_actions.extend(action.related_actions)
-        # application = self._make_application(related_actions, resources, system_id)
-
-        application = self._make_application(action_ids, resources, system_id)
-        ok, message, url = self.iam_client.get_apply_url(application)
-        if not ok:
-            logger.error("iam generate apply url fail: %s", message)
-            return settings.BK_IAM_SAAS_HOST
-        return url
-
-    def get_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource] = None):
-        """
-        生成本系统无权限数据
-        """
-
-        # # 获取关联的动作，如果没有权限就一同显示
-        # related_actions = fetch_related_actions(actions)
-        # request = self.make_multi_action_request(list(related_actions.values()), resources)
-        # related_actions_result = self.iam_client.resource_multi_actions_allowed(request)
-        #
-        # for action_id, is_allowed in related_actions_result.items():
-        #     if not is_allowed and action_id in related_actions:
-        #         actions.append(related_actions[action_id])
-
-        resources = resources or []
-
-        action_to_resources_list = []
-        for action in actions:
-            action = get_action_by_id(action)
-
-            if not action.related_resource_types:
-                # 如果没有关联资源，则直接置空
-                resources = []
-
-            action_to_resources_list.append({"action": action, "resources_list": [resources]})
-
-        self.setup_meta()
-
-        data = gen_perms_apply_data(
-            system=settings.BK_IAM_SYSTEM_ID,
-            subject=Subject("user", self.username),
-            action_to_resources_list=action_to_resources_list,
-        )
-
-        url = self.get_apply_url(actions, resources)
-        return data, url
-
-    def is_allowed(self, action: ActionMeta | str, resources: list[Resource] = None, raise_exception: bool = False):
-        """
-        校验用户是否有动作的权限
-        :param action: 动作
-        :param resources: 依赖的资源实例列表
-        :param raise_exception: 鉴权失败时是否需要抛出异常
-        """
-        # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
+        # token 临时分享权限豁免
         if self.request and getattr(self.request, "token", None):
             try:
                 record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
             except ApiAuthToken.DoesNotExist:
                 record = None
-            if isinstance(action, ActionMeta):
-                action_id = action.id
-            else:
-                action_id = action
-            # 业务查看权限校验/操作对应类型action/graph_unify_query跳过，在auth中间件中已校验
+
+            action_id = action.id if hasattr(action, "id") else action
             if (
                 action_id == ActionEnum.VIEW_BUSINESS.id
                 or (record and action in ActionIdMap[record.type])
@@ -323,46 +170,175 @@ class Permission:
 
         resources = resources or []
 
-        action = get_action_by_id(action)
-        if not action.related_resource_types:
-            resources = []
+        action_id_biz = to_action_id(action)
 
-        request = self.make_request(action, resources)
+        # 构建框架 resource
+        fw_resource = None
+        if resources:
+            fw_resource = FwResource(type=resources[0].type, id=resources[0].id)
 
         try:
-            if action.is_read_action():
-                # 仅对读权限做缓存
-                result = self.iam_client.is_allowed_with_cache(request)
-            else:
-                result = self.iam_client.is_allowed(request)
-        except AuthAPIError as e:
-            logger.exception("[IAM AuthAPI Error]: %s", e)
-            result = False
+            result = self._fw.is_allowed(
+                AuthRequest(
+                    subject=FwSubject(id=self.username, type=SubjectType.USER),
+                    action_id=action_id_biz,
+                    resource=fw_resource,
+                )
+            )
+        except PermissionDenied as e:
+            if raise_exception:
+                actions, detail_resources = self.prepare_apply_for_saas(resources)
+                if not actions:
+                    detail_resources = [get_resource_by_id(r.type).create_instance(r.id) for r in resources]
+                    try:
+                        actions = [get_action_by_id(action_id_biz)]
+                    except ActionNotExistError:
+                        actions = []
+                apply_data, apply_url = self.get_apply_data(
+                    [a.id for a in actions] if actions else [action_id_biz],
+                    detail_resources,
+                )
+                raise PermissionDeniedError(
+                    context={"action_name": action_id_biz},
+                    data={"apply_url": apply_url},
+                    extra={"permission": apply_data},
+                ) from e
+            return False
 
         if not result and raise_exception:
-            # 对资源信息(如资源名称)进行补全
-            # 先判断是否是SaaS空间
             actions, detail_resources = self.prepare_apply_for_saas(resources)
             if not actions:
-                # 非SaaS空间
-                detail_resources = []
-                for resource in resources:
-                    resource_mata = get_resource_by_id(resource.type)
-                    detail_resources.append(resource_mata.create_instance(resource.id))
-                actions = [action]
-            apply_data, apply_url = self.get_apply_data(actions, detail_resources)
-
+                detail_resources = [get_resource_by_id(r.type).create_instance(r.id) for r in resources]
+                try:
+                    actions = [get_action_by_id(action_id_biz)]
+                except ActionNotExistError:
+                    actions = []
+            apply_data, apply_url = self.get_apply_data(
+                [a.id for a in actions] if actions else [action_id_biz],
+                detail_resources,
+            )
             raise PermissionDeniedError(
-                context={"action_name": action.name},
+                context={"action_name": action_id_biz},
                 data={"apply_url": apply_url},
                 extra={"permission": apply_data},
             )
 
         return result
 
+    def is_allowed_by_biz(self, bk_biz_id: int, action, raise_exception: bool = False):
+        """
+        判断用户对当前动作在该业务下是否有权限（委托 IAMFramework）。
+        """
+        if self.skip_check:
+            return True
+
+        resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
+        return self.is_allowed(action, resources, raise_exception)
+
+    def batch_is_allowed(self, actions: list, resources: list[list]):
+        """
+        查询某批资源某批操作是否有权限（委托 IAMFramework）。
+        """
+        result = defaultdict(dict)
+        # token 临时分享权限豁免
+        if self.request and getattr(self.request, "token", None):
+            try:
+                record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
+            except ApiAuthToken.DoesNotExist:
+                raise TokenValidatedError
+            for action in actions:
+                for resource in resources:
+                    resource_id = resource[0].id
+                    action_id = action.id if hasattr(action, "id") else action
+                    if action_id == "view_business" or (record and action in ActionIdMap[record.type]):
+                        result[resource_id][action_id] = True
+                    else:
+                        result[resource_id][action_id] = False
+            return result
+
+        if self.skip_check:
+            for action in actions:
+                for resource in resources:
+                    resource_id = resource[0].id
+                    action_id = action.id if hasattr(action, "id") else action
+                    result[resource_id][action_id] = True
+            return result
+
+        action_ids_biz = [to_action_id(a) for a in actions]
+
+        # 构建批量请求：每种资源列表一个请求
+        for resource_list in resources:
+            resource_id = resource_list[0].id
+            rtype = resource_list[0].type
+
+            for action_id_biz in action_ids_biz:
+                batch_result = self._fw.batch_by_resource(
+                    BatchByResourceRequest(
+                        subject=FwSubject(id=self.username, type=SubjectType.USER),
+                        action_id=action_id_biz,
+                        resources=(FwResource(type=rtype, id=resource_id),),
+                    )
+                )
+                for item in batch_result.items:
+                    result[item.resource_id][action_id_biz] = item.allowed
+
+        return result
+
+    # ================================================================
+    # 申请 URL / 申请数据 — 框架委托
+    # ================================================================
+
+    def get_apply_url(self, action_ids: list[str], resources: list = None, system_id: str = settings.BK_IAM_SYSTEM_ID):
+        action_ids_biz = [to_action_id(a) for a in action_ids]
+        fw_resources = tuple(FwResource(type=r.type, id=r.id) for r in (resources or []))
+        return self._fw.get_apply_url(
+            ApplyURLRequest(
+                subject=FwSubject(id=self.username, type=SubjectType.USER),
+                action_ids=tuple(action_ids_biz),
+                resources=fw_resources,
+            )
+        )
+
+    def get_apply_data(self, actions, resources: list = None):
+        resources = resources or []
+
+        action_ids_biz = [to_action_id(a) for a in actions]
+        fw_resources = [FwResource(type=r.type, id=r.id) for r in resources]
+
+        return self._fw.get_apply_data(
+            action_ids_biz,
+            fw_resources,
+            FwSubject(id=self.username, type=SubjectType.USER),
+        ), self.get_apply_url(action_ids_biz, resources)
+
+    # ================================================================
+    # 创建者授权 — 框架委托
+    # ================================================================
+
+    def grant_creator_action(self, resource, creator: str = None, raise_exception=False):
+        """
+        新建实例关联权限授权（委托 IAMFramework）。
+        """
+        grant_result = None
+        try:
+            self._fw.grant_creator_action(
+                resource_type=resource.type,
+                resource_id=resource.id,
+                creator=creator or self.username,
+            )
+            logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
+            if raise_exception:
+                raise e
+
+        return grant_result
+
+    # ================================================================
+    # SaaS 空间全家桶 — V3 业务逻辑，框架无关
+    # ================================================================
+
     def prepare_apply_for_saas(self, resources):
-        # PAAS空间下权限申请全家桶
-        # APM相关权限暂时无法一并处理，因为空间权限申请时，不一定有APM应用
         if not resources or (resources[0].system, resources[0].type) != (
             BusinessResource.system_id,
             BusinessResource.id,
@@ -375,94 +351,26 @@ class Permission:
         actions = [get_action_by_id(a_id) for a_id in MINI_ACTION_IDS]
         return actions, [BusinessResource.create_instance(bk_biz_id)]
 
-    def is_allowed_by_biz(self, bk_biz_id: int, action: ActionMeta | str, raise_exception: bool = False):
-        """
-        判断用户对当前动作在该业务下是否有权限
-        """
-        if self.skip_check:
-            return True
+    # ================================================================
+    # 空间列表过滤 — 保留旧 CompatibleIAM 路径（框架 query_policy 未实现）
+    # ================================================================
 
-        resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
-        return self.is_allowed(action, resources, raise_exception)
-
-    def batch_is_allowed(self, actions: list[ActionMeta], resources: list[list[Resource]]):
-        """
-        查询某批资源某批操作是否有权限
-        """
-        result = defaultdict(dict)
-        # 请求头携带token，临时分享模式权限豁免
-        # TODO: iam租户改造时需要同步修改
-        if self.request and getattr(self.request, "token", None):
-            try:
-                record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
-            except ApiAuthToken.DoesNotExist:
-                raise TokenValidatedError
-            for action in actions:
-                for resource in resources:
-                    resource_id = resource[0].id
-                    action_id = action.id
-                    if action_id == "view_business" or (record and action in ActionIdMap[record.type]):
-                        result[resource_id][action_id] = True
-                    else:
-                        result[resource_id][action_id] = False
-            return result
-
-        # 开发环境变量配置权限豁免
-        if self.skip_check:
-            for action in actions:
-                for resource in resources:
-                    resource_id = resource[0].id
-                    action_id = action.id
-                    result[resource_id][action_id] = True
-
-            return result
-
-        request = self.make_multi_action_request(actions)
-        result = self.iam_client.batch_resource_multi_actions_allowed(request, resources)
-
-        return result
-
-    @classmethod
-    def make_resource(cls, resource_type: str, instance_id: str) -> Resource:
-        """
-        构造resource对象
-        :param resource_type: 资源类型
-        :param instance_id: 实例ID
-        """
-        resource_meta = get_resource_by_id(resource_type)
-        return resource_meta.create_instance(instance_id)
-
-    @classmethod
-    def batch_make_resource(cls, resources: list[dict]):
-        """
-        批量构造resource对象
-        """
-        return [cls.make_resource(r["type"], r["id"]) for r in resources]
-
-    def list_actions(self):
-        """
-        获取权限中心注册的动作列表
-        """
-        ok, message, data = self.iam_client._client.query(settings.BK_IAM_SYSTEM_ID)
-        if not ok:
-            raise BKAPIError(
-                system_name=settings.BK_IAM_APP_CODE,
-                url=f"/api/v1/model/systems/{settings.BK_IAM_SYSTEM_ID}/query",
-                result={"message": message},
-            )
-        return data["actions"]
-
-    def filter_space_list_by_action(self, action: ActionMeta | str, using_cache=True) -> list[dict]:
-        """
-        获取有对应action权限的空间列表
-        """
+    def filter_space_list_by_action(self, action, using_cache=True) -> list[dict]:
         space_list = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
-        # 对后台API进行权限豁免
         if self.skip_check:
             return space_list
 
-        # 拉取策略
-        request = self.make_request(action=action)
+        action_id_biz = to_action_id(action)
+        v3_action_id = self._codec.encode_action(action_id_biz)
+        from iam import Request, Subject
+
+        request = Request(
+            system=settings.BK_IAM_SYSTEM_ID,
+            subject=Subject("user", self.username),
+            action=Action(id=v3_action_id),
+            resources=[],
+            environment=None,
+        )
 
         try:
             policies = self.iam_client._do_policy_query(request)
@@ -480,7 +388,6 @@ class Permission:
             value = policies["value"]
             return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list))
 
-        # 生成表达式
         expr = make_expression(policies)
 
         results = []
@@ -493,28 +400,49 @@ class Permission:
 
         return results
 
+    # ================================================================
+    # Resource 构造 — 保留（monitor_web/iam/ 回调使用，等 resource.py 改造）
+    # ================================================================
+
     @classmethod
-    def setup_meta(cls):
+    def make_resource(cls, resource_type: str, instance_id: str):
+        resource_meta = get_resource_by_id(resource_type)
+        return resource_meta.create_instance(instance_id)
+
+    @classmethod
+    def batch_make_resource(cls, resources: list[dict]):
+        return [cls.make_resource(r["type"], r["id"]) for r in resources]
+
+    # ================================================================
+    # Grafana 穿透兼容 — 保留（收口后删除）
+    # ================================================================
+
+    def make_request(self, action, resources: list = None):
+        """构造 IAM SDK Request（仅 Grafana permissions.py 使用）。
+
+        Grafana 通过 Permission().iam_client._do_policy_query(make_request(...))
+        直接查询策略表达式。收口到框架后，此方法可删除。
         """
-        初始化权限中心实体
+        action_id_biz = to_action_id(action)
+        v3_action_id = self._codec.encode_action(action_id_biz)
+        from iam import Request, Subject
+
+        return Request(
+            system=settings.BK_IAM_SYSTEM_ID,
+            subject=Subject("user", self.username),
+            action=Action(id=v3_action_id),
+            resources=resources or [],
+            environment=None,
+        )
+
+    # ================================================================
+    # list_actions — 已弃用
+    # ================================================================
+
+    def list_actions(self):
+        """[DEPRECATED] 获取权限中心注册的动作列表。
+
+        调用方 GetAuthorityMetaResource 未注册到 URL，此方法无实际调用。
+        如需列出 actions，请使用 IAMFramework。
         """
-        if getattr(cls, "__setup", False):
-            return
-
-        # 系统
-        systems = [
-            {"system_id": settings.BK_IAM_SYSTEM_ID, "system_name": settings.BK_IAM_SYSTEM_NAME},
-        ]
-
-        for system in systems:
-            setup_system(**system)
-
-        # 资源
-        for r in _all_resources.values():
-            setup_resource(r.system_id, r.id, r.name)
-
-        # 动作
-        for action in _all_actions.values():
-            setup_action(system_id=settings.BK_IAM_SYSTEM_ID, action_id=action.id, action_name=action.name)
-
-        cls.__setup = True
+        raise NotImplementedError("list_actions is deprecated. Use IAMFramework to query actions from schema.")

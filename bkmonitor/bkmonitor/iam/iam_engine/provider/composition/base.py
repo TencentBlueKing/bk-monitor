@@ -45,7 +45,7 @@ from ...provider.base import PermissionProvider
 
 if TYPE_CHECKING:
     from ...policy.expression import PolicyExpression
-    from ...schema.definitions import ActionDef
+    from ...schema.definitions import ActionDef, ResourceTypeDef
 
 
 class CompositionPolicy(ABC):
@@ -160,6 +160,16 @@ class CompositionPolicy(ABC):
     ) -> dict | None:
         """权限申请数据由主 Provider 生成（不同平台格式不同）。"""
         return self.primary().get_apply_data(action_ids, resources, subject)
+
+    def grant_creator_action(
+        self,
+        resource_type: ResourceTypeDef | str,
+        resource_id: str,
+        creator: str,
+        expired_at: int | None = None,
+    ) -> None:
+        """创建者授权由主 Provider 执行。"""
+        self.primary().grant_creator_action(resource_type, resource_id, creator, expired_at)
 
     # ---- 数据查询：框架只收集，不合并 ----
 

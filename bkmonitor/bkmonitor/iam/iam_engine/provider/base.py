@@ -77,7 +77,7 @@ from .dialect_types import (
 
 if TYPE_CHECKING:
     from ..policy.expression import PolicyExpression
-    from ..schema.definitions import ActionDef
+    from ..schema.definitions import ActionDef, ResourceTypeDef
     from ..schema.diff import MigrationPlan, MigrationReport
 
 
@@ -404,6 +404,32 @@ class PermissionProvider(ABC):
             IAM Application 格式的 dict，或 None
         """
         return None
+
+    # ==================== 创建者授权（可选） ====================
+
+    def grant_creator_action(
+        self,
+        resource_type: ResourceTypeDef | str,
+        resource_id: str,
+        creator: str,
+        expired_at: int | None = None,
+    ) -> None:
+        """授予资源创建者对该资源的管理权限。
+
+        V3: 调 grant_resource_creator_actions API。
+        V4: 调 add_authorization API，默认角色 space_operator，默认 30 天过期。
+
+        Provider 自己负责：
+          - V3：通过 codec 将 resource_type/resource_id 编码为平台方言
+          - V4：构建 add_authorization 请求体，通过 codec 编码 resource_id
+
+        Args:
+            resource_type: 资源类型（业务 ID 或 ResourceTypeDef）
+            resource_id: 资源实例 ID（业务 ID）
+            creator: 创建者用户名
+            expired_at: V4 授权过期时间戳（秒）；None 表示默认 30 天
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support grant_creator_action")
 
     # ==================== 低层能力（可选） ====================
 
