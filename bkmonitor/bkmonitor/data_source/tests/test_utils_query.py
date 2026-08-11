@@ -92,33 +92,50 @@ class TestBaseQuery:
         result = BaseQuery.merge_field_metadata(current, incoming)
         assert result["is_case_sensitive"] is expected_sensitive
 
-    def test_field_type_conflict_when_two_rts_have_different_types(self):
+    def test_field_type_conflict_when_two_rts_have_different_types(self, mocker):
         """两个 RT 同名字段类型不一致时，_query_fields 应将 field_type 标记为 CONFLICT。"""
-        rt1_field = _make_field(field_name="status", field_type="keyword", is_agg=True)
-        rt2_field = _make_field(field_name="status", field_type="text", is_agg=False, is_analyzed=True)
+        rt1_fields = [_make_field(field_name="status", field_type="keyword", is_agg=True)]
+        rt2_fields = [_make_field(field_name="status", field_type="text", is_agg=False, is_analyzed=True)]
 
-        # 模拟 _query_fields 中类型不一致时的合并逻辑
-        result = BaseQuery.merge_field_metadata(
-            {**rt1_field, "field_type": FieldTypeEnum.CONFLICT.value},
-            {**rt2_field, "field_type": FieldTypeEnum.CONFLICT.value},
+        mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
+
+        query = BaseQuery()
+        result = query._query_fields(
+            targets=[("rt1", "space1"), ("rt2", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
         )
 
-        assert result["field_type"] == FieldTypeEnum.CONFLICT.value
+        assert result["status"]["field_type"] == FieldTypeEnum.CONFLICT.value
         # is_agg / is_analyzed 仍按 OR 语义合并
-        assert result["is_agg"] is True
-        assert result["is_analyzed"] is True
+        assert result["status"]["is_agg"] is True
+        assert result["status"]["is_analyzed"] is True
 
-    def test_swap_rt_order_produces_same_boolean_flags(self):
+    def test_swap_rt_order_produces_same_boolean_flags(self, mocker):
         """交换两个 RT 的合并顺序，布尔标志位结果应保持一致（OR/AND 语义均满足交换律）。"""
-        rt_a = _make_field(is_agg=True, is_analyzed=False, is_case_sensitive=True)
-        rt_b = _make_field(is_agg=False, is_analyzed=True, is_case_sensitive=False)
+        rt_a_fields = [_make_field(is_agg=True, is_analyzed=False, is_case_sensitive=True)]
+        rt_b_fields = [_make_field(is_agg=False, is_analyzed=True, is_case_sensitive=False)]
 
-        result_ab = BaseQuery.merge_field_metadata(rt_a, rt_b)
-        result_ba = BaseQuery.merge_field_metadata(rt_b, rt_a)
+        mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt_a_fields, rt_b_fields])
+        query = BaseQuery()
+        result_ab = query._query_fields(
+            targets=[("rt_a", "space1"), ("rt_b", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
 
-        assert result_ab["is_agg"] == result_ba["is_agg"]
-        assert result_ab["is_analyzed"] == result_ba["is_analyzed"]
-        assert result_ab["is_case_sensitive"] == result_ba["is_case_sensitive"]
+        mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt_b_fields, rt_a_fields])
+        result_ba = query._query_fields(
+            targets=[("rt_b", "space1"), ("rt_a", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
+
+        field_ab = result_ab["cpu_usage"]
+        field_ba = result_ba["cpu_usage"]
+        assert field_ab["is_agg"] == field_ba["is_agg"]
+        assert field_ab["is_analyzed"] == field_ba["is_analyzed"]
+        assert field_ab["is_case_sensitive"] == field_ba["is_case_sensitive"]
 
     def test_returns_new_dict_without_mutating_inputs(self):
         """merge_field_metadata 应返回新字典，不修改原始入参。"""
