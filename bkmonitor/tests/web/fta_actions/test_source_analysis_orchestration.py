@@ -89,7 +89,6 @@ class TestSourceAnalysisOrchestration(TestCase):
             "stage": SourceAnalysisStage.WAITING,
             "alert_id": "alert-1",
             "rule_id": 10,
-            "rule_name": "rule-a",
             "rule_priority": 100,
             "bkci_project_id": "project-a",
             "repository_alias": "repo-a",

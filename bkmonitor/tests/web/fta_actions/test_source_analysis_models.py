@@ -68,7 +68,6 @@ class TestIssueSourceAnalysisRule(TestCase):
     def create_rule(**kwargs):
         defaults = {
             "bk_biz_id": 2,
-            "name": "custom rule",
             "priority": 0,
             "is_enabled": False,
             "is_default": False,
@@ -80,7 +79,7 @@ class TestIssueSourceAnalysisRule(TestCase):
         self.create_rule(priority=10)
 
         with self.assertRaises(IntegrityError), transaction.atomic():
-            self.create_rule(name="duplicate priority", priority=10)
+            self.create_rule(priority=10)
 
     def test_different_businesses_can_reuse_priority(self):
         self.create_rule(bk_biz_id=2, priority=10)
@@ -89,12 +88,12 @@ class TestIssueSourceAnalysisRule(TestCase):
         self.assertEqual(IssueSourceAnalysisRule.objects.count(), 2)
 
     def test_default_rule_requires_priority_minus_one(self):
-        rule = self.create_rule(name="default rule", priority=-1, is_default=True)
+        rule = self.create_rule(priority=-1, is_default=True)
 
         self.assertTrue(rule.is_default)
 
         with self.assertRaises(IntegrityError), transaction.atomic():
-            self.create_rule(name="invalid default rule", priority=0, is_default=True)
+            self.create_rule(priority=0, is_default=True)
 
     def test_custom_rule_priority_cannot_be_negative(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
@@ -119,17 +118,17 @@ class TestIssueSourceAnalysisRule(TestCase):
         self.assertEqual(rule.agent_id, "agent-a")
 
     def test_json_field_defaults_are_not_shared(self):
-        first = IssueSourceAnalysisRule(bk_biz_id=2, name="first", priority=1)
-        second = IssueSourceAnalysisRule(bk_biz_id=2, name="second", priority=2)
+        first = IssueSourceAnalysisRule(bk_biz_id=2, priority=1)
+        second = IssueSourceAnalysisRule(bk_biz_id=2, priority=2)
 
         first.skill_ids.append("skill-a")
 
         self.assertEqual(second.skill_ids, [])
 
     def test_default_ordering_is_priority_descending(self):
-        self.create_rule(name="default", priority=-1, is_default=True)
-        self.create_rule(name="low", priority=0)
-        self.create_rule(name="high", priority=100)
+        self.create_rule(priority=-1, is_default=True)
+        self.create_rule(priority=0)
+        self.create_rule(priority=100)
 
         priorities = list(IssueSourceAnalysisRule.objects.values_list("priority", flat=True))
 

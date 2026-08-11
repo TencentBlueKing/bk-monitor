@@ -33,7 +33,6 @@ class TestSourceAnalysisInitialTrigger(TestCase):
     def create_rule(cls, **kwargs) -> IssueSourceAnalysisRule:
         defaults = {
             "bk_biz_id": cls.BK_BIZ_ID,
-            "name": "source analysis rule",
             "priority": 0,
             "is_enabled": True,
             "is_default": False,
@@ -165,7 +164,6 @@ class TestSourceAnalysisInitialTrigger(TestCase):
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
     def test_first_matching_rule_creates_execution_snapshot(self, get_latest_alert, get_alert_match_dimensions):
         self.create_rule(
-            name="high priority mismatch",
             priority=100,
             conditions=[
                 {
@@ -176,9 +174,8 @@ class TestSourceAnalysisInitialTrigger(TestCase):
                 }
             ],
         )
-        matched_rule = self.create_rule(name="matched rule", priority=10)
+        matched_rule = self.create_rule(priority=10)
         self.create_rule(
-            name="default rule",
             priority=-1,
             is_default=True,
             conditions=[],
@@ -195,7 +192,6 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         self.assertEqual(execution.issue_id, self.ISSUE_ID)
         self.assertEqual(execution.alert_id, self.ALERT_ID)
         self.assertEqual(execution.rule_id, matched_rule.id)
-        self.assertEqual(execution.rule_name, "matched rule")
         self.assertEqual(execution.rule_priority, 10)
         self.assertEqual(execution.bkci_project_id, "project-a")
         self.assertEqual(execution.repository_alias, "repo-a")
