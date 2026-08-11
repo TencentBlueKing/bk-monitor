@@ -15,6 +15,12 @@ from apps.iam.handlers.compatible import V4CallbackIAM
     BK_IAM_V4_SYSTEM_ID="bklog_test",
     BK_IAM_SYSTEM_ID="bk_log_search",
     BK_APP_TENANT_ID="system",
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "v4-callback-iam-tests",
+        }
+    },
 )
 class V4CallbackIAMTest(SimpleTestCase):
     def setUp(self):
