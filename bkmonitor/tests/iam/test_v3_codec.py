@@ -26,9 +26,8 @@ from bkmonitor.iam.definitions.codec_v3 import MonitorV3Codec
 
 
 def _build_test_schema() -> SchemaRegistry:
-    """构建包含测试数据的冻结 SchemaRegistry。"""
+    """构建包含测试数据的冻结 SchemaRegistry（供 plan_migration 等需要 schema 的测试使用）。"""
     schema = SchemaRegistry()
-    # 迁移 action：V3 平台 ID 与业务 ID 不同（_v2 后缀）
     schema.register_action(
         ActionDef(
             id="view_business",
@@ -45,7 +44,6 @@ def _build_test_schema() -> SchemaRegistry:
             extensions={"v3": {"action_id": "manage_synthetic_v2", "type": "manage", "version": 1}},
         )
     )
-    # 新增 action：V3 平台 ID 与业务 ID 一致
     schema.register_action(
         ActionDef(
             id="using_dashboard_mcp",
@@ -62,7 +60,6 @@ def _build_test_schema() -> SchemaRegistry:
             extensions={"v3": {"action_id": "manage_incident", "type": "manage", "version": 1}},
         )
     )
-    # 无 type 的 action（边界情况）
     schema.register_action(
         ActionDef(
             id="unknown_type_action",
@@ -71,7 +68,6 @@ def _build_test_schema() -> SchemaRegistry:
             extensions={"v3": {"action_id": "unknown_type_action", "version": 1}},
         )
     )
-    # 资源类型
     schema.register_resource_type(
         ResourceTypeDef(
             id="space",
@@ -83,11 +79,29 @@ def _build_test_schema() -> SchemaRegistry:
     return schema
 
 
+# -- 从 _build_test_schema 对应的数据构建 codec 映射表 --
+
+_TEST_ACTION_ID_MAP = {
+    "view_business": "view_business_v2",
+    "manage_synthetic": "manage_synthetic_v2",
+}
+
+_TEST_ACTION_TYPES = {
+    "view_business": "view",
+    "manage_synthetic": "manage",
+    "using_dashboard_mcp": "view",
+    "manage_incident": "manage",
+}
+
+
 class TestMonitorV3Codec:
-    """MonitorV3Codec：从 schema extensions["v3"] 构建 action_id 映射表。"""
+    """MonitorV3Codec：从 action_id_map / action_types dict 构建映射表（无须 schema）。"""
 
     def setup_method(self):
-        self.c: NameCodec = MonitorV3Codec(_build_test_schema())
+        self.c: NameCodec = MonitorV3Codec(
+            action_id_map=_TEST_ACTION_ID_MAP,
+            action_types=_TEST_ACTION_TYPES,
+        )
 
     # ---- 迁移 action 编码 ----
 
@@ -186,11 +200,20 @@ class TestMonitorV3Codec:
         assert self.c.encode_role("any_role") == "any_role"
         assert self.c.decode_role("any_role") == "any_role"
 
-    # ---- 空 schema 构造 ----
+    # ---- 空映射表构造 ----
 
-    def test_no_schema(self):
-        """无 schema 时所有操作恒等。"""
-        c = MonitorV3Codec()  # schema=None
+    def test_empty_mappings(self):
+        """无映射时所有操作恒等。"""
+        c = MonitorV3Codec(action_id_map={}, action_types={})
         assert c.encode_action("view_business") == "view_business"
         assert c.decode_action("view_business_v2") == "view_business_v2"
         assert c.is_read_action("view_business") is False
+
+    # ---- 默认构造（使用模块级 Actions 映射表） ----
+
+    def test_default_constructor(self):
+        """无参构造使用从 Actions 类自动提取的映射表。"""
+        c = MonitorV3Codec()
+        # 至少能正常编解码，具体行为取决于 Actions 类定义
+        assert c.encode_action("nonexistent_action") == "nonexistent_action"
+        assert c.decode_action("nonexistent_action") == "nonexistent_action"

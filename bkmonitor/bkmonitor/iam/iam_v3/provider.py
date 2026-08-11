@@ -12,7 +12,9 @@ specific language governing permissions and limitations under the License.
 # V3PermissionProvider — IAM v3 (ABAC) 鉴权 Provider
 #
 # 只实现"方言层"接口：接收编码后的 Dialect* 结构，通过 CompatibleIAM SDK
-# 调用 V3 IAM 平台 API。业务命名 ↔ V3 方言的编解码全部由基类和 MonitorV3Codec 完成。
+# 调用 V3 IAM 平台 API。业务命名 ↔ V3 方言的编解码全部由基类和注入的 codec 完成。
+#
+# codec 类通过 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 配置。
 #
 # 与 V4 Provider 的关键差异：
 #   1. 使用 CompatibleIAM SDK（而非 V4 HTTP client）
@@ -52,7 +54,6 @@ from ..iam_engine.provider.dialect_types import (
     DialectBatchByResourceRequest,
 )
 from . import PROVIDER_NAME
-from ..definitions.codec_v3 import MonitorV3Codec
 from .config import V3Options, V3SystemInfo
 
 if TYPE_CHECKING:
@@ -69,8 +70,8 @@ class V3PermissionProvider(PermissionProvider):
         is_allowed 调 CompatibleIAM SDK；读操作走缓存、写操作不走。
 
     编解码：
-        codec 为 MonitorV3Codec，在构造时从 schema extensions["v3"] 构建映射表。
-        子类只处理"方言 ID → V3 SDK payload"。
+        codec 类通过 options.codec_class 配置（dotted path），
+        由基类 __init__ 实例化。子类只处理"方言 ID → V3 SDK payload"。
 
     配置：
         完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
@@ -83,7 +84,8 @@ class V3PermissionProvider(PermissionProvider):
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         """初始化 V3 Provider。
 
-        从 options 解析 V3Options、替换 codec、实例化 CompatibleIAM。
+        从 options 解析 V3Options、实例化 CompatibleIAM。
+        codec 由基类 PermissionProvider.__init__ 根据 options.codec_class 创建。
 
         Args:
             schema: 框架统一构建的冻结 SchemaRegistry。
@@ -99,8 +101,6 @@ class V3PermissionProvider(PermissionProvider):
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
-        # 替换 codec：V3 需要 action_id 映射能力
-        self.codec = MonitorV3Codec(schema)
         # CompatibleIAM SDK 客户端：配置全部注入，不读 Django settings
         from bkmonitor.iam.compatible import CompatibleIAM
 

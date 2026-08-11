@@ -42,6 +42,19 @@ from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
 
 def _valid_options() -> dict:
     return {
+        "codec_class": "bkmonitor.iam.definitions.codec_v3.MonitorV3Codec",
+        "codec_kwargs": {
+            "action_id_map": {
+                "view_business": "view_business_v2",
+                "manage_synthetic": "manage_synthetic_v2",
+            },
+            "action_types": {
+                "view_business": "view",
+                "manage_synthetic": "manage",
+                "using_dashboard_mcp": "view",
+                "manage_global_setting": "manage",
+            },
+        },
         "base_url": "https://iam.example.com",
         "credentials": {"app_code": "test_app", "app_secret": "test_secret"},
         "system": {"id": "bk_monitorv3", "name": "监控平台"},

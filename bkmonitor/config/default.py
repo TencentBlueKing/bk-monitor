@@ -1359,26 +1359,49 @@ BK_IAM_V4_API_BASE_URL = os.getenv("BK_IAM_V4_API_BASE_URL", "")
 BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor_v4")
 BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
 
+# ---- IAM v3 鉴权 ----
+BK_IAM_V3_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or BK_IAM_APIGATEWAY_URL
+BK_IAM_V3_SYSTEM_ID = os.getenv("BK_IAM_V3_SYSTEM_ID", BK_IAM_SYSTEM_ID)
+
 IAM_FRAMEWORK = {
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
     "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
     "ROLES": "bkmonitor.iam.definitions.roles.Roles",
     "PROVIDERS": [
+        # {
+        #     "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+        #     "options": {
+        #         "codec_class": "bkmonitor.iam.definitions.codec_v4.MonitorV4Codec",
+        #         "callback_module": "bkmonitor.iam.definitions.v4_callbacks",
+        #         "base_url": BK_IAM_V4_API_BASE_URL,
+        #         "credentials": {
+        #             "app_code": BK_IAM_APP_CODE,
+        #             "app_secret": BK_IAM_APP_SECRET,
+        #         },
+        #         "system": {
+        #             "id": BK_IAM_V4_SYSTEM_ID,
+        #             "name": "蓝鲸监控平台V4",
+        #             "description": "蓝鲸监控平台 IAM v4 权限系统",
+        #             "callback_url": BK_IAM_V4_CALLBACK_URL,
+        #             "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
+        #             "clients": [APP_CODE, "bluexun"],
+        #         },
+        #     },
+        # },
         {
-            "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+            "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
             "options": {
-                "codec_class": "bkmonitor.iam.definitions.codec_v4.MonitorV4Codec",
-                "callback_module": "bkmonitor.iam.definitions.v4_callbacks",
-                "base_url": BK_IAM_V4_API_BASE_URL,
+                "codec_class": "bkmonitor.iam.definitions.codec_v3.MonitorV3Codec",
+                "base_url": BK_IAM_V3_API_BASE_URL,
+                "bk_tenant_id": "system",
                 "credentials": {
                     "app_code": BK_IAM_APP_CODE,
                     "app_secret": BK_IAM_APP_SECRET,
                 },
                 "system": {
-                    "id": BK_IAM_V4_SYSTEM_ID,
-                    "name": "蓝鲸监控平台V4",
-                    "description": "蓝鲸监控平台 IAM v4 权限系统",
-                    "callback_url": BK_IAM_V4_CALLBACK_URL,
+                    "id": BK_IAM_V3_SYSTEM_ID,
+                    "name": "监控平台",
+                    "description": "蓝鲸监控平台 IAM v3 权限系统",
                     "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
                     "clients": [APP_CODE, "bluexun"],
                 },

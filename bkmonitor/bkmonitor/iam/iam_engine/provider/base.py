@@ -106,6 +106,7 @@ class PermissionProvider(ABC):
                 "PROVIDERS": [{
                     "options": {
                         "codec_class": "myapp.iam.codec.MyCodec",
+                        "codec_kwargs": {"prefix": "v2_"},   # 可选，透传给 codec 构造器
                     },
                 }],
             }

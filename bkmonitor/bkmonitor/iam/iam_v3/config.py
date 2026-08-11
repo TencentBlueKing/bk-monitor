@@ -104,7 +104,7 @@ class V3Options:
     base_url: str
     credentials: V3Credentials
     system: V3SystemInfo
-    bk_tenant_id: str = ""
+    bk_tenant_id: str = "system"
     timeout: int = 30
     chunk_size: int = 20
     max_workers: int = 1
@@ -145,7 +145,7 @@ class V3Options:
             base_url=str(base_url),
             credentials=V3Credentials.from_dict(credentials_raw),
             system=V3SystemInfo.from_dict(system_raw),
-            bk_tenant_id=raw.get("bk_tenant_id", ""),
+            bk_tenant_id=raw.get("bk_tenant_id", "system"),
             timeout=int(raw.get("timeout", 30)),
             chunk_size=int(raw.get("chunk_size", 20)),
             max_workers=int(raw.get("max_workers", 1)),
