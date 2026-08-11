@@ -54,7 +54,6 @@ const router = useRouter();
 const store = useStore();
 
 const isSceneMode = computed(() => store.getters.isSceneMode);
-const isSceneRetrieveEnabled = computed(() => isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)]));
 const retrieveType = computed(() => (isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal));
 const fieldSettingRef = ref(null);
 const timeSettingRef = ref(null);
@@ -108,6 +107,7 @@ const hasCollectorConfigId = computed(() => {
 });
 
 const isExternal = computed(() => store.state.isExternal);
+const isSceneRetrieveEnabled = computed(() => !isExternal.value && isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)]));
 
 const isFieldSettingShow = computed(() => {
   return !store.getters.isUnionSearch && !isExternal.value;
@@ -395,7 +395,7 @@ function handleIndexConfigSliderOpen() {
 <template>
   <div class="subbar-container">
     <RetrieveTypeSwitch
-      v-if="isSceneRetrieveEnabled"
+v-if="isSceneRetrieveEnabled"
       :style="{ margin: `0 ${retrieveType === RetrieveType.Normal ? 8 : 0}px 0 8px` }"
     />
     <div
