@@ -232,20 +232,20 @@ class JobTaskClient:
                 "download_path": settings.LINUX_FILE_DOWNLOAD_PATH,
             },
         )
-        system_special = (
-            dict(
-                windows=dict(
-                    script_content=self.render_script(
-                        "windows",
-                        "test.bat.tpl",
-                        {
-                            "divide_symbol": self.get_divide_symbol(),
-                            "test_config_file_path": posixpath.join(settings.WINDOWS_FILE_DOWNLOAD_PATH, test_filename),
-                            "test_config_yml": test_config_yml,
-                            "setup_path": self.get_windows_setup_path(setup_path),
-                            "download_path": settings.WINDOWS_FILE_DOWNLOAD_PATH,
-                        },
-                    ),
+        # 注意：必须是 dict。写成 (dict(...),) 会变成单元素 tuple，
+        # 导致 "windows" in system_special 恒为 False，Windows 节点永远落到 Linux 脚本。
+        system_special = dict(
+            windows=dict(
+                script_content=self.render_script(
+                    "windows",
+                    "test.bat.tpl",
+                    {
+                        "divide_symbol": self.get_divide_symbol(),
+                        "test_config_file_path": posixpath.join(settings.WINDOWS_FILE_DOWNLOAD_PATH, test_filename),
+                        "test_config_yml": test_config_yml,
+                        "setup_path": self.get_windows_setup_path(setup_path),
+                        "download_path": settings.WINDOWS_FILE_DOWNLOAD_PATH,
+                    },
                 ),
             ),
         )
