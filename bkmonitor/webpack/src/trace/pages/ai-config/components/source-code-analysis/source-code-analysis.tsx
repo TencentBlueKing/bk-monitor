@@ -23,14 +23,55 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
+
+import { Button } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
+import AnalysisConfigSideslider from '../analysis-config-sideslider/analysis-config-sideslider';
+
+import './source-code-analysis.scss';
 
 /**
- * @description 源码 AI 分析：功能待开发，当前仅占位
+ * @description 源码 AI 分析
  */
 export default defineComponent({
   name: 'SourceCodeAnalysis',
   setup() {
-    return () => <div class='source-code-analysis' />;
+    const { t } = useI18n();
+
+    /** 新增绑定侧弹窗显隐状态 */
+    const showBindModal = shallowRef(false);
+
+    /**
+     * @description 打开新增绑定侧弹窗
+     */
+    const handleOpenBindModal = () => {
+      showBindModal.value = true;
+    };
+
+    /**
+     * @description 提交绑定
+     */
+    const handleBindConfirm = () => {
+      // TODO: 提交绑定逻辑
+      showBindModal.value = false;
+    };
+
+    return () => (
+      <div class='source-code-analysis'>
+        <Button
+          theme='primary'
+          onClick={handleOpenBindModal}
+        >
+          {t('新增绑定')}
+        </Button>
+        <AnalysisConfigSideslider
+          v-model:show={showBindModal.value}
+          processName='IEG - 登陆服务'
+          onConfirm={handleBindConfirm}
+        />
+      </div>
+    );
   },
 });
