@@ -95,7 +95,7 @@ class V4Client:
 
     def retrieve_system_auth_token(self, system_id: str | None = None) -> str:
         sid = system_id or self.options.system_id
-        path = f"api/v1/open/rbac/model/systems/{sid}/auth-token/"
+        path = self.options.auth_token_path.format(system_id=sid)
         data = self._request("GET", path)
         if not isinstance(data, dict):
             raise V4ResponseError("IAM V4 auth-token response must be an object")
@@ -264,7 +264,7 @@ class V4Client:
                 raise V4ResponseError("IAM V4 authorized-resources cannot mix wildcard and concrete ids")
             return {"type": resource_type, "ids": ["*"]}
 
-        # 去重但保持顺序，便于测试与审计
+        # 协议层仍返回列表并先去重，授权范围会在 Provider 层按集合语义消费。
         deduped_ids = list(dict.fromkeys(normalized_ids))
         return {"type": resource_type, "ids": deduped_ids}
 

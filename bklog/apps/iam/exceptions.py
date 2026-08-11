@@ -19,11 +19,16 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import logging
+
 from django.conf import settings
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
 from apps.exceptions import BaseException, ErrorCode
+
+
+logger = logging.getLogger("iam.dependency")
 
 
 class BaseIAMError(BaseException):
@@ -71,7 +76,8 @@ class IAMDependencyError(BaseIAMError):
     MESSAGE = gettext_lazy("权限中心依赖异常")
 
     def __init__(self, reason: str = "", *, provider: str = ""):
-        detail = reason or self.MESSAGE
-        if provider:
-            detail = f"[{provider}] {detail}"
-        super().__init__(detail, code="9900503")
+        # 对外只返回稳定的通用文案，避免把上游响应或内部拓扑暴露给前端。
+        self.reason = reason or str(self.MESSAGE)
+        self.provider = provider
+        logger.error("IAM dependency error: provider=%s reason=%s", self.provider or "unknown", self.reason)
+        super().__init__(self.MESSAGE, code="9900503")

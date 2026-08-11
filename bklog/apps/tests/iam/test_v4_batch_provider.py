@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase
 
@@ -101,6 +101,24 @@ class V4BatchProviderTest(SimpleTestCase):
         self.provider.batch_is_allowed(request)
 
         self.assertEqual(self.client.direct_auth_by_resources.call_count, 2)
+
+    def test_multiple_actions_do_not_nest_parallel_chunk_pools(self):
+        self.client.direct_auth_by_resources.side_effect = lambda **kwargs: {
+            resource["id"]: True for resource in kwargs["resources"]
+        }
+        worker_limits = []
+
+        def _run_inline(items, function, *, max_workers):
+            worker_limits.append(max_workers)
+            return [function(item) for item in items]
+
+        with patch(
+            "apps.iam.backends.v4.provider.map_chunks_concurrently",
+            side_effect=_run_inline,
+        ):
+            self.provider.batch_is_allowed(self._make_request(resource_count=250, action_count=2))
+
+        self.assertEqual(worker_limits, [4, 1, 1])
 
     def test_multiple_actions_merge_per_action_results(self):
         def _side_effect(**kwargs):

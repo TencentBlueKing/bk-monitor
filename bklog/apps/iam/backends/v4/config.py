@@ -12,12 +12,59 @@ DEFAULT_AUTH_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/auth/"
 DEFAULT_AUTH_BY_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/"
 DEFAULT_AUTHORIZED_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/relation/authorized-resources/"
 DEFAULT_APPLY_URL_PATH = "api/v1/open/application/permission-apply-urls/"
+DEFAULT_AUTH_TOKEN_PATH = "api/v1/open/rbac/model/systems/{system_id}/auth-token/"
+DEFAULT_TIMEOUT_SECONDS = 10.0
 DEFAULT_BATCH_CHUNK_SIZE = 100
 MAX_BATCH_CHUNK_SIZE = 100
 DEFAULT_BATCH_MAX_WORKERS = 4
 MAX_BATCH_MAX_WORKERS = 8
+DEFAULT_AUTH_TOKEN_CACHE_SECONDS = 300
 
 logger = logging.getLogger("iam.v4.config")
+
+
+def normalize_timeout_seconds(value: float | str | None) -> float:
+    """归一化 IAM V4 请求超时，非法值回退到默认配置。"""
+    try:
+        configured = float(value) if value is not None else DEFAULT_TIMEOUT_SECONDS
+    except (TypeError, ValueError):
+        logger.warning(
+            "invalid BK_IAM_V4_TIMEOUT=%r, falling back to %s",
+            value,
+            DEFAULT_TIMEOUT_SECONDS,
+        )
+        return DEFAULT_TIMEOUT_SECONDS
+
+    if configured <= 0:
+        logger.warning(
+            "invalid BK_IAM_V4_TIMEOUT=%s, falling back to %s",
+            configured,
+            DEFAULT_TIMEOUT_SECONDS,
+        )
+        return DEFAULT_TIMEOUT_SECONDS
+    return configured
+
+
+def normalize_auth_token_cache_seconds(value: int | str | None) -> int:
+    """归一化资源回调 auth_token 缓存时长；0 表示关闭缓存。"""
+    try:
+        configured = int(value) if value is not None else DEFAULT_AUTH_TOKEN_CACHE_SECONDS
+    except (TypeError, ValueError):
+        logger.warning(
+            "invalid BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS=%r, falling back to %s",
+            value,
+            DEFAULT_AUTH_TOKEN_CACHE_SECONDS,
+        )
+        return DEFAULT_AUTH_TOKEN_CACHE_SECONDS
+
+    if configured < 0:
+        logger.warning(
+            "invalid BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS=%s, falling back to %s",
+            configured,
+            DEFAULT_AUTH_TOKEN_CACHE_SECONDS,
+        )
+        return DEFAULT_AUTH_TOKEN_CACHE_SECONDS
+    return configured
 
 
 def normalize_batch_chunk_size(value: int | str | None) -> int:
@@ -90,6 +137,11 @@ def resolve_callback_app_credentials() -> tuple[str, str]:
     app_secret = str(getattr(settings, "BK_IAM_V4_CALLBACK_APP_SECRET", "") or "").strip()
     if app_code and app_secret:
         return app_code, app_secret
+    if app_code or app_secret:
+        logger.warning(
+            "BK_IAM_V4_CALLBACK_APP_CODE and BK_IAM_V4_CALLBACK_APP_SECRET must be configured together; "
+            "falling back to global credentials"
+        )
     return settings.APP_CODE, settings.SECRET_KEY
 
 
@@ -112,6 +164,8 @@ class V4Options:
     auth_by_resources_path: str
     authorized_resources_path: str
     apply_url_path: str
+    auth_token_path: str = DEFAULT_AUTH_TOKEN_PATH
+    auth_token_cache_seconds: int = DEFAULT_AUTH_TOKEN_CACHE_SECONDS
 
     @classmethod
     def from_settings(cls, *, bk_tenant_id: str = "", for_resource_callback: bool = False) -> V4Options:
@@ -126,7 +180,7 @@ class V4Options:
             app_secret=app_secret,
             gateway_url=resolve_v4_gateway_url(),
             system_id=system_id,
-            timeout_seconds=float(getattr(settings, "BK_IAM_V4_TIMEOUT", 10)),
+            timeout_seconds=normalize_timeout_seconds(getattr(settings, "BK_IAM_V4_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)),
             batch_chunk_size=normalize_batch_chunk_size(
                 getattr(settings, "BK_IAM_V4_BATCH_CHUNK_SIZE", DEFAULT_BATCH_CHUNK_SIZE)
             ),
@@ -145,4 +199,12 @@ class V4Options:
                 DEFAULT_AUTHORIZED_RESOURCES_PATH,
             ),
             apply_url_path=getattr(settings, "BK_IAM_V4_APPLY_URL_PATH", DEFAULT_APPLY_URL_PATH),
+            auth_token_path=getattr(settings, "BK_IAM_V4_AUTH_TOKEN_PATH", DEFAULT_AUTH_TOKEN_PATH),
+            auth_token_cache_seconds=normalize_auth_token_cache_seconds(
+                getattr(
+                    settings,
+                    "BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS",
+                    DEFAULT_AUTH_TOKEN_CACHE_SECONDS,
+                )
+            ),
         )

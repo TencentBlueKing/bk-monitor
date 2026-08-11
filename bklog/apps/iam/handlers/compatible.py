@@ -1,6 +1,7 @@
 import copy
 
 from django.conf import settings
+from django.core.cache import cache
 
 from apps.utils.log import logger
 from iam import IAM
@@ -157,8 +158,27 @@ class V4CallbackIAM(CompatibleIAM):
 
         bk_tenant_id = getattr(self._client, "_bk_tenant_id", "") or settings.BK_APP_TENANT_ID
         try:
+            options = V4Options.from_settings(bk_tenant_id=bk_tenant_id, for_resource_callback=True)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.error("[V4CallbackIAM] build V4 options failed: system=%s error=%s", system_id, error)
+            return False, str(error), ""
+        cache_key = f"bklog:iam:v4:auth-token:{bk_tenant_id}:{system_id}"
+        try:
+            cached_token = cache.get(cache_key)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.warning(
+                "[V4CallbackIAM] read auth token cache failed: system=%s tenant=%s error=%s",
+                system_id,
+                bk_tenant_id,
+                error,
+            )
+            cached_token = None
+        if cached_token:
+            return True, "success", str(cached_token)
+
+        try:
             client = V4Client(
-                V4Options.from_settings(bk_tenant_id=bk_tenant_id, for_resource_callback=True),
+                options,
                 bk_tenant_id=bk_tenant_id,
             )
             token = client.retrieve_system_auth_token(system_id)
@@ -169,4 +189,15 @@ class V4CallbackIAM(CompatibleIAM):
         if not token:
             return False, "empty auth_token from IAM V4", ""
 
+        if options.auth_token_cache_seconds > 0:
+            try:
+                cache.set(cache_key, token, options.auth_token_cache_seconds)
+            except Exception as error:  # pylint: disable=broad-except
+                # 缓存故障不应使已经成功获取的 token 失效。
+                logger.warning(
+                    "[V4CallbackIAM] write auth token cache failed: system=%s tenant=%s error=%s",
+                    system_id,
+                    bk_tenant_id,
+                    error,
+                )
         return True, "success", token

@@ -675,8 +675,8 @@ class Permission:
             return Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
 
         query_ids = set(scope.ids)
-        demo_biz_id = str(settings.DEMO_BIZ_ID)
-        if demo_biz_id and demo_biz_id != "-1":
+        demo_biz_id = self._get_enabled_demo_biz_id()
+        if demo_biz_id:
             query_ids.add(demo_biz_id)
 
         spaces = Space.get_spaces_by_bk_biz_ids(bk_tenant_id, query_ids)
@@ -691,12 +691,21 @@ class Permission:
         return self._keep_spaces_by_allowed_ids(spaces, set(scope.ids))
 
     @staticmethod
-    def _keep_spaces_by_allowed_ids(space_list: list, allowed_ids: set[str]) -> list:
+    def _get_enabled_demo_biz_id() -> str:
+        """仅正数业务 ID 表示启用了 demo 业务。"""
+        try:
+            demo_biz_id = int(settings.DEMO_BIZ_ID)
+        except (TypeError, ValueError):
+            return ""
+        return str(demo_biz_id) if demo_biz_id > 0 else ""
+
+    @classmethod
+    def _keep_spaces_by_allowed_ids(cls, space_list: list, allowed_ids: set[str]) -> list:
         results = []
-        demo_biz_id = str(settings.DEMO_BIZ_ID)
+        demo_biz_id = cls._get_enabled_demo_biz_id()
         for space in space_list:
             biz_id = str(space["bk_biz_id"])
-            if biz_id in allowed_ids or demo_biz_id == biz_id:
+            if biz_id in allowed_ids or (demo_biz_id and demo_biz_id == biz_id):
                 results.append(space)
         return results
 
@@ -757,15 +766,15 @@ class Permission:
 
         if v3_error and v4_error:
             raise IAMDependencyError(
-                f"v3={v3_error.message}; v4={v4_error.message}",
+                f"v3={v3_error.reason}; v4={v4_error.reason}",
                 provider="union",
             )
 
         if v3_error or v4_error:
             logger.warning(
                 "[IAM Decision] union space scope degraded: v3_error=%s v4_error=%s",
-                getattr(v3_error, "message", None),
-                getattr(v4_error, "message", None),
+                getattr(v3_error, "reason", None),
+                getattr(v4_error, "reason", None),
             )
 
         return v3_ids | v4_ids
@@ -785,56 +794,6 @@ class Permission:
                 scope.resource_type,
                 missing_ids[:20],
             )
-        return allowed_ids
-
-    def filter_resources_by_action(
-        self,
-        action: ActionMeta | str,
-        resources: list[list[Resource]],
-    ) -> list[str]:
-        """对候选精确资源做批量鉴权，只返回 allowed=true 的资源 ID。
-
-        批量结果中若全部为 Provider Error（无明确 allow/deny），则 fail-closed 抛出依赖异常，
-        避免把依赖故障伪装成空权限列表。
-        """
-        action = get_action_by_id(action)
-        if not resources:
-            return []
-        if settings.IGNORE_IAM_PERMISSION:
-            return [str(resource_group[0].id) for resource_group in resources]
-
-        request = self.make_engine_batch_request([action], resources)
-        decision = self.mode_router.batch_is_allowed(request)
-        self._record_batch_decision(decision)
-
-        action_id = action.id
-        allowed_ids: list[str] = []
-        error_only = True
-        for item in decision.items:
-            if item.action_id != action_id:
-                continue
-            statuses = {result.status for result in item.decision.provider_results}
-            if AuthStatus.ALLOW in statuses or AuthStatus.DENY in statuses:
-                error_only = False
-            if item.decision.allowed:
-                allowed_ids.append(item.resource_id)
-                error_only = False
-
-        if error_only and decision.items:
-            first_decision = decision.items[0].decision
-            raise IAMDependencyError(
-                "IAM batch auth failed for all candidate resources",
-                provider=str(getattr(first_decision, "mode", "") or ""),
-            )
-
-        # demo 业务豁免：与 batch_is_allowed 保持一致
-        if settings.DEMO_BIZ_EDIT_ENABLED or action.is_read_action():
-            for resource_group in resources:
-                if self.is_demo_biz_resource(resource_group):
-                    resource_id = str(resource_group[0].id)
-                    if resource_id not in allowed_ids:
-                        allowed_ids.append(resource_id)
-
         return allowed_ids
 
     @classmethod

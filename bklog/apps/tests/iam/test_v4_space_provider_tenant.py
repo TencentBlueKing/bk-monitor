@@ -53,20 +53,13 @@ class V4SpaceProviderTenantTest(SimpleTestCase):
         self.assertEqual(result.results, [])
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=False, BK_APP_TENANT_ID="system")
-    @patch("apps.iam.views.resources_v4.Space.get_all_spaces")
-    def test_list_and_search_and_fetch_use_local_space(self, get_all_spaces):
-        get_all_spaces.return_value = [
-            {
-                "bk_biz_id": 2,
-                "space_name": "蓝鲸",
-                "space_type_name": "业务",
-            },
-            {
-                "bk_biz_id": 3,
-                "space_name": "其他",
-                "space_type_name": "业务",
-            },
-        ]
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_by_bk_biz_ids")
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_page")
+    def test_list_and_search_and_fetch_use_tenant_scoped_queries(self, get_spaces_page, get_spaces_by_ids):
+        space_2 = {"bk_biz_id": 2, "space_name": "蓝鲸", "space_type_name": "业务"}
+        space_3 = {"bk_biz_id": 3, "space_name": "其他", "space_type_name": "业务"}
+        get_spaces_page.side_effect = [([space_2], 1), ([space_3], 1)]
+        get_spaces_by_ids.return_value = [space_2]
         provider = V4SpaceResourceProvider()
         page = MagicMock(slice_from=0, slice_to=10)
 
@@ -84,3 +77,6 @@ class V4SpaceProviderTenantTest(SimpleTestCase):
         fetched = provider.fetch_instance_info(fetch_filter, bk_tenant_id="system")
         self.assertEqual(fetched.count, 1)
         self.assertEqual(fetched.results[0]["_bk_iam_approvers_"], [])
+        self.assertEqual(get_spaces_page.call_args_list[0].kwargs["keywords"], ["蓝鲸"])
+        self.assertEqual(get_spaces_page.call_args_list[1].kwargs["keywords"], ["其他"])
+        get_spaces_by_ids.assert_called_once_with("system", ["2"])

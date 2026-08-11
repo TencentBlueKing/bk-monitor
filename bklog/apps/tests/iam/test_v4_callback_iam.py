@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
 from apps.iam.backends.v4.config import resolve_callback_app_credentials
@@ -17,6 +18,7 @@ from apps.iam.handlers.compatible import V4CallbackIAM
 )
 class V4CallbackIAMTest(SimpleTestCase):
     def setUp(self):
+        cache.clear()
         self.client = V4CallbackIAM("bk_log_search", "secret", "https://bk-iam.example/prod/", bk_tenant_id="system")
 
     @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
@@ -73,6 +75,69 @@ class V4CallbackIAMTest(SimpleTestCase):
         self.assertIn("empty auth_token", message)
         self.assertEqual(token, "")
 
+    @patch("apps.iam.backends.v4.config.V4Options.from_settings", side_effect=RuntimeError("invalid settings"))
+    def test_get_token_returns_false_when_options_cannot_be_built(self, _options):
+        ok, message, token = self.client.get_token("bklog_test")
+
+        self.assertFalse(ok)
+        self.assertIn("invalid settings", message)
+        self.assertEqual(token, "")
+
+    @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
+    def test_successful_token_is_reused_from_cache(self, retrieve_mock):
+        first = self.client.get_token("bklog_test")
+        second = self.client.get_token("bklog_test")
+
+        self.assertEqual(first, (True, "success", "v4-token"))
+        self.assertEqual(second, first)
+        retrieve_mock.assert_called_once_with("bklog_test")
+
+    @patch(
+        "apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token",
+        side_effect=[RuntimeError("temporary failure"), "v4-token"],
+    )
+    def test_failed_fetch_is_not_cached(self, retrieve_mock):
+        first = self.client.get_token("bklog_test")
+        second = self.client.get_token("bklog_test")
+
+        self.assertFalse(first[0])
+        self.assertEqual(second, (True, "success", "v4-token"))
+        self.assertEqual(retrieve_mock.call_count, 2)
+
+    @patch(
+        "apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token",
+        side_effect=["system-token", "tenant-token"],
+    )
+    def test_token_cache_is_isolated_by_tenant(self, retrieve_mock):
+        tenant_client = V4CallbackIAM(
+            "bk_log_search",
+            "secret",
+            "https://bk-iam.example/prod/",
+            bk_tenant_id="tenant-2",
+        )
+
+        self.assertEqual(self.client.get_token("bklog_test")[2], "system-token")
+        self.assertEqual(tenant_client.get_token("bklog_test")[2], "tenant-token")
+        self.assertEqual(retrieve_mock.call_count, 2)
+
+    @patch("apps.iam.handlers.compatible.cache.get", side_effect=RuntimeError("cache read failed"))
+    @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
+    def test_cache_read_failure_falls_back_to_iam(self, retrieve_mock, _cache_get):
+        with self.assertLogs("root", level="WARNING"):
+            result = self.client.get_token("bklog_test")
+
+        self.assertEqual(result, (True, "success", "v4-token"))
+        retrieve_mock.assert_called_once_with("bklog_test")
+
+    @patch("apps.iam.handlers.compatible.cache.set", side_effect=RuntimeError("cache write failed"))
+    @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
+    def test_cache_write_failure_keeps_fetched_token(self, retrieve_mock, _cache_set):
+        with self.assertLogs("root", level="WARNING"):
+            result = self.client.get_token("bklog_test")
+
+        self.assertEqual(result, (True, "success", "v4-token"))
+        retrieve_mock.assert_called_once_with("bklog_test")
+
 
 @override_settings(
     APP_CODE="bk_log_search",
@@ -89,6 +154,14 @@ class V4CallbackCredentialsTest(SimpleTestCase):
     @override_settings(BK_IAM_V4_CALLBACK_APP_CODE="", BK_IAM_V4_CALLBACK_APP_SECRET="")
     def test_resolve_callback_app_credentials_falls_back_to_global_app(self):
         app_code, app_secret = resolve_callback_app_credentials()
+        self.assertEqual(app_code, "bk_log_search")
+        self.assertEqual(app_secret, "global-secret")
+
+    @override_settings(BK_IAM_V4_CALLBACK_APP_CODE="callback-code", BK_IAM_V4_CALLBACK_APP_SECRET="")
+    def test_partial_callback_credentials_warn_and_fall_back(self):
+        with self.assertLogs("iam.v4.config", level="WARNING"):
+            app_code, app_secret = resolve_callback_app_credentials()
+
         self.assertEqual(app_code, "bk_log_search")
         self.assertEqual(app_secret, "global-secret")
 

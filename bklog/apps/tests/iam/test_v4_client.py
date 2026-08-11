@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from http import HTTPStatus
 from unittest.mock import Mock, patch
 
@@ -163,6 +164,21 @@ class V4ClientTest(SimpleTestCase):
 
         with self.assertRaises(V4ResponseError):
             self.client.generate_perm_apply_url(permissions=[])
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_auth_token_uses_configured_path(self, request_mock):
+        self.client.options = replace(
+            self.client.options,
+            auth_token_path="custom/systems/{system_id}/token/",
+        )
+        response = Mock(status_code=HTTPStatus.OK, content=b"token")
+        response.json.return_value = {"data": {"auth_token": "v4-token"}}
+        request_mock.return_value = response
+
+        token = self.client.retrieve_system_auth_token("bklog_test")
+
+        self.assertEqual(token, "v4-token")
+        self.assertEqual(request_mock.call_args.kwargs["url"], "https://iam.example/custom/systems/bklog_test/token/")
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_transport_error_is_mapped_to_v4_transport_error(self, request_mock):

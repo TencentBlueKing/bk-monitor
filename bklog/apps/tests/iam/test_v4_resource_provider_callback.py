@@ -94,15 +94,15 @@ class V4SpaceResourceProviderTest(SimpleTestCase):
             },
         ]
 
-    @patch("apps.iam.views.resources_v4.Space.get_all_spaces", return_value=[])
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_page", return_value=([], 0))
     def test_list_instance_empty(self, _mock):
         result = self.provider.list_instance(_list_filter(), _page(), bk_tenant_id="tenant-1")
         self.assertEqual(result.count, 0)
         self.assertEqual(result.results, [])
 
-    @patch("apps.iam.views.resources_v4.Space.get_all_spaces")
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_page")
     def test_list_instance_display_name_and_no_path(self, mock_spaces):
-        mock_spaces.return_value = self.spaces
+        mock_spaces.return_value = (self.spaces, 2)
 
         result = self.provider.list_instance(_list_filter(), _page(), bk_tenant_id="tenant-1")
 
@@ -117,9 +117,9 @@ class V4SpaceResourceProviderTest(SimpleTestCase):
         for item in result.results:
             self.assertNotIn("_bk_iam_path_", item)
 
-    @patch("apps.iam.views.resources_v4.Space.get_all_spaces")
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_by_bk_biz_ids")
     def test_fetch_instance_info(self, mock_spaces):
-        mock_spaces.return_value = self.spaces
+        mock_spaces.return_value = [self.spaces[0]]
 
         result = self.provider.fetch_instance_info(_fetch_filter(ids=["10"]), bk_tenant_id="tenant-1")
 
@@ -127,9 +127,16 @@ class V4SpaceResourceProviderTest(SimpleTestCase):
         self.assertEqual(result.results[0]["id"], "10")
         self.assertEqual(result.results[0]["_bk_iam_approvers_"], [])
 
-    @patch("apps.iam.views.resources_v4.Space.get_all_spaces")
+    @patch("apps.iam.views.resources_v4.Space.get_all_spaces", return_value=[])
+    def test_fetch_instance_info_without_ids_preserves_full_fetch_contract(self, get_all_spaces):
+        result = self.provider.fetch_instance_info(_fetch_filter(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(result.count, 0)
+        get_all_spaces.assert_called_once_with("tenant-1")
+
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_page")
     def test_search_instance(self, mock_spaces):
-        mock_spaces.return_value = self.spaces
+        mock_spaces.return_value = ([self.spaces[1]], 1)
 
         result = self.provider.search_instance(
             _search_filter(keyword="demo"),

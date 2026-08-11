@@ -87,6 +87,8 @@ class V4PermissionProvider(PermissionProvider):
         subject = self._build_subject(request)
         resources_by_id = self._collect_resources(request)
         action_refs = list(request.action_ids)
+        # 多 Action 已在外层并发，内层分片改为串行，避免线程池成倍嵌套。
+        chunk_max_workers = self.batch_max_workers if len(action_refs) == 1 else 1
         per_action_items = map_chunks_concurrently(
             action_refs,
             lambda action_ref: self._batch_auth_one_action(
@@ -94,6 +96,7 @@ class V4PermissionProvider(PermissionProvider):
                 action_ref=action_ref,
                 request=request,
                 resources_by_id=resources_by_id,
+                chunk_max_workers=chunk_max_workers,
             ),
             max_workers=self.batch_max_workers,
         )
@@ -107,6 +110,7 @@ class V4PermissionProvider(PermissionProvider):
         action_ref: DefinitionRef,
         request: BatchAuthRequest,
         resources_by_id: dict[str, ResourceInstance],
+        chunk_max_workers: int,
     ) -> list[BatchAuthResultItem]:
         action_id = to_definition_id(action_ref)
         encoded_action_id = self.codec.encode_action(action_id)
@@ -173,7 +177,7 @@ class V4PermissionProvider(PermissionProvider):
         for chunk_results in map_chunks_concurrently(
             chunks,
             _auth_chunk,
-            max_workers=self.batch_max_workers,
+            max_workers=chunk_max_workers,
         ):
             action_results.update(chunk_results)
 
@@ -199,6 +203,13 @@ class V4PermissionProvider(PermissionProvider):
         encoded_action_id = self.codec.encode_action(to_definition_id(action_id))
         encoded_resource_type = self.codec.encode_resource_type(resource_type)
         request_subject = subject or {"type": "user", "id": self.client.username}
+        if not str(request_subject.get("id") or "").strip():
+            return AuthorizedResourceScope.error(
+                encoded_resource_type,
+                provider_name=self.name,
+                reason="IAM V4 authorized-resources requires a non-empty subject id",
+                error_type="InvalidSubject",
+            )
         try:
             payload = self.client.list_authorized_resource(
                 subject=request_subject,
@@ -214,8 +225,10 @@ class V4PermissionProvider(PermissionProvider):
             )
 
         ids = payload.get("ids") or []
-        if ids == ["*"] or (len(ids) == 1 and ids[0] == WILDCARD_RESOURCE_ID):
+        if ids == [WILDCARD_RESOURCE_ID]:
             return AuthorizedResourceScope.wildcard(encoded_resource_type, provider_name=self.name)
+        if not ids:
+            return AuthorizedResourceScope.empty(encoded_resource_type, provider_name=self.name)
         return AuthorizedResourceScope.concrete(encoded_resource_type, set(ids), provider_name=self.name)
 
     def get_apply_data(

@@ -450,9 +450,14 @@ BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL", "").strip()
 # IAM V4 资源回调验签专用 APP；本地联调内网 dev 网关时可与全局 APP_CODE 分离，未配置时回退 APP_CODE/SECRET_KEY
 BK_IAM_V4_CALLBACK_APP_CODE = os.getenv("BKAPP_IAM_V4_CALLBACK_APP_CODE", "").strip()
 BK_IAM_V4_CALLBACK_APP_SECRET = os.getenv("BKAPP_IAM_V4_CALLBACK_APP_SECRET", "").strip()
-BK_IAM_V4_TIMEOUT = int(os.getenv("BK_IAM_V4_TIMEOUT", "10"))
-BK_IAM_V4_BATCH_CHUNK_SIZE = int(os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100"))
-BK_IAM_V4_BATCH_MAX_WORKERS = int(os.getenv("BK_IAM_V4_BATCH_MAX_WORKERS", "4"))
+BK_IAM_V4_TIMEOUT = os.getenv("BK_IAM_V4_TIMEOUT", "10")
+BK_IAM_V4_BATCH_CHUNK_SIZE = os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100")
+BK_IAM_V4_BATCH_MAX_WORKERS = os.getenv("BK_IAM_V4_BATCH_MAX_WORKERS", "4")
+BK_IAM_V4_AUTH_TOKEN_PATH = os.getenv(
+    "BK_IAM_V4_AUTH_TOKEN_PATH",
+    "api/v1/open/rbac/model/systems/{system_id}/auth-token/",
+)
+BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS = os.getenv("BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS", "300")
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"

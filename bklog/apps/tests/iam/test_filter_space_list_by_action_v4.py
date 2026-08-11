@@ -1,21 +1,13 @@
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
-from iam import Resource
 from iam.exceptions import AuthAPIError
 
 from apps.iam.exceptions import IAMDependencyError
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
-from apps.iam.handlers.resources import ResourceEnum
 from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.core.types import (
-    AuthDecision,
-    AuthResult,
-    AuthorizedResourceScope,
-    BatchAuthDecision,
-    BatchAuthDecisionItem,
-)
+from apps.iam.iam_engine.core.types import AuthorizedResourceScope
 
 
 class FilterSpaceListByActionV4Test(SimpleTestCase):
@@ -26,6 +18,17 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
             {"bk_biz_id": 3, "space_name": "biz-3"},
             {"bk_biz_id": 4, "space_name": "biz-4"},
         ]
+
+    def test_dependency_error_hides_internal_reason_from_public_message(self):
+        with self.assertLogs("iam.dependency", level="ERROR") as logs:
+            error = IAMDependencyError("upstream response contains private detail", provider="v4")
+
+        self.assertEqual(error.message, "权限中心依赖异常")
+        self.assertNotIn("private detail", str(error))
+        self.assertEqual(error.reason, "upstream response contains private detail")
+        self.assertEqual(error.provider, "v4")
+        self.assertIsNone(error.data)
+        self.assertIn("provider=v4", logs.output[0])
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_v4_intersects_authorized_ids_with_local_spaces(self):
@@ -376,110 +379,14 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         get_all_spaces.assert_called_once_with(bk_tenant_id="tenant-1")
         self.assertEqual([space["bk_biz_id"] for space in results], [2])
 
+    @override_settings(DEMO_BIZ_ID=0)
+    def test_default_demo_biz_id_is_not_treated_as_enabled(self):
+        spaces = [{"bk_biz_id": 0}, {"bk_biz_id": 2}]
 
-class FilterResourcesByActionTest(SimpleTestCase):
-    def setUp(self):
-        self.permission = Permission(username="admin", bk_tenant_id="tenant-1")
+        results = self.permission._keep_spaces_by_allowed_ids(spaces, {"2"})
 
-    @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1, DEMO_BIZ_EDIT_ENABLED=False)
-    def test_keeps_only_allowed_resource_ids(self):
-        resources = [
-            [Resource(ResourceEnum.INDICES.system_id, ResourceEnum.INDICES.id, "1", {"bk_biz_id": "2"})],
-            [Resource(ResourceEnum.INDICES.system_id, ResourceEnum.INDICES.id, "2", {"bk_biz_id": "2"})],
-        ]
-        decision = BatchAuthDecision(
-            items=(
-                BatchAuthDecisionItem(
-                    ActionEnum.SEARCH_LOG.id,
-                    "1",
-                    AuthDecision(
-                        allowed=True,
-                        provider_results=(AuthResult.allow("v4"),),
-                        mode="v4",
-                    ),
-                ),
-                BatchAuthDecisionItem(
-                    ActionEnum.SEARCH_LOG.id,
-                    "2",
-                    AuthDecision(
-                        allowed=False,
-                        provider_results=(AuthResult.deny("v4"),),
-                        mode="v4",
-                    ),
-                ),
-            )
-        )
-        self.permission._mode_router = MagicMock()
-        self.permission._mode_router.batch_is_allowed.return_value = decision
+        self.assertEqual(results, [{"bk_biz_id": 2}])
 
-        allowed_ids = self.permission.filter_resources_by_action(ActionEnum.SEARCH_LOG, resources)
-        self.assertEqual(allowed_ids, ["1"])
-
-    @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1, DEMO_BIZ_EDIT_ENABLED=False)
-    def test_all_error_batch_raises_dependency_error(self):
-        resources = [
-            [Resource(ResourceEnum.INDICES.system_id, ResourceEnum.INDICES.id, "1", {"bk_biz_id": "2"})],
-        ]
-        decision = BatchAuthDecision(
-            items=(
-                BatchAuthDecisionItem(
-                    ActionEnum.SEARCH_LOG.id,
-                    "1",
-                    AuthDecision(
-                        allowed=False,
-                        provider_results=(AuthResult.error("v4", reason="timeout", error_type="TimeoutError"),),
-                        degraded=True,
-                        mode="v4",
-                    ),
-                ),
-            )
-        )
-        self.permission._mode_router = MagicMock()
-        self.permission._mode_router.batch_is_allowed.return_value = decision
-
-        with self.assertRaises(IAMDependencyError):
-            self.permission.filter_resources_by_action(ActionEnum.SEARCH_LOG, resources)
-
-    @override_settings(IGNORE_IAM_PERMISSION=True)
-    def test_ignore_permission_returns_all_ids(self):
-        resources = [
-            [Resource(ResourceEnum.INDICES.system_id, ResourceEnum.INDICES.id, "1", {"bk_biz_id": "2"})],
-        ]
-        self.assertEqual(self.permission.filter_resources_by_action(ActionEnum.SEARCH_LOG, resources), ["1"])
-
-    def test_empty_resources_return_empty(self):
-        self.assertEqual(self.permission.filter_resources_by_action(ActionEnum.SEARCH_LOG, []), [])
-
-    @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=2, DEMO_BIZ_EDIT_ENABLED=True)
-    def test_demo_resource_is_appended_when_denied(self):
-        resources = [
-            [Resource(ResourceEnum.BUSINESS.system_id, ResourceEnum.BUSINESS.id, "2", {"bk_biz_id": "2"})],
-        ]
-        decision = BatchAuthDecision(
-            items=(
-                BatchAuthDecisionItem(
-                    ActionEnum.SEARCH_LOG.id,
-                    "2",
-                    AuthDecision(
-                        allowed=False,
-                        provider_results=(AuthResult.deny("v4"),),
-                        mode="v4",
-                    ),
-                ),
-                BatchAuthDecisionItem(
-                    "other_action",
-                    "2",
-                    AuthDecision(
-                        allowed=False,
-                        provider_results=(AuthResult.deny("v4"),),
-                        mode="v4",
-                    ),
-                ),
-            )
-        )
-        self.permission._mode_router = MagicMock()
-        self.permission._mode_router.batch_is_allowed.return_value = decision
-        self.permission.is_demo_biz_resource = MagicMock(return_value=True)
-
-        allowed_ids = self.permission.filter_resources_by_action(ActionEnum.SEARCH_LOG, resources)
-        self.assertEqual(allowed_ids, ["2"])
+    @override_settings(DEMO_BIZ_ID="invalid")
+    def test_invalid_demo_biz_id_is_not_treated_as_enabled(self):
+        self.assertEqual(self.permission._get_enabled_demo_biz_id(), "")

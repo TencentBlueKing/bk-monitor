@@ -81,6 +81,44 @@ class V4GatewayConfigTest(SimpleTestCase):
 
         self.assertEqual(options.batch_max_workers, 4)
 
+    def test_v4_timeout_non_numeric_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_TIMEOUT="invalid"):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.timeout_seconds, 10.0)
+
+    def test_v4_timeout_non_positive_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_TIMEOUT=0):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.timeout_seconds, 10.0)
+
+    def test_v4_auth_token_cache_invalid_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS="invalid"):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.auth_token_cache_seconds, 300)
+
+    def test_v4_auth_token_cache_negative_value_falls_back_to_default(self):
+        with self.settings(BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS=-1):
+            with self.assertLogs("iam.v4.config", level="WARNING"):
+                options = V4Options.from_settings()
+
+        self.assertEqual(options.auth_token_cache_seconds, 300)
+
+    def test_v4_auth_token_options_can_be_overridden(self):
+        with self.settings(
+            BK_IAM_V4_AUTH_TOKEN_PATH="custom/systems/{system_id}/token/",
+            BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS="60",
+        ):
+            options = V4Options.from_settings()
+
+        self.assertEqual(options.auth_token_path, "custom/systems/{system_id}/token/")
+        self.assertEqual(options.auth_token_cache_seconds, 60)
+
     def test_normalize_batch_max_workers_handles_none_and_type_error(self):
         self.assertEqual(normalize_batch_max_workers(None), 4)
         with self.assertLogs("iam.v4.config", level="WARNING"):

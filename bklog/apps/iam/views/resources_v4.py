@@ -37,6 +37,7 @@ class V4ResourceApiDispatcher(ResourceApiDispatcher):
     """V4 资源回调 Dispatcher：多租户模式下禁止回退默认 Tenant。"""
 
     def _get_options(self, request):
+        # 跳过 V3 Dispatcher 的默认租户回退，由 V4 回调强制校验请求头。
         options = super(ResourceApiDispatcher, self)._get_options(request)
         tenant_id = request.META.get("HTTP_X_BK_TENANT_ID", "").strip()
         if settings.ENABLE_MULTI_TENANT_MODE and not tenant_id:
@@ -83,29 +84,20 @@ class V4SpaceResourceProvider(BaseResourceProvider):
         }
 
     def list_instance(self, filter, page, **options):
-        spaces = Space.get_all_spaces(self._require_tenant_id(options))
-        if filter.search:
-            keywords = filter.search.get("space", []) or []
-            if keywords:
-                spaces = [
-                    space
-                    for space in spaces
-                    if any(
-                        keyword in space.get("space_name", "")
-                        or keyword in space.get("space_type_name", "")
-                        or keyword in str(space.get("bk_biz_id", ""))
-                        for keyword in keywords
-                    )
-                ]
-
-        results = [self._to_result_item(space) for space in spaces[page.slice_from : page.slice_to]]
-        return ListResult(results=results, count=len(spaces))
+        keywords = (filter.search.get("space", []) or []) if filter.search else []
+        spaces, count = Space.get_spaces_page(
+            self._require_tenant_id(options),
+            offset=page.slice_from,
+            limit=page.slice_to - page.slice_from,
+            keywords=keywords,
+        )
+        return ListResult(results=[self._to_result_item(space) for space in spaces], count=count)
 
     def fetch_instance_info(self, filter, **options):
-        spaces = Space.get_all_spaces(self._require_tenant_id(options))
-        if filter.ids:
-            ids = {str(i) for i in filter.ids}
-            spaces = [space for space in spaces if str(space["bk_biz_id"]) in ids]
+        tenant_id = self._require_tenant_id(options)
+        spaces = (
+            Space.get_spaces_by_bk_biz_ids(tenant_id, filter.ids) if filter.ids else Space.get_all_spaces(tenant_id)
+        )
 
         results = []
         for space in spaces:
@@ -116,19 +108,13 @@ class V4SpaceResourceProvider(BaseResourceProvider):
         return ListResult(results=results, count=len(results))
 
     def search_instance(self, filter, page, **options):
-        spaces = Space.get_all_spaces(self._require_tenant_id(options))
-        keyword = (filter.keyword or "").lower()
-        if keyword:
-            spaces = [
-                space
-                for space in spaces
-                if keyword in str(space.get("space_name", "")).lower()
-                or keyword in str(space.get("space_type_name", "")).lower()
-                or keyword in str(space.get("bk_biz_id", "")).lower()
-            ]
-
-        results = [self._to_result_item(space) for space in spaces[page.slice_from : page.slice_to]]
-        return ListResult(results=results, count=len(spaces))
+        spaces, count = Space.get_spaces_page(
+            self._require_tenant_id(options),
+            offset=page.slice_from,
+            limit=page.slice_to - page.slice_from,
+            keywords=[filter.keyword] if filter.keyword else [],
+        )
+        return ListResult(results=[self._to_result_item(space) for space in spaces], count=count)
 
     def list_instance_by_policy(self, filter, page, **options):
         # V4 space 的按策略反查契约尚未确认，先返回空结果

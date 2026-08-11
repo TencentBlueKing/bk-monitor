@@ -30,6 +30,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, models
 from django.db.models import Q
+from django.db.models.functions import Cast
 from django.db.transaction import atomic
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -1853,6 +1854,41 @@ class Space(SoftDeleteModel):
             )
             columns = [col[0] for col in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    @classmethod
+    def get_spaces_page(
+        cls,
+        bk_tenant_id: str,
+        *,
+        offset: int,
+        limit: int,
+        keywords: list[str] | None = None,
+    ) -> tuple[list[dict], int]:
+        """按租户查询 IAM 回调所需的空间分页数据，并在数据库侧完成搜索。"""
+        offset = max(int(offset), 0)
+        limit = max(int(limit), 0)
+        queryset = cls.objects.filter(bk_tenant_id=bk_tenant_id).annotate(
+            bk_biz_id_text=Cast("bk_biz_id", output_field=models.CharField())
+        )
+
+        search_condition = Q()
+        for raw_keyword in keywords or []:
+            keyword = str(raw_keyword or "").strip()
+            if not keyword:
+                continue
+            search_condition |= (
+                Q(space_name__icontains=keyword)
+                | Q(space_type_name__icontains=keyword)
+                | Q(bk_biz_id_text__icontains=keyword)
+            )
+        if search_condition.children:
+            queryset = queryset.filter(search_condition)
+
+        count = queryset.count()
+        spaces = list(
+            queryset.order_by("id").values("bk_biz_id", "space_type_name", "space_name")[offset : offset + limit]
+        )
+        return spaces, count
 
     @classmethod
     def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_need_default: bool = True) -> str | None:
