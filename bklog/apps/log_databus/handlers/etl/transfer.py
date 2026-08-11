@@ -39,7 +39,6 @@ from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CleanTemplate, CollectorConfig
-from apps.log_databus.utils.clean_template_operation import lock_clean_template_collector_operation
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
@@ -112,7 +111,6 @@ class TransferEtlHandler(EtlHandler):
         for field, value in update_fields.items():
             setattr(self.data, field, value)
 
-    @lock_clean_template_collector_operation
     def update_or_create(
         self,
         etl_config,

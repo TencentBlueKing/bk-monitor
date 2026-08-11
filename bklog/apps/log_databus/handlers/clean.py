@@ -38,7 +38,6 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import BKDataClean, CleanTemplate, CollectorConfig
 from apps.log_databus.tasks.bkdata import sync_clean
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
-from apps.log_databus.utils.clean_template_operation import acquire_clean_template_collector_operation_lock
 from apps.log_search.models import Space
 from apps.models import model_to_dict
 from apps.utils.lock import RedisLock
@@ -373,19 +372,11 @@ class CleanTemplateHandler:
         return results
 
     def _sync_collector(self, collector: CollectorConfig, template_version: int, clean_config: dict):
-        # 先获取采集项锁，再确认关联关系，避免等待锁期间发生的手动解绑被同步覆盖。
-        lock = acquire_clean_template_collector_operation_lock(
-            collector.collector_config_id,
-            raise_exception=False,
-        )
-        if lock is None:
-            return None
-        try:
-            return self._sync_collector_with_lock(collector, template_version, clean_config)
-        finally:
-            lock.release()
-
-    def _sync_collector_with_lock(self, collector: CollectorConfig, template_version: int, clean_config: dict):
+        # 不加采集项级别锁的原因：
+        # 1. 用户手动 ETL 操作中 modify_result_table 是异步执行的，锁在异步 task 执行前就已释放，
+        #    无法真正防止 metadata 层面的并发冲突；
+        # 2. 下方的条件更新（filter + update）已提供乐观并发控制，
+        #    解绑/删除后同步写回不会覆盖新状态。
         result = {
             "id": collector.collector_config_id,
             "name": collector.collector_config_name,

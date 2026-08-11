@@ -22,22 +22,17 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase, TestCase
+from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from apps.log_databus.constants import CleanTemplateSyncStatus
 from apps.log_databus.exceptions import (
-    CleanTemplateCollectorOperatingException,
     CleanTemplateNotExistException,
     CleanTemplateRepeatException,
 )
 from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CleanTemplate, CollectorConfig
-from apps.log_databus.utils.clean_template_operation import (
-    acquire_clean_template_collector_operation_lock,
-    lock_clean_template_collector_operation,
-)
 from apps.log_databus.views.clean_views import CleanTemplateViewSet
 from apps.log_search.models import Space
 
@@ -61,60 +56,6 @@ CREATE_PARAMS = {
     ],
     "bk_biz_id": 706,
 }
-
-
-class _TemplateOperationLockTestHandler:
-    collector_config_id = 1
-
-    @lock_clean_template_collector_operation
-    def update_or_create(self, clean_template_id="not-provided", sync_modify_result_table=False, should_raise=False):
-        if should_raise:
-            raise RuntimeError("boom")
-        return clean_template_id
-
-
-class TestCleanTemplateCollectorOperationLock(SimpleTestCase):
-    def test_lock_conflict_raises_for_manual_operation(self):
-        redis_lock = MagicMock()
-        redis_lock.acquire.return_value = False
-
-        with (
-            patch("apps.log_databus.utils.clean_template_operation.RedisLock", return_value=redis_lock),
-            self.assertRaises(CleanTemplateCollectorOperatingException),
-        ):
-            acquire_clean_template_collector_operation_lock(1)
-
-        redis_lock.acquire.assert_called_once_with(_wait=0.1)
-
-    def test_only_explicit_template_operations_acquire_lock(self):
-        handler = _TemplateOperationLockTestHandler()
-        lock = MagicMock()
-        lock_path = "apps.log_databus.utils.clean_template_operation.acquire_clean_template_collector_operation_lock"
-
-        with patch(lock_path, return_value=lock) as acquire_lock:
-            self.assertEqual(handler.update_or_create(), "not-provided")
-            acquire_lock.assert_not_called()
-
-            self.assertIsNone(handler.update_or_create(clean_template_id=None))
-            acquire_lock.assert_called_once_with(handler.collector_config_id)
-            lock.release.assert_called_once_with()
-
-    def test_sync_managed_operation_does_not_reacquire_lock(self):
-        handler = _TemplateOperationLockTestHandler()
-        lock_path = "apps.log_databus.utils.clean_template_operation.acquire_clean_template_collector_operation_lock"
-
-        with patch(lock_path) as acquire_lock:
-            handler.update_or_create(clean_template_id=1, sync_modify_result_table=True)
-        acquire_lock.assert_not_called()
-
-    def test_template_operation_releases_lock_on_exception(self):
-        handler = _TemplateOperationLockTestHandler()
-        lock = MagicMock()
-        lock_path = "apps.log_databus.utils.clean_template_operation.acquire_clean_template_collector_operation_lock"
-
-        with patch(lock_path, return_value=lock), self.assertRaisesRegex(RuntimeError, "boom"):
-            handler.update_or_create(clean_template_id=None, should_raise=True)
-        lock.release.assert_called_once_with()
 
 
 class TestCleanTemplate(TestCase):
