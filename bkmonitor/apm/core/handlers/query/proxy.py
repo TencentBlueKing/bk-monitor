@@ -24,75 +24,75 @@ from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.query.base import FakeQuery, FilterOperator
+from apm.core.handlers.query.base import FakeQuery, FilterOperator, BaseQuery
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.trace_query import TraceQuery
-from apm.models import ApmApplication, ApmDataSourceConfigBase
+from apm.models import ApmApplication, TraceDataSource
 from apm_ebpf.models import DeepflowWorkload
+from bkmonitor.data_source.utils.apm import LevelTarget, TraceDatasourceTarget
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
 logger = logging.getLogger("apm")
+
+
+@lru_cache_with_ttl(ttl=5 * 60)
+def _get_app_meta(bk_biz_id: int, app_name: str) -> dict[str, Any]:
+    trace_datasource = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+    if not trace_datasource:
+        raise ValueError(f"应用 {bk_biz_id}:{app_name} 未配置 Trace 数据源")
+
+    return {
+        "bk_biz_id": bk_biz_id,
+        "app_name": app_name,
+        "table_id": trace_datasource.result_table_id,
+        "retention": trace_datasource.retention,
+    }
 
 
 class QueryProxy:
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
-        self.application = ApmApplication.get_application(self.bk_biz_id, self.app_name)
-        self.query_mode = {
-            QueryMode.TRACE: self.trace_query,
-            QueryMode.ORIGIN_TRACE: self.origin_trace_query,
-            QueryMode.SPAN: self.span_query,
-        }
+        self._query_cache: dict[str, BaseQuery] = {}
+
+    def _build_data_sources(self, trace_level_table_ids: list[str] | None = None) -> list[TraceDatasourceTarget]:
+        levels: list[LevelTarget] = []
+        if trace_level_table_ids:
+            levels.append(LevelTarget(name=TraceQuery.LEVEL_NAME, table_ids=trace_level_table_ids))
+
+        return [TraceDatasourceTarget.build(**_get_app_meta(self.bk_biz_id, self.app_name), levels=levels)]
 
     def _get_trace_query(self, result_table_id: str) -> TraceQuery:
-        return TraceQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.retention,
-            overwrite_datasource_configs={
-                ApmDataSourceConfigBase.TRACE_DATASOURCE: {"get_table_id_func": lambda *args, **kwargs: result_table_id}
-            },
-        )
+        return TraceQuery(self._build_data_sources(trace_level_table_ids=[result_table_id]))
+
+    def _get_query(self, query_mode: str) -> BaseQuery:
+        if query_mode in self._query_cache:
+            return self._query_cache[query_mode]
+
+        getters: dict[str, Any] = {
+            QueryMode.TRACE: lambda: self.trace_query,
+            QueryMode.ORIGIN_TRACE: lambda: self.origin_trace_query,
+            QueryMode.SPAN: lambda: self.span_query,
+        }
+        q: BaseQuery = getters[query_mode]()
+        self._query_cache[query_mode] = q
+        return q
 
     @cached_property
-    def span_query(self):
-        return SpanQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.retention,
-            overwrite_datasource_configs={
-                ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.trace_datasource.result_table_id
-                },
-                ApmDataSourceConfigBase.METRIC_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.metric_datasource.result_table_id
-                },
-            },
-        )
+    def span_query(self) -> SpanQuery:
+        return SpanQuery(self._build_data_sources())
 
     @cached_property
-    def origin_trace_query(self):
-        return OriginTraceQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.retention,
-            overwrite_datasource_configs={
-                ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.trace_datasource.result_table_id
-                },
-                ApmDataSourceConfigBase.METRIC_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.metric_datasource.result_table_id
-                },
-            },
-        )
+    def origin_trace_query(self) -> OriginTraceQuery:
+        return OriginTraceQuery(self._build_data_sources())
 
     @cached_property
-    def trace_query(self):
+    def trace_query(self) -> TraceQuery | FakeQuery:
         precalculate = PrecalculateStorage(self.bk_biz_id, self.app_name, need_client=False)
         if not precalculate.is_valid:
             logger.info(f"[QueryProxy] {self.bk_biz_id} - {self.app_name} use fake trace query")
@@ -107,7 +107,9 @@ class QueryProxy:
         return isinstance(self.trace_query, TraceQuery)
 
     @classmethod
-    def is_trace_or_span_id_query(cls, filters: list[types.Filter], query_string: str) -> bool:
+    def is_trace_or_span_id_query(
+        cls, filters: list[types.Filter] | None = None, query_string: str | None = ""
+    ) -> bool:
         """判断是否是 TraceId 或 SpanId 精确查询（含 links 嵌套字段）"""
         if not filters and not query_string:
             return False
@@ -147,10 +149,10 @@ class QueryProxy:
             # 如果是 TraceId 或 SpanId 精确查询，重置查询范围，默认使用应用数据过期时间。
             start_time, end_time = None, None
 
-        data, size = self.query_mode[query_mode].query_list(
+        data: list[dict[str, Any]] = self._get_query(query_mode).query_list(
             start_time, end_time, offset, limit, filters, exclude_fields, query_string, sort
         )
-        return asdict(TraceInfoList(total=size, data=data))
+        return asdict(TraceInfoList(total=0, data=data))
 
     def query_trace_detail(self, trace_id, displays, bk_biz_id=None, query_trace_relation_app: bool = False):
         """Trace详情"""
@@ -164,10 +166,10 @@ class QueryProxy:
                 spans += ebpf_spans
 
         relation_mapping = {}
-        if not self.is_trace_query_valid:
+        if not query_trace_relation_app:
             return spans, relation_mapping, options
 
-        if not query_trace_relation_app:
+        if not self.is_trace_query_valid:
             return spans, relation_mapping, options
 
         trace_relation = self._get_trace_relation(trace_id)
@@ -178,17 +180,7 @@ class QueryProxy:
             if relation_app:
                 # 跨应用 Span 查询：需透传 relation_app 的真实 result_table_id，
                 # 确保共享 Trace 结果表场景下 TraceQueryGuard 能拿到与 relation_app 绑定的 table_id 和 应用上下文。
-                span_query = SpanQuery(
-                    relation_app.bk_biz_id,
-                    relation_app.app_name,
-                    relation_app.trace_datasource.retention,
-                    overwrite_datasource_configs={
-                        ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                            "get_table_id_func": lambda *args, **kwargs: relation_app.trace_datasource.result_table_id,
-                        },
-                    },
-                )
-                relation_spans = span_query.query_by_trace_id(trace_id)
+                relation_spans = SpanQuery(self._build_data_sources()).query_by_trace_id(trace_id)
                 client = Permission()
                 permission = client.is_allowed(
                     ActionEnum.VIEW_APM_APPLICATION,
@@ -207,7 +199,7 @@ class QueryProxy:
                 }
         return spans, relation_mapping, options
 
-    def query_span_detail(self, span_id):
+    def query_span_detail(self, span_id: str) -> dict[str, Any] | None:
         return self.span_query.query_by_span_id(span_id)
 
     def query_option_values(
@@ -222,7 +214,7 @@ class QueryProxy:
         query_string,
     ):
         """获取候选值"""
-        return self.query_mode[query_mode].query_option_values(
+        return self._get_query(query_mode).query_option_values(
             datasource_type, start_time, end_time, fields, limit, filters, query_string
         )
 
@@ -238,8 +230,7 @@ class QueryProxy:
             logger.warning(f"[QueryProxy] {self.bk_biz_id}:{self.app_name} trace: {trace_id} not in pre_recalculation!")
 
         for result_table_id in PrecalculateStorage.fetch_result_table_ids(self.bk_biz_id):
-            trace_query = self._get_trace_query(result_table_id)
-            relation = trace_query.query_relation_by_trace_id(trace_id, start_time, end_time)
+            relation = self._get_trace_query(result_table_id).query_relation_by_trace_id(trace_id, start_time, end_time)
             if relation:
                 logger.info(f"[QueryProxy] find relation on {trace_id}({relation['bk_biz_id']}:{relation['app_name']})")
                 return relation
@@ -263,10 +254,10 @@ class QueryProxy:
 
     def query_simple_info(self, start_time, end_time, offset, limit):
         trace_id__info_map: dict[str, dict[str, Any]] = {}
-        trace_infos, total = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
+        trace_infos: list[dict[str, Any]] = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
-        return trace_id__info_map, total
+        return trace_id__info_map, 0
 
     def query_field_topk(
         self,
@@ -279,7 +270,7 @@ class QueryProxy:
         query_string: str,
     ):
         topk_values = []
-        for topk_item in self.query_mode[query_mode].query_field_topk(
+        for topk_item in self._get_query(query_mode).query_field_topk(
             start_time, end_time, field, limit, filters, query_string
         ):
             try:
@@ -301,7 +292,7 @@ class QueryProxy:
         filters: list[types.Filter],
         query_string: str,
     ):
-        return self.query_mode[query_mode].query_field_aggregated_value(
+        return self._get_query(query_mode).query_field_aggregated_value(
             start_time, end_time, field, method, filters, query_string
         )
 
@@ -314,4 +305,4 @@ class QueryProxy:
         filters: list[types.Filter],
         query_string: str,
     ):
-        return self.query_mode[query_mode].query_graph_config(start_time, end_time, field, filters, query_string)
+        return self._get_query(query_mode).query_graph_config(start_time, end_time, field, filters, query_string)

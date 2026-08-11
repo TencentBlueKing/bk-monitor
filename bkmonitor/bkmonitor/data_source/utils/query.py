@@ -156,7 +156,7 @@ class BaseQuery:
         :param end_time: 结束时间戳
         :return: 记录总数
         """
-        return self._query_field_aggregated_value(queries, start_time, end_time, "_index", "count")
+        return int(self._query_field_aggregated_value(queries, start_time, end_time, "_index", "count"))
 
     def _query_field_topk(
         self,
