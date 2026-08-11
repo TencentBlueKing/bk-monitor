@@ -498,8 +498,8 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 检索 - 判定 is_search 字段
       return !!(row.is_search as boolean);
     case 'edit':
-      // 编辑 - 采集状态不为"停用"
-      return !isTerminated;
+      // 编辑 - 采集状态不为"停用"且允许编辑
+      return !isTerminated && !!(row.is_editable as boolean);
     case 'clean':
       // 清洗 - 采集项已完成且采集状态不为"停用"
       return isCompleted && !isTerminated;
