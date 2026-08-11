@@ -14,7 +14,7 @@ from apps.utils.log import logger
 
 
 def build_writer(grant: IAMAuthorizationGrant):
-    """仅使用授权意图中冻结的租户与操作人重建目标 Writer。"""
+    """仅使用授权意图中冻结的租户与操作人重建目标授权写入器。"""
     if grant.target_version == IAMAuthorizationGrant.TargetVersion.V3:
         return LegacyV3AuthorizationWriter(Permission.get_iam_client(grant.tenant_id))
     if grant.target_version == IAMAuthorizationGrant.TargetVersion.V4:

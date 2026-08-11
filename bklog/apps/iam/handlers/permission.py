@@ -854,7 +854,7 @@ class Permission:
             "creator": creator or self.username,
         }
 
-        # apps.iam 在 Django App Registry 就绪前会导入 Permission，Model 编排器必须延迟加载。
+        # apps.iam 在 Django 应用注册表就绪前会导入 Permission，模型编排器必须延迟加载。
         from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 
         orchestrator = DualWriteGrantOrchestrator(

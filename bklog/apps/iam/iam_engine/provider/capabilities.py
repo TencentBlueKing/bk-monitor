@@ -15,7 +15,7 @@ class PreparedAuthorizationGrant:
 
 
 class PermissionApplicationProvider(Protocol):
-    """为单个 IAM Provider 生成无权限申请数据。"""
+    """为单个 IAM 权限提供方生成无权限申请数据。"""
 
     def get_apply_data(
         self,
@@ -25,7 +25,7 @@ class PermissionApplicationProvider(Protocol):
 
 
 class AuthorizationWriter(Protocol):
-    """向单个 IAM Provider 写入资源创建者授权。"""
+    """向单个 IAM 权限提供方写入资源创建者授权。"""
 
     def grant_resource_creator_actions(self, application: Mapping[str, Any]) -> Any: ...
 

@@ -1,4 +1,4 @@
-"""Build bounded, redacted IAM error summaries for exceptions and persistence."""
+"""为异常和持久化记录生成有长度限制且已脱敏的 IAM 错误摘要。"""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ _OPAQUE_CREDENTIAL_PATTERN = re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9_+/=.~-]{32,
 
 
 def sanitize_error_summary(value: Any, *, max_length: int = MAX_ERROR_SUMMARY_LENGTH) -> str:
-    """Return a single-line diagnostic summary without credentials or common personal identifiers."""
+    """生成不包含凭证和常见个人标识的单行诊断摘要。"""
 
     summary = " ".join(str(value or "").split())
     summary = _AUTH_HEADER_PATTERN.sub("authorization=<redacted>", summary)

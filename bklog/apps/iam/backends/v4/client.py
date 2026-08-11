@@ -119,7 +119,7 @@ class V4Client:
         return str(url)
 
     def add_authorization(self, *, items: list[dict[str, Any]], operator: str) -> None:
-        """为主体新增 Role 授权。
+        """为主体新增角色授权。
 
         IAM V4 当前契约单次最多接收 20 个授权项，每项最多 20 个资源，
         并以 HTTP 201 空响应表示成功。

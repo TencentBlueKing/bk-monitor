@@ -112,7 +112,7 @@ class LegacyV3Adapter(PermissionProvider):
 
 
 class LegacyV3AuthorizationWriter:
-    """把 V3 SDK 的返回值归一为可被状态机识别的授权 Writer。"""
+    """把 V3 SDK 的返回值归一为可被状态机识别的授权写入器。"""
 
     def __init__(self, iam_client) -> None:
         self.iam_client = iam_client

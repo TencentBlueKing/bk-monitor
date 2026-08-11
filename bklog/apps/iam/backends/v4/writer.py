@@ -20,11 +20,11 @@ CREATOR_ROLE_BY_RESOURCE_TYPE = {
 
 
 class UnsupportedV4GrantResource(ValueError):
-    """资源类型没有确定的 IAM V4 Role 映射。"""
+    """资源类型没有确定的 IAM V4 角色映射。"""
 
 
 class V4AuthorizationWriter:
-    """将资源创建者授权转换为 IAM V4 单实例 Role 授权。"""
+    """将资源创建者授权转换为 IAM V4 单实例角色授权。"""
 
     def __init__(self, client: V4Client, *, operator: str) -> None:
         self.client = client
@@ -52,7 +52,7 @@ class V4AuthorizationWriter:
             "subject": {"type": "user", "id": str(application["creator"])},
             "role_id": role_id,
             "related_resource_type_id": resource_type,
-            # 这里只授权新建实例本身，不能带 space 祖先，否则语义会扩大到空间范围。
+            # 这里只授权新建实例本身，不能带空间祖先，否则语义会扩大到空间范围。
             "resources": [{"type": resource_type, "id": str(application["id"])}],
             "expired_at": frozen_expired_at,
         }

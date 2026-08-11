@@ -34,7 +34,7 @@ class PersistedGrantStateError(RuntimeError):
 
 
 class LeaseOwnershipLostError(RuntimeError):
-    """远端调用结束前 processing lease 已被恢复或转移。"""
+    """远端调用结束前处理租约已被恢复或转移。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +66,7 @@ class DualWriteGrantOrchestrator:
         logical_key = self.make_logical_key(application)
         records: list[tuple[str, AuthorizationWriter, IAMAuthorizationGrant]] = []
 
-        # prepare 只构造请求，不访问远端；同一事务提交全部目标意图后，才允许任何 Worker 看见并执行。
+        # 请求准备阶段只构造请求，不访问远端；同一事务提交全部目标意图后，才允许任何工作进程看见并执行。
         prepared_writers: list[tuple[str, AuthorizationWriter, PreparedAuthorizationGrant]] = []
         for target_version, writer in self.writers:
             prepared_writers.append((target_version, writer, writer.prepare_resource_creator_actions(application)))
@@ -151,7 +151,7 @@ class DualWriteGrantOrchestrator:
 
     @staticmethod
     def _execution_from_persisted_state(grant_id: int) -> GrantExecution:
-        """Return persisted success, otherwise preserve the current state as an explicit strict-mode error."""
+        """返回已持久化的成功结果；否则将当前状态转换为严格模式可识别的错误。"""
 
         current = IAMAuthorizationGrant.objects.get(pk=grant_id)
         if current.state == IAMAuthorizationGrant.State.SUCCEEDED:
@@ -164,7 +164,7 @@ class DualWriteGrantOrchestrator:
         )
 
     def _execution_after_lost_lease(self, grant: IAMAuthorizationGrant) -> GrantExecution:
-        """Re-read state after a zero-row CAS write and never report an unpersisted remote result."""
+        """CAS 回写命中 0 行后重新读取状态，禁止报告未持久化的远端结果。"""
 
         current = IAMAuthorizationGrant.objects.get(pk=grant.pk)
         if current.state == IAMAuthorizationGrant.State.SUCCEEDED:

@@ -48,7 +48,7 @@ class IAMAuthorizationGrantRepository:
             )
         )
         if not updated:
-            # 历史数据或 lease 恢复路径也必须服从统一的最大尝试次数。
+            # 历史数据或租约恢复路径也必须服从统一的最大尝试次数。
             IAMAuthorizationGrant.objects.filter(
                 pk=grant_id,
                 attempts__gte=settings.BK_IAM_GRANT_MAX_ATTEMPTS,
@@ -66,7 +66,7 @@ class IAMAuthorizationGrantRepository:
 
     @staticmethod
     def mark_succeeded(grant: IAMAuthorizationGrant, *, lease_owner: str, result: Any) -> bool:
-        """Persist success only while the caller still owns the processing lease."""
+        """仅在调用方仍持有处理租约时持久化成功状态。"""
 
         now = timezone.now()
         return bool(
@@ -98,7 +98,7 @@ class IAMAuthorizationGrantRepository:
         error: Exception,
         error_code: str = "",
     ) -> tuple[bool, str]:
-        """Persist a classified failure and report whether the processing lease was still owned."""
+        """持久化归类后的失败，并返回调用方是否仍持有处理租约。"""
 
         now = timezone.now()
         final_state = state
@@ -128,7 +128,7 @@ class IAMAuthorizationGrantRepository:
 
     @staticmethod
     def recover_expired_leases() -> int:
-        """Recover stale processing records without allowing attempts beyond the configured limit."""
+        """恢复过期的处理记录，同时禁止尝试次数超过配置上限。"""
 
         now = timezone.now()
         expired = IAMAuthorizationGrant.objects.filter(
