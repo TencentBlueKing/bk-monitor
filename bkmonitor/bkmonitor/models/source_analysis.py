@@ -68,7 +68,6 @@ class IssueSourceAnalysisRule(AbstractRecordModel):
 
     id = models.BigAutoField(primary_key=True)
     bk_biz_id = models.IntegerField(db_index=True, verbose_name="业务 ID")
-    name = models.CharField(max_length=128, verbose_name="规则名称")
     priority = models.IntegerField(verbose_name="优先级")
     is_enabled = models.BooleanField(default=False, verbose_name="是否启用")
     is_default = models.BooleanField(default=False, verbose_name="是否默认规则")
@@ -187,7 +186,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     alert_id = models.CharField(max_length=64, verbose_name="告警 ID")
     # 规则可能在执行期间被删除，只留 ID 作追溯线索，不建外键
     rule_id = models.BigIntegerField(null=True, blank=True, default=None, verbose_name="命中规则 ID")
-    rule_name = models.CharField(max_length=128, default="", blank=True, verbose_name="命中规则名称快照")
     rule_priority = models.IntegerField(null=True, blank=True, default=None, verbose_name="命中规则优先级快照")
     bkci_project_id = models.CharField(max_length=128, verbose_name="蓝盾项目 ID 快照")
     repository_alias = models.CharField(max_length=255, verbose_name="蓝盾代码库别名快照")

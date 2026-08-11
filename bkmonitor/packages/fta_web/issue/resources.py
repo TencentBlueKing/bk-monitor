@@ -164,7 +164,6 @@ class SourceAnalysisBaseResource(Resource):
         return {
             "id": rule.id,
             "bk_biz_id": rule.bk_biz_id,
-            "name": rule.name,
             "priority": rule.priority,
             "is_enabled": rule.is_enabled,
             "is_default": rule.is_default,
@@ -486,7 +485,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     attempt=1,
                     alert_id=alert.id,
                     rule_id=rule.id,
-                    rule_name=rule.name,
                     rule_priority=rule.priority,
                     bkci_project_id=rule.bkci_project_id,
                     repository_alias=rule.repository_alias,
@@ -776,7 +774,6 @@ class SourceAnalysisConditionSerializer(serializers.Serializer):
 
 class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
-    name = serializers.CharField(label="规则名称", max_length=128)
     priority = serializers.IntegerField(label="优先级", min_value=0)
     is_enabled = serializers.BooleanField(label="是否启用", required=False, default=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False, default=list)
@@ -808,7 +805,6 @@ class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
 
 
 class SourceAnalysisRulePatchSerializer(SourceAnalysisRuleWriteSerializer):
-    name = serializers.CharField(label="规则名称", max_length=128, required=False)
     priority = serializers.IntegerField(label="优先级", min_value=0, required=False)
     is_enabled = serializers.BooleanField(label="是否启用", required=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False)
@@ -1017,7 +1013,6 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
                     bk_biz_id=bk_biz_id,
                     priority=-1,
                     defaults={
-                        "name": str(_("默认规则")),
                         "is_enabled": False,
                         "is_default": True,
                         "conditions": [],

@@ -55,12 +55,15 @@ def validate(serializer_class, data):
 
 
 class TestSourceAnalysisRuleSerializers(SimpleTestCase):
+    def test_rule_contract_does_not_expose_name(self):
+        self.assertNotIn("name", SourceAnalysisRuleWriteSerializer().fields)
+        self.assertNotIn("name", SourceAnalysisRulePatchSerializer().fields)
+
     def test_write_serializer_normalizes_resource_sets(self):
         data = validate(
             SourceAnalysisRuleWriteSerializer,
             {
                 "bk_biz_id": 2,
-                "name": "rule",
                 "priority": 1,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
                 "agent_id": "1",
@@ -76,7 +79,6 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         serializer = SourceAnalysisRuleWriteSerializer(
             data={
                 "bk_biz_id": 2,
-                "name": "rule",
                 "priority": 1,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "or"}],
             }
@@ -90,7 +92,6 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
             SourceAnalysisRuleWriteSerializer,
             {
                 "bk_biz_id": 2,
-                "name": "rule",
                 "priority": 1,
                 "conditions": [
                     {"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"},
@@ -118,7 +119,6 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
     def test_non_empty_knowledge_base_is_rejected_until_user_api_exists(self):
         rule = IssueSourceAnalysisRule(
             bk_biz_id=2,
-            name="rule",
             priority=1,
             agent_id="1",
             knowledge_base_ids=["10"],
@@ -129,13 +129,13 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
 
     @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1", "2"})
     def test_visible_agent_passes_validation(self, _list_visible):
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, name="rule", priority=1, agent_id="2")
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="2")
 
         SourceAnalysisBaseResource.validate_resources(rule)
 
     @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1", "2"})
     def test_invisible_agent_is_rejected(self, _list_visible):
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, name="rule", priority=1, agent_id="99")
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="99")
 
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
             SourceAnalysisBaseResource.validate_resources(rule)
@@ -216,7 +216,6 @@ class TestSourceAnalysisConfigAndRules(TestCase):
     def create_rule(**kwargs):
         defaults = {
             "bk_biz_id": 2,
-            "name": "custom rule",
             "priority": 1,
             "is_enabled": False,
             "is_default": False,
@@ -299,7 +298,6 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             SourceAnalysisRuleWriteSerializer,
             {
                 "bk_biz_id": 2,
-                "name": "draft",
                 "priority": 10,
                 "agent_id": "1",
             },
@@ -310,13 +308,13 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.assertFalse(result["is_enabled"])
         self.assertEqual(result["agent_id"], "1")
         self.assertIsNone(result["bkci_project_id"])
+        self.assertNotIn("name", result)
 
     def test_enabled_rule_requires_config(self):
         data = validate(
             SourceAnalysisRuleWriteSerializer,
             {
                 "bk_biz_id": 2,
-                "name": "enabled",
                 "priority": 10,
                 "is_enabled": True,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
@@ -337,7 +335,6 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             SourceAnalysisRuleWriteSerializer,
             {
                 "bk_biz_id": 2,
-                "name": "enabled",
                 "priority": 10,
                 "is_enabled": True,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
@@ -366,7 +363,6 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             SourceAnalysisRuleWriteSerializer,
             {
                 "bk_biz_id": 2,
-                "name": "enabled",
                 "priority": 10,
                 "is_enabled": True,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
@@ -383,23 +379,23 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.create_rule(priority=10)
         data = validate(
             SourceAnalysisRuleWriteSerializer,
-            {"bk_biz_id": 2, "name": "duplicate", "priority": 10},
+            {"bk_biz_id": 2, "priority": 10},
         )
 
         with self.assertRaises(SourceAnalysisRulePriorityConflictError):
             CreateSourceAnalysisRuleResource().perform_request(data)
 
     def test_list_is_priority_descending_with_default_last(self):
-        self.create_rule(name="low", priority=1)
-        self.create_rule(name="high", priority=100)
-        self.create_rule(name="default", priority=-1, is_default=True)
+        self.create_rule(priority=1)
+        self.create_rule(priority=100)
+        self.create_rule(priority=-1, is_default=True)
 
         rules = ListSourceAnalysisRulesResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual([rule["priority"] for rule in rules], [100, 1, -1])
 
     def test_default_priority_cannot_be_patched(self):
-        default_rule = self.create_rule(name="default", priority=-1, is_default=True)
+        default_rule = self.create_rule(priority=-1, is_default=True)
         data = validate(
             SourceAnalysisRulePatchSerializer,
             {"bk_biz_id": 2, "priority": 1},
@@ -410,7 +406,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             UpdateSourceAnalysisRuleResource().perform_request(data)
 
     def test_delete_rejects_default_and_hard_deletes_custom_rule(self):
-        default_rule = self.create_rule(name="default", priority=-1, is_default=True)
+        default_rule = self.create_rule(priority=-1, is_default=True)
         custom_rule = self.create_rule(priority=10)
 
         with self.assertRaises(SourceAnalysisDefaultRuleCannotDeleteError):
