@@ -560,13 +560,16 @@ class GetHostProcessListResource(Resource):
                 "user": process.get("user"),
                 "hostIp": host.ip,
                 # Performance / resource metrics from system.proc (TSDB only)
+                # 百数字段（cpuUsage/memUsage/fdUsageRate）返回的是比值（0~1）而非百分数，
+                # 前端展示为 % 时需自行 *100
                 "cpuUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"])),
                 "memRss": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"])),
                 "memUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])),
                 "uptime": _round_metric(host_uptime.get(process["name"])),
                 "fdNum": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])),
+                # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
                 "fdUsageRate": (
-                    round(fd_num / fd_limit * 100, settings.POINT_PRECISION)
+                    round(fd_num / fd_limit, settings.POINT_PRECISION)
                     if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])) is not None
                     and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))
                     else None
