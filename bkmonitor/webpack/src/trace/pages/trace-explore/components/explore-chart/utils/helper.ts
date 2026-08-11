@@ -65,8 +65,8 @@ export const mergeOverlappingArrays = (arr1: number[], arr2: number[]): MergeRes
  */
 const isNullPoint = (point: { value?: any }): boolean => {
   if (!point) return true;
-  if (point.value === null) return true;
-  if (Array.isArray(point.value) && point.value.length >= 2 && point.value[1] === null) return true;
+  if (point.value == null) return true;
+  if (Array.isArray(point.value) && point.value.length >= 2 && point.value[1] == null) return true;
   return false;
 };
 
@@ -99,6 +99,7 @@ export const processLineSymbols = (seriesData: EchartSeriesItem[]) => {
     }
     if (hasIsolated) {
       item.showSymbol = true;
+      item.showAllSymbol = true;
     }
   }
 };
