@@ -402,7 +402,6 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
         keys = serializers.ListField(required=False)
         limit = serializers.IntegerField(required=False, default=1000)
         metric_name = serializers.CharField(required=False, allow_null=True)
-        query_string = serializers.CharField(required=False, allow_blank=True)
         start_time = serializers.CharField(required=False)
         end_time = serializers.CharField(required=False)
         bk_tenant_id = serializers.CharField(label="租户ID", required=False, allow_blank=True, allow_null=True)

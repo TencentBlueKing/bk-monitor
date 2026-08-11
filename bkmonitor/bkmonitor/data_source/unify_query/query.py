@@ -953,7 +953,6 @@ class UnifyQuery:
             "start_time": str(start_time // 1000),
             "end_time": str(end_time // 1000),
             "limit": limit,
-            "query_string": config.get("query_string") or "*",
         }
         if config.get("field_name"):
             params["metric_name"] = config["field_name"]

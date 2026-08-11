@@ -361,7 +361,6 @@ class TestUnifyQuery:
                 "field_list": [{"field_name": "event_name", "op": "eq", "value": ["login_count"]}],
                 "condition_list": [],
             },
-            query_string="event.content:error",
             keys=["event_name"],
             space_uid="bkcc__2",
             bk_tenant_id="system",
@@ -377,9 +376,7 @@ class TestUnifyQuery:
             api="unify_query",
         )
 
-    def test_query_dimensions_defaults_empty_query_string_and_omits_empty_optional_config(
-        self, mocker, mock_query_metrics
-    ):
+    def test_query_dimensions_omits_empty_optional_config(self, mocker, mock_query_metrics):
         query, data_source = build_dimension_unify_query()
         data_source.to_unify_query_config.return_value = [
             build_dimension_config(
@@ -387,7 +384,6 @@ class TestUnifyQuery:
                 table_id="bklog_index_set_104",
                 field_name="",
                 dimensions=["path"],
-                query_string="",
             )
         ]
         mocker.patch.object(query, "use_unify_query", return_value=True)
@@ -415,7 +411,6 @@ class TestUnifyQuery:
             start_time="1",
             end_time="2",
             limit=10,
-            query_string="*",
         )
 
     def test_query_dimensions_falls_back_when_unify_query_config_has_no_dimensions(self, mocker, mock_query_metrics):
@@ -541,20 +536,25 @@ class TestGetDimensionDataResource:
                 "data_source": "bklog",
                 "table_id": "bklog_index_set_104",
                 "keys": ["path"],
-                "query_string": "log:error",
                 "bk_tenant_id": "system",
             }
         )
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["data_source"] == "bklog"
-        assert serializer.validated_data["query_string"] == "log:error"
         assert serializer.validated_data["bk_tenant_id"] == "system"
+
+    def test_ignores_unsupported_query_string(self):
+        serializer = GetDimensionDataResource.RequestSerializer(
+            data={"info_type": "tag_values", "query_string": "log:error"}
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert "query_string" not in serializer.validated_data
 
     def test_keeps_optional_params_backward_compatible(self):
         serializer = GetDimensionDataResource.RequestSerializer(data={"info_type": "tag_values"})
 
         assert serializer.is_valid(), serializer.errors
         assert "data_source" not in serializer.validated_data
-        assert "query_string" not in serializer.validated_data
         assert "bk_tenant_id" not in serializer.validated_data
