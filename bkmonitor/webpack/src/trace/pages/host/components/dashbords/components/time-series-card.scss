@@ -61,8 +61,13 @@
   }
 
   .table-legend {
-    width: 100%;
-    height: 100%;
     overflow-y: auto;
+  }
+
+  .common-legend {
+    height: auto;
+    min-height: 32px;
+    max-height: 64px;
+    overflow: auto;
   }
 }

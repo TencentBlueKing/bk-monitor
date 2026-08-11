@@ -26,12 +26,11 @@
 
 import { type PropType, defineComponent, shallowRef } from 'vue';
 
-import { Exception } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
-import { useI18n } from 'vue-i18n';
 
 import DashboardRow from './dashboard-row';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { DashboardRow as DashboardRowModel } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
@@ -64,32 +63,24 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const { t } = useI18n();
     const dashboardId = shallowRef(random(10));
 
     echartsConnect(dashboardId.value);
 
-    return () =>
-      props.rows.length ? (
-        <div class='dashboard-panel'>
-          {props.rows.map(row => (
-            <DashboardRow
-              key={row.id}
-              columns={props.columns}
-              customOptions={props.customOptions}
-              dashboardId={dashboardId.value}
-              row={row}
-              scopedVars={props.scopedVars}
-            />
-          ))}
-        </div>
-      ) : (
-        <Exception
-          class='dashboard-panel__empty'
-          description={t('暂无数据')}
-          scene='part'
-          type='empty'
-        />
-      );
+    return () => (
+      <div class='dashboard-panel'>
+        {props.rows.map(row => (
+          <DashboardRow
+            key={row.id}
+            columns={props.columns}
+            customOptions={props.customOptions}
+            dashboardId={dashboardId.value}
+            row={row}
+            scopedVars={props.scopedVars}
+          />
+        ))}
+        {props.rows.length === 0 && <EmptyStatus type='empty' />}
+      </div>
+    );
   },
 });
