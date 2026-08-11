@@ -224,6 +224,8 @@ export const isSceneRetrieve = (state: any): boolean => {
   if (!isFeatureToggleOn('scene_search', [String(state.bkBizId), String(state.spaceUid)])) {
     return false;
   }
+  // PO 环境下不启用场景化检索
+  if (state.isExternal) return false;
   return true;
 };
 
