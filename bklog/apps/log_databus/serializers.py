@@ -1211,13 +1211,13 @@ class CleanTemplateListFilterSerializer(serializers.Serializer):
         allow_blank=True,
         choices=("field_count", "-field_count", "active_collector_count", "-active_collector_count"),
     )
-    page = serializers.IntegerField(label=_("页码"), required=False, min_value=1)
-    pagesize = serializers.IntegerField(label=_("页面大小"), required=False, min_value=1, max_value=1000)
+    page = serializers.IntegerField(label=_("页码"), default=1)
+    pagesize = serializers.IntegerField(label=_("页面大小"), default=10)
 
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-        if ("page" in attrs) != ("pagesize" in attrs):
-            raise ValidationError(_("page和pagesize必须同时传递"))
+        super().validate(attrs)
+        if attrs["page"] < 0 or attrs["pagesize"] < 0:
+            raise ValidationError(_("分页参数不能为负数"))
         return attrs
 
 

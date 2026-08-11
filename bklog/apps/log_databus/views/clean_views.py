@@ -289,8 +289,6 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiParam {String} [updated_by] 更新人
         @apiParam {String} [ordering] 排序字段，可选 field_count、-field_count、
             active_collector_count、-active_collector_count
-        @apiParam {Int} [page] 页码，必须与pagesize同时传递
-        @apiParam {Int} [pagesize] 每页数量，必须与page同时传递，最大1000
         @apiSuccessExample {json} 成功返回
         {
             "message":"",
