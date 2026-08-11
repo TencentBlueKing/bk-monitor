@@ -29,7 +29,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from iam import MultiActionRequest, Request, Resource, Subject
 from iam.apply.models import (
     ActionWithoutResources,
     ActionWithResources,
@@ -101,13 +100,15 @@ class V3PermissionProvider(PermissionProvider):
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
-        # CompatibleIAM SDK 客户端：配置全部注入，不读 Django settings
-        from bkmonitor.iam.compatible import CompatibleIAM
+        # V3Client — iam_v3 包内自包含，不依赖外部业务代码
+        from .client import V3Client
 
-        self._iam_client = CompatibleIAM(
+        self._iam_client = V3Client(
             self._cfg.credentials.app_code,
             self._cfg.credentials.app_secret,
             self._cfg.base_url,
+            system_id=self._cfg.system.id,
+            codec=self.codec,
             bk_tenant_id=self._cfg.bk_tenant_id,
         )
 
@@ -134,49 +135,24 @@ class V3PermissionProvider(PermissionProvider):
         """单次鉴权（方言层）。
 
         读操作使用 is_allowed_with_cache（SDK 缓存），写操作直接 is_allowed。
-
-        Args:
-            request: 已编码为 V3 方言的鉴权请求。
-
-        Returns:
-            True 表示允许；False 为拒绝或异常。
         """
-        # lazy import：action.py 模块级别会访问 Django settings
-        from bkmonitor.iam.action import get_action_by_id
-
-        # 解码回业务 action_id，用于判断读写策略
         action_id_biz = self.codec.decode_action(request.action_id)
 
-        # 从 action.py 获取 SDK ActionMeta 对象（含 related_resource_types 等元数据）
-        v3_action = get_action_by_id(request.action_id)
+        # 构建 SDK resources
+        sdk_resources: list = []
+        if request.resource and self._action_has_resource(action_id_biz):
+            sdk_resources = [
+                self._iam_client.make_resource(
+                    request.resource.type,
+                    request.resource.id,
+                    ancestors=request.resource.ancestors,
+                )
+            ]
 
-        # 构建 SDK Request
-        sdk_resources: list[Resource] = []
-        if request.resource:
-            # 无关联资源的 action 清空 resources（与现有 Permission.is_allowed 一致）
-            if not v3_action.related_resource_types:
-                sdk_resources = []
-            else:
-                attr: dict[str, Any] = {}
-                # 构建 _bk_iam_path_（V3 父子资源链）
-                if request.resource.ancestors:
-                    path_parts = [f"/{a.type},{a.id}/" for a in request.resource.ancestors]
-                    attr["_bk_iam_path_"] = "".join(path_parts)
-                sdk_resources = [
-                    Resource(
-                        system=self._cfg.system.id,
-                        type=request.resource.type,
-                        id=request.resource.id,
-                        attribute=attr,
-                    )
-                ]
-
-        sdk_request = Request(
-            system=self._cfg.system.id,
-            subject=Subject("user", request.subject.id),
-            action=v3_action,
-            resources=sdk_resources,
-            environment=None,
+        sdk_request = self._iam_client.make_request(
+            request.subject.id,
+            request.action_id,
+            sdk_resources,
         )
 
         try:
@@ -195,31 +171,14 @@ class V3PermissionProvider(PermissionProvider):
         self,
         request: DialectBatchByResourceRequest,
     ) -> list[tuple[str, bool]]:
-        """同 action、多 resource 批量鉴权（方言层单页，≤ CHUNK_SIZE）。
+        """同 action、多 resource 批量鉴权（方言层单页，≤ CHUNK_SIZE）。"""
+        sdk_resources_list = [
+            [self._iam_client.make_resource(request.resource_type, rid)] for rid in request.resource_ids
+        ]
 
-        Args:
-            request: 已编码为 V3 方言的批量鉴权请求。
-
-        Returns:
-            list[(dialect_resource_id, allowed)]: 每个资源的鉴权结果。
-        """
-        from bkmonitor.iam.action import get_action_by_id
-
-        v3_action = get_action_by_id(request.action_id)
-
-        # 构建资源列表：每组资源一个 [Resource] 列表
-        sdk_resources_list: list[list[Resource]] = []
-        for rid in request.resource_ids:
-            sdk_resources_list.append(
-                [Resource(system=self._cfg.system.id, type=request.resource_type, id=rid, attribute={})]
-            )
-
-        sdk_request = MultiActionRequest(
-            system=self._cfg.system.id,
-            subject=Subject("user", request.subject.id),
-            actions=[v3_action],
-            resources=[],
-            environment=None,
+        sdk_request = self._iam_client.make_multi_action_request(
+            request.subject.id,
+            [request.action_id],
         )
         try:
             result = self._iam_client.batch_resource_multi_actions_allowed(sdk_request, sdk_resources_list)
@@ -227,7 +186,6 @@ class V3PermissionProvider(PermissionProvider):
             logger.exception("[iam_v3:batch_by_resource] AuthAPIError for action=%s", request.action_id)
             return [(rid, False) for rid in request.resource_ids]
 
-        # result 格式: {resource_id: {action_id: bool}}
         return [(rid, result.get(rid, {}).get(request.action_id, False)) for rid in request.resource_ids]
 
     # ================================================================
@@ -238,41 +196,16 @@ class V3PermissionProvider(PermissionProvider):
         self,
         request: DialectBatchByActionRequest,
     ) -> list[tuple[str, bool]]:
-        """多 action、同一 resource（或无 resource）批量鉴权（方言层单页）。
-
-        Args:
-            request: 已编码为 V3 方言的批量鉴权请求。
-
-        Returns:
-            list[(dialect_action_id, allowed)]: 每个 action 的鉴权结果。
-        """
-        from bkmonitor.iam.action import get_action_by_id
-
-        v3_actions = [get_action_by_id(aid) for aid in request.action_ids]
-
-        # 构建资源列表
-        sdk_resources_list: list[list[Resource]] = []
+        """多 action、同一 resource（或无 resource）批量鉴权（方言层单页）。"""
+        sdk_resources_list: list[list] = []
         if request.resource:
-            sdk_resources_list.append(
-                [
-                    Resource(
-                        system=self._cfg.system.id,
-                        type=request.resource.type,
-                        id=request.resource.id,
-                        attribute={},
-                    )
-                ]
-            )
+            sdk_resources_list.append([self._iam_client.make_resource(request.resource.type, request.resource.id)])
         else:
-            # 无资源场景：传一个空列表
             sdk_resources_list.append([])
 
-        sdk_request = MultiActionRequest(
-            system=self._cfg.system.id,
-            subject=Subject("user", request.subject.id),
-            actions=v3_actions,
-            resources=[],
-            environment=None,
+        sdk_request = self._iam_client.make_multi_action_request(
+            request.subject.id,
+            list(request.action_ids),
         )
         try:
             result = self._iam_client.batch_resource_multi_actions_allowed(sdk_request, sdk_resources_list)
@@ -280,7 +213,6 @@ class V3PermissionProvider(PermissionProvider):
             logger.exception("[iam_v3:batch_by_action] AuthAPIError")
             return [(aid, False) for aid in request.action_ids]
 
-        # 有 resource 时 key 是 resource.id，无 resource 时 key 是 ""
         rid_key = request.resource.id if request.resource else ""
         action_results = result.get(rid_key, {})
         return [(aid, action_results.get(aid, False)) for aid in request.action_ids]
@@ -301,24 +233,25 @@ class V3PermissionProvider(PermissionProvider):
         Returns:
             str: IAM 平台的权限申请页面 URL。
         """
-        from bkmonitor.iam.action import get_action_by_id
-
         actions: list[ActionWithResources | ActionWithoutResources] = []
 
         for dialect_aid in request.action_ids:
-            try:
-                v3_action = get_action_by_id(dialect_aid)
-            except Exception:
-                # 找不到 action 定义时退化为无资源 action
-                actions.append(ActionWithoutResources(dialect_aid))
-                continue
+            action_id_biz = self.codec.decode_action(dialect_aid)
 
-            if not v3_action.related_resource_types:
+            if not self._action_has_resource(action_id_biz):
                 # 无关联资源的 action
                 actions.append(ActionWithoutResources(dialect_aid))
             else:
+                # 从 schema 构建 related_resource_types
+                try:
+                    action_def = self.schema.get_action(action_id_biz)
+                    rrt_list = self._build_related_resource_types(action_def)
+                except Exception:
+                    actions.append(ActionWithoutResources(dialect_aid))
+                    continue
+
                 related_types: list[RelatedResourceType] = []
-                for rrt_dict in v3_action.related_resource_types:
+                for rrt_dict in rrt_list:
                     instances: list[ResourceInstance] = []
                     for r in request.resources:
                         if r.type == rrt_dict["id"]:
@@ -362,30 +295,24 @@ class V3PermissionProvider(PermissionProvider):
         Returns:
             IAM Application 格式 dict。
         """
-        from bkmonitor.iam.action import get_action_by_id
-
         # 编码 action_ids → V3 方言
         dialect_action_ids = [self.codec.encode_action(a) for a in action_ids]
 
         action_to_resources_list: list[dict] = []
         for dialect_aid in dialect_action_ids:
-            try:
-                v3_action = get_action_by_id(dialect_aid)
-            except Exception:
-                continue
+            action_id_biz = self.codec.decode_action(dialect_aid)
 
             # 编码 resource 为 SDK Resource 格式
-            sdk_resources: list[Resource] = []
-            if v3_action.related_resource_types and resources:
+            sdk_resources: list = []
+            if self._action_has_resource(action_id_biz) and resources:
                 for r in resources:
                     rt_biz = to_resource_type_id(r.type)
                     dialect_rt = self.codec.encode_resource_type(rt_biz)
                     dialect_rid = self.codec.encode_resource_id(rt_biz, r.id)
                     sdk_resources.append(
-                        Resource(
-                            system=self._cfg.system.id,
-                            type=dialect_rt,
-                            id=dialect_rid,
+                        self._iam_client.make_resource(
+                            dialect_rt,
+                            dialect_rid,
                             attribute={"name": r.name or r.id},
                         )
                     )
@@ -393,37 +320,40 @@ class V3PermissionProvider(PermissionProvider):
                 sdk_resources = []
 
             action_to_resources_list.append(
-                {"action": v3_action, "resources_list": [sdk_resources] if sdk_resources else [[]]}
+                {
+                    "action": self._iam_client.make_action(dialect_aid),
+                    "resources_list": [sdk_resources] if sdk_resources else [[]],
+                }
             )
 
         return gen_perms_apply_data(
             system=self._cfg.system.id,
-            subject=Subject("user", subject.id),
+            subject=self._iam_client.make_subject(subject.id),
             action_to_resources_list=action_to_resources_list,
         )
+
+    # ================================================================
+    # 内部：action 元数据辅助方法
+    # ================================================================
+
+    def _action_has_resource(self, action_id_biz: str) -> bool:
+        """从 schema 判断 action 是否关联资源类型（替代旧 related_resource_types 判断）。"""
+        try:
+            action_def = self.schema.get_action(action_id_biz)
+            return bool(action_def.resource_type)
+        except Exception:
+            return False
 
     # ================================================================
     # health_check
     # ================================================================
 
     def health_check(self) -> dict:
-        """探活检查。
-
-        调用 V3 IAM 平台 query 接口验证连通性。
-
-        Returns:
-            dict: {"status": "ok"|"error", "provider": "v3", ...}
-        """
-        try:
-            ok, message, data = self._iam_client._client.query(self._cfg.system.id)
-            return {
-                "status": "ok" if ok else "error",
-                "provider": self.name,
-                "remote_id": self._cfg.system.id,
-                "message": message,
-            }
-        except Exception as e:
-            return {"status": "error", "provider": self.name, "error": str(e)[:200]}
+        """探活检查，委托给 V3Client。"""
+        result = self._iam_client.health_check()
+        result["provider"] = self.name
+        result["remote_id"] = self._cfg.system.id
+        return result
 
     # ================================================================
     # plan_migration / apply_migration
@@ -540,7 +470,7 @@ class V3PermissionProvider(PermissionProvider):
         system_changes = [c for c in plan.changes if c.kind == EntityKind.SYSTEM and c.change_type != ChangeType.NOOP]
         has_system = bool(system_changes)
         if has_system:
-            ok, _msg, data = self._iam_client._client.query(self._cfg.system.id)
+            ok, _msg, data = self._iam_client.query_system()
             remote_system = data.get("base_info") if ok else None
             reconciled_system = self._reconcile_system_changes(system_changes, remote_system)
             other_changes = [c for c in plan.changes if c.kind != EntityKind.SYSTEM]
@@ -551,7 +481,7 @@ class V3PermissionProvider(PermissionProvider):
         remote_actions: set[str] = set()
         remote_rts: set[str] = set()
         if has_entities:
-            ok, _msg, data = self._iam_client._client.query(self._cfg.system.id)
+            ok, _msg, data = self._iam_client.query_system()
             if ok:
                 remote_actions = {a["id"] for a in (data.get("actions") or [])}
                 remote_rts = {r["id"] for r in (data.get("resource_types") or [])}

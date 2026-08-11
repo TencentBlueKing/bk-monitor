@@ -84,21 +84,23 @@ class V3Options:
 
     使用方式：
         cfg = V3Options.from_dict(options)
-        client = CompatibleIAM(
+        client = V3Client(
             cfg.credentials.app_code,
             cfg.credentials.app_secret,
             cfg.base_url,
+            system_id=cfg.system.id,
+            codec=codec_instance,
             bk_tenant_id=cfg.bk_tenant_id,
         )
 
     Attributes:
-        base_url:    IAM V3 APIGW 基础地址，必填
-        credentials: 凭据（app_code / app_secret）
-        system:      系统信息（id / name 等）
-        bk_tenant_id: 租户 ID，传给 CompatibleIAM 构造器
-        timeout:     HTTP 请求超时（秒），默认 30
-        chunk_size:  批量鉴权分片大小，默认 20
-        max_workers: 批量鉴权分片的并发工作线程数，1 表示串行
+        base_url:     IAM V3 APIGW 基础地址，必填
+        credentials:  凭据（app_code / app_secret）
+        system:       系统信息（id / name 等）
+        bk_tenant_id: 租户 ID，传给客户端构造器
+        timeout:      HTTP 请求超时（秒），默认 30
+        chunk_size:   批量鉴权分片大小，默认 20
+        max_workers:  批量鉴权分片的并发工作线程数，1 表示串行
     """
 
     base_url: str
