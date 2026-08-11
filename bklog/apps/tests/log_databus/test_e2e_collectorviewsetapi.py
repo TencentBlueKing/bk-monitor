@@ -30,6 +30,9 @@ from django.test import TestCase, override_settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.iam.handlers import permission
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig
+from apps.log_databus.handlers.collector_scenario import CollectorScenario
+from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.views import collector_views
 from apps.tests.utils import FakeRedis
@@ -260,6 +263,70 @@ class TestCollectorViewSetAPI(TestCase):
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertEqual(content, COLLECTORS_LIST)
+
+    @patch("apps.log_databus.views.collector_views.CollectorViewSet.get_permissions", lambda _: [])
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_retrieve_doris_collector_maps_expire_days_to_retention(self):
+        """Doris 采集项详情应将 Metadata 的 expire_days 映射为统一的 retention 字段。"""
+        table_id = "2_bklog.doris_collector"
+        collector = CollectorConfig.objects.create(
+            collector_config_name="doris_collector",
+            collector_scenario_id=COLLECTOR_SCENARIO_ID_ROW,
+            bk_biz_id=BK_BIZ_ID,
+            category_id="os",
+            table_id=table_id,
+            etl_config=EtlConfig.BK_LOG_TEXT,
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        etl_storage = EtlStorage.get_instance(EtlConfig.BK_LOG_TEXT)
+        built_in_config = CollectorScenario.get_instance(COLLECTOR_SCENARIO_ID_ROW).get_built_in_config(
+            storage_cluster_type=DORIS_CLUSTER_TYPE
+        )
+        result_table_config = etl_storage.get_result_table_config(
+            fields=[],
+            etl_params={},
+            built_in_config=built_in_config,
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        metadata_context = {
+            "result_table_config": result_table_config,
+            "result_table_storage": {
+                table_id: {
+                    "cluster_type": DORIS_CLUSTER_TYPE,
+                    "cluster_config": {
+                        "cluster_id": 2,
+                        "cluster_name": "doris",
+                        "display_name": "Doris",
+                    },
+                    "storage_config": {"expire_days": 30},
+                }
+            },
+        }
+
+        with (
+            patch(
+                "apps.log_databus.handlers.collector.base.RETRIEVE_CHAIN",
+                ["set_default_field", "complement_metadata_info"],
+            ),
+            patch(
+                "apps.log_databus.handlers.collector.base.CollectorHandler._multi_info_get",
+                return_value=metadata_context,
+            ),
+            patch(
+                "apps.log_databus.handlers.collector.base.CollectorHandler.get_fields_dict",
+                return_value={},
+            ),
+            patch(
+                "apps.log_databus.handlers.collector.base.IndexSetHandler.get_cluster_map",
+                return_value={},
+            ),
+        ):
+            response = self.client.get(path=f"/api/v1/databus/collectors/{collector.collector_config_id}/")
+
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertEqual(content["data"]["retention"], 30)
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_list_scenarios(self):

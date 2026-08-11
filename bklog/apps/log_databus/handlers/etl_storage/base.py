@@ -1465,7 +1465,9 @@ class EtlStorage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
             collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
-            collector_config["retention"] = result_table_storage["storage_config"].get("retention")
+            storage_cluster_type = result_table_storage.get("cluster_type")
+            retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
+            collector_config["retention"] = result_table_storage["storage_config"].get(retention_field)
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 
         # 字段
