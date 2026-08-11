@@ -65,7 +65,6 @@ import BklogPopover from '@/components/bklog-popover';
 import './table-list-v2.scss';
 
 const CancelToken = axios.CancelToken;
-const TABLE_STYLE_UPDATE_ALERT_STORAGE_KEY = 'BKLOG_COLLECTION_TABLE_STYLE_UPDATE_ALERT_CLOSED';
 const TAG_MORE_TRIGGER_FRAME_PADDING = 4;
 
 const getTagMoreTriggerFrameStyle = (contentBounds: ITagMoreContentBounds | null) => {
@@ -284,9 +283,6 @@ export default defineComponent({
     const store = useStore();
     const router = useRouter();
     const route = useRoute();
-    const showTableStyleUpdateAlert = ref(
-      localStorage.getItem(TABLE_STYLE_UPDATE_ALERT_STORAGE_KEY) !== 'true',
-    );
     const showStopTypeDialog = ref(false);
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
@@ -2139,12 +2135,6 @@ export default defineComponent({
       operateHandler({}, 'add', 'linux', indexSetId);
     };
 
-    /** 关闭表格样式更新提示，并在当前浏览器中持久隐藏 */
-    const handleCloseTableStyleUpdateAlert = () => {
-      showTableStyleUpdateAlert.value = false;
-      localStorage.setItem(TABLE_STYLE_UPDATE_ALERT_STORAGE_KEY, 'true');
-    };
-
     /**
      * 处理编辑操作
      * @param row - 表格行数据
@@ -2399,15 +2389,6 @@ export default defineComponent({
         ref={containerRef}
         class='v2-log-collection-table'
       >
-        {showTableStyleUpdateAlert.value && (
-          <bk-alert
-            class='table-style-update-alert'
-            type='info'
-            title={t('管理页面于8月13号更新，更新后个性化设置会被重置覆盖。请重新调整配置表格样式。')}
-            closable
-            onClose={handleCloseTableStyleUpdateAlert}
-          />
-        )}
         <div class='v2-log-collection-table-header'>
           <div class='header-left'>
             {(props.indexSet as IListItemData)?.index_set_name || ''}
