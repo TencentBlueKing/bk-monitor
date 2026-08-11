@@ -25,11 +25,11 @@
  */
 
 import {
-  getUserWorkspace,
-  rebindWorkspace,
-  revokeAuth,
+  listUserTapdWorkspace,
+  rebindTapdWorkspace,
+  revokeTapdUserAuth,
   searchTapdItems,
-  unbindWorkspace,
+  unbindTapdWorkspace,
 } from 'monitor-api/modules/issue';
 
 import type {
@@ -46,22 +46,22 @@ export const getUserWorkspaceApi = (
   params: GetUserWorkspaceRequest,
   options?: RequestConfig
 ): Promise<GetUserWorkspaceData> => {
-  return getUserWorkspace(params, options);
+  return listUserTapdWorkspace(params, options);
 };
 
 /** 用户取消关联项目 */
 export const unbindWorkspaceApi = (params: UnbindWorkspaceRequest, options?: RequestConfig) => {
-  return unbindWorkspace(params, options);
+  return unbindTapdWorkspace(params, options);
 };
 
 /** 用户重新关联项目 */
 export const rebindWorkspaceApi = (params: RebindWorkspaceRequest, options?: RequestConfig) => {
-  return rebindWorkspace(params, options);
+  return rebindTapdWorkspace(params, options);
 };
 
 /** 用户取消授权 */
 export const revokeAuthApi = (params: RevokeAuthRequest, options?: RequestConfig) => {
-  return revokeAuth(params, options);
+  return revokeTapdUserAuth(params, options);
 };
 
 export const searchTapdItemsApi = (params, options?: RequestConfig) => {

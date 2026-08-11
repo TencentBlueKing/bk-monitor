@@ -8,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 from django.urls import resolve
 
@@ -384,6 +386,23 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
 
 class TestSourceAnalysisFrontendRoutes(TestCase):
+    def test_js_api_generation_is_registered_and_exports_source_analysis_methods(self):
+        self.assertEqual(settings.ACTIVE_VIEWS["fta_web"]["issue"], "fta_web.issue.views")
+
+        source = Path(settings.PROJECT_ROOT, "webpack/src/monitor-api/modules/issue.js").read_text(encoding="utf-8")
+        expected_methods = (
+            "aiAnalysisOverview",
+            "sourceAnalysis",
+            "startSourceAnalysis",
+            "retrySourceAnalysis",
+            "reanalyzeSourceAnalysis",
+            "sourceAnalysisRaw",
+        )
+        for method in expected_methods:
+            with self.subTest(method=method):
+                self.assertIn(f"export const {method} = request(", source)
+                self.assertIn(f"  {method},", source)
+
     def test_urls_expose_finalized_methods(self):
         expected = {
             "/fta/issue/issue/ai_analysis_overview/": {"get": "issue/ai_analysis_overview"},
