@@ -15,7 +15,7 @@ from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
-from bkmonitor.data_source.constants import OTEL_FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
+from bkmonitor.data_source.constants import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
@@ -27,7 +27,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
     FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
-    FIELD_OPERATIONS = OTEL_FIELD_OPERATIONS
+    FIELD_OPERATIONS = FIELD_OPERATIONS
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources

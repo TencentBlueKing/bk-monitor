@@ -359,27 +359,16 @@ class BaseQuery:
         return len(distinct_values)
 
     @classmethod
-    def build_conflict_field(cls, current: dict[str, Any], field_dict: dict[str, Any]) -> dict[str, Any]:
-        return cls.merge_field_metadata(
-            {**current, "field_type": FieldTypeEnum.CONFLICT.value},
-            {**field_dict, "field_type": FieldTypeEnum.CONFLICT.value},
-        )
-
-    @classmethod
     def merge_field_metadata(cls, current: dict[str, Any], field_dict: dict[str, Any]) -> dict[str, Any]:
         return {
             **current,
-            "origin_field": current["origin_field"]
-            if len(current["origin_field"]) > len(field_dict["origin_field"])
-            else field_dict["origin_field"],
-            "is_agg": bool(current["is_agg"] and field_dict["is_agg"]),
-            "is_analyzed": bool(current["is_analyzed"] and field_dict["is_analyzed"]),
+            "is_agg": bool(current["is_agg"] or field_dict["is_agg"]),
+            "is_analyzed": bool(current["is_analyzed"] or field_dict["is_analyzed"]),
             "is_case_sensitive": bool(current["is_case_sensitive"] and field_dict["is_case_sensitive"]),
-            "tokenize_on_chars": current["tokenize_on_chars"] + field_dict["tokenize_on_chars"],
         }
 
     @classmethod
-    def resolve_field_alias(cls, field_name: str) -> str:
+    def _resolve_field_alias(cls, field_name: str) -> str:
         for mapping in reversed(cls.FIELD_ALIAS_MAP_LIST):
             if field_name in mapping:
                 return mapping[field_name]
@@ -407,12 +396,15 @@ class BaseQuery:
                 if current is None:
                     field_map[field_name] = field_dict
                 elif current["field_type"] != field_dict["field_type"]:
-                    field_map[field_name] = self.build_conflict_field(current, field_dict)
+                    field_map[field_name] = self.merge_field_metadata(
+                        {**current, "field_type": FieldTypeEnum.CONFLICT.value},
+                        {**field_dict, "field_type": FieldTypeEnum.CONFLICT.value},
+                    )
                 else:
                     field_map[field_name] = self.merge_field_metadata(current, field_dict)
 
                 _field_dict = field_map[field_name]
-                _field_dict["alias_name"] = self.resolve_field_alias(field_name)
+                _field_dict["alias_name"] = self._resolve_field_alias(field_name)
                 _field_dict["supported_operations"] = self.FIELD_OPERATIONS.get(
                     _field_dict["field_type"],
                     [],

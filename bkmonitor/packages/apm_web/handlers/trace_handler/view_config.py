@@ -23,7 +23,8 @@ from apm.constants import KindCategory
 from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
 from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.handlers.trace_handler.query import TraceQueryTransformer
-from apm_web.trace.constants import OPERATORS, TRACE_FIELD_ALIAS
+from apm_web.trace.constants import TRACE_FIELD_ALIAS
+from bkmonitor.data_source.constants import FIELD_OPERATIONS
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
 from core.drf_resource import api
@@ -168,7 +169,7 @@ class TraceFieldsHandler:
     def get_supported_operations(self, field_type: str) -> list[str]:
         """获取字段支持的运算符"""
 
-        return OPERATORS.get(field_type, [])
+        return FIELD_OPERATIONS.get(field_type, [])
 
     def get_field_alias(self, field_name: str) -> str:
         """获取字段别名"""

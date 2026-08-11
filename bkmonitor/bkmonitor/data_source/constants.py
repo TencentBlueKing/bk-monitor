@@ -100,18 +100,7 @@ class FieldTypeEnum(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return str(
-            {
-                self.KEYWORD: _("keyword"),
-                self.TEXT: _("text"),
-                self.INTEGER: _("integer"),
-                self.LONG: _("long"),
-                self.DOUBLE: _("double"),
-                self.DATE: _("date"),
-                self.BOOLEAN: _("boolean"),
-                self.CONFLICT: _("conflict"),
-            }.get(self, self.value)
-        )
+        return self.value
 
     @classmethod
     def get_default(cls, value):
@@ -121,19 +110,10 @@ class FieldTypeEnum(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [
-            (cls.KEYWORD.value, cls.KEYWORD.label),
-            (cls.TEXT.value, cls.TEXT.label),
-            (cls.INTEGER.value, cls.INTEGER.label),
-            (cls.LONG.value, cls.LONG.label),
-            (cls.DOUBLE.value, cls.DOUBLE.label),
-            (cls.DATE.value, cls.DATE.label),
-            (cls.BOOLEAN.value, cls.BOOLEAN.label),
-            (cls.CONFLICT.value, cls.CONFLICT.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
 
-OTEL_FIELD_OPERATIONS = {
+FIELD_OPERATIONS = {
     FieldTypeEnum.KEYWORD.value: [
         OperatorEnum.EQUAL,
         OperatorEnum.NOT_EQUAL,
