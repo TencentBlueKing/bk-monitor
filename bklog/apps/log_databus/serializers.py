@@ -1831,6 +1831,14 @@ class FastContainerCollectorUpdateSerializer(
         return yaml_text
 
 
+class PartialPluginParamSerializer(PluginParamSerializer):
+    """Fast Update 仅保留调用方显式提交的插件参数，避免默认值覆盖存量配置。"""
+
+    def to_internal_value(self, data):
+        validated_data = super().to_internal_value(data)
+        return {field: value for field, value in validated_data.items() if field in data}
+
+
 class FastCollectorUpdateSerializer(
     CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
 ):
@@ -1842,9 +1850,9 @@ class FastCollectorUpdateSerializer(
     target_object_type = serializers.CharField(label=_("目标类型"), required=False)
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
-    params = PluginParamSerializer(required=False)
+    params = PartialPluginParamSerializer(required=False)
     data_encoding = serializers.ChoiceField(
-        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False, default=EncodingsEnum.UTF.value
+        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False
     )
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)

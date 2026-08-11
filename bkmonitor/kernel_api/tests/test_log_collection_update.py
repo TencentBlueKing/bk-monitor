@@ -101,6 +101,52 @@ def test_container_update_uses_container_fields(monkeypatch):
     assert result["updated_fields"] == ["add_pod_label", "configs"]
 
 
+def test_legacy_null_environment_routes_to_host_even_with_bcs_cluster_id(monkeypatch):
+    captured = {}
+    log_search = SimpleNamespace(
+        data_bus_collectors=lambda **kwargs: {
+            "bk_biz_id": 2,
+            "environment": None,
+            "bcs_cluster_id": "0",
+            "collector_scenario_id": "row",
+        },
+        fast_update_log_collector=lambda **kwargs: captured.update(kwargs)
+        or {"collector_config_id": 15, "subscription_id": 21, "task_id_list": [41]},
+    )
+    monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
+
+    result = FastUpdateLogCollectorResource().perform_request(
+        {"bk_biz_id": 2, "collector_config_id": 15, "target_nodes": []}
+    )
+
+    assert result["environment"] == "linux"
+    assert captured["target_nodes"] == []
+    assert captured["update_clean_config"] is False
+
+
+def test_legacy_windows_environment_uses_collector_scenario(monkeypatch):
+    log_search = SimpleNamespace(
+        data_bus_collectors=lambda **kwargs: {
+            "bk_biz_id": 2,
+            "environment": None,
+            "bcs_cluster_id": "",
+            "collector_scenario_id": "wineventlog",
+        },
+        fast_update_log_collector=lambda **kwargs: {
+            "collector_config_id": 16,
+            "subscription_id": 22,
+            "task_id_list": [42],
+        },
+    )
+    monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
+
+    result = FastUpdateLogCollectorResource().perform_request(
+        {"bk_biz_id": 2, "collector_config_id": 16, "data_encoding": "GBK"}
+    )
+
+    assert result["environment"] == "windows"
+
+
 def test_rejects_fields_from_another_environment(monkeypatch):
     log_search = SimpleNamespace(
         data_bus_collectors=lambda **kwargs: {"bk_biz_id": 2, "environment": "windows"},

@@ -2,7 +2,7 @@ paths:
   /mcp/fast_update_log_collector/:
     post:
       operationId: fast_update_log_collector
-      description: Update collection-only fields of one Linux, Windows, or container log collector. This tool never updates cleaning rules, fields, storage, index sets, or environment. For container collectors, configs is the complete replacement list. Use returned task_ids with get_log_collector_status. 仅更新日志采集配置，不修改清洗、字段、存储、索引集或环境；容器 configs 为完整替换列表。
+      description: Update collection-only fields of one Linux, Windows, or container log collector. This tool never updates cleaning rules, fields, storage settings, index-set membership, or environment. Renaming a collector may synchronize its index-set display name. For container collectors, configs is the complete replacement list. Use returned task_ids with get_log_collector_status. 仅更新日志采集配置，不修改清洗、字段、存储配置、索引集归属或环境；重命名采集项时可能同步索引集展示名称；容器 configs 为完整替换列表。
       tags: [log_collection_mcp]
       requestBody:
         required: true

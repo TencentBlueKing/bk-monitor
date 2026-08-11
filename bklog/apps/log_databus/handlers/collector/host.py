@@ -1245,7 +1245,14 @@ class HostCollectorHandler(CollectorHandler):
         bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=self.data.collector_config_name_en
         )
-        self._cat_illegal_ips(params)
+        if "params" in params:
+            merged_params = copy.deepcopy(self.data.params or {})
+            merged_params.update(params["params"])
+            params["params"] = merged_params
+
+        validation_params = params.copy()
+        validation_params.setdefault("target_node_type", self.data.target_node_type)
+        self._cat_illegal_ips(validation_params)
 
         collector_config_fields = [
             "collector_config_name",
@@ -1255,8 +1262,9 @@ class HostCollectorHandler(CollectorHandler):
             "target_nodes",
             "params",
             "extra_labels",
+            "data_encoding",
         ]
-        model_fields = {i: params[i] for i in collector_config_fields if params.get(i)}
+        model_fields = {field: params[field] for field in collector_config_fields if field in params}
 
         with transaction.atomic():
             try:
@@ -1321,12 +1329,21 @@ class HostCollectorHandler(CollectorHandler):
         }
         user_operation_record.delay(operation_record)
 
+        subscription_update_fields = {
+            "target_object_type",
+            "target_node_type",
+            "target_nodes",
+            "params",
+            "data_encoding",
+            "extra_labels",
+        }
         try:
-            if params.get("params"):
-                params["params"]["encoding"] = params["data_encoding"]
+            if subscription_update_fields.intersection(params):
+                subscription_params = copy.deepcopy(self.data.params or {})
+                subscription_params["encoding"] = self.data.data_encoding
                 collector_scenario = CollectorScenario.get_instance(self.data.collector_scenario_id)
                 self._update_or_create_subscription(
-                    collector_scenario=collector_scenario, params=params["params"], is_create=False
+                    collector_scenario=collector_scenario, params=subscription_params, is_create=False
                 )
         finally:
             if (

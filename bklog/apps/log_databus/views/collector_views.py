@@ -139,6 +139,7 @@ class CollectorViewSet(ModelViewSet):
             "etl_preview",
             "update_or_create_clean_config",
             "custom_update",
+            "fast_update",
             "report_token",
         ]:
             return [InstanceActionPermission([ActionEnum.MANAGE_COLLECTION], ResourceEnum.COLLECTION)]

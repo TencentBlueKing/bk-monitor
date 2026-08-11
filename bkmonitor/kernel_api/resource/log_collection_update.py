@@ -95,13 +95,12 @@ class FastUpdateLogCollectorResource(Resource):
             raise PermissionDenied("Collector config does not belong to the requested business.")
 
         environment = str(collector.get("environment") or "").lower()
-        if environment == "container" or collector.get("bcs_cluster_id"):
-            environment = "container"
+        if environment == "container":
             allowed_fields = CONTAINER_UPDATE_FIELDS
-        elif environment in {"linux", "windows"}:
-            allowed_fields = HOST_UPDATE_FIELDS
         else:
-            raise serializers.ValidationError({"collector_config_id": "Unsupported collector environment."})
+            if environment not in {"linux", "windows"}:
+                environment = "windows" if collector.get("collector_scenario_id") == "wineventlog" else "linux"
+            allowed_fields = HOST_UPDATE_FIELDS
 
         invalid_fields = set(request_data) - allowed_fields
         if invalid_fields:
