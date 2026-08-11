@@ -88,6 +88,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    downSampleRange: {
+      type: String,
+      default: 'auto',
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -110,7 +114,6 @@ export default defineComponent({
       layoutDragMaxHeight.value = layoutHeight - rowHeight; // 图表可拖拽的最大高度
       chartHeight.value = height > layoutDragMaxHeight.value ? layoutDragMaxHeight.value : height;
     };
-
     const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
 
     const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange));
@@ -162,6 +165,21 @@ export default defineComponent({
     /** 变量解析后的可取数面板，scopedVars 变化时自动重算并触发取数 */
     const resolvedPanel = computed(() => resolveGraphPanel(props.panel, scopedVars.value));
 
+    /* 降采样计算 */
+    const downSampleRangeComputed = (timeRange: number[]) => {
+      if (props.downSampleRange === 'auto') {
+        let width = 1;
+        if (chartMainRef.value) {
+          width = chartMainRef.value.clientWidth;
+        } else {
+          width = chartRef.value?.clientWidth - (resolvedPanel.value?.options?.legend?.placement === 'right' ? 320 : 0);
+        }
+        const size = (timeRange[1] - timeRange[0]) / width;
+        return size > 0 ? `${Math.ceil(size)}s` : undefined;
+      }
+      return props.downSampleRange;
+    };
+
     const { options, loading, metricList, targets, series, chartId } = useEcharts({
       panel: resolvedPanel,
       chartRef: chartMainRef,
@@ -176,6 +194,7 @@ export default defineComponent({
         el: chartRef,
       },
       customOptions: props.customOptions,
+      downSampleRangeComputed: props.downSampleRange ? downSampleRangeComputed : undefined,
     });
 
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(

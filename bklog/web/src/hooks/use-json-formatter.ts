@@ -1238,6 +1238,10 @@ export default class UseJsonFormatter {
       stop(e);
       RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       const nextExpanded = rootNode.getAttribute('data-leaf-expanded') !== '1';
+      // 收起后清零滚动，避免 overflow 容器仍保留旧 scrollTop 导致「更多」错位
+      if (!nextExpanded) {
+        rootNode.scrollTop = 0;
+      }
       rootNode.setAttribute('data-leaf-expanded', nextExpanded ? '1' : '0');
       this.renderLeafSegment(fullText, rootNode, nextExpanded);
     });

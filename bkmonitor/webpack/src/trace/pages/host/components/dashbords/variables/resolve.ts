@@ -51,7 +51,6 @@ export function buildScopedVars(state: MetricAggregationState, currentTarget?: C
     interval: state.interval,
     method: state.method,
     group_by: [],
-    time_shift: state.compareType === 'time' ? state.timeShift : [],
     current_target: currentTarget,
     compare_targets: state.compareType === 'target' ? state.compareTargets : [],
   };
@@ -82,6 +81,11 @@ export function resolveGraphPanel(
     targets,
     dashboardId,
   });
+}
+
+export function resolveVariables(value: unknown, scopedVars: ScopedVarMap) {
+  const srvScopedVars = toSrvScopedVars(scopedVars);
+  return resolveValue(value, scopedVars, srvScopedVars);
 }
 
 /**

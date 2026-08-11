@@ -8,7 +8,7 @@ from metadata.models.result_table import ResultTable, ResultTableField, ResultTa
 from metadata.models.storage import KafkaTopicInfo
 from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
-_BKLOG_TABLE_ID_RE = re.compile(r"^(\d+_bklog)\.(.+)$")
+_BKLOG_TABLE_ID_RE = re.compile(r"^((?:\d+|space_\d+)_bklog)\.(.+)$")
 
 
 def _normalize_data_ids(data_ids: Sequence[int] | None) -> list[int]:
@@ -25,7 +25,8 @@ def _to_log_group_table_ids(table_ids: list[str]) -> list[str]:
     """将 ResultTable 格式的 table_id 转换为 LogGroup 兼容的格式。
 
     LogGroup.make_table_id 生成的 table_id 使用下划线分隔（如 ``19078_bklog_test``），
-    而 ResultTable 的 table_id 使用点号分隔（如 ``19078_bklog.test``）。
+    而 ResultTable 的 table_id 使用点号分隔（如 ``19078_bklog.test``）。非 BKCC
+    空间的结果表还可能使用 ``space_<space_id>_bklog.test`` 格式。
     本函数同时保留两种格式，确保 LogGroup 查询能命中。
     """
     result: list[str] = list(table_ids)

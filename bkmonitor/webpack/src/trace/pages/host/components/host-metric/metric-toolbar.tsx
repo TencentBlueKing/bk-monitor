@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { Checkbox, Input, Select, Tag } from 'bkui-vue';
+import { Checkbox, Input, Popover, Select, Tag } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -74,6 +74,7 @@ export default defineComponent({
     const { t } = useI18n();
 
     const localTargetValue = shallowRef<string[]>([]);
+    const localTimeShiftValue = shallowRef<string[]>([]);
 
     watch(
       () => props.value.compareTargets,
@@ -83,12 +84,26 @@ export default defineComponent({
       { immediate: true }
     );
 
+    watch(
+      () => props.value.timeShift,
+      val => {
+        localTimeShiftValue.value = val;
+      },
+      { immediate: true }
+    );
+
+    const handleCompareTypeChange = (val: MetricAggregationState['compareType']) => {
+      if (val === 'time' && props.value.timeShift.length === 0) {
+        emit('change', { compareType: val, timeShift: ['1h'] });
+      } else {
+        emit('change', { compareType: val });
+      }
+    };
+
     /** 列数切换：1 → 2 → 3 → 1 循环 */
     const columnIcon = computed(() => COLUMN_ICON_MAP[props.value.columns] || COLUMN_ICON_MAP[3]);
-    const handleColumnSwitch = () => {
-      const index = COLUMN_VALUES.indexOf(props.value.columns as (typeof COLUMN_VALUES)[number]);
-      const next = COLUMN_VALUES[(index + 1) % COLUMN_VALUES.length];
-      emit('change', { columns: next });
+    const handleColumnSwitch = (columns: number) => {
+      emit('change', { columns });
     };
 
     /** 渲染一个「label + Select」字段 */
@@ -104,17 +119,56 @@ export default defineComponent({
       COMPARE_TYPE_OPTIONS.filter(item => props.compareListEnable.includes(item.id))
     );
 
-    /** 把对比目标的 id 转换为对应的对象 */
+    /** 目标对比下拉框选择 */
+    const compareTargetToggle = shallowRef(false);
+    /** 目标对比下拉框选择是否变更 */
+    const compareTargetIsChange = shallowRef(false);
     const handleCompareTargetChange = (val: string[]) => {
-      const compareTargets = val.reduce((total, id) => {
+      localTargetValue.value = val;
+      compareTargetIsChange.value = true;
+      if (!compareTargetToggle.value) handleCompareTargetCommit();
+    };
+    const handleCompareTargetToggle = (show: boolean) => {
+      compareTargetToggle.value = show;
+      if (show) compareTargetIsChange.value = false;
+      if (compareTargetIsChange.value && !show) {
+        handleCompareTargetCommit();
+      }
+    };
+
+    /** 下拉框隐藏时提交目标对比变更 */
+    const handleCompareTargetCommit = () => {
+      const compareTargets = localTargetValue.value.reduce((total, id) => {
         const item = props.targetList.find(item => item.id === id);
         const value = handleCreateCompares(item);
         total.push({ ...value });
         return total;
       }, []);
-      emit('change', {
-        compareTargets,
-      });
+      emit('change', { compareTargets });
+    };
+
+    /** 对比时间下拉框选择 */
+    const compareTimeShiftToggle = shallowRef(false);
+    /** 对比时间下拉框选择是否变更 */
+    const compareTimeShiftIsChange = shallowRef(false);
+    const handleCompareTimeShiftChange = (val: string[]) => {
+      localTimeShiftValue.value = val;
+      compareTimeShiftIsChange.value = true;
+      if (!compareTimeShiftToggle.value) handleCompareTimeShiftCommit();
+    };
+    const handleCompareTimeShiftToggle = (show: boolean) => {
+      compareTimeShiftToggle.value = show;
+      // 每次打开下拉框时，重置变更态
+      if (show) compareTimeShiftIsChange.value = false;
+      /** 下拉框隐藏时并且数据有变更，则提交数据 */
+      if (compareTimeShiftIsChange.value && !show) {
+        handleCompareTimeShiftCommit();
+      }
+    };
+
+    /** 下拉框隐藏时提交对比时间变更 */
+    const handleCompareTimeShiftCommit = () => {
+      emit('change', { timeShift: localTimeShiftValue.value });
     };
 
     const renderCompareExtra = () => {
@@ -137,6 +191,7 @@ export default defineComponent({
               filterable
               multiple
               onChange={handleCompareTargetChange}
+              onToggle={handleCompareTargetToggle}
             />
           </div>
         );
@@ -146,12 +201,13 @@ export default defineComponent({
           <Select
             class='metric-toolbar__time-select'
             behavior='simplicity'
-            modelValue={props.value.timeShift}
+            modelValue={localTimeShiftValue.value}
             multipleMode='tag'
             placeholder={t('选择时间')}
             collapseTags
             multiple
-            onChange={(v: string[]) => emit('change', { timeShift: v })}
+            onChange={handleCompareTimeShiftChange}
+            onToggle={handleCompareTimeShiftToggle}
           >
             {TIME_SHIFT_OPTIONS.map(item => (
               <Select.Option
@@ -209,7 +265,7 @@ export default defineComponent({
               behavior='simplicity'
               clearable={false}
               modelValue={props.value.compareType}
-              onChange={(v: MetricAggregationState['compareType']) => emit('change', { compareType: v })}
+              onChange={handleCompareTypeChange}
             >
               {compareTypeOptions.value.map(item => (
                 <Select.Option
@@ -247,13 +303,34 @@ export default defineComponent({
           >
             {t('高亮峰谷值')}
           </Checkbox>
-          <div
-            class='metric-toolbar__column-switch'
-            onClick={handleColumnSwitch}
+          <Popover
+            placement='bottom'
+            theme='light metric-toolbar-column-popover'
+            trigger='hover'
           >
-            <i class={['icon-monitor', columnIcon.value]} />
-            <span class='metric-toolbar__column-text'>{t('{n} 列', { n: props.value.columns })}</span>
-          </div>
+            {{
+              default: () => (
+                <div class='metric-toolbar__column-switch'>
+                  <i class={['icon-monitor', columnIcon.value]} />
+                  <span class='metric-toolbar__column-text'>{t('{n} 列', { n: props.value.columns })}</span>
+                </div>
+              ),
+              content: () => (
+                <div class='metric-toolbar__column-menu'>
+                  {COLUMN_VALUES.map(value => (
+                    <div
+                      key={value}
+                      class={['metric-toolbar__column-menu-item', { active: props.value.columns === value }]}
+                      onClick={() => handleColumnSwitch(value)}
+                    >
+                      <i class={['icon-monitor', COLUMN_ICON_MAP[value]]} />
+                      <span>{t('{n} 列', { n: value })}</span>
+                    </div>
+                  ))}
+                </div>
+              ),
+            }}
+          </Popover>
           <div
             class='metric-toolbar__setting'
             v-bk-tooltips={{ content: t('视图分组管理'), delay: 300 }}

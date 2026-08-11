@@ -445,6 +445,18 @@ self.onmessage = event => {
       });
       break;
     }
+    case 'GET_SELECTED_ROWS': {
+      const keySet = new Set(message.rowKeys.map(String));
+      // 表格 rowKey 为 id（内网 IP），同时兼容历史 rowId
+      const rows = rawRows
+        .filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)));
+      self.postMessage({
+        rows,
+        requestId: message.requestId,
+        type: 'GET_SELECTED_ROWS_DONE',
+      });
+      break;
+    }
     // 返回完整 filterOptionsMap，供主线程构建字段展示名称映射
     case 'GET_FILTER_OPTIONS_MAP': {
       self.postMessage({

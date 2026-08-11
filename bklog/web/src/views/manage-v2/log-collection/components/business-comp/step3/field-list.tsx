@@ -32,6 +32,8 @@ import tippy, { type Instance } from 'tippy.js';
 import TableComponent from '../../common-comp/table-component';
 
 import './field-list.scss';
+import 'tippy.js/dist/tippy.css';
+import 'tippy.js/themes/light.css';
 export type FieldItem = {
   field_index: number;
   field_name: string;

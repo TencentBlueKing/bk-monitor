@@ -190,6 +190,35 @@ def test_mutation_rejects_unknown_fields_placeholder_and_oversized_operator(mock
     grant.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("operation", "operation_params", "extra_field"),
+    [
+        ("grant", {"app_code": "demo-app", "biz_ids": [2]}, {"id": 7}),
+        ("revoke", {"id": 7}, {"type": "api"}),
+        ("revoke", {"id": 7}, {"app_code": "demo-app"}),
+        ("revoke", {"id": 7}, {"allow_all_biz": True}),
+        ("revoke", {"id": 7}, {"biz_ids": [2]}),
+    ],
+)
+def test_mutation_rejects_fields_not_used_by_operation(mocker, operation, operation_params, extra_field):
+    from kernel_api.rpc.functions.bkm_cli import api_token
+
+    handler = mocker.patch.object(api_token, f"_{operation}_api_token", return_value={"changed": True})
+    params = {
+        "bk_tenant_id": "system",
+        "operation": operation,
+        "operator": "alice",
+        "confirmed": True,
+        **operation_params,
+        **extra_field,
+    }
+
+    with pytest.raises(CustomException, match="不支持的参数"):
+        api_token.manage_api_token(params)
+
+    handler.assert_not_called()
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_grant_api_token_records_operator_and_uses_model_database(mocker):
     from kernel_api.rpc.functions.bkm_cli.api_token import manage_api_token
