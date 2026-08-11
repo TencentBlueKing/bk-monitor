@@ -950,3 +950,12 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-k8s-biaozhunshuchu:before {
 	content: "\e274";
 }
+.bklog-jiqun-2:before {
+	content: "\e27f";
+}
+.bklog-feature-tezheng:before {
+	content: "\e281";
+}
+.bklog-alert-2:before {
+	content: "\e280";
+}
