@@ -6,11 +6,11 @@
 
 ### 鉴权头
 
-| 参数名称    | 参数类型 | 必须 | 参数说明     |
-| ----------- | -------- | ---- | ------------ |
-| app_code    | string   | 是   | 蓝鲸应用 ID  |
-| app_secret  | string   | 是   | 蓝鲸应用秘钥 |
-| bk_username | string   | 是   | 用户名称     |
+| 参数名称      | 参数类型 | 必须 | 参数说明     |
+| ------------- | -------- | ---- | ------------ |
+| bk_app_code   | string   | 是   | 蓝鲸应用 ID  |
+| bk_app_secret | string   | 是   | 蓝鲸应用秘钥 |
+| bk_username   | string   | 是   | 用户名称     |
 
 鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。
 

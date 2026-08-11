@@ -115,6 +115,15 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             resolved = resolve(backend_path.format(index_set_id=1))
             self.assertEqual(resolved.func.actions[method], action)
 
+    def test_public_search_helper_docs_use_apigw_auth_keys(self):
+        for operation_id in ("index_set_terms", "generate_querystring"):
+            content = (self.zh_docs_dir / f"{operation_id}.md").read_text(encoding="utf-8")
+
+            self.assertIn("| bk_app_code", content, operation_id)
+            self.assertIn("| bk_app_secret", content, operation_id)
+            self.assertNotIn("| app_code", content, operation_id)
+            self.assertNotIn("| app_secret", content, operation_id)
+
     def test_delete_resources_keep_private_compatibility_paths(self):
         paths = self.resources["paths"]
 
