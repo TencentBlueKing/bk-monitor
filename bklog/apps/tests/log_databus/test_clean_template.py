@@ -58,7 +58,7 @@ CREATE_PARAMS = {
 }
 
 
-class TestCleanTemplate(TestCase):
+class CleanTemplateTestCase(TestCase):
     def setUp(self):
         Space.objects.create(
             space_uid="bkcc__706",
@@ -72,13 +72,6 @@ class TestCleanTemplate(TestCase):
         self.lock_patcher = patch.object(CleanTemplateHandler, "_acquire_operation_lock", return_value=lock)
         self.lock_patcher.start()
         self.addCleanup(self.lock_patcher.stop)
-        self.collector_operation_lock = MagicMock()
-        self.collector_operation_lock_patcher = patch(
-            "apps.log_databus.handlers.clean.acquire_clean_template_collector_operation_lock",
-            return_value=self.collector_operation_lock,
-        )
-        self.collector_operation_lock_patcher.start()
-        self.addCleanup(self.collector_operation_lock_patcher.stop)
 
     @staticmethod
     def create_template(**overrides):
@@ -109,6 +102,8 @@ class TestCleanTemplate(TestCase):
         view.request = view.initialize_request(request)
         return view.list(view.request)
 
+
+class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
     def test_create_and_duplicate_name(self):
         result = self.create_template()
 
@@ -204,6 +199,8 @@ class TestCleanTemplate(TestCase):
         self.assertFalse(result[1]["is_outdated"])
         self.assertEqual(result[0]["bk_biz_name"], "test")
 
+
+class TestCleanTemplateSync(CleanTemplateTestCase):
     def test_sync_collector_records_success_and_failure(self):
         template = self.create_template()
         handler = CleanTemplateHandler(template["clean_template_id"])
@@ -269,9 +266,11 @@ class TestCleanTemplate(TestCase):
         self.assertIsNone(collector.clean_template_version)
         self.assertIsNone(collector.clean_template_sync_status)
 
-    def test_sync_collector_skips_when_collector_operation_is_locked(self):
+    def test_sync_collector_does_not_overwrite_rebound_association_on_failure(self):
         template = self.create_template()
+        other_template = self.create_template(name="other")
         template_id = template["clean_template_id"]
+        other_template_id = other_template["clean_template_id"]
         handler = CleanTemplateHandler(template_id)
         collector = self.create_collector(clean_template_id=template_id)
         clean_config = {
@@ -281,20 +280,26 @@ class TestCleanTemplate(TestCase):
             "clean_template_id": template_id,
         }
 
-        with (
-            patch(
-                "apps.log_databus.handlers.clean.acquire_clean_template_collector_operation_lock",
-                return_value=None,
-            ) as acquire_lock,
-            patch("apps.log_databus.handlers.clean.CollectorHandler.get_instance") as get_collector_handler,
-        ):
+        def rebind_then_fail(**kwargs):
+            CollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).update(
+                clean_template_id=other_template_id,
+                clean_template_version=1,
+                clean_template_sync_status=CleanTemplateSyncStatus.SUCCESS.value,
+                clean_template_sync_message="",
+            )
+            raise RuntimeError("stale sync failed")
+
+        collector_handler = MagicMock()
+        collector_handler.create_or_update_clean_config.side_effect = rebind_then_fail
+        with patch("apps.log_databus.handlers.clean.CollectorHandler.get_instance", return_value=collector_handler):
             result = handler._sync_collector(collector, template_version=1, clean_config=clean_config)
 
         collector.refresh_from_db()
-        self.assertIsNone(result)
-        self.assertIsNone(collector.clean_template_sync_status)
-        acquire_lock.assert_called_once_with(collector.collector_config_id, raise_exception=False)
-        get_collector_handler.assert_not_called()
+        self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(collector.clean_template_id, other_template_id)
+        self.assertEqual(collector.clean_template_version, 1)
+        self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.SUCCESS.value)
+        self.assertEqual(collector.clean_template_sync_message, "")
 
     def test_sync_collectors_only_selects_active_collectors_needing_sync(self):
         template = self.create_template()
@@ -376,6 +381,8 @@ class TestCleanTemplate(TestCase):
         )
         self.assertTrue(all(call.kwargs["template_version"] == 2 for call in mock_sync.call_args_list))
 
+
+class TestCleanTemplatePreview(CleanTemplateTestCase):
     def test_preview_fields_reports_empty_and_type_mismatch(self):
         fields = [
             {"field_name": "count", "field_type": "int", "is_delete": False},
@@ -398,6 +405,8 @@ class TestCleanTemplate(TestCase):
         self.assertEqual(result[1]["inferred_field_type"], "string")
         self.assertEqual(result[2]["error_type"], "EMPTY_VALUE")
 
+
+class TestCleanTemplateAssociation(CleanTemplateTestCase):
     def test_destroy_unlinks_collectors(self):
         template = self.create_template()
         collector = self.create_collector(
