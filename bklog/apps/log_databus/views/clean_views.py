@@ -33,7 +33,6 @@ from apps.log_databus.serializers import (
     CleanRefreshSerializer,
     CleanSerializer,
     CleanSyncSerializer,
-    CleanTemplateCollectorSerializer,
     CleanTemplateListFilterSerializer,
     CleanTemplateListSerializer,
     CleanTemplateOperatorListSerializer,
@@ -627,7 +626,7 @@ class CleanTemplateViewSet(ModelViewSet):
         """
         clean_template = self.get_object()
         collectors = CleanTemplateHandler(clean_template_id=clean_template.clean_template_id).list_collectors()
-        return Response(CleanTemplateCollectorSerializer(collectors, many=True).data)
+        return Response(collectors)
 
     @detail_route(methods=["POST"], url_path="sync")
     def sync_collectors(self, request, *args, clean_template_id=None, **kwargs):

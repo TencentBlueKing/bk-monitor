@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="collectorconfig",
             name="clean_template_id",
-            field=models.IntegerField(blank=True, db_index=True, null=True, verbose_name="来源清洗模板ID"),
+            field=models.IntegerField(blank=True, db_index=True, null=True, verbose_name="清洗模板ID"),
         ),
         migrations.AddField(
             model_name="collectorconfig",

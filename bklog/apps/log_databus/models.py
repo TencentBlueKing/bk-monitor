@@ -199,7 +199,7 @@ class CollectorConfig(CollectorBase):
     is_nanos = models.BooleanField(_("采集项是否为纳秒采集"), default=False)
     enable_v4 = models.BooleanField(_("采集项是否为v4链路"), default=False)
     storage_cluster_type = models.CharField(_("存储集群类型"), max_length=32, default=STORAGE_CLUSTER_TYPE)
-    clean_template_id = models.IntegerField(_("来源清洗模板ID"), null=True, blank=True, db_index=True)
+    clean_template_id = models.IntegerField(_("清洗模板ID"), null=True, blank=True, db_index=True)
     clean_template_version = models.PositiveIntegerField(_("已应用清洗模板版本"), null=True, blank=True)
     clean_template_sync_status = models.CharField(
         _("清洗模板同步状态"),

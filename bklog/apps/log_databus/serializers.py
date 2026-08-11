@@ -36,7 +36,6 @@ from apps.log_databus.constants import (
     COLLECTOR_CONFIG_NAME_EN_REGEX,
     ArchiveInstanceType,
     ClusterTypeEnum,
-    CleanTemplateSyncStatus,
     CollectorBatchOperationType,
     CollectorSourceEnum,
     ContainerCollectorType,
@@ -934,11 +933,7 @@ class CollectorEtlSerializer(serializers.Serializer):
 
 
 class CleanTemplatePreviewSerializer(serializers.Serializer):
-    data = serializers.CharField(
-        label=_("日志内容"),
-        required=True,
-        trim_whitespace=False,
-    )
+    data = serializers.CharField(label=_("日志内容"), required=True, trim_whitespace=False)
 
 
 class CollectorRegexDebugSerializer(serializers.Serializer):
@@ -1046,9 +1041,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformI
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
     total_shards_per_node = serializers.IntegerField(label=_("每个节点的分片总数"), required=False, allow_null=True)
-    clean_template_id = serializers.IntegerField(
-        label=_("来源清洗模板ID"), required=False, allow_null=True, min_value=1
-    )
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1223,21 +1216,6 @@ class CleanTemplateListFilterSerializer(serializers.Serializer):
 
 class CleanTemplateOperatorListSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
-
-
-class CleanTemplateCollectorSerializer(serializers.Serializer):
-    collector_config_id = serializers.IntegerField(label=_("采集项ID"))
-    collector_config_name = serializers.CharField(label=_("采集项名称"))
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    bk_biz_name = serializers.CharField(label=_("业务名称"))
-    clean_template_config_version = serializers.IntegerField(label=_("模板当前配置版本"))
-    clean_template_version = serializers.IntegerField(label=_("采集项已应用模板版本"), allow_null=True)
-    clean_template_sync_status = serializers.ChoiceField(
-        label=_("最近一次同步状态"), choices=CleanTemplateSyncStatus.get_choices(), allow_null=True
-    )
-    clean_template_sync_at = serializers.DateTimeField(label=_("最近一次同步完成时间"), allow_null=True)
-    clean_template_sync_message = serializers.CharField(label=_("最近一次同步信息"), allow_blank=True)
-    is_outdated = serializers.BooleanField(label=_("是否待同步"))
 
 
 class StorageRepositorySerlalizer(serializers.Serializer):
@@ -1871,7 +1849,7 @@ class FastContainerCollectorUpdateSerializer(
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False)
     clean_template_id = serializers.IntegerField(
-        label=_("来源清洗模板ID"), required=False, allow_null=True, min_value=1, default=None
+        label=_("清洗模板ID"), required=False, allow_null=True, min_value=1, default=None
     )
 
     def validate_yaml_config(self, value):
