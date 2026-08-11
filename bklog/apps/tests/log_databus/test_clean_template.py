@@ -109,7 +109,6 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
 
         self.assertEqual(result["config_version"], 1)
         self.assertEqual(result["description"], CREATE_PARAMS["description"])
-        self.assertNotIn("visible_type", result)
         with self.assertRaisesRegex(CleanTemplateRepeatException, r"\[706\]test.*test"):
             self.create_template()
 

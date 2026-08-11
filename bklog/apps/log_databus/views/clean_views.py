@@ -334,7 +334,6 @@ class CleanTemplateViewSet(ModelViewSet):
                                 }
                             }
                         ],
-                        "bk_biz_id": 0,
                         "alias_settings": [],
                         "config_version": 1,
                         "field_count": 2,
@@ -342,7 +341,10 @@ class CleanTemplateViewSet(ModelViewSet):
                         "created_at": "2026-07-30 10:00:00",
                         "created_by": "admin",
                         "updated_at": "2026-07-30 10:00:00",
-                        "updated_by": "admin"
+                        "updated_by": "admin",
+                        "bk_biz_id": 0,
+                        "visible_bk_biz_id": "",
+                        "visible_type": "current_biz"
                     }
                 ]
             },
@@ -442,6 +444,8 @@ class CleanTemplateViewSet(ModelViewSet):
                     }
                 ],
                 "bk_biz_id": 0,
+                "visible_bk_biz_id": [],
+                "visible_type": "current_biz",
                 "alias_settings": [],
                 "config_version": 1,
                 "created_at": "2026-07-30 10:00:00",

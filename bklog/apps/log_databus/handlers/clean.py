@@ -207,13 +207,6 @@ class CleanTemplateHandler:
             )
         return lock
 
-    @staticmethod
-    def _serialize_template(clean_template):
-        data = model_to_dict(clean_template)
-        data.pop("visible_type", None)
-        data.pop("visible_bk_biz_id", None)
-        return data
-
     def create_or_update(self, params: dict):
         bk_biz_id = self.data.bk_biz_id if self.data else params["bk_biz_id"]
         model_fields = {
@@ -238,7 +231,7 @@ class CleanTemplateHandler:
         if not self.data:
             clean_template = CleanTemplate.objects.create(**model_fields)
             logger.info(f"create clean template {clean_template.clean_template_id}")
-            return self._serialize_template(clean_template)
+            return model_to_dict(clean_template)
 
         lock = self._acquire_operation_lock()
         try:
@@ -254,7 +247,7 @@ class CleanTemplateHandler:
             if clean_config_changed:
                 self.data.refresh_from_db()
             logger.info(f"update clean template {self.data.clean_template_id}")
-            return self._serialize_template(self.data)
+            return model_to_dict(self.data)
         finally:
             lock.release()
 

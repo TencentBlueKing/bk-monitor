@@ -1196,23 +1196,7 @@ class CleanTemplateListSerializer(DataModelSerializer):
 
     class Meta:
         model = CleanTemplate
-        fields = (
-            "clean_template_id",
-            "name",
-            "description",
-            "clean_type",
-            "etl_params",
-            "etl_fields",
-            "bk_biz_id",
-            "alias_settings",
-            "config_version",
-            "field_count",
-            "active_collector_count",
-            "created_at",
-            "created_by",
-            "updated_at",
-            "updated_by",
-        )
+        fields = "__all__"
 
 
 class CleanTemplateListFilterSerializer(serializers.Serializer):
