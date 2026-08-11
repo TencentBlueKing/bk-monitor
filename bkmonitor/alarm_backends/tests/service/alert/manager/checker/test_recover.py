@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+from unittest import mock
 
 import arrow
 import pytest
@@ -19,14 +20,17 @@ from six.moves import range
 
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
+from alarm_backends.core.cache import key
 from alarm_backends.core.cache.key import (
     CHECK_RESULT_CACHE_KEY,
     LAST_CHECKPOINTS_CACHE_KEY,
 )
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.context import ActionContext
+from alarm_backends.core.storage.redis_cluster import routed_client
 from alarm_backends.service.alert.manager.checker.close import CloseStatusChecker
 from alarm_backends.service.alert.manager.checker.recover import RecoverStatusChecker
+from alarm_backends.service.detect.strategy.new_series import NewSeries
 from alarm_backends.tests.service.alert.manager.checker import ANOMALY_EVENT, STRATEGY
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import CacheNode
@@ -98,6 +102,185 @@ class TestRecoverStatusChecker(TestCase):
         checker = RecoverStatusChecker([alert])
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.RECOVERED)
+
+    @staticmethod
+    def new_series_strategy(status_setter="recovery"):
+        strategy = copy.deepcopy(STRATEGY)
+        strategy["items"][0]["algorithms"] = [
+            {
+                "type": "NewSeries",
+                "level": 2,
+                "config": {
+                    "detect_range": 60,
+                    "effective_delay": 60,
+                    "max_series": 100000,
+                    "threshold": 0,
+                    "alert_mode": "continuous",
+                },
+            }
+        ]
+        strategy["detects"][1]["recovery_config"]["status_setter"] = status_setter
+        return strategy
+
+    @staticmethod
+    def new_series_state_keys():
+        params = {
+            "strategy_id": 1,
+            "item_id": 1,
+            "dimension_signature": NewSeries.signature_from_agg_dimension(["ip", "bk_cloud_id"]),
+            "threshold": 0,
+            "detect_range": 60,
+            "level": 2,
+        }
+        return NewSeries.active_state_key(**params), NewSeries.claimed_state_key(**params)
+
+    @classmethod
+    def set_new_series_active(cls, score):
+        active_key, claimed_key = cls.new_series_state_keys()
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        key.NEW_SERIES_CLAIMED_KEY.client.zrem(claimed_key, fingerprint)
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {fingerprint: score})
+        return active_key
+
+    def test_new_series_continuous_active_window_keeps_alert(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy=strategy)
+        self.set_new_series_active(1980)
+
+        with (
+            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
+            mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
+        ):
+            RecoverStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.ABNORMAL)
+
+    def test_new_series_continuous_expired_window_recovers_and_removes_active_member(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy=strategy)
+        active_key = self.set_new_series_active(1939)
+
+        with (
+            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
+            mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
+        ):
+            RecoverStatusChecker([alert]).check_all()
+            _, claimed_key = self.new_series_state_keys()
+            self.assertEqual(
+                int(key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "55a76cf628e46c04a052f4e19bdb9dbf")),
+                2000,
+            )
+
+        self.assertEqual(alert.status, EventStatus.RECOVERED)
+        self.assertIsNone(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, "55a76cf628e46c04a052f4e19bdb9dbf"))
+
+    def test_new_series_continuous_expired_window_follows_close_status_setter(self):
+        strategy = self.new_series_strategy(status_setter="close")
+        alert = self.get_alert(strategy=strategy)
+        self.set_new_series_active(1939)
+
+        with (
+            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
+            mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
+        ):
+            RecoverStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.CLOSED)
+
+    def test_new_series_continuous_missing_state_falls_back_to_existing_recovery(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy=strategy)
+
+        with (
+            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
+            mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
+        ):
+            RecoverStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.RECOVERED)
+
+    def test_new_series_continuous_state_read_failure_keeps_alert(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy=strategy)
+
+        with (
+            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
+            mock.patch.object(
+                RecoverStatusChecker,
+                "claim_new_series_expiration",
+                side_effect=RuntimeError("redis timeout"),
+            ),
+        ):
+            RecoverStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.ABNORMAL)
+
+    def test_new_series_lifecycle_ignores_nonstandard_event_id_for_other_algorithms(self):
+        alert = self.get_alert()
+        alert.top_event["event_id"] = "composite-dimension.2000"
+
+        result = RecoverStatusChecker([alert]).check_new_series_lifecycle(alert, STRATEGY)
+
+        self.assertFalse(result)
+
+    def test_new_series_lifecycle_rejects_missing_or_non_five_part_event_id(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy=strategy)
+
+        with mock.patch.object(
+            RecoverStatusChecker,
+            "claim_new_series_expiration",
+            side_effect=AssertionError("nonstandard event id must not reach active state"),
+        ):
+            alert.top_event.pop("event_id")
+            self.assertFalse(RecoverStatusChecker([alert]).check_new_series_lifecycle(alert, strategy))
+
+            for event_id in (
+                "composite-dimension.2000",
+                "55a76cf628e46c04a052f4e19bdb9dbf.1000.1.1.2.extra",
+            ):
+                alert.top_event["event_id"] = event_id
+                self.assertFalse(RecoverStatusChecker([alert]).check_new_series_lifecycle(alert, strategy))
+
+    def test_new_series_expiration_claim_retries_when_detector_renews_member(self):
+        active_key = self.set_new_series_active(1939)
+        claimed_key = NewSeries.claimed_state_key(
+            strategy_id=1,
+            item_id=1,
+            dimension_signature=NewSeries.signature_from_agg_dimension(["ip", "bk_cloud_id"]),
+            threshold=0,
+            detect_range=60,
+            level=2,
+        )
+        client = key.NEW_SERIES_ACTIVE_KEY.client
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+
+        with routed_client(client, active_key) as active_client:
+            first = active_client.pipeline(transaction=True)
+            second = active_client.pipeline(transaction=True)
+            original_zscore = first.zscore
+
+            def read_then_detector_renews(*args, **kwargs):
+                score = original_zscore(*args, **kwargs)
+                client.zadd(active_key, {fingerprint: 1980})
+                return score
+
+            with (
+                mock.patch.object(first, "zscore", side_effect=read_then_detector_renews),
+                mock.patch.object(active_client, "pipeline", side_effect=[first, second]),
+            ):
+                state = RecoverStatusChecker.claim_new_series_expiration(
+                    active_key,
+                    fingerprint,
+                    expire_before=1940,
+                    claimed_key=claimed_key,
+                    observed_at=2000,
+                    soft_ttl=NewSeries.active_soft_ttl(60),
+                    max_series=100000,
+                )
+
+        self.assertEqual(state, RecoverStatusChecker.NEW_SERIES_ACTIVE)
+        self.assertEqual(int(client.zscore(active_key, fingerprint)), 1980)
 
     def test_anomaly_record_not_exist(self):
         alert = self.get_alert()

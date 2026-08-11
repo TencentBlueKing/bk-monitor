@@ -158,7 +158,8 @@ def test_only_aiops(strategy):
 
 def test_new_series_force_count_one(strategy):
     """
-    NewSeries 单次性算法：后端强制 trigger_count=1，但 check_window_size 保留用户配置(非 aiops 的 5)。
+    NewSeries 每个维度生命周期只产生首次异常点：后端强制 trigger_count=1，
+    但 check_window_size 保留用户配置(非 aiops 的 5)。
     """
     algorithms = [NEW_SERIES_ALGORITHM]
     strategy_config = create_strategy_config(algorithms, algorithms)

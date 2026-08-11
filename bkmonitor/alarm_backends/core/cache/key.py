@@ -432,6 +432,37 @@ NEW_SERIES_THRESHOLD_SEEN_KEY = register_key_with_config(
     }
 )
 
+# 新维度值检测-活跃观察状态：仅 continuous 模式下，已经触发首次告警的维度才会进入。
+# member=维度指纹；score=最近一次有效出现被 detect 观察到的 wall-clock 秒。
+# level、threshold 与 detect_range 都进入 key，避免不同告警级别、阈值或观察窗口相互续期。
+# 真实 TTL 由 detector 设置为 max(detect_range*2, 1天)，AlertManager 原子认领到期 member 后结束告警。
+NEW_SERIES_ACTIVE_KEY = register_key_with_config(
+    {
+        "label": "[detect|alert]新维度值检测-活跃观察状态(type:SortedSet)"
+        "(score: 最近有效出现检测时间(int), member: 维度指纹(record_id 前段))",
+        "key_type": "sorted_set",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.active.{{strategy_id}}.{{item_id}}."
+        "{dimension_signature}.{level}.{threshold}.{detect_range}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+# 新维度值检测-生命周期已认领标记：AlertManager 原子结束 active 后写入，
+# detector 在下一次有效出现时消费，用于区分“从未触发过告警”与“旧生命周期已结束”。
+# member=维度指纹；score=AlertManager 认领到期状态的 wall-clock 秒。
+NEW_SERIES_CLAIMED_KEY = register_key_with_config(
+    {
+        "label": "[detect|alert]新维度值检测-生命周期已认领(type:SortedSet)"
+        "(score: 到期认领时间(int), member: 维度指纹(record_id 前段))",
+        "key_type": "sorted_set",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.claimed.{{strategy_id}}.{{item_id}}."
+        "{dimension_signature}.{level}.{threshold}.{detect_range}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
 # 新维度值检测-学习起点：历史兼容 key。旧版本用它记录 wall-clock 学习起点；新版本只用它判断旧策略已完成基线。
 # 与 seen key 同维度签名、同写入续期、一起过期。
 NEW_SERIES_LEARN_START_KEY = register_key_with_config(

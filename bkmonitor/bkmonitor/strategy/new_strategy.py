@@ -2003,7 +2003,7 @@ class Strategy(AbstractConfig):
         def validate_new_series(attrs):
             """
             新维度值检测(NewSeries)保存层硬校验：
-            - NewSeries 单次性算法，独占告警级别(策略维度内该 level 不能再有其它算法)；
+            - NewSeries 每个维度生命周期只产生首次异常点，独占告警级别(策略维度内该 level 不能再有其它算法)；
             - 仅支持单 query_config；数据源限定为「时序」或「日志平台-日志关键字(BK_LOG_SEARCH/LOG)」；
             - 检测周期(detect_range)不能小于数据聚合周期(agg_interval)。
             """

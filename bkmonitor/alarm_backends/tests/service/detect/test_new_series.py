@@ -16,6 +16,7 @@ import pytest
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.storage import redis_cluster
+from alarm_backends.service.alert.manager.checker.recover import RecoverStatusChecker
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.new_series import NewSeries
 from bkmonitor.utils.common_utils import count_md5
@@ -92,13 +93,16 @@ def make_dp(fingerprint, timestamp, item, value=1, is_partial=False):
     return dp
 
 
-def default_config(detect_range=86400, effective_delay=86400, max_series=100000, threshold=0):
-    return {
+def default_config(detect_range=86400, effective_delay=86400, max_series=100000, threshold=0, alert_mode=None):
+    config = {
         "detect_range": detect_range,
         "effective_delay": effective_delay,
         "max_series": max_series,
         "threshold": threshold,
     }
+    if alert_mode is not None:
+        config["alert_mode"] = alert_mode
+    return config
 
 
 def signature(item):
@@ -130,6 +134,30 @@ def seen_score(item, fingerprint, threshold=0):
         )
         cache_key = key.NEW_SERIES_THRESHOLD_SEEN_KEY
     return cache_key.client.zscore(seen_key, fingerprint)
+
+
+def active_score(item, fingerprint, threshold=0, detect_range=86400, level=0):
+    active_key = NewSeries.active_state_key(
+        strategy_id=item.strategy.id,
+        item_id=item.id,
+        dimension_signature=signature(item),
+        threshold=threshold,
+        detect_range=detect_range,
+        level=level,
+    )
+    return key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, fingerprint)
+
+
+def active_count(item, threshold=0, detect_range=86400, level=0):
+    active_key = NewSeries.active_state_key(
+        strategy_id=item.strategy.id,
+        item_id=item.id,
+        dimension_signature=signature(item),
+        threshold=threshold,
+        detect_range=detect_range,
+        level=level,
+    )
+    return key.NEW_SERIES_ACTIVE_KEY.client.zcard(active_key)
 
 
 def baseline_done(item, threshold=0):
@@ -182,6 +210,10 @@ def use_fake_cache_router():
 
 def test_detector_serializer_preserves_nonzero_threshold():
     assert NewSeries(config=default_config(threshold=-2)).threshold == -2
+
+
+def test_detector_serializer_defaults_alert_mode_to_once():
+    assert NewSeries(config=default_config()).alert_mode == "once"
 
 
 def test_log_count_zero_bucket_does_not_alert_or_mark_seen():
@@ -536,6 +568,416 @@ class TestNewSeries:
         dp = make_dp("dimC", 100000000, item)
         detector.pre_detect([dp])
         assert len(detector.detect(dp)) == 1
+
+    def test_once_first_seen_does_not_create_active_state(self):
+        item = make_item()
+        seed_learned(item)
+        detector = NewSeries(config=default_config(detect_range=60, alert_mode="once"))
+        data_point = make_dp("once-new", 100000000, item)
+
+        detector.pre_detect([data_point])
+
+        assert len(detector.detect(data_point)) == 1
+        assert active_score(item, "once-new", detect_range=60) is None
+
+    def test_continuous_first_seen_alerts_and_marks_active(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        detector = NewSeries(config=config)
+        dp = make_dp("continuous-new", 100000000, item)
+
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            detector.pre_detect([dp])
+
+        assert len(detector.detect(dp)) == 1
+        assert int(active_score(item, "continuous-new", detect_range=60)) == 2000
+
+    def test_continuous_reappearance_renews_without_new_anomaly(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-active", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+        assert len(first_detector.detect(first)) == 1
+
+        item._new_series_cache = None
+        again = make_dp("continuous-active", 100000030, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2030):
+            next_detector = NewSeries(config=config)
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 0
+        assert int(active_score(item, "continuous-active", detect_range=60)) == 2030
+
+    def test_continuous_expired_member_renews_before_manager_claims_it(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-pending-expiration", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+
+        item._new_series_cache = None
+        again = make_dp("continuous-pending-expiration", 100000030, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2061):
+            next_detector = NewSeries(config=config)
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 0
+        assert int(active_score(item, "continuous-pending-expiration", detect_range=60)) == 2061
+
+    def test_continuous_expired_seen_state_renews_without_new_anomaly_until_manager_claims(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-expired", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+        assert len(first_detector.detect(first)) == 1
+
+        item._new_series_cache = None
+        again = make_dp("continuous-expired", 100000061, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2061):
+            next_detector = NewSeries(config=config)
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 0
+        assert int(active_score(item, "continuous-expired", detect_range=60)) == 2061
+
+    def test_continuous_reappears_after_manager_claims_as_new_lifecycle(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-claimed", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+        assert len(first_detector.detect(first)) == 1
+
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_ACTIVE_KEY.client.zrem(active_key, "continuous-claimed")
+
+        item._new_series_cache = None
+        again = make_dp("continuous-claimed", 100000061, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2061):
+            next_detector = NewSeries(config=config)
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 1
+        assert int(active_score(item, "continuous-claimed", detect_range=60)) == 2061
+
+    def test_manager_claim_between_detector_read_and_write_restarts_lifecycle(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-race", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+
+        item._new_series_cache = None
+        # 源数据相邻时间仍在 seen 窗口内；若丢失 active，后续常规点也不会靠 is_new 自动重建生命周期。
+        again = make_dp("continuous-race", 100000030, item)
+        next_detector = NewSeries(config=config)
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        original_read_active = next_detector._read_active
+
+        def read_then_manager_claim(*args, **kwargs):
+            result = original_read_active(*args, **kwargs)
+            key.NEW_SERIES_ACTIVE_KEY.client.zrem(active_key, "continuous-race")
+            return result
+
+        with (
+            mock.patch.object(NewSeries, "_observed_at", return_value=2061),
+            mock.patch.object(next_detector, "_read_active", side_effect=read_then_manager_claim),
+        ):
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 1
+        assert int(active_score(item, "continuous-race", detect_range=60)) == 2061
+
+    def test_manager_claim_before_detector_active_read_restarts_non_new_lifecycle(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-manager-first", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+
+        item._new_series_cache = None
+        again = make_dp("continuous-manager-first", 100000030, item)
+        next_detector = NewSeries(config=config)
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        claimed_key = NewSeries.claimed_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        original_read_active = next_detector._read_active
+        manager_claimed = False
+
+        def manager_claim_then_read(*args, **kwargs):
+            nonlocal manager_claimed
+            if not manager_claimed:
+                manager_claimed = True
+                assert (
+                    RecoverStatusChecker.claim_new_series_expiration(
+                        active_key,
+                        "continuous-manager-first",
+                        expire_before=2001,
+                        claimed_key=claimed_key,
+                        observed_at=2061,
+                        soft_ttl=NewSeries.active_soft_ttl(60),
+                        max_series=100000,
+                    )
+                    == RecoverStatusChecker.NEW_SERIES_EXPIRED
+                )
+            return original_read_active(*args, **kwargs)
+
+        with (
+            mock.patch.object(NewSeries, "_observed_at", return_value=2061),
+            mock.patch.object(next_detector, "_read_active", side_effect=manager_claim_then_read),
+        ):
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 1
+        assert int(active_score(item, "continuous-manager-first", detect_range=60)) == 2061
+        assert key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "continuous-manager-first") is None
+
+    def test_continuous_hot_active_key_trims_stale_members(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {"stale": -100000, "recent": 1990})
+        data_point = make_dp("continuous-new", 100000000, item)
+
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            detector = NewSeries(config=config)
+            detector.pre_detect([data_point])
+
+        assert active_score(item, "stale", detect_range=60) is None
+        assert int(active_score(item, "recent", detect_range=60)) == 1990
+        assert int(active_score(item, "continuous-new", detect_range=60)) == 2000
+
+    def test_continuous_ineligible_value_does_not_renew_active_state(self):
+        config = default_config(detect_range=60, threshold=10, alert_mode="continuous")
+        item = make_item(ns_configs=[config])
+        seed_baseline(item, 10)
+        first = make_dp("continuous-threshold", 100000000, item, value=11)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+        assert len(first_detector.detect(first)) == 1
+
+        item._new_series_cache = None
+        below = make_dp("continuous-threshold", 100000030, item, value=10)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2030):
+            next_detector = NewSeries(config=config)
+            next_detector.pre_detect([below])
+
+        assert len(next_detector.detect(below)) == 0
+        assert int(active_score(item, "continuous-threshold", threshold=10, detect_range=60)) == 2000
+
+    def test_continuous_partial_batch_does_not_renew_active_state(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-partial", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+
+        item._new_series_cache = None
+        partial = make_dp("continuous-partial", 100000030, item, is_partial=True)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2030):
+            next_detector = NewSeries(config=config)
+            next_detector.pre_detect([partial])
+
+        assert len(next_detector.detect(partial)) == 0
+        assert int(active_score(item, "continuous-partial", detect_range=60)) == 2000
+
+    def test_continuous_active_read_failure_renews_existing_members_only(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-read-failure", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+
+        item._new_series_cache = None
+        again = make_dp("continuous-read-failure", 100000030, item)
+        unrelated = make_dp("seen-without-alert", 100000030, item)
+        seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+        )
+        key.NEW_SERIES_SEEN_KEY.client.zadd(seen_key, {"seen-without-alert": 100000000})
+        next_detector = NewSeries(config=config)
+        with (
+            mock.patch.object(NewSeries, "_observed_at", return_value=2030),
+            mock.patch.object(next_detector, "_read_active", side_effect=RuntimeError("redis timeout")),
+        ):
+            next_detector.pre_detect([again, unrelated])
+
+        assert len(next_detector.detect(again)) == 0
+        assert len(next_detector.detect(unrelated)) == 0
+        assert int(active_score(item, "continuous-read-failure", detect_range=60)) == 2030
+        assert active_score(item, "seen-without-alert", detect_range=60) is None
+
+    def test_continuous_active_state_is_bounded_across_batches_and_existing_member_still_renews(self):
+        config = default_config(detect_range=60, max_series=2, alert_mode="continuous")
+        item = make_item(ns_configs=[config])
+        seed_learned(item)
+
+        for index, fingerprint in enumerate(("active-a", "active-b", "active-c")):
+            item._new_series_cache = None
+            data_point = make_dp(fingerprint, 100000000 + index * 10, item)
+            with mock.patch.object(NewSeries, "_observed_at", return_value=2000 + index * 10):
+                detector = NewSeries(config=config)
+                detector.pre_detect([data_point])
+            assert len(detector.detect(data_point)) == 1
+
+        assert active_count(item, detect_range=60) == 2
+        assert active_score(item, "active-c", detect_range=60) is None
+
+        item._new_series_cache = None
+        again = make_dp("active-a", 100000030, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2030):
+            detector = NewSeries(config=config)
+            detector.pre_detect([again])
+
+        assert len(detector.detect(again)) == 0
+        assert int(active_score(item, "active-a", detect_range=60)) == 2030
+        assert active_count(item, detect_range=60) == 2
+
+    def test_continuous_active_state_converges_when_max_series_is_lowered(self):
+        config = default_config(detect_range=60, max_series=2, alert_mode="continuous")
+        item = make_item(ns_configs=[config])
+        seed_learned(item)
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {"active-a": 1990, "active-b": 1980, "active-c": 1995})
+        seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+        )
+        key.NEW_SERIES_SEEN_KEY.client.zadd(seen_key, {"active-a": 100000000})
+        again = make_dp("active-a", 100000030, item)
+
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            detector = NewSeries(config=config)
+            detector.pre_detect([again])
+
+        assert len(detector.detect(again)) == 0
+        assert active_count(item, detect_range=60) == 2
+        assert int(active_score(item, "active-a", detect_range=60)) == 2000
+        assert active_score(item, "active-b", detect_range=60) is None
+        assert int(active_score(item, "active-c", detect_range=60)) == 1995
+
+    def test_continuous_claimed_state_converges_when_max_series_is_lowered(self):
+        config = default_config(detect_range=60, max_series=2, alert_mode="continuous")
+        item = make_item(ns_configs=[config])
+        seed_learned(item)
+        claimed_key = NewSeries.claimed_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_CLAIMED_KEY.client.zadd(
+            claimed_key,
+            {"claimed-a": 1980, "claimed-b": 1990, "claimed-c": 1995},
+        )
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {"active": 1990})
+        seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+        )
+        key.NEW_SERIES_SEEN_KEY.client.zadd(seen_key, {"active": 100000000})
+        again = make_dp("active", 100000030, item)
+
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            detector = NewSeries(config=config)
+            detector.pre_detect([again])
+
+        assert len(detector.detect(again)) == 0
+        assert key.NEW_SERIES_CLAIMED_KEY.client.zcard(claimed_key) == 2
+        assert key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "claimed-a") is None
+
+    def test_active_state_key_is_isolated_by_level(self):
+        params = {
+            "strategy_id": 1,
+            "item_id": 2,
+            "dimension_signature": "signature",
+            "threshold": 0,
+            "detect_range": 60,
+        }
+
+        assert NewSeries.active_state_key(**params, level=1) != NewSeries.active_state_key(**params, level=2)
+        assert NewSeries.claimed_state_key(**params, level=1) != NewSeries.claimed_state_key(**params, level=2)
+
+    def test_continuous_active_write_failure_keeps_first_anomaly(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        detector = NewSeries(config=config)
+        dp = make_dp("continuous-write-failure", 100000000, item)
+
+        with mock.patch.object(detector, "_write_active", side_effect=RuntimeError("redis timeout")):
+            detector.pre_detect([dp])
+
+        assert len(detector.detect(dp)) == 1
+        assert active_score(item, "continuous-write-failure", detect_range=60) is None
 
     def test_b1_cold_start_warmup_no_alert_but_learns(self):
         item = make_item()
