@@ -49,6 +49,7 @@ import {
   type MetricDetail,
   DetectionRuleTypeEnum,
 } from '../typings/index';
+import { isAutoAlertLevelRule } from './alert-level';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
 import RulesSelect from './rules-select';
 
@@ -268,10 +269,16 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       obj.disabledTip = '';
     }
     const uptimeItem = this.uptimeCheckMap?.[this.uptimeCheckType];
+    const hasAutoAlertLevel = this.addType.some(item => isAutoAlertLevelRule(item.data));
     // 是否已选择离群算法
     // const hasAbnormalCluster = this.addType.some(item => item.id === DetectionRuleTypeEnum.AbnormalCluster);
     const list = this.detectionTypeList.map(item => {
       item.disabled = item.id === DetectionRuleTypeEnum.PartialNodes;
+
+      if (hasAutoAlertLevel && item.id !== DetectionRuleTypeEnum.IntelligentDetect) {
+        item.disabled = true;
+        item.disabledTip = this.$tc('自动告警等级仅支持单个智能异常检测算法');
+      }
 
       // 聚合方法为实时 只能选择静态阈值
       if (this.aggMethod === 'REAL_TIME') {
@@ -598,6 +605,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 index={index}
                 is-edit={this.isEdit}
                 is-realtime={this.isRealtime}
+                isKpiAnomalySdkEnabled={this.isKpiAnomalySdkEnabled}
                 metricData={this.metricData}
                 readonly={this.readonly}
                 resultTableId={this.metricData[0]?.intelligent_detect?.result_table_id}

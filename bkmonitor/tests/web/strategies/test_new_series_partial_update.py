@@ -83,6 +83,7 @@ def test_partial_update_inherits_existing_auto_level_mode_before_validation():
 
     def inherit_auto_mode():
         item.algorithms[0].config["alert_level_mode"] = "auto"
+        item.algorithms[0].config["alert_levels"] = [1, 2, 3]
 
     strategy.inherit_dynamic_alert_level_mode.side_effect = inherit_auto_mode
     strategy.to_dict.side_effect = lambda: {

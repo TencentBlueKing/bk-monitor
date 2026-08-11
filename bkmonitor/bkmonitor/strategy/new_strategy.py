@@ -1086,12 +1086,10 @@ class Algorithm(AbstractConfig):
         serializer_class = self.Serializer.AlgorithmSerializers.get(self.type)
         merged_config = copy.deepcopy(self.config)
 
-        if (
-            self.type == AlgorithmModel.AlgorithmChoices.IntelligentDetect
-            and "alert_level_mode" not in self.config
-            and "alert_level_mode" in algorithm.config
-        ):
-            merged_config["alert_level_mode"] = algorithm.config["alert_level_mode"]
+        if self.type == AlgorithmModel.AlgorithmChoices.IntelligentDetect and "alert_level_mode" not in self.config:
+            for field_name in ("alert_level_mode", "alert_levels"):
+                if field_name in algorithm.config:
+                    merged_config[field_name] = copy.deepcopy(algorithm.config[field_name])
 
         if isinstance(algorithm.config.get("args"), Mapping) and isinstance(self.config.get("args"), Mapping):
             merged_config["args"] = {**copy.deepcopy(algorithm.config["args"]), **copy.deepcopy(self.config["args"])}
@@ -1949,13 +1947,29 @@ class Strategy(AbstractConfig):
         def validate_dynamic_alert_level(attrs):
             """校验单指标智能异常检测的自动告警等级组合。"""
             items = attrs.get("items") or []
-            auto_algorithms = [
-                algorithm
-                for item in items
-                for algorithm in item.get("algorithms") or []
-                if isinstance(algorithm.get("config"), Mapping)
-                and algorithm["config"].get("alert_level_mode") == "auto"
-            ]
+            auto_algorithms = []
+            for item in items:
+                for algorithm in item.get("algorithms") or []:
+                    config = algorithm.get("config")
+                    if not isinstance(config, Mapping):
+                        continue
+                    if config.get("alert_level_mode") == "auto":
+                        alert_levels = config.get("alert_levels")
+                        if not (
+                            isinstance(alert_levels, list)
+                            and alert_levels
+                            and all(
+                                type(alert_level) is int and alert_level in {1, 2, 3} for alert_level in alert_levels
+                            )
+                            and len(alert_levels) == len(set(alert_levels))
+                        ):
+                            raise ValidationError(detail=_("自动告警等级必须配置不重复的输出级别范围"))
+                        auto_algorithms.append(algorithm)
+                    elif (
+                        algorithm.get("type") == AlgorithmModel.AlgorithmChoices.IntelligentDetect
+                        and "alert_levels" in config
+                    ):
+                        raise ValidationError(detail=_("仅自动告警等级支持配置输出级别范围"))
             if not auto_algorithms:
                 return
 
@@ -2691,7 +2705,7 @@ class Strategy(AbstractConfig):
             IssueConfig.delete(self.id)
 
     def inherit_dynamic_alert_level_mode(self):
-        """兼容旧客户端：更新时省略模式字段则继承已有自动级别配置。"""
+        """局部更新省略动态等级字段时，继承已有自动级别配置。"""
         if self.id <= 0:
             return
 
@@ -2727,6 +2741,9 @@ class Strategy(AbstractConfig):
             raise ValidationError(detail=_("已有自动告警等级仅可通过显式选择手动级别退出"))
         if "alert_level_mode" not in algorithm.config:
             algorithm.config["alert_level_mode"] = "auto"
+            if "alert_levels" not in existing_algorithm.config:
+                raise ValidationError(detail=_("已有自动告警等级配置异常，请先修复策略配置"))
+            algorithm.config["alert_levels"] = copy.deepcopy(existing_algorithm.config["alert_levels"])
 
     @transaction.atomic
     def save_actions(self):

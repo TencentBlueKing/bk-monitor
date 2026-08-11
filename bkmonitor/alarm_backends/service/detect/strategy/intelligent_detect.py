@@ -91,19 +91,35 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
 
     def detect_records(self, data_points, level):
         anomaly_points = super().detect_records(data_points, level)
-        if not anomaly_points or self.validated_config.get("alert_level_mode", "manual") != self.AUTO_ALERT_LEVEL_MODE:
+        if not data_points:
             return anomaly_points
 
-        query_config = anomaly_points[0].data_point.item.query_configs[0]
+        query_config = data_points[0].item.query_configs[0]
         if (query_config.get("intelligent_detect") or {}).get("use_sdk") is not True:
             return anomaly_points
 
+        mode = self.validated_config.get("alert_level_mode", "manual")
+        try:
+            self._report_feature_metrics(mode, len(data_points), len(anomaly_points))
+        except Exception as error:
+            item = data_points[0].item
+            logger.warning(
+                "strategy(%s) report dynamic alert level coverage failed: %s",
+                item.strategy.id,
+                error.__class__.__name__,
+            )
+
+        if not anomaly_points or mode != self.AUTO_ALERT_LEVEL_MODE:
+            return anomaly_points
+
+        batch_started_at = time.monotonic()
         for anomaly_point in anomaly_points:
             self._set_fallback(anomaly_point, "request_failed")
 
         item = anomaly_points[0].data_point.item
+        request_count = 0
         try:
-            self.apply_auto_alert_level(anomaly_points)
+            request_count = self.apply_auto_alert_level(anomaly_points)
         except Exception as error:
             # SAS 是 KPI 的增量下游，任何异常都不能丢弃已经确认的 KPI 异常点
             logger.warning(
@@ -114,7 +130,7 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
             )
         finally:
             try:
-                self._report_sas_metrics(anomaly_points)
+                self._report_sas_metrics(anomaly_points, request_count, time.monotonic() - batch_started_at)
             except Exception as error:
                 logger.warning("strategy(%s) report SAS metrics failed: %s", item.strategy.id, error.__class__.__name__)
         return anomaly_points
@@ -146,6 +162,20 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
         if score >= float(warning_threshold):
             return 2
         return 3
+
+    @staticmethod
+    def project_alert_level(raw_alert_level, alert_levels):
+        if type(raw_alert_level) is not int or raw_alert_level not in {1, 2, 3}:
+            raise ValueError("invalid_alert_level")
+        if not (
+            isinstance(alert_levels, list)
+            and alert_levels
+            and all(type(alert_level) is int and alert_level in {1, 2, 3} for alert_level in alert_levels)
+            and len(alert_levels) == len(set(alert_levels))
+        ):
+            raise ValueError("invalid_alert_levels")
+        # 数字越小等级越严重；距离相同时选择更严重的等级。
+        return min(alert_levels, key=lambda alert_level: (abs(alert_level - raw_alert_level), alert_level))
 
     @staticmethod
     def _set_alert_level_message(anomaly_point, message):
@@ -209,7 +239,8 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
 
             score = matched_results[0].get("severity_score")
             try:
-                alert_level = self.score_to_alert_level(score)
+                raw_alert_level = self.score_to_alert_level(score)
+                alert_level = self.project_alert_level(raw_alert_level, self.validated_config.get("alert_levels"))
             except ValueError as error:
                 self._set_fallback(anomaly_point, str(error))
                 continue
@@ -218,23 +249,68 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 anomaly_point,
                 {
                     "alert_level": alert_level,
+                    "raw_alert_level": raw_alert_level,
                     "severity_score": float(score),
                     "status": "success",
                 },
             )
 
-    def _report_sas_metrics(self, anomaly_points):
+    @staticmethod
+    def _get_alert_level_message(anomaly_point):
+        try:
+            extra_info = json.loads(anomaly_point.data_point.values["extra_info"])
+            message = extra_info.get("alert_level_msg")
+            return message if isinstance(message, dict) else {}
+        except (KeyError, TypeError, ValueError):
+            return {}
+
+    @classmethod
+    def _summarize_status(cls, anomaly_points):
+        statuses = [cls._get_alert_level_message(point).get("status") for point in anomaly_points]
+        success_count = statuses.count("success")
+        if statuses and success_count == len(statuses):
+            return "success"
+        if success_count:
+            return "partial"
+        return "fallback"
+
+    @staticmethod
+    def _report_feature_metrics(mode, input_point_count, anomaly_point_count):
+        metrics.AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT.labels(mode=mode, stage="input").inc(input_point_count)
+        metrics.AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT.labels(mode=mode, stage="anomaly").inc(anomaly_point_count)
+
+    @classmethod
+    def _report_sas_request_metrics(cls, anomaly_points, latency):
+        status = cls._summarize_status(anomaly_points)
+        metrics.AIOPS_SAS_REQUEST_COUNT.labels(status=status).inc()
+        metrics.AIOPS_SAS_REQUEST_LATENCY.labels(status=status).observe(latency)
+        metrics.AIOPS_SAS_REQUEST_POINT_COUNT.observe(len(anomaly_points))
+
+    def _report_sas_metrics(self, anomaly_points, request_count, batch_latency):
         result_counter = Counter()
         for anomaly_point in anomaly_points:
-            extra_info = json.loads(anomaly_point.data_point.values["extra_info"])
-            message = extra_info["alert_level_msg"]
-            result_counter[message["status"]] += 1
-            metrics.AIOPS_SAS_ALERT_LEVEL_COUNT.labels(alert_level=str(message["alert_level"])).inc()
-            if message["status"] == "fallback":
+            message = self._get_alert_level_message(anomaly_point)
+            status = message.get("status", "fallback")
+            result_counter[status] += 1
+            source = "sas" if status == "success" else "fallback"
+            metrics.AIOPS_SAS_ALERT_LEVEL_COUNT.labels(
+                source=source, alert_level=str(message.get("alert_level", self.DEFAULT_ALERT_LEVEL))
+            ).inc()
+            if status == "success":
+                metrics.AIOPS_SAS_ALERT_LEVEL_PROJECTION_COUNT.labels(
+                    raw_alert_level=str(message["raw_alert_level"]), alert_level=str(message["alert_level"])
+                ).inc()
+            else:
                 metrics.AIOPS_SAS_FALLBACK_COUNT.labels(reason=message["reason"]).inc()
 
         for status, count in result_counter.items():
             metrics.AIOPS_SAS_RESULT_COUNT.labels(status=status).inc(count)
+
+        batch_status = self._summarize_status(anomaly_points)
+        metrics.AIOPS_SAS_BATCH_COUNT.labels(status=batch_status).inc()
+        metrics.AIOPS_SAS_BATCH_LATENCY.labels(status=batch_status).observe(batch_latency)
+        metrics.AIOPS_SAS_BATCH_POINT_COUNT.observe(len(anomaly_points))
+        metrics.AIOPS_SAS_BATCH_REQUEST_COUNT.observe(request_count)
 
     def apply_auto_alert_level(self, anomaly_points):
         item = anomaly_points[0].data_point.item
@@ -281,11 +357,14 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 except Exception as error:
                     logger.warning("strategy(%s) SAS predict failed: %s", item.strategy.id, error.__class__.__name__)
                 try:
-                    metrics.AIOPS_SAS_REQUEST_LATENCY.observe(time.monotonic() - started_at)
+                    self._report_sas_request_metrics(group_points, time.monotonic() - started_at)
                 except Exception as error:
                     logger.warning(
-                        "strategy(%s) report SAS latency failed: %s", item.strategy.id, error.__class__.__name__
+                        "strategy(%s) report SAS request metrics failed: %s",
+                        item.strategy.id,
+                        error.__class__.__name__,
                     )
+        return len(future_groups)
 
     def extra_context(self, context):
         values = getattr(context.data_point, "values", {})

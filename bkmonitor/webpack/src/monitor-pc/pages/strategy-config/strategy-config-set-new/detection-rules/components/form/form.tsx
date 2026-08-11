@@ -204,6 +204,7 @@ export default class Form extends tsc<IProps, IEvents> {
               {formItem.options.map(opt => (
                 <bk-option
                   id={opt.id}
+                  key={opt.id}
                   name={opt.name}
                 />
               ))}
@@ -227,6 +228,7 @@ export default class Form extends tsc<IProps, IEvents> {
                 return (
                   <bk-option
                     id={opt.id}
+                    key={opt.id}
                     name={opt.name}
                   >
                     {
@@ -255,7 +257,10 @@ export default class Form extends tsc<IProps, IEvents> {
                         >
                           <table class='ai-ops-form type-tooltips-content'>
                             {tooltipsListItem.map(item => (
-                              <tr class={['ai-ops-form-item type-tooltips-item', { 'is-error': item.error }]}>
+                              <tr
+                                key={item.label}
+                                class={['ai-ops-form-item type-tooltips-item', { 'is-error': item.error }]}
+                              >
                                 <td class='form-item-label type-tooltips-item-label'>
                                   <span class='td-content'>
                                     {item.error && <span class='icon-monitor icon-mind-fill' />}
@@ -396,6 +401,7 @@ export default class Form extends tsc<IProps, IEvents> {
           return (
             <AiLevelSelect
               v-model={formItem.value}
+              autoEnabled={formItem.autoEnabled}
               disabled={this.readonly}
               onChange={this.formValueChange}
             />
@@ -414,6 +420,7 @@ export default class Form extends tsc<IProps, IEvents> {
       >
         {this.formItemList.map(formItem => (
           <bk-form-item
+            key={formItem.field}
             error-display-type={formItem.errorDisplayType}
             label={`${formItem.label} : `}
             property={formItem.field}

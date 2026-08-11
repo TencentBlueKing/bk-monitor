@@ -34,6 +34,7 @@ export enum EFormItemValueType {
 }
 
 export interface IFormDataItem {
+  autoEnabled?: boolean;
   behavior?: IBehavior;
   boundType?: BoundType; // 告警阈值类型
   clearable?: boolean;
@@ -157,6 +158,7 @@ export class FormItem {
         return localValue;
     }
   } // 提交字段
+  autoEnabled?: boolean;
   behavior?: IBehavior; // 值
   boundType?: BoundType; // 默认值
   clearable?: boolean; // 表单组件类型
@@ -199,6 +201,7 @@ export class FormItem {
    */
   constructor(data: IFormDataItem) {
     if (data) {
+      this.autoEnabled = data.autoEnabled ?? false;
       this.label = data.label ?? '';
       this.field = data.field ?? '';
       this.value = data.value ?? '';

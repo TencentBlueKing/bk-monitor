@@ -391,7 +391,51 @@ AIOPS_PRE_DETECT_LATENCY = Gauge(
 AIOPS_SAS_REQUEST_LATENCY = Histogram(
     name="bkmonitor_aiops_sas_request_latency",
     documentation="SAS 异常等级评分请求耗时",
-    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, INF),
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_REQUEST_COUNT = Counter(
+    name="bkmonitor_aiops_sas_request_count_total",
+    documentation="SAS 异常等级评分请求统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_REQUEST_POINT_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_request_point_count",
+    documentation="单次 SAS 异常等级评分请求包含的异常点数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_BATCH_COUNT = Counter(
+    name="bkmonitor_aiops_sas_batch_count_total",
+    documentation="SAS 动态告警等级处理批次统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_BATCH_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_batch_latency",
+    documentation="SAS 动态告警等级处理批次耗时",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_BATCH_POINT_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_batch_point_count",
+    documentation="单个 SAS 动态告警等级处理批次包含的异常点数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_BATCH_REQUEST_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_batch_request_count",
+    documentation="单个 SAS 动态告警等级处理批次发起的请求数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT = Counter(
+    name="bkmonitor_aiops_dynamic_alert_level_point_count_total",
+    documentation="智能异常检测动态告警等级功能覆盖点数",
+    labelnames=("mode", "stage"),
 )
 
 AIOPS_SAS_RESULT_COUNT = Counter(
@@ -409,7 +453,13 @@ AIOPS_SAS_FALLBACK_COUNT = Counter(
 AIOPS_SAS_ALERT_LEVEL_COUNT = Counter(
     name="bkmonitor_aiops_sas_alert_level_count_total",
     documentation="SAS 动态告警等级分布",
-    labelnames=("alert_level",),
+    labelnames=("source", "alert_level"),
+)
+
+AIOPS_SAS_ALERT_LEVEL_PROJECTION_COUNT = Counter(
+    name="bkmonitor_aiops_sas_alert_level_projection_count_total",
+    documentation="SAS 原始告警等级到允许输出等级的投影统计",
+    labelnames=("raw_alert_level", "alert_level"),
 )
 
 TRIGGER_PROCESS_LATENCY = Histogram(

@@ -28,7 +28,7 @@ def make_strategy_config():
                     {
                         "type": "IntelligentDetect",
                         "level": 2,
-                        "config": {"alert_level_mode": "auto"},
+                        "config": {"alert_level_mode": "auto", "alert_levels": [1, 2, 3]},
                     }
                 ],
             }
@@ -52,15 +52,40 @@ def test_intelligent_detect_auto_mode_is_preserved_by_serializer():
             "plan_id": 1,
             "visual_type": "score",
             "alert_level_mode": "auto",
+            "alert_levels": [3, 1],
         }
     )
 
     serializer.is_valid(raise_exception=True)
 
     assert serializer.validated_data["alert_level_mode"] == "auto"
+    assert serializer.validated_data["alert_levels"] == [1, 3]
 
 
-def test_existing_auto_mode_is_preserved_when_old_client_omits_field():
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"alert_level_mode": "auto"},
+        {"alert_level_mode": "auto", "alert_levels": []},
+        {"alert_level_mode": "auto", "alert_levels": [1, 1]},
+        {"alert_level_mode": "auto", "alert_levels": [0]},
+        {"alert_level_mode": "auto", "alert_levels": [True]},
+        {"alert_level_mode": "auto", "alert_levels": [1.0]},
+        {"alert_level_mode": "auto", "alert_levels": ["1"]},
+        {"alert_level_mode": "manual", "alert_levels": [1]},
+        {"alert_levels": [1]},
+    ],
+)
+def test_invalid_alert_level_ranges_are_rejected_by_serializer(data):
+    serializer = IntelligentDetectSerializer(
+        data={"args": {"$sensitivity": 5}, "plan_id": 1, "visual_type": "score", **data}
+    )
+
+    with pytest.raises(ValidationError):
+        serializer.is_valid(raise_exception=True)
+
+
+def test_auto_level_config_is_preserved_when_partial_update_omits_fields():
     algorithm = Algorithm(
         strategy_id=101,
         item_id=1,
@@ -70,12 +95,18 @@ def test_existing_auto_mode_is_preserved_when_old_client_omits_field():
     )
     model = SimpleNamespace(
         type="IntelligentDetect",
-        config={"args": {"$sensitivity": 5}, "plan_id": 1, "alert_level_mode": "auto"},
+        config={
+            "args": {"$sensitivity": 5},
+            "plan_id": 1,
+            "alert_level_mode": "auto",
+            "alert_levels": [1, 3],
+        },
     )
 
     merged = algorithm._merge_with_db_config(model)
 
     assert merged["alert_level_mode"] == "auto"
+    assert merged["alert_levels"] == [1, 3]
 
 
 def test_explicit_manual_mode_replaces_existing_auto_mode():
@@ -96,17 +127,18 @@ def test_explicit_manual_mode_replaces_existing_auto_mode():
     assert merged["alert_level_mode"] == "manual"
 
 
-def test_strategy_inherits_existing_auto_mode_before_effective_config_validation(monkeypatch):
+def test_strategy_inherits_auto_level_config_before_partial_update_validation(monkeypatch):
     current_algorithm = SimpleNamespace(id=0, type="IntelligentDetect", config={})
     strategy = Strategy.__new__(Strategy)
     strategy._id = 101
     strategy.items = [SimpleNamespace(algorithms=[current_algorithm])]
-    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto"})
+    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto", "alert_levels": [2, 3]})
     monkeypatch.setattr(AlgorithmModel.objects, "filter", lambda **_kwargs: [existing_algorithm])
 
     strategy.inherit_dynamic_alert_level_mode()
 
     assert current_algorithm.config["alert_level_mode"] == "auto"
+    assert current_algorithm.config["alert_levels"] == [2, 3]
 
 
 def test_strategy_allows_explicit_manual_mode_to_exit_existing_auto(monkeypatch):
@@ -114,7 +146,7 @@ def test_strategy_allows_explicit_manual_mode_to_exit_existing_auto(monkeypatch)
     strategy = Strategy.__new__(Strategy)
     strategy._id = 101
     strategy.items = [SimpleNamespace(algorithms=[current_algorithm])]
-    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto"})
+    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto", "alert_levels": [1, 2, 3]})
     monkeypatch.setattr(AlgorithmModel.objects, "filter", lambda **_kwargs: [existing_algorithm])
 
     strategy.inherit_dynamic_alert_level_mode()
@@ -127,7 +159,7 @@ def test_existing_auto_mode_rejects_algorithm_type_replacement_without_manual(mo
     strategy = Strategy.__new__(Strategy)
     strategy._id = 101
     strategy.items = [SimpleNamespace(algorithms=[current_algorithm])]
-    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto"})
+    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto", "alert_levels": [1, 2, 3]})
     monkeypatch.setattr(AlgorithmModel.objects, "filter", lambda **_kwargs: [existing_algorithm])
 
     with pytest.raises(ValidationError):
@@ -142,7 +174,7 @@ def test_existing_auto_mode_rejects_ambiguous_duplicate_algorithms_without_mode(
     strategy = Strategy.__new__(Strategy)
     strategy._id = 101
     strategy.items = [SimpleNamespace(algorithms=current_algorithms)]
-    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto"})
+    existing_algorithm = SimpleNamespace(id=11, config={"alert_level_mode": "auto", "alert_levels": [1, 2, 3]})
     monkeypatch.setattr(AlgorithmModel.objects, "filter", lambda **_kwargs: [existing_algorithm])
 
     with pytest.raises(ValidationError):
@@ -175,9 +207,33 @@ def test_invalid_auto_level_contract_is_rejected(mutate):
         Strategy.Serializer.validate_dynamic_alert_level(config)
 
 
+@pytest.mark.parametrize(
+    "alert_levels",
+    [None, [], [1, 1], [0], [4], [True], "1,2"],
+)
+def test_invalid_auto_alert_level_range_is_rejected_by_strategy_contract(alert_levels):
+    config = make_strategy_config()
+    if alert_levels is None:
+        config["items"][0]["algorithms"][0]["config"].pop("alert_levels")
+    else:
+        config["items"][0]["algorithms"][0]["config"]["alert_levels"] = alert_levels
+
+    with pytest.raises(ValidationError):
+        Strategy.Serializer.validate_dynamic_alert_level(config)
+
+
 def test_manual_strategy_is_not_restricted_by_auto_contract():
     config = make_strategy_config()
     config["items"][0]["algorithms"][0]["config"]["alert_level_mode"] = "manual"
+    config["items"][0]["algorithms"][0]["config"].pop("alert_levels")
     config["items"].append(copy.deepcopy(config["items"][0]))
 
     Strategy.Serializer.validate_dynamic_alert_level(config)
+
+
+def test_manual_strategy_rejects_auto_alert_level_range():
+    config = make_strategy_config()
+    config["items"][0]["algorithms"][0]["config"]["alert_level_mode"] = "manual"
+
+    with pytest.raises(ValidationError):
+        Strategy.Serializer.validate_dynamic_alert_level(config)
