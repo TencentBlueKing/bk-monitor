@@ -17,6 +17,7 @@ from apps.iam.backends.v4.exceptions import (
     V4TimeoutError,
     V4TransportError,
 )
+from apps.iam.error_summary import sanitize_error_summary
 
 logger = logging.getLogger("iam.v4.client")
 
@@ -117,7 +118,41 @@ class V4Client:
             raise V4ResponseError("IAM V4 apply response missing url")
         return str(url)
 
-    def _request(self, method: str, path: str, *, body: dict | list | None = None) -> Any:
+    def add_authorization(self, *, items: list[dict[str, Any]], operator: str) -> None:
+        """为主体新增 Role 授权。
+
+        IAM V4 当前契约单次最多接收 20 个授权项，每项最多 20 个资源，
+        并以 HTTP 201 空响应表示成功。
+        """
+        normalized_operator = str(operator or "").strip()
+        if not normalized_operator:
+            raise ValueError("IAM V4 authorization requires a non-empty operator")
+        if not 1 <= len(items) <= 20:
+            raise ValueError("IAM V4 authorization items must contain 1 to 20 entries")
+        for item in items:
+            resources = item.get("resources") if isinstance(item, dict) else None
+            if not isinstance(resources, list) or not 1 <= len(resources) <= 20:
+                raise ValueError("each IAM V4 authorization item must contain 1 to 20 resources")
+
+        result = self._request(
+            "POST",
+            self.options.add_authorization_path.format(system_id=self.options.system_id),
+            body=items,
+            extra_headers={"X-Bkiam-Operator": normalized_operator},
+            expected_statuses={HTTPStatus.CREATED},
+        )
+        if result is not None:
+            raise V4ResponseError("IAM V4 add-authorization response must be empty")
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        body: dict | list | None = None,
+        extra_headers: dict[str, str] | None = None,
+        expected_statuses: set[int] | None = None,
+    ) -> Any:
         if not self.options.gateway_url:
             logger.error("IAM V4 gateway is not configured; set BKAPP_IAM_V4_API_BASE_URL to the bkiam APIGateway root")
             raise V4TransportError("IAM V4 gateway is not configured (BKAPP_IAM_V4_API_BASE_URL)")
@@ -137,6 +172,7 @@ class V4Client:
             ),
             "X-Bk-Tenant-Id": tenant_id,
         }
+        headers.update(extra_headers or {})
         try:
             response = requests.request(
                 method=method,
@@ -153,7 +189,12 @@ class V4Client:
         if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             raise V4RateLimitError("IAM V4 rate limited", status_code=response.status_code)
 
-        if not (HTTPStatus.OK <= response.status_code < HTTPStatus.MULTIPLE_CHOICES):
+        status_is_expected = (
+            response.status_code in expected_statuses
+            if expected_statuses is not None
+            else HTTPStatus.OK <= response.status_code < HTTPStatus.MULTIPLE_CHOICES
+        )
+        if not status_is_expected:
             reason = self._extract_error_reason(response)
             raise V4ClientError(
                 reason or f"IAM V4 HTTP {response.status_code}",
@@ -273,10 +314,10 @@ class V4Client:
         try:
             payload = response.json()
         except ValueError:
-            return response.text
+            return sanitize_error_summary(response.text)
         if isinstance(payload, dict):
             error = payload.get("error")
             if isinstance(error, dict):
-                return str(error.get("message") or error.get("code") or "")
-            return str(payload.get("message") or "")
-        return response.text
+                return sanitize_error_summary(error.get("message") or error.get("code") or "")
+            return sanitize_error_summary(payload.get("message") or "")
+        return sanitize_error_summary(response.text)

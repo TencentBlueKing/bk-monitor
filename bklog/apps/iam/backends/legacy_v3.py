@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from iam import Action, MultiActionRequest, Request, Resource, Subject
 from iam.exceptions import AuthAPIError
 
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, to_definition_id
 from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
 from apps.iam.iam_engine.provider.base import PermissionProvider
+from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+
+
+class LegacyV3GrantError(RuntimeError):
+    """IAM V3 授权接口以 false 返回值表示的明确失败。"""
 
 
 class LegacyV3Adapter(PermissionProvider):
@@ -101,3 +109,26 @@ class LegacyV3Adapter(PermissionProvider):
             str(resource.id),
             attributes,
         )
+
+
+class LegacyV3AuthorizationWriter:
+    """把 V3 SDK 的返回值归一为可被状态机识别的授权 Writer。"""
+
+    def __init__(self, iam_client) -> None:
+        self.iam_client = iam_client
+
+    def prepare_resource_creator_actions(
+        self, application: Mapping[str, Any], *, expired_at: int | None = None
+    ) -> PreparedAuthorizationGrant:
+        del expired_at
+        return PreparedAuthorizationGrant(payload=dict(application))
+
+    def grant_prepared(self, grant: PreparedAuthorizationGrant) -> Any:
+        result = self.iam_client.grant_resource_creator_actions(dict(grant.payload))
+        if isinstance(result, tuple) and result and result[0] is False:
+            message = str(result[1]) if len(result) > 1 else "IAM V3 creator grant failed"
+            raise LegacyV3GrantError(message)
+        return result
+
+    def grant_resource_creator_actions(self, application: Mapping[str, Any]) -> Any:
+        return self.grant_prepared(self.prepare_resource_creator_actions(application))

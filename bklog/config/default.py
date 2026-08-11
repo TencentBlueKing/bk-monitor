@@ -244,6 +244,7 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
+    "apps.iam.tasks.compensation",
 )
 
 if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
@@ -458,6 +459,17 @@ BK_IAM_V4_AUTH_TOKEN_PATH = os.getenv(
     "api/v1/open/rbac/model/systems/{system_id}/auth-token/",
 )
 BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS = os.getenv("BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS", "300")
+BK_IAM_V4_ADD_AUTHORIZATION_PATH = os.getenv(
+    "BKAPP_IAM_V4_ADD_AUTHORIZATION_PATH",
+    "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/",
+)
+BK_IAM_V4_GRANT_EXPIRE_DAYS = max(1, min(int(os.getenv("BK_IAM_V4_GRANT_EXPIRE_DAYS", "365")), 365))
+BK_IAM_GRANT_MAX_ATTEMPTS = max(1, int(os.getenv("BK_IAM_GRANT_MAX_ATTEMPTS", "12")))
+BK_IAM_GRANT_LEASE_SECONDS = max(30, int(os.getenv("BK_IAM_GRANT_LEASE_SECONDS", "120")))
+BK_IAM_GRANT_COMPENSATION_BATCH_SIZE = max(
+    1,
+    min(int(os.getenv("BK_IAM_GRANT_COMPENSATION_BATCH_SIZE", "100")), 1000),
+)
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"

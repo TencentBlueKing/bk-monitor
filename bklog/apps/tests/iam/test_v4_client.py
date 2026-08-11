@@ -197,6 +197,26 @@ class V4ClientTest(SimpleTestCase):
             self.client.direct_auth(subject={"type": "user", "id": "admin"}, action_id="missing")
 
     @patch("apps.iam.backends.v4.client.requests.request")
+    def test_non_json_error_response_is_redacted_and_bounded(self, request_mock):
+        secret = "a" * 40
+        response = Mock(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            content=b"upstream-error",
+            text=f"token={secret} operator=user@example.com phone=13800138000 " + "detail " * 100,
+        )
+        response.json.side_effect = ValueError("invalid json")
+        request_mock.return_value = response
+
+        with self.assertRaises(V4ClientError) as context:
+            self.client.direct_auth(subject={"type": "user", "id": "admin"}, action_id="missing")
+
+        summary = str(context.exception)
+        self.assertNotIn(secret, summary)
+        self.assertNotIn("user@example.com", summary)
+        self.assertNotIn("13800138000", summary)
+        self.assertLessEqual(len(summary), 256)
+
+    @patch("apps.iam.backends.v4.client.requests.request")
     def test_invalid_json_response_is_rejected(self, request_mock):
         response = Mock(status_code=HTTPStatus.OK, content=b"not-json", text="not-json")
         response.json.side_effect = ValueError("invalid json")
@@ -230,6 +250,44 @@ class V4ClientTest(SimpleTestCase):
         request_mock.return_value = Mock(status_code=HTTPStatus.NO_CONTENT, content=b"")
 
         self.assertIsNone(self.client._request("POST", "/empty"))
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_add_authorization_sends_operator_and_requires_created(self, request_mock):
+        request_mock.return_value = Mock(status_code=HTTPStatus.CREATED, content=b"")
+        items = [
+            {
+                "subject": {"type": "user", "id": "creator"},
+                "role_id": "space_operator",
+                "related_resource_type_id": "collection",
+                "resources": [{"type": "collection", "id": "1"}],
+                "expired_at": 1893456000,
+            }
+        ]
+
+        self.client.add_authorization(items=items, operator="operator")
+
+        request = request_mock.call_args.kwargs
+        self.assertEqual(request["json"], items)
+        self.assertEqual(request["headers"]["X-Bkiam-Operator"], "operator")
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_add_authorization_rejects_http_200(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"{}")
+        response.json.return_value = {"data": {}}
+        request_mock.return_value = response
+
+        with self.assertRaises(V4ClientError):
+            self.client.add_authorization(
+                items=[{"resources": [{"type": "collection", "id": "1"}]}],
+                operator="operator",
+            )
+
+    def test_add_authorization_enforces_batch_limits_before_request(self):
+        with self.assertRaisesRegex(ValueError, "1 to 20"):
+            self.client.add_authorization(
+                items=[{"resources": [{"type": "collection", "id": str(index)}]} for index in range(21)],
+                operator="operator",
+            )
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_success_response_with_error_body_is_rejected(self, request_mock):

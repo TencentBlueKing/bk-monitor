@@ -40,8 +40,8 @@ from iam.apply.models import (
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 
-from apps.iam.backends.legacy_v3 import LegacyV3Adapter
-from apps.iam.backends.v4 import V4PermissionProvider
+from apps.iam.backends.legacy_v3 import LegacyV3Adapter, LegacyV3AuthorizationWriter
+from apps.iam.backends.v4 import V4AuthorizationWriter, V4PermissionProvider
 from apps.iam.backends.v4.concurrency import run_pair_concurrently
 from apps.iam.exceptions import (
     ActionNotExistError,
@@ -82,28 +82,26 @@ class Permission:
     """
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
-        if username and bk_tenant_id:
-            self.username = username
-            self.bk_tenant_id = bk_tenant_id
-        else:
+        if request is None and (not username or not bk_tenant_id):
             try:
-                request = request or get_request(peaceful=True)
-                # web请求
-                if request:
-                    self.username = request.user.username
-                    self.bk_tenant_id = get_request_tenant_id()
-                else:
-                    self.bk_tenant_id = settings.BK_APP_TENANT_ID
-                    logger.warning(
-                        "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
-                    )
-                    # 后台设置
-                    self.username = get_local_username()
-                    if self.username is None:
-                        raise ValueError("must provide `username` or `request` param to init")
+                request = get_request(peaceful=True)
             except Exception:  # pylint: disable=broad-except
-                self.bk_tenant_id = settings.BK_APP_TENANT_ID
-                self.username = get_request_username()
+                request = None
+
+        request_username = getattr(getattr(request, "user", None), "username", "") if request else ""
+        self.username = username or request_username or get_local_username() or get_request_username()
+        if not self.username:
+            raise ValueError("must provide `username` or `request` param to init")
+
+        request_tenant_id = ""
+        if request:
+            try:
+                request_tenant_id = get_request_tenant_id()
+            except Exception:  # pylint: disable=broad-except
+                request_tenant_id = getattr(getattr(request, "user", None), "tenant_id", "")
+        self.bk_tenant_id = bk_tenant_id or request_tenant_id or settings.BK_APP_TENANT_ID
+        if not bk_tenant_id and not request_tenant_id:
+            logger.warning("IAM Permission init with default bk_tenant_id: %s", self.bk_tenant_id)
 
         self.iam_client = self.get_iam_client(self.bk_tenant_id)
         # 是否跳过权限中心校验
@@ -115,6 +113,7 @@ class Permission:
         self._mode_router = None
         self._provider_bundles = None
         self._v4_provider = None
+        self._v4_authorization_writer = None
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
@@ -148,7 +147,7 @@ class Permission:
             AuthMode.V3: ProviderBundle(
                 auth=LegacyV3Adapter(self.iam_client, settings.BK_IAM_SYSTEM_ID),
                 application=BoundPermissionApplicationAdapter(self._get_v3_apply_data),
-                writer=self.iam_client,
+                writer=LegacyV3AuthorizationWriter(self.iam_client),
             ),
             AuthMode.V4: ProviderBundle(
                 auth=self.get_v4_provider(),
@@ -170,8 +169,12 @@ class Permission:
         return self.get_v4_provider()
 
     def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
-        """V4 授权写入能力将在后续迭代中注入。"""
-        return None
+        if self._v4_authorization_writer is None:
+            self._v4_authorization_writer = V4AuthorizationWriter.from_settings(
+                username=self.username,
+                bk_tenant_id=self.bk_tenant_id,
+            )
+        return self._v4_authorization_writer
 
     def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """
@@ -851,26 +854,12 @@ class Permission:
             "creator": creator or self.username,
         }
 
-        grant_result = None
-        for provider_name, writer in MigrationPolicy.resolve_authorization_writers(self.provider_bundles):
-            try:
-                result = writer.grant_resource_creator_actions(application)
-                if provider_name == AuthMode.V3.value:
-                    grant_result = result
-                logger.info(
-                    "[grant_creator_action] provider=%s success resource=%s result=%s",
-                    provider_name,
-                    resource.to_dict(),
-                    result,
-                )
-            except Exception as error:  # pylint: disable=broad-except
-                logger.exception(
-                    "[grant_creator_action] provider=%s failed resource=%s error=%s",
-                    provider_name,
-                    resource.to_dict(),
-                    error,
-                )
-                if raise_exception:
-                    raise
+        # apps.iam 在 Django App Registry 就绪前会导入 Permission，Model 编排器必须延迟加载。
+        from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 
-        return grant_result
+        orchestrator = DualWriteGrantOrchestrator(
+            writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles),
+            tenant_id=self.bk_tenant_id,
+            operator=self.username,
+        )
+        return orchestrator.grant_creator_action(application, raise_exception=raise_exception)

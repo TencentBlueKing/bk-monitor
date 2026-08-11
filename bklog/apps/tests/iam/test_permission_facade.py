@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 
 from django.conf import settings
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from iam import Resource
 from iam.exceptions import AuthAPIError
 
@@ -12,6 +12,7 @@ from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
 from apps.iam.iam_engine.core.types import AuthResult
+from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
 @override_settings(
@@ -20,19 +21,22 @@ from apps.iam.iam_engine.core.types import AuthResult
     DEMO_BIZ_ID=0,
     DEMO_BIZ_EDIT_ENABLED=False,
 )
-class PermissionFacadeTest(SimpleTestCase):
+class PermissionFacadeTest(TestCase):
     def setUp(self):
         self.iam_client = Mock()
         self.mode_provider = Mock(get_mode=Mock(return_value=AuthMode.V3))
         self.client_patcher = patch.object(Permission, "get_iam_client", return_value=self.iam_client)
         self.mode_patcher = patch("apps.iam.handlers.permission.get_mode_provider", return_value=self.mode_provider)
         self.v4_provider_patcher = patch.object(Permission, "get_v4_provider", return_value=None)
+        self.v4_writer_patcher = patch.object(Permission, "get_v4_authorization_writer", return_value=None)
         self.client_patcher.start()
         self.mode_patcher.start()
         self.v4_provider_patcher.start()
+        self.v4_writer_patcher.start()
         self.addCleanup(self.client_patcher.stop)
         self.addCleanup(self.mode_patcher.stop)
         self.addCleanup(self.v4_provider_patcher.stop)
+        self.addCleanup(self.v4_writer_patcher.stop)
 
     def test_v3_mode_keeps_boolean_allow_result(self):
         self.iam_client.is_allowed.return_value = True
@@ -359,6 +363,7 @@ class PermissionFacadeTest(SimpleTestCase):
     def test_creator_grant_calls_injected_v4_writer_and_keeps_v3_return_value(self):
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
         v4_writer = Mock()
+        v4_writer.prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(payload={"v4": True})
         permission = self._make_permission()
         permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
         resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
@@ -374,7 +379,8 @@ class PermissionFacadeTest(SimpleTestCase):
         }
         self.assertEqual(result, "v3-result")
         self.iam_client.grant_resource_creator_actions.assert_called_once_with(application)
-        v4_writer.grant_resource_creator_actions.assert_called_once_with(application)
+        v4_writer.prepare_resource_creator_actions.assert_called_once_with(application)
+        v4_writer.grant_prepared.assert_called_once_with(PreparedAuthorizationGrant(payload={"v4": True}))
 
     def test_creator_grant_without_v4_writer_keeps_existing_v3_behavior(self):
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
@@ -387,7 +393,9 @@ class PermissionFacadeTest(SimpleTestCase):
     def test_creator_grant_propagates_v4_writer_error_when_requested(self):
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
         v4_writer = Mock()
-        v4_writer.grant_resource_creator_actions.side_effect = RuntimeError("v4 grant failed")
+        prepared = PreparedAuthorizationGrant(payload={"v4": True})
+        v4_writer.prepare_resource_creator_actions.return_value = prepared
+        v4_writer.grant_prepared.side_effect = RuntimeError("v4 grant failed")
         permission = self._make_permission()
         permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
         resource = Resource("bk_log_search", "collection", "1", {})
@@ -417,3 +425,12 @@ class V4ProviderConstructionTest(SimpleTestCase):
             bk_tenant_id="tenant-1",
             action_resolver=get_action_by_id,
         )
+
+    @patch("apps.iam.handlers.permission.get_request", return_value=None)
+    @patch("apps.iam.handlers.permission.get_local_username", return_value="local-user")
+    @patch.object(Permission, "get_iam_client", return_value=Mock())
+    def test_explicit_username_and_default_tenant_are_resolved_independently(self, _, __, ___):
+        permission = Permission(username="creator")
+
+        self.assertEqual(permission.username, "creator")
+        self.assertEqual(permission.bk_tenant_id, "default")

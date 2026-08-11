@@ -14,6 +14,7 @@ DEFAULT_AUTHORIZED_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{sys
 DEFAULT_APPLY_URL_PATH = "api/v1/open/application/permission-apply-urls/"
 DEFAULT_AUTH_TOKEN_PATH = "api/v1/open/rbac/model/systems/{system_id}/auth-token/"
 DEFAULT_TIMEOUT_SECONDS = 10.0
+DEFAULT_ADD_AUTHORIZATION_PATH = "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/"
 DEFAULT_BATCH_CHUNK_SIZE = 100
 MAX_BATCH_CHUNK_SIZE = 100
 DEFAULT_BATCH_MAX_WORKERS = 4
@@ -166,6 +167,7 @@ class V4Options:
     apply_url_path: str
     auth_token_path: str = DEFAULT_AUTH_TOKEN_PATH
     auth_token_cache_seconds: int = DEFAULT_AUTH_TOKEN_CACHE_SECONDS
+    add_authorization_path: str = DEFAULT_ADD_AUTHORIZATION_PATH
 
     @classmethod
     def from_settings(cls, *, bk_tenant_id: str = "", for_resource_callback: bool = False) -> V4Options:
@@ -206,5 +208,10 @@ class V4Options:
                     "BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS",
                     DEFAULT_AUTH_TOKEN_CACHE_SECONDS,
                 )
+            ),
+            add_authorization_path=getattr(
+                settings,
+                "BK_IAM_V4_ADD_AUTHORIZATION_PATH",
+                DEFAULT_ADD_AUTHORIZATION_PATH,
             ),
         )
