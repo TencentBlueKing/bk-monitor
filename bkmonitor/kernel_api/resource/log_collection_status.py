@@ -12,11 +12,12 @@ MAX_TASK_IDS = 100
 MAX_STATUS_DETAILS = 100
 DEFAULT_STATUS_DETAILS = 20
 POLL_RETRY_AFTER_SECONDS = 5
-TERMINAL_STATUSES = {"success", "partial_failed", "failed"}
+TERMINAL_STATUSES = {"success", "partial_failed", "failed", "terminated"}
 
 RUNNING_STATUSES = {"PENDING", "RUNNING", "STARTING", "DEPLOYING", "PREPARING"}
 SUCCESS_STATUSES = {"SUCCESS", "FINISHED"}
-FAILED_STATUSES = {"FAILED", "ERROR", "TERMINATED", "STOPPED"}
+FAILED_STATUSES = {"FAILED", "ERROR"}
+TERMINATED_STATUSES = {"TERMINATED", "STOPPED"}
 
 
 def normalize_task_ids(value: Any) -> list[str]:
@@ -24,15 +25,24 @@ def normalize_task_ids(value: Any) -> list[str]:
     if value in (None, ""):
         return []
     if isinstance(value, str):
-        values = value.split(",")
+        values = [value]
     elif isinstance(value, (list, tuple, set)):
         values = value
     else:
         values = [value]
-    return [str(item).strip() for item in values if str(item).strip()]
+
+    normalized: list[str] = []
+    seen = set()
+    for item in values:
+        for task_id in str(item).split(","):
+            task_id = task_id.strip()
+            if task_id and task_id not in seen:
+                normalized.append(task_id)
+                seen.add(task_id)
+    return normalized
 
 
-def normalize_raw_status(value: Any) -> str:
+def normalize_raw_status(value: Any, phase: str) -> str:
     raw_status = str(value or "").strip().upper()
     if raw_status in RUNNING_STATUSES:
         return "running"
@@ -40,6 +50,8 @@ def normalize_raw_status(value: Any) -> str:
         return "success"
     if raw_status in FAILED_STATUSES:
         return "failed"
+    if raw_status in TERMINATED_STATUSES:
+        return "terminated" if phase == "subscription" else "failed"
     if "PART" in raw_status and "FAIL" in raw_status:
         return "partial_failed"
     return "unknown"
@@ -60,7 +72,7 @@ def flatten_status_details(payload: Any, phase: str) -> list[dict[str, Any]]:
             message = child.get("message") or child.get("log") or ""
             detail = {
                 "phase": phase,
-                "status": normalize_raw_status(child.get("status")),
+                "status": normalize_raw_status(child.get("status"), phase),
                 "raw_status": str(child.get("status") or ""),
                 "instance_id": child.get("instance_id"),
                 "task_id": child.get("task_id"),
@@ -85,10 +97,18 @@ def aggregate_status(details: list[dict[str, Any]]) -> str:
 
     has_failed = "failed" in statuses
     has_success = "success" in statuses
-    if has_failed and has_success:
+    has_terminated = "terminated" in statuses
+    has_unknown = "unknown" in statuses
+    if has_failed and (has_success or has_terminated):
         return "partial_failed"
     if has_failed:
         return "failed"
+    if has_unknown:
+        return "unknown"
+    if has_terminated and has_success:
+        return "partial_failed"
+    if has_terminated:
+        return "terminated"
     if has_success:
         return "success"
     return "unknown"
@@ -98,9 +118,13 @@ def combine_phase_status(task_status: str, subscription_status: str) -> str:
     """任务尚未成功时优先反映本次下发；成功后再用订阅状态确认运行结果。"""
     if task_status in {"running", "partial_failed", "failed"}:
         return task_status
-    if task_status == "success":
-        return subscription_status if subscription_status != "unknown" else "success"
-    return subscription_status
+    if subscription_status in {"running", "partial_failed", "failed", "terminated"}:
+        return subscription_status
+    if "unknown" in {task_status, subscription_status}:
+        return "unknown"
+    if task_status == "success" and subscription_status == "success":
+        return "success"
+    return "unknown"
 
 
 def build_phase_result(details: list[dict[str, Any]], detail_limit: int) -> dict[str, Any]:
@@ -113,6 +137,7 @@ def build_phase_result(details: list[dict[str, Any]], detail_limit: int) -> dict
             "success": counts["success"],
             "partial_failed": counts["partial_failed"],
             "failed": counts["failed"],
+            "terminated": counts["terminated"],
             "unknown": counts["unknown"],
         },
         "details": details[:detail_limit],
@@ -138,7 +163,7 @@ class GetLogCollectorStatusResource(Resource):
             default=DEFAULT_STATUS_DETAILS,
             min_value=1,
             max_value=MAX_STATUS_DETAILS,
-            label="每个阶段最多返回的实例明细数",
+            label="最多返回的实例明细总数",
         )
 
     def perform_request(self, validated_request_data):
@@ -153,10 +178,18 @@ class GetLogCollectorStatusResource(Resource):
         task_ids = normalize_task_ids(
             validated_request_data.get("task_ids", collector.get("task_id_list"))
         )
-        task_payload = api.log_search.log_collector_task_status(
-            collector_config_id=collector_config_id,
-            task_id_list=",".join(task_ids),
-        )
+        if len(task_ids) > MAX_TASK_IDS:
+            raise serializers.ValidationError(
+                {"task_ids": [f"Ensure this field has no more than {MAX_TASK_IDS} elements."]}
+            )
+
+        if task_ids:
+            task_payload = api.log_search.log_collector_task_status(
+                collector_config_id=collector_config_id,
+                task_id_list=",".join(task_ids),
+            )
+        else:
+            task_payload = {"task_ready": False, "contents": []}
         subscription_payload = api.log_search.log_collector_subscription_status(
             collector_config_id=collector_config_id
         )
@@ -164,11 +197,18 @@ class GetLogCollectorStatusResource(Resource):
         task_details = flatten_status_details(task_payload, "task")
         subscription_details = flatten_status_details(subscription_payload, "subscription")
         task_result = build_phase_result(task_details, detail_limit)
-        subscription_result = build_phase_result(subscription_details, detail_limit)
+        remaining_detail_limit = max(detail_limit - len(task_result["details"]), 0)
+        subscription_result = build_phase_result(subscription_details, remaining_detail_limit)
         status = combine_phase_status(task_result["status"], subscription_result["status"])
 
         errors = [
-            detail
+            {
+                "phase": detail["phase"],
+                "instance_id": detail["instance_id"],
+                "task_id": detail["task_id"],
+                "container_collector_config_id": detail["container_collector_config_id"],
+                "message": detail["message"],
+            }
             for detail in task_details + subscription_details
             if detail["status"] in {"partial_failed", "failed"} and detail["message"]
         ][:detail_limit]

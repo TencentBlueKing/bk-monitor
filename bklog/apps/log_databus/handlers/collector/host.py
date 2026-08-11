@@ -673,15 +673,16 @@ class HostCollectorHandler(CollectorHandler):
                     return "{}-{}".format(step_obj["node_name"], sub_step_obj["node_name"])
         return ""
 
-    def format_task_instance_status(self, instance_data):
+    def format_task_instance_status(self, instance_data, latest_task_id=None):
         """
         格式化任务状态数据
         :param  [list] instance_data: 任务状态data数据
+        :param latest_task_id: 本次查询关注的最新任务ID
         :return: [list]
         """
         instance_list = list()
         host_list = list()
-        latest_id = self.data.task_id_list[-1]
+        latest_id = str(latest_task_id) if latest_task_id is not None else ""
         if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
             for node in self.data.target_nodes:
                 if "bk_host_id" in node:
@@ -699,6 +700,7 @@ class HostCollectorHandler(CollectorHandler):
             # 静态节点：排除订阅任务历史IP（不是最新订阅且不在当前节点范围的ip）
             if (
                 self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value
+                and latest_id
                 and str(instance_obj["task_id"]) != latest_id
                 and ((bk_host_innerip, bk_cloud_id) not in host_list and bk_host_id not in host_list)
             ):
@@ -1027,20 +1029,17 @@ class HostCollectorHandler(CollectorHandler):
         if self.data.is_custom_scenario:
             return {"task_ready": True, "contents": []}
 
-        if not self.data.subscription_id:
-            self._update_or_create_subscription(
-                collector_scenario=CollectorScenario.get_instance(
-                    collector_scenario_id=self.data.collector_scenario_id
-                ),
-                params=self.data.params,
-            )
+        task_ids = [str(task_id) for task_id in (id_list or self.data.task_id_list or [])]
+        if not self.data.subscription_id or not task_ids:
+            return {"task_ready": False, "contents": []}
 
         try:
             status_result = NodeApi.get_subscription_task_status.bulk_request(
                 params={
                     "subscription_id": self.data.subscription_id,
+                    "task_id_list": task_ids,
                     "need_detail": False,
-                    "need_aggregate_all_tasks": True,
+                    "need_aggregate_all_tasks": False,
                     "need_out_of_scope_snapshots": False,
                     "bk_biz_id": self.data.bk_biz_id,
                 },
@@ -1051,7 +1050,9 @@ class HostCollectorHandler(CollectorHandler):
             logger.exception("get task status failed, subscription_id: %s", self.data.subscription_id)
             status_result = []
 
-        instance_status = self.format_task_instance_status(status_result)
+        task_id_set = set(task_ids)
+        status_result = [item for item in status_result if str(item.get("task_id")) in task_id_set]
+        instance_status = self.format_task_instance_status(status_result, latest_task_id=task_ids[-1])
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
 
@@ -1112,7 +1113,7 @@ class HostCollectorHandler(CollectorHandler):
         查看订阅的插件运行状态
         :return:
         """
-        if not self.data.subscription_id and not self.data.target_nodes:
+        if not self.data.subscription_id:
             return {
                 "contents": [
                     {

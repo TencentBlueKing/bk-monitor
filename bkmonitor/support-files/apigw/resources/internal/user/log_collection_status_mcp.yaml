@@ -25,7 +25,7 @@ paths:
                   minimum: 1
                   maximum: 100
                   default: 20
-                  description: Maximum instance details returned for each phase. 每个阶段最多返回的实例明细数。
+                  description: Maximum instance details returned across task and subscription phases. 任务与订阅阶段合计最多返回的实例明细数。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
