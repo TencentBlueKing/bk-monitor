@@ -58,6 +58,7 @@ from constants.issue import (
     IssuePriority,
     IssueStatus,
     SourceAnalysisFailureStage,
+    SourceAnalysisResultType,
     SourceAnalysisStage,
     SourceAnalysisStatus,
     SourceAnalysisTriggerType,
@@ -74,6 +75,7 @@ from core.errors.issue import (
     SourceAnalysisDefaultRulePriorityImmutableError,
     SourceAnalysisFlowInitializationFailedError,
     SourceAnalysisInvalidStatusTransitionError,
+    SourceAnalysisOperationConflictError,
     SourceAnalysisRepositoryInvalidError,
     SourceAnalysisResourceNotFoundError,
     SourceAnalysisRuleIncompleteError,
@@ -86,6 +88,7 @@ from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
+from fta_web.tasks import run_source_analysis_execution
 from fta_web.constants import TapdWorkspaceBindStatus
 from fta_web.issue.utils.tapd import (
     save_tapd_token,
@@ -317,6 +320,33 @@ class SourceAnalysisExecutionBaseResource(Resource):
     SOURCE_ANALYSIS_STAGES = {value for value, _label in SourceAnalysisStage.CHOICES}
     SOURCE_ANALYSIS_FAILURE_STAGES = {value for value, _label in SourceAnalysisFailureStage.CHOICES}
 
+    NO_MATCHED_RULE = "no_matched_rule"
+    RULE_DISABLED = "rule_disabled"
+    UNAVAILABLE_REASON_DISPLAYS = {
+        NO_MATCHED_RULE: _("当前 Issue 未匹配到可用的源码分析规则。"),
+        RULE_DISABLED: _("当前 Issue 匹配的源码分析规则已停用。"),
+    }
+
+    RESULT_VIEW_FIELDS = (
+        "analysis_summary",
+        "responsibility",
+        "repair_suggestion",
+        "evidence_chain",
+        "next_actions",
+        "source_build",
+        "code_association",
+    )
+
+    OVERVIEW_EXECUTION_FIELDS = (
+        "analysis_id",
+        "status",
+        "status_display",
+        "stage",
+        "stage_display",
+        "updated_at",
+        "failure",
+    )
+
     @staticmethod
     def db_alias() -> str:
         return IssueSourceAnalysisExecution.objects.db
@@ -342,6 +372,16 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return canonical_issue_id, list(dict.fromkeys(alert_issue_ids))
 
     @staticmethod
+    def resolve_display_scope(bk_biz_id: int, issue_id: str) -> tuple[str, list[str]]:
+        """解析查询接口的展示作用域，关系服务异常时沿用 Issue 展示链路的 fail-open 语义。"""
+
+        context = MergeResolverContext(bk_biz_id)
+        context.load()
+        canonical_issue_id = IssueMergeResolver.resolve_display_id(issue_id, context)
+        issue_ids = IssueMergeResolver.expand_to_full_ids([canonical_issue_id], context)
+        return canonical_issue_id, list(dict.fromkeys(issue_ids))
+
+    @staticmethod
     def get_active_execution(bk_biz_id: int, issue_ids: list[str]) -> IssueSourceAnalysisExecution | None:
         """查询当前合并组内已有的活动执行。
 
@@ -353,6 +393,159 @@ class SourceAnalysisExecutionBaseResource(Resource):
             bk_biz_id=bk_biz_id,
             active_key__in=issue_ids,
         ).first()
+
+    @staticmethod
+    def get_latest_execution(bk_biz_id: int, issue_ids: list[str]) -> IssueSourceAnalysisExecution | None:
+        """返回合并作用域中的最新执行；前端不回退展示更早的成功结果。"""
+
+        return (
+            IssueSourceAnalysisExecution.objects.filter(bk_biz_id=bk_biz_id, issue_id__in=issue_ids)
+            .order_by("-id")
+            .first()
+        )
+
+    @staticmethod
+    def raise_operation_conflict(reason: str, message: str) -> None:
+        raise SourceAnalysisOperationConflictError(
+            {"message": message},
+            data={"reason": reason},
+        )
+
+    @staticmethod
+    def dispatch_execution(execution: IssueSourceAnalysisExecution) -> None:
+        """投递首次推进任务；消息系统短暂异常时由周期补偿任务接管 pending 记录。"""
+
+        try:
+            run_source_analysis_execution.apply_async(args=(execution.analysis_id,))
+        except Exception:
+            logger.exception(
+                "Failed to dispatch source analysis execution, analysis_id=%s",
+                execution.analysis_id,
+            )
+
+    @classmethod
+    def serialize_result(cls, execution: IssueSourceAnalysisExecution) -> dict | None:
+        """生成页面安全投影；execution_context 仅允许通过原始 JSON 接口读取。"""
+
+        if execution.status != SourceAnalysisStatus.SUCCESS or not isinstance(execution.result_payload, dict):
+            return None
+        result = {
+            "schema_version": execution.result_schema_version or execution.result_payload.get("schema_version"),
+            "result_type": execution.result_type or execution.result_payload.get("result_type"),
+        }
+        result.update({field: execution.result_payload.get(field) for field in cls.RESULT_VIEW_FIELDS})
+        return result
+
+    @classmethod
+    def serialize_execution(cls, execution: IssueSourceAnalysisExecution) -> dict:
+        status_display = SourceAnalysisStatus.LABELS.get(execution.status, execution.status)
+        if execution.status == SourceAnalysisStatus.SUCCESS:
+            status_display = SourceAnalysisResultType.STATUS_LABELS.get(execution.result_type, status_display)
+
+        is_active = execution.status in SourceAnalysisStatus.ACTIVE_STATUSES
+        is_failed = execution.status == SourceAnalysisStatus.FAILED
+        failure = None
+        if is_failed:
+            failure = {
+                "code": execution.failure_code,
+                "message": execution.failure_message,
+                "retryable": bool(execution.failure_retryable),
+                "request_id": execution.failure_request_id,
+            }
+
+        return {
+            "analysis_id": execution.analysis_id,
+            "status": execution.status,
+            "status_display": str(status_display),
+            "stage": execution.stage if is_active else None,
+            "stage_display": str(SourceAnalysisStage.LABELS.get(execution.stage, execution.stage))
+            if is_active and execution.stage
+            else None,
+            "trigger_type": execution.trigger_type,
+            "alert_id": execution.alert_id,
+            "attempt": execution.attempt,
+            "retry_of_analysis_id": execution.retry_of_analysis_id,
+            "triggered_by": execution.create_user or "",
+            "triggered_at": SourceAnalysisBaseResource.to_timestamp(execution.create_time),
+            "started_at": SourceAnalysisBaseResource.to_timestamp(execution.started_at),
+            "finished_at": SourceAnalysisBaseResource.to_timestamp(execution.finished_at),
+            "updated_at": SourceAnalysisBaseResource.to_timestamp(execution.update_time),
+            "failure_stage": execution.failure_stage if is_failed else None,
+            "failure": failure,
+            "result": cls.serialize_result(execution),
+        }
+
+    @staticmethod
+    def _project_fields(value, fields: tuple[str, ...]) -> dict | None:
+        if not isinstance(value, dict):
+            return None
+        return {field: value.get(field) for field in fields}
+
+    @classmethod
+    def serialize_overview_result(cls, result: dict | None) -> dict | None:
+        """裁剪右侧快览结果，避免下发代码片段、完整证据链和构建详情。"""
+
+        if result is None:
+            return None
+
+        evidence_chain = result.get("evidence_chain")
+        first_evidence = evidence_chain[0] if isinstance(evidence_chain, list) and evidence_chain else None
+        next_actions = result.get("next_actions")
+        first_next_action = next_actions[0] if isinstance(next_actions, list) and next_actions else None
+        return {
+            "result_type": result["result_type"],
+            "analysis_summary": cls._project_fields(
+                result.get("analysis_summary"),
+                ("conclusion", "insufficient_evidence_reason"),
+            ),
+            "responsibility": cls._project_fields(
+                result.get("responsibility"),
+                ("commit_id", "commit_message", "author_name", "bk_username"),
+            ),
+            "repair_suggestion": cls._project_fields(result.get("repair_suggestion"), ("fix_strategy",)),
+            "evidence_chain": [cls._project_fields(first_evidence, ("title", "summary"))] if first_evidence else [],
+            "next_actions": [cls._project_fields(first_next_action, ("title", "description"))]
+            if first_next_action
+            else [],
+        }
+
+    @classmethod
+    def build_source_analysis_overview(cls, source_analysis_view: dict) -> dict:
+        """把完整 SourceAnalysisView 转成常驻快览所需的轻量结构。"""
+
+        latest = source_analysis_view["latest"]
+        if latest is None:
+            return source_analysis_view
+
+        overview_latest = {field: latest[field] for field in cls.OVERVIEW_EXECUTION_FIELDS}
+        overview_latest["result"] = cls.serialize_overview_result(latest["result"])
+        return {**source_analysis_view, "latest": overview_latest}
+
+    @classmethod
+    def build_source_analysis_view(cls, bk_biz_id: int, issue_id: str) -> dict:
+        """构造前端统一消费的最新状态视图。"""
+
+        canonical_issue_id, issue_ids = cls.resolve_display_scope(bk_biz_id, issue_id)
+        latest = cls.get_latest_execution(bk_biz_id, issue_ids)
+        if latest is not None:
+            # 已有执行记录时应持续可见；重试复用快照，重新分析会在写入口重新匹配当前规则。
+            return {
+                "is_configured": True,
+                "unavailable_reason": None,
+                "unavailable_reason_display": None,
+                "latest": cls.serialize_execution(latest),
+            }
+
+        alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
+        rule, unavailable_reason = cls.get_rule_availability(bk_biz_id, alert)
+        return {
+            "is_configured": rule is not None,
+            "unavailable_reason": unavailable_reason,
+            "unavailable_reason_display": (
+                str(cls.UNAVAILABLE_REASON_DISPLAYS[unavailable_reason]) if unavailable_reason else None
+            ),
+            "latest": None,
+        }
 
     @classmethod
     def get_latest_alert(cls, bk_biz_id: int, issue_id: str, alert_issue_ids: list[str]) -> AlertDocument | None:
@@ -425,32 +618,56 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return manager.dimensions
 
     @classmethod
-    def get_matched_rule(cls, bk_biz_id: int, alert: AlertDocument) -> IssueSourceAnalysisRule | None:
-        """按优先级降序返回首条命中的完整启用规则。"""
+    def get_rule_availability(
+        cls,
+        bk_biz_id: int,
+        alert: AlertDocument | None,
+    ) -> tuple[IssueSourceAnalysisRule | None, str | None]:
+        """返回首条命中的启用规则，并区分“未匹配”与“规则已停用”。"""
 
-        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-priority", "id")
-        executable_rules = []
+        if alert is None:
+            return None, cls.NO_MATCHED_RULE
+
+        rules = list(IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id).order_by("-priority", "id"))
+        complete_rules = []
         for rule in rules:
             if not (
                 SourceAnalysisBaseResource.is_rule_complete(rule) and rule.bkci_project_id and rule.repository_alias
             ):
-                logger.warning(
-                    "Skip incomplete enabled source analysis rule: bk_biz_id=%s, rule_id=%s",
-                    bk_biz_id,
-                    rule.id,
-                )
+                if rule.is_enabled:
+                    logger.warning(
+                        "Skip incomplete enabled source analysis rule: bk_biz_id=%s, rule_id=%s",
+                        bk_biz_id,
+                        rule.id,
+                    )
                 continue
-            executable_rules.append(rule)
+            complete_rules.append(rule)
 
-        if not executable_rules:
-            return None
+        if not complete_rules:
+            return None, cls.NO_MATCHED_RULE
 
         dimensions = cls.get_alert_match_dimensions(alert)
-        for rule in executable_rules:
-            rule_match = AssignRuleMatch({"id": rule.id, "conditions": rule.conditions}, alert=alert)
-            if rule_match.is_matched(dimensions):
-                return rule
-        return None
+
+        def first_matched(candidates: list[IssueSourceAnalysisRule]) -> IssueSourceAnalysisRule | None:
+            for rule in candidates:
+                rule_match = AssignRuleMatch({"id": rule.id, "conditions": rule.conditions}, alert=alert)
+                if rule_match.is_matched(dimensions):
+                    return rule
+            return None
+
+        matched_rule = first_matched([rule for rule in complete_rules if rule.is_enabled])
+        if matched_rule is not None:
+            return matched_rule, None
+        if first_matched([rule for rule in complete_rules if not rule.is_enabled]) is not None:
+            return None, cls.RULE_DISABLED
+        return None, cls.NO_MATCHED_RULE
+
+    @classmethod
+    def get_matched_rule(cls, bk_biz_id: int, alert: AlertDocument) -> IssueSourceAnalysisRule | None:
+        """按优先级降序返回首条命中的完整启用规则。"""
+
+        rule, _unavailable_reason = cls.get_rule_availability(bk_biz_id, alert)
+        return rule
 
     @classmethod
     def create_initial_execution(
@@ -498,6 +715,146 @@ class SourceAnalysisExecutionBaseResource(Resource):
         except IntegrityError:
             active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
             if active_execution:
+                return active_execution, False
+            raise
+
+    @classmethod
+    def create_retry_execution(
+        cls,
+        bk_biz_id: int,
+        issue_id: str,
+        analysis_id: str,
+        operator: str,
+    ) -> tuple[IssueSourceAnalysisExecution, bool]:
+        """为当前最新的可重试失败记录创建一次新执行，并复用原始输入快照。"""
+
+        canonical_issue_id, issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
+        target = IssueSourceAnalysisExecution.objects.filter(
+            bk_biz_id=bk_biz_id,
+            issue_id__in=issue_ids,
+            analysis_id=analysis_id,
+        ).first()
+        if target is None or target.status != SourceAnalysisStatus.FAILED:
+            cls.raise_operation_conflict(
+                "source_analysis_target_not_failed",
+                _("仅支持重试当前最新的失败记录。"),
+            )
+
+        latest = cls.get_latest_execution(bk_biz_id, issue_ids)
+        existing_retry = (
+            IssueSourceAnalysisExecution.objects.filter(retry_of_analysis_id=target.analysis_id).order_by("-id").first()
+        )
+        if existing_retry is not None and latest is not None and existing_retry.pk == latest.pk:
+            return existing_retry, False
+        if latest is None or latest.pk != target.pk:
+            cls.raise_operation_conflict(
+                "source_analysis_target_not_failed",
+                _("仅支持重试当前最新的失败记录。"),
+            )
+        if not target.failure_retryable:
+            cls.raise_operation_conflict(
+                "source_analysis_not_retryable",
+                _("当前失败记录不支持重试。"),
+            )
+
+        active_execution = cls.get_active_execution(bk_biz_id, issue_ids)
+        if active_execution is not None:
+            return active_execution, False
+
+        try:
+            with transaction.atomic(using=cls.db_alias()):
+                target = IssueSourceAnalysisExecution.objects.select_for_update().get(pk=target.pk)
+                existing_retry = (
+                    IssueSourceAnalysisExecution.objects.filter(retry_of_analysis_id=target.analysis_id)
+                    .order_by("-id")
+                    .first()
+                )
+                if existing_retry is not None:
+                    return existing_retry, False
+
+                execution = IssueSourceAnalysisExecution.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    issue_id=canonical_issue_id,
+                    status=SourceAnalysisStatus.PENDING,
+                    stage=SourceAnalysisStage.WAITING,
+                    trigger_type=SourceAnalysisTriggerType.RETRY,
+                    attempt=target.attempt + 1,
+                    retry_of_analysis_id=target.analysis_id,
+                    alert_id=target.alert_id,
+                    rule_id=target.rule_id,
+                    rule_priority=target.rule_priority,
+                    bkci_project_id=target.bkci_project_id,
+                    repository_alias=target.repository_alias,
+                    agent_id=target.agent_id,
+                    skill_ids=list(target.skill_ids),
+                    knowledge_base_ids=list(target.knowledge_base_ids),
+                    create_user=operator,
+                    update_user=operator,
+                )
+            return execution, True
+        except IntegrityError:
+            existing_retry = (
+                IssueSourceAnalysisExecution.objects.filter(retry_of_analysis_id=target.analysis_id)
+                .order_by("-id")
+                .first()
+            )
+            if existing_retry is not None:
+                return existing_retry, False
+            active_execution = cls.get_active_execution(bk_biz_id, issue_ids)
+            if active_execution is not None:
+                return active_execution, False
+            raise
+
+    @classmethod
+    def create_reanalysis_execution(
+        cls,
+        bk_biz_id: int,
+        issue_id: str,
+        operator: str,
+    ) -> tuple[IssueSourceAnalysisExecution | None, bool]:
+        """从成功终态重新选择当前最新告警和匹配规则，创建一次独立分析。"""
+
+        canonical_issue_id, issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
+        active_execution = cls.get_active_execution(bk_biz_id, issue_ids)
+        if active_execution is not None:
+            return active_execution, False
+
+        latest = cls.get_latest_execution(bk_biz_id, issue_ids)
+        if latest is None or latest.status != SourceAnalysisStatus.SUCCESS:
+            cls.raise_operation_conflict(
+                "source_analysis_target_not_success",
+                _("仅支持对当前最新的成功记录重新分析。"),
+            )
+
+        alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
+        rule = cls.get_matched_rule(bk_biz_id, alert) if alert is not None else None
+        if rule is None:
+            return None, False
+
+        try:
+            with transaction.atomic(using=cls.db_alias()):
+                execution = IssueSourceAnalysisExecution.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    issue_id=canonical_issue_id,
+                    status=SourceAnalysisStatus.PENDING,
+                    stage=SourceAnalysisStage.WAITING,
+                    trigger_type=SourceAnalysisTriggerType.REANALYZE,
+                    attempt=1,
+                    alert_id=alert.id,
+                    rule_id=rule.id,
+                    rule_priority=rule.priority,
+                    bkci_project_id=rule.bkci_project_id,
+                    repository_alias=rule.repository_alias,
+                    agent_id=rule.agent_id,
+                    skill_ids=list(rule.skill_ids),
+                    knowledge_base_ids=list(rule.knowledge_base_ids),
+                    create_user=operator,
+                    update_user=operator,
+                )
+            return execution, True
+        except IntegrityError:
+            active_execution = cls.get_active_execution(bk_biz_id, issue_ids)
+            if active_execution is not None:
                 return active_execution, False
             raise
 
@@ -757,6 +1114,145 @@ class SourceAnalysisExecutionBaseResource(Resource):
             execution.mark_failed(**failure)
         except SourceAnalysisInvalidStatusTransitionError:
             execution.refresh_from_db()
+
+
+class SourceAnalysisIssueRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    issue_id = serializers.CharField(label="Issue ID", max_length=64)
+
+
+class SourceAnalysisRetryRequestSerializer(SourceAnalysisIssueRequestSerializer):
+    analysis_id = serializers.CharField(label="分析记录 ID", max_length=64)
+
+
+class AIAnalysisOverviewResource(SourceAnalysisExecutionBaseResource):
+    """查询 Issue 右侧 AI 分析快览；当前只聚合源码分析模块。"""
+
+    RequestSerializer = SourceAnalysisIssueRequestSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        source_analysis = self.build_source_analysis_overview(
+            self.build_source_analysis_view(bk_biz_id, validated_request_data["issue_id"])
+        )
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+        return {
+            "source_analysis": {
+                "is_repository_configured": bool(config and config.bkci_project_id and config.repository_alias),
+                **source_analysis,
+            }
+        }
+
+
+class SourceAnalysisResource(SourceAnalysisExecutionBaseResource):
+    """查询当前 Issue 最新一次源码分析状态与页面展示结果。"""
+
+    RequestSerializer = SourceAnalysisIssueRequestSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        return self.build_source_analysis_view(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["issue_id"],
+        )
+
+
+class StartSourceAnalysisResource(SourceAnalysisExecutionBaseResource):
+    """首次发起源码分析；重复请求直接返回已有最新执行，不重复创建任务。"""
+
+    RequestSerializer = SourceAnalysisIssueRequestSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+        _canonical_issue_id, issue_ids = self.resolve_issue_scope(bk_biz_id, issue_id)
+        latest = self.get_latest_execution(bk_biz_id, issue_ids)
+        if latest is not None:
+            return self.build_source_analysis_view(bk_biz_id, issue_id)
+
+        execution, created = self.create_initial_execution(
+            bk_biz_id,
+            issue_id,
+            get_request_username(),
+        )
+        if execution is None:
+            self.raise_operation_conflict(
+                "source_analysis_not_configured",
+                _("当前 Issue 未匹配到可用的源码分析规则。"),
+            )
+        if created:
+            self.dispatch_execution(execution)
+        return self.build_source_analysis_view(bk_biz_id, issue_id)
+
+
+class RetrySourceAnalysisResource(SourceAnalysisExecutionBaseResource):
+    """重试当前最新的可重试失败记录，并复用该记录的输入快照。"""
+
+    RequestSerializer = SourceAnalysisRetryRequestSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+        execution, created = self.create_retry_execution(
+            bk_biz_id,
+            issue_id,
+            validated_request_data["analysis_id"],
+            get_request_username(),
+        )
+        if created:
+            self.dispatch_execution(execution)
+        return self.build_source_analysis_view(bk_biz_id, issue_id)
+
+
+class ReanalyzeSourceAnalysisResource(SourceAnalysisExecutionBaseResource):
+    """在成功终态上重新选择当前最新告警与匹配规则，发起新一次分析。"""
+
+    RequestSerializer = SourceAnalysisIssueRequestSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+        execution, created = self.create_reanalysis_execution(
+            bk_biz_id,
+            issue_id,
+            get_request_username(),
+        )
+        if execution is None:
+            self.raise_operation_conflict(
+                "source_analysis_not_configured",
+                _("当前 Issue 未匹配到可用的源码分析规则。"),
+            )
+        if created:
+            self.dispatch_execution(execution)
+        return self.build_source_analysis_view(bk_biz_id, issue_id)
+
+
+class SourceAnalysisRawResource(SourceAnalysisExecutionBaseResource):
+    """读取所属 Issue 的已校验成功原始 JSON，不返回 COS 地址。"""
+
+    RequestSerializer = SourceAnalysisRetryRequestSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        _canonical_issue_id, issue_ids = self.resolve_display_scope(
+            bk_biz_id,
+            validated_request_data["issue_id"],
+        )
+        execution = IssueSourceAnalysisExecution.objects.filter(
+            bk_biz_id=bk_biz_id,
+            issue_id__in=issue_ids,
+            analysis_id=validated_request_data["analysis_id"],
+        ).first()
+        if execution is None:
+            self.raise_operation_conflict(
+                "source_analysis_result_not_found",
+                _("未找到指定的源码分析结果。"),
+            )
+        if execution.status != SourceAnalysisStatus.SUCCESS or not isinstance(execution.result_payload, dict):
+            self.raise_operation_conflict(
+                "source_analysis_result_not_ready",
+                _("指定的源码分析结果尚未就绪。"),
+            )
+        return execution.result_payload
 
 
 class SourceAnalysisConditionSerializer(serializers.Serializer):

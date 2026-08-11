@@ -22,7 +22,6 @@ from constants.action import ActionPluginType
 from constants.issue import IssueStatus
 from core.drf_resource import api, resource
 from fta_web.constants import QuickSolutionsConfig
-from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
 from monitor_web.strategies.user_groups import create_default_notice_group
 
 logger = logging.getLogger("celery")
@@ -441,6 +440,9 @@ def sync_tapd_issue_status():
 def run_source_analysis_execution(analysis_id: str):
     """推进一次源码分析；活动任务按短周期自调度，服务重启后由补偿任务重新接管。"""
 
+    # Resource 需要复用本任务作为前端触发后的调度入口，延迟导入以解除 tasks <-> resources 循环依赖。
+    from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
+
     should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(analysis_id)
     if should_poll:
         run_source_analysis_execution.apply_async(
@@ -452,6 +454,8 @@ def run_source_analysis_execution(analysis_id: str):
 @shared_task(ignore_result=True, queue="celery_resource")
 def recover_source_analysis_executions():
     """补偿超过恢复窗口仍未推进的活动任务，覆盖消息丢失和 Worker 重启。"""
+
+    from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
 
     for analysis_id in SourceAnalysisExecutionBaseResource.get_recoverable_analysis_ids():
         run_source_analysis_execution.apply_async(args=(analysis_id,))
