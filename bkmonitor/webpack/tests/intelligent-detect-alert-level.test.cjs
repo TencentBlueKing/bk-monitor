@@ -31,6 +31,13 @@ const intelligentDetectSource = fs.readFileSync(
   ),
   'utf8'
 );
+const ruleWrapperStyleSource = fs.readFileSync(
+  path.resolve(
+    __dirname,
+    '../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/components/rule-wrapper/rule-wrapper.scss'
+  ),
+  'utf8'
+);
 
 test('SDK 新建单指标异常检测默认使用自动级别并全选输出范围', () => {
   assert.deepEqual(createAiAlertLevelValue(undefined, true), {
@@ -119,4 +126,11 @@ test('算法组合变化时实时同步自动等级可用性', () => {
 test('智能异常检测组件监听自动等级可用性属性', () => {
   assert.match(intelligentDetectSource, /@Watch\('autoLevelEnabled'/);
   assert.match(intelligentDetectSource, /syncAiLevelAutoEnabled\(this\.staticFormItem, autoLevelEnabled\)/);
+});
+
+test('自动输出级别弹层复用手动级别图标样式', () => {
+  assert.match(
+    ruleWrapperStyleSource,
+    /\.level-select-popover,\s*\.al-level-popover-theme\s*\{\s*@include icon-style;/
+  );
 });
