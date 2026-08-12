@@ -44,6 +44,8 @@ class GetHostProcessPortStatusResource(Resource):
         bk_target_cloud_id = serializers.CharField(required=False)
         display_name = serializers.CharField(required=False)
         bk_host_id = serializers.IntegerField(required=False)
+        start_time = serializers.IntegerField(required=False)
+        end_time = serializers.IntegerField(required=False)
 
         # 主机场景，以关联资源身份请求
         def validate_bk_biz_id(self, value):
@@ -70,9 +72,9 @@ class GetHostProcessPortStatusResource(Resource):
         query_config = {"promql": promql_statement, "interval": 60}
         data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
-        # 取最近5分钟的数据
-        end_time = int(time.time())
-        start_time = end_time - 300
+        # 取选中时点前最近5分钟的数据；前端传秒，UQ 查询使用毫秒。
+        end_time = int(params.get("end_time") or time.time())
+        start_time = max(int(params.get("start_time") or end_time - 300), end_time - 300)
         data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000)
         if not data:
             return []
@@ -430,6 +432,8 @@ class GetHostProcessUptimeResource(Resource):
         bk_biz_id = serializers.IntegerField()
         display_name = serializers.CharField()
         bk_host_id = serializers.IntegerField()
+        start_time = serializers.IntegerField(required=False)
+        end_time = serializers.IntegerField(required=False)
 
     def perform_request(self, params):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
@@ -443,7 +447,7 @@ class GetHostProcessUptimeResource(Resource):
             table="system.proc",
             interval=60,
             group_by=["bk_target_ip", "bk_target_cloud_id", "display_name"],
-            metrics=[{"field": "uptime", "method": "MIN", "alias": "A"}],
+            metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
             filter_dict={
                 "bk_target_ip": ip,
                 "bk_target_cloud_id": bk_cloud_id,
@@ -451,7 +455,10 @@ class GetHostProcessUptimeResource(Resource):
             },
         )
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
-        data: list = query.query_data()
+        # 取选中时点的进程组快照；前端传秒，UQ 查询使用毫秒。
+        end_time = int(params.get("end_time") or time.time())
+        start_time = max(int(params.get("start_time") or end_time - 180), end_time - 180)
+        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000, instant=True)
         if data:
             value = data[-1]["_result_"]
         else:

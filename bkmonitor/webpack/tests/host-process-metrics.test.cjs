@@ -47,7 +47,6 @@ test('进程详情沿用主机时间上下文并按进程名过滤', () => {
   assert.match(source, /display_name:\s*props\.process\.name/);
   assert.match(source, /timeRange:\s*hostTimeRange/);
   assert.match(source, /timezone:\s*hostTimezone/);
-  assert.match(source, /formatProcessUptimeDetail\(process\.uptime,\s*timeRangeTimestamp\.value\.end_time\)/);
   assert.doesNotMatch(source, /\['now-1d',\s*'now'\]/);
 });
 

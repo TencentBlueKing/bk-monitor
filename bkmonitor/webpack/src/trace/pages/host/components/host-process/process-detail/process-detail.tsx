@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { Exception, Sideslider } from 'bkui-vue';
+import { getHostProcessUptime } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -34,6 +35,7 @@ import { useI18n } from 'vue-i18n';
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
 import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
 import TimeRange from '../../../../../components/time-range/time-range';
+import { handleTransformToTimestamp } from '../../../../../components/time-range/utils';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
 import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pages/host/constants/process';
 import { formatProcessSeriesAlias, formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
@@ -94,7 +96,6 @@ export default defineComponent({
     const {
       processMetricAggregationState,
       timeRange: hostTimeRange,
-      timeRangeTimestamp,
       timezone: hostTimezone,
     } = storeToRefs(useHostStore());
 
@@ -108,6 +109,12 @@ export default defineComponent({
     const refreshInterval = shallowRef(-1);
     /** 立即刷新信号：变更该值即触发下游图表重新取数 */
     const refreshImmediate = shallowRef('');
+    /** 进程运行时长快照：值为秒，观测时刻为抽屉局部时间范围的结束秒。 */
+    const processUptimeSnapshot = shallowRef<{ observedAt: number; value: null | number }>({
+      observedAt: 0,
+      value: null,
+    });
+    let processUptimeRequestId = 0;
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
     const timeShift = computed(() =>
@@ -264,7 +271,7 @@ export default defineComponent({
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('运行时长')}：</span>
                 <span class='process-detail-kv-value'>
-                  {formatProcessUptimeDetail(process.uptime, timeRangeTimestamp.value.end_time)}
+                  {formatProcessUptimeDetail(processUptimeSnapshot.value.value, processUptimeSnapshot.value.observedAt)}
                 </span>
               </div>
               <div class='process-detail-kv'>
@@ -392,6 +399,49 @@ export default defineComponent({
           startRefreshTimer(refreshInterval.value);
         } else {
           clearRefreshTimer();
+        }
+      },
+      { immediate: true }
+    );
+
+    /** 按抽屉当前主机与局部时点重查运行时长，并阻止旧请求覆盖新快照。 */
+    watch(
+      [
+        () => props.show,
+        () => props.process?.name,
+        () => (props.selectedNode && 'bk_host_id' in props.selectedNode ? props.selectedNode.bk_host_id : null),
+        timeRange,
+        refreshImmediate,
+      ],
+      async () => {
+        const requestId = ++processUptimeRequestId;
+        processUptimeSnapshot.value = { observedAt: 0, value: null };
+        const node = props.selectedNode;
+        if (!props.show || !props.process?.name || !node || !('bk_host_id' in node)) return;
+
+        const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+        try {
+          const result = await getHostProcessUptime(
+            {
+              bk_biz_id: node.bk_biz_id,
+              bk_host_id: node.bk_host_id,
+              display_name: props.process.name,
+              start_time: startTime,
+              end_time: endTime,
+            },
+            { needMessage: false }
+          );
+          if (requestId !== processUptimeRequestId) return;
+
+          const value = result?.value === '' || result?.value == null ? null : Number(result.value);
+          processUptimeSnapshot.value = {
+            observedAt: endTime,
+            value: value != null && Number.isFinite(value) ? value : null,
+          };
+        } catch {
+          if (requestId === processUptimeRequestId) {
+            processUptimeSnapshot.value = { observedAt: endTime, value: null };
+          }
         }
       },
       { immediate: true }
