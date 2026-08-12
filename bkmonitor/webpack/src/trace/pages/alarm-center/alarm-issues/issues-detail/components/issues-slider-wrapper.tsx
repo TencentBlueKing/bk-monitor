@@ -45,6 +45,7 @@ import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-i
 import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
+import IssuesAiAnalysisView from './issues-ai-analysis-view/issues-ai-analysis-view';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
@@ -552,6 +553,7 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
+          <IssuesAiAnalysisView detail={this.detail} />
           <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />
           <IssuesActivity
