@@ -634,6 +634,19 @@ class Permission:
             传入 space_list 时与本地列表求交（兼容测试/内部调用）。
         UNION：两侧明确允许的空间取并集；双侧 Error 且无明确允许时 fail-closed。
         """
+        try:
+            return self._filter_space_list_by_action(action, bk_tenant_id, space_list)
+        except IAMDependencyError as error:
+            logger.error(
+                "[IAM Decision] space scope failed: provider=%s reason=%s",
+                error.provider or "unknown",
+                error.reason,
+            )
+            raise
+
+    def _filter_space_list_by_action(
+        self, action: ActionMeta | str, bk_tenant_id: str = "", space_list: list = None
+    ) -> list:
         from apps.log_search.models import Space
 
         if settings.IGNORE_IAM_PERMISSION:
@@ -714,7 +727,6 @@ class Permission:
         try:
             policies = self.iam_client._do_policy_query(request)
         except AuthAPIError as error:
-            logger.exception("[IAM AuthAPI Error] filter_space_list_by_action v3 failed: %s", error)
             raise IAMDependencyError(str(error) or "IAM V3 policy query failed", provider="v3") from error
 
         if not policies:

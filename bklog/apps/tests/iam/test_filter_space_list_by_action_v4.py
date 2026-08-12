@@ -20,7 +20,7 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         ]
 
     def test_dependency_error_hides_internal_reason_from_public_message(self):
-        with self.assertLogs("iam.dependency", level="ERROR") as logs:
+        with self.assertNoLogs(level="ERROR"):
             error = IAMDependencyError("upstream response contains private detail", provider="v4")
 
         self.assertEqual(error.message, "权限中心依赖异常")
@@ -28,7 +28,6 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         self.assertEqual(error.reason, "upstream response contains private detail")
         self.assertEqual(error.provider, "v4")
         self.assertIsNone(error.data)
-        self.assertIn("provider=v4", logs.output[0])
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_v4_intersects_authorized_ids_with_local_spaces(self):
@@ -78,8 +77,11 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         )
         self.permission._v4_provider = v4_provider
 
-        with self.assertRaises(IAMDependencyError):
+        with self.assertLogs(level="ERROR") as logs, self.assertRaises(IAMDependencyError):
             self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
+
+        self.assertEqual(len(logs.records), 1)
+        self.assertIn("provider=v4", logs.records[0].getMessage())
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_v3_auth_api_error_raises_dependency_error(self):
@@ -101,8 +103,13 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         self.permission._authorized_space_ids_v3 = MagicMock(side_effect=IAMDependencyError("v3 down", provider="v3"))
         self.permission._authorized_space_ids_v4 = MagicMock(return_value={"3"})
 
-        results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
+        with self.assertLogs(level="WARNING") as logs:
+            results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
+
         self.assertEqual([space["bk_biz_id"] for space in results], [3])
+        self.assertEqual(len(logs.records), 1)
+        self.assertEqual(logs.records[0].levelname, "WARNING")
+        self.assertIn("union space scope degraded", logs.records[0].getMessage())
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_union_merges_successful_v3_and_v4_ids(self):
@@ -158,8 +165,11 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         self.permission._authorized_space_ids_v3 = MagicMock(side_effect=IAMDependencyError("v3", provider="v3"))
         self.permission._authorized_space_ids_v4 = MagicMock(side_effect=IAMDependencyError("v4", provider="v4"))
 
-        with self.assertRaises(IAMDependencyError):
+        with self.assertLogs(level="ERROR") as logs, self.assertRaises(IAMDependencyError):
             self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
+
+        self.assertEqual(len(logs.records), 1)
+        self.assertIn("provider=union", logs.records[0].getMessage())
 
     @override_settings(IGNORE_IAM_PERMISSION=True, DEMO_BIZ_ID=-1)
     def test_ignore_permission_returns_all_spaces(self):

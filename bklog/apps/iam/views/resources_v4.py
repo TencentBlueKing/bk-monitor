@@ -95,9 +95,10 @@ class V4SpaceResourceProvider(BaseResourceProvider):
 
     def fetch_instance_info(self, filter, **options):
         tenant_id = self._require_tenant_id(options)
-        spaces = (
-            Space.get_spaces_by_bk_biz_ids(tenant_id, filter.ids) if filter.ids else Space.get_all_spaces(tenant_id)
-        )
+        if not filter.ids:
+            return ListResult(results=[], count=0)
+
+        spaces = Space.get_spaces_by_bk_biz_ids(tenant_id, filter.ids)
 
         results = []
         for space in spaces:

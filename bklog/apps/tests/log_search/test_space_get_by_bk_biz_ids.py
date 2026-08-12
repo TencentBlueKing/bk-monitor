@@ -42,6 +42,7 @@ class SpaceGetSpacesByBkBizIdsTest(SimpleTestCase):
         self.assertEqual(results[0]["space_uid"], "bkcc__2")
         args = cursor.execute.call_args[0]
         self.assertIn("bk_biz_id IN", args[0])
+        self.assertIn("is_deleted = 0", args[0])
         self.assertEqual(args[1][0], "tenant-1")
         self.assertEqual(set(args[1][1:]), {2, 4})
 
@@ -71,6 +72,11 @@ class SpaceGetSpacesPageTest(TestCase):
 
         self.assertEqual(count, 2)
         self.assertEqual([space["bk_biz_id"] for space in spaces], [21])
+
+    def test_targeted_query_excludes_deleted_and_other_tenant_records(self):
+        spaces = Space.get_spaces_by_bk_biz_ids("tenant-1", {20, 22, 30})
+
+        self.assertEqual([space["bk_biz_id"] for space in spaces], [20])
 
     def test_searches_name_and_text_biz_id_in_database(self):
         by_name, name_count = Space.get_spaces_page("tenant-1", offset=0, limit=10, keywords=["蓝鲸"])

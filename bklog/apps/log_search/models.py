@@ -1823,7 +1823,7 @@ class Space(SoftDeleteModel):
 
     @classmethod
     def get_spaces_by_bk_biz_ids(cls, bk_tenant_id: str, bk_biz_ids: list | set) -> list:
-        """按租户与 bk_biz_id 列表定向查询空间详情，字段与 get_all_spaces 一致。"""
+        """按租户与 bk_biz_id 列表定向查询未删除空间，字段与 get_all_spaces 一致。"""
         biz_ids = []
         for biz_id in bk_biz_ids or []:
             try:
@@ -1848,7 +1848,7 @@ class Space(SoftDeleteModel):
                        bk_tenant_id,
                        JSON_EXTRACT(properties, '$.time_zone') AS time_zone
                 FROM log_search_space
-                WHERE bk_tenant_id = %s AND bk_biz_id IN ({placeholders})
+                WHERE bk_tenant_id = %s AND is_deleted = 0 AND bk_biz_id IN ({placeholders})
                 """,
                 (bk_tenant_id, *biz_ids),
             )

@@ -127,12 +127,13 @@ class V4SpaceResourceProviderTest(SimpleTestCase):
         self.assertEqual(result.results[0]["id"], "10")
         self.assertEqual(result.results[0]["_bk_iam_approvers_"], [])
 
-    @patch("apps.iam.views.resources_v4.Space.get_all_spaces", return_value=[])
-    def test_fetch_instance_info_without_ids_preserves_full_fetch_contract(self, get_all_spaces):
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_by_bk_biz_ids")
+    def test_fetch_instance_info_without_ids_returns_empty_without_query(self, get_spaces_by_ids):
         result = self.provider.fetch_instance_info(_fetch_filter(), bk_tenant_id="tenant-1")
 
         self.assertEqual(result.count, 0)
-        get_all_spaces.assert_called_once_with("tenant-1")
+        self.assertEqual(result.results, [])
+        get_spaces_by_ids.assert_not_called()
 
     @patch("apps.iam.views.resources_v4.Space.get_spaces_page")
     def test_search_instance(self, mock_spaces):
