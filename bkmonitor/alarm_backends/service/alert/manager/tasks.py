@@ -235,8 +235,11 @@ def check_blocked_alert_finished(alert_keys):
             strategy = (
                 StrategyCacheManager.get_strategy_by_id(int(alert.strategy_id)) if alert.strategy_id else None
             ) or alert.get_extra_info("strategy")
-            if recover_checker.check_new_series_lifecycle(alert, strategy):
+            lifecycle_result = recover_checker.check_new_series_lifecycle(alert, strategy)
+            if lifecycle_result:
                 if not alert.is_abnormal():
+                    continue
+                if lifecycle_result != recover_checker.NEW_SERIES_ACTIVE:
                     continue
                 # continuous 续期不会再产生同生命周期异常事件，不能依赖 Builder 后继事件解封。
                 # 周期任务在告警锁内重查两类流控；全部解除后复用当前告警并补发一次异常信号。

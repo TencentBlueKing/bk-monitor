@@ -283,7 +283,7 @@ class TestBlockedAlertLifecycle(TestCase):
             mock.patch.object(tasks.StrategyCacheManager, "get_strategy_by_id", return_value=latest_strategy),
             mock.patch(
                 "alarm_backends.service.alert.manager.checker.recover.RecoverStatusChecker.check_new_series_lifecycle",
-                return_value=True,
+                return_value=tasks.RecoverStatusChecker.NEW_SERIES_ACTIVE,
             ) as check_lifecycle,
             mock.patch.object(tasks.AlertManager, "send_signal") as send_signal,
         ):
@@ -291,6 +291,44 @@ class TestBlockedAlertLifecycle(TestCase):
 
         check_lifecycle.assert_called_once_with(alert, latest_strategy)
         alert.check_circuit_breaking.assert_called_once()
+        alert.qos_check.assert_not_called()
+        alert.update_qos_status.assert_not_called()
+        send_signal.assert_not_called()
+        alert.move_to_next_status.assert_not_called()
+
+    def test_timeout_keeps_blocked_when_new_series_lifecycle_read_fails(self):
+        alert = self.make_blocked_alert()
+        alert.check_circuit_breaking.return_value = False
+        alert.qos_check.return_value = {"is_blocked": False, "message": "告警流控已解除"}
+        latest_strategy = {"id": alert.strategy_id}
+        lifecycle = mock.Mock(
+            active_key="new-series-active",
+            claimed_key="new-series-claimed",
+            fingerprint="fingerprint",
+            detect_range=60,
+            soft_ttl=86400,
+            max_series=100000,
+        )
+
+        with (
+            mock.patch.object(tasks.Alert, "mget", return_value=[alert]),
+            mock.patch.object(tasks, "multi_service_lock", return_value=self.make_locked_context()),
+            mock.patch.object(tasks.CloseStatusChecker, "check", return_value=False),
+            mock.patch.object(tasks.StrategyCacheManager, "get_strategy_by_id", return_value=latest_strategy),
+            mock.patch(
+                "alarm_backends.service.alert.manager.checker.recover.resolve_new_series_lifecycle_state",
+                return_value=lifecycle,
+            ),
+            mock.patch.object(
+                tasks.RecoverStatusChecker,
+                "claim_new_series_expiration",
+                side_effect=RuntimeError("redis timeout"),
+            ),
+            mock.patch.object(tasks.AlertManager, "send_signal") as send_signal,
+        ):
+            tasks.check_blocked_alert_finished([AlertKey(alert_id=alert.id, strategy_id=alert.strategy_id)])
+
+        alert.check_circuit_breaking.assert_not_called()
         alert.qos_check.assert_not_called()
         alert.update_qos_status.assert_not_called()
         send_signal.assert_not_called()
@@ -307,7 +345,11 @@ class TestBlockedAlertLifecycle(TestCase):
             mock.patch.object(tasks, "multi_service_lock", return_value=self.make_locked_context()),
             mock.patch.object(tasks.CloseStatusChecker, "check", return_value=False),
             mock.patch.object(tasks.StrategyCacheManager, "get_strategy_by_id", return_value=latest_strategy),
-            mock.patch.object(tasks.RecoverStatusChecker, "check_new_series_lifecycle", return_value=True),
+            mock.patch.object(
+                tasks.RecoverStatusChecker,
+                "check_new_series_lifecycle",
+                return_value=tasks.RecoverStatusChecker.NEW_SERIES_ACTIVE,
+            ),
             mock.patch.object(tasks.AlertManager, "send_signal") as send_signal,
         ):
             tasks.check_blocked_alert_finished([AlertKey(alert_id=alert.id, strategy_id=alert.strategy_id)])
@@ -334,7 +376,11 @@ class TestBlockedAlertLifecycle(TestCase):
             mock.patch.object(tasks, "multi_service_lock", return_value=self.make_locked_context()),
             mock.patch.object(tasks.CloseStatusChecker, "check", return_value=False),
             mock.patch.object(tasks.StrategyCacheManager, "get_strategy_by_id", return_value=latest_strategy),
-            mock.patch.object(tasks.RecoverStatusChecker, "check_new_series_lifecycle", return_value=True),
+            mock.patch.object(
+                tasks.RecoverStatusChecker,
+                "check_new_series_lifecycle",
+                return_value=tasks.RecoverStatusChecker.NEW_SERIES_ACTIVE,
+            ),
             mock.patch.object(tasks.AlertDocument, "bulk_create"),
             mock.patch.object(tasks.AlertCache, "save_alert_to_cache"),
             mock.patch.object(tasks.AlertCache, "save_alert_snapshot"),

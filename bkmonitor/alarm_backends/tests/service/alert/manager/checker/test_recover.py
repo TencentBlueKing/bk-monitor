@@ -152,12 +152,11 @@ class TestRecoverStatusChecker(TestCase):
         alert = self.get_alert(strategy=strategy)
         self.set_new_series_active(1980)
 
-        with (
-            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
-            mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
-        ):
-            RecoverStatusChecker([alert]).check_all()
+        checker = RecoverStatusChecker([alert])
+        with mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000):
+            result = checker.check_new_series_lifecycle(alert, strategy)
 
+        self.assertEqual(result, checker.NEW_SERIES_ACTIVE)
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_new_series_continuous_expired_window_recovers_and_removes_active_member(self):
@@ -165,11 +164,9 @@ class TestRecoverStatusChecker(TestCase):
         alert = self.get_alert(strategy=strategy)
         active_key = self.set_new_series_active(1939)
 
-        with (
-            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
-            mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
-        ):
-            RecoverStatusChecker([alert]).check_all()
+        checker = RecoverStatusChecker([alert])
+        with mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000):
+            result = checker.check_new_series_lifecycle(alert, strategy)
             _, claimed_key, terminated_key = self.new_series_state_keys()
             self.assertEqual(
                 int(key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "55a76cf628e46c04a052f4e19bdb9dbf")),
@@ -179,6 +176,7 @@ class TestRecoverStatusChecker(TestCase):
                 key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, "55a76cf628e46c04a052f4e19bdb9dbf")
             )
 
+        self.assertEqual(result, checker.NEW_SERIES_EXPIRED)
         self.assertEqual(alert.status, EventStatus.RECOVERED)
         self.assertIsNone(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, "55a76cf628e46c04a052f4e19bdb9dbf"))
 
@@ -247,16 +245,15 @@ class TestRecoverStatusChecker(TestCase):
         strategy = self.new_series_strategy()
         alert = self.get_alert(strategy=strategy)
 
-        with (
-            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=strategy),
-            mock.patch.object(
-                RecoverStatusChecker,
-                "claim_new_series_expiration",
-                side_effect=RuntimeError("redis timeout"),
-            ),
+        checker = RecoverStatusChecker([alert])
+        with mock.patch.object(
+            RecoverStatusChecker,
+            "claim_new_series_expiration",
+            side_effect=RuntimeError("redis timeout"),
         ):
-            RecoverStatusChecker([alert]).check_all()
+            result = checker.check_new_series_lifecycle(alert, strategy)
 
+        self.assertEqual(result, checker.NEW_SERIES_ERROR)
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_new_series_lifecycle_ignores_nonstandard_event_id_for_other_algorithms(self):

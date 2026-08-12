@@ -56,6 +56,7 @@ class RecoverStatusChecker(BaseChecker):
     NEW_SERIES_MISSING = "missing"
     NEW_SERIES_ACTIVE = "active"
     NEW_SERIES_EXPIRED = "expired"
+    NEW_SERIES_ERROR = "error"
     NEW_SERIES_CLAIM_RETRIES = 3
 
     def check(self, alert: Alert):
@@ -84,7 +85,7 @@ class RecoverStatusChecker(BaseChecker):
             return
 
     def check_new_series_lifecycle(self, alert, strategy):
-        """持续模式使用独立活跃态保持告警，并按 detect_range 结束生命周期。"""
+        """持续模式使用独立活跃态保持告警，并返回可区分的处理结果供流控任务判断。"""
         lifecycle = resolve_new_series_lifecycle_state(alert, strategy)
         if lifecycle is None:
             return False
@@ -106,14 +107,14 @@ class RecoverStatusChecker(BaseChecker):
                 alert.strategy_id,
                 e,
             )
-            return True
+            return self.NEW_SERIES_ERROR
 
         if lifecycle_state == self.NEW_SERIES_MISSING:
             # 兼容存量告警、配置切换或续期写失败：没有专用状态时继续走既有恢复逻辑。
             return False
 
         if lifecycle_state == self.NEW_SERIES_ACTIVE:
-            return True
+            return self.NEW_SERIES_ACTIVE
 
         status_setter = self.get_recovery_status_setter(alert, strategy)
         self.recover(
@@ -128,7 +129,7 @@ class RecoverStatusChecker(BaseChecker):
             alert.strategy_id,
             status_setter,
         )
-        return True
+        return self.NEW_SERIES_EXPIRED
 
     @classmethod
     def claim_new_series_expiration(
