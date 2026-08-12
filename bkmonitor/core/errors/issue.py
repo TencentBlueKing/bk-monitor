@@ -102,3 +102,12 @@ class SourceAnalysisInvalidStatusTransitionError(IssueError):
     status_code = 409  # Conflict 语义，调用方应重新查询最新状态
     name = _lazy("源码分析状态流转非法")
     message_tpl = _lazy("源码分析记录状态已变更，请重新查询后重试")
+
+
+class SourceAnalysisOperationConflictError(IssueError):
+    """前端操作与当前最新执行状态冲突，data.reason 提供稳定的刷新判断依据。"""
+
+    code = 3327013
+    status_code = 409
+    name = _lazy("源码分析操作冲突")
+    message_tpl = "{message}"
