@@ -52,7 +52,6 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
-    COLLECTOR_SCENARIO_TO_SCENE,
     DORIS_CLUSTER_TYPE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
@@ -63,10 +62,9 @@ from apps.log_databus.constants import (
     RunStatus,
     RETRIEVE_CHAIN,
     Environment,
-    build_scene_labels,
-    parse_paas_table_name,
-    PAAS_APP_CODES,
     STORAGE_CLUSTER_TYPE,
+    build_collector_scene_labels,
+    detect_container_stream,
 )
 from apps.log_databus.exceptions import (
     CollectNotSuccess,
@@ -1658,49 +1656,34 @@ class CollectorHandler:
     def _build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment.
 
-        判定优先级：
-        1. 蓝鲸 PaaS 应用日志（bk_app_code 命中 + 结果表名可解析）→ bk_paas。
-           必须排在容器判定之前：PaaS 采集项多为 custom + custom_type=log，
-           会被 is_custom_container 判成容器，从而误标成 k8s。
-        2. OTLP 日志上报（custom + otlp_log）→ trpc（tRPC 服务通过 OTLP 上报，
-           按场景化检索设计方案归 trpc 场景；独立于容器判定，即使部署在 k8s）
-        3. 容器日志（is_container_collector = is_container_environment OR
-           is_custom_container）→ k8s（同时覆盖 BCS 容器采集和 custom + custom_type=log）
-        4. 兜底按 COLLECTOR_SCENARIO_TO_SCENE 映射（默认 host）
+        场景优先级由无模型依赖的共享函数统一维护，在线路径仅负责补充
+        ContainerCollectorConfig 中的 stream 信息。
         """
-        if self.data.bk_app_code in PAAS_APP_CODES:
-            # 新建采集项时 table_id 尚未落库，回退到 collector_config_name_en，
-            # 与本类中 etl_params 的取名逻辑保持同一条回退链。
-            paas_name = parse_paas_table_name(self.data.table_id or self.data.collector_config_name_en)
-            if paas_name:
-                app_code, module_name, stream = paas_name
-                return build_scene_labels(
-                    "bk_paas", app_code=app_code, module_name=module_name, stream=stream
-                )
-        if (
-            self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
-            and self.data.custom_type == CustomTypeEnum.OTLP_LOG.value
-        ):
-            return build_scene_labels("trpc")
-        if self.data.is_container_collector:
-            stream = self._detect_container_stream()
-            return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "", stream=stream)
-        scene = COLLECTOR_SCENARIO_TO_SCENE.get(self.data.collector_scenario_id, "host")
-        return build_scene_labels(scene)
+        scene_params = {
+            "collector_scenario_id": self.data.collector_scenario_id,
+            "custom_type": self.data.custom_type,
+            "environment": self.data.environment,
+            "is_container_collector": self.data.is_container_collector,
+            "bcs_cluster_id": self.data.bcs_cluster_id,
+            "bk_app_code": self.data.bk_app_code,
+            "table_id": self.data.table_id,
+            "collector_config_name_en": self.data.collector_config_name_en,
+        }
+        labels = build_collector_scene_labels(**scene_params)
+        if labels["scene"] != "k8s":
+            return labels
+
+        return build_collector_scene_labels(
+            **scene_params,
+            container_stream=self._detect_container_stream(),
+        )
 
     def _detect_container_stream(self) -> str:
         """Determine stream type (stdout / file) from ContainerCollectorConfig.collector_type."""
-        from apps.log_databus.constants import ContainerCollectorType
-
         container_configs = ContainerCollectorConfig.objects.filter(
             collector_config_id=self.data.collector_config_id
         ).values_list("collector_type", flat=True)
-        collector_types = set(container_configs)
-        if ContainerCollectorType.STDOUT in collector_types:
-            return "stdout"
-        if ContainerCollectorType.CONTAINER in collector_types:
-            return "file"
-        return ""
+        return detect_container_stream(container_configs)
 
     def _sync_scene_tags_to_index_set(self, labels: dict):
         """
@@ -1711,22 +1694,24 @@ class CollectorHandler:
         if not self.data.index_set_id:
             return
 
-        tag_ids = []
-        for key, value in labels.items():
-            if value:
-                tag_ids.append(str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE)))
-
-        if not tag_ids:
-            return
-
         try:
             index_set = LogIndexSet.objects.get(index_set_id=self.data.index_set_id)
         except LogIndexSet.DoesNotExist:
             return
 
+        tag_ids = [
+            str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE))
+            for key, value in labels.items()
+            if value
+        ]
         existing = set(str(t) for t in (index_set.tag_ids or []) if t)
-        merged = existing | set(tag_ids)
-        index_set.tag_ids = list(merged)
+        old_scene_tag_ids = set(
+            str(tag_id)
+            for tag_id in IndexSetTag.objects.filter(tag_id__in=existing, tag_type=TAG_TYPE_SCENE).values_list(
+                "tag_id", flat=True
+            )
+        )
+        index_set.tag_ids = list((existing - old_scene_tag_ids) | set(tag_ids))
         index_set.save(update_fields=["tag_ids"])
 
     def create_or_update_clean_config(self, is_update, params):

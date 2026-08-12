@@ -954,7 +954,7 @@ SCENE_SEARCH_DIMENSIONS = {
             "choices_type": "static",
             "choices": [
                 {"id": "stdout", "name": _("标准输出")},
-                {"id": "file", "name": _("容器文件")},
+                {"id": "json", "name": _("JSON 日志")},
             ],
         },
         {
@@ -1217,6 +1217,50 @@ def parse_paas_table_name(table_id: str) -> tuple | None:
     if not match:
         return None
     return match.group("app_code"), match.group("module_name"), match.group("stream")
+
+
+def detect_container_stream(collector_types) -> str:
+    """Resolve the container stream while preserving stdout precedence."""
+    collector_types = set(collector_types)
+    if ContainerCollectorType.STDOUT in collector_types:
+        return "stdout"
+    if ContainerCollectorType.CONTAINER in collector_types:
+        return "file"
+    return ""
+
+
+def build_collector_scene_labels(
+    *,
+    collector_scenario_id: str,
+    custom_type: str = "",
+    environment: str = "",
+    is_container_collector: bool | None = None,
+    bcs_cluster_id: str = "",
+    container_stream: str = "",
+    bk_app_code: str = "",
+    table_id: str = "",
+    collector_config_name_en: str = "",
+) -> dict:
+    """Build scene labels from model-independent collector attributes."""
+    if bk_app_code in PAAS_APP_CODES:
+        paas_name = parse_paas_table_name(table_id or collector_config_name_en)
+        if paas_name:
+            app_code, module_name, stream = paas_name
+            return build_scene_labels("bk_paas", app_code=app_code, module_name=module_name, stream=stream)
+
+    # Keep these value comparisons local to avoid importing log_search.constants,
+    # which already imports this module.
+    if collector_scenario_id == "custom" and custom_type == "otlp_log":
+        return build_scene_labels("trpc")
+
+    if is_container_collector is None:
+        is_custom_container = collector_scenario_id == "custom" and custom_type == "log"
+        is_container_collector = environment == Environment.CONTAINER or is_custom_container
+    if is_container_collector:
+        return build_scene_labels("k8s", cluster_id=bcs_cluster_id or "", stream=container_stream)
+
+    scene = COLLECTOR_SCENARIO_TO_SCENE.get(collector_scenario_id, "host")
+    return build_scene_labels(scene)
 
 
 # doris 集群默认日志过期天数
