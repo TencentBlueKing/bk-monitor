@@ -23,3 +23,13 @@ class TraceScopeIndexSet(AbstractRecordModel):
 
     class Meta:
         unique_together = ("bk_tenant_id", "bk_biz_id")
+
+    @classmethod
+    def get_table(cls, bk_biz_id: int, bk_tenant_id: str = DEFAULT_TENANT_ID) -> str | None:
+        """根据业务 ID 获取索引集 ID"""
+        try:
+            index_set_id: int = cls.objects.get(bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id).index_set_id
+        except cls.DoesNotExist:
+            return None
+
+        return f"bklog_index_set_{index_set_id}"

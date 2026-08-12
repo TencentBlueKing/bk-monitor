@@ -45,7 +45,7 @@ def get_request_parameters(request):
     return params
 
 
-class BaseLogInstance(object):
+class BaseLogInstance:
     action = None
     resource_id = ""
 
@@ -59,7 +59,7 @@ class BaseLogInstance(object):
 
     @property
     def resource_type(self):
-        class ResourceType(object):
+        class ResourceType:
             id = ""
 
         _resource_type = ResourceType()
@@ -79,6 +79,15 @@ class LogExtractInstance(BaseLogInstance):
 class LogSearchInstance(BaseLogInstance):
     action = ActionEnum.SEARCH_LOG
     resource_id = "LogSearch"
+
+    def __init__(self, uid=""):
+        self.instance_id = uid
+        self.instance_name = uid
+
+
+class ClientLogInstance(BaseLogInstance):
+    action = ActionEnum.DOWNLOAD_CLIENT_LOG
+    resource_id = "ClientLog"
 
     def __init__(self, uid=""):
         self.instance_id = uid

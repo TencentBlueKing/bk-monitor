@@ -259,6 +259,12 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id",),
 )
 
+STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(
+    name="bkmonitor_strategy_router_cache_refresh_fail",
+    documentation="告警后台 CacheRouter 进程路由缓存刷新失败次数（stale-while-error 保旧快照）",
+    labelnames=("cluster",),
+)
+
 # nodata
 NODATA_PROCESS_TIME = Histogram(
     name="bkmonitor_nodata_process_time",

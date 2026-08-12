@@ -290,5 +290,12 @@ export default {
   蓝鲸监控关联项目: 'Blue Whale Monitoring Associated Project',
   新建单据: 'New Ticket',
   关联已有: 'Associate existing',
+
+  // 主机
   主机异常检测: 'Host Abnormal Detection',
+  系统指标: 'System Metrics',
+  指标汇聚: 'Metric Aggregation',
+  视图分组管理: 'View Group Management',
+  主机拓扑: 'Host Topology',
+  进程详情: 'Process Details',
 };

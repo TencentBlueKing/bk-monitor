@@ -38,4 +38,5 @@ export {
   getOperatorRequestParam,
   getDefaultOp,
   getAllSceneFieldOpKeys,
+  TABLE_ID_CONDITION_SCENES,
 } from '@/store/scene-filter-config';

@@ -317,4 +317,6 @@ export default {
   只能填写正整数: 'Only positive integers can be filled in',
   应用别名必填: 'Application alias is required',
   时间不能为空且必须大于0: 'Time cannot be empty and must be greater than 0',
+
+  分组名称不能为空: 'Group name cannot be empty',
 };

@@ -501,6 +501,7 @@ export default defineComponent({
                 loadDelay={this.loadDelay}
                 noValueOfMethods={this.noValueOfMethods}
                 placeholder={this.placeholder}
+                tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 value={this.uiValue}
                 zIndex={this.zIndex}
                 onChange={this.handleUiValueChange}

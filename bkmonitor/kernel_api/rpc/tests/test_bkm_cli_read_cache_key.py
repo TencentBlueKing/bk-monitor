@@ -694,6 +694,7 @@ def test_read_cache_key_ttl_ms_failure_is_none(mocker):
 
 def test_list_cache_routing(mocker):
     from kernel_api.rpc.functions.bkm_cli.cache import list_cache_routing
+    from kernel_api.rpc.functions.bkm_cli import cache_routing
 
     # node 故意不带 host/port：_node_identity 不读取它们，输出契约就是"不含 host/port"
     node_default = SimpleNamespace(
@@ -712,36 +713,28 @@ def test_list_cache_routing(mocker):
         is_default=False,
         is_enable=True,
     )
-    router_b = SimpleNamespace(strategy_score=100000, node=node_b)
-
-    class FakeRouterQS:
-        def filter(self, **kwargs):
-            return self
-
-        def select_related(self, *args):
-            return self
-
-        def order_by(self, *args):
-            return [router_b]
-
-    class FakeNodeQS:
-        def filter(self, **kwargs):
-            return self
-
-        def first(self):
-            return node_default
-
-    mocker.patch("bkmonitor.models.CacheRouter", SimpleNamespace(objects=FakeRouterQS()))
-    mocker.patch("bkmonitor.models.CacheNode", SimpleNamespace(objects=FakeNodeQS()))
-    mocker.patch("alarm_backends.core.cluster.get_cluster", return_value=SimpleNamespace(name="default"))
+    snapshot = cache_routing._build_snapshot(
+        "default",
+        [node_default, node_b],
+        [SimpleNamespace(strategy_score=100000, node_id=node_b.id)],
+        max_strategy_id=99999,
+    )
+    mocker.patch.object(cache_routing, "_load_routing_snapshot", return_value=snapshot)
+    mocker.patch.object(cache_routing.db_router, "db_for_read", return_value="monitor_api")
+    mocker.patch.object(cache_routing, "_runtime_refresh_contract", return_value={"mode": "test"})
 
     result = list_cache_routing({})
 
     assert result["cluster_name"] == "default"
     assert result["router_count"] == 1
+    assert result["operation"] == "snapshot"
+    assert result["max_strategy_id"] == 99999
+    assert result["suggested_cutoff_100"] == 100000
+    assert len(result["nodes"]) == 2
     r0 = result["routers"][0]
     assert r0["strategy_score"] == 100000
-    assert r0["score_range"] == {"floor": 0, "ceil": 99999}
+    # strategy_id=0 固定走 default_node，正数路由表的首段从 1 开始。
+    assert r0["score_range"] == {"floor": 1, "ceil": 99999}
     assert r0["node"]["node_alias"] == "monitor-02"
     assert result["default_node"]["node_alias"] == "monitor-01"
     # 红线：路由表也不回显 host/port

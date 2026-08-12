@@ -579,6 +579,20 @@
     });
   };
 
+  /** 收起后必须清零纵向滚动，否则 overflow:hidden 仍保留旧 scrollTop，导致「更多」错位 */
+  const resetExpandScrollTop = () => {
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    if (!root) return;
+
+    root.scrollTop = 0;
+    const scrollNodes = root.querySelectorAll('.field-value, .bklog-scroll-box');
+    for (const node of Array.from(scrollNodes) as HTMLElement[]) {
+      if (node.scrollTop) {
+        node.scrollTop = 0;
+      }
+    }
+  };
+
   let mousedownItem = null;
   const handleMouseDown = e => {
     e.stopPropagation();
@@ -593,7 +607,11 @@
     e.stopImmediatePropagation();
     if (mousedownItem === e.target) {
       RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
-      showAllText.value = !showAllText.value;
+      const nextShowAll = !showAllText.value;
+      showAllText.value = nextShowAll;
+      if (!nextShowAll) {
+        resetExpandScrollTop();
+      }
       scheduleSetIsOverflowY();
     }
 
@@ -798,6 +816,7 @@
     () => {
       showAllText.value = false;
       hasScrollY.value = false;
+      resetExpandScrollTop();
       scheduleSetIsOverflowY();
     },
   );
@@ -809,6 +828,7 @@
 
       showAllText.value = false;
       hasScrollY.value = false;
+      resetExpandScrollTop();
       scheduleSetIsOverflowY();
     },
   );

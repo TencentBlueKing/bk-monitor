@@ -26,6 +26,7 @@ from kernel_api.rpc.functions.admin.common import (
     normalize_pagination,
     paginate_queryset,
 )
+from kernel_api.rpc.functions.bkm_cli.management import validate_management_request
 
 FUNC_QUERY_API_TOKENS = "bkm_cli.query_api_tokens"
 FUNC_MANAGE_API_TOKEN = "bkm_cli.manage_api_token"
@@ -33,6 +34,20 @@ FUNC_MANAGE_API_TOKEN = "bkm_cli.manage_api_token"
 QUERY_OPERATIONS = {"capabilities", "list", "detail"}
 MUTATION_OPERATIONS = {"grant", "update", "revoke"}
 API_MUTABLE_FIELDS = {"allow_all_biz", "biz_ids"}
+MANAGE_COMMON_FIELDS = {
+    "operation",
+    "confirmed",
+    "operator",
+    "bk_tenant_id",
+    "dry_run",
+}
+MANAGE_ALLOWED_FIELDS_BY_OPERATION = {
+    "grant": MANAGE_COMMON_FIELDS
+    | {"type", "app_code", "allow_all_biz", "biz_ids", "name", "is_enabled", "expire_time"},
+    "update": MANAGE_COMMON_FIELDS
+    | {"id", "type", "app_code", "allow_all_biz", "biz_ids", "name", "is_enabled", "expire_time"},
+    "revoke": MANAGE_COMMON_FIELDS | {"id"},
+}
 
 WORKFLOW_MANAGED_TYPES = {AuthType.AsCode, AuthType.Grafana, AuthType.Entity, AuthType.User}
 EXTENDED_SHARE_TYPES = ("rum", "scene_collect", "scene_custom_event", "scene_custom_metric")
@@ -273,12 +288,14 @@ def query_api_tokens(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _require_mutation_confirmation(params: dict[str, Any]) -> str:
+def _require_mutation_confirmation(params: dict[str, Any], *, operation: str) -> str:
     if "dry_run" in params:
         raise CustomException(message="API Token 管理不支持 dry_run；请先查询现状并取得人工确认")
-    if params.get("confirmed") is not True:
-        raise CustomException(message="写操作必须先取得人工确认，并传入 confirmed=true")
-    return _normalize_text(params.get("operator"), "operator", required=True, max_length=32)
+    return validate_management_request(
+        params,
+        allowed_fields=MANAGE_ALLOWED_FIELDS_BY_OPERATION[operation],
+        max_operator_length=32,
+    )
 
 
 def _grant_api_token(params: dict[str, Any], *, bk_tenant_id: str, operator: str) -> dict[str, Any]:
@@ -413,7 +430,7 @@ def _revoke_api_token(params: dict[str, Any], *, bk_tenant_id: str, operator: st
     params_schema={
         "operation": "必填，grant/update/revoke",
         "confirmed": "必填，必须为 true，表示已取得人工确认",
-        "operator": "必填，最近更新人",
+        "operator": "必填，当前人工授权中明确给出的实际执行人",
         "bk_tenant_id": "必填，明确的写入租户 ID",
         "id": "update/revoke 必填，授权记录 ID",
         "type": "grant/update 可选，只允许 api",
@@ -424,7 +441,7 @@ def _revoke_api_token(params: dict[str, Any], *, bk_tenant_id: str, operator: st
     example_params={
         "operation": "grant",
         "confirmed": False,
-        "operator": "admin",
+        "operator": "<actual-implementer>",
         "bk_tenant_id": "system",
         "app_code": "demo-app",
         "biz_ids": [2],
@@ -434,14 +451,16 @@ def manage_api_token(params: dict[str, Any]) -> dict[str, Any]:
     operation = _normalize_text(params.get("operation"), "operation", required=True)
     if operation not in MUTATION_OPERATIONS:
         raise CustomException(message=f"operation 仅支持: {sorted(MUTATION_OPERATIONS)}")
-    operator = _require_mutation_confirmation(params)
+    operator = _require_mutation_confirmation(params, operation=operation)
     bk_tenant_id = _get_bk_tenant_id(params, required=True)
 
     if operation == "grant":
-        return _grant_api_token(params, bk_tenant_id=bk_tenant_id, operator=operator)
-    if operation == "update":
-        return _update_api_token(params, bk_tenant_id=bk_tenant_id, operator=operator)
-    return _revoke_api_token(params, bk_tenant_id=bk_tenant_id, operator=operator)
+        result = _grant_api_token(params, bk_tenant_id=bk_tenant_id, operator=operator)
+    elif operation == "update":
+        result = _update_api_token(params, bk_tenant_id=bk_tenant_id, operator=operator)
+    else:
+        result = _revoke_api_token(params, bk_tenant_id=bk_tenant_id, operator=operator)
+    return {**result, "requested_operator": operator}
 
 
 BkmCliOpRegistry.register(
@@ -461,7 +480,7 @@ BkmCliOpRegistry.register(
     op_id="manage-api-token",
     func_name=FUNC_MANAGE_API_TOKEN,
     summary="授权、变更或撤回 API Token",
-    description="API Token 管理写操作；必须先取得人工确认，数据库记录 update_user 作为最近更新人。",
+    description="API Token 管理写操作；必须先取得人工确认，并显式声明本次授权中的实际执行人。",
     capability_level="admin",
     risk_level="mutation",
     requires_confirmation=True,
@@ -469,13 +488,13 @@ BkmCliOpRegistry.register(
     params_schema={
         "operation": "grant/update/revoke",
         "confirmed": "boolean，必须为 true",
-        "operator": "string，最近更新人",
+        "operator": "string，当前人工授权中明确给出的实际执行人",
         "bk_tenant_id": "string，必须显式指定",
     },
     example_params={
         "operation": "grant",
         "confirmed": False,
-        "operator": "admin",
+        "operator": "<actual-implementer>",
         "bk_tenant_id": "system",
         "app_code": "demo-app",
         "biz_ids": [2],

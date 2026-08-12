@@ -13,6 +13,7 @@ import json
 from django.utils.translation import gettext_lazy as _lazy
 
 GLOBAL_BIZ_ID = 0
+MAX_ACTION_EXECUTE_TIMEOUT = 2 * 60 * 60
 
 
 class AssignMode:

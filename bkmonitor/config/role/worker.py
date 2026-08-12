@@ -137,6 +137,7 @@ DEFAULT_CRONTAB = [
     # 策略增量更新
     ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
+    ("alarm_backends.core.cache.models.custom_ts_group", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),

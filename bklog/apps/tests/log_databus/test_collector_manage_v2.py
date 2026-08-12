@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 from unittest.mock import patch
 
+import arrow
 from django.test import TestCase
 
 from bkm_space.define import Space, SpaceTypeEnum
@@ -29,6 +30,8 @@ from apps.log_databus.constants import CollectorSourceEnum
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import LogCollectorSerializer
+from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils.local import set_local_param
 
 # 当前空间为 bkcc 业务空间（"大"的一方）
@@ -184,7 +187,9 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
         collectors = self._collectors_from_result(result)
         self.assertEqual(len(collectors), 2)
         collector_ids = {item["collector_config_id"] for item in collectors}
-        self.assertEqual(collector_ids, {self.current_collector.collector_config_id, self.related_collector.collector_config_id})
+        self.assertEqual(
+            collector_ids, {self.current_collector.collector_config_id, self.related_collector.collector_config_id}
+        )
 
     def test_returned_item_has_related_space_fields(self):
         """返回项应包含 bk_biz_id / space_uid / space_name / is_related_space 字段，且值正确。"""
@@ -299,6 +304,449 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             invalid_serializer.is_valid()
         self.assertIn("collector_source", str(ctx.exception))
 
+    def test_serializer_validates_bk_data_id_condition(self):
+        valid_serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "bk_data_id", "value": [str(self.current_collector.bk_data_id)]}],
+            }
+        )
+        self.assertTrue(valid_serializer.is_valid())
+        self.assertEqual(valid_serializer.validated_data["conditions"][0]["value"], [self.current_collector.bk_data_id])
+
+        invalid_serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "bk_data_id", "value": ["invalid"]}],
+            }
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            invalid_serializer.is_valid()
+        self.assertIn("bk_data_id", str(ctx.exception))
+
+    def test_serializer_accepts_multiple_query_values(self):
+        serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "query", "value": ["nginx", "1500", "default-es"]}],
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(
+            serializer.validated_data["conditions"][0],
+            {"key": "query", "value": ["nginx", "1500", "default-es"]},
+        )
+
+    def test_serializer_accepts_legacy_keyword(self):
+        serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "keyword": "CURRENT_COLLECTOR",
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["keyword"], "CURRENT_COLLECTOR")
+
+    def test_serializer_validates_log_collector_ordering(self):
+        serializer = LogCollectorSerializer(data={"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE})
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["ordering"], "-updated_at")
+
+        for ordering in (
+            "name",
+            "-name",
+            "retention",
+            "-retention",
+            "updated_at",
+            "-updated_at",
+            "created_at",
+            "-created_at",
+            "daily_usage",
+            "-daily_usage",
+            "total_usage",
+            "-total_usage",
+        ):
+            serializer = LogCollectorSerializer(
+                data={
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": PAGE,
+                    "pagesize": PAGESIZE,
+                    "ordering": ordering,
+                }
+            )
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        serializer = LogCollectorSerializer(
+            data={
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "ordering": "invalid",
+            }
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("ordering", serializer.errors)
+
+    def test_sort_log_collectors_by_name(self):
+        data = [
+            {"name": name, "collector_config_id": index}
+            for index, name in enumerate(["a", "Z", "0", "A", "z", "9", "_", ""], start=1)
+        ]
+
+        ascending = LogCollectorHandler.sort_log_collectors(data, "name")
+        descending = LogCollectorHandler.sort_log_collectors(data, "-name")
+
+        self.assertEqual([item["name"] for item in ascending], ["A", "Z", "0", "9", "a", "z", "_", ""])
+        self.assertEqual([item["name"] for item in descending], ["Z", "A", "9", "0", "z", "a", "_", ""])
+
+    def test_collector_identity_sort_key_variants(self):
+        cases = [
+            ({"collector_config_id": 12}, (0, (0, 12))),
+            ({"collector_config_id": "12", "index_set_id": 99}, (0, (0, 12))),
+            ({"index_set_id": 34}, (1, (0, 34))),
+            ({"collector_config_id": "collector-x"}, (0, (1, "collector-x"))),
+            ({"index_set_id": "index-x"}, (1, (1, "index-x"))),
+            ({}, (1, (1, ""))),
+        ]
+
+        for item, expected_key in cases:
+            with self.subTest(item=item):
+                self.assertEqual(LogCollectorHandler._collector_identity_sort_key(item), expected_key)
+
+    def test_name_character_sort_key_variants(self):
+        cases = [
+            ("A", (0, 0), (0, 0)),
+            ("Z", (0, 25), (0, -25)),
+            ("0", (1, 0), (1, 0)),
+            ("9", (1, 9), (1, -9)),
+            ("a", (2, 0), (2, 0)),
+            ("z", (2, 25), (2, -25)),
+            ("_", (3, ord("_")), (3, -ord("_"))),
+            ("中", (3, ord("中")), (3, -ord("中"))),
+        ]
+
+        for character, ascending_key, descending_key in cases:
+            with self.subTest(character=character):
+                self.assertEqual(
+                    LogCollectorHandler._name_character_sort_key(character, descending=False), ascending_key
+                )
+                self.assertEqual(
+                    LogCollectorHandler._name_character_sort_key(character, descending=True), descending_key
+                )
+
+    def test_name_sort_key_structure(self):
+        item = {"name": "A1a_", "collector_config_id": "12"}
+
+        ascending_key = LogCollectorHandler._name_sort_key(item, descending=False)
+        descending_key = LogCollectorHandler._name_sort_key(item, descending=True)
+
+        self.assertEqual(
+            ascending_key,
+            (
+                False,
+                ((0, 0), (1, 1), (2, 0), (3, ord("_")), (-1, 0)),
+                (0, (0, 12)),
+            ),
+        )
+        self.assertEqual(
+            descending_key,
+            (
+                False,
+                ((0, 0), (1, -1), (2, 0), (3, -ord("_")), (4, 0)),
+                (0, (0, 12)),
+            ),
+        )
+        self.assertEqual(
+            LogCollectorHandler._name_sort_key({"name": "", "index_set_id": 3}, descending=False),
+            (True, ((-1, 0),), (1, (0, 3))),
+        )
+
+    def test_sort_log_collectors_by_name_prefix_and_stable_identity(self):
+        data = [
+            {"name": "A", "collector_config_id": 2},
+            {"name": "Aa", "collector_config_id": 6},
+            {"name": "A0", "collector_config_id": 5},
+            {"name": "AA", "collector_config_id": 4},
+            {"name": "A", "index_set_id": 1},
+            {"name": "A", "collector_config_id": 1},
+            {"name": "", "index_set_id": 7},
+        ]
+
+        ascending = LogCollectorHandler.sort_log_collectors(data, "name")
+        descending = LogCollectorHandler.sort_log_collectors(data, "-name")
+
+        self.assertEqual([item["name"] for item in ascending], ["A", "A", "A", "AA", "A0", "Aa", ""])
+        self.assertEqual(
+            [item.get("collector_config_id") or item.get("index_set_id") for item in ascending[:3]],
+            [1, 2, 1],
+        )
+        self.assertEqual([item["name"] for item in descending], ["AA", "A0", "Aa", "A", "A", "A", ""])
+
+    def test_field_sort_key_variants(self):
+        retention_item = {"retention": "14", "collector_config_id": 2}
+        identity_key = (0, (0, 2))
+
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(retention_item, "retention", descending=False),
+            (False, 14, identity_key),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(retention_item, "retention", descending=True),
+            (False, -14, identity_key),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key({"retention": "", "index_set_id": 3}, "retention", descending=True),
+            (True, 0, (1, (0, 3))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"retention": "forever", "collector_config_id": 4}, "retention", descending=False
+            ),
+            (True, 0, (0, (0, 4))),
+        )
+
+        time_value = "2025-02-01 12:30:45+0800"
+        timestamp = arrow.get(time_value[:19], "YYYY-MM-DD HH:mm:ss").int_timestamp
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"updated_at": time_value, "index_set_id": 5}, "updated_at", descending=False
+            ),
+            (False, timestamp, (1, (0, 5))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"updated_at": time_value, "index_set_id": 5}, "updated_at", descending=True
+            ),
+            (False, -timestamp, (1, (0, 5))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"updated_at": "not-a-time", "index_set_id": 6}, "updated_at", descending=False
+            ),
+            (True, 0, (1, (0, 6))),
+        )
+
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"storage_usage": {"daily_usage": "2048"}, "index_set_id": 7},
+                "daily_usage",
+                descending=False,
+            ),
+            (False, 2048, (1, (0, 7))),
+        )
+        self.assertEqual(
+            LogCollectorHandler._field_sort_key(
+                {"storage_usage": {"total_usage": 4096}, "index_set_id": 8},
+                "total_usage",
+                descending=True,
+            ),
+            (False, -4096, (1, (0, 8))),
+        )
+
+    def test_sort_log_collectors_by_retention_with_empty_values_last(self):
+        data = [
+            {"retention": 30, "collector_config_id": 1},
+            {"retention": "", "index_set_id": 2},
+            {"retention": 7, "collector_config_id": 3},
+            {"retention": 14, "collector_config_id": 4},
+        ]
+
+        ascending = LogCollectorHandler.sort_log_collectors(data, "retention")
+        descending = LogCollectorHandler.sort_log_collectors(data, "-retention")
+
+        self.assertEqual([item["retention"] for item in ascending], [7, 14, 30, ""])
+        self.assertEqual([item["retention"] for item in descending], [30, 14, 7, ""])
+
+    def test_sort_log_collectors_by_created_and_updated_at(self):
+        data = [
+            {
+                "collector_config_id": 1,
+                "updated_at": "2025-01-01 00:00:00+0800",
+                "created_at": "2025-02-01 00:00:00",
+            },
+            {
+                "collector_config_id": 2,
+                "updated_at": "2025-02-01 00:00:00",
+                "created_at": "2025-01-01 00:00:00+0800",
+            },
+            {"index_set_id": 3, "updated_at": "", "created_at": ""},
+        ]
+
+        for ordering, expected_ids in (
+            ("updated_at", [1, 2, 3]),
+            ("-updated_at", [2, 1, 3]),
+            ("created_at", [2, 1, 3]),
+            ("-created_at", [1, 2, 3]),
+        ):
+            result = LogCollectorHandler.sort_log_collectors(data, ordering)
+            result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
+            self.assertEqual(result_ids, expected_ids)
+
+    def test_sort_log_collectors_by_storage_usage_with_empty_values_last(self):
+        data = [
+            {"index_set_id": 1, "storage_usage": {"daily_usage": 1024, "total_usage": 10240}},
+            {"index_set_id": 2, "storage_usage": {"daily_usage": None, "total_usage": None}},
+            {"index_set_id": 3, "storage_usage": {"daily_usage": 0, "total_usage": 0}},
+            {
+                "collector_config_id": 4,
+                "index_set_id": 4,
+                "storage_usage": {"daily_usage": "4096", "total_usage": "40960"},
+            },
+        ]
+
+        for ordering, expected_ids in (
+            ("daily_usage", [3, 1, 4, 2]),
+            ("-daily_usage", [4, 1, 3, 2]),
+            ("total_usage", [3, 1, 4, 2]),
+            ("-total_usage", [4, 1, 3, 2]),
+        ):
+            result = LogCollectorHandler.sort_log_collectors(data, ordering)
+            result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
+            self.assertEqual(result_ids, expected_ids)
+
+    def test_fill_storage_usage_info_groups_index_sets_by_space(self):
+        current_index_set = LogIndexSet.objects.create(
+            index_set_name="current_usage_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        related_index_set = LogIndexSet.objects.create(
+            index_set_name="related_usage_index_set",
+            space_uid=RELATED_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        data = [
+            {"collector_config_id": 1, "index_set_id": current_index_set.index_set_id},
+            {"index_set_id": related_index_set.index_set_id},
+            {"collector_config_id": 3, "index_set_id": ""},
+        ]
+
+        def get_storage_usage_info(bk_biz_id, index_set_ids):
+            multiplier = 1 if bk_biz_id == CURRENT_BK_BIZ_ID else 2
+            return [
+                {
+                    "index_set_id": str(index_set_id),
+                    "daily_count": 10 * multiplier,
+                    "total_count": 100 * multiplier,
+                    "daily_usage": 1024 * multiplier,
+                    "total_usage": 10240 * multiplier,
+                }
+                for index_set_id in index_set_ids
+            ]
+
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+        with (
+            patch(
+                "apps.log_databus.handlers.collector_handler.log.space_uid_to_bk_biz_id",
+                return_value=RELATED_BK_BIZ_ID,
+            ) as mock_space_uid_to_bk_biz_id,
+            patch.object(
+                IndexSetHandler,
+                "get_storage_usage_info",
+                side_effect=get_storage_usage_info,
+            ) as mock_get_storage_usage_info,
+        ):
+            result = handler.fill_storage_usage_info(data)
+
+        self.assertEqual(result[0]["storage_usage"]["daily_usage"], 1024)
+        self.assertEqual(result[0]["storage_usage"]["total_usage"], 10240)
+        self.assertEqual(result[1]["storage_usage"]["daily_usage"], 2048)
+        self.assertEqual(result[1]["storage_usage"]["total_usage"], 20480)
+        self.assertIsNone(result[2]["storage_usage"]["daily_usage"])
+        self.assertIsNone(result[2]["storage_usage"]["total_usage"])
+        mock_space_uid_to_bk_biz_id.assert_called_once_with(RELATED_SPACE_UID)
+        self.assertEqual(
+            {(call.args[0], tuple(call.args[1])) for call in mock_get_storage_usage_info.call_args_list},
+            {
+                (CURRENT_BK_BIZ_ID, (current_index_set.index_set_id,)),
+                (RELATED_BK_BIZ_ID, (related_index_set.index_set_id,)),
+            },
+        )
+
+    def test_get_log_collectors_fills_usage_before_sorting_and_pagination(self):
+        self._setup_related_space_mocks()
+
+        def fill_storage_usage_info(data):
+            usage_by_collector_id = {
+                self.current_collector.collector_config_id: 1024,
+                self.related_collector.collector_config_id: 4096,
+            }
+            for item in data:
+                total_usage = usage_by_collector_id[item["collector_config_id"]]
+                item["storage_usage"] = {
+                    "daily_count": 1,
+                    "total_count": 10,
+                    "daily_usage": total_usage // 10,
+                    "total_usage": total_usage,
+                }
+            return data
+
+        with patch.object(
+            LogCollectorHandler,
+            "fill_storage_usage_info",
+            side_effect=fill_storage_usage_info,
+        ) as mock_fill_storage_usage_info:
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": 1,
+                    "pagesize": 1,
+                    "conditions": [],
+                    "include_related_spaces": True,
+                    "ordering": "-total_usage",
+                }
+            )
+
+        mock_fill_storage_usage_info.assert_called_once()
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["list"][0]["collector_config_id"], self.related_collector.collector_config_id)
+        self.assertEqual(result["list"][0]["storage_usage"]["total_usage"], 4096)
+
+    def test_get_log_collectors_does_not_fill_usage_for_other_ordering(self):
+        self._setup_related_space_mocks()
+
+        with patch.object(LogCollectorHandler, "fill_storage_usage_info") as mock_fill_storage_usage_info:
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": 1,
+                    "pagesize": PAGESIZE,
+                    "conditions": [],
+                    "include_related_spaces": True,
+                    "ordering": "-updated_at",
+                }
+            )
+
+        mock_fill_storage_usage_info.assert_not_called()
+        self.assertTrue(result["list"])
+        self.assertTrue(all("storage_usage" not in item for item in result["list"]))
+
+    def test_get_log_collectors_sorts_before_pagination(self):
+        self._setup_related_space_mocks()
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": 1,
+                "pagesize": 1,
+                "conditions": [],
+                "include_related_spaces": True,
+                "ordering": "-name",
+            }
+        )
+
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["list"][0]["name"], "related_collector")
+
     def test_get_query_ids_by_collector_source_logic(self):
         """直接验证 get_query_ids_by_collector_source 的查询 id 组合逻辑。"""
         self.mock_get_all_related.return_value = [CURRENT_SPACE_UID, RELATED_SPACE_UID]
@@ -338,3 +786,512 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
             handler.get_query_ids_by_collector_source([CollectorSourceEnum.RELATED_SPACE.value]),
             [RELATED_SPACE_UID],
         )
+
+    @patch.object(LogCollectorHandler, "get_bkdata_cluster_names", return_value={"bkdata_cluster"})
+    @patch.object(LogCollectorHandler, "get_metadata_cluster_names", return_value={"metadata_cluster"})
+    def test_get_collector_field_enums_uses_collector_list_field_values(
+        self, _mock_get_metadata_cluster_names, _mock_get_bkdata_cluster_names
+    ):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_collector_field_enums(include_related_spaces=False)
+
+        self.assertEqual(
+            result["name"],
+            [
+                {"key": "bkdata_index_set", "value": "bkdata_index_set"},
+                {"key": "current_collector", "value": "current_collector"},
+            ],
+        )
+        self.assertEqual(result["name_en"], [{"key": "current_collector", "value": "current_collector"}])
+        self.assertEqual(result["bk_data_id"], [{"key": 1500586, "value": 1500586}])
+        self.assertEqual(
+            result["bk_data_name"],
+            [
+                {"key": "2_bkbase.second,2_bkbase.first", "value": "2_bkbase.second,2_bkbase.first"},
+                {"key": "2_bklog_current_collector", "value": "2_bklog_current_collector"},
+            ],
+        )
+        self.assertEqual(
+            result["storage_display_name"],
+            [
+                {"key": "bkdata_cluster", "value": "bkdata_cluster"},
+                {"key": "metadata_cluster", "value": "metadata_cluster"},
+            ],
+        )
+
+    def test_get_log_collectors_filters_by_name_en_bk_data_id_and_bk_data_name(self):
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+        base_data = {
+            "space_uid": CURRENT_SPACE_UID,
+            "page": PAGE,
+            "pagesize": PAGESIZE,
+        }
+
+        for key, value in [
+            ("name_en", "current_collector"),
+            ("bk_data_id", self.current_collector.bk_data_id),
+            ("bk_data_name", "2_BKLOG_CURRENT_COLLECTOR"),
+            ("bk_data_name", "CURRENT_COLLECTOR"),
+        ]:
+            result = handler.get_log_collectors(
+                {
+                    **base_data,
+                    "conditions": [{"key": key, "value": [value]}],
+                }
+            )
+            collectors = self._collectors_from_result(result)
+            self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
+
+        for key, value in [
+            ("name_en", "2_bklog_current_collector"),
+            ("bk_data_name", "missing_collector"),
+        ]:
+            result = handler.get_log_collectors(
+                {
+                    **base_data,
+                    "conditions": [{"key": key, "value": [value]}],
+                }
+            )
+            self.assertEqual(self._collectors_from_result(result), [])
+
+    def test_get_log_collectors_filters_storage_display_name_by_partial_value(self):
+        def add_cluster_info(data):
+            for item in data:
+                item["storage_display_name"] = (
+                    "Related ES Cluster"
+                    if item["collector_config_id"] == self.related_collector.collector_config_id
+                    else "Current ES Cluster"
+                )
+            return data
+
+        self._setup_related_space_mocks()
+        with patch(
+            "apps.log_databus.handlers.collector_handler.log.CollectorHandler.add_cluster_info",
+            side_effect=add_cluster_info,
+        ):
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": PAGE,
+                    "pagesize": PAGESIZE,
+                    "conditions": [{"key": "storage_display_name", "value": ["RELATED es"]}],
+                    "include_related_spaces": True,
+                }
+            )
+
+        collectors = self._collectors_from_result(result)
+        self.assertEqual([item["collector_config_id"] for item in collectors], [self.related_collector.pk])
+
+    def test_get_log_collectors_filters_index_set_by_exposed_bk_data_name(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+        other_index_set = LogIndexSet.objects.create(
+            index_set_name="other_bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=other_index_set.index_set_id,
+            result_table_id="2_bkbase.other",
+        )
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [
+                    {"key": "bk_data_name", "value": ["2_bkbase.second,2_bkbase.first"]},
+                ],
+            }
+        )
+
+        matched_item = next(item for item in result["list"] if item["index_set_id"] == index_set.index_set_id)
+        self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")
+        self.assertNotIn(other_index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
+
+    @staticmethod
+    def _split_table_id(data):
+        """模拟 CollectorHandler.add_cluster_info 对 table_id 的拆分行为。"""
+        for item in data:
+            if item.get("table_id"):
+                table_id_prefix, _, table_id = item["table_id"].partition(".")
+                item["table_id_prefix"] = f"{table_id_prefix}_"
+                item["table_id"] = table_id
+        return data
+
+    def _create_pending_collector(self):
+        """构造一个尚未创建结果表的采集项（table_id 为空，仅有采集项英文名）。"""
+        return CollectorConfig.objects.create(
+            collector_config_id=3,
+            collector_config_name="待完成采集项",
+            collector_config_name_en="pending_collector_en",
+            collector_scenario_id="row",
+            bk_biz_id=CURRENT_BK_BIZ_ID,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type="TOPO",
+            target_nodes=[],
+            target_subscription_diff={},
+            description="pending",
+            is_active=True,
+            bk_data_id=1500588,
+            table_id=None,
+        )
+
+    def _create_hidden_collector(self):
+        """构造一个被采集插件标记为不可见的采集项（is_display=False）。"""
+        return CollectorConfig.objects.create(
+            collector_config_id=4,
+            collector_config_name="插件隐藏采集项",
+            collector_config_name_en="hidden_plugin_collector",
+            collector_scenario_id="custom",
+            bk_biz_id=CURRENT_BK_BIZ_ID,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type="TOPO",
+            target_nodes=[],
+            target_subscription_diff={},
+            description="hidden",
+            is_active=True,
+            bk_data_id=1500599,
+            table_id="2_bklog.hidden_plugin_collector",
+            is_display=False,
+        )
+
+    def test_get_log_collectors_excludes_not_displayed_collector(self):
+        """采集插件通过 is_display 隐藏的采集项不应出现在采集接入列表中。"""
+        hidden_collector = self._create_hidden_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collector_ids = [item["collector_config_id"] for item in self._collectors_from_result(result)]
+        self.assertNotIn(hidden_collector.pk, collector_ids)
+        self.assertIn(self.current_collector.pk, collector_ids)
+
+    def test_not_displayed_collector_is_absent_from_field_enums(self):
+        """枚举须与列表同源，隐藏采集项不应污染筛选项。"""
+        self._create_hidden_collector()
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+
+        with (
+            patch.object(LogCollectorHandler, "get_bkdata_cluster_names", return_value=set()),
+            patch.object(LogCollectorHandler, "get_metadata_cluster_names", return_value=set()),
+        ):
+            enums = handler.get_collector_field_enums(include_related_spaces=False)
+
+        self.assertNotIn(
+            {"key": "hidden_plugin_collector", "value": "hidden_plugin_collector"},
+            enums["name_en"],
+        )
+        self.assertNotIn(
+            {"key": "2_bklog_hidden_plugin_collector", "value": "2_bklog_hidden_plugin_collector"},
+            enums["bk_data_name"],
+        )
+
+    def test_get_collector_count_excludes_not_displayed_collector(self):
+        """采集项总数须与列表口径一致，否则总数与实际条目对不上。"""
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+        count_before = handler.get_collector_count()
+
+        self._create_hidden_collector()
+
+        self.assertEqual(handler.get_collector_count(), count_before)
+
+    def test_name_en_exposes_collector_config_name_en_with_table_id_fallback(self):
+        """数据名取采集项英文名；英文名缺失的历史数据回退到结果表点号后的部分。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        # 未建结果表的采集项直接取英文名，不再展示为空
+        self.assertEqual(collectors[pending_collector.pk]["name_en"], "pending_collector_en")
+        # 英文名为空的历史数据回退到结果表后缀
+        self.assertEqual(collectors[self.current_collector.pk]["name_en"], "current_collector")
+
+    def test_is_editable_defaults_to_true_for_collector(self):
+        """采集项没有 is_editable，缺省须为 True；空串在前端 !is_editable 下会被误判为不可编辑。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        for collector_id in (pending_collector.pk, self.current_collector.pk):
+            self.assertIs(collectors[collector_id]["is_editable"], True)
+
+    def test_table_id_stays_empty_for_collector_without_result_table(self):
+        """table_id 保持原语义，前端据此判断采集项未完成、拦截跳转详情页。"""
+        pending_collector = self._create_pending_collector()
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {"space_uid": CURRENT_SPACE_UID, "page": PAGE, "pagesize": PAGESIZE}
+        )
+
+        collectors = {item["collector_config_id"]: item for item in self._collectors_from_result(result)}
+        self.assertFalse(collectors[pending_collector.pk]["table_id"])
+        self.assertTrue(collectors[self.current_collector.pk]["table_id"])
+
+    def test_name_en_is_searchable_and_enumerable(self):
+        """数据名必须同时能被筛选和枚举命中，避免列表可见但搜不到。"""
+        pending_collector = self._create_pending_collector()
+        handler = LogCollectorHandler(CURRENT_SPACE_UID)
+
+        result = handler.get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "name_en", "value": ["PENDING_COLLECTOR"]}],
+            }
+        )
+        self.assertEqual(
+            [item["collector_config_id"] for item in self._collectors_from_result(result)],
+            [pending_collector.pk],
+        )
+
+        with (
+            patch.object(LogCollectorHandler, "get_bkdata_cluster_names", return_value=set()),
+            patch.object(LogCollectorHandler, "get_metadata_cluster_names", return_value=set()),
+        ):
+            enums = handler.get_collector_field_enums(include_related_spaces=False)
+
+        self.assertIn({"key": "pending_collector_en", "value": "pending_collector_en"}, enums["name_en"])
+        # 未建表的采集项没有存储名，不应污染存储名枚举
+        self.assertEqual(
+            enums["bk_data_name"],
+            [{"key": "2_bklog_current_collector", "value": "2_bklog_current_collector"}],
+        )
+
+    def test_get_log_collectors_matches_dotted_and_underscored_result_table(self):
+        """结果表名的点号写法与下划线写法应当互相命中。"""
+        with patch(
+            "apps.log_databus.handlers.collector_handler.log.CollectorHandler.add_cluster_info",
+            side_effect=self._split_table_id,
+        ):
+            for value in ("2_bklog.current_collector", "2_bklog_current_collector"):
+                with self.subTest(value=value):
+                    result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                        {
+                            "space_uid": CURRENT_SPACE_UID,
+                            "page": PAGE,
+                            "pagesize": PAGESIZE,
+                            "conditions": [{"key": "query", "value": [value]}],
+                        }
+                    )
+                    self.assertEqual(
+                        [item["collector_config_id"] for item in self._collectors_from_result(result)],
+                        [self.current_collector.pk],
+                    )
+
+    def test_get_log_collectors_filters_bk_data_name_with_dotted_value(self):
+        """存储名筛选传入带点号的结果表名同样应当命中。"""
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "bk_data_name", "value": ["2_bklog.current_collector"]}],
+            }
+        )
+        self.assertEqual(
+            [item["collector_config_id"] for item in self._collectors_from_result(result)],
+            [self.current_collector.pk],
+        )
+
+    def test_get_log_collectors_matches_index_set_with_underscored_result_table(self):
+        """索引集的结果表以点号存储，用下划线写法搜索也应当命中。"""
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "query", "value": ["2_bkbase_first"]}],
+            }
+        )
+        self.assertEqual([item["index_set_id"] for item in result["list"]], [index_set.index_set_id])
+
+    def test_filter_by_queries_matches_all_searchable_fields_and_multiple_queries(self):
+        data = [
+            {
+                "collector_config_id": 1,
+                "name": "Nginx Access",
+                "bk_data_id": 1500586,
+                "table_id": "nginx_access",
+                "bk_data_name": "2_bklog_nginx_access",
+                "storage_display_name": "Default ES",
+            },
+            {
+                "index_set_id": 2,
+                "name": "BKBase Index",
+                "bk_data_id": "",
+                "table_id": "",
+                "bk_data_name": "2_bkbase.pipeline_log",
+                "storage_display_name": "BKData Cluster",
+            },
+        ]
+
+        cases = (
+            (["nginx"], [1]),
+            (["0058"], [1]),
+            (["ACCESS"], [1]),
+            (["bklog_nginx"], [1]),
+            (["default es"], [1]),
+            (["nginx", "0058", "default es"], [1]),
+            (["bkbase", "cluster"], [2]),
+            (["pipeline", "nginx"], []),
+            (["missing"], []),
+            (["", "  "], [1, 2]),
+        )
+        for queries, expected_ids in cases:
+            with self.subTest(queries=queries):
+                result = LogCollectorHandler.filter_by_queries(data, queries)
+                result_ids = [item.get("collector_config_id") or item.get("index_set_id") for item in result]
+                self.assertEqual(result_ids, expected_ids)
+
+    def test_get_log_collectors_searches_collector_with_query_condition(self):
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "query", "value": ["CURRENT_COLLECTOR"]}],
+            }
+        )
+
+        collectors = self._collectors_from_result(result)
+        self.assertEqual([item["collector_config_id"] for item in collectors], [self.current_collector.pk])
+
+    def test_get_log_collectors_searches_collector_with_legacy_keyword(self):
+        base_data = {
+            "space_uid": CURRENT_SPACE_UID,
+            "page": PAGE,
+            "pagesize": PAGESIZE,
+        }
+
+        for keyword in ("CURRENT_COLLECTOR", "BKLOG_CURRENT", str(self.current_collector.bk_data_id)):
+            with self.subTest(keyword=keyword):
+                result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors({**base_data, "keyword": keyword})
+                collectors = self._collectors_from_result(result)
+                self.assertEqual(
+                    [item["collector_config_id"] for item in collectors],
+                    [self.current_collector.pk],
+                )
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors({**base_data, "keyword": "0058"})
+        self.assertEqual(self._collectors_from_result(result), [])
+
+    def test_get_log_collectors_searches_index_set_with_legacy_keyword(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "keyword": "SECOND,2_BKBASE.FI",
+            }
+        )
+
+        self.assertIn(index_set.index_set_id, [item["index_set_id"] for item in result["list"]])
+
+    def test_legacy_keyword_and_query_condition_have_and_relationship(self):
+        base_data = {
+            "space_uid": CURRENT_SPACE_UID,
+            "page": PAGE,
+            "pagesize": PAGESIZE,
+            "keyword": "CURRENT_COLLECTOR",
+        }
+
+        matched_result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {**base_data, "conditions": [{"key": "query", "value": [str(self.current_collector.bk_data_id)]}]}
+        )
+        self.assertEqual(
+            [item["collector_config_id"] for item in self._collectors_from_result(matched_result)],
+            [self.current_collector.pk],
+        )
+
+        unmatched_result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {**base_data, "conditions": [{"key": "query", "value": ["missing"]}]}
+        )
+        self.assertEqual(self._collectors_from_result(unmatched_result), [])
+
+    def test_get_log_collectors_searches_storage_display_name_with_query_condition(self):
+        def add_cluster_info(data):
+            for item in data:
+                item["storage_display_name"] = (
+                    "Related ES Cluster"
+                    if item["collector_config_id"] == self.related_collector.collector_config_id
+                    else "Current ES Cluster"
+                )
+            return data
+
+        self._setup_related_space_mocks()
+        with patch(
+            "apps.log_databus.handlers.collector_handler.log.CollectorHandler.add_cluster_info",
+            side_effect=add_cluster_info,
+        ):
+            result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+                {
+                    "space_uid": CURRENT_SPACE_UID,
+                    "page": PAGE,
+                    "pagesize": PAGESIZE,
+                    "conditions": [{"key": "query", "value": ["related es"]}],
+                    "include_related_spaces": True,
+                }
+            )
+
+        collectors = self._collectors_from_result(result)
+        self.assertEqual([item["collector_config_id"] for item in collectors], [self.related_collector.pk])
+
+    def test_get_log_collectors_searches_index_set_with_multiple_query_conditions(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_index_set",
+            space_uid=CURRENT_SPACE_UID,
+            scenario_id=Scenario.BKDATA,
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.first")
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_bkbase.second")
+
+        result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(
+            {
+                "space_uid": CURRENT_SPACE_UID,
+                "page": PAGE,
+                "pagesize": PAGESIZE,
+                "conditions": [{"key": "query", "value": ["SECOND", "2_BKBASE.FI"]}],
+            }
+        )
+
+        matched_item = next(item for item in result["list"] if item["index_set_id"] == index_set.index_set_id)
+        self.assertEqual(matched_item["bk_data_name"], "2_bkbase.second,2_bkbase.first")
