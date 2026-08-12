@@ -533,4 +533,7 @@ export default {
     'After the group is deleted, the related metrics will be moved to <{name}>',
   '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
     'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
+
+  '暂未关联蓝盾项目 & 源码仓库，{0}': 'No BK-DevOps project & source code repository has been associated yet, {0}',
+  '已关联蓝盾项目 & 源码仓库，{0}': 'BK-DevOps project & source code repository has been associated, {0}',
 };
