@@ -31,7 +31,12 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useHostStore } from '../../../../store/modules/host';
-import { type HostContentTab, type HostPerspective, HOST_PERSPECTIVE_TAB_MAP } from '../../constants/constants';
+import {
+  type HostContentTab,
+  type HostPerspective,
+  getHostPerspectiveTabList,
+  resolveHostContentTab,
+} from '../../constants/constants';
 import { isHostNode } from '../../utils/topo-tree';
 import HostList from '../host-list/host-list';
 import HostMetric from '../host-metric/host-metric';
@@ -74,23 +79,38 @@ export default defineComponent({
     );
 
     /** 当前视角对应的 Tab 列表 */
-    const tabList = computed(() => HOST_PERSPECTIVE_TAB_MAP[perspective.value]);
+    const tabList = computed(() => getHostPerspectiveTabList(perspective.value, !!window.enable_cmdb_level));
 
     /** 当前激活 Tab */
-    const activeTab = shallowRef<HostContentTab>((route.query.activeTab as HostContentTab) || tabList.value[0].value);
+    const activeTab = shallowRef<HostContentTab>(resolveHostContentTab(route.query.activeTab, tabList.value));
 
-    watch(activeTab, () => {
-      hostActiveTab.value = activeTab.value;
-    });
-
-    // 切换视角时优先保持当前激活 Tab（若新视角支持该 Tab），否则回退到默认 Tab
-    watch(perspective, () => {
-      if (tabList.value.map(tab => tab.value).includes(hostActiveTab.value)) {
-        activeTab.value = hostActiveTab.value as HostContentTab;
-      } else {
-        activeTab.value = tabList.value[0].value;
+    watch(activeTab, value => {
+      if (hostActiveTab.value !== value) {
+        hostActiveTab.value = value;
       }
     });
+
+    // URL 参数会在父组件挂载时写入 store；同步校验视角和能力，避免恢复到不可用 Tab。
+    watch(
+      [() => props.selectedNode, perspective, hostActiveTab],
+      () => {
+        const requestedTab = hostActiveTab.value || route.query.activeTab;
+        // 拓扑尚未返回时无法判断 nodeId 是否为主机，先保留合法的主机详情直达 Tab。
+        if (!props.selectedNode && (requestedTab === 'system' || requestedTab === 'process')) {
+          activeTab.value = requestedTab;
+          if (hostActiveTab.value !== requestedTab) {
+            hostActiveTab.value = requestedTab;
+          }
+          return;
+        }
+        const nextActiveTab = resolveHostContentTab(requestedTab, tabList.value);
+        activeTab.value = nextActiveTab;
+        if (hostActiveTab.value !== nextActiveTab) {
+          hostActiveTab.value = nextActiveTab;
+        }
+      },
+      { immediate: true }
+    );
 
     const handleTabChange = (value: HostContentTab) => {
       activeTab.value = value;
