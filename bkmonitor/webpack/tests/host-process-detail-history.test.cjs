@@ -58,6 +58,9 @@ Module._load = function load(request, parent, isMain) {
   if (request.includes('components/refresh-rate/refresh-rate')) return { default: { name: 'RefreshRate' } };
   if (request.includes('components/skeleton/chart-skeleton')) return { default: {} };
   if (request.includes('components/time-range/time-range')) return { default: { name: 'TimeRange' } };
+  if (request.includes('components/tag-overflow/tag-overflow')) {
+    return { __esModule: true, default: { name: 'TagOverflow' } };
+  }
   if (request.endsWith('pages/host/constants/enum')) return { ProcessDetailTabEnum: { METRIC: 'metric' } };
   if (request.endsWith('pages/host/constants/process')) {
     return { PROCESS_DETAIL_TABS: [], PROCESS_PORT_STATUS_MAP: {} };
@@ -142,6 +145,10 @@ const createProcessDetail = () => {
       protocol: '',
       bindIp: '',
       port: '',
+      ports: [
+        { protocol: 'TCP', bindIp: '127.0.0.1', port: 6379, portStatus: 0 },
+        { protocol: 'TCP', bindIp: '127.0.0.1', port: 6380, portStatus: 0 },
+      ],
       startCommand: 'nginx',
     },
     selectedNode: {
@@ -212,5 +219,32 @@ test('节点和时间连续切换时旧 uptime 响应不能覆盖新响应', asy
 
   assert.match(collectText(exposed.renderInfo()), /300@400/);
   assert.doesNotMatch(collectText(exposed.renderInfo()), /200@400/);
+  scope.stop();
+});
+
+test('抽屉头部把同名进程的多个端口交给统一溢出组件展示', () => {
+  const { exposed, scope } = createProcessDetail();
+  const overflow = findVNode(exposed.renderInfo(), vnode => vnode.type?.name === 'TagOverflow');
+
+  assert.ok(overflow);
+  assert.equal(overflow.props.list.length, 2);
+  assert.equal(overflow.props.getLabel(overflow.props.list[1]), 'TCP 127.0.0.1:6380');
+  assert.match(collectText(overflow.children.default({ item: overflow.props.list[0] })), /6379/);
+  scope.stop();
+});
+
+test('后端未下发端口数组时仍兼容原有单端口字段', () => {
+  const { exposed, props, scope } = createProcessDetail();
+  props.process = {
+    ...props.process,
+    protocol: 'TCP',
+    bindIp: '127.0.0.1',
+    port: 6379,
+    ports: undefined,
+  };
+  const overflow = findVNode(exposed.renderInfo(), vnode => vnode.type?.name === 'TagOverflow');
+
+  assert.equal(overflow.props.list.length, 1);
+  assert.equal(overflow.props.getLabel(overflow.props.list[0]), 'TCP 127.0.0.1:6379');
   scope.stop();
 });

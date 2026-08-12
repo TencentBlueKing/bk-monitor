@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
 import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
+import TagOverflow from '../../../../../components/tag-overflow/tag-overflow';
 import TimeRange from '../../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../../components/time-range/utils';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
@@ -54,7 +55,7 @@ import type {
   ProcessDetailTabType,
 } from '../../../../../pages/host/types';
 import type { CustomOptions } from '../../../../trace-explore/components/explore-chart/use-echarts';
-import type { ProcessItem } from '../../../types/process';
+import type { ProcessItem, ProcessPort } from '../../../types/process';
 
 import './process-detail.scss';
 
@@ -254,7 +255,19 @@ export default defineComponent({
     const renderInfo = () => {
       const process = props.process;
       if (!process) return null;
-      const portConfig = PROCESS_PORT_STATUS_MAP[process.portStatus];
+      const ports: ProcessPort[] = process.ports?.length
+        ? process.ports
+        : process.protocol && process.bindIp && process.port
+          ? [
+              {
+                protocol: process.protocol,
+                bindIp: process.bindIp,
+                port: process.port,
+                portStatus: process.portStatus,
+              },
+            ]
+          : [];
+      const formatPort = (port: ProcessPort) => `${port.protocol} ${port.bindIp}:${port.port}`;
       return (
         <div class='process-detail-info'>
           <div class='process-detail-logo'>
@@ -277,17 +290,33 @@ export default defineComponent({
                 <span class='process-detail-kv-label'>{t('实例数')}：</span>
                 <span class='process-detail-kv-value'>{process.instanceCount ?? '--'}</span>
               </div>
-              <div class='process-detail-kv'>
+              <div class='process-detail-kv process-detail-kv--ports'>
                 <span class='process-detail-kv-label'>{t('端口')}：</span>
-                <span
-                  style={{ backgroundColor: portConfig?.color || '#c4c6cc' }}
-                  class='process-detail-kv-dot'
-                />
-                <span class='process-detail-kv-value'>
-                  {process.protocol && process.bindIp && process.port
-                    ? `${process.protocol} ${process.bindIp}:${process.port}`
-                    : '--'}
-                </span>
+                <TagOverflow
+                  class='process-detail-port-list'
+                  getLabel={item => formatPort(item as ProcessPort)}
+                  list={ports}
+                  overflowClass='process-detail-port-more'
+                >
+                  {{
+                    default: ({ item }: { item: ProcessPort }) => {
+                      const portConfig = PROCESS_PORT_STATUS_MAP[item.portStatus];
+                      return (
+                        <span
+                          key={formatPort(item)}
+                          class='process-detail-port-item'
+                        >
+                          <span
+                            style={{ backgroundColor: portConfig?.color || '#c4c6cc' }}
+                            class='process-detail-kv-dot'
+                          />
+                          <span class='process-detail-kv-value'>{formatPort(item)}</span>
+                        </span>
+                      );
+                    },
+                    empty: () => <span class='process-detail-kv-value'>--</span>,
+                  }}
+                </TagOverflow>
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('启动命令')}：</span>
