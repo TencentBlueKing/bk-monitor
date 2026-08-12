@@ -82,6 +82,23 @@ export type HostContentTab =
   | (typeof HOST_DETAIL_TAB_LIST)[number]['value']
   | (typeof HOST_TOPO_TAB_LIST)[number]['value'];
 
+type HostContentTabItem = {
+  value: HostContentTab;
+};
+
+/** 按视角和 CMDB 层级查询能力返回可用 Tab。 */
+export const getHostPerspectiveTabList = (perspective: HostPerspective, enableCmdbLevel: boolean) => {
+  const tabs = HOST_PERSPECTIVE_TAB_MAP[perspective];
+  if (perspective !== 'topo' || enableCmdbLevel) {
+    return tabs;
+  }
+  return tabs.filter(tab => tab.value !== 'metric');
+};
+
+/** 将 URL/store 中的 Tab 恢复为当前视角实际可用的值。 */
+export const resolveHostContentTab = (requestedTab: unknown, tabs: readonly HostContentTabItem[]): HostContentTab =>
+  tabs.find(tab => tab.value === requestedTab)?.value ?? tabs[0].value;
+
 /** 新版主机列表筛选字段名映射（camelCase → snake_case），与 table-store fieldData.id 保持一致 */
 export const HOST_FILTER_FIELDS_ENUM = {
   hostDisplayName: 'host_display_name',
