@@ -59,7 +59,11 @@ let processMetricGroupPanelOrderCache: MetricGroupPanelOrder[] | null = null;
  */
 export const getProcessViewsPanelsApi = async (forceRefresh = false): Promise<HostViewsRowPanel[]> => {
   if (!processViewsPanelsCache || forceRefresh) {
-    processViewsPanelsCache = await getProcessViewsPanels().catch(() => []);
+    try {
+      processViewsPanelsCache = await getProcessViewsPanels();
+    } catch {
+      return [];
+    }
   }
   return processViewsPanelsCache;
 };
@@ -87,7 +91,11 @@ export const getHostMetricGroupPanelOrderApi = async (forceRefresh = false): Pro
  */
 export const getProcessMetricGroupPanelOrderApi = async (forceRefresh = false): Promise<MetricGroupPanelOrder[]> => {
   if (!processMetricGroupPanelOrderCache || forceRefresh) {
-    processMetricGroupPanelOrderCache = await getProcessMetricGroupPanelOrder().catch(() => []);
+    try {
+      processMetricGroupPanelOrderCache = await getProcessMetricGroupPanelOrder();
+    } catch {
+      return [];
+    }
   }
   return processMetricGroupPanelOrderCache;
 };
