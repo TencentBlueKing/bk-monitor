@@ -45,6 +45,7 @@
     "test:new-series-alert-mode": "node --test ./tests/new-series-alert-mode.test.cjs",
     "test:k8s-sidecar-limit": "node --test ./tests/k8s-sidecar-limit-promql.test.cjs",
     "test:host-process-metrics": "node --test ./tests/host-process-metrics.test.cjs",
+    "test:host-direct-route": "node --test ./tests/host-direct-route.test.cjs",
     "test:host-share-readonly": "node --test ./tests/host-share-readonly.test.cjs",
     "iconfont": "node ./webpack/update-iconfont.js"
   },
