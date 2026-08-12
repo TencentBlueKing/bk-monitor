@@ -253,6 +253,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("批量查询存储集群状态"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
             default_timeout=90,
         )
         self.create_cluster_info = DataAPI(

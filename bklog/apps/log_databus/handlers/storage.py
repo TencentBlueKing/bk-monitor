@@ -28,6 +28,7 @@ from collections import defaultdict
 
 import arrow
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Q, Sum
 from django.utils.translation import gettext as _
 
@@ -71,7 +72,7 @@ from apps.log_esquery.utils.es_client import (
     get_es_client,
 )
 from apps.log_esquery.utils.es_route import EsRoute
-from apps.log_search.models import BizProperty, Scenario
+from apps.log_search.models import BizProperty, Scenario, Space
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -83,6 +84,7 @@ import builtins
 
 CACHE_EXPIRE_TIME = 300
 METADATA_CLUSTER_STATUS_BATCH_SIZE = 20
+METADATA_CLUSTER_STATUS_MAX_WORKERS = 5
 METADATA_RESULT_TABLE_STATUS_BATCH_SIZE = 50
 
 
@@ -718,7 +720,7 @@ class StorageHandler:
 
         if cluster_id:
             cluster_infos = self._get_cluster_nodes(cluster_infos)
-            cluster_infos = self._get_cluster_detail_info(cluster_infos)
+            cluster_infos = self._get_cluster_detail_info(cluster_infos, bk_biz_id=bk_biz_id)
         cluster_groups = self.filter_cluster_groups(cluster_infos, bk_biz_id, is_default, enable_archive)
         for cluster_info in cluster_groups:
             cluster_info["is_platform"] = self.is_platform_cluster(
@@ -753,14 +755,20 @@ class StorageHandler:
             ]
         return cluster_info
 
-    def _get_cluster_detail_info(self, cluster_info: builtins.list[dict]):
+    def _get_cluster_detail_info(self, cluster_info: builtins.list[dict], bk_biz_id=None):
         cluster_ids = [
             cluster.get("cluster_config", {}).get("cluster_id")
             for cluster in cluster_info
             if cluster.get("cluster_type", STORAGE_CLUSTER_TYPE) == STORAGE_CLUSTER_TYPE
             and cluster.get("cluster_config", {}).get("cluster_id") is not None
         ]
-        statuses = self._get_cluster_statuses(cluster_ids)
+        try:
+            bk_tenant_id = Space.get_tenant_id(bk_biz_id=int(bk_biz_id))
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[storage] get tenant failed, bk_biz_id=%s", bk_biz_id)
+            statuses = {}
+        else:
+            statuses = self._get_cluster_statuses(cluster_ids, bk_biz_id, bk_tenant_id)
         for cluster in cluster_info:
             cluster_id = cluster.get("cluster_config", {}).get("cluster_id")
             status = statuses.get(cluster_id)
@@ -1228,37 +1236,155 @@ class StorageHandler:
     def batch_connectivity_detect(cls, cluster_list, bk_biz_id):
         """
         :param cluster_list:
+        :param bk_biz_id:
         :return:
         """
-        statuses = cls._get_cluster_statuses(cluster_list)
-        return {cluster_id: cls._build_cluster_status(status) for cluster_id, status in statuses.items()}
+        cluster_list = list(dict.fromkeys(cluster_list))
+        result = {
+            cluster_id: {"status": False, "cluster_stats": None}
+            for cluster_id in cluster_list
+        }
+        bk_biz_id = int(bk_biz_id)
+        try:
+            bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[storage] get tenant failed, bk_biz_id=%s", bk_biz_id)
+            return result
+
+        visible_cluster_ids = cls._get_visible_cluster_ids(cluster_list, bk_biz_id, bk_tenant_id)
+        statuses = cls._get_cluster_statuses(visible_cluster_ids, bk_biz_id, bk_tenant_id)
+        result.update(
+            {cluster_id: cls._build_cluster_status(status) for cluster_id, status in statuses.items()}
+        )
+        return result
+
+    @classmethod
+    def _get_visible_cluster_ids(cls, cluster_list, bk_biz_id, bk_tenant_id):
+        requested_cluster_ids = set(cluster_list)
+        try:
+            cluster_infos = TransferApi.get_cluster_info({}, bk_tenant_id=bk_tenant_id)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "[storage] get cluster infos for visibility failed, bk_biz_id=%s, bk_tenant_id=%s",
+                bk_biz_id,
+                bk_tenant_id,
+            )
+            return []
+
+        visible_cluster_ids = []
+        handler = cls()
+        for cluster_info in cluster_infos:
+            cluster_config = cluster_info.get("cluster_config") or {}
+            cluster_id = cluster_config.get("cluster_id")
+            if cluster_id not in requested_cluster_ids:
+                continue
+            try:
+                if handler.can_visible(
+                    bk_biz_id,
+                    cluster_config.get("custom_option") or {},
+                    cluster_config.get("registered_system"),
+                ):
+                    visible_cluster_ids.append(cluster_id)
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    "[storage] check cluster visibility failed, bk_biz_id=%s, cluster_id=%s",
+                    bk_biz_id,
+                    cluster_id,
+                )
+        return visible_cluster_ids
+
+    @classmethod
+    def _get_cluster_statuses(cls, cluster_list, bk_biz_id, bk_tenant_id):
+        cluster_list = list(dict.fromkeys(cluster_list))
+        if not cluster_list:
+            return {}
+
+        cache_keys = {
+            cluster_id: cls._get_cluster_status_cache_key(bk_tenant_id, bk_biz_id, cluster_id)
+            for cluster_id in cluster_list
+        }
+        try:
+            cached_statuses = cache.get_many(cache_keys.values())
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[storage] get cluster status cache failed")
+            cached_statuses = {}
+
+        result = {
+            cluster_id: cached_statuses[cache_key]
+            for cluster_id, cache_key in cache_keys.items()
+            if cache_key in cached_statuses and isinstance(cached_statuses[cache_key], dict)
+        }
+        missing_cluster_ids = [cluster_id for cluster_id in cluster_list if cluster_id not in result]
+        if not missing_cluster_ids:
+            return result
+
+        multi_execute_func = MultiExecuteFunc(max_workers=METADATA_CLUSTER_STATUS_MAX_WORKERS)
+        for start in range(0, len(missing_cluster_ids), METADATA_CLUSTER_STATUS_BATCH_SIZE):
+            cluster_ids = missing_cluster_ids[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
+            multi_execute_func.append(
+                start,
+                cls._get_cluster_status_batch,
+                {
+                    "cluster_ids": cluster_ids,
+                    "bk_biz_id": bk_biz_id,
+                    "bk_tenant_id": bk_tenant_id,
+                },
+            )
+
+        fetched_statuses = {}
+        for batch_result in multi_execute_func.run(return_exception=True).values():
+            if isinstance(batch_result, Exception):
+                logger.error("[storage] get cluster status batch failed: %s", batch_result)
+                continue
+            fetched_statuses.update(batch_result)
+
+        for cluster_id in missing_cluster_ids:
+            fetched_statuses.setdefault(cluster_id, cls._unavailable_cluster_status(cluster_id))
+        result.update(fetched_statuses)
+
+        try:
+            cache.set_many(
+                {cache_keys[cluster_id]: fetched_statuses[cluster_id] for cluster_id in missing_cluster_ids},
+                CACHE_EXPIRE_TIME,
+            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[storage] set cluster status cache failed")
+        return result
 
     @staticmethod
-    def _get_cluster_statuses(cluster_list):
-        cluster_list = list(dict.fromkeys(cluster_list))
+    def _get_cluster_status_cache_key(bk_tenant_id, bk_biz_id, cluster_id):
+        return f"connect_info_{bk_tenant_id}_{bk_biz_id}_{cluster_id}"
+
+    @classmethod
+    def _get_cluster_status_batch(cls, params):
+        cluster_ids = params["cluster_ids"]
+        requested_cluster_ids = set(cluster_ids)
+        try:
+            statuses = TransferApi.get_cluster_status(
+                {"cluster_ids": cluster_ids, "bk_biz_id": params["bk_biz_id"]},
+                bk_tenant_id=params["bk_tenant_id"],
+            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[storage] get cluster statuses failed, cluster_ids=%s", cluster_ids)
+            statuses = []
+
         result = {}
-        for start in range(0, len(cluster_list), METADATA_CLUSTER_STATUS_BATCH_SIZE):
-            cluster_ids = cluster_list[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
-            try:
-                statuses = TransferApi.get_cluster_status({"cluster_ids": cluster_ids})
-            except Exception:  # pylint: disable=broad-except
-                logger.exception("[storage] get cluster statuses failed, cluster_ids=%s", cluster_ids)
-                statuses = []
-            for status in statuses:
-                cluster_id = status.get("cluster_id")
-                if cluster_id is None:
-                    continue
-                result[cluster_id] = status
-            for cluster_id in cluster_ids:
-                result.setdefault(
-                    cluster_id,
-                    {
-                        "cluster_id": cluster_id,
-                        "cluster_type": None,
-                        "is_available": False,
-                    },
-                )
+        for status in statuses:
+            cluster_id = status.get("cluster_id")
+            if cluster_id not in requested_cluster_ids:
+                continue
+            result[cluster_id] = status
+        for cluster_id in cluster_ids:
+            result.setdefault(cluster_id, cls._unavailable_cluster_status(cluster_id))
         return result
+
+    @staticmethod
+    def _unavailable_cluster_status(cluster_id):
+        return {
+            "cluster_id": cluster_id,
+            "cluster_type": None,
+            "is_available": False,
+        }
 
     @staticmethod
     def _build_cluster_status(status):
@@ -1326,14 +1452,27 @@ class StorageHandler:
         cluster_status = cluster_results.get(str(cluster_id)) or cluster_results.get(cluster_id) or {}
         runtime = cluster_status.get("runtime") or {}
         indices = (runtime.get("indices") or {}).get("items") or []
-        return cls.sort_indices([cls._build_result_table_index(index) for index in indices])
+        health_unavailable = (
+            cluster_status.get("runtime_skipped")
+            or bool(cluster_status.get("errors"))
+            or any(
+                isinstance(warning, dict) and warning.get("code") == "INDEX_CAT_UNAVAILABLE"
+                for warning in cluster_status.get("warnings") or []
+            )
+        )
+        return cls.sort_indices(
+            [cls._build_result_table_index(index, health_unavailable=health_unavailable) for index in indices]
+        )
 
     @staticmethod
-    def _build_result_table_index(index):
+    def _build_result_table_index(index, health_unavailable=False):
+        health = index.get("health")
+        if not health or (health_unavailable and health not in {"red", "yellow"}):
+            health = "--"
         return {
             "index": index.get("index"),
             "uuid": index.get("uuid"),
-            "health": index.get("health"),
+            "health": health,
             "status": index.get("status"),
             "pri": str(index.get("primary_shards") or 0),
             "rep": str(index.get("replica_factor") or 0),

@@ -27,6 +27,7 @@ from django.test import TestCase, override_settings
 from apps.log_databus.constants import (
     DORIS_CLUSTER_TYPE,
     REGISTERED_SYSTEM_DEFAULT,
+    STORAGE_CLUSTER_TYPE,
     VisibleEnum,
 )
 from apps.exceptions import ValidationError
@@ -300,6 +301,21 @@ class TestDorisVisibleConfigSerializer(TestCase):
 
 
 class TestMetadataStorageStatus(TestCase):
+    @staticmethod
+    def _cluster_info(cluster_id, owner_biz=BLUEKING_BK_BIZ_ID, visible_type=VisibleEnum.CURRENT_BIZ.value):
+        return {
+            "cluster_type": STORAGE_CLUSTER_TYPE,
+            "auth_info": {},
+            "cluster_config": {
+                "cluster_id": cluster_id,
+                "registered_system": "other",
+                "custom_option": {
+                    "bk_biz_id": owner_biz,
+                    "visible_config": {"visible_type": visible_type},
+                },
+            },
+        }
+
     @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
     def test_get_result_table_indices_adapts_metadata_fields_and_sorts(self, mock_get_storage_status):
         table_id = "2_bklog.test"
@@ -385,6 +401,65 @@ class TestMetadataStorageStatus(TestCase):
         self.assertEqual(StorageHandler.get_result_table_indices(table_id), [])
 
     @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_marks_health_unknown_when_metadata_cat_fails(
+        self, mock_get_storage_status
+    ):
+        table_id = "2_bklog.test"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": {
+                        "storage_configs": {
+                            STORAGE_CLUSTER_TYPE: {"storage_cluster_id": 7}
+                        },
+                        "cluster_results": {
+                            "7": {
+                                "runtime_skipped": False,
+                                "warnings": [
+                                    {
+                                        "code": "INDEX_CAT_UNAVAILABLE",
+                                        "message": "cat indices failed",
+                                    }
+                                ],
+                                "errors": [],
+                                "runtime": {
+                                    "indices": {
+                                        "items": [
+                                            {
+                                                "index": "2_bklog_test_20260810_0",
+                                                "docs_count": 20,
+                                            }
+                                        ]
+                                    }
+                                },
+                            }
+                        },
+                    },
+                    "error": None,
+                }
+            ]
+        }
+
+        result = StorageHandler.get_result_table_indices(table_id)
+
+        self.assertEqual(result[0]["health"], "--")
+        self.assertEqual(IndexSetHandler._get_health(result), "--")
+
+    def test_get_health_prioritizes_red_and_yellow_over_unknown(self):
+        cases = [
+            ([{"health": "green"}, {"health": "--"}], "--"),
+            ([{"health": "--"}, {"health": "yellow"}], "yellow"),
+            ([{"health": "yellow"}, {"health": "--"}, {"health": "red"}], "red"),
+            ([{"health": "green"}, {"health": "green"}], "green"),
+            ([{"health": None}], "--"),
+        ]
+
+        for source, expected in cases:
+            with self.subTest(source=source):
+                self.assertEqual(IndexSetHandler._get_health(source), expected)
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
     def test_get_result_tables_indices_batches_fifty_table_ids(self, mock_get_storage_status):
         def get_storage_status(params):
             return {
@@ -413,7 +488,8 @@ class TestMetadataStorageStatus(TestCase):
 
     @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
     def test_batch_connectivity_detect_adapts_status_and_batches_twenty_ids(self, mock_get_cluster_status):
-        def get_cluster_status(params):
+        def get_cluster_status(params, bk_tenant_id=None):
+            self.assertEqual(bk_tenant_id, "tenant-a")
             return [
                 {
                     "cluster_id": cluster_id,
@@ -435,11 +511,21 @@ class TestMetadataStorageStatus(TestCase):
 
         mock_get_cluster_status.side_effect = get_cluster_status
 
-        result = StorageHandler.batch_connectivity_detect(list(range(1, 23)), bk_biz_id=2)
+        with (
+            patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=list(range(1, 23))),
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler.batch_connectivity_detect(list(range(1, 23)), bk_biz_id=2)
 
         self.assertEqual(mock_get_cluster_status.call_count, 2)
-        self.assertEqual(mock_get_cluster_status.call_args_list[0].args[0]["cluster_ids"], list(range(1, 21)))
-        self.assertEqual(mock_get_cluster_status.call_args_list[1].args[0]["cluster_ids"], [21, 22])
+        batches = sorted(
+            [item.args[0]["cluster_ids"] for item in mock_get_cluster_status.call_args_list],
+            key=lambda cluster_ids: cluster_ids[0],
+        )
+        self.assertEqual(batches, [list(range(1, 21)), [21, 22]])
+        self.assertTrue(all(item.args[0]["bk_biz_id"] == 2 for item in mock_get_cluster_status.call_args_list))
         self.assertTrue(result[1]["status"])
         self.assertEqual(
             result[1]["cluster_stats"],
@@ -469,7 +555,13 @@ class TestMetadataStorageStatus(TestCase):
             }
         ]
 
-        result = StorageHandler.batch_connectivity_detect([8], bk_biz_id=2)
+        with (
+            patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=[8]),
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler.batch_connectivity_detect([8], bk_biz_id=2)
 
         self.assertEqual(result[8], {"status": False, "cluster_stats": None})
 
@@ -478,9 +570,18 @@ class TestMetadataStorageStatus(TestCase):
         side_effect=RuntimeError("metadata unavailable"),
     )
     def test_batch_connectivity_detect_degrades_when_metadata_request_fails(self, mock_get_cluster_status):
-        result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=2)
+        with (
+            patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=[7, 8]),
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=2)
 
-        mock_get_cluster_status.assert_called_once_with({"cluster_ids": [7, 8]})
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [7, 8], "bk_biz_id": 2},
+            bk_tenant_id="tenant-a",
+        )
         self.assertEqual(
             result,
             {
@@ -488,6 +589,142 @@ class TestMetadataStorageStatus(TestCase):
                 8: {"status": False, "cluster_stats": None},
             },
         )
+
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_batch_connectivity_detect_filters_invisible_clusters_before_status_query(
+        self,
+        _mock_get_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+    ):
+        mock_get_cluster_info.return_value = [
+            self._cluster_info(7),
+            self._cluster_info(8, owner_biz=OWNER_BIZ),
+        ]
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 7,
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+                "is_available": True,
+                "details": {"health_status": "green"},
+            }
+        ]
+        _mock_cache_get_many.side_effect = lambda keys: {
+            "connect_info_tenant-a_2_8": {
+                "cluster_id": 8,
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+                "is_available": True,
+                "details": {"health_status": "green", "number_of_nodes": 99},
+            }
+            for key in keys
+            if key == "connect_info_tenant-a_2_8"
+        }
+
+        result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=BLUEKING_BK_BIZ_ID)
+
+        mock_get_cluster_info.assert_called_once_with({}, bk_tenant_id="tenant-a")
+        self.assertEqual(
+            list(_mock_cache_get_many.call_args.args[0]),
+            ["connect_info_tenant-a_2_7"],
+        )
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [7], "bk_biz_id": BLUEKING_BK_BIZ_ID},
+            bk_tenant_id="tenant-a",
+        )
+        self.assertTrue(result[7]["status"])
+        self.assertEqual(result[8], {"status": False, "cluster_stats": None})
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id")
+    def test_batch_connectivity_detect_cache_isolated_by_tenant_biz_and_cluster(
+        self,
+        mock_get_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+    ):
+        mock_get_tenant_id.side_effect = lambda bk_biz_id: {
+            2: "tenant-a",
+            3: "tenant-b",
+            4: "tenant-a",
+        }[bk_biz_id]
+        mock_get_cluster_info.return_value = [
+            self._cluster_info(7, visible_type=VisibleEnum.ALL_BIZ.value)
+        ]
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 7,
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+                "is_available": True,
+                "details": {"health_status": "green"},
+            }
+        ]
+        cache_store = {}
+        cache_timeouts = []
+
+        def get_many(keys):
+            return {key: cache_store[key] for key in keys if key in cache_store}
+
+        def set_many(values, timeout):
+            cache_store.update(values)
+            cache_timeouts.append(timeout)
+
+        with (
+            patch("apps.log_databus.handlers.storage.cache.get_many", side_effect=get_many),
+            patch("apps.log_databus.handlers.storage.cache.set_many", side_effect=set_many),
+        ):
+            StorageHandler.batch_connectivity_detect([7, 7], bk_biz_id=2)
+            StorageHandler.batch_connectivity_detect([7], bk_biz_id=2)
+            StorageHandler.batch_connectivity_detect([7], bk_biz_id=4)
+            StorageHandler.batch_connectivity_detect([7], bk_biz_id=3)
+
+        self.assertEqual(mock_get_cluster_status.call_count, 3)
+        self.assertEqual(
+            set(cache_store),
+            {
+                "connect_info_tenant-a_2_7",
+                "connect_info_tenant-a_4_7",
+                "connect_info_tenant-b_3_7",
+            },
+        )
+        self.assertEqual(cache_timeouts, [300, 300, 300])
+
+    @patch("apps.log_databus.handlers.storage.MultiExecuteFunc")
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many", return_value={})
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_batch_connectivity_detect_schedules_batches_in_one_concurrent_executor(
+        self,
+        _mock_get_tenant_id,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+        mock_multi_execute_cls,
+    ):
+        cluster_ids = list(range(1, 42))
+        executor = mock_multi_execute_cls.return_value
+        executor.run.return_value = {
+            0: {cluster_id: StorageHandler._unavailable_cluster_status(cluster_id) for cluster_id in range(1, 21)},
+            20: {
+                cluster_id: StorageHandler._unavailable_cluster_status(cluster_id)
+                for cluster_id in range(21, 41)
+            },
+            40: {41: StorageHandler._unavailable_cluster_status(41)},
+        }
+
+        with patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=cluster_ids):
+            result = StorageHandler.batch_connectivity_detect(cluster_ids + [1], bk_biz_id=2)
+
+        mock_multi_execute_cls.assert_called_once_with(max_workers=5)
+        self.assertEqual([call[0] for call in executor.method_calls], ["append", "append", "append", "run"])
+        batches = [item.args[2]["cluster_ids"] for item in executor.append.call_args_list]
+        self.assertEqual(batches, [list(range(1, 21)), list(range(21, 41)), [41]])
+        self.assertEqual(len(result), 41)
 
     @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
     def test_cluster_detail_uses_metadata_status_for_es(self, mock_get_cluster_status):
@@ -506,9 +743,17 @@ class TestMetadataStorageStatus(TestCase):
             {"cluster_type": DORIS_CLUSTER_TYPE, "cluster_config": {"cluster_id": 8}},
         ]
 
-        result = StorageHandler()._get_cluster_detail_info(clusters)
+        with (
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler()._get_cluster_detail_info(clusters, bk_biz_id=2)
 
-        mock_get_cluster_status.assert_called_once_with({"cluster_ids": [7]})
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [7], "bk_biz_id": 2},
+            bk_tenant_id="tenant-a",
+        )
         self.assertEqual(result[0]["cluster_stats"]["status"], "green")
         self.assertIsNone(result[1]["cluster_stats"])
 

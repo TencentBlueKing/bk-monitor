@@ -1163,13 +1163,14 @@ class IndexSetHandler(APIModel):
 
     @staticmethod
     def _get_health(src: list):
-        has_red_health_list = [item.get("health", "") == EsHealthStatus.RED.value for item in src]
-        has_yellow_health_list = [item.get("health", "") == EsHealthStatus.YELLOW.value for item in src]
-        if any(has_red_health_list):
+        health_values = [item.get("health") for item in src]
+        if EsHealthStatus.RED.value in health_values:
             return EsHealthStatus.RED.value
-        if any(has_yellow_health_list):
+        if EsHealthStatus.YELLOW.value in health_values:
             return EsHealthStatus.YELLOW.value
-        return EsHealthStatus.GREEN.value
+        if health_values and all(health == EsHealthStatus.GREEN.value for health in health_values):
+            return EsHealthStatus.GREEN.value
+        return "--"
 
     @staticmethod
     def _get_sum(key: str, src: list) -> int:

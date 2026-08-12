@@ -63,11 +63,15 @@ class MetadataStorageStatusApiTest(SimpleTestCase):
         mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)
         self.assertEqual(api.default_timeout, 90)
 
-    def test_cluster_status_api_config(self):
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-a")
+    def test_cluster_status_api_config(self, mock_get_tenant_id):
         api = Transfer.get_cluster_status
 
         self.assertEqual(api.method, "GET")
         self.assertTrue(
             api.url.endswith(("/app/metadata/get_cluster_status/", "/metadata_get_cluster_status/"))
         )
+        self.assertTrue(callable(api.bk_tenant_id))
+        self.assertEqual(api.bk_tenant_id({"bk_biz_id": 2}), "tenant-a")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)
         self.assertEqual(api.default_timeout, 90)
