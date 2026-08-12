@@ -341,6 +341,57 @@ class TestGetHostPerformanceData:
         # io_util 配置了 ratio=100，最终结果应放大
         assert result[HOSTS[0].bk_host_id]["io_util"] == 4250.0
 
+    def test_empty_hosts_skip_metric_queries(self, mocker):
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+
+        assert resource.cc.get_host_performance_data(bk_biz_id=2, hosts=[]) == {}
+        unify_query.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("hosts", "ipv6_biz_ids", "expected_fields", "expected_connectors"),
+        [
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [],
+                [
+                    {
+                        "field_name": "bk_target_ip",
+                        "value": [HOSTS[0].bk_host_innerip, HOSTS[3].bk_host_innerip],
+                        "op": "contains",
+                    },
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[0].bk_cloud_id)], "op": "contains"},
+                    {"field_name": "bk_target_ip", "value": [HOSTS[1].bk_host_innerip], "op": "contains"},
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[1].bk_cloud_id)], "op": "contains"},
+                ],
+                ["and", "or", "and"],
+            ),
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [2],
+                [{"field_name": "bk_host_id", "value": ["1", "2", "4"], "op": "contains"}],
+                [],
+            ),
+            ([HOSTS[2]], [], [], []),
+        ],
+    )
+    def test_query_filters_are_compiled_for_requested_hosts(
+        self, mocker, settings, hosts, ipv6_biz_ids, expected_fields, expected_connectors
+    ):
+        settings.IPV6_SUPPORT_BIZ_LIST = ipv6_biz_ids
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.query_data.return_value = []
+
+        resource.cc.get_host_performance_data(bk_biz_id=2, hosts=hosts)
+
+        assert unify_query.call_count == 6
+        for call in unify_query.call_args_list:
+            data_source = call.kwargs["data_sources"][0]
+            query_config = data_source.to_unify_query_config()[0]
+            assert query_config["conditions"] == {
+                "field_list": expected_fields,
+                "condition_list": expected_connectors,
+            }
+
 
 class TestGetProcessStatus:
     """
