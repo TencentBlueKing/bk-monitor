@@ -150,3 +150,64 @@ class TestBaseQuery:
         assert result is not incoming
         assert current == current_copy
         assert incoming == incoming_copy
+
+    # ------------------------------------------------------------------
+    # is_searchable
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        ("field_type", "expected_searchable"),
+        [
+            ("keyword", True),
+            ("text", True),
+            ("long", True),
+            ("double", True),
+            ("date", True),
+            ("boolean", True),
+            ("object", False),
+            ("nested", False),
+        ],
+    )
+    def test_is_searchable_by_field_type(self, mocker, field_type, expected_searchable):
+        """object 和 nested 类型字段 is_searchable 为 False，其余类型为 True。"""
+        mocker.patch.object(
+            BaseQuery,
+            "_query_info_fields",
+            return_value=[_make_field(field_name="f", field_type=field_type)],
+        )
+        query = BaseQuery()
+        result = query._query_fields(
+            targets=[("rt1", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
+        assert result["f"]["is_searchable"] is expected_searchable
+
+    def test_is_searchable_reflects_merged_field_type(self, mocker):
+        """两个 RT 同名字段类型冲突时，合并后 field_type 为 CONFLICT，is_searchable 应为 True。"""
+        rt1_fields = [_make_field(field_name="status", field_type="keyword")]
+        rt2_fields = [_make_field(field_name="status", field_type="text")]
+
+        mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
+        query = BaseQuery()
+        result = query._query_fields(
+            targets=[("rt1", "space1"), ("rt2", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
+        # CONFLICT 不属于 object/nested，is_searchable 应为 True
+        assert result["status"]["is_searchable"] is True
+
+    def test_is_searchable_false_when_both_rts_have_object_type(self, mocker):
+        """两个 RT 同名字段均为 object 类型时，合并后 is_searchable 仍为 False。"""
+        rt1_fields = [_make_field(field_name="attrs", field_type="object")]
+        rt2_fields = [_make_field(field_name="attrs", field_type="object")]
+
+        mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
+        query = BaseQuery()
+        result = query._query_fields(
+            targets=[("rt1", "space1"), ("rt2", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
+        assert result["attrs"]["is_searchable"] is False

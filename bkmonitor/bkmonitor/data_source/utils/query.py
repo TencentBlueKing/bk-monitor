@@ -409,6 +409,7 @@ class BaseQuery:
                     _field_dict["field_type"],
                     [],
                 )
+                _field_dict["is_searchable"] = _field_dict["field_type"] not in {"object", "nested"}
 
         return field_map
 
