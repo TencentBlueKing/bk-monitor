@@ -26,24 +26,12 @@
 
 export enum HostViewsPanelType {
   Graph = 'graph',
+  PortStatus = 'port-status',
   Row = 'row',
+  TextUnit = 'text-unit',
 }
 
-/** 单个图表面板 */
-export interface HostViewsGraphPanel {
-  /** 面板唯一标识，如 bk_monitor.time_series.system.load.load5 */
-  id: string;
-  /** 副标题，通常为指标全名，如 system.load.load5 */
-  subTitle: string;
-  targets: PanelTarget[];
-  title: string;
-  type: HostViewsPanelType.Graph;
-  /** 展示匹配条件，按操作系统等维度决定是否展示该面板 */
-  matchDisplay?: {
-    [key: string]: string | undefined;
-    os_type?: string;
-  };
-}
+export type HostViewsGraphPanel = HostViewsExternalPanel | HostViewsTimeSeriesPanel;
 
 /** 顶层分组（row）面板 */
 export interface HostViewsRowPanel {
@@ -120,6 +108,37 @@ export interface PanelTargetData {
   /** 表达式，如 A */
   expression: string;
   query_configs: PanelQueryConfig[];
+}
+
+/** 单个图表面板 */
+interface HostViewsBasePanel {
+  /** 面板唯一标识，如 bk_monitor.time_series.system.load.load5 */
+  id: string;
+  /** 副标题，通常为指标全名，如 system.load.load5 */
+  subTitle: string;
+  title: string;
+  /** 展示匹配条件，按操作系统等维度决定是否展示该面板 */
+  matchDisplay?: {
+    [key: string]: string | undefined;
+    os_type?: string;
+  };
+}
+
+interface HostViewsExternalPanel extends HostViewsBasePanel {
+  targets: PanelExternalTarget[];
+  type: HostViewsPanelType.PortStatus | HostViewsPanelType.TextUnit;
+}
+
+interface HostViewsTimeSeriesPanel extends HostViewsBasePanel {
+  targets: PanelTarget[];
+  type: HostViewsPanelType.Graph;
+}
+
+interface PanelExternalTarget {
+  api: string;
+  data: Record<string, unknown>;
+  data_type: string;
+  datasource: string;
 }
 
 /** 指标聚合方法、维度等占位符（如 $method、$interval、$group_by），运行时会被替换 */
