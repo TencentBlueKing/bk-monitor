@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from django.urls import resolve
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.models import ApiAuthToken
@@ -11,6 +12,7 @@ from bkmonitor.share.handler import HostApiAuthChecker
 from bkmonitor.share.utils import check_api_permission
 from core.errors.share import InvalidParamsError, ParamsPermissionDeniedError, SearchLockedError, TokenValidatedError
 from monitor_web.commons.cc.resources.frontend_resources import GetTopoTree
+from monitor_web.grafana.resources.unify_query import GraphUnifyQueryResource
 from monitor_web.performance.resources import SearchHostInfoResource, SearchHostMetricResource
 from monitor_web.scene_view.resources.host import GetHostProcessListResource
 from monitor_web.share.resources import CreateShareTokenResource, UpdateShareTokenResource
@@ -51,6 +53,49 @@ def mock_host_scope(mocker, hosts=None):
     mocker.patch("bkmonitor.share.handler.api.cmdb.get_host_by_id", return_value=hosts)
     mocker.patch("bkmonitor.share.handler.api.cmdb.get_host_by_topo_node", return_value=hosts)
     return hosts
+
+
+def mock_host_request(mocker, action):
+    request = SimpleNamespace(
+        token="share-token",
+        method="POST",
+        resolver_match=resolve(f"/rest/v2/scene_view/{action}/"),
+    )
+    mocker.patch("bkmonitor.share.handler.get_request", return_value=request)
+    return request
+
+
+def make_unify_query_request(target):
+    return {
+        "bk_biz_id": 2,
+        "query_configs": [
+            {
+                "data_source_label": "bk_monitor",
+                "data_type_label": "time_series",
+                "table": "system.cpu",
+                "metrics": [{"field": "cpu_usage"}],
+                "filter_dict": {"targets": [target]},
+            }
+        ],
+        "expression": "A",
+        "start_time": 100,
+        "end_time": 200,
+    }
+
+
+def mock_unify_query_host_token(mocker, is_ipv6):
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    request = SimpleNamespace(token="share-token")
+    mocker.patch("bkmonitor.share.api_auth_resource.get_request", return_value=request)
+    mocker.patch("bkmonitor.share.handler.get_request", return_value=request)
+    mocker.patch("bkmonitor.share.utils.get_request_tenant_id", return_value="system")
+    mocker.patch.object(ApiAuthToken.objects, "get", return_value=token)
+    mock_host_scope(mocker)
+    mocker.patch(
+        "bkmonitor.share.handler.MetricListCache.objects.filter",
+        return_value=Mock(values_list=Mock(return_value=[("system.cpu", "cpu_usage")])),
+    )
+    mocker.patch("monitor_web.grafana.resources.unify_query.is_ipv6_biz", return_value=is_ipv6)
 
 
 @pytest.mark.parametrize("token_type", ["host", "scene", "scene_collect"])
@@ -255,12 +300,75 @@ def test_host_scope_absolute_time_lock_requires_exact_bounds(mocker):
         checker.check({"bk_host_id": 100, "start_time": 101, "end_time": 200})
 
 
-def test_host_scope_absolute_time_lock_keeps_target_independent_panel_config_available(mocker):
+@pytest.mark.parametrize(
+    "action",
+    [
+        "get_host_views_panels",
+        "get_host_metric_group_panel_order",
+        "get_process_views_panels",
+        "get_process_metric_group_panel_order",
+    ],
+)
+def test_host_scope_absolute_time_lock_keeps_target_independent_panel_config_available(mocker, action):
+    mock_host_request(mocker, action)
     mock_host_scope(mocker)
     token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
     token.params.update({"lock_search": True, "start_time": 100, "end_time": 200})
 
     HostApiAuthChecker(token).check({"scene_id": "host", "type": "detail", "id": "host"})
+
+
+def test_host_scope_panel_fields_cannot_bypass_process_list_target(mocker):
+    request = mock_host_request(mocker, "get_host_process_list")
+    mocker.patch("bkmonitor.share.api_auth_resource.get_request", return_value=request)
+    mocker.patch("bkmonitor.share.utils.get_request_tenant_id", return_value="system")
+    mocker.patch.object(
+        ApiAuthToken.objects,
+        "get",
+        return_value=make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100}),
+    )
+    mock_host_scope(mocker)
+
+    with pytest.raises(ParamsPermissionDeniedError):
+        GetHostProcessListResource().validate_request_data(
+            {
+                "bk_biz_id": 2,
+                "bk_host_id": 999,
+                "scene_id": "host",
+                "type": "detail",
+                "id": "process",
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    ("is_ipv6", "target"),
+    [
+        (False, {"bk_host_id": 100}),
+        (True, {"bk_target_ip": "10.0.0.1", "bk_target_cloud_id": 0}),
+    ],
+)
+def test_host_scope_unify_query_rejects_target_removed_by_normalization(mocker, is_ipv6, target):
+    mock_unify_query_host_token(mocker, is_ipv6)
+
+    with pytest.raises(InvalidParamsError):
+        GraphUnifyQueryResource().validate_request_data(make_unify_query_request(target))
+
+
+@pytest.mark.parametrize(
+    ("is_ipv6", "expected_target"),
+    [
+        (False, {"bk_target_ip": "10.0.0.1", "bk_target_cloud_id": "0"}),
+        (True, {"bk_host_id": "100"}),
+    ],
+)
+def test_host_scope_unify_query_keeps_normalized_target_constrained(mocker, is_ipv6, expected_target):
+    mock_unify_query_host_token(mocker, is_ipv6)
+    target = {"bk_host_id": 100, "bk_target_ip": "10.0.0.1", "bk_target_cloud_id": 0}
+
+    validated = GraphUnifyQueryResource().validate_request_data(make_unify_query_request(target))
+
+    assert validated["query_configs"][0]["filter_dict"]["targets"] == [expected_target]
 
 
 def test_host_scope_unify_query_accepts_allowed_ip_cloud_target(mocker):
