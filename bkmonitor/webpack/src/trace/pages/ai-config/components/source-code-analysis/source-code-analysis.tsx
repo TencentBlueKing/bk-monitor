@@ -31,7 +31,6 @@ import { useI18n } from 'vue-i18n';
 import AnalysisConfigSideslider from '../analysis-config-sideslider/analysis-config-sideslider';
 
 import './source-code-analysis.scss';
-import './source-code-analysis.scss';
 
 /**
  * @description 源码 AI 分析
