@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { issueLogContent, issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
+import { issueLogContent, issueTopN, issueTrend, searchIssue } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -561,7 +561,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
+    const data = await searchIssue<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
         ...params,
         show_aggs: false,
@@ -609,7 +609,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return issueTrend<IssueTrendParams, IssueTrendResponse>(trendParams, options).catch(() => ({}));
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
-    const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
+    const data = await searchIssue<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
         ...params,
         page_size: 0, // 不返回告警列表数据

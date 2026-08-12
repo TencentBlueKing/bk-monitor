@@ -350,6 +350,7 @@ ACTIVE_VIEWS = {
         "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
+        "issue": "fta_web.issue.views",
     },
     "calendar": {"calendar": "calendars.views"},
     "apm_web": {
