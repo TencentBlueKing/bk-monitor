@@ -800,6 +800,7 @@ class GetVariableValue(Resource):
             limit=GRAPH_MAX_SLIMIT,
             start_time=start_time * 1000,
             end_time=end_time * 1000,
+            slimit=GRAPH_MAX_SLIMIT,
             interval=interval,
         )
 

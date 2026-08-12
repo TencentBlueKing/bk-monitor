@@ -8,10 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import json
 import logging
 import re
 import time
+from collections.abc import Callable
 from itertools import chain
 from typing import Any
 
@@ -928,7 +930,8 @@ class UnifyQuery:
         *args: Any,
         **kwargs: Any,
     ) -> list[Any]:
-        data_source: DataSource = self.data_sources[0]
+        data_source: DataSource = copy.copy(self.data_sources[0])
+        data_source.group_by = [dimension_field] if isinstance(dimension_field, str) else dimension_field[:]
         config: dict[str, Any] = data_source.to_unify_query_config()[0]
         keys: list[str] = config["dimensions"][:1]
         if not keys:
@@ -1012,35 +1015,26 @@ class UnifyQuery:
         data: list[Any] | dict[str, Any] = []
         labels: dict[str, str] = self.get_observe_labels()
         data_source: DataSource = self.data_sources[0]
-        use_unify_query: bool = data_source.supports_unify_query_dimensions and self.use_unify_query()
-        if use_unify_query:
+        query_dimension: Callable[..., list[Any] | dict[str, Any]]
+        if data_source.supports_unify_query_dimensions and self.use_unify_query():
             labels["api"] = "unify_query"
-            try:
-                with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_dimensions_using_unify_query(
-                        dimension_field=dimension_field,
-                        limit=limit,
-                        start_time=start_time,
-                        end_time=end_time,
-                        *args,
-                        **kwargs,
-                    )
-            except Exception as error:
-                exc = error
+            query_dimension = self._query_dimensions_using_unify_query
         else:
             labels["api"] = "query_api"
-            try:
-                with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_dimensions_using_datasource(
-                        dimension_field=dimension_field,
-                        limit=limit,
-                        start_time=start_time,
-                        end_time=end_time,
-                        *args,
-                        **kwargs,
-                    )
-            except Exception as error:
-                exc = error
+            query_dimension = self._query_dimensions_using_datasource
+
+        try:
+            with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
+                data = query_dimension(
+                    dimension_field=dimension_field,
+                    limit=limit,
+                    start_time=start_time,
+                    end_time=end_time,
+                    *args,
+                    **kwargs,
+                )
+        except Exception as error:
+            exc = error
 
         metrics.DATASOURCE_QUERY_COUNT.labels(**labels, status=metrics.StatusEnum.from_exc(exc), exception=exc).inc()
         metrics.report_all()

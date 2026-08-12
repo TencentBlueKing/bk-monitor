@@ -63,6 +63,7 @@ class TestGetVariableValue:
             limit=2000,
             start_time=100_000,
             end_time=260_000,
+            slimit=2000,
             interval=60,
         )
 

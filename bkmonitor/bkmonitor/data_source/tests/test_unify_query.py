@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from api.unify_query.default import GetDimensionDataResource, QueryRawResource
+from bkmonitor.data_source.data_source import LogSearchLogDataSource
 from bkmonitor.data_source.unify_query.builder import QueryHelper
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 
@@ -412,6 +413,40 @@ class TestUnifyQuery:
             end_time="2",
             limit=10,
         )
+
+    def test_query_dimensions_uses_requested_field_without_mutating_datasource(self, mocker, mock_query_metrics):
+        data_source = LogSearchLogDataSource(
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            table="2_bklog.strategy_log",
+            metrics=[{"field": "_index", "method": "COUNT"}],
+            where=[],
+            filter_dict={},
+            group_by=["strategy_dimension"],
+            index_set_id=104,
+        )
+        query = UnifyQuery(
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            data_sources=[data_source],
+            expression="",
+        )
+        mocker.patch.object(query, "use_unify_query", return_value=True)
+        get_dimension_data = mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.get_dimension_data",
+            return_value={"values": {"signature": ["signature-1"]}},
+        )
+
+        result = query.query_dimensions(
+            dimension_field="signature",
+            limit=1,
+            start_time=1_000,
+            end_time=2_000,
+        )
+
+        assert result == ["signature-1"]
+        assert data_source.group_by == ["strategy_dimension"]
+        assert get_dimension_data.call_args.kwargs["keys"] == ["signature"]
 
     def test_query_dimensions_falls_back_when_unify_query_config_has_no_dimensions(self, mocker, mock_query_metrics):
         query, data_source = build_dimension_unify_query()
