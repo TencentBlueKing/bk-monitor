@@ -74,3 +74,5 @@ export interface IHostStatusConfig {
   /** 状态名称（i18n key） */
   name: string;
 }
+/** 复制 IP 时可选的 IP 字段：内网/外网 × IPv4/IPv6 */
+export type TCopyIpField = 'bk_host_innerip' | 'bk_host_innerip_v6' | 'bk_host_outerip' | 'bk_host_outerip_v6';

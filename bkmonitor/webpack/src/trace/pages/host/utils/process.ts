@@ -49,6 +49,20 @@ export const formatUptime = (milliseconds: number): string => {
   return `${+hours.toFixed(1)} h`;
 };
 
+/**
+ * 将后台返回的小数使用率格式化为前端百分比展示
+ * @param value 后台返回的小数（如 0.1532）或字符串
+ * @returns 格式化后的百分比对象（text: 展示文案，value: 原始百分比数值，width: 进度条宽度）
+ */
+export const formatPercent = (value: number | string | undefined): { text: string; value: number; width: number } => {
+  const num = (typeof value === 'string' ? parseFloat(value) : Number(value) || 0) * 100;
+  return {
+    text: `${num.toFixed(2)}%`,
+    value: num,
+    width: Math.min(num, 100),
+  };
+};
+
 /** 物理内存 RSS 字节数 → 展示文案（如 92 MiB） */
 export const formatMemRss = (bytes: number): string => {
   if (!(bytes > 0)) {

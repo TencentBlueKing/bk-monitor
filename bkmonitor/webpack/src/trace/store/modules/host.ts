@@ -39,7 +39,7 @@ import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
 const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export const useHostStore = defineStore('host', () => {
-  const timeRange = deepRef(['now-7d', 'now']);
+  const timeRange = deepRef(['now-1h', 'now']);
   const timezone = shallowRef(getDefaultTimezone());
   const innerRefreshInterval = shallowRef(-1);
   const refreshImmediate = shallowRef('');
@@ -124,7 +124,7 @@ export const useHostStore = defineStore('host', () => {
   });
 
   onScopeDispose(() => {
-    timeRange.value = ['now-7d', 'now'];
+    timeRange.value = ['now-1h', 'now'];
     timezone.value = getDefaultTimezone();
     refreshInterval.value = -1;
     refreshImmediate.value = '';

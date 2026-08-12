@@ -31,7 +31,7 @@ import {
   PROCESS_LIST_ELLIPSIS_CELL_CLASS,
   PROCESS_PORT_STATUS_MAP,
 } from '../../../constants/process';
-import { formatMemRss, formatUptime, getProcessBarColor } from '../../../utils/process';
+import { formatMemRss, formatPercent, formatUptime, getProcessBarColor } from '../../../utils/process';
 
 import type { ProcessItem } from '../../../types/process';
 
@@ -131,16 +131,17 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
     if (!row.cpuUsage) {
       return <span class='process-table-cpu__empty'>--</span>;
     }
+    const cpu = formatPercent(row.cpuUsage);
     return (
       <div class='process-table-cpu'>
         <div class='process-table-cpu__row'>
-          <span class='process-table-cpu__value'>{`${row.cpuUsage}%`}</span>
+          <span class='process-table-cpu__value'>{cpu.text}</span>
         </div>
         <div class='process-table-cpu__bar'>
           <div
             style={{
-              width: `${Math.min(row.cpuUsage, 100)}%`,
-              backgroundColor: getProcessBarColor(row.cpuUsage),
+              width: `${cpu.width}%`,
+              backgroundColor: getProcessBarColor(cpu.value),
             }}
             class='process-table-cpu__bar-inner'
           />
@@ -158,17 +159,18 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
     if (!row.memRss) {
       return <span class='process-table-memory__empty'>--</span>;
     }
+    const mem = formatPercent(row.memUsage);
     return (
       <div class='process-table-memory'>
         <div class='process-table-memory__row'>
           <span class='process-table-memory__value'>{formatMemRss(row.memRss)}</span>
-          <span class='process-table-memory__percent'>{`${row.memUsage}%`}</span>
+          <span class='process-table-memory__percent'>{mem.text}</span>
         </div>
         <div class='process-table-memory__bar'>
           <div
             style={{
-              width: `${Math.min(row.memUsage, 100)}%`,
-              backgroundColor: getProcessBarColor(row.memUsage),
+              width: `${mem.width}%`,
+              backgroundColor: getProcessBarColor(mem.value),
             }}
             class='process-table-memory__bar-inner'
           />
@@ -186,18 +188,18 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
     if (!row.fdNum) {
       return <span class='process-table-file-handle__empty'>--</span>;
     }
-    const fdRate = parseFloat(row.fdUsageRate) || 0;
+    const fd = formatPercent(row.fdUsageRate);
     return (
       <div class='process-table-file-handle'>
         <div class='process-table-file-handle__row'>
           <span class='process-table-file-handle__value'>{row.fdNum?.toLocaleString()}</span>
-          <span class='process-table-file-handle__percent'>{`${row.fdUsageRate}%`}</span>
+          <span class='process-table-file-handle__percent'>{fd.text}</span>
         </div>
         <div class='process-table-file-handle__bar'>
           <div
             style={{
-              width: `${Math.min(fdRate, 100)}%`,
-              backgroundColor: getProcessBarColor(fdRate),
+              width: `${fd.width}%`,
+              backgroundColor: getProcessBarColor(fd.value),
             }}
             class='process-table-file-handle__bar-inner'
           />

@@ -541,6 +541,12 @@ class GetHostProcessListResource(Resource):
             "fdLimit": "fd_limit_soft",
         }
 
+        # 数值精度格式化，与 unify_query.data_format 保持一致
+        def _round_metric(value):
+            if isinstance(value, int | float) and not isinstance(value, bool):
+                return round(value, settings.POINT_PRECISION)
+            return value
+
         return [
             {
                 "id": process["id"],
@@ -554,13 +560,16 @@ class GetHostProcessListResource(Resource):
                 "user": process.get("user"),
                 "hostIp": host.ip,
                 # Performance / resource metrics from system.proc (TSDB only)
-                "cpuUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"]),
-                "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
-                "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
-                "uptime": host_uptime.get(process["name"]),
-                "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
+                # 百数字段（cpuUsage/memUsage/fdUsageRate）返回的是比值（0~1）而非百分数，
+                # 前端展示为 % 时需自行 *100
+                "cpuUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"])),
+                "memRss": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"])),
+                "memUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])),
+                "uptime": _round_metric(host_uptime.get(process["name"])),
+                "fdNum": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])),
+                # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
                 "fdUsageRate": (
-                    round(fd_num / fd_limit * 100, 2)
+                    round(fd_num / fd_limit, settings.POINT_PRECISION)
                     if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])) is not None
                     and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))
                     else None
