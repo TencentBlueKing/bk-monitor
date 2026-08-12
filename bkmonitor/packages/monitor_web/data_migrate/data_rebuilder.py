@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL = "monitor.uptimechecktask"
 COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL = "monitor_web.collectconfigmeta"
 STRATEGY_CLOSE_RECORDS_MODEL_LABEL = "bkmonitor.strategymodel"
+MIGRATE_ROUTE_NAME_TEMPLATE = "migrate_kafka_data_id_{data_id}"
 PROFILING_MIGRATE_ROUTE_NAME_TEMPLATE = "migrate_profiling_data_id_{data_id}"
 
 
@@ -1376,7 +1377,7 @@ def update_migrate_data_id_routes(
             continue
 
         # 查询该dataid是否存在迁移的双写路由，不存在则不用更新
-        migrate_route_name = f"migrate_kafka_data_id_{data_id}"
+        migrate_route_name = MIGRATE_ROUTE_NAME_TEMPLATE.format(data_id=data_id)
         migrate_route_index = next(
             (
                 index
@@ -1416,6 +1417,51 @@ def update_migrate_data_id_routes(
             print(f"data_id({data_id}) migrate failed, update gse router failed, error:({e})")
             continue
 
+    return route_changes
+
+
+def delete_migrate_data_id_routes(bk_data_ids: list[int], dry_run: bool = False) -> dict[int, dict[str, Any]]:
+    """批量删除上报 Data ID 的迁移双写路由。
+
+    Args:
+        bk_data_ids: 需要删除迁移双写路由的 Data ID 列表。
+        dry_run: 是否为试运行，开启后只查询并计算变更，不实际删除路由。
+
+    Returns:
+        成功匹配到迁移双写路由的 Data ID 变更前后配置。
+    """
+
+    route_changes: dict[int, dict[str, Any]] = {}
+    for data_id in bk_data_ids:
+        migrate_route_name = MIGRATE_ROUTE_NAME_TEMPLATE.format(data_id=data_id)
+        try:
+            route_group = _query_gse_route_group(data_id)
+        except ValueError as error:
+            print(error)
+            continue
+
+        exist_route_config = route_group.get("route") or []
+        if not any(route.get("name") == migrate_route_name for route in exist_route_config):
+            print(f"data_id({data_id}) skip delete, migrate gse route not found")
+            continue
+
+        route_changes[data_id] = {
+            "before": deepcopy(exist_route_config),
+            "after": [deepcopy(route) for route in exist_route_config if route.get("name") != migrate_route_name],
+        }
+        if dry_run:
+            print(f"data_id({data_id}) dry run, skip delete gse router")
+            continue
+
+        delete_params = {
+            "condition": {"channel_id": data_id, "plat_name": "tgdp"},
+            "operation": {"operator_name": settings.COMMON_USERNAME, "method": "specification"},
+            "specification": {"route": [migrate_route_name]},
+        }
+        try:
+            _delete_gse_route_with_fallback(delete_params)
+        except BKAPIError as error:
+            print(f"data_id({data_id}) migrate failed, delete gse router failed, error:({error})")
     return route_changes
 
 
@@ -1473,13 +1519,13 @@ def add_new_migrate_data_id_routes(data_id_infos: dict[int, dict[str, Any]]):
             continue
 
         for route_config in exist_route_config:
-            if route_config["name"] == f"migrate_kafka_data_id_{data_id}":
+            if route_config["name"] == MIGRATE_ROUTE_NAME_TEMPLATE.format(data_id=data_id):
                 print(f"data_id({data_id}) migrate failed, gse router config already has this route")
                 continue
 
         # 追加新的route
         new_route = {
-            "name": f"migrate_kafka_data_id_{data_id}",
+            "name": MIGRATE_ROUTE_NAME_TEMPLATE.format(data_id=data_id),
             "stream_to": {
                 "stream_to_id": cluster.gse_stream_to_id,
                 ClusterInfo.TYPE_KAFKA: {"topic_name": topic_name},

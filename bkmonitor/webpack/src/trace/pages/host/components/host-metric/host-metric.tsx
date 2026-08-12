@@ -55,6 +55,9 @@ export default defineComponent({
     const { t } = useI18n();
     // 向下游图表（useEcharts）提供时间范围与刷新信号
     const { timeRange, refreshImmediate, metricAggregationState } = storeToRefs(useHostStore());
+    const timeShift = computed(() =>
+      metricAggregationState.value.compareType === 'time' ? metricAggregationState.value.timeShift : []
+    );
 
     const aggregation = useMetricAggregation(metricAggregationState.value);
     // 分组与指标数据：后端返回的 DashboardRow[]（展示）与 MetricGroupModel[]（管理）
@@ -77,6 +80,7 @@ export default defineComponent({
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
     provide('viewOptions', aggregation.viewOptions);
+    provide('timeOffset', timeShift);
 
     /** 根据选中节点类型，生成当前目标的查询参数 */
     const currentTarget = computed<CompareTarget>(() => {
@@ -95,7 +99,7 @@ export default defineComponent({
     });
 
     // 变量取值：仅请求态字段变化才会触发图表重新取数
-    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value, timeRange.value));
+    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
 
     onMounted(() => {
       groupsCtrl.load();

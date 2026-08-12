@@ -59,6 +59,7 @@ class TraceQueryViewSet(ResourceViewSet):
             "trace_charts",
             "list_traces",
             "trace_detail",
+            "span_detail",
             "list_flatten_traces",
             "list_flatten_spans",
             "list_spans",

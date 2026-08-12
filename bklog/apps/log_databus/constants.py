@@ -50,6 +50,22 @@ DORIS_STORAGE_CLUSTER = "doris_storage_cluster"
 
 DEFAULT_RETENTION = 14
 
+LOG_COLLECTOR_ORDERING_CHOICES = (
+    "name",
+    "-name",
+    "retention",
+    "-retention",
+    "updated_at",
+    "-updated_at",
+    "created_at",
+    "-created_at",
+    "daily_usage",
+    "-daily_usage",
+    "total_usage",
+    "-total_usage",
+)
+DEFAULT_LOG_COLLECTOR_ORDERING = "-updated_at"
+
 # 节点管理支持的cmdb 主机信息
 CC_HOST_FIELDS = [
     "bk_host_id",

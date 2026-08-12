@@ -76,6 +76,90 @@ def test_delete_gse_route_with_fallback_retries_with_default_platform(monkeypatc
     ]
 
 
+def test_delete_migrate_data_id_routes_deletes_routes_by_data_id(monkeypatch):
+    requests = []
+    routes = {
+        7788: [
+            {"name": "stream_to_kafka_7788"},
+            {"name": "migrate_kafka_data_id_7788"},
+        ],
+        8899: [
+            {"name": "stream_to_kafka_8899"},
+            {"name": "migrate_kafka_data_id_8899"},
+        ],
+    }
+
+    monkeypatch.setattr(
+        data_rebuilder.api,
+        "gse",
+        SimpleNamespace(
+            query_route=lambda **kwargs: [{"route": routes[kwargs["condition"]["channel_id"]]}],
+            delete_route=lambda **kwargs: requests.append(kwargs),
+        ),
+    )
+
+    result = data_rebuilder.delete_migrate_data_id_routes([7788, 8899])
+
+    assert requests == [
+        {
+            "condition": {"channel_id": 7788, "plat_name": data_rebuilder.config.DEFAULT_GSE_API_PLAT_NAME},
+            "operation": {
+                "operator_name": data_rebuilder.settings.COMMON_USERNAME,
+                "method": "specification",
+            },
+            "specification": {"route": ["migrate_kafka_data_id_7788"]},
+        },
+        {
+            "condition": {"channel_id": 8899, "plat_name": data_rebuilder.config.DEFAULT_GSE_API_PLAT_NAME},
+            "operation": {
+                "operator_name": data_rebuilder.settings.COMMON_USERNAME,
+                "method": "specification",
+            },
+            "specification": {"route": ["migrate_kafka_data_id_8899"]},
+        },
+    ]
+    assert result == {
+        7788: {"before": routes[7788], "after": [{"name": "stream_to_kafka_7788"}]},
+        8899: {"before": routes[8899], "after": [{"name": "stream_to_kafka_8899"}]},
+    }
+    for request in requests:
+        serializer = DeleteRoute.RequestSerializer(data=request)
+        assert serializer.is_valid(), serializer.errors
+
+
+def test_delete_migrate_data_id_routes_dry_run_only_reports_existing_routes(monkeypatch):
+    query_requests = []
+    delete_requests = []
+    routes = {
+        7788: [
+            {"name": "stream_to_kafka_7788"},
+            {"name": "migrate_kafka_data_id_7788"},
+        ],
+        8899: [{"name": "stream_to_kafka_8899"}],
+    }
+
+    def query_route(**kwargs):
+        query_requests.append(kwargs)
+        return [{"route": routes[kwargs["condition"]["channel_id"]]}]
+
+    monkeypatch.setattr(
+        data_rebuilder.api,
+        "gse",
+        SimpleNamespace(
+            query_route=query_route,
+            delete_route=lambda **kwargs: delete_requests.append(kwargs),
+        ),
+    )
+
+    result = data_rebuilder.delete_migrate_data_id_routes([7788, 8899], dry_run=True)
+
+    assert [request["condition"]["channel_id"] for request in query_requests] == [7788, 8899]
+    assert delete_requests == []
+    assert result == {
+        7788: {"before": routes[7788], "after": [{"name": "stream_to_kafka_7788"}]},
+    }
+
+
 def test_build_profiling_migrate_route_rejects_pulsar_without_topic():
     with pytest.raises(ValueError, match=r"data_id\(7788\) source pulsar router topic_name is empty"):
         data_rebuilder._build_profiling_migrate_route(

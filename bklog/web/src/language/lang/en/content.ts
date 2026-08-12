@@ -1413,4 +1413,8 @@ export default {
   '请{0}编辑。': 'Please edit {0}.',
   前往对应的空间: 'Go to the corresponding space',
   当前租户可见: 'Visible to current tenants',
+  '复制 {0} 成功': 'Copied {0} successfully',
+  '按用量排序需要实时请求集群使用情况，需等待较长时间，点击确认执行':
+    'Sorting by usage requires a real-time request for cluster usage and may take a while. Click Confirm to proceed.',
+  '搜索 数据 ID、采集名、数据名、存储集群、存储名': 'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
 };

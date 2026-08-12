@@ -1069,7 +1069,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 {/* </div>*/}
                 {!this.formData.needDuty && (
                   <div class='directly-text-tip'>
-                    {this.$t('处理套餐中使用了电话语音通知，拨打的顺序是按通知对象顺序依次拨打，用户组内无法保证顺序')}
+                    {this.$t('处理套餐中使用了电话语音通知，拨打的顺序是按通知对象顺序依次拨打')}
                   </div>
                 )}
               </div>
