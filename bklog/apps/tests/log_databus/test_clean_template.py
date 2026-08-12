@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
 from apps.iam import ActionEnum
@@ -36,6 +36,11 @@ from apps.log_databus.exceptions import (
 from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CleanTemplate, CollectorConfig
+from apps.log_databus.serializers import (
+    CollectorEtlStorageSerializer,
+    FastCollectorUpdateSerializer,
+    FastContainerCollectorUpdateSerializer,
+)
 from apps.log_databus.views.clean_views import CleanTemplateViewSet
 from apps.log_search.models import LogIndexSet, Space
 
@@ -59,6 +64,37 @@ CREATE_PARAMS = {
     ],
     "bk_biz_id": 706,
 }
+
+
+class CleanTemplateAssociationSerializerTestCase(SimpleTestCase):
+    serializer_cases = (
+        (
+            CollectorEtlStorageSerializer,
+            {
+                "table_id": "test_table",
+                "etl_config": "bk_log_text",
+                "storage_cluster_id": 1,
+                "retention": 7,
+                "allocation_min_days": 0,
+            },
+        ),
+        (FastCollectorUpdateSerializer, {}),
+        (FastContainerCollectorUpdateSerializer, {}),
+    )
+
+    def test_omitted_clean_template_id_is_not_added_to_validated_data(self):
+        for serializer_class, data in self.serializer_cases:
+            with self.subTest(serializer=serializer_class.__name__):
+                serializer = serializer_class(data=data)
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertNotIn("clean_template_id", serializer.validated_data)
+
+    def test_explicit_null_clean_template_id_is_preserved(self):
+        for serializer_class, data in self.serializer_cases:
+            with self.subTest(serializer=serializer_class.__name__):
+                serializer = serializer_class(data={**data, "clean_template_id": None})
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertIsNone(serializer.validated_data["clean_template_id"])
 
 
 class CleanTemplateTestCase(TestCase):
@@ -540,6 +576,32 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         self.assertEqual(collector.clean_template_id, template["clean_template_id"])
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.SUCCESS.value)
+
+    def test_etl_uses_current_template_when_template_id_is_omitted(self):
+        template = self.create_template(clean_type="bk_log_json", etl_params={"retain_original_text": True})
+        collector = self.create_collector(clean_template_id=template["clean_template_id"])
+        handler = TransferEtlHandler(collector.collector_config_id)
+
+        clean_template_id = handler._resolve_clean_template_id()
+        clean_template, etl_config, etl_params, fields = handler._prepare_clean_template_config(
+            clean_template_id,
+            "bk_log_text",
+            {"request": "params"},
+            [{"field_name": "request_field"}],
+        )
+
+        self.assertEqual(clean_template_id, template["clean_template_id"])
+        self.assertEqual(clean_template.clean_template_id, template["clean_template_id"])
+        self.assertEqual(etl_config, "bk_log_json")
+        self.assertEqual(etl_params, {"retain_original_text": True})
+        self.assertEqual(fields, CREATE_PARAMS["etl_fields"])
+
+    def test_explicit_null_template_id_does_not_reuse_current_template(self):
+        template = self.create_template()
+        collector = self.create_collector(clean_template_id=template["clean_template_id"])
+        handler = TransferEtlHandler(collector.collector_config_id)
+
+        self.assertIsNone(handler._resolve_clean_template_id(None))
 
     def test_etl_does_not_associate_deleted_template(self):
         template = self.create_template()

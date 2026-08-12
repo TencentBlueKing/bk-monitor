@@ -1041,9 +1041,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformI
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
     total_shards_per_node = serializers.IntegerField(label=_("每个节点的分片总数"), required=False, allow_null=True)
-    clean_template_id = serializers.IntegerField(
-        label=_("清洗模板ID"), required=False, allow_null=True, min_value=1, default=None
-    )
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1850,9 +1848,7 @@ class FastContainerCollectorUpdateSerializer(
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False)
-    clean_template_id = serializers.IntegerField(
-        label=_("清洗模板ID"), required=False, allow_null=True, min_value=1, default=None
-    )
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate_yaml_config(self, value):
         try:
@@ -1883,9 +1879,7 @@ class FastCollectorUpdateSerializer(
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
-    clean_template_id = serializers.IntegerField(
-        label=_("清洗模板ID"), required=False, allow_null=True, min_value=1, default=None
-    )
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
