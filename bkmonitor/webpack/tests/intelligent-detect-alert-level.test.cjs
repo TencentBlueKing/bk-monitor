@@ -39,21 +39,16 @@ const ruleWrapperStyleSource = fs.readFileSync(
   'utf8'
 );
 
-test('SDK 新建单指标异常检测默认使用自动级别并全选输出范围', () => {
-  assert.deepEqual(createAiAlertLevelValue(undefined, true), {
-    mode: 'auto',
-    level: 2,
-    alertLevels: [1, 2, 3],
-  });
-});
-
-test('非 SDK 新建和既有手动策略保持手动级别', () => {
-  assert.deepEqual(createAiAlertLevelValue(undefined, false), {
+test('SDK 新建单指标异常检测默认保持手动级别', () => {
+  assert.deepEqual(createAiAlertLevelValue(), {
     mode: 'manual',
     level: 1,
     alertLevels: [],
   });
-  assert.deepEqual(createAiAlertLevelValue({ level: 3, config: {} }, true), {
+});
+
+test('既有手动策略保持手动级别', () => {
+  assert.deepEqual(createAiAlertLevelValue({ level: 3, config: {} }), {
     mode: 'manual',
     level: 3,
     alertLevels: [],
@@ -61,7 +56,7 @@ test('非 SDK 新建和既有手动策略保持手动级别', () => {
 });
 
 test('自动级别配置回填输出范围并固定技术级别为预警', () => {
-  const value = createAiAlertLevelValue({ level: 2, config: { alert_level_mode: 'auto', alert_levels: [3, 1] } }, true);
+  const value = createAiAlertLevelValue({ level: 2, config: { alert_level_mode: 'auto', alert_levels: [3, 1] } });
 
   assert.deepEqual(value, { mode: 'auto', level: 2, alertLevels: [1, 3] });
   assert.deepEqual(serializeAiAlertLevelValue(value), {

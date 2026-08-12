@@ -120,7 +120,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
       {
         label: window.i18n.tc('告警级别'),
         field: LEVEL_FIELD,
-        value: createAiAlertLevelValue(this.data, this.autoLevelEnabled),
+        value: createAiAlertLevelValue(this.data),
         type: 'ai-level',
         autoEnabled: this.autoLevelEnabled,
         required: true,
@@ -183,7 +183,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
     if (this.data) {
       this.localData = this.data;
     } else {
-      const alertLevel = serializeAiAlertLevelValue(createAiAlertLevelValue(undefined, this.autoLevelEnabled));
+      const alertLevel = serializeAiAlertLevelValue(createAiAlertLevelValue());
       this.localData.level = alertLevel.level;
       this.localData.config = { ...this.localData.config, ...alertLevel.config };
       this.emitLocalData();
