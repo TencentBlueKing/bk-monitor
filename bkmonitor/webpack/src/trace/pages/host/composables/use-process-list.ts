@@ -78,6 +78,7 @@ export const useProcessList = (options: {
     loading.value = true;
     const data = await getHostProcessList(
       {
+        bk_host_id: host.bk_host_id,
         bk_target_ip: host.ip,
         bk_target_cloud_id: String(host.bk_cloud_id ?? ''),
         start_time: timeRangeTimestamp.value.start_time,

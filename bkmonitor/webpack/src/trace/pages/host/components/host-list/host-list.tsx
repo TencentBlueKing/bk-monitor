@@ -49,6 +49,10 @@ export default defineComponent({
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
     },
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     selectIpCell: (_row: IHostListRow) => true,
@@ -57,6 +61,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { where, filterExpanded, activeCategory, keyword } = storeToRefs(useHostStore());
     const ctx = useHostList({
+      readonly: props.readonly,
       selectedNode: toRef(props, 'selectedNode'),
       where,
       filterExpanded,
@@ -142,6 +147,7 @@ export default defineComponent({
             metricLoading={ctx.metricLoading.value}
             page={ctx.page.value}
             pageSize={ctx.pageSize.value}
+            readonly={props.readonly}
             selectedRowKeys={ctx.selectedRowKeys.value}
             selectType={ctx.selectType.value}
             sort={ctx.sortInfo.value}

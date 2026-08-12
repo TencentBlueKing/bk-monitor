@@ -26,15 +26,15 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
-import TemporaryShare from '../temporary-share/temporary-share';
-import { getNodeDisplayName, isHostNode } from '../../utils/topo-tree';
-import { storeToRefs } from 'pinia';
-import type { IHostTopoTreeNode } from '../../types';
-
 import { useHostStore } from '../../../../store/modules/host';
+import { getNodeDisplayName, isHostNode } from '../../utils/topo-tree';
+import TemporaryShare from '../temporary-share/temporary-share';
+
+import type { IHostTopoTreeNode } from '../../types';
 
 import './host-location-bar.scss';
 
@@ -45,6 +45,10 @@ export default defineComponent({
     selectedNode: {
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
+    },
+    readonly: {
+      type: Boolean,
+      default: false,
     },
   },
   setup(props) {
@@ -63,11 +67,19 @@ export default defineComponent({
     });
 
     const formatShareTokenParams = (params: Record<string, unknown>) => {
+      const node = props.selectedNode;
+      if (!node) {
+        return params;
+      }
+      const scope = isHostNode(node)
+        ? { version: 1, target_type: 'host', bk_host_id: node.bk_host_id }
+        : { version: 1, target_type: 'topo', bk_obj_id: node.bk_obj_id, bk_inst_id: node.bk_inst_id };
       const data = (params.data || {}) as Record<string, unknown>;
       data.name = 'host';
       data.path = '/trace/host/:id?';
+      data.scope = scope;
       data.params = {
-        id: props.selectedNode?.id,
+        id: node.id,
       };
       data.query = {
         ...route.query,
@@ -75,6 +87,10 @@ export default defineComponent({
         from: params.default_time_range[0],
         to: params.default_time_range[1],
         shareLink: true,
+        shareTargetType: scope.target_type,
+        shareBkHostId: 'bk_host_id' in scope ? scope.bk_host_id : undefined,
+        shareBkObjId: 'bk_obj_id' in scope ? scope.bk_obj_id : undefined,
+        shareBkInstId: 'bk_inst_id' in scope ? scope.bk_inst_id : undefined,
         lockSearch: params.lock_search,
       };
       params.data = data;
@@ -89,10 +105,12 @@ export default defineComponent({
         <div class='host-location-bar'>
           <i class='icon-monitor icon-dingwei' />
           <span class='host-location-bar-text'>{locationText.value}</span>
-          <TemporaryShare
-            formatTokenParams={formatShareTokenParams}
-            type='host'
-          />
+          {!props.readonly && (
+            <TemporaryShare
+              formatTokenParams={formatShareTokenParams}
+              type='host'
+            />
+          )}
         </div>
       );
     };

@@ -28,6 +28,8 @@ import type { ProcessPortStatusType } from './enum';
 
 /** 获取主机进程列表的请求参数 */
 export interface HostProcessListParams {
+  /** 目标主机 ID（分享 scope 校验使用） */
+  bk_host_id?: number;
   /** 目标云区域 ID */
   bk_target_cloud_id?: string;
   /** 目标主机 IP */
