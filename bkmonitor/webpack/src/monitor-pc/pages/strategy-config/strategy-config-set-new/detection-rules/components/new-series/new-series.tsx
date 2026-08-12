@@ -250,6 +250,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
             required
           >
             <bk-radio-group
+              class='alert-mode-radio'
               v-model={this.formData.alertMode}
               onChange={this.emitLocalData}
             >
@@ -257,13 +258,13 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 disabled={this.readonly}
                 value='once'
               >
-                {this.$t('仅首次出现时告警')}
+                {this.$t('仅首次告警')}
               </bk-radio>
               <bk-radio
                 disabled={this.readonly}
                 value='continuous'
               >
-                {this.$t('维度持续出现时保持告警')}
+                {this.$t('持续告警')}
               </bk-radio>
             </bk-radio-group>
             <div class='threshold-tip'>{this.$t('持续模式只影响告警保持和结束时间，不改变通知设置。')}</div>

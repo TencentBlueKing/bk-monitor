@@ -31,6 +31,7 @@ from alarm_backends.service.alert.manager.checker.base import BaseChecker
 from alarm_backends.service.alert.manager.checker.utils import (
     is_same_new_series_lifecycle,
     is_auto_level_intelligent_detect,
+    resolve_new_series_lifecycle_state,
 )
 from api.cmdb.define import TopoNode
 from bkmonitor.documents import AlertLog
@@ -201,6 +202,17 @@ class CloseStatusChecker(BaseChecker):
                 )
                 self.close(alert, _("告警级别对应的检测算法已被删除，告警关闭"))
                 return True
+
+            origin_lifecycle = resolve_new_series_lifecycle_state(alert)
+            if origin_lifecycle:
+                latest_lifecycle = resolve_new_series_lifecycle_state(alert, latest_strategy)
+                if not latest_lifecycle or origin_lifecycle.active_key != latest_lifecycle.active_key:
+                    logger.info(
+                        f"[close 处理结果] (closed) alert({alert.id}), strategy({alert.strategy_id}), "
+                        "新维度持续告警生命周期配置已变更，告警关闭"
+                    )
+                    self.close(alert, _("新维度持续告警生命周期配置已变更，告警关闭"))
+                    return True
         else:
             # 如果是无数据告警，还需要判断 agg_condition 是否发生了改变，一旦改变了就关闭
             for origin_query, latest_query in zip(origin_item["query_configs"], latest_item["query_configs"]):
