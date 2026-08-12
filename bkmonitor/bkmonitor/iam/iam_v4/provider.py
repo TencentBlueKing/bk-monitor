@@ -230,6 +230,7 @@ class V4PermissionProvider(PermissionProvider):
             IAM Application 格式 dict，字段与 V3 gen_perms_apply_data 兼容。
         """
         system_id = self._cfg.system.id
+        resolved_resources = [self._resolve(r) for r in resources]
         actions_data: list[dict] = []
 
         for action_id_biz in action_ids:
@@ -244,8 +245,8 @@ class V4PermissionProvider(PermissionProvider):
             related_resource_types: list[dict] = []
             rt_id: str = action_def.resource_type if action_def else ""
 
-            if rt_id and resources:
-                instance_ids = [r.id for r in resources]
+            if rt_id and resolved_resources:
+                instance_ids = [r.id for r in resolved_resources]
                 # 通过回调服务补全展示名称
                 display_map: dict[str, str] = {}
                 if hasattr(self, "callback_service"):
@@ -266,7 +267,7 @@ class V4PermissionProvider(PermissionProvider):
                             "name": display_map.get(r.id, r.id),
                         }
                     ]
-                    for r in resources
+                    for r in resolved_resources
                 ]
                 related_resource_types.append(
                     {

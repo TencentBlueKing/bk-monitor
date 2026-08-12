@@ -1371,8 +1371,8 @@ IAM_FRAMEWORK = {
         # {
         #     "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
         #     "options": {
-        #         "codec_class": "bkmonitor.iam.definitions.codec_v4.MonitorV4Codec",
-        #         "callback_module": "bkmonitor.iam.definitions.v4_callbacks",
+        #         "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
+        #         "callback_module": "bkmonitor.iam.adapters.v4.callbacks",
         #         "base_url": BK_IAM_V4_API_BASE_URL,
         #         "credentials": {
         #             "app_code": BK_IAM_APP_CODE,
@@ -1391,7 +1391,8 @@ IAM_FRAMEWORK = {
         {
             "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
             "options": {
-                "codec_class": "bkmonitor.iam.definitions.codec_v3.MonitorV3Codec",
+                "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
+                "resolver_class": "bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver",
                 "base_url": BK_IAM_V3_API_BASE_URL,
                 "bk_tenant_id": "system",
                 "credentials": {

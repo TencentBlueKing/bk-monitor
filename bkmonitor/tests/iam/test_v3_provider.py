@@ -36,13 +36,13 @@ from bkmonitor.iam.iam_engine.provider.dialect_types import (
 )
 from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.definitions.codec_v3 import MonitorV3Codec
+from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
 
 
 def _valid_options() -> dict:
     return {
-        "codec_class": "bkmonitor.iam.definitions.codec_v3.MonitorV3Codec",
+        "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
         "codec_kwargs": {
             "action_id_map": {
                 "view_business": "view_business_v2",

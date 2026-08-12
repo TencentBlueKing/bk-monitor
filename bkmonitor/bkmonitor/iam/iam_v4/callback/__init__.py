@@ -18,7 +18,7 @@ specific language governing permissions and limitations under the License.
 #   registry.py — 全局 handler 注册表 + register_* 装饰器
 #   service.py  — CallbackService（codec 感知分发）
 #
-# 业务 handler 实现位于 iam/definitions/v4_callbacks.py，
+# 业务 handler 实现位于 iam/adapters/v4/callbacks.py，
 # 由 V4PermissionProvider 在初始化时通过 callback_module 配置自动导入。
 # 业务在 URLconf 中自行挂载 IAMV4ResourceCallbackView。
 # ---------------------------------------------------------------------------

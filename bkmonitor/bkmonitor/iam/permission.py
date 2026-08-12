@@ -40,7 +40,7 @@ from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, get_action_by_id
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.compatible import CompatibleIAM
-from bkmonitor.iam.definitions.codec_v3 import MonitorV3Codec
+from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
@@ -342,10 +342,7 @@ class Permission:
     # ================================================================
 
     def prepare_apply_for_saas(self, resources):
-        if not resources or (resources[0].system, resources[0].type) != (
-            BusinessResource.system_id,
-            BusinessResource.id,
-        ):
+        if not resources or resources[0].type != BusinessResource.id:
             return [], []
         bk_biz_id = resources[0].id
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)

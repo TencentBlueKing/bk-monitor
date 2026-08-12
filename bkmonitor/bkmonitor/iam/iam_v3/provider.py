@@ -308,6 +308,8 @@ class V3PermissionProvider(PermissionProvider):
             IAM Application 格式 dict。
         """
         client = self._get_client(subject.tenant_id)
+        # 补全资源实例
+        resolved_resources = [self._resolve(r) for r in resources]
         # 编码 action_ids → V3 方言
         dialect_action_ids = [self.codec.encode_action(a) for a in action_ids]
 
@@ -317,8 +319,8 @@ class V3PermissionProvider(PermissionProvider):
 
             # 编码 resource 为 SDK Resource 格式
             sdk_resources: list = []
-            if self._action_has_resource(action_id_biz) and resources:
-                for r in resources:
+            if self._action_has_resource(action_id_biz) and resolved_resources:
+                for r in resolved_resources:
                     rt_biz = to_resource_type_id(r.type)
                     dialect_rt = self.codec.encode_resource_type(rt_biz)
                     dialect_rid = self.codec.encode_resource_id(rt_biz, r.id)

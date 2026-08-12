@@ -67,6 +67,7 @@ from ..core.types import (
 from ..core.utils import chunked, import_class
 from ..schema.registry import SchemaRegistry
 from .codec import IdentityCodec, NameCodec
+from .resolver import ResourceResolver
 from .dialect_types import (
     DialectApplyURLRequest,
     DialectAuthRequest,
@@ -133,6 +134,20 @@ class PermissionProvider(ABC):
         else:
             self.codec = IdentityCodec()
 
+        resolver_cls_path: str = options.get("resolver_class", "")
+        if resolver_cls_path:
+            self.resolver: ResourceResolver | None = import_class(resolver_cls_path)()
+        else:
+            self.resolver = None
+
+    # ==================== 资源补全 ====================
+
+    def _resolve(self, resource: ResourceInstance | None) -> ResourceInstance | None:
+        """补全资源实例（name / ancestor_chain / attributes），由业务 resolver 完成。"""
+        if resource is None or self.resolver is None:
+            return resource
+        return self.resolver.resolve(resource)
+
     # ==================== 系统信息（供命令行/诊断使用） ====================
 
     def get_system_info(self) -> Any | None:
@@ -148,10 +163,11 @@ class PermissionProvider(ABC):
 
     def is_allowed(self, request: AuthRequest) -> bool:
         """单次鉴权。allowed=False 代表业务语义拒绝，非系统错误。"""
+        resource = self._resolve(request.resource)
         dialect_req = DialectAuthRequest(
             subject=request.subject,
             action_id=self.codec.encode_action(to_action_id(request.action_id)),
-            resource=self._encode_resource(request.resource) if request.resource else None,
+            resource=self._encode_resource(resource) if resource else None,
             environment=request.environment,
         )
         return self._is_allowed_dialect(dialect_req)
@@ -164,12 +180,15 @@ class PermissionProvider(ABC):
         if not request.resources:
             return BatchAuthResult(items=())
 
+        # 补全资源实例（name / ancestor_chain）
+        resources = tuple(self._resolve(r) for r in request.resources)
+
         # 假设一批同类型（框架契约）；type 取第一个即可
-        rt_biz = to_resource_type_id(request.resources[0].type)
+        rt_biz = to_resource_type_id(resources[0].type)
         dialect_rt = self.codec.encode_resource_type(rt_biz)
 
         # 出站 encode：业务 ID → 方言 ID（保留原业务 ID 用于 decode 回填）
-        pairs: list[tuple[str, str]] = [(r.id, self.codec.encode_resource_id(rt_biz, r.id)) for r in request.resources]
+        pairs: list[tuple[str, str]] = [(r.id, self.codec.encode_resource_id(rt_biz, r.id)) for r in resources]
         chunks = [list(c) for c in chunked(pairs, self.CHUNK_SIZE)]
 
         def run_chunk(chunk: list[tuple[str, str]]) -> list[tuple[str, bool]]:
@@ -201,9 +220,10 @@ class PermissionProvider(ABC):
         action_ids_biz = [to_action_id(a) for a in request.action_ids]
         pairs: list[tuple[str, str]] = [(aid_biz, self.codec.encode_action(aid_biz)) for aid_biz in action_ids_biz]
 
-        dialect_resource = self._encode_resource(request.resource) if request.resource else None
-        rt_biz = to_resource_type_id(request.resource.type) if request.resource else ""
-        rid_biz = request.resource.id if request.resource else ""
+        resource = self._resolve(request.resource)
+        dialect_resource = self._encode_resource(resource) if resource else None
+        rt_biz = to_resource_type_id(resource.type) if resource else ""
+        rid_biz = resource.id if resource else ""
 
         if not pairs:
             return BatchAuthResult(items=())
@@ -244,10 +264,12 @@ class PermissionProvider(ABC):
         action_ids_biz: list[str] = [to_action_id(a) for a in request.action_ids]
         dialect_action_ids = tuple(self.codec.encode_action(a) for a in action_ids_biz)
 
-        # 编码 resources：type 优先从对应 action 反查（apply_url 常见场景）
+        # 补全并编码 resources：type 优先从对应 action 反查（apply_url 常见场景）
         # 若有多个 action，取第一个 action 的 resource_type 作为回退线索
         primary_action_biz = action_ids_biz[0] if action_ids_biz else ""
-        dialect_resources = tuple(self._encode_resource_for_action(r, primary_action_biz) for r in request.resources)
+        dialect_resources = tuple(
+            self._encode_resource_for_action(self._resolve(r), primary_action_biz) for r in request.resources
+        )
 
         dialect_req = DialectApplyURLRequest(
             subject=request.subject,

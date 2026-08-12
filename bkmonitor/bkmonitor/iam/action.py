@@ -14,7 +14,7 @@ specific language governing permissions and limitations under the License.
 # 改造说明 (2026-08):
 #   - ActionEnum 成员现在是 ActionDef 实例，不再是 ActionMeta 实例
 #   - ActionEnum.XXX.id 返回 Business ID（如 "view_business"），而非 V3 平台 ID
-#   - V3 平台 ID 映射由 definitions/codec_v3.py 的 MonitorV3Codec 处理
+#   - V3 平台 ID 映射由 v3/codec.py 的处理
 #   - 新增 action 只需在 definitions/actions.py 添加 ActionDef，ActionEnum 自动感知
 #   - ActionMeta 类已删除；旧代码应使用 ActionDef 或直接使用 ActionEnum 成员
 #

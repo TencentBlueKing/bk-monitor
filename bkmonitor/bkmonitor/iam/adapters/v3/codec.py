@@ -24,13 +24,13 @@ specific language governing permissions and limitations under the License.
 #
 # 配置方式：
 #   在 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 中配置本类的 dotted path：
-#       "codec_class": "bkmonitor.iam.definitions.codec_v3.MonitorV3Codec"
+#       "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec"
 #   Provider 在初始化时自动加载，无需手动传参。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
-from ..iam_engine.provider.codec import IdentityCodec
+from ...iam_engine.provider.codec import IdentityCodec
 
 
 def _build_v3_mappings():
@@ -39,7 +39,7 @@ def _build_v3_mappings():
     使用与 schema.loaders.load_from_class 相同的 vars() 遍历模式，
     保证与 schema 注册的 action 集合完全一致。
     """
-    from .actions import Actions
+    from ...definitions.actions import Actions
 
     fwd: dict[str, str] = {}
     rev: dict[str, str] = {}
