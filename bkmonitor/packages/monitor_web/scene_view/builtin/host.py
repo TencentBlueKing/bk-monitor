@@ -107,9 +107,12 @@ DEFAULT_PROCESS_ORDER = [
 # 聚合方法
 DEFAULT_METHOD = "MAX"
 METRIC_METHOD = {
+    "bk_monitor.time_series.system.proc.cpu_usage_pct": "sum_without_time",
+    "bk_monitor.time_series.system.proc.mem_usage_pct": "sum_without_time",
     "bk_monitor.time_series.system.proc.mem_res": "sum_without_time",
     "bk_monitor.time_series.system.proc.mem_virt": "sum_without_time",
     "bk_monitor.time_series.system.proc.fd_num": "sum_without_time",
+    "bk_monitor.time_series.system.proc.uptime": "MAX",
 }
 METRIC_OS_TYPE = {"bk_monitor.time_series.system.load.load5": "linux"}
 

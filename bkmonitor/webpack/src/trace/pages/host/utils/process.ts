@@ -36,12 +36,11 @@ export const getProcessBarColor = (value: number): string => {
   return '#21a380';
 };
 
-/** 运行时长毫秒数 → 展示文案（列表按小时，超过 1 天按天） */
-export const formatUptime = (milliseconds: number): string => {
-  if (!(milliseconds > 0)) {
+/** 运行时长秒数 → 展示文案（列表按小时，超过 1 天按天） */
+export const formatUptime = (seconds: null | number | undefined): string => {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) {
     return '--';
   }
-  const seconds = milliseconds / 1000;
   const hours = seconds / 3600;
   if (hours >= 24) {
     return `${+(hours / 24).toFixed(1)} d`;
@@ -54,18 +53,24 @@ export const formatUptime = (milliseconds: number): string => {
  * @param value 后台返回的小数（如 0.1532）或字符串
  * @returns 格式化后的百分比对象（text: 展示文案，value: 原始百分比数值，width: 进度条宽度）
  */
-export const formatPercent = (value: number | string | undefined): { text: string; value: number; width: number } => {
-  const num = (typeof value === 'string' ? parseFloat(value) : Number(value) || 0) * 100;
+export const formatPercent = (
+  value: null | number | string | undefined
+): { text: string; value: null | number; width: number } => {
+  const parsed = typeof value === 'string' ? parseFloat(value) : value;
+  if (parsed == null || !Number.isFinite(parsed)) {
+    return { text: '--', value: null, width: 0 };
+  }
+  const num = parsed * 100;
   return {
     text: `${num.toFixed(2)}%`,
     value: num,
-    width: Math.min(num, 100),
+    width: Math.min(Math.max(num, 0), 100),
   };
 };
 
 /** 物理内存 RSS 字节数 → 展示文案（如 92 MiB） */
-export const formatMemRss = (bytes: number): string => {
-  if (!(bytes > 0)) {
+export const formatMemRss = (bytes: null | number | undefined): string => {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) {
     return '--';
   }
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
@@ -78,16 +83,29 @@ export const formatMemRss = (bytes: number): string => {
   return `${+value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
 };
 
+/** 进程图例默认展示进程名，仅在查询按 PID 分组时追加 PID。 */
+export const formatProcessSeriesAlias = (dimensions: Record<string, unknown> | undefined, fallback: string): string => {
+  if (!dimensions) {
+    return fallback;
+  }
+  const parts = [dimensions.display_name, dimensions.pid].filter(
+    value => value !== undefined && value !== null && value !== ''
+  );
+  return parts.length ? parts.join('|') : fallback;
+};
+
 /**
- * 运行时长范围毫秒数 → 进程详情展示文案（如 `2.19d (2024-10-22 14:00:00)`）。
- * 起始时间按「当前时间 - 运行时长」推算，对齐设计稿头部信息。
+ * 运行时长秒数 → 进程详情展示文案（如 `2.19d (2024-10-22 14:00:00)`）。
+ * 起始时间按「观测时刻 - 运行时长」推算，对齐历史查询语义。
  */
-export const formatProcessUptimeDetail = (milliseconds: number): string => {
-  if (!(milliseconds > 0)) {
+export const formatProcessUptimeDetail = (
+  seconds: null | number | undefined,
+  observedAtSeconds = dayjs().unix()
+): string => {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) {
     return '--';
   }
-  const seconds = milliseconds / 1000;
-  const startTime = dayjs().subtract(milliseconds, 'millisecond').format('YYYY-MM-DD HH:mm:ss');
+  const startTime = dayjs.unix(observedAtSeconds).subtract(seconds, 'second').format('YYYY-MM-DD HH:mm:ss');
   const days = seconds / 86400;
   const duration = days >= 1 ? `${+days.toFixed(2)}d` : `${+(seconds / 3600).toFixed(2)}h`;
   return `${duration} (${startTime})`;
