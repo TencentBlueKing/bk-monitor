@@ -24,9 +24,18 @@
  * IN THE SOFTWARE.
  */
 import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
+import { listSourceAnalysisBkciProjects, listSourceAnalysisBkciRepositories } from 'monitor-api/modules/issue';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 
-import type { EIntelligentAlgorithm, IAiSetting, ISchemeItem } from '../typings';
+import type {
+  EIntelligentAlgorithm,
+  IAiSetting,
+  ISchemeItem,
+  TBkciProjectsParams,
+  TBkciProjectsResult,
+  TBkciRepositoriesParams,
+  TBkciRepositoriesResult,
+} from '../typings';
 
 /** 获取 AI 设置配置，失败返回 null 由调用方决定降级表现 */
 export const getAiSetting = (): Promise<IAiSetting | null> => fetchAiSetting().catch(() => null);
@@ -40,3 +49,17 @@ export const updateAiSetting = (params: IAiSetting): Promise<boolean> =>
 /** 获取指定算法下可选的智能检测方案列表 */
 export const getSchemeList = (algorithm: EIntelligentAlgorithm): Promise<ISchemeItem[]> =>
   listIntelligentModels({ algorithm }).catch(() => []);
+
+/** 查询蓝盾项目 */
+export const getBkciProjects = (params: TBkciProjectsParams): Promise<TBkciProjectsResult> =>
+  listSourceAnalysisBkciProjects(params).catch(() => ({
+    list: [],
+    total: 0,
+  }));
+
+/** 查询指定蓝盾项目下的源码仓库 */
+export const getBkciRepositories = (params: TBkciRepositoriesParams): Promise<TBkciRepositoriesResult> =>
+  listSourceAnalysisBkciRepositories(params).catch(() => ({
+    list: [],
+    total: 0,
+  }));
