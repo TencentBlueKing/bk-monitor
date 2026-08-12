@@ -203,6 +203,62 @@ def test_process_port_status_preserves_multiple_ports_with_process_health_at_dra
     ]
 
 
+def test_get_host_process_list_id_is_process_name_for_scene_variable(monkeypatch):
+    """旧版主机监控进程变量 fields:id→display_name，列表 id 必须是进程名而非 CMDB 进程 ID。"""
+    host = SimpleNamespace(bk_host_id=101, ip="127.0.0.1", bk_cloud_id=0)
+
+    monkeypatch.setattr(host_resources.api.cmdb, "get_host_by_id", lambda **_kwargs: [host])
+    monkeypatch.setattr(
+        host_resources.resource.cc,
+        "get_process_info",
+        lambda *_args, **_kwargs: {
+            101: [
+                {
+                    "id": 15139,
+                    "name": "kafka_broker",
+                    "status": 0,
+                    "protocol": "1",
+                    "bindIp": "127.0.0.1",
+                    "port": 9092,
+                    "startCommand": "/usr/bin/kafka",
+                    "user": "kafka",
+                }
+            ]
+        },
+    )
+
+    class FakeAsyncResult:
+        def __init__(self, value):
+            self._value = value
+
+        def get(self):
+            return self._value
+
+    class FakeThreadPool:
+        def apply_async(self, func, kwds=None):
+            return FakeAsyncResult(func(**(kwds or {})))
+
+        def close(self):
+            return None
+
+        def join(self):
+            return None
+
+    monkeypatch.setattr(host_resources, "ThreadPool", FakeThreadPool)
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_port_health", lambda **_kwargs: {101: {}})
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_runtime_metrics", lambda **_kwargs: {101: {}})
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_uptime", lambda **_kwargs: {101: {}})
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_instance_count", lambda **_kwargs: {101: {}})
+
+    result = host_resources.GetHostProcessListResource().perform_request(
+        {"bk_biz_id": 10, "bk_host_id": 101, "start_time": 1_700_000_000, "end_time": 1_700_003_600}
+    )
+
+    assert result[0]["id"] == "kafka_broker"
+    assert result[0]["name"] == "kafka_broker"
+    assert result[0]["id"] != 15139
+
+
 def test_process_uptime_queries_snapshot_at_drawer_end_in_milliseconds(monkeypatch):
     query_calls = []
     data_source_configs = []
