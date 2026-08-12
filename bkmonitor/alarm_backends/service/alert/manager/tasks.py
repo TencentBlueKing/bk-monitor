@@ -23,9 +23,13 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from alarm_backends.constants import CONST_ONE_DAY, CONST_ONE_HOUR
 from alarm_backends.core.alert.alert import Alert, AlertCache, AlertKey
+from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
+from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.core.storage.redis_cluster import PipelineResultMismatch
+from alarm_backends.service.alert.manager.checker.close import CloseStatusChecker
+from alarm_backends.service.alert.manager.checker.recover import RecoverStatusChecker
 from alarm_backends.service.alert.manager.processor import AlertManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents import AlertDocument, AlertLog
@@ -205,53 +209,79 @@ def check_blocked_alert():
 
 
 def check_blocked_alert_finished(alert_keys):
-    alerts = Alert.mget(alert_keys)
-    for alert in alerts:
-        alert.move_to_next_status()
+    candidate_alerts = Alert.mget(alert_keys)
+    lock_keys = [ALERT_UPDATE_LOCK.get_key(dedupe_md5=alert.dedupe_md5) for alert in candidate_alerts]
+    with multi_service_lock(ALERT_UPDATE_LOCK, lock_keys) as lock:
+        # 首次读取只用于定位锁；加锁后必须重新读取，避免关闭 builder 刚续期的同一条流控告警。
+        locked_alert_keys = [
+            alert.key
+            for alert in candidate_alerts
+            if lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=alert.dedupe_md5))
+        ]
+        alerts = Alert.mget(locked_alert_keys)
+        alerts = [
+            alert
+            for alert in alerts
+            if alert.is_abnormal() and lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=alert.dedupe_md5))
+        ]
+        close_checker = CloseStatusChecker(alerts)
+        recover_checker = RecoverStatusChecker(alerts)
+        for alert in alerts:
+            # 锁内复核策略终态与后继所有权，避免流控旁路漏清状态或旧告警误删后继 lifecycle。
+            if close_checker.check(alert, skip_circuit_breaking=True) or not alert.is_abnormal():
+                continue
+            # continuous NewSeries 即使不再重复产出异常事件，也会通过 active 续期；活跃时保持流控告警，
+            # 自然到期时沿用配置的恢复/关闭规范。非 NewSeries 或缺失状态仍走原有延时终态。
+            strategy = (
+                StrategyCacheManager.get_strategy_by_id(int(alert.strategy_id)) if alert.strategy_id else None
+            ) or alert.get_extra_info("strategy")
+            if recover_checker.check_new_series_lifecycle(alert, strategy):
+                continue
+            alert.move_to_next_status()
 
-    alert_logs = []
-    alert_documents = []
-    closed_alerts = []
-    updated_alert_snaps = []
-    for alert in alerts:
-        if alert.should_refresh_db():
-            alert_logs.extend(alert.list_log_documents())
-            alert_documents.append(alert.to_document())
-            updated_alert_snaps.append(alert)
-        if alert.status == EventStatus.CLOSED:
-            closed_alerts.append(alert.id)
-    if alert_documents:
-        try:
-            AlertDocument.bulk_create(alert_documents, action=BulkActionType.UPSERT)
-        except BulkIndexError as e:
-            logger.error(
-                "[check_blocked_alert_finished] save blocked alert document failed, total count(%s), "
-                " updated(%s), error detail: %s",
-                len(alert_keys),
-                len(alert_documents),
-                e.errors,
-            )
-            return
-    if updated_alert_snaps:
-        AlertCache.save_alert_to_cache(updated_alert_snaps)
-        AlertCache.save_alert_snapshot(updated_alert_snaps)
+        alert_logs = []
+        alert_documents = []
+        closed_alerts = []
+        updated_alert_snaps = []
+        for alert in alerts:
+            if alert.should_refresh_db():
+                alert_logs.extend(alert.list_log_documents())
+                alert_documents.append(alert.to_document())
+                updated_alert_snaps.append(alert)
+            if alert.status == EventStatus.CLOSED:
+                closed_alerts.append(alert.id)
+        if alert_documents:
+            try:
+                AlertDocument.bulk_create(alert_documents, action=BulkActionType.UPSERT)
+            except BulkIndexError as e:
+                logger.error(
+                    "[check_blocked_alert_finished] save blocked alert document failed, total count(%s), "
+                    " updated(%s), error detail: %s",
+                    len(alert_keys),
+                    len(alert_documents),
+                    e.errors,
+                )
+                return
+        if updated_alert_snaps:
+            AlertCache.save_alert_to_cache(updated_alert_snaps)
+            AlertCache.save_alert_snapshot(updated_alert_snaps)
 
-    if alert_logs:
-        try:
-            AlertLog.bulk_create(alert_logs)
-        except BulkIndexError as e:
-            logger.error(
-                "[check_blocked_alert_finished] save alert log document total count(%s) error: %s",
-                len(alert_logs),
-                e.errors,
-            )
-    logger.info(
-        "[check_blocked_alert_finished] update blocked alert next status succeed, "
-        "total count(%s), updated(%s), closed(%s)",
-        len(alerts),
-        len(alert_documents),
-        len(closed_alerts),
-    )
+        if alert_logs:
+            try:
+                AlertLog.bulk_create(alert_logs)
+            except BulkIndexError as e:
+                logger.error(
+                    "[check_blocked_alert_finished] save alert log document total count(%s) error: %s",
+                    len(alert_logs),
+                    e.errors,
+                )
+        logger.info(
+            "[check_blocked_alert_finished] update blocked alert next status succeed, "
+            "total count(%s), updated(%s), closed(%s)",
+            len(alerts),
+            len(alert_documents),
+            len(closed_alerts),
+        )
 
 
 def send_check_task(alerts: list[dict], run_immediately=True):

@@ -112,6 +112,21 @@ def resolve_new_series_lifecycle_state(alert, strategy=None):
     )
 
 
+def is_same_new_series_lifecycle(first_alert, second_alert):
+    """判断两个告警是否共同持有同一 continuous NewSeries 生命周期。"""
+    if not first_alert.is_abnormal() or not second_alert.is_abnormal():
+        return False
+
+    first_state = resolve_new_series_lifecycle_state(first_alert)
+    second_state = resolve_new_series_lifecycle_state(second_alert)
+    return bool(
+        first_state
+        and second_state
+        and first_state.active_key == second_state.active_key
+        and first_state.fingerprint == second_state.fingerprint
+    )
+
+
 def terminate_new_series_lifecycle_state(alert, observed_at=None):
     """原子终止告警快照对应的 continuous 生命周期，并留下短期竞态屏障。"""
     state = resolve_new_series_lifecycle_state(alert)

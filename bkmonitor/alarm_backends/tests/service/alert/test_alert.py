@@ -8,9 +8,59 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import time
+from unittest import mock
+
 from django.test import TestCase
 
-from alarm_backends.core.alert.alert import AlertUIDManager
+from alarm_backends.core.alert.alert import Alert, AlertUIDManager
+from bkmonitor.documents import AlertLog
+from constants.alert import EventStatus
+
+
+class TestAlertEndStatus(TestCase):
+    @staticmethod
+    def make_alert():
+        return Alert(
+            {
+                "status": EventStatus.ABNORMAL,
+                "severity": 1,
+                "extra_info": {},
+                "next_status": EventStatus.CLOSED,
+                "next_status_time": int(time.time()) - 1,
+            }
+        )
+
+    @mock.patch("alarm_backends.service.alert.manager.checker.utils.terminate_new_series_lifecycle_state")
+    def test_set_end_status_terminates_new_series_lifecycle_by_default(self, terminate_lifecycle):
+        alert = self.make_alert()
+
+        alert.set_end_status(EventStatus.CLOSED, AlertLog.OpType.CLOSE)
+
+        terminate_lifecycle.assert_called_once_with(alert)
+
+    @mock.patch("alarm_backends.service.alert.manager.checker.utils.terminate_new_series_lifecycle_state")
+    def test_set_end_status_can_preserve_transferred_new_series_lifecycle(self, terminate_lifecycle):
+        alert = self.make_alert()
+
+        alert.set_end_status(
+            EventStatus.CLOSED,
+            AlertLog.OpType.CLOSE,
+            preserve_new_series_lifecycle=True,
+        )
+
+        terminate_lifecycle.assert_not_called()
+        self.assertNotIn("preserve_new_series_lifecycle", alert.logs[-1])
+
+    @mock.patch("alarm_backends.service.alert.manager.checker.utils.terminate_new_series_lifecycle_state")
+    def test_blocked_alert_timeout_uses_lifecycle_aware_terminal_transition(self, terminate_lifecycle):
+        alert = self.make_alert()
+        alert.data["is_blocked"] = True
+
+        self.assertTrue(alert.move_to_next_status())
+
+        terminate_lifecycle.assert_called_once_with(alert)
 
 
 class TestAlertUIDManager(TestCase):

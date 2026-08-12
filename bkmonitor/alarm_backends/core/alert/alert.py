@@ -701,12 +701,26 @@ class Alert:
         alert_doc = AlertDocument(**data)
         return alert_doc
 
-    def set_end_status(self, status, op_type, description="", end_time=None, **kwargs):
+    def set_end_status(
+        self,
+        status,
+        op_type,
+        description="",
+        end_time=None,
+        preserve_new_series_lifecycle=False,
+        **kwargs,
+    ):
         """
         将告警设置为终止状态
         """
         if not self.is_abnormal():
             return
+
+        if not preserve_new_series_lifecycle:
+            # 所有终态统一先收口 NewSeries 生命周期；收口失败时保留异常态，由原任务重试。
+            from alarm_backends.service.alert.manager.checker.utils import terminate_new_series_lifecycle_state
+
+            terminate_new_series_lifecycle_state(self)
 
         end_time = end_time or int(time.time())
         self.data["status"] = status

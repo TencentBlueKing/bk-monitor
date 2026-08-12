@@ -33,7 +33,6 @@ from alarm_backends.service.alert.manager.checker.base import BaseChecker
 from alarm_backends.service.alert.manager.checker.utils import (
     is_auto_level_intelligent_detect,
     resolve_new_series_lifecycle_state,
-    terminate_new_series_lifecycle_state,
 )
 from bkmonitor.data_source import CustomEventDataSource
 from bkmonitor.documents import AlertLog
@@ -518,9 +517,6 @@ class RecoverStatusChecker(BaseChecker):
         """
         事件恢复
         """
-        if not preserve_new_series_lifecycle:
-            # 状态收口失败时保留异常态，由下一轮 manager 重试，避免终态落库后失去清理机会。
-            terminate_new_series_lifecycle_state(alert)
         if status_setter == "close":
             status = EventStatus.CLOSED
             op_type = AlertLog.OpType.CLOSE
@@ -538,7 +534,12 @@ class RecoverStatusChecker(BaseChecker):
                     description=description, record_value_display=record_value_display
                 )
             alert.update_extra_info("recovery_value", latest_normal_record[1])
-        alert.set_end_status(status=status, op_type=op_type, description=description)
+        alert.set_end_status(
+            status=status,
+            op_type=op_type,
+            description=description,
+            preserve_new_series_lifecycle=preserve_new_series_lifecycle,
+        )
 
     @classmethod
     def get_value_display(cls, alert, value):

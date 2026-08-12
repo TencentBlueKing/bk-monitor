@@ -223,7 +223,7 @@ class TestRecoverStatusChecker(TestCase):
         with (
             mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=once_strategy),
             mock.patch(
-                "alarm_backends.service.alert.manager.checker.recover.terminate_new_series_lifecycle_state",
+                "alarm_backends.service.alert.manager.checker.utils.terminate_new_series_lifecycle_state",
                 side_effect=RuntimeError("redis timeout"),
             ),
         ):

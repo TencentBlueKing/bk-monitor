@@ -154,3 +154,142 @@ class TestHandleAlertsMetrics(TestCase):
                 tasks.handle_alerts(alert_keys=[])
                 MockManager.assert_not_called()
         self.assertEqual(self._success() - s0, 0)
+
+
+class TestBlockedAlertLifecycle(TestCase):
+    @staticmethod
+    def make_locked_context():
+        lock = mock.Mock()
+        lock.is_locked.return_value = True
+        lock_context = mock.MagicMock()
+        lock_context.__enter__.return_value = lock
+        lock_context.__exit__.return_value = False
+        return lock_context
+
+    def test_timeout_rechecks_terminal_conditions_and_successor_ownership_under_alert_lock(self):
+        alert = mock.Mock()
+        alert.id = "blocked-alert"
+        alert.strategy_id = 1
+        alert.dedupe_md5 = "dedupe-md5"
+        alert.status = "ABNORMAL"
+        alert.is_abnormal.return_value = True
+        alert.should_refresh_db.return_value = False
+        lock = mock.Mock()
+        lock.is_locked.return_value = True
+        lock_context = mock.MagicMock()
+        lock_context.__enter__.return_value = lock
+        lock_context.__exit__.return_value = False
+
+        with (
+            mock.patch.object(tasks.Alert, "mget", return_value=[alert]),
+            mock.patch.object(tasks, "multi_service_lock", return_value=lock_context, create=True) as acquire_lock,
+            mock.patch.object(tasks.CloseStatusChecker, "check", return_value=True) as check_close,
+        ):
+            tasks.check_blocked_alert_finished([AlertKey(alert_id=alert.id, strategy_id=alert.strategy_id)])
+
+        acquire_lock.assert_called_once()
+        check_close.assert_called_once_with(alert, skip_circuit_breaking=True)
+        alert.move_to_next_status.assert_not_called()
+
+    def test_timeout_stops_when_close_checker_finishes_alert_without_truthy_result(self):
+        alert = mock.Mock()
+        alert.id = "blocked-alert"
+        alert.strategy_id = 1
+        alert.dedupe_md5 = "dedupe-md5"
+        alert.status = "ABNORMAL"
+        alert.is_abnormal.side_effect = [True, False]
+        alert.should_refresh_db.return_value = False
+
+        with (
+            mock.patch.object(tasks.Alert, "mget", return_value=[alert]),
+            mock.patch.object(tasks, "multi_service_lock", return_value=self.make_locked_context()),
+            mock.patch.object(tasks.CloseStatusChecker, "check", return_value=None),
+            mock.patch.object(tasks.RecoverStatusChecker, "check_new_series_lifecycle") as check_lifecycle,
+        ):
+            tasks.check_blocked_alert_finished([AlertKey(alert_id=alert.id, strategy_id=alert.strategy_id)])
+
+        check_lifecycle.assert_not_called()
+        alert.move_to_next_status.assert_not_called()
+
+    def test_timeout_reloads_same_alert_after_acquiring_alert_lock(self):
+        stale_alert = mock.Mock()
+        stale_alert.id = "blocked-alert"
+        stale_alert.strategy_id = 1
+        stale_alert.dedupe_md5 = "dedupe-md5"
+        stale_alert.status = "ABNORMAL"
+        stale_alert.is_abnormal.return_value = True
+        stale_alert.should_refresh_db.return_value = False
+
+        current_alert = mock.Mock()
+        current_alert.id = stale_alert.id
+        current_alert.strategy_id = stale_alert.strategy_id
+        current_alert.dedupe_md5 = stale_alert.dedupe_md5
+        current_alert.status = "ABNORMAL"
+        current_alert.is_abnormal.return_value = True
+        current_alert.should_refresh_db.return_value = False
+
+        lock = mock.Mock()
+        lock.is_locked.return_value = True
+        lock_context = mock.MagicMock()
+        lock_context.__enter__.return_value = lock
+        lock_context.__exit__.return_value = False
+
+        with (
+            mock.patch.object(tasks.Alert, "mget", side_effect=[[stale_alert], [current_alert]]) as load_alerts,
+            mock.patch.object(tasks, "multi_service_lock", return_value=lock_context, create=True),
+            mock.patch.object(tasks.CloseStatusChecker, "check", return_value=False),
+        ):
+            tasks.check_blocked_alert_finished([AlertKey(alert_id=stale_alert.id, strategy_id=stale_alert.strategy_id)])
+
+        self.assertEqual(load_alerts.call_count, 2)
+        stale_alert.move_to_next_status.assert_not_called()
+        current_alert.move_to_next_status.assert_called_once_with()
+
+    def test_timeout_keeps_active_continuous_new_series_alert(self):
+        alert = mock.Mock()
+        alert.id = "blocked-alert"
+        alert.strategy_id = 1
+        alert.dedupe_md5 = "dedupe-md5"
+        alert.status = "ABNORMAL"
+        alert.is_abnormal.return_value = True
+        alert.should_refresh_db.return_value = False
+        latest_strategy = {"id": alert.strategy_id}
+
+        with (
+            mock.patch.object(tasks.Alert, "mget", return_value=[alert]),
+            mock.patch.object(tasks, "multi_service_lock", return_value=self.make_locked_context()),
+            mock.patch.object(tasks.CloseStatusChecker, "check", return_value=False),
+            mock.patch.object(tasks.StrategyCacheManager, "get_strategy_by_id", return_value=latest_strategy),
+            mock.patch(
+                "alarm_backends.service.alert.manager.checker.recover.RecoverStatusChecker.check_new_series_lifecycle",
+                return_value=True,
+            ) as check_lifecycle,
+        ):
+            tasks.check_blocked_alert_finished([AlertKey(alert_id=alert.id, strategy_id=alert.strategy_id)])
+
+        check_lifecycle.assert_called_once_with(alert, latest_strategy)
+        alert.move_to_next_status.assert_not_called()
+
+    def test_timeout_ignores_alert_that_finished_while_waiting_for_lock(self):
+        candidate_alert = mock.Mock()
+        candidate_alert.id = "blocked-alert"
+        candidate_alert.strategy_id = 1
+        candidate_alert.dedupe_md5 = "dedupe-md5"
+
+        finished_alert = mock.Mock()
+        finished_alert.id = candidate_alert.id
+        finished_alert.strategy_id = candidate_alert.strategy_id
+        finished_alert.dedupe_md5 = candidate_alert.dedupe_md5
+        finished_alert.is_abnormal.return_value = False
+
+        with (
+            mock.patch.object(tasks.Alert, "mget", side_effect=[[candidate_alert], [finished_alert]]),
+            mock.patch.object(tasks, "multi_service_lock", return_value=self.make_locked_context()),
+            mock.patch.object(tasks.CloseStatusChecker, "check") as check_close,
+        ):
+            tasks.check_blocked_alert_finished(
+                [AlertKey(alert_id=candidate_alert.id, strategy_id=candidate_alert.strategy_id)]
+            )
+
+        check_close.assert_not_called()
+        finished_alert.move_to_next_status.assert_not_called()
