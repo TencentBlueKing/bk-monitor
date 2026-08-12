@@ -289,7 +289,7 @@ def _query_proc_metrics(
     :param hosts: 主机列表
     :param table: TSDB 表名（system.proc / system.proc_port）
     :param field: 指标字段名
-    :param method: 聚合方式（SUM / MAX / COUNT / MIN 等）
+    :param method: 聚合方式（sum_without_time / count_without_time / MAX / MIN 等）
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
@@ -333,7 +333,7 @@ def get_process_runtime_metrics(
     查询进程运行时指标 (system.proc)
 
     返回各进程指标字段的运行时数据：
-    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num, fd_limit_soft
+    - 指标字段（查询时点跨实例 SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num, fd_limit_soft
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
@@ -350,13 +350,13 @@ def get_process_runtime_metrics(
             }
     """
     try:
-        # system.proc 指标字段（SUM 聚合）
+        # system.proc 指标字段（查询时点跨 PID series 聚合，不做 180 秒窗口累计）
         # - cpu_usage_pct:  进程 CPU 使用率（%）
         # - mem_res:        进程使用的物理内存（字节）
         # - mem_usage_pct:  进程内存使用率（%）
         # - fd_num:         进程文件句柄数
-        # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时 SUM 为总限制额度
-        # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处 SUM
+        # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时求和为总限制额度
+        # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处求和
         METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"]
 
         result = defaultdict(lambda: defaultdict(dict))
@@ -365,7 +365,7 @@ def get_process_runtime_metrics(
             # 每个线程写入独立的临时 dict，避免多线程并发写同一 defaultdict 的竞态
             _local = defaultdict(lambda: defaultdict(dict))
             for bk_host_id, display_name, value in _query_proc_metrics(
-                bk_biz_id, hosts, "system.proc", field, "SUM", start_time, end_time
+                bk_biz_id, hosts, "system.proc", field, "sum_without_time", start_time, end_time
             ):
                 _local[bk_host_id][display_name][field] = value
             return _local
@@ -427,7 +427,7 @@ def get_process_instance_count(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
 ) -> dict[int, dict[str, int]]:
     """
-    查询进程真实运行实例数（COUNT 聚合统计同一进程名的运行实例数）
+    查询进程真实运行实例数（查询时点 COUNT 聚合统计同一进程名的运行实例数）
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
@@ -446,7 +446,7 @@ def get_process_instance_count(
     try:
         result = defaultdict(dict)
         for bk_host_id, display_name, value in _query_proc_metrics(
-            bk_biz_id, hosts, "system.proc", "cpu_usage_pct", "COUNT", start_time, end_time
+            bk_biz_id, hosts, "system.proc", "cpu_usage_pct", "count_without_time", start_time, end_time
         ):
             # 一条有数据的 pid series 即代表一个运行实例
             result[bk_host_id][display_name] = value
