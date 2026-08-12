@@ -77,6 +77,15 @@ from metadata.task.tasks import (
 from metadata.tests.common_utils import consul_client
 
 
+def test_system_proc_cpu_time_fields_use_millisecond_unit():
+    cpu_time_fields = {"cpu_system", "cpu_total_ticks", "cpu_user"}
+    perf_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["fields"]
+
+    assert {field["field_name"]: field["unit"] for field in perf_fields if field["field_name"] in cpu_time_fields} == {
+        field_name: "ms" for field_name in cpu_time_fields
+    }
+
+
 def _create_simple_rebuild_result_table(
     table_id: str,
     bk_biz_id: int,
