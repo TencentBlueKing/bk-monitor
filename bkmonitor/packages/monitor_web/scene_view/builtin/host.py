@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from copy import deepcopy
 
 from django.utils.translation import gettext as _
 
@@ -159,8 +160,9 @@ def get_default_order(view: SceneViewModel):
     获取默认配置
     """
     if view.id == "process":
-        return DEFAULT_PROCESS_ORDER
+        return deepcopy(DEFAULT_PROCESS_ORDER)
     else:
+        default_host_order = deepcopy(DEFAULT_HOST_ORDER)
         # sql查询表名
         row_result_table_ids = [
             ["system.load", "system.cpu_summary", "system.cpu_detail"],  # cpu
@@ -171,7 +173,7 @@ def get_default_order(view: SceneViewModel):
 
         for index, result_table_ids in enumerate(row_result_table_ids):
             exists_metric_id = set()
-            for panel in DEFAULT_HOST_ORDER[index]["panels"]:
+            for panel in default_host_order[index]["panels"]:
                 exists_metric_id.add(panel["id"])
             # 获得已经上报的指标名
             for metric in MetricListCache.objects.filter(
@@ -184,8 +186,8 @@ def get_default_order(view: SceneViewModel):
                 if metric_id in exists_metric_id:
                     continue
                 # 添加非默认的指标
-                DEFAULT_HOST_ORDER[index]["panels"].append({"id": metric_id, "hidden": True})
-        return DEFAULT_HOST_ORDER
+                default_host_order[index]["panels"].append({"id": metric_id, "hidden": True})
+        return default_host_order
 
 
 def get_order_config(view: SceneViewModel):
@@ -196,7 +198,7 @@ def get_order_config(view: SceneViewModel):
         return view.order
     else:
         # 获得需要展示的指标
-        default_order = get_default_order(view).copy()
+        default_order = get_default_order(view)
         for row in default_order:
             row["title"] = str(row["title"])
         return default_order
@@ -214,7 +216,7 @@ def get_panels(view: SceneViewModel) -> list[dict]:
         data_type_label="time_series",
     )
     if view.id == "process":
-        metrics.filter(result_table_id__startswith="system")
+        metrics = metrics.filter(result_table_id__startswith="system")
 
     panels = []
     for metric in metrics:
