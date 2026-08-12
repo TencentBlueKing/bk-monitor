@@ -75,7 +75,7 @@ export const allRouteConfig: IRouteConfig[] = [
     name: 'route-告警中心',
     route: 'alarm-center',
   },
-  // TODO(story=137075720): 临时隐藏新版主机监控，恢复上线时取消注释
+  // TODO(story=137075720): 临时隐藏新版主机监控导航（路由仍保留可访问），恢复上线时取消注释
   // {
   //   id: 'host',
   //   name: 'route-主机监控',
