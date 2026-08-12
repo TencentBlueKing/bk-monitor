@@ -23,6 +23,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.utils.translation import gettext as _
 from django.db import IntegrityError, transaction
+from rest_framework.exceptions import ValidationError
 from apps.api import CCApi, NodeApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -1248,11 +1249,15 @@ class HostCollectorHandler(CollectorHandler):
         if "params" in params:
             merged_params = copy.deepcopy(self.data.params or {})
             merged_params.update(params["params"])
+            if merged_params.get("exclude_files") and not merged_params.get("paths"):
+                raise ValidationError(_("不能单独指定排除路径"))
             params["params"] = merged_params
 
-        validation_params = params.copy()
-        validation_params.setdefault("target_node_type", self.data.target_node_type)
-        self._cat_illegal_ips(validation_params)
+        if {"target_node_type", "target_nodes"}.intersection(params):
+            validation_params = params.copy()
+            validation_params.setdefault("target_node_type", self.data.target_node_type)
+            validation_params.setdefault("target_nodes", self.data.target_nodes)
+            self._cat_illegal_ips(validation_params)
 
         collector_config_fields = [
             "collector_config_name",
@@ -1316,7 +1321,7 @@ class HostCollectorHandler(CollectorHandler):
 
             except Exception as e:
                 logger.warning(f"modify collector config name failed, err: {e}")
-                raise ModifyCollectorConfigException(ModifyCollectorConfigException.MESSAGE.format(e))
+                raise ModifyCollectorConfigException(ModifyCollectorConfigException.MESSAGE.format(e=e))
 
         # add user_operation_record
         operation_record = {
@@ -1337,6 +1342,7 @@ class HostCollectorHandler(CollectorHandler):
             "data_encoding",
             "extra_labels",
         }
+        task_id_list = []
         try:
             if subscription_update_fields.intersection(params):
                 subscription_params = copy.deepcopy(self.data.params or {})
@@ -1345,6 +1351,7 @@ class HostCollectorHandler(CollectorHandler):
                 self._update_or_create_subscription(
                     collector_scenario=collector_scenario, params=subscription_params, is_create=False
                 )
+                task_id_list = self.data.task_id_list
         finally:
             if (
                 params.get("is_allow_alone_data_id", True)
@@ -1360,7 +1367,7 @@ class HostCollectorHandler(CollectorHandler):
         return {
             "collector_config_id": self.data.collector_config_id,
             "subscription_id": self.data.subscription_id,
-            "task_id_list": self.data.task_id_list,
+            "task_id_list": task_id_list,
         }
 
     def _run_subscription_task(self, action=None, scope: dict[str, Any] = None):

@@ -435,6 +435,21 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class LogCollectorUpdateContextResource(LogSearchAPIGWResource):
+    """获取采集项 Fast Update 最小上下文。"""
+
+    action = "/databus_collectors/{collector_config_id}/update_context/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
 class FastUpdateLogCollectorResource(LogSearchAPIGWResource):
     """快速更新单个日志采集项。"""
 
@@ -444,6 +459,7 @@ class FastUpdateLogCollectorResource(LogSearchAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
         update_clean_config = serializers.BooleanField(required=False, default=True, label="是否同步更新清洗配置")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
         collector_config_name = serializers.CharField(required=False, max_length=50, label="采集项名称")
         description = serializers.CharField(
             required=False, allow_blank=True, allow_null=True, max_length=100, label="描述"

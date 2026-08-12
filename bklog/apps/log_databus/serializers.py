@@ -1838,6 +1838,10 @@ class PartialPluginParamSerializer(PluginParamSerializer):
         validated_data = super().to_internal_value(data)
         return {field: value for field, value in validated_data.items() if field in data}
 
+    def validate(self, attrs):
+        # PluginParamSerializer 的跨字段校验面向完整对象；PATCH 的完整性在合并存量参数后校验。
+        return attrs
+
 
 class FastCollectorUpdateSerializer(
     CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer

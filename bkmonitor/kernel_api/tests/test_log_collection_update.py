@@ -28,6 +28,50 @@ def test_serializer_requires_at_least_one_update_field():
     assert "non_field_errors" in serializer.errors
 
 
+def test_serializer_rejects_non_object_payload_without_crashing():
+    serializer = FastUpdateLogCollectorResource.RequestSerializer(data=[])
+    assert not serializer.is_valid()
+    assert "non_field_errors" in serializer.errors
+
+
+def test_serializer_rejects_invalid_collector_id():
+    serializer = FastUpdateLogCollectorResource.RequestSerializer(
+        data={"bk_biz_id": 2, "collector_config_id": 0, "description": "new"}
+    )
+    assert not serializer.is_valid()
+    assert "collector_config_id" in serializer.errors
+
+
+@pytest.mark.parametrize(
+    ("payload", "error_field"),
+    [
+        ({"params": {"unknown": True}}, "params.unknown"),
+        ({"target_nodes": [{"bk_host_id": 1, "unknown": True}]}, "target_nodes[0].unknown"),
+        (
+            {"configs": [{"collector_type": "container_log_config", "params": {}, "unknown": True}]},
+            "configs[0].unknown",
+        ),
+        (
+            {
+                "configs": [
+                    {
+                        "collector_type": "container_log_config",
+                        "params": {"conditions": {"type": "match", "unknown": True}},
+                    }
+                ]
+            },
+            "configs[0].params.conditions.unknown",
+        ),
+    ],
+)
+def test_serializer_rejects_unknown_nested_fields(payload, error_field):
+    serializer = FastUpdateLogCollectorResource.RequestSerializer(
+        data={"bk_biz_id": 2, "collector_config_id": 1, **payload}
+    )
+    assert not serializer.is_valid()
+    assert error_field in serializer.errors
+
+
 def test_update_view_requires_manage_collection_permission():
     permissions = LogCollectionUpdateViewSet().get_permissions()
     assert len(permissions) == 1
@@ -42,7 +86,7 @@ def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
         return {"collector_config_id": 10, "subscription_id": 20, "task_id_list": [30]}
 
     log_search = SimpleNamespace(
-        data_bus_collectors=lambda **kwargs: {"bk_biz_id": 2, "environment": "linux"},
+        log_collector_update_context=lambda **kwargs: {"bk_biz_id": 2, "environment": "linux"},
         fast_update_log_collector=fast_update,
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
@@ -59,6 +103,7 @@ def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
     assert captured == {
         "collector_config_id": 10,
         "update_clean_config": False,
+        "enforce_permission": True,
         "description": "",
         "target_nodes": [{"bk_host_id": 1}],
     }
@@ -74,7 +119,7 @@ def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
 
 def test_container_update_uses_container_fields(monkeypatch):
     log_search = SimpleNamespace(
-        data_bus_collectors=lambda **kwargs: {
+        log_collector_update_context=lambda **kwargs: {
             "bk_biz_id": 2,
             "environment": "container",
             "bcs_cluster_id": "BCS-K8S-00000",
@@ -104,7 +149,7 @@ def test_container_update_uses_container_fields(monkeypatch):
 def test_legacy_null_environment_routes_to_host_even_with_bcs_cluster_id(monkeypatch):
     captured = {}
     log_search = SimpleNamespace(
-        data_bus_collectors=lambda **kwargs: {
+        log_collector_update_context=lambda **kwargs: {
             "bk_biz_id": 2,
             "environment": None,
             "bcs_cluster_id": "0",
@@ -122,11 +167,12 @@ def test_legacy_null_environment_routes_to_host_even_with_bcs_cluster_id(monkeyp
     assert result["environment"] == "linux"
     assert captured["target_nodes"] == []
     assert captured["update_clean_config"] is False
+    assert captured["enforce_permission"] is True
 
 
 def test_legacy_windows_environment_uses_collector_scenario(monkeypatch):
     log_search = SimpleNamespace(
-        data_bus_collectors=lambda **kwargs: {
+        log_collector_update_context=lambda **kwargs: {
             "bk_biz_id": 2,
             "environment": None,
             "bcs_cluster_id": "",
@@ -149,7 +195,7 @@ def test_legacy_windows_environment_uses_collector_scenario(monkeypatch):
 
 def test_rejects_fields_from_another_environment(monkeypatch):
     log_search = SimpleNamespace(
-        data_bus_collectors=lambda **kwargs: {"bk_biz_id": 2, "environment": "windows"},
+        log_collector_update_context=lambda **kwargs: {"bk_biz_id": 2, "environment": "windows"},
         fast_update_log_collector=lambda **kwargs: pytest.fail("update should not be requested"),
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
@@ -162,7 +208,7 @@ def test_rejects_fields_from_another_environment(monkeypatch):
 
 def test_rejects_cross_business_collector(monkeypatch):
     log_search = SimpleNamespace(
-        data_bus_collectors=lambda **kwargs: {"bk_biz_id": 3, "environment": "linux"},
+        log_collector_update_context=lambda **kwargs: {"bk_biz_id": 3, "environment": "linux"},
         fast_update_log_collector=lambda **kwargs: pytest.fail("update should not be requested"),
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
@@ -173,17 +219,14 @@ def test_rejects_cross_business_collector(monkeypatch):
         )
 
 
-def test_falls_back_to_latest_detail_for_old_backend_response(monkeypatch):
-    calls = {"detail": 0}
-
-    def detail(**kwargs):
-        calls["detail"] += 1
-        if calls["detail"] == 1:
-            return {"bk_biz_id": 2, "environment": "linux"}
-        return {"bk_biz_id": 2, "environment": "linux", "subscription_id": 21, "task_id_list": "41,42"}
-
+def test_metadata_update_does_not_return_stale_tasks(monkeypatch):
     log_search = SimpleNamespace(
-        data_bus_collectors=detail,
+        log_collector_update_context=lambda **kwargs: {
+            "bk_biz_id": 2,
+            "environment": "linux",
+            "subscription_id": 21,
+        },
+        data_bus_collectors=lambda **kwargs: pytest.fail("detail fallback should not be requested"),
         fast_update_log_collector=lambda **kwargs: {"collector_config_id": 14},
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
@@ -192,6 +235,28 @@ def test_falls_back_to_latest_detail_for_old_backend_response(monkeypatch):
         {"bk_biz_id": 2, "collector_config_id": 14, "description": "new"}
     )
 
-    assert calls["detail"] == 2
+    assert result["subscription_id"] == 21
+    assert result["task_ids"] == []
+
+
+def test_deployment_update_falls_back_to_latest_detail_for_old_backend_response(monkeypatch):
+    calls = {"detail": 0}
+    log_search = SimpleNamespace(
+        log_collector_update_context=lambda **kwargs: {
+            "bk_biz_id": 2,
+            "environment": "linux",
+            "subscription_id": 21,
+        },
+        data_bus_collectors=lambda **kwargs: calls.update(detail=calls["detail"] + 1)
+        or {"subscription_id": 21, "task_id_list": "41,42"},
+        fast_update_log_collector=lambda **kwargs: {"collector_config_id": 14},
+    )
+    monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
+
+    result = FastUpdateLogCollectorResource().perform_request(
+        {"bk_biz_id": 2, "collector_config_id": 14, "target_nodes": [{"bk_host_id": 1}]}
+    )
+
+    assert calls["detail"] == 1
     assert result["subscription_id"] == 21
     assert result["task_ids"] == ["41", "42"]

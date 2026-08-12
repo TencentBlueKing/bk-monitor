@@ -129,14 +129,26 @@ def test_log_collection_update_mcp_contract():
     assert method_data["tags"] == ["log_collection_mcp"]
     schema = method_data["requestBody"]["content"]["application/json"]["schema"]
     assert schema["additionalProperties"] is False
+    assert schema["properties"]["collector_config_id"]["minimum"] == 1
     assert "environment" not in schema["properties"]
     assert "etl_config" not in schema["properties"]
-    assert method_data["x-bk-apigateway-resource"]["backend"] == {
+    assert schema["properties"]["target_nodes"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["extra_labels"]["items"]["additionalProperties"] is False
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
         "name": "default",
         "method": "post",
         "path": "/api/v4/log_collection_update/fast_update/",
         "matchSubpath": False,
         "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
     }
 
 
