@@ -150,9 +150,10 @@ class ProviderRouter:
         resource_id: str,
         creator: str,
         expired_at: int | None = None,
+        tenant_id: str = "",
     ) -> None:
         """授予创建者权限。由组合策略的主 Provider 执行。"""
-        return self.policy.grant_creator_action(resource_type, resource_id, creator, expired_at)
+        return self.policy.grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
 
     # ==================== 数据通路（通用收集，不经过 bypass） ====================
 

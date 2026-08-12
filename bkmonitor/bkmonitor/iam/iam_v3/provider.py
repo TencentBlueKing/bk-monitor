@@ -40,6 +40,7 @@ from iam.apply.models import (
 from iam.exceptions import AuthAPIError
 from iam.utils import gen_perms_apply_data
 
+from .client import V3Client
 from ..iam_engine.core.types import (
     ResourceInstance as CoreResourceInstance,
     Subject as CoreSubject,
@@ -101,17 +102,25 @@ class V3PermissionProvider(PermissionProvider):
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
-        # V3Client — iam_v3 包内自包含，不依赖外部业务代码
-        from .client import V3Client
 
-        self._iam_client = V3Client(
-            self._cfg.credentials.app_code,
-            self._cfg.credentials.app_secret,
-            self._cfg.base_url,
-            system_id=self._cfg.system.id,
-            codec=self.codec,
-            bk_tenant_id=self._cfg.bk_tenant_id,
-        )
+        self._default_tenant_id = self._cfg.bk_tenant_id
+        self._clients: dict[str, V3Client] = {}
+        # 默认 client（系统级操作：health_check / migration / make_* 工厂方法）
+        self._iam_client = self._get_client("")
+
+    def _get_client(self, tenant_id: str = ""):
+        """按租户 ID 获取或创建 V3Client。"""
+        tid = tenant_id or self._default_tenant_id
+        if tid not in self._clients:
+            self._clients[tid] = V3Client(
+                self._cfg.credentials.app_code,
+                self._cfg.credentials.app_secret,
+                self._cfg.base_url,
+                system_id=self._cfg.system.id,
+                codec=self.codec,
+                bk_tenant_id=tid,
+            )
+        return self._clients[tid]
 
     # ================================================================
     # 系统信息（供命令行/诊断使用）
@@ -137,20 +146,21 @@ class V3PermissionProvider(PermissionProvider):
 
         读操作使用 is_allowed_with_cache（SDK 缓存），写操作直接 is_allowed。
         """
+        client = self._get_client(request.subject.tenant_id)
         action_id_biz = self.codec.decode_action(request.action_id)
 
         # 构建 SDK resources
         sdk_resources: list = []
         if request.resource and self._action_has_resource(action_id_biz):
             sdk_resources = [
-                self._iam_client.make_resource(
+                client.make_resource(
                     request.resource.type,
                     request.resource.id,
                     ancestors=request.resource.ancestors,
                 )
             ]
 
-        sdk_request = self._iam_client.make_request(
+        sdk_request = client.make_request(
             request.subject.id,
             request.action_id,
             sdk_resources,
@@ -158,8 +168,8 @@ class V3PermissionProvider(PermissionProvider):
 
         try:
             if self.codec.is_read_action(action_id_biz):
-                return self._iam_client.is_allowed_with_cache(sdk_request)
-            return self._iam_client.is_allowed(sdk_request)
+                return client.is_allowed_with_cache(sdk_request)
+            return client.is_allowed(sdk_request)
         except AuthAPIError:
             logger.exception("[iam_v3:is_allowed] AuthAPIError for action=%s", request.action_id)
             return False
@@ -173,16 +183,15 @@ class V3PermissionProvider(PermissionProvider):
         request: DialectBatchByResourceRequest,
     ) -> list[tuple[str, bool]]:
         """同 action、多 resource 批量鉴权（方言层单页，≤ CHUNK_SIZE）。"""
-        sdk_resources_list = [
-            [self._iam_client.make_resource(request.resource_type, rid)] for rid in request.resource_ids
-        ]
+        client = self._get_client(request.subject.tenant_id)
+        sdk_resources_list = [[client.make_resource(request.resource_type, rid)] for rid in request.resource_ids]
 
-        sdk_request = self._iam_client.make_multi_action_request(
+        sdk_request = client.make_multi_action_request(
             request.subject.id,
             [request.action_id],
         )
         try:
-            result = self._iam_client.batch_resource_multi_actions_allowed(sdk_request, sdk_resources_list)
+            result = client.batch_resource_multi_actions_allowed(sdk_request, sdk_resources_list)
         except AuthAPIError:
             logger.exception("[iam_v3:batch_by_resource] AuthAPIError for action=%s", request.action_id)
             return [(rid, False) for rid in request.resource_ids]
@@ -198,18 +207,19 @@ class V3PermissionProvider(PermissionProvider):
         request: DialectBatchByActionRequest,
     ) -> list[tuple[str, bool]]:
         """多 action、同一 resource（或无 resource）批量鉴权（方言层单页）。"""
+        client = self._get_client(request.subject.tenant_id)
         sdk_resources_list: list[list] = []
         if request.resource:
-            sdk_resources_list.append([self._iam_client.make_resource(request.resource.type, request.resource.id)])
+            sdk_resources_list.append([client.make_resource(request.resource.type, request.resource.id)])
         else:
             sdk_resources_list.append([])
 
-        sdk_request = self._iam_client.make_multi_action_request(
+        sdk_request = client.make_multi_action_request(
             request.subject.id,
             list(request.action_ids),
         )
         try:
-            result = self._iam_client.batch_resource_multi_actions_allowed(sdk_request, sdk_resources_list)
+            result = client.batch_resource_multi_actions_allowed(sdk_request, sdk_resources_list)
         except AuthAPIError:
             logger.exception("[iam_v3:batch_by_action] AuthAPIError")
             return [(aid, False) for aid in request.action_ids]
@@ -234,6 +244,7 @@ class V3PermissionProvider(PermissionProvider):
         Returns:
             str: IAM 平台的权限申请页面 URL。
         """
+        client = self._get_client(request.subject.tenant_id)
         actions: list[ActionWithResources | ActionWithoutResources] = []
 
         for dialect_aid in request.action_ids:
@@ -267,7 +278,7 @@ class V3PermissionProvider(PermissionProvider):
                 actions.append(ActionWithResources(dialect_aid, related_types))
 
         application = Application(self._cfg.system.id, actions=actions)
-        ok, message, url = self._iam_client.get_apply_url(application)
+        ok, message, url = client.get_apply_url(application)
         if not ok:
             logger.error("[iam_v3:get_apply_url] generate apply url fail: %s", message)
             # 返回空字符串，上层可兜底处理
@@ -296,6 +307,7 @@ class V3PermissionProvider(PermissionProvider):
         Returns:
             IAM Application 格式 dict。
         """
+        client = self._get_client(subject.tenant_id)
         # 编码 action_ids → V3 方言
         dialect_action_ids = [self.codec.encode_action(a) for a in action_ids]
 
@@ -311,7 +323,7 @@ class V3PermissionProvider(PermissionProvider):
                     dialect_rt = self.codec.encode_resource_type(rt_biz)
                     dialect_rid = self.codec.encode_resource_id(rt_biz, r.id)
                     sdk_resources.append(
-                        self._iam_client.make_resource(
+                        client.make_resource(
                             dialect_rt,
                             dialect_rid,
                             attribute={"name": r.name or r.id},
@@ -322,14 +334,14 @@ class V3PermissionProvider(PermissionProvider):
 
             action_to_resources_list.append(
                 {
-                    "action": self._iam_client.make_action(dialect_aid),
+                    "action": client.make_action(dialect_aid),
                     "resources_list": [sdk_resources] if sdk_resources else [[]],
                 }
             )
 
         return gen_perms_apply_data(
             system=self._cfg.system.id,
-            subject=self._iam_client.make_subject(subject.id),
+            subject=client.make_subject(subject.id),
             action_to_resources_list=action_to_resources_list,
         )
 
@@ -343,10 +355,12 @@ class V3PermissionProvider(PermissionProvider):
         resource_id: str,
         creator: str,
         expired_at: int | None = None,
+        tenant_id: str = "",
     ) -> None:
         """V3: 调 grant_resource_creator_actions API，无需角色/过期时间。"""
         from ..iam_engine.core.types import to_resource_type_id
 
+        client = self._get_client(tenant_id)
         rt_id = to_resource_type_id(resource_type)
         dialect_rt = self.codec.encode_resource_type(rt_id)
         dialect_rid = self.codec.encode_resource_id(rt_id, resource_id)
@@ -358,7 +372,7 @@ class V3PermissionProvider(PermissionProvider):
             "name": resource_id,
             "creator": creator,
         }
-        self._iam_client.grant_resource_creator_actions(application)
+        client.grant_resource_creator_actions(application)
 
     # ================================================================
     # 内部：action 元数据辅助方法

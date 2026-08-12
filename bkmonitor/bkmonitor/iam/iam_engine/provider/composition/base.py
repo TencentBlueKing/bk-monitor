@@ -167,9 +167,10 @@ class CompositionPolicy(ABC):
         resource_id: str,
         creator: str,
         expired_at: int | None = None,
+        tenant_id: str = "",
     ) -> None:
         """创建者授权由主 Provider 执行。"""
-        self.primary().grant_creator_action(resource_type, resource_id, creator, expired_at)
+        self.primary().grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
 
     # ---- 数据查询：框架只收集，不合并 ----
 

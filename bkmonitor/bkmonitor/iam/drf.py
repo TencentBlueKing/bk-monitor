@@ -8,98 +8,154 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+# ---------------------------------------------------------------------------
+# DRF 权限插件 — 委托 IAMFramework
+#
+# 改造说明
+#   所有权限类保留旧签名（外部调用者零改动），内部直接调 get_framework()。
+#   iam.Resource 对象在本文件中已彻底消除，切换 V3/V4 drf.py 零改动。
+# ---------------------------------------------------------------------------
+
+from __future__ import annotations
+
 import logging
-from typing import Literal
-
-from bkmonitor.utils.thread_backend import ThreadPool
-
-"""
-DRF 插件
-"""
 from collections.abc import Callable
 from functools import wraps
+from typing import Literal
 
-from iam import Resource
 from rest_framework import permissions
 
+from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
+from bkmonitor.iam.iam_engine.core.types import (
+    ApplyURLRequest,
+    AuthRequest,
+    BatchByResourceRequest,
+    ResourceInstance as FwResource,
+    Subject as FwSubject,
+    SubjectType,
+)
+from bkmonitor.iam.iam_engine.django.facade import get_framework
 from core.errors.iam import PermissionDeniedError
-
-from . import Permission
-from .action import ActionEnum, ActionMeta
-from .resource import ResourceEnum, ResourceMeta
 
 logger = logging.getLogger("apm")
 
 
-class IAMPermission(permissions.BasePermission):
-    def __init__(self, actions: list[ActionMeta], resources: list[Resource] = None):
-        self.actions = actions
-        self.resources = resources or []
+# ============================================================================
+# 内部辅助
+# ============================================================================
 
-    def has_permission(self, request, view):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        if not self.actions:
+
+def _fw_check_any(request, action_ids, resources=None):
+    """逐个 action 鉴权，任一通过即放行（OR 语义）。全部拒绝时抛 PermissionDeniedError。"""
+    fw = get_framework()
+    subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
+
+    fw_resources = tuple(resources) if resources else ()
+
+    for aid in action_ids:
+        fw_resource = fw_resources[0] if fw_resources else None
+        allowed = fw.is_allowed(AuthRequest(subject=subject, action_id=aid, resource=fw_resource))
+        if allowed:
             return True
 
-        client = Permission()
-        for index, action in enumerate(self.actions):
-            try:
-                client.is_allowed(
-                    action=action,
-                    resources=self.resources,
-                    raise_exception=True,
-                )
-            except PermissionDeniedError as e:
-                # 最后一个异常才抛出，否则不处理
-                if index == len(self.actions) - 1:
-                    raise e
-            else:
-                # 没抛出异常，则鉴权通过
-                return True
+    apply_url = fw.get_apply_url(
+        ApplyURLRequest(
+            subject=subject,
+            action_ids=tuple(action_ids),
+            resources=fw_resources,
+        )
+    )
+    raise PermissionDeniedError(
+        context={"action_name": action_ids[-1] if action_ids else ""},
+        data={"apply_url": apply_url},
+    )
+
+
+def _to_action_ids(actions) -> list[str]:
+    """将 ActionDef / str 列表统一为 business ID 字符串列表。"""
+    return [a.id if hasattr(a, "id") else str(a) for a in (actions or [])]
+
+
+def _to_fw_resources(resources) -> list[FwResource]:
+    """将 iam.Resource 或 FwResource 列表统一为 FwResource 列表。"""
+    result = []
+    for r in resources or []:
+        if isinstance(r, FwResource):
+            result.append(r)
+        elif hasattr(r, "type") and hasattr(r, "id"):
+            result.append(FwResource(type=r.type, id=r.id))
+    return result
+
+
+# ============================================================================
+# IAMPermission — 底层基类（兼容旧 fta_web 子类）
+# ============================================================================
+
+
+class IAMPermission(permissions.BasePermission):
+    """IAM 鉴权 DRF Permission 基类。
+
+    支持：
+      1. IAMPermission(actions=[ActionEnum.XXX]) — 直接实例化
+      2. 子类覆盖 / 设 self.resources 后调 super()（兼容 fta_web）
+    """
+
+    def __init__(self, actions=None, resources=None):
+        super().__init__()
+        self._action_ids = _to_action_ids(actions)
+        self.resources = resources or []  # 兼容旧 IAMPermission 接口
+
+    def has_permission(self, request, view):
+        if not self._action_ids:
+            return True
+
+        fw_resources = _to_fw_resources(self.resources)
+        _fw_check_any(request, self._action_ids, fw_resources)
         return True
 
     def has_object_permission(self, request, view, obj):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
         return self.has_permission(request, view)
 
 
-class BusinessActionPermission(IAMPermission):
-    """
-    关联业务的动作权限检查
-    """
+# ============================================================================
+# BusinessActionPermission — 关联业务的动作权限
+# ============================================================================
 
-    def __init__(self, actions: list[ActionMeta]):
+
+class BusinessActionPermission(IAMPermission):
+    """业务级权限检查。从 request.biz_id 取空间 ID，不再创建 iam.Resource。"""
+
+    def __init__(self, actions):
         super().__init__(actions)
 
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
-        self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
+        self.resources = [FwResource(type=ResourceTypes.SPACE.id, id=str(request.biz_id))]
         return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-        # 先查询对象中有没有业务ID相关属性
-        bk_biz_id = None
-        if hasattr(obj, "bk_biz_id"):
-            bk_biz_id = obj.bk_biz_id
+        bk_biz_id = getattr(obj, "bk_biz_id", None)
         if bk_biz_id:
-            self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+            self.resources = [FwResource(type=ResourceTypes.SPACE.id, id=str(bk_biz_id))]
             return super().has_object_permission(request, view, obj)
-        # 没有就尝试取请求的业务ID
         return self.has_permission(request, view)
 
 
-class ViewBusinessPermission(BusinessActionPermission):
-    """
-    业务访问权限检查
-    """
+# ============================================================================
+# ViewBusinessPermission — 固定 VIEW_BUSINESS
+# ============================================================================
 
+
+class ViewBusinessPermission(BusinessActionPermission):
     def __init__(self):
-        super().__init__([ActionEnum.VIEW_BUSINESS])
+        super().__init__([Actions.VIEW_BUSINESS])
+
+
+# ============================================================================
+# MCPPermission — MCP 协议动态权限
+# ============================================================================
 
 
 class MCPPermission(BusinessActionPermission):
@@ -108,12 +164,12 @@ class MCPPermission(BusinessActionPermission):
     根据请求头中的 X-Bkapi-Permission-Action 动态选择对应的权限动作
     """
 
-    def __init__(self, action: ActionMeta | None = None):
+    def __init__(self, action=None):
         """
         初始化MCP权限检查
         :param action: 权限动作，如果不提供则使用默认的 USING_DASHBOARD_MCP
         """
-        action = action if action is not None else ActionEnum.USING_DASHBOARD_MCP
+        action = action if action is not None else Actions.USING_DASHBOARD_MCP
         logger.info(f"MCPPermission: action: {action.id}")
         super().__init__([action])
 
@@ -124,9 +180,14 @@ class MCPPermission(BusinessActionPermission):
             logger.error("MCPPermission: Missing biz_id for MCP permission check")
             raise PermissionDeniedError("Missing biz_id for MCP permission check")
         logger.info(f"MCPPermission: biz_id: {request.biz_id},skip_check: {request.skip_check}")
-        self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
+        self.resources = [FwResource(type=ResourceTypes.SPACE.id, id=str(request.biz_id))]
         logger.info("MCPPermission: Calling IAMPermission.has_permission")
         return IAMPermission.has_permission(self, request, view)
+
+
+# ============================================================================
+# InstanceActionPermission — URL 路径参数取资源 ID（0 外部，作为 InstanceActionForDataPermission 基类）
+# ============================================================================
 
 
 class InstanceActionPermission(IAMPermission):
@@ -134,26 +195,28 @@ class InstanceActionPermission(IAMPermission):
     关联其他资源的权限检查
     """
 
-    def __init__(self, actions: list[ActionMeta], resource_meta: ResourceMeta):
-        self.resource_meta = resource_meta
+    def __init__(self, actions, resource_meta):
+        self.resource_type_id = resource_meta.id if hasattr(resource_meta, "id") else resource_meta
         super().__init__(actions)
 
     def has_permission(self, request, view):
-        instance_id = view.kwargs[self.get_look_url_kwarg(view)]
-        resource = self.resource_meta.create_instance(instance_id)
-        self.resources = [resource]
+        instance_id = view.kwargs[self._get_look_url_kwarg(view)]
+        self.resources = [FwResource(type=self.resource_type_id, id=str(instance_id))]
         return super().has_permission(request, view)
 
-    def get_look_url_kwarg(self, view):
-        # Perform the lookup filtering.
+    def _get_look_url_kwarg(self, view):
         lookup_url_kwarg = view.lookup_url_kwarg or view.lookup_field
-
         assert lookup_url_kwarg in view.kwargs, (
             f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
             f'named "{lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '
             "attribute on the view correctly."
         )
         return lookup_url_kwarg
+
+
+# ============================================================================
+# InstanceActionForDataPermission — 从请求 body/params 取资源 ID
+# ============================================================================
 
 
 class InstanceActionForDataPermission(InstanceActionPermission):
@@ -172,79 +235,90 @@ class InstanceActionForDataPermission(InstanceActionPermission):
             data = request.query_params
         else:
             data = request.data
-        instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self.get_look_url_kwarg(view))
+        instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self._get_look_url_kwarg(view))
         if instance_id is None:
             raise ValueError("instance_id must have")
-        resource = self.resource_meta.create_instance(self.get_instance_id(instance_id))
-        self.resources = [resource]
-        return super(InstanceActionPermission, self).has_permission(request, view)
+        self.resources = [FwResource(type=self.resource_type_id, id=str(self.get_instance_id(instance_id)))]
+        return IAMPermission.has_permission(self, request, view)
+
+
+# ============================================================================
+# insert_permission_field — 响应注入权限字段
+# ============================================================================
 
 
 def insert_permission_field(
-    actions: list[ActionMeta],
-    resource_meta: ResourceMeta,
+    actions: list,
+    resource_meta,
     id_field: Callable = lambda item: item["id"],
     data_field: Callable = lambda data_list: data_list,
     always_allowed: Callable = lambda item: False,
     many: bool = True,
-    instance_create_func: Callable[[dict], Resource] | None = None,
+    instance_create_func: Callable | None = None,
     batch_create: bool = False,
 ):
+    """数据返回后，注入权限字段（内部委托 IAMFramework）。
+
+    保留旧签名兼容，但不再创建 iam.Resource 或调用 Permission()。
     """
-    数据返回后，插入权限相关字段
-    :param actions: 动作列表
-    :param resource_meta: 资源类型
-    :param id_field: 从结果集获取ID字段的方式
-    :param data_field: 从response.data中获取结果集的方式
-    :param instance_create_func: 自定义创建资源实例的函数
-    :param always_allowed: 满足一定条件进行权限豁免
-    :param many: 是否为列表数据
-    :param batch_create: 是否批量创建资源实例
-    """
+    action_ids = _to_action_ids(actions)
+    resource_type = resource_meta.id if hasattr(resource_meta, "id") else resource_meta
 
     def wrapper(view_func):
         @wraps(view_func)
         def wrapped_view(*args, **kwargs):
+            request = args[0] if args else None
             response = view_func(*args, **kwargs)
 
             result_list = data_field(response.data)
             if not many:
                 result_list = [result_list]
 
-            if batch_create:
-                resources = batch_create_instance(result_list, resource_meta, id_field, instance_create_func)
-            else:
-                resources = []
-                for item in result_list:
-                    if not id_field(item):
-                        continue
-                    attribute = extract_attribute(item)
+            # 收集资源实例
+            resource_by_id: dict[str, FwResource] = {}
+            item_resource_ids: list[tuple[int, str | None]] = []
+            for idx, item in enumerate(result_list):
+                rid = id_field(item)
+                if not rid:
+                    item_resource_ids.append((idx, None))
+                    continue
+                rid_str = str(rid)
+                item_resource_ids.append((idx, rid_str))
+                if rid_str not in resource_by_id:
+                    resource_by_id[rid_str] = FwResource(type=resource_type, id=rid_str)
 
-                    if instance_create_func:
-                        resources.append([instance_create_func(item)])
-                    else:
-                        resources.append(
-                            [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
-                        )
-
-            if not resources:
+            if not resource_by_id:
                 return response
 
-            permission_result = Permission().batch_is_allowed(actions, resources)
+            # 批量鉴权
+            fw = get_framework()
+            subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
+            allowed_map: dict[tuple[str, str], bool] = {}
 
-            for item in result_list:
-                origin_instance_id = id_field(item)
-                if not origin_instance_id:
-                    # 如果拿不到实例ID，则不处理
+            for aid in action_ids:
+                batch_result = fw.batch_by_resource(
+                    BatchByResourceRequest(
+                        subject=subject,
+                        action_id=aid,
+                        resources=tuple(resource_by_id.values()),
+                    )
+                )
+                for item_result in batch_result.items:
+                    allowed_map[(aid, item_result.resource_id)] = item_result.allowed
+
+            # 回填
+            for idx, rid in item_resource_ids:
+                if rid is None:
                     continue
-                instance_id = str(origin_instance_id)
-                item.setdefault("permission", {})
-                item["permission"].update(permission_result[instance_id])
+                perm = {}
+                for aid in action_ids:
+                    perm[aid] = allowed_map.get((aid, rid), False)
+                result_list[idx].setdefault("permission", {})
+                result_list[idx]["permission"].update(perm)
 
-                if always_allowed(item):
-                    # 权限豁免
-                    for action_id in item["permission"]:
-                        item["permission"][action_id] = True
+                if always_allowed(result_list[idx]):
+                    for k in perm:
+                        perm[k] = True
 
             return response
 
@@ -253,110 +327,87 @@ def insert_permission_field(
     return wrapper
 
 
-def batch_create_instance(
-    result_list: list,
-    resource_meta: ResourceMeta,
-    id_field: Callable = lambda item: item["id"],
-    instance_create_func: Callable[[dict], Resource] | None = None,
-):
-    """
-    批量创建实例
-    :param result_list: 结果列表
-    :param resource_meta: 资源类型
-    :param id_field: 从结果集获取ID字段的方式
-    :param instance_create_func: 自定义创建资源实例的函数
-    """
-    resources = []
-    futures = []
-    pool = ThreadPool()
-    for item in result_list:
-        if not id_field(item):
-            continue
-        attribute = extract_attribute(item)
-        if instance_create_func:
-            future = futures.append(pool.apply_async(instance_create_func, kwds=item))
-        else:
-            kwargs = {"instance_id": id_field(item), "attribute": attribute}
-            future = futures.append(pool.apply_async(resource_meta.create_simple_instance, kwds=kwargs))
-        futures.append(future)
-
-    for future in futures:
-        try:
-            resources.append([future.get()])
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(f"[APM] batch_create_instance error: {e}")
-
-    return resources
-
-
-def extract_attribute(item):
-    attribute = {}
-    if "bk_biz_id" in item:
-        attribute["bk_biz_id"] = item["bk_biz_id"]
-    if "space_uid" in item:
-        attribute["space_uid"] = item["space_uid"]
-    return attribute
+# ============================================================================
+# filter_data_by_permission — 按权限过滤/标注数据
+# ============================================================================
 
 
 def filter_data_by_permission(
     bk_tenant_id: str,
     data: list[dict] | dict,
-    actions: list[ActionMeta],
-    resource_meta: type[ResourceMeta],
+    actions: list,
+    resource_meta,
     id_field: Callable[[dict], str] = lambda item: item["id"],
     always_allowed: Callable[[dict], bool] = lambda item: False,
-    instance_create_func: Callable[[dict], Resource] | None = None,
+    instance_create_func: Callable | None = None,
     mode: Literal["any", "all", "insert"] = "any",
     username: str | None = None,
 ) -> list[dict]:
-    """
-    根据权限过滤数据
-    :param mode: 过滤模式，"any" 表示只要有一个权限通过就返回，"all" 表示所有权限通过才返回, "insert" 表示插入权限信息，但不过滤数据
+    """根据权限过滤/标注数据（内部委托 IAMFramework）。
+
+    保留旧签名兼容。mode: "any"=任一通过/"all"=全部通过/"insert"=插入不删。
     """
     if isinstance(data, dict):
         data = [data]
 
-    resources = []
-    for item in data:
-        if not id_field(item):
+    action_ids = _to_action_ids(actions)
+    resource_type = resource_meta.id if hasattr(resource_meta, "id") else resource_meta
+
+    # 收集资源实例
+    resource_by_id: dict[str, FwResource] = {}
+    item_resource_ids: list[tuple[int, str | None]] = []
+    for idx, item in enumerate(data):
+        rid = id_field(item)
+        if not rid:
+            item_resource_ids.append((idx, None))
             continue
-        attribute = extract_attribute(item)
+        rid_str = str(rid)
+        item_resource_ids.append((idx, rid_str))
+        if rid_str not in resource_by_id:
+            resource_by_id[rid_str] = FwResource(type=resource_type, id=rid_str)
 
-        if instance_create_func:
-            resources.append([instance_create_func(item)])
-        else:
-            resources.append([resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)])
-
-    if not resources:
+    if not resource_by_id:
         return []
 
     # 批量鉴权
-    permission_result = Permission(username=username, bk_tenant_id=bk_tenant_id).batch_is_allowed(actions, resources)
+    fw = get_framework()
+    subject = FwSubject(id=username or "", type=SubjectType.USER, tenant_id=bk_tenant_id or "")
+    allowed_map: dict[tuple[str, str], bool] = {}
 
+    for aid in action_ids:
+        batch_result = fw.batch_by_resource(
+            BatchByResourceRequest(
+                subject=subject,
+                action_id=aid,
+                resources=tuple(resource_by_id.values()),
+            )
+        )
+        for item_result in batch_result.items:
+            allowed_map[(aid, item_result.resource_id)] = item_result.allowed
+
+    # 过滤/标注
     allowed_data = []
-    for item in data:
-        # 获取实例ID
-        origin_instance_id = id_field(item)
-        if not origin_instance_id:
+    for idx, rid in item_resource_ids:
+        if rid is None:
             continue
-        instance_id = str(origin_instance_id)
+        item = data[idx]
 
-        # 插入权限信息
+        perm = {}
+        for aid in action_ids:
+            perm[aid] = allowed_map.get((aid, rid), False)
+
+        if always_allowed(item):
+            for k in perm:
+                perm[k] = True
+
         if mode == "insert":
-            item["permission"] = permission_result[instance_id]
-            if always_allowed(item):
-                for action_id in item["permission"]:
-                    item["permission"][action_id] = True
+            item["permission"] = perm
             allowed_data.append(item)
-            continue
-
-        # 过滤数据
-        if mode == "any":
-            filter_func = any
-        else:
-            filter_func = all
-
-        if always_allowed(item) or filter_func(permission_result[instance_id].values()):
-            allowed_data.append(item)
+        elif mode == "any":
+            if any(perm.values()):
+                allowed_data.append(item)
+        elif mode == "all":
+            if all(perm.values()):
+                allowed_data.append(item)
 
     return allowed_data

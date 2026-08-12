@@ -38,6 +38,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, get_action_by_id
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.compatible import CompatibleIAM
 from bkmonitor.iam.definitions.codec_v3 import MonitorV3Codec
 from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied
@@ -61,6 +62,9 @@ from core.errors.share import TokenValidatedError
 
 logger = logging.getLogger(__name__)
 
+# ActionIdMap 使用 ActionEnum 而非 definitions.Actions：
+# 外部调用方（通过 Permission 的 token 机制）传入的是 ActionEnum 成员，
+# 这里的 in 检查需要和外部传入值做 identity 匹配，因此必须用相同的 ActionEnum 成员。
 ActionIdMap = {
     # 场景视图
     "host": [ActionEnum.VIEW_HOST],
@@ -168,62 +172,60 @@ class Permission:
         if self.skip_check:
             return True
 
+        # 构建 FwResource（兼容 iam.Resource 旧调用方）
         resources = resources or []
-
-        action_id_biz = to_action_id(action)
-
-        # 构建框架 resource
         fw_resource = None
         if resources:
-            fw_resource = FwResource(type=resources[0].type, id=resources[0].id)
+            r = resources[0]
+            fw_resource = FwResource(type=r.type, id=r.id)
+
+        return self._is_allowed_fw(action, fw_resource, raise_exception)
+
+    def _is_allowed_fw(self, action, fw_resource: FwResource | None, raise_exception: bool):
+        """内部：直接接受 FwResource 的鉴权方法。"""
+        action_id_biz = to_action_id(action)
 
         try:
             result = self._fw.is_allowed(
                 AuthRequest(
-                    subject=FwSubject(id=self.username, type=SubjectType.USER),
+                    subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=action_id_biz,
                     resource=fw_resource,
                 )
             )
         except PermissionDenied as e:
             if raise_exception:
-                actions, detail_resources = self.prepare_apply_for_saas(resources)
-                if not actions:
-                    detail_resources = [get_resource_by_id(r.type).create_instance(r.id) for r in resources]
-                    try:
-                        actions = [get_action_by_id(action_id_biz)]
-                    except ActionNotExistError:
-                        actions = []
-                apply_data, apply_url = self.get_apply_data(
-                    [a.id for a in actions] if actions else [action_id_biz],
-                    detail_resources,
-                )
-                raise PermissionDeniedError(
-                    context={"action_name": action_id_biz},
-                    data={"apply_url": apply_url},
-                    extra={"permission": apply_data},
-                ) from e
+                raise self._build_permission_denied(action_id_biz, fw_resource) from e
             return False
 
         if not result and raise_exception:
-            actions, detail_resources = self.prepare_apply_for_saas(resources)
-            if not actions:
-                detail_resources = [get_resource_by_id(r.type).create_instance(r.id) for r in resources]
-                try:
-                    actions = [get_action_by_id(action_id_biz)]
-                except ActionNotExistError:
-                    actions = []
-            apply_data, apply_url = self.get_apply_data(
-                [a.id for a in actions] if actions else [action_id_biz],
-                detail_resources,
-            )
-            raise PermissionDeniedError(
-                context={"action_name": action_id_biz},
-                data={"apply_url": apply_url},
-                extra={"permission": apply_data},
-            )
+            raise self._build_permission_denied(action_id_biz, fw_resource)
 
         return result
+
+    def _build_permission_denied(self, action_id_biz: str, fw_resource: FwResource | None):
+        """构建 PermissionDeniedError（含 SaaS 全家桶 + apply 数据）。"""
+        resources = []
+        if fw_resource:
+            resources = [ResourceEnum.BUSINESS.create_instance(fw_resource.id)]
+        actions, detail_resources = self.prepare_apply_for_saas(resources)
+        if not actions:
+            detail_resources = []
+            if fw_resource:
+                detail_resources = [get_resource_by_id(fw_resource.type).create_instance(fw_resource.id)]
+            try:
+                actions = [get_action_by_id(action_id_biz)]
+            except ActionNotExistError:
+                actions = []
+        apply_data, apply_url = self.get_apply_data(
+            [a.id for a in actions] if actions else [action_id_biz],
+            detail_resources,
+        )
+        return PermissionDeniedError(
+            context={"action_name": action_id_biz},
+            data={"apply_url": apply_url},
+            extra={"permission": apply_data},
+        )
 
     def is_allowed_by_biz(self, bk_biz_id: int, action, raise_exception: bool = False):
         """
@@ -232,8 +234,8 @@ class Permission:
         if self.skip_check:
             return True
 
-        resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
-        return self.is_allowed(action, resources, raise_exception)
+        fw_resource = FwResource(type=ResourceTypes.SPACE.id, id=str(bk_biz_id))
+        return self._is_allowed_fw(action, fw_resource, raise_exception)
 
     def batch_is_allowed(self, actions: list, resources: list[list]):
         """
@@ -274,7 +276,7 @@ class Permission:
             for action_id_biz in action_ids_biz:
                 batch_result = self._fw.batch_by_resource(
                     BatchByResourceRequest(
-                        subject=FwSubject(id=self.username, type=SubjectType.USER),
+                        subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                         action_id=action_id_biz,
                         resources=(FwResource(type=rtype, id=resource_id),),
                     )
@@ -293,7 +295,7 @@ class Permission:
         fw_resources = tuple(FwResource(type=r.type, id=r.id) for r in (resources or []))
         return self._fw.get_apply_url(
             ApplyURLRequest(
-                subject=FwSubject(id=self.username, type=SubjectType.USER),
+                subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                 action_ids=tuple(action_ids_biz),
                 resources=fw_resources,
             )
@@ -308,7 +310,7 @@ class Permission:
         return self._fw.get_apply_data(
             action_ids_biz,
             fw_resources,
-            FwSubject(id=self.username, type=SubjectType.USER),
+            FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
         ), self.get_apply_url(action_ids_biz, resources)
 
     # ================================================================
@@ -325,6 +327,7 @@ class Permission:
                 resource_type=resource.type,
                 resource_id=resource.id,
                 creator=creator or self.username,
+                tenant_id=self.bk_tenant_id,
             )
             logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}")
         except Exception as e:  # pylint: disable=broad-except

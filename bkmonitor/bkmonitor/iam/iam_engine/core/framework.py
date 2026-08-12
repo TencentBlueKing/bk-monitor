@@ -149,9 +149,10 @@ class IAMFramework:
         resource_id: str,
         creator: str,
         expired_at: int | None = None,
+        tenant_id: str = "",
     ) -> None:
         """授予资源创建者对该资源的管理权限。由 composition 的 primary Provider 执行。"""
-        return self._router.grant_creator_action(resource_type, resource_id, creator, expired_at)
+        return self._router.grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
 
     # ==================== 数据通路 ====================
 

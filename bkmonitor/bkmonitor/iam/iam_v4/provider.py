@@ -296,8 +296,10 @@ class V4PermissionProvider(PermissionProvider):
         resource_id: str,
         creator: str,
         expired_at: int | None = None,
+        tenant_id: str = "",
     ) -> None:
-        """V4: 调 add_authorization API，默认角色 space_operator，默认 30 天过期。"""
+        """V4: 调 add_authorization API，默认角色 space_operator，默认 30 天过期。
+        tenant_id 当前忽略，待 V4 支持多租户后使用。"""
         import time
 
         from ..iam_engine.core.types import to_resource_type_id
