@@ -525,11 +525,14 @@ class SourceAnalysisExecutionBaseResource(Resource):
     def build_source_analysis_view(cls, bk_biz_id: int, issue_id: str) -> dict:
         """构造前端统一消费的最新状态视图。"""
 
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+        is_repository_configured = bool(config and config.bkci_project_id and config.repository_alias)
         canonical_issue_id, issue_ids = cls.resolve_display_scope(bk_biz_id, issue_id)
         latest = cls.get_latest_execution(bk_biz_id, issue_ids)
         if latest is not None:
             # 已有执行记录时应持续可见；重试复用快照，重新分析会在写入口重新匹配当前规则。
             return {
+                "is_repository_configured": is_repository_configured,
                 "is_configured": True,
                 "unavailable_reason": None,
                 "unavailable_reason_display": None,
@@ -539,6 +542,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
         rule, unavailable_reason = cls.get_rule_availability(bk_biz_id, alert)
         return {
+            "is_repository_configured": is_repository_configured,
             "is_configured": rule is not None,
             "unavailable_reason": unavailable_reason,
             "unavailable_reason_display": (
@@ -1135,13 +1139,7 @@ class AIAnalysisOverviewResource(SourceAnalysisExecutionBaseResource):
         source_analysis = self.build_source_analysis_overview(
             self.build_source_analysis_view(bk_biz_id, validated_request_data["issue_id"])
         )
-        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
-        return {
-            "source_analysis": {
-                "is_repository_configured": bool(config and config.bkci_project_id and config.repository_alias),
-                **source_analysis,
-            }
-        }
+        return {"source_analysis": source_analysis}
 
 
 class SourceAnalysisResource(SourceAnalysisExecutionBaseResource):
