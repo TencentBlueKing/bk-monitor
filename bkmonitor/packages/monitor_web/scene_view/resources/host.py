@@ -548,7 +548,9 @@ class GetHostProcessListResource(ApiAuthResource):
 
         return [
             {
-                "id": process["id"],
+                # 旧版 process 场景变量 fields 约定 id→display_name；必须返回进程名，
+                # 不能用 CMDB bk_process_id，否则图表 filter_dict.display_name 会变成数字 ID 导致无数据。
+                "id": process["name"],
                 "name": process["name"],
                 "status": process["status"],
                 # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
