@@ -304,6 +304,9 @@ class SearchHostInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
     @staticmethod
     def get_module_info(bk_module_ids: list[int], topo_links: dict[str, list[TopoNode]]) -> list[dict]:
         """
