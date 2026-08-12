@@ -90,12 +90,27 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(
             result,
             {
+                "is_repository_configured": False,
                 "is_configured": False,
                 "unavailable_reason": "no_matched_rule",
                 "unavailable_reason_display": "当前 Issue 未匹配到可用的源码分析规则。",
                 "latest": None,
             },
         )
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)
+    def test_query_returns_repository_configuration_independently_from_rule(self, _get_alert, _get_availability):
+        IssueSourceAnalysisConfig.objects.create(
+            bk_biz_id=self.BK_BIZ_ID,
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+        )
+
+        result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertTrue(result["is_repository_configured"])
+        self.assertFalse(result["is_configured"])
 
     def test_success_view_projects_page_fields_and_hides_execution_context(self):
         payload = {
@@ -121,6 +136,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
         result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
         self.assertTrue(result["is_configured"])
+        self.assertFalse(result["is_repository_configured"])
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
         self.assertEqual(result["latest"]["status_display"], "分析完成（证据不足）")
         self.assertNotIn("execution_context", result["latest"]["result"])
