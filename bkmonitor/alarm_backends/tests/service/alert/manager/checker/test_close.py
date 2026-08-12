@@ -193,6 +193,47 @@ class TestCloseStatusChecker(TestCase):
 
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
+    def test_strategy_switches_new_series_to_once_terminates_continuous_lifecycle(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        active_key, claimed_key, terminated_key = self.new_series_state_keys()
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {fingerprint: 1990})
+        key.NEW_SERIES_CLAIMED_KEY.client.zadd(claimed_key, {fingerprint: 1980})
+        latest_strategy = copy.deepcopy(strategy)
+        latest_strategy["items"][0]["algorithms"][0]["config"]["alert_mode"] = "once"
+        StrategyCacheManager.cache.set(
+            StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=strategy["id"]),
+            json.dumps(latest_strategy),
+        )
+
+        CloseStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.CLOSED)
+        self.assertIsNone(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, fingerprint))
+        self.assertIsNone(key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, fingerprint))
+        self.assertIsNotNone(key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint))
+
+    def test_strategy_new_series_lifecycle_group_change_closes_alert(self):
+        for config_name, value in (("detect_range", 120), ("threshold", 1)):
+            with self.subTest(config_name=config_name):
+                strategy = self.new_series_strategy()
+                alert = self.get_alert(strategy)
+                latest_strategy = copy.deepcopy(strategy)
+                latest_strategy["items"][0]["algorithms"][0]["config"][config_name] = value
+
+                self.assertTrue(CloseStatusChecker([alert]).check_strategy_changed(alert, latest_strategy))
+                self.assertEqual(alert.status, EventStatus.CLOSED)
+
+    def test_strategy_new_series_capacity_change_keeps_alert_active(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        latest_strategy = copy.deepcopy(strategy)
+        latest_strategy["items"][0]["algorithms"][0]["config"]["max_series"] = 1
+
+        self.assertFalse(CloseStatusChecker([alert]).check_strategy_changed(alert, latest_strategy))
+        self.assertEqual(alert.status, EventStatus.ABNORMAL)
+
     def test_blocked_alert_timeout_terminates_new_series_continuous_lifecycle(self):
         strategy = self.new_series_strategy()
         alert = self.get_alert(strategy)

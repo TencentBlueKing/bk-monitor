@@ -250,6 +250,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
             required
           >
             <bk-radio-group
+              class='alert-mode-radio'
               v-model={this.formData.alertMode}
               onChange={this.emitLocalData}
             >
