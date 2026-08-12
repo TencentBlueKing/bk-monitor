@@ -470,6 +470,9 @@ class GetHostProcessListResource(Resource):
         start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
         end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
     def perform_request(self, params):
         if not params.get("bk_host_id") and (
             not params.get("bk_target_ip") or params.get("bk_target_cloud_id") is None
