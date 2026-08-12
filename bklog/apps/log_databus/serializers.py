@@ -1912,7 +1912,7 @@ class FastCollectorUpdateSerializer(
             if len(valid_fields) == 0:
                 raise ValidationError(_("清洗需要配置有效字段"))
             attrs["fields"] = fields
-        elif "etl_config" in attrs:
+        else:
             attrs["fields"] = []
 
         return attrs
