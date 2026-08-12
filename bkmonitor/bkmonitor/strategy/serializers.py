@@ -12,6 +12,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.dataflow.constant import VisualType
+from constants.strategy import NewSeriesAlertMode
 from core.errors.alarm_backends.detect import (
     InvalidAdvancedRingRatioConfig,
     InvalidAdvancedYearRoundConfig,
@@ -139,6 +140,12 @@ class NewSeriesSerializer(serializers.Serializer):
     max_series = serializers.IntegerField(label="最大序列数", required=False, default=100000)
     detect_range = serializers.IntegerField(label="检测范围", required=True)
     threshold = serializers.IntegerField(label="告警阈值", required=False, default=0)
+    alert_mode = serializers.ChoiceField(
+        label="告警状态模式",
+        choices=NewSeriesAlertMode.CHOICES,
+        required=False,
+        default=NewSeriesAlertMode.ONCE,
+    )
 
     def validate(self, attrs):
         # effective_delay 一律归一化为 detect_range：宽限时长 = 检测窗口。
