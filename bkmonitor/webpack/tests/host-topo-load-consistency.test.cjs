@@ -11,6 +11,8 @@ process.env.TS_NODE_COMPILER_OPTIONS = JSON.stringify({
 });
 require('ts-node/register/transpile-only');
 
+global.window = { cc_biz_id: 2 };
+
 const deferred = () => {
   let resolve;
   const promise = new Promise(resolvePromise => {
@@ -37,6 +39,9 @@ const createHostTopoContext = ({ getHostTopoTreeByBizId, init }) => {
     }
     if (request === '@vueuse/core') {
       return { useDebounceFn: fn => fn };
+    }
+    if (request === 'vue-router') {
+      return { useRoute: () => ({ query: {} }) };
     }
     if (request === '../services/host-service') {
       return { getHostTopoTreeByBizId };

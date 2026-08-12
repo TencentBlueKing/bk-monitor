@@ -54,6 +54,10 @@ export default defineComponent({
       type: Array as PropType<IHostTopoHostNode[]>,
       default: () => [],
     },
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     selectIpCell: (_row: IHostListRow) => true,
@@ -94,6 +98,9 @@ export default defineComponent({
 
     /** 点击主机列表 IP 单元格时向上冒泡，由页面层处理拓扑树聚焦 */
     const handleSelectIpCell = row => {
+      if (props.readonly) {
+        return;
+      }
       emit('selectIpCell', row);
     };
 
@@ -103,6 +110,9 @@ export default defineComponent({
      * @param {string} processName - 被点击的进程名称
      */
     const handleProcessClick = (row: IHostListRow, processName: string) => {
+      if (props.readonly) {
+        return;
+      }
       const targetRoute = router.resolve({
         name: 'host',
         query: {
@@ -121,6 +131,7 @@ export default defineComponent({
         case 'list':
           return (
             <HostList
+              readonly={props.readonly}
               selectedNode={props.selectedNode}
               onProcessClick={handleProcessClick}
               onSelectIpCell={handleSelectIpCell}

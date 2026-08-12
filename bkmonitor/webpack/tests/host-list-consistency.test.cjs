@@ -251,6 +251,9 @@ Module._load = function mockHostListDependencies(request, parent, isMain) {
   if (request === 'pinia') {
     return { storeToRefs: store => store };
   }
+  if (request === 'vue-router') {
+    return { useRoute: () => ({ query: {} }) };
+  }
   if (isHostList && request === '../../../components/across-page-selection/across-page-selection') {
     return {
       SelectType: {
@@ -343,6 +346,7 @@ const createHostListController = () => {
       activeCategory: vue.shallowRef(''),
       filterExpanded: vue.shallowRef(false),
       keyword: vue.shallowRef(''),
+      readonly: false,
       selectedNode: vue.shallowRef(null),
       where: vue.shallowRef([]),
     });

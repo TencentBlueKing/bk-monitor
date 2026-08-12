@@ -31,6 +31,7 @@ import { Message } from 'bkui-vue';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { copyText } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
+import { useRoute } from 'vue-router';
 
 import { type SelectTypeEnum, SelectType } from '../../../components/across-page-selection/across-page-selection';
 import { EMode } from '../../../components/retrieval-filter/typing';
@@ -40,6 +41,7 @@ import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
 import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
 import { getHostInfoList, getHostMetricInfoList } from '../services/host-service';
+import { resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListWorker } from './use-host-list-worker';
 import { useHostUrlParams } from './use-host-url-params';
 
@@ -61,6 +63,7 @@ interface IUseHostListOptions {
   activeCategory: ShallowRef<'' | EHostQuickCategory>;
   filterExpanded: ShallowRef<boolean>;
   keyword: ShallowRef<string>;
+  readonly: boolean;
   /** 当前选中的拓扑节点（页面层注入），用于联动过滤主机列表 */
   selectedNode: Ref<IHostTopoTreeNode | null>;
   where: ShallowRef<IWhereItem[]>;
@@ -75,6 +78,7 @@ const EMPTY_CATEGORY_STATS: IHostQuickCardStats = { alarm: 0, cpu: 0, disk: 0, m
  * 全量数据的行转换、过滤、排序、分页切片在 Web Worker 中执行，避免超大数据阻塞主线程。
  */
 export const useHostList = (options: IUseHostListOptions) => {
+  const route = useRoute();
   const { selectedNode, where, filterExpanded, activeCategory, keyword } = options;
   const { setUrlParams } = useHostUrlParams();
   const hostListWorker = useHostListWorker();
@@ -127,6 +131,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   let dataRequestGeneration = 0;
   let metricRequestGeneration = 0;
   let selectionRequestGeneration = 0;
+
+  const getRequestScope = () => resolveHostRequestScope(options.readonly, route.query, selectedNode.value);
 
   watch([timeRange, timezone], () => {
     setUrlParams();
@@ -257,7 +263,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectedRowKeys.value = new Set();
     excludedRowKeys.value = new Set();
     try {
-      requestBaseList = await getHostInfoList();
+      requestBaseList = await getHostInfoList(getRequestScope());
       if (requestGeneration !== dataRequestGeneration) {
         return;
       }
@@ -291,6 +297,7 @@ export const useHostList = (options: IUseHostListOptions) => {
       const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
+        ...getRequestScope(),
         bk_host_ids,
         start_time,
         end_time,
@@ -322,6 +329,7 @@ export const useHostList = (options: IUseHostListOptions) => {
       const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
+        ...getRequestScope(),
         bk_host_ids,
         start_time,
         end_time,

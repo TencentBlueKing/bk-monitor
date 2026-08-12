@@ -15,6 +15,8 @@ from django.db.models import Q
 
 from bkmonitor.models import ApiAuthToken, MetricListCache
 from bkmonitor.utils.request import get_request, get_request_tenant_id
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api
 from core.errors.share import (
     InvalidParamsError,
     ParamsPermissionDeniedError,
@@ -30,6 +32,37 @@ from monitor_web.models import (
 from monitor_web.plugin.constant import PluginType
 
 scene_params_mapping = {"sceneId": "scene_id", "sceneType": "type", "dashboardId": "id"}
+HOST_SCOPE_VERSION = 1
+
+
+def validate_host_share_scope(data: dict) -> dict:
+    scope = data.get("scope") if isinstance(data, dict) else None
+    if not isinstance(scope, dict):
+        raise InvalidParamsError({"key": "data.scope"})
+    if scope.get("version") != HOST_SCOPE_VERSION:
+        raise InvalidParamsError({"key": "data.scope.version"})
+
+    target_type = scope.get("target_type")
+    if target_type == "host":
+        if not isinstance(scope.get("bk_host_id"), int) or isinstance(scope.get("bk_host_id"), bool):
+            raise InvalidParamsError({"key": "data.scope.bk_host_id"})
+        return {
+            "version": HOST_SCOPE_VERSION,
+            "target_type": target_type,
+            "bk_host_id": scope["bk_host_id"],
+        }
+    if target_type == "topo":
+        if not scope.get("bk_obj_id"):
+            raise InvalidParamsError({"key": "data.scope.bk_obj_id"})
+        if not isinstance(scope.get("bk_inst_id"), int) or isinstance(scope.get("bk_inst_id"), bool):
+            raise InvalidParamsError({"key": "data.scope.bk_inst_id"})
+        return {
+            "version": HOST_SCOPE_VERSION,
+            "target_type": target_type,
+            "bk_obj_id": str(scope["bk_obj_id"]),
+            "bk_inst_id": scope["bk_inst_id"],
+        }
+    raise InvalidParamsError({"key": "data.scope.target_type"})
 
 
 class BaseApiAuthChecker:
@@ -149,46 +182,236 @@ class HostApiAuthChecker(BaseApiAuthChecker):
     主机视图API权限校验
     """
 
-    target_eq_map = {"bk_target_ip": ["ip"], "bk_target_cloud_id": ["bk_cloud_id"]}
+    def __init__(self, token):
+        super().__init__(token)
+        self.scope = validate_host_share_scope(token.params.get("data", {}))
+        self.allowed_hosts = self.get_allowed_hosts()
+
+    def get_allowed_hosts(self):
+        if self.scope["target_type"] == "host":
+            hosts = api.cmdb.get_host_by_id(
+                bk_biz_id=self.bk_biz_id,
+                bk_host_ids=[self.scope["bk_host_id"]],
+            )
+        else:
+            hosts = api.cmdb.get_host_by_topo_node(
+                bk_biz_id=self.bk_biz_id,
+                topo_nodes={self.scope["bk_obj_id"]: [self.scope["bk_inst_id"]]},
+            )
+        if not hosts:
+            raise ParamsPermissionDeniedError(
+                {"key": "data.scope", "error_params": self.scope, "correct_params": "existing host target"}
+            )
+        return hosts
+
+    @property
+    def scope_target(self):
+        if self.scope["target_type"] == "host":
+            return {"bk_host_id": self.scope["bk_host_id"]}
+        return {
+            "bk_obj_id": self.scope["bk_obj_id"],
+            "bk_inst_id": self.scope["bk_inst_id"],
+        }
+
+    def check(self, request_data):
+        if (
+            request_data.get("scene_id") == "host"
+            and request_data.get("type") == "detail"
+            and request_data.get("id") in {"host", "process"}
+        ):
+            # Panel definitions do not contain business target data. The only public
+            # routes that reach this branch are separately constrained by the host allowlist.
+            return
+
+        if self.time_params["lock_search"] and not self.time_params["default_time_range"]:
+            if request_data.get("start_time") is None or request_data.get("end_time") is None:
+                raise InvalidParamsError({"key": "start_time,end_time"})
+            self.time_check(request_data["start_time"], request_data["end_time"])
+
+        if request_data.get("query_configs"):
+            self.query_configs_check(request_data["query_configs"])
+        else:
+            self.params_check(request_data)
+
+    def params_check(self, request_data):
+        request_target_keys = {
+            key
+            for key in ("bk_host_id", "bk_obj_id", "bk_inst_id")
+            if key in request_data and request_data[key] not in (None, "")
+        }
+        unexpected_target_keys = request_target_keys - self.scope_target.keys()
+        if unexpected_target_keys:
+            raise ParamsPermissionDeniedError(
+                {
+                    "key": ",".join(sorted(unexpected_target_keys)),
+                    "error_params": {key: request_data[key] for key in sorted(unexpected_target_keys)},
+                    "correct_params": self.scope_target,
+                }
+            )
+
+        for key, value in self.scope_target.items():
+            if key not in request_data or request_data[key] in (None, ""):
+                raise InvalidParamsError({"key": key})
+            if str(request_data[key]) != str(value):
+                raise ParamsPermissionDeniedError(
+                    {"key": key, "error_params": request_data[key], "correct_params": value}
+                )
+
+    def query_target_check(self, target, check_part):
+        allowed_host_ids = {str(host.bk_host_id) for host in self.allowed_hosts}
+        allowed_ip_cloud_ids = {
+            (str(ip), str(host.bk_cloud_id))
+            for host in self.allowed_hosts
+            for ip in {
+                getattr(host, "ip", None),
+                getattr(host, "bk_host_innerip", None),
+                getattr(host, "bk_host_innerip_v6", None),
+            }
+            if ip
+        }
+
+        if target.get("bk_host_id") is not None:
+            if str(target["bk_host_id"]) not in allowed_host_ids:
+                raise ParamsPermissionDeniedError(
+                    {
+                        "key": f"{check_part}.bk_host_id",
+                        "error_params": target["bk_host_id"],
+                        "correct_params": sorted(allowed_host_ids),
+                    }
+                )
+            if target.get("bk_target_ip") is not None or target.get("bk_target_cloud_id") is not None:
+                pair = (str(target.get("bk_target_ip")), str(target.get("bk_target_cloud_id")))
+                if pair not in allowed_ip_cloud_ids:
+                    raise ParamsPermissionDeniedError(
+                        {
+                            "key": f"{check_part}.bk_target_ip,bk_target_cloud_id",
+                            "error_params": pair,
+                            "correct_params": sorted(allowed_ip_cloud_ids),
+                        }
+                    )
+            return
+
+        if target.get("bk_target_ip") is not None or target.get("bk_target_cloud_id") is not None:
+            if target.get("bk_target_ip") is None or target.get("bk_target_cloud_id") is None:
+                raise InvalidParamsError({"key": f"{check_part}.bk_target_ip,bk_target_cloud_id"})
+            pair = (str(target["bk_target_ip"]), str(target["bk_target_cloud_id"]))
+            if pair not in allowed_ip_cloud_ids:
+                raise ParamsPermissionDeniedError(
+                    {
+                        "key": f"{check_part}.bk_target_ip,bk_target_cloud_id",
+                        "error_params": pair,
+                        "correct_params": sorted(allowed_ip_cloud_ids),
+                    }
+                )
+            return
+
+        if target.get("bk_obj_id") is not None or target.get("bk_inst_id") is not None:
+            if self.scope["target_type"] != "topo":
+                raise ParamsPermissionDeniedError(
+                    {"key": check_part, "error_params": target, "correct_params": self.scope_target}
+                )
+            for key, value in self.scope_target.items():
+                if key not in target or target[key] in (None, ""):
+                    raise InvalidParamsError({"key": f"{check_part}.{key}"})
+                if str(target[key]) != str(value):
+                    raise ParamsPermissionDeniedError(
+                        {"key": f"{check_part}.{key}", "error_params": target[key], "correct_params": value}
+                    )
+            return
+
+        raise InvalidParamsError({"key": check_part})
 
     def query_configs_check(self, query_configs):
         # 增加主机指标范围校验
-        host_metrics = MetricListCache.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            bk_biz_id__in=[0, self.bk_biz_id],
-            result_table_label="os",
-            data_source_label="bk_monitor",
-            data_type_label="time_series",
-        ).values_list("metric_field", flat=True)
-        process_metrics = MetricListCache.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            bk_biz_id__in=[0, self.bk_biz_id],
-            result_table_id="system.proc",
-            data_source_label="bk_monitor",
-            data_type_label="time_series",
-        ).values_list("metric_field", flat=True)
-        metrics = query_configs[0].get("metrics", [])
-        table = query_configs[0].get("table", "")
-        check_metrics = host_metrics
-        if self.scene_params["id"] == "process":
-            check_metrics = process_metrics
+        host_metrics = set(
+            MetricListCache.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id__in=[0, self.bk_biz_id],
+                result_table_label="os",
+                data_source_label="bk_monitor",
+                data_type_label="time_series",
+            ).values_list("result_table_id", "metric_field")
+        )
+        process_metrics = set(
+            MetricListCache.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id__in=[0, self.bk_biz_id],
+                result_table_id="system.proc",
+                data_source_label="bk_monitor",
+                data_type_label="time_series",
+            ).values_list("result_table_id", "metric_field")
+        )
 
-        if not table or not table.startswith("system."):
-            raise ParamsPermissionDeniedError(
-                {
-                    "key": "query_configs.table",
-                    "error_params": table,
-                    "correct_params": f"system.{table.split('.')[1:]}",
-                }
-            )
-        if metrics and metrics[0]["field"] not in check_metrics:
-            raise ParamsPermissionDeniedError(
-                {
-                    "key": "query_configs.metric.field",
-                    "error_params": metrics[0]["field"],
-                    "correct_params": list(check_metrics),
-                }
-            )
+        for index, query_config in enumerate(query_configs):
+            if not isinstance(query_config, dict):
+                raise InvalidParamsError({"key": f"query_configs.{index}"})
+            metrics = query_config.get("metrics", [])
+            data_source_label = query_config.get("data_source_label")
+            data_type_label = query_config.get("data_type_label")
+            promql = query_config.get("promql", "")
+            if (
+                data_source_label != DataSourceLabel.BK_MONITOR_COLLECTOR
+                or data_type_label != DataTypeLabel.TIME_SERIES
+                or not isinstance(promql, str)
+                or bool(promql.strip())
+                or not isinstance(metrics, list)
+                or not metrics
+            ):
+                raise ParamsPermissionDeniedError(
+                    {
+                        "key": f"query_configs.{index}",
+                        "error_params": {
+                            "data_source_label": data_source_label,
+                            "data_type_label": data_type_label,
+                            "promql": promql,
+                            "metrics": metrics,
+                        },
+                        "correct_params": {
+                            "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                            "data_type_label": DataTypeLabel.TIME_SERIES,
+                            "promql": "",
+                            "metrics": "non-empty",
+                        },
+                    }
+                )
+
+            table = query_config.get("table", "")
+            if not table or not table.startswith("system."):
+                raise ParamsPermissionDeniedError(
+                    {
+                        "key": f"query_configs.{index}.table",
+                        "error_params": table,
+                        "correct_params": "system.*",
+                    }
+                )
+
+            filter_dict = query_config.get("filter_dict", {})
+            if not isinstance(filter_dict, dict):
+                raise InvalidParamsError({"key": f"query_configs.{index}.filter_dict"})
+            targets = filter_dict.get("targets")
+            if not isinstance(targets, list) or not targets:
+                raise InvalidParamsError({"key": f"query_configs.{index}.filter_dict.targets"})
+            for target_index, target in enumerate(targets):
+                if not isinstance(target, dict):
+                    raise InvalidParamsError({"key": f"query_configs.{index}.filter_dict.targets.{target_index}"})
+                self.query_target_check(
+                    target,
+                    check_part=f"query_configs.{index}.filter_dict.targets.{target_index}",
+                )
+
+            allowed_metrics = process_metrics if table == "system.proc" else host_metrics
+            for metric_index, metric in enumerate(metrics):
+                if not isinstance(metric, dict):
+                    raise InvalidParamsError({"key": f"query_configs.{index}.metrics.{metric_index}"})
+                metric_field = metric.get("field")
+                if not metric_field or (table, metric_field) not in allowed_metrics:
+                    raise ParamsPermissionDeniedError(
+                        {
+                            "key": f"query_configs.{index}.metrics.{metric_index}.field",
+                            "error_params": metric_field,
+                            "correct_params": list(allowed_metrics),
+                        }
+                    )
 
 
 class UptimeCheckApiAuthChecker(BaseApiAuthChecker):
