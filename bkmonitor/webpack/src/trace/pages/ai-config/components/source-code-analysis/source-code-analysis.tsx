@@ -58,19 +58,74 @@ export default defineComponent({
       showBindModal.value = false;
     };
 
-    return () => (
-      <div class='source-code-analysis'>
-        <Button
-          theme='primary'
-          onClick={handleOpenBindModal}
+    return {
+      t,
+      showBindModal,
+      handleOpenBindModal,
+      handleBindConfirm,
+    };
+  },
+  render() {
+    type TCardItem = {
+      content: () => JSX.Element;
+      description: (() => JSX.Element) | string;
+      icon: (() => JSX.Element) | string;
+      title: (() => JSX.Element) | string;
+    };
+    const cardItem = (params: TCardItem, key: string) => {
+      const title = typeof params.title === 'function' ? params.title() : params.title;
+      const description = typeof params.description === 'function' ? params.description() : params.description;
+      const icon = typeof params.icon === 'function' ? params.icon() : params.icon;
+      return (
+        <div
+          key={key}
+          class='card-item-wrap'
         >
-          {t('新增绑定')}
-        </Button>
-        <AnalysisConfigSideslider
-          v-model:show={showBindModal.value}
-          processName='IEG - 登陆服务'
-          onConfirm={handleBindConfirm}
-        />
+          <div class='top-wrap'>
+            <div class='icon-wrap'>{icon}</div>
+            <div class='title-wrap'>
+              <div class='title'>{title}</div>
+              <div class='description'>{description}</div>
+            </div>
+          </div>
+          <div class='bottom-wrap'>{params.content()}</div>
+        </div>
+      );
+    };
+    return (
+      <div class='ai-config-source-code-analysis'>
+        {cardItem(
+          {
+            icon: () => <span class='icon-monitor icon-APM' />,
+            title: this.t('源码仓库关联'),
+            description: this.t('关联后，告警中心的 AI 分析可基于蓝盾构建与 Git 变更进行'),
+            content: () => <div>content</div>,
+          },
+          '1'
+        )}
+        {cardItem(
+          {
+            icon: () => <span class='icon-monitor icon-mc-guanlian' />,
+            title: this.t('策略关联分析流程'),
+            description: this.t('不同的策略，可以配置不同的流程实例参数（知识库、skill、告警组）'),
+            content: () => (
+              <div>
+                <Button
+                  theme='primary'
+                  onClick={this.handleOpenBindModal}
+                >
+                  {this.t('新增绑定')}
+                </Button>
+                <AnalysisConfigSideslider
+                  v-model:show={this.showBindModal}
+                  processName='IEG - 登陆服务'
+                  onConfirm={this.handleBindConfirm}
+                />
+              </div>
+            ),
+          },
+          '2'
+        )}
       </div>
     );
   },
