@@ -1,4 +1,5 @@
-from unittest.mock import Mock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 
@@ -61,6 +62,27 @@ class AuthorizationWriterTest(SimpleTestCase):
                 self.assertEqual(prepared.role_id, "space_operator")
                 self.assertEqual(prepared.payload[0]["related_resource_type_id"], resource_type)
                 self.assertEqual(prepared.payload[0]["resources"], [{"type": resource_type, "id": "1"}])
+
+    @override_settings(BK_IAM_V4_GRANT_EXPIRE_DAYS="invalid")
+    @patch("apps.iam.backends.v4.writer.timezone.now")
+    def test_invalid_expire_days_uses_default_without_startup_failure(self, now):
+        frozen_now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        now.return_value = frozen_now
+        writer = V4AuthorizationWriter(Mock(), operator="operator")
+
+        with self.assertLogs("iam.grant.config", level="WARNING"):
+            prepared = writer.prepare_resource_creator_actions(
+                {
+                    "system": "bk_log_search",
+                    "type": "collection",
+                    "id": "1",
+                    "creator": "creator",
+                }
+            )
+
+        expected_expired_at = int((frozen_now + timedelta(days=365)).timestamp())
+        self.assertEqual(prepared.expired_at, expected_expired_at)
+        self.assertEqual(prepared.payload[0]["expired_at"], expected_expired_at)
 
     def test_v3_false_tuple_is_normalized_to_failure(self):
         client = Mock()

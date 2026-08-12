@@ -7,7 +7,7 @@ from django.utils import timezone
 from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
 from apps.iam.models import IAMAuthorizationGrant
 from apps.iam.repositories import IAMAuthorizationGrantRepository
-from apps.iam.tasks.compensation import retry_authorization_grant
+from apps.iam.tasks.compensation import compensate_iam_authorization_grants, retry_authorization_grant
 
 
 @override_settings(BK_IAM_GRANT_LEASE_SECONDS=120, BK_IAM_GRANT_MAX_ATTEMPTS=12)
@@ -76,3 +76,17 @@ class AuthorizationCompensationTest(TestCase):
         self.assertEqual(record.state, IAMAuthorizationGrant.State.FAILED_FINAL)
         self.assertIsNone(record.next_retry_at)
         self.assertEqual(IAMAuthorizationGrantRepository.due_ids(limit=10), [])
+
+    @override_settings(BK_IAM_GRANT_COMPENSATION_BATCH_SIZE="invalid")
+    @patch("apps.iam.tasks.compensation.retry_authorization_grant")
+    @patch("apps.iam.tasks.compensation.IAMAuthorizationGrantRepository")
+    def test_compensation_uses_default_batch_size_for_invalid_setting(self, repository_class, retry_grant):
+        repository = repository_class.return_value
+        repository.recover_expired_leases.return_value = 0
+        repository.due_ids.return_value = []
+
+        with self.assertLogs("iam.grant.config", level="WARNING"):
+            compensate_iam_authorization_grants.run()
+
+        repository.due_ids.assert_called_once_with(limit=100)
+        retry_grant.assert_not_called()

@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.iam.error_summary import sanitize_error_summary
+from apps.iam.grant_config import AuthorizationGrantConfig
 from apps.iam.models import IAMAuthorizationGrant
 
 
@@ -32,18 +32,19 @@ class IAMAuthorizationGrantRepository:
 
     def claim(self, grant_id: int, *, lease_owner: str) -> IAMAuthorizationGrant | None:
         now = timezone.now()
+        grant_config = AuthorizationGrantConfig.from_settings()
         due = Q(state=IAMAuthorizationGrant.State.PENDING) | Q(
             state__in=(IAMAuthorizationGrant.State.RETRY_WAIT, IAMAuthorizationGrant.State.UNKNOWN),
             next_retry_at__lte=now,
         )
         updated = (
             IAMAuthorizationGrant.objects.filter(pk=grant_id)
-            .filter(due, attempts__lt=settings.BK_IAM_GRANT_MAX_ATTEMPTS)
+            .filter(due, attempts__lt=grant_config.max_attempts)
             .update(
                 state=IAMAuthorizationGrant.State.PROCESSING,
                 attempts=F("attempts") + 1,
                 lease_owner=lease_owner,
-                lease_until=now + timedelta(seconds=settings.BK_IAM_GRANT_LEASE_SECONDS),
+                lease_until=now + timedelta(seconds=grant_config.lease_seconds),
                 updated_at=now,
             )
         )
@@ -51,7 +52,7 @@ class IAMAuthorizationGrantRepository:
             # 历史数据或租约恢复路径也必须服从统一的最大尝试次数。
             IAMAuthorizationGrant.objects.filter(
                 pk=grant_id,
-                attempts__gte=settings.BK_IAM_GRANT_MAX_ATTEMPTS,
+                attempts__gte=grant_config.max_attempts,
             ).filter(due).update(
                 state=IAMAuthorizationGrant.State.FAILED_FINAL,
                 next_retry_at=None,
@@ -101,8 +102,9 @@ class IAMAuthorizationGrantRepository:
         """持久化归类后的失败，并返回调用方是否仍持有处理租约。"""
 
         now = timezone.now()
+        grant_config = AuthorizationGrantConfig.from_settings()
         final_state = state
-        if grant.attempts >= settings.BK_IAM_GRANT_MAX_ATTEMPTS:
+        if grant.attempts >= grant_config.max_attempts:
             final_state = IAMAuthorizationGrant.State.FAILED_FINAL
         retry_at = None
         if final_state in (IAMAuthorizationGrant.State.RETRY_WAIT, IAMAuthorizationGrant.State.UNKNOWN):
@@ -131,11 +133,12 @@ class IAMAuthorizationGrantRepository:
         """恢复过期的处理记录，同时禁止尝试次数超过配置上限。"""
 
         now = timezone.now()
+        grant_config = AuthorizationGrantConfig.from_settings()
         expired = IAMAuthorizationGrant.objects.filter(
             state=IAMAuthorizationGrant.State.PROCESSING,
             lease_until__lt=now,
         )
-        finalized = expired.filter(attempts__gte=settings.BK_IAM_GRANT_MAX_ATTEMPTS).update(
+        finalized = expired.filter(attempts__gte=grant_config.max_attempts).update(
             state=IAMAuthorizationGrant.State.FAILED_FINAL,
             next_retry_at=None,
             lease_owner="",
@@ -144,7 +147,7 @@ class IAMAuthorizationGrantRepository:
             last_error_message="processing lease expired at the maximum attempt limit",
             updated_at=now,
         )
-        recovered = expired.filter(attempts__lt=settings.BK_IAM_GRANT_MAX_ATTEMPTS).update(
+        recovered = expired.filter(attempts__lt=grant_config.max_attempts).update(
             state=IAMAuthorizationGrant.State.UNKNOWN,
             next_retry_at=now,
             lease_owner="",

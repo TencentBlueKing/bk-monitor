@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
-from django.conf import settings
 
 from apps.iam.backends.legacy_v3 import LegacyV3AuthorizationWriter
 from apps.iam.backends.v4.writer import V4AuthorizationWriter
+from apps.iam.grant_config import AuthorizationGrantConfig
 from apps.iam.handlers.permission import Permission
 from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 from apps.iam.models import IAMAuthorizationGrant
@@ -35,8 +35,9 @@ def retry_authorization_grant(grant_id: int) -> None:
 @periodic_task(run_every=crontab(minute="*/1"))
 def compensate_iam_authorization_grants() -> None:
     repository = IAMAuthorizationGrantRepository()
+    grant_config = AuthorizationGrantConfig.from_settings()
     recovered = repository.recover_expired_leases()
-    due_ids = repository.due_ids(limit=settings.BK_IAM_GRANT_COMPENSATION_BATCH_SIZE)
+    due_ids = repository.due_ids(limit=grant_config.compensation_batch_size)
     logger.info("[IAM Compensation] recovered=%s due=%s", recovered, len(due_ids))
     for grant_id in due_ids:
         try:

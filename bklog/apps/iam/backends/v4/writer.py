@@ -4,11 +4,11 @@ from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
 
-from django.conf import settings
 from django.utils import timezone
 
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.config import V4Options
+from apps.iam.grant_config import AuthorizationGrantConfig
 from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
@@ -45,9 +45,10 @@ class V4AuthorizationWriter:
         if role_id is None:
             raise UnsupportedV4GrantResource(f"unsupported IAM V4 creator grant resource type: {resource_type}")
 
-        frozen_expired_at = expired_at or int(
-            (timezone.now() + timedelta(days=settings.BK_IAM_V4_GRANT_EXPIRE_DAYS)).timestamp()
-        )
+        frozen_expired_at = expired_at
+        if not frozen_expired_at:
+            grant_config = AuthorizationGrantConfig.from_settings()
+            frozen_expired_at = int((timezone.now() + timedelta(days=grant_config.v4_expire_days)).timestamp())
         item = {
             "subject": {"type": "user", "id": str(application["creator"])},
             "role_id": role_id,
