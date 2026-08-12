@@ -8,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
-import time
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -44,6 +42,10 @@ class GetHostProcessPortStatusResource(Resource):
         bk_target_cloud_id = serializers.CharField(required=False)
         display_name = serializers.CharField(required=False)
         bk_host_id = serializers.IntegerField(required=False)
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束查询区间，
+        # 不传则保持默认"最近五分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
         # 主机场景，以关联资源身份请求
         def validate_bk_biz_id(self, value):
@@ -58,53 +60,42 @@ class GetHostProcessPortStatusResource(Resource):
             if not hosts:
                 return []
             host = hosts[0]
-            ip, bk_cloud_id = host.bk_host_innerip, host.bk_cloud_id
         else:
-            ip, bk_cloud_id = params["bk_target_ip"], params["bk_target_cloud_id"]
+            hosts = api.cmdb.get_host_by_ip(
+                bk_biz_id=params["bk_biz_id"],
+                ips=[{"ip": params["bk_target_ip"], "bk_cloud_id": int(params["bk_target_cloud_id"])}],
+            )
+            if not hosts:
+                return []
+            host = hosts[0]
 
-        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        promql_statement = (
-            f"system:proc_port:proc_exists{{bk_target_ip='{ip}', "
-            f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
+        # 改用 get_process_port_health 获取端口健康状态
+        # 返回 {bk_host_id: {display_name: 0/1}}，其中 0=Normal(健康), 1=Abnormal(异常)
+        port_health_result = resource.cc.get_process_port_health(
+            bk_biz_id=params["bk_biz_id"],
+            hosts=[host],
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
         )
-        query_config = {"promql": promql_statement, "interval": 60}
-        data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
-        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
-        # 取最近5分钟的数据
-        end_time = int(time.time())
-        start_time = end_time - 300
-        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000)
-        if not data:
-            return []
-        else:
-            data: list[dict] = data
 
-        # 不同状态的展示信息
+        host_status = port_health_result.get(host.bk_host_id, {})
+        status_value = host_status.get(params.get("display_name"))
+
+        if status_value is None:
+            return []
+
+        # get_process_port_health 返回 0=Normal, 1=Abnormal
+        # 反转为 1=正常, 0=异常
+        status = 1 - status_value
+
+        # 状态映射：1=正常, 0=异常
         status_mapping = {
-            "listen": {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
-            "nonlisten": {"statusBgColor": "#f0f1f5", "statusColor": "#c4c6cc", "name": _("停用")},
-            "not_accurate_listen": {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
+            1: {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
+            # "nonlisten": {"statusBgColor": "#f0f1f5", "statusColor": "#c4c6cc", "name": _("停用")},
+            0: {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
         }
-        port_latest_map: dict[str, tuple[int, str]] = {}
-        for item_data in data:
-            for key in status_mapping.keys():
-                ports = json.loads(item_data[key])
-                if not ports:
-                    continue
-                for port in ports:
-                    if key == "not_accurate_listen":
-                        # not_accurate_listen 字段格式：IP:PORT
-                        actual_port = port.rsplit(":", 1)[-1]
-                    else:
-                        actual_port = port
-                    # 取每个端口最新的一条数据
-                    _time = item_data.get("_time_", 0)
-                    if str(actual_port) not in port_latest_map or _time > port_latest_map[str(actual_port)][0]:
-                        port_latest_map[str(actual_port)] = (_time, key)
-        result: list[dict] = []
-        for actual_port, (_time, key) in port_latest_map.items():
-            result.append({"value": str(actual_port), **status_mapping[key]})
-        return result
+
+        return [{"value": str(status), **status_mapping[status]}]
 
 
 class GetHostOrTopoNodeDetailResource(ApiAuthResource):
