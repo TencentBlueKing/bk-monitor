@@ -386,10 +386,17 @@ def test_invalid_score_falls_back_without_dropping_kpi_anomaly(score):
     AIOPS_SAS_WARNING_THRESHOLD=0.5,
 )
 @pytest.mark.parametrize(
-    ("response", "expected_reason"),
-    [([], "missing_result"), ({"result": True, "data": []}, "invalid_response"), (None, "invalid_response")],
+    ("response", "expected_reason", "expected_client_status"),
+    [
+        ([], "missing_result", "success"),
+        ({"result": True, "data": []}, "invalid_response", "invalid_response"),
+        (None, "invalid_response", "invalid_response"),
+    ],
 )
-def test_invalid_response_falls_back_without_dropping_kpi_anomaly(response, expected_reason):
+def test_invalid_response_falls_back_without_dropping_kpi_anomaly(
+    monkeypatch, response, expected_reason, expected_client_status
+):
+    recorders = patch_sas_metrics(monkeypatch)
     item = make_item()
     point = make_point(item, "host-a", 1_780_000_000)
     detector = make_detector()
@@ -403,6 +410,8 @@ def test_invalid_response_falls_back_without_dropping_kpi_anomaly(response, expe
     assert level_msg["alert_level"] == 2
     assert level_msg["status"] == "fallback"
     assert level_msg["reason"] == expected_reason
+    assert increment_total(recorders["AIOPS_SAS_CLIENT_REQUEST_COUNT"], status=expected_client_status) == 1
+    assert recorders["AIOPS_SAS_CLIENT_REQUEST_LATENCY"].observations[0][0] == {"status": expected_client_status}
 
 
 @override_settings(
@@ -472,6 +481,8 @@ def test_sas_batch_budget_returns_without_waiting_for_all_dimension_groups(monke
     try:
         anomaly_points = detector.detect_records(points, 2)
         elapsed = time.monotonic() - started_at
+        client_increments_at_return = list(recorders["AIOPS_SAS_CLIENT_REQUEST_COUNT"].increments)
+        client_observations_at_return = list(recorders["AIOPS_SAS_CLIENT_REQUEST_LATENCY"].observations)
     finally:
         release_request.set()
         request_finished.wait(timeout=1)
@@ -484,6 +495,10 @@ def test_sas_batch_budget_returns_without_waiting_for_all_dimension_groups(monke
     ] == ["batch_timeout", "batch_timeout"]
     assert recorders["AIOPS_SAS_BATCH_REQUEST_COUNT"].observations == [({}, 1)]
     assert increment_total(recorders["AIOPS_SAS_FALLBACK_COUNT"], reason="batch_timeout") == 2
+    assert sum(value for labels, value in client_increments_at_return if labels == {"status": "batch_timeout"}) == 1
+    assert client_observations_at_return[0][0] == {"status": "batch_timeout"}
+    assert recorders["AIOPS_SAS_CLIENT_REQUEST_COUNT"].increments == client_increments_at_return
+    assert recorders["AIOPS_SAS_CLIENT_REQUEST_LATENCY"].observations == client_observations_at_return
 
 
 @override_settings(

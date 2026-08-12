@@ -409,13 +409,13 @@ AIOPS_SAS_REQUEST_POINT_COUNT = Histogram(
 
 AIOPS_SAS_CLIENT_REQUEST_COUNT = Counter(
     name="bkmonitor_aiops_sas_client_request_count_total",
-    documentation="SAS 客户端实际调用统计",
+    documentation="SAS 客户端实际调用统计，batch_timeout 表示调用未在批次预算内完成",
     labelnames=("status",),
 )
 
 AIOPS_SAS_CLIENT_REQUEST_LATENCY = Histogram(
     name="bkmonitor_aiops_sas_client_request_latency",
-    documentation="SAS 客户端实际调用耗时，不包含线程池调度时间",
+    documentation="SAS 客户端实际调用耗时，不包含线程池调度时间；batch_timeout 记录批次截止时已观测耗时",
     labelnames=("status",),
     buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
 )

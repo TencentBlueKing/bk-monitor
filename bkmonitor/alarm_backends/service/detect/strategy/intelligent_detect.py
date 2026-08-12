@@ -299,33 +299,44 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
             return "api_error", "api_error"
         return "unexpected_error", "request_failed"
 
-    def _call_sas_predict(self, item, request_kwargs):
+    def _call_sas_predict(self, request_kwargs, request_state):
+        # 调用可能晚于 detect 任务结束；工作线程只返回观测结果，由主线程在指标统一上报前完成结算。
         started_at = time.monotonic()
-        status = "success"
+        request_state["started_at"] = started_at
         try:
-            return self.SAS_PREDICT_FUNC(**request_kwargs)
+            response = self.SAS_PREDICT_FUNC(**request_kwargs)
         except Exception as error:
             status, _reason = self._classify_sas_request_error(error)
-            raise
-        finally:
-            try:
-                metrics.AIOPS_SAS_CLIENT_REQUEST_COUNT.labels(status=status).inc()
-                metrics.AIOPS_SAS_CLIENT_REQUEST_LATENCY.labels(status=status).observe(time.monotonic() - started_at)
-            except Exception as error:
-                logger.warning(
-                    "strategy(%s) report SAS client request metrics failed: %s",
-                    item.strategy.id,
-                    error.__class__.__name__,
-                )
+            return None, error, status, time.monotonic() - started_at
+
+        status = "success" if isinstance(response, list) else "invalid_response"
+        return response, None, status, time.monotonic() - started_at
+
+    @staticmethod
+    def _report_sas_client_metrics(item, status, latency):
+        try:
+            metrics.AIOPS_SAS_CLIENT_REQUEST_COUNT.labels(status=status).inc()
+            metrics.AIOPS_SAS_CLIENT_REQUEST_LATENCY.labels(status=status).observe(latency)
+        except Exception as error:
+            logger.warning(
+                "strategy(%s) report SAS client request metrics failed: %s",
+                item.strategy.id,
+                error.__class__.__name__,
+            )
 
     def _consume_sas_future(self, item, future, group_points, submitted_at):
         try:
-            response = future.result()
+            response, request_error, client_status, client_latency = future.result()
         except Exception as error:
-            _status, reason = self._classify_sas_request_error(error)
+            request_error = error
+            client_status, _reason = self._classify_sas_request_error(error)
+            client_latency = time.monotonic() - submitted_at
+
+        if request_error is not None:
+            _status, reason = self._classify_sas_request_error(request_error)
             for anomaly_point in group_points:
                 self._set_fallback(anomaly_point, reason)
-            logger.warning("strategy(%s) SAS predict failed: %s", item.strategy.id, error.__class__.__name__)
+            logger.warning("strategy(%s) SAS predict failed: %s", item.strategy.id, request_error.__class__.__name__)
         else:
             try:
                 self._apply_sas_response(group_points, response)
@@ -333,15 +344,16 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 for anomaly_point in group_points:
                     self._set_fallback(anomaly_point, "request_failed")
                 logger.warning("strategy(%s) apply SAS response failed: %s", item.strategy.id, error.__class__.__name__)
-        finally:
-            try:
-                self._report_sas_request_metrics(group_points, time.monotonic() - submitted_at)
-            except Exception as error:
-                logger.warning(
-                    "strategy(%s) report SAS request metrics failed: %s",
-                    item.strategy.id,
-                    error.__class__.__name__,
-                )
+
+        self._report_sas_client_metrics(item, client_status, client_latency)
+        try:
+            self._report_sas_request_metrics(group_points, time.monotonic() - submitted_at)
+        except Exception as error:
+            logger.warning(
+                "strategy(%s) report SAS request metrics failed: %s",
+                item.strategy.id,
+                error.__class__.__name__,
+            )
 
     @staticmethod
     def _report_feature_metrics(mode, input_point_count, anomaly_point_count):
@@ -436,8 +448,9 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 group_points, request_kwargs = requests_to_submit[next_request_index]
                 next_request_index += 1
                 submitted_at = time.monotonic()
-                future = executor.submit(self._call_sas_predict, item, request_kwargs)
-                pending[future] = (group_points, submitted_at)
+                request_state = {}
+                future = executor.submit(self._call_sas_predict, request_kwargs, request_state)
+                pending[future] = (group_points, submitted_at, request_state)
                 request_count += 1
 
         try:
@@ -452,16 +465,24 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                 if not done:
                     break
                 for future in done:
-                    group_points, submitted_at = pending.pop(future)
+                    group_points, submitted_at, _request_state = pending.pop(future)
                     self._consume_sas_future(item, future, group_points, submitted_at)
                 submit_requests()
 
-            for future, (group_points, submitted_at) in pending.items():
+            for future, (group_points, submitted_at, request_state) in pending.items():
+                if future.done():
+                    self._consume_sas_future(item, future, group_points, submitted_at)
+                    continue
                 for anomaly_point in group_points:
                     self._set_fallback(anomaly_point, "batch_timeout")
                 if future.cancel():
                     request_count -= 1
                 else:
+                    self._report_sas_client_metrics(
+                        item,
+                        "batch_timeout",
+                        time.monotonic() - request_state.get("started_at", submitted_at),
+                    )
                     try:
                         self._report_sas_request_metrics(group_points, time.monotonic() - submitted_at)
                     except Exception as error:
