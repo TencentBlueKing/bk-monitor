@@ -15,9 +15,9 @@ from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
-from bkmonitor.data_source.constants import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
 
 from rum_web.constants import RUM_FIELD_ALIAS
 

@@ -16,7 +16,7 @@ from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.data_source.utils import types
-from bkmonitor.data_source.constants import FieldTypeEnum
+from constants.otel_query import FieldTypeEnum
 
 
 class BaseQuery:
@@ -372,7 +372,7 @@ class BaseQuery:
         for mapping in reversed(cls.FIELD_ALIAS_MAP_LIST):
             if field_name in mapping:
                 return mapping[field_name]
-        return ""
+        return field_name
 
     def _query_fields(
         self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int, end_time: int

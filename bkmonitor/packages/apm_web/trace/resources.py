@@ -53,7 +53,7 @@ from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
-from bkmonitor.data_source.constants import OperatorEnum
+from constants.otel_query import OperatorEnum
 from constants.apm import (
     CallSide,
     OperatorGroupRelation,

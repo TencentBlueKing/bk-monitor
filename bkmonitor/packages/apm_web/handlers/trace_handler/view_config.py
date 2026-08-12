@@ -24,9 +24,9 @@ from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
 from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.handlers.trace_handler.query import TraceQueryTransformer
 from apm_web.trace.constants import TRACE_FIELD_ALIAS
-from bkmonitor.data_source.constants import FIELD_OPERATIONS
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
+from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
 from core.drf_resource import api
 from packages.apm_web.trace.constants import EnabledStatisticsDimension
 
@@ -126,6 +126,8 @@ class TraceFieldsInfoHandler:
 class TraceFieldsHandler:
     """Trace 检索页面字段相关处理"""
 
+    FIELD_ALIAS_MAP_LIST: list[dict[str, str]] = [OTEL_SPAN_COMMON_FIELD_ALIAS, TRACE_FIELD_ALIAS]
+
     def __init__(self, bk_biz_id: int, app_name: str, username: str = ""):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
@@ -174,7 +176,10 @@ class TraceFieldsHandler:
     def get_field_alias(self, field_name: str) -> str:
         """获取字段别名"""
         field_name: str = TraceQueryTransformer.to_common_field(field_name)
-        return TRACE_FIELD_ALIAS.get(field_name) or field_name
+        for mapping in reversed(self.FIELD_ALIAS_MAP_LIST):
+            if field_name in mapping:
+                return mapping[field_name]
+        return field_name
 
     def get_field_type(self, mode: QueryMode, field_name: str) -> str:
         """获取字段类型"""
