@@ -78,15 +78,17 @@ export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo):
   const metricWithDefault = (metric ?? {}) as IHostMetricInfo;
   const modules = row.module || [];
   const bkClusters = extractClusters(modules);
+  const rowId = String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`);
   const totalAlarmCount = (metricWithDefault.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
   return {
     ...(row ?? {}),
     ...(metricWithDefault ?? {}),
+    id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
     processNames: (metricWithDefault.component || []).map(c => c.display_name).join(','),
-    rowId: String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`),
+    rowId,
     totalAlarmCount,
   };
 };
@@ -151,6 +153,15 @@ const getRowFieldValues = (row: IHostListRow, key: string): (number | string)[] 
   }
 };
 
+const getNumericValue = (row: IHostListRow, key: string): null | number => {
+  const value = key === 'alarm_count' ? row.totalAlarmCount : row[key as keyof IHostListRow];
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? null : numericValue;
+};
+
 const matchWhereItem = (row: IHostListRow, item: IWhereItem): boolean => {
   const values = item.value || [];
   if (!values.length) {
@@ -158,10 +169,13 @@ const matchWhereItem = (row: IHostListRow, item: IWhereItem): boolean => {
   }
   const method = item.method || 'eq';
   if (HOST_NUMBER_FILTER_FIELDS.has(item.key)) {
-    const origin = item.key === 'alarm_count' ? row.totalAlarmCount : Number(row[item.key as keyof IHostListRow] ?? 0);
+    const origin = getNumericValue(row, item.key);
     const target = Number(values[0]);
     if (Number.isNaN(target)) {
       return true;
+    }
+    if (origin === null) {
+      return false;
     }
     switch (method) {
       case 'gt':
@@ -226,7 +240,7 @@ export const sortRows = (rows: IHostListRow[], sort: string, stickyValue?: Recor
   }
   const descending = sort?.startsWith('-');
   const key = (descending ? sort.slice(1) : sort) as keyof IHostListRow;
-  const getValue = (row: IHostListRow) => (key === 'alarm_count' ? row.totalAlarmCount : Number(row[key] ?? 0));
+  const getValue = (row: IHostListRow) => getNumericValue(row, key);
   return [...rows].sort((a, b) => {
     if (stickyValue) {
       const aSticky = stickyValue[a.rowId] ? 1 : 0;
@@ -236,7 +250,15 @@ export const sortRows = (rows: IHostListRow[], sort: string, stickyValue?: Recor
       }
     }
     if (sort) {
-      return descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
+      const aValue = getValue(a);
+      const bValue = getValue(b);
+      if (aValue === null || bValue === null) {
+        if (aValue === bValue) {
+          return 0;
+        }
+        return aValue === null ? 1 : -1;
+      }
+      return descending ? bValue - aValue : aValue - bValue;
     }
     return 0;
   });
