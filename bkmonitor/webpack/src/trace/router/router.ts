@@ -30,7 +30,8 @@ import alarmShield from './modules/alarm-shield';
 import Report from './modules/email-subscription';
 import failureRoutes from './modules/failure';
 import homeRoutes from './modules/home';
-import hostRoutes from './modules/host';
+// TODO(story=137075720): 临时隐藏新版主机监控，恢复上线时取消注释，避免 host 页面打入构建产物
+// import hostRoutes from './modules/host';
 import profilingRoutes from './modules/profiling';
 import rotationRoutes from './modules/rotation';
 import rumRoutes from './modules/rum';
@@ -47,7 +48,7 @@ const router = createRouter({
       ...Report,
       ...failureRoutes,
       ...alarmCenterRoutes,
-      ...hostRoutes,
+      // ...hostRoutes,
     ].map(item => ({
       ...item,
       path: `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}${item.path}`.replace(/\/\//gim, '/'),

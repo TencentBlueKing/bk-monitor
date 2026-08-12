@@ -55,6 +55,7 @@ import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
 import type { AlertSavePromiseEvent } from '../../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
 import type { IssueDetail } from '../../../typing';
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 
 import './issues-detail-alarm-table.scss';
@@ -246,7 +247,7 @@ export default defineComponent({
     };
 
     // 显示告警详情
-    const handleShowAlertDetail = (row: AlertTableItem, defaultTab?: string) => {
+    const handleShowAlertDetail = (row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) => {
       emit('showAlertDetail', row.id, defaultTab);
     };
 

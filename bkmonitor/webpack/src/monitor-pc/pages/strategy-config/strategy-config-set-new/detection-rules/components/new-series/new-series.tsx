@@ -57,6 +57,8 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
     level: 1,
     /** 告警阈值 */
     threshold: 0,
+    /** 告警状态生命周期 */
+    alertMode: 'once',
     /** 时间 */
     date: 1,
     /** 时间单位 */
@@ -76,6 +78,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
         max_series: 100000,
         detect_range: detectRange,
         threshold: Number(this.formData.threshold),
+        alert_mode: this.formData.alertMode,
       },
     };
   }
@@ -119,6 +122,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
         trigger: 'change',
       },
     ],
+    alertMode: [{ required: true, message: this.$t('必填项'), trigger: 'change' }],
   };
 
   get unitList() {
@@ -160,6 +164,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
       this.formData = {
         level: this.data.level,
         threshold: this.data.config?.threshold ?? 0,
+        alertMode: this.data.config?.alert_mode ?? 'once',
         date: Math.max(1, Math.round(detectRange / unit.seconds)),
         unit: unit.id,
       };
@@ -238,6 +243,30 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 </bk-option>
               ))}
             </bk-select>
+          </bk-form-item>
+          <bk-form-item
+            label={this.$t('告警保持方式')}
+            property='alertMode'
+            required
+          >
+            <bk-radio-group
+              v-model={this.formData.alertMode}
+              onChange={this.emitLocalData}
+            >
+              <bk-radio
+                disabled={this.readonly}
+                value='once'
+              >
+                {this.$t('仅首次出现时告警')}
+              </bk-radio>
+              <bk-radio
+                disabled={this.readonly}
+                value='continuous'
+              >
+                {this.$t('维度持续出现时保持告警')}
+              </bk-radio>
+            </bk-radio-group>
+            <div class='threshold-tip'>{this.$t('持续模式只影响告警保持和结束时间，不改变通知设置。')}</div>
           </bk-form-item>
           <bk-form-item
             error-display-type='normal'

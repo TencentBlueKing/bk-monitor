@@ -1096,25 +1096,132 @@ class TestProcessor(TestCase):
         builder.send_signal(block_alerts)
         self.assertEqual(composite_patch.call_count, len(normal_alerts))
 
-    def test_alert_qos_unblocked(self):
-        alert = Alert.from_event(
-            Event(
+    @staticmethod
+    def make_new_series_event(level, severity, event_time):
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        strategy = {
+            "bk_biz_id": 2,
+            "items": [
                 {
-                    "strategy_id": 1,
-                    "event_id": 1,
-                    "plugin_id": "fta-test",
-                    "alert_name": "CPU usage high",
-                    "time": 1617504052,
-                    "tags": [{"key": "device", "value": "cpu0"}],
-                    "severity": 1,
-                    "target": "127.0.0.1",
-                    "dedupe_keys": ["alert_name", "target"],
+                    "id": 1,
+                    "query_configs": [
+                        {
+                            "agg_dimension": ["device"],
+                            "data_source_label": "bk_monitor",
+                            "data_type_label": "time_series",
+                        }
+                    ],
+                    "algorithms": [
+                        {
+                            "type": "NewSeries",
+                            "level": level,
+                            "config": {
+                                "alert_mode": "continuous",
+                                "detect_range": 60,
+                                "threshold": 0,
+                            },
+                        }
+                        for level in (2, 3)
+                    ],
                 }
-            )
+            ],
+        }
+        return Event(
+            {
+                "strategy_id": 1,
+                "bk_biz_id": 2,
+                "event_id": f"{fingerprint}.{event_time}.1.1.{level}",
+                "plugin_id": "fta-test",
+                "alert_name": "CPU usage high",
+                "time": event_time,
+                "tags": [{"key": "device", "value": "cpu0"}],
+                "severity": severity,
+                "target": "127.0.0.1",
+                "dedupe_keys": ["alert_name", "target"],
+                "extra_info": {"strategy": strategy},
+            }
         )
-        self.assertFalse(alert.is_blocked)
 
-        alert.update_qos_status(True)
-        alert._is_new = False
-        alert = AlertBuilder().alert_qos_handle(alert)
-        self.assertEqual(alert.status, "CLOSED")
+    def test_alert_qos_unblocked_transfers_same_new_series_lifecycle_to_successor(self):
+        old_alert = Alert.from_event(self.make_new_series_event(level=2, severity=2, event_time=1617504052))
+        old_alert.data["is_blocked"] = True
+        old_alert._is_new = False
+        successor_event = self.make_new_series_event(level=2, severity=2, event_time=1617504112)
+        builder = AlertBuilder()
+        builder.circuit_breaking_manager = mock.Mock()
+        builder.circuit_breaking_manager.is_circuit_breaking.return_value = False
+
+        with (
+            mock.patch.object(builder, "get_current_alerts", return_value={successor_event.dedupe_md5: old_alert}),
+            mock.patch.object(old_alert, "check_circuit_breaking", return_value=False),
+            mock.patch.object(
+                old_alert,
+                "qos_check",
+                return_value={"is_blocked": False, "message": "告警流控已解除"},
+            ),
+            mock.patch.object(old_alert, "set_end_status", wraps=old_alert.set_end_status) as set_end_status,
+        ):
+            builder.build_alerts([successor_event])
+
+        self.assertTrue(set_end_status.call_args.kwargs["preserve_new_series_lifecycle"])
+
+    def test_alert_circuit_breaking_transfers_same_new_series_lifecycle_to_successor(self):
+        old_alert = Alert.from_event(self.make_new_series_event(level=2, severity=2, event_time=1617504052))
+        old_alert.data["is_blocked"] = False
+        old_alert._is_new = False
+        successor_event = self.make_new_series_event(level=2, severity=2, event_time=1617504112)
+        builder = AlertBuilder()
+        builder.circuit_breaking_manager = mock.Mock()
+        builder.circuit_breaking_manager.is_circuit_breaking.return_value = False
+
+        with (
+            mock.patch.object(builder, "get_current_alerts", return_value={successor_event.dedupe_md5: old_alert}),
+            mock.patch.object(old_alert, "check_circuit_breaking", return_value=True),
+            mock.patch.object(old_alert, "set_end_status", wraps=old_alert.set_end_status) as set_end_status,
+        ):
+            builder.build_alerts([successor_event])
+
+        self.assertTrue(set_end_status.call_args.kwargs["preserve_new_series_lifecycle"])
+
+    def test_alert_circuit_breaking_terminates_lifecycle_when_successor_level_changes(self):
+        old_alert = Alert.from_event(self.make_new_series_event(level=3, severity=3, event_time=1617504052))
+        old_alert.data["is_blocked"] = False
+        old_alert._is_new = False
+        successor_event = self.make_new_series_event(level=2, severity=2, event_time=1617504112)
+        builder = AlertBuilder()
+        builder.circuit_breaking_manager = mock.Mock()
+        builder.circuit_breaking_manager.is_circuit_breaking.return_value = False
+
+        with (
+            mock.patch.object(builder, "get_current_alerts", return_value={successor_event.dedupe_md5: old_alert}),
+            mock.patch.object(old_alert, "check_circuit_breaking", return_value=True),
+            mock.patch.object(old_alert, "set_end_status", wraps=old_alert.set_end_status) as set_end_status,
+        ):
+            builder.build_alerts([successor_event])
+
+        self.assertFalse(set_end_status.call_args.kwargs["preserve_new_series_lifecycle"])
+
+    def test_alert_severity_upgrade_terminates_old_level_lifecycle(self):
+        old_alert = Alert.from_event(self.make_new_series_event(level=3, severity=3, event_time=1617504052))
+        old_alert.data["is_blocked"] = False
+        old_alert._is_new = False
+        successor_event = self.make_new_series_event(level=2, severity=2, event_time=1617504112)
+        builder = AlertBuilder()
+        builder.circuit_breaking_manager = None
+
+        with (
+            mock.patch.object(builder, "get_current_alerts", return_value={successor_event.dedupe_md5: old_alert}),
+            mock.patch(
+                "alarm_backends.service.alert.manager.checker.utils.terminate_new_series_lifecycle_state"
+            ) as terminate_lifecycle,
+        ):
+            builder.build_alerts([successor_event])
+
+        terminate_lifecycle.assert_called_once_with(old_alert)
+
+    def test_terminal_successor_event_cannot_take_over_new_series_lifecycle(self):
+        old_alert = Alert.from_event(self.make_new_series_event(level=2, severity=2, event_time=1617504052))
+        successor_event = self.make_new_series_event(level=2, severity=2, event_time=1617504112)
+        successor_event.data["status"] = "RECOVERED"
+
+        self.assertFalse(AlertBuilder.is_same_new_series_lifecycle(old_alert, successor_event))

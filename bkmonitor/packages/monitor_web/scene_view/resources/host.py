@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
 import time
 from urllib.parse import urljoin
@@ -44,8 +43,10 @@ class GetHostProcessPortStatusResource(Resource):
         bk_target_cloud_id = serializers.CharField(required=False)
         display_name = serializers.CharField(required=False)
         bk_host_id = serializers.IntegerField(required=False)
-        start_time = serializers.IntegerField(required=False)
-        end_time = serializers.IntegerField(required=False)
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束查询区间，
+        # 不传则保持默认"最近五分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
         # 主机场景，以关联资源身份请求
         def validate_bk_biz_id(self, value):
@@ -60,53 +61,41 @@ class GetHostProcessPortStatusResource(Resource):
             if not hosts:
                 return []
             host = hosts[0]
-            ip, bk_cloud_id = host.bk_host_innerip, host.bk_cloud_id
         else:
-            ip, bk_cloud_id = params["bk_target_ip"], params["bk_target_cloud_id"]
+            hosts = api.cmdb.get_host_by_ip(
+                bk_biz_id=params["bk_biz_id"],
+                ips=[{"ip": params["bk_target_ip"], "bk_cloud_id": int(params["bk_target_cloud_id"])}],
+            )
+            if not hosts:
+                return []
+            host = hosts[0]
 
-        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        promql_statement = (
-            f"system:proc_port:proc_exists{{bk_target_ip='{ip}', "
-            f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
-        )
-        query_config = {"promql": promql_statement, "interval": 60}
-        data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
-        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
-        # 取选中时点前最近5分钟的数据；前端传秒，UQ 查询使用毫秒。
+        # 端口健康是进程级指标；图表按同名 CMDB 进程的端口展开，端口共享该进程的健康状态。
         end_time = int(params.get("end_time") or time.time())
         start_time = max(int(params.get("start_time") or end_time - 300), end_time - 300)
-        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000)
-        if not data:
-            return []
-        else:
-            data: list[dict] = data
-
-        # 不同状态的展示信息
-        status_mapping = {
-            "listen": {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
-            "nonlisten": {"statusBgColor": "#f0f1f5", "statusColor": "#c4c6cc", "name": _("停用")},
-            "not_accurate_listen": {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
+        query_params = {
+            "bk_biz_id": params["bk_biz_id"],
+            "hosts": [host],
+            "start_time": start_time,
+            "end_time": end_time,
         }
-        port_latest_map: dict[str, tuple[int, str]] = {}
-        for item_data in data:
-            for key in status_mapping.keys():
-                ports = json.loads(item_data[key])
-                if not ports:
-                    continue
-                for port in ports:
-                    if key == "not_accurate_listen":
-                        # not_accurate_listen 字段格式：IP:PORT
-                        actual_port = port.rsplit(":", 1)[-1]
-                    else:
-                        actual_port = port
-                    # 取每个端口最新的一条数据
-                    _time = item_data.get("_time_", 0)
-                    if str(actual_port) not in port_latest_map or _time > port_latest_map[str(actual_port)][0]:
-                        port_latest_map[str(actual_port)] = (_time, key)
-        result: list[dict] = []
-        for actual_port, (_time, key) in port_latest_map.items():
-            result.append({"value": str(actual_port), **status_mapping[key]})
-        return result
+        port_health_result = resource.cc.get_process_port_health(**query_params)
+        process_result = resource.cc.get_process_info(**query_params, limit_port_num=0)
+        health = port_health_result.get(host.bk_host_id, {}).get(params["display_name"])
+        if health is None:
+            return []
+
+        status_mapping = {
+            0: {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
+            1: {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
+        }
+        ports = {
+            str(port)
+            for process in process_result.get(host.bk_host_id, [])
+            if process["name"] == params["display_name"]
+            for port in process["ports"]
+        }
+        return [{"value": port, **status_mapping[health]} for port in sorted(ports)]
 
 
 class GetHostOrTopoNodeDetailResource(ApiAuthResource):
@@ -477,6 +466,9 @@ class GetHostProcessListResource(Resource):
         start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
         end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
     def perform_request(self, params):
         if not params.get("bk_host_id") and (
             not params.get("bk_target_ip") or params.get("bk_target_cloud_id") is None
@@ -567,13 +559,12 @@ class GetHostProcessListResource(Resource):
                 "user": process.get("user"),
                 "hostIp": host.ip,
                 # Performance / resource metrics from system.proc (TSDB only)
-                # 百数字段（cpuUsage/memUsage/fdUsageRate）返回的是比值（0~1）而非百分数，
-                # 前端展示为 % 时需自行 *100
+                # 比值/百分比类指标做精度限制，绝对值类（字节/秒/计数）原样返回
                 "cpuUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"])),
-                "memRss": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"])),
+                "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
                 "memUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])),
-                "uptime": _round_metric(host_uptime.get(process["name"])),
-                "fdNum": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])),
+                "uptime": host_uptime.get(process["name"]),
+                "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
                 # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
                 "fdUsageRate": (
                     round(fd_num / fd_limit, settings.POINT_PRECISION)

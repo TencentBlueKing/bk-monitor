@@ -26,7 +26,6 @@
 
 import { applyGuidePage } from '../../common';
 import * as performanceAuth from '../../pages/performance/authority-map';
-import { beforeEnter } from '../utils';
 
 import type { RouteConfig } from 'vue-router';
 
@@ -34,7 +33,9 @@ const Performance = () => import(/* webpackChunkName: 'Performance' */ '../../pa
 const PerformanceDetail = () =>
   import(/* webpackChunkName: 'PerformanceDetail' */ '../../pages/performance/performance-detail/performance-detail');
 
-const Host = () => import(/* webpackChunkName: 'Host' */ '../../pages/host/host');
+// TODO(story=137075720): 临时隐藏新版主机监控，恢复上线时取消注释，避免 Host 页面打入构建产物
+// import { beforeEnter } from '../utils';
+// const Host = () => import(/* webpackChunkName: 'Host' */ '../../pages/host/host');
 
 export default applyGuidePage(
   [
@@ -59,29 +60,30 @@ export default applyGuidePage(
         noNavBar: true,
       },
     },
-    {
-      path: '/trace/host/:id?',
-      name: 'host',
-      components: {
-        noCache: Host,
-      },
-      // navId 保持 host；引导数据复用 performance，进入前单独拉取 introduce
-      beforeEnter: (_to, _from, next) => beforeEnter('performance', next),
-      meta: {
-        title: '主机监控',
-        navId: 'host',
-        navClass: 'host-retrieval-nav',
-        noChangeLoading: true,
-        noNavBar: true,
-        route: {
-          parent: 'scenes',
-        },
-        authority: {
-          map: performanceAuth,
-          page: performanceAuth.VIEW_AUTH,
-        },
-      },
-    },
+    // TODO(story=137075720): 临时隐藏新版主机监控路由，恢复上线时取消注释
+    // {
+    //   path: '/trace/host/:id?',
+    //   name: 'host',
+    //   components: {
+    //     noCache: Host,
+    //   },
+    //   // navId 保持 host；引导数据复用 performance，进入前单独拉取 introduce
+    //   beforeEnter: (_to, _from, next) => beforeEnter('performance', next),
+    //   meta: {
+    //     title: '主机监控',
+    //     navId: 'host',
+    //     navClass: 'host-retrieval-nav',
+    //     noChangeLoading: true,
+    //     noNavBar: true,
+    //     route: {
+    //       parent: 'scenes',
+    //     },
+    //     authority: {
+    //       map: performanceAuth,
+    //       page: performanceAuth.VIEW_AUTH,
+    //     },
+    //   },
+    // },
     {
       path: '/performance/detail/:id/:process?',
       name: 'performance-detail',
@@ -129,5 +131,6 @@ export default applyGuidePage(
       },
     },
   ] as RouteConfig[],
-  ['host']
+  // TODO(story=137075720): 恢复新版主机监控时改回 ['host']
+  []
 );

@@ -341,6 +341,57 @@ class TestGetHostPerformanceData:
         # io_util 配置了 ratio=100，最终结果应放大
         assert result[HOSTS[0].bk_host_id]["io_util"] == 4250.0
 
+    def test_empty_hosts_skip_metric_queries(self, mocker):
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+
+        assert resource.cc.get_host_performance_data(bk_biz_id=2, hosts=[]) == {}
+        unify_query.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("hosts", "ipv6_biz_ids", "expected_fields", "expected_connectors"),
+        [
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [],
+                [
+                    {
+                        "field_name": "bk_target_ip",
+                        "value": [HOSTS[0].bk_host_innerip, HOSTS[3].bk_host_innerip],
+                        "op": "contains",
+                    },
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[0].bk_cloud_id)], "op": "contains"},
+                    {"field_name": "bk_target_ip", "value": [HOSTS[1].bk_host_innerip], "op": "contains"},
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[1].bk_cloud_id)], "op": "contains"},
+                ],
+                ["and", "or", "and"],
+            ),
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [2],
+                [{"field_name": "bk_host_id", "value": ["1", "2", "4"], "op": "contains"}],
+                [],
+            ),
+            ([HOSTS[2]], [], [], []),
+        ],
+    )
+    def test_query_filters_are_compiled_for_requested_hosts(
+        self, mocker, settings, hosts, ipv6_biz_ids, expected_fields, expected_connectors
+    ):
+        settings.IPV6_SUPPORT_BIZ_LIST = ipv6_biz_ids
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.query_data.return_value = []
+
+        resource.cc.get_host_performance_data(bk_biz_id=2, hosts=hosts)
+
+        assert unify_query.call_count == 6
+        for call in unify_query.call_args_list:
+            data_source = call.kwargs["data_sources"][0]
+            query_config = data_source.to_unify_query_config()[0]
+            assert query_config["conditions"] == {
+                "field_list": expected_fields,
+                "condition_list": expected_connectors,
+            }
+
 
 class TestGetProcessStatus:
     """
@@ -393,3 +444,33 @@ class TestGetProcessStatus:
         assert result[HOSTS[1].bk_host_id]["redis"] == AGENT_STATUS.OFF
         # _result_ 为 None 的记录被跳过，不写入任何状态
         assert "nginx" not in result.get(HOSTS[1].bk_host_id, {})
+
+
+class TestGetProcessMetrics:
+    """测试进程列表指标的 UnifyQuery 构造语义。"""
+
+    def test_runtime_and_instance_count_use_instant_cross_series_aggregation(self, mocker):
+        query_configs = {}
+
+        def capture_query_config(query, *args, **kwargs):
+            for query_config in query.data_sources[0].to_unify_query_config():
+                query_configs[query_config["field_name"]] = query_config
+            return []
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=capture_query_config)
+
+        resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
+        runtime_query_configs = query_configs.copy()
+
+        expected_dimensions = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
+        runtime_fields = {"cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"}
+        assert runtime_fields == runtime_query_configs.keys()
+        for field in runtime_fields:
+            assert runtime_query_configs[field]["time_aggregation"] == {}
+            assert runtime_query_configs[field]["function"] == [{"method": "sum", "dimensions": expected_dimensions}]
+
+        query_configs.clear()
+        resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
+        instance_count_config = query_configs["cpu_usage_pct"]
+        assert instance_count_config["time_aggregation"] == {}
+        assert instance_count_config["function"] == [{"method": "count", "dimensions": expected_dimensions}]

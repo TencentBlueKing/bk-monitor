@@ -72,6 +72,42 @@ export const getTargetElement = (
   return (target as Ref<HTMLElement>)?.value;
 };
 
+type LayoutReadTask = () => (() => void) | void;
+
+const layoutReadQueue: LayoutReadTask[] = [];
+let layoutReadHandle = 0;
+
+/**
+ * 批量执行 DOM 测量：先跑完所有读、再统一执行写。
+ * 单元格分词是逐个渲染的，若每个单元格各自 requestAnimationFrame 去读
+ * offsetHeight / scrollHeight，一屏就会产生几百次强制同步布局。
+ */
+const flushLayoutReads = () => {
+  layoutReadHandle = 0;
+  const tasks = layoutReadQueue.splice(0, layoutReadQueue.length);
+  const writes: Array<() => void> = [];
+
+  for (const task of tasks) {
+    const write = task();
+    if (write) {
+      writes.push(write);
+    }
+  }
+
+  for (const write of writes) {
+    write();
+  }
+};
+
+const scheduleLayoutRead = (task: LayoutReadTask) => {
+  layoutReadQueue.push(task);
+  if (layoutReadHandle) {
+    return;
+  }
+
+  layoutReadHandle = requestAnimationFrame(flushLayoutReads);
+};
+
 /**
  * 设置滚动加载列表
  * @param wordList
@@ -104,19 +140,25 @@ export const setScrollLoadCell = (
    * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
    */
   const appendLastTag = () => {
-    if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
-      const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
-      if (scrollHeight > offsetHeight) {
-        const child = document.createElement('span');
-        child.classList.add('last-placeholder');
-        contentElement?.append?.(child);
-      }
+    if (contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
+      return undefined;
     }
+
+    const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
+    if (scrollHeight <= offsetHeight) {
+      return undefined;
+    }
+
+    return () => {
+      const child = document.createElement('span');
+      child.classList.add('last-placeholder');
+      contentElement?.append?.(child);
+    };
   };
 
   const appendPageItems = (size?) => {
     if (startIndex > wordList.length) {
-      requestAnimationFrame(appendLastTag);
+      scheduleLayoutRead(appendLastTag);
       startIndex = wordList.length;
       return false;
     }
@@ -170,21 +212,44 @@ export const setScrollLoadCell = (
    * 动态渲染列表，根据内容高度自动判定是否添加滚动监听事件
    */
   const setListItem = (size?, next?) => {
-    if (appendPageItems(size)) {
-      requestAnimationFrame(() => {
-        if (rootElement) {
-          const { offsetHeight, scrollHeight } = rootElement;
-          if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
-            setListItem(undefined, next);
-          } else {
+    if (!appendPageItems(size)) {
+      return;
+    }
+
+    // 首批即渲染完全部分词（绝大多数单元格）：没有后续内容要追加，
+    // 唯一还需要的测量合并进共享批量读，避免每个单元格独占 2-3 次 rAF 与强制同步布局。
+    if (startIndex >= wordList.length) {
+      scheduleLayoutRead(() => {
+        const appendPlaceholder = appendLastTag();
+        const isOverflow = rootElement ? rootElement.offsetHeight * 1.2 <= rootElement.scrollHeight : false;
+
+        return () => {
+          appendPlaceholder?.();
+          // 与原逻辑一致：内容溢出才触发后置处理并挂滚动续渲
+          if (isOverflow) {
             next?.();
             if (!scrollEvtAdded) {
               addScrollEvent(next);
             }
           }
-        }
+        };
       });
+      return;
     }
+
+    requestAnimationFrame(() => {
+      if (rootElement) {
+        const { offsetHeight, scrollHeight } = rootElement;
+        if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
+          setListItem(undefined, next);
+        } else {
+          next?.();
+          if (!scrollEvtAdded) {
+            addScrollEvent(next);
+          }
+        }
+      }
+    });
   };
 
   const reset = list => {

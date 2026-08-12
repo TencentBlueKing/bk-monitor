@@ -55,3 +55,14 @@ test('进程图例仅在查询返回 PID 时追加实例标识', () => {
   assert.equal(formatProcessSeriesAlias({ display_name: 'nginx', pid: 123 }, 'fallback'), 'nginx|123');
   assert.equal(formatProcessSeriesAlias(undefined, 'fallback'), 'fallback');
 });
+
+test('进程图例从已声明类型的 raw_data 读取原始别名与维度', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-process/process-detail/process-detail.tsx'),
+    'utf8'
+  );
+
+  assert.match(source, /item\.raw_data\.dimensions/);
+  assert.match(source, /item\.raw_data\.alias/);
+  assert.doesNotMatch(source, /@ts-expect-error/);
+});
