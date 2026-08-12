@@ -487,7 +487,11 @@ def get_process_port_health(
 
 
 def get_host_performance_data(
-    bk_biz_id: int, hosts: list[Host] | None = None, start_time: int = None, end_time: int = None
+    bk_biz_id: int,
+    hosts: list[Host] | None = None,
+    start_time: int = None,
+    end_time: int = None,
+    fail_on_incomplete: bool = False,
 ) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
@@ -496,6 +500,7 @@ def get_host_performance_data(
     :param hosts: 主机列表 {"ip": "127.0.0.1", "bk_cloud_id": 0}
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
+    :param fail_on_incomplete: 查询异常或 UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     """
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
@@ -531,6 +536,8 @@ def get_host_performance_data(
         # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
         query_start = query_end - 180000
         records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+        if fail_on_incomplete and query.is_partial:
+            raise RuntimeError(f"unify query returned partial data for metric {metric['field']}")
         for record in records:
             if record["_result_"] is None:
                 continue
@@ -555,22 +562,27 @@ def get_host_performance_data(
         {"field": "psc_mem_usage", "result_table_id": "system.mem", "metric_field": "psc_pct_used"},
     ]
 
-    # 根据请求总数并发请求，单指标失败仅丢弃该指标（不影响其余指标）。
+    # 根据请求总数并发请求。默认保持单指标失败仅丢弃该指标的历史行为；
+    # fail_on_incomplete=True 时将查询异常或 UQ 部分结果上抛给调用方。
     # apply_async 的异常仅在 AsyncResult.get() 时抛出，故逐指标 try/except 捕获，
     # 避免旧实现只 pool.join() 静默吞掉线程异常、返回不完整性能数据的问题。
     # 合并在主线程顺序执行，规避多线程写共享 data 的竞态。
     pool = ThreadPool()
     futures = [pool.apply_async(get_metric_data, args=(m,)) for m in metrics]
     pool.close()
-    for metric, future in zip(metrics, futures):
-        try:
-            metric_data = future.get()
-        except Exception as e:
-            logger.warning("get_host_performance_data metric %s failed, skip: %s", metric["field"], e)
-            continue
-        for host_id, value in metric_data.items():
-            data[host_id][metric["field"]] = value
-    pool.join()
+    try:
+        for metric, future in zip(metrics, futures):
+            try:
+                metric_data = future.get()
+            except Exception as e:
+                if fail_on_incomplete:
+                    raise
+                logger.warning("get_host_performance_data metric %s failed, skip: %s", metric["field"], e)
+                continue
+            for host_id, value in metric_data.items():
+                data[host_id][metric["field"]] = value
+    finally:
+        pool.join()
 
     return data
 

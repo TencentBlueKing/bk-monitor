@@ -392,13 +392,22 @@ class SearchHostMetricResource(Resource):
 
     @staticmethod
     def get_performance_data(
-        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+        fail_on_incomplete: bool = False,
     ):
         """
         获取指标信息
         """
         result = resource.cc.get_host_performance_data(
-            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+            fail_on_incomplete=fail_on_incomplete,
         )
         for bk_host_id, metrics in result.items():
             if bk_host_id not in data:
@@ -450,19 +459,16 @@ class SearchHostMetricResource(Resource):
         """
         获取告警信息
         """
-        try:
-            result = resource.cc.get_host_alarm_count(
-                bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+        result = resource.cc.get_host_alarm_count(
+            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+        )
+        for bk_host_id in result:
+            if bk_host_id not in data:
+                continue
+            data[bk_host_id]["alarm_count"] = sorted(
+                [{"level": level, "count": count} for level, count in result[bk_host_id].items()],
+                key=lambda x: x["level"],
             )
-            for bk_host_id in result:
-                if bk_host_id not in data:
-                    continue
-                data[bk_host_id]["alarm_count"] = sorted(
-                    [{"level": level, "count": count} for level, count in result[bk_host_id].items()],
-                    key=lambda x: x["level"],
-                )
-        except Exception:  # NOCC:broad-except(设计如此:)
-            logger.exception("get_alarm_count failed, bk_biz_id=%s", bk_biz_id)
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -484,22 +490,22 @@ class SearchHostMetricResource(Resource):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=params["bk_host_ids"])
 
         pool = ThreadPool()
-        pool.apply_async(
-            self.get_agent_status,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
-        pool.apply_async(
-            self.get_performance_data,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
-        pool.apply_async(
-            self.get_process_status,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
-        pool.apply_async(
-            self.get_alarm_count,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
+        task_args = (bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time"))
+        futures = {
+            "agent_status": pool.apply_async(self.get_agent_status, args=task_args),
+            "performance_data": pool.apply_async(self.get_performance_data, args=(*task_args, True)),
+            "process_status": pool.apply_async(self.get_process_status, args=task_args),
+            "alarm_count": pool.apply_async(self.get_alarm_count, args=task_args),
+        }
         pool.close()
+        failed_sections = []
+        for section, future in futures.items():
+            try:
+                future.get()
+            except Exception:
+                logger.exception("get host metric section %s failed, bk_biz_id=%s", section, bk_biz_id)
+                failed_sections.append(section)
         pool.join()
+        if failed_sections:
+            raise CustomException("get host metric data failed", data={"failed_sections": failed_sections})
         return data
