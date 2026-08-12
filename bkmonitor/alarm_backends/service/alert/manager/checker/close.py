@@ -28,7 +28,10 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
-from alarm_backends.service.alert.manager.checker.utils import is_auto_level_intelligent_detect
+from alarm_backends.service.alert.manager.checker.utils import (
+    is_same_new_series_lifecycle,
+    is_auto_level_intelligent_detect,
+)
 from api.cmdb.define import TopoNode
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import AlgorithmModel
@@ -64,7 +67,7 @@ class CloseStatusChecker(BaseChecker):
         super().__init__(alerts)
         self.circuit_breaking_manager = AlertManagerCircuitBreakingManager()
 
-    def check(self, alert: Alert):
+    def check(self, alert: Alert, skip_circuit_breaking: bool = False):
         if not alert.is_abnormal():
             # 告警已经是非异常状态了，无需检查
             return
@@ -106,7 +109,7 @@ class CloseStatusChecker(BaseChecker):
         latest_item = latest_strategy["items"][0]
 
         # 检查熔断规则是否命中
-        if self.check_circuit_breaking(alert):
+        if not skip_circuit_breaking and self.check_circuit_breaking(alert):
             return True
 
         # 检查策略是否被修改
@@ -240,7 +243,11 @@ class CloseStatusChecker(BaseChecker):
             logger.info(
                 f"[close 处理结果] (closed) alert({alert.id}), strategy({alert.strategy_id}) 当前维度存在更新的告警事件({current_alert.id})，告警已失效"
             )
-            self.close(alert, _("当前维度存在更新的告警事件({})，告警已失效").format(current_alert.id))
+            self.close(
+                alert,
+                _("当前维度存在更新的告警事件({})，告警已失效").format(current_alert.id),
+                preserve_new_series_lifecycle=is_same_new_series_lifecycle(alert, current_alert),
+            )
             return True
         # 如果一致的话，表示是同一个告警，则认为告警在持续
         return False
@@ -438,11 +445,16 @@ class CloseStatusChecker(BaseChecker):
         return True
 
     @classmethod
-    def close(cls, alert: Alert, description):
+    def close(cls, alert: Alert, description, preserve_new_series_lifecycle=False):
         """
         事件关闭
         """
-        alert.set_end_status(status=EventStatus.CLOSED, op_type=AlertLog.OpType.CLOSE, description=description)
+        alert.set_end_status(
+            status=EventStatus.CLOSED,
+            op_type=AlertLog.OpType.CLOSE,
+            description=description,
+            preserve_new_series_lifecycle=preserve_new_series_lifecycle,
+        )
 
         # 无数据告警，清理最后检测异常点记录
         if alert.is_no_data():

@@ -300,38 +300,36 @@ export default defineComponent({
         {this.loading ? (
           <ChartSkeleton />
         ) : this.options ? (
-          <>
-            {this.isShowStatistics ? (
-              <ResizeLayout
-                ref='resizeLayout'
-                class='time-series-card__resize-layout'
-                border={false}
-                initialDivide={`${this.chartHeight}px`}
-                max={this.layoutDragMaxHeight}
-                min={100}
-                placement='top'
-                onResizing={this.handleResizing}
-              >
-                {{
-                  aside: renderChart,
-                  main: () => (
-                    <TableLegend
-                      legendData={this.legendData}
-                      onSelectLegend={this.handleSelectLegend}
-                    />
-                  ),
-                }}
-              </ResizeLayout>
-            ) : (
-              <>
-                {renderChart()}
-                <CommonLegend
-                  legendData={this.legendData}
-                  onSelectLegend={this.handleSelectLegend}
-                />
-              </>
-            )}
-          </>
+          this.isShowStatistics ? (
+            <ResizeLayout
+              ref='resizeLayout'
+              class='time-series-card__resize-layout'
+              border={false}
+              initialDivide={`${this.chartHeight}px`}
+              max={this.layoutDragMaxHeight}
+              min={100}
+              placement='top'
+              onResizing={this.handleResizing}
+            >
+              {{
+                aside: renderChart,
+                main: () => (
+                  <TableLegend
+                    legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
+                  />
+                ),
+              }}
+            </ResizeLayout>
+          ) : (
+            <>
+              {renderChart()}
+              <CommonLegend
+                legendData={this.legendData}
+                onSelectLegend={this.handleSelectLegend}
+              />
+            </>
+          )
         ) : (
           <div class='time-series-card__empty'>{this.t('暂无数据')}</div>
         )}

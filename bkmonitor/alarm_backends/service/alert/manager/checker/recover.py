@@ -14,20 +14,26 @@ import time
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+from redis.exceptions import WatchError
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.key import (
     CHECK_RESULT_CACHE_KEY,
     LAST_CHECKPOINTS_CACHE_KEY,
+    NEW_SERIES_ACTIVE_KEY,
     NO_DATA_LAST_ANOMALY_CHECKPOINTS_CACHE_KEY,
 )
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL
+from alarm_backends.core.storage.redis_cluster import routed_client
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
-from alarm_backends.service.alert.manager.checker.utils import is_auto_level_intelligent_detect
+from alarm_backends.service.alert.manager.checker.utils import (
+    is_auto_level_intelligent_detect,
+    resolve_new_series_lifecycle_state,
+)
 from bkmonitor.data_source import CustomEventDataSource
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import AlgorithmModel
@@ -47,6 +53,11 @@ class RecoverStatusChecker(BaseChecker):
     DEFAULT_CHECK_WINDOW_SIZE = 5
     DEFAULT_TRIGGER_COUNT = 0
     DEFAULT_STATUS_SETTER = "recovery"
+    NEW_SERIES_MISSING = "missing"
+    NEW_SERIES_ACTIVE = "active"
+    NEW_SERIES_EXPIRED = "expired"
+    NEW_SERIES_ERROR = "error"
+    NEW_SERIES_CLAIM_RETRIES = 3
 
     def check(self, alert: Alert):
         if not alert.is_abnormal():
@@ -64,11 +75,130 @@ class RecoverStatusChecker(BaseChecker):
         if not strategy:
             strategy = alert.get_extra_info("strategy")
 
+        if self.check_new_series_lifecycle(alert, strategy):
+            return
+
         if self.check_trigger_result(alert, strategy):
             return
 
         if self.check_custom_event_recovery(alert, strategy):
             return
+
+    def check_new_series_lifecycle(self, alert, strategy):
+        """持续模式使用独立活跃态保持告警，并返回可区分的处理结果供流控任务判断。"""
+        lifecycle = resolve_new_series_lifecycle_state(alert, strategy)
+        if lifecycle is None:
+            return False
+        observed_at = int(time.time())
+        try:
+            lifecycle_state = self.claim_new_series_expiration(
+                lifecycle.active_key,
+                lifecycle.fingerprint,
+                expire_before=observed_at - lifecycle.detect_range,
+                claimed_key=lifecycle.claimed_key,
+                observed_at=observed_at,
+                soft_ttl=lifecycle.soft_ttl,
+                max_series=lifecycle.max_series,
+            )
+        except Exception as e:  # noqa  活跃态不可读时宁可保持告警，避免 Redis 抖动造成错误恢复。
+            logger.exception(
+                "[new_series lifecycle] alert(%s) strategy(%s) active state read failed, keep alert: %s",
+                alert.id,
+                alert.strategy_id,
+                e,
+            )
+            return self.NEW_SERIES_ERROR
+
+        if lifecycle_state == self.NEW_SERIES_MISSING:
+            # 兼容存量告警、配置切换或续期写失败：没有专用状态时继续走既有恢复逻辑。
+            return False
+
+        if lifecycle_state == self.NEW_SERIES_ACTIVE:
+            return self.NEW_SERIES_ACTIVE
+
+        status_setter = self.get_recovery_status_setter(alert, strategy)
+        self.recover(
+            alert,
+            _("新维度值在检测周期内未再次出现，告警已{handle}"),
+            status_setter=status_setter,
+            preserve_new_series_lifecycle=True,
+        )
+        logger.info(
+            "[new_series lifecycle] alert(%s) strategy(%s) observation window expired, status_setter(%s)",
+            alert.id,
+            alert.strategy_id,
+            status_setter,
+        )
+        return self.NEW_SERIES_EXPIRED
+
+    @classmethod
+    def claim_new_series_expiration(
+        cls,
+        active_key,
+        fingerprint,
+        expire_before,
+        *,
+        claimed_key,
+        observed_at,
+        soft_ttl,
+        max_series,
+    ):
+        """原子认领到期 member 并留下有界 tombstone，供下一次有效出现启动新生命周期。"""
+        proxy = NEW_SERIES_ACTIVE_KEY.client
+        with routed_client(proxy, active_key) as client:
+            for attempt in range(cls.NEW_SERIES_CLAIM_RETRIES):
+                pipe = client.pipeline(transaction=True)
+                try:
+                    pipe.watch(active_key, claimed_key)
+                    active_score = pipe.zscore(active_key, fingerprint)
+                    if active_score is None:
+                        claimed_score = pipe.zscore(claimed_key, fingerprint)
+                        pipe.unwatch()
+                        if claimed_score is not None and int(float(claimed_score)) > observed_at - soft_ttl:
+                            return cls.NEW_SERIES_EXPIRED
+                        return cls.NEW_SERIES_MISSING
+                    if int(float(active_score)) >= expire_before:
+                        pipe.unwatch()
+                        return cls.NEW_SERIES_ACTIVE
+
+                    claimed_score = pipe.zscore(claimed_key, fingerprint)
+                    claimed_count = int(pipe.zcard(claimed_key))
+                    stale_count = int(pipe.zcount(claimed_key, "-inf", observed_at - soft_ttl))
+                    live_count = max(0, claimed_count - stale_count)
+                    marker_exists = claimed_score is not None and int(float(claimed_score)) > observed_at - soft_ttl
+                    capacity = max(0, int(max_series))
+                    trim_excess = max(0, live_count + (0 if marker_exists else 1) - capacity)
+
+                    pipe.multi()
+                    pipe.zrem(active_key, fingerprint)
+                    pipe.zremrangebyscore(claimed_key, "-inf", observed_at - soft_ttl)
+                    pipe.zadd(claimed_key, {fingerprint: observed_at})
+                    if trim_excess:
+                        pipe.zremrangebyrank(claimed_key, 0, trim_excess - 1)
+                    pipe.expire(claimed_key, soft_ttl)
+                    removed = pipe.execute()[0]
+                    if removed:
+                        return cls.NEW_SERIES_EXPIRED
+                except WatchError:
+                    if attempt + 1 == cls.NEW_SERIES_CLAIM_RETRIES:
+                        raise
+                finally:
+                    pipe.reset()
+        raise RuntimeError(f"failed to claim expired NewSeries member after retries: {active_key}")
+
+    @classmethod
+    def get_recovery_status_setter(cls, alert, strategy):
+        try:
+            recovery_configs = Strategy.get_recovery_configs(strategy)
+            for level in map(str, [alert.event_severity, alert.severity]):
+                if level in recovery_configs:
+                    status_setter = recovery_configs[level]["status_setter"]
+                    break
+            else:
+                status_setter = recovery_configs[str(alert.event_severity)]["status_setter"]
+            return status_setter.split("-", 1)[0]
+        except (ValueError, TypeError, IndexError, KeyError):
+            return cls.DEFAULT_STATUS_SETTER
 
     def check_no_data(self, alert: Alert):
         """
@@ -383,6 +513,7 @@ class RecoverStatusChecker(BaseChecker):
         status_setter="recovery",
         latest_normal_record: tuple = None,
         strategy_item: dict = None,
+        preserve_new_series_lifecycle: bool = False,
     ):
         """
         事件恢复
@@ -404,7 +535,12 @@ class RecoverStatusChecker(BaseChecker):
                     description=description, record_value_display=record_value_display
                 )
             alert.update_extra_info("recovery_value", latest_normal_record[1])
-        alert.set_end_status(status=status, op_type=op_type, description=description)
+        alert.set_end_status(
+            status=status,
+            op_type=op_type,
+            description=description,
+            preserve_new_series_lifecycle=preserve_new_series_lifecycle,
+        )
 
     @classmethod
     def get_value_display(cls, alert, value):

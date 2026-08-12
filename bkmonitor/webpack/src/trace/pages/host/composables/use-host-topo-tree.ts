@@ -78,6 +78,8 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   let loadedEnd = 0;
   /** 视图请求版本 */
   let viewRequestVersion = 0;
+  /** 拓扑加载请求版本 */
+  let loadRequestVersion = 0;
   /** 是否已初始化 */
   let initialized = false;
   let scrollEl: HTMLElement = null;
@@ -184,18 +186,24 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
 
   /** 加载拓扑树并在 Worker 中建立扁平索引、主机计数和可见节点计数。 */
   const loadTopoTree = async () => {
+    const version = ++loadRequestVersion;
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId(window.cc_biz_id, shareScope.value);
+      if (version !== loadRequestVersion) {
+        return;
+      }
       rawTreeData.value = data;
-      await handleSelectNodeOfNodeId();
+      await handleSelectNodeOfNodeId(version);
     } finally {
-      loading.value = false;
+      if (version === loadRequestVersion) {
+        loading.value = false;
+      }
     }
   };
 
   /** 根据 nodeId 在已有拓扑树数据中定位并聚焦目标节点（展开路径 + 滚动到位） */
-  const handleSelectNodeOfNodeId = async () => {
+  const handleSelectNodeOfNodeId = async (loadVersion?: number) => {
     // 存在有子节点的根节点时，默认对第一个有子节点的根节点展开第一级子列表（Worker 消费 isOpen）
     if (nodeId.value) {
       // 存在 nodeId 时，展开从根到目标节点的完整路径，确保目标节点可见
@@ -226,6 +234,9 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
       }
     }
     const result = await topoTreeWorker.init(rawTreeData.value, hideEmptyNode.value, searchValue.value, nodeId.value);
+    if (loadVersion !== undefined && loadVersion !== loadRequestVersion) {
+      return;
+    }
     selectedNode.value = result.selectedNode;
     totalRows.value = result.total;
     let scrollTop = 0;

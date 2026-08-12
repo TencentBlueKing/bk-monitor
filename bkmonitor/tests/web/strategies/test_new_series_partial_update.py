@@ -14,7 +14,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
 
 
-def test_partial_update_preserves_new_series_threshold():
+def test_partial_update_preserves_new_series_threshold_and_alert_mode():
     serializer = UpdatePartialStrategyV2Resource.RequestSerializer(
         data={
             "bk_biz_id": 2,
@@ -24,7 +24,7 @@ def test_partial_update_preserves_new_series_threshold():
                     {
                         "type": "NewSeries",
                         "level": 1,
-                        "config": {"detect_range": 86400, "threshold": -2},
+                        "config": {"detect_range": 86400, "threshold": -2, "alert_mode": "continuous"},
                     }
                 ]
             },
@@ -35,9 +35,10 @@ def test_partial_update_preserves_new_series_threshold():
 
     algorithm = serializer.validated_data["edit_data"]["algorithms"][0]
     assert algorithm["config"]["threshold"] == -2
+    assert algorithm["config"]["alert_mode"] == "continuous"
 
 
-def test_update_algorithms_preserves_threshold_when_saving():
+def test_update_algorithms_preserves_threshold_and_alert_mode_when_saving():
     strategy = mock.MagicMock()
     strategy.id = 1
     item = mock.MagicMock()
@@ -63,13 +64,20 @@ def test_update_algorithms_preserves_threshold_when_saving():
         {
             "type": "NewSeries",
             "level": 1,
-            "config": {"detect_range": 86400, "effective_delay": 86400, "max_series": 100000, "threshold": -2},
+            "config": {
+                "detect_range": 86400,
+                "effective_delay": 86400,
+                "max_series": 100000,
+                "threshold": -2,
+                "alert_mode": "continuous",
+            },
         }
     ]
 
     UpdatePartialStrategyV2Resource.update_algorithms(strategy, algorithms)
 
     assert item.algorithms[0].config["threshold"] == -2
+    assert item.algorithms[0].config["alert_mode"] == "continuous"
     item.save_algorithms.assert_called_once_with()
 
 

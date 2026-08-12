@@ -393,3 +393,33 @@ class TestGetProcessStatus:
         assert result[HOSTS[1].bk_host_id]["redis"] == AGENT_STATUS.OFF
         # _result_ 为 None 的记录被跳过，不写入任何状态
         assert "nginx" not in result.get(HOSTS[1].bk_host_id, {})
+
+
+class TestGetProcessMetrics:
+    """测试进程列表指标的 UnifyQuery 构造语义。"""
+
+    def test_runtime_and_instance_count_use_instant_cross_series_aggregation(self, mocker):
+        query_configs = {}
+
+        def capture_query_config(query, *args, **kwargs):
+            for query_config in query.data_sources[0].to_unify_query_config():
+                query_configs[query_config["field_name"]] = query_config
+            return []
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=capture_query_config)
+
+        resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
+        runtime_query_configs = query_configs.copy()
+
+        expected_dimensions = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
+        runtime_fields = {"cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"}
+        assert runtime_fields == runtime_query_configs.keys()
+        for field in runtime_fields:
+            assert runtime_query_configs[field]["time_aggregation"] == {}
+            assert runtime_query_configs[field]["function"] == [{"method": "sum", "dimensions": expected_dimensions}]
+
+        query_configs.clear()
+        resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
+        instance_count_config = query_configs["cpu_usage_pct"]
+        assert instance_count_config["time_aggregation"] == {}
+        assert instance_count_config["function"] == [{"method": "count", "dimensions": expected_dimensions}]
