@@ -33,9 +33,9 @@ class TestGetVariableValue:
             "data_type_label": DataTypeLabel.LOG,
             "field": "path",
             "metric_field": "_index",
-            "result_table_id": "2_bklog.dillon_test",
+            "result_table_id": "test_log",
             "where": [],
-            "index_set_id": "104",
+            "index_set_id": "999",
             "query_string": "log:error",
             "start_time": 100,
             "end_time": 200,
@@ -330,9 +330,9 @@ class TestGetVariableValue:
                 "data_type_label": "log",
                 "field": "path",
                 "metric_field": "_index",
-                "result_table_id": "2_bklog.dillon_test",
+                "result_table_id": "test_log",
                 "where": [],
-                "index_set_id": "104",
+                "index_set_id": "999",
             },
         }
         es_query_search_return = {
@@ -369,7 +369,7 @@ class TestGetVariableValue:
                 "hits": [
                     {
                         "_id": "6a425a1ca64f1f4e526f147fd1a39aba",
-                        "_index": "v2_2_bklog_dillon_test_20210831_0",
+                        "_index": "v2_test_log_20210831_0",
                         "_score": 0.0,
                         "_source": {
                             "cloudId": 0,

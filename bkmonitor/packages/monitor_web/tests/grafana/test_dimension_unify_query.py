@@ -361,7 +361,7 @@ class TestDimensionUnifyQuery:
                     "interval": 60,
                     "metrics": [{"alias": "a", "field": "_index", "method": "COUNT"}],
                     "query_string": '"access-tokens" AND NOT iam',
-                    "table": "2_bklog.dillon_test",
+                    "table": "test_log_table",
                     "time_field": "dtEventTimeStamp",
                     "where": [],
                 }
@@ -402,7 +402,7 @@ class TestDimensionUnifyQuery:
                 "hits": [
                     {
                         "_id": "6a425a1ca64f1f4e526f147fd1a39aba",
-                        "_index": "v2_2_bklog_dillon_test_20210831_0",
+                        "_index": "v2_test_log_20210831_0",
                         "_score": 0.0,
                         "_source": {
                             "cloudId": 0,
@@ -436,10 +436,10 @@ class TestDimensionUnifyQuery:
         data = dimension_unify_query.request(params)
         assert data == [{"label": "/var/log/messages", "value": "/var/log/messages"}]
 
-    @pytest.mark.parametrize(("values", "expected"), [(["messages", "access"], 2), ([], 0)])
+    @pytest.mark.parametrize(("values", "expected"), [(["test-value-a", "test-value-b"], 2), ([], 0)])
     def test_log_search_dimension_count(self, mocker, values, expected):
         params = {
-            "bk_biz_id": 2,
+            "bk_biz_id": 999,
             "dimension_field": "path",
             "end_time": 1630723218,
             "expression": "a",
@@ -450,11 +450,11 @@ class TestDimensionUnifyQuery:
                     "filter_dict": {},
                     "functions": [],
                     "group_by": ["path"],
-                    "index_set_id": "104",
+                    "index_set_id": "999",
                     "interval": 60,
                     "metrics": [{"alias": "a", "field": "_index", "method": "COUNT"}],
-                    "query_string": "error",
-                    "table": "2_bklog.dillon_test",
+                    "query_string": "test-query",
+                    "table": "test_log_table",
                     "time_field": "dtEventTimeStamp",
                     "where": [],
                 }

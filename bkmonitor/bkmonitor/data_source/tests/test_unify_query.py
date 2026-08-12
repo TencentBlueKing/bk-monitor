@@ -54,11 +54,11 @@ def build_dimension_unify_query(supports_unify_query_dimensions: bool = True) ->
     data_source.metrics = [{"field": "event.count", "method": "COUNT"}]
     data_source.data_source_label = "bk_monitor"
     data_source.data_type_label = "log"
-    data_source.table = "2_bkmonitor_event_1500137"
+    data_source.table = "test_event_table"
     data_source.supports_unify_query_dimensions = supports_unify_query_dimensions
     query = UnifyQuery(
-        bk_biz_id=2,
-        bk_tenant_id="system",
+        bk_biz_id=999,
+        bk_tenant_id="test-tenant",
         data_sources=[data_source],
         expression="",
     )
@@ -68,7 +68,7 @@ def build_dimension_unify_query(supports_unify_query_dimensions: bool = True) ->
 def build_dimension_config(**overrides: Any) -> dict[str, Any]:
     config: dict[str, Any] = {
         "data_source": "bkmonitor",
-        "table_id": "2_bkmonitor_event_1500137",
+        "table_id": "test_event_table",
         "field_name": "event.count",
         "dimensions": ["event_name"],
         "conditions": {},
@@ -320,7 +320,7 @@ class TestUnifyQuery:
             data_source_label="bk_monitor",
             data_type_label="log",
             role=mocker.ANY,
-            result_table="2_bkmonitor_event_1500137",
+            result_table="test_event_table",
             api="query_api",
         )
 
@@ -348,7 +348,7 @@ class TestUnifyQuery:
             start_time=1_234_567,
             end_time=2_345_678,
             interval=60,
-            space_uid="bkcc__2",
+            space_uid="test-space",
         )
 
         assert result == ["login_count"]
@@ -356,15 +356,15 @@ class TestUnifyQuery:
         get_dimension_data.assert_called_once_with(
             info_type="tag_values",
             data_source="bkmonitor",
-            table_id="2_bkmonitor_event_1500137",
+            table_id="test_event_table",
             metric_name="event.count",
             conditions={
                 "field_list": [{"field_name": "event_name", "op": "eq", "value": ["login_count"]}],
                 "condition_list": [],
             },
             keys=["event_name"],
-            space_uid="bkcc__2",
-            bk_tenant_id="system",
+            space_uid="test-space",
+            bk_tenant_id="test-tenant",
             start_time="1234",
             end_time="2345",
             limit=100,
@@ -373,7 +373,7 @@ class TestUnifyQuery:
             data_source_label="bk_monitor",
             data_type_label="log",
             role=mocker.ANY,
-            result_table="2_bkmonitor_event_1500137",
+            result_table="test_event_table",
             api="unify_query",
         )
 
@@ -382,7 +382,7 @@ class TestUnifyQuery:
         data_source.to_unify_query_config.return_value = [
             build_dimension_config(
                 data_source="bklog",
-                table_id="bklog_index_set_104",
+                table_id="test_log_table",
                 field_name="",
                 dimensions=["path"],
             )
@@ -405,10 +405,10 @@ class TestUnifyQuery:
         get_dimension_data.assert_called_once_with(
             info_type="tag_values",
             data_source="bklog",
-            table_id="bklog_index_set_104",
+            table_id="test_log_table",
             keys=["path"],
             space_uid=None,
-            bk_tenant_id="system",
+            bk_tenant_id="test-tenant",
             start_time="1",
             end_time="2",
             limit=10,
@@ -416,18 +416,18 @@ class TestUnifyQuery:
 
     def test_query_dimensions_uses_requested_field_without_mutating_datasource(self, mocker, mock_query_metrics):
         data_source = LogSearchLogDataSource(
-            bk_biz_id=2,
-            bk_tenant_id="system",
-            table="2_bklog.strategy_log",
+            bk_biz_id=999,
+            bk_tenant_id="test-tenant",
+            table="test_log_table",
             metrics=[{"field": "_index", "method": "COUNT"}],
             where=[],
             filter_dict={},
             group_by=["strategy_dimension"],
-            index_set_id=104,
+            index_set_id=999,
         )
         query = UnifyQuery(
-            bk_biz_id=2,
-            bk_tenant_id="system",
+            bk_biz_id=999,
+            bk_tenant_id="test-tenant",
             data_sources=[data_source],
             expression="",
         )
@@ -495,7 +495,7 @@ class TestUnifyQuery:
             data_source_label="bk_monitor",
             data_type_label="log",
             role=mocker.ANY,
-            result_table="2_bkmonitor_event_1500137",
+            result_table="test_event_table",
             api="unify_query",
             status="failed",
             exception=error,
@@ -525,7 +525,7 @@ class TestUnifyQuery:
         first_data_source.query_dimensions.assert_not_called()
 
     def test_query_dimensions_returns_empty_for_no_data_sources(self):
-        query = UnifyQuery(bk_biz_id=2, data_sources=[], expression="")
+        query = UnifyQuery(bk_biz_id=999, data_sources=[], expression="")
 
         assert query.query_dimensions("event_name", 10, 1_000, 2_000) == []
 
@@ -569,15 +569,15 @@ class TestGetDimensionDataResource:
             data={
                 "info_type": "tag_values",
                 "data_source": "bklog",
-                "table_id": "bklog_index_set_104",
+                "table_id": "test_log_table",
                 "keys": ["path"],
-                "bk_tenant_id": "system",
+                "bk_tenant_id": "test-tenant",
             }
         )
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["data_source"] == "bklog"
-        assert serializer.validated_data["bk_tenant_id"] == "system"
+        assert serializer.validated_data["bk_tenant_id"] == "test-tenant"
 
     def test_ignores_unsupported_query_string(self):
         serializer = GetDimensionDataResource.RequestSerializer(

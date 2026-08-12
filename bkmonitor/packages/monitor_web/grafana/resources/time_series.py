@@ -773,7 +773,7 @@ class GetVariableValue(Resource):
                 params["filter_dict"] = {}
             params["filter_dict"]["cookies"] = cookies_filter
 
-        # 6、查询维度的值，通过调用UnifyQuery的query_dimensions方法查询
+        # 6、查询维度的值，通过调用 UnifyQuery 的 query_dimensions 方法查询
         # 其中，CustomTimeSeriesDataSource和BkMonitorTimeSeriesDataSource是
         # 调用InfluxdbDimensionFetcher.query_dimensions查询维度的值
         data_source_class = load_data_source(data_source_label, data_type_label)
