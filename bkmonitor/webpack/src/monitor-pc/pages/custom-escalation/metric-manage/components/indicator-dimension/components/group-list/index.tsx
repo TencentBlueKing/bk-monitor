@@ -28,6 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils';
 
 import { type IGroupListItem, ALL_LABEL, NULL_LABEL } from '../../../../type';
+import {
+  type MetricTypeValue,
+  METRIC_TYPE_ALL,
+  METRIC_TYPE_OPTIONS,
+  enrichAndCollapseMetricTypeList,
+} from '../../../../metric-type';
 import EditGroupDialog from '../edit-group';
 
 import type { IGroupingRule } from '../../../../../service';
@@ -39,6 +45,8 @@ import './index.scss';
 interface IEmits {
   /** 切换分组时触发 */
   onChangeGroup: (groupInfo: { id: number; name: string }) => void;
+  /** 切换指标类型筛选 */
+  onChangeMetricType: (metricType: MetricTypeValue | typeof METRIC_TYPE_ALL) => void;
   /** 编辑分组成功时触发 */
   onEditGroupSuccess: (config: Partial<IGroupingRule>, isCreate: boolean) => void;
   /** 删除分组时触发 */
@@ -80,6 +88,8 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   showDelDialog = false;
   /** 当前选中的分组信息 */
   selectedGroupInfo = { id: 0, name: ALL_LABEL };
+  /** 当前选中的指标类型（与分组 AND 筛选） */
+  selectedMetricType: MetricTypeValue | typeof METRIC_TYPE_ALL = METRIC_TYPE_ALL;
   /** 当前编辑的分组信息 */
   currentGroupInfo: IGroupingRule = {
     id: 0,
@@ -90,11 +100,18 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
     dimension_config: [],
   };
 
-  /** 顶部分组列表（全部、未分组） */
-  topGroupList = [
-    { id: ALL_LABEL, name: this.$t('全部') as string, icon: 'icon-all' },
-    { id: NULL_LABEL, name: this.$t('默认分组') as string, icon: 'icon-FileFold-Close' },
-  ];
+  /** 顶部分组列表（仅默认分组；「全部」由指标类型承担，自定义分组下不展示） */
+  topGroupList = [{ id: NULL_LABEL, name: this.$t('默认分组') as string, icon: 'icon-FileFold-Close' }];
+
+  /** 指标类型数量（含全部） */
+  metricTypeCountMap: Record<string, number> = {
+    [METRIC_TYPE_ALL]: 0,
+    unclassified: 0,
+    gauge: 0,
+    counter: 0,
+    histogram: 0,
+    summary: 0,
+  };
 
   /** 搜索关键词 */
   searchGroupKeyword = '';
@@ -151,6 +168,7 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   /** 监听分组列表变化，初始化时自动选中"全部"分组 */
   @Watch('groupList', { immediate: true })
   handleGroupListChange(list: IGroupListItem[]) {
+    this.fetchMetricTypeCounts();
     if (list.length > 0 && !this.isInit) {
       this.isInit = true;
       if (this.isAPM) {
@@ -183,6 +201,66 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
         true
       );
     }
+  }
+
+  /**
+   * 拉取指标并统计各类型数量（后端无类型计数字段时前端 Mock/收敛后统计）
+   */
+  async fetchMetricTypeCounts() {
+    if (!this.isAPM && !this.timeSeriesGroupId) {
+      return;
+    }
+    try {
+      const params: Record<string, any> = {
+        time_series_group_id: this.timeSeriesGroupId,
+        page: 1,
+        page_size: 1000,
+        conditions: [
+          {
+            key: 'scope_id',
+            values: [],
+            search_type: 'exact',
+          },
+        ],
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      const data = await this.requestHandlerMap.getCustomTsFields(params);
+      const rawList = data?.list || [];
+      const list = enrichAndCollapseMetricTypeList(rawList);
+      // 「全部」用接口 total（全量指标数）；各类型按收敛后列表统计
+      const nextMap: Record<string, number> = {
+        [METRIC_TYPE_ALL]: typeof data?.total === 'number' ? data.total : this.totalMetricNum,
+        unclassified: 0,
+        gauge: 0,
+        counter: 0,
+        histogram: 0,
+        summary: 0,
+      };
+      for (const item of list) {
+        const type = item.metric_type || 'unclassified';
+        nextMap[type] = (nextMap[type] || 0) + 1;
+      }
+      this.metricTypeCountMap = nextMap;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  /**
+   * 获取指标类型数量
+   * 「全部」展示当下所有指标数量（与分组 metric_count 汇总一致），不受指标族收敛影响
+   */
+  getMetricTypeCount(type: string) {
+    if (type === METRIC_TYPE_ALL) {
+      return this.totalMetricNum;
+    }
+    return this.metricTypeCountMap[type] ?? 0;
   }
 
   /**
@@ -324,6 +402,15 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   }
 
   /**
+   * 切换指标类型筛选（可与自定义分组同时选中）
+   */
+  changeSelectedMetricType(type: MetricTypeValue | typeof METRIC_TYPE_ALL) {
+    if (type === this.selectedMetricType) return;
+    this.selectedMetricType = type;
+    this.$emit('changeMetricType', type);
+  }
+
+  /**
    * 执行删除分组操作
    * 关闭删除对话框并触发删除事件
    */
@@ -353,143 +440,139 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   render() {
     return (
       <div class='group-list'>
-        <div class='top-group'>
-          {this.topGroupList.map(group => (
-            <div
-              key={group.id}
-              class={['group', this.selectedGroupInfo.name === group.id ? 'group-selected' : '']}
-              onClick={() =>
-                this.changeSelectedLabel({
-                  id: group.id === ALL_LABEL ? -1 : this.defaultGroupInfo.id,
-                  name: group.id === ALL_LABEL ? group.id : this.defaultGroupInfo.name,
-                })
-              }
-            >
-              <div class='group-name'>
-                <i class={`icon-monitor ${group.icon}`} />
-                <span>{group.name}</span>
+        <div class='sidebar-section metric-type-section'>
+          <div class='sidebar-section-title'>{this.$t('指标类型')}</div>
+          <div class='metric-type-group'>
+            {METRIC_TYPE_OPTIONS.map(item => (
+              <div
+                key={item.id}
+                class={['group', this.selectedMetricType === item.id ? 'group-selected' : '']}
+                onClick={() => this.changeSelectedMetricType(item.id)}
+              >
+                <div class='group-name'>
+                  <span class='name-text'>{item.name}</span>
+                </div>
+                <div class='group-count'>{this.getMetricTypeCount(item.id)}</div>
               </div>
-              <div class='group-count'>{this.getCountByType(group.id)}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-        <div class='custom-group-set'>
+        <div class='sidebar-section custom-group-section'>
+          <div class='sidebar-section-title'>{this.$t('自定义分组')}</div>
+          <div class='custom-group-set'>
+            <div
+              class='add-group icon-monitor icon-a-1jiahao'
+              onClick={this.handleAddGroup}
+            />
+            <bk-input
+              ext-cls='search-group'
+              placeholder={this.$t('搜索 分组名称')}
+              clearable
+              right-icon='icon-monitor icon-mc-search'
+              value={this.searchGroupKeyword}
+              onInput={this.handleSearchInput}
+            />
+          </div>
+          <div class='top-group'>
+            {this.topGroupList.map(group => (
+              <div
+                key={group.id}
+                class={['group', this.selectedGroupInfo.name === group.id ? 'group-selected' : '']}
+                onClick={() =>
+                  this.changeSelectedLabel({
+                    id: this.defaultGroupInfo.id,
+                    name: this.defaultGroupInfo.name,
+                  })
+                }
+              >
+                <div class='group-name'>
+                  <span class='name-text'>{group.name}</span>
+                </div>
+                <div class='group-count'>{this.getCountByType(group.id)}</div>
+              </div>
+            ))}
+          </div>
           <div
-            class='add-group icon-monitor icon-a-1jiahao'
-            onClick={this.handleAddGroup}
-          />
-          <bk-input
-            ext-cls='search-group'
-            placeholder={this.$t('搜索 自定义分组名称')}
-            clearable
-            right-icon='icon-monitor icon-mc-search'
-            value={this.searchGroupKeyword}
-            onInput={this.handleSearchInput} // 绑定输入事件
-          />
-        </div>
-        <div
-          ref='groupListRef'
-          class='filter-group-list-main'
-        >
-          {this.filteredCustomGroups.length ? ( // 过滤后的列表
-            <div class='custom-group'>
-              {this.filteredCustomGroups.map(group => (
-                <div
-                  key={group.name}
-                  class={['group', this.selectedGroupInfo.name === group.name ? 'group-selected' : '']}
-                  data-group-name={group.name}
-                  onClick={() =>
-                    this.changeSelectedLabel({
-                      id: group.scopeId,
-                      name: group.name,
-                    })
-                  }
-                >
-                  <div class='group-name'>
-                    <i class='icon-monitor icon-FileFold-Close' />
-                    <div
-                      class='name-text'
-                      v-bk-overflow-tips
-                    >
-                      {group.name}
-                    </div>
-                  </div>
-                  <div class='group-count'>{group.metricCount}</div>
-                  <bk-popover
-                    ref='menuPopover'
-                    class='group-popover'
-                    ext-cls='group-popover'
-                    arrow={false}
-                    offset={'0, 0'}
-                    placement='bottom-start'
-                    theme='light common-monitor'
+            ref='groupListRef'
+            class='filter-group-list-main'
+          >
+            {this.filteredCustomGroups.length ? (
+              <div class='custom-group'>
+                {this.filteredCustomGroups.map(group => (
+                  <div
+                    key={group.name}
+                    class={['group', this.selectedGroupInfo.name === group.name ? 'group-selected' : '']}
+                    data-group-name={group.name}
+                    onClick={() =>
+                      this.changeSelectedLabel({
+                        id: group.scopeId,
+                        name: group.name,
+                      })
+                    }
                   >
-                    <span class='more-operation'>
-                      <i class='icon-monitor icon-mc-more' />
-                    </span>
-                    <div
-                      class='group-more-list'
-                      slot='content'
-                    >
-                      <span
-                        class={'more-list-item edit'}
-                        onClick={() => this.handleMenuClick('edit', group.name)}
+                    <div class='group-name'>
+                      <div
+                        class='name-text'
+                        v-bk-overflow-tips
                       >
-                        {this.$t('编辑')}
-                      </span>
-                      {group.createFrom === 'user' && (
-                        <span
-                          class={'more-list-item delete'}
-                          onClick={() => this.handleMenuClick('delete', group.name)}
-                        >
-                          {this.$t('删除')}
-                        </span>
-                      )}
+                        {group.name}
+                      </div>
                     </div>
-                  </bk-popover>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div>
-              {this.searchGroupKeyword ? (
-                <div class='empty-group'>
-                  <div class='empty-img'>
-                    <bk-exception
-                      scene='part'
-                      type='search-empty'
+                    <div class='group-count'>{group.metricCount ?? 0}</div>
+                    <bk-popover
+                      ref='menuPopover'
+                      class='group-popover'
+                      ext-cls='group-popover'
+                      arrow={false}
+                      offset={'0, 0'}
+                      placement='bottom-start'
+                      theme='light common-monitor'
                     >
-                      <span class='empty-text'>{this.$t('搜索结果为空')}</span>
-                    </bk-exception>
+                      <span class='more-operation'>
+                        <i class='icon-monitor icon-mc-more' />
+                      </span>
+                      <div
+                        class='group-more-list'
+                        slot='content'
+                      >
+                        <span
+                          class={'more-list-item edit'}
+                          onClick={() => this.handleMenuClick('edit', group.name)}
+                        >
+                          {this.$t('编辑')}
+                        </span>
+                        {group.createFrom === 'user' && (
+                          <span
+                            class={'more-list-item delete'}
+                            onClick={() => this.handleMenuClick('delete', group.name)}
+                          >
+                            {this.$t('删除')}
+                          </span>
+                        )}
+                      </div>
+                    </bk-popover>
                   </div>
-                  <div
-                    class='add-group'
-                    onClick={this.handleClearSearch}
+                ))}
+              </div>
+            ) : this.searchGroupKeyword ? (
+              <div class='empty-group'>
+                <div class='empty-img'>
+                  <bk-exception
+                    scene='part'
+                    type='search-empty'
                   >
-                    {this.$t('清空关键词')}
-                  </div>
+                    <span class='empty-text'>{this.$t('搜索结果为空')}</span>
+                  </bk-exception>
                 </div>
-              ) : (
-                <div class='empty-group'>
-                  <div class='empty-img'>
-                    <bk-exception
-                      class='exception-wrap-item exception-part'
-                      scene='part'
-                      type='empty'
-                    >
-                      <span class='empty-text'>{this.$t('暂无自定义分组')}</span>
-                    </bk-exception>
-                  </div>
-                  <div
-                    class='add-group'
-                    onClick={this.handleAddGroup}
-                  >
-                    {this.$t('新建')}
-                  </div>
+                <div
+                  class='add-group'
+                  onClick={this.handleClearSearch}
+                >
+                  {this.$t('清空关键词')}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            ) : null}
+          </div>
         </div>
         <EditGroupDialog
           ref='editGroupDialogRef'

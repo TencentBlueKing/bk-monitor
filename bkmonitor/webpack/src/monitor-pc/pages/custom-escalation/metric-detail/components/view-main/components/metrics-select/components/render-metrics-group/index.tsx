@@ -31,6 +31,7 @@ import { makeMap } from 'monitor-common/utils/make-map';
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
 import RenderMetric from './render-metric';
+import { ensureDemoMetricTreeIfNeeded } from '../../../../../../../metric-manage/metric-type';
 
 import type { RequestHandlerMap } from '../../../../../../type';
 
@@ -214,7 +215,11 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         });
       }
       const result = await this.requestHandlerMap.getCustomTsMetricGroups(params);
-      customEscalationViewStore.updateMetricGroupList(result.metric_groups);
+      const metricGroups = (result.metric_groups || []).map(group => ({
+        ...group,
+        metrics: ensureDemoMetricTreeIfNeeded(group.metrics || []),
+      }));
+      customEscalationViewStore.updateMetricGroupList(metricGroups);
     } finally {
       this.isLoading = false;
     }
