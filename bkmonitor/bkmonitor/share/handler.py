@@ -182,6 +182,13 @@ class HostApiAuthChecker(BaseApiAuthChecker):
     主机视图API权限校验
     """
 
+    TARGET_INDEPENDENT_PANEL_ACTIONS = {
+        "get_host_views_panels",
+        "get_host_metric_group_panel_order",
+        "get_process_views_panels",
+        "get_process_metric_group_panel_order",
+    }
+
     def __init__(self, token):
         super().__init__(token)
         self.scope = validate_host_share_scope(token.params.get("data", {}))
@@ -213,14 +220,22 @@ class HostApiAuthChecker(BaseApiAuthChecker):
             "bk_inst_id": self.scope["bk_inst_id"],
         }
 
+    def is_target_independent_panel_request(self):
+        resolver_match = getattr(self.request, "resolver_match", None)
+        view = getattr(resolver_match, "func", None)
+        view_cls = getattr(view, "cls", None)
+        view_name = f"{getattr(view_cls, '__module__', '')}.{getattr(view_cls, '__name__', '')}"
+        method = getattr(self.request, "method", "").lower()
+        action = getattr(view, "actions", {}).get(method)
+        return (
+            view_name == "monitor_web.scene_view.views.SceneViewViewSet"
+            and action in self.TARGET_INDEPENDENT_PANEL_ACTIONS
+        )
+
     def check(self, request_data):
-        if (
-            request_data.get("scene_id") == "host"
-            and request_data.get("type") == "detail"
-            and request_data.get("id") in {"host", "process"}
-        ):
-            # Panel definitions do not contain business target data. The only public
-            # routes that reach this branch are separately constrained by the host allowlist.
+        if self.is_target_independent_panel_request():
+            # Panel definitions do not contain business target data. Only the four
+            # target-independent routes may skip host scope and time checks.
             return
 
         if self.time_params["lock_search"] and not self.time_params["default_time_range"]:
