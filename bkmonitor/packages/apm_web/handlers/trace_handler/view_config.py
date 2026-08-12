@@ -178,7 +178,7 @@ class TraceFieldsHandler:
         field_name: str = TraceQueryTransformer.to_common_field(field_name)
         for mapping in reversed(self.FIELD_ALIAS_MAP_LIST):
             if field_name in mapping:
-                return mapping[field_name]
+                return mapping[field_name] or field_name
         return field_name
 
     def get_field_type(self, mode: QueryMode, field_name: str) -> str:

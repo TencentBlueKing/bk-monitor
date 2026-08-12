@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bkmonitor.data_source.constants import FieldTypeEnum
+from constants.otel_query import FieldTypeEnum
 from bkmonitor.data_source.utils.query import BaseQuery
 
 
