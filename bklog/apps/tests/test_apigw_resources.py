@@ -29,6 +29,7 @@ PUBLIC_RESOURCES = {
     ("GET", "/clustering_config/{index_set_id}/config/"),
     ("GET", "/databus_collectors/"),
     ("GET", "/databus_collectors/{collector_config_id}/"),
+    ("GET", "/databus_collectors/{collector_config_id}/update_context/"),
     ("GET", "/index_set/{index_set_id}/"),
     ("GET", "/search_index_set/"),
     ("GET", "/search_index_set/{index_set_id}/fields/"),
