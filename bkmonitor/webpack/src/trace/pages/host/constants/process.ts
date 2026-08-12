@@ -71,7 +71,7 @@ export const PROCESS_LIST_COLUMNS: IProcessColumnConfig[] = [
   { id: 'cpuUsage', name: window.i18n.t('CPU 总占用'), type: 'cpu', checked: true, sortable: true, width: 160 },
   { id: 'memRss', name: window.i18n.t('RSS 总内存'), type: 'memory', checked: true, sortable: true, width: 160 },
   { id: 'fdNum', name: window.i18n.t('文件句柄'), type: 'fileHandle', checked: true, sortable: true, width: 160 },
-  { id: 'uptime', name: window.i18n.t('运行时长范围'), type: 'uptime', checked: true, width: 100 },
+  { id: 'uptime', name: window.i18n.t('运行时长范围'), type: 'uptime', checked: true, width: 160 },
 ];
 
 /** 进程详情二级 Tab（Profiling 本期未开发，点击展示占位） */

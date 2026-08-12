@@ -76,6 +76,10 @@ export interface ProcessItem {
   status: number;
   /** 运行时长，单位秒 */
   uptime: null | number;
+  /** 同名进程实例的最长运行时长，单位秒 */
+  uptimeMax?: null | number;
+  /** 同名进程实例的最短运行时长，单位秒 */
+  uptimeMin?: null | number;
   /** 运行用户 */
   user: string;
 }

@@ -247,7 +247,11 @@ def test_get_host_process_list_id_is_process_name_for_scene_variable(monkeypatch
     monkeypatch.setattr(host_resources, "ThreadPool", FakeThreadPool)
     monkeypatch.setattr(host_resources.resource.cc, "get_process_port_health", lambda **_kwargs: {101: {}})
     monkeypatch.setattr(host_resources.resource.cc, "get_process_runtime_metrics", lambda **_kwargs: {101: {}})
-    monkeypatch.setattr(host_resources.resource.cc, "get_process_uptime", lambda **_kwargs: {101: {}})
+    monkeypatch.setattr(
+        host_resources.resource.cc,
+        "get_process_uptime",
+        lambda **_kwargs: {101: {"kafka_broker": {"min": 0, "max": 7200}}},
+    )
     monkeypatch.setattr(host_resources.resource.cc, "get_process_instance_count", lambda **_kwargs: {101: {}})
 
     result = host_resources.GetHostProcessListResource().perform_request(
@@ -257,6 +261,9 @@ def test_get_host_process_list_id_is_process_name_for_scene_variable(monkeypatch
     assert result[0]["id"] == "kafka_broker"
     assert result[0]["name"] == "kafka_broker"
     assert result[0]["id"] != 15139
+    assert result[0]["uptime"] == 7200
+    assert result[0]["uptimeMin"] == 0
+    assert result[0]["uptimeMax"] == 7200
 
 
 def test_process_uptime_queries_snapshot_at_drawer_end_in_milliseconds(monkeypatch):
@@ -347,7 +354,11 @@ def test_process_list_groups_same_name_configs_and_preserves_all_ports(monkeypat
             }
         },
     )
-    monkeypatch.setattr(host_resources.resource.cc, "get_process_uptime", lambda **_kwargs: {101: {"redis": 60}})
+    monkeypatch.setattr(
+        host_resources.resource.cc,
+        "get_process_uptime",
+        lambda **_kwargs: {101: {"redis": {"min": 30, "max": 60}}},
+    )
     monkeypatch.setattr(host_resources.resource.cc, "get_process_instance_count", lambda **_kwargs: {101: {"redis": 2}})
 
     result = host_resources.GetHostProcessListResource().perform_request({"bk_biz_id": 2, "bk_host_id": 101})

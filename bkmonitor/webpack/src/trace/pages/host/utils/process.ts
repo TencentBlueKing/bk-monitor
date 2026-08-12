@@ -26,6 +26,8 @@
 
 import dayjs from 'dayjs';
 
+import type { ProcessItem } from '../types/process';
+
 /**
  * 进程指标进度条颜色（参考主机列表指标列：>85 warn、>=95 danger、其余 success）
  * @param value 指标使用率百分比（CPU / 内存 / 文件句柄等）
@@ -47,6 +49,31 @@ export const formatUptime = (seconds: null | number | undefined): string => {
   }
   return `${+hours.toFixed(1)} h`;
 };
+
+/** 同名进程组运行时长范围 → 展示文案；单实例或单边有效时展示单值。 */
+export const formatUptimeRange = (
+  minSeconds: null | number | undefined,
+  maxSeconds: null | number | undefined
+): string => {
+  const validMin = minSeconds != null && Number.isFinite(minSeconds) && minSeconds >= 0;
+  const validMax = maxSeconds != null && Number.isFinite(maxSeconds) && maxSeconds >= 0;
+  if (!validMin && !validMax) {
+    return '--';
+  }
+  if (!validMin) {
+    return formatUptime(maxSeconds);
+  }
+  if (!validMax) {
+    return formatUptime(minSeconds);
+  }
+  const minText = formatUptime(minSeconds);
+  const maxText = formatUptime(maxSeconds);
+  return minText === maxText ? minText : `${minText} - ${maxText}`;
+};
+
+/** 格式化进程行运行时长，并兼容旧接口仅返回 uptime 的响应。 */
+export const formatProcessUptimeRange = (process: Pick<ProcessItem, 'uptime' | 'uptimeMax' | 'uptimeMin'>): string =>
+  formatUptimeRange(process.uptimeMin ?? process.uptime, process.uptimeMax ?? process.uptime);
 
 /**
  * 将后台返回的小数使用率格式化为前端百分比展示

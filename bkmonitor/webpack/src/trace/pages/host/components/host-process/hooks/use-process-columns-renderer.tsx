@@ -31,7 +31,7 @@ import {
   PROCESS_LIST_ELLIPSIS_CELL_CLASS,
   PROCESS_PORT_STATUS_MAP,
 } from '../../../constants/process';
-import { formatMemRss, formatPercent, formatUptime, getProcessBarColor } from '../../../utils/process';
+import { formatMemRss, formatPercent, formatProcessUptimeRange, getProcessBarColor } from '../../../utils/process';
 
 import type { ProcessItem } from '../../../types/process';
 
@@ -215,7 +215,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 运行时长列 JSX
    */
   const renderUptimeCell = (row: ProcessItem) => (
-    <span class={['process-table-uptime', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>{formatUptime(row.uptime)}</span>
+    <span class={['process-table-uptime', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>{formatProcessUptimeRange(row)}</span>
   );
 
   /**

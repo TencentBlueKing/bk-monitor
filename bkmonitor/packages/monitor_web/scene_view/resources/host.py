@@ -550,6 +550,7 @@ class GetHostProcessListResource(ApiAuthResource):
         result = []
         for process in group_process_configs(processes[host.bk_host_id]):
             port_status = host_port_status.get(process["name"])
+            uptime_range = host_uptime.get(process["name"], {})
             ports = [
                 {
                     "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(binding.get("protocol")),
@@ -582,7 +583,10 @@ class GetHostProcessListResource(ApiAuthResource):
                     "memUsage": _round_metric(
                         host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])
                     ),
-                    "uptime": host_uptime.get(process["name"]),
+                    # 兼容旧调用方继续保留 uptime，并用最大值维持原有语义。
+                    "uptime": uptime_range.get("max"),
+                    "uptimeMin": uptime_range.get("min"),
+                    "uptimeMax": uptime_range.get("max"),
                     "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
                     # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
                     "fdUsageRate": (
