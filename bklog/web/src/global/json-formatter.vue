@@ -12,6 +12,8 @@
         'show-all-word': showAllWords,
         'is-original-mode': isOriginalMode,
         'is-overflow-y': isShowOverflowY,
+        'is-lazy-paint': canLazyPaint,
+        'is-lazy-paint-active': isLazyPaintActive,
       },
     ]"
     :style="rootElementStyle"
@@ -92,6 +94,7 @@
   import { BK_LOG_STORAGE } from '../store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
   import { buildHighlightHtml, pageHighlightState } from '../views/retrieve-core/page-highlight';
+  import { parseMarkedJson, type PrimitiveMarkMap } from '../views/retrieve-core/marked-json';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -125,6 +128,15 @@
       type: [Number, String, null],
       default: 3,
     },
+
+    /**
+     * 结果表格字段列专用：允许单元格横向滚出可视区后跳过布局与绘制。
+     * 只有处在横向滚动容器里、且同屏列数很多的场景才需要，其余调用方保持默认关闭。
+     */
+    lazyPaint: {
+      type: Boolean,
+      default: false,
+    },
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
@@ -134,6 +146,12 @@
   const expandedOriginalValueFields = ref<Record<string, boolean>>({});
   const originalValuePreviewTextCache = new Map<string, { text: string; isTruncated: boolean }>();
   const originalValuePreviewSegmentCache = new Map<string, any[]>();
+  const segmentResolveTextCache = new Map<string, string>();
+  /**
+   * 按字段缓存 JSON 解析结果：划词高亮（pageHighlightState.version）等只影响渲染的变化
+   * 会触发 rootList 重算，不应让整屏行重复执行 JSONBig.parse。
+   */
+  const jsonParseCache = new Map<string, { raw: any; value: any; primitiveMarks?: PrimitiveMarkMap }>();
   const expandedOriginalValueTexts = ref<Record<string, string>>({});
   const expandedOriginalValueSegments = ref<Record<string, any[]>>({});
   const hasScrollY = ref(false);
@@ -206,6 +224,8 @@
   const clearOriginalValueRenderCache = () => {
     originalValuePreviewTextCache.clear();
     originalValuePreviewSegmentCache.clear();
+    segmentResolveTextCache.clear();
+    jsonParseCache.clear();
     expandedOriginalValueTexts.value = {};
     expandedOriginalValueSegments.value = {};
   };
@@ -381,16 +401,15 @@
     }
 
     // 4) 字段值本身可能已叠加 mark overlay
-    const [, val] = getFieldValue(field);
-    const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
+    const renderText = getDateFieldValue(field, getCellRender(getRawFieldValue(field)), isFormatDateField.value);
     return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
   };
 
   /** 截断判定仍基于字段展示原文长度，避免因 mark 源切换改变「是否展示更多」 */
   const getOriginalValuePlainText = (fieldName: string) => {
     const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
-    const [, val] = getFieldValue(field);
-    const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
+    // 只需原始展示文本，不能走 JSON 解析：否则每个字段每轮重算都会多一次 JSONBig.parse
+    const renderText = getDateFieldValue(field, getCellRender(getRawFieldValue(field)), isFormatDateField.value);
     return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
   };
 
@@ -472,7 +491,13 @@
    * 分词字段归属解析用的完整原文（与 1000 截断展示同源、仅去掉 mark）。
    * 截断后的 DOM 仍是此前缀，偏移可对齐；JSON.parse 必须用完整串，不能用截断串。
    */
-  const getSegmentResolveText = (fieldName: string) => stripMark(getOriginalValueRenderText(fieldName));
+  const getSegmentResolveText = (fieldName: string) => {
+    if (!segmentResolveTextCache.has(fieldName)) {
+      segmentResolveTextCache.set(fieldName, stripMark(getOriginalValueRenderText(fieldName)));
+    }
+
+    return segmentResolveTextCache.get(fieldName);
+  };
 
   const getOriginalValueSegments = (field: any) => {
     const fieldName = field.field_name;
@@ -634,23 +659,30 @@
     onSegmentRenderUpdate: scheduleSetIsOverflowY,
   });
 
-  const convertToObject = val => {
-    if (typeof val === 'string' && formatJson.value) {
-      if (/^\s*(\{|\[)/.test(val)) {
-        try {
-          return bigJson.parse(val);
-        } catch (e) {
-          if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
-            console.warn(`${e.name}: ${e.message}; `, e);
-
-            return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
-          }
-          return val;
-        }
-      }
+  /**
+   * JSON 解析：检索高亮 <mark> 一律保留，不做剥离。
+   * mark 跨越引号/冒号等结构字符时由 parseMarkedJson 把命中收敛进 KEY/VALUE 内部再解析；
+   * 数字等字面量命中无法内嵌标签，通过 primitiveMarks 按结构路径透传给 JSON 树渲染。
+   */
+  const convertToObject = (fieldName: string, val: any) => {
+    if (typeof val !== 'string' || !formatJson.value) {
+      return { raw: val, value: val, primitiveMarks: undefined };
     }
 
-    return val;
+    const cacheKey = String(fieldName ?? '');
+    const cached = jsonParseCache.get(cacheKey);
+    if (cached && cached.raw === val) {
+      return cached;
+    }
+
+    const parsed = parseMarkedJson(val, text => bigJson.parse(text));
+    const entry = {
+      raw: val,
+      value: parsed.isJson ? parsed.value : val,
+      primitiveMarks: parsed.primitiveMarks,
+    };
+    jsonParseCache.set(cacheKey, entry);
+    return entry;
   };
 
   const getDateFieldValue = (field, content, formatDate) => {
@@ -662,26 +694,23 @@
     return content !== null && content !== undefined && content !== '' ? content : '--';
   };
 
+  /** 原始字段值：不做 JSON 解析，供长度判定 / 展示文本等场景避免重复 parse */
+  const getRawFieldValue = field => {
+    if (props.jsonValue !== null && typeof props.jsonValue === 'object') {
+      return getRowFieldValue(props.jsonValue, field);
+    }
+
+    return props.jsonValue;
+  };
+
   const getFieldValue = field => {
-    if (formatJson.value) {
-      if (typeof props.jsonValue === 'string') {
-        return [convertToObject(props.jsonValue), props.jsonValue];
-      }
-
-      if (typeof props.jsonValue === 'object') {
-        const fieldValue = getRowFieldValue(props.jsonValue, field);
-        return [convertToObject(fieldValue), fieldValue];
-      }
-
-      return [props.jsonValue, props.jsonValue];
+    const rawValue = getRawFieldValue(field);
+    if (!formatJson.value) {
+      return [rawValue, rawValue, undefined];
     }
 
-    if (typeof props.jsonValue === 'object') {
-      const fieldValue = getRowFieldValue(props.jsonValue, field);
-      return [fieldValue, fieldValue];
-    }
-
-    return [props.jsonValue, props.jsonValue];
+    const parsed = convertToObject(field?.field_name, rawValue);
+    return [parsed.value, rawValue, parsed.primitiveMarks];
   };
 
   const getCellRender = (val: unknown, isJson = false) => {
@@ -710,7 +739,7 @@
   };
 
   const getFieldFormatter = (field, formatDate) => {
-    const [objValue, val] = getFieldValue(field);
+    const [objValue, val, primitiveMarks] = getFieldValue(field);
     const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
     // 仅 String/Text 等非 Object 字段「看起来像 JSON」时才算 parsedFromJsonString
     const isObjectLikeField = field?.field_type === 'object'
@@ -726,6 +755,7 @@
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
       parsedFromJsonString,
+      primitiveMarks,
     };
   };
 
@@ -771,14 +801,17 @@
           stringValue: shouldUseOriginalValueText
             ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
             : formatter.stringValue,
-          // 与截断展示同源的完整原文：仅用于分词→字段路径绑定，不参与 DOM 截断渲染
-          segmentResolveText: getSegmentResolveText(f.field_name),
+          // 与截断展示同源的完整原文：仅用于分词→字段路径绑定，不参与 DOM 截断渲染。
+          // 惰性求值，避免每轮 rootList 重算都把全部 segment 拼成带 mark 的长串
+          segmentResolveText: () => getSegmentResolveText(f.field_name),
           precomputedSegments: shouldSkipPrecomputedSegments
             ? undefined
             : getOriginalValueSegments(f),
           // JSON 解析开启时：叶子长字符串启用 1000/更多（Origin & Table 均生效）
           enableLeafTruncate: formatJson.value,
           parsedFromJsonString: formatter.parsedFromJsonString,
+          // 数字 / 布尔字面量上的检索命中：按 JSON 结构路径透传给树渲染重新包 mark
+          primitiveMarks: formatter.primitiveMarks,
           resolveFieldDisplayName: (fieldName: string) => fieldNameHook.getFieldName(fieldName),
         },
         originalValueMeta: {
@@ -797,18 +830,159 @@
     isResolved.value = true;
     setTimeout(() => {
       RetrieveHelper.highlightElement(refJsonFormatterCell.value);
+      hasRenderedOnce = true;
       setIsOverflowY();
     });
   });
 
-  const setIsOverflowY = () => {
-    if (refJsonFormatterCell.value) {
-      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
-      hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+  /**
+   * 横向跳过渲染分两步，顺序不能颠倒：
+   * 先让单元格带着 contain-intrinsic-size: auto 正常布局一次，浏览器才会记住它的真实高度，
+   * 之后再开启 content-visibility，横向滚出可视区的列才能既跳过布局绘制、又保持原有高度。
+   * 若一上来就开 content-visibility，从未布局过的列会直接塌到兜底高度，整行高度随横向滚动跳变。
+   */
+  const canLazyPaint = computed(() => {
+    if (!props.lazyPaint || isOriginalMode.value) {
+      return false;
+    }
+
+    return (
+      typeof CSS !== 'undefined' &&
+      !!CSS.supports?.('content-visibility', 'auto') &&
+      !!CSS.supports?.('contain-intrinsic-size', 'auto 20px')
+    );
+  });
+  const isLazyPaintActive = ref(false);
+  let hasRenderedOnce = false;
+
+  /**
+   * 用实测高度回写占位尺寸并开启跳过。
+   * 必须等单元格完成一次完整渲染（JSON 树已建好）：挂载时测到的是纯文本高度，
+   * 拿它当占位值会让这一列滚进可视区时行高突变。
+   * 单元格当前已被跳过时读到的就是占位值本身，回写等价于无操作。
+   */
+  const syncLazyPaint = (element: HTMLElement, measuredHeight: number) => {
+    if (!canLazyPaint.value || !hasRenderedOnce || measuredHeight <= 0) {
       return;
     }
 
-    hasScrollY.value = false;
+    element.style.setProperty('contain-intrinsic-size', `auto ${measuredHeight}px`);
+    isLazyPaintActive.value = true;
+  };
+
+  /**
+   * 行高规则或内容变了就得先退出跳过，让已滚出可视区的列重新真实布局一次。
+   * 否则它们会一直按旧占位高度撑着，行高不跟随「显示行数」等设置变化。
+   */
+  const resetLazyPaint = () => {
+    if (!isLazyPaintActive.value) {
+      return;
+    }
+
+    isLazyPaintActive.value = false;
+    (refJsonFormatterCell.value as HTMLElement | undefined)?.style?.removeProperty('contain-intrinsic-size');
+  };
+
+  const setIsOverflowY = () => {
+    const element = refJsonFormatterCell.value as HTMLElement | undefined;
+    if (!element) {
+      hasScrollY.value = false;
+      return;
+    }
+
+    const { offsetHeight, scrollHeight } = element;
+    hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+    syncLazyPaint(element, offsetHeight);
+  };
+
+  /**
+   * JSON 解析模式展开后，单元格自身只解决了纵向：sticky 把「收起」贴在 50vh 滚动视口底部。
+   * 横向上单元格宽度可能大于表格可视宽度，此时单元格右边缘已滚出视口，按钮跟着看不见。
+   * 这里把按钮再往左推回可视区右边缘，并且只在展开态订阅横向滚动，
+   * 未展开的单元格完全不参与，横向滚动主路径没有额外开销。
+   */
+  const HORIZONTAL_VIEWPORT_SELECTOR = '.bklog-row-box';
+
+  let collapseAnchorViewport: HTMLElement | null = null;
+  let collapseAnchorContentRight = 0;
+  let collapseAnchorFrame = 0;
+  let collapseAnchorShift = -1;
+
+  const isStickyCollapseAction = computed(
+    () => formatJson.value && !isOriginalMode.value && showMoreAction.value && showAllText.value,
+  );
+
+  const syncCollapseAnchor = () => {
+    const element = refJsonFormatterCell.value as HTMLElement | undefined;
+    if (!element || !collapseAnchorViewport) return;
+
+    const visibleRight = collapseAnchorViewport.scrollLeft + collapseAnchorViewport.clientWidth;
+    const shift = Math.max(0, Math.round(collapseAnchorContentRight - visibleRight));
+    if (collapseAnchorShift === shift) return;
+
+    collapseAnchorShift = shift;
+    element.style.setProperty('--bklog-collapse-shift', `${shift}px`);
+  };
+
+  const scheduleSyncCollapseAnchor = () => {
+    if (collapseAnchorFrame) return;
+
+    collapseAnchorFrame = requestAnimationFrame(() => {
+      collapseAnchorFrame = 0;
+      syncCollapseAnchor();
+    });
+  };
+
+  /** 单元格右边缘换算成横向滚动内容坐标，之后每帧只读 scrollLeft，不再取 rect */
+  const remeasureCollapseAnchor = () => {
+    const element = refJsonFormatterCell.value as HTMLElement | undefined;
+    if (!element || !collapseAnchorViewport) return;
+
+    const cellRight = element.getBoundingClientRect().right;
+    const viewportLeft = collapseAnchorViewport.getBoundingClientRect().left;
+    collapseAnchorContentRight = cellRight - viewportLeft + collapseAnchorViewport.scrollLeft;
+    syncCollapseAnchor();
+  };
+
+  const bindCollapseAnchor = () => {
+    const element = refJsonFormatterCell.value as HTMLElement | undefined;
+    if (!element || collapseAnchorViewport) return;
+
+    collapseAnchorViewport = element.closest(HORIZONTAL_VIEWPORT_SELECTOR);
+    // KV 抽屉等场景没有横向滚动容器，退回单元格右边缘对齐即可
+    if (!collapseAnchorViewport) return;
+
+    collapseAnchorViewport.addEventListener('scroll', scheduleSyncCollapseAnchor, { passive: true });
+    window.addEventListener('resize', remeasureCollapseAnchor);
+    remeasureCollapseAnchor();
+  };
+
+  const unbindCollapseAnchor = () => {
+    if (collapseAnchorFrame) {
+      cancelAnimationFrame(collapseAnchorFrame);
+      collapseAnchorFrame = 0;
+    }
+
+    if (collapseAnchorViewport) {
+      collapseAnchorViewport.removeEventListener('scroll', scheduleSyncCollapseAnchor);
+      window.removeEventListener('resize', remeasureCollapseAnchor);
+      collapseAnchorViewport = null;
+    }
+
+    collapseAnchorShift = -1;
+    (refJsonFormatterCell.value as HTMLElement | undefined)?.style?.removeProperty('--bklog-collapse-shift');
+  };
+
+  /**
+   * 被跳过期间的测量结果都是占位值，重新可见后必须重算，
+   * 否则「更多」按钮会按占位高度判断，出现该显示不显示。
+   */
+  const handleContentVisibilityChange = (event: Event & { skipped?: boolean }) => {
+    if (event.skipped) {
+      return;
+    }
+
+    scheduleSetIsOverflowY();
   };
 
   watch(
@@ -816,6 +990,7 @@
     () => {
       showAllText.value = false;
       hasScrollY.value = false;
+      resetLazyPaint();
       resetExpandScrollTop();
       scheduleSetIsOverflowY();
     },
@@ -828,6 +1003,7 @@
 
       showAllText.value = false;
       hasScrollY.value = false;
+      resetLazyPaint();
       resetExpandScrollTop();
       scheduleSetIsOverflowY();
     },
@@ -855,6 +1031,7 @@
       pruneOriginalValueExpandedFields();
       clearOriginalValueRenderCache();
       hasScrollY.value = false;
+      resetLazyPaint();
       scheduleSetIsOverflowY();
     },
   );
@@ -868,6 +1045,7 @@
       clearOriginalValueRenderCache();
       resetAllWordSplitFlags();
       hasScrollY.value = false;
+      resetLazyPaint();
       if (isResolved.value) {
         debounceUpdate();
       }
@@ -907,14 +1085,35 @@
     },
   );
 
+  watch(isStickyCollapseAction, enabled => {
+    if (!enabled) {
+      unbindCollapseAnchor();
+      return;
+    }
+
+    nextTick(() => {
+      if (isStickyCollapseAction.value) {
+        bindCollapseAnchor();
+      }
+    });
+  });
+
   const { addEvent } = useRetrieveEvent();
-  addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
+  addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, () => {
+    setIsOverflowY();
+    remeasureCollapseAnchor();
+  });
 
   onMounted(() => {
     setIsOverflowY();
+    if (canLazyPaint.value) {
+      refJsonFormatterCell.value?.addEventListener('contentvisibilityautostatechange', handleContentVisibilityChange);
+    }
   });
 
   onBeforeUnmount(() => {
+    refJsonFormatterCell.value?.removeEventListener('contentvisibilityautostatechange', handleContentVisibilityChange);
+    unbindCollapseAnchor();
     destroy();
   });
 </script>
@@ -931,11 +1130,45 @@
     color: var(--table-fount-color);
     text-align: left;
 
+    /**
+     * 第一阶段：只声明占位尺寸，不开启跳过。
+     * 这一步必须先于 content-visibility 生效，浏览器才会在正常布局时记住单元格真实高度。
+     */
+    &.is-lazy-paint {
+      contain-intrinsic-size: auto 20px;
+    }
+
+    /** 第二阶段：单元格完成首次渲染与测量后才开启，横向滚出可视区即跳过布局与绘制 */
+    &.is-lazy-paint-active {
+      content-visibility: auto;
+    }
+
     &.is-overflow-y {
       overflow-y: auto;
 
       .btn-more-action {
         position: relative;
+      }
+
+      /**
+       * JSON 解析模式展开后，单元格自身是高度 50vh 的纵向滚动容器。
+       * 「收起」跟着内容流走的话，用户得先滚到底才点得到，深层 JSON 尤其难受。
+       * sticky 让它始终贴在滚动视口右下角，随时可点。
+       * 常规模式不加 is-json，Origin 紧凑模式根本不渲染这个按钮，都不受影响。
+       */
+      &.is-json .btn-more-action {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        display: block;
+        width: fit-content;
+
+        /* --bklog-collapse-shift 由展开态的横向滚动订阅写入，把按钮推回可视区右边缘 */
+        margin-right: var(--bklog-collapse-shift, 0px);
+        margin-left: auto;
+        padding: 0 4px;
+        border-radius: 2px;
+        box-shadow: 0 0 6px 0 rgb(0 0 0 / 12%);
       }
 
       .bklog-root-field {
@@ -947,20 +1180,23 @@
       }
     }
 
+    /**
+     * 这个类挂在每一个 JSON 叶子节点上，深层 JSON 单元格可达数百个。
+     * 不能在这里做 GPU 层提升：will-change / translateZ 会让每个叶子各自成为合成层，
+     * 表格横向滚动时合成器要逐层更新，层数量级到千以后直接掉帧。
+     */
     .bklog-scroll-box {
       max-height: none;
       overflow: visible;
-      transform: translateZ(0); /* 强制开启GPU加速 */
-      will-change: transform;
     }
 
+    /**
+     * 同理，这里的 span 是分词后的每个词元。
+     * content-visibility: auto 会把每个词元都加入视口相关性检查队列，
+     * 数量级同样是万级，滚动时的检查开销远大于它能省下的绘制。
+     */
     .bklog-scroll-cell {
       word-break: break-all;
-
-      span {
-        content-visibility: auto;
-        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
-      }
     }
 
     mark {
