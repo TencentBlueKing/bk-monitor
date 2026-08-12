@@ -30,19 +30,12 @@ interface IAlertLevelRule {
 export const DEFAULT_AUTO_ALERT_LEVELS: AlertLevel[] = [1, 2, 3];
 export const AUTO_ALERT_TECHNICAL_LEVEL: AlertLevel = 2;
 
-export function createAiAlertLevelValue(rule?: IAlertLevelRule, autoEnabled = false): IAiAlertLevelValue {
+export function createAiAlertLevelValue(rule?: IAlertLevelRule): IAiAlertLevelValue {
   if (isAutoAlertLevelRule(rule)) {
     return {
       mode: 'auto',
       level: AUTO_ALERT_TECHNICAL_LEVEL,
       alertLevels: normalizeAlertLevels(rule?.config?.alert_levels),
-    };
-  }
-  if (!rule && autoEnabled) {
-    return {
-      mode: 'auto',
-      level: AUTO_ALERT_TECHNICAL_LEVEL,
-      alertLevels: [...DEFAULT_AUTO_ALERT_LEVELS],
     };
   }
   return {
