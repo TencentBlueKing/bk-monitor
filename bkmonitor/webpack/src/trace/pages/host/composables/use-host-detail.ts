@@ -28,8 +28,10 @@ import { type ShallowRef, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
+import { storeToRefs } from 'pinia';
 
 import { isHostNode } from '../utils/topo-tree';
+import { useHostStore } from '@/store/modules/host';
 
 import type { IDetailItem } from '../../../components/common-detail/typing';
 import type { IHostTopoTreeNode } from '../types';
@@ -38,14 +40,16 @@ import type { IHostTopoTreeNode } from '../types';
  * @description 监听拓扑选中节点变化（带防抖），调用接口获取主机详情数据
  */
 export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>) => {
+  const { refreshGeneration } = storeToRefs(useHostStore());
   /** 详情数据 */
   const detailData = shallowRef<IDetailItem[]>([]);
   /** 加载状态 */
   const loading = shallowRef(false);
+  /** 仅允许最新节点 / 刷新代次对应的请求提交状态 */
+  let latestRequestId = 0;
 
   /** 获取详情数据 */
-  const fetchDetail = async (node: IHostTopoTreeNode) => {
-    loading.value = true;
+  const fetchDetail = async (node: IHostTopoTreeNode, requestId: number) => {
     try {
       const data = await getHostOrTopoNodeDetail(
         isHostNode(node)
@@ -58,7 +62,8 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
               bk_inst_id: node.bk_inst_id,
               bk_obj_id: node.bk_obj_id,
             }
-      ).catch(() => []);
+      );
+      if (requestId !== latestRequestId) return;
       // 处理 list 类型数据
       detailData.value =
         data.map?.((item: IDetailItem) => {
@@ -69,9 +74,13 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
           return item;
         }) || [];
     } catch {
-      detailData.value = [];
+      if (requestId === latestRequestId) {
+        detailData.value = [];
+      }
     } finally {
-      loading.value = false;
+      if (requestId === latestRequestId) {
+        loading.value = false;
+      }
     }
   };
 
@@ -80,13 +89,16 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
 
   /** 监听选中节点变化 */
   watch(
-    () => selectedNode.value,
-    node => {
+    [() => selectedNode.value, refreshGeneration],
+    ([node]) => {
+      const requestId = ++latestRequestId;
       if (!node) {
         detailData.value = [];
+        loading.value = false;
         return;
       }
-      debouncedFetch(node);
+      loading.value = true;
+      debouncedFetch(node, requestId);
     },
     { immediate: true }
   );

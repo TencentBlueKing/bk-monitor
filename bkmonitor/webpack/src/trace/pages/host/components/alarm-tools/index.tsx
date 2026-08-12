@@ -26,9 +26,11 @@
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { getStrategyAndEventCountApi } from '../../services/global-service';
+import { useHostStore } from '@/store/modules/host';
 
 import type { IHostTopoTreeNode } from '../../types/topo';
 
@@ -45,21 +47,21 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const { refreshGeneration } = storeToRefs(useHostStore());
     /** 告警数 */
     const alarmNum = shallowRef(0);
     /** 策略数 */
     const strategyNum = shallowRef(0);
+    /** 仅允许最新节点 / 刷新代次对应的请求提交状态 */
+    let latestRequestId = 0;
 
     /** 获取告警、策略数量 */
-    const fetchCount = async () => {
+    const fetchCount = async (node: IHostTopoTreeNode, requestId: number) => {
       const result = await getStrategyAndEventCountApi({
         scene_id: 'host',
-        target: props.selectedNode
-          ? {
-              ...props.selectedNode,
-            }
-          : undefined,
+        target: { ...node },
       });
+      if (requestId !== latestRequestId) return;
       alarmNum.value = result.event_counts ?? 0;
       strategyNum.value = result.strategy_counts ?? 0;
     };
@@ -100,10 +102,14 @@ export default defineComponent({
     };
 
     watch(
-      () => props.selectedNode,
-      val => {
-        if (val) {
-          fetchCount();
+      [() => props.selectedNode, refreshGeneration],
+      ([node]) => {
+        const requestId = ++latestRequestId;
+        if (node) {
+          fetchCount(node, requestId);
+        } else {
+          alarmNum.value = 0;
+          strategyNum.value = 0;
         }
       },
       { immediate: true }
