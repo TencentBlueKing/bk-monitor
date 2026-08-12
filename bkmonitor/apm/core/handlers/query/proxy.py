@@ -189,7 +189,7 @@ class QueryProxy:
                         bk_biz_id=relation_app.bk_biz_id,
                         app_name=relation_app.app_name,
                     )
-                ).query_by_trace_id(trace_id)
+                ).query_by_trace_id(trace_id, use_trace_scope=False)
                 client = Permission()
                 permission = client.is_allowed(
                     ActionEnum.VIEW_APM_APPLICATION,

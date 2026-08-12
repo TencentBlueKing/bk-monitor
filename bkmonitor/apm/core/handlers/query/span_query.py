@@ -67,7 +67,12 @@ class SpanQuery(BaseQuery):
         return list(self._add_query(self.get_qs().limit(limit), queries))
 
     def _build_cross_queries(self, trace_id: str, trace_scope_table: str) -> list[QueryConfigBuilder]:
-        return [QueryConfigBuilder(self.USING).table(trace_scope_table).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})]
+        return [
+            QueryConfigBuilder(self.USING)
+            .table(trace_scope_table)
+            .order_by(OtlpKey.START_TIME)
+            .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
+        ]
 
     def _cross_query_by_trace_id(self, trace_id: str) -> list[dict[str, Any]]:
         bk_tenant_id: str = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
@@ -93,8 +98,8 @@ class SpanQuery(BaseQuery):
                 deduped_spans.append(span)
         return deduped_spans
 
-    def query_by_trace_id(self, trace_id: str) -> list[dict[str, Any]]:
-        if self.bk_biz_id in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
+    def query_by_trace_id(self, trace_id: str, use_trace_scope: bool = True) -> list[dict[str, Any]]:
+        if use_trace_scope and self.bk_biz_id in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
             return self._cross_query_by_trace_id(trace_id)
         return self._query_by_trace_id(trace_id)
 

@@ -103,6 +103,12 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Index: {}
 };
 
+type SpanDetailResponseCache = {
+  key: string;
+  originData: null | Record<string, any>;
+  span: Span;
+};
+
 type SpanLinksRequestParams = {
   requestAppName: string;
   requestSpanId: string;
@@ -175,6 +181,7 @@ export default defineComponent({
     const spanDetailLoading = shallowRef(false);
     let spanDetailRequestKey = '';
     let spanDetailRequestSeq = 0;
+    let spanDetailResponseCache: null | SpanDetailResponseCache = null;
 
     const detailSpan = computed<Span>(() => loadedSpan.value || props.spanDetails);
 
@@ -425,6 +432,13 @@ export default defineComponent({
       }
 
       const requestKey = JSON.stringify([sourceBizId, sourceAppName, sourceSpanId]);
+      if (requestKey === spanDetailResponseCache?.key) {
+        loadedSpan.value = {
+          ...sourceSpan,
+          ...spanDetailResponseCache.span,
+        };
+        return spanDetailResponseCache.originData;
+      }
       if (requestKey === spanDetailRequestKey) return null;
 
       spanDetailRequestKey = requestKey;
@@ -447,11 +461,17 @@ export default defineComponent({
       const loadedDetailSpan = transformTraceTree(traceTree)?.spans?.[0];
       if (!loadedDetailSpan) return null;
 
+      const originData = result.origin_data ?? null;
+      spanDetailResponseCache = {
+        key: requestKey,
+        originData,
+        span: loadedDetailSpan,
+      };
       loadedSpan.value = {
         ...sourceSpan,
         ...loadedDetailSpan,
       };
-      return result.origin_data;
+      return originData;
     }
 
     async function prepareDetails(): Promise<void> {
