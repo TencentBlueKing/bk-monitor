@@ -34,10 +34,9 @@ import { useI18n } from 'vue-i18n';
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
 import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
 import TimeRange from '../../../../../components/time-range/time-range';
-import { getDefaultTimezone } from '../../../../../i18n/dayjs';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
 import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pages/host/constants/process';
-import { formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
+import { formatProcessSeriesAlias, formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
 import { useMetricAggregation } from '../../../composables/use-metric-aggregation';
 import { useProcessMetric } from '../../../composables/use-process-metric';
 import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
@@ -92,14 +91,19 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const { processMetricAggregationState } = storeToRefs(useHostStore());
+    const {
+      processMetricAggregationState,
+      timeRange: hostTimeRange,
+      timeRangeTimestamp,
+      timezone: hostTimezone,
+    } = storeToRefs(useHostStore());
 
     /** 当前二级 Tab，默认指标视图 */
     const activeTab = shallowRef<ProcessDetailTabType>(ProcessDetailTabEnum.METRIC);
-    /** 抽屉本地的时间范围（独立于页面顶栏，仅驱动详情内图表） */
-    const timeRange = shallowRef<TimeRangeType>(['now-1d', 'now']);
-    /** 抽屉本地时区，跟随 timeRange 一起下发给图表 */
-    const timezone = shallowRef(getDefaultTimezone());
+    /** 抽屉时间范围初始继承页面顶栏，之后可在抽屉内独立调整 */
+    const timeRange = shallowRef<TimeRangeType>([...hostTimeRange.value]);
+    /** 抽屉时区初始继承页面顶栏，跟随 timeRange 一起下发给图表 */
+    const timezone = shallowRef(hostTimezone.value);
     /** 自动刷新间隔（秒），-1 表示关闭 */
     const refreshInterval = shallowRef(-1);
     /** 立即刷新信号：变更该值即触发下游图表重新取数 */
@@ -171,17 +175,13 @@ export default defineComponent({
       ...(props.process?.name ? { display_name: props.process.name } : {}),
     }));
 
-    /**
-     * 图表自定义配置：图例名称中的进程唯一标识（如 127.0.0.1_elasticsearch_1000）替换为进程名展示。
-     * 注：取数仍使用唯一 id，此处仅做展示层替换，保留名称其余部分（如同环比后缀）。
-     */
+    /** 图表图例默认展示进程名，用户按 PID 分组时追加实例 PID。 */
     const chartCustomOptions: CustomOptions = {
       series: seriesData =>
         seriesData.map(item => {
           // @ts-expect-error
           const dimensions = item.dimensions;
-          // @ts-expect-error
-          return { ...item, alias: dimensions ? `${dimensions.display_name}|${dimensions.pid}` : item.alias };
+          return { ...item, alias: formatProcessSeriesAlias(dimensions, item.alias) };
         }),
     };
 
@@ -263,7 +263,9 @@ export default defineComponent({
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('运行时长')}：</span>
-                <span class='process-detail-kv-value'>{formatProcessUptimeDetail(process.uptime)}</span>
+                <span class='process-detail-kv-value'>
+                  {formatProcessUptimeDetail(process.uptime, timeRangeTimestamp.value.end_time)}
+                </span>
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('实例数')}：</span>
@@ -384,6 +386,8 @@ export default defineComponent({
       () => props.show,
       show => {
         if (show) {
+          timeRange.value = [...hostTimeRange.value];
+          timezone.value = hostTimezone.value;
           load();
           startRefreshTimer(refreshInterval.value);
         } else {
