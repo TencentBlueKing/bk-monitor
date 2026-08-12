@@ -30,13 +30,16 @@ from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL
 from alarm_backends.core.storage.redis_cluster import routed_client
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
-from alarm_backends.service.alert.manager.checker.utils import is_auto_level_intelligent_detect
+from alarm_backends.service.alert.manager.checker.utils import (
+    is_auto_level_intelligent_detect,
+    resolve_new_series_lifecycle_state,
+    terminate_new_series_lifecycle_state,
+)
 from bkmonitor.data_source import CustomEventDataSource
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import AlgorithmModel
 from constants.alert import EventStatus
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.strategy import NewSeriesAlertMode
 from core.unit import load_unit
 
 logger = logging.getLogger("alert.manager")
@@ -83,75 +86,19 @@ class RecoverStatusChecker(BaseChecker):
 
     def check_new_series_lifecycle(self, alert, strategy):
         """持续模式使用独立活跃态保持告警，并按 detect_range 结束生命周期。"""
-        if not isinstance(strategy, dict):
+        lifecycle = resolve_new_series_lifecycle_state(alert, strategy)
+        if lifecycle is None:
             return False
-
-        continuous_algorithms = [
-            (item, algorithm)
-            for item in strategy.get("items") or []
-            for algorithm in item.get("algorithms") or []
-            if (
-                algorithm.get("type") == AlgorithmModel.AlgorithmChoices.NewSeries
-                and (algorithm.get("config") or {}).get("alert_mode", NewSeriesAlertMode.ONCE)
-                == NewSeriesAlertMode.CONTINUOUS
-            )
-        ]
-        if not continuous_algorithms:
-            return False
-
-        try:
-            event_id = alert.top_event["event_id"]
-            if not isinstance(event_id, str) or len(event_id.split(".")) != 5:
-                return False
-            parser = EventIDParser(event_id)
-        except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-            # 关联告警等事件使用非五段式 event_id，且不属于 NewSeries 生命周期。
-            return False
-
-        matched = next(
-            (
-                (item, algorithm)
-                for item, algorithm in continuous_algorithms
-                if int(item.get("id")) == parser.item_id and int(algorithm.get("level")) == parser.level
-            ),
-            None,
-        )
-        if not matched:
-            return False
-        item, algorithm = matched
-
-        from alarm_backends.service.detect.strategy.new_series import NewSeries
-
-        config = algorithm.get("config") or {}
-        detect_range = int(config["detect_range"])
-        query_configs = item.get("query_configs") or []
-        agg_dimension = query_configs[0].get("agg_dimension") if query_configs else None
-        active_key = NewSeries.active_state_key(
-            strategy_id=parser.strategy_id,
-            item_id=parser.item_id,
-            dimension_signature=NewSeries.signature_from_agg_dimension(agg_dimension),
-            threshold=int(config.get("threshold", 0)),
-            detect_range=detect_range,
-            level=parser.level,
-        )
-        claimed_key = NewSeries.claimed_state_key(
-            strategy_id=parser.strategy_id,
-            item_id=parser.item_id,
-            dimension_signature=NewSeries.signature_from_agg_dimension(agg_dimension),
-            threshold=int(config.get("threshold", 0)),
-            detect_range=detect_range,
-            level=parser.level,
-        )
         observed_at = int(time.time())
         try:
             lifecycle_state = self.claim_new_series_expiration(
-                active_key,
-                parser.dimensions_md5,
-                expire_before=observed_at - detect_range,
-                claimed_key=claimed_key,
+                lifecycle.active_key,
+                lifecycle.fingerprint,
+                expire_before=observed_at - lifecycle.detect_range,
+                claimed_key=lifecycle.claimed_key,
                 observed_at=observed_at,
-                soft_ttl=NewSeries.active_soft_ttl(detect_range),
-                max_series=int(config.get("max_series", 100000)),
+                soft_ttl=lifecycle.soft_ttl,
+                max_series=lifecycle.max_series,
             )
         except Exception as e:  # noqa  活跃态不可读时宁可保持告警，避免 Redis 抖动造成错误恢复。
             logger.exception(
@@ -174,6 +121,7 @@ class RecoverStatusChecker(BaseChecker):
             alert,
             _("新维度值在检测周期内未再次出现，告警已{handle}"),
             status_setter=status_setter,
+            preserve_new_series_lifecycle=True,
         )
         logger.info(
             "[new_series lifecycle] alert(%s) strategy(%s) observation window expired, status_setter(%s)",
@@ -565,10 +513,14 @@ class RecoverStatusChecker(BaseChecker):
         status_setter="recovery",
         latest_normal_record: tuple = None,
         strategy_item: dict = None,
+        preserve_new_series_lifecycle: bool = False,
     ):
         """
         事件恢复
         """
+        if not preserve_new_series_lifecycle:
+            # 状态收口失败时保留异常态，由下一轮 manager 重试，避免终态落库后失去清理机会。
+            terminate_new_series_lifecycle_state(alert)
         if status_setter == "close":
             status = EventStatus.CLOSED
             op_type = AlertLog.OpType.CLOSE

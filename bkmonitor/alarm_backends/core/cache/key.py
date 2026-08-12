@@ -463,6 +463,21 @@ NEW_SERIES_CLAIMED_KEY = register_key_with_config(
     }
 )
 
+# 新维度值检测-生命周期外部终止标记：策略停用、删除或模式切换等终态路径原子清理 active 时写入，
+# detector 用它区分“自然到期认领”与“外部终止”，避免在途检测任务把已关闭生命周期重新激活。
+# member=维度指纹；score=终止状态写入的 wall-clock 秒。标记仅在 detect_range 内抑制，之后按 seen 规则判断新生命周期。
+NEW_SERIES_TERMINATED_KEY = register_key_with_config(
+    {
+        "label": "[detect|alert]新维度值检测-生命周期外部终止(type:SortedSet)"
+        "(score: 外部终止时间(int), member: 维度指纹(record_id 前段))",
+        "key_type": "sorted_set",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.terminated.{{strategy_id}}.{{item_id}}."
+        "{dimension_signature}.{level}.{threshold}.{detect_range}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
 # 新维度值检测-学习起点：历史兼容 key。旧版本用它记录 wall-clock 学习起点；新版本只用它判断旧策略已完成基线。
 # 与 seen key 同维度签名、同写入续期、一起过期。
 NEW_SERIES_LEARN_START_KEY = register_key_with_config(

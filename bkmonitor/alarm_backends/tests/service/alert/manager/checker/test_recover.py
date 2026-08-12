@@ -132,13 +132,18 @@ class TestRecoverStatusChecker(TestCase):
             "detect_range": 60,
             "level": 2,
         }
-        return NewSeries.active_state_key(**params), NewSeries.claimed_state_key(**params)
+        return (
+            NewSeries.active_state_key(**params),
+            NewSeries.claimed_state_key(**params),
+            NewSeries.terminated_state_key(**params),
+        )
 
     @classmethod
     def set_new_series_active(cls, score):
-        active_key, claimed_key = cls.new_series_state_keys()
+        active_key, claimed_key, terminated_key = cls.new_series_state_keys()
         fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
         key.NEW_SERIES_CLAIMED_KEY.client.zrem(claimed_key, fingerprint)
+        key.NEW_SERIES_TERMINATED_KEY.client.zrem(terminated_key, fingerprint)
         key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {fingerprint: score})
         return active_key
 
@@ -165,10 +170,13 @@ class TestRecoverStatusChecker(TestCase):
             mock.patch("alarm_backends.service.alert.manager.checker.recover.time.time", return_value=2000),
         ):
             RecoverStatusChecker([alert]).check_all()
-            _, claimed_key = self.new_series_state_keys()
+            _, claimed_key, terminated_key = self.new_series_state_keys()
             self.assertEqual(
                 int(key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "55a76cf628e46c04a052f4e19bdb9dbf")),
                 2000,
+            )
+            self.assertIsNone(
+                key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, "55a76cf628e46c04a052f4e19bdb9dbf")
             )
 
         self.assertEqual(alert.status, EventStatus.RECOVERED)
@@ -186,6 +194,42 @@ class TestRecoverStatusChecker(TestCase):
             RecoverStatusChecker([alert]).check_all()
 
         self.assertEqual(alert.status, EventStatus.CLOSED)
+
+    def test_new_series_mode_switch_to_once_terminates_continuous_lifecycle_state(self):
+        continuous_strategy = self.new_series_strategy()
+        once_strategy = copy.deepcopy(continuous_strategy)
+        once_strategy["items"][0]["algorithms"][0]["config"]["alert_mode"] = "once"
+        alert = self.get_alert(strategy=continuous_strategy)
+        active_key = self.set_new_series_active(1990)
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        _, claimed_key, terminated_key = self.new_series_state_keys()
+        key.NEW_SERIES_CLAIMED_KEY.client.zadd(claimed_key, {fingerprint: 1980})
+
+        with mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=once_strategy):
+            RecoverStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.RECOVERED)
+        self.assertIsNone(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, fingerprint))
+        self.assertIsNone(key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, fingerprint))
+        self.assertIsNotNone(key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint))
+
+    def test_new_series_mode_switch_retries_when_lifecycle_termination_fails(self):
+        continuous_strategy = self.new_series_strategy()
+        once_strategy = copy.deepcopy(continuous_strategy)
+        once_strategy["items"][0]["algorithms"][0]["config"]["alert_mode"] = "once"
+        alert = self.get_alert(strategy=continuous_strategy)
+        self.set_new_series_active(1990)
+
+        with (
+            mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=once_strategy),
+            mock.patch(
+                "alarm_backends.service.alert.manager.checker.recover.terminate_new_series_lifecycle_state",
+                side_effect=RuntimeError("redis timeout"),
+            ),
+        ):
+            RecoverStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_new_series_continuous_missing_state_falls_back_to_existing_recovery(self):
         strategy = self.new_series_strategy()
@@ -244,14 +288,7 @@ class TestRecoverStatusChecker(TestCase):
 
     def test_new_series_expiration_claim_retries_when_detector_renews_member(self):
         active_key = self.set_new_series_active(1939)
-        claimed_key = NewSeries.claimed_state_key(
-            strategy_id=1,
-            item_id=1,
-            dimension_signature=NewSeries.signature_from_agg_dimension(["ip", "bk_cloud_id"]),
-            threshold=0,
-            detect_range=60,
-            level=2,
-        )
+        _, claimed_key, _ = self.new_series_state_keys()
         client = key.NEW_SERIES_ACTIVE_KEY.client
         fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
 

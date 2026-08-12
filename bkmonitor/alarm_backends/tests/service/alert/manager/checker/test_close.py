@@ -20,15 +20,20 @@ from django.test import TestCase
 import settings
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
+from alarm_backends.core.cache import key
 from alarm_backends.core.cache.key import (
     ALERT_DEDUPE_CONTENT_KEY,
     LAST_CHECKPOINTS_CACHE_KEY,
 )
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.storage.redis_cluster import routed_client
 from alarm_backends.service.alert.manager.checker.close import CloseStatusChecker
+from alarm_backends.service.alert.manager.checker.utils import terminate_new_series_lifecycle_state
+from alarm_backends.service.detect.strategy.new_series import NewSeries
 from alarm_backends.tests.service.alert.manager.checker import ANOMALY_EVENT, STRATEGY
 from api.cmdb.define import Host, ServiceInstance, TopoNode
 from bkmonitor.documents import AlertLog
+from bkmonitor.models import CacheNode
 from constants.alert import EventStatus
 
 pytestmark = pytest.mark.django_db
@@ -38,6 +43,7 @@ class TestCloseStatusChecker(TestCase):
     databases = {"monitor_api", "default"}
 
     def setUp(self) -> None:
+        CacheNode.refresh_from_settings()
         LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
         check_time = arrow.now().replace(seconds=-200).timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
@@ -78,6 +84,40 @@ class TestCloseStatusChecker(TestCase):
         )
         return alert
 
+    @staticmethod
+    def new_series_strategy():
+        strategy = copy.deepcopy(STRATEGY)
+        strategy["items"][0]["algorithms"] = [
+            {
+                "type": "NewSeries",
+                "level": 2,
+                "config": {
+                    "detect_range": 60,
+                    "effective_delay": 60,
+                    "max_series": 100000,
+                    "threshold": 0,
+                    "alert_mode": "continuous",
+                },
+            }
+        ]
+        return strategy
+
+    @staticmethod
+    def new_series_state_keys():
+        params = {
+            "strategy_id": 1,
+            "item_id": 1,
+            "dimension_signature": NewSeries.signature_from_agg_dimension(["ip", "bk_cloud_id"]),
+            "threshold": 0,
+            "detect_range": 60,
+            "level": 2,
+        }
+        return (
+            NewSeries.active_state_key(**params),
+            NewSeries.claimed_state_key(**params),
+            NewSeries.terminated_state_key(**params),
+        )
+
     def test_set_closed(self):
         alert = self.get_alert()
         CloseStatusChecker.close(alert, "测试关闭")
@@ -100,6 +140,103 @@ class TestCloseStatusChecker(TestCase):
         checker = CloseStatusChecker([alert])
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.CLOSED)
+
+    def test_strategy_deleted_terminates_new_series_continuous_lifecycle(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        active_key, claimed_key, terminated_key = self.new_series_state_keys()
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {fingerprint: 1990})
+        key.NEW_SERIES_CLAIMED_KEY.client.zadd(claimed_key, {fingerprint: 1980})
+        StrategyCacheManager.cache.delete(StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=strategy["id"]))
+
+        CloseStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.CLOSED)
+        self.assertIsNone(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, fingerprint))
+        self.assertIsNone(key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, fingerprint))
+        self.assertIsNotNone(key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint))
+
+    def test_strategy_deleted_retries_when_new_series_lifecycle_termination_fails(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        StrategyCacheManager.cache.delete(StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=strategy["id"]))
+
+        with mock.patch(
+            "alarm_backends.service.alert.manager.checker.close.terminate_new_series_lifecycle_state",
+            side_effect=RuntimeError("redis timeout"),
+        ):
+            CloseStatusChecker([alert]).check_all()
+
+        self.assertEqual(alert.status, EventStatus.ABNORMAL)
+
+    def test_new_series_lifecycle_termination_retries_when_detector_renews_first(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        active_key, _, terminated_key = self.new_series_state_keys()
+        client = key.NEW_SERIES_ACTIVE_KEY.client
+        client.zadd(active_key, {fingerprint: 1990})
+
+        with routed_client(client, active_key) as active_client:
+            first = active_client.pipeline(transaction=True)
+            second = active_client.pipeline(transaction=True)
+            original_zscore = first.zscore
+
+            def read_then_detector_renews(*args, **kwargs):
+                score = original_zscore(*args, **kwargs)
+                client.zadd(active_key, {fingerprint: 2000})
+                return score
+
+            with (
+                mock.patch.object(first, "zscore", side_effect=read_then_detector_renews),
+                mock.patch.object(active_client, "pipeline", side_effect=[first, second]),
+            ):
+                self.assertTrue(terminate_new_series_lifecycle_state(alert, observed_at=2061))
+
+        self.assertIsNone(client.zscore(active_key, fingerprint))
+        self.assertEqual(int(key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint)), 2061)
+
+    def test_expired_older_alert_preserves_new_series_lifecycle_owned_by_newer_alert(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        active_key, _, terminated_key = self.new_series_state_keys()
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {fingerprint: 1990})
+        dedupe_key = ALERT_DEDUPE_CONTENT_KEY.get_key(
+            strategy_id=alert.strategy_id,
+            dedupe_md5=alert.dedupe_md5,
+        )
+        current_alert = json.loads(ALERT_DEDUPE_CONTENT_KEY.client.get(dedupe_key))
+        current_alert["id"] = f"{alert.id}-newer"
+        ALERT_DEDUPE_CONTENT_KEY.client.set(dedupe_key, json.dumps(current_alert))
+
+        self.assertTrue(CloseStatusChecker([alert]).check_event_expired(alert))
+
+        self.assertEqual(alert.status, EventStatus.CLOSED)
+        self.assertEqual(int(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, fingerprint)), 1990)
+        self.assertIsNone(key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint))
+
+    def test_expired_older_alert_terminates_lifecycle_not_owned_by_newer_alert(self):
+        strategy = self.new_series_strategy()
+        alert = self.get_alert(strategy)
+        fingerprint = "55a76cf628e46c04a052f4e19bdb9dbf"
+        active_key, _, terminated_key = self.new_series_state_keys()
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {fingerprint: 1990})
+        dedupe_key = ALERT_DEDUPE_CONTENT_KEY.get_key(
+            strategy_id=alert.strategy_id,
+            dedupe_md5=alert.dedupe_md5,
+        )
+        current_alert = json.loads(ALERT_DEDUPE_CONTENT_KEY.client.get(dedupe_key))
+        current_alert["id"] = f"{alert.id}-newer"
+        current_alert["extra_info"]["strategy"]["items"][0]["algorithms"][0]["config"]["alert_mode"] = "once"
+        ALERT_DEDUPE_CONTENT_KEY.client.set(dedupe_key, json.dumps(current_alert))
+
+        self.assertTrue(CloseStatusChecker([alert]).check_event_expired(alert))
+
+        self.assertEqual(alert.status, EventStatus.CLOSED)
+        self.assertIsNone(key.NEW_SERIES_ACTIVE_KEY.client.zscore(active_key, fingerprint))
+        self.assertIsNotNone(key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint))
 
     def test_strategy_dimension_changed(self):
         strategy = copy.deepcopy(STRATEGY)

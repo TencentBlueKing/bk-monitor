@@ -28,7 +28,11 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
-from alarm_backends.service.alert.manager.checker.utils import is_auto_level_intelligent_detect
+from alarm_backends.service.alert.manager.checker.utils import (
+    is_auto_level_intelligent_detect,
+    resolve_new_series_lifecycle_state,
+    terminate_new_series_lifecycle_state,
+)
 from api.cmdb.define import TopoNode
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import AlgorithmModel
@@ -240,7 +244,19 @@ class CloseStatusChecker(BaseChecker):
             logger.info(
                 f"[close 处理结果] (closed) alert({alert.id}), strategy({alert.strategy_id}) 当前维度存在更新的告警事件({current_alert.id})，告警已失效"
             )
-            self.close(alert, _("当前维度存在更新的告警事件({})，告警已失效").format(current_alert.id))
+            origin_lifecycle = resolve_new_series_lifecycle_state(alert)
+            current_lifecycle = resolve_new_series_lifecycle_state(current_alert)
+            preserve_new_series_lifecycle = bool(
+                origin_lifecycle
+                and current_lifecycle
+                and origin_lifecycle.active_key == current_lifecycle.active_key
+                and origin_lifecycle.fingerprint == current_lifecycle.fingerprint
+            )
+            self.close(
+                alert,
+                _("当前维度存在更新的告警事件({})，告警已失效").format(current_alert.id),
+                preserve_new_series_lifecycle=preserve_new_series_lifecycle,
+            )
             return True
         # 如果一致的话，表示是同一个告警，则认为告警在持续
         return False
@@ -438,10 +454,13 @@ class CloseStatusChecker(BaseChecker):
         return True
 
     @classmethod
-    def close(cls, alert: Alert, description):
+    def close(cls, alert: Alert, description, preserve_new_series_lifecycle=False):
         """
         事件关闭
         """
+        if not preserve_new_series_lifecycle:
+            # 状态收口失败时不结束告警，由下一轮 manager 或 API 重试，避免遗留 active 造成后续生命周期漏报。
+            terminate_new_series_lifecycle_state(alert)
         alert.set_end_status(status=EventStatus.CLOSED, op_type=AlertLog.OpType.CLOSE, description=description)
 
         # 无数据告警，清理最后检测异常点记录

@@ -17,6 +17,7 @@ import pytest
 from alarm_backends.core.cache import key
 from alarm_backends.core.storage import redis_cluster
 from alarm_backends.service.alert.manager.checker.recover import RecoverStatusChecker
+from alarm_backends.service.alert.manager.checker.utils import terminate_new_series_lifecycle_state
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.new_series import NewSeries
 from bkmonitor.utils.common_utils import count_md5
@@ -158,6 +159,18 @@ def active_count(item, threshold=0, detect_range=86400, level=0):
         level=level,
     )
     return key.NEW_SERIES_ACTIVE_KEY.client.zcard(active_key)
+
+
+def terminated_score(item, fingerprint, threshold=0, detect_range=86400, level=0):
+    terminated_key = NewSeries.terminated_state_key(
+        strategy_id=item.strategy.id,
+        item_id=item.id,
+        dimension_signature=signature(item),
+        threshold=threshold,
+        detect_range=detect_range,
+        level=level,
+    )
+    return key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, fingerprint)
 
 
 def baseline_done(item, threshold=0):
@@ -770,6 +783,89 @@ class TestNewSeries:
         assert int(active_score(item, "continuous-manager-first", detect_range=60)) == 2061
         assert key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "continuous-manager-first") is None
 
+    def test_external_close_between_detector_read_and_write_does_not_restart_lifecycle(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-external-close-race", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            NewSeries(config=config).pre_detect([first])
+
+        item._new_series_cache = None
+        again = make_dp("continuous-external-close-race", 100000030, item)
+        next_detector = NewSeries(config=config)
+        params = {
+            "strategy_id": item.strategy.id,
+            "item_id": item.id,
+            "dimension_signature": signature(item),
+            "threshold": 0,
+            "detect_range": 60,
+        }
+        active_key = NewSeries.active_state_key(**params)
+        claimed_key = NewSeries.claimed_state_key(**params)
+        terminated_key = NewSeries.terminated_state_key(**params)
+        original_read_active = next_detector._read_active
+        lifecycle_terminated = False
+
+        def read_then_external_close(*args, **kwargs):
+            nonlocal lifecycle_terminated
+            result = original_read_active(*args, **kwargs)
+            if not lifecycle_terminated:
+                lifecycle_terminated = True
+                pipe = key.NEW_SERIES_ACTIVE_KEY.client.pipeline(transaction=True)
+                pipe.zrem(active_key, "continuous-external-close-race")
+                pipe.zrem(claimed_key, "continuous-external-close-race")
+                pipe.zadd(terminated_key, {"continuous-external-close-race": 2061})
+                pipe.execute()
+            return result
+
+        with (
+            mock.patch.object(NewSeries, "_observed_at", return_value=2061),
+            mock.patch.object(next_detector, "_read_active", side_effect=read_then_external_close),
+        ):
+            next_detector.pre_detect([again])
+
+        assert len(next_detector.detect(again)) == 0
+        assert active_score(item, "continuous-external-close-race", detect_range=60) is None
+        assert int(terminated_score(item, "continuous-external-close-race", detect_range=60)) == 2061
+
+    def test_reenable_after_detect_range_starts_new_lifecycle_after_external_termination(self):
+        item = make_item()
+        seed_learned(item)
+        config = default_config(detect_range=60, alert_mode="continuous")
+        first = make_dp("continuous-after-close", 100000000, item)
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            first_detector = NewSeries(config=config)
+            first_detector.pre_detect([first])
+        assert len(first_detector.detect(first)) == 1
+
+        strategy = {
+            "items": [
+                {
+                    "id": item.id,
+                    "query_configs": item.query_configs,
+                    "algorithms": [{"type": "NewSeries", "level": 0, "config": config}],
+                }
+            ]
+        }
+        alert = SimpleNamespace(
+            top_event={"event_id": f"continuous-after-close.100000000.{item.strategy.id}.{item.id}.0"},
+            get_extra_info=lambda _: strategy,
+        )
+        assert terminate_new_series_lifecycle_state(alert, observed_at=2000)
+        assert active_score(item, "continuous-after-close", detect_range=60) is None
+
+        item._new_series_cache = None
+        again = make_dp("continuous-after-close", 100000061, item)
+
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2061):
+            detector = NewSeries(config=config)
+            detector.pre_detect([again])
+
+        assert len(detector.detect(again)) == 1
+        assert int(active_score(item, "continuous-after-close", detect_range=60)) == 2061
+        assert terminated_score(item, "continuous-after-close", detect_range=60) is None
+
     def test_continuous_hot_active_key_trims_stale_members(self):
         item = make_item()
         seed_learned(item)
@@ -954,6 +1050,45 @@ class TestNewSeries:
         assert key.NEW_SERIES_CLAIMED_KEY.client.zcard(claimed_key) == 2
         assert key.NEW_SERIES_CLAIMED_KEY.client.zscore(claimed_key, "claimed-a") is None
 
+    def test_continuous_terminated_state_converges_when_max_series_is_lowered(self):
+        config = default_config(detect_range=60, max_series=2, alert_mode="continuous")
+        item = make_item(ns_configs=[config])
+        seed_learned(item)
+        terminated_key = NewSeries.terminated_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_TERMINATED_KEY.client.zadd(
+            terminated_key,
+            {"terminated-a": 1980, "terminated-b": 1990, "terminated-c": 1995},
+        )
+        active_key = NewSeries.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+            threshold=0,
+            detect_range=60,
+        )
+        key.NEW_SERIES_ACTIVE_KEY.client.zadd(active_key, {"active": 1990})
+        seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=signature(item),
+        )
+        key.NEW_SERIES_SEEN_KEY.client.zadd(seen_key, {"active": 100000000})
+        again = make_dp("active", 100000030, item)
+
+        with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+            detector = NewSeries(config=config)
+            detector.pre_detect([again])
+
+        assert len(detector.detect(again)) == 0
+        assert key.NEW_SERIES_TERMINATED_KEY.client.zcard(terminated_key) == 2
+        assert key.NEW_SERIES_TERMINATED_KEY.client.zscore(terminated_key, "terminated-a") is None
+
     def test_active_state_key_is_isolated_by_level(self):
         params = {
             "strategy_id": 1,
@@ -965,6 +1100,7 @@ class TestNewSeries:
 
         assert NewSeries.active_state_key(**params, level=1) != NewSeries.active_state_key(**params, level=2)
         assert NewSeries.claimed_state_key(**params, level=1) != NewSeries.claimed_state_key(**params, level=2)
+        assert NewSeries.terminated_state_key(**params, level=1) != NewSeries.terminated_state_key(**params, level=2)
 
     def test_continuous_active_write_failure_keeps_first_anomaly(self):
         item = make_item()
