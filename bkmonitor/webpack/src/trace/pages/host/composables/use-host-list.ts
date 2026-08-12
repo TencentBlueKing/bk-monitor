@@ -124,6 +124,9 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   let intervalTimer: null | ReturnType<typeof setTimeout> = null;
   let baseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
+  let dataRequestGeneration = 0;
+  let metricRequestGeneration = 0;
+  let selectionRequestGeneration = 0;
 
   watch([timeRange, timezone], () => {
     setUrlParams();
@@ -153,6 +156,7 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   // 切换拓扑节点：回到第一页并清空跨节点的勾选（含全选模式）
   watch(selectedNode, () => {
+    selectionRequestGeneration += 1;
     resetPage();
     selectAllMode.value = HostSelectAllModeEnum.NONE;
     selectedRowKeys.value = new Set();
@@ -165,8 +169,12 @@ export const useHostList = (options: IUseHostListOptions) => {
   watch(
     [activeCategory, where, keyword],
     async () => {
+      const requestGeneration = ++selectionRequestGeneration;
       if (selectAllMode.value === HostSelectAllModeEnum.ACROSS) {
         const { rowKeys } = await hostListWorker.getFilteredRowKeys(getComputeParams());
+        if (requestGeneration !== selectionRequestGeneration || selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
+          return;
+        }
         const allKeys = new Set(rowKeys.map(String));
         selectedRowKeys.value = new Set([...allKeys].filter(k => !excludedRowKeys.value.has(k)));
         return;
@@ -239,6 +247,9 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 加载数据：基础数据先渲染，指标数据后补充 */
   const loadData = async () => {
+    const requestGeneration = ++dataRequestGeneration;
+    metricRequestGeneration += 1;
+    let requestBaseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
     loading.value = true;
     metricLoading.value = true;
     // 手动/定时刷新时重置选择（对标旧版 handleResetCheck）
@@ -246,32 +257,56 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectedRowKeys.value = new Set();
     excludedRowKeys.value = new Set();
     try {
-      baseList = await getHostInfoList();
-      const initResult = await hostListWorker.initBaseData(baseList);
+      requestBaseList = await getHostInfoList();
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
+      baseList = requestBaseList;
+      const initResult = await hostListWorker.initBaseData(requestBaseList);
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
       rawRowCount.value = initResult.rawRowCount;
       await loadStickyConfig();
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
       refreshList(true);
       // 拉取 filterOptionsMap 供集群模块字段展示名称映射
       const filterOptionsMapResult = (await hostListWorker.getFilterOptionsMap()) as Record<
         string,
         Record<string, unknown>
       >;
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
       filterOptionsMap.value = filterOptionsMapResult.filterOptionsMap;
     } finally {
-      loading.value = false;
+      if (requestGeneration === dataRequestGeneration) {
+        loading.value = false;
+      }
     }
+    const metricGeneration = ++metricRequestGeneration;
     try {
-      const bk_host_ids = baseList.map(row => row.bk_host_id);
+      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
         bk_host_ids,
         start_time,
         end_time,
       });
+      if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
+        return;
+      }
       await hostListWorker.mergeMetrics(metricListMap);
+      if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
+        return;
+      }
       refreshList(true);
     } finally {
-      metricLoading.value = false;
+      if (metricGeneration === metricRequestGeneration) {
+        metricLoading.value = false;
+      }
     }
   };
 
@@ -280,18 +315,29 @@ export const useHostList = (options: IUseHostListOptions) => {
       return;
     }
 
+    const requestGeneration = ++metricRequestGeneration;
     try {
       metricLoading.value = true;
-      const bk_host_ids = baseList.map(row => row.bk_host_id);
+      const requestBaseList = baseList;
+      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
         bk_host_ids,
         start_time,
         end_time,
       });
+      if (requestGeneration !== metricRequestGeneration) {
+        return;
+      }
       await hostListWorker.mergeMetrics(metricListMap);
+      if (requestGeneration !== metricRequestGeneration) {
+        return;
+      }
+      refreshList(true);
     } finally {
-      metricLoading.value = false;
+      if (requestGeneration === metricRequestGeneration) {
+        metricLoading.value = false;
+      }
     }
   };
 
@@ -348,9 +394,13 @@ export const useHostList = (options: IUseHostListOptions) => {
     /** 持久化到全局统一页码配置，与其他模块保持一致 */
     commonPageSizeSet(value);
     resetPage();
+    const requestGeneration = ++selectionRequestGeneration;
     // 跨页全选模式下保持全量选中并排除用户手动取消的行
     if (selectAllMode.value === HostSelectAllModeEnum.ACROSS) {
       const { rowKeys } = await hostListWorker.getFilteredRowKeys(getComputeParams());
+      if (requestGeneration !== selectionRequestGeneration || selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
+        return;
+      }
       const allKeys = rowKeys.map(String);
       selectedRowKeys.value = new Set(allKeys.filter(k => !excludedRowKeys.value.has(k)));
       return;
@@ -367,10 +417,14 @@ export const useHostList = (options: IUseHostListOptions) => {
    * - UN_SELECTED：清空
    */
   const handleHeaderSelect = async (type: SelectTypeEnum) => {
+    const requestGeneration = ++selectionRequestGeneration;
     if (type === SelectType.ALL_SELECTED) {
       selectAllMode.value = HostSelectAllModeEnum.ACROSS;
       excludedRowKeys.value = new Set();
       const { rowKeys } = await hostListWorker.getFilteredRowKeys(getComputeParams());
+      if (requestGeneration !== selectionRequestGeneration || selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
+        return;
+      }
       selectedRowKeys.value = new Set(rowKeys.map(String));
       return;
     }
