@@ -27,6 +27,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.constants import AGENT_STATUS
+from monitor_web.scene_view.process_group import group_process_configs
 from monitor_web.scene_view.resources.view import GetSceneViewResource
 
 logger = logging.getLogger(__name__)
@@ -546,39 +547,56 @@ class GetHostProcessListResource(ApiAuthResource):
                 return round(value, settings.POINT_PRECISION)
             return value
 
-        return [
-            {
-                # 旧版 process 场景变量 fields 约定 id→display_name；必须返回进程名，
-                # 不能用 CMDB bk_process_id，否则图表 filter_dict.display_name 会变成数字 ID 导致无数据。
-                "id": process["name"],
-                "name": process["name"],
-                "status": process["status"],
-                # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
-                "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(process.get("protocol")),
-                "bindIp": process.get("bindIp"),
-                "port": process.get("port"),
-                "portStatus": host_port_status.get(process["name"]),
-                "user": process.get("user"),
-                "hostIp": host.ip,
-                # Performance / resource metrics from system.proc (TSDB only)
-                # 比值/百分比类指标做精度限制，绝对值类（字节/秒/计数）原样返回
-                "cpuUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"])),
-                "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
-                "memUsage": _round_metric(host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])),
-                "uptime": host_uptime.get(process["name"]),
-                "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
-                # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
-                "fdUsageRate": (
-                    round(fd_num / fd_limit, settings.POINT_PRECISION)
-                    if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"])) is not None
-                    and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))
-                    else None
-                ),
-                "instanceCount": instance_counts.get(process["name"], 1),
-                "startCommand": process.get("startCommand"),
-            }
-            for process in processes[host.bk_host_id]
-        ]
+        result = []
+        for process in group_process_configs(processes[host.bk_host_id]):
+            port_status = host_port_status.get(process["name"])
+            ports = [
+                {
+                    "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(binding.get("protocol")),
+                    "bindIp": binding.get("bindIp"),
+                    "port": binding.get("port"),
+                    "portStatus": port_status,
+                }
+                for binding in process["portBindings"]
+            ]
+            result.append(
+                {
+                    # process 场景变量 fields 约定 id→display_name；分组后继续使用进程名作为稳定 row key。
+                    "id": process["name"],
+                    "name": process["name"],
+                    "status": process["status"],
+                    # 兼容单端口消费者；代表端口及其他单值字段均来自同一条确定的 CMDB 配置。
+                    "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(process.get("protocol")),
+                    "bindIp": process.get("bindIp"),
+                    "port": process.get("port"),
+                    "portStatus": port_status,
+                    "ports": ports,
+                    "user": process.get("user"),
+                    "hostIp": host.ip,
+                    # Performance / resource metrics from system.proc (TSDB only)
+                    # 比值/百分比类指标做精度限制，绝对值类（字节/秒/计数）原样返回
+                    "cpuUsage": _round_metric(
+                        host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"])
+                    ),
+                    "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
+                    "memUsage": _round_metric(
+                        host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])
+                    ),
+                    "uptime": host_uptime.get(process["name"]),
+                    "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
+                    # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
+                    "fdUsageRate": (
+                        round(fd_num / fd_limit, settings.POINT_PRECISION)
+                        if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]))
+                        is not None
+                        and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))
+                        else None
+                    ),
+                    "instanceCount": instance_counts.get(process["name"], 1),
+                    "startCommand": process.get("startCommand"),
+                }
+            )
+        return result
 
 
 class GetHostListResource(Resource):

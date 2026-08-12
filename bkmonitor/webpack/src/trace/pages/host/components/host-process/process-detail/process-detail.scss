@@ -124,6 +124,10 @@
               font-size: 12px;
               line-height: 20px;
 
+              &--ports {
+                min-width: 0;
+              }
+
               .process-detail-kv-label {
                 color: #8f9fbd;
               }
@@ -138,6 +142,24 @@
                 height: 8px;
                 margin-right: 6px;
                 border-radius: 50%;
+              }
+
+              .process-detail-port-list {
+                max-width: 360px;
+              }
+
+              .process-detail-port-item {
+                display: inline-flex;
+                align-items: center;
+
+                & ~ .process-detail-port-item {
+                  margin-left: 6px;
+                }
+              }
+
+              .process-detail-port-more {
+                padding: 0 4px;
+                line-height: 18px;
               }
             }
           }

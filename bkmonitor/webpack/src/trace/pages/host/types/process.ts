@@ -64,6 +64,8 @@ export interface ProcessItem {
   name: string;
   /** 监听端口 */
   port: number;
+  /** 同名进程组内的全部端口绑定 */
+  ports?: ProcessPort[];
   /** 端口状态，0 为正常，1 为异常 */
   portStatus: ProcessPortStatusType;
   /** 监听协议（TCP / UDP） */
@@ -76,4 +78,16 @@ export interface ProcessItem {
   uptime: null | number;
   /** 运行用户 */
   user: string;
+}
+
+/** 同名进程组内的一项端口绑定 */
+export interface ProcessPort {
+  /** 监听地址 */
+  bindIp: string;
+  /** 监听端口 */
+  port: number;
+  /** 端口状态；当前采集指标按进程名聚合，同组端口共享该状态 */
+  portStatus: ProcessPortStatusType;
+  /** 监听协议（TCP / UDP） */
+  protocol: string;
 }

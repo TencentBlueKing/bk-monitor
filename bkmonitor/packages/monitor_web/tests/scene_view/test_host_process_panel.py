@@ -296,3 +296,69 @@ def test_process_uptime_queries_snapshot_at_drawer_end_in_milliseconds(monkeypat
     assert data_source_configs[0]["metrics"] == [{"field": "uptime", "method": "MAX", "alias": "A"}]
     assert query_calls == [{"start_time": 1_700_003_540_000, "end_time": 1_700_003_600_000, "instant": True}]
     assert result == {"value": 7200, "unit": "s"}
+
+
+def test_process_list_groups_same_name_configs_and_preserves_all_ports(monkeypatch):
+    host = SimpleNamespace(bk_host_id=101, ip="127.0.0.1")
+    monkeypatch.setattr(host_resources.api.cmdb, "get_host_by_id", lambda **_kwargs: [host])
+    monkeypatch.setattr(
+        host_resources.resource.cc,
+        "get_process_info",
+        lambda *_args, **_kwargs: {
+            101: [
+                {
+                    "id": 20,
+                    "name": "redis",
+                    "status": 0,
+                    "protocol": "1",
+                    "ports": [6382],
+                    "bindIp": "127.0.0.1",
+                    "port": 6382,
+                    "user": "redis",
+                    "startCommand": "redis-server --port 6382",
+                },
+                {
+                    "id": 10,
+                    "name": "redis",
+                    "status": 0,
+                    "protocol": "1",
+                    "ports": [6379, 6380],
+                    "bindIp": "127.0.0.1",
+                    "port": 6379,
+                    "user": "redis",
+                    "startCommand": "redis-server --port 6379",
+                },
+            ]
+        },
+    )
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_port_health", lambda **_kwargs: {101: {"redis": 0}})
+    monkeypatch.setattr(
+        host_resources.resource.cc,
+        "get_process_runtime_metrics",
+        lambda **_kwargs: {
+            101: {
+                "redis": {
+                    "cpu_usage_pct": 1.5,
+                    "mem_res": 1024,
+                    "mem_usage_pct": 0.25,
+                    "fd_num": 3,
+                    "fd_limit_soft": 30,
+                }
+            }
+        },
+    )
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_uptime", lambda **_kwargs: {101: {"redis": 60}})
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_instance_count", lambda **_kwargs: {101: {"redis": 2}})
+
+    result = host_resources.GetHostProcessListResource().perform_request({"bk_biz_id": 2, "bk_host_id": 101})
+
+    assert len(result) == 1
+    assert result[0]["id"] == "redis"
+    assert result[0]["port"] == 6379
+    assert result[0]["startCommand"] == "redis-server --port 6379"
+    assert result[0]["ports"] == [
+        {"protocol": "TCP", "bindIp": "127.0.0.1", "port": 6379, "portStatus": 0},
+        {"protocol": "TCP", "bindIp": "127.0.0.1", "port": 6380, "portStatus": 0},
+        {"protocol": "TCP", "bindIp": "127.0.0.1", "port": 6382, "portStatus": 0},
+    ]
+    assert result[0]["instanceCount"] == 2
