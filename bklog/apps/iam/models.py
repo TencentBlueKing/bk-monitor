@@ -2,21 +2,23 @@ from __future__ import annotations
 
 from django.db import models
 
+from apps.iam.iam_engine.provider.capabilities import AuthorizationGrantState, AuthorizationGrantTarget
+
 
 class IAMAuthorizationGrant(models.Model):
     """一个逻辑授权在一个 IAM 目标版本上的持久化执行意图。"""
 
     class TargetVersion(models.TextChoices):
-        V3 = "v3", "V3"
-        V4 = "v4", "V4"
+        V3 = AuthorizationGrantTarget.V3.value, "V3"
+        V4 = AuthorizationGrantTarget.V4.value, "V4"
 
     class State(models.TextChoices):
-        PENDING = "pending", "Pending"
-        PROCESSING = "processing", "Processing"
-        SUCCEEDED = "succeeded", "Succeeded"
-        RETRY_WAIT = "retry_wait", "Retry wait"
-        UNKNOWN = "unknown", "Unknown"
-        FAILED_FINAL = "failed_final", "Failed final"
+        PENDING = AuthorizationGrantState.PENDING.value, "Pending"
+        PROCESSING = AuthorizationGrantState.PROCESSING.value, "Processing"
+        SUCCEEDED = AuthorizationGrantState.SUCCEEDED.value, "Succeeded"
+        RETRY_WAIT = AuthorizationGrantState.RETRY_WAIT.value, "Retry wait"
+        UNKNOWN = AuthorizationGrantState.UNKNOWN.value, "Unknown"
+        FAILED_FINAL = AuthorizationGrantState.FAILED_FINAL.value, "Failed final"
 
     logical_key = models.CharField(max_length=64)
     target_version = models.CharField(max_length=8, choices=TargetVersion.choices)

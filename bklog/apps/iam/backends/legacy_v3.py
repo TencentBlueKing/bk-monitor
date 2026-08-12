@@ -9,7 +9,7 @@ from iam.exceptions import AuthAPIError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, to_definition_id
 from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
 from apps.iam.iam_engine.provider.base import PermissionProvider
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from apps.iam.iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
 
 class LegacyV3GrantError(RuntimeError):
@@ -132,3 +132,9 @@ class LegacyV3AuthorizationWriter:
 
     def grant_resource_creator_actions(self, application: Mapping[str, Any]) -> Any:
         return self.grant_prepared(self.prepare_resource_creator_actions(application))
+
+    @staticmethod
+    def classify_failure(error: Exception) -> GrantFailureKind:
+        if isinstance(error, ValueError):
+            return GrantFailureKind.FAILED_FINAL
+        return GrantFailureKind.RETRY_WAIT

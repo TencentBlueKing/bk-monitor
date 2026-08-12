@@ -30,6 +30,30 @@ class IAMAuthorizationGrantRepository:
             # 并发插入由唯一约束收敛，读取胜出的冻结快照。
             return IAMAuthorizationGrant.objects.get(logical_key=logical_key, target_version=target_version)
 
+    @staticmethod
+    def get(grant_id: int) -> IAMAuthorizationGrant:
+        return IAMAuthorizationGrant.objects.get(pk=grant_id)
+
+    @staticmethod
+    def mark_preparation_failed(grant: IAMAuthorizationGrant, *, error: Exception) -> bool:
+        """记录无法生成冻结请求的确定性失败，不覆盖已经存在的执行状态。"""
+
+        now = timezone.now()
+        return bool(
+            IAMAuthorizationGrant.objects.filter(
+                pk=grant.pk,
+                state=IAMAuthorizationGrant.State.PENDING,
+                attempts=0,
+                payload={},
+            ).update(
+                state=IAMAuthorizationGrant.State.FAILED_FINAL,
+                next_retry_at=None,
+                last_error_type=type(error).__name__[:64],
+                last_error_message=sanitize_error_summary(error),
+                updated_at=now,
+            )
+        )
+
     def claim(self, grant_id: int, *, lease_owner: str) -> IAMAuthorizationGrant | None:
         now = timezone.now()
         grant_config = AuthorizationGrantConfig.from_settings()
@@ -185,5 +209,8 @@ class IAMAuthorizationGrantRepository:
             next_retry_at=None,
             lease_owner="",
             lease_until=None,
+            last_error_type="",
+            last_error_code="",
+            last_error_message="",
             updated_at=now,
         )

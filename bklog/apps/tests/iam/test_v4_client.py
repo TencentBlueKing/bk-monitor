@@ -289,6 +289,21 @@ class V4ClientTest(SimpleTestCase):
                 operator="operator",
             )
 
+    def test_add_authorization_requires_operator_and_valid_resources(self):
+        with self.assertRaisesRegex(ValueError, "non-empty operator"):
+            self.client.add_authorization(items=[{"resources": [{"type": "collection", "id": "1"}]}], operator=" ")
+
+        with self.assertRaisesRegex(ValueError, "1 to 20 resources"):
+            self.client.add_authorization(items=[{"resources": []}], operator="operator")
+
+    def test_add_authorization_rejects_non_empty_success_body(self):
+        with patch.object(self.client, "_request", return_value={"unexpected": True}):
+            with self.assertRaisesRegex(V4ResponseError, "must be empty"):
+                self.client.add_authorization(
+                    items=[{"resources": [{"type": "collection", "id": "1"}]}],
+                    operator="operator",
+                )
+
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_success_response_with_error_body_is_rejected(self, request_mock):
         response = Mock(status_code=HTTPStatus.OK, content=b"error")

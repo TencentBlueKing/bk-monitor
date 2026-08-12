@@ -6,21 +6,16 @@ import logging
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from django.db import transaction
 
-from apps.iam.backends.legacy_v3 import LegacyV3GrantError
-from apps.iam.backends.v4.exceptions import (
-    V4ClientError,
-    V4RateLimitError,
-    V4ResponseError,
-    V4TimeoutError,
-    V4TransportError,
+from apps.iam.iam_engine.provider.capabilities import (
+    AuthorizationGrantState,
+    AuthorizationGrantTarget,
+    AuthorizationWriter,
+    PreparedAuthorizationGrant,
 )
-from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PreparedAuthorizationGrant
-from apps.iam.models import IAMAuthorizationGrant
-from apps.iam.repositories import IAMAuthorizationGrantRepository
 
 logger = logging.getLogger("iam.dual_write")
 
@@ -37,69 +32,75 @@ class LeaseOwnershipLostError(RuntimeError):
     """远端调用结束前处理租约已被恢复或转移。"""
 
 
+class AuthorizationGrantRecord(Protocol):
+    """Engine 执行器所需的最小授权意图快照。"""
+
+    pk: int
+    target_version: str
+    state: str
+    attempts: int
+    logical_key: str
+    payload: Any
+    role_id: str
+    expired_at: int | None
+    result: Any
+    last_error_type: str
+
+
+class AuthorizationGrantRepository(Protocol):
+    """授权意图持久化协议，由业务应用注入具体实现。"""
+
+    def ensure(
+        self, *, logical_key: str, target_version: str, defaults: dict[str, Any]
+    ) -> AuthorizationGrantRecord: ...
+
+    def get(self, grant_id: int) -> AuthorizationGrantRecord: ...
+
+    def mark_preparation_failed(self, grant: AuthorizationGrantRecord, *, error: Exception) -> bool: ...
+
+    def claim(self, grant_id: int, *, lease_owner: str) -> AuthorizationGrantRecord | None: ...
+
+    def mark_succeeded(
+        self,
+        grant: AuthorizationGrantRecord,
+        *,
+        lease_owner: str,
+        result: Any,
+    ) -> bool: ...
+
+    def mark_failed(
+        self,
+        grant: AuthorizationGrantRecord,
+        *,
+        lease_owner: str,
+        state: str,
+        error: Exception,
+        error_code: str = "",
+    ) -> tuple[bool, str]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class GrantExecution:
     result: Any = None
     error: Exception | None = None
 
 
-class DualWriteGrantOrchestrator:
-    """先持久化、再逐目标 CAS 执行的 V3/V4 授权编排器。"""
+@dataclass(frozen=True, slots=True)
+class _PreparedTarget:
+    target_version: str
+    writer: AuthorizationWriter
+    prepared: PreparedAuthorizationGrant
+    preparation_error: Exception | None = None
 
-    INTENT_VERSION = 1
-    SEMANTIC_ROLE = "resource_creator"
 
-    def __init__(
-        self,
-        *,
-        writers: Sequence[tuple[str, AuthorizationWriter]],
-        tenant_id: str,
-        operator: str,
-        repository: IAMAuthorizationGrantRepository | None = None,
-    ) -> None:
-        self.writers = tuple(writers)
-        self.tenant_id = tenant_id
-        self.operator = operator
-        self.repository = repository or IAMAuthorizationGrantRepository()
+class AuthorizationGrantExecutor:
+    """执行一条已持久化意图，不参与创建和事务提交时机。"""
 
-    def grant_creator_action(self, application: Mapping[str, Any], *, raise_exception: bool = False) -> Any:
-        logical_key = self.make_logical_key(application)
-        records: list[tuple[str, AuthorizationWriter, IAMAuthorizationGrant]] = []
+    def __init__(self, repository: AuthorizationGrantRepository) -> None:
+        self.repository = repository
 
-        # 请求准备阶段只构造请求，不访问远端；同一事务提交全部目标意图后，才允许任何工作进程看见并执行。
-        prepared_writers: list[tuple[str, AuthorizationWriter, PreparedAuthorizationGrant]] = []
-        for target_version, writer in self.writers:
-            prepared_writers.append((target_version, writer, writer.prepare_resource_creator_actions(application)))
-
-        with transaction.atomic():
-            for target_version, writer, prepared in prepared_writers:
-                record = self.repository.ensure(
-                    logical_key=logical_key,
-                    target_version=target_version,
-                    defaults=self._record_defaults(application, prepared),
-                )
-                records.append((target_version, writer, record))
-
-        executions: dict[str, GrantExecution] = {}
-        for target_version, writer, record in records:
-            executions[target_version] = self.execute_record(record, writer)
-
-        errors = [execution.error for execution in executions.values() if execution.error is not None]
-        if executions and len(errors) == len(executions):
-            logger.error(
-                "[IAM DualWrite] all targets failed logical_key=%s targets=%s",
-                logical_key,
-                tuple(executions),
-            )
-        if errors and raise_exception:
-            detail = "; ".join(f"{type(error).__name__}: {error}" for error in errors)
-            raise DualWriteGrantError(detail) from errors[0]
-
-        v3_execution = executions.get(IAMAuthorizationGrant.TargetVersion.V3)
-        return self._restore_v3_result(v3_execution.result if v3_execution else None)
-
-    def execute_record(self, record: IAMAuthorizationGrant, writer: AuthorizationWriter) -> GrantExecution:
-        if record.state == IAMAuthorizationGrant.State.SUCCEEDED:
+    def execute(self, record: AuthorizationGrantRecord, writer: AuthorizationWriter) -> GrantExecution:
+        if record.state == AuthorizationGrantState.SUCCEEDED.value:
             return GrantExecution(result=record.result)
 
         lease_owner = uuid.uuid4().hex
@@ -115,7 +116,7 @@ class DualWriteGrantOrchestrator:
         try:
             result = writer.grant_prepared(prepared)
         except Exception as error:  # pylint: disable=broad-except
-            state = self.classify_failure(error)
+            state = writer.classify_failure(error).value
             error_code = getattr(error, "status_code", None) or ""
             persisted, final_state = self.repository.mark_failed(
                 claimed,
@@ -136,7 +137,7 @@ class DualWriteGrantOrchestrator:
             )
             return GrantExecution(error=error)
 
-        persisted_result = self._json_value(result)
+        persisted_result = _json_value(result)
         persisted = self.repository.mark_succeeded(claimed, lease_owner=lease_owner, result=persisted_result)
         if not persisted:
             return self._execution_after_lost_lease(claimed)
@@ -144,17 +145,16 @@ class DualWriteGrantOrchestrator:
             "[IAM DualWrite] logical_key=%s target=%s state=%s attempt=%s",
             claimed.logical_key,
             claimed.target_version,
-            IAMAuthorizationGrant.State.SUCCEEDED,
+            AuthorizationGrantState.SUCCEEDED.value,
             claimed.attempts,
         )
         return GrantExecution(result=result)
 
-    @staticmethod
-    def _execution_from_persisted_state(grant_id: int) -> GrantExecution:
+    def _execution_from_persisted_state(self, grant_id: int) -> GrantExecution:
         """返回已持久化的成功结果；否则将当前状态转换为严格模式可识别的错误。"""
 
-        current = IAMAuthorizationGrant.objects.get(pk=grant_id)
-        if current.state == IAMAuthorizationGrant.State.SUCCEEDED:
+        current = self.repository.get(grant_id)
+        if current.state == AuthorizationGrantState.SUCCEEDED.value:
             return GrantExecution(result=current.result)
         return GrantExecution(
             error=PersistedGrantStateError(
@@ -163,11 +163,11 @@ class DualWriteGrantOrchestrator:
             )
         )
 
-    def _execution_after_lost_lease(self, grant: IAMAuthorizationGrant) -> GrantExecution:
+    def _execution_after_lost_lease(self, grant: AuthorizationGrantRecord) -> GrantExecution:
         """CAS 回写命中 0 行后重新读取状态，禁止报告未持久化的远端结果。"""
 
-        current = IAMAuthorizationGrant.objects.get(pk=grant.pk)
-        if current.state == IAMAuthorizationGrant.State.SUCCEEDED:
+        current = self.repository.get(grant.pk)
+        if current.state == AuthorizationGrantState.SUCCEEDED.value:
             return GrantExecution(result=current.result)
         error = LeaseOwnershipLostError(
             f"IAM grant target={current.target_version} lost lease ownership; current_state={current.state}"
@@ -181,6 +181,103 @@ class DualWriteGrantOrchestrator:
             type(error).__name__,
         )
         return GrantExecution(error=error)
+
+
+class DualWriteGrantOrchestrator:
+    """持久化 V3/V4 意图，并在最外层事务提交后执行远端授权。"""
+
+    INTENT_VERSION = 1
+    SEMANTIC_ROLE = "resource_creator"
+
+    def __init__(
+        self,
+        *,
+        writers: Sequence[tuple[str, AuthorizationWriter]],
+        tenant_id: str,
+        operator: str,
+        repository: AuthorizationGrantRepository,
+        executor: AuthorizationGrantExecutor | None = None,
+    ) -> None:
+        self.writers = tuple(writers)
+        self.tenant_id = tenant_id
+        self.operator = operator
+        self.repository = repository
+        self.executor = executor or AuthorizationGrantExecutor(repository)
+
+    def grant_creator_action(self, application: Mapping[str, Any], *, raise_exception: bool = False) -> Any:
+        """创建授权意图并安排提交后执行。
+
+        调用方已经位于事务中时，本方法只登记提交回调并返回 ``None``；远端结果和严格模式异常
+        会在最外层事务提交后产生。当前生产调用点均忽略返回值且不启用严格模式。
+        """
+
+        logical_key = self.make_logical_key(application)
+        targets = [self._prepare_target(target_version, writer, application) for target_version, writer in self.writers]
+        records: list[tuple[_PreparedTarget, AuthorizationGrantRecord, bool]] = []
+        executions: dict[str, GrantExecution] = {}
+
+        with transaction.atomic():
+            for target in targets:
+                record = self.repository.ensure(
+                    logical_key=logical_key,
+                    target_version=target.target_version,
+                    defaults=self._record_defaults(application, target.prepared),
+                )
+                preparation_failed = False
+                if target.preparation_error is not None:
+                    preparation_failed = self.repository.mark_preparation_failed(record, error=target.preparation_error)
+                records.append((target, record, preparation_failed))
+
+            # Django 会把回调提升到最外层事务；业务回滚时，意图和远端调用都会一起取消。
+            transaction.on_commit(
+                lambda: self._execute_after_commit(
+                    logical_key,
+                    records,
+                    executions,
+                    raise_exception=raise_exception,
+                )
+            )
+
+        v3_execution = executions.get(AuthorizationGrantTarget.V3.value)
+        return _restore_v3_result(v3_execution.result if v3_execution else None)
+
+    @staticmethod
+    def _prepare_target(
+        target_version: str,
+        writer: AuthorizationWriter,
+        application: Mapping[str, Any],
+    ) -> _PreparedTarget:
+        try:
+            prepared = writer.prepare_resource_creator_actions(application)
+        except Exception as error:  # pylint: disable=broad-except
+            # 本地请求构造失败同样需要留下审计记录，但没有可安全补偿的冻结载荷。
+            return _PreparedTarget(target_version, writer, PreparedAuthorizationGrant(payload={}), error)
+        return _PreparedTarget(target_version, writer, prepared)
+
+    def _execute_after_commit(
+        self,
+        logical_key: str,
+        records: Sequence[tuple[_PreparedTarget, AuthorizationGrantRecord, bool]],
+        executions: dict[str, GrantExecution],
+        *,
+        raise_exception: bool,
+    ) -> None:
+        for target, record, preparation_failed in records:
+            if preparation_failed:
+                executions[target.target_version] = GrantExecution(error=target.preparation_error)
+            else:
+                executions[target.target_version] = self.executor.execute(record, target.writer)
+
+        errors = [execution.error for execution in executions.values() if execution.error is not None]
+        if executions and len(errors) == len(executions):
+            logger.error(
+                "[IAM DualWrite] all targets failed logical_key=%s targets=%s",
+                logical_key,
+                tuple(executions),
+            )
+        if errors and raise_exception:
+            detail = "; ".join(f"{type(error).__name__}: {error}" for error in errors)
+            raise DualWriteGrantError(detail) from errors[0]
 
     def make_logical_key(self, application: Mapping[str, Any]) -> str:
         components = (
@@ -213,32 +310,16 @@ class DualWriteGrantOrchestrator:
             "resource_id": str(application["id"]),
             "semantic_role": self.SEMANTIC_ROLE,
             "role_id": prepared.role_id,
-            "payload": self._json_value(prepared.payload),
+            "payload": _json_value(prepared.payload),
             "expired_at": prepared.expired_at,
         }
 
-    @staticmethod
-    def classify_failure(error: Exception) -> str:
-        if isinstance(error, V4TimeoutError | V4TransportError):
-            return IAMAuthorizationGrant.State.UNKNOWN
-        if isinstance(error, V4RateLimitError | LegacyV3GrantError):
-            return IAMAuthorizationGrant.State.RETRY_WAIT
-        if isinstance(error, V4ResponseError):
-            return IAMAuthorizationGrant.State.FAILED_FINAL
-        if isinstance(error, V4ClientError):
-            status_code = error.status_code or 0
-            if status_code >= 500:
-                return IAMAuthorizationGrant.State.RETRY_WAIT
-            if 400 <= status_code < 500:
-                return IAMAuthorizationGrant.State.FAILED_FINAL
-        return IAMAuthorizationGrant.State.RETRY_WAIT
 
-    @staticmethod
-    def _json_value(value: Any) -> Any:
-        return json.loads(json.dumps(value, default=str))
+def _json_value(value: Any) -> Any:
+    return json.loads(json.dumps(value, default=str))
 
-    @staticmethod
-    def _restore_v3_result(result: Any) -> Any:
-        if isinstance(result, list):
-            return tuple(result)
-        return result
+
+def _restore_v3_result(result: Any) -> Any:
+    if isinstance(result, list):
+        return tuple(result)
+    return result

@@ -4,7 +4,9 @@ from unittest.mock import Mock, patch
 from django.test import SimpleTestCase, override_settings
 
 from apps.iam.backends.legacy_v3 import LegacyV3AuthorizationWriter, LegacyV3GrantError
+from apps.iam.backends.v4.exceptions import V4ClientError, V4RateLimitError, V4TimeoutError
 from apps.iam.backends.v4.writer import UnsupportedV4GrantResource, V4AuthorizationWriter
+from apps.iam.iam_engine.provider.capabilities import GrantFailureKind
 
 
 @override_settings(BK_IAM_V4_GRANT_EXPIRE_DAYS=365)
@@ -93,3 +95,60 @@ class AuthorizationWriterTest(SimpleTestCase):
             writer.grant_resource_creator_actions(
                 {"system": "bk_log_search", "type": "collection", "id": "1", "creator": "creator"}
             )
+
+    def test_v3_value_error_is_final(self):
+        self.assertEqual(
+            LegacyV3AuthorizationWriter.classify_failure(ValueError("invalid payload")),
+            GrantFailureKind.FAILED_FINAL,
+        )
+
+    @patch("apps.iam.backends.v4.writer.V4Options.from_settings")
+    @patch("apps.iam.backends.v4.writer.V4Client")
+    def test_v4_writer_from_settings_binds_operator(self, client_class, options_from_settings):
+        writer = V4AuthorizationWriter.from_settings(username="operator", bk_tenant_id="tenant-1")
+
+        client_class.assert_called_once_with(
+            options_from_settings.return_value,
+            username="operator",
+            bk_tenant_id="tenant-1",
+        )
+        self.assertEqual(writer.operator, "operator")
+
+    def test_v4_grant_resource_creator_actions_uses_prepare_and_grant(self):
+        writer = V4AuthorizationWriter(Mock(), operator="operator")
+        application = {"system": "bk_log_search", "type": "indices", "id": "1", "creator": "creator"}
+
+        with patch.object(writer, "grant_prepared") as grant_prepared:
+            writer.grant_resource_creator_actions(application)
+
+        grant_prepared.assert_called_once()
+
+    def test_v4_payload_value_error_is_final_without_retry(self):
+        self.assertEqual(
+            V4AuthorizationWriter.classify_failure(ValueError("invalid payload")),
+            GrantFailureKind.FAILED_FINAL,
+        )
+
+    def test_v4_403_is_final_and_timeout_remains_unknown(self):
+        self.assertEqual(
+            V4AuthorizationWriter.classify_failure(V4ClientError("forbidden", status_code=403)),
+            GrantFailureKind.FAILED_FINAL,
+        )
+        self.assertEqual(
+            V4AuthorizationWriter.classify_failure(V4TimeoutError("timeout")),
+            GrantFailureKind.UNKNOWN,
+        )
+
+    def test_v4_retryable_failure_classification(self):
+        self.assertEqual(
+            V4AuthorizationWriter.classify_failure(V4RateLimitError("limited")),
+            GrantFailureKind.RETRY_WAIT,
+        )
+        self.assertEqual(
+            V4AuthorizationWriter.classify_failure(V4ClientError("server error", status_code=500)),
+            GrantFailureKind.RETRY_WAIT,
+        )
+        self.assertEqual(
+            V4AuthorizationWriter.classify_failure(RuntimeError("unexpected")),
+            GrantFailureKind.RETRY_WAIT,
+        )

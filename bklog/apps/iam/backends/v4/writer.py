@@ -8,10 +8,19 @@ from django.utils import timezone
 
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.config import V4Options
+from apps.iam.backends.v4.exceptions import (
+    V4ClientError,
+    V4RateLimitError,
+    V4ResponseError,
+    V4TimeoutError,
+    V4TransportError,
+)
 from apps.iam.grant_config import AuthorizationGrantConfig
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from apps.iam.iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
 
+# 日志平台 IAM V4 权限矩阵（iWiki 4029400600，2026-08-12 核对）确认了三类子资源的
+# space_operator 分支；05 需求决定创建后自动授予对应分支，且只绑定新建实例，不扩大到空间范围。
 CREATOR_ROLE_BY_RESOURCE_TYPE = {
     "collection": "space_operator",
     "indices": "space_operator",
@@ -64,3 +73,21 @@ class V4AuthorizationWriter:
 
     def grant_resource_creator_actions(self, application: Mapping[str, Any]) -> None:
         self.grant_prepared(self.prepare_resource_creator_actions(application))
+
+    @staticmethod
+    def classify_failure(error: Exception) -> GrantFailureKind:
+        if isinstance(error, V4TimeoutError | V4TransportError):
+            # add_authorization 的生产契约没有幂等键；05 需求决定 UNKNOWN 可按冻结请求重试，
+            # 重复授予同一主体、角色和资源可接受，但不得重新计算 expired_at。
+            return GrantFailureKind.UNKNOWN
+        if isinstance(error, V4RateLimitError):
+            return GrantFailureKind.RETRY_WAIT
+        if isinstance(error, V4ResponseError | ValueError):
+            return GrantFailureKind.FAILED_FINAL
+        if isinstance(error, V4ClientError):
+            status_code = error.status_code or 0
+            if status_code >= 500:
+                return GrantFailureKind.RETRY_WAIT
+            if 400 <= status_code < 500:
+                return GrantFailureKind.FAILED_FINAL
+        return GrantFailureKind.RETRY_WAIT

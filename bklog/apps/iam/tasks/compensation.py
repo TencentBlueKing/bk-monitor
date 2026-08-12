@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
 
@@ -7,7 +9,7 @@ from apps.iam.backends.legacy_v3 import LegacyV3AuthorizationWriter
 from apps.iam.backends.v4.writer import V4AuthorizationWriter
 from apps.iam.grant_config import AuthorizationGrantConfig
 from apps.iam.handlers.permission import Permission
-from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+from apps.iam.iam_engine.migration.dual_write import AuthorizationGrantExecutor
 from apps.iam.models import IAMAuthorizationGrant
 from apps.iam.repositories import IAMAuthorizationGrantRepository
 from apps.utils.log import logger
@@ -24,12 +26,8 @@ def build_writer(grant: IAMAuthorizationGrant):
 
 def retry_authorization_grant(grant_id: int) -> None:
     grant = IAMAuthorizationGrant.objects.get(pk=grant_id)
-    orchestrator = DualWriteGrantOrchestrator(
-        writers=(),
-        tenant_id=grant.tenant_id,
-        operator=grant.operator,
-    )
-    orchestrator.execute_record(grant, build_writer(grant))
+    executor = AuthorizationGrantExecutor(IAMAuthorizationGrantRepository())
+    executor.execute(grant, build_writer(grant))
 
 
 @periodic_task(run_every=crontab(minute="*/1"))
@@ -39,7 +37,11 @@ def compensate_iam_authorization_grants() -> None:
     recovered = repository.recover_expired_leases()
     due_ids = repository.due_ids(limit=grant_config.compensation_batch_size)
     logger.info("[IAM Compensation] recovered=%s due=%s", recovered, len(due_ids))
-    for grant_id in due_ids:
+    deadline = time.monotonic() + grant_config.compensation_time_budget_seconds
+    for position, grant_id in enumerate(due_ids):
+        if time.monotonic() >= deadline:
+            logger.warning("[IAM Compensation] round time budget exhausted remaining=%s", len(due_ids) - position)
+            break
         try:
             retry_authorization_grant(grant_id)
         except Exception:  # pylint: disable=broad-except

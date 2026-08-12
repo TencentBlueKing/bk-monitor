@@ -43,6 +43,7 @@ from iam.meta import setup_action, setup_resource, setup_system
 from apps.iam.backends.legacy_v3 import LegacyV3Adapter, LegacyV3AuthorizationWriter
 from apps.iam.backends.v4 import V4AuthorizationWriter, V4PermissionProvider
 from apps.iam.backends.v4.concurrency import run_pair_concurrently
+from apps.iam.backends.v4.config import resolve_v4_gateway_url
 from apps.iam.exceptions import (
     ActionNotExistError,
     GetSystemInfoError,
@@ -67,6 +68,7 @@ from apps.iam.iam_engine.migration.policy import (
     BoundPermissionApplicationAdapter,
     MigrationPolicy,
 )
+from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PermissionApplicationProvider
 from apps.iam.iam_engine.provider.router import ModeRouter
@@ -82,26 +84,28 @@ class Permission:
     """
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
-        if request is None and (not username or not bk_tenant_id):
+        if username and bk_tenant_id:
+            self.username = username
+            self.bk_tenant_id = bk_tenant_id
+        else:
             try:
-                request = get_request(peaceful=True)
+                request = request or get_request(peaceful=True)
+                # web请求
+                if request:
+                    self.username = request.user.username
+                    self.bk_tenant_id = get_request_tenant_id()
+                else:
+                    self.bk_tenant_id = settings.BK_APP_TENANT_ID
+                    logger.warning(
+                        "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
+                    )
+                    # 后台设置
+                    self.username = get_local_username()
+                    if self.username is None:
+                        raise ValueError("must provide `username` or `request` param to init")
             except Exception:  # pylint: disable=broad-except
-                request = None
-
-        request_username = getattr(getattr(request, "user", None), "username", "") if request else ""
-        self.username = username or request_username or get_local_username() or get_request_username()
-        if not self.username:
-            raise ValueError("must provide `username` or `request` param to init")
-
-        request_tenant_id = ""
-        if request:
-            try:
-                request_tenant_id = get_request_tenant_id()
-            except Exception:  # pylint: disable=broad-except
-                request_tenant_id = getattr(getattr(request, "user", None), "tenant_id", "")
-        self.bk_tenant_id = bk_tenant_id or request_tenant_id or settings.BK_APP_TENANT_ID
-        if not bk_tenant_id and not request_tenant_id:
-            logger.warning("IAM Permission init with default bk_tenant_id: %s", self.bk_tenant_id)
+                self.bk_tenant_id = settings.BK_APP_TENANT_ID
+                self.username = get_request_username()
 
         self.iam_client = self.get_iam_client(self.bk_tenant_id)
         # 是否跳过权限中心校验
@@ -169,6 +173,8 @@ class Permission:
         return self.get_v4_provider()
 
     def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
+        if not resolve_v4_gateway_url():
+            return None
         if self._v4_authorization_writer is None:
             self._v4_authorization_writer = V4AuthorizationWriter.from_settings(
                 username=self.username,
@@ -854,12 +860,13 @@ class Permission:
             "creator": creator or self.username,
         }
 
-        # apps.iam 在 Django 应用注册表就绪前会导入 Permission，模型编排器必须延迟加载。
-        from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+        # Repository 依赖 Django 模型，需在应用注册表就绪后的实际授权入口再加载。
+        from apps.iam.repositories import IAMAuthorizationGrantRepository
 
         orchestrator = DualWriteGrantOrchestrator(
             writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles),
             tenant_id=self.bk_tenant_id,
             operator=self.username,
+            repository=IAMAuthorizationGrantRepository(),
         )
         return orchestrator.grant_creator_action(application, raise_exception=raise_exception)

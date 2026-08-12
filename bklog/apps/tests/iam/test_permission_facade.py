@@ -12,7 +12,7 @@ from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
 from apps.iam.iam_engine.core.types import AuthResult
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from apps.iam.iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
 
 @override_settings(
@@ -37,6 +37,14 @@ class PermissionFacadeTest(TestCase):
         self.addCleanup(self.mode_patcher.stop)
         self.addCleanup(self.v4_provider_patcher.stop)
         self.addCleanup(self.v4_writer_patcher.stop)
+
+    @staticmethod
+    def _grant_immediately(permission: Permission, resource: Resource, **kwargs):
+        with patch(
+            "apps.iam.iam_engine.migration.dual_write.transaction.on_commit",
+            side_effect=lambda callback: callback(),
+        ):
+            return permission.grant_creator_action(resource, **kwargs)
 
     def test_v3_mode_keeps_boolean_allow_result(self):
         self.iam_client.is_allowed.return_value = True
@@ -368,7 +376,7 @@ class PermissionFacadeTest(TestCase):
         permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
         resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
 
-        result = permission.grant_creator_action(resource, creator="admin")
+        result = self._grant_immediately(permission, resource, creator="admin")
 
         application = {
             "system": "bk_log_search",
@@ -387,7 +395,7 @@ class PermissionFacadeTest(TestCase):
         permission = self._make_permission()
         resource = Resource("bk_log_search", "collection", "1", {})
 
-        self.assertEqual(permission.grant_creator_action(resource), "v3-result")
+        self.assertEqual(self._grant_immediately(permission, resource), "v3-result")
         self.iam_client.grant_resource_creator_actions.assert_called_once()
 
     def test_creator_grant_propagates_v4_writer_error_when_requested(self):
@@ -396,12 +404,14 @@ class PermissionFacadeTest(TestCase):
         prepared = PreparedAuthorizationGrant(payload={"v4": True})
         v4_writer.prepare_resource_creator_actions.return_value = prepared
         v4_writer.grant_prepared.side_effect = RuntimeError("v4 grant failed")
+        v4_writer.classify_failure.return_value = GrantFailureKind.RETRY_WAIT
         permission = self._make_permission()
         permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
         resource = Resource("bk_log_search", "collection", "1", {})
 
         with self.assertRaisesMessage(RuntimeError, "v4 grant failed"):
-            permission.grant_creator_action(resource, raise_exception=True)
+            with self.captureOnCommitCallbacks(execute=True):
+                permission.grant_creator_action(resource, raise_exception=True)
 
     @staticmethod
     def _make_permission() -> Permission:
@@ -429,8 +439,29 @@ class V4ProviderConstructionTest(SimpleTestCase):
     @patch("apps.iam.handlers.permission.get_request", return_value=None)
     @patch("apps.iam.handlers.permission.get_local_username", return_value="local-user")
     @patch.object(Permission, "get_iam_client", return_value=Mock())
-    def test_explicit_username_and_default_tenant_are_resolved_independently(self, _, __, ___):
+    def test_username_without_explicit_tenant_keeps_legacy_background_resolution(self, _, __, ___):
         permission = Permission(username="creator")
 
-        self.assertEqual(permission.username, "creator")
+        self.assertEqual(permission.username, "local-user")
         self.assertEqual(permission.bk_tenant_id, "default")
+
+    @override_settings(BK_IAM_V4_APIGATEWAY_URL="")
+    @patch("apps.iam.handlers.permission.V4AuthorizationWriter.from_settings")
+    @patch.object(Permission, "get_iam_client", return_value=Mock())
+    def test_v4_writer_is_not_registered_when_gateway_is_unconfigured(self, _, from_settings):
+        permission = Permission(username="admin", bk_tenant_id="tenant-1")
+
+        self.assertIsNone(permission.get_v4_authorization_writer())
+        from_settings.assert_not_called()
+
+    @override_settings(BK_IAM_V4_APIGATEWAY_URL="https://iam.example/")
+    @patch("apps.iam.handlers.permission.V4AuthorizationWriter.from_settings")
+    @patch.object(Permission, "get_iam_client", return_value=Mock())
+    def test_v4_writer_is_built_lazily_once_when_gateway_is_configured(self, _, from_settings):
+        writer = Mock()
+        from_settings.return_value = writer
+        permission = Permission(username="admin", bk_tenant_id="tenant-1")
+
+        self.assertIs(permission.get_v4_authorization_writer(), writer)
+        self.assertIs(permission.get_v4_authorization_writer(), writer)
+        from_settings.assert_called_once_with(username="admin", bk_tenant_id="tenant-1")

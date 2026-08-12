@@ -6,6 +6,8 @@ import logging
 from django.conf import settings
 
 
+# add_authorization 生产 Schema（2026-08-12 核对）要求 expired_at 必填且最长 365 天，
+# 当前不支持永久授权或更远期哨兵值，因此默认值与真实上限相同。
 DEFAULT_V4_GRANT_EXPIRE_DAYS = 365
 MAX_V4_GRANT_EXPIRE_DAYS = 365
 DEFAULT_GRANT_MAX_ATTEMPTS = 12
@@ -13,6 +15,8 @@ DEFAULT_GRANT_LEASE_SECONDS = 120
 MIN_GRANT_LEASE_SECONDS = 30
 DEFAULT_GRANT_COMPENSATION_BATCH_SIZE = 100
 MAX_GRANT_COMPENSATION_BATCH_SIZE = 1000
+DEFAULT_GRANT_COMPENSATION_TIME_BUDGET_SECONDS = 50
+MAX_GRANT_COMPENSATION_TIME_BUDGET_SECONDS = 55
 
 logger = logging.getLogger("iam.grant.config")
 
@@ -50,6 +54,7 @@ class AuthorizationGrantConfig:
     max_attempts: int
     lease_seconds: int
     compensation_batch_size: int
+    compensation_time_budget_seconds: int
 
     @classmethod
     def from_settings(cls) -> AuthorizationGrantConfig:
@@ -83,5 +88,16 @@ class AuthorizationGrantConfig:
                 default=DEFAULT_GRANT_COMPENSATION_BATCH_SIZE,
                 minimum=1,
                 maximum=MAX_GRANT_COMPENSATION_BATCH_SIZE,
+            ),
+            compensation_time_budget_seconds=_normalize_bounded_int(
+                getattr(
+                    settings,
+                    "BK_IAM_GRANT_COMPENSATION_TIME_BUDGET_SECONDS",
+                    DEFAULT_GRANT_COMPENSATION_TIME_BUDGET_SECONDS,
+                ),
+                setting_name="BK_IAM_GRANT_COMPENSATION_TIME_BUDGET_SECONDS",
+                default=DEFAULT_GRANT_COMPENSATION_TIME_BUDGET_SECONDS,
+                minimum=1,
+                maximum=MAX_GRANT_COMPENSATION_TIME_BUDGET_SECONDS,
             ),
         )
