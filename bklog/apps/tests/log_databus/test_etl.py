@@ -25,12 +25,16 @@ from unittest.mock import patch
 from django.conf import settings
 from django.test import TestCase
 
+from apps.api.modules.transfer import modify_result_table_before
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import (
+    DORIS_CLUSTER_TYPE,
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
+    STORAGE_CLUSTER_TYPE,
 )
+from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
@@ -772,6 +776,8 @@ class TestEtl(TestCase):
             result["params"]["default_storage_config"]["index_set"],
             expected_index_set,
         )
+        self.assertEqual(result["params"]["default_storage_config"]["retention"], RETENTION_TIME)
+        self.assertNotIn("expire_days", result["params"]["default_storage_config"])
         self.assertIn("need_add_time", result["params"]["option"])
         self.assertTrue(result["params"]["option"]["need_add_time"])
         self.assertIn("time_field", result["params"]["option"])
@@ -781,6 +787,102 @@ class TestEtl(TestCase):
         self.assertIsInstance(etl_config["etl_params"]["es_unique_field_list"], list)
         self.assertEqual(etl_config["etl_params"]["separator_node_action"], "")
         return True
+
+    @FakeRedis("apps.utils.cache.cache")
+    def test_doris_result_table_create_uses_expire_days(self):
+        """新建 Doris 结果表时，Metadata 创建接口应接收 expire_days。"""
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+
+        with (
+            patch("apps.api.TransferApi.get_result_table", return_value={}),
+            patch("apps.api.TransferApi.create_result_table", return_value={"table_id": TABLE_ID}) as mock_create,
+            patch("apps.log_databus.tasks.collector.modify_result_table.delay") as mock_modify_delay,
+        ):
+            etl_storage.update_or_create_result_table(
+                collector_config,
+                table_id=TABLE_ID,
+                storage_cluster_id=STORAGE_CLUSTER_ID,
+                storage_cluster_type=DORIS_CLUSTER_TYPE,
+                retention=RETENTION_TIME,
+                allocation_min_days=0,
+                storage_replies=1,
+                fields=[],
+                etl_params={},
+            )
+
+        storage_config = mock_create.call_args.args[0]["default_storage_config"]
+        self.assertEqual(storage_config["expire_days"], RETENTION_TIME)
+        self.assertNotIn("retention", storage_config)
+        mock_modify_delay.assert_not_called()
+
+    @FakeRedis("apps.utils.cache.cache")
+    def test_doris_result_table_modify_uses_expire_days(self):
+        """已有 Doris 修改及 ES 切换 Doris 时，Metadata 修改接口均应接收 expire_days。"""
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+        built_in_config = CollectorScenario.get_instance("row").get_built_in_config(
+            storage_cluster_type=DORIS_CLUSTER_TYPE
+        )
+        result_table_config = etl_storage.get_result_table_config(
+            fields=[],
+            etl_params={},
+            built_in_config=built_in_config,
+            enable_v4=True,
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+
+        for source_storage_type in (DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE):
+            with self.subTest(source_storage_type=source_storage_type):
+                collector_params = copy.deepcopy(COLLECTOR_CONFIG)
+                collector_params.update(
+                    {
+                        "collector_config_name": f"{source_storage_type}_collector",
+                        "table_id": TABLE_ID,
+                        "storage_cluster_type": source_storage_type,
+                    }
+                )
+                collector_config = CollectorConfig.objects.create(**collector_params)
+                retention = 60
+                if source_storage_type == DORIS_CLUSTER_TYPE:
+                    parsed_config = etl_storage.parse_result_table_config(
+                        result_table_config,
+                        {
+                            "cluster_type": DORIS_CLUSTER_TYPE,
+                            "cluster_config": {"cluster_id": STORAGE_CLUSTER_ID},
+                            "storage_config": {"expire_days": RETENTION_TIME},
+                        },
+                    )
+                    retention = parsed_config["retention"]
+                    self.assertEqual(retention, RETENTION_TIME)
+
+                with (
+                    patch("apps.api.TransferApi.get_result_table", return_value={"table_id": TABLE_ID}),
+                    patch("apps.api.TransferApi.create_result_table") as mock_create,
+                    patch("apps.log_databus.tasks.collector.modify_result_table.delay") as mock_modify_delay,
+                ):
+                    etl_storage.update_or_create_result_table(
+                        collector_config,
+                        table_id=TABLE_ID,
+                        storage_cluster_id=STORAGE_CLUSTER_ID,
+                        storage_cluster_type=DORIS_CLUSTER_TYPE,
+                        retention=retention,
+                        allocation_min_days=0,
+                        storage_replies=1,
+                        fields=[],
+                        etl_params={},
+                    )
+
+                modify_params = copy.deepcopy(mock_modify_delay.call_args.args[0])
+                with patch(
+                    "apps.api.modules.transfer.add_esb_info_before_request",
+                    side_effect=lambda params: params,
+                ):
+                    metadata_params = modify_result_table_before(modify_params)
+                storage_config = metadata_params["external_storage"][DORIS_CLUSTER_TYPE]
+
+                self.assertEqual(storage_config["expire_days"], retention)
+                self.assertNotIn("retention", storage_config)
+                mock_create.assert_not_called()
 
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})

@@ -1198,6 +1198,7 @@ class EtlStorage:
             param_mapping["_all"] = {"enabled": True}
             param_mapping["include_in_all"] = False
 
+        retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
         params = {
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
@@ -1209,7 +1210,7 @@ class EtlStorage:
             "default_storage_config": {
                 "cluster_id": storage_cluster_id,
                 "storage_cluster_id": storage_cluster_id,
-                "retention": retention,
+                retention_field: retention,
                 "date_format": date_format,
                 "slice_size": slice_size,
                 "slice_gap": slice_gap,
@@ -1798,6 +1799,7 @@ class EtlStorage:
             param_mapping["_all"] = {"enabled": True}
             param_mapping["include_in_all"] = False
 
+        retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
         params = {
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
@@ -1809,7 +1811,7 @@ class EtlStorage:
             "default_storage_config": {
                 "cluster_id": storage_cluster_id,
                 "storage_cluster_id": storage_cluster_id,
-                "retention": retention,
+                retention_field: retention,
                 "date_format": date_format,
                 "slice_size": slice_size,
                 "slice_gap": slice_gap,

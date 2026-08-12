@@ -1728,13 +1728,15 @@ class CollectorHandler:
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
+            storage_cluster_type = result_table.get("cluster_type") or self.storage_cluster_type
+            retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
             default_etl_params = {
                 "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
                 "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
-                "retention": result_table["storage_config"].get("retention", 0),
+                "retention": result_table["storage_config"].get(retention_field, 0),
                 "allocation_min_days": params.get("allocation_min_days", 0),
                 "etl_config": self.data.etl_config,
             }
