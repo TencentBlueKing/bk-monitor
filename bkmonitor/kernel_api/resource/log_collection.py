@@ -1,0 +1,259 @@
+"""日志采集接入 MCP 资源。"""
+
+import json
+import math
+from typing import Any
+
+from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
+
+from core.drf_resource import Resource, api
+
+ENVIRONMENT_LINUX = "linux"
+ENVIRONMENT_WINDOWS = "windows"
+ENVIRONMENT_CONTAINER = "container"
+ENVIRONMENT_UNKNOWN = "unknown"
+VALID_ENVIRONMENTS = {
+    ENVIRONMENT_LINUX,
+    ENVIRONMENT_WINDOWS,
+    ENVIRONMENT_CONTAINER,
+}
+WINDOWS_COLLECTOR_SCENARIO = "wineventlog"
+LINUX_COLLECTOR_SCENARIOS = {"row", "section"}
+CUSTOM_COLLECTOR_SCENARIO = "custom"
+CUSTOM_CONTAINER_TYPE = "log"
+SENSITIVE_KEYWORDS = (
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "credential",
+    "authorization",
+    "api_key",
+    "access_key",
+    "private_key",
+    "cookie",
+)
+CONTAINER_CONFIG_FIELDS = {
+    "id",
+    "collector_type",
+    "namespaces",
+    "namespaces_exclude",
+    "any_namespace",
+    "workload_type",
+    "workload_name",
+    "container_name",
+    "container_name_exclude",
+    "match_labels",
+    "match_expressions",
+    "match_annotations",
+    "all_container",
+    "data_encoding",
+    "params",
+    "status",
+    "status_detail",
+}
+
+
+def normalize_environment(collector: dict[str, Any]) -> str:
+    """兼容存量采集项 environment 为空的情况。"""
+    environment = collector.get("environment")
+    if environment in VALID_ENVIRONMENTS:
+        return environment
+
+    collector_scenario_id = collector.get("collector_scenario_id")
+    if (
+        collector_scenario_id == CUSTOM_COLLECTOR_SCENARIO
+        and collector.get("custom_type") == CUSTOM_CONTAINER_TYPE
+    ):
+        return ENVIRONMENT_CONTAINER
+    if collector_scenario_id == WINDOWS_COLLECTOR_SCENARIO:
+        return ENVIRONMENT_WINDOWS
+    if collector_scenario_id in LINUX_COLLECTOR_SCENARIOS:
+        return ENVIRONMENT_LINUX
+    return ENVIRONMENT_UNKNOWN
+
+
+def normalize_json_object(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def normalize_json_list(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return []
+        return parsed if isinstance(parsed, list) else []
+    return []
+
+
+def mask_sensitive(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "******" if any(keyword in str(key).lower() for keyword in SENSITIVE_KEYWORDS) else mask_sensitive(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [mask_sensitive(item) for item in value]
+    return value
+
+
+def normalize_collection_params(value: Any) -> dict[str, Any]:
+    params = normalize_json_object(value)
+    if "kafka_ssl_params" in params:
+        params = params.copy()
+        params["kafka_ssl_params"] = normalize_json_object(params["kafka_ssl_params"])
+    return mask_sensitive(params)
+
+
+def normalize_container_configs(value: Any) -> list[dict[str, Any]]:
+    configs = []
+    for config in normalize_json_list(value):
+        if not isinstance(config, dict):
+            continue
+        normalized = {key: config[key] for key in CONTAINER_CONFIG_FIELDS if key in config}
+        if "params" in normalized:
+            normalized["params"] = normalize_collection_params(normalized["params"])
+        configs.append(mask_sensitive(normalized))
+    return configs
+
+
+def normalize_index_set(collector: dict[str, Any]) -> dict[str, Any]:
+    is_search = collector.get("is_search")
+    return {
+        "index_set_id": collector.get("index_set_id"),
+        "table_id_prefix": collector.get("table_id_prefix") or "",
+        "table_id": collector.get("table_id") or "",
+        # 列表接口会补齐精确可检索状态，详情原始接口未补齐时返回 unknown，
+        # 避免把“未返回”误报为不可检索。
+        "is_searchable": bool(is_search) if is_search is not None else None,
+        "bkdata_index_set_ids": normalize_json_list(collector.get("bkdata_index_set_ids")),
+    }
+
+
+def normalize_collector_summary(collector: dict[str, Any]) -> dict[str, Any]:
+    is_active = bool(collector.get("is_active"))
+    return {
+        "collector_config_id": collector.get("collector_config_id"),
+        "collector_config_name": collector.get("collector_config_name") or "",
+        "bk_biz_id": collector.get("bk_biz_id"),
+        "environment": normalize_environment(collector),
+        "collector_scenario": {
+            "id": collector.get("collector_scenario_id") or "",
+            "name": collector.get("collector_scenario_name") or "",
+        },
+        "status": "enabled" if is_active else "disabled",
+        "is_active": is_active,
+        "bk_data_id": collector.get("bk_data_id"),
+        "subscription_id": collector.get("subscription_id"),
+        "index_set": normalize_index_set(collector),
+        "created_at": collector.get("created_at"),
+        "updated_at": collector.get("updated_at"),
+    }
+
+
+def normalize_collector_detail(collector: dict[str, Any]) -> dict[str, Any]:
+    result = normalize_collector_summary(collector)
+    result.update(
+        {
+            "description": collector.get("description") or "",
+            "log_access_type": collector.get("log_access_type") or "",
+            "category": {
+                "id": collector.get("category_id") or "",
+                "name": collector.get("category_name") or "",
+            },
+            "target": {
+                "object_type": collector.get("target_object_type") or "",
+                "node_type": collector.get("target_node_type") or "",
+                "nodes": normalize_json_list(collector.get("target_nodes")),
+                "bcs_cluster_id": collector.get("bcs_cluster_id"),
+            },
+            "collection_config": {
+                "data_encoding": collector.get("data_encoding") or "",
+                "params": normalize_collection_params(collector.get("params")),
+                "configs": normalize_container_configs(collector.get("configs")),
+            },
+            "clean_config": {
+                "etl_config": collector.get("etl_config") or "",
+                "etl_params": normalize_json_object(collector.get("etl_params")),
+                "fields": normalize_json_list(collector.get("fields")),
+            },
+            "storage": {
+                "cluster_id": collector.get("storage_cluster_id"),
+                "cluster_name": collector.get("storage_cluster_name") or "",
+                "display_name": collector.get("storage_display_name") or "",
+                "cluster_type": collector.get("storage_cluster_type") or "",
+                "retention": collector.get("retention"),
+            },
+        }
+    )
+    return result
+
+
+class ListLogCollectorsResource(Resource):
+    """分页查询指定业务的日志采集项。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
+        page_size = serializers.IntegerField(
+            required=False, default=20, min_value=1, max_value=100, label="每页数量"
+        )
+        keyword = serializers.CharField(
+            required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
+        )
+        collector_scenario_id = serializers.CharField(required=False, label="采集场景")
+        enabled = serializers.BooleanField(required=False, label="是否启用")
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "page": validated_request_data["page"],
+            "pagesize": validated_request_data["page_size"],
+            "keyword": validated_request_data.get("keyword") or "",
+            "ordering": "-updated_at,-collector_config_id",
+            "enforce_permission": True,
+        }
+        if "collector_scenario_id" in validated_request_data:
+            params["collector_scenario_id"] = validated_request_data["collector_scenario_id"]
+        if "enabled" in validated_request_data:
+            params["is_active"] = validated_request_data["enabled"]
+
+        response = api.log_search.paged_collector_configs(**params)
+        total = int(response.get("total") or 0)
+        page_size = validated_request_data["page_size"]
+        return {
+            "page": validated_request_data["page"],
+            "page_size": page_size,
+            "total": total,
+            "total_pages": math.ceil(total / page_size) if total else 0,
+            "items": [normalize_collector_summary(item) for item in response.get("list") or []],
+        }
+
+
+class GetLogCollectorResource(Resource):
+    """查询指定业务中的日志采集项详情。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        collector_config_id = serializers.IntegerField(required=True, min_value=1, label="采集项ID")
+
+    def perform_request(self, validated_request_data):
+        collector = api.log_search.data_bus_collectors(
+            collector_config_id=validated_request_data["collector_config_id"],
+            enforce_permission=True,
+        )
+        if str(collector.get("bk_biz_id")) != str(validated_request_data["bk_biz_id"]):
+            raise PermissionDenied("Collector config does not belong to the requested business.")
+        return normalize_collector_detail(collector)

@@ -27,6 +27,7 @@ _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
+_LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -116,6 +117,27 @@ def test_alert_handling_mcp_contract():
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["alert_handling_mcp"]
+
+
+def test_log_collection_mcp_contract():
+    """日志采集 MCP 首期只暴露分页列表和详情查询。"""
+    paths = _load_paths(_LOG_COLLECTION_MCP_FILE)
+
+    assert set(paths) == {
+        "/mcp/list_log_collectors/",
+        "/mcp/get_log_collector/",
+    }
+    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector"}
+    for path_data in paths.values():
+        for method_data in path_data.values():
+            assert method_data["tags"] == ["log_collection_mcp"]
+            resource = method_data["x-bk-apigateway-resource"]
+            assert resource["backend"]["method"] == "get"
+            assert resource["authConfig"] == {
+                "userVerifiedRequired": True,
+                "appVerifiedRequired": False,
+                "resourcePermissionRequired": True,
+            }
 
 
 def test_result_table_storage_status_apigw_contract():

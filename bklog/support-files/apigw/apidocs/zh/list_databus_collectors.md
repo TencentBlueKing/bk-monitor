@@ -23,6 +23,7 @@
 | pagesize          | int    | 是   | 每页条数                                   |
 | keyword           | string | 否   | 采集项名称搜索关键字                       |
 | collector_id_list | string | 否   | 采集项 ID 过滤，逗号分隔，如 `1,2,3`       |
+| enforce_permission | bool  | 否   | 白名单应用是否仍强制按当前用户校验权限，默认 `false` |
 
 ## 调用示例
 
