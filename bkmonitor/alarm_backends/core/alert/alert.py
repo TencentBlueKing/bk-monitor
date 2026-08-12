@@ -257,7 +257,10 @@ class Alert:
         return True
 
     def update_qos_status(self, is_blocked):
+        if self.is_blocked == is_blocked:
+            return
         self.data["is_blocked"] = is_blocked
+        self._refresh_db = True
 
     def is_valid_handle(self, execute_times=0, action_relation_id=None):
         if execute_times == 0 and action_relation_id is None:
@@ -989,7 +992,7 @@ class Alert:
         qos_threshold = settings.QOS_ALERT_THRESHOLD
         if qos_threshold == 0:
             # 如果当前设置阈值为0表示没有QOS，直接返回
-            return {"is_blocked": self.is_blocked, "message": message}
+            return {"is_blocked": False, "message": message}
 
         qos_counter = ALERT_BUILD_QOS_COUNTER
         qos_threshold = {"threshold": qos_threshold, "window": settings.QOS_ALERT_WINDOW}

@@ -13,6 +13,7 @@ import time
 from unittest import mock
 
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from alarm_backends.core.alert.alert import Alert, AlertUIDManager
 from bkmonitor.documents import AlertLog
@@ -61,6 +62,25 @@ class TestAlertEndStatus(TestCase):
         self.assertTrue(alert.move_to_next_status())
 
         terminate_lifecycle.assert_called_once_with(alert)
+
+
+class TestAlertQosStatus(TestCase):
+    def test_update_qos_status_marks_alert_for_persistence(self):
+        alert = Alert({"is_blocked": True})
+
+        alert.update_qos_status(False)
+
+        self.assertFalse(alert.is_blocked)
+        self.assertTrue(alert.should_refresh_db())
+
+    @override_settings(QOS_ALERT_THRESHOLD=0)
+    def test_disabled_qos_releases_existing_blocked_alert(self):
+        alert = Alert({"is_blocked": True})
+
+        with mock.patch.object(alert, "pre_qos_check", return_value=(False, "")):
+            qos_result = alert.qos_check()
+
+        self.assertFalse(qos_result["is_blocked"])
 
 
 class TestAlertUIDManager(TestCase):
