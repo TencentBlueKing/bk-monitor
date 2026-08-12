@@ -30,6 +30,7 @@ import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
+import { buildHostAppUrl } from './host-url';
 import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
@@ -49,9 +50,9 @@ export default class Host extends tsc<object> {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
   get hostUrl() {
-    return process.env.NODE_ENV === 'development'
-      ? `${this.hostHost}/?bizId=${this.$store.getters.bizId}/#/trace/host`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/host`;
+    const baseUrl =
+      process.env.NODE_ENV === 'development' ? `${this.hostHost}/` : `${location.origin}${window.site_url}trace/`;
+    return buildHostAppUrl(baseUrl, this.$store.getters.bizId, this.$route.fullPath);
   }
   get hostData(): Vue3WewebData {
     return {
