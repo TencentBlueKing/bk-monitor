@@ -73,6 +73,107 @@ class IssueActivityType:
     )
 
 
+class SourceAnalysisStatus:
+    """源码分析执行记录主状态。
+
+    四方链路的外部任务状态统一映射到这四个值，失败的具体位置由 SourceAnalysisFailureStage 单独承载。
+
+    以下各源码分析常量类的 CHOICES / LABELS 只供序列化层拼展示文案，不要挂到 Model 字段的 choices 上：
+    翻译文案会被冻结进迁移文件，切换 locale 后会生成无关的 AlterField。
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    # 活动态：同一 Issue 同时只允许存在一条
+    ACTIVE_STATUSES = (PENDING, RUNNING)
+    TERMINAL_STATUSES = (SUCCESS, FAILED)
+
+    CHOICES = (
+        (PENDING, _("等待执行")),
+        (RUNNING, _("分析中")),
+        (SUCCESS, _("分析完成")),
+        (FAILED, _("分析失败")),
+    )
+
+    LABELS = dict(CHOICES)
+
+
+class SourceAnalysisStage:
+    """源码分析执行阶段，仅活动态有值，终态一律为空。"""
+
+    WAITING = "waiting"
+    SOURCE_PREPARING = "source_preparing"
+    ANALYZING = "analyzing"
+    VALIDATING = "validating"
+    ARCHIVING = "archiving"
+
+    CHOICES = (
+        (WAITING, _("正在创建分析任务")),
+        (SOURCE_PREPARING, _("正在准备源码")),
+        (ANALYZING, _("正在结合告警证据分析源码")),
+        (VALIDATING, _("正在校验分析结果")),
+        (ARCHIVING, _("正在归档分析结果")),
+    )
+
+    LABELS = dict(CHOICES)
+
+
+class SourceAnalysisTriggerType:
+    """执行记录的触发方式。本期只有手动触发，不存在自动触发。"""
+
+    INITIAL = "initial"
+    RETRY = "retry"
+    REANALYZE = "reanalyze"
+
+    CHOICES = (
+        (INITIAL, _("首次分析")),
+        (RETRY, _("失败重试")),
+        (REANALYZE, _("重新分析")),
+    )
+
+
+class SourceAnalysisFailureStage:
+    """失败位置。只用于定位，不扩充主状态。"""
+
+    TASK_CREATE = "task_create"
+    TASK_EXECUTE = "task_execute"
+    SOURCE_PREPARE = "source_prepare"
+    AI_ANALYSIS = "ai_analysis"
+    RESULT_VALIDATE = "result_validate"
+    RESULT_ARCHIVE = "result_archive"
+    RESULT_FETCH = "result_fetch"
+    RESULT_PERSIST = "result_persist"
+
+    CHOICES = (
+        (TASK_CREATE, _("创建分析任务")),
+        (TASK_EXECUTE, _("执行分析任务")),
+        (SOURCE_PREPARE, _("准备源码")),
+        (AI_ANALYSIS, _("AI 分析")),
+        (RESULT_VALIDATE, _("校验分析结果")),
+        (RESULT_ARCHIVE, _("归档分析结果")),
+        (RESULT_FETCH, _("读取分析结果")),
+        (RESULT_PERSIST, _("持久化分析结果")),
+    )
+
+
+class SourceAnalysisResultType:
+    """分析结论类型。两者都属于成功终态，证据不足不等于系统失败。"""
+
+    HIGH_CONFIDENCE = "HIGH_CONFIDENCE"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+
+    CHOICES = (
+        (HIGH_CONFIDENCE, _("分析完成")),
+        (INSUFFICIENT_EVIDENCE, _("分析完成（证据不足）")),
+    )
+
+    # status=success 时优先按结论类型取用户文案，区分证据不足场景
+    STATUS_LABELS = dict(CHOICES)
+
+
 class ImpactScopeDimension:
     """影响范围维度枚举"""
 

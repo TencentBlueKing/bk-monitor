@@ -9,15 +9,60 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.urls import reverse
+from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
+
+
+class SourceAnalysisOptionsViewSet(ResourceViewSet):
+    """Issue 源码分析配置所需的只读选项接口。"""
+
+    def get_permissions(self):
+        return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.list_source_analysis_bkci_projects, endpoint="bkci_projects"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_bkci_repositories, endpoint="bkci_repositories"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_agents, endpoint="agents"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_skills, endpoint="skills"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_knowledge_bases, endpoint="knowledge_bases"),
+    ]
+
+
+class SourceAnalysisConfigViewSet(ResourceViewSet):
+    """业务源码分析代码库配置。"""
+
+    def get_permissions(self):
+        action = ActionEnum.VIEW_RULE if self.request.method in permissions.SAFE_METHODS else ActionEnum.MANAGE_RULE
+        return [BusinessActionPermission([action])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.get_source_analysis_config),
+        ResourceRoute("PUT", resource.issue.save_source_analysis_config, endpoint="save"),
+    ]
+
+
+class SourceAnalysisRulesViewSet(ResourceViewSet):
+    """业务源码分析规则 CRUD。"""
+
+    def get_permissions(self):
+        action = ActionEnum.VIEW_RULE if self.request.method in permissions.SAFE_METHODS else ActionEnum.MANAGE_RULE
+        return [BusinessActionPermission([action])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.list_source_analysis_rules),
+        ResourceRoute("POST", resource.issue.create_source_analysis_rule),
+        ResourceRoute("GET", resource.issue.get_source_analysis_rule, pk_field="rule_id"),
+        ResourceRoute("PATCH", resource.issue.update_source_analysis_rule, pk_field="rule_id"),
+        ResourceRoute("DELETE", resource.issue.delete_source_analysis_rule, pk_field="rule_id"),
+    ]
 
 
 class IssueViewSet(ResourceViewSet):

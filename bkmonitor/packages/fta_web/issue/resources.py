@@ -12,20 +12,24 @@ import logging
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait
+from datetime import timedelta
 import hashlib
 import json
 import re
 from threading import BoundedSemaphore
 import time
 
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
@@ -34,21 +38,48 @@ from bkmonitor.documents.issue import (
     IssueDocumentWriteError,
     IssueNotFoundError,
 )
-from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
-from bkmonitor.models import QueryConfigModel, TapdWorkspaceBinding, TapdWorkspaceManualUnbind
+from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver, MergeResolverContext
+from bkmonitor.models import (
+    IssueSourceAnalysisConfig,
+    IssueSourceAnalysisExecution,
+    IssueSourceAnalysisRule,
+    QueryConfigModel,
+    TapdWorkspaceBinding,
+    TapdWorkspaceManualUnbind,
+)
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.request import get_request_username, get_request
-from django.db import transaction
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.user import set_local_username
-from constants.issue import IssuePriority, IssueStatus, IssueActivityType
+from bkmonitor.utils.user import get_global_user, set_local_username
+from constants.issue import (
+    IssueActivityType,
+    IssuePriority,
+    IssueStatus,
+    SourceAnalysisFailureStage,
+    SourceAnalysisStage,
+    SourceAnalysisStatus,
+    SourceAnalysisTriggerType,
+)
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.common import HTTP404Error
-from core.errors.issue import IssueRenameConflictError
+from core.errors.issue import (
+    IssueRenameConflictError,
+    SourceAnalysisConfigNotFoundError,
+    SourceAnalysisDefaultRuleCannotDeleteError,
+    SourceAnalysisDefaultRuleConditionsInvalidError,
+    SourceAnalysisDefaultRulePriorityImmutableError,
+    SourceAnalysisFlowInitializationFailedError,
+    SourceAnalysisInvalidStatusTransitionError,
+    SourceAnalysisRepositoryInvalidError,
+    SourceAnalysisResourceNotFoundError,
+    SourceAnalysisRuleIncompleteError,
+    SourceAnalysisRulePriorityConflictError,
+    SourceAnalysisUpstreamUnavailableError,
+)
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
@@ -72,6 +103,1050 @@ logger = logging.getLogger("root")
 
 def _sanitize_for_log(value) -> str:
     return str(value).replace("\r", "").replace("\n", "")
+
+
+class SourceAnalysisBaseResource(Resource):
+    """源码分析选项、配置与规则接口的公共基类。
+
+    集中承载上游异常收敛、快照序列化、代码库与 AI 资源校验、BKFara 流程初始化等逻辑，
+    子类只实现各自的 perform_request。本类不实现 perform_request，因此是抽象类，
+    resource 适配器会跳过它，不会注册成接口。
+    """
+
+    CONDITION_METHODS = ("eq", "neq", "include", "exclude", "reg", "nreg", "issuperset")
+    CONDITION_CONNECTORS = ("and", "or")
+
+    # 校验 AI 资源权限需要遍历当前用户可见的全部资源，这里约定分页大小与翻页安全上限
+    AIDEV_PAGE_SIZE = 200
+    AIDEV_MAX_PAGES = 100
+
+    @staticmethod
+    def db_alias() -> str:
+        """源码分析模型由数据库路由放在 monitor_api，事务必须绑定到同一连接。"""
+
+        return IssueSourceAnalysisRule.objects.db
+
+    @staticmethod
+    def raise_upstream_unavailable(error: Exception) -> None:
+        logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
+        raise SourceAnalysisUpstreamUnavailableError() from error
+
+    @staticmethod
+    def to_timestamp(value) -> int | None:
+        return int(value.timestamp()) if value else None
+
+    @staticmethod
+    def unique_resource_ids(resource_ids: list[str]) -> list[str]:
+        """AI 资源按无序集合持久化，排序后返回可重复序列化的稳定结果。"""
+
+        return sorted(set(resource_ids))
+
+    @classmethod
+    def serialize_config(cls, config: IssueSourceAnalysisConfig | None, bk_biz_id: int) -> dict:
+        if config is None:
+            return {
+                "bk_biz_id": bk_biz_id,
+                "bkci_project_id": None,
+                "repository_alias": None,
+                "updated_by": None,
+                "updated_at": None,
+            }
+        return {
+            "bk_biz_id": config.bk_biz_id,
+            "bkci_project_id": config.bkci_project_id,
+            "repository_alias": config.repository_alias,
+            "updated_by": config.update_user,
+            "updated_at": cls.to_timestamp(config.update_time),
+        }
+
+    @classmethod
+    def serialize_rule(cls, rule: IssueSourceAnalysisRule) -> dict:
+        return {
+            "id": rule.id,
+            "bk_biz_id": rule.bk_biz_id,
+            "priority": rule.priority,
+            "is_enabled": rule.is_enabled,
+            "is_default": rule.is_default,
+            "conditions": rule.conditions,
+            "bkci_project_id": rule.bkci_project_id,
+            "repository_alias": rule.repository_alias,
+            "agent_id": rule.agent_id,
+            "skill_ids": rule.skill_ids,
+            "knowledge_base_ids": rule.knowledge_base_ids,
+            "created_by": rule.create_user,
+            "created_at": cls.to_timestamp(rule.create_time),
+            "updated_by": rule.update_user,
+            "updated_at": cls.to_timestamp(rule.update_time),
+        }
+
+    @classmethod
+    def validate_repository(cls, bk_biz_id: int, bkci_project_id: str, repository_alias: str) -> None:
+        """校验代码库别名属于该蓝盾项目，选项口径与前端下拉列表保持一致。"""
+
+        repositories = resource.issue.list_source_analysis_bkci_repositories(
+            bk_biz_id=bk_biz_id, project_id=bkci_project_id
+        )
+        if not any(repository["id"] == repository_alias for repository in repositories):
+            raise SourceAnalysisRepositoryInvalidError()
+
+    @classmethod
+    def list_visible_aidev_ids(cls, list_resources: Callable, id_field: str) -> set[str]:
+        """分页拉取当前用户可见资源，避免只校验列表第一页。"""
+
+        visible_ids: set[str] = set()
+        page = 1
+        while page <= cls.AIDEV_MAX_PAGES:
+            upstream_data = list_resources(space_id="all", page=page, page_size=cls.AIDEV_PAGE_SIZE)
+            if isinstance(upstream_data, list):
+                items = upstream_data
+                total = len(items)
+            elif isinstance(upstream_data, dict):
+                items = upstream_data.get("results")
+                total = upstream_data.get("count")
+            else:
+                raise ValueError("invalid AIDEV resource response")
+            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+                raise ValueError("invalid AIDEV resource list")
+            try:
+                visible_ids.update(str(item[id_field]) for item in items)
+                total = int(total)
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError("invalid AIDEV resource item") from error
+            if len(visible_ids) >= total or not items:
+                return visible_ids
+            page += 1
+        raise ValueError("AIDEV resource pagination exceeds safety limit")
+
+    @classmethod
+    def validate_resources(cls, rule: IssueSourceAnalysisRule) -> None:
+        """校验规则引用的 AI 资源当前用户是否可见。
+
+        会向 AIDEV 发起分页请求，耗时不可控，调用方必须在数据库事务外执行。
+        """
+
+        # AIDEV 暂无用户态知识库列表；非空知识库 ID 不能被证明属于当前用户，必须拒绝保存为启用规则。
+        if rule.knowledge_base_ids:
+            raise SourceAnalysisResourceNotFoundError()
+
+        try:
+            visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id") if rule.agent_id else set()
+            visible_skills = cls.list_visible_aidev_ids(api.aidev.list_skills, "id") if rule.skill_ids else set()
+        except (BKAPIError, TypeError, ValueError) as error:
+            cls.raise_upstream_unavailable(error)
+
+        agent_visible = not rule.agent_id or rule.agent_id in visible_agents
+        if not agent_visible or not set(rule.skill_ids).issubset(visible_skills):
+            raise SourceAnalysisResourceNotFoundError()
+
+    @staticmethod
+    def is_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
+        return bool(rule.agent_id and (rule.is_default or rule.conditions))
+
+    @classmethod
+    def validate_rule_local(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
+        """只依赖本地数据的启用前校验，可以安全地放在事务内复核。"""
+
+        if config is None:
+            raise SourceAnalysisConfigNotFoundError()
+        if not cls.is_rule_complete(rule):
+            raise SourceAnalysisRuleIncompleteError()
+
+    @classmethod
+    def validate_rule_ready(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
+        """启用规则的完整校验。含上游调用，必须在事务外执行。"""
+
+        cls.validate_rule_local(rule, config)
+        cls.validate_resources(rule)
+
+    @classmethod
+    def apply_rule_patch(
+        cls,
+        rule: IssueSourceAnalysisRule,
+        patch: dict,
+        config: IssueSourceAnalysisConfig | None,
+    ) -> IssueSourceAnalysisRule:
+        """把 PATCH 字段套用到规则上，并按业务配置刷新代码库快照。"""
+
+        if rule.is_default:
+            if "priority" in patch:
+                raise SourceAnalysisDefaultRulePriorityImmutableError()
+            if patch.get("conditions"):
+                raise SourceAnalysisDefaultRuleConditionsInvalidError()
+
+        for field, value in patch.items():
+            setattr(rule, field, value)
+        if rule.is_default:
+            rule.conditions = []
+        rule.bkci_project_id = config.bkci_project_id if config else None
+        rule.repository_alias = config.repository_alias if config else None
+        return rule
+
+    @classmethod
+    def ensure_flow_initialized(cls, bk_biz_id: int, bkci_project_id: str) -> None:
+        """调用 BKFara 幂等初始化；路径未发布或调用失败时让当前事务回滚。"""
+
+        if not api.bk_incident.ensure_source_analysis_flow.action:
+            raise SourceAnalysisFlowInitializationFailedError()
+        try:
+            api.bk_incident.ensure_source_analysis_flow(
+                bk_biz_id=bk_biz_id,
+                bkci_project_id=bkci_project_id,
+            )
+        except (BKAPIError, TypeError, ValueError) as error:
+            logger.warning("Source analysis flow initialization failed: %s", type(error).__name__)
+            raise SourceAnalysisFlowInitializationFailedError() from error
+
+
+class SourceAnalysisExecutionBaseResource(Resource):
+    """Issue 源码分析执行入口的公共业务逻辑。
+
+    首次触发负责选择当前输入并落执行记录；异步任务随后复用本类完成 BKFara 创建、执行、
+    轮询与异常恢复。Celery task 只负责调度，避免把业务状态机散落到任务入口。
+    """
+
+    ISSUE_QUERY_FALLBACK_BUFFER = 7 * 86400
+    RECOVERY_STALE_SECONDS = 60
+    RECOVERY_BATCH_SIZE = 200
+
+    BKFARA_CREATED = "created"
+    BKFARA_RUNNING = "running"
+    BKFARA_SUCCESS = "success"
+    BKFARA_FAILED = "failed"
+    BKFARA_STATUSES = {BKFARA_CREATED, BKFARA_RUNNING, BKFARA_SUCCESS, BKFARA_FAILED}
+
+    SOURCE_ANALYSIS_STAGES = {value for value, _label in SourceAnalysisStage.CHOICES}
+    SOURCE_ANALYSIS_FAILURE_STAGES = {value for value, _label in SourceAnalysisFailureStage.CHOICES}
+
+    @staticmethod
+    def db_alias() -> str:
+        return IssueSourceAnalysisExecution.objects.db
+
+    @staticmethod
+    def resolve_issue_scope(bk_biz_id: int, issue_id: str) -> tuple[str, list[str]]:
+        """严格解析执行记录归属 Issue 与参与最新告警查询的物理 Issue。
+
+        展示链路允许合并关系查询失败时 fail-open，但执行链路不能在关系未知时按 member
+        创建活动记录，否则 main 与 member 可能分别占用活动位。这里复用同一个已加载上下文
+        同时确定 canonical Issue 和完整告警范围；加载降级时终止触发，让用户稍后重试。
+        """
+
+        context = MergeResolverContext(bk_biz_id)
+        context.load()
+        if context.degraded:
+            logger.warning("Source analysis issue merge scope unavailable: bk_biz_id=%s", bk_biz_id)
+            raise SourceAnalysisUpstreamUnavailableError()
+
+        canonical_issue_id = context.main_of(issue_id) or issue_id
+        alert_issue_ids = [canonical_issue_id]
+        alert_issue_ids.extend(member["member_issue_id"] for member in context.members_of(canonical_issue_id))
+        return canonical_issue_id, list(dict.fromkeys(alert_issue_ids))
+
+    @staticmethod
+    def get_active_execution(bk_biz_id: int, issue_ids: list[str]) -> IssueSourceAnalysisExecution | None:
+        """查询当前合并组内已有的活动执行。
+
+        活动记录创建后 Issue 仍可能被合并，记录上的 ``active_key`` 不会随关系迁移。
+        因此必须覆盖主 Issue 和全部活动 member，避免合并后以主 Issue 再创建一条活动记录。
+        """
+
+        return IssueSourceAnalysisExecution.objects.filter(
+            bk_biz_id=bk_biz_id,
+            active_key__in=issue_ids,
+        ).first()
+
+    @classmethod
+    def get_latest_alert(cls, bk_biz_id: int, issue_id: str, alert_issue_ids: list[str]) -> AlertDocument | None:
+        """查询主 Issue（含活动 member）在触发时刻的最新告警。"""
+
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        if issue.first_alert_time:
+            start_time = int(issue.first_alert_time)
+        else:
+            # Issue 创建通常晚于首个告警，缺少 first_alert_time 时向前放宽索引范围。
+            start_time = int(issue.create_time) - cls.ISSUE_QUERY_FALLBACK_BUFFER
+
+        handler = AlertQueryHandler(
+            bk_biz_ids=[bk_biz_id],
+            start_time=start_time,
+            end_time=int(time.time()),
+            # 提前传入严格解析出的完整物理 ID；即使 AlertQueryHandler 的展示层扩展随后
+            # fail-open，也不会把已知 member 从本次触发的告警范围中丢失。
+            conditions=[{"key": "issue_id", "value": alert_issue_ids, "method": "eq"}],
+            ordering=["-create_time", "-seq_id"],
+            page=1,
+            page_size=1,
+            allow_partial=False,
+        )
+        search_result, _ = handler.search_raw()
+        # search_raw 保留 AlertDocument 供运行时匹配；完整性检查与公开 search() 路径保持一致。
+        handler._check_search_response_completeness(search_result)
+        return next(iter(search_result), None)
+
+    @staticmethod
+    def get_alert_cmdb_attributes(alert: AlertDocument) -> dict | None:
+        """通过公共 CMDB API 加载匹配需要的主机、集群和模块属性。"""
+
+        event = alert.event
+        bk_biz_id = event.bk_biz_id
+        bk_host_id = getattr(event, "bk_host_id", None)
+        if bk_host_id:
+            hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[bk_host_id])
+        else:
+            ip = getattr(event, "ip", None)
+            if not ip:
+                return None
+            host_query = {"ip": ip}
+            bk_cloud_id = getattr(event, "bk_cloud_id", None)
+            if bk_cloud_id is not None:
+                host_query["bk_cloud_id"] = bk_cloud_id
+            hosts = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=[host_query])
+
+        if not hosts:
+            return None
+
+        host = hosts[0]
+        sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(host.bk_set_ids)) if host.bk_set_ids else []
+        modules = (
+            api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=list(host.bk_module_ids))
+            if host.bk_module_ids
+            else []
+        )
+        return {"host": host, "sets": sets, "modules": modules}
+
+    @staticmethod
+    def get_alert_match_dimensions(alert: AlertDocument) -> dict:
+        """沿用后台告警分派的 CMDB 补全及运行时维度构造口径。"""
+
+        manager = AlertAssignMatchManager(
+            alert,
+            notice_users=list(getattr(alert, "assignee", []) or []),
+            cmdb_attrs=SourceAnalysisExecutionBaseResource.get_alert_cmdb_attributes(alert),
+        )
+        return manager.dimensions
+
+    @classmethod
+    def get_matched_rule(cls, bk_biz_id: int, alert: AlertDocument) -> IssueSourceAnalysisRule | None:
+        """按优先级降序返回首条命中的完整启用规则。"""
+
+        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-priority", "id")
+        executable_rules = []
+        for rule in rules:
+            if not (
+                SourceAnalysisBaseResource.is_rule_complete(rule) and rule.bkci_project_id and rule.repository_alias
+            ):
+                logger.warning(
+                    "Skip incomplete enabled source analysis rule: bk_biz_id=%s, rule_id=%s",
+                    bk_biz_id,
+                    rule.id,
+                )
+                continue
+            executable_rules.append(rule)
+
+        if not executable_rules:
+            return None
+
+        dimensions = cls.get_alert_match_dimensions(alert)
+        for rule in executable_rules:
+            rule_match = AssignRuleMatch({"id": rule.id, "conditions": rule.conditions}, alert=alert)
+            if rule_match.is_matched(dimensions):
+                return rule
+        return None
+
+    @classmethod
+    def create_initial_execution(
+        cls, bk_biz_id: int, issue_id: str, operator: str
+    ) -> tuple[IssueSourceAnalysisExecution | None, bool]:
+        """创建首次执行记录；返回 ``(记录, 是否本次新建)``。
+
+        无最新告警或无命中规则时不创建记录。并发请求由数据库唯一约束裁决，落败方返回
+        已存在的活动记录，避免把一次并发竞争误报成触发失败。
+        """
+
+        canonical_issue_id, alert_issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
+        active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
+        if active_execution:
+            return active_execution, False
+
+        alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, alert_issue_ids)
+        if alert is None:
+            return None, False
+        rule = cls.get_matched_rule(bk_biz_id, alert)
+        if rule is None:
+            return None, False
+
+        try:
+            with transaction.atomic(using=cls.db_alias()):
+                execution = IssueSourceAnalysisExecution.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    issue_id=canonical_issue_id,
+                    status=SourceAnalysisStatus.PENDING,
+                    stage=SourceAnalysisStage.WAITING,
+                    trigger_type=SourceAnalysisTriggerType.INITIAL,
+                    attempt=1,
+                    alert_id=alert.id,
+                    rule_id=rule.id,
+                    rule_priority=rule.priority,
+                    bkci_project_id=rule.bkci_project_id,
+                    repository_alias=rule.repository_alias,
+                    agent_id=rule.agent_id,
+                    skill_ids=list(rule.skill_ids),
+                    knowledge_base_ids=list(rule.knowledge_base_ids),
+                    create_user=operator,
+                    update_user=operator,
+                )
+            return execution, True
+        except IntegrityError:
+            active_execution = cls.get_active_execution(bk_biz_id, alert_issue_ids)
+            if active_execution:
+                return active_execution, False
+            raise
+
+    @staticmethod
+    def build_execute_task_params(execution: IssueSourceAnalysisExecution) -> dict:
+        """从不可变执行快照构造 BKFara 执行参数，避免规则变更污染已发起任务。"""
+
+        return {
+            "bk_biz_id": execution.bk_biz_id,
+            "task_id": execution.bkfara_task_id,
+            "analysis_id": execution.analysis_id,
+            "issue_id": execution.issue_id,
+            "alert_id": execution.alert_id,
+            "bkci_project_id": execution.bkci_project_id,
+            "repository_alias": execution.repository_alias,
+            "agent_id": execution.agent_id,
+            "skill_ids": list(execution.skill_ids),
+            "knowledge_base_ids": list(execution.knowledge_base_ids),
+            "trigger_user": execution.create_user or execution.update_user,
+        }
+
+    @classmethod
+    def get_recoverable_analysis_ids(cls) -> list[str]:
+        """返回长时间没有推进的活动记录，供周期任务补偿进程退出或消息丢失。"""
+
+        stale_before = timezone.now() - timedelta(seconds=cls.RECOVERY_STALE_SECONDS)
+        return list(
+            IssueSourceAnalysisExecution.objects.filter(
+                status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
+                update_time__lte=stale_before,
+            )
+            .order_by("update_time")
+            .values_list("analysis_id", flat=True)[: cls.RECOVERY_BATCH_SIZE]
+        )
+
+    @classmethod
+    def advance_bkfara_task(cls, analysis_id: str) -> bool:
+        """把一条活动记录向前推进一次；返回是否需要短周期继续轮询。
+
+        任务已存在时先查询再决定是否执行，禁止在恢复路径盲目重建任务。创建和执行的
+        exactly-once 语义分别依赖 BKFara 对 analysis_id 与 task_id 的幂等保证。
+        """
+
+        execution = IssueSourceAnalysisExecution.objects.filter(analysis_id=analysis_id).first()
+        if execution is None or execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
+            return False
+
+        # update_time 同时作为版本号。记录在读取后已被推进或已进入终态时，条件更新失败，
+        # 当前 Worker 立即停止，避免继续使用过期快照调用 BKFara。
+        lease_time = timezone.now()
+        claimed = IssueSourceAnalysisExecution.objects.filter(
+            pk=execution.pk,
+            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
+            update_time=execution.update_time,
+        ).update(update_time=lease_time)
+        if not claimed:
+            return False
+        execution.update_time = lease_time
+
+        if not execution.bkfara_task_id:
+            return cls._create_and_execute_bkfara_task(execution)
+
+        try:
+            task_state = api.bk_incident.get_source_analysis_task(
+                bk_biz_id=execution.bk_biz_id,
+                task_id=execution.bkfara_task_id,
+            )
+        except Exception as error:
+            return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_EXECUTE, error)
+        if isinstance(task_state, dict) and task_state.get("status") == cls.BKFARA_CREATED:
+            cls._save_bkci_identifiers(execution, task_state)
+            return cls._execute_bkfara_task(execution)
+        return cls._apply_bkfara_task_state(execution, task_state)
+
+    @classmethod
+    def _create_and_execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
+        try:
+            result = api.bk_incident.create_source_analysis_task(
+                bk_biz_id=execution.bk_biz_id,
+                analysis_id=execution.analysis_id,
+            )
+        except Exception as error:
+            return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_CREATE, error)
+
+        task_id = str(result.get("task_id") or "") if isinstance(result, dict) else ""
+        if not task_id:
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message="BKFara 创建任务响应缺少 task_id",
+                failure_retryable=False,
+            )
+            return False
+
+        IssueSourceAnalysisExecution.objects.filter(
+            pk=execution.pk,
+            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
+            bkfara_task_id__isnull=True,
+        ).update(bkfara_task_id=task_id, update_time=timezone.now())
+        execution.refresh_from_db()
+        if execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
+            return False
+        if execution.bkfara_task_id != task_id:
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="BKFARA_TASK_ID_CONFLICT",
+                failure_message="相同 analysis_id 返回了不同的 BKFara task_id",
+                failure_retryable=False,
+            )
+            return False
+
+        # task_id 已经写入数据库，后续任何异常都只能查询/恢复这一个任务。
+        return cls._execute_bkfara_task(execution)
+
+    @classmethod
+    def _execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
+        if not cls._mark_running(execution, SourceAnalysisStage.SOURCE_PREPARING):
+            return False
+        try:
+            task_state = api.bk_incident.execute_source_analysis_task(**cls.build_execute_task_params(execution))
+        except Exception as execute_error:
+            error_data = getattr(execute_error, "data", None)
+            if isinstance(error_data, dict) and error_data.get("retryable") is False:
+                return cls._handle_upstream_error(
+                    execution,
+                    SourceAnalysisFailureStage.TASK_EXECUTE,
+                    execute_error,
+                )
+            # 执行请求可能已被 BKFara 接收。先查状态，避免因客户端超时重复启动流水线。
+            try:
+                task_state = api.bk_incident.get_source_analysis_task(
+                    bk_biz_id=execution.bk_biz_id,
+                    task_id=execution.bkfara_task_id,
+                )
+            except Exception:
+                return cls._handle_upstream_error(
+                    execution,
+                    SourceAnalysisFailureStage.TASK_EXECUTE,
+                    execute_error,
+                )
+            return cls._apply_bkfara_task_state(execution, task_state)
+
+        return cls._apply_bkfara_task_state(execution, task_state)
+
+    @classmethod
+    def _apply_bkfara_task_state(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        task_state: dict,
+    ) -> bool:
+        if not isinstance(task_state, dict) or task_state.get("status") not in cls.BKFARA_STATUSES:
+            logger.warning(
+                "Invalid BKFara source analysis task state: analysis_id=%s",
+                execution.analysis_id,
+            )
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message="BKFara 任务状态响应非法",
+                failure_retryable=False,
+            )
+            return False
+
+        cls._save_bkci_identifiers(execution, task_state)
+        status = task_state["status"]
+        if status == cls.BKFARA_CREATED:
+            return True
+        if status == cls.BKFARA_RUNNING:
+            stage = task_state.get("stage")
+            if stage not in cls.SOURCE_ANALYSIS_STAGES:
+                stage = SourceAnalysisStage.ANALYZING
+            return cls._mark_running(execution, stage)
+        if status == cls.BKFARA_SUCCESS:
+            # PR 9 会在此阶段拉取、校验并持久化结果；本 PR 不写入未经校验的结果。
+            cls._mark_running(execution, SourceAnalysisStage.VALIDATING)
+            return False
+
+        failure = task_state.get("failure") or {}
+        if not isinstance(failure, dict):
+            failure = {}
+        failure_stage = failure.get("stage")
+        if failure_stage not in cls.SOURCE_ANALYSIS_FAILURE_STAGES:
+            failure_stage = SourceAnalysisFailureStage.TASK_EXECUTE
+        cls._mark_failed(
+            execution,
+            failure_stage=failure_stage,
+            failure_code=str(failure.get("code") or "BKFARA_TASK_FAILED"),
+            failure_message=str(failure.get("message") or "BKFara 源码分析任务执行失败"),
+            failure_retryable=bool(failure.get("retryable", False)),
+            failure_request_id=failure.get("request_id"),
+        )
+        return False
+
+    @staticmethod
+    def _save_bkci_identifiers(execution: IssueSourceAnalysisExecution, task_state: dict) -> None:
+        updates = {}
+        for field in ("bkci_pipeline_id", "bkci_build_id"):
+            value = task_state.get(field)
+            if value:
+                updates[field] = str(value)
+        if not updates:
+            return
+        updates["update_time"] = timezone.now()
+        updated = IssueSourceAnalysisExecution.objects.filter(
+            pk=execution.pk,
+            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
+        ).update(**updates)
+        if not updated:
+            execution.refresh_from_db()
+            return
+        for field, value in updates.items():
+            setattr(execution, field, value)
+
+    @classmethod
+    def _handle_upstream_error(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        failure_stage: str,
+        error: Exception,
+    ) -> bool:
+        """未知网络错误默认保留活动态；仅显式 retryable=false 的业务错误进入失败终态。"""
+
+        error_data = getattr(error, "data", None)
+        if not isinstance(error_data, dict) or error_data.get("retryable") is not False:
+            logger.warning(
+                "BKFara source analysis request failed and will retry: analysis_id=%s, error=%s",
+                execution.analysis_id,
+                type(error).__name__,
+            )
+            return True
+
+        cls._mark_failed(
+            execution,
+            failure_stage=failure_stage,
+            failure_code=str(error_data.get("code") or type(error).__name__),
+            failure_message=str(error_data.get("message") or "BKFara 请求失败"),
+            failure_retryable=False,
+            failure_request_id=error_data.get("request_id"),
+        )
+        return False
+
+    @staticmethod
+    def _mark_running(execution: IssueSourceAnalysisExecution, stage: str) -> bool:
+        try:
+            execution.mark_running(stage)
+            return True
+        except SourceAnalysisInvalidStatusTransitionError:
+            execution.refresh_from_db()
+            return False
+
+    @staticmethod
+    def _mark_failed(execution: IssueSourceAnalysisExecution, **failure) -> None:
+        try:
+            execution.mark_failed(**failure)
+        except SourceAnalysisInvalidStatusTransitionError:
+            execution.refresh_from_db()
+
+
+class SourceAnalysisConditionSerializer(serializers.Serializer):
+    field = serializers.CharField(label="条件字段", allow_blank=False)
+    value = serializers.ListField(
+        label="条件值",
+        child=serializers.CharField(allow_blank=False),
+        allow_empty=False,
+    )
+    method = serializers.ChoiceField(label="匹配方法", choices=SourceAnalysisBaseResource.CONDITION_METHODS)
+    condition = serializers.ChoiceField(
+        label="与上一条件的连接符", choices=SourceAnalysisBaseResource.CONDITION_CONNECTORS
+    )
+
+
+class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    priority = serializers.IntegerField(label="优先级", min_value=0)
+    is_enabled = serializers.BooleanField(label="是否启用", required=False, default=False)
+    conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False, default=list)
+    agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True, default="")
+    skill_ids = serializers.ListField(
+        label="Skill ID",
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+        default=list,
+    )
+    knowledge_base_ids = serializers.ListField(
+        label="知识库 ID",
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+        default=list,
+    )
+
+    def validate_conditions(self, conditions: list[dict]) -> list[dict]:
+        if conditions and conditions[0]["condition"] != "and":
+            # 告警分派产品形态把 connector 存在当前条件上，表示与上一条件的关系；
+            # 第一项没有上一条件，固定为 and 并在展示和匹配时忽略。
+            raise serializers.ValidationError(_("第一项条件的连接符必须为 and"))
+        return conditions
+
+    def validate(self, attrs: dict) -> dict:
+        for field in ("skill_ids", "knowledge_base_ids"):
+            attrs[field] = SourceAnalysisBaseResource.unique_resource_ids(attrs[field])
+        return attrs
+
+
+class SourceAnalysisRulePatchSerializer(SourceAnalysisRuleWriteSerializer):
+    priority = serializers.IntegerField(label="优先级", min_value=0, required=False)
+    is_enabled = serializers.BooleanField(label="是否启用", required=False)
+    conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False)
+    agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True)
+    skill_ids = serializers.ListField(label="Skill ID", child=serializers.CharField(allow_blank=False), required=False)
+    knowledge_base_ids = serializers.ListField(
+        label="知识库 ID", child=serializers.CharField(allow_blank=False), required=False
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        for field in ("skill_ids", "knowledge_base_ids"):
+            if field in attrs:
+                attrs[field] = SourceAnalysisBaseResource.unique_resource_ids(attrs[field])
+        return attrs
+
+
+class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
+    """查询当前用户可访问的蓝盾项目选项。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        try:
+            projects = api.devops.list_user_project()
+            if not isinstance(projects, list) or any(not isinstance(project, dict) for project in projects):
+                raise ValueError("invalid project response")
+
+            options = []
+            for project in projects:
+                # 蓝盾正式字段使用 camelCase；snake_case 仅用于兼容尚未升级的旧版本。
+                project_id = project.get("projectCode") or project.get("project_code")
+                project_name = project.get("projectName") or project.get("project_name")
+                if not project_id or not project_name:
+                    raise ValueError("project response misses projectCode or projectName")
+                options.append({"id": project_id, "name": project_name})
+            return options
+        except (BKAPIError, TypeError, ValueError) as error:
+            self.raise_upstream_unavailable(error)
+
+
+class ListSourceAnalysisBkciRepositoriesResource(SourceAnalysisBaseResource):
+    """查询当前用户在指定蓝盾项目下可使用的 Git 代码库选项。"""
+
+    GIT_REPOSITORY_TYPES = frozenset({"CODE_GIT", "CODE_GITLAB", "CODE_TGIT", "GITHUB", "SCM_GIT"})
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        try:
+            repository_page = api.devops.list_user_repository(project_id=validated_request_data["project_id"])
+            if not isinstance(repository_page, dict):
+                raise ValueError("invalid repository response")
+
+            repositories = repository_page.get("records")
+            if not isinstance(repositories, list) or any(
+                not isinstance(repository, dict) for repository in repositories
+            ):
+                raise ValueError("invalid repository response")
+
+            options = []
+            for repository in repositories:
+                repository_type = str(repository.get("type") or "").upper()
+                if repository_type not in self.GIT_REPOSITORY_TYPES:
+                    continue
+
+                alias = repository.get("aliasName")
+                if not alias:
+                    raise ValueError("repository response misses aliasName")
+
+                # repositoryHashId 仅用于蓝盾内部接口联查；配置和前端选项均以不可变的代码库别名为准。
+                options.append({"id": alias, "name": alias, "scm_type": "GIT"})
+            return options
+        except (BKAPIError, TypeError, ValueError) as error:
+            self.raise_upstream_unavailable(error)
+
+
+class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
+    """将当前用户可见的 AIDEV 分页结果转换为源码分析统一选项协议。"""
+
+    id_field: str
+    name_field: str
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        keyword = serializers.CharField(label="搜索关键词", required=False, allow_blank=True, default="")
+        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(label="每页数量", required=False, default=20, min_value=1, max_value=100)
+
+    def list_aidev_resources(self, params: dict):
+        raise NotImplementedError
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
+        params = {
+            "space_id": "all",
+            "page": validated_request_data["page"],
+            "page_size": validated_request_data["page_size"],
+        }
+        if validated_request_data["keyword"]:
+            params["fuzzy"] = validated_request_data["keyword"]
+
+        try:
+            upstream_data = self.list_aidev_resources(params)
+            if isinstance(upstream_data, list):
+                items = upstream_data
+                total = len(items)
+            elif isinstance(upstream_data, dict):
+                items = upstream_data.get("results")
+                total = upstream_data.get("count")
+            else:
+                raise ValueError("invalid AIDEV response")
+
+            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+                raise ValueError("invalid AIDEV resource list")
+            if total is None:
+                total = len(items)
+
+            options = []
+            for item in items:
+                resource_id = item.get(self.id_field)
+                resource_name = item.get(self.name_field)
+                if resource_id is None or not resource_name:
+                    raise ValueError("AIDEV resource misses id or name")
+                options.append({"id": str(resource_id), "name": str(resource_name)})
+            return {"total": int(total), "list": options}
+        except (BKAPIError, TypeError, ValueError) as error:
+            self.raise_upstream_unavailable(error)
+
+
+class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResource):
+    """查询当前用户有权限的 AIDEV Agent 选项。"""
+
+    id_field = "id"
+    name_field = "agent_name"
+
+    def list_aidev_resources(self, params: dict):
+        return api.aidev.list_agents(**params)
+
+
+class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResource):
+    """查询当前用户有权限的 AIDEV Skill 选项。"""
+
+    id_field = "id"
+    name_field = "skill_name"
+
+    def list_aidev_resources(self, params: dict):
+        return api.aidev.list_skills(**params)
+
+
+class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
+    """预留当前用户有权限的 AIDEV 知识库选项接口。"""
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # AIDEV 暂未提供用户态知识库列表接口；保留前端协议，支持后再接入真实数据。
+        return {"total": 0, "list": []}
+
+
+class GetSourceAnalysisConfigResource(SourceAnalysisBaseResource):
+    """查询业务源码分析代码库配置。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+        return self.serialize_config(config, bk_biz_id)
+
+
+class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
+    """保存业务代码库配置并同步全部规则的项目与代码库快照。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        repository_alias = serializers.CharField(label="代码库别名", max_length=255)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        bkci_project_id = validated_request_data["bkci_project_id"]
+        repository_alias = validated_request_data["repository_alias"]
+        self.validate_repository(bk_biz_id, bkci_project_id, repository_alias)
+
+        with transaction.atomic(using=self.db_alias()):
+            previous_config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
+            project_changed = previous_config is None or previous_config.bkci_project_id != bkci_project_id
+            operator = get_global_user() or "unknown"
+            # update_or_create 在首次并发保存时会处理唯一键竞争，避免其中一个请求直接返回 500。
+            config, _config_created = IssueSourceAnalysisConfig.objects.update_or_create(
+                bk_biz_id=bk_biz_id,
+                defaults={
+                    "bkci_project_id": bkci_project_id,
+                    "repository_alias": repository_alias,
+                    "update_user": operator,
+                },
+            )
+
+            rules = list(IssueSourceAnalysisRule.objects.select_for_update().filter(bk_biz_id=bk_biz_id))
+            default_rule = next((rule for rule in rules if rule.is_default), None)
+            if default_rule is None:
+                # priority=-1 有业务级唯一约束，get_or_create 同样覆盖首次并发初始化默认规则。
+                default_rule, _default_rule_created = IssueSourceAnalysisRule.objects.get_or_create(
+                    bk_biz_id=bk_biz_id,
+                    priority=-1,
+                    defaults={
+                        "is_enabled": False,
+                        "is_default": True,
+                        "conditions": [],
+                        "bkci_project_id": bkci_project_id,
+                        "repository_alias": repository_alias,
+                    },
+                )
+                rules.append(default_rule)
+
+            now = timezone.now()
+            IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id).update(
+                bkci_project_id=bkci_project_id,
+                repository_alias=repository_alias,
+                update_user=operator,
+                update_time=now,
+            )
+            for rule in rules:
+                rule.bkci_project_id = bkci_project_id
+                rule.repository_alias = repository_alias
+
+            if project_changed and any(rule.is_enabled and self.is_rule_complete(rule) for rule in rules):
+                self.ensure_flow_initialized(bk_biz_id, bkci_project_id)
+
+        return self.serialize_config(config, bk_biz_id)
+
+
+class ListSourceAnalysisRulesResource(SourceAnalysisBaseResource):
+    """按优先级降序查询业务源码分析规则。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        return [self.serialize_rule(rule) for rule in rules]
+
+
+class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
+    """新建自定义源码分析规则。"""
+
+    RequestSerializer = SourceAnalysisRuleWriteSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data.pop("bk_biz_id")
+        rule = IssueSourceAnalysisRule(bk_biz_id=bk_biz_id, is_default=False, **validated_request_data)
+
+        # 启用校验会向 AIDEV 分页拉取用户可见资源，耗时不可控，必须在事务外完成，
+        # 否则会在持有配置行锁的状态下等待上游响应。事务内再用 validate_rule_local 复核。
+        if rule.is_enabled:
+            self.validate_rule_ready(rule, IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first())
+
+        try:
+            with transaction.atomic(using=self.db_alias()):
+                config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
+                rule.bkci_project_id = config.bkci_project_id if config else None
+                rule.repository_alias = config.repository_alias if config else None
+                if rule.is_enabled:
+                    self.validate_rule_local(rule, config)
+                rule.save()
+                if rule.is_enabled:
+                    self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
+        except IntegrityError as error:
+            raise SourceAnalysisRulePriorityConflictError() from error
+        return self.serialize_rule(rule)
+
+
+class GetSourceAnalysisRuleResource(SourceAnalysisBaseResource):
+    """查询单条源码分析规则。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        rule_id = serializers.IntegerField(label="规则 ID")
+
+    @staticmethod
+    def get_rule(bk_biz_id: int, rule_id: int, for_update: bool = False) -> IssueSourceAnalysisRule:
+        queryset = IssueSourceAnalysisRule.objects
+        if for_update:
+            queryset = queryset.select_for_update()
+        try:
+            return queryset.get(bk_biz_id=bk_biz_id, id=rule_id)
+        except IssueSourceAnalysisRule.DoesNotExist as error:
+            raise HTTP404Error(message=_("源码分析规则不存在")) from error
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        rule = self.get_rule(validated_request_data["bk_biz_id"], validated_request_data["rule_id"])
+        return self.serialize_rule(rule)
+
+
+class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
+    """局部修改、启停或调整源码分析规则优先级。"""
+
+    class RequestSerializer(SourceAnalysisRulePatchSerializer):
+        rule_id = serializers.IntegerField(label="规则 ID")
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data.pop("bk_biz_id")
+        rule_id = validated_request_data.pop("rule_id")
+
+        # 同 Create：先在事务外用未加锁的快照跑完含上游调用的完整校验，事务内只做本地复核。
+        unlocked_config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+        preview = self.apply_rule_patch(self.get_rule(bk_biz_id, rule_id), validated_request_data, unlocked_config)
+        if preview.is_enabled:
+            self.validate_rule_ready(preview, unlocked_config)
+
+        try:
+            with transaction.atomic(using=self.db_alias()):
+                rule = self.get_rule(bk_biz_id, rule_id, for_update=True)
+                config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
+                rule = self.apply_rule_patch(rule, validated_request_data, config)
+                if rule.is_enabled:
+                    self.validate_rule_local(rule, config)
+                rule.save()
+                if rule.is_enabled:
+                    self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
+        except IntegrityError as error:
+            raise SourceAnalysisRulePriorityConflictError() from error
+        return self.serialize_rule(rule)
+
+
+class DeleteSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
+    """删除自定义源码分析规则。"""
+
+    def perform_request(self, validated_request_data: dict) -> None:
+        with transaction.atomic(using=self.db_alias()):
+            rule = self.get_rule(
+                validated_request_data["bk_biz_id"],
+                validated_request_data["rule_id"],
+                for_update=True,
+            )
+            if rule.is_default:
+                raise SourceAnalysisDefaultRuleCannotDeleteError()
+            # 优先级有数据库唯一约束，物理删除才能允许用户重新使用同一优先级。
+            rule.delete(hard=True)
+        return None
 
 
 class IssueIDField(serializers.CharField):

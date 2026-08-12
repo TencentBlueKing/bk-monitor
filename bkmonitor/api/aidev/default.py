@@ -11,11 +11,16 @@ specific language governing permissions and limitations under the License.
 import json
 from json import JSONDecodeError
 
+from ai_agent.core.custom_config_manager import get_mcp_access_token
+from blueapps.utils.request_provider import get_local_request
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.utils.translation import gettext as _
+from requests.exceptions import RequestException
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
+from core.errors.api import BKAPIError
 
 
 class AidevAPIGWResource(APIResource):
@@ -36,6 +41,67 @@ class AidevAPIGWResource(APIResource):
         headers["x-bkapi-authorization"] = json.dumps(authorization)
 
         return headers
+
+
+class AidevPrivateAPIGWResource(APIResource):
+    """使用当前登录用户 Access Token 调用 AIDEV 用户态接口。"""
+
+    base_url = settings.AIDEV_API_BASE_URL
+    module_name = "aidev"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    def get_headers(self):
+        headers = super().get_headers()
+        try:
+            access_token = get_mcp_access_token(request=get_local_request())
+        except Exception as error:
+            # Token helper 没有提供专用异常类型，这里统一收敛成 BKAPIError，
+            # 避免用户态凭证问题裸抛成 500，也不向调用方泄露凭证细节。
+            self.report_api_failure_metric(error_code=BKAPIError.code, exception_type=type(error).__name__)
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=_("获取当前用户 AIDEV 访问凭证失败"),
+            ) from error
+
+        # AIDEV private API 要求 access_token 单独鉴权，不能混入应用凭据。
+        headers["x-bkapi-authorization"] = json.dumps({"access_token": access_token})
+        return headers
+
+    def perform_request(self, validated_request_data):
+        try:
+            return super().perform_request(validated_request_data)
+        except RequestException as error:
+            # 基类只处理了 ReadTimeout，连接失败一类的网络异常仍会裸抛。
+            self.report_api_failure_metric(error_code=getattr(error, "code", 0), exception_type=type(error).__name__)
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=_("AIDEV 接口请求失败"),
+            ) from error
+
+
+class ListAgentsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Agent。"""
+
+    action = "/openapi/aidev/private/v1/agents/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        space_id = serializers.CharField(required=False, default="all")
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+
+
+class ListSkillsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Skill。"""
+
+    action = "/openapi/aidev/private/v1/skills/"
+    method = "GET"
+
+    class RequestSerializer(ListAgentsResource.RequestSerializer):
+        pass
 
 
 class ChatCompletionResource(AidevAPIGWResource):

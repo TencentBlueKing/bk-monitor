@@ -174,6 +174,73 @@ class GetTaskStatusResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
 
+class BkFaraSourceAnalysisBaseResource(IncidentBaseResource):
+    """复用 BKFara 网关配置，但保留源码分析协议中的 bk_biz_id。"""
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
+class EnsureSourceAnalysisFlowResource(BkFaraSourceAnalysisBaseResource):
+    """幂等初始化或对齐业务源码分析流程。"""
+
+    # TODO: BKFara 发布源码分析初始化资源后补充实际路径。
+    action = ""
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+
+
+class CreateSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
+    """按 analysis_id 幂等创建 BKFara 源码分析任务（临时 mock 协议）。"""
+
+    # TODO: BKFara 发布正式接口后替换路径，并按真实协议调整本文件中的字段适配。
+    action = ""
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        analysis_id = serializers.CharField(label="分析记录 ID", max_length=64)
+
+
+class ExecuteSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
+    """启动已创建的源码分析任务（临时 mock 协议）。"""
+
+    # 同一 task_id 的重复执行必须幂等，避免请求超时后的恢复产生重复流水线。
+    action = ""
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
+        analysis_id = serializers.CharField(label="分析记录 ID", max_length=64)
+        issue_id = serializers.CharField(label="Issue ID", max_length=64)
+        alert_id = serializers.CharField(label="告警 ID", max_length=64)
+        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
+        agent_id = serializers.CharField(label="智能体 ID", max_length=64)
+        skill_ids = serializers.ListField(label="Skill ID", child=serializers.CharField(), required=False)
+        knowledge_base_ids = serializers.ListField(label="知识库 ID", child=serializers.CharField(), required=False)
+        trigger_user = serializers.CharField(label="触发用户", max_length=64)
+
+
+class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
+    """查询源码分析任务状态（临时 mock 协议）。"""
+
+    action = ""
+    method = "GET"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
+
+
 class GetIncidentDiagnosisResource(IncidentBaseResource):
     """
     获取故障诊断面板数据(incident_diagnosis.sub_panels)
