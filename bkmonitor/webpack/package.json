@@ -41,6 +41,7 @@
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
     "test:alarm-center-async-relevance": "node --test ./tests/alarm-center-async-relevance.test.cjs",
     "test:strategy-text-display": "node --test ./tests/strategy-text-display.test.cjs",
+    "test:intelligent-detect-alert-level": "node --test ./tests/intelligent-detect-alert-level.test.cjs",
     "test:k8s-sidecar-limit": "node --test ./tests/k8s-sidecar-limit-promql.test.cjs",
     "iconfont": "node ./webpack/update-iconfont.js"
   },

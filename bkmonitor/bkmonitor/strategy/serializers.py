@@ -168,6 +168,15 @@ class AIServiceControlMixin(serializers.Serializer):
     )
 
 
+class AlertLevelField(serializers.ChoiceField):
+    """告警级别只接受 JSON 整数，不接受 ChoiceField 默认兼容的数字字符串。"""
+
+    def to_internal_value(self, data):
+        if type(data) is not int:
+            self.fail("invalid_choice", input=data)
+        return super().to_internal_value(data)
+
+
 class IntelligentDetectSerializer(AIServiceControlMixin, serializers.Serializer):
     """
     智能异常检测算法serializer
@@ -175,9 +184,28 @@ class IntelligentDetectSerializer(AIServiceControlMixin, serializers.Serializer)
 
     args = serializers.DictField(required=True)
     plan_id = serializers.IntegerField(required=True)
+    alert_level_mode = serializers.ChoiceField(required=False, choices=["manual", "auto"])
+    alert_levels = serializers.ListField(
+        required=False,
+        allow_empty=False,
+        child=AlertLevelField(choices=[1, 2, 3]),
+    )
     visual_type = serializers.ChoiceField(
         default=VisualType.NONE, choices=[VisualType.NONE, VisualType.SCORE, VisualType.BOUNDARY]
     )
+
+    def validate(self, attrs):
+        mode = attrs.get("alert_level_mode")
+        if mode == "auto":
+            alert_levels = attrs.get("alert_levels")
+            if not alert_levels:
+                raise serializers.ValidationError({"alert_levels": _("自动告警等级必须至少选择一个输出级别")})
+            if len(alert_levels) != len(set(alert_levels)):
+                raise serializers.ValidationError({"alert_levels": _("自动告警等级的输出级别不能重复")})
+            attrs["alert_levels"] = sorted(alert_levels)
+        elif "alert_levels" in attrs:
+            raise serializers.ValidationError({"alert_levels": _("仅自动告警等级支持配置输出级别范围")})
+        return attrs
 
 
 class TimeSeriesForecastingSerializer(serializers.Serializer):

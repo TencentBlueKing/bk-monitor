@@ -71,3 +71,40 @@ def test_update_algorithms_preserves_threshold_when_saving():
 
     assert item.algorithms[0].config["threshold"] == -2
     item.save_algorithms.assert_called_once_with()
+
+
+def test_partial_update_inherits_existing_auto_level_mode_before_validation():
+    strategy = mock.MagicMock()
+    strategy.id = 1
+    item = mock.MagicMock()
+    item.id = 2
+    item.algorithms = []
+    strategy.items = [item]
+
+    def inherit_auto_mode():
+        item.algorithms[0].config["alert_level_mode"] = "auto"
+        item.algorithms[0].config["alert_levels"] = [1, 2, 3]
+
+    strategy.inherit_dynamic_alert_level_mode.side_effect = inherit_auto_mode
+    strategy.to_dict.side_effect = lambda: {
+        "items": [
+            {
+                "algorithms": [algorithm.to_dict() for algorithm in item.algorithms],
+                "query_configs": [{"intelligent_detect": {"use_sdk": True}}],
+            }
+        ],
+        "detects": [{"level": 2}],
+    }
+    algorithms = [
+        {
+            "type": "IntelligentDetect",
+            "level": 2,
+            "config": {"args": {"$sensitivity": 5}, "plan_id": 1},
+        }
+    ]
+
+    UpdatePartialStrategyV2Resource.update_algorithms(strategy, algorithms)
+
+    assert item.algorithms[0].config["alert_level_mode"] == "auto"
+    strategy.inherit_dynamic_alert_level_mode.assert_called_once_with()
+    item.save_algorithms.assert_called_once_with()

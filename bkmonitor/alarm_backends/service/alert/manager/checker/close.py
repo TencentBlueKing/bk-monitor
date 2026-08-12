@@ -28,6 +28,7 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
+from alarm_backends.service.alert.manager.checker.utils import is_auto_level_intelligent_detect
 from api.cmdb.define import TopoNode
 from bkmonitor.documents import AlertLog
 from bkmonitor.models import AlgorithmModel
@@ -465,4 +466,4 @@ class CloseStatusChecker(BaseChecker):
         ):
             return True
 
-        return False
+        return is_auto_level_intelligent_detect(strategy_item)
