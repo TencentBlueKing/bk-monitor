@@ -30,6 +30,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, models
 from django.db.models import Q
+from django.db.models.functions import Cast
 from django.db.transaction import atomic
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -1819,6 +1820,75 @@ class Space(SoftDeleteModel):
             spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
         return spaces
+
+    @classmethod
+    def get_spaces_by_bk_biz_ids(cls, bk_tenant_id: str, bk_biz_ids: list | set) -> list:
+        """按租户与 bk_biz_id 列表定向查询未删除空间，字段与 get_all_spaces 一致。"""
+        biz_ids = []
+        for biz_id in bk_biz_ids or []:
+            try:
+                biz_ids.append(int(biz_id))
+            except (TypeError, ValueError):
+                continue
+        if not biz_ids:
+            return []
+
+        placeholders = ", ".join(["%s"] * len(biz_ids))
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id,
+                       space_type_id,
+                       space_type_name,
+                       space_id,
+                       space_name,
+                       space_uid,
+                       space_code,
+                       bk_biz_id,
+                       bk_tenant_id,
+                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                FROM log_search_space
+                WHERE bk_tenant_id = %s AND is_deleted = 0 AND bk_biz_id IN ({placeholders})
+                """,
+                (bk_tenant_id, *biz_ids),
+            )
+            columns = [col[0] for col in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    @classmethod
+    def get_spaces_page(
+        cls,
+        bk_tenant_id: str,
+        *,
+        offset: int,
+        limit: int,
+        keywords: list[str] | None = None,
+    ) -> tuple[list[dict], int]:
+        """按租户查询 IAM 回调所需的空间分页数据，并在数据库侧完成搜索。"""
+        offset = max(int(offset), 0)
+        limit = max(int(limit), 0)
+        queryset = cls.objects.filter(bk_tenant_id=bk_tenant_id).annotate(
+            bk_biz_id_text=Cast("bk_biz_id", output_field=models.CharField())
+        )
+
+        search_condition = Q()
+        for raw_keyword in keywords or []:
+            keyword = str(raw_keyword or "").strip()
+            if not keyword:
+                continue
+            search_condition |= (
+                Q(space_name__icontains=keyword)
+                | Q(space_type_name__icontains=keyword)
+                | Q(bk_biz_id_text__icontains=keyword)
+            )
+        if search_condition.children:
+            queryset = queryset.filter(search_condition)
+
+        count = queryset.count()
+        spaces = list(
+            queryset.order_by("id").values("bk_biz_id", "space_type_name", "space_name")[offset : offset + limit]
+        )
+        return spaces, count
 
     @classmethod
     def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_need_default: bool = True) -> str | None:

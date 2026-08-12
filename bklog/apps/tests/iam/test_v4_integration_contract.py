@@ -38,8 +38,12 @@ class V4IntegrationContractTest(SimpleTestCase):
                 system_id="bk_log_search",
                 timeout_seconds=1,
                 batch_chunk_size=100,
+                batch_max_workers=4,
                 auth_path="api/v1/open/rbac/authorization/systems/{system_id}/auth/",
                 auth_by_resources_path="api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/",
+                authorized_resources_path=(
+                    "api/v1/open/rbac/authorization/systems/{system_id}/relation/authorized-resources/"
+                ),
                 apply_url_path="api/v1/open/application/permission-apply-urls/",
             ),
             username="admin",

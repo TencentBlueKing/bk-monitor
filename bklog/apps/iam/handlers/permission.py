@@ -42,13 +42,15 @@ from iam.meta import setup_action, setup_resource, setup_system
 
 from apps.iam.backends.legacy_v3 import LegacyV3Adapter
 from apps.iam.backends.v4 import V4PermissionProvider
+from apps.iam.backends.v4.concurrency import run_pair_concurrently
 from apps.iam.exceptions import (
     ActionNotExistError,
     GetSystemInfoError,
+    IAMDependencyError,
     PermissionDeniedError,
 )
 from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
-from apps.iam.handlers.compatible import CompatibleIAM
+from apps.iam.handlers.compatible import CompatibleIAM, V4CallbackIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
 from apps.iam.iam_engine.core.config import AuthMode
@@ -59,7 +61,7 @@ from apps.iam.iam_engine.core.requests import (
     ResourceInstance as EngineResourceInstance,
     Subject as EngineSubject,
 )
-from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, BatchAuthDecision
+from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, AuthorizedResourceScope, BatchAuthDecision
 from apps.iam.iam_engine.migration.policy import (
     ApplicationResolution,
     BoundPermissionApplicationAdapter,
@@ -117,6 +119,12 @@ class Permission:
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
         return CompatibleIAM(
+            settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
+        )
+
+    @classmethod
+    def get_v4_callback_iam_client(cls, bk_tenant_id: str):
+        return V4CallbackIAM(
             settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
         )
 
@@ -549,53 +557,256 @@ class Permission:
             raise GetSystemInfoError(_("获取系统信息错误：{message}").format(message))
         return data
 
+    # IAM v1 策略在 CompatibleIAM 中已经转换为 space.id；这里只优化转换后的稳定形态。
+    _FLATTENABLE_FIELD = "space.id"
+    _FLATTENABLE_ANY_FIELDS = frozenset({_FLATTENABLE_FIELD, ""})
+
+    @classmethod
+    def _try_flatten_space_policy(cls, policies: dict) -> dict | None:
+        """
+        将仅包含 any、space.id eq/in 和 OR 的策略树转换为全量标记或 ID 集合。
+
+        为保证与 IAM SDK 的类型比较语义一致，策略值必须已经是字符串；
+        任一节点格式或算子不满足约束时，返回 None 交给原始表达式求值逻辑。
+
+        返回：
+          {"mode": "any"}                   -> 策略恒真，全放行
+          {"mode": "flat", "allowed": set} -> 已抽取 biz_id 白名单
+          None                              -> 无法平坦化，走兜底
+        """
+
+        def analyze(node):
+            if not isinstance(node, dict):
+                return None
+
+            op = node.get("op")
+            if op == "any":
+                # IAM 的全量策略可能使用 space.id 或空 field；
+                # 其他字段交回 SDK，避免改变异常和权限语义。
+                if node.get("field") not in cls._FLATTENABLE_ANY_FIELDS or "value" not in node:
+                    return None
+                return {"mode": "any"}
+
+            if op == "eq":
+                value = node.get("value")
+                if node.get("field") != cls._FLATTENABLE_FIELD or not isinstance(value, str):
+                    return None
+                return {"mode": "flat", "allowed": {value}}
+
+            if op == "in":
+                value = node.get("value")
+                if (
+                    node.get("field") != cls._FLATTENABLE_FIELD
+                    or not isinstance(value, list | tuple)
+                    or not all(isinstance(item, str) for item in value)
+                ):
+                    return None
+                return {"mode": "flat", "allowed": set(value)}
+
+            if op != "OR":
+                return None
+
+            content = node.get("content")
+            if not isinstance(content, list | tuple):
+                return None
+
+            allowed = set()
+            for child in content:
+                result = analyze(child)
+                if result is None:
+                    return None
+                if result["mode"] == "any":
+                    return {"mode": "any"}
+                allowed.update(result["allowed"])
+
+            return {"mode": "flat", "allowed": allowed}
+
+        return analyze(policies)
+
     def filter_space_list_by_action(
         self, action: ActionMeta | str, bk_tenant_id: str = "", space_list: list = None
     ) -> list:
         """
-        根据动作过滤用户有权限的业务列表
+        根据动作过滤用户有权限的业务列表。
+
+        V3：policy_query + 本地表达式求值。
+        V4：未传入 space_list 时先 list_authorized_resource，再按 bk_biz_id 定向查库；
+            传入 space_list 时与本地列表求交（兼容测试/内部调用）。
+        UNION：两侧明确允许的空间取并集；双侧 Error 且无明确允许时 fail-closed。
         """
-        if space_list is None:
-            # 获取业务列表
-            from apps.log_search.models import Space
+        try:
+            return self._filter_space_list_by_action(action, bk_tenant_id, space_list)
+        except IAMDependencyError as error:
+            logger.error(
+                "[IAM Decision] space scope failed: provider=%s reason=%s",
+                error.provider or "unknown",
+                error.reason,
+            )
+            raise
 
-            space_list = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
-        # 跳过权限检验
+    def _filter_space_list_by_action(
+        self, action: ActionMeta | str, bk_tenant_id: str = "", space_list: list = None
+    ) -> list:
+        from apps.log_search.models import Space
+
         if settings.IGNORE_IAM_PERMISSION:
-            return space_list
+            if space_list is not None:
+                return space_list
+            return Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
 
-        # 拉取策略
+        action = get_action_by_id(action)
+        try:
+            mode = self.mode_router.mode_provider.get_mode()
+        except InvalidAuthModeError as error:
+            raise IAMDependencyError(error.reason, provider="mode") from error
+
+        # 纯 V4 且调用方未预加载列表：IAM 先查 → 定向查库，避免先扫全量 Space。
+        if mode is AuthMode.V4 and space_list is None:
+            return self._filter_spaces_v4_targeted(action, bk_tenant_id)
+
+        if space_list is None:
+            space_list = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
+
+        local_ids = {str(space["bk_biz_id"]) for space in space_list}
+        if mode is AuthMode.V3:
+            allowed_ids = self._authorized_space_ids_v3(action, local_ids)
+        elif mode is AuthMode.V4:
+            allowed_ids = self._authorized_space_ids_v4(action, local_ids)
+        else:
+            allowed_ids = self._authorized_space_ids_union(action, local_ids)
+
+        return self._keep_spaces_by_allowed_ids(space_list, allowed_ids)
+
+    def _filter_spaces_v4_targeted(self, action: ActionMeta, bk_tenant_id: str) -> list:
+        """纯 V4：先查顶层授权范围，再按 bk_biz_id 定向加载本地 Space。"""
+        from apps.log_search.models import Space
+
+        scope = self._list_authorized_space_scope(action)
+        if not scope.ok:
+            raise IAMDependencyError(scope.reason or "IAM authorized-resources failed", provider=scope.provider_name)
+        if scope.is_wildcard:
+            return Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
+
+        query_ids = set(scope.ids)
+        demo_biz_id = self._get_enabled_demo_biz_id()
+        if demo_biz_id:
+            query_ids.add(demo_biz_id)
+
+        spaces = Space.get_spaces_by_bk_biz_ids(bk_tenant_id, query_ids)
+        local_ids = {str(space["bk_biz_id"]) for space in spaces}
+        missing_ids = sorted(resource_id for resource_id in scope.ids if resource_id not in local_ids)
+        if missing_ids:
+            logger.warning(
+                "[IAM Space Scope] authorized ids missing in local Space cache: type=%s missing=%s",
+                scope.resource_type,
+                missing_ids[:20],
+            )
+        return self._keep_spaces_by_allowed_ids(spaces, set(scope.ids))
+
+    @staticmethod
+    def _get_enabled_demo_biz_id() -> str:
+        """仅正数业务 ID 表示启用了 demo 业务。"""
+        try:
+            demo_biz_id = int(settings.DEMO_BIZ_ID)
+        except (TypeError, ValueError):
+            return ""
+        return str(demo_biz_id) if demo_biz_id > 0 else ""
+
+    @classmethod
+    def _keep_spaces_by_allowed_ids(cls, space_list: list, allowed_ids: set[str]) -> list:
+        results = []
+        demo_biz_id = cls._get_enabled_demo_biz_id()
+        for space in space_list:
+            biz_id = str(space["bk_biz_id"])
+            if biz_id in allowed_ids or (demo_biz_id and demo_biz_id == biz_id):
+                results.append(space)
+        return results
+
+    def _authorized_space_ids_v3(self, action: ActionMeta, local_ids: set[str]) -> set[str]:
         request = self.make_request(action=action)
-
         try:
             policies = self.iam_client._do_policy_query(request)
-        except AuthAPIError as e:
-            logger.exception(f"[IAM AuthAPI Error]: {e}")
-            return []
+        except AuthAPIError as error:
+            raise IAMDependencyError(str(error) or "IAM V3 policy query failed", provider="v3") from error
 
         if not policies:
-            # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
-            for space in space_list:
-                if settings.DEMO_BIZ_ID == space["bk_biz_id"]:
-                    return [space]
-            return []
+            return set()
 
-        # 生成表达式
+        # 平坦化快路径：只优化可证明等价的策略树，其他形态回退 IAM SDK。
+        flat = self._try_flatten_space_policy(policies)
+        if flat is not None and flat["mode"] == "any":
+            return set(local_ids)
+
+        if flat is not None and flat["mode"] == "flat":
+            return {biz_id for biz_id in local_ids if biz_id in flat["allowed"]}
+
+        # SDK 支持但无法安全平坦化的算子和树结构继续走原始求值逻辑。
         expr = make_expression(policies)
-
-        results = []
-        for space in space_list:
+        allowed_ids = set()
+        for biz_id in local_ids:
             obj_set = ObjectSet()
-            obj_set.add_object(_type=ResourceEnum.BUSINESS.id, obj={"id": str(space["bk_biz_id"])})
+            obj_set.add_object(_type=ResourceEnum.BUSINESS.id, obj={"id": biz_id})
+            if self.iam_client._eval_expr(expr, obj_set):
+                allowed_ids.add(biz_id)
+        return allowed_ids
 
-            # 计算表达式
-            is_allowed = self.iam_client._eval_expr(expr, obj_set)
+    def _list_authorized_space_scope(self, action: ActionMeta) -> AuthorizedResourceScope:
+        return self.get_v4_provider().list_authorized_resources(
+            action_id=action.id,
+            resource_type=ResourceEnum.BUSINESS.id,
+            subject={"type": "user", "id": self.username},
+        )
 
-            # 针对demo业务权限豁免
-            if is_allowed or str(settings.DEMO_BIZ_ID) == str(space["bk_biz_id"]):
-                results.append(space)
+    def _authorized_space_ids_v4(self, action: ActionMeta, local_ids: set[str]) -> set[str]:
+        scope = self._list_authorized_space_scope(action)
+        return self._merge_authorized_scope_with_local(scope, local_ids)
 
-        return results
+    def _authorized_space_ids_union(self, action: ActionMeta, local_ids: set[str]) -> set[str]:
+        def _safe_v3() -> tuple[set[str], IAMDependencyError | None]:
+            try:
+                return self._authorized_space_ids_v3(action, local_ids), None
+            except IAMDependencyError as error:
+                return set(), error
+
+        def _safe_v4() -> tuple[set[str], IAMDependencyError | None]:
+            try:
+                return self._authorized_space_ids_v4(action, local_ids), None
+            except IAMDependencyError as error:
+                return set(), error
+
+        (v3_ids, v3_error), (v4_ids, v4_error) = run_pair_concurrently(_safe_v3, _safe_v4)
+
+        if v3_error and v4_error:
+            raise IAMDependencyError(
+                f"v3={v3_error.reason}; v4={v4_error.reason}",
+                provider="union",
+            )
+
+        if v3_error or v4_error:
+            logger.warning(
+                "[IAM Decision] union space scope degraded: v3_error=%s v4_error=%s",
+                getattr(v3_error, "reason", None),
+                getattr(v4_error, "reason", None),
+            )
+
+        return v3_ids | v4_ids
+
+    @staticmethod
+    def _merge_authorized_scope_with_local(scope: AuthorizedResourceScope, local_ids: set[str]) -> set[str]:
+        if not scope.ok:
+            raise IAMDependencyError(scope.reason or "IAM authorized-resources failed", provider=scope.provider_name)
+        if scope.is_wildcard:
+            return set(local_ids)
+
+        allowed_ids = {resource_id for resource_id in scope.ids if resource_id in local_ids}
+        missing_ids = sorted(resource_id for resource_id in scope.ids if resource_id not in local_ids)
+        if missing_ids:
+            logger.warning(
+                "[IAM Space Scope] authorized ids missing in local Space cache: type=%s missing=%s",
+                scope.resource_type,
+                missing_ids[:20],
+            )
+        return allowed_ids
 
     @classmethod
     def setup_meta(cls):

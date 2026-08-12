@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from http import HTTPStatus
 from unittest.mock import Mock, patch
 
@@ -27,8 +28,12 @@ class V4ClientTest(SimpleTestCase):
                 system_id="bk_log_search",
                 timeout_seconds=1,
                 batch_chunk_size=100,
+                batch_max_workers=4,
                 auth_path="api/v1/open/rbac/authorization/systems/{system_id}/auth/",
                 auth_by_resources_path="api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/",
+                authorized_resources_path=(
+                    "api/v1/open/rbac/authorization/systems/{system_id}/relation/authorized-resources/"
+                ),
                 apply_url_path="api/v1/open/application/permission-apply-urls/",
             ),
             username="admin",
@@ -51,8 +56,12 @@ class V4ClientTest(SimpleTestCase):
             system_id="bk_log_search",
             timeout_seconds=1,
             batch_chunk_size=100,
+            batch_max_workers=4,
             auth_path="api/v1/open/rbac/authorization/systems/{system_id}/auth/",
             auth_by_resources_path="api/v1/open/rbac/authorization/systems/{system_id}/auth-by-resources/",
+            authorized_resources_path=(
+                "api/v1/open/rbac/authorization/systems/{system_id}/relation/authorized-resources/"
+            ),
             apply_url_path="api/v1/open/application/permission-apply-urls/",
         )
 
@@ -155,6 +164,21 @@ class V4ClientTest(SimpleTestCase):
 
         with self.assertRaises(V4ResponseError):
             self.client.generate_perm_apply_url(permissions=[])
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_auth_token_uses_configured_path(self, request_mock):
+        self.client.options = replace(
+            self.client.options,
+            auth_token_path="custom/systems/{system_id}/token/",
+        )
+        response = Mock(status_code=HTTPStatus.OK, content=b"token")
+        response.json.return_value = {"data": {"auth_token": "v4-token"}}
+        request_mock.return_value = response
+
+        token = self.client.retrieve_system_auth_token("bklog_test")
+
+        self.assertEqual(token, "v4-token")
+        self.assertEqual(request_mock.call_args.kwargs["url"], "https://iam.example/custom/systems/bklog_test/token/")
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_transport_error_is_mapped_to_v4_transport_error(self, request_mock):
@@ -268,3 +292,105 @@ class V4ClientTest(SimpleTestCase):
         response.json.return_value = ["unexpected"]
 
         self.assertEqual(self.client._extract_error_reason(response), "upstream failed")
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_list_authorized_resource_parses_concrete_ids(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"ok")
+        response.json.return_value = {"data": [{"type": "space", "ids": ["2", "3", "2"]}]}
+        request_mock.return_value = response
+
+        result = self.client.list_authorized_resource(
+            subject={"type": "user", "id": "admin"},
+            action_id="view_business",
+            resource_type="space",
+        )
+
+        self.assertEqual(result, {"type": "space", "ids": ["2", "3"]})
+        self.assertIn(
+            "relation/authorized-resources/",
+            request_mock.call_args.kwargs["url"],
+        )
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_list_authorized_resource_parses_wildcard(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"ok")
+        response.json.return_value = {"data": [{"type": "space", "ids": ["*"]}]}
+        request_mock.return_value = response
+
+        result = self.client.list_authorized_resource(
+            subject={"type": "user", "id": "admin"},
+            action_id="view_business",
+        )
+        self.assertEqual(result, {"type": "space", "ids": ["*"]})
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_list_authorized_resource_empty_data_is_empty_scope(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"ok")
+        response.json.return_value = {"data": []}
+        request_mock.return_value = response
+
+        result = self.client.list_authorized_resource(
+            subject={"type": "user", "id": "admin"},
+            action_id="view_business",
+        )
+        self.assertEqual(result, {"type": "space", "ids": []})
+
+    def test_list_authorized_resource_rejects_unexpected_type(self):
+        with self.assertRaisesRegex(V4ResponseError, "unexpected type"):
+            self.client._extract_authorized_resource_scope(
+                [{"type": "indices", "ids": ["1"]}],
+                resource_type="space",
+            )
+
+    def test_list_authorized_resource_rejects_mixed_wildcard(self):
+        with self.assertRaisesRegex(V4ResponseError, "mix wildcard"):
+            self.client._extract_authorized_resource_scope(
+                [{"type": "space", "ids": ["*", "2"]}],
+                resource_type="space",
+            )
+
+    def test_list_authorized_resource_rejects_non_list_payload(self):
+        with self.assertRaisesRegex(V4ResponseError, "must be a list"):
+            self.client._extract_authorized_resource_scope({}, resource_type="space")
+
+    def test_list_authorized_resource_rejects_invalid_item_and_ids(self):
+        with self.assertRaisesRegex(V4ResponseError, "must be an object"):
+            self.client._extract_authorized_resource_scope(["bad"], resource_type="space")
+        with self.assertRaisesRegex(V4ResponseError, "missing type/ids"):
+            self.client._extract_authorized_resource_scope([{"type": "space"}], resource_type="space")
+        with self.assertRaisesRegex(V4ResponseError, "ids must be a list"):
+            self.client._extract_authorized_resource_scope(
+                [{"type": "space", "ids": "1"}],
+                resource_type="space",
+            )
+        with self.assertRaisesRegex(V4ResponseError, "duplicate type"):
+            self.client._extract_authorized_resource_scope(
+                [{"type": "space", "ids": ["1"]}, {"type": "space", "ids": ["2"]}],
+                resource_type="space",
+            )
+        with self.assertRaisesRegex(V4ResponseError, "invalid id"):
+            self.client._extract_authorized_resource_scope(
+                [{"type": "space", "ids": [None]}],
+                resource_type="space",
+            )
+        with self.assertRaisesRegex(V4ResponseError, "empty id"):
+            self.client._extract_authorized_resource_scope(
+                [{"type": "space", "ids": [""]}],
+                resource_type="space",
+            )
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_retrieve_system_auth_token_success_and_errors(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"ok")
+        response.json.return_value = {"data": {"auth_token": "token-1"}}
+        request_mock.return_value = response
+        self.assertEqual(self.client.retrieve_system_auth_token(), "token-1")
+
+        with patch.object(self.client, "_request", return_value=[]) as request_inner:
+            with self.assertRaisesRegex(V4ResponseError, "must be an object"):
+                self.client.retrieve_system_auth_token()
+            request_inner.assert_called_once()
+
+        with patch.object(self.client, "_request", return_value={}):
+            with self.assertRaisesRegex(V4ResponseError, "missing auth_token"):
+                self.client.retrieve_system_auth_token("other_system")

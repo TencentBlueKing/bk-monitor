@@ -126,6 +126,7 @@ class V4PermissionProviderTest(SimpleTestCase):
         self.client = Mock()
         self.client.options.system_id = "bk_log_search"
         self.client.options.batch_chunk_size = 100
+        self.client.options.batch_max_workers = 4
         self.provider = V4PermissionProvider(self.client, action_resolver=get_action_by_id)
 
     def test_single_allow_result(self):
@@ -355,3 +356,48 @@ class V4PermissionProviderTest(SimpleTestCase):
     def test_chunk_helper_rejects_non_positive_size(self):
         with self.assertRaisesMessage(ValueError, "chunk_size must be positive"):
             list(_chunked([1], 0))
+
+    def test_list_authorized_resources_returns_concrete_scope(self):
+        self.client.username = "admin"
+        self.client.list_authorized_resource.return_value = {"type": "space", "ids": ["2", "3"]}
+
+        scope = self.provider.list_authorized_resources(action_id="view_business_v2")
+
+        self.assertTrue(scope.ok)
+        self.assertFalse(scope.is_wildcard)
+        self.assertEqual(scope.ids, frozenset({"2", "3"}))
+        self.client.list_authorized_resource.assert_called_once()
+
+    def test_list_authorized_resources_returns_wildcard_scope(self):
+        self.client.username = "admin"
+        self.client.list_authorized_resource.return_value = {"type": "space", "ids": ["*"]}
+
+        scope = self.provider.list_authorized_resources(action_id="view_business")
+        self.assertTrue(scope.is_wildcard)
+
+    def test_list_authorized_resources_returns_empty_scope(self):
+        self.client.username = "admin"
+        self.client.list_authorized_resource.return_value = {"type": "space", "ids": []}
+
+        scope = self.provider.list_authorized_resources(action_id="view_business")
+
+        self.assertTrue(scope.ok)
+        self.assertFalse(scope.is_wildcard)
+        self.assertEqual(scope.ids, frozenset())
+
+    def test_list_authorized_resources_rejects_empty_subject(self):
+        self.client.username = ""
+
+        scope = self.provider.list_authorized_resources(action_id="view_business")
+
+        self.assertFalse(scope.ok)
+        self.assertEqual(scope.error_type, "InvalidSubject")
+        self.client.list_authorized_resource.assert_not_called()
+
+    def test_list_authorized_resources_maps_client_error(self):
+        self.client.username = "admin"
+        self.client.list_authorized_resource.side_effect = V4TimeoutError("timeout")
+
+        scope = self.provider.list_authorized_resources(action_id="view_business")
+        self.assertFalse(scope.ok)
+        self.assertEqual(scope.error_type, "TimeoutError")

@@ -192,6 +192,38 @@ class ModeRouterTest(SimpleTestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.mode, AuthMode.UNION.value)
         self.assertEqual(decision.hit_provider_names, ("v4",))
+        self.v3.is_allowed.assert_called_once_with(self.request)
+        self.v4.is_allowed.assert_called_once_with(self.request)
+
+    def test_union_mode_calls_providers_concurrently(self):
+        import threading
+        import time
+
+        started = threading.Event()
+        release = threading.Event()
+
+        def v3_is_allowed(_request):
+            started.set()
+            release.wait(timeout=1)
+            return AuthResult.deny("v3")
+
+        def v4_is_allowed(_request):
+            if not started.wait(timeout=1):
+                return AuthResult.deny("v4")
+            release.set()
+            return AuthResult.allow("v4")
+
+        self.v3.is_allowed.side_effect = v3_is_allowed
+        self.v4.is_allowed.side_effect = v4_is_allowed
+        router = self._make_router(AuthMode.UNION)
+
+        started_at = time.monotonic()
+        decision = router.is_allowed(self.request)
+        elapsed = time.monotonic() - started_at
+
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.hit_provider_names, ("v4",))
+        self.assertLess(elapsed, 0.5)
 
     def test_invalid_mode_rejects_auth(self):
         mode_provider = Mock(

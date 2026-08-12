@@ -93,3 +93,65 @@ class BatchAuthDecision:
         for item in self.items:
             result.setdefault(item.resource_id, {})[item.action_id] = item.decision.allowed
         return result
+
+
+@dataclass(frozen=True, slots=True)
+class AuthorizedResourceScope:
+    """顶层资源范围查询结果。is_wildcard=True 时 ids 为空集合，表示覆盖全部本地候选。"""
+
+    resource_type: str
+    ids: frozenset[str] = frozenset()
+    is_wildcard: bool = False
+    provider_name: str = ""
+    status: AuthStatus = AuthStatus.ALLOW
+    reason: str = ""
+    error_type: str = ""
+
+    @classmethod
+    def wildcard(cls, resource_type: str, *, provider_name: str = "") -> AuthorizedResourceScope:
+        return cls(
+            resource_type=resource_type,
+            ids=frozenset(),
+            is_wildcard=True,
+            provider_name=provider_name,
+            status=AuthStatus.ALLOW,
+        )
+
+    @classmethod
+    def concrete(
+        cls, resource_type: str, ids: set[str] | frozenset[str], *, provider_name: str = ""
+    ) -> AuthorizedResourceScope:
+        return cls(
+            resource_type=resource_type,
+            ids=frozenset(str(resource_id) for resource_id in ids),
+            is_wildcard=False,
+            provider_name=provider_name,
+            status=AuthStatus.ALLOW,
+        )
+
+    @classmethod
+    def empty(cls, resource_type: str, *, provider_name: str = "") -> AuthorizedResourceScope:
+        return cls.concrete(resource_type, frozenset(), provider_name=provider_name)
+
+    @classmethod
+    def error(
+        cls,
+        resource_type: str,
+        *,
+        provider_name: str,
+        reason: str,
+        error_type: str = "",
+    ) -> AuthorizedResourceScope:
+        return cls(
+            resource_type=resource_type,
+            ids=frozenset(),
+            is_wildcard=False,
+            provider_name=provider_name,
+            status=AuthStatus.ERROR,
+            reason=reason,
+            error_type=error_type,
+        )
+
+    @property
+    def ok(self) -> bool:
+        return self.status is not AuthStatus.ERROR
