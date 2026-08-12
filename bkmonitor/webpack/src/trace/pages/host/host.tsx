@@ -34,6 +34,7 @@ import { useRoute } from 'vue-router';
 
 import CommonHeader from '../../components/common-header/common-header';
 import { useHostStore } from '../../store/modules/host';
+import { useAppReadonlyInject } from '../provider';
 import AlarmTools from './components/alarm-tools/index';
 import HostContentTabs from './components/host-content-tabs/host-content-tabs';
 import HostDetailView from './components/host-detail-view/host-detail-view';
@@ -53,6 +54,7 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const route = useRoute();
+    const readonly = useAppReadonlyInject() ?? false;
     /** 是否锁定搜索条件（来自 URL query 参数，分享链接场景使用） */
     const isLockSearch = ((route.query.lockSearch || 'false') as string) === 'true';
     /** 是否为分享链接入口（来自 URL query 参数） */
@@ -85,7 +87,7 @@ export default defineComponent({
     provide('handleRestore', handleRestore);
 
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
-    const topoTree = useHostTopoTree(nodeId);
+    const topoTree = useHostTopoTree(nodeId, readonly);
     const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
     // 主机详情数据（基于选中节点动态生成）
     const { detailData, loading: detailLoading } = useHostDetail(topoTree.selectedNode);
@@ -108,6 +110,9 @@ export default defineComponent({
 
     /** 点击主机列表 IP 单元格时，设置 nodeId 并触发拓扑树定位聚焦到对应主机节点 */
     const handleSelectIpCell = (row: IHostListRow) => {
+      if (readonly) {
+        return;
+      }
       nodeId.value = String(row.bk_host_id);
       topoTree.handleSelectNodeOfNodeId();
     };
@@ -122,6 +127,7 @@ export default defineComponent({
       topoTree,
       detailData,
       detailLoading,
+      readonly,
       timeRangeDisabledTip,
       handleSelectNode,
       handleSelectIpCell,
@@ -158,10 +164,15 @@ export default defineComponent({
                   ))}
                 </ul>
 
-                {this.scene === 'host' && <HostLocationBar selectedNode={this.topoTree.selectedNode.value} />}
+                {this.scene === 'host' && (
+                  <HostLocationBar
+                    readonly={this.readonly}
+                    selectedNode={this.topoTree.selectedNode.value}
+                  />
+                )}
               </div>
             ),
-            accessGuide: () => <AlarmTools selectedNode={this.topoTree.selectedNode.value} />,
+            accessGuide: () => !this.readonly && <AlarmTools selectedNode={this.topoTree.selectedNode.value} />,
           }}
         </CommonHeader>
         <div class='host-page-content'>
@@ -172,6 +183,7 @@ export default defineComponent({
                 aside: () => (
                   <HostTopoTree
                     context={this.topoTree}
+                    readonly={this.readonly}
                     onSelectNode={node => this.handleSelectNode(node)}
                   />
                 ),
@@ -183,6 +195,7 @@ export default defineComponent({
                         <div class='host-page-content-main'>
                           <HostContentTabs
                             compareHostList={this.topoTree.compareHostList.value}
+                            readonly={this.readonly}
                             selectedNode={this.topoTree.selectedNode.value}
                             onSelectIpCell={this.handleSelectIpCell}
                           />
@@ -193,6 +206,7 @@ export default defineComponent({
                           width={320}
                           data={this.detailData}
                           loading={this.detailLoading}
+                          readonly={this.readonly}
                         />
                       ),
                     }}

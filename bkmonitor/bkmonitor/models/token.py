@@ -45,6 +45,61 @@ class AuthType:
     User = "user"
 
 
+REGISTERED_SCENE_AUTH_TYPES = {
+    "scene_collect",
+    "scene_custom_event",
+    "scene_custom_metric",
+}
+
+
+READONLY_SCENE_AUTH_TYPES = {
+    AuthType.Apm,
+    AuthType.Collect,
+    AuthType.CustomEvent,
+    AuthType.CustomMetric,
+    AuthType.Dashboard,
+    AuthType.Event,
+    AuthType.Host,
+    AuthType.Incident,
+    AuthType.Kubernetes,
+    AuthType.Scene,
+    AuthType.UptimeCheck,
+}
+
+READONLY_SCENE_DENIED_ACTIONS = {
+    "monitor_web.scene_view.views": {
+        "bulk_update_scene_view_order_and_name",
+        "delete_scene_view",
+        "update_scene_view",
+    },
+    "monitor_web.share.views": {
+        "create_share_token",
+        "delete_share_token",
+        "get_share_token_list",
+        "update_share_token",
+    },
+}
+
+READONLY_SCENE_STANDARD_DENIED_ACTIONS = {"create", "destroy", "partial_update", "update"}
+
+HOST_SHARE_ALLOWED_ACTIONS = {
+    "monitor_web.commons.cc.views.GetTopoTree": {"create"},
+    "monitor_web.grafana.views.GrafanaViewSet": {"time_series/unify_query"},
+    "monitor_web.performance.views.SearchHostInfoViewSet": {"create"},
+    "monitor_web.performance.views.SearchHostMetricViewSet": {"create"},
+    "monitor_web.scene_view.views.SceneViewViewSet": {
+        "get_host_metric_group_panel_order",
+        "get_host_or_topo_node_detail",
+        "get_host_process_port_status",
+        "get_host_process_list",
+        "get_host_process_uptime",
+        "get_host_views_panels",
+        "get_process_metric_group_panel_order",
+        "get_process_views_panels",
+    },
+}
+
+
 class ApiAuthToken(AbstractRecordModel):
     """
     API鉴权令牌
@@ -87,9 +142,27 @@ class ApiAuthToken(AbstractRecordModel):
         """
         判断view是否合法
         """
+        if self.type.startswith("scene_") and self.type not in REGISTERED_SCENE_AUTH_TYPES:
+            return False
+
+        view_cls = getattr(view, "cls", None)
+        if self.type in READONLY_SCENE_AUTH_TYPES or self.type.startswith("scene_"):
+            denied_actions = READONLY_SCENE_DENIED_ACTIONS.get(getattr(view_cls, "__module__", ""), set())
+            view_actions = set(getattr(view, "actions", {}).values())
+            if denied_actions & view_actions:
+                return False
+
+            if self.type == AuthType.Host:
+                view_name = f"{getattr(view_cls, '__module__', '')}.{getattr(view_cls, '__name__', '')}"
+                return bool(HOST_SHARE_ALLOWED_ACTIONS.get(view_name, set()) & view_actions)
+
+            # ResourceViewSet uses create/update action names for POST/PUT query routes,
+            # so standard mutation names only apply to conventional DRF viewsets.
+            if not hasattr(view_cls, "resource_routes") and READONLY_SCENE_STANDARD_DENIED_ACTIONS & view_actions:
+                return False
+
         if self.type not in [AuthType.Grafana, AuthType.AsCode, AuthType.Entity]:
             return True
-        view_cls = getattr(view, "cls", None)
         if not view_cls:
             return False
 

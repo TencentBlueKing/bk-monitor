@@ -27,9 +27,11 @@
 import { type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
+import { useRoute } from 'vue-router';
 
 import { getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateCompares, handleCreateItemId } from '../utils/host-list-core';
+import { resolveHostRequestScope } from '../utils/share-scope';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
 import { useHostStore } from '@/store/modules/host';
@@ -44,7 +46,8 @@ const VIEW_OVERSCAN = 10;
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
  * 视图层（host-topo-tree）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
-export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
+export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) => {
+  const route = useRoute();
   const { metricAggregationState } = useHostStore();
   const topoTreeWorker = useHostTopoTreeWorker();
   const isAllExpand = shallowRef(false);
@@ -78,6 +81,8 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   /** 是否已初始化 */
   let initialized = false;
   let scrollEl: HTMLElement = null;
+
+  const shareScope = computed(() => resolveHostRequestScope(readonly, route.query, null));
 
   const updateFilter = useDebounceFn(async () => {
     if (!initialized) {
@@ -181,7 +186,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   const loadTopoTree = async () => {
     loading.value = true;
     try {
-      const data = await getHostTopoTreeByBizId();
+      const data = await getHostTopoTreeByBizId(window.cc_biz_id, shareScope.value);
       rawTreeData.value = data;
       await handleSelectNodeOfNodeId();
     } finally {

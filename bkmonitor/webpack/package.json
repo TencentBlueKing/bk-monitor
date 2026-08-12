@@ -44,6 +44,7 @@
     "test:intelligent-detect-alert-level": "node --test ./tests/intelligent-detect-alert-level.test.cjs",
     "test:k8s-sidecar-limit": "node --test ./tests/k8s-sidecar-limit-promql.test.cjs",
     "test:host-process-metrics": "node --test ./tests/host-process-metrics.test.cjs",
+    "test:host-share-readonly": "node --test ./tests/host-share-readonly.test.cjs",
     "iconfont": "node ./webpack/update-iconfont.js"
   },
   "simple-git-hooks": {

@@ -33,7 +33,7 @@ from monitor_web.scene_view.resources.view import GetSceneViewResource
 logger = logging.getLogger(__name__)
 
 
-class GetHostProcessPortStatusResource(Resource):
+class GetHostProcessPortStatusResource(ApiAuthResource):
     """
     获取主机进程端口状态（用于port-status图表）
     """
@@ -421,7 +421,7 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         return info
 
 
-class GetHostProcessUptimeResource(Resource):
+class GetHostProcessUptimeResource(ApiAuthResource):
     """
     获取主机/进程启动时间（用于场景视图text-unit图表）
     """
@@ -459,7 +459,7 @@ class GetHostProcessUptimeResource(Resource):
         return {"value": value, "unit": "s"}
 
 
-class GetHostProcessListResource(Resource):
+class GetHostProcessListResource(ApiAuthResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bk_host_id = serializers.IntegerField(required=False)

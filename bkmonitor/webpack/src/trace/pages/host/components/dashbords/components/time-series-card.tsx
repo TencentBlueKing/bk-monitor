@@ -43,6 +43,7 @@ import dayjs from 'dayjs';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
+import { useAppReadonlyInject } from '../../../../provider';
 import { resolveGraphPanel } from '../variables/resolve';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -95,6 +96,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const readonly = useAppReadonlyInject() ?? false;
     const instance = getCurrentInstance();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const chartRef = useTemplateRef<HTMLElement>('chart');
@@ -228,6 +230,7 @@ export default defineComponent({
 
     return {
       t,
+      readonly,
       showRestore,
       instance,
       options,
@@ -281,10 +284,11 @@ export default defineComponent({
         class='time-series-card'
       >
         <ChartTitle
-          menuList={['more', 'explore', 'drill-down', 'relate-alert']}
+          menuList={this.readonly ? [] : ['more', 'explore', 'drill-down', 'relate-alert']}
           metrics={this.metricList}
-          showAddMetric={true}
-          showMore={true}
+          showAddMetric={!this.readonly}
+          showMetricAlarm={!this.readonly}
+          showMore={!this.readonly}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
           onAlarmClick={this.handleAlarmClick}
