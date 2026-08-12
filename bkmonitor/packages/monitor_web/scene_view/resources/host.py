@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -69,33 +70,32 @@ class GetHostProcessPortStatusResource(ApiAuthResource):
                 return []
             host = hosts[0]
 
-        # 改用 get_process_port_health 获取端口健康状态
-        # 返回 {bk_host_id: {display_name: 0/1}}，其中 0=Normal(健康), 1=Abnormal(异常)
-        port_health_result = resource.cc.get_process_port_health(
-            bk_biz_id=params["bk_biz_id"],
-            hosts=[host],
-            start_time=params.get("start_time"),
-            end_time=params.get("end_time"),
-        )
-
-        host_status = port_health_result.get(host.bk_host_id, {})
-        status_value = host_status.get(params.get("display_name"))
-
-        if status_value is None:
+        # 端口健康是进程级指标；图表按同名 CMDB 进程的端口展开，端口共享该进程的健康状态。
+        end_time = int(params.get("end_time") or time.time())
+        start_time = max(int(params.get("start_time") or end_time - 300), end_time - 300)
+        query_params = {
+            "bk_biz_id": params["bk_biz_id"],
+            "hosts": [host],
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        port_health_result = resource.cc.get_process_port_health(**query_params)
+        process_result = resource.cc.get_process_info(**query_params, limit_port_num=0)
+        health = port_health_result.get(host.bk_host_id, {}).get(params["display_name"])
+        if health is None:
             return []
 
-        # get_process_port_health 返回 0=Normal, 1=Abnormal
-        # 反转为 1=正常, 0=异常
-        status = 1 - status_value
-
-        # 状态映射：1=正常, 0=异常
         status_mapping = {
-            1: {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
-            # "nonlisten": {"statusBgColor": "#f0f1f5", "statusColor": "#c4c6cc", "name": _("停用")},
-            0: {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
+            0: {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
+            1: {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
         }
-
-        return [{"value": str(status), **status_mapping[status]}]
+        ports = {
+            str(port)
+            for process in process_result.get(host.bk_host_id, [])
+            if process["name"] == params["display_name"]
+            for port in process["ports"]
+        }
+        return [{"value": port, **status_mapping[health]} for port in sorted(ports)]
 
 
 class GetHostOrTopoNodeDetailResource(ApiAuthResource):
@@ -421,6 +421,8 @@ class GetHostProcessUptimeResource(ApiAuthResource):
         bk_biz_id = serializers.IntegerField()
         display_name = serializers.CharField()
         bk_host_id = serializers.IntegerField()
+        start_time = serializers.IntegerField(required=False)
+        end_time = serializers.IntegerField(required=False)
 
     def perform_request(self, params):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
@@ -434,7 +436,7 @@ class GetHostProcessUptimeResource(ApiAuthResource):
             table="system.proc",
             interval=60,
             group_by=["bk_target_ip", "bk_target_cloud_id", "display_name"],
-            metrics=[{"field": "uptime", "method": "MIN", "alias": "A"}],
+            metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
             filter_dict={
                 "bk_target_ip": ip,
                 "bk_target_cloud_id": bk_cloud_id,
@@ -442,7 +444,10 @@ class GetHostProcessUptimeResource(ApiAuthResource):
             },
         )
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
-        data: list = query.query_data()
+        # 取选中时点的进程组快照；前端传秒，UQ 查询使用毫秒。
+        end_time = int(params.get("end_time") or time.time())
+        start_time = max(int(params.get("start_time") or end_time - 180), end_time - 180)
+        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000, instant=True)
         if data:
             value = data[-1]["_result_"]
         else:

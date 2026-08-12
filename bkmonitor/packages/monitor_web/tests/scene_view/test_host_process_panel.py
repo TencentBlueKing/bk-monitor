@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from monitor_web.scene_view.builtin import host
+from monitor_web.scene_view.resources import host as host_resources
 
 
 def build_metric(metric_field):
@@ -110,3 +111,132 @@ def test_process_panels_only_include_system_metrics(monkeypatch):
     panels = host.get_panels(SimpleNamespace(id="process", bk_biz_id=2))
 
     assert [panel["id"] for panel in panels] == ["bk_monitor.time_series.system.proc.cpu_usage_pct"]
+
+
+@pytest.mark.parametrize(
+    "serializer_class",
+    [
+        host_resources.GetHostProcessPortStatusResource.RequestSerializer,
+        host_resources.GetHostProcessUptimeResource.RequestSerializer,
+    ],
+)
+def test_process_external_panel_preserves_drawer_time_range(monkeypatch, serializer_class):
+    monkeypatch.setattr(host_resources, "validate_bk_biz_id", lambda value: value)
+    serializer = serializer_class(
+        data={
+            "bk_biz_id": 2,
+            "bk_host_id": 101,
+            "display_name": "nginx",
+            "start_time": 1_700_000_000,
+            "end_time": 1_700_003_600,
+        }
+    )
+
+    serializer.is_valid(raise_exception=True)
+
+    assert serializer.validated_data["start_time"] == 1_700_000_000
+    assert serializer.validated_data["end_time"] == 1_700_003_600
+
+
+@pytest.mark.parametrize(
+    "health, expected_name, expected_color",
+    [(0, "正常", "#3FC06D"), (1, "异常", "#EA3636")],
+)
+def test_process_port_status_preserves_multiple_ports_with_process_health_at_drawer_end(
+    monkeypatch, health, expected_name, expected_color
+):
+    metric_calls = []
+    process_calls = []
+
+    def fake_get_process_port_health(**kwargs):
+        metric_calls.append(kwargs)
+        return {101: {"nginx": health}}
+
+    def fake_get_process_info(**kwargs):
+        process_calls.append(kwargs)
+        return {
+            101: [
+                {"name": "nginx", "ports": [8080, 8081]},
+                {"name": "other", "ports": [9090]},
+            ]
+        }
+
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_port_health", fake_get_process_port_health)
+    monkeypatch.setattr(host_resources.resource.cc, "get_process_info", fake_get_process_info)
+    monkeypatch.setattr(
+        host_resources.api.cmdb,
+        "get_host_by_id",
+        lambda **_kwargs: [SimpleNamespace(bk_host_innerip="127.0.0.1", bk_cloud_id=0, bk_host_id=101)],
+    )
+
+    result = host_resources.GetHostProcessPortStatusResource().perform_request(
+        {
+            "bk_biz_id": 2,
+            "bk_host_id": 101,
+            "display_name": "nginx",
+            "start_time": 1_700_000_000,
+            "end_time": 1_700_003_600,
+        }
+    )
+
+    expected_query = {
+        "bk_biz_id": 2,
+        "hosts": [SimpleNamespace(bk_host_innerip="127.0.0.1", bk_cloud_id=0, bk_host_id=101)],
+        "start_time": 1_700_003_300,
+        "end_time": 1_700_003_600,
+    }
+    assert metric_calls == [expected_query]
+    assert process_calls == [{**expected_query, "limit_port_num": 0}]
+    assert result == [
+        {
+            "value": "8080",
+            "statusBgColor": "#e7f9f2" if health == 0 else "#ffe8c3",
+            "statusColor": expected_color,
+            "name": expected_name,
+        },
+        {
+            "value": "8081",
+            "statusBgColor": "#e7f9f2" if health == 0 else "#ffe8c3",
+            "statusColor": expected_color,
+            "name": expected_name,
+        },
+    ]
+
+
+def test_process_uptime_queries_snapshot_at_drawer_end_in_milliseconds(monkeypatch):
+    query_calls = []
+    data_source_configs = []
+
+    class FakeDataSource:
+        def __init__(self, **kwargs):
+            data_source_configs.append(kwargs)
+
+    class FakeUnifyQuery:
+        def __init__(self, **kwargs):
+            self.config = kwargs
+
+        def query_data(self, **kwargs):
+            query_calls.append(kwargs)
+            return [{"_result_": 7200}]
+
+    monkeypatch.setattr(host_resources, "load_data_source", lambda *_args: FakeDataSource)
+    monkeypatch.setattr(host_resources, "UnifyQuery", FakeUnifyQuery)
+    monkeypatch.setattr(
+        host_resources.api.cmdb,
+        "get_host_by_id",
+        lambda **_kwargs: [SimpleNamespace(bk_host_innerip="127.0.0.1", bk_cloud_id=0)],
+    )
+
+    result = host_resources.GetHostProcessUptimeResource().perform_request(
+        {
+            "bk_biz_id": 2,
+            "bk_host_id": 101,
+            "display_name": "nginx",
+            "start_time": 1_700_003_540,
+            "end_time": 1_700_003_600,
+        }
+    )
+
+    assert data_source_configs[0]["metrics"] == [{"field": "uptime", "method": "MAX", "alias": "A"}]
+    assert query_calls == [{"start_time": 1_700_003_540_000, "end_time": 1_700_003_600_000, "instant": True}]
+    assert result == {"value": 7200, "unit": "s"}
