@@ -1,0 +1,32 @@
+.ai-config-analysis-rule-table {
+  position: relative;
+  border: 1px solid #dcdee5;
+
+  // 优先级标签样式
+  .priority-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: #4d4f56;
+    background: #ddd4ef;
+    border-radius: 2px;
+  }
+
+  // 智能体 id 标签样式
+  .agent-id-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: #4d4f56;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+}

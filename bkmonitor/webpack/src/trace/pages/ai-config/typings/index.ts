@@ -79,3 +79,86 @@ export interface ISchemeItem {
 
 /** 方案 id 的表单取值，空串代表未选择 */
 export type PlanIdValue = '' | number;
+
+/** 查询蓝盾项目的请求参数 */
+export type TBkciProjectsParams = {
+  /** 搜索关键字 */
+  keyword: string;
+  /** 页码 */
+  page: number;
+  /** 每页数量 */
+  page_size: number;
+};
+/** 查询蓝盾项目的返回结果 */
+export type TBkciProjectsResult = {
+  /** 蓝盾项目列表 */
+  list: { id: string; name: string }[];
+  /** 总数 */
+  total: number;
+};
+
+/** 查询源码仓库的请求参数 */
+export type TBkciRepositoriesParams = {
+  /** 蓝盾项目 id */
+  bkci_project_id: string;
+  /** 搜索关键字 */
+  keyword: string;
+  /** 页码 */
+  page: number;
+  /** 每页数量 */
+  page_size: number;
+};
+
+/** 查询源码仓库的返回结果 */
+export type TBkciRepositoriesResult = {
+  /** 源码仓库列表 */
+  list: { default_branch: string; id: string; name: string; scm_type: string }[];
+  /** 总数 */
+  total: number;
+};
+
+/** 源码分析规则匹配条件 */
+export type TSourceAnalysisCondition = {
+  /** 条件连接符，如 and / or */
+  condition: string;
+  /** 匹配字段 */
+  field: string;
+  /** 匹配方法，如 eq / contains */
+  method: string;
+  /** 匹配值列表 */
+  value: string[];
+};
+
+/** 源码分析规则 */
+export type TSourceAnalysisRule = {
+  /** 智能体 id */
+  agent_id: string;
+  /** 业务 id */
+  bk_biz_id: number;
+  /** 蓝盾项目 id */
+  bkci_project_id: string;
+  /** 匹配条件列表 */
+  conditions: TSourceAnalysisCondition[];
+  /** 创建时间戳 */
+  created_at: number;
+  /** 创建人 */
+  created_by: string;
+  /** 规则 id */
+  id: number;
+  /** 是否为默认规则 */
+  is_default: boolean;
+  /** 是否启用 */
+  is_enabled: boolean;
+  /** 关联知识库 id 列表 */
+  knowledge_base_ids: string[];
+  /** 优先级 */
+  priority: number;
+  /** 源码仓库别名 */
+  repository_alias: string;
+  /** 关联 skill id 列表 */
+  skill_ids: string[];
+  /** 更新时间戳 */
+  updated_at: number;
+  /** 更新人 */
+  updated_by: string;
+};
