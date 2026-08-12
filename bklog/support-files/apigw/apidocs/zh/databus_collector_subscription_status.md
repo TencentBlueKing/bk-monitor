@@ -20,6 +20,12 @@
 | --- | --- | --- | --- |
 | collector_config_id | int | 是 | 采集项 ID |
 
+### 查询参数
+
+| 字段 | 类型 | 必选 | 描述 |
+| --- | --- | --- | --- |
+| include_plugin_status | bool | 否 | 是否查询插件名称与版本，默认 `true`；仅关心运行状态时可设为 `false` |
+
 ## 调用示例
 
 ```python
@@ -34,7 +40,7 @@ headers = {
         "bk_username": "your name",
     })
 }
-response = requests.get(url, headers=headers)
+response = requests.get(url, headers=headers, params={"include_plugin_status": False})
 print(response.json())
 ```
 

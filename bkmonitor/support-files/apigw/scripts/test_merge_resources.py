@@ -129,13 +129,26 @@ def test_log_collection_status_mcp_contract():
     assert method_data["tags"] == ["log_collection_mcp"]
     schema = method_data["requestBody"]["content"]["application/json"]["schema"]
     assert schema["additionalProperties"] is False
-    assert schema["properties"]["task_ids"]["maxItems"] == 100
-    assert method_data["x-bk-apigateway-resource"]["backend"] == {
+    assert schema["properties"]["collector_config_id"]["minimum"] == 1
+    task_ids_schema = schema["properties"]["task_ids"]
+    assert task_ids_schema["minItems"] == 1
+    assert task_ids_schema["maxItems"] == 100
+    assert task_ids_schema["items"]["oneOf"] == [
+        {"type": "string", "maxLength": 20, "pattern": "^[1-9][0-9]{0,19}$"},
+        {"type": "integer", "minimum": 1, "maximum": 99999999999999999999},
+    ]
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
         "name": "default",
         "method": "post",
         "path": "/api/v4/log_collection_status/get_status/",
         "matchSubpath": False,
         "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
     }
 
 

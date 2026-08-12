@@ -19,7 +19,8 @@
 | 字段 | 位置 | 类型 | 必选 | 描述 |
 | --- | --- | --- | --- | --- |
 | collector_config_id | path | int | 是 | 采集项 ID |
-| task_id_list | query | string | 否 | 任务 ID，多个值用半角逗号分隔；不传时查询最近一次任务 |
+| task_id_list | query | string | 否 | 任务 ID，多个值用半角逗号分隔；只读模式不传时返回未就绪 |
+| read_only | query | bool | 否 | 是否严格只读，默认 `true`；采集项没有订阅或任务 ID 时直接返回未就绪，不触发订阅创建。仅兼容旧调用时可显式传 `false`，该模式可能创建订阅并要求采集管理权限 |
 
 ## 调用示例
 
@@ -35,7 +36,7 @@ headers = {
         "bk_username": "your name",
     })
 }
-response = requests.get(url, headers=headers, params={"task_id_list": "101,102"})
+response = requests.get(url, headers=headers, params={"task_id_list": "101,102", "read_only": True})
 print(response.json())
 ```
 

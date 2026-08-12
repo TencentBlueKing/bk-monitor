@@ -444,6 +444,7 @@ class LogCollectorTaskStatusResource(LogSearchAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
         task_id_list = serializers.CharField(required=False, default="", allow_blank=True, label="任务ID列表")
+        read_only = serializers.BooleanField(required=False, default=True, label="是否仅查询状态")
 
     def get_request_url(self, validated_request_data):
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
@@ -458,6 +459,7 @@ class LogCollectorSubscriptionStatusResource(LogSearchAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        include_plugin_status = serializers.BooleanField(required=False, default=True, label="是否查询插件版本信息")
 
     def get_request_url(self, validated_request_data):
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")

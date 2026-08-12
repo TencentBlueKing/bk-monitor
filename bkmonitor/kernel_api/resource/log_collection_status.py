@@ -1,5 +1,6 @@
 """日志采集任务与订阅状态 MCP 资源。"""
 
+import re
 from collections import Counter
 from typing import Any
 
@@ -9,15 +10,21 @@ from rest_framework.exceptions import PermissionDenied
 from core.drf_resource import Resource, api
 
 MAX_TASK_IDS = 100
+MAX_TASK_ID_LENGTH = 20
 MAX_STATUS_DETAILS = 100
 DEFAULT_STATUS_DETAILS = 20
 POLL_RETRY_AFTER_SECONDS = 5
+MAX_STATUS_MESSAGE_LENGTH = 2000
 TERMINAL_STATUSES = {"success", "partial_failed", "failed", "terminated"}
 
 RUNNING_STATUSES = {"PENDING", "RUNNING", "STARTING", "DEPLOYING", "PREPARING"}
 SUCCESS_STATUSES = {"SUCCESS", "FINISHED"}
 FAILED_STATUSES = {"FAILED", "ERROR"}
 TERMINATED_STATUSES = {"TERMINATED", "STOPPED"}
+SENSITIVE_MESSAGE_PATTERN = re.compile(
+    r"(?i)(password|secret|token|authorization|api[_-]?key|access[_-]?key)"
+    r"([\"']?\s*[:=]\s*[\"']?)([^,\n;}]+)"
+)
 
 
 def normalize_task_ids(value: Any) -> list[str]:
@@ -51,10 +58,17 @@ def normalize_raw_status(value: Any, phase: str) -> str:
     if raw_status in FAILED_STATUSES:
         return "failed"
     if raw_status in TERMINATED_STATUSES:
-        return "terminated" if phase == "subscription" else "failed"
+        return "terminated"
     if "PART" in raw_status and "FAIL" in raw_status:
         return "partial_failed"
     return "unknown"
+
+
+def sanitize_status_message(value: Any) -> tuple[str, bool]:
+    message = SENSITIVE_MESSAGE_PATTERN.sub(r"\1\2******", str(value or ""))
+    if len(message) <= MAX_STATUS_MESSAGE_LENGTH:
+        return message, False
+    return message[:MAX_STATUS_MESSAGE_LENGTH], True
 
 
 def flatten_status_details(payload: Any, phase: str) -> list[dict[str, Any]]:
@@ -69,7 +83,9 @@ def flatten_status_details(payload: Any, phase: str) -> list[dict[str, Any]]:
         for child in content.get("child") or []:
             if not isinstance(child, dict):
                 continue
-            message = child.get("message") or child.get("log") or ""
+            message, message_truncated = sanitize_status_message(
+                child.get("message") or child.get("log") or ""
+            )
             detail = {
                 "phase": phase,
                 "status": normalize_raw_status(child.get("status"), phase),
@@ -80,7 +96,8 @@ def flatten_status_details(payload: Any, phase: str) -> list[dict[str, Any]]:
                 "name": child.get("instance_name") or child.get("name") or "",
                 "ip": child.get("ip") or "",
                 "bk_cloud_id": child.get("bk_cloud_id", child.get("cloud_id")),
-                "message": str(message),
+                "message": message,
+                "message_truncated": message_truncated,
             }
             details.append(detail)
     return details
@@ -99,12 +116,12 @@ def aggregate_status(details: list[dict[str, Any]]) -> str:
     has_success = "success" in statuses
     has_terminated = "terminated" in statuses
     has_unknown = "unknown" in statuses
+    if has_unknown:
+        return "unknown"
     if has_failed and (has_success or has_terminated):
         return "partial_failed"
     if has_failed:
         return "failed"
-    if has_unknown:
-        return "unknown"
     if has_terminated and has_success:
         return "partial_failed"
     if has_terminated:
@@ -116,7 +133,7 @@ def aggregate_status(details: list[dict[str, Any]]) -> str:
 
 def combine_phase_status(task_status: str, subscription_status: str) -> str:
     """任务尚未成功时优先反映本次下发；成功后再用订阅状态确认运行结果。"""
-    if task_status in {"running", "partial_failed", "failed"}:
+    if task_status in {"running", "partial_failed", "failed", "terminated", "unknown"}:
         return task_status
     if subscription_status in {"running", "partial_failed", "failed", "terminated"}:
         return subscription_status
@@ -150,9 +167,9 @@ class GetLogCollectorStatusResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        collector_config_id = serializers.IntegerField(required=True, min_value=1, label="采集项ID")
         task_ids = serializers.ListField(
-            child=serializers.CharField(),
+            child=serializers.CharField(max_length=MAX_TASK_ID_LENGTH),
             required=False,
             allow_empty=False,
             max_length=MAX_TASK_IDS,
@@ -182,24 +199,36 @@ class GetLogCollectorStatusResource(Resource):
             raise serializers.ValidationError(
                 {"task_ids": [f"Ensure this field has no more than {MAX_TASK_IDS} elements."]}
             )
+        if any(not re.fullmatch(r"[1-9]\d{0,19}", task_id) for task_id in task_ids):
+            raise serializers.ValidationError({"task_ids": ["Task IDs must contain only positive integers."]})
 
         if task_ids:
             task_payload = api.log_search.log_collector_task_status(
                 collector_config_id=collector_config_id,
                 task_id_list=",".join(task_ids),
+                read_only=True,
             )
         else:
             task_payload = {"task_ready": False, "contents": []}
-        subscription_payload = api.log_search.log_collector_subscription_status(
-            collector_config_id=collector_config_id
-        )
-
         task_details = flatten_status_details(task_payload, "task")
-        subscription_details = flatten_status_details(subscription_payload, "subscription")
         task_result = build_phase_result(task_details, detail_limit)
+        should_query_subscription = not task_ids or task_result["status"] == "success"
+        subscription_payload = (
+            api.log_search.log_collector_subscription_status(
+                collector_config_id=collector_config_id,
+                include_plugin_status=False,
+            )
+            if should_query_subscription
+            else None
+        )
+        subscription_details = flatten_status_details(subscription_payload, "subscription")
         remaining_detail_limit = max(detail_limit - len(task_result["details"]), 0)
         subscription_result = build_phase_result(subscription_details, remaining_detail_limit)
-        status = combine_phase_status(task_result["status"], subscription_result["status"])
+        status = (
+            combine_phase_status(task_result["status"], subscription_result["status"])
+            if task_ids
+            else subscription_result["status"]
+        )
 
         errors = [
             {
@@ -208,6 +237,7 @@ class GetLogCollectorStatusResource(Resource):
                 "task_id": detail["task_id"],
                 "container_collector_config_id": detail["container_collector_config_id"],
                 "message": detail["message"],
+                "message_truncated": detail["message_truncated"],
             }
             for detail in task_details + subscription_details
             if detail["status"] in {"partial_failed", "failed"} and detail["message"]
@@ -217,7 +247,7 @@ class GetLogCollectorStatusResource(Resource):
             "collector_config_id": collector_config_id,
             "subscription_id": collector.get("subscription_id"),
             "task_ids": task_ids,
-            "environment": collector.get("environment", ""),
+            "environment": str(collector.get("environment") or ""),
             "status": status,
             "is_terminal": status in TERMINAL_STATUSES,
             "retry_after_seconds": 0 if status in TERMINAL_STATUSES else POLL_RETRY_AFTER_SECONDS,

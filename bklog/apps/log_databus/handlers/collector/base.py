@@ -726,7 +726,7 @@ class CollectorHandler:
         return True
 
     @abc.abstractmethod
-    def get_task_status(self, id_list):
+    def get_task_status(self, id_list, read_only=False):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -734,7 +734,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_subscription_status(self):
+    def get_subscription_status(self, include_plugin_status=True):
         raise NotImplementedError
 
     @staticmethod

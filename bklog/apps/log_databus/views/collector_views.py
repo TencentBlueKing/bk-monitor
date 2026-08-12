@@ -76,6 +76,7 @@ from apps.log_databus.serializers import (
     SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
+    SubscriptionStatusSerializer,
     ValidateContainerCollectorYamlSerializer,
     CollectorStopSerializer,
 )
@@ -119,10 +120,13 @@ class CollectorViewSet(ModelViewSet):
             return []
         if self.action in ["create", "only_create", "custom_create"]:
             return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
+        if self.action == "task_status":
+            read_only = str(self.request.query_params.get("read_only", "true")).lower() in {"1", "true", "yes"}
+            action = ActionEnum.VIEW_COLLECTION if read_only else ActionEnum.MANAGE_COLLECTION
+            return [InstanceActionPermission([action], ResourceEnum.COLLECTION)]
         if self.action in [
             "indices_info",
             "retrieve",
-            "task_status",
             "task_detail",
             "subscription_status",
             "get_data_link_list",
@@ -170,6 +174,7 @@ class CollectorViewSet(ModelViewSet):
             "subscription_run": RunSubscriptionSerializer,
             "batch_subscription_status": BatchSubscriptionStatusSerializer,
             "task_status": TaskStatusSerializer,
+            "subscription_status": SubscriptionStatusSerializer,
             "task_detail": TaskDetailSerializer,
             "list": CollectorListSerializer,
             "retry": RetrySerializer,
@@ -883,6 +888,7 @@ class CollectorViewSet(ModelViewSet):
         @apiName collector_task_status
         @apiGroup 10_Collector
         @apiParam {String} task_id_list 最后部署任务的ID，用半角,分隔（重试时获取的task_id）
+        @apiParam {Boolean} [read_only=true] 是否仅查询状态；默认不会隐式创建订阅
         @apiSuccess {Json} contents 订阅内容
         @apiSuccess {String} contents.is_label 是否显示标签
         @apiSuccess {String} contents.label_name 标签内容
@@ -952,7 +958,11 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.validated_data
         task_id_list = [task_id for task_id in data.get("task_id_list", "").split(",") if task_id]
-        return Response(CollectorHandler.get_instance(collector_config_id).get_task_status(task_id_list))
+        return Response(
+            CollectorHandler.get_instance(collector_config_id).get_task_status(
+                task_id_list, read_only=data["read_only"]
+            )
+        )
 
     @detail_route(methods=["GET"], url_path="task_detail")
     def task_detail(self, request, collector_config_id=None):
@@ -1084,7 +1094,11 @@ class CollectorViewSet(ModelViewSet):
             "result":true
         }
         """
-        return Response(CollectorHandler.get_instance(collector_config_id).get_subscription_status())
+        return Response(
+            CollectorHandler.get_instance(collector_config_id).get_subscription_status(
+                include_plugin_status=self.validated_data["include_plugin_status"]
+            )
+        )
 
     @detail_route(methods=["GET"], url_path="tail")
     def tail(self, request, collector_config_id=None):
