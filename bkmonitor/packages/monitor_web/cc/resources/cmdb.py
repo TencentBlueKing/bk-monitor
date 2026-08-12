@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
+from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
@@ -502,6 +503,9 @@ def get_host_performance_data(
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :param fail_on_incomplete: 查询异常或 UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     """
+    if not hosts:
+        return {}
+
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
 
@@ -517,6 +521,22 @@ def get_host_performance_data(
         for host in hosts
     }
 
+    # 与主机图表保持相同的目标维度：IPv4 使用 IP+云区域，IPv6 使用主机 ID。
+    # IPv4 身份不完整时保留全量查询，避免过滤掉只能通过 bk_host_id 回填的兼容数据。
+    target_filter = {}
+    if is_ipv6_biz(bk_biz_id):
+        target_filter = {"targets": [{"bk_host_id": sorted(str(host.bk_host_id) for host in hosts)}]}
+    elif all(host.bk_host_innerip for host in hosts):
+        ips_by_cloud_id = defaultdict(set)
+        for host in hosts:
+            ips_by_cloud_id[str(int(host.bk_cloud_id or 0))].add(host.bk_host_innerip)
+        target_filter = {
+            "targets": [
+                {"bk_target_ip": sorted(ips), "bk_target_cloud_id": cloud_id}
+                for cloud_id, ips in sorted(ips_by_cloud_id.items())
+            ]
+        }
+
     def get_metric_data(metric):
         # 每个线程写入独立的临时 dict，避免多线程并发写同一 data 的竞态
         local = {}
@@ -527,6 +547,7 @@ def get_host_performance_data(
             metrics=[{"field": metric["metric_field"], "method": "MAX", "alias": "A"}],
             table=metric["result_table_id"],
             group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
+            filter_dict=target_filter,
         )
         query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
         if start_time is not None and end_time is not None:
