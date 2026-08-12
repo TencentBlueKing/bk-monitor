@@ -178,11 +178,10 @@ export default defineComponent({
     /** 图表图例默认展示进程名，用户按 PID 分组时追加实例 PID。 */
     const chartCustomOptions: CustomOptions = {
       series: seriesData =>
-        seriesData.map(item => {
-          // @ts-expect-error
-          const dimensions = item.dimensions;
-          return { ...item, alias: formatProcessSeriesAlias(dimensions, item.alias) };
-        }),
+        seriesData.map(item => ({
+          ...item,
+          alias: formatProcessSeriesAlias(item.raw_data.dimensions, item.raw_data.alias ?? item.name),
+        })),
     };
 
     /**
