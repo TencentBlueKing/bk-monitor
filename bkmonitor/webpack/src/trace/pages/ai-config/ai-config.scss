@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .ai-config {
   box-sizing: border-box;
   display: flex;
@@ -24,6 +25,7 @@
 
   .bk-tab-header--active {
     font-weight: 500;
+    background: #fff;
     box-shadow: 0 -1px 1px 0 #1919290a;
   }
 

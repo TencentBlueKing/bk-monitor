@@ -104,6 +104,7 @@ export default defineComponent({
                   <Popover
                     extCls='scheme-detail-popover'
                     placement='right-end'
+                    popoverDelay={[200, 0]}
                     theme='light'
                   >
                     {{

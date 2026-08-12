@@ -78,7 +78,7 @@ export default defineComponent({
 
         <ConfigCard
           description={t('针对不同场景分别配置智能检测方案')}
-          icon='icon-mc-custom-scene'
+          icon='icon-mc-intelligent-detection'
           title={t('场景智能异常检测')}
         >
           {sceneList.value.map(scene => (
