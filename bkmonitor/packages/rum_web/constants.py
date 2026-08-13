@@ -8,7 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import cached_property
+
 from django.utils.translation import gettext_lazy as _
+
+from constants.apm import CachedEnum
 
 
 # 告警级别常量
@@ -136,5 +140,31 @@ RUM_APPLICATION_DEFAULT_METRIC = {
 # RUM 应用列表页, 应用相关指标 key -> BKMONITOR_{PLATFORM}_{ENVIRONMENT}_RUM_APPLICATION_METRIC_{bk_biz_id}_{application_id}
 RUM_APPLICATION_METRIC = "BKMONITOR_{}_{}_RUM_APPLICATION_METRIC_{}_{}"
 
+
+class RumQueryMode(CachedEnum):
+    """RUM 查询层级模式"""
+
+    SPAN = "span"
+    VIEW = "view"
+    SESSION = "session"
+
+    @cached_property
+    def label(self) -> str:
+        return self.value
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+# RUM 检索页分组
+RUM_SEARCH_PAGE_GROUPS = {
+    "span": [{"name": "OT 标识"}, {"name": "Span 核心"}, {"name": "关联上下文"}],
+    "view": [],
+    "session": [],
+}
+
+# RUM 字段和分组的映射
+RUM_LEVEL_FIELD_GROUP_MAP = {"span": {"trace_id": _("OT 标识")}, "view": {}, "session": {}}
 # RUM 字段别名
 RUM_FIELD_ALIAS = {}

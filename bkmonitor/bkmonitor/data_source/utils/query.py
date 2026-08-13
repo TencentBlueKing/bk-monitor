@@ -382,7 +382,16 @@ class BaseQuery:
         :param targets: 结果表 ID 与空间 UID 的元组列表
         :param start_time: 开始时间戳（秒级）
         :param end_time: 结束时间戳（秒级）
-        :return: 字段名到字段详情字典的映射
+        :return: 字段名到字段详情字典的映射，每项包含以下键：
+            - alias_name: 字段别名，无别名时与 field_name 相同
+            - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_type: ES 字段类型，如 keyword、text、long 等；多表类型冲突时为 "conflict"
+            - origin_field: 原始顶层字段名，嵌套字段时为顶层字段（如 attributes.http.url 对应 attributes）
+            - is_agg: 是否支持聚合、分组、排序
+            - is_analyzed: 是否经过文本分析器分词
+            - is_case_sensitive: 是否区分大小写
+            - supported_operations: 该字段类型支持的操作符列表
+            - is_searchable: 是否可搜索（object/nested 类型为 False）
         """
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
             (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
@@ -422,16 +431,7 @@ class BaseQuery:
         :param table_id: 结果表 ID
         :param start_time: 开始时间戳（秒级）
         :param end_time: 结束时间戳（秒级）
-        :return: 字段信息列表，每项为包含以下键的字典：
-            - alias_name: 字段别名，为空表示未配置别名
-            - field_name: 实际字段名，用于查询、过滤、聚合
-            - field_type: ES 字段类型，如 keyword（不分词字符串）、text（分词字符串）等
-            - origin_field: 原始顶层字段名，主要用于嵌套字段（如 attributes.http.url 的原始字段为
-              attributes）；普通字段与 field_name 相同
-            - is_agg: 是否支持聚合、分组、排序
-            - is_analyzed: 是否经过文本分析器分词，keyword 通常为 False，text 通常为 True
-            - is_case_sensitive: 是否区分大小写，True 表示 AppA 与 appa 视为不同值
-            - tokenize_on_chars: 分词使用的分隔字符列表，主要对 text 类型生效，keyword 通常为空
+        :return: 字段信息列表，每项为包含以下键的字典
         """
         return api.unify_query.query_info_field_map(
             {
