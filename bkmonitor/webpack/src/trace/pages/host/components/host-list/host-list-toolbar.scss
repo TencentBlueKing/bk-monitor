@@ -36,3 +36,12 @@
     }
   }
 }
+/* 复制 IP 下拉菜单：选项 hover 样式 */
+.host-list-toolbar__buttons_dropdown {
+  .host-list-toolbar__copy-item {
+    &:hover {
+      background-color: #f0f1f5;
+      color: #3a84ff;
+    }
+  }
+}

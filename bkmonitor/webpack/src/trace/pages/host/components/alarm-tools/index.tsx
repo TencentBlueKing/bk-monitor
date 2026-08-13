@@ -26,13 +26,17 @@
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { getStrategyAndEventCountApi } from '../../services/global-service';
+import { useHostStore } from '@/store/modules/host';
 
 import type { IHostTopoTreeNode } from '../../types/topo';
 
 import './index.scss';
+
+type CountStatus = 'error' | 'idle' | 'loading' | 'success';
 
 export default defineComponent({
   name: 'AlarmTools',
@@ -45,27 +49,49 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const { refreshGeneration } = storeToRefs(useHostStore());
     /** 告警数 */
-    const alarmNum = shallowRef(0);
+    const alarmNum = shallowRef<null | number>(0);
     /** 策略数 */
-    const strategyNum = shallowRef(0);
+    const strategyNum = shallowRef<null | number>(0);
+    /** 告警、策略数量请求状态 */
+    const countStatus = shallowRef<CountStatus>('idle');
+    /** 仅允许最新节点 / 刷新代次对应的请求提交状态 */
+    let latestRequestId = 0;
 
     /** 获取告警、策略数量 */
-    const fetchCount = async () => {
-      const result = await getStrategyAndEventCountApi({
-        scene_id: 'host',
-        target: props.selectedNode
-          ? {
-              ...props.selectedNode,
-            }
-          : undefined,
-      });
-      alarmNum.value = result.event_counts ?? 0;
-      strategyNum.value = result.strategy_counts ?? 0;
+    const fetchCount = async (node: IHostTopoTreeNode, requestId: number) => {
+      countStatus.value = 'loading';
+      alarmNum.value = null;
+      strategyNum.value = null;
+      try {
+        const result = await getStrategyAndEventCountApi({
+          scene_id: 'host',
+          target: { ...node },
+        });
+        if (requestId !== latestRequestId) return;
+        alarmNum.value = result.event_counts ?? 0;
+        strategyNum.value = result.strategy_counts ?? 0;
+        countStatus.value = 'success';
+      } catch {
+        if (requestId !== latestRequestId) return;
+        countStatus.value = 'error';
+      }
+    };
+
+    /** 失败后重试当前节点 */
+    const handleRetry = () => {
+      if (countStatus.value !== 'error' || !props.selectedNode) return;
+      fetchCount(props.selectedNode, ++latestRequestId);
     };
 
     /** 跳转策略列表 */
     const handleToStrategy = () => {
+      if (countStatus.value === 'error') {
+        handleRetry();
+        return;
+      }
+      if (countStatus.value === 'loading') return;
       const query = `filters=${encodeURIComponent(
         JSON.stringify([
           {
@@ -83,6 +109,11 @@ export default defineComponent({
 
     /** 跳转告警中心 */
     const handleToAlarmCenter = () => {
+      if (countStatus.value === 'error') {
+        handleRetry();
+        return;
+      }
+      if (countStatus.value === 'loading') return;
       if (!alarmNum.value) return;
       const query = `quickFilterValue=${encodeURIComponent(
         JSON.stringify([
@@ -100,10 +131,15 @@ export default defineComponent({
     };
 
     watch(
-      () => props.selectedNode,
-      val => {
-        if (val) {
-          fetchCount();
+      [() => props.selectedNode, refreshGeneration],
+      ([node]) => {
+        const requestId = ++latestRequestId;
+        if (node) {
+          fetchCount(node, requestId);
+        } else {
+          alarmNum.value = 0;
+          strategyNum.value = 0;
+          countStatus.value = 'idle';
         }
       },
       { immediate: true }
@@ -113,16 +149,33 @@ export default defineComponent({
       <div class='alarm-tools'>
         <span
           class='alarm-tools-strategy'
-          v-bk-tooltips={{ content: t('策略'), delay: 200, boundary: 'window', placement: 'bottom' }}
+          v-bk-tooltips={{
+            content:
+              countStatus.value === 'error'
+                ? `${t('加载失败')}，${t('点击重试')}`
+                : countStatus.value === 'loading'
+                  ? t('加载中...')
+                  : t('策略'),
+            delay: 200,
+            boundary: 'window',
+            placement: 'bottom',
+          }}
           onClick={handleToStrategy}
         >
           <i class='icon-monitor icon-mc-strategy tool-icon' />
-          {strategyNum.value}
+          {strategyNum.value ?? '--'}
         </span>
         <span
-          class={['alarm-tools-alarm', { 'is-disabled': !alarmNum.value }]}
+          class={['alarm-tools-alarm', { 'is-disabled': countStatus.value !== 'error' && !alarmNum.value }]}
           v-bk-tooltips={{
-            content: alarmNum.value < 1 ? t('无告警事件') : t('当前有{0}个告警事件', [alarmNum.value]),
+            content:
+              countStatus.value === 'error'
+                ? `${t('加载失败')}，${t('点击重试')}`
+                : countStatus.value === 'loading'
+                  ? t('加载中...')
+                  : alarmNum.value < 1
+                    ? t('无告警事件')
+                    : t('当前有{0}个告警事件', [alarmNum.value]),
             delay: 200,
             boundary: 'window',
             placement: 'bottom',
@@ -131,7 +184,7 @@ export default defineComponent({
           onClick={handleToAlarmCenter}
         >
           <i class='icon-monitor icon-mc-chart-alert tool-icon' />
-          {alarmNum.value}
+          {alarmNum.value ?? '--'}
         </span>
       </div>
     );

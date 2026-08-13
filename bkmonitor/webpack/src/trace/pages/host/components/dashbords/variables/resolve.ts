@@ -45,13 +45,16 @@ const isEmpty = (val: unknown) => val === '' || val === null || val === undefine
  * 对比相关变量仅在对应对比模式下生效，否则置空。
  */
 export function buildScopedVars(state: MetricAggregationState, currentTarget?: CompareTarget | null): ScopedVarMap {
+  /** 是否存在目标对比 */
+  const hasTarget = state.compareType === 'target' && state.compareTargets.length > 0;
+  const targetGroupBy = hasTarget ? Object.keys(state.compareTargets?.[0] || {}).map(key => key) : [];
+  const groupBy = [...new Set([...targetGroupBy])];
   return {
     // 目标维度字段全量展开为顶层变量（对齐旧版 variables = { ...filters }），供 $bk_host_id 等占位符取值
     ...currentTarget,
     interval: state.interval,
     method: state.method,
-    group_by: [],
-    time_shift: state.compareType === 'time' ? state.timeShift : [],
+    group_by: groupBy,
     current_target: currentTarget,
     compare_targets: state.compareType === 'target' ? state.compareTargets : [],
   };
@@ -82,6 +85,11 @@ export function resolveGraphPanel(
     targets,
     dashboardId,
   });
+}
+
+export function resolveVariables(value: unknown, scopedVars: ScopedVarMap) {
+  const srvScopedVars = toSrvScopedVars(scopedVars);
+  return resolveValue(value, scopedVars, srvScopedVars);
 }
 
 /**

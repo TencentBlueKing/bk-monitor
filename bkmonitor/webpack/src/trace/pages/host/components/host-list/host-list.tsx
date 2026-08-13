@@ -29,6 +29,7 @@ import { type PropType, computed, defineComponent, toRef } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useHostStore } from 'trace/store/modules/host';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { useHostList } from '../../composables/use-host-list';
 import HostListFilter from './host-list-filter';
@@ -49,6 +50,10 @@ export default defineComponent({
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
     },
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     selectIpCell: (_row: IHostListRow) => true,
@@ -57,6 +62,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { where, filterExpanded, activeCategory, keyword } = storeToRefs(useHostStore());
     const ctx = useHostList({
+      readonly: props.readonly,
       selectedNode: toRef(props, 'selectedNode'),
       where,
       filterExpanded,
@@ -102,7 +108,7 @@ export default defineComponent({
         </div>
         {/* 真实内容：通过 display 控制显隐，避免条件渲染导致重建 */}
         <div
-          style={{ display: ctx.loading.value ? 'none' : '' }}
+          style={{ display: ctx.loading.value || ctx.loadError.value ? 'none' : '' }}
           class='host-list-content'
         >
           <HostStatCards
@@ -139,9 +145,11 @@ export default defineComponent({
             data={ctx.pagedRows.value}
             emptyType={ctx.rawRowCount.value > 0 && ctx.total.value === 0 ? 'search-empty' : 'empty'}
             markValue={ctx.stickyValue.value}
+            metricLoadError={ctx.metricLoadError.value}
             metricLoading={ctx.metricLoading.value}
             page={ctx.page.value}
             pageSize={ctx.pageSize.value}
+            readonly={props.readonly}
             selectedRowKeys={ctx.selectedRowKeys.value}
             selectType={ctx.selectType.value}
             sort={ctx.sortInfo.value}
@@ -154,11 +162,19 @@ export default defineComponent({
             onPageChange={ctx.handlePageChange}
             onPageSizeChange={ctx.handlePageSizeChange}
             onProcessClick={(...args) => emit('processClick', ...args)}
+            onRetryMetric={ctx.loadMetricData}
             onRowCheck={ctx.handleRowCheck}
             onSelectIpCell={handleSelectIpCell}
             onSortChange={ctx.handleSortChange}
           />
         </div>
+        {!ctx.loading.value && ctx.loadError.value && (
+          <EmptyStatus
+            class='host-list-error'
+            type='500'
+            onOperation={ctx.loadData}
+          />
+        )}
       </div>
     );
   },

@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
+from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
@@ -35,10 +36,36 @@ def topo_tree(bk_biz_id):
     return to_dict(result)
 
 
+def _build_host_target_filter(bk_biz_id: int, hosts: list[Host]) -> dict:
+    """按主机身份构造 UQ 目标过滤条件。"""
+    if not hosts:
+        return {}
+    if is_ipv6_biz(bk_biz_id):
+        return {"targets": [{"bk_host_id": sorted(str(host.bk_host_id) for host in hosts)}]}
+    if not all(host.bk_host_innerip for host in hosts):
+        return {}
+
+    ips_by_cloud_id = defaultdict(set)
+    for host in hosts:
+        ips_by_cloud_id[str(int(host.bk_cloud_id or 0))].add(host.bk_host_innerip)
+    return {
+        "targets": [
+            {"bk_target_ip": sorted(ips), "bk_target_cloud_id": cloud_id}
+            for cloud_id, ips in sorted(ips_by_cloud_id.items())
+        ]
+    }
+
+
 # 主机相关的信息及数据需要支持IPv6及DHCP
 # 如果相关信息的获取需要保证兼容性，那么使用Host对象作为参数，否则直接使用特定字段作为参数
 # 如果相关信息的获取需要保证兼容性，那么使用bk_host_id作为返回值，否则直接使用特定字段作为返回值
-def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None) -> dict[int, int]:
+def get_agent_status(
+    bk_biz_id: int,
+    hosts: list[Host],
+    start_time: int = None,
+    end_time: int = None,
+    fail_on_incomplete: bool = False,
+) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
     :param bk_biz_id: 业务ID
@@ -46,8 +73,12 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时，仅以该时间段内
                       是否有数据上报来判定 Agent 状态，跳过 node_man 实时查询（历史场景无意义）。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :return {bk_host_id: AGENT_STATUS}
     """
+    if not hosts:
+        return {}
+
     status: dict[int, int] = {}
     now = int(time.time())
     # 前端默认时间范围为 now-7d ~ now，始终传递 start_time/end_time；
@@ -64,6 +95,7 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if is_historical:
@@ -74,6 +106,8 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     query_start = query_end - 180000
     # 使用 instant 查询取窗口聚合的单点，避免拉回区间序列
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+    if fail_on_incomplete and query.is_partial:
+        raise RuntimeError("unify query returned partial data for agent status")
 
     # 统计已经存在数据的主机并设置状态为正常
     ip_to_host_id: dict[tuple, int] = {
@@ -167,6 +201,7 @@ def get_process_info(
     limit_port_num: int = None,
     start_time: int = None,
     end_time: int = None,
+    fail_on_incomplete: bool = False,
 ) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
@@ -175,6 +210,7 @@ def get_process_info(
     :param limit_port_num: 限制端口数量
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选），用于限定进程存活状态的判定窗口
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -206,7 +242,9 @@ def get_process_info(
     result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
 
     # 查询进程状态数据
-    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts, start_time, end_time)
+    statuses: dict[int, dict[str, int]] = get_process_status(
+        bk_biz_id, hosts, start_time, end_time, fail_on_incomplete=fail_on_incomplete
+    )
 
     bk_host_ids = {host.bk_host_id for host in hosts}
     for pp in result:
@@ -247,6 +285,7 @@ def get_process_status(
     hosts: list[Host],
     start_time: int = None,
     end_time: int = None,
+    fail_on_incomplete: bool = False,
 ) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
@@ -255,6 +294,7 @@ def get_process_status(
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     """
     result = defaultdict(dict)
     for bk_host_id, display_name, value in _query_proc_metrics(
@@ -265,6 +305,7 @@ def get_process_status(
         "AVG",
         start_time,
         end_time,
+        fail_on_incomplete=fail_on_incomplete,
     ):
         result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
@@ -278,6 +319,7 @@ def _query_proc_metrics(
     method: str,
     start_time: int = None,
     end_time: int = None,
+    fail_on_incomplete: bool = False,
 ):
     """
     查询 system.proc / system.proc_port 指标的公共生成器。
@@ -289,9 +331,10 @@ def _query_proc_metrics(
     :param hosts: 主机列表
     :param table: TSDB 表名（system.proc / system.proc_port）
     :param field: 指标字段名
-    :param method: 聚合方式（SUM / MAX / COUNT / MIN 等）
+    :param method: 聚合方式（sum_without_time / count_without_time / MAX / MIN 等）
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
     """
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
@@ -304,6 +347,7 @@ def _query_proc_metrics(
         metrics=[{"field": field, "method": method, "alias": "A"}],
         table=table,
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if start_time is not None and end_time is not None:
@@ -313,6 +357,8 @@ def _query_proc_metrics(
     # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
     query_start = query_end - 180000
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+    if fail_on_incomplete and query.is_partial:
+        raise RuntimeError(f"unify query returned partial data for {table}.{field}")
     for record in records:
         if record.get("_result_") is None:
             continue
@@ -333,7 +379,7 @@ def get_process_runtime_metrics(
     查询进程运行时指标 (system.proc)
 
     返回各进程指标字段的运行时数据：
-    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num, fd_limit_soft
+    - 指标字段（查询时点跨实例 SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num, fd_limit_soft
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
@@ -350,13 +396,13 @@ def get_process_runtime_metrics(
             }
     """
     try:
-        # system.proc 指标字段（SUM 聚合）
+        # system.proc 指标字段（查询时点跨 PID series 聚合，不做 180 秒窗口累计）
         # - cpu_usage_pct:  进程 CPU 使用率（%）
         # - mem_res:        进程使用的物理内存（字节）
         # - mem_usage_pct:  进程内存使用率（%）
         # - fd_num:         进程文件句柄数
-        # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时 SUM 为总限制额度
-        # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处 SUM
+        # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时求和为总限制额度
+        # 注意：uptime 已拆分至 get_process_uptime（MIN / MAX 聚合），不在此处求和
         METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"]
 
         result = defaultdict(lambda: defaultdict(dict))
@@ -365,7 +411,7 @@ def get_process_runtime_metrics(
             # 每个线程写入独立的临时 dict，避免多线程并发写同一 defaultdict 的竞态
             _local = defaultdict(lambda: defaultdict(dict))
             for bk_host_id, display_name, value in _query_proc_metrics(
-                bk_biz_id, hosts, "system.proc", field, "SUM", start_time, end_time
+                bk_biz_id, hosts, "system.proc", field, "sum_without_time", start_time, end_time
             ):
                 _local[bk_host_id][display_name][field] = value
             return _local
@@ -396,26 +442,50 @@ def get_process_runtime_metrics(
 
 def get_process_uptime(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
-) -> dict[int, dict[str, float]]:
+) -> dict[int, dict[str, dict[str, float]]]:
     """
-    查询进程运行时长（system.proc uptime，MAX 聚合）
+    查询进程运行时长范围（system.proc uptime，查询时点 MIN / MAX 聚合）
 
-    uptime 为时长不可加（多实例求和无意义），使用 MAX 取窗口内最长运行实例的运行时长。
-    instant=True 即时计算，直接返回最新时刻的聚合值。
+    uptime 为时长不可加（多实例求和无意义），分别取同名进程实例的最短、最长运行时长。
+    instant=True 即时计算，且使用 without_time 聚合，避免混入查询窗口内的历史值。
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
-    :return: {bk_host_id: {display_name: uptime(秒)}}
+    :return: {bk_host_id: {display_name: {min: uptime(秒), max: uptime(秒)}}}
         无对应数据时该 bk_host_id 不下发（返回空 dict 兜底）。
     """
     try:
-        result = defaultdict(dict)
-        for bk_host_id, display_name, value in _query_proc_metrics(
-            bk_biz_id, hosts, "system.proc", "uptime", "MAX", start_time, end_time
-        ):
-            result[bk_host_id][display_name] = value
+        result = defaultdict(lambda: defaultdict(dict))
+        if start_time is None or end_time is None:
+            end_time = int(time.time())
+            start_time = end_time - 180
+
+        def get_boundary_data(boundary: str, method: str):
+            boundary_result = defaultdict(lambda: defaultdict(dict))
+            for bk_host_id, display_name, value in _query_proc_metrics(
+                bk_biz_id, hosts, "system.proc", "uptime", method, start_time, end_time
+            ):
+                boundary_result[bk_host_id][display_name][boundary] = value
+            return boundary_result
+
+        pool = ThreadPool()
+        futures = {
+            boundary: pool.apply_async(get_boundary_data, args=(boundary, method))
+            for boundary, method in (("min", "min_without_time"), ("max", "max_without_time"))
+        }
+        pool.close()
+        for boundary, future in futures.items():
+            try:
+                boundary_data = future.get()
+            except Exception as e:
+                logger.warning("get_process_uptime %s failed, skip: %s", boundary, e)
+                continue
+            for host_id, process_map in boundary_data.items():
+                for process_name, uptime in process_map.items():
+                    result[host_id][process_name].update(uptime)
+        pool.join()
         return result
     except Exception as e:
         # TSDB 查询异常兜底，uptime 缺失不影响其他运行时指标
@@ -427,7 +497,7 @@ def get_process_instance_count(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
 ) -> dict[int, dict[str, int]]:
     """
-    查询进程真实运行实例数（COUNT 聚合统计同一进程名的运行实例数）
+    查询进程真实运行实例数（查询时点 COUNT 聚合统计同一进程名的运行实例数）
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
@@ -446,7 +516,7 @@ def get_process_instance_count(
     try:
         result = defaultdict(dict)
         for bk_host_id, display_name, value in _query_proc_metrics(
-            bk_biz_id, hosts, "system.proc", "cpu_usage_pct", "COUNT", start_time, end_time
+            bk_biz_id, hosts, "system.proc", "cpu_usage_pct", "count_without_time", start_time, end_time
         ):
             # 一条有数据的 pid series 即代表一个运行实例
             result[bk_host_id][display_name] = value
@@ -487,7 +557,11 @@ def get_process_port_health(
 
 
 def get_host_performance_data(
-    bk_biz_id: int, hosts: list[Host] | None = None, start_time: int = None, end_time: int = None
+    bk_biz_id: int,
+    hosts: list[Host] | None = None,
+    start_time: int = None,
+    end_time: int = None,
+    fail_on_incomplete: bool = False,
 ) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
@@ -496,7 +570,11 @@ def get_host_performance_data(
     :param hosts: 主机列表 {"ip": "127.0.0.1", "bk_cloud_id": 0}
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
+    :param fail_on_incomplete: 查询异常或 UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     """
+    if not hosts:
+        return {}
+
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
 
@@ -512,6 +590,10 @@ def get_host_performance_data(
         for host in hosts
     }
 
+    # 与主机图表保持相同的目标维度：IPv4 使用 IP+云区域，IPv6 使用主机 ID。
+    # IPv4 身份不完整时保留全量查询，避免过滤掉只能通过 bk_host_id 回填的兼容数据。
+    target_filter = _build_host_target_filter(bk_biz_id, hosts)
+
     def get_metric_data(metric):
         # 每个线程写入独立的临时 dict，避免多线程并发写同一 data 的竞态
         local = {}
@@ -522,6 +604,7 @@ def get_host_performance_data(
             metrics=[{"field": metric["metric_field"], "method": "MAX", "alias": "A"}],
             table=metric["result_table_id"],
             group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
+            filter_dict=target_filter,
         )
         query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
         if start_time is not None and end_time is not None:
@@ -531,6 +614,8 @@ def get_host_performance_data(
         # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
         query_start = query_end - 180000
         records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+        if fail_on_incomplete and query.is_partial:
+            raise RuntimeError(f"unify query returned partial data for metric {metric['field']}")
         for record in records:
             if record["_result_"] is None:
                 continue
@@ -555,22 +640,27 @@ def get_host_performance_data(
         {"field": "psc_mem_usage", "result_table_id": "system.mem", "metric_field": "psc_pct_used"},
     ]
 
-    # 根据请求总数并发请求，单指标失败仅丢弃该指标（不影响其余指标）。
+    # 根据请求总数并发请求。默认保持单指标失败仅丢弃该指标的历史行为；
+    # fail_on_incomplete=True 时将查询异常或 UQ 部分结果上抛给调用方。
     # apply_async 的异常仅在 AsyncResult.get() 时抛出，故逐指标 try/except 捕获，
     # 避免旧实现只 pool.join() 静默吞掉线程异常、返回不完整性能数据的问题。
     # 合并在主线程顺序执行，规避多线程写共享 data 的竞态。
     pool = ThreadPool()
     futures = [pool.apply_async(get_metric_data, args=(m,)) for m in metrics]
     pool.close()
-    for metric, future in zip(metrics, futures):
-        try:
-            metric_data = future.get()
-        except Exception as e:
-            logger.warning("get_host_performance_data metric %s failed, skip: %s", metric["field"], e)
-            continue
-        for host_id, value in metric_data.items():
-            data[host_id][metric["field"]] = value
-    pool.join()
+    try:
+        for metric, future in zip(metrics, futures):
+            try:
+                metric_data = future.get()
+            except Exception as e:
+                if fail_on_incomplete:
+                    raise
+                logger.warning("get_host_performance_data metric %s failed, skip: %s", metric["field"], e)
+                continue
+            for host_id, value in metric_data.items():
+                data[host_id][metric["field"]] = value
+    finally:
+        pool.join()
 
     return data
 

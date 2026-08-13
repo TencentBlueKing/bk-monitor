@@ -65,8 +65,9 @@ def _get_proxy_cluster_or_raise(params: dict[str, Any]) -> tuple[str, str, model
     return bk_tenant_id, fed_cluster_id, cluster
 
 
-def _get_active_topology_or_raise(fed_cluster_id: str):
+def _get_active_topology_or_raise(bk_tenant_id: str, fed_cluster_id: str):
     queryset = models.BcsFederalClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
         fed_cluster_id=fed_cluster_id,
         is_deleted=False,
     )
@@ -85,7 +86,7 @@ def _normalize_namespaces(value: Any) -> list[str]:
     FUNC_BCS_FEDERAL_CLUSTER_LIST,
     summary="Admin 查询 BCS 联邦集群列表",
     description=(
-        "从有效 BcsFederalClusterInfo 提取联邦代理集群 ID，再通过 BCSClusterInfo 完成租户过滤；不加载 Namespace 明细。"
+        "按租户从有效 BcsFederalClusterInfo 提取联邦代理集群 ID，再关联 BCSClusterInfo；不加载 Namespace 明细。"
     ),
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
@@ -102,6 +103,8 @@ def list_bcs_federal_clusters(params: dict[str, Any]) -> dict[str, Any]:
     page, page_size = normalize_pagination(params)
 
     topology_queryset = models.BcsFederalClusterInfo.objects.filter(is_deleted=False)
+    if bk_tenant_id:
+        topology_queryset = topology_queryset.filter(bk_tenant_id=bk_tenant_id)
     fed_cluster_id = str(params.get("fed_cluster_id") or "").strip()
     host_cluster_id = str(params.get("host_cluster_id") or "").strip()
     sub_cluster_id = str(params.get("sub_cluster_id") or "").strip()
@@ -120,13 +123,15 @@ def list_bcs_federal_clusters(params: dict[str, Any]) -> dict[str, Any]:
     clusters, total = paginate_queryset(cluster_queryset, page=page, page_size=page_size)
 
     page_fed_cluster_ids = [cluster.cluster_id for cluster in clusters]
+    page_tenant_ids = [cluster.bk_tenant_id for cluster in clusters]
     topology_summaries = {
-        item["fed_cluster_id"]: item
+        (item["bk_tenant_id"], item["fed_cluster_id"]): item
         for item in models.BcsFederalClusterInfo.objects.filter(
             is_deleted=False,
+            bk_tenant_id__in=page_tenant_ids,
             fed_cluster_id__in=page_fed_cluster_ids,
         )
-        .values("fed_cluster_id")
+        .values("bk_tenant_id", "fed_cluster_id")
         .annotate(
             host_cluster_id=Max("host_cluster_id"),
             sub_cluster_count=Count("sub_cluster_id", distinct=True),
@@ -136,7 +141,7 @@ def list_bcs_federal_clusters(params: dict[str, Any]) -> dict[str, Any]:
 
     items = []
     for cluster in clusters:
-        topology = topology_summaries.get(cluster.cluster_id, {})
+        topology = topology_summaries.get((cluster.bk_tenant_id, cluster.cluster_id), {})
         items.append(
             {
                 "bk_tenant_id": cluster.bk_tenant_id,
@@ -169,7 +174,7 @@ def list_bcs_federal_clusters(params: dict[str, Any]) -> dict[str, Any]:
 )
 def get_bcs_federal_cluster_detail(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id, fed_cluster_id, proxy_cluster = _get_proxy_cluster_or_raise(params)
-    topology_queryset = _get_active_topology_or_raise(fed_cluster_id)
+    topology_queryset = _get_active_topology_or_raise(bk_tenant_id, fed_cluster_id)
     aggregate = topology_queryset.aggregate(
         host_cluster_id=Max("host_cluster_id"),
         sub_cluster_count=Count("sub_cluster_id", distinct=True),
@@ -226,7 +231,7 @@ def get_bcs_federal_cluster_detail(params: dict[str, Any]) -> dict[str, Any]:
 def list_bcs_federal_sub_clusters(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id, fed_cluster_id, _ = _get_proxy_cluster_or_raise(params)
     page, page_size = normalize_pagination(params)
-    queryset = _get_active_topology_or_raise(fed_cluster_id)
+    queryset = _get_active_topology_or_raise(bk_tenant_id, fed_cluster_id)
     sub_cluster_id = str(params.get("sub_cluster_id") or "").strip()
     if sub_cluster_id:
         queryset = queryset.filter(sub_cluster_id__icontains=sub_cluster_id)
@@ -290,7 +295,7 @@ def list_bcs_federal_sub_cluster_namespaces(params: dict[str, Any]) -> dict[str,
     sub_cluster_id = _require_string(params, "sub_cluster_id")
     page, page_size = normalize_pagination(params)
     topology = (
-        _get_active_topology_or_raise(fed_cluster_id)
+        _get_active_topology_or_raise(bk_tenant_id, fed_cluster_id)
         .filter(sub_cluster_id=sub_cluster_id)
         .only("fed_namespaces")
         .first()

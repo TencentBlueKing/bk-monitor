@@ -254,22 +254,41 @@ export default class UseJsonFormatter {
   }
 
   /**
+   * KEY 命中时解析后的键名会带 <mark>（高亮保留在字符串里），
+   * 纯文本字段路径直接取值会落空，需要去标记后再匹配一次。
+   */
+  private readObjectKey(target: any, key: string) {
+    if (target === null || target === undefined || typeof target !== 'object') return undefined;
+    if (Object.prototype.hasOwnProperty.call(target, key)) return target[key];
+
+    for (const objectKey of Object.keys(target)) {
+      if (objectKey.includes('<mark') && stripMark(objectKey) === key) {
+        return target[objectKey];
+      }
+    }
+
+    return undefined;
+  }
+
+  private getPathValue(value: any, path: string) {
+    if (value === null || value === undefined || !path) return undefined;
+    if (typeof value !== 'object') return undefined;
+
+    const direct = this.readObjectKey(value, path);
+    if (direct !== undefined) return direct;
+
+    return path.split('.').reduce((current, part) => {
+      if (current === null || current === undefined) return undefined;
+      return this.readObjectKey(current, part);
+    }, value);
+  }
+
+  /**
    * JSON 展示树中的 value 可能来自 Object 的叶子节点，而 formatter 的根字段是
    * __ext 这样的虚拟 object。点击分词时不能再用根字段兜底，否则会把条件生成为
    * __ext 包含 token。这里仅给「JSON/Object 叶子」计算真实字段和操作符，普通字段
    * 继续沿用原有逻辑，避免影响划词和非 JSON 场景。
    */
-  private getPathValue(value: any, path: string) {
-    if (value === null || value === undefined || !path) return undefined;
-    if (typeof value !== 'object') return undefined;
-    if (Object.prototype.hasOwnProperty.call(value, path)) return value[path];
-
-    return path.split('.').reduce((current, part) => {
-      if (current === null || current === undefined) return undefined;
-      return Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined;
-    }, value);
-  }
-
   private getObjectLeafValueFromContext(ctx: SegmentClickContext, fieldName: string, fallback: any) {
     const rootName = ctx.rootFieldName;
     const relativePath = rootName && fieldName.startsWith(`${rootName}.`)
@@ -883,11 +902,25 @@ export default class UseJsonFormatter {
   }
 
   /**
+   * 完整原文按需求值：大字段拼接成本高，JSON 树链路完全不需要它，
+   * 只有真正要做 KEY/VALUE 字段归属解析时才展开。
+   */
+  private getSegmentResolveText(fallback?: string) {
+    const source = this.config.options?.segmentResolveText;
+    if (source === undefined || source === null) {
+      return String(fallback ?? '');
+    }
+
+    const text = typeof source === 'function' ? source() : source;
+    return String(text ?? fallback ?? '');
+  }
+
+  /**
    * 解析 JSON KEY/VALUE 区间：优先用完整原文（segmentResolveText），
    * 截断展示串仅用于 DOM 分词偏移对齐（其为完整原文前缀）。
    */
   private resolveJsonSegmentRanges(displayText: string, rootFieldName: string) {
-    const resolveText = String(this.config.options?.segmentResolveText ?? '').replace(/<\/?mark>/gim, '');
+    const resolveText = this.getSegmentResolveText().replace(/<\/?mark>/gim, '');
     const candidates = [resolveText, displayText].filter((item, index, list) => {
       if (!item || !/^\s*[\[{]/.test(item)) return false;
       return list.indexOf(item) === index;
@@ -939,10 +972,9 @@ export default class UseJsonFormatter {
       // 未执行 JSON 解析时，setNodeValueWordSplit 仍按原始整段文本渲染。
       // 仅给可定位到的 JSON KEY/VALUE token 增加分词专用字段路径，
       // data-search-field-name 继续保留根字段，确保划词逻辑不变。
-      const resolveText = String(this.config.options?.segmentResolveText ?? text ?? '')
-        .replace(/<\/?mark>/gim, '');
-      const lookLikeJson = text && /^\s*[\[{]/.test(text)
-        || !!resolveText && /^\s*[\[{]/.test(resolveText);
+      const looksLikeJson = (value?: string) => !!value && /^\s*[\[{]/.test(value);
+      const lookLikeJson = looksLikeJson(text)
+        || looksLikeJson(this.getSegmentResolveText(text).replace(/<\/?mark>/gim, ''));
       if (text && fieldName && lookLikeJson) {
         const valueElement = root.querySelector('.field-value') as HTMLElement;
         if (valueElement) {
@@ -1238,6 +1270,10 @@ export default class UseJsonFormatter {
       stop(e);
       RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       const nextExpanded = rootNode.getAttribute('data-leaf-expanded') !== '1';
+      // 收起后清零滚动，避免 overflow 容器仍保留旧 scrollTop 导致「更多」错位
+      if (!nextExpanded) {
+        rootNode.scrollTop = 0;
+      }
       rootNode.setAttribute('data-leaf-expanded', nextExpanded ? '1' : '0');
       this.renderLeafSegment(fullText, rootNode, nextExpanded);
     });
@@ -1250,6 +1286,17 @@ export default class UseJsonFormatter {
     this.editor?.expand(currentDepth);
   }
 
+  /**
+   * JsonView 实例在行数据复用时不会重建，与单次取值绑定的配置必须在渲染前同步，
+   * 否则会沿用上一份数据的解析来源与标量命中信息。
+   */
+  private syncEditorOptions() {
+    if (!this.editor) return;
+
+    this.editor.options.parsedFromJsonString = !!this.config.options?.parsedFromJsonString;
+    this.editor.options.primitiveMarks = this.config.options?.primitiveMarks;
+  }
+
   setValue(depth) {
     this.setValuePromise = new Promise((resolve, reject) => {
       try {
@@ -1259,6 +1306,7 @@ export default class UseJsonFormatter {
           return;
         }
 
+        this.syncEditorOptions();
         this.editor?.setValue(this.config.jsonValue);
         this.setNodeExpand([depth]);
         this.localDepth = depth;

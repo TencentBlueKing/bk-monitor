@@ -1,4 +1,12 @@
 .bklog-json-view-node {
+  .bklog-json-view-more-rows {
+    display: inline-block;
+    padding: 0 2px;
+    line-height: 20px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
   .bklog-json-view-child {
     // margin-top: 2px;
     margin-left: 12px;

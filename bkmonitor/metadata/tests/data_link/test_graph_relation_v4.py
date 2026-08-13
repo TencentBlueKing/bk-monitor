@@ -105,6 +105,14 @@ def graph_relation_v4_records():
         bk_data_id=data_source.bk_data_id,
         table_ids=[table_id],
     )
+    models.DataIdConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="bkm_graph_relation_v4_metric",
+        bk_biz_id=2,
+        bk_data_id=data_source.bk_data_id,
+        status=DataLinkResourceStatus.OK.value,
+    )
     return {
         "table_id": table_id,
         "data_source": data_source,
@@ -476,13 +484,15 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
-    models.DataIdConfig.objects.create(
+    models.DataIdConfig.objects.update_or_create(
         bk_tenant_id="system",
         namespace="bkmonitor",
         name="bkm_graph_relation_v4_metric",
-        bk_biz_id=2,
-        bk_data_id=ctx["data_source"].bk_data_id,
-        status=DataLinkResourceStatus.OK.value,
+        defaults={
+            "bk_biz_id": 2,
+            "bk_data_id": ctx["data_source"].bk_data_id,
+            "status": DataLinkResourceStatus.OK.value,
+        },
     )
     mock_apply = mocker.patch.object(DataLink, "apply_data_link")
     mock_sync = mocker.patch.object(DataLink, "sync_metadata")
@@ -504,6 +514,32 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
     ).exists()
 
 
+def test_apply_graph_relation_v4_fails_when_data_id_config_missing(mocker, graph_relation_v4_records):
+    """BKData 数据源缺少 DataIdConfig 时，Graph DataLink 必须在 apply 前直接失败。"""
+    from metadata.task.datalink import apply_graph_relation_v4_datalink
+
+    ctx = graph_relation_v4_records
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    models.DataIdConfig.objects.filter(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        bk_data_id=ctx["data_source"].bk_data_id,
+    ).delete()
+    apply_mock = mocker.patch.object(DataLink, "apply_data_link")
+
+    with pytest.raises(models.DataIdConfig.DoesNotExist, match="bk_data_id=65001"):
+        apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+
+    apply_mock.assert_not_called()
+
+
 def test_apply_graph_relation_v4_surrealdb_only_preserves_existing_vm_record(
     mocker,
     graph_relation_v4_records,
@@ -519,13 +555,15 @@ def test_apply_graph_relation_v4_surrealdb_only_preserves_existing_vm_record(
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
-    models.DataIdConfig.objects.create(
+    models.DataIdConfig.objects.update_or_create(
         bk_tenant_id="system",
         namespace="bkmonitor",
         name="bkm_graph_relation_v4_metric",
-        bk_biz_id=2,
-        bk_data_id=ctx["data_source"].bk_data_id,
-        status=DataLinkResourceStatus.OK.value,
+        defaults={
+            "bk_biz_id": 2,
+            "bk_data_id": ctx["data_source"].bk_data_id,
+            "status": DataLinkResourceStatus.OK.value,
+        },
     )
     vm_record = models.AccessVMRecord.objects.create(
         bk_tenant_id="system",
@@ -584,13 +622,15 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
-    models.DataIdConfig.objects.create(
+    models.DataIdConfig.objects.update_or_create(
         bk_tenant_id="system",
         namespace="bkmonitor",
         name="bkm_graph_relation_v4_metric",
-        bk_biz_id=2,
-        bk_data_id=ctx["data_source"].bk_data_id,
-        status=DataLinkResourceStatus.OK.value,
+        defaults={
+            "bk_biz_id": 2,
+            "bk_data_id": ctx["data_source"].bk_data_id,
+            "status": DataLinkResourceStatus.OK.value,
+        },
     )
     mock_apply = mocker.patch.object(DataLink, "apply_data_link", autospec=True)
     mock_sync = mocker.patch.object(DataLink, "sync_metadata", autospec=True)

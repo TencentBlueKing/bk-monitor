@@ -22,6 +22,7 @@ def create_or_delete_records(mocker):
     models.SpaceDataSource.objects.all().delete()
     models.DataSourceResultTable.objects.all().delete()
     models.AccessVMRecord.objects.all().delete()
+    models.ESStorage.objects.all().delete()
 
     models.DataSource.objects.create(
         bk_data_id=50010,
@@ -49,6 +50,16 @@ def create_or_delete_records(mocker):
         etl_config="test",
         is_custom_source=False,
     )
+    models.DataSource.objects.create(
+        bk_data_id=50013,
+        data_name="global_es_data_link_test",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_flat_batch",
+        is_custom_source=False,
+        is_platform_data_id=True,
+        space_uid="bkcc__1001",
+    )
     models.ResultTable.objects.create(
         table_id="1001_bkmonitor_time_series_50010.__default__",
         bk_biz_id=1001,
@@ -60,6 +71,48 @@ def create_or_delete_records(mocker):
     )
     models.ResultTable.objects.create(
         table_id="1001_bkmonitor_time_series_50012.__default__", bk_biz_id=1002, is_custom_table=False
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.shared_trace_0001",
+        bk_biz_id=0,
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_ES,
+        bk_biz_id_alias="bk_biz_id",
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.shared_trace_disabled",
+        bk_biz_id=0,
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_ES,
+        is_enable=False,
+        bk_biz_id_alias="bk_biz_id",
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.shared_trace_deleted",
+        bk_biz_id=0,
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_ES,
+        is_deleted=True,
+        bk_biz_id_alias="bk_biz_id",
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.shared_trace_doris",
+        bk_biz_id=0,
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+        bk_biz_id_alias="bk_biz_id",
+    )
+    models.ResultTable.objects.create(
+        table_id="1001_apm.private_trace",
+        bk_biz_id=1001,
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_ES,
+        bk_biz_id_alias="bk_biz_id",
     )
     models.AccessVMRecord.objects.create(
         result_table_id="1001_bkmonitor_time_series_50010.__default__",
@@ -79,6 +132,7 @@ def create_or_delete_records(mocker):
     models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1001, bk_data_id=50010)
     models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1001, bk_data_id=50011)
     models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1002, bk_data_id=50012)
+    models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1001, bk_data_id=50013)
     models.DataSourceResultTable.objects.create(
         table_id="1001_bkmonitor_time_series_50010.__default__", bk_data_id=50010
     )
@@ -88,12 +142,23 @@ def create_or_delete_records(mocker):
     models.DataSourceResultTable.objects.create(
         table_id="1001_bkmonitor_time_series_50012.__default__", bk_data_id=50012
     )
+    for table_id in [
+        "apm_global.shared_trace_0001",
+        "apm_global.shared_trace_disabled",
+        "apm_global.shared_trace_deleted",
+        "apm_global.shared_trace_doris",
+        "1001_apm.private_trace",
+    ]:
+        models.DataSourceResultTable.objects.create(table_id=table_id, bk_data_id=50013)
+        models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=1)
+    # Doris 表故意保留 ESStorage，使其通过当前只识别 InfluxDB/VM/ES 的 _refine_table_ids，覆盖全局 Doris 分支。
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.all().delete()
     models.ResultTable.objects.all().delete()
     models.SpaceDataSource.objects.all().delete()
     models.DataSourceResultTable.objects.all().delete()
+    models.ESStorage.objects.all().delete()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -105,13 +170,21 @@ def test_compose_data_for_space_router(create_or_delete_records):
     expected_for_creator_space = {
         "1001_bkmonitor_time_series_50011.__default__": {"filters": []},
         "1001_bkmonitor_time_series_50010.__default__": {"filters": []},
+        "apm_global.shared_trace_0001": {"filters": []},
+        "apm_global.shared_trace_disabled": {"filters": []},
+        "apm_global.shared_trace_doris": {"filters": []},
     }
     assert values_for_creator == expected_for_creator_space
+    assert "apm_global.shared_trace_deleted" not in values_for_creator
+    assert "1001_apm.private_trace" not in values_for_creator
 
     # 测试全局数据源在其他业务下的空间路由
     values_for_others = self._compose_data("bkcc", "1003")
     expected_for_other_space = {
         "1001_bkmonitor_time_series_50011.__default__": {"filters": [{"bk_biz_id": "1003"}]},
         "1001_bkmonitor_time_series_50010.__default__": {"filters": [{"appid": "1003"}]},
+        "apm_global.shared_trace_0001": {"filters": [{"bk_biz_id": "1003"}]},
+        "apm_global.shared_trace_disabled": {"filters": [{"bk_biz_id": "1003"}]},
+        "apm_global.shared_trace_doris": {"filters": [{"bk_biz_id": "1003"}]},
     }
     assert values_for_others == expected_for_other_space

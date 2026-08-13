@@ -23,9 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import { useRoute, useRouter } from 'vue-router';
+
+import { useAppReadonlyInject } from '../../pages/provider';
 
 import type { ICommonNavBarProps, INavItem } from './type';
 
@@ -70,7 +72,7 @@ export default defineComponent({
   setup(props: any | ICommonNavBarProps, { slots }) {
     const router = useRouter();
     const route = useRoute();
-    const readonly = inject('readonly', false);
+    const readonly = useAppReadonlyInject() ?? false;
     const navList = computed(() => {
       if (window.__POWERED_BY_BK_WEWEB__ && window.token) {
         return window.__BK_WEWEB_DATA__.navList || props.routeList || [];
@@ -121,7 +123,7 @@ export default defineComponent({
                   {/* {index > 0 ? <span class="item-split icon-monitor icon-arrow-right"></span> : undefined} */}
                   {index > 0 ? <span class='item-split'>/</span> : undefined}
                   <span
-                    class={`item-name ${!!item.id && index < len - 1 ? 'parent-nav' : ''} ${
+                    class={`item-name ${item.id && index < len - 1 ? 'parent-nav' : ''} ${
                       len === 1 ? 'only-title' : ''
                     }`}
                     onClick={() => item.id && index < len - 1 && handleGotoPage(item)}

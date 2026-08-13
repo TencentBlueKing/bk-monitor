@@ -34,6 +34,7 @@ import { useAlarmCenterDetailStore } from '../../../../../../store/modules/alarm
 import { getAuthorityMap, useAuthorityStore } from '../../../../../../store/modules/authority';
 import DetailCommon from '../../../../common-detail/common-detail';
 
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 import type { IAuthority } from '@/typings/authority';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui/.';
 
@@ -53,6 +54,11 @@ export default defineComponent({
     headerAffixedTop: {
       type: Object as PropType<TdPrimaryTableProps['headerAffixedTop']>,
       default: () => null,
+    },
+    /** 告警详情页签（视图/日志/调用链等）默认选中项 */
+    defaultTab: {
+      type: String as PropType<'' | AlarmCenterPanelTabType>,
+      default: '',
     },
   },
   setup(props) {
@@ -101,7 +107,10 @@ export default defineComponent({
           showFullScreenBtn={false}
           showStepBtn={false}
         />
-        <DetailCommon headerAffixedTop={this.headerAffixedTop} />
+        <DetailCommon
+          defaultTab={this.defaultTab}
+          headerAffixedTop={this.headerAffixedTop}
+        />
       </div>
     );
   },

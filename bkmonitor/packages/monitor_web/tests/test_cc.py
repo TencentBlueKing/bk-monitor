@@ -222,6 +222,83 @@ class TestGetAgentStatus:
     测试获取Agent状态
     """
 
+    def test_empty_hosts_skip_uq_and_nodeman_queries(self, mocker):
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        node_man = mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail")
+
+        assert resource.cc.get_agent_status(bk_biz_id=2, hosts=[]) == {}
+        unify_query.assert_not_called()
+        node_man.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("hosts", "ipv6_biz_ids", "expected_fields", "expected_connectors"),
+        [
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [],
+                [
+                    {
+                        "field_name": "bk_target_ip",
+                        "value": [HOSTS[0].bk_host_innerip, HOSTS[3].bk_host_innerip],
+                        "op": "contains",
+                    },
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[0].bk_cloud_id)], "op": "contains"},
+                    {"field_name": "bk_target_ip", "value": [HOSTS[1].bk_host_innerip], "op": "contains"},
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[1].bk_cloud_id)], "op": "contains"},
+                ],
+                ["and", "or", "and"],
+            ),
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [2],
+                [{"field_name": "bk_host_id", "value": ["1", "2", "4"], "op": "contains"}],
+                [],
+            ),
+            ([HOSTS[2]], [], [], []),
+        ],
+    )
+    def test_agent_query_filters_are_compiled_for_requested_hosts(
+        self, mocker, settings, hosts, ipv6_biz_ids, expected_fields, expected_connectors
+    ):
+        settings.IPV6_SUPPORT_BIZ_LIST = ipv6_biz_ids
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.query_data.return_value = []
+        mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail", return_value=[])
+
+        resource.cc.get_agent_status(bk_biz_id=2, hosts=hosts)
+
+        data_source = unify_query.call_args.kwargs["data_sources"][0]
+        query_config = data_source.to_unify_query_config()[0]
+        assert query_config["conditions"] == {
+            "field_list": expected_fields,
+            "condition_list": expected_connectors,
+        }
+
+    def test_historical_query_uses_selected_end_and_skips_nodeman(self, mocker):
+        mocker.patch("monitor_web.cc.resources.cmdb.time.time", return_value=1_000)
+        query_data = mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", return_value=[])
+        node_man = mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail")
+
+        result = resource.cc.get_agent_status(bk_biz_id=2, hosts=HOSTS[:1], start_time=400, end_time=600)
+
+        assert result == {HOSTS[0].bk_host_id: AGENT_STATUS.NO_DATA}
+        assert query_data.call_args.kwargs == {"start_time": 420_000, "end_time": 600_000, "instant": True}
+        node_man.assert_not_called()
+
+    def test_recent_query_uses_current_end_and_queries_nodeman(self, mocker):
+        mocker.patch("monitor_web.cc.resources.cmdb.time.time", return_value=1_000)
+        query_data = mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", return_value=[])
+        node_man = mocker.patch(
+            "monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail",
+            return_value=[{"host_id": HOSTS[0].bk_host_id, "alive": 1}],
+        )
+
+        result = resource.cc.get_agent_status(bk_biz_id=2, hosts=HOSTS[:1], start_time=600, end_time=800)
+
+        assert result == {HOSTS[0].bk_host_id: AGENT_STATUS.NO_DATA}
+        assert query_data.call_args.kwargs == {"start_time": 820_000, "end_time": 1_000_000, "instant": True}
+        node_man.assert_called_once()
+
     @mock.patch(
         "core.drf_resource.api.gse.get_agent_status",
         return_value={
@@ -341,6 +418,57 @@ class TestGetHostPerformanceData:
         # io_util 配置了 ratio=100，最终结果应放大
         assert result[HOSTS[0].bk_host_id]["io_util"] == 4250.0
 
+    def test_empty_hosts_skip_metric_queries(self, mocker):
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+
+        assert resource.cc.get_host_performance_data(bk_biz_id=2, hosts=[]) == {}
+        unify_query.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("hosts", "ipv6_biz_ids", "expected_fields", "expected_connectors"),
+        [
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [],
+                [
+                    {
+                        "field_name": "bk_target_ip",
+                        "value": [HOSTS[0].bk_host_innerip, HOSTS[3].bk_host_innerip],
+                        "op": "contains",
+                    },
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[0].bk_cloud_id)], "op": "contains"},
+                    {"field_name": "bk_target_ip", "value": [HOSTS[1].bk_host_innerip], "op": "contains"},
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[1].bk_cloud_id)], "op": "contains"},
+                ],
+                ["and", "or", "and"],
+            ),
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [2],
+                [{"field_name": "bk_host_id", "value": ["1", "2", "4"], "op": "contains"}],
+                [],
+            ),
+            ([HOSTS[2]], [], [], []),
+        ],
+    )
+    def test_query_filters_are_compiled_for_requested_hosts(
+        self, mocker, settings, hosts, ipv6_biz_ids, expected_fields, expected_connectors
+    ):
+        settings.IPV6_SUPPORT_BIZ_LIST = ipv6_biz_ids
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.query_data.return_value = []
+
+        resource.cc.get_host_performance_data(bk_biz_id=2, hosts=hosts)
+
+        assert unify_query.call_count == 6
+        for call in unify_query.call_args_list:
+            data_source = call.kwargs["data_sources"][0]
+            query_config = data_source.to_unify_query_config()[0]
+            assert query_config["conditions"] == {
+                "field_list": expected_fields,
+                "condition_list": expected_connectors,
+            }
+
 
 class TestGetProcessStatus:
     """
@@ -393,3 +521,130 @@ class TestGetProcessStatus:
         assert result[HOSTS[1].bk_host_id]["redis"] == AGENT_STATUS.OFF
         # _result_ 为 None 的记录被跳过，不写入任何状态
         assert "nginx" not in result.get(HOSTS[1].bk_host_id, {})
+
+
+class TestGetProcessMetrics:
+    """测试进程列表指标的 UnifyQuery 构造语义。"""
+
+    @pytest.mark.parametrize(
+        ("hosts", "ipv6_biz_ids", "expected_fields", "expected_connectors"),
+        [
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [],
+                [
+                    {
+                        "field_name": "bk_target_ip",
+                        "value": [HOSTS[0].bk_host_innerip, HOSTS[3].bk_host_innerip],
+                        "op": "contains",
+                    },
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[0].bk_cloud_id)], "op": "contains"},
+                    {"field_name": "bk_target_ip", "value": [HOSTS[1].bk_host_innerip], "op": "contains"},
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[1].bk_cloud_id)], "op": "contains"},
+                ],
+                ["and", "or", "and"],
+            ),
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [2],
+                [{"field_name": "bk_host_id", "value": ["1", "2", "4"], "op": "contains"}],
+                [],
+            ),
+            ([HOSTS[2]], [], [], []),
+        ],
+    )
+    def test_process_query_filters_are_compiled_for_requested_hosts(
+        self, mocker, settings, hosts, ipv6_biz_ids, expected_fields, expected_connectors
+    ):
+        settings.IPV6_SUPPORT_BIZ_LIST = ipv6_biz_ids
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.query_data.return_value = []
+
+        resource.cc.get_process_status(bk_biz_id=2, hosts=hosts)
+
+        data_source = unify_query.call_args.kwargs["data_sources"][0]
+        query_config = data_source.to_unify_query_config()[0]
+        assert query_config["conditions"] == {
+            "field_list": expected_fields,
+            "condition_list": expected_connectors,
+        }
+
+    def test_uptime_default_range_uses_same_snapshot_for_min_and_max(self, mocker):
+        query_windows = []
+
+        def capture_query(*args, **kwargs):
+            query_windows.append((args[5], args[6]))
+            return []
+
+        mocker.patch("monitor_web.cc.resources.cmdb.time.time", return_value=1_700_000_000)
+        mocker.patch("monitor_web.cc.resources.cmdb._query_proc_metrics", side_effect=capture_query)
+
+        resource.cc.get_process_uptime(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        assert query_windows == [(1_699_999_820, 1_700_000_000)] * 2
+
+    def test_uptime_uses_instant_min_max_cross_series_aggregation(self, mocker):
+        query_configs = {}
+
+        def capture_query_config(query, *args, **kwargs):
+            query_config = query.data_sources[0].to_unify_query_config()[0]
+            method = query_config["function"][0]["method"]
+            query_configs[method] = query_config
+            return [
+                {
+                    "_result_": 0 if method == "min" else 7200,
+                    "bk_host_id": str(HOSTS[0].bk_host_id),
+                    "bk_target_ip": HOSTS[0].bk_host_innerip,
+                    "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
+                    "display_name": "redis",
+                }
+            ]
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=capture_query_config)
+
+        result = resource.cc.get_process_uptime(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        expected_dimensions = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
+        assert result[HOSTS[0].bk_host_id]["redis"] == {"min": 0, "max": 7200}
+        assert query_configs.keys() == {"min", "max"}
+        for method in ("min", "max"):
+            assert query_configs[method]["time_aggregation"] == {}
+            assert query_configs[method]["function"] == [{"method": method, "dimensions": expected_dimensions}]
+
+    def test_uptime_keeps_available_boundary_when_other_query_fails(self, mocker):
+        def query_boundary(*args, **kwargs):
+            if args[4] == "min_without_time":
+                raise RuntimeError("min query failed")
+            return [(HOSTS[0].bk_host_id, "redis", 7200)]
+
+        mocker.patch("monitor_web.cc.resources.cmdb._query_proc_metrics", side_effect=query_boundary)
+
+        result = resource.cc.get_process_uptime(bk_biz_id=2, hosts=HOSTS[0:1], start_time=100, end_time=200)
+
+        assert result[HOSTS[0].bk_host_id]["redis"] == {"max": 7200}
+
+    def test_runtime_and_instance_count_use_instant_cross_series_aggregation(self, mocker):
+        query_configs = {}
+
+        def capture_query_config(query, *args, **kwargs):
+            for query_config in query.data_sources[0].to_unify_query_config():
+                query_configs[query_config["field_name"]] = query_config
+            return []
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=capture_query_config)
+
+        resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
+        runtime_query_configs = query_configs.copy()
+
+        expected_dimensions = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
+        runtime_fields = {"cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"}
+        assert runtime_fields == runtime_query_configs.keys()
+        for field in runtime_fields:
+            assert runtime_query_configs[field]["time_aggregation"] == {}
+            assert runtime_query_configs[field]["function"] == [{"method": "sum", "dimensions": expected_dimensions}]
+
+        query_configs.clear()
+        resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
+        instance_count_config = query_configs["cpu_usage_pct"]
+        assert instance_count_config["time_aggregation"] == {}
+        assert instance_count_config["function"] == [{"method": "count", "dimensions": expected_dimensions}]

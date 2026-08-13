@@ -25,7 +25,6 @@
  */
 import { computed, customRef, ref as deepRef, onScopeDispose, reactive, shallowRef, watch } from 'vue';
 
-import { random } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -39,11 +38,12 @@ import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
 const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export const useHostStore = defineStore('host', () => {
-  const timeRange = deepRef(['now-7d', 'now']);
+  const timeRange = deepRef(['now-1h', 'now']);
   const timezone = shallowRef(getDefaultTimezone());
   const innerRefreshInterval = shallowRef(-1);
   const refreshImmediate = shallowRef('');
-  const refreshId = shallowRef(random(4));
+  /** 自动刷新与立即刷新共享的单调递增代次 */
+  const refreshGeneration = shallowRef(0);
   // 主机监控 场景 host | process
   const scene = shallowRef<HostPageScene>('host');
 
@@ -83,7 +83,7 @@ export const useHostStore = defineStore('host', () => {
     const params = {
       start_time: start,
       end_time: end,
-      [REFRESH_EFFECT_KEY]: refreshId.value,
+      [REFRESH_EFFECT_KEY]: refreshGeneration.value,
     };
     // 用于主动触发 依赖副作用 更新
     delete params[REFRESH_EFFECT_KEY];
@@ -116,7 +116,7 @@ export const useHostStore = defineStore('host', () => {
   });
 
   const effectRefresh = () => {
-    refreshId.value = random(4);
+    refreshGeneration.value += 1;
   };
 
   watch(refreshImmediate, () => {
@@ -124,7 +124,7 @@ export const useHostStore = defineStore('host', () => {
   });
 
   onScopeDispose(() => {
-    timeRange.value = ['now-7d', 'now'];
+    timeRange.value = ['now-1h', 'now'];
     timezone.value = getDefaultTimezone();
     refreshInterval.value = -1;
     refreshImmediate.value = '';
@@ -134,6 +134,7 @@ export const useHostStore = defineStore('host', () => {
     timezone,
     refreshInterval,
     refreshImmediate,
+    refreshGeneration,
     timeRangeTimestamp,
     scene,
     where,

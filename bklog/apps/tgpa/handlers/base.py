@@ -419,6 +419,8 @@ class TGPACollectorConfigHandler:
             sort_fields=TGPA_TASK_SORT_FIELDS,
             target_fields=TGPA_TASK_TARGET_FIELDS,
             collector_scenario_id=CollectorScenarioEnum.CLIENT.value,
+            # 客户端日志有独立的管理与检索入口，不在通用采集接入列表中暴露，避免误操作被定时任务重建
+            is_display=False,
         )
         # 采集配置下发
         cls.release_collector_config(bk_biz_id, collector_create_result["bk_data_id"])

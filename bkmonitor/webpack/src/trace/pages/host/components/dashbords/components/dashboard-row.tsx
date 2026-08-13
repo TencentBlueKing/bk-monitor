@@ -26,7 +26,9 @@
 
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
+import { HostViewsPanelType } from '../../../types/panels';
 import ChartLazy from './chart-lazy';
+import ExternalPanelCard from './external-panel-card';
 import TimeSeriesCard from './time-series-card';
 import MonitorCrossDrag from '@/components/monitor-cross-drag/monitor-cross-drag';
 
@@ -99,6 +101,25 @@ export default defineComponent({
     };
   },
   render() {
+    const renderPanel = panel => {
+      if ([HostViewsPanelType.PortStatus, HostViewsPanelType.TextUnit].includes(panel.type)) {
+        return (
+          <ExternalPanelCard
+            panel={panel}
+            scopedVars={this.scopedVars}
+          />
+        );
+      }
+      return (
+        <TimeSeriesCard
+          customOptions={this.customOptions}
+          dashboardId={this.dashboardId}
+          panel={panel}
+          scopedVars={this.scopedVars}
+        />
+      );
+    };
+
     return (
       <div class='dashboard-row'>
         <div
@@ -125,12 +146,7 @@ export default defineComponent({
                   style={{ height: `${this.height}px` }}
                   class='chart-card'
                 >
-                  <TimeSeriesCard
-                    customOptions={this.customOptions}
-                    dashboardId={this.dashboardId}
-                    panel={panel}
-                    scopedVars={this.scopedVars}
-                  />
+                  {renderPanel(panel)}
                   <MonitorCrossDrag
                     maxHeight={this.maxHeight}
                     minHeight={this.minHeight}

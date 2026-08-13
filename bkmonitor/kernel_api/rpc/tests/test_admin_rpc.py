@@ -174,6 +174,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.vm_storage.detail",
         "admin.kafka_storage.list",
         "admin.kafka_storage.detail",
+        "admin.surrealdb_storage.list",
+        "admin.surrealdb_storage.detail",
         "admin.bkbase_result_table.list",
         "admin.bkbase_result_table.detail",
         "admin.custom_report.list",
@@ -217,6 +219,83 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.render_image_task.detail",
         "admin.token.resolve",
     } <= func_names
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_surrealdb_storage_list_and_detail_are_tenant_scoped():
+    table_id = "admin_surrealdb.metric"
+    tenant_id = "admin_surrealdb_tenant"
+    other_tenant_id = "admin_surrealdb_other_tenant"
+    cluster = admin_storage.models.ClusterInfo.objects.create(
+        bk_tenant_id=tenant_id,
+        cluster_id=61001,
+        cluster_name="admin-surrealdb",
+        display_name="Admin SurrealDB",
+        cluster_type=admin_storage.models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="surrealdb.invalid",
+        port=8000,
+        description="test",
+        is_default_cluster=False,
+    )
+    admin_storage.models.ResultTable.objects.create(
+        table_id=table_id,
+        bk_tenant_id=tenant_id,
+        table_name_zh="Admin SurrealDB test",
+        is_custom_table=False,
+        schema_type=admin_storage.models.ResultTable.SCHEMA_TYPE_FIXED,
+        default_storage=admin_storage.models.ClusterInfo.TYPE_SURREALDB,
+        creator="system",
+        last_modify_user="system",
+    )
+    admin_storage.models.SurrealDBStorage.objects.create(
+        table_id=table_id,
+        bk_tenant_id=tenant_id,
+        table_type=admin_storage.models.SurrealDBStorage.TEMPORARY_TABLE_TYPE,
+        vertices=[{"name": "host", "id_fields": ["bk_host_id"]}],
+        relations=[{"name": "host_with_system", "from": "host", "to": "system"}],
+        storage_cluster_id=cluster.cluster_id,
+    )
+    admin_storage.models.SurrealDBStorage.objects.create(
+        table_id=table_id,
+        bk_tenant_id=other_tenant_id,
+        storage_cluster_id=61002,
+    )
+
+    list_result = admin_storage.list_surrealdb_storages(
+        {"bk_tenant_id": tenant_id, "table_id": table_id, "page": 1, "page_size": 20}
+    )
+    detail_result = admin_storage.get_surrealdb_storage_detail({"bk_tenant_id": tenant_id, "table_id": table_id})
+
+    assert list_result["data"]["total"] == 1
+    assert list_result["data"]["items"] == [
+        {
+            "surrealdb_storage": {
+                "table_id": table_id,
+                "bk_tenant_id": tenant_id,
+                "table_type": "temporary",
+                "vertices": [{"name": "host", "id_fields": ["bk_host_id"]}],
+                "relations": [{"name": "host_with_system", "from": "host", "to": "system"}],
+                "storage_cluster_id": 61001,
+            },
+            "result_table": {
+                "table_id": table_id,
+                "bk_tenant_id": tenant_id,
+                "table_name_zh": "Admin SurrealDB test",
+                "bk_biz_id": 0,
+                "data_label": "",
+                "default_storage": "surrealdb",
+                "is_enable": True,
+                "is_deleted": False,
+            },
+            "storage_cluster": {
+                "cluster_id": 61001,
+                "cluster_name": "admin-surrealdb",
+                "display_name": "Admin SurrealDB",
+                "cluster_type": "surrealdb",
+            },
+        }
+    ]
+    assert detail_result["data"] == list_result["data"]["items"][0]
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None

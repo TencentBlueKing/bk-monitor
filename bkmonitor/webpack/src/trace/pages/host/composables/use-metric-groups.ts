@@ -49,6 +49,10 @@ interface UseHostMetricOptions {
 export function useMetricGroups(options: UseHostMetricOptions) {
   const { t } = useI18n();
   const loading = shallowRef(false);
+  /** 面板或排序配置是否加载失败 */
+  const loadError = shallowRef(false);
+  /** 仅允许最新配置请求提交状态 */
+  let latestLoadId = 0;
 
   const settingShow = shallowRef(false);
   /** 后端返回的原始面板分组数据（getHostViewsPanelsApi） */
@@ -63,16 +67,28 @@ export function useMetricGroups(options: UseHostMetricOptions) {
    * - true：忽略缓存，强制重新拉取最新排序配置（保存/重置后使用）
    */
   const load = async (forceRefresh = false) => {
+    const loadId = ++latestLoadId;
     loading.value = true;
+    loadError.value = false;
     try {
       const [panelsRes, orderRes] = await Promise.all([
         getHostViewsPanelsApi(),
         getHostMetricGroupPanelOrderApi(forceRefresh),
       ]);
+      if (loadId !== latestLoadId) return false;
       panels.value = panelsRes;
       orderData.value = orderRes;
+      return true;
+    } catch {
+      if (loadId !== latestLoadId) return false;
+      panels.value = [];
+      orderData.value = [];
+      loadError.value = true;
+      return false;
     } finally {
-      loading.value = false;
+      if (loadId === latestLoadId) {
+        loading.value = false;
+      }
     }
   };
 
@@ -89,8 +105,9 @@ export function useMetricGroups(options: UseHostMetricOptions) {
           order: value,
         }, // 设置配置
       });
-      await load(true);
-      settingShow.value = false;
+      if (await load(true)) {
+        settingShow.value = false;
+      }
     } finally {
       loading.value = false;
     }
@@ -109,8 +126,9 @@ export function useMetricGroups(options: UseHostMetricOptions) {
           order: [],
         }, // 设置配置
       });
-      await load(true);
-      settingShow.value = false;
+      if (await load(true)) {
+        settingShow.value = false;
+      }
     } finally {
       loading.value = false;
     }
@@ -141,6 +159,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
   return {
     rows,
     orderData,
+    loadError,
     loading,
     settingShow,
     handleSave,

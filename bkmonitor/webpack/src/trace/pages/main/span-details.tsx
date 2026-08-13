@@ -25,14 +25,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, computed, defineComponent, inject, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue';
+import {
+  type PropType,
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onMounted,
+  provide,
+  reactive,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
 
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
-import { listLinks } from 'monitor-api/modules/apm_trace';
+import { listLinks, spanDetail } from 'monitor-api/modules/apm_trace';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
@@ -40,6 +52,7 @@ import VueJsonPretty from 'vue-json-pretty';
 
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
+import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/profiling-flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
@@ -88,6 +101,12 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Process: {},
   // Container: {},
   // Index: {}
+};
+
+type SpanDetailResponseCache = {
+  key: string;
+  originData: null | Record<string, any>;
+  span: Span;
 };
 
 type SpanLinksRequestParams = {
@@ -145,14 +164,45 @@ export default defineComponent({
     /** 原始数据 */
     const originalData = ref<null | Record<string, any>>(null);
 
-    /** TraceDetail 等上级注入的业务 / 应用上下文 */
+    /** TraceDetail 等上级注入的当前页面业务 / 应用上下文 */
     const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
     const injectedAppName = inject<Ref<string> | undefined>('appName', undefined);
+    const appStore = useAppStore();
 
-    /* 当前应用名称：props → inject → store → spanDetails */
-    const appName = computed(
-      () => props.appName || injectedAppName?.value || store.traceData.appName || props.spanDetails?.app_name || ''
-    );
+    const viewAppName = computed(() => props.appName || injectedAppName?.value || store.traceData.appName || '');
+
+    const viewBizId = computed(() => {
+      const contextBizId =
+        props.bizId ?? injectedBizId?.value ?? appStore.bizId ?? window.bk_biz_id ?? window.cc_biz_id;
+      return contextBizId != null && contextBizId !== '' && !Number.isNaN(+contextBizId) ? +contextBizId : 0;
+    });
+
+    const loadedSpan = shallowRef<Span>(null);
+    const spanDetailLoading = shallowRef(false);
+    let spanDetailRequestKey = '';
+    let spanDetailRequestSeq = 0;
+    let spanDetailResponseCache: null | SpanDetailResponseCache = null;
+
+    const detailSpan = computed<Span>(() => loadedSpan.value || props.spanDetails);
+
+    function shouldLoadSpanDetail(span: Span): boolean {
+      if (!span) return false;
+      const appMismatch = Boolean(span.app_name && viewAppName.value && span.app_name !== viewAppName.value);
+      const bizMismatch =
+        span.bk_biz_id != null &&
+        span.bk_biz_id !== '' &&
+        Boolean(viewBizId.value) &&
+        String(span.bk_biz_id) !== String(viewBizId.value);
+      return appMismatch || bizMismatch;
+    }
+
+    /** 详情及其所有 Tab 统一使用 Span 自带上下文，存量数据缺字段时回退页面上下文。 */
+    const appName = computed(() => props.spanDetails?.app_name || viewAppName.value);
+
+    const bizId = computed(() => {
+      const spanBizId = props.spanDetails?.bk_biz_id;
+      return spanBizId != null && spanBizId !== '' && !Number.isNaN(+spanBizId) ? +spanBizId : viewBizId.value;
+    });
 
     const spanStatus = computed<{ alias: string; icon: string }>(() => {
       const statusMap = {
@@ -160,25 +210,13 @@ export default defineComponent({
         1: { alias: t('正常'), icon: 'normal' },
         2: { alias: t('异常'), icon: 'failed' },
       };
-      const status = props.spanDetails?.attributes?.find(item => item.query_key === 'status.code')?.query_value;
+      const status = detailSpan.value?.attributes?.find(item => item.query_key === 'status.code')?.query_value;
       return statusMap[status];
     });
 
     const fullscreen = shallowRef(false);
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
-
-    /** 跨业务优先 props/inject，避免仅依赖 appStore（窗口切换业务时 store 不会同步） */
-    const bizId = computed(() => {
-      if (props.bizId != null && props.bizId !== '' && !Number.isNaN(+props.bizId)) {
-        return +props.bizId;
-      }
-      const fromInject = injectedBizId?.value;
-      if (fromInject != null && fromInject !== '' && !Number.isNaN(+fromInject)) {
-        return +fromInject;
-      }
-      return +(useAppStore().bizId || window.bk_biz_id || window.cc_biz_id || 0);
-    });
 
     const spans = computed(() => store.spanGroupTree);
 
@@ -382,8 +420,78 @@ export default defineComponent({
       updateSpanLinksInfo(formatSpanLinks(spanLinksResponseLinks));
     }
 
+    async function loadSpanDetail(sourceSpan: Span): Promise<null | Record<string, any>> {
+      const sourceBizId = sourceSpan.bk_biz_id ?? viewBizId.value;
+      const sourceAppName = sourceSpan.app_name || viewAppName.value;
+      const sourceSpanId = sourceSpan.span_id || sourceSpan.spanID;
+      if (!sourceBizId || !sourceAppName || !sourceSpanId) {
+        spanDetailRequestKey = '';
+        spanDetailRequestSeq += 1;
+        spanDetailLoading.value = false;
+        return null;
+      }
+
+      const requestKey = JSON.stringify([sourceBizId, sourceAppName, sourceSpanId]);
+      if (requestKey === spanDetailResponseCache?.key) {
+        loadedSpan.value = {
+          ...sourceSpan,
+          ...spanDetailResponseCache.span,
+        };
+        return spanDetailResponseCache.originData;
+      }
+      if (requestKey === spanDetailRequestKey) return null;
+
+      spanDetailRequestKey = requestKey;
+      const requestSeq = ++spanDetailRequestSeq;
+      spanDetailLoading.value = true;
+      const result = await spanDetail({
+        bk_biz_id: sourceBizId,
+        app_name: sourceAppName,
+        span_id: sourceSpanId,
+      }).catch(() => null);
+
+      if (requestSeq !== spanDetailRequestSeq) return null;
+
+      spanDetailRequestKey = '';
+      spanDetailLoading.value = false;
+      const traceTree = result?.trace_tree;
+      if (!traceTree?.spans?.length) return null;
+
+      traceTree.traceID = traceTree.spans[0].traceID;
+      const loadedDetailSpan = transformTraceTree(traceTree)?.spans?.[0];
+      if (!loadedDetailSpan) return null;
+
+      const originData = result.origin_data ?? null;
+      spanDetailResponseCache = {
+        key: requestKey,
+        originData,
+        span: loadedDetailSpan,
+      };
+      loadedSpan.value = {
+        ...sourceSpan,
+        ...loadedDetailSpan,
+      };
+      return originData;
+    }
+
+    async function prepareDetails(): Promise<void> {
+      loadedSpan.value = null;
+      const sourceSpan = props.spanDetails;
+      if (!shouldLoadSpanDetail(sourceSpan)) {
+        spanDetailRequestKey = '';
+        spanDetailRequestSeq += 1;
+        spanDetailLoading.value = false;
+        getDetails();
+        return;
+      }
+
+      const loadedOriginData = await loadSpanDetail(sourceSpan);
+      getDetails(loadedOriginData);
+    }
+
     /* 获取详情数据 */
-    function getDetails() {
+    function getDetails(loadedOriginData?: null | Record<string, any>) {
+      if (!detailSpan.value) return;
       const {
         span_id: originalSpanId,
         app_name: appName,
@@ -397,10 +505,14 @@ export default defineComponent({
         source,
         stage_duration,
         resource: spanResource,
-      } = props.spanDetails as any | Span;
+      } = detailSpan.value as any | Span;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
-      const originalDataList = [...store.traceData.original_data, ...store.compareTraceOriginalData];
+      const originalDataList = [
+        loadedOriginData,
+        ...store.traceData.original_data,
+        ...store.compareTraceOriginalData,
+      ].filter(Boolean);
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
       if (!curSpan) {
@@ -1390,7 +1502,7 @@ export default defineComponent({
       return (
         <Loading
           style='height: 100%;'
-          loading={props.isPageLoading}
+          loading={props.isPageLoading || spanDetailLoading.value}
         >
           {props.withSideSlider && showOriginalData.value ? (
             <div class='json-text-style'>
@@ -1878,7 +1990,7 @@ export default defineComponent({
           // 根据 defaultExpand 参数决定是否强制展开所有项
           getSpanDetailExpandUserConfig();
           // 这里提前执行，如果是碰到异步加载，这里会报错，这里做了兼容处理。
-          if (!props.isPageLoading) getDetails();
+          if (!props.isPageLoading) prepareDetails();
           if (props.isFullscreen && !document.querySelector('.bk-modal-outside')) {
             const maskEle = document.createElement('div');
             maskEle.className = 'bk-modal-outside';
@@ -1897,13 +2009,14 @@ export default defineComponent({
       }
     );
 
-    // 上面监听 props.show 里会直接执行 getDetails() ，这里因为要添加loading，
+    // 上面监听 props.show 里会直接执行 prepareDetails() ，这里因为要添加loading，
     // 且需要保证之前用到该组件的地方能正常运行，这里添加兼容代码。保证使用loading与否，都可以正常显示数据。
     watch(
       () => props.isPageLoading,
       (value: boolean) => {
         if (!value) {
-          getDetails();
+          if (props.show) prepareDetails();
+          else getDetails();
         }
       }
     );
@@ -1920,7 +2033,7 @@ export default defineComponent({
       val => {
         // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
         if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
-          getDetails();
+          prepareDetails();
         }
       },
       { immediate: true, deep: true }

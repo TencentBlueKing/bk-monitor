@@ -47,6 +47,7 @@ import {
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
+import type { AlarmCenterPanelTabType } from '../../../utils/constant';
 import type { IUsePopoverTools } from '../hooks/use-popover';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 import type { TippyContent } from 'vue-tippy';
@@ -65,7 +66,7 @@ export class AlertScenario extends BaseScenario {
       clickPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent, row: AlertTableItem, colKey: string) => void;
       handleAlertOperationClick: (actionType: AlertRowOperationAction, row: AlertTableItem) => void;
-      handleAlertSliderShowDetail: (row: AlertTableItem, defaultTab?: string) => void;
+      handleAlertSliderShowDetail: (row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) => void;
       hoverPopoverTools: IUsePopoverTools;
     }
   ) {

@@ -35,7 +35,8 @@ import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { SceneType, type FilterFieldConfig, type FilterValues, type SceneDimensionValuesResponse, type SceneConfig, type FieldCandidateCondition, type ListFieldCandidatesParams } from './types';
-import { getOperatorDisplay, getDefaultOp } from './scene-config';
+import { getOperatorDisplay, getDefaultOp, TABLE_ID_CONDITION_SCENES } from './scene-config';
+import { buildTableIdConditions } from '@/store/helper';
 
 import './filter-panel.scss';
 
@@ -517,18 +518,11 @@ export default defineComponent({
           params.bcs_cluster_ids = clusterIds;
         }
 
-        // 主机场景：必传 table_id_conditions、start_time、end_time
-        if (props.activeScene === SceneType.Host) {
+        // 主机/PaaS/服务场景：必传 table_id_conditions、start_time、end_time
+        // table_id_conditions 复用 buildTableIdConditions：固定场景条件 + static/dynamic 已选值字段
+        if (TABLE_ID_CONDITION_SCENES.includes(props.activeScene as SceneType)) {
           const retrieveParams = store.getters.retrieveParams;
-          params.table_id_conditions = [
-            [
-              {
-                field_name: 'scene',
-                value: ['host'],
-                op: 'eq',
-              }
-            ]
-          ];
+          params.table_id_conditions = buildTableIdConditions(store.state, sceneConfigs.value).table_id_conditions;
           params.start_time = retrieveParams.start_time;
           params.end_time = retrieveParams.end_time;
         }

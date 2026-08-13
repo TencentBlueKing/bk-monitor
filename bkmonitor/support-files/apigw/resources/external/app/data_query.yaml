@@ -89,3 +89,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: null
+  /app/data_query/time_series_functions/:
+    get:
+      operationId: time_series_functions
+      description: 获取可用计算函数列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/grafana/time_series/functions/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get time series functions
