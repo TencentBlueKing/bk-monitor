@@ -15,9 +15,11 @@ const dayjs = require('dayjs');
 const {
   formatMemRss,
   formatPercent,
+  formatProcessUptimeRange,
   formatProcessUptimeDetail,
   formatProcessSeriesAlias,
   formatUptime,
+  formatUptimeRange,
 } = require('../src/trace/pages/host/utils/process.ts');
 
 test('进程运行时长按后端返回的秒数展示', () => {
@@ -28,6 +30,20 @@ test('进程运行时长按后端返回的秒数展示', () => {
   const observedAt = 1729682400;
   const startTime = dayjs.unix(observedAt).subtract(86400, 'second').format('YYYY-MM-DD HH:mm:ss');
   assert.equal(formatProcessUptimeDetail(86400, observedAt), `1d (${startTime})`);
+});
+
+test('同名进程组运行时长按最小值和最大值展示范围', () => {
+  assert.equal(formatUptimeRange(0, 0), '0 h');
+  assert.equal(formatUptimeRange(3600, 3600), '1 h');
+  assert.equal(formatUptimeRange(3600, 3610), '1 h');
+  assert.equal(formatUptimeRange(0, 7200), '0 h - 2 h');
+  assert.equal(formatUptimeRange(146880, 259200), '1.7 d - 3 d');
+  assert.equal(formatUptimeRange(null, null), '--');
+  assert.equal(formatUptimeRange(-1, Number.NaN), '--');
+  assert.equal(formatUptimeRange(null, 7200), '2 h');
+  assert.equal(formatUptimeRange(3600, null), '1 h');
+  assert.equal(formatProcessUptimeRange({ uptime: 7200 }), '2 h');
+  assert.equal(formatProcessUptimeRange({ uptime: 7200, uptimeMin: 0, uptimeMax: 7200 }), '0 h - 2 h');
 });
 
 test('进程指标区分缺失值与真实零值', () => {

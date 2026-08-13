@@ -449,6 +449,60 @@ class TestGetProcessStatus:
 class TestGetProcessMetrics:
     """测试进程列表指标的 UnifyQuery 构造语义。"""
 
+    def test_uptime_default_range_uses_same_snapshot_for_min_and_max(self, mocker):
+        query_windows = []
+
+        def capture_query(*args, **kwargs):
+            query_windows.append((args[5], args[6]))
+            return []
+
+        mocker.patch("monitor_web.cc.resources.cmdb.time.time", return_value=1_700_000_000)
+        mocker.patch("monitor_web.cc.resources.cmdb._query_proc_metrics", side_effect=capture_query)
+
+        resource.cc.get_process_uptime(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        assert query_windows == [(1_699_999_820, 1_700_000_000)] * 2
+
+    def test_uptime_uses_instant_min_max_cross_series_aggregation(self, mocker):
+        query_configs = {}
+
+        def capture_query_config(query, *args, **kwargs):
+            query_config = query.data_sources[0].to_unify_query_config()[0]
+            method = query_config["function"][0]["method"]
+            query_configs[method] = query_config
+            return [
+                {
+                    "_result_": 0 if method == "min" else 7200,
+                    "bk_host_id": str(HOSTS[0].bk_host_id),
+                    "bk_target_ip": HOSTS[0].bk_host_innerip,
+                    "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
+                    "display_name": "redis",
+                }
+            ]
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=capture_query_config)
+
+        result = resource.cc.get_process_uptime(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        expected_dimensions = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
+        assert result[HOSTS[0].bk_host_id]["redis"] == {"min": 0, "max": 7200}
+        assert query_configs.keys() == {"min", "max"}
+        for method in ("min", "max"):
+            assert query_configs[method]["time_aggregation"] == {}
+            assert query_configs[method]["function"] == [{"method": method, "dimensions": expected_dimensions}]
+
+    def test_uptime_keeps_available_boundary_when_other_query_fails(self, mocker):
+        def query_boundary(*args, **kwargs):
+            if args[4] == "min_without_time":
+                raise RuntimeError("min query failed")
+            return [(HOSTS[0].bk_host_id, "redis", 7200)]
+
+        mocker.patch("monitor_web.cc.resources.cmdb._query_proc_metrics", side_effect=query_boundary)
+
+        result = resource.cc.get_process_uptime(bk_biz_id=2, hosts=HOSTS[0:1], start_time=100, end_time=200)
+
+        assert result[HOSTS[0].bk_host_id]["redis"] == {"max": 7200}
+
     def test_runtime_and_instance_count_use_instant_cross_series_aggregation(self, mocker):
         query_configs = {}
 

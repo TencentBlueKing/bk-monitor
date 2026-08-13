@@ -357,7 +357,7 @@ def get_process_runtime_metrics(
         # - mem_usage_pct:  进程内存使用率（%）
         # - fd_num:         进程文件句柄数
         # - fd_limit_soft:  进程文件句柄软限制（ulimit -Sn），多实例时求和为总限制额度
-        # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处求和
+        # 注意：uptime 已拆分至 get_process_uptime（MIN / MAX 聚合），不在此处求和
         METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"]
 
         result = defaultdict(lambda: defaultdict(dict))
@@ -397,26 +397,50 @@ def get_process_runtime_metrics(
 
 def get_process_uptime(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
-) -> dict[int, dict[str, float]]:
+) -> dict[int, dict[str, dict[str, float]]]:
     """
-    查询进程运行时长（system.proc uptime，MAX 聚合）
+    查询进程运行时长范围（system.proc uptime，查询时点 MIN / MAX 聚合）
 
-    uptime 为时长不可加（多实例求和无意义），使用 MAX 取窗口内最长运行实例的运行时长。
-    instant=True 即时计算，直接返回最新时刻的聚合值。
+    uptime 为时长不可加（多实例求和无意义），分别取同名进程实例的最短、最长运行时长。
+    instant=True 即时计算，且使用 without_time 聚合，避免混入查询窗口内的历史值。
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
-    :return: {bk_host_id: {display_name: uptime(秒)}}
+    :return: {bk_host_id: {display_name: {min: uptime(秒), max: uptime(秒)}}}
         无对应数据时该 bk_host_id 不下发（返回空 dict 兜底）。
     """
     try:
-        result = defaultdict(dict)
-        for bk_host_id, display_name, value in _query_proc_metrics(
-            bk_biz_id, hosts, "system.proc", "uptime", "MAX", start_time, end_time
-        ):
-            result[bk_host_id][display_name] = value
+        result = defaultdict(lambda: defaultdict(dict))
+        if start_time is None or end_time is None:
+            end_time = int(time.time())
+            start_time = end_time - 180
+
+        def get_boundary_data(boundary: str, method: str):
+            boundary_result = defaultdict(lambda: defaultdict(dict))
+            for bk_host_id, display_name, value in _query_proc_metrics(
+                bk_biz_id, hosts, "system.proc", "uptime", method, start_time, end_time
+            ):
+                boundary_result[bk_host_id][display_name][boundary] = value
+            return boundary_result
+
+        pool = ThreadPool()
+        futures = {
+            boundary: pool.apply_async(get_boundary_data, args=(boundary, method))
+            for boundary, method in (("min", "min_without_time"), ("max", "max_without_time"))
+        }
+        pool.close()
+        for boundary, future in futures.items():
+            try:
+                boundary_data = future.get()
+            except Exception as e:
+                logger.warning("get_process_uptime %s failed, skip: %s", boundary, e)
+                continue
+            for host_id, process_map in boundary_data.items():
+                for process_name, uptime in process_map.items():
+                    result[host_id][process_name].update(uptime)
+        pool.join()
         return result
     except Exception as e:
         # TSDB 查询异常兜底，uptime 缺失不影响其他运行时指标
