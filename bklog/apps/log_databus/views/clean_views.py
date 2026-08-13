@@ -601,8 +601,6 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiSuccess {Int} collector_config_id 采集项ID
         @apiSuccess {String} collector_config_name 采集项名称
         @apiSuccess {Int} bk_biz_id 业务ID
-        @apiSuccess {Int/Null} index_set_id 索引集ID
-        @apiSuccess {String/Null} index_set_name 索引集名称
         @apiSuccess {Array} related_index_set_list 关联索引集（索引组）列表
         @apiSuccessExample {json} 成功返回:
         {
@@ -613,8 +611,6 @@ class CleanTemplateViewSet(ModelViewSet):
                     "collector_config_id": 1,
                     "collector_config_name": "collector_name",
                     "bk_biz_id": 2,
-                    "index_set_id": 3,
-                    "index_set_name": "index_set_name",
                     "related_index_set_list": [
                         {
                             "index_set_id": 4,
@@ -678,13 +674,10 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiGroup 23_clean_template
         @apiDescription 使用已保存的模板配置解析日志样例，并返回模板字段匹配情况
         @apiParam {String} data 日志样例
-        @apiSuccess {Int} clean_template_id 清洗模板ID
-        @apiSuccess {String} etl_config 模板清洗类型
-        @apiSuccess {String} data 本次预览使用的日志样例
         @apiSuccess {Float} match_rate 字段匹配率
         @apiSuccess {Int} normal_count 正常字段数
         @apiSuccess {Int} abnormal_count 异常字段数
-        @apiSuccess {List} fields 模板字段及其值、状态和异常原因
+        @apiSuccess {List} fields 模板字段及其值和异常原因
         @apiSuccess {String} fields.inferred_field_type 类型匹配时为模板类型，不匹配时为推断类型，空值时为null
         """
         clean_template = self.get_object()

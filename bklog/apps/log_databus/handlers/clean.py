@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 
 import copy
 from collections.abc import Callable
+from decimal import Decimal, InvalidOperation
+from math import isfinite
 
 from django.db import transaction
 from django.db.models import Count, F, Q
@@ -49,23 +51,38 @@ def _is_string_compatible(value) -> bool:
     return not isinstance(value, dict | list)
 
 
-def _is_integer_compatible(value) -> bool:
+_INT32_MIN = -(2**31)
+_INT32_MAX = 2**31 - 1
+_INT64_MIN = -(2**63)
+_INT64_MAX = 2**63 - 1
+
+
+def _is_integer_in_range(value, minimum: int, maximum: int) -> bool:
     if isinstance(value, bool):
         return False
     try:
-        return float(value).is_integer()
-    except (TypeError, ValueError, OverflowError):
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError):
         return False
+    return number.is_finite() and number == number.to_integral_value() and minimum <= number <= maximum
+
+
+def _is_int_compatible(value) -> bool:
+    return _is_integer_in_range(value, _INT32_MIN, _INT32_MAX)
+
+
+def _is_long_compatible(value) -> bool:
+    return _is_integer_in_range(value, _INT64_MIN, _INT64_MAX)
 
 
 def _is_float_compatible(value) -> bool:
     if isinstance(value, bool):
         return False
     try:
-        float(value)
+        number = float(value)
     except (TypeError, ValueError, OverflowError):
         return False
-    return True
+    return isfinite(number)
 
 
 def _is_object_compatible(value) -> bool:
@@ -78,8 +95,8 @@ def _is_nested_compatible(value) -> bool:
 
 _FIELD_TYPE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "string": _is_string_compatible,
-    "int": _is_integer_compatible,
-    "long": _is_integer_compatible,
+    "int": _is_int_compatible,
+    "long": _is_long_compatible,
     "double": _is_float_compatible,
     "float": _is_float_compatible,
     "object": _is_object_compatible,
@@ -329,21 +346,12 @@ class CleanTemplateHandler:
             )
             .order_by("collector_config_id")
         )
-        index_set_names = dict(
-            LogIndexSet.objects.filter(
-                index_set_id__in={
-                    collector["index_set_id"] for collector in collectors if collector["index_set_id"] is not None
-                }
-            ).values_list(
-                "index_set_id",
-                "index_set_name",
-            )
-        )
         related_index_set_map = self.get_related_index_set_map({collector["index_set_id"] for collector in collectors})
         return [
             {
-                **collector,
-                "index_set_name": index_set_names.get(collector["index_set_id"]),
+                "collector_config_id": collector["collector_config_id"],
+                "collector_config_name": collector["collector_config_name"],
+                "bk_biz_id": collector["bk_biz_id"],
                 "related_index_set_list": related_index_set_map.get(str(collector["index_set_id"]), []),
             }
             for collector in collectors
@@ -500,12 +508,9 @@ class CleanTemplateHandler:
             bk_biz_id=self.data.bk_biz_id,
         )
         fields = self._build_preview_fields(preview.get("fields", []))
-        normal_count = sum(field["status"] == "NORMAL" for field in fields)
+        normal_count = sum(not field["error_type"] for field in fields)
         total_count = len(fields)
         return {
-            "clean_template_id": self.data.clean_template_id,
-            "etl_config": self.data.clean_type,
-            "data": data,
             "fields": fields,
             "match_rate": round(normal_count * 100 / total_count, 1) if total_count else 100.0,
             "normal_count": normal_count,
@@ -513,8 +518,6 @@ class CleanTemplateHandler:
         }
 
     def _build_preview_fields(self, parsed_fields) -> list:
-        if self.data.clean_type == EtlConfig.BK_LOG_TEXT and isinstance(parsed_fields, str):
-            parsed_fields = [{"field_name": "log", "value": parsed_fields}]
         if not isinstance(parsed_fields, list):
             parsed_fields = []
 
@@ -543,9 +546,7 @@ class CleanTemplateHandler:
             item.update(
                 {
                     "inferred_field_type": inferred_field_type,
-                    "status": "ABNORMAL" if error_type else "NORMAL",
                     "error_type": error_type,
-                    "error_message": self._get_field_error_message(error_type),
                 }
             )
             result.append(item)
@@ -558,7 +559,7 @@ class CleanTemplateHandler:
         if isinstance(value, dict):
             return "object"
         if isinstance(value, int):
-            return "long" if value > 2**31 - 1 else "int"
+            return "int" if _INT32_MIN <= value <= _INT32_MAX else "long"
         if isinstance(value, float):
             return "double"
         return "string"
@@ -572,13 +573,6 @@ class CleanTemplateHandler:
         if validator and not validator(value):
             return "TYPE_MISMATCH"
         return None
-
-    @staticmethod
-    def _get_field_error_message(error_type: str | None) -> str:
-        return {
-            "EMPTY_VALUE": "Field value is empty or the field was not extracted",
-            "TYPE_MISMATCH": "Field value does not match the configured type",
-        }.get(error_type, "")
 
     def _check_clean_template_exist(self, name: str, bk_biz_id: int):
         """

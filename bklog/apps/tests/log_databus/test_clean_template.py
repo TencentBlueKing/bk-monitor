@@ -249,7 +249,7 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertEqual(updated["config_version"], 2)
         self.assertEqual(updated["bk_biz_id"], 706)
 
-    def test_list_collectors_returns_active_collectors_with_index_set(self):
+    def test_list_collectors_returns_active_collectors_with_related_index_sets(self):
         template = self.create_template()
         template_id = template["clean_template_id"]
         index_set = LogIndexSet.objects.create(
@@ -294,8 +294,8 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
             ["with-index-set", "without-index-set"],
         )
         self.assertEqual(result[0]["collector_config_id"], collector.collector_config_id)
-        self.assertEqual(result[0]["index_set_id"], index_set.index_set_id)
-        self.assertEqual(result[0]["index_set_name"], "collector-index-set")
+        self.assertNotIn("index_set_id", result[0])
+        self.assertNotIn("index_set_name", result[0])
         self.assertEqual(
             result[0]["related_index_set_list"],
             [
@@ -303,8 +303,8 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
                 for parent in parent_index_sets
             ],
         )
-        self.assertIsNone(result[1]["index_set_id"])
-        self.assertIsNone(result[1]["index_set_name"])
+        self.assertNotIn("index_set_id", result[1])
+        self.assertNotIn("index_set_name", result[1])
         self.assertEqual(result[1]["related_index_set_list"], [])
         self.assertNotIn("bk_biz_name", result[0])
 
@@ -724,6 +724,54 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
 
 
 class TestCleanTemplatePreview(CleanTemplateTestCase):
+    @patch("apps.log_databus.handlers.etl.EtlHandler.etl_preview", return_value={"fields": "raw log"})
+    def test_text_preview_has_no_template_fields(self, mock_etl_preview):
+        template = self.create_template(clean_type="bk_log_text", etl_fields=[])
+
+        result = CleanTemplateHandler(template["clean_template_id"]).preview(data="raw log")
+
+        self.assertEqual(
+            result,
+            {
+                "fields": [],
+                "match_rate": 100.0,
+                "normal_count": 0,
+                "abnormal_count": 0,
+            },
+        )
+        mock_etl_preview.assert_called_once()
+
+    def test_numeric_field_type_boundaries(self):
+        normal_cases = (
+            (-(2**31), "int"),
+            (2**31 - 1, "int"),
+            ("12.0", "int"),
+            (-(2**63), "long"),
+            (2**63 - 1, "long"),
+            ("1.5", "double"),
+        )
+        for value, field_type in normal_cases:
+            with self.subTest(value=value, field_type=field_type):
+                self.assertIsNone(CleanTemplateHandler._get_field_error_type(value, field_type))
+
+        mismatch_cases = (
+            (-(2**31) - 1, "int"),
+            (2**31, "int"),
+            (-(2**63) - 1, "long"),
+            (2**63, "long"),
+            ("NaN", "double"),
+            ("Infinity", "double"),
+            ("-Infinity", "float"),
+        )
+        for value, field_type in mismatch_cases:
+            with self.subTest(value=value, field_type=field_type):
+                self.assertEqual(
+                    CleanTemplateHandler._get_field_error_type(value, field_type),
+                    "TYPE_MISMATCH",
+                )
+
+        self.assertEqual(CleanTemplateHandler._infer_field_type(-(2**31) - 1), "long")
+
     def test_preview_fields_reports_empty_and_type_mismatch(self):
         fields = [
             {"field_name": "count", "field_type": "int", "is_delete": False},
@@ -741,7 +789,8 @@ class TestCleanTemplatePreview(CleanTemplateTestCase):
             ]
         )
 
-        self.assertEqual([item["status"] for item in result], ["NORMAL", "ABNORMAL", "ABNORMAL"])
+        self.assertEqual([item["error_type"] for item in result], [None, "TYPE_MISMATCH", "EMPTY_VALUE"])
+        self.assertTrue(all("status" not in item for item in result))
         self.assertEqual(result[1]["error_type"], "TYPE_MISMATCH")
         self.assertEqual(result[1]["inferred_field_type"], "string")
         self.assertEqual(result[2]["error_type"], "EMPTY_VALUE")
