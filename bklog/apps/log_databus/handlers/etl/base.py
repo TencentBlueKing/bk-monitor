@@ -33,6 +33,7 @@ from apps.feature_toggle.plugins.constants import FEATURE_COLLECTOR_ITSM
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import (
+    DORIS_CLUSTER_TYPE,
     ETL_PARAMS,
     REGISTERED_SYSTEM_DEFAULT,
     STORAGE_CLUSTER_TYPE,
@@ -394,7 +395,9 @@ class EtlHandler:
             params={"result_table_list": self.data.table_id, "storage_type": self.storage_cluster_type}
         )[self.data.table_id]
         storage_cluster_id = storage["cluster_config"]["cluster_id"]
-        retention = storage["storage_config"].get("retention")
+        storage_cluster_type = storage.get("cluster_type") or self.storage_cluster_type
+        retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
+        retention = storage["storage_config"].get(retention_field)
         allocation_min_days = storage["storage_config"].get("warm_phase_days")
         storage_replies = storage["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
         _, table_id = self.data.table_id.split(".")

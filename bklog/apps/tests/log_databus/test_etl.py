@@ -29,6 +29,7 @@ from apps.api.modules.transfer import modify_result_table_before
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import (
     DORIS_CLUSTER_TYPE,
+    ETL_PARAMS as CLOSE_CLEAN_ETL_PARAMS,
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
@@ -673,6 +674,56 @@ LOG_INDEX_DATA = {
 
 
 class TestEtl(TestCase):
+    def test_close_clean_preserves_storage_expiration(self):
+        """关闭清洗时，应根据存储类型保留当前日志过期时间。"""
+        for storage_cluster_type, retention_field in (
+            (STORAGE_CLUSTER_TYPE, "retention"),
+            (DORIS_CLUSTER_TYPE, "expire_days"),
+        ):
+            with self.subTest(storage_cluster_type=storage_cluster_type):
+                collector_params = copy.deepcopy(COLLECTOR_CONFIG)
+                collector_params.update(
+                    {
+                        "collector_config_name": f"{storage_cluster_type}_collector",
+                        "table_id": TABLE_ID,
+                        "storage_cluster_type": storage_cluster_type,
+                    }
+                )
+                collector_config = CollectorConfig.objects.create(**collector_params)
+                etl_handler = EtlHandler.get_instance(collector_config.collector_config_id)
+
+                storage_info = {
+                    TABLE_ID: {
+                        "cluster_type": storage_cluster_type,
+                        "cluster_config": {"cluster_id": STORAGE_CLUSTER_ID},
+                        "storage_config": {
+                            retention_field: RETENTION_TIME,
+                            "warm_phase_days": 0,
+                            "index_settings": {"number_of_replicas": 1},
+                        },
+                    }
+                }
+                with (
+                    patch("apps.api.TransferApi.get_result_table_storage", return_value=storage_info) as mock_storage,
+                    patch.object(etl_handler, "update_or_create") as mock_update,
+                ):
+                    result = etl_handler.close_clean()
+
+                self.assertEqual(result, {"collector_config_id": collector_config.collector_config_id})
+                mock_storage.assert_called_once_with(
+                    params={"result_table_list": TABLE_ID, "storage_type": storage_cluster_type}
+                )
+                mock_update.assert_called_once_with(
+                    etl_config="bk_log_text",
+                    table_id="test_table",
+                    storage_cluster_id=STORAGE_CLUSTER_ID,
+                    retention=RETENTION_TIME,
+                    allocation_min_days=0,
+                    storage_replies=1,
+                    etl_params=CLOSE_CLEAN_ETL_PARAMS,
+                    fields=[],
+                )
+
     def test_etl_time(self):
         formsts = FieldDateFormatEnum.get_choices_list_dict()
         for format in formsts:
