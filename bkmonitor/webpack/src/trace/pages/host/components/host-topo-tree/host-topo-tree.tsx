@@ -291,6 +291,11 @@ export default defineComponent({
               </div>
             ))}
           </div>
+        ) : ctx.loadError.value ? (
+          <EmptyStatus
+            type='500'
+            onOperation={ctx.handleRefresh}
+          />
         ) : (
           <div class='host-topo-tree__body'>
             <div
