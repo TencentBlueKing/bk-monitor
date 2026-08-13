@@ -6,19 +6,19 @@ POST /rum/search/list_records/
 
 ### 1.1 Request
 
-| 参数名称         | 类型            | 必填  | 描述                                               |
-|--------------|---------------|-----|--------------------------------------------------|
-| bk_biz_id    | Integer       | 是   | 业务 ID                                            |
-| app_name     | String        | 是   | 应用名称                                             |
-| mode         | String        | 否   | 查询层级模式，枚举值：`span` / `view` / `session`，默认 `span` |
-| start_time   | Integer       | 是   | 开始时间（Unix 秒级时间戳）                                 |
-| end_time     | Integer       | 是   | 结束时间（Unix 秒级时间戳）                                 |
-| offset       | Integer       | 否   | 分页偏移量，默认 0，最小 0                                  |
-| limit        | Integer       | 否   | 每页数量，默认 10，最小 1                                  |
-| sort         | Array[String] | 否   | 排序条件，字段名前加 `-` 表示降序，默认 `[]`                     |
-| filters      | Array[Filter] | 否   | 过滤条件，默认 `[]`                                     |
-| query_string | String        | 否   | 查询字符串，默认 `""`                                   |
-| extra_config | Object        | 否   | 扩展配置，默认 `{}`                                     |
+| 参数名称         | 类型            | 必填 | 描述                                                                  |
+|--------------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
+| app_name     | String        | 是  | 应用名称                                                                |
+| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| offset       | Integer       | 否  | 分页偏移量，默认 0，最小 0                                                     |
+| limit        | Integer       | 否  | 每页数量，默认 10，最小 1                                                     |
+| sort         | Array[String] | 否  | 排序条件，字段名前加 `-` 表示降序，默认 `[]`                                         |
+| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+| extra_config | Object        | 否  | 扩展配置，默认 `{}`                                                        |
 
 ```json
 {
@@ -30,14 +30,18 @@ POST /rum/search/list_records/
     {
       "key": "attributes.span_type",
       "operator": "equal",
-      "value": ["http"]
+      "value": [
+        "http"
+      ]
     }
   ],
   "start_time": 1785999805,
   "end_time": 1786003405,
   "offset": 0,
   "limit": 10,
-  "sort": ["-start_time"]
+  "sort": [
+    "-start_time"
+  ]
 }
 ```
 
@@ -69,13 +73,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 ### 2.1 Request
 
-| 参数名称        | 类型      | 必填  | 描述                           |
-|-------------|---------|-----|------------------------------|
-| bk_biz_id   | Integer | 是   | 业务 ID                        |
-| app_name    | String  | 是   | 应用名称                         |
-| start_time  | Integer | 是   | 开始时间（Unix 秒级时间戳）             |
-| end_time    | Integer | 是   | 结束时间（Unix 秒级时间戳）             |
-| extra_config | Object | 否   | 扩展配置，默认 `{}`                 |
+| 参数名称         | 类型      | 必填 | 描述               |
+|--------------|---------|----|------------------|
+| bk_biz_id    | Integer | 是  | 业务 ID            |
+| app_name     | String  | 是  | 应用名称             |
+| start_time   | Integer | 是  | 开始时间（Unix 秒级时间戳） |
+| end_time     | Integer | 是  | 结束时间（Unix 秒级时间戳） |
+| extra_config | Object  | 否  | 扩展配置，默认 `{}`     |
 
 ```json
 {
@@ -153,18 +157,18 @@ POST /rum/search/get_fields_option_values/
 
 ### 3.1 Request
 
-| 参数名称         | 类型            | 必填  | 描述                                               |
-|--------------|---------------|-----|--------------------------------------------------|
-| bk_biz_id    | Integer       | 是   | 业务 ID                                            |
-| app_name     | String        | 是   | 应用名称                                             |
-| mode         | String        | 否   | 查询层级模式，枚举值：`span` / `view` / `session`，默认 `span` |
-| start_time   | Integer       | 是   | 开始时间（Unix 秒级时间戳）                                 |
-| end_time     | Integer       | 是   | 结束时间（Unix 秒级时间戳）                                 |
-| fields       | Array[String] | 是   | 查询字段列表                                           |
-| limit        | Integer       | 否   | 每个字段返回的枚举值数量，默认 10，最小 1                          |
-| filters      | Array[Filter] | 否   | 过滤条件，默认 `[]`                                     |
-| query_string | String        | 否   | 查询字符串，默认 `""`                                   |
-| extra_config | Object        | 否   | 扩展配置，默认 `{}`                                     |
+| 参数名称         | 类型            | 必填 | 描述                                                                  |
+|--------------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
+| app_name     | String        | 是  | 应用名称                                                                |
+| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| fields       | Array[String] | 是  | 查询字段列表                                                              |
+| limit        | Integer       | 否  | 每个字段返回的枚举值数量，默认 10，最小 1                                             |
+| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+| extra_config | Object        | 否  | 扩展配置，默认 `{}`                                                        |
 
 ```json
 {
@@ -175,7 +179,11 @@ POST /rum/search/get_fields_option_values/
   "filters": [],
   "start_time": 1785999805,
   "end_time": 1786003405,
-  "fields": ["attributes.span_type", "kind", "status.code"],
+  "fields": [
+    "attributes.span_type",
+    "kind",
+    "status.code"
+  ],
   "limit": 10
 }
 ```
@@ -186,9 +194,25 @@ POST /rum/search/get_fields_option_values/
 
 ```json
 {
-  "attributes.span_type": ["http", "resource", "document", "route", "action"],
-  "kind": ["1", "3", "2", "5", "4"],
-  "status.code": ["0", "1", "2"]
+  "attributes.span_type": [
+    "http",
+    "resource",
+    "document",
+    "route",
+    "action"
+  ],
+  "kind": [
+    "1",
+    "3",
+    "2",
+    "5",
+    "4"
+  ],
+  "status.code": [
+    "0",
+    "1",
+    "2"
+  ]
 }
 ```
 
@@ -198,25 +222,25 @@ POST /rum/search/generate_query_string/
 
 ### 4.1 Request
 
-| 参数名称    | 类型            | 必填  | 描述                  |
-|---------|---------------|-----|---------------------|
-| filters | Array[Filter] | 否   | 查询条件列表，默认 `[]`      |
+| 参数名称    | 类型            | 必填 | 描述             |
+|---------|---------------|----|----------------|
+| filters | Array[Filter] | 否  | 查询条件列表，默认 `[]` |
 
 - Filter
 
-| 参数名称     | 类型     | 必填  | 描述                                                                   |
-|----------|--------|-----|----------------------------------------------------------------------|
-| key      | String | 是   | 查询键                                                                  |
-| operator | String | 是   | 操作符                                                                  |
-| value    | Array  | 是   | 查询值列表（元素类型为任意 JSON 值）                                               |
-| options  | Object | 否   | 操作符选项，见下表                                                            |
+| 参数名称     | 类型     | 必填 | 描述                    |
+|----------|--------|----|-----------------------|
+| key      | String | 是  | 查询键                   |
+| operator | String | 是  | 操作符                   |
+| value    | Array  | 是  | 查询值列表（元素类型为任意 JSON 值） |
+| options  | Object | 否  | 操作符选项，见下表             |
 
 - Filter.options
 
-| 参数名称           | 类型      | 必填  | 描述                                                  |
-|----------------|---------|-----|-----------------------------------------------------|
-| is_wildcard    | Boolean | 否   | 是否使用通配符，默认 `false`                                  |
-| group_relation | String  | 否   | 分组关系，枚举值：`AND` / `OR`，默认 `OR`                       |
+| 参数名称           | 类型      | 必填 | 描述                            |
+|----------------|---------|----|-------------------------------|
+| is_wildcard    | Boolean | 否  | 是否使用通配符，默认 `false`            |
+| group_relation | String  | 否  | 分组关系，枚举值：`AND` / `OR`，默认 `OR` |
 
 ```json
 {
@@ -224,7 +248,10 @@ POST /rum/search/generate_query_string/
     {
       "key": "attributes.span_type",
       "operator": "equal",
-      "value": ["http", "resource"],
+      "value": [
+        "http",
+        "resource"
+      ],
       "options": {
         "is_wildcard": false,
         "group_relation": "OR"
