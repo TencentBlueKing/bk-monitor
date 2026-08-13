@@ -731,7 +731,9 @@ class TraceHandler:
             ],
             "icon": cls._get_span_classify(span)[0],
         }
-        if span.get("bk_biz_id") not in (None, ""):
+        # bk_biz_id 是在某个 collector 版本后补充的，新创建结果表默认预设该字段，如果此时 collector 处在旧版本，
+        # bk_biz_id 将返回 0 或 "0"，会被前端误判为跨应用的 Span，故在此处统一做判断和归一化。
+        if span.get("bk_biz_id") not in (None, "", "0", 0):
             converted_span["bk_biz_id"] = span["bk_biz_id"]
         return converted_span
 
