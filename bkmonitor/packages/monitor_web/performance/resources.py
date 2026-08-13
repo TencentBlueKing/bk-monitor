@@ -430,13 +430,22 @@ class SearchHostMetricResource(ApiAuthResource):
 
     @staticmethod
     def get_agent_status(
-        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+        fail_on_incomplete: bool = False,
     ):
         """
         获取Agent状态
         """
         agent_statuses = resource.cc.get_agent_status(
-            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+            fail_on_incomplete=fail_on_incomplete,
         )
         for bk_host_id, status in agent_statuses.items():
             if bk_host_id not in data:
@@ -474,6 +483,7 @@ class SearchHostMetricResource(ApiAuthResource):
         data: dict[int, dict],
         start_time: int = None,
         end_time: int = None,
+        fail_on_incomplete: bool = False,
     ):
         """
         获取进程信息
@@ -487,6 +497,7 @@ class SearchHostMetricResource(ApiAuthResource):
             hosts=hosts,
             start_time=start_time,
             end_time=end_time,
+            fail_on_incomplete=fail_on_incomplete,
         )
         for bk_host_id in result:
             if bk_host_id not in data:
@@ -546,9 +557,9 @@ class SearchHostMetricResource(ApiAuthResource):
         pool = ThreadPool()
         task_args = (bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time"))
         futures = {
-            "agent_status": pool.apply_async(self.get_agent_status, args=task_args),
+            "agent_status": pool.apply_async(self.get_agent_status, args=(*task_args, True)),
             "performance_data": pool.apply_async(self.get_performance_data, args=(*task_args, True)),
-            "process_status": pool.apply_async(self.get_process_status, args=task_args),
+            "process_status": pool.apply_async(self.get_process_status, args=(*task_args, True)),
             "alarm_count": pool.apply_async(self.get_alarm_count, args=task_args),
         }
         pool.close()

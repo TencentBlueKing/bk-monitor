@@ -59,7 +59,13 @@ def _build_host_target_filter(bk_biz_id: int, hosts: list[Host]) -> dict:
 # 主机相关的信息及数据需要支持IPv6及DHCP
 # 如果相关信息的获取需要保证兼容性，那么使用Host对象作为参数，否则直接使用特定字段作为参数
 # 如果相关信息的获取需要保证兼容性，那么使用bk_host_id作为返回值，否则直接使用特定字段作为返回值
-def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None) -> dict[int, int]:
+def get_agent_status(
+    bk_biz_id: int,
+    hosts: list[Host],
+    start_time: int = None,
+    end_time: int = None,
+    fail_on_incomplete: bool = False,
+) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
     :param bk_biz_id: 业务ID
@@ -67,6 +73,7 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时，仅以该时间段内
                       是否有数据上报来判定 Agent 状态，跳过 node_man 实时查询（历史场景无意义）。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :return {bk_host_id: AGENT_STATUS}
     """
     status: dict[int, int] = {}
@@ -95,6 +102,8 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     query_start = query_end - 180000
     # 使用 instant 查询取窗口聚合的单点，避免拉回区间序列
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+    if fail_on_incomplete and query.is_partial:
+        raise RuntimeError("unify query returned partial data for agent status")
 
     # 统计已经存在数据的主机并设置状态为正常
     ip_to_host_id: dict[tuple, int] = {
@@ -188,6 +197,7 @@ def get_process_info(
     limit_port_num: int = None,
     start_time: int = None,
     end_time: int = None,
+    fail_on_incomplete: bool = False,
 ) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
@@ -196,6 +206,7 @@ def get_process_info(
     :param limit_port_num: 限制端口数量
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选），用于限定进程存活状态的判定窗口
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -227,7 +238,9 @@ def get_process_info(
     result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
 
     # 查询进程状态数据
-    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts, start_time, end_time)
+    statuses: dict[int, dict[str, int]] = get_process_status(
+        bk_biz_id, hosts, start_time, end_time, fail_on_incomplete=fail_on_incomplete
+    )
 
     bk_host_ids = {host.bk_host_id for host in hosts}
     for pp in result:
@@ -268,6 +281,7 @@ def get_process_status(
     hosts: list[Host],
     start_time: int = None,
     end_time: int = None,
+    fail_on_incomplete: bool = False,
 ) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
@@ -276,6 +290,7 @@ def get_process_status(
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     """
     result = defaultdict(dict)
     for bk_host_id, display_name, value in _query_proc_metrics(
@@ -286,6 +301,7 @@ def get_process_status(
         "AVG",
         start_time,
         end_time,
+        fail_on_incomplete=fail_on_incomplete,
     ):
         result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
@@ -299,6 +315,7 @@ def _query_proc_metrics(
     method: str,
     start_time: int = None,
     end_time: int = None,
+    fail_on_incomplete: bool = False,
 ):
     """
     查询 system.proc / system.proc_port 指标的公共生成器。
@@ -313,6 +330,7 @@ def _query_proc_metrics(
     :param method: 聚合方式（sum_without_time / count_without_time / MAX / MIN 等）
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
+    :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
     """
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
@@ -335,6 +353,8 @@ def _query_proc_metrics(
     # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
     query_start = query_end - 180000
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+    if fail_on_incomplete and query.is_partial:
+        raise RuntimeError(f"unify query returned partial data for {table}.{field}")
     for record in records:
         if record.get("_result_") is None:
             continue
