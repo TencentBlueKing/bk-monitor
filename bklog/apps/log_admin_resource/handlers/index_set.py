@@ -1,5 +1,8 @@
+from django.db.models import Q
+
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector import serialize_collectors
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
@@ -11,7 +14,7 @@ from bkm_space.utils import parse_space_uid, space_uid_to_bk_biz_id
 def list_index_sets(params):
     params = params or {}
     page = _to_positive_int(params.get("page"), default=1)
-    page_size = _to_positive_int(params.get("page_size"), default=20)
+    page_size = _to_positive_int(params.get("page_size"), default=20, maximum=100)
     qs = LogIndexSet.objects.all()
 
     exact_filters = {
@@ -29,6 +32,7 @@ def list_index_sets(params):
         qs = qs.filter(index_set_name__icontains=params["index_set_name"])
     if params.get("result_table_id"):
         qs = qs.filter(index_set_id__in=_get_index_set_ids_by_result_table_id(params["result_table_id"]))
+    qs = _apply_clustering_filters(qs, params)
 
     ordering = params.get("ordering") or params.get("order_by") or "-updated_at"
     qs = _apply_ordering(qs, ordering)
@@ -56,11 +60,19 @@ def get_index_set_detail(params):
         for item in indexes
         if item["scenario_id"] == Scenario.LOG and item["storage_cluster_id"] is None
     ]
+    clustering = _get_clustering_relations_map([index_set]).get(
+        index_set.index_set_id, {"summary": _empty_clustering_summary(), "items": []}
+    )
 
     return {
-        "index_set": _serialize_index_set(index_set, visible_indexes),
+        "index_set": _serialize_index_set(
+            index_set,
+            visible_indexes,
+            clustering=clustering,
+        ),
         "indexes": indexes,
         "collectors": collectors,
+        "clustering_relations": clustering["items"],
         "raw": {
             "source_id": index_set.source_id,
             "source_app_code": index_set.source_app_code,
@@ -76,17 +88,19 @@ def get_index_set_detail(params):
 def _serialize_index_sets(index_sets):
     visible_indexes_map = _get_visible_indexes_map(index_sets)
     bk_biz_id_map = _build_bk_biz_id_map(index_sets)
+    clustering_relations_map = _get_clustering_relations_map(index_sets)
     return [
         _serialize_index_set(
             index_set,
             visible_indexes_map.get(index_set.index_set_id, []),
             bk_biz_id=bk_biz_id_map.get(index_set.space_uid, 0),
+            clustering=clustering_relations_map.get(index_set.index_set_id),
         )
         for index_set in index_sets
     ]
 
 
-def _serialize_index_set(index_set, indexes=None, bk_biz_id=None):
+def _serialize_index_set(index_set, indexes=None, bk_biz_id=None, clustering=None):
     if indexes is None:
         indexes = _get_visible_indexes(index_set)
     first_index = indexes[0] if indexes else None
@@ -113,6 +127,137 @@ def _serialize_index_set(index_set, indexes=None, bk_biz_id=None):
         "updated_at": index_set.updated_at.isoformat() if index_set.updated_at else None,
         "result_table_ids": [item.result_table_id for item in indexes],
         "index_count": len(indexes),
+        "clustering": (clustering or {"summary": _empty_clustering_summary()})["summary"],
+    }
+
+
+def _apply_clustering_filters(qs, params):
+    filter_keys = {"has_clustering_config", "signature_enable", "access_finished_stored"}
+    if not any(params.get(key) not in (None, "") for key in filter_keys):
+        return qs
+
+    has_config = params.get("has_clustering_config")
+    has_config_is_false = has_config in (False, "false", "False", 0, "0")
+    if has_config_is_false and any(
+        params.get(key) not in (None, "") for key in ("signature_enable", "access_finished_stored")
+    ):
+        raise ValidationError(
+            "has_clustering_config=false cannot be combined with signature_enable or access_finished_stored"
+        )
+
+    config_qs = ClusteringConfig.objects.all()
+    if params.get("signature_enable") not in (None, ""):
+        config_qs = config_qs.filter(signature_enable=params["signature_enable"])
+    if params.get("access_finished_stored") not in (None, ""):
+        config_qs = config_qs.filter(access_finished=params["access_finished_stored"])
+    related_ids = set(config_qs.values_list("index_set_id", flat=True))
+    related_ids.update(
+        index_set_id
+        for index_set_id in config_qs.values_list("new_cls_index_set_id", flat=True)
+        if index_set_id is not None
+    )
+    group_ids = set(
+        LogIndexSetData.objects.filter(
+            result_table_id__in=[str(index_set_id) for index_set_id in related_ids],
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("index_set_id", flat=True)
+    )
+    visible_ids = related_ids | group_ids
+    if has_config_is_false:
+        return qs.exclude(index_set_id__in=visible_ids)
+    return qs.filter(index_set_id__in=visible_ids)
+
+
+def _get_clustering_relations_map(index_sets):
+    result = {index_set.index_set_id: {"summary": _empty_clustering_summary(), "items": []} for index_set in index_sets}
+    if not index_sets:
+        return result
+
+    group_child_ids_map = _get_group_child_ids_map(
+        [index_set.index_set_id for index_set in index_sets if index_set.is_group]
+    )
+    member_ids_map = {
+        index_set.index_set_id: (
+            group_child_ids_map.get(index_set.index_set_id, []) if index_set.is_group else [index_set.index_set_id]
+        )
+        for index_set in index_sets
+    }
+    all_member_ids = {member_id for member_ids in member_ids_map.values() for member_id in member_ids}
+    configs = list(
+        ClusteringConfig.objects.filter(
+            Q(index_set_id__in=all_member_ids) | Q(new_cls_index_set_id__in=all_member_ids)
+        ).order_by("id")
+    )
+
+    for index_set in index_sets:
+        member_ids = set(member_ids_map[index_set.index_set_id])
+        relations = []
+        for config in configs:
+            if config.index_set_id in member_ids:
+                relations.append(_serialize_clustering_relation(config, index_set, config.index_set_id, "primary"))
+            if config.new_cls_index_set_id in member_ids:
+                relations.append(
+                    _serialize_clustering_relation(
+                        config,
+                        index_set,
+                        config.new_cls_index_set_id,
+                        "new_class_output",
+                    )
+                )
+        config_ids = sorted({relation["config_id"] for relation in relations})
+        configured_member_ids = sorted({relation["member_index_set_id"] for relation in relations})
+        signature_enabled_config_ids = sorted(
+            {relation["config_id"] for relation in relations if relation["signature_enable"]}
+        )
+        unfinished_config_ids = sorted(
+            {relation["config_id"] for relation in relations if not relation["access_finished_stored"]}
+        )
+        latest_updated_at = max(
+            (relation["updated_at"] for relation in relations if relation["updated_at"]),
+            default=None,
+        )
+        result[index_set.index_set_id] = {
+            "summary": {
+                "has_clustering_config": bool(config_ids),
+                "config_count": len(config_ids),
+                "navigation_config_id": config_ids[0] if len(config_ids) == 1 else None,
+                "configured_member_count": len(configured_member_ids),
+                "signature_enabled_config_count": len(signature_enabled_config_ids),
+                "unfinished_config_count": len(unfinished_config_ids),
+                "updated_at": latest_updated_at,
+            },
+            "items": relations,
+        }
+    return result
+
+
+def _serialize_clustering_relation(config, display_index_set, member_index_set_id, relation_type):
+    if display_index_set.is_group:
+        relation_type = f"group_member_{relation_type}"
+    return {
+        "config_id": config.id,
+        "relation_type": relation_type,
+        "member_index_set_id": member_index_set_id,
+        "primary_index_set_id": config.index_set_id,
+        "new_cls_index_set_id": config.new_cls_index_set_id,
+        "bk_biz_id": config.bk_biz_id,
+        "collector_config_id": config.collector_config_id,
+        "signature_enable": config.signature_enable,
+        "access_finished_stored": config.access_finished,
+        "predict_flow_id": config.predict_flow_id,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
+def _empty_clustering_summary():
+    return {
+        "has_clustering_config": False,
+        "config_count": 0,
+        "navigation_config_id": None,
+        "configured_member_count": 0,
+        "signature_enabled_config_count": 0,
+        "unfinished_config_count": 0,
+        "updated_at": None,
     }
 
 
@@ -287,12 +432,14 @@ def _allowed_ordering():
     return set(fields + [f"-{field}" for field in fields])
 
 
-def _to_positive_int(value, default):
+def _to_positive_int(value, default, maximum=None):
     if value in (None, ""):
         return default
     value = int(value)
     if value < 1:
         raise ValidationError("pagination value must be positive")
+    if maximum is not None and value > maximum:
+        raise ValidationError(f"pagination value must be less than or equal to {maximum}")
     return value
 
 
