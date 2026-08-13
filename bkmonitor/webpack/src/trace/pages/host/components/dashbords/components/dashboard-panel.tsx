@@ -31,6 +31,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import DashboardRow from './dashboard-row';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 
 import type { DashboardRow as DashboardRowModel } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
@@ -61,25 +62,49 @@ export default defineComponent({
       type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
+    /** 面板或排序配置是否加载失败 */
+    loadError: {
+      type: Boolean,
+      default: false,
+    },
+    /** 面板或排序配置是否正在加载 */
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup(props) {
+  emits: {
+    retry: () => true,
+  },
+  setup(props, { emit }) {
     const dashboardId = shallowRef(random(10));
 
     echartsConnect(dashboardId.value);
 
     return () => (
       <div class='dashboard-panel'>
-        {props.rows.map(row => (
-          <DashboardRow
-            key={row.id}
-            columns={props.columns}
-            customOptions={props.customOptions}
-            dashboardId={dashboardId.value}
-            row={row}
-            scopedVars={props.scopedVars}
+        {props.loading && props.rows.length === 0 ? (
+          <ChartSkeleton />
+        ) : props.loadError ? (
+          <EmptyStatus
+            type='500'
+            onOperation={() => emit('retry')}
           />
-        ))}
-        {props.rows.length === 0 && <EmptyStatus type='empty' />}
+        ) : (
+          <>
+            {props.rows.map(row => (
+              <DashboardRow
+                key={row.id}
+                columns={props.columns}
+                customOptions={props.customOptions}
+                dashboardId={dashboardId.value}
+                row={row}
+                scopedVars={props.scopedVars}
+              />
+            ))}
+            {props.rows.length === 0 && <EmptyStatus type='empty' />}
+          </>
+        )}
       </div>
     );
   },
