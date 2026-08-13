@@ -709,13 +709,6 @@ class IndexSetHandler(APIModel):
         scenario_id = index_set_obj.scenario_id
         storage_cluster_id = index_set_obj.storage_cluster_id
         index_list: list = [x.get("result_table_id") for x in index_set_data]
-        if scenario_id == Scenario.LOG:
-            indices_for_index = {
-                table_id: indices
-                for table_id, indices in StorageHandler.get_result_tables_indices(index_list).items()
-                if indices
-            }
-            return self._indices_result(indices_for_index, index_list)
         if scenario_id == Scenario.ES:
             multi_execute_func = MultiExecuteFunc()
             for index in index_list:
@@ -1163,14 +1156,13 @@ class IndexSetHandler(APIModel):
 
     @staticmethod
     def _get_health(src: list):
-        health_values = [item.get("health") for item in src]
-        if EsHealthStatus.RED.value in health_values:
+        has_red_health_list = [item.get("health", "") == EsHealthStatus.RED.value for item in src]
+        has_yellow_health_list = [item.get("health", "") == EsHealthStatus.YELLOW.value for item in src]
+        if any(has_red_health_list):
             return EsHealthStatus.RED.value
-        if EsHealthStatus.YELLOW.value in health_values:
+        if any(has_yellow_health_list):
             return EsHealthStatus.YELLOW.value
-        if health_values and all(health == EsHealthStatus.GREEN.value for health in health_values):
-            return EsHealthStatus.GREEN.value
-        return "--"
+        return EsHealthStatus.GREEN.value
 
     @staticmethod
     def _get_sum(key: str, src: list) -> int:

@@ -71,6 +71,6 @@ export const getHostTopoTreeByBizId = async (
     condition_list: [],
     instance_type: 'host',
     remove_empty_nodes: false,
-  }).catch(() => []);
+  });
   return data;
 };
