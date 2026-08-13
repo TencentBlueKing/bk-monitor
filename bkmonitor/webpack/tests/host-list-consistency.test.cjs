@@ -641,3 +641,25 @@ test('host list views expose separate retry paths for base and metric failures',
   assert.match(tableSource, /指标数据加载失败，当前仅展示主机基础信息/);
   assert.match(tableSource, /HOST_METRIC_DATA_COLUMN_IDS\.has\(config\.id\)/);
 });
+
+test('metric failure only replaces columns supplied by the metric response', () => {
+  const tableSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list-table.tsx'),
+    'utf8'
+  );
+  const metricColumnIdsSource = tableSource.match(/const HOST_METRIC_DATA_COLUMN_IDS = new Set\(\[([\s\S]*?)\]\);/);
+
+  assert.ok(metricColumnIdsSource);
+  const metricColumnIds = [...metricColumnIdsSource[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
+  assert.deepEqual(metricColumnIds, [
+    'status',
+    'alarm_count',
+    'cpu_usage',
+    'mem_usage',
+    'disk_in_use',
+    'io_util',
+    'psc_mem_usage',
+    'cpu_load',
+    'display_name',
+  ]);
+});

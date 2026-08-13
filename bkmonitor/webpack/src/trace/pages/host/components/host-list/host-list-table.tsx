@@ -81,7 +81,6 @@ const ALARM_LEVEL_COLOR: Record<number, string> = {
 
 /** 由指标补充接口提供的列。失败时不能用空值、0 或“暂无进程”伪装成正常数据。 */
 const HOST_METRIC_DATA_COLUMN_IDS = new Set([
-  'bk_host_innerip_v6',
   'status',
   'alarm_count',
   'cpu_usage',
