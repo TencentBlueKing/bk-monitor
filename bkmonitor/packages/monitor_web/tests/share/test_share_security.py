@@ -301,6 +301,81 @@ def test_host_scope_absolute_time_lock_requires_exact_bounds(mocker):
 
 
 @pytest.mark.parametrize(
+    "default_time_range",
+    [
+        ["2026-08-13 00:00:00+0800", "2026-08-13 01:00:00+0800"],
+        ["now-1h", "invalid"],
+    ],
+)
+def test_host_scope_non_dynamic_default_range_cannot_bypass_absolute_time_lock(mocker, default_time_range):
+    mock_host_scope(mocker)
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    token.params.update(
+        {
+            "lock_search": True,
+            "start_time": 100,
+            "end_time": 200,
+            "default_time_range": default_time_range,
+        }
+    )
+    checker = HostApiAuthChecker(token)
+
+    checker.check({"bk_host_id": 100, "start_time": 100, "end_time": 200})
+    with pytest.raises(SearchLockedError):
+        checker.check({"bk_host_id": 100, "start_time": 101, "end_time": 200})
+
+
+@pytest.mark.parametrize(
+    "default_time_range",
+    [
+        ["now-7d", "now"],
+        ["now-1M/M", "now/M"],
+    ],
+)
+def test_host_scope_dynamic_default_range_keeps_relative_time_semantics(mocker, default_time_range):
+    mock_host_scope(mocker)
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    token.params.update(
+        {
+            "lock_search": True,
+            "start_time": 100,
+            "end_time": 200,
+            "default_time_range": default_time_range,
+        }
+    )
+
+    HostApiAuthChecker(token).check({"bk_host_id": 100, "start_time": 300, "end_time": 400})
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/rest/v2/commons/get_topo_tree/",
+        "/rest/v2/performance/search_host_info/",
+        "/rest/v2/scene_view/get_host_or_topo_node_detail/",
+    ],
+)
+def test_host_scope_absolute_time_lock_keeps_time_independent_target_routes_available(mocker, path):
+    mock_host_scope(mocker)
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    token.params.update(
+        {
+            "lock_search": True,
+            "start_time": 100,
+            "end_time": 200,
+            "default_time_range": ["2026-08-13 00:00:00+0800", "2026-08-13 01:00:00+0800"],
+        }
+    )
+    checker = HostApiAuthChecker(token)
+    checker.request = SimpleNamespace(
+        method="POST",
+        resolver_match=resolve(path),
+    )
+
+    checker.check({"bk_host_id": 100})
+
+
+@pytest.mark.parametrize(
     "action",
     [
         "get_host_views_panels",

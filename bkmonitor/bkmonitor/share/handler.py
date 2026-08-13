@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+import re
 
 from django.db.models import Q
 
@@ -33,6 +34,7 @@ from monitor_web.plugin.constant import PluginType
 
 scene_params_mapping = {"sceneId": "scene_id", "sceneType": "type", "dashboardId": "id"}
 HOST_SCOPE_VERSION = 1
+HOST_DYNAMIC_TIME_PATTERN = re.compile(r"^now(?:[-+]\d+(?:m|h|d|w|M|y|Y))?(?:/(?:m|h|d|w|M|y|Y|fy))?$")
 
 
 def validate_host_share_scope(data: dict) -> dict:
@@ -188,6 +190,11 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         "get_process_views_panels",
         "get_process_metric_group_panel_order",
     }
+    TIME_INDEPENDENT_TARGET_ACTIONS = {
+        ("monitor_web.commons.cc.views.GetTopoTree", "create"),
+        ("monitor_web.performance.views.SearchHostInfoViewSet", "create"),
+        ("monitor_web.scene_view.views.SceneViewViewSet", "get_host_or_topo_node_detail"),
+    }
 
     def __init__(self, token):
         super().__init__(token)
@@ -220,16 +227,33 @@ class HostApiAuthChecker(BaseApiAuthChecker):
             "bk_inst_id": self.scope["bk_inst_id"],
         }
 
-    def is_target_independent_panel_request(self):
+    def get_request_view_action(self):
         resolver_match = getattr(self.request, "resolver_match", None)
         view = getattr(resolver_match, "func", None)
         view_cls = getattr(view, "cls", None)
         view_name = f"{getattr(view_cls, '__module__', '')}.{getattr(view_cls, '__name__', '')}"
         method = getattr(self.request, "method", "").lower()
         action = getattr(view, "actions", {}).get(method)
+        return view_name, action
+
+    def is_target_independent_panel_request(self):
+        view_name, action = self.get_request_view_action()
         return (
             view_name == "monitor_web.scene_view.views.SceneViewViewSet"
             and action in self.TARGET_INDEPENDENT_PANEL_ACTIONS
+        )
+
+    def is_time_independent_target_request(self):
+        return self.get_request_view_action() in self.TIME_INDEPENDENT_TARGET_ACTIONS
+
+    def has_dynamic_default_time_range(self):
+        default_time_range = self.time_params["default_time_range"]
+        return (
+            isinstance(default_time_range, list)
+            and len(default_time_range) == 2
+            and all(
+                isinstance(value, str) and HOST_DYNAMIC_TIME_PATTERN.fullmatch(value) for value in default_time_range
+            )
         )
 
     def check(self, request_data):
@@ -238,7 +262,11 @@ class HostApiAuthChecker(BaseApiAuthChecker):
             # target-independent routes may skip host scope and time checks.
             return
 
-        if self.time_params["lock_search"] and not self.time_params["default_time_range"]:
+        if (
+            self.time_params["lock_search"]
+            and not self.has_dynamic_default_time_range()
+            and not self.is_time_independent_target_request()
+        ):
             if request_data.get("start_time") is None or request_data.get("end_time") is None:
                 raise InvalidParamsError({"key": "start_time,end_time"})
             self.time_check(request_data["start_time"], request_data["end_time"])
