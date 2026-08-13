@@ -53,6 +53,8 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   const isAllExpand = shallowRef(false);
   /** 加载状态 */
   const loading = shallowRef(false);
+  /** 拓扑加载失败状态 */
+  const loadError = shallowRef(false);
   /** 原始树数据（接口/ mock 原样数据） */
   const rawTreeData = shallowRef<IHostTopoTreeNode[]>([]);
   const searchValue = shallowRef('');
@@ -188,6 +190,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   const loadTopoTree = async () => {
     const version = ++loadRequestVersion;
     loading.value = true;
+    loadError.value = false;
     try {
       const data = await getHostTopoTreeByBizId(window.cc_biz_id, shareScope.value);
       if (version !== loadRequestVersion) {
@@ -195,6 +198,10 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
       }
       rawTreeData.value = data;
       await handleSelectNodeOfNodeId(version);
+    } catch {
+      if (version === loadRequestVersion) {
+        loadError.value = true;
+      }
     } finally {
       if (version === loadRequestVersion) {
         loading.value = false;
@@ -308,6 +315,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   return {
     isAllExpand,
     loading,
+    loadError,
     searchValue,
     hideEmptyNode,
     selectedNode,
