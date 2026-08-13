@@ -342,20 +342,25 @@ class SearchHostInfoResource(ApiAuthResource):
         return modules
 
     def perform_request(self, params):
-        if params.get("bk_host_id") is not None:
-            hosts: list[Host] = api.cmdb.get_host_by_id(
-                bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]]
-            )
-        elif params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
-            hosts: list[Host] = api.cmdb.get_host_by_topo_node(
-                bk_biz_id=params["bk_biz_id"],
-                topo_nodes={params["bk_obj_id"]: [params["bk_inst_id"]]},
-            )
-        else:
-            hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=params["bk_biz_id"])
-        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(
-            bk_biz_id=params["bk_biz_id"]
-        ).convert_to_topo_link()
+        def get_hosts() -> list[Host]:
+            if params.get("bk_host_id") is not None:
+                return api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
+            if params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
+                return api.cmdb.get_host_by_topo_node(
+                    bk_biz_id=params["bk_biz_id"],
+                    topo_nodes={params["bk_obj_id"]: [params["bk_inst_id"]]},
+                )
+            return api.cmdb.get_host_by_topo_node(bk_biz_id=params["bk_biz_id"])
+
+        pool = ThreadPool(2)
+        hosts_future = pool.apply_async(get_hosts)
+        topo_future = pool.apply_async(api.cmdb.get_topo_tree, kwds={"bk_biz_id": params["bk_biz_id"]})
+        pool.close()
+        try:
+            hosts = hosts_future.get()
+            topo_links: dict[str, list[TopoNode]] = topo_future.get().convert_to_topo_link()
+        finally:
+            pool.join()
 
         result = []
         for host in hosts:
