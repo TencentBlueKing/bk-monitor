@@ -299,6 +299,7 @@ def _query_proc_metrics(
     method: str,
     start_time: int = None,
     end_time: int = None,
+    group_by_pid: bool = False,
 ):
     """
     查询 system.proc / system.proc_port 指标的公共生成器。
@@ -313,18 +314,28 @@ def _query_proc_metrics(
     :param method: 聚合方式（sum_without_time / count_without_time / MAX / MIN 等）
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
+    :param group_by_pid: 是否按 PID 输出进程实例级结果
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
     """
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
 
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+    if group_by_pid:
+        # 同一 PID 可能因非身份标签（例如 port）的有无形成多条 series；按稳定实例身份先折叠。
+        # IPv4 使用 IP+云区域，IPv6 及 IPv4 地址缺失时使用主机 ID。
+        if is_ipv6_biz(bk_biz_id) or not all(host.bk_host_innerip for host in hosts):
+            group_by = ["bk_host_id", "display_name", "pid"]
+        else:
+            group_by = ["bk_target_ip", "bk_target_cloud_id", "display_name", "pid"]
+    else:
+        group_by = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
     data_source = data_source_class(
         bk_biz_id=bk_biz_id,
         interval=180,
         metrics=[{"field": field, "method": method, "alias": "A"}],
         table=table,
-        group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
+        group_by=group_by,
         filter_dict=_build_host_target_filter(bk_biz_id, hosts),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
@@ -372,7 +383,7 @@ def get_process_runtime_metrics(
             }
     """
     try:
-        # system.proc 指标字段（查询时点跨 PID series 聚合，不做 180 秒窗口累计）
+        # system.proc 指标字段先按 PID 折叠其他标签不同的重复 series，再在后端跨 PID 求和。
         # - cpu_usage_pct:  进程 CPU 使用率（%）
         # - mem_res:        进程使用的物理内存（字节）
         # - mem_usage_pct:  进程内存使用率（%）
@@ -387,9 +398,17 @@ def get_process_runtime_metrics(
             # 每个线程写入独立的临时 dict，避免多线程并发写同一 defaultdict 的竞态
             _local = defaultdict(lambda: defaultdict(dict))
             for bk_host_id, display_name, value in _query_proc_metrics(
-                bk_biz_id, hosts, "system.proc", field, "sum_without_time", start_time, end_time
+                bk_biz_id,
+                hosts,
+                "system.proc",
+                field,
+                "max_without_time",
+                start_time,
+                end_time,
+                group_by_pid=True,
             ):
-                _local[bk_host_id][display_name][field] = value
+                metrics = _local[bk_host_id][display_name]
+                metrics[field] = metrics.get(field, 0) + value
             return _local
 
         # 根据指标字段数量并发请求，单字段失败仅丢弃该字段（设计文档 §1 稳健性要求）。
@@ -473,14 +492,14 @@ def get_process_instance_count(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
 ) -> dict[int, dict[str, int]]:
     """
-    查询进程真实运行实例数（查询时点 COUNT 聚合统计同一进程名的运行实例数）
+    查询进程真实运行实例数（查询时点按 PID 去重后统计同一进程名的运行实例数）
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。
     :return: {bk_host_id: {进程 display_name: 实例数}}
-        其中实例数为该主机上该进程按 pid 维度 COUNT 聚合的运行实例数；
+        其中实例数为该主机上该进程按 pid 维度去重后的运行实例数；
         无对应数据时该 bk_host_id 不下发（返回空 dict 兜底）。
         示例::
 
@@ -491,11 +510,18 @@ def get_process_instance_count(
     """
     try:
         result = defaultdict(dict)
-        for bk_host_id, display_name, value in _query_proc_metrics(
-            bk_biz_id, hosts, "system.proc", "cpu_usage_pct", "count_without_time", start_time, end_time
+        for bk_host_id, display_name, _value in _query_proc_metrics(
+            bk_biz_id,
+            hosts,
+            "system.proc",
+            "cpu_usage_pct",
+            "max_without_time",
+            start_time,
+            end_time,
+            group_by_pid=True,
         ):
-            # 一条有数据的 pid series 即代表一个运行实例
-            result[bk_host_id][display_name] = value
+            # UQ 已按 PID 折叠其他标签不同的重复 series，一条记录代表一个运行实例。
+            result[bk_host_id][display_name] = result[bk_host_id].get(display_name, 0) + 1
         return result
     except Exception as e:
         # 设计文档 §1：TSDB 查询异常兜底，实例数缺失不影响其他运行时指标

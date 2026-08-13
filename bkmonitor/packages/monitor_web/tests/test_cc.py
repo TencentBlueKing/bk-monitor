@@ -546,7 +546,8 @@ class TestGetProcessMetrics:
 
         assert result[HOSTS[0].bk_host_id]["redis"] == {"max": 7200}
 
-    def test_runtime_and_instance_count_use_instant_cross_series_aggregation(self, mocker):
+    def test_runtime_and_instance_count_deduplicate_series_by_pid_before_aggregation(self, mocker, settings):
+        settings.IPV6_SUPPORT_BIZ_LIST = []
         query_configs = {}
 
         def capture_query_config(query, *args, **kwargs):
@@ -559,15 +560,71 @@ class TestGetProcessMetrics:
         resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
         runtime_query_configs = query_configs.copy()
 
-        expected_dimensions = ["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]
+        expected_dimensions = ["bk_target_ip", "bk_target_cloud_id", "display_name", "pid"]
         runtime_fields = {"cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"}
         assert runtime_fields == runtime_query_configs.keys()
         for field in runtime_fields:
             assert runtime_query_configs[field]["time_aggregation"] == {}
-            assert runtime_query_configs[field]["function"] == [{"method": "sum", "dimensions": expected_dimensions}]
+            assert runtime_query_configs[field]["function"] == [{"method": "max", "dimensions": expected_dimensions}]
 
         query_configs.clear()
         resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
         instance_count_config = query_configs["cpu_usage_pct"]
         assert instance_count_config["time_aggregation"] == {}
-        assert instance_count_config["function"] == [{"method": "count", "dimensions": expected_dimensions}]
+        assert instance_count_config["function"] == [{"method": "max", "dimensions": expected_dimensions}]
+
+        settings.IPV6_SUPPORT_BIZ_LIST = [2]
+        query_configs.clear()
+        resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
+        ipv6_config = query_configs["cpu_usage_pct"]
+        assert ipv6_config["function"] == [{"method": "max", "dimensions": ["bk_host_id", "display_name", "pid"]}]
+
+    def test_runtime_and_instance_count_collapse_missing_and_null_port_series(self, mocker):
+        host_dimensions = {
+            "bk_host_id": str(HOSTS[0].bk_host_id),
+            "bk_target_ip": HOSTS[0].bk_host_innerip,
+            "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
+            "display_name": "redis",
+        }
+        values_by_pid = {
+            "101": {"cpu_usage_pct": 10.5, "mem_res": 1024, "mem_usage_pct": 1.5, "fd_num": 10, "fd_limit_soft": 100},
+            "202": {"cpu_usage_pct": 20.25, "mem_res": 2048, "mem_usage_pct": 2.5, "fd_num": 20, "fd_limit_soft": 200},
+        }
+        raw_series = []
+        for pid, values in values_by_pid.items():
+            raw_series.append({**host_dimensions, "pid": pid, **values})
+            raw_series.append({**host_dimensions, "pid": pid, "port": None, **values})
+
+        def evaluate_query(query, *args, **kwargs):
+            query_config = query.data_sources[0].to_unify_query_config()[0]
+            aggregation = query_config["function"][0]
+            dimensions = aggregation["dimensions"]
+            groups = defaultdict(list)
+            for series in raw_series:
+                key = tuple(series.get(dimension) for dimension in dimensions)
+                groups[key].append(series[query_config["field_name"]])
+
+            records = []
+            for key, values in groups.items():
+                record = dict(zip(dimensions, key))
+                record["_result_"] = {
+                    "max": max(values),
+                    "sum": sum(values),
+                    "count": len(values),
+                }[aggregation["method"]]
+                records.append(record)
+            return records
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=evaluate_query)
+
+        runtime = resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
+        instance_count = resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        assert runtime[HOSTS[0].bk_host_id]["redis"] == {
+            "cpu_usage_pct": 30.75,
+            "mem_res": 3072,
+            "mem_usage_pct": 4.0,
+            "fd_num": 30,
+            "fd_limit_soft": 300,
+        }
+        assert instance_count[HOSTS[0].bk_host_id]["redis"] == 2
