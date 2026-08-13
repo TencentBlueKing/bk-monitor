@@ -268,6 +268,7 @@ const deferred = () => {
 const flushPromises = () => new Promise(resolve => setImmediate(resolve));
 
 const hostStore = {
+  refreshGeneration: vue.shallowRef(0),
   refreshImmediate: vue.shallowRef(0),
   refreshInterval: vue.shallowRef(-1),
   timeRange: vue.shallowRef([0, 1]),
@@ -276,6 +277,7 @@ const hostStore = {
 let getHostInfo;
 let getHostMetricInfo;
 let hostListWorker;
+let mountedCallbacks = [];
 
 Module._load = function mockHostListDependencies(request, parent, isMain) {
   const isHostList = parent?.filename.endsWith('/trace/pages/host/composables/use-host-list.ts');
@@ -283,7 +285,7 @@ Module._load = function mockHostListDependencies(request, parent, isMain) {
     return {
       ...vue,
       onBeforeUnmount: () => {},
-      onMounted: () => {},
+      onMounted: callback => mountedCallbacks.push(callback),
     };
   }
   if (request === '@vueuse/core') {
@@ -392,6 +394,7 @@ const createControllerWorker = () => {
 };
 
 const createHostListController = () => {
+  mountedCallbacks = [];
   const scope = vue.effectScope();
   let context;
   scope.run(() => {
@@ -404,7 +407,7 @@ const createHostListController = () => {
       where: vue.shallowRef([]),
     });
   });
-  return { context, scope };
+  return { context, mountedCallbacks: [...mountedCallbacks], scope };
 };
 
 test('a slower old base-list request cannot replace a newer refresh', async () => {
@@ -503,4 +506,56 @@ test('a pending across-page selection cannot restore rows cleared by a data refr
 
   assert.deepEqual([...context.selectedRowKeys.value], []);
   scope.stop();
+});
+
+test('the host list refreshes from the shared refresh generation', async () => {
+  hostStore.refreshGeneration.value = 0;
+  hostStore.refreshInterval.value = -1;
+  let requestCount = 0;
+  getHostInfo = async () => {
+    requestCount += 1;
+    return [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  };
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  hostStore.refreshGeneration.value += 1;
+  await vue.nextTick();
+  await flushPromises();
+
+  assert.equal(requestCount, 2);
+  scope.stop();
+});
+
+test('mounting with auto-refresh enabled loads once without creating a private timer', async () => {
+  hostStore.refreshInterval.value = 30_000;
+  let requestCount = 0;
+  getHostInfo = async () => {
+    requestCount += 1;
+    return [];
+  };
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const originalSetInterval = global.setInterval;
+  let intervalCount = 0;
+  global.setInterval = () => {
+    intervalCount += 1;
+    return 1;
+  };
+
+  try {
+    const { mountedCallbacks: callbacks, scope } = createHostListController();
+    assert.equal(callbacks.length, 1);
+    callbacks[0]();
+    await flushPromises();
+    assert.equal(requestCount, 1);
+    assert.equal(intervalCount, 0);
+    scope.stop();
+  } finally {
+    hostStore.refreshInterval.value = -1;
+    await vue.nextTick();
+    global.setInterval = originalSetInterval;
+  }
 });
