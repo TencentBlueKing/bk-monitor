@@ -313,7 +313,10 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         """
         topo_nodes = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).get_all_nodes_with_relation()
         node = topo_nodes.get(f"{bk_obj_id}|{bk_inst_id}")
-        hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
+        if bk_obj_id == "biz":
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        else:
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
 
         result = [
             {"name": _("节点ID"), "type": "number", "value": bk_inst_id},
