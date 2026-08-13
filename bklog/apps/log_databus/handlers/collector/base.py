@@ -95,6 +95,7 @@ from apps.log_databus.models import (
     DataLinkConfig,
 )
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
+from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.constants import (
     CollectorScenarioEnum,
@@ -1352,7 +1353,8 @@ class CollectorHandler:
             return []
         if not result_table_id:
             raise CollectNotSuccess
-        return StorageHandler.get_result_table_indices(result_table_id)
+        result = EsRoute(scenario_id=Scenario.LOG, indices=result_table_id).cat_indices()
+        return StorageHandler.sort_indices(result)
 
     def get_clean_stash(self):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
