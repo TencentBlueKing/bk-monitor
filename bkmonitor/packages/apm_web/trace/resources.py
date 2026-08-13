@@ -302,6 +302,11 @@ class ListSpanResource(Resource):
         except BKAPIError as e:
             raise CustomException(_lazy(f"Span列表请求失败: {e.data.get('message')}"))
 
+        for item in response["data"]:
+            if item.get("bk_biz_id") in {0, "0"}:
+                item["bk_biz_id"] = data["bk_biz_id"]
+                item["app_name"] = data["app_name"]
+
         self.burial_point(data["bk_biz_id"], data["app_name"])
         return response
 
