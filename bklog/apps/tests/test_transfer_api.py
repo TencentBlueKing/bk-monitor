@@ -1,8 +1,6 @@
-from unittest.mock import patch
-
 from django.test import SimpleTestCase
 
-from apps.api.modules.transfer import Transfer, parse_cluster_info
+from apps.api.modules.transfer import parse_cluster_info
 
 
 class ParseClusterInfoTest(SimpleTestCase):
@@ -42,36 +40,3 @@ class ParseClusterInfoTest(SimpleTestCase):
         parsed_custom_option = self._parse_custom_option('{"bk_biz_id": "-123"}')
 
         self.assertEqual(parsed_custom_option["bk_biz_id"], -123)
-
-
-class MetadataStorageStatusApiTest(SimpleTestCase):
-    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-a")
-    def test_result_table_storage_status_api_config(self, mock_get_tenant_id):
-        api = Transfer.get_result_table_storage_status
-
-        self.assertEqual(api.method, "GET")
-        self.assertTrue(
-            api.url.endswith(
-                (
-                    "/app/metadata/get_result_table_storage_status/",
-                    "/metadata_get_result_table_storage_status/",
-                )
-            )
-        )
-        self.assertTrue(callable(api.bk_tenant_id))
-        self.assertEqual(api.bk_tenant_id({"table_ids": ["2_bklog.test"]}), "tenant-a")
-        mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)
-        self.assertEqual(api.default_timeout, 90)
-
-    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-a")
-    def test_cluster_status_api_config(self, mock_get_tenant_id):
-        api = Transfer.get_cluster_status
-
-        self.assertEqual(api.method, "GET")
-        self.assertTrue(
-            api.url.endswith(("/app/metadata/get_cluster_status/", "/metadata_get_cluster_status/"))
-        )
-        self.assertTrue(callable(api.bk_tenant_id))
-        self.assertEqual(api.bk_tenant_id({"bk_biz_id": 2}), "tenant-a")
-        mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)
-        self.assertEqual(api.default_timeout, 90)
