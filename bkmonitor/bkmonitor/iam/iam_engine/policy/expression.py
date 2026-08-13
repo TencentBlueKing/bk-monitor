@@ -24,7 +24,7 @@ from __future__ import annotations
 #   3. 只依赖 stdlib，不 import django / iam SDK
 # ---------------------------------------------------------------------------
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dc_field
 from enum import Enum
 from typing import Any
 
@@ -73,7 +73,7 @@ class PolicyExpression:
     op: Op
     field: str = ""
     value: Any = None
-    children: tuple[PolicyExpression, ...] = field(default_factory=tuple)
+    children: tuple[PolicyExpression, ...] = dc_field(default_factory=tuple)
 
     # ---- 工厂方法：便捷构造 -----------------------------------------
 

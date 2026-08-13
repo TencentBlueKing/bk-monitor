@@ -41,11 +41,14 @@ from iam.exceptions import AuthAPIError
 from iam.utils import gen_perms_apply_data
 
 from .client import V3Client
+from .policy_converter import iam_dict_to_expression
 from ..iam_engine.core.types import (
     ResourceInstance as CoreResourceInstance,
     Subject as CoreSubject,
+    to_action_id,
     to_resource_type_id,
 )
+from ..iam_engine.policy.expression import PolicyExpression
 from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
@@ -377,6 +380,89 @@ class V3PermissionProvider(PermissionProvider):
         client.grant_resource_creator_actions(application)
 
     # ================================================================
+    # 策略表达式查询（低层能力）
+    # ================================================================
+
+    def query_policy(
+        self,
+        subject: CoreSubject,
+        action_id: str,
+    ) -> PolicyExpression | None:
+        """查询单个 action 的策略 AST。
+
+        语义约定：
+          * 查询成功、用户无权限（IAM 返回空策略）→ PolicyExpression.none()
+          * 查询失败（AuthAPIError）→ 向上抛，由调用方（framework/permission 层）降级处理
+        """
+        action_id_biz = to_action_id(action_id)
+        try:
+            _ = self.schema.get_action(action_id_biz)
+        except Exception:
+            logger.warning("[iam_v3:query_policy] unknown action_id=%s", action_id_biz)
+            return None
+
+        v3_action_id = self.codec.encode_action(action_id_biz)
+
+        client = self._get_client(subject.tenant_id)
+        sdk_request = client.make_request(subject.id, v3_action_id)
+
+        # AuthAPIError 不捕获：向上抛，由调用方决定降级策略
+        dict_ast = client._do_policy_query(sdk_request, with_resources=False)
+        expr = iam_dict_to_expression(dict_ast)
+        return expr if expr is not None else PolicyExpression.none()
+
+    def query_policy_by_actions(
+        self,
+        subject: CoreSubject,
+        action_ids: list[str],
+    ) -> dict[str, PolicyExpression | None]:
+        """批量查询多个 action 的策略 AST。
+
+        语义约定：
+          * 批量成功、未返回/空 condition 的 action（用户无权限）→ PolicyExpression.none()
+          * 批量失败（AuthAPIError）→ 向上抛，由调用方（framework/permission 层）降级为逐个查询
+        """
+        action_ids_biz = [to_action_id(a) for a in action_ids]
+        valid_aids = []
+        for aid in action_ids_biz:
+            try:
+                self.schema.get_action(aid)
+                valid_aids.append(aid)
+            except Exception:
+                logger.warning("[iam_v3:query_policy_by_actions] unknown action_id=%s", aid)
+
+        if not valid_aids:
+            return {aid: PolicyExpression.none() for aid in action_ids_biz}
+
+        v3_action_ids = [self.codec.encode_action(aid) for aid in valid_aids]
+
+        client = self._get_client(subject.tenant_id)
+        sdk_request = client.make_multi_action_request(subject.id, v3_action_ids)
+
+        # AuthAPIError 不捕获：向上抛，批量失败由调用方降级处理
+        raw_list = client._do_policy_query_by_actions(sdk_request, with_resources=False)
+
+        # raw_list: [{"action": {"id": "v3_id"}, "condition": {...}}, ...]
+        # 先构建有效结果，再补齐未返回的 action
+        result: dict[str, PolicyExpression | None] = {}
+        for item in raw_list or []:
+            v3_aid = item.get("action", {}).get("id", "")
+            if not v3_aid:
+                continue
+            biz_aid = self.codec.decode_action(v3_aid)
+            if biz_aid:
+                expr = iam_dict_to_expression(item.get("condition"))
+                # 空 condition = 用户无权限 → none()，与"查询失败"区分
+                result[biz_aid] = expr if expr is not None else PolicyExpression.none()
+
+        # 未返回的 action：批量查询成功但没有该 action 的策略 → 无权限
+        for aid in action_ids_biz:
+            if aid not in result:
+                result[aid] = PolicyExpression.none()
+
+        return result
+
+    # ================================================================
     # 内部：action 元数据辅助方法
     # ================================================================
 
@@ -544,7 +630,13 @@ class V3PermissionProvider(PermissionProvider):
             if change.change_type == ChangeType.NOOP:
                 continue
 
-            actual = self._reconcile_change(change, remote_actions, remote_rts)
+            # SYSTEM 已在主循环前通过 _reconcile_system_changes 单独 reconcile，
+            # 这里直接执行，不再经过 _reconcile_change（后者对 SYSTEM 返回 None）
+            actual = (
+                change
+                if change.kind == EntityKind.SYSTEM
+                else self._reconcile_change(change, remote_actions, remote_rts)
+            )
             if actual is None:
                 continue
 

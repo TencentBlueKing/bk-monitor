@@ -32,7 +32,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from ...iam_engine.core.types import ResourceInstance, to_resource_type_id
 from ...iam_engine.provider.resolver import ResourceResolver
 from ...definitions.resource_types import ResourceTypes
-from ...utils.cache import lru_cache_with_ttl
+from bkmonitor.utils.cache import lru_cache_with_ttl
 
 logger = logging.getLogger(__name__)
 

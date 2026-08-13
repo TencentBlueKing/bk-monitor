@@ -19,9 +19,8 @@ specific language governing permissions and limitations under the License.
 #   5. health_check / plan_migration / apply_migration
 # ==============================================================================
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from iam import Request
 from iam.exceptions import AuthAPIError
 
 from bkmonitor.iam.iam_engine.core.types import (
@@ -114,7 +113,10 @@ def _make_provider(**overrides) -> V3PermissionProvider:
     options = _valid_options()
     options.update(overrides)
     provider = V3PermissionProvider(_build_test_schema(), **options)
-    provider._iam_client = MagicMock()
+    mock_client = MagicMock()
+    provider._iam_client = mock_client
+    # 方言方法通过 _get_client(tenant_id) 获取 client，统一返回 mock
+    provider._get_client = MagicMock(return_value=mock_client)
     return provider
 
 
@@ -177,7 +179,7 @@ class TestV3ProviderDialectMethods:
         p._iam_client.is_allowed_with_cache.assert_not_called()
 
     def test_is_allowed_read_with_resource(self):
-        """带资源的读操作鉴权，验证 Request 正确构造。"""
+        """带资源的读操作鉴权，验证 client 工厂方法与鉴权调用参数。"""
         p = _make_provider()
         p._iam_client.is_allowed_with_cache.return_value = True
 
@@ -189,11 +191,13 @@ class TestV3ProviderDialectMethods:
             )
         )
         assert result is True
-        call_args = p._iam_client.is_allowed_with_cache.call_args[0][0]
-        assert isinstance(call_args, Request)
-        assert call_args.system == "bk_monitorv3"
-        assert call_args.subject.id == "alice"
-        assert call_args.action.id == "view_business_v2"
+        # 资源通过 client.make_resource 构造（type/id/ancestors）
+        p._iam_client.make_resource.assert_called_once_with("space", "3", ancestors=())
+        # Request 通过 client.make_request 构造（username/action_id/resources）
+        make_req_args = p._iam_client.make_request.call_args[0]
+        assert make_req_args[0] == "alice"
+        assert make_req_args[1] == "view_business_v2"
+        assert len(make_req_args[2]) == 1
 
     def test_is_allowed_auth_api_error_returns_false(self):
         """AuthAPIError 不传播，返回 False。"""
@@ -328,27 +332,24 @@ class TestV3ProviderDialectMethods:
     # ---------- health_check ----------
 
     def test_health_check_ok(self):
-        """探活成功。"""
+        """探活成功：委托 V3Client.health_check，并附加 provider/remote_id。"""
         p = _make_provider()
-        # mock _client.query 的返回值（IAM SDK 内部调用）
-        mock_client = MagicMock()
-        mock_client.query.return_value = (True, "ok", {"data": {"id": "bk_monitorv3"}})
-        p._iam_client._client = mock_client
+        p._iam_client.health_check.return_value = {"status": "ok"}
 
         result = p.health_check()
         assert result["status"] == "ok"
         assert result["provider"] == "v3"
+        assert result["remote_id"] == "bk_monitorv3"
 
     def test_health_check_error(self):
-        """探活异常时返回 error。"""
+        """探活异常：V3Client 返回 error，provider 原样透传并附加标识。"""
         p = _make_provider()
-        mock_client = MagicMock()
-        mock_client.query.side_effect = Exception("timeout")
-        p._iam_client._client = mock_client
+        p._iam_client.health_check.return_value = {"status": "error", "error": "timeout"}
 
         result = p.health_check()
         assert result["status"] == "error"
         assert "timeout" in result["error"]
+        assert result["provider"] == "v3"
 
     # ---------- plan_migration / apply_migration ----------
 
@@ -373,9 +374,8 @@ class TestV3ProviderDialectMethods:
     def test_apply_migration_system_only(self):
         """plan 只有 SYSTEM：不查远端 actions/RTs，直接执行系统注册。"""
         p = _make_provider()
-        mock_client = MagicMock()
-        mock_client.query.return_value = (False, "not found", None)
-        p._iam_client._client = mock_client
+        # 远端系统查询：系统不存在（query_system 委托 V3Client）
+        p._iam_client.query_system.return_value = (False, "not found", None)
 
         from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
 
@@ -390,23 +390,33 @@ class TestV3ProviderDialectMethods:
                 ),
             ],
         )
-        report = p.apply_migration(plan)
+        # mock 迁移执行用的 do_migrate Client，避免真实网络调用
+        with patch("iam.contrib.iam_migration.utils.do_migrate.Client") as mock_client_cls:
+            mock_migration_client = MagicMock()
+            mock_migration_client.add_system.return_value = (True, "")
+            mock_client_cls.return_value = mock_migration_client
+
+            report = p.apply_migration(plan)
+
         # 即使远端返回系统不存在，apply 也会尝试创建
         assert report.provider_name == "v3"
+        assert report.success is True
+        assert len(report.applied) == 1
+        mock_migration_client.add_system.assert_called_once()
 
     def test_apply_migration_skip_existing(self):
         """scope="full"：远端已有 → reconcile 跳过。"""
         p = _make_provider()
-        mock_client = MagicMock()
-        mock_client.query.return_value = (
+        # 远端系统查询返回已注册的 actions/RTs
+        p._iam_client.query_system.return_value = (
             True,
             "ok",
             {
+                "base_info": {},
                 "actions": [{"id": "view_business_v2"}],
                 "resource_types": [{"id": "space"}],
             },
         )
-        p._iam_client._client = mock_client
 
         from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
 
@@ -421,6 +431,12 @@ class TestV3ProviderDialectMethods:
                 ),
             ],
         )
-        report = p.apply_migration(plan)
+        with patch("iam.contrib.iam_migration.utils.do_migrate.Client") as mock_client_cls:
+            mock_migration_client = MagicMock()
+            mock_client_cls.return_value = mock_migration_client
+
+            report = p.apply_migration(plan)
+
         assert report.success is True
         assert report.applied == []  # 远端已有，跳过
+        mock_migration_client.add_action.assert_not_called()
