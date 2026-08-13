@@ -607,6 +607,7 @@ class CleanTemplate(SoftDeleteModel):
 
 class CleanStash(SoftDeleteModel):
     clean_stash_id = models.AutoField(_("清洗缓存id"), primary_key=True)
+    clean_template_id = models.IntegerField(_("清洗模板ID"), null=True, blank=True, db_index=True)
     clean_type = models.CharField(_("模板类型"), max_length=64)
     etl_params = models.JSONField(_("etl配置"), null=True, blank=True)
     etl_fields = models.JSONField(_("etl字段"), null=True, blank=True)

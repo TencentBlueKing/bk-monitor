@@ -302,6 +302,7 @@ class TransferEtlHandler(EtlHandler):
 
         CollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash(
             {
+                "clean_template_id": clean_template.clean_template_id if clean_template else None,
                 "clean_type": etl_config,
                 "etl_params": etl_params,
                 "etl_fields": user_fields,

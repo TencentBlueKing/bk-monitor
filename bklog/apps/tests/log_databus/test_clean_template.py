@@ -36,8 +36,9 @@ from apps.log_databus.exceptions import (
 from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
-from apps.log_databus.models import CleanTemplate, CollectorConfig
+from apps.log_databus.models import CleanStash, CleanTemplate, CollectorConfig
 from apps.log_databus.serializers import (
+    CleanStashSerializer,
     CollectorEtlStorageSerializer,
     FastCollectorUpdateSerializer,
     FastContainerCollectorUpdateSerializer,
@@ -96,6 +97,26 @@ class CleanTemplateAssociationSerializerTestCase(SimpleTestCase):
                 serializer = serializer_class(data={**data, "clean_template_id": None})
                 self.assertTrue(serializer.is_valid(), serializer.errors)
                 self.assertIsNone(serializer.validated_data["clean_template_id"])
+
+    def test_clean_stash_serializer_preserves_clean_template_id_tristate(self):
+        base_data = {
+            "clean_type": "bk_log_text",
+            "etl_params": {},
+            "etl_fields": [],
+            "bk_biz_id": 706,
+        }
+        cases = (
+            ("omitted", {}, False, None),
+            ("specified", {"clean_template_id": 1}, True, 1),
+            ("explicit-null", {"clean_template_id": None}, True, None),
+        )
+        for name, template_data, field_present, expected in cases:
+            with self.subTest(case=name):
+                serializer = CleanStashSerializer(data={**base_data, **template_data})
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertEqual("clean_template_id" in serializer.validated_data, field_present)
+                if field_present:
+                    self.assertEqual(serializer.validated_data["clean_template_id"], expected)
 
 
 class CleanTemplateTestCase(TestCase):
@@ -735,6 +756,14 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
             clean_template_sync_status=CleanTemplateSyncStatus.FAILED.value,
             clean_template_sync_message="failed",
         )
+        clean_stash = CleanStash.objects.create(
+            clean_template_id=template["clean_template_id"],
+            clean_type="bk_log_text",
+            etl_params={},
+            etl_fields=[],
+            collector_config_id=collector.collector_config_id,
+            bk_biz_id=collector.bk_biz_id,
+        )
 
         result = CleanTemplateHandler(template["clean_template_id"]).destroy()
 
@@ -745,6 +774,8 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         self.assertIsNone(collector.clean_template_version)
         self.assertIsNone(collector.clean_template_sync_status)
         self.assertEqual(collector.clean_template_sync_message, "")
+        clean_stash.refresh_from_db()
+        self.assertIsNone(clean_stash.clean_template_id)
 
     def test_update_or_create_handles_clean_template_id_tristate(self):
         template = self.create_template(clean_type="bk_log_json", etl_params={"retain_original_text": True})
@@ -783,7 +814,7 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
                 "_update_or_create_index_set",
                 return_value={"index_set_id": 1, "scenario_id": "log"},
             ),
-            patch("apps.log_databus.handlers.etl.transfer.CollectorHandler.create_clean_stash"),
+            patch("apps.log_databus.handlers.etl.transfer.CollectorHandler.create_clean_stash") as create_clean_stash,
             patch("apps.log_databus.handlers.etl.transfer.user_operation_record.delay"),
         ):
             for index, case in enumerate(cases):
@@ -821,6 +852,10 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
                     self.assertEqual(
                         collector.clean_template_sync_status,
                         CleanTemplateSyncStatus.SUCCESS.value if expected_id else None,
+                    )
+                    self.assertEqual(
+                        create_clean_stash.call_args.args[0]["clean_template_id"],
+                        expected_id,
                     )
                     get_etl_storage.assert_called_once_with(etl_config=etl_config)
                     get_etl_storage.reset_mock()

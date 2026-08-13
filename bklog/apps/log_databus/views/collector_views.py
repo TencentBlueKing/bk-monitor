@@ -1728,6 +1728,7 @@ class CollectorViewSet(ModelViewSet):
             "result":true,
             "data":{
                 "collector_config_id":1,
+                "clean_template_id": 1,
                 "clean_type":"bk_log_text",
                 "bk_biz_id": 0,
                 "etl_params":{
@@ -1781,9 +1782,11 @@ class CollectorViewSet(ModelViewSet):
         @api {POST} /databus/collectors/$collector_config_id/create_clean_stash 更新采集项清洗缓存
         @apiName databus_collectors_create_clean_stash
         @apiGroup 10_Collector
+        @apiParam {Int} [clean_template_id] 清洗模板ID；未应用模板时传null或不传
         @apiParamExample {json} 成功请求
         {
             "bk_biz_id": 0,
+            "clean_template_id": 1,
             "clean_type":"bk_log_text",
             "etl_params":{
                 "retain_original_text":true,

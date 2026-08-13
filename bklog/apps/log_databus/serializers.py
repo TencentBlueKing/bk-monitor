@@ -1177,6 +1177,7 @@ class CleanTemplateSerializer(CleanTemplateUpdateSerializer):
 
 
 class CleanStashSerializer(serializers.Serializer):
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
     clean_type = serializers.CharField(label=_("清洗类型"), required=True)
     etl_params = serializers.DictField(label=_("清洗配置"), required=True)
     etl_fields = serializers.ListField(child=serializers.DictField(), label=_("字段配置"), required=True)

@@ -1376,6 +1376,7 @@ class CollectorHandler:
 
     def create_clean_stash(self, params: dict):
         model_fields = {
+            "clean_template_id": params.get("clean_template_id"),
             "clean_type": params["clean_type"],
             "etl_params": params["etl_params"],
             "etl_fields": params["etl_fields"],

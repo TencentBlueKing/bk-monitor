@@ -34,7 +34,7 @@ from apps.log_databus.exceptions import (
     CollectorConfigNotExistException,
 )
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.models import BKDataClean, CleanTemplate, CollectorConfig
+from apps.log_databus.models import BKDataClean, CleanStash, CleanTemplate, CollectorConfig
 from apps.log_databus.tasks.bkdata import sync_clean
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
 from apps.log_search.constants import IndexSetDataType
@@ -363,6 +363,7 @@ class CleanTemplateHandler:
                     clean_template_sync_at=None,
                     clean_template_sync_message="",
                 )
+                CleanStash.objects.filter(clean_template_id=clean_template_id).update(clean_template_id=None)
             logger.info(f"delete clean template {clean_template_id}")
             return clean_template_id
         finally:
