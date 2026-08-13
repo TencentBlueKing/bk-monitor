@@ -36,6 +36,7 @@ from ..core.types import (
     ResourceAuthResult,
     ResourceInstance,
     Subject,
+    VisibleResult,
     to_action_id,
     to_resource_type_id,
 )
@@ -175,3 +176,20 @@ class ProviderRouter:
     ) -> dict[str, list[PolicyExpression]]:
         """批量收集多个 action 的策略 AST。"""
         return self.policy.query_policies_by_actions(subject, action_ids)
+
+    def has_any_permission(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+    ) -> bool:
+        """是否存在任意实例级权限（不走 bypass：与 AST 数据查询同理）。"""
+        return self.policy.has_any_permission(subject, action_id)
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """过滤可见资源。"""
+        return self.policy.filter_visible_resources(subject, action_id, candidates)

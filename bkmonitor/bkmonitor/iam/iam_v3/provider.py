@@ -45,10 +45,12 @@ from .policy_converter import iam_dict_to_expression
 from ..iam_engine.core.types import (
     ResourceInstance as CoreResourceInstance,
     Subject as CoreSubject,
+    VisibleResult,
     to_action_id,
     to_resource_type_id,
 )
-from ..iam_engine.policy.expression import PolicyExpression
+from ..iam_engine.policy.evaluator import DictEvaluator
+from ..iam_engine.policy.expression import Op, PolicyExpression
 from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
@@ -65,6 +67,20 @@ if TYPE_CHECKING:
     from ..iam_engine.schema.registry import SchemaRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _build_eval_obj(resource: CoreResourceInstance, with_id: bool = True) -> dict:
+    """把 ResourceInstance 转成 DictEvaluator 的求值对象。
+
+    key 为 IAM 表达式 field 全名（"{rt}.id" / "{rt}._bk_iam_path_"）。
+    with_id=False 时 id 置空串，用于"空 id 求值"的全量授权判定。
+    """
+    rt_biz = to_resource_type_id(resource.type)
+    path = "".join(f"/{to_resource_type_id(a.type)},{a.id}/" for a in resource.ancestor_chain)
+    return {
+        f"{rt_biz}.id": resource.id if with_id else "",
+        f"{rt_biz}._bk_iam_path_": path,
+    }
 
 
 class V3PermissionProvider(PermissionProvider):
@@ -461,6 +477,67 @@ class V3PermissionProvider(PermissionProvider):
                 result[aid] = PolicyExpression.none()
 
         return result
+
+    # ================================================================
+    # 可见性能力（低层能力）
+    # ================================================================
+
+    def has_any_permission(
+        self,
+        subject: CoreSubject,
+        action_id: str,
+    ) -> bool:
+        """v3：query_policy 返回非空表达式即视为有实例级权限（近似判定）。
+
+        跨 org 场景可能"有权限但不在当前 org"——由资源层精确过滤兜底，
+        与旧 Grafana 行为一致（表达式全局解析后按 org 匹配）。
+        AuthAPIError 向上抛，由调用方决定降级。
+        """
+        expr = self.query_policy(subject, action_id)
+        return expr is not None and expr.op != Op.NONE
+
+    def filter_visible_resources(
+        self,
+        subject: CoreSubject,
+        action_id: str,
+        candidates: tuple[CoreResourceInstance, ...],
+    ) -> VisibleResult:
+        """v3：query_policy 表达式 + DictEvaluator 本地求值（1 次 API）。
+
+        性能约定：顶层资源候选可达数十万（如 space 列表过滤），
+        对 "{rt}.id" 上的 IN/EQ 叶子走集合快速路径，避免逐候选求值。
+        """
+        expr = self.query_policy(subject, action_id)
+        if expr is None or expr.op == Op.NONE:
+            return VisibleResult()
+        if expr.op == Op.ANY:
+            return VisibleResult(all_granted=True, visible_ids=tuple(c.id for c in candidates))
+        if not candidates:
+            return VisibleResult()
+
+        # 快速路径："{rt}.id" 的 IN/EQ → 集合过滤（O(N) set 查找，与旧 filter_space_list 的 IN 分支对齐）
+        rt_biz = to_resource_type_id(candidates[0].type)
+        id_field = f"{rt_biz}.id"
+        if expr.op == Op.IN and expr.field == id_field:
+            allowed = {str(v) for v in (expr.value or ())}
+            return VisibleResult(visible_ids=tuple(c.id for c in candidates if c.id in allowed))
+        if expr.op == Op.EQ and expr.field == id_field:
+            allowed = str(expr.value)
+            return VisibleResult(visible_ids=tuple(c.id for c in candidates if c.id == allowed))
+
+        evaluator = DictEvaluator()
+
+        # 全量判定：空 id + 首个候选的父链（约定同批候选共享父链，如 Grafana 单 org 一批）
+        all_granted = False
+        if evaluator.evaluate(expr, _build_eval_obj(candidates[0], with_id=False)):
+            all_granted = True
+
+        visible: list[str] = []
+        for c in candidates:
+            if evaluator.evaluate(expr, _build_eval_obj(c)):
+                visible.append(c.id)
+
+        return VisibleResult(all_granted=all_granted, visible_ids=tuple(visible))
 
     # ================================================================
     # 内部：action 元数据辅助方法

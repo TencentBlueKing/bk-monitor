@@ -115,10 +115,26 @@ class GetDirectoryTree(Resource):
         if not result:
             raise GetFolderOrDashboardError(**result)
 
-        # 获取仪表盘权限 （包含 folder 展开后的 Dashboard）
-        _, role, dashboard_permissions = DashboardPermission.has_permission(
-            request, None, params["bk_biz_id"], force_check=True
-        )
+        # 获取仪表盘权限（包含 folder 展开后的 Dashboard）
+        is_external_user = getattr(request, "external_user", False)
+        if is_external_user:
+            _, role, dashboard_permissions = DashboardPermission.has_permission(
+                request, None, params["bk_biz_id"], force_check=True
+            )
+        else:
+            # 候选：该 org 的全部 dashboard + folder（IAM 格式资源 id），走框架候选过滤
+            resource_ids = []
+            for record in result["data"]:
+                if record.get("type") == "dash-db":
+                    resource_ids.append(f"{org_id}|{record['uid']}")
+                elif record.get("type") == "dash-folder":
+                    resource_ids.append(f"{DashboardPermission.FOLDER_PREFIX}{org_id}|{record['id']}")
+            role, dashboard_permissions = DashboardPermission.get_visible_dashboards(
+                username=request.user.username,
+                org_name=str(params["bk_biz_id"]),
+                resource_ids=resource_ids,
+                force_check=True,
+            )
 
         folders: dict[int, dict] = defaultdict(lambda: {"dashboards": []})
 
@@ -128,7 +144,6 @@ class GetDirectoryTree(Resource):
         )
 
         # 是否过滤无权限的仪表盘
-        is_external_user = getattr(request, "external_user", False)
         filter_no_permission = params.get("filter_no_permission", False) or is_external_user
 
         for record in result["data"]:

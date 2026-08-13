@@ -45,6 +45,7 @@ from ..core.types import (
     BatchByResourceRequest,
     ResourceInstance,
     Subject,
+    VisibleResult,
 )
 from ..provider.base import PermissionProvider
 
@@ -171,3 +172,26 @@ class IAMFramework:
     ) -> dict[str, list[PolicyExpression]]:
         """批量收集多个 action 的策略 AST。"""
         return self._router.query_policies_by_actions(subject, action_ids)
+
+    def has_any_permission(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+    ) -> bool:
+        """用户对该 action 是否存在任意实例级权限（布尔，无需候选列表）。
+
+        用于权限层粗门禁；多 Provider 组合时任一为真即真。
+        """
+        return self._router.has_any_permission(subject, action_id)
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """从候选资源中过滤出可见实例（反向列举消费方统一入口）。
+
+        多 Provider 组合时框架负责合并（all_granted 取 OR，visible_ids 取并集）。
+        """
+        return self._router.filter_visible_resources(subject, action_id, candidates)

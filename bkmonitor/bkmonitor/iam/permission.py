@@ -18,9 +18,8 @@ specific language governing permissions and limitations under the License.
 #
 #   仍保留的旧依赖方法（等框架能力补齐后迁移）：
 #     - grant_creator_action  → 已委托框架 _fw.grant_creator_action()
-#     - filter_space_list_by_action → 需框架 query_policy 能力
-#     - make_request → Grafana 穿透（收口后删）
-#     - get_iam_client → Grafana/Kernel API 穿透
+#     - filter_space_list_by_action → 待迁移到框架 filter_visible_resources
+#     - get_iam_client → 待收口
 #     - make_resource / batch_make_resource → 等 resource.py 改造
 # ---------------------------------------------------------------------------
 
@@ -30,8 +29,6 @@ import logging
 from collections import defaultdict
 
 from django.conf import settings
-from iam import Action, ObjectSet, make_expression
-from iam.eval.expression import OP
 from iam.exceptions import AuthAPIError
 
 from bkm_space.api import SpaceApi
@@ -352,7 +349,7 @@ class Permission:
         return actions, [BusinessResource.create_instance(bk_biz_id)]
 
     # ================================================================
-    # 空间列表过滤 — 保留旧 CompatibleIAM 路径（框架 query_policy 未实现）
+    # 空间列表过滤 — 走框架 filter_visible_resources（provider 中立）
     # ================================================================
 
     def filter_space_list_by_action(self, action, using_cache=True) -> list[dict]:
@@ -361,44 +358,20 @@ class Permission:
             return space_list
 
         action_id_biz = to_action_id(action)
-        v3_action_id = self._codec.encode_action(action_id_biz)
-        from iam import Request, Subject
-
-        request = Request(
-            system=settings.BK_IAM_SYSTEM_ID,
-            subject=Subject("user", self.username),
-            action=Action(id=v3_action_id),
-            resources=[],
-            environment=None,
-        )
+        subject = FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id)
+        candidates = tuple(FwResource(type="space", id=str(s["bk_biz_id"])) for s in space_list)
 
         try:
-            policies = self.iam_client._do_policy_query(request)
+            result = self._fw.filter_visible_resources(subject, action_id_biz, candidates)
         except AuthAPIError as e:
             logger.exception("[IAM AuthAPI Error]: %s", e)
             return []
 
-        if not policies:
-            return []
-
-        op = policies["op"]
-        if op == OP.ANY:
+        if result.all_granted:
             return space_list
-        elif op == OP.IN:
-            value = policies["value"]
-            return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list))
 
-        expr = make_expression(policies)
-
-        results = []
-        for space in space_list:
-            obj_set = ObjectSet()
-            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(space["bk_biz_id"])})
-
-            if self.iam_client._eval_expr(expr, obj_set):
-                results.append(space)
-
-        return results
+        visible_ids = set(result.visible_ids)
+        return [s for s in space_list if str(s["bk_biz_id"]) in visible_ids]
 
     # ================================================================
     # Resource 构造 — 保留（monitor_web/iam/ 回调使用，等 resource.py 改造）
@@ -412,28 +385,6 @@ class Permission:
     @classmethod
     def batch_make_resource(cls, resources: list[dict]):
         return [cls.make_resource(r["type"], r["id"]) for r in resources]
-
-    # ================================================================
-    # Grafana 穿透兼容 — 保留（收口后删除）
-    # ================================================================
-
-    def make_request(self, action, resources: list = None):
-        """构造 IAM SDK Request（仅 Grafana permissions.py 使用）。
-
-        Grafana 通过 Permission().iam_client._do_policy_query(make_request(...))
-        直接查询策略表达式。收口到框架后，此方法可删除。
-        """
-        action_id_biz = to_action_id(action)
-        v3_action_id = self._codec.encode_action(action_id_biz)
-        from iam import Request, Subject
-
-        return Request(
-            system=settings.BK_IAM_SYSTEM_ID,
-            subject=Subject("user", self.username),
-            action=Action(id=v3_action_id),
-            resources=resources or [],
-            environment=None,
-        )
 
     # ================================================================
     # list_actions — 已弃用

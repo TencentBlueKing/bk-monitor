@@ -93,53 +93,47 @@ class TestExpandFolderToDashboards:
         assert result == set()
 
 
-class TestGetPolicyResources:
-    """测试 get_policy_resources 方法"""
+class TestExpandResourcesToDashboardUids:
+    """测试 expand_resources_to_dashboard_uids（原 get_policy_resources 的资源解析逻辑迁移至此）"""
 
     @pytest.mark.parametrize(
-        "policy,expected_dashboard_count,expected_folder_count",
+        "resource_ids,expected_uids",
         [
-            ({}, 0, 0),
-            ({"op": "eq", "value": "1|test_uid"}, 1, 0),
-            ({"op": "eq", "value": "folder:1|100"}, 0, 1),
-            ({"op": "in", "value": ["1|uid1", "1|uid2"]}, 2, 0),
-            ({"op": "in", "value": ["folder:1|100", "folder:1|200"]}, 0, 2),
-            ({"op": "in", "value": ["1|uid1", "folder:1|100"]}, 1, 1),
+            ([], set()),
+            (["1|test_uid"], {"test_uid"}),
+            (["1|uid1", "1|uid2"], {"uid1", "uid2"}),
+            (["999|uid1"], set()),  # 跨 org 过滤
+            (["uid_without_org"], {"uid_without_org"}),  # 纯 uid
+            (["1|uid1", "999|uid2"], {"uid1"}),
         ],
     )
-    def test_get_policy_resources_basic(
-        self, org_id, bk_biz_id, policy, expected_dashboard_count, expected_folder_count
-    ):
-        """测试基本策略解析"""
-        dashboard_uids, folder_ids = DashboardPermission.get_policy_resources(org_id, bk_biz_id, policy)
-        assert len(dashboard_uids) == expected_dashboard_count
-        assert len(folder_ids) == expected_folder_count
+    def test_dashboard_ids(self, org_id, resource_ids, expected_uids):
+        """dashboard 资源 id 解析 + org 过滤"""
+        uids = DashboardPermission.expand_resources_to_dashboard_uids(org_id, resource_ids)
+        assert uids == expected_uids
 
-    def test_get_policy_resources_or_operation(self, org_id, bk_biz_id):
-        """测试 OR 操作"""
-        policy = {
-            "op": "or",
-            "content": [
-                {"op": "eq", "value": "1|uid1"},
-                {"op": "eq", "value": "folder:1|100"},
-            ],
-        }
-        dashboard_uids, folder_ids = DashboardPermission.get_policy_resources(org_id, bk_biz_id, policy)
-        assert len(dashboard_uids) == 1
-        assert len(folder_ids) == 1
+    def test_folder_expansion(self, org_id, sample_folders, sample_dashboards):
+        """folder 资源 id 展开为其下所有 dashboard uid"""
+        folder = sample_folders[0]
+        resource_ids = [f"{DashboardPermission.FOLDER_PREFIX}{org_id}|{folder.id}"]
+        uids = DashboardPermission.expand_resources_to_dashboard_uids(org_id, resource_ids)
+        expected = {d.uid for d in sample_dashboards if d.folder_id == folder.id}
+        assert uids == expected
 
-    def test_get_policy_resources_and_wrong_biz_id(self, org_id, bk_biz_id):
-        """测试 AND 操作业务ID不匹配"""
-        policy = {
-            "op": "and",
-            "content": [
-                {"field": "grafana_dashboard._bk_iam_path_", "value": "/business,999/"},
-                {"op": "in", "value": ["1|uid1"]},
-            ],
-        }
-        dashboard_uids, folder_ids = DashboardPermission.get_policy_resources(org_id, bk_biz_id, policy)
-        assert len(dashboard_uids) == 0
-        assert len(folder_ids) == 0
+    def test_mixed_dashboard_and_folder(self, org_id, sample_folders, sample_dashboards):
+        """dashboard 与 folder 混合资源列表"""
+        folder = sample_folders[0]
+        resource_ids = [f"{org_id}|direct_uid", f"{DashboardPermission.FOLDER_PREFIX}{org_id}|{folder.id}"]
+        uids = DashboardPermission.expand_resources_to_dashboard_uids(org_id, resource_ids)
+        expected = {"direct_uid"} | {d.uid for d in sample_dashboards if d.folder_id == folder.id}
+        assert uids == expected
+
+    def test_wrong_org_folder_filtered(self, sample_folders):
+        """跨 org 的 folder 不展开"""
+        folder = sample_folders[0]
+        resource_ids = [f"{DashboardPermission.FOLDER_PREFIX}999|{folder.id}"]
+        uids = DashboardPermission.expand_resources_to_dashboard_uids(1, resource_ids)
+        assert uids == set()
 
 
 class TestListInstance:

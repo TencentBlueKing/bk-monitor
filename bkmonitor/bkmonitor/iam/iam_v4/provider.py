@@ -22,7 +22,14 @@ import importlib
 from typing import TYPE_CHECKING, Any
 
 from ..iam_engine.callback.service import CallbackService
-from ..iam_engine.core.types import ResourceInstance, Subject, to_action_id
+from ..iam_engine.core.types import (
+    BatchByResourceRequest,
+    ResourceInstance,
+    Subject,
+    VisibleResult,
+    to_action_id,
+    to_resource_type_id,
+)
 from ..iam_engine.core.utils import chunked
 from ..iam_engine.provider.base import PermissionProvider
 from ..iam_engine.provider.dialect_types import (
@@ -379,6 +386,77 @@ class V4PermissionProvider(PermissionProvider):
                     biz_ids.append(self.codec.decode_resource_id(rt_biz, d_id))
             results.append({"type": rt_biz, "ids": biz_ids})
         return results
+
+    # ================================================================
+    # 可见性能力（框架统一抽象）
+    # ================================================================
+
+    def has_any_permission(
+        self,
+        subject: Subject,
+        action_id: str,
+    ) -> bool:
+        """v4 平台无子资源反向查询 API → 保守放行 True，由资源层精确过滤兜底。"""
+        return True
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """v4：按候选资源层级分派。
+
+        * 顶层资源（如 space，数量可达数十万）：走平台原生反向列举
+          get_authorized_resources（1 次 API），与候选求交 —— 禁止批量鉴权。
+        * 子资源（如 grafana_dashboard，单批候选可控）：正向批量鉴权。
+        """
+        if not candidates:
+            return VisibleResult()
+
+        rt_biz = to_resource_type_id(candidates[0].type)
+        if self._is_top_level_resource(rt_biz):
+            return self._filter_visible_top_level(subject, action_id, rt_biz, candidates)
+
+        result = self.batch_by_resource(
+            BatchByResourceRequest(subject=subject, action_id=action_id, resources=candidates)
+        )
+        return VisibleResult(
+            all_granted=False,
+            visible_ids=tuple(item.resource_id for item in result.items if item.allowed),
+        )
+
+    def _is_top_level_resource(self, rt_biz: str) -> bool:
+        """schema 中无 ancestor 的资源类型为顶层资源。未知类型保守视为非顶层（走批量）。"""
+        if not rt_biz:
+            return False
+        try:
+            return not self.schema.get_resource_type(rt_biz).ancestor
+        except Exception:
+            return False
+
+    def _filter_visible_top_level(
+        self,
+        subject: Subject,
+        action_id: str,
+        rt_biz: str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """顶层资源反向列举：get_authorized_resources 与候选求交。"""
+        authorized = self.get_authorized_resources(subject, action_id)
+
+        all_granted = False
+        authorized_ids: set[str] = set()
+        for item in authorized:
+            if item.get("type") != rt_biz:
+                continue
+            item_ids = item.get("ids") or []
+            if "*" in item_ids:
+                all_granted = True
+            authorized_ids.update(str(i) for i in item_ids if i != "*")
+
+        visible_ids = tuple(c.id for c in candidates if c.id in authorized_ids)
+        return VisibleResult(all_granted=all_granted, visible_ids=visible_ids)
 
     # ================================================================
     # 角色授权 —— IAM v4 独有能力

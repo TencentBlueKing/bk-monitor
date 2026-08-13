@@ -61,6 +61,7 @@ from ..core.types import (
     ResourceAuthResult,
     ResourceInstance,
     Subject,
+    VisibleResult,
     to_action_id,
     to_resource_type_id,
 )
@@ -480,6 +481,42 @@ class PermissionProvider(ABC):
             * 部分 action 无策略（例如用户无任何权限）时，对应 value 是 None
         """
         return {to_action_id(aid): self.query_policy(subject, aid) for aid in action_ids}
+
+    def has_any_permission(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+    ) -> bool:
+        """用户对该 action 是否存在任意实例级权限（布尔，无需候选列表）。
+
+        用于权限层粗门禁（候选列表尚未拉取的场景）。
+        默认返回 False（不支持，视为无实例级权限）；子类按自身机制覆盖：
+          * v3：query_policy 返回非空表达式即视为有权限（近似，跨 org 场景由过滤层兜底）
+          * v4：无子资源反向查询能力 → 保守返回 True，由资源层精确过滤兜底
+        """
+        return False
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """从候选资源中过滤出可见的实例（反向列举消费方统一入口）。
+
+        Args:
+            subject: 鉴权主体。
+            action_id: 业务规范化 action_id（或 ActionDef）。
+            candidates: 候选资源实例（业务命名）。约定同一批候选共享父链
+                        （如 Grafana 单 org 一批）。
+
+        Returns:
+            VisibleResult：all_granted=True 时 visible_ids 可忽略。
+            默认返回空结果（不支持）；子类按自身机制覆盖：
+              * v3：query_policy 表达式 + 本地求值（1 次 API）
+              * v4：batch_by_resource 正向批量鉴权
+        """
+        return VisibleResult()
 
     # ==================== 迁移契约 ====================
 

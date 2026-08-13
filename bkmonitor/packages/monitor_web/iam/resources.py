@@ -267,7 +267,10 @@ class CreateOrUpdateExternalPermission(Resource):
             """
             authorizer = attrs.pop("authorizer", "")
             bk_biz_id = attrs["bk_biz_id"]
-            _, role, dashboard_permissions = DashboardPermission.get_user_permission(authorizer, str(bk_biz_id))
+            # 候选即待授权的资源本身（IAM 格式 id：dashboard "{org}|{uid}" / folder "folder:{org}|{fid}"）
+            _, role, dashboard_permissions = DashboardPermission.get_visible_dashboards(
+                authorizer, str(bk_biz_id), resource_ids=attrs.get("resources", [])
+            )
 
             # 检查角色权限
             required_role = GrafanaRole.Viewer if attrs["action_id"] == "view_grafana" else GrafanaRole.Editor
@@ -518,7 +521,8 @@ class GetExternalPermissionList(Resource):
                 if not authorizer:
                     biz_authorizer_role[permission.bk_biz_id] = GrafanaRole.Anonymous
                 else:
-                    _, role, _ = DashboardPermission.get_user_permission(authorizer, str(permission.bk_biz_id))
+                    # 仅需 role（含实例级全量授权提级），不传候选
+                    _, role, _ = DashboardPermission.get_visible_dashboards(authorizer, str(permission.bk_biz_id))
                     biz_authorizer_role[permission.bk_biz_id] = role
 
         if validated_request_data["view_type"] != "resource":

@@ -255,13 +255,20 @@ class GetFunctionShortcutResource(Resource):
                     if org.name.strip().lstrip("-").isdigit()
                 }
 
-                # 获取仪表盘权限
+                # 获取仪表盘权限：按业务分组收藏仪表盘，作为候选走框架过滤
                 allowed_bk_biz_ids: set[int] = set()
                 allowed_dashboard_ids: set[tuple[int, str]] = set()
-                for bk_biz_id in org_id_to_biz_id.values():
-                    ok, role, dashboard_permissions = DashboardPermission.has_permission(request, None, bk_biz_id)
-                    if not ok:
-                        continue
+                biz_org_uids: dict[int, list[tuple[int, str]]] = {}
+                for dashboard in dashboards:
+                    if dashboard.org_id in org_id_to_biz_id:
+                        bk_biz_id = org_id_to_biz_id[dashboard.org_id]
+                        biz_org_uids.setdefault(bk_biz_id, []).append((dashboard.org_id, dashboard.uid))
+
+                for bk_biz_id, org_uids in biz_org_uids.items():
+                    resource_ids = [f"{org_id}|{uid}" for org_id, uid in org_uids]
+                    role, dashboard_permissions = DashboardPermission.get_visible_dashboards(
+                        username=request.user.username, org_name=str(bk_biz_id), resource_ids=resource_ids
+                    )
                     if role >= GrafanaRole.Viewer:
                         allowed_bk_biz_ids.add(bk_biz_id)
                     else:

@@ -209,6 +209,22 @@ class BatchAuthResult:
         ]
 
 
+@dataclass(frozen=True)
+class VisibleResult:
+    """可见资源过滤结果（反向列举消费方的统一返回）。
+
+    由 Provider.filter_visible_resources 返回；多 Provider 组合时框架负责合并。
+
+    Args:
+        all_granted: 候选所在父链下全部实例可见（如 v3 的整 space 授权）。
+                     为 True 时 visible_ids 可忽略。
+        visible_ids: 具体可见的实例 ID（业务命名）。
+    """
+
+    all_granted: bool = False
+    visible_ids: tuple[str, ...] = ()
+
+
 # ---------------------------------------------------------------------------
 # 权限申请 URL 请求
 # ---------------------------------------------------------------------------

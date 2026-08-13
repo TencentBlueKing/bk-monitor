@@ -24,6 +24,7 @@ from ...core.types import (
     BatchByResourceRequest,
     ResourceInstance,
     Subject,
+    VisibleResult,
 )
 from ...provider.base import PermissionProvider
 
@@ -208,3 +209,26 @@ class CompositionPolicy(ABC):
                 if expr is not None:
                     result.setdefault(aid, []).append(expr)
         return result
+
+    def has_any_permission(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+    ) -> bool:
+        """收集所有 Provider 的 has_any_permission 结果，任一为真即真。"""
+        return any(p.has_any_permission(subject, action_id) for p in self.providers)
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """收集所有 Provider 的过滤结果并合并：all_granted 取 OR，visible_ids 取并集。"""
+        all_granted = False
+        ids: set[str] = set()
+        for p in self.providers:
+            r = p.filter_visible_resources(subject, action_id, candidates)
+            all_granted = all_granted or r.all_granted
+            ids.update(r.visible_ids)
+        return VisibleResult(all_granted=all_granted, visible_ids=tuple(ids))
