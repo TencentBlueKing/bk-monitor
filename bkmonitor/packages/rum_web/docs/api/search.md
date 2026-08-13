@@ -1,10 +1,34 @@
 # RUM 检索接口协议
 
-## 1 list_records - 分页查询记录列表
+## 1 公共数据结构
+
+### 1.1 Filter
+
+过滤条件，用于 `list_records`、`get_fields_option_values`、`generate_query_string` 等接口的 `filters` 参数。
+
+| 参数名称     | 类型     | 必填 | 描述                     |
+|----------|--------|----|------------------------|
+| key      | String | 是  | 查询键                    |
+| operator | String | 是  | 操作符                    |
+| value    | Array  | 是  | 查询值列表（元素类型为任意 JSON 值）  |
+| options  | Object | 否  | 操作符选项，见 Filter.options |
+
+- Filter.options
+
+| 参数名称           | 类型      | 必填 | 描述                            |
+|----------------|---------|----|-------------------------------|
+| is_wildcard    | Boolean | 否  | 是否使用通配符，默认 `false`            |
+| group_relation | String  | 否  | 分组关系，枚举值：`AND` / `OR`，默认 `OR` |
+
+---
+
+## 2 RUM 接口
+
+### 2.1 list_records - 分页查询记录列表
 
 POST /rum/search/list_records/
 
-### 1.1 Request
+#### 2.1.1 Request
 
 | 参数名称         | 类型            | 必填 | 描述                                                                  |
 |--------------|---------------|----|---------------------------------------------------------------------|
@@ -16,7 +40,7 @@ POST /rum/search/list_records/
 | offset       | Integer       | 否  | 分页偏移量，默认 0，最小 0                                                     |
 | limit        | Integer       | 否  | 每页数量，默认 10，最小 1                                                     |
 | sort         | Array[String] | 否  | 排序条件，字段名前加 `-` 表示降序，默认 `[]`                                         |
-| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
 | extra_config | Object        | 否  | 扩展配置，默认 `{}`                                                        |
 
@@ -45,7 +69,7 @@ POST /rum/search/list_records/
 }
 ```
 
-### 1.2 Response
+#### 2.1.2 Response
 
 返回包含 `total` 和 `data` 字段的分页结构。
 
@@ -67,11 +91,11 @@ POST /rum/search/list_records/
 }
 ```
 
-## 2 view_config - 页面视图配置
+### 2.2 view_config - 页面视图配置
 
 GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
-### 2.1 Request
+#### 2.2.1 Request
 
 | 参数名称         | 类型      | 必填 | 描述               |
 |--------------|---------|----|------------------|
@@ -90,7 +114,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 }
 ```
 
-### 2.2 Response
+#### 2.2.2 Response
 
 - fields
 
@@ -151,11 +175,11 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 }
 ```
 
-## 3 get_fields_option_values - 批量查询字段可选枚举值
+### 2.3 get_fields_option_values - 批量查询字段可选枚举值
 
 POST /rum/search/get_fields_option_values/
 
-### 3.1 Request
+#### 2.3.1 Request
 
 | 参数名称         | 类型            | 必填 | 描述                                                                  |
 |--------------|---------------|----|---------------------------------------------------------------------|
@@ -166,7 +190,7 @@ POST /rum/search/get_fields_option_values/
 | end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
 | fields       | Array[String] | 是  | 查询字段列表                                                              |
 | limit        | Integer       | 否  | 每个字段返回的枚举值数量，默认 10，最小 1                                             |
-| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
 | extra_config | Object        | 否  | 扩展配置，默认 `{}`                                                        |
 
@@ -188,7 +212,7 @@ POST /rum/search/get_fields_option_values/
 }
 ```
 
-### 3.2 Response
+#### 2.3.2 Response
 
 返回以字段名为 key、可选枚举值列表为 value 的字典。
 
@@ -216,11 +240,11 @@ POST /rum/search/get_fields_option_values/
 }
 ```
 
-## 4 generate_query_string - 过滤条件转查询字符串
+### 2.4 generate_query_string - 过滤条件转查询字符串
 
 POST /rum/search/generate_query_string/
 
-### 4.1 Request
+#### 2.4.1 Request
 
 | 参数名称    | 类型            | 必填 | 描述             |
 |---------|---------------|----|----------------|
@@ -228,19 +252,7 @@ POST /rum/search/generate_query_string/
 
 - Filter
 
-| 参数名称     | 类型     | 必填 | 描述                    |
-|----------|--------|----|-----------------------|
-| key      | String | 是  | 查询键                   |
-| operator | String | 是  | 操作符                   |
-| value    | Array  | 是  | 查询值列表（元素类型为任意 JSON 值） |
-| options  | Object | 否  | 操作符选项，见下表             |
-
-- Filter.options
-
-| 参数名称           | 类型      | 必填 | 描述                            |
-|----------------|---------|----|-------------------------------|
-| is_wildcard    | Boolean | 否  | 是否使用通配符，默认 `false`            |
-| group_relation | String  | 否  | 分组关系，枚举值：`AND` / `OR`，默认 `OR` |
+见 [1.1 Filter](#filter)。
 
 ```json
 {
@@ -261,10 +273,11 @@ POST /rum/search/generate_query_string/
 }
 ```
 
-### 4.2 Response
+#### 2.4.2 Response
 
 返回转换后的查询字符串（String）。
 
 ```json
 "attributes.span_type: (\"http\" OR \"resource\")"
 ```
+
