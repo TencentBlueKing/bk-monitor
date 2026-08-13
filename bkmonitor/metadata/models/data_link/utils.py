@@ -159,9 +159,8 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> 
     return data_id_name
 
 
-def find_registered_bkdata_data_id_name(data_source: "DataSource", namespace: str | None) -> str | None:
+def find_registered_bkdata_data_id_name(data_source: "DataSource", namespace: str) -> str | None:
     """在租户和命名空间范围内按 Data ID 查找最近更新的已注册资源名。"""
-    namespace = namespace or settings.DEFAULT_VM_DATA_LINK_NAMESPACE
     data_id_config = (
         models.DataIdConfig.objects.filter(
             bk_tenant_id=data_source.bk_tenant_id,
@@ -178,7 +177,7 @@ def find_registered_bkdata_data_id_name(data_source: "DataSource", namespace: st
 
 def get_registered_bkdata_data_id_name(
     data_source: "DataSource",
-    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    namespace: str,
 ) -> str:
     """获取 DataLink 依赖的已注册 BKBase DataId 名称。
 
@@ -187,7 +186,7 @@ def get_registered_bkdata_data_id_name(
 
     Args:
         data_source: 待接入 DataLink 的监控数据源。
-        namespace: BKBase 资源命名空间；为空时使用默认 VM DataLink 命名空间。
+        namespace: BKBase 资源命名空间。
 
     Returns:
         已注册且可供 DataBus source 引用的 DataId 名称。
@@ -195,7 +194,6 @@ def get_registered_bkdata_data_id_name(
     Raises:
         DataIdConfig.DoesNotExist: 当前作用域内没有该 ``bk_data_id`` 的注册记录。
     """
-    namespace = namespace or settings.DEFAULT_VM_DATA_LINK_NAMESPACE
     data_id_name = find_registered_bkdata_data_id_name(data_source, namespace)
     if data_id_name:
         logger.info(
