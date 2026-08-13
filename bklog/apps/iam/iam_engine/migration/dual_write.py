@@ -18,6 +18,16 @@ class DualWriteGrantOrchestrator:
 
     V3 保持同步是为了让用户创建资源后立刻拥有权限；V4 走提交后异步投递，既避免在事务里发
     HTTP，也保证业务回滚时不会给不存在的资源授权。
+
+    V4 侧的交付契约是「尽力投递 + 结构化日志」，不是失败补偿：本模块刻意不落授权意图表、不做
+    outbox、也没有周期扫描重投。因此存在两个不会被自动修复的丢失窗口——事务提交后投递失败
+    （例如 broker 不可用），以及任务重试耗尽后的终态失败。两者都只留下 ``[IAM DualWrite]`` /
+    ``[IAM V4 Grant]`` 日志，发现靠日志告警，恢复靠人工按日志中的 tenant_id、resource_meta 与
+    role_id 重新触发一次创建者授权。
+
+    之所以能接受这个窗口：V4 ``add_authorization`` 重复授予同一主体、角色和资源是安全的，重放代价
+    很低；而为自动补偿引入状态表、租约和扫描任务的复杂度，超过了当前创建者授权场景的收益。契约若要
+    升级为真正的补偿，需要先补回持久化的冻结请求与失败状态，不能只在这一层加重试。
     """
 
     def __init__(
@@ -104,7 +114,8 @@ class DualWriteGrantOrchestrator:
         try:
             self.dispatch_v4_grant(task_kwargs)
         except Exception as error:  # pylint: disable=broad-except
-            # 提交后回调抛错会打断同批次其他回调，投递失败只能靠这条日志发现。
+            # 提交后回调抛错会打断同批次其他回调，所以这里必须吞掉；按类文档的尽力投递契约，
+            # 投递失败只能靠这条日志被发现和人工重放。
             logger.exception(
                 "[IAM DualWrite] v4 dispatch failed tenant_id=%s resource=%s error_type=%s error=%s",
                 task_kwargs["tenant_id"],
