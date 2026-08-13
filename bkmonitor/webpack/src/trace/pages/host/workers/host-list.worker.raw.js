@@ -46,6 +46,13 @@ const HOST_STATUS_MAP = {
   2: { name: '无Agent' },
   3: { name: '无数据上报' },
 };
+const PROCESS_STATUS_PRIORITY = {
+  0: 1,
+  3: 1,
+  '-1': 2,
+  2: 3,
+  1: 4,
+};
 
 const isHostNode = node => node.bk_host_id !== undefined;
 
@@ -64,17 +71,34 @@ const extractClusters = modules => {
   return [...map.values()];
 };
 
+const mergeHostComponents = (components = []) => {
+  const componentMap = new Map();
+  for (const component of components) {
+    const current = componentMap.get(component.display_name);
+    if (!current) {
+      componentMap.set(component.display_name, { ...component });
+      continue;
+    }
+    if ((PROCESS_STATUS_PRIORITY[component.status] || 0) > (PROCESS_STATUS_PRIORITY[current.status] || 0)) {
+      current.status = component.status;
+    }
+  }
+  return [...componentMap.values()];
+};
+
 const createHostListRow = (row, metric = {}) => {
   const modules = row.module || [];
   const bkClusters = extractClusters(modules);
+  const components = mergeHostComponents(metric.component);
   const rowId = String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`);
   const totalAlarmCount = (metric.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
   return Object.assign({}, row || {}, metric || {}, {
     id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
+    component: components,
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
-    processNames: (metric.component || []).map(c => c.display_name).join(','),
+    processNames: components.map(c => c.display_name).join(','),
     rowId,
     totalAlarmCount,
   });

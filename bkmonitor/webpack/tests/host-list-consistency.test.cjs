@@ -140,6 +140,59 @@ test('worker clears stale metrics when a later metric response is empty', () => 
   assert.equal(after.pagedRows[0].totalAlarmCount, 0);
 });
 
+test('host row merges same-name process badges and preserves abnormal status for tooltip', () => {
+  const row = createHostListRow(createHost({ bkCloudId: 0, bkHostId: 101, ip: '192.0.2.1' }), {
+    component: [
+      { display_name: 'redis', id: 'redis-primary', status: 0 },
+      { display_name: 'redis', id: 'redis-replica', status: 1 },
+      { display_name: 'nginx', id: 'nginx', status: 0 },
+    ],
+  });
+
+  assert.deepEqual(
+    row.component.map(item => ({ display_name: item.display_name, status: item.status })),
+    [
+      { display_name: 'redis', status: 1 },
+      { display_name: 'nginx', status: 0 },
+    ]
+  );
+  assert.equal(row.processNames, 'redis,nginx');
+  assert.equal(matchWhere(row, [{ key: 'display_name', method: 'eq', value: ['redis'] }]), true);
+
+  const tableSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list-table.tsx'),
+    'utf8'
+  );
+  assert.match(tableSource, /item\.status === -1[\s\S]*`host-table-process__tag--\$\{item\.status\}`/);
+  assert.match(tableSource, /handleTipsMouseenter\(e, item, 'Thread'\)/);
+});
+
+test('worker applies the same same-name process badge aggregation', () => {
+  const worker = createWorkerHarness();
+  worker.send({
+    baseList: [createHost({ bkCloudId: 0, bkHostId: 101, ip: '192.0.2.1' })],
+    type: 'INIT_BASE',
+  });
+  worker.send({
+    metricListMap: {
+      101: {
+        component: [
+          { display_name: 'redis', id: 'redis-primary', status: 0 },
+          { display_name: 'redis', id: 'redis-replica', status: 1 },
+        ],
+      },
+    },
+    type: 'MERGE_METRICS',
+  });
+
+  const result = worker.send({ params: defaultComputeParams, type: 'COMPUTE' });
+  assert.deepEqual(
+    Array.from(result.pagedRows[0].component, item => ({ display_name: item.display_name, status: item.status })),
+    [{ display_name: 'redis', status: 1 }]
+  );
+  assert.equal(result.pagedRows[0].processNames, 'redis');
+});
+
 test('numeric filters distinguish a real zero from a missing metric', () => {
   const missing = createHostListRow(createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' }));
   const zero = createHostListRow(createHost({ bkCloudId: 0, bkHostId: 102, ip: '10.0.0.2' }), { cpu_usage: 0 });
