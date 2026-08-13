@@ -76,6 +76,9 @@ def get_agent_status(
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :return {bk_host_id: AGENT_STATUS}
     """
+    if not hosts:
+        return {}
+
     status: dict[int, int] = {}
     now = int(time.time())
     # 前端默认时间范围为 now-7d ~ now，始终传递 start_time/end_time；
@@ -92,6 +95,7 @@ def get_agent_status(
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if is_historical:
