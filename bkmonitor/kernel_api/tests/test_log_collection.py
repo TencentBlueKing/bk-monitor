@@ -26,6 +26,7 @@ from kernel_api.views.v4.log_collection import CanonicalBusinessActionPermission
         ({"environment": None, "collector_scenario_id": "wineventlog"}, "windows"),
         ({"environment": None, "bcs_cluster_id": "0", "collector_scenario_id": "row"}, "linux"),
         ({"environment": None, "collector_scenario_id": "custom", "custom_type": "log"}, "container"),
+        ({"environment": "linux", "collector_scenario_id": "custom", "custom_type": "log"}, "container"),
         ({"environment": None, "collector_scenario_id": "custom"}, "unknown"),
     ],
 )
@@ -44,14 +45,18 @@ def test_list_request_serializer_defaults_and_bounds_page_size():
     assert "page_size" in serializer.errors
 
 
-def test_log_collection_view_requires_view_collection_permission():
-    permissions = LogCollectionViewSet().get_permissions()
+@pytest.mark.parametrize("action", ["list_collectors", "get_collector"])
+def test_log_collection_view_requires_view_business_permission(action):
+    view = LogCollectionViewSet()
+    view.action = action
+    permissions = view.get_permissions()
+
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.VIEW_COLLECTION]
+    assert permissions[0].actions == [ActionEnum.VIEW_BUSINESS]
 
 
 def test_log_collection_permission_rejects_conflicting_business_alias():
-    permission = CanonicalBusinessActionPermission([ActionEnum.VIEW_COLLECTION])
+    permission = CanonicalBusinessActionPermission([ActionEnum.VIEW_BUSINESS])
     request = SimpleNamespace(
         query_params={"bk_biz_id": "2", "biz_id": "3"},
         biz_id="3",

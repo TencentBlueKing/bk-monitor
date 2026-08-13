@@ -57,16 +57,17 @@ CONTAINER_CONFIG_FIELDS = {
 
 def normalize_environment(collector: dict[str, Any]) -> str:
     """兼容存量采集项 environment 为空的情况。"""
-    environment = collector.get("environment")
-    if environment in VALID_ENVIRONMENTS:
-        return environment
-
     collector_scenario_id = collector.get("collector_scenario_id")
     if (
         collector_scenario_id == CUSTOM_COLLECTOR_SCENARIO
         and collector.get("custom_type") == CUSTOM_CONTAINER_TYPE
     ):
         return ENVIRONMENT_CONTAINER
+
+    environment = collector.get("environment")
+    if environment in VALID_ENVIRONMENTS:
+        return environment
+
     if collector_scenario_id == WINDOWS_COLLECTOR_SCENARIO:
         return ENVIRONMENT_WINDOWS
     if collector_scenario_id in LINUX_COLLECTOR_SCENARIOS:
