@@ -465,7 +465,7 @@ class CleanTemplateHandler:
                     message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value),
                 )
                 return result
-        except Exception as error:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             logger.exception(
                 "sync clean template failed, clean_template_id: %s, collector_config_id: %s",
                 self.data.clean_template_id,
@@ -473,7 +473,7 @@ class CleanTemplateHandler:
             )
             result.update(
                 status=CleanTemplateSyncStatus.FAILED.value,
-                message=str(CleanTemplateSyncMessage.FAILED.value) % {"error": error},
+                message=str(CleanTemplateSyncMessage.FAILED.value),
             )
             updated = CollectorConfig.objects.filter(
                 collector_config_id=collector.collector_config_id,
@@ -482,7 +482,7 @@ class CleanTemplateHandler:
             ).update(
                 clean_template_sync_status=CleanTemplateSyncStatus.FAILED.value,
                 clean_template_sync_at=timezone.now(),
-                clean_template_sync_message=str(error),
+                clean_template_sync_message="",
             )
             if not updated:
                 result["message"] = str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value)

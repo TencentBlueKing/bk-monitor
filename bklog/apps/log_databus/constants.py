@@ -309,7 +309,7 @@ class CleanTemplateSyncStatus(ChoicesEnum):
 
 class CleanTemplateSyncMessage(Enum):
     SUCCESS = _("清洗模板同步成功")
-    FAILED = _("清洗模板同步失败，原因：%(error)s")
+    FAILED = _("清洗模板同步失败，请稍后重试")
     ASSOCIATION_CHANGED_BEFORE_SYNC = _("同步前清洗模板关联关系已发生变化，本次同步已跳过")
     ASSOCIATION_CHANGED_DURING_SYNC = _(
         "同步期间清洗模板关联关系发生变化，实际 RT 配置可能与当前配置不一致，请确认并重新保存采集项配置"

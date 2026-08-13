@@ -490,10 +490,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         self.assertEqual(modify_result_table.call_count, 2)
         modify_result_table_delay.assert_not_called()
         self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
-        self.assertIn("metadata boom", result["message"])
+        self.assertEqual(result["message"], str(CleanTemplateSyncMessage.FAILED.value))
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.FAILED.value)
-        self.assertEqual(collector.clean_template_sync_message, "metadata boom")
+        self.assertEqual(collector.clean_template_sync_message, "")
 
     def test_sync_collector_records_success_and_failure(self):
         template = self.create_template()
@@ -528,10 +528,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             result = handler._sync_collector(collector, template_version=2, clean_config=clean_config)
         collector.refresh_from_db()
         self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
-        self.assertIn("boom", result["message"])
+        self.assertEqual(result["message"], str(CleanTemplateSyncMessage.FAILED.value))
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.FAILED.value)
-        self.assertEqual(collector.clean_template_sync_message, "boom")
+        self.assertEqual(collector.clean_template_sync_message, "")
 
     def test_sync_collector_returns_failure_when_association_changed_before_sync(self):
         template = self.create_template()
