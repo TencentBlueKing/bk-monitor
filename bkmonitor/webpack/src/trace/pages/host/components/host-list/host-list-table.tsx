@@ -37,7 +37,7 @@ import {
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
-import { Checkbox, Pagination } from 'bkui-vue';
+import { Button, Checkbox, Pagination } from 'bkui-vue';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
@@ -78,6 +78,20 @@ const ALARM_LEVEL_COLOR: Record<number, string> = {
   2: '#ff8000',
   3: '#ffd000',
 };
+
+/** 由指标补充接口提供的列。失败时不能用空值、0 或“暂无进程”伪装成正常数据。 */
+const HOST_METRIC_DATA_COLUMN_IDS = new Set([
+  'bk_host_innerip_v6',
+  'status',
+  'alarm_count',
+  'cpu_usage',
+  'mem_usage',
+  'disk_in_use',
+  'io_util',
+  'psc_mem_usage',
+  'cpu_load',
+  'display_name',
+]);
 
 /** 指标进度条颜色阈值 */
 const getProgressColor = (value: number) => {
@@ -153,6 +167,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 指标数据加载失败（基础列仍可用） */
+    metricLoadError: {
+      type: Boolean,
+      default: false,
+    },
     /** 置顶配置 */
     markValue: {
       type: Object as PropType<Record<string, number>>,
@@ -175,6 +194,7 @@ export default defineComponent({
     selectIpCell: (_row: IHostListRow) => true,
     ipMark: (_row: IHostListRow) => true,
     processClick: (_row: IHostListRow, _processId: string) => true,
+    retryMetric: () => true,
   },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
@@ -187,7 +207,8 @@ export default defineComponent({
     const unresolveContentRef = useTemplateRef<HTMLElement>('unresolveContent');
 
     /** 表格体最大高度（自适应屏幕，表内滚动，表头/分页不滚走） */
-    const bodyHeight = shallowRef(400);
+    const tableHeight = shallowRef(444);
+    const bodyHeight = computed(() => Math.max(tableHeight.value - 44 - (props.metricLoadError ? 36 : 0), 200));
     /** 进程异常 tip 数据 */
     const tipsData = shallowRef<IStatusTipsConfig>({
       tipsText: '',
@@ -205,7 +226,7 @@ export default defineComponent({
       const height = entries[0]?.contentRect?.height;
       if (height) {
         // 扣除分页高度（约 32px）+ margin-top（12px）+ 缓冲
-        bodyHeight.value = Math.max(height - 44, 200);
+        tableHeight.value = height;
       }
     });
 
@@ -597,6 +618,14 @@ export default defineComponent({
         fixed: config.fixed,
       };
       base.cell = (_: unknown, { row }: { row: IHostListRow }) => {
+        if (HOST_METRIC_DATA_COLUMN_IDS.has(config.id)) {
+          if (props.metricLoading) {
+            return <div class='host-table-skeleton' />;
+          }
+          if (props.metricLoadError) {
+            return <span class='host-table-metric-error'>{t('加载失败')}</span>;
+          }
+        }
         switch (config.type) {
           case 'ip':
             return renderIpCell(row);
@@ -641,6 +670,18 @@ export default defineComponent({
         ref='table'
         class='host-list-table'
       >
+        {props.metricLoadError && (
+          <div class='host-list-table__metric-error'>
+            <span>{t('指标数据加载失败，当前仅展示主机基础信息')}</span>
+            <Button
+              class='host-list-table__metric-error-action'
+              text={true}
+              onClick={() => emit('retryMetric')}
+            >
+              {t('重新加载')}
+            </Button>
+          </div>
+        )}
         <div
           ref='body'
           class={['host-list-table__body', !props.data.length ? 'host-list-table__body--empty' : '']}

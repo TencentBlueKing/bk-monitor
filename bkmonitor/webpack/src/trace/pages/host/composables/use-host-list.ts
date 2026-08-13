@@ -87,8 +87,12 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
+  /** 基础数据加载失败（整表错误态） */
+  const loadError = shallowRef(false);
   /** 指标数据加载中（指标列展示骨架） */
   const metricLoading = shallowRef(false);
+  /** 指标数据加载失败（保留基础行，仅指标列展示错误态） */
+  const metricLoadError = shallowRef(false);
   /** 全量主机行数（主线程不持有全量行对象） */
   const rawRowCount = shallowRef(0);
   /** retrieval-filter 语句模式 */
@@ -256,6 +260,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     let requestBaseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
     loading.value = true;
     metricLoading.value = true;
+    loadError.value = false;
+    metricLoadError.value = false;
     // 手动/定时刷新时重置选择（对标旧版 handleResetCheck）
     selectAllMode.value = HostSelectAllModeEnum.NONE;
     selectedRowKeys.value = new Set();
@@ -285,10 +291,31 @@ export const useHostList = (options: IUseHostListOptions) => {
         return;
       }
       filterOptionsMap.value = filterOptionsMapResult.filterOptionsMap;
+    } catch {
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
+      baseList = [];
+      rawRowCount.value = 0;
+      categoryStats.value = { ...EMPTY_CATEGORY_STATS };
+      total.value = 0;
+      pagedRows.value = [];
+      filterOptionsMap.value = {};
+      metricRequestGeneration += 1;
+      loadError.value = true;
+      metricLoading.value = false;
+      return;
     } finally {
       if (requestGeneration === dataRequestGeneration) {
         loading.value = false;
       }
+    }
+    if (!requestBaseList.length) {
+      if (requestGeneration === dataRequestGeneration) {
+        metricRequestGeneration += 1;
+        metricLoading.value = false;
+      }
+      return;
     }
     const metricGeneration = ++metricRequestGeneration;
     try {
@@ -308,6 +335,11 @@ export const useHostList = (options: IUseHostListOptions) => {
         return;
       }
       refreshList(true);
+    } catch {
+      if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
+        return;
+      }
+      metricLoadError.value = true;
     } finally {
       if (metricGeneration === metricRequestGeneration) {
         metricLoading.value = false;
@@ -321,8 +353,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     }
 
     const requestGeneration = ++metricRequestGeneration;
+    metricLoading.value = true;
+    metricLoadError.value = false;
     try {
-      metricLoading.value = true;
       const requestBaseList = baseList;
       const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
@@ -340,6 +373,11 @@ export const useHostList = (options: IUseHostListOptions) => {
         return;
       }
       refreshList(true);
+    } catch {
+      if (requestGeneration !== metricRequestGeneration) {
+        return;
+      }
+      metricLoadError.value = true;
     } finally {
       if (requestGeneration === metricRequestGeneration) {
         metricLoading.value = false;
@@ -536,7 +574,9 @@ export const useHostList = (options: IUseHostListOptions) => {
   return {
     // 状态
     loading,
+    loadError,
     metricLoading,
+    metricLoadError,
     rawRowCount,
     keyword,
     where,
@@ -559,6 +599,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     // 方法
     getValueFn,
     loadData,
+    loadMetricData,
     handleKeywordChange,
     handleWhereChange,
     handleQueryStringChange,

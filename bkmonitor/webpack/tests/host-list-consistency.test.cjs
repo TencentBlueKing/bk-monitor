@@ -206,10 +206,12 @@ test('worker applies the same missing-versus-zero numeric semantics', () => {
 
 const deferred = () => {
   let resolve;
-  const promise = new Promise(resolvePromise => {
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 };
 
 const flushPromises = () => new Promise(resolve => setImmediate(resolve));
@@ -505,4 +507,137 @@ test('mounting with auto-refresh enabled loads once without creating a private t
     await vue.nextTick();
     global.setInterval = originalSetInterval;
   }
+});
+
+test('a base-list failure shows a retryable error while a real empty response stays empty', async () => {
+  const baseError = new Error('base list failed');
+  let metricRequestCount = 0;
+  getHostInfo = async () => {
+    throw baseError;
+  };
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    return {};
+  };
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+
+  await context.loadData();
+
+  assert.equal(context.loadError.value, true);
+  assert.equal(context.loading.value, false);
+  assert.equal(context.rawRowCount.value, 0);
+  assert.equal(context.metricLoadError.value, false);
+  assert.equal(metricRequestCount, 0);
+
+  getHostInfo = async () => [];
+  await context.loadData();
+
+  assert.equal(context.loadError.value, false);
+  assert.equal(context.rawRowCount.value, 0);
+  assert.equal(metricRequestCount, 0);
+  scope.stop();
+});
+
+test('a metric failure keeps base rows and retrying metrics does not reload the base list', async () => {
+  let baseRequestCount = 0;
+  let metricRequestCount = 0;
+  const base = createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' });
+  getHostInfo = async () => {
+    baseRequestCount += 1;
+    return [base];
+  };
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    throw new Error('metric list failed');
+  };
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+
+  await context.loadData();
+
+  assert.equal(context.loadError.value, false);
+  assert.equal(context.metricLoadError.value, true);
+  assert.equal(context.rawRowCount.value, 1);
+  assert.deepEqual(hostListWorker.calls.initBaseData, [[base]]);
+  assert.deepEqual(hostListWorker.calls.mergeMetrics, []);
+
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    return { 101: { cpu_usage: 25 } };
+  };
+  await context.loadMetricData();
+
+  assert.equal(context.metricLoadError.value, false);
+  assert.equal(baseRequestCount, 1);
+  assert.equal(metricRequestCount, 2);
+  assert.deepEqual(hostListWorker.calls.mergeMetrics, [{ 101: { cpu_usage: 25 } }]);
+  scope.stop();
+});
+
+test('an obsolete metric failure cannot replace the latest successful metric state', async () => {
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  const first = deferred();
+  const second = deferred();
+  let requestCount = 0;
+  getHostMetricInfo = () => (++requestCount === 1 ? first.promise : second.promise);
+  const oldRequest = context.loadMetricData();
+  const latestRequest = context.loadMetricData();
+  second.resolve({ 101: { cpu_usage: 50 } });
+  await latestRequest;
+  first.reject(new Error('obsolete metric failure'));
+  await oldRequest;
+
+  assert.equal(context.metricLoadError.value, false);
+  assert.deepEqual(hostListWorker.calls.mergeMetrics.at(-1), { 101: { cpu_usage: 50 } });
+  scope.stop();
+});
+
+test('a base refresh failure invalidates a metric request started from the previous base list', async () => {
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  const baseRefresh = deferred();
+  const staleMetricRefresh = deferred();
+  getHostInfo = () => baseRefresh.promise;
+  getHostMetricInfo = () => staleMetricRefresh.promise;
+  const metricMergeCount = hostListWorker.calls.mergeMetrics.length;
+
+  const baseRequest = context.loadData();
+  const metricRequest = context.loadMetricData();
+  baseRefresh.reject(new Error('base refresh failed'));
+  await baseRequest;
+  staleMetricRefresh.resolve({ 101: { cpu_usage: 75 } });
+  await metricRequest;
+
+  assert.equal(context.loadError.value, true);
+  assert.equal(hostListWorker.calls.mergeMetrics.length, metricMergeCount);
+  scope.stop();
+});
+
+test('host list views expose separate retry paths for base and metric failures', () => {
+  const hostListSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list.tsx'),
+    'utf8'
+  );
+  const tableSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list-table.tsx'),
+    'utf8'
+  );
+
+  assert.match(hostListSource, /<EmptyStatus[\s\S]*type='500'[\s\S]*onOperation=\{ctx\.loadData\}/);
+  assert.match(hostListSource, /metricLoadError=\{ctx\.metricLoadError\.value\}/);
+  assert.match(hostListSource, /onRetryMetric=\{ctx\.loadMetricData\}/);
+  assert.match(tableSource, /metricLoadError:[\s\S]*type: Boolean/);
+  assert.match(tableSource, /retryMetric:/);
+  assert.match(tableSource, /指标数据加载失败，当前仅展示主机基础信息/);
+  assert.match(tableSource, /HOST_METRIC_DATA_COLUMN_IDS\.has\(config\.id\)/);
 });
