@@ -36,6 +36,26 @@ def topo_tree(bk_biz_id):
     return to_dict(result)
 
 
+def _build_host_target_filter(bk_biz_id: int, hosts: list[Host]) -> dict:
+    """按主机身份构造 UQ 目标过滤条件。"""
+    if not hosts:
+        return {}
+    if is_ipv6_biz(bk_biz_id):
+        return {"targets": [{"bk_host_id": sorted(str(host.bk_host_id) for host in hosts)}]}
+    if not all(host.bk_host_innerip for host in hosts):
+        return {}
+
+    ips_by_cloud_id = defaultdict(set)
+    for host in hosts:
+        ips_by_cloud_id[str(int(host.bk_cloud_id or 0))].add(host.bk_host_innerip)
+    return {
+        "targets": [
+            {"bk_target_ip": sorted(ips), "bk_target_cloud_id": cloud_id}
+            for cloud_id, ips in sorted(ips_by_cloud_id.items())
+        ]
+    }
+
+
 # 主机相关的信息及数据需要支持IPv6及DHCP
 # 如果相关信息的获取需要保证兼容性，那么使用Host对象作为参数，否则直接使用特定字段作为参数
 # 如果相关信息的获取需要保证兼容性，那么使用bk_host_id作为返回值，否则直接使用特定字段作为返回值
@@ -305,6 +325,7 @@ def _query_proc_metrics(
         metrics=[{"field": field, "method": method, "alias": "A"}],
         table=table,
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if start_time is not None and end_time is not None:
@@ -547,19 +568,7 @@ def get_host_performance_data(
 
     # 与主机图表保持相同的目标维度：IPv4 使用 IP+云区域，IPv6 使用主机 ID。
     # IPv4 身份不完整时保留全量查询，避免过滤掉只能通过 bk_host_id 回填的兼容数据。
-    target_filter = {}
-    if is_ipv6_biz(bk_biz_id):
-        target_filter = {"targets": [{"bk_host_id": sorted(str(host.bk_host_id) for host in hosts)}]}
-    elif all(host.bk_host_innerip for host in hosts):
-        ips_by_cloud_id = defaultdict(set)
-        for host in hosts:
-            ips_by_cloud_id[str(int(host.bk_cloud_id or 0))].add(host.bk_host_innerip)
-        target_filter = {
-            "targets": [
-                {"bk_target_ip": sorted(ips), "bk_target_cloud_id": cloud_id}
-                for cloud_id, ips in sorted(ips_by_cloud_id.items())
-            ]
-        }
+    target_filter = _build_host_target_filter(bk_biz_id, hosts)
 
     def get_metric_data(metric):
         # 每个线程写入独立的临时 dict，避免多线程并发写同一 data 的竞态
