@@ -316,10 +316,10 @@ SYSTEM_HOST_METRICS: list[dict[str, Any]] = [
         "result_table_name": "进程",
         "data_label": "",
         "metrics": [
-            {"metric_field": "cpu_system", "metric_field_name": "进程占用系统态时间", "unit": "s"},
-            {"metric_field": "cpu_total_ticks", "metric_field_name": "整体占用时间", "unit": "s"},
+            {"metric_field": "cpu_system", "metric_field_name": "进程占用系统态时间", "unit": "ms"},
+            {"metric_field": "cpu_total_ticks", "metric_field_name": "整体占用时间", "unit": "ms"},
             {"metric_field": "cpu_usage_pct", "metric_field_name": "进程CPU使用率", "unit": "percentunit"},
-            {"metric_field": "cpu_user", "metric_field_name": "进程占用用户态时间", "unit": "s"},
+            {"metric_field": "cpu_user", "metric_field_name": "进程占用用户态时间", "unit": "ms"},
             {"metric_field": "fd_limit_hard", "metric_field_name": "fd_limit_hard", "unit": "short"},
             {"metric_field": "fd_limit_soft", "metric_field_name": "fd_limit_soft", "unit": "short"},
             {"metric_field": "fd_num", "metric_field_name": "进程文件句柄数", "unit": "short"},
