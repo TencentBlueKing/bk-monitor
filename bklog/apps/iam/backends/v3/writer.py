@@ -21,7 +21,8 @@ class V3AuthorizationWriter:
 
     def grant_prepared(self, grant: PreparedAuthorizationGrant) -> Any:
         result = self.client.grant_resource_creator_actions(dict(grant.payload))
-        if isinstance(result, tuple) and result and result[0] is False:
+        # SDK 的成功标记来自 HTTP 层，不保证是 False 这个单例，取假值统一当失败。
+        if isinstance(result, tuple) and result and not result[0]:
             message = str(result[1]) if len(result) > 1 else "IAM V3 creator grant failed"
             raise V3GrantError(message)
         return result

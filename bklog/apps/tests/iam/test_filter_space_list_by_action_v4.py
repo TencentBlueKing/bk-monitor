@@ -147,6 +147,20 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         self.assertIn("v4_error=IAM v4 provider is not configured", logs.records[0].getMessage())
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
+    def test_unconfigured_provider_fails_closed_without_loading_all_spaces(self):
+        mode_provider = MagicMock()
+        mode_provider.get_mode.return_value = AuthMode.V4
+        self.permission._mode_router = MagicMock(mode_provider=mode_provider)
+
+        # 未配置的 Provider 读不到 requires_candidate_ids，早期实现会在选路时抛 AttributeError。
+        with (
+            patch.object(Permission, "get_v4_provider", return_value=None),
+            self.assertLogs(level="ERROR"),
+            self.assertRaises(IAMDependencyError),
+        ):
+            self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1")
+
+    @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_union_calls_v3_and_v4_concurrently(self):
         import threading
         import time

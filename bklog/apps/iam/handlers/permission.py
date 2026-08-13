@@ -474,7 +474,7 @@ class Permission:
 
         # 所有 Provider 都能独立给出授权范围且调用方未预加载列表：
         # IAM 先查 → 定向查库，避免先扫全量 Space。
-        if space_list is None and not any(provider.requires_candidate_ids for _, provider in scope_providers):
+        if space_list is None and not self._requires_candidate_ids(scope_providers):
             return self._filter_spaces_by_scope_targeted(action, bk_tenant_id, scope_providers)
 
         if space_list is None:
@@ -504,13 +504,7 @@ class Permission:
 
         spaces = Space.get_spaces_by_bk_biz_ids(bk_tenant_id, query_ids)
         local_ids = {str(space["bk_biz_id"]) for space in spaces}
-        missing_ids = sorted(resource_id for resource_id in scope.ids if resource_id not in local_ids)
-        if missing_ids:
-            logger.warning(
-                "[IAM Space Scope] authorized ids missing in local Space cache: type=%s missing=%s",
-                scope.resource_type,
-                missing_ids[:20],
-            )
+        self._log_scope_ids_missing_locally(scope, local_ids)
         return self._keep_spaces_by_allowed_ids(spaces, set(scope.ids))
 
     @staticmethod
@@ -531,6 +525,11 @@ class Permission:
             if biz_id in allowed_ids or (demo_biz_id and demo_biz_id == biz_id):
                 results.append(space)
         return results
+
+    @staticmethod
+    def _requires_candidate_ids(scope_providers: tuple[tuple[str, Any], ...]) -> bool:
+        """未配置的 Provider 不需要本地候选：查询阶段会返回错误范围并 fail-closed，没必要先扫全量 Space。"""
+        return any(provider is not None and provider.requires_candidate_ids for _, provider in scope_providers)
 
     def _authorized_scope_providers(self, mode: AuthMode) -> tuple[tuple[str, Any], ...]:
         """按模式取出参与授权范围查询的 Provider，UNION 下同时保留 V3 与 V4。"""
@@ -587,14 +586,24 @@ class Permission:
             return set(local_ids)
 
         allowed_ids = {resource_id for resource_id in scope.ids if resource_id in local_ids}
-        missing_ids = sorted(resource_id for resource_id in scope.ids if resource_id not in local_ids)
-        if missing_ids:
-            logger.warning(
-                "[IAM Space Scope] authorized ids missing in local Space cache: type=%s missing=%s",
-                scope.resource_type,
-                missing_ids[:20],
-            )
+        Permission._log_scope_ids_missing_locally(scope, local_ids)
         return allowed_ids
+
+    @staticmethod
+    def _log_scope_ids_missing_locally(scope: AuthorizedResourceScope, local_ids: set[str]) -> None:
+        """记录 IAM 已授权但本地 Space 表没有的 ID。
+
+        IAM 的授权范围覆盖平台上所有业务，本地 Space 表只有接入日志平台的空间，两者对不上是常态，
+        按请求打 WARNING 只会淹没真实告警，所以降到 DEBUG，排查具体用户时再开。
+        """
+        missing_ids = sorted(resource_id for resource_id in scope.ids if resource_id not in local_ids)
+        if not missing_ids:
+            return
+        logger.debug(
+            "[IAM Space Scope] authorized ids missing in local Space cache: type=%s missing=%s",
+            scope.resource_type,
+            missing_ids[:20],
+        )
 
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
         """

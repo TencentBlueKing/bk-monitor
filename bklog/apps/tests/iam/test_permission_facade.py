@@ -360,14 +360,15 @@ class PermissionFacadeTest(TestCase):
             (("v4", "ProviderNotConfigured", "IAM v4 provider is not configured"),),
         )
 
-    def test_creator_grant_keeps_v3_return_value_and_dispatches_v4_after_commit(self):
+    def test_creator_grant_keeps_v3_return_value_and_grants_v4_synchronously(self):
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
-        v4_writer = Mock()
-        v4_writer.prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(
+        prepared = PreparedAuthorizationGrant(
             payload=[{"role_id": "space_operator"}],
             role_id="space_operator",
             expired_at=1893456000,
         )
+        v4_writer = Mock()
+        v4_writer.prepare_resource_creator_actions.return_value = prepared
         permission = self._make_permission()
         permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
         resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
@@ -386,8 +387,29 @@ class PermissionFacadeTest(TestCase):
         self.assertEqual(result, "v3-result")
         self.iam_client.grant_resource_creator_actions.assert_called_once_with(application)
         v4_writer.prepare_resource_creator_actions.assert_called_once_with(application)
-        # V4 只投递任务，调用线程里不直接发 HTTP。
-        v4_writer.grant_prepared.assert_not_called()
+        # 首次授权同步完成，不进重试队列。
+        v4_writer.grant_prepared.assert_called_once_with(prepared)
+        apply_async.assert_not_called()
+
+    def test_creator_grant_falls_back_to_the_retry_task_when_v4_sync_grant_fails(self):
+        self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
+        v4_writer = Mock()
+        v4_writer.prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(
+            payload=[{"role_id": "space_operator"}],
+            role_id="space_operator",
+            expired_at=1893456000,
+        )
+        v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
+        permission = self._make_permission()
+        permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
+        resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
+
+        with patch("apps.iam.tasks.grant.grant_v4_creator_action.apply_async") as apply_async:
+            with self.captureOnCommitCallbacks(execute=True):
+                result = permission.grant_creator_action(resource, creator="admin")
+
+        # V4 同步失败不改变 V3 返回值，回落任务原样重放冻结请求。
+        self.assertEqual(result, "v3-result")
         apply_async.assert_called_once_with(
             kwargs={
                 "tenant_id": "tenant-1",

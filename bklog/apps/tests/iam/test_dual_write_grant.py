@@ -55,29 +55,44 @@ class DualWriteGrantOrchestratorTest(TestCase):
             },
         }
 
-    def test_v3_is_granted_synchronously_and_v4_is_dispatched_after_commit(self):
+    def test_both_versions_are_granted_synchronously_without_a_retry_task(self):
         with self.captureOnCommitCallbacks(execute=True):
             result = self.orchestrator.grant_creator_action(self.application)
 
         self.assertEqual(result, (True, "success"))
         self.v3_client.grant_resource_creator_actions.assert_called_once_with(self.application)
         self.v4_writer.prepare_resource_creator_actions.assert_called_once_with(self.application)
-        # V4 只在提交后投递任务，不在调用线程里直接发 HTTP。
-        self.v4_writer.grant_prepared.assert_not_called()
-        self.dispatch.assert_called_once_with(self.expected_task_kwargs)
+        # 首次授权必须同步完成，否则 V4 模式下创建者会有一段时间访问不了自己的新资源。
+        self.v4_writer.grant_prepared.assert_called_once_with(self.v4_prepared)
+        self.dispatch.assert_not_called()
 
-    def test_v3_result_is_available_before_the_outer_transaction_commits(self):
+    def test_both_results_are_available_before_the_outer_transaction_commits(self):
         with self.captureOnCommitCallbacks(execute=True):
             with transaction.atomic():
                 result = self.orchestrator.grant_creator_action(self.application)
-                # 用户创建资源后必须立刻有 V3 权限，返回值不能等到提交后才产生。
+                # 用户创建资源后必须立刻有权限，两侧授权都不能等到提交后才发生。
                 self.v3_client.grant_resource_creator_actions.assert_called_once()
+                self.v4_writer.grant_prepared.assert_called_once()
+
+        self.assertEqual(result, (True, "success"))
+        self.dispatch.assert_not_called()
+
+    def test_v4_sync_failure_falls_back_to_the_retry_task_after_commit(self):
+        self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            with transaction.atomic():
+                result = self.orchestrator.grant_creator_action(self.application)
+                # 回落任务挂在提交回调上，事务内不得投递。
                 self.dispatch.assert_not_called()
 
+        # V4 同步失败不影响 V3 结果，也不上抛，否则回落重试就失去意义。
         self.assertEqual(result, (True, "success"))
         self.dispatch.assert_called_once_with(self.expected_task_kwargs)
 
-    def test_rolled_back_transaction_does_not_dispatch_v4_grant(self):
+    def test_rolled_back_transaction_does_not_dispatch_the_fallback_task(self):
+        self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
+
         with self.captureOnCommitCallbacks(execute=True):
             with self.assertRaisesMessage(RuntimeError, "business failure"):
                 with transaction.atomic():
@@ -86,13 +101,14 @@ class DualWriteGrantOrchestratorTest(TestCase):
 
         self.dispatch.assert_not_called()
 
-    def test_v3_failure_is_fail_open_by_default_and_does_not_block_v4_dispatch(self):
+    def test_v3_failure_is_fail_open_by_default_and_does_not_block_v4_grant(self):
         self.v3_client.grant_resource_creator_actions.return_value = (False, "v3 unavailable")
 
         with self.captureOnCommitCallbacks(execute=True):
             self.assertIsNone(self.orchestrator.grant_creator_action(self.application))
 
-        self.dispatch.assert_called_once_with(self.expected_task_kwargs)
+        self.v4_writer.grant_prepared.assert_called_once_with(self.v4_prepared)
+        self.dispatch.assert_not_called()
 
     def test_v3_failure_propagates_original_error_in_strict_mode(self):
         self.v3_client.grant_resource_creator_actions.return_value = (False, "v3 unavailable")
@@ -113,6 +129,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
 
         # 请求构造失败没有可重放的载荷，重试也不会成功，直接按终态处理。
         self.assertEqual(result, (True, "success"))
+        self.v4_writer.grant_prepared.assert_not_called()
         self.dispatch.assert_not_called()
 
     def test_v4_preparation_failure_propagates_in_strict_mode(self):
@@ -125,6 +142,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
         self.dispatch.assert_not_called()
 
     def test_dispatch_failure_is_logged_without_breaking_the_caller(self):
+        self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
         self.dispatch.side_effect = RuntimeError("broker unavailable")
 
         with patch("apps.iam.iam_engine.migration.dual_write.logger.exception") as exception_log:
@@ -150,6 +168,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
         self.dispatch.assert_not_called()
 
     def test_frozen_payload_is_normalized_for_task_serialization(self):
+        self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
         self.v4_writer.prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(
             payload=[{"resources": ({"type": "collection", "id": 28},), "expired_at": 1893456000}],
             role_id="space_operator",

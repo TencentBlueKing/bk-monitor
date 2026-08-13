@@ -103,7 +103,7 @@ def build_plan(desired: ModelDefinition, actual: ActualModel) -> ModelMigrationP
     blocking: list[str] = []
     drift: list[str] = []
 
-    create_system, update_system = _diff_system(desired, actual.system)
+    create_system, update_system = _diff_system(desired, actual.system, drift)
     create_resource_types, update_resource_types = _diff_resource_types(desired, actual, drift)
     create_actions, update_actions = _diff_actions(desired, actual, blocking, drift)
     create_roles, update_roles, add_role_actions, remove_role_actions = _diff_roles(desired, actual, drift)
@@ -125,7 +125,7 @@ def build_plan(desired: ModelDefinition, actual: ActualModel) -> ModelMigrationP
 
 
 def _diff_system(
-    desired: ModelDefinition, actual: Mapping[str, Any] | None
+    desired: ModelDefinition, actual: Mapping[str, Any] | None, drift: list[str]
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     system = desired.system
     payload: dict[str, Any] = {
@@ -140,6 +140,8 @@ def _diff_system(
     if actual is None:
         return payload, None
 
+    payload["clients"] = _merge_clients(system.clients, actual.get("clients"), drift)
+
     changed = {
         key: value
         for key, value in payload.items()
@@ -147,6 +149,20 @@ def _diff_system(
         if not _values_equal(actual.get(key), value)
     }
     return None, changed or None
+
+
+def _merge_clients(desired: Sequence[str], actual: Any, drift: list[str]) -> list[str]:
+    """基线与 IAM 侧调用方取并集。
+
+    update_system 的 clients 是整体覆盖，如果只发基线里的值，IAM 侧手工加的调用方会在一次收敛后
+    失去调用权限。这里把它们并进 payload 并登记为漂移，与资源类型、操作、角色的「只报不删」一致。
+    """
+    actual_clients = [str(item) for item in actual] if isinstance(actual, list | tuple) else []
+    # 排序保证同一份输入总是得到同一个计划。
+    extra = sorted(set(actual_clients) - set(desired))
+    for client in extra:
+        drift.append(f"system client {client} exists in IAM but not in the baseline")
+    return [*desired, *extra]
 
 
 def _diff_resource_types(
@@ -241,7 +257,7 @@ def _diff_roles(
         if changed:
             updates.append((role.id, changed))
 
-        to_add, to_remove = _diff_role_actions(role, current.get("actions"))
+        to_add, to_remove = _diff_role_actions(role, current.get("actions"), drift)
         if to_remove:
             remove_actions.append((role.id, to_remove))
         if to_add:
@@ -254,7 +270,9 @@ def _diff_roles(
     return tuple(creates), tuple(updates), tuple(add_actions), tuple(remove_actions)
 
 
-def _diff_role_actions(role: RoleDefinition, actual_actions: Any) -> tuple[tuple[dict[str, Any], ...], tuple[str, ...]]:
+def _diff_role_actions(
+    role: RoleDefinition, actual_actions: Any, drift: list[str]
+) -> tuple[tuple[dict[str, Any], ...], tuple[str, ...]]:
     current = {
         str(item.get("id")): str(item.get("resource_type_id") or "")
         for item in (actual_actions or [])
@@ -272,7 +290,11 @@ def _diff_role_actions(role: RoleDefinition, actual_actions: Any) -> tuple[tuple
             to_remove.append(action.id)
             to_add.append({"id": action.id, "resource_type_id": action.resource_type_id})
 
-    to_remove.extend(action_id for action_id in current if action_id not in expected)
+    # 基线之外的角色动作只报不删：摘掉动作会立刻收回该角色下所有主体的权限，不可逆。
+    for action_id in current:
+        if action_id not in expected:
+            drift.append(f"role {role.id} grants action {action_id} in IAM but not in the baseline")
+
     return tuple(to_add), tuple(dict.fromkeys(to_remove))
 
 
@@ -395,6 +417,10 @@ class V4ModelMigrator:
 
         if plan.drift:
             logger.warning("IAM V4 model drift for system=%s: %s", self.desired.system.id, list(plan.drift))
+        # blocking 必须先于 has_changes 判断：只有 blocking 的计划 has_changes() 为假，
+        # 顺序反了会把「必须人工介入」误报成「已经收敛」。
+        if plan.blocking:
+            raise ModelMigrationBlocked("; ".join(plan.blocking))
         if not plan.has_changes():
             logger.info("IAM V4 model for system=%s is already up to date", self.desired.system.id)
             return plan

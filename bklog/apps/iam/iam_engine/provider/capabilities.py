@@ -55,8 +55,9 @@ class AuthorizedScopeProvider(Protocol):
 class AuthorizationWriter(Protocol):
     """向单个 IAM 权限提供方写入资源创建者授权。
 
-    同步目标直接调用 ``grant_resource_creator_actions``；需要延后执行的目标先用
-    ``prepare_resource_creator_actions`` 冻结请求，再由目标侧的重试任务重放。
+    ``grant_resource_creator_actions`` 一步完成请求构造与写入，适合不需要重试的目标。
+    需要重试的目标先用 ``prepare_resource_creator_actions`` 冻结请求，再用 ``grant_prepared``
+    写入：同一份冻结请求既用于首次直写，也用于失败后的回落重试，重放因此不会重算 ``expired_at``。
     """
 
     def grant_resource_creator_actions(self, application: Mapping[str, Any]) -> Any: ...

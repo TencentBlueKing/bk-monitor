@@ -33,8 +33,13 @@ def grant_v4_creator_action(
 ) -> None:
     """按冻结请求执行 IAM V4 创建者授权，可重试失败按指数退避重投。
 
-    payload 与 expired_at 由投递方一次算定，重试必须原样重放：add_authorization 没有幂等键，
-    重复授予同一主体、角色和资源可以接受，但重算 expired_at 会让有效期随重试时间漂移。
+    这是回落路径：首次授权由 DualWriteGrantOrchestrator 在调用线程内同步完成，只有同步失败才会
+    投递本任务，因此 max_attempts 统计的是回落后的尝试次数，不含那次同步尝试。同步失败可能是响应
+    丢失而服务端已经成功，本任务会再授一次；add_authorization 没有幂等键，但重复授予同一主体、
+    角色和资源是安全的。
+
+    payload 与 expired_at 由投递方一次算定，重试必须原样重放：重算 expired_at 会让有效期随重试
+    时间漂移。
 
     重试耗尽或终态失败后本任务不再做任何补偿，这是 DualWriteGrantOrchestrator 文档里说明的尽力投递
     契约：没有失败状态表也没有扫描重投，该次 V4 授权就此缺失，只能靠下面的 error 日志发现并人工重放。

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from django.conf import settings
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from iam.meta import setup_action, setup_resource, setup_system
 
 from apps.iam.exceptions import GetSystemInfoError
@@ -15,7 +15,9 @@ _registered_system_id: str | None = None
 def setup_meta(system_id: str = "") -> None:
     """把日志平台的系统、资源与动作注册到 V3 SDK 的全局 meta 表。
 
-    ``gen_perms_apply_data`` 依赖该表把 ID 翻译成展示名称。
+    ``gen_perms_apply_data`` 依赖该表把 ID 翻译成展示名称。注册只做一次，所以写进 meta 表的名称
+    必须是惰性翻译：即时翻译会把进程内第一个请求的语言固定给后续所有请求。资源与动作名本来就是
+    ``gettext_lazy``（见 handlers/resources.py、handlers/actions.py），系统名同样如此。
     """
 
     global _registered_system_id

@@ -7,6 +7,7 @@ from typing import Any
 
 from django.db import transaction
 
+from apps.iam.error_summary import sanitize_error_summary
 from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter
 
@@ -14,16 +15,23 @@ logger = logging.getLogger("iam.dual_write")
 
 
 class DualWriteGrantOrchestrator:
-    """V3 创建者授权同步直写，V4 授权在最外层事务提交后交给可重试任务。
+    """V3 与 V4 创建者授权都在调用线程内同步直写，V4 失败才回落到可重试任务。
 
-    V3 保持同步是为了让用户创建资源后立刻拥有权限；V4 走提交后异步投递，既避免在事务里发
-    HTTP，也保证业务回滚时不会给不存在的资源授权。
+    两侧都同步是为了让用户创建资源后立刻拥有权限：V4 或 UNION 模式下新资源的权限来自 V4，
+    如果首次授权就走异步，从创建成功到 worker 取到任务之间存在一个访问自己新资源被拒的窗口。
 
-    V4 侧的交付契约是「尽力投递 + 结构化日志」，不是失败补偿：本模块刻意不落授权意图表、不做
-    outbox、也没有周期扫描重投。因此存在两个不会被自动修复的丢失窗口——事务提交后投递失败
-    （例如 broker 不可用），以及任务重试耗尽后的终态失败。两者都只留下 ``[IAM DualWrite]`` /
-    ``[IAM V4 Grant]`` 日志，发现靠日志告警，恢复靠人工按日志中的 tenant_id、resource_meta 与
-    role_id 重新触发一次创建者授权。
+    这里明确接受两项代价，因为调用方（如 ``IndexSetHandler.create``）都带 ``transaction.atomic``：
+
+    - 同步授权在事务内发 HTTP，最长按 ``BK_IAM_V4_TIMEOUT`` 拉长事务与连接的持有时间。
+    - 同步成功后业务再回滚，V4 会残留一条指向不存在资源的授权，且当前没有回收路径。这与 V3
+      既有行为一致，不是本层新引入的问题，但确实是双写放大后的风险。
+
+    失败回落仍然登记在提交回调上：业务回滚时任务不投递，不会给不存在的资源补授权。
+
+    V4 侧的交付契约是「同步优先 + 尽力重试 + 结构化日志」，不是失败补偿：本模块刻意不落授权意图
+    表、不做 outbox、也没有周期扫描重投。剩余的丢失窗口需要同步失败与后续投递或重试也失败同时
+    发生，只留下 ``[IAM DualWrite]`` / ``[IAM V4 Grant]`` 日志，发现靠日志告警，恢复靠人工按日志中
+    的 tenant_id、resource_meta 与 role_id 重新触发一次创建者授权。
 
     之所以能接受这个窗口：V4 ``add_authorization`` 重复授予同一主体、角色和资源是安全的，重放代价
     很低；而为自动补偿引入状态表、租约和扫描任务的复杂度，超过了当前创建者授权场景的收益。契约若要
@@ -44,12 +52,12 @@ class DualWriteGrantOrchestrator:
         self.dispatch_v4_grant = dispatch_v4_grant
 
     def grant_creator_action(self, application: Mapping[str, Any], *, raise_exception: bool = False) -> Any:
-        """同步完成 V3 授权并返回其结果，同时安排 V4 授权在事务提交后投递。"""
+        """同步完成 V3 与 V4 授权并返回 V3 结果，V4 同步失败时回落到提交后的重试任务。"""
 
         grant_result = None
         for target_version, writer in self.writers:
             if target_version == AuthMode.V4.value:
-                self._schedule_v4_grant(writer, application, raise_exception=raise_exception)
+                self._grant_v4_with_fallback(writer, application, raise_exception=raise_exception)
                 continue
 
             try:
@@ -77,7 +85,7 @@ class DualWriteGrantOrchestrator:
 
         return grant_result
 
-    def _schedule_v4_grant(
+    def _grant_v4_with_fallback(
         self,
         writer: AuthorizationWriter,
         application: Mapping[str, Any],
@@ -101,14 +109,29 @@ class DualWriteGrantOrchestrator:
         task_kwargs = {
             "tenant_id": self.tenant_id,
             "operator": self.operator,
-            # 冻结请求，重试原样重放，尤其不能让 expired_at 随重试时间漂移。
+            # 冻结请求，回落重试原样重放，尤其不能让 expired_at 随重试时间漂移。
             "payload": _json_value(prepared.payload),
             "role_id": prepared.role_id,
             "expired_at": prepared.expired_at,
             "resource_meta": _resource_meta(application),
         }
-        # Django 会把回调提升到最外层事务；业务回滚时任务不投递，不会给不存在的资源授权。
-        transaction.on_commit(lambda: self._dispatch_after_commit(task_kwargs))
+
+        try:
+            writer.grant_prepared(prepared)
+        except Exception as error:  # pylint: disable=broad-except
+            # 这里不做失败分类，统一交给重试任务判定：分类规则只应有一个出处，代价是终态失败会在
+            # worker 里多发一次注定失败的请求。同步失败也不上抛，否则回落重试就失去意义。
+            logger.warning(
+                "[IAM DualWrite] v4 sync grant failed, falling back to retry task %s error_type=%s error=%s",
+                _describe(application, self.tenant_id),
+                type(error).__name__,
+                sanitize_error_summary(error),
+            )
+            # Django 会把回调提升到最外层事务；业务回滚时任务不投递，不会给不存在的资源授权。
+            transaction.on_commit(lambda: self._dispatch_after_commit(task_kwargs))
+            return
+
+        logger.info("[IAM DualWrite] v4 sync grant succeeded %s", _describe(application, self.tenant_id))
 
     def _dispatch_after_commit(self, task_kwargs: dict[str, Any]) -> None:
         try:

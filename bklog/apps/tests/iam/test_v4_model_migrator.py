@@ -203,15 +203,18 @@ class BuildPlanUpdateTest(SimpleTestCase):
         )
         self.assertEqual(plan.remove_role_actions, ())
 
-    def test_extra_role_action_is_removed(self):
+    def test_role_action_only_present_in_iam_is_reported_as_drift(self):
         model = desired_model()
         actual = converged_actual(model)
         actual.roles[0]["actions"].append({"id": "manage_indices", "resource_type_id": "indices"})
 
         plan = build_plan(model, actual)
 
-        self.assertEqual(plan.remove_role_actions, (("space_viewer", ("manage_indices",)),))
+        # 摘掉动作会立刻收回该角色下所有主体的权限，只能报告。
+        self.assertEqual(plan.remove_role_actions, ())
         self.assertEqual(plan.add_role_actions, ())
+        self.assertFalse(plan.has_changes())
+        self.assertIn("role space_viewer grants action manage_indices in IAM but not in the baseline", plan.drift)
 
     def test_role_action_dimension_change_is_removed_then_added(self):
         model = desired_model()
@@ -257,6 +260,30 @@ class BuildPlanBlockingAndDriftTest(SimpleTestCase):
         self.assertIn("resource_type cluster exists in IAM but not in the baseline", plan.drift)
         self.assertIn("action legacy_action exists in IAM but not in the baseline", plan.drift)
         self.assertIn("role legacy_role exists in IAM but not in the baseline", plan.drift)
+
+    def test_client_only_present_in_iam_is_kept_and_reported_as_drift(self):
+        model = desired_model()
+        actual = converged_actual(model)
+        actual.system["clients"].append("bk_monitor")
+
+        plan = build_plan(model, actual)
+
+        self.assertIsNone(plan.update_system)
+        self.assertEqual(plan.drift, ("system client bk_monitor exists in IAM but not in the baseline",))
+
+    def test_client_update_keeps_the_clients_only_present_in_iam(self):
+        payload = copy.deepcopy(PAYLOAD)
+        payload["system"]["clients"] = ["bk_log_search", "bk_bklog", "bk_new_caller"]
+        actual = converged_actual()
+        actual.system["clients"].append("bk_monitor")
+
+        plan = build_plan(desired_model(payload), actual)
+
+        # clients 是整体覆盖，基线新增调用方时不能顺手把 IAM 侧手工加的调用方踢掉。
+        self.assertEqual(
+            plan.update_system,
+            {"clients": ["bk_log_search", "bk_bklog", "bk_new_caller", "bk_monitor"]},
+        )
 
 
 class V4ModelMigratorTest(SimpleTestCase):
@@ -342,6 +369,37 @@ class V4ModelMigratorTest(SimpleTestCase):
             [call[0] for call in self.client.method_calls],
             ["retrieve_system", "list_resource_types", "list_actions", "list_roles"],
         )
+
+    def test_migrate_refuses_a_plan_that_only_contains_blocking_changes(self):
+        self._stub_actual(self._blocking_actual())
+
+        with self.assertRaisesRegex(ModelMigrationBlocked, "manual delete and recreate"):
+            V4ModelMigrator(self.client, self.model).migrate(dry_run=False)
+
+        # 只有 blocking 的计划 has_changes() 为假，这里必须报错而不是宣布已收敛。
+        self.assertEqual(
+            [call[0] for call in self.client.method_calls],
+            ["retrieve_system", "list_resource_types", "list_actions", "list_roles"],
+        )
+
+    def test_dry_run_reports_blocking_changes_without_raising(self):
+        self._stub_actual(self._blocking_actual())
+
+        plan = V4ModelMigrator(self.client, self.model).migrate(dry_run=True)
+
+        self.assertEqual(len(plan.blocking), 1)
+        self.assertIn("BLOCKING:", plan.describe())
+
+    def _blocking_actual(self):
+        actual = converged_actual(self.model)
+        actual.actions[1]["resource_type_id"] = "space"
+        return actual
+
+    def _stub_actual(self, actual):
+        self.client.retrieve_system.return_value = actual.system
+        self.client.list_resource_types.return_value = list(actual.resource_types)
+        self.client.list_actions.return_value = list(actual.actions)
+        self.client.list_roles.return_value = list(actual.roles)
 
     def test_describe_lists_every_planned_operation(self):
         description = build_plan(self.model, ActualModel()).describe()
