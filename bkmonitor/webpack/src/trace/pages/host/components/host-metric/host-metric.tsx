@@ -102,7 +102,7 @@ export default defineComponent({
     const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
 
     onMounted(() => {
-      groupsCtrl.load();
+      void groupsCtrl.load();
     });
 
     return () => (
@@ -118,8 +118,11 @@ export default defineComponent({
         <DashboardPanel
           class='host-metric__charts'
           columns={aggregation.state.columns}
+          loadError={groupsCtrl.loadError.value}
+          loading={groupsCtrl.loading.value}
           rows={groupsCtrl.rows.value}
           scopedVars={scopedVars.value}
+          onRetry={groupsCtrl.load}
         />
         <GroupManageDialog
           isShow={groupsCtrl.settingShow.value}
