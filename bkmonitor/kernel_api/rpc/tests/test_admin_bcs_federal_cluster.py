@@ -33,11 +33,13 @@ def _create_topology(
     fed_cluster_id: str,
     sub_cluster_id: str,
     *,
+    tenant: str = "system",
     host_cluster_id: str = "BCS-K8S-HOST",
     namespaces: list[str] | None = None,
     is_deleted: bool = False,
 ):
     return models.BcsFederalClusterInfo.objects.create(
+        bk_tenant_id=tenant,
         fed_cluster_id=fed_cluster_id,
         host_cluster_id=host_cluster_id,
         sub_cluster_id=sub_cluster_id,
@@ -53,7 +55,7 @@ def test_federal_cluster_list_uses_bcs_cluster_tenant_scope():
     _create_cluster("FED-OTHER", tenant="tenant-b", biz_id=3)
     _create_cluster("FED-DELETED", tenant="system", biz_id=4)
     _create_topology("FED-SYSTEM", "SUB-1")
-    _create_topology("FED-OTHER", "SUB-2")
+    _create_topology("FED-OTHER", "SUB-2", tenant="tenant-b")
     _create_topology("FED-DELETED", "SUB-3", is_deleted=True)
 
     result = admin_federal.list_bcs_federal_clusters({"bk_tenant_id": "system", "page": 1, "page_size": 20})

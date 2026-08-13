@@ -25,7 +25,6 @@ from core.prometheus import metrics
 from metadata.models import (
     AccessVMRecord,
     BCSClusterInfo,
-    BcsFederalClusterInfo,
     BkBaseResultTable,
     ClusterInfo,
     DataSource,
@@ -669,15 +668,13 @@ def access_v2_bkdata_vm(
     # 2. 获取 vm 集群名称
     vm_cluster_name = vm_cluster["cluster_name"]
 
-    # 3. 获取数据源对应的集群 ID
-    data_type_cluster = get_data_type_cluster(data_id=data_id)
-    # 4. 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
+    # 3. 检查是否已经接入过VM。联邦链路由拓扑 reconciliation 独立维护，VM 主链路不再触发。
     access_vm_record = AccessVMRecord.objects.filter(
         bk_tenant_id=bk_tenant_id,
         result_table_id=table_id,
     ).last()
     if access_vm_record:
-        logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
+        logger.info("table_id: %s has already been created", table_id)
 
         # 如果已经接入过 VM，则后续重入/强制更新继续使用已接入的 VM 集群。
         exists_vm_cluster = ClusterInfo.objects.filter(
@@ -685,14 +682,6 @@ def access_v2_bkdata_vm(
         ).first()
         if exists_vm_cluster:
             vm_cluster_name = exists_vm_cluster.cluster_name
-
-        create_fed_bkbase_data_link(
-            bk_biz_id=bk_biz_id,
-            monitor_table_id=table_id,
-            data_source=ds,
-            storage_cluster_name=vm_cluster_name,
-            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
-        )
 
         # 如果不是强制更新，则跳过后续的数据链路更新
         if not force_update:
@@ -731,7 +720,7 @@ def access_v2_bkdata_vm(
             data_id=data_id,
             biz_id=bk_biz_id,
             status=ACCESS_DATA_LINK_FAILURE_STATUS,
-            strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+            strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
         return
     except Exception as e:  # pylint: disable=broad-except
@@ -741,34 +730,7 @@ def access_v2_bkdata_vm(
             data_id=data_id,
             biz_id=bk_biz_id,
             status=ACCESS_DATA_LINK_FAILURE_STATUS,
-            strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
-        )
-        return
-
-    try:
-        # 创建联邦
-        create_fed_bkbase_data_link(
-            bk_biz_id=bk_biz_id,
-            monitor_table_id=table_id,
-            data_source=ds,
-            storage_cluster_name=vm_cluster_name,
-            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
-        )
-        report_metadata_data_link_access_metric(
-            version=DATA_LINK_V4_VERSION_NAME,
-            data_id=data_id,
-            biz_id=bk_biz_id,
-            status=ACCESS_DATA_LINK_SUCCESS_STATUS,
-            strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error("create fed vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
-        report_metadata_data_link_access_metric(
-            version=DATA_LINK_V4_VERSION_NAME,
-            data_id=data_id,
-            biz_id=bk_biz_id,
-            status=ACCESS_DATA_LINK_FAILURE_STATUS,
-            strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+            strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
         return
 
@@ -778,10 +740,11 @@ def create_bkbase_data_link(
     data_source: DataSource,
     monitor_table_id: str,
     storage_cluster_name: str,
-    data_link_strategy: str = DataLink.BK_STANDARD_V2_TIME_SERIES,
+    data_link_strategy: str | None = None,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     bcs_cluster_id: str | None = None,
     consumer_group: str | None = None,
+    cleanup_absent_components: bool = False,
 ):
     """
     申请计算平台链路
@@ -792,7 +755,15 @@ def create_bkbase_data_link(
     @param data_link_strategy: 链路策略
     @param namespace: 命名空间
     @param bcs_cluster_id: BCS集群ID
+    @param cleanup_absent_components: 是否按本次期望配置清理多余组件；策略切换重试时应显式开启
     """
+    if data_link_strategy is None:
+        data_link_strategy = DataLink.BK_STANDARD_V2_TIME_SERIES
+        if data_source.etl_config == EtlConfigs.BK_EXPORTER.value:
+            data_link_strategy = DataLink.BK_EXPORTER_TIME_SERIES
+        elif data_source.etl_config == EtlConfigs.BK_STANDARD.value:
+            data_link_strategy = DataLink.BK_STANDARD_TIME_SERIES
+
     logger.info(
         "create_bkbase_data_link:try to access bkbase,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
         "%s],namespace->[%s]",
@@ -801,17 +772,9 @@ def create_bkbase_data_link(
         data_link_strategy,
         namespace,
     )
-    # 1. 判断是否是联邦代理集群链路
-    if BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id, is_deleted=False).exists():
-        logger.info("create_bkbase_data_link: bcs_cluster_id->[%s] is a federal proxy cluster!", bcs_cluster_id)
-        data_link_strategy = DataLink.BCS_FEDERAL_PROXY_TIME_SERIES
-
-    # TODO: 优化为MAP形式选取
-    if data_source.etl_config == EtlConfigs.BK_EXPORTER.value:
-        data_link_strategy = DataLink.BK_EXPORTER_TIME_SERIES
-    elif data_source.etl_config == EtlConfigs.BK_STANDARD.value:
-        data_link_strategy = DataLink.BK_STANDARD_TIME_SERIES
-
+    # 组装计算平台侧的 data_name，作为新链路场景下的默认 DataLink / AccessVMRecord 查询键。
+    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name, strategy=data_link_strategy)
+    data_link_name = bkbase_data_name
     configured_bkbase_rt = _get_configured_bkbase_result_table(
         bk_tenant_id=data_source.bk_tenant_id,
         monitor_table_id=monitor_table_id,
@@ -897,8 +860,8 @@ def create_bkbase_data_link(
             storage_cluster_name=storage_cluster_name,
             consumer_group=consumer_group,
             cleanup_absent_components=(
-                previous_data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
-                and data_link_strategy != DataLink.GRAPH_RELATION_TIME_SERIES
+                cleanup_absent_components
+                or (previous_data_link_strategy is not None and previous_data_link_strategy != data_link_strategy)
             ),
         )
         # 2.1 上报链路接入指标
@@ -995,97 +958,4 @@ def create_bkbase_data_link(
         data_source.bk_data_id,
         storage_cluster_name,
         data_link_strategy,
-    )
-
-
-def create_fed_bkbase_data_link(
-    bk_biz_id: int,
-    monitor_table_id: str,
-    data_source: DataSource,
-    storage_cluster_name: str,
-    bcs_cluster_id: str,
-    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-):
-    """
-    创建联邦集群汇聚链路（子集群->代理集群）
-    """
-    from metadata.models import BcsFederalClusterInfo
-    from metadata.models.data_link.utils import is_k8s_metric_data_id
-
-    logger.info(
-        "create_fed_bkbase_data_link: bcs_cluster_id->[%s],data_id->[%s] start to create fed_bkbase_data_link",
-        bcs_cluster_id,
-        data_source.bk_data_id,
-    )
-    federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
-
-    # 若不存在对应联邦集群记录 / 非K8S内建指标数据，直接返回
-    if not (federal_records.exists() and is_k8s_metric_data_id(data_name=data_source.data_name)):
-        logger.info(
-            "create_fed_bkbase_data_link: bcs_cluster_id->[%s],data_id->[%s] does not belong to any federal "
-            "topo,return",
-            bcs_cluster_id,
-            data_source.bk_data_id,
-        )
-        return
-
-    bkbase_data_name = compose_bkdata_data_id_name(
-        data_name=data_source.data_name, strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
-    )
-
-    logger.info(
-        "create_fed_bkbase_data_link: bcs_cluster_id->[%s],data_id->[%s],data_link_name->[%s] try to create "
-        "fed_bkbase_data_link",
-        bcs_cluster_id,
-        data_source.bk_data_id,
-        bkbase_data_name,
-    )
-    data_link_ins, _ = DataLink.objects.update_or_create(
-        bk_tenant_id=data_source.bk_tenant_id,
-        data_link_name=bkbase_data_name,
-        namespace=namespace,
-        data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
-        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [monitor_table_id]},
-    )
-
-    try:
-        logger.info(
-            "create_fed_bkbase_data_link: bcs_cluster_id->[%s],data_id->[%s],table_id->[%s],data_link_name->[%s] try "
-            "to access bkdata",
-            bcs_cluster_id,
-            data_source.bk_data_id,
-            monitor_table_id,
-            bkbase_data_name,
-        )
-        data_link_ins.apply_data_link(
-            bk_biz_id=bk_biz_id,
-            data_source=data_source,
-            table_id=monitor_table_id,
-            storage_cluster_name=storage_cluster_name,
-            bcs_cluster_id=bcs_cluster_id,
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error(
-            "create_bkbase_data_link: access bkbase error, data_id->[%s],data_link_name->[%s],bcs_cluster_id->[%s],"
-            "storage_cluster_name->[%s],namespace->[%s],error->[%s]",
-            data_source.bk_data_id,
-            bkbase_data_name,
-            bcs_cluster_id,
-            storage_cluster_name,
-            namespace,
-            e,
-        )
-        raise e
-
-    data_link_ins.sync_metadata(
-        table_id=monitor_table_id,
-        storage_cluster_name=storage_cluster_name,
-    )
-    logger.info(
-        "create_fed_bkbase_data_link: data_link_name->[%s],data_id->[%s],bcs_cluster_id->[%s],storage_cluster_name->["
-        "%s] create fed datalink successfully",
-        bkbase_data_name,
-        data_source.bk_data_id,
-        bcs_cluster_id,
-        storage_cluster_name,
     )

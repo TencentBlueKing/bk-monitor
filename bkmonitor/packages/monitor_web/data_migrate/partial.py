@@ -340,7 +340,8 @@ def _build_bcs_refs_and_fetchers(
         _add_valid_data_ids(log_data_ids, [cluster.SystemLogDataID, cluster.CustomLogDataID])
 
     federal_cluster_ids = BcsFederalClusterInfo.objects.filter(
-        Q(fed_cluster_id__in=cluster_ids) | Q(host_cluster_id__in=cluster_ids) | Q(sub_cluster_id__in=cluster_ids)
+        Q(fed_cluster_id__in=cluster_ids) | Q(host_cluster_id__in=cluster_ids) | Q(sub_cluster_id__in=cluster_ids),
+        bk_tenant_id=bk_tenant_id,
     ).values_list("id", flat=True)
     fetchers: list[FetcherResultType] = [
         (BCSClusterInfo, {"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id, "cluster_id__in": cluster_ids}, None),
