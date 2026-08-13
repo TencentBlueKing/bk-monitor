@@ -32,6 +32,7 @@ from metadata.models.bcs.resource import (
 )
 from metadata.service.federation_data_link import (
     FederationReconcilePlan,
+    FederationTopologyEmptySnapshotError,
     get_bcs_metric_table_id,
     reconcile_federation_data_links,
     validate_federation_topology,
@@ -87,6 +88,23 @@ def schedule_federation_reconcile(bk_tenant_id: str, plan: FederationReconcilePl
             removed_sub_cluster_ids=plan.removed_sub_cluster_ids,
         )
     )
+
+
+def sync_and_schedule_federation_clusters(fed_clusters: dict, bk_tenant_id: str, source: str) -> bool:
+    """安全同步联邦拓扑并调度链路收敛；可疑空快照只告警，不修改现状。"""
+    try:
+        plan = sync_federation_clusters(fed_clusters=fed_clusters, bk_tenant_id=bk_tenant_id)
+    except FederationTopologyEmptySnapshotError as error:
+        logger.error(
+            "%s: skip suspicious empty federation topology, tenant->[%s],error->[%s]",
+            source,
+            bk_tenant_id,
+            error,
+        )
+        return False
+
+    schedule_federation_reconcile(bk_tenant_id=bk_tenant_id, plan=plan)
+    return True
 
 
 def get_bcs_cluster_id_suffix(cluster_id: str) -> int | None:
@@ -249,8 +267,11 @@ def refresh_bcs_monitor_info():
 
     for bk_tenant_id, fed_clusters in fed_clusters_by_tenant.items():
         try:
-            plan = sync_federation_clusters(fed_clusters=fed_clusters, bk_tenant_id=bk_tenant_id)
-            schedule_federation_reconcile(bk_tenant_id=bk_tenant_id, plan=plan)
+            sync_and_schedule_federation_clusters(
+                fed_clusters=fed_clusters,
+                bk_tenant_id=bk_tenant_id,
+                source="refresh_bcs_monitor_info",
+            )
         except Exception as error:  # pylint: disable=broad-except
             logger.exception(
                 "refresh_bcs_monitor_info: sync federation failed, tenant->[%s],error->[%s]",
@@ -539,8 +560,11 @@ def discover_bcs_clusters():
 
         if fed_topology_available:
             try:
-                plan = sync_federation_clusters(fed_clusters=fed_clusters, bk_tenant_id=bk_tenant_id)
-                schedule_federation_reconcile(bk_tenant_id=bk_tenant_id, plan=plan)
+                sync_and_schedule_federation_clusters(
+                    fed_clusters=fed_clusters,
+                    bk_tenant_id=bk_tenant_id,
+                    source="discover_bcs_clusters",
+                )
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception(
                     "discover_bcs_clusters: sync federation failed, tenant->[%s],error->[%s]",
@@ -680,8 +704,17 @@ def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
             BCSClusterInfo.objects.filter(cluster_id__in=bcs_cluster_ids).update(bk_cloud_id=bk_cloud_id)
 
 
-def sync_federation_clusters(fed_clusters: dict, bk_tenant_id: str = "system") -> FederationReconcilePlan:
-    """按租户同步完整联邦拓扑，并返回需要执行的完整链路收敛计划。"""
+def sync_federation_clusters(
+    fed_clusters: dict,
+    bk_tenant_id: str = "system",
+    *,
+    allow_empty_topology: bool = False,
+) -> FederationReconcilePlan:
+    """按租户同步完整联邦拓扑，并返回需要执行的完整链路收敛计划。
+
+    空响应无法区分“权威确认无联邦”和“本次暂未取到拓扑”。当数据库仍有有效记录时，
+    默认拒绝用空响应覆盖；只有明确确认需要清空时才允许传入 ``allow_empty_topology=True``。
+    """
 
     validate_federation_topology(fed_clusters)
     logger.info(
@@ -689,14 +722,25 @@ def sync_federation_clusters(fed_clusters: dict, bk_tenant_id: str = "system") -
         bk_tenant_id,
         sorted(fed_clusters),
     )
-    existing_active_records = list(
-        models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
-    )
-    existing_proxy_cluster_ids = {record.fed_cluster_id for record in existing_active_records}
-    existing_sub_cluster_ids = {record.sub_cluster_id for record in existing_active_records}
-
     desired_pairs: set[tuple[str, str]] = set()
     with transaction.atomic():
+        existing_active_records = list(
+            models.BcsFederalClusterInfo.objects.select_for_update().filter(
+                bk_tenant_id=bk_tenant_id,
+                is_deleted=False,
+            )
+        )
+        if not fed_clusters and existing_active_records and not allow_empty_topology:
+            active_proxy_cluster_ids = sorted({record.fed_cluster_id for record in existing_active_records})
+            active_sub_cluster_ids = sorted({record.sub_cluster_id for record in existing_active_records})
+            raise FederationTopologyEmptySnapshotError(
+                f"refuse to overwrite active federation topology with empty snapshot: tenant={bk_tenant_id},"
+                f"proxy_cluster_ids={active_proxy_cluster_ids},sub_cluster_ids={active_sub_cluster_ids}"
+            )
+
+        existing_proxy_cluster_ids = {record.fed_cluster_id for record in existing_active_records}
+        existing_sub_cluster_ids = {record.sub_cluster_id for record in existing_active_records}
+
         for fed_cluster_id, fed_cluster_data in fed_clusters.items():
             cluster = models.BCSClusterInfo.objects.get(
                 bk_tenant_id=bk_tenant_id,
@@ -752,16 +796,16 @@ def sync_federation_clusters(fed_clusters: dict, bk_tenant_id: str = "system") -
                     sub_cluster_id=sub_cluster_id,
                 ).update(is_deleted=True)
 
-    current_active_records = list(
-        models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
-    )
-    active_proxy_cluster_ids = {record.fed_cluster_id for record in current_active_records}
-    active_sub_cluster_ids = {record.sub_cluster_id for record in current_active_records}
-    plan = FederationReconcilePlan(
-        active_proxy_cluster_ids=sorted(active_proxy_cluster_ids),
-        active_sub_cluster_ids=sorted(active_sub_cluster_ids),
-        removed_proxy_cluster_ids=sorted(existing_proxy_cluster_ids - active_proxy_cluster_ids),
-        removed_sub_cluster_ids=sorted(existing_sub_cluster_ids - active_sub_cluster_ids),
-    )
+        current_active_records = list(
+            models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
+        )
+        active_proxy_cluster_ids = {record.fed_cluster_id for record in current_active_records}
+        active_sub_cluster_ids = {record.sub_cluster_id for record in current_active_records}
+        plan = FederationReconcilePlan(
+            active_proxy_cluster_ids=sorted(active_proxy_cluster_ids),
+            active_sub_cluster_ids=sorted(active_sub_cluster_ids),
+            removed_proxy_cluster_ids=sorted(existing_proxy_cluster_ids - active_proxy_cluster_ids),
+            removed_sub_cluster_ids=sorted(existing_sub_cluster_ids - active_sub_cluster_ids),
+        )
     logger.info("sync_federation_clusters: finished, tenant->[%s],plan->[%s]", bk_tenant_id, plan)
     return plan

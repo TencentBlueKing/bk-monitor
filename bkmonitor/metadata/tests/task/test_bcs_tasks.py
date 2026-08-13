@@ -13,8 +13,16 @@ from unittest.mock import patch
 import pytest
 
 from metadata import models
-from metadata.service.federation_data_link import FederationNamespaceConflictError, reconcile_federation_data_links
-from metadata.task.bcs import discover_bcs_clusters, sync_federation_clusters
+from metadata.service.federation_data_link import (
+    FederationNamespaceConflictError,
+    FederationTopologyEmptySnapshotError,
+    reconcile_federation_data_links,
+)
+from metadata.task.bcs import (
+    discover_bcs_clusters,
+    sync_and_schedule_federation_clusters,
+    sync_federation_clusters,
+)
 from metadata.tests.common_utils import consul_client
 
 
@@ -394,7 +402,7 @@ def test_sync_federation_clusters(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_sync_federation_clusters_is_tenant_scoped(create_or_delete_records):
+def test_sync_federation_clusters_rejects_suspicious_empty_snapshot(create_or_delete_records):
     pair = {
         "fed_cluster_id": "BCS-K8S-10001",
         "host_cluster_id": "BCS-K8S-11111",
@@ -404,7 +412,65 @@ def test_sync_federation_clusters_is_tenant_scoped(create_or_delete_records):
     models.BcsFederalClusterInfo.objects.create(bk_tenant_id="system", **pair)
     models.BcsFederalClusterInfo.objects.create(bk_tenant_id="tenant-b", **pair)
 
-    plan = sync_federation_clusters(fed_clusters={}, bk_tenant_id="system")
+    with pytest.raises(FederationTopologyEmptySnapshotError, match="empty snapshot"):
+        sync_federation_clusters(fed_clusters={}, bk_tenant_id="system")
+
+    assert not models.BcsFederalClusterInfo.objects.get(
+        bk_tenant_id="system",
+        fed_cluster_id=pair["fed_cluster_id"],
+        sub_cluster_id=pair["sub_cluster_id"],
+    ).is_deleted
+    assert not models.BcsFederalClusterInfo.objects.get(
+        bk_tenant_id="tenant-b",
+        fed_cluster_id=pair["fed_cluster_id"],
+        sub_cluster_id=pair["sub_cluster_id"],
+    ).is_deleted
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_and_schedule_federation_clusters_skips_suspicious_empty_snapshot(
+    create_or_delete_records,
+    mocker,
+    caplog,
+):
+    record = models.BcsFederalClusterInfo.objects.create(
+        bk_tenant_id="system",
+        fed_cluster_id="BCS-K8S-10001",
+        host_cluster_id="BCS-K8S-11111",
+        sub_cluster_id="BCS-K8S-10002",
+        fed_namespaces=["default"],
+    )
+    schedule = mocker.patch("metadata.task.bcs.schedule_federation_reconcile")
+
+    synced = sync_and_schedule_federation_clusters(
+        fed_clusters={},
+        bk_tenant_id="system",
+        source="test_periodic_task",
+    )
+
+    record.refresh_from_db()
+    assert synced is False
+    assert not record.is_deleted
+    schedule.assert_not_called()
+    assert "skip suspicious empty federation topology" in caplog.text
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_federation_clusters_allows_explicitly_confirmed_empty_topology(create_or_delete_records):
+    pair = {
+        "fed_cluster_id": "BCS-K8S-10001",
+        "host_cluster_id": "BCS-K8S-11111",
+        "sub_cluster_id": "BCS-K8S-10002",
+        "fed_namespaces": ["default"],
+    }
+    models.BcsFederalClusterInfo.objects.create(bk_tenant_id="system", **pair)
+    models.BcsFederalClusterInfo.objects.create(bk_tenant_id="tenant-b", **pair)
+
+    plan = sync_federation_clusters(
+        fed_clusters={},
+        bk_tenant_id="system",
+        allow_empty_topology=True,
+    )
 
     assert plan.removed_proxy_cluster_ids == ["BCS-K8S-10001"]
     assert plan.removed_sub_cluster_ids == ["BCS-K8S-10002"]

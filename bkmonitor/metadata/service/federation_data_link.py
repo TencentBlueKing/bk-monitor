@@ -25,6 +25,10 @@ class FederationNamespaceConflictError(ValueError):
     """同一个子集群的 namespace 被多个代理集群同时声明。"""
 
 
+class FederationTopologyEmptySnapshotError(RuntimeError):
+    """本次获取到空拓扑，但数据库中仍存在有效联邦拓扑。"""
+
+
 class FederationReconcileError(RuntimeError):
     """联邦链路批量收敛存在失败项。"""
 
