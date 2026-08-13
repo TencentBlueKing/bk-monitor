@@ -546,7 +546,7 @@ class TestGetProcessMetrics:
 
         assert result[HOSTS[0].bk_host_id]["redis"] == {"max": 7200}
 
-    def test_runtime_and_instance_count_deduplicate_series_by_pid_before_aggregation(self, mocker, settings):
+    def test_runtime_and_instance_count_deduplicate_series_by_process_identity(self, mocker, settings):
         settings.IPV6_SUPPORT_BIZ_LIST = []
         query_configs = {}
 
@@ -560,7 +560,14 @@ class TestGetProcessMetrics:
         resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
         runtime_query_configs = query_configs.copy()
 
-        expected_dimensions = ["bk_target_ip", "bk_target_cloud_id", "display_name", "pid"]
+        expected_dimensions = [
+            "bk_target_ip",
+            "bk_target_cloud_id",
+            "display_name",
+            "proc_name",
+            "param_regex",
+            "pid",
+        ]
         runtime_fields = {"cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num", "fd_limit_soft"}
         assert runtime_fields == runtime_query_configs.keys()
         for field in runtime_fields:
@@ -577,7 +584,12 @@ class TestGetProcessMetrics:
         query_configs.clear()
         resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
         ipv6_config = query_configs["cpu_usage_pct"]
-        assert ipv6_config["function"] == [{"method": "max", "dimensions": ["bk_host_id", "display_name", "pid"]}]
+        assert ipv6_config["function"] == [
+            {
+                "method": "max",
+                "dimensions": ["bk_host_id", "display_name", "proc_name", "param_regex", "pid"],
+            }
+        ]
 
     def test_runtime_and_instance_count_collapse_missing_and_null_port_series(self, mocker):
         host_dimensions = {
@@ -585,6 +597,8 @@ class TestGetProcessMetrics:
             "bk_target_ip": HOSTS[0].bk_host_innerip,
             "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
             "display_name": "redis",
+            "proc_name": "redis-server",
+            "param_regex": "redis-server.*",
         }
         values_by_pid = {
             "101": {"cpu_usage_pct": 10.5, "mem_res": 1024, "mem_usage_pct": 1.5, "fd_num": 10, "fd_limit_soft": 100},
@@ -628,3 +642,67 @@ class TestGetProcessMetrics:
             "fd_limit_soft": 300,
         }
         assert instance_count[HOSTS[0].bk_host_id]["redis"] == 2
+
+    def test_runtime_and_instance_count_keep_distinct_process_mappings_with_same_pid(self, mocker):
+        host_dimensions = {
+            "bk_host_id": str(HOSTS[0].bk_host_id),
+            "bk_target_ip": HOSTS[0].bk_host_innerip,
+            "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
+            "display_name": "service",
+            "pid": "0",
+        }
+        raw_series = [
+            {
+                **host_dimensions,
+                "proc_name": "worker-a",
+                "param_regex": "--role=a",
+                "cpu_usage_pct": 10.5,
+            },
+            {
+                **host_dimensions,
+                "proc_name": "worker-a",
+                "param_regex": "--role=a",
+                "port": None,
+                "cpu_usage_pct": 10.5,
+            },
+            {
+                **host_dimensions,
+                "proc_name": "worker-b",
+                "param_regex": "--role=b",
+                "cpu_usage_pct": 20.25,
+            },
+            {
+                **host_dimensions,
+                "proc_name": "worker-b",
+                "param_regex": "--role=b",
+                "port": None,
+                "cpu_usage_pct": 20.25,
+            },
+        ]
+
+        def evaluate_query(query, *args, **kwargs):
+            query_config = query.data_sources[0].to_unify_query_config()[0]
+            if query_config["field_name"] != "cpu_usage_pct":
+                return []
+            aggregation = query_config["function"][0]
+            dimensions = aggregation["dimensions"]
+            groups = defaultdict(list)
+            for series in raw_series:
+                key = tuple(series.get(dimension) for dimension in dimensions)
+                groups[key].append(series[query_config["field_name"]])
+
+            return [
+                {
+                    **dict(zip(dimensions, key)),
+                    "_result_": max(values),
+                }
+                for key, values in groups.items()
+            ]
+
+        mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", autospec=True, side_effect=evaluate_query)
+
+        runtime = resource.cc.get_process_runtime_metrics(bk_biz_id=2, hosts=HOSTS[0:1])
+        instance_count = resource.cc.get_process_instance_count(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        assert runtime[HOSTS[0].bk_host_id]["service"]["cpu_usage_pct"] == 30.75
+        assert instance_count[HOSTS[0].bk_host_id]["service"] == 2
