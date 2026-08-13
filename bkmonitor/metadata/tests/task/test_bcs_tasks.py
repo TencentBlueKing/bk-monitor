@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 
 from metadata import models
+from metadata.models.data_link.utils import compose_bkdata_data_id_name
 from metadata.service.federation_data_link import (
     FederationNamespaceConflictError,
     FederationTopologyEmptySnapshotError,
@@ -154,6 +155,14 @@ def create_or_delete_records(mocker):
         ),
     ]
     models.DataSource.objects.bulk_create(data_source_data)
+    for registered_data_source in models.DataSource.objects.filter(bk_data_id__in=[60010, 60011, 60012, 70010]):
+        models.DataIdConfig.objects.create(
+            name=compose_bkdata_data_id_name(registered_data_source.data_name),
+            namespace="bkmonitor",
+            bk_tenant_id=registered_data_source.bk_tenant_id,
+            bk_biz_id=1001,
+            bk_data_id=registered_data_source.bk_data_id,
+        )
 
     # 批量创建 ResultTable 数据
     result_table_data = [

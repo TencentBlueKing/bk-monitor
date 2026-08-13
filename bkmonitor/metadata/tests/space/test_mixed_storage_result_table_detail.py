@@ -506,6 +506,150 @@ def test_virtual_result_table_missing_metadata_falls_back_to_origin():
 
 @pytest.mark.django_db(databases="__all__")
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+@pytest.mark.parametrize("storage_type", [models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS])
+def test_virtual_result_table_missing_cluster_falls_back_to_origin(storage_type):
+    entity_table_id = f"2_bklog.{storage_type}_cluster_fallback_entity"
+    virtual_table_id = f"2_bklog.{storage_type}_cluster_fallback_virtual"
+    valid_cluster_id = ES_CLUSTER_ID if storage_type == models.ClusterInfo.TYPE_ES else DORIS_CLUSTER_ID
+    missing_cluster_id = valid_cluster_id + 1000
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=valid_cluster_id,
+        cluster_type=storage_type,
+        cluster_name=f"{storage_type}-origin",
+    )
+    _create_result_table(
+        bk_tenant_id=TENANT_ID,
+        table_id=entity_table_id,
+        default_storage=storage_type,
+    )
+    _create_result_table(
+        bk_tenant_id=TENANT_ID,
+        table_id=virtual_table_id,
+        default_storage=storage_type,
+    )
+
+    if storage_type == models.ClusterInfo.TYPE_ES:
+        _create_es_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=entity_table_id,
+            cluster_id=valid_cluster_id,
+            index_set="origin_es_index",
+            source_type="origin-source",
+        )
+        _create_es_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=virtual_table_id,
+            cluster_id=missing_cluster_id,
+            index_set="virtual_es_index",
+            source_type="virtual-source",
+            origin_table_id=entity_table_id,
+        )
+    else:
+        _create_doris_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=entity_table_id,
+            cluster_id=valid_cluster_id,
+            bkbase_table_id="origin_doris_table",
+            index_set="origin_doris_index",
+        )
+        _create_doris_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=virtual_table_id,
+            cluster_id=missing_cluster_id,
+            bkbase_table_id="virtual_doris_table",
+            index_set="virtual_doris_index",
+            origin_table_id=entity_table_id,
+        )
+
+    detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=virtual_table_id)
+
+    assert detail["storage_id"] == valid_cluster_id
+    if storage_type == models.ClusterInfo.TYPE_ES:
+        assert detail["db"] == "virtual_es_index"
+        assert detail["source_type"] == "virtual-source"
+    else:
+        assert detail["db"] == "virtual_doris_table"
+        assert detail["storage_name"] == f"{storage_type}-origin"
+        assert detail["cluster_name"] == f"{storage_type}-origin"
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+@pytest.mark.parametrize("storage_type", [models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS])
+def test_virtual_result_table_cluster_type_mismatch_does_not_fall_back_to_origin(storage_type):
+    entity_table_id = f"2_bklog.{storage_type}_type_mismatch_entity"
+    virtual_table_id = f"2_bklog.{storage_type}_type_mismatch_virtual"
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=ES_CLUSTER_ID,
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        cluster_name="es-prod",
+    )
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=DORIS_CLUSTER_ID,
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_name="doris-prod",
+    )
+    _create_result_table(
+        bk_tenant_id=TENANT_ID,
+        table_id=entity_table_id,
+        default_storage=storage_type,
+    )
+    _create_result_table(
+        bk_tenant_id=TENANT_ID,
+        table_id=virtual_table_id,
+        default_storage=storage_type,
+    )
+
+    if storage_type == models.ClusterInfo.TYPE_ES:
+        _create_es_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=entity_table_id,
+            cluster_id=ES_CLUSTER_ID,
+            index_set="origin_es_index",
+        )
+        _create_es_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=virtual_table_id,
+            cluster_id=DORIS_CLUSTER_ID,
+            index_set="virtual_es_index",
+            origin_table_id=entity_table_id,
+        )
+    else:
+        _create_doris_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=entity_table_id,
+            cluster_id=DORIS_CLUSTER_ID,
+            bkbase_table_id="origin_doris_table",
+            index_set="origin_doris_index",
+        )
+        _create_doris_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=virtual_table_id,
+            cluster_id=ES_CLUSTER_ID,
+            bkbase_table_id="virtual_doris_table",
+            index_set="virtual_doris_index",
+            origin_table_id=entity_table_id,
+        )
+
+    with (
+        patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset,
+        patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish,
+    ):
+        SpaceTableIDRedis().push_table_id_detail(
+            bk_tenant_id=TENANT_ID,
+            table_id_list=[virtual_table_id],
+            is_publish=True,
+        )
+
+    mock_hmset.assert_not_called()
+    mock_publish.assert_not_called()
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
 def test_doris_only_virtual_route_uses_origin_es_history_config():
     entity_table_id = "2_bklog.doris_entity"
     virtual_table_id = "2_bklog.doris_virtual"

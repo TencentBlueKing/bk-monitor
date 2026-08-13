@@ -189,6 +189,37 @@ def create_or_delete_records(mocker):
 
     # ---------------------全局事件--------------------- #
 
+    # ---------------------APM 全局 ES 数据--------------------- #
+    models.DataSource.objects.create(
+        bk_data_id=60011,
+        data_name="bkapm_shared_trace_0001",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_flat_batch",
+        is_custom_source=True,
+        is_platform_data_id=True,
+        space_type_id="bkcc",
+        space_uid="bkcc__2",
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.shared_trace_0001",
+        table_name_zh="apm_shared_trace_0001",
+        bk_biz_id=0,
+        bk_biz_id_alias="bk_biz_id",
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_ES,
+    )
+    models.ESStorage.objects.create(
+        table_id="apm_global.shared_trace_0001",
+        storage_cluster_id=11,
+    )
+    models.DataSourceResultTable.objects.create(
+        table_id="apm_global.shared_trace_0001",
+        bk_data_id=60011,
+    )
+    # ---------------------APM 全局 ES 数据--------------------- #
+
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.all().delete()
@@ -212,7 +243,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
-            expected = '{"bkmonitor_event_60010.__default__":{"filters":[{"dimensions.project_id":"1"}]},"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
+            expected = '{"bkmonitor_event_60010.__default__":{"filters":[{"dimensions.project_id":"1"}]},"apm_global.shared_trace_0001":{"filters":[{"bk_biz_id":"1"}]},"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             # 获取实际的调用参数
@@ -237,6 +268,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
 
             expected = (
                 '{"bkmonitor_event_60010.__default__":{"filters":[{"dimensions.project_id":"1"}]},'
+                '"apm_global.shared_trace_0001":{"filters":[{"bk_biz_id":"1"}]},'
                 '"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},'
                 '"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},'
                 '"bkm_1_record_rule.__default__":{"filters":[]}}'
@@ -264,7 +296,7 @@ def test_push_space_to_rt_router_for_bkci(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
-            expected = '{"bkmonitor_event_60010.__default__":{"filters":[{"projectId":"bkmonitor"}]},"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10000"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10000"}]}}'
+            expected = '{"bkmonitor_event_60010.__default__":{"filters":[{"projectId":"bkmonitor"}]},"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10000"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10000"}]},"apm_global.shared_trace_0001":{"filters":[{"bk_biz_id":"-10000"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args
@@ -290,7 +322,7 @@ def test_push_space_to_rt_router_for_bksaas(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
 
-            expected = '{"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10008"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10008"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10008"}]}}'
+            expected = '{"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10008"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10008"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10008"}]},"apm_global.shared_trace_0001":{"filters":[{"bk_biz_id":"-10008"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args
@@ -316,6 +348,7 @@ def test_compose_apm_all_type_table_ids(create_or_delete_records):
         "apm_global.precalculate_storage_1": {"filters": [{"biz_id": "-10000"}]},
         "apm_global.precalculate_storage_2": {"filters": [{"biz_id": "-10000"}]},
         "apm_global.precalculate_storage_3": {"filters": [{"biz_id": "-10000"}]},
+        "apm_global.shared_trace_0001": {"filters": [{"bk_biz_id": "-10000"}]},
     }
 
     bksaas_data = client._compose_apm_all_type_table_ids(space_type="bksaas", space_id="monitor_saas")
@@ -323,6 +356,7 @@ def test_compose_apm_all_type_table_ids(create_or_delete_records):
         "apm_global.precalculate_storage_1": {"filters": [{"biz_id": "-10008"}]},
         "apm_global.precalculate_storage_2": {"filters": [{"biz_id": "-10008"}]},
         "apm_global.precalculate_storage_3": {"filters": [{"biz_id": "-10008"}]},
+        "apm_global.shared_trace_0001": {"filters": [{"bk_biz_id": "-10008"}]},
     }
 
 

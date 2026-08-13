@@ -1,6 +1,16 @@
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e8f5e9', 'primaryTextColor': '#2e7d32', 'primaryBorderColor': '#4caf50', 'lineColor': '#81c784'}}}%%
 graph TB
-  USER[用户交互]
+  USER[用户访问浏览器]
+  subgraph SHELL[静态壳层 index.html]
+    HTML[文档壳 / favicon / title]
+    LOADING[bootstrap-loading<br/>首屏占位与阶段文案]
+    APPMOUNT["#app 挂载点"]
+  end
+  subgraph BOOT[启动编排层]
+    MAIN[main.js]
+    PRELOAD[preload.ts<br/>空间 / 用户 / globals]
+    FADE[fadeOutBootstrapLoading<br/>App.mounted 后移除占位]
+  end
   subgraph VIEW[视图与路由层]
     ROUTER[router]
     HUB[retrieve-hub]
@@ -28,7 +38,17 @@ graph TB
   end
   BACKEND[/BKLog Search API/]
 
-  USER --> ROUTER --> HUB --> V3 --> RESULT
+  USER --> HTML
+  HTML --> LOADING
+  HTML --> APPMOUNT
+  APPMOUNT --> MAIN
+  MAIN --> PRELOAD
+  PRELOAD --> STORE
+  PRELOAD --> API
+  MAIN --> ROUTER
+  MAIN --> FADE
+  FADE -.->|移除| LOADING
+  ROUTER --> HUB --> V3 --> RESULT
   V3 --> STORE
   STORE --> ACTIONS
   ACTIONS --> REQUESTPOOL

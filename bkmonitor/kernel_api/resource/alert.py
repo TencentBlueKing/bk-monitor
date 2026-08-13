@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ActionConfig, DutyRule, Shield, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from constants.action import MAX_ACTION_EXECUTE_TIMEOUT
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
 from fta_web.alert.resources import ListAlertTagsResource  # noqa
@@ -80,7 +81,7 @@ class ShieldNoticeConfigSerializer(serializers.Serializer):
 class ActionExecuteConfigSerializer(serializers.Serializer):
     template_detail = serializers.JSONField(required=True)
     template_id = serializers.CharField(required=False, allow_blank=True)
-    timeout = serializers.IntegerField(required=True, min_value=60, max_value=7 * 24 * 60 * 60)
+    timeout = serializers.IntegerField(required=True, min_value=60, max_value=MAX_ACTION_EXECUTE_TIMEOUT)
 
 
 def merge_nested_dict(current: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:

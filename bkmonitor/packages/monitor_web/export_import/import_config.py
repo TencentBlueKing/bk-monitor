@@ -17,7 +17,7 @@ from django.utils.translation import gettext as _
 
 from api.grafana.exporter import DashboardExporter
 from bk_dataview.api import get_or_create_org
-from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
+from bkmonitor.action.serializers import DutyRuleDetailSlz, ExecuteConfigSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.utils.local import local
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -367,7 +367,9 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     action["config_id"] = newly_created_actions[config["name"]].id
                     continue
 
-                action_config_instance, created = ActionConfig.objects.update_or_create(
+                execute_config_serializer = ExecuteConfigSlz(data=config["execute_config"])
+                execute_config_serializer.is_valid(raise_exception=True)
+                action_config_instance, _ = ActionConfig.objects.update_or_create(
                     name=config["name"], bk_biz_id=bk_biz_id, defaults=config
                 )
                 action["config_id"] = action_config_instance.id

@@ -354,7 +354,6 @@ class DataLink(models.Model):
             table_id,
         )
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
         if not es_storage:
             raise ValueError("compose_custom_event_configs: lack storage config")
@@ -375,7 +374,11 @@ class DataLink(models.Model):
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
             )
             databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
-            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+            databus_data_id_name = (
+                existing_databus.data_id_name
+                if existing_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            )
 
             es_table_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
@@ -413,8 +416,8 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                data_id_name=databus_data_id_name,
                 defaults={
+                    "data_id_name": databus_data_id_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
                 },
@@ -501,7 +504,6 @@ class DataLink(models.Model):
             name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
         )
         option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         default_vm_name = self.resolve_graph_relation_vm_result_table_name(
             bk_tenant_id=self.bk_tenant_id,
             table_id=table_id,
@@ -550,7 +552,11 @@ class DataLink(models.Model):
             vm_rt_name = existing_vm_rt.name if existing_vm_rt is not None else default_vm_name
             vm_binding_name = existing_vm_binding.name if existing_vm_binding is not None else vm_rt_name
             vm_databus_name = existing_vm_databus.name if existing_vm_databus is not None else vm_rt_name
-            vm_data_id_name = existing_vm_databus.data_id_name if existing_vm_databus is not None else bkbase_data_name
+            vm_data_id_name = (
+                existing_vm_databus.data_id_name
+                if existing_vm_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            )
 
             result_table_option = ResultTableOption.objects.filter(
                 table_id=table_id,
@@ -612,9 +618,10 @@ class DataLink(models.Model):
                 existing_surrealdb_databus.name if existing_surrealdb_databus is not None else graph_rt_name
             )
             graph_data_id_name = (
-                existing_surrealdb_databus.data_id_name if existing_surrealdb_databus is not None else bkbase_data_name
+                existing_surrealdb_databus.data_id_name
+                if existing_surrealdb_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
             )
-
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 graph_rt, _ = ResultTableConfig.objects.update_or_create(
                     name=graph_rt_name,
@@ -648,12 +655,12 @@ class DataLink(models.Model):
                     graph_sink["tenant"] = self.bk_tenant_id
                 graph_databus, _ = DataBusConfig.objects.update_or_create(
                     name=graph_databus_name,
-                    data_id_name=graph_data_id_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
                     defaults={
+                        "data_id_name": graph_data_id_name,
                         "bk_data_id": data_source.bk_data_id,
                         "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
                         # Transfer consumer group 只用于 VM 分支承接原消费位点。
@@ -701,7 +708,6 @@ class DataLink(models.Model):
             data_source,
             table_id,
         )
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
         doris_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
 
@@ -834,15 +840,19 @@ class DataLink(models.Model):
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
             )
             databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
-            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+            databus_data_id_name = (
+                existing_databus.data_id_name
+                if existing_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            )
             databus, _ = DataBusConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=databus_name,
-                data_id_name=databus_data_id_name,
                 defaults={
+                    "data_id_name": databus_data_id_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],
                 },
@@ -1608,12 +1618,12 @@ class DataLink(models.Model):
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=databus_name,
-                data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
+                    "data_id_name": bkbase_data_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
@@ -1665,15 +1675,7 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
-        logger.info(
-            "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
-            "compose configs",
-            self.data_link_name,
-            bkbase_data_name,
-            bkbase_vmrt_name,
-        )
 
         # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
         # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
@@ -1718,7 +1720,18 @@ class DataLink(models.Model):
         )
 
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
-        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+        bkbase_data_name = (
+            existing_databus.data_id_name
+            if existing_databus is not None
+            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+        )
+        logger.info(
+            "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
+            "compose configs",
+            self.data_link_name,
+            bkbase_data_name,
+            bkbase_vmrt_name,
+        )
 
         # 获取指标组维度配置
         result_table_option = ResultTableOption.objects.filter(
@@ -1844,7 +1857,6 @@ class DataLink(models.Model):
         注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
         # 白名单配置
@@ -1880,7 +1892,11 @@ class DataLink(models.Model):
             existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
         )
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
-        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+        bkbase_data_name = (
+            existing_databus.data_id_name
+            if existing_databus is not None
+            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+        )
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 渲染所需的资源配置
@@ -1924,12 +1940,12 @@ class DataLink(models.Model):
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=databus_name,
-                data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
+                    "data_id_name": bkbase_data_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },

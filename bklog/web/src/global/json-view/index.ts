@@ -26,7 +26,34 @@
 import { copyMessage, xssFilter } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { highlightPlainTextIntoFragment, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
+import {
+  applyPrimitiveMarkText,
+  isMarkedJsonLike,
+  joinMarkedJsonPath,
+  MARKED_JSON_ROOT_PATH,
+  mergePrimitiveMarks,
+  parseMarkedJson,
+  type PrimitiveMarkMap,
+} from '@/views/retrieve-core/marked-json';
 import JSONBig from 'json-bigint';
+
+/** 单个节点一次性铺开的子项上限，超出部分点击「展开更多」按需渲染 */
+const CHILD_RENDER_LIMIT = 500;
+/** 单批渲染任务的时间预算，避免深层 JSON 长任务阻塞滚动 */
+const RENDER_TIME_BUDGET = 8;
+
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+/** JSON 树递归上下文：层级 + 字段路径 + 结构路径 */
+type JsonNodeContext = {
+  depth: number;
+  /** 展示 / 检索字段路径 */
+  parentPath: string;
+  /** 非空表示该子树由 JSON String 解析而来，检索仍绑定这个外层真实字段 */
+  jsonStringFieldPath: string;
+  /** 结构路径，与 marked-json 扫描器一致，用于标量命中侧通道 */
+  nodePath: string;
+};
 
 export type JsonViewConfig = {
   onNodeExpand: (_args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
@@ -46,6 +73,8 @@ export type JsonViewConfig = {
    * 例：__ext_json.name.first_name → __ext_json.name（若 first_name 未声明）
    */
   resolveMappedFieldPath?: (_fieldPath: string) => string;
+  /** 数字 / 布尔等字面量上的检索命中：按结构路径重新包裹 <mark> */
+  primitiveMarks?: PrimitiveMarkMap;
 };
 export default class JsonView {
   options: JsonViewConfig;
@@ -53,13 +82,15 @@ export default class JsonView {
   jsonNodeMap: WeakMap<HTMLElement, {
     target?: any;
     isExpand?: boolean;
-    parentPath?: string;
-    jsonStringFieldPath?: string;
+    context?: JsonNodeContext;
   }>;
   JSONBigInstance: JSONBig;
   renderTaskId: number;
-  timeoutHandles: Set<number>;
+  renderQueue: Array<() => void>;
+  renderQueueHandle: number;
   activeDepth: number;
+  /** 含嵌套 JSON String 解析结果的标量命中映射 */
+  primitiveMarks: PrimitiveMarkMap;
 
   rootElClick?: (..._args) => void;
   targetElClickHandler?: EventListener;
@@ -70,8 +101,10 @@ export default class JsonView {
     this.jsonNodeMap = new WeakMap();
     this.JSONBigInstance = JSONBig({ useNativeBigInt: true });
     this.renderTaskId = 0;
-    this.timeoutHandles = new Set();
+    this.renderQueue = [];
+    this.renderQueueHandle = 0;
     this.activeDepth = Number(this.options.depth ?? 1);
+    this.primitiveMarks = new Map();
   }
 
   private createJsonField(name: number | string, fieldPath = '') {
@@ -109,22 +142,55 @@ export default class JsonView {
     return Number.isFinite(value) && value > 0 ? value : fallback;
   }
 
+  /**
+   * 渲染任务统一进实例级队列并按时间片冲刷。
+   * 深层 JSON 的叶子数量可达数千，逐个 setTimeout 会产生同等数量的宏任务，
+   * 每个任务都要重新进入样式计算，滚动时表现为持续掉帧。
+   */
   private scheduleRender(callback: () => void) {
-    const handle = window.setTimeout(() => {
-      this.timeoutHandles.delete(handle);
-      callback();
-    }, 0);
+    this.renderQueue.push(callback);
+    this.ensureRenderQueueFlush();
+  }
 
-    this.timeoutHandles.add(handle);
-    return handle;
+  private ensureRenderQueueFlush() {
+    if (this.renderQueueHandle) {
+      return;
+    }
+
+    this.renderQueueHandle = window.setTimeout(() => {
+      this.renderQueueHandle = 0;
+      this.flushRenderQueue();
+    }, 0);
+  }
+
+  private flushRenderQueue() {
+    const taskId = this.renderTaskId;
+    const startTime = now();
+
+    while (this.renderQueue.length) {
+      if (taskId !== this.renderTaskId) {
+        this.renderQueue.length = 0;
+        return;
+      }
+
+      this.renderQueue.shift()?.();
+
+      if (now() - startTime >= RENDER_TIME_BUDGET) {
+        break;
+      }
+    }
+
+    if (this.renderQueue.length) {
+      this.ensureRenderQueueFlush();
+    }
   }
 
   private clearScheduledRender() {
-    for (const handle of this.timeoutHandles) {
-      window.clearTimeout(handle);
+    this.renderQueue.length = 0;
+    if (this.renderQueueHandle) {
+      window.clearTimeout(this.renderQueueHandle);
+      this.renderQueueHandle = 0;
     }
-
-    this.timeoutHandles.clear();
   }
 
   /** 根字段名：用于 Object 多层级检索字段绑定 */
@@ -153,13 +219,8 @@ export default class JsonView {
     return this.options.resolveMappedFieldPath?.(fieldPath) ?? fieldPath;
   }
 
-  private createObjectRow(
-    key: number | string,
-    value: any,
-    depth: number,
-    parentPath: string,
-    jsonStringFieldPath = '',
-  ) {
+  private createObjectRow(key: number | string, value: any, context: JsonNodeContext) {
+    const { parentPath, jsonStringFieldPath } = context;
     const row = document.createElement('div');
     const rawSearchFieldPath = this.buildSearchFieldPath(parentPath, key, jsonStringFieldPath);
     // JSON String：检索字段固定外层；Object：按 Fields 列表收敛（未映射子路径回溯到最长前缀）
@@ -188,43 +249,70 @@ export default class JsonView {
     const childParentPath = jsonStringFieldPath
       ? rawSegmentFieldPath
       : (rawSearchFieldPath || parentPath);
-    row.append(this.createJsonNodeElment(value, depth, childParentPath, jsonStringFieldPath));
+    row.append(this.createJsonNodeElment(value, {
+      ...context,
+      parentPath: childParentPath,
+      nodePath: joinMarkedJsonPath(context.nodePath, parseResultMarkedText(key).plainText),
+    }));
 
     return row;
+  }
+
+  /** 超出上限的子项不再自动铺开，改为「展开更多」按需渲染，避免一次生成上万 DOM 节点 */
+  private createMoreRowsButton(remaining: number, onExpand: () => void) {
+    const button = document.createElement('span');
+    button.classList.add('bklog-json-view-more-rows');
+    button.textContent = `${window.$t?.('展开更多') ?? '展开更多'}（${remaining}）`;
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
+      button.remove();
+      onExpand();
+    });
+
+    return button;
   }
 
   private appendObjectRowsInChunks(
     container: HTMLElement,
     entries: Array<[number | string, any]>,
-    depth: number,
+    context: JsonNodeContext,
     taskId: number,
-    parentPath: string,
-    jsonStringFieldPath = '',
   ) {
     let startIndex = 0;
+    let renderLimit = Math.min(entries.length, CHILD_RENDER_LIMIT);
 
     const appendChunk = (size: number) => {
       if (taskId !== this.renderTaskId) return;
 
       const fragment = document.createDocumentFragment();
-      const endIndex = Math.min(startIndex + size, entries.length);
+      const endIndex = Math.min(startIndex + size, renderLimit);
       for (let index = startIndex; index < endIndex; index += 1) {
         const [key, value] = entries[index];
-        fragment.append(this.createObjectRow(key, value, depth, parentPath, jsonStringFieldPath));
+        fragment.append(this.createObjectRow(key, value, context));
       }
 
       startIndex = endIndex;
       container.append(fragment);
 
-      if (startIndex < entries.length) {
+      if (startIndex < renderLimit) {
         this.scheduleRender(() => appendChunk(this.getBatchSize()));
+        return;
+      }
+
+      if (startIndex < entries.length) {
+        container.append(this.createMoreRowsButton(entries.length - startIndex, () => {
+          renderLimit = Math.min(entries.length, startIndex + CHILD_RENDER_LIMIT);
+          appendChunk(this.getBatchSize(true));
+        }));
       }
     };
 
     appendChunk(this.getBatchSize(true));
   }
 
-  private createObjectChildNode(target, depth, parentPath: string, jsonStringFieldPath = '') {
+  private createObjectChildNode(target, context: JsonNodeContext) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-child');
     node.classList.add('bklog-json-view-object');
@@ -233,21 +321,20 @@ export default class JsonView {
       ? target.map((item, index) => [index, item])
       : Object.keys(target ?? {}).map(key => [key, target[key]]);
 
-    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId, parentPath, jsonStringFieldPath);
+    this.appendObjectRowsInChunks(node, entries, context, this.renderTaskId);
 
     return node;
   }
 
-  private createObjectNode(target, depth, parentPath: string, jsonStringFieldPath = '') {
+  private createObjectNode(target, context: JsonNodeContext) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
-    const isExpand = depth <= this.activeDepth;
+    const isExpand = context.depth <= this.activeDepth;
 
     this.jsonNodeMap.set(node, {
       isExpand,
       target,
-      parentPath,
-      jsonStringFieldPath,
+      context,
     });
 
     if (typeof target === 'object' && target !== null) {
@@ -265,7 +352,7 @@ export default class JsonView {
       const child: HTMLElement[] = [];
 
       if (isExpand) {
-        child.push(this.createObjectChildNode(target, depth + 1, parentPath, jsonStringFieldPath));
+        child.push(this.createObjectChildNode(target, { ...context, depth: context.depth + 1 }));
       }
 
       const copyItem = document.createElement('span');
@@ -276,7 +363,7 @@ export default class JsonView {
       return [node];
     }
 
-    node.append(this.createObjectChildNode(target, depth, parentPath, jsonStringFieldPath));
+    node.append(this.createObjectChildNode(target, context));
     return [node];
   }
 
@@ -285,30 +372,32 @@ export default class JsonView {
     node.setAttribute('data-search-field-name', this.clampMappedFieldPath(fieldPath));
   }
 
-  private createJsonNodeElment(target: any, depth = 1, parentPath = '', inheritedJsonStringFieldPath = '') {
+  private createJsonNodeElment(target: any, context: JsonNodeContext) {
+    const { depth, parentPath, nodePath } = context;
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
     let formatTarget = target;
-    let jsonStringFieldPath = inheritedJsonStringFieldPath;
+    let jsonStringFieldPath = context.jsonStringFieldPath;
     this.bindSearchFieldPath(node, jsonStringFieldPath || parentPath);
     // Parsing depth controls expansion only. Every created node must still recognize
     // Object/Array values (including JSON strings), so increasing depth can expand
     // Nested fields that were initially collapsed. Children remain lazily rendered.
-    if (typeof target === 'string' && /^\s*(\{|\[)/.test(target)) {
-      try {
-        formatTarget = this.JSONBigInstance.parse(target);
+    if (isMarkedJsonLike(target)) {
+      // 嵌套 JSON String 同样可能带检索高亮：保留 <mark>，跨结构命中由 parseMarkedJson 收敛
+      const parsed = parseMarkedJson(target, text => this.JSONBigInstance.parse(text));
+      if (parsed.isJson) {
+        formatTarget = parsed.value;
         jsonStringFieldPath = parentPath || this.getRootFieldPath();
-      } catch (e) {
-        console.error(e);
+        mergePrimitiveMarks(this.primitiveMarks, nodePath, parsed.primitiveMarks);
       }
     }
 
     const nodeType = typeof formatTarget;
 
     if (nodeType === 'object' && formatTarget !== null) {
-      node.append(...this.createObjectNode(formatTarget, depth, parentPath, jsonStringFieldPath));
+      node.append(...this.createObjectNode(formatTarget, { ...context, jsonStringFieldPath }));
     } else {
       node.classList.add('bklog-json-field-value');
       // string / number / boolean / bigint 叶子统一走 segmentRender，
@@ -317,10 +406,14 @@ export default class JsonView {
         || nodeType === 'number'
         || nodeType === 'boolean'
         || nodeType === 'bigint';
-      const leafText = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
+      const plainLeafText = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
         ? String(formatTarget)
         : '';
-      if (isPrimitiveLeaf && leafText !== '' && typeof this.options.segmentRender === 'function') {
+      // 数字 / 布尔字面量无法内嵌 <mark>，命中信息在解析阶段存入侧通道，渲染前按结构路径回填
+      const leafText = nodeType === 'string'
+        ? plainLeafText
+        : applyPrimitiveMarkText(plainLeafText, this.primitiveMarks.get(nodePath));
+      if (isPrimitiveLeaf && plainLeafText !== '' && typeof this.options.segmentRender === 'function') {
         const taskId = this.renderTaskId;
         this.scheduleRender(() => {
           if (taskId === this.renderTaskId && node.isConnected) {
@@ -328,7 +421,7 @@ export default class JsonView {
           }
         });
       } else {
-        const displayValue = leafText || '--';
+        const displayValue = plainLeafText || '--';
         node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(displayValue)}</span></span>`;
       }
     }
@@ -342,8 +435,13 @@ export default class JsonView {
     this.clearScheduledRender();
     this.targetEl.innerHTML = '';
     const rootPath = this.getRootFieldPath();
-    const jsonStringFieldPath = this.options.parsedFromJsonString ? rootPath : '';
-    this.targetEl.append(this.createJsonNodeElment(value, 1, rootPath, jsonStringFieldPath));
+    this.primitiveMarks = new Map(this.options.primitiveMarks ?? []);
+    this.targetEl.append(this.createJsonNodeElment(value, {
+      depth: 1,
+      parentPath: rootPath,
+      jsonStringFieldPath: this.options.parsedFromJsonString ? rootPath : '',
+      nodePath: MARKED_JSON_ROOT_PATH,
+    }));
   }
 
   private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
@@ -352,10 +450,15 @@ export default class JsonView {
       const leafNode = jsonNode.closest('.bklog-json-view-node');
       const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
       const nodeMeta = this.jsonNodeMap.get(jsonNode);
-      const parentPath = nodeMeta?.parentPath
+      const parentPath = nodeMeta?.context?.parentPath
         ?? leafNode?.getAttribute('data-search-field-name')
         ?? this.getRootFieldPath();
-      childNode = this.createObjectChildNode(target, depth + 1, parentPath, nodeMeta?.jsonStringFieldPath);
+      childNode = this.createObjectChildNode(target, {
+        depth: depth + 1,
+        parentPath,
+        jsonStringFieldPath: nodeMeta?.context?.jsonStringFieldPath ?? '',
+        nodePath: nodeMeta?.context?.nodePath ?? MARKED_JSON_ROOT_PATH,
+      });
       jsonNode.append(childNode);
     }
 

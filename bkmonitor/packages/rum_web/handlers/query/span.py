@@ -15,13 +15,19 @@ from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
+from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
+
+from rum_web.constants import RUM_FIELD_ALIAS
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_RUM)
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
+    FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
+    FIELD_OPERATIONS = FIELD_OPERATIONS
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources
@@ -100,4 +106,11 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     ):
         return super()._query_option_values(
             self.get_queries(filters, query_string), start_time, end_time, fields, limit
+        )
+
+    def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
+        return super()._query_fields(
+            [(target.table_id, bk_biz_id_to_space_uid(target.app.bk_biz_id)) for target in self.data_sources],
+            start_time,
+            end_time,
         )

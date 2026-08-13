@@ -51,7 +51,7 @@ def backfill_tenant_and_deduplicate(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0273_pingserversubscriptionconfig_bk_biz_id"),
+        ("metadata", "0274_fix_system_proc_cpu_time_unit"),
     ]
 
     operations = [

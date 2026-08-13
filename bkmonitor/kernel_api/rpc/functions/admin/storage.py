@@ -45,6 +45,8 @@ FUNC_VM_STORAGE_LIST = "admin.vm_storage.list"
 FUNC_VM_STORAGE_DETAIL = "admin.vm_storage.detail"
 FUNC_KAFKA_STORAGE_LIST = "admin.kafka_storage.list"
 FUNC_KAFKA_STORAGE_DETAIL = "admin.kafka_storage.detail"
+FUNC_SURREALDB_STORAGE_LIST = "admin.surrealdb_storage.list"
+FUNC_SURREALDB_STORAGE_DETAIL = "admin.surrealdb_storage.detail"
 FUNC_BKBASE_RESULT_TABLE_LIST = "admin.bkbase_result_table.list"
 FUNC_BKBASE_RESULT_TABLE_DETAIL = "admin.bkbase_result_table.detail"
 INSPECT_SAFETY_LEVEL = "inspect"
@@ -73,6 +75,14 @@ DORIS_STORAGE_FIELDS = [
     "storage_cluster_id",
 ]
 KAFKA_STORAGE_FIELDS = ["id", "table_id", "bk_tenant_id", "topic", "partition", "storage_cluster_id", "retention"]
+SURREALDB_STORAGE_FIELDS = [
+    "table_id",
+    "bk_tenant_id",
+    "table_type",
+    "vertices",
+    "relations",
+    "storage_cluster_id",
+]
 ACCESS_VM_RECORD_FIELDS = [
     "id",
     "data_type",
@@ -101,6 +111,7 @@ BKBASE_RESULT_TABLE_FIELDS = [
 ]
 DORIS_ORDERING_FIELDS = {"table_id", "storage_cluster_id"}
 KAFKA_ORDERING_FIELDS = {"table_id", "storage_cluster_id"}
+SURREALDB_ORDERING_FIELDS = {"table_id", "storage_cluster_id", "table_type"}
 VM_ORDERING_FIELDS = {"result_table_id", "storage_cluster_id", "vm_cluster_id"}
 BKBASE_ORDERING_FIELDS = {"monitor_table_id", "storage_cluster_id", "status", "create_time", "last_modify_time"}
 
@@ -335,6 +346,20 @@ def _serialize_kafka_item(
 ) -> dict[str, Any]:
     return {
         "kafka_storage": serialize_model(storage, KAFKA_STORAGE_FIELDS),
+        "result_table": _serialize_result_table(
+            get_scoped_map_value(result_table_map, storage.bk_tenant_id, storage.table_id)
+        ),
+        "storage_cluster": _serialize_cluster(
+            get_scoped_map_value(cluster_map, storage.bk_tenant_id, storage.storage_cluster_id)
+        ),
+    }
+
+
+def _serialize_surrealdb_item(
+    storage: Any, result_table_map: dict[str, Any], cluster_map: dict[int, Any]
+) -> dict[str, Any]:
+    return {
+        "surrealdb_storage": serialize_model(storage, SURREALDB_STORAGE_FIELDS),
         "result_table": _serialize_result_table(
             get_scoped_map_value(result_table_map, storage.bk_tenant_id, storage.table_id)
         ),
@@ -680,6 +705,68 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     return build_response(
         operation="kafka_storage.detail",
         func_name=FUNC_KAFKA_STORAGE_DETAIL,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_SURREALDB_STORAGE_LIST,
+    summary="Admin 查询 SurrealDBStorage 列表",
+    description="只读分页查询 SurrealDBStorage，返回图表类型、顶点、关系和精确关联的 ResultTable、ClusterInfo。",
+    params_schema={
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
+        "table_id": "可选，SurrealDBStorage.table_id",
+        "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "storage_cluster_id": "可选，SurrealDB 集群 ID",
+        "page": "可选，默认 1",
+        "page_size": "可选，默认 20，最大 100",
+        "ordering": "可选，table_id / storage_cluster_id / table_type",
+    },
+    example_params={"bk_tenant_id": "system", "table_id": "system.graph", "page": 1, "page_size": 20},
+)
+def list_surrealdb_storages(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
+    queryset = _base_storage_queryset(models.SurrealDBStorage, params, bk_tenant_id)
+    return _paginate_list_response(
+        params=params,
+        queryset=queryset,
+        bk_tenant_id=bk_tenant_id,
+        operation="surrealdb_storage.list",
+        func_name=FUNC_SURREALDB_STORAGE_LIST,
+        table_id_getter=lambda row: row.table_id,
+        cluster_id_getter=lambda row: row.storage_cluster_id,
+        serializer=_serialize_surrealdb_item,
+        default_ordering="table_id",
+        ordering_fields=SURREALDB_ORDERING_FIELDS,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_SURREALDB_STORAGE_DETAIL,
+    summary="Admin 查询 SurrealDBStorage 详情",
+    description="只读查询 SurrealDBStorage 图定义及精确关联的 ResultTable、ClusterInfo。",
+    params_schema={"bk_tenant_id": "可选，租户 ID", "table_id": "必填，SurrealDBStorage.table_id"},
+    example_params={"bk_tenant_id": "system", "table_id": "system.graph"},
+)
+def get_surrealdb_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    table_id = str(params.get("table_id") or "").strip()
+    if not table_id:
+        raise CustomException(message="table_id 为必填项")
+    try:
+        storage = models.SurrealDBStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+    except models.SurrealDBStorage.DoesNotExist as error:
+        raise CustomException(message=f"未找到 SurrealDBStorage: table_id={table_id}") from error
+    data = _serialize_surrealdb_item(
+        storage,
+        _load_result_table_map(bk_tenant_id, [storage.table_id]),
+        _load_cluster_map(bk_tenant_id, [storage.storage_cluster_id]),
+    )
+    return build_response(
+        operation="surrealdb_storage.detail",
+        func_name=FUNC_SURREALDB_STORAGE_DETAIL,
         bk_tenant_id=bk_tenant_id,
         data=data,
     )

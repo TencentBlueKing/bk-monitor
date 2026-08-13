@@ -37,7 +37,7 @@ import {
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
-import { Checkbox, Pagination } from 'bkui-vue';
+import { Button, Checkbox, Pagination } from 'bkui-vue';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
@@ -79,6 +79,19 @@ const ALARM_LEVEL_COLOR: Record<number, string> = {
   3: '#ffd000',
 };
 
+/** 由指标补充接口提供的列。失败时不能用空值、0 或“暂无进程”伪装成正常数据。 */
+const HOST_METRIC_DATA_COLUMN_IDS = new Set([
+  'status',
+  'alarm_count',
+  'cpu_usage',
+  'mem_usage',
+  'disk_in_use',
+  'io_util',
+  'psc_mem_usage',
+  'cpu_load',
+  'display_name',
+]);
+
 /** 指标进度条颜色阈值 */
 const getProgressColor = (value: number) => {
   if (value > 80) return '#EA3636';
@@ -113,6 +126,10 @@ export default defineComponent({
     visibleColumns: {
       type: Array as PropType<string[]>,
       default: () => [],
+    },
+    readonly: {
+      type: Boolean,
+      default: false,
     },
     /** 总条数 */
     total: {
@@ -149,6 +166,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 指标数据加载失败（基础列仍可用） */
+    metricLoadError: {
+      type: Boolean,
+      default: false,
+    },
     /** 置顶配置 */
     markValue: {
       type: Object as PropType<Record<string, number>>,
@@ -171,6 +193,7 @@ export default defineComponent({
     selectIpCell: (_row: IHostListRow) => true,
     ipMark: (_row: IHostListRow) => true,
     processClick: (_row: IHostListRow, _processId: string) => true,
+    retryMetric: () => true,
   },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
@@ -183,7 +206,8 @@ export default defineComponent({
     const unresolveContentRef = useTemplateRef<HTMLElement>('unresolveContent');
 
     /** 表格体最大高度（自适应屏幕，表内滚动，表头/分页不滚走） */
-    const bodyHeight = shallowRef(400);
+    const tableHeight = shallowRef(444);
+    const bodyHeight = computed(() => Math.max(tableHeight.value - 44 - (props.metricLoadError ? 36 : 0), 200));
     /** 进程异常 tip 数据 */
     const tipsData = shallowRef<IStatusTipsConfig>({
       tipsText: '',
@@ -201,7 +225,7 @@ export default defineComponent({
       const height = entries[0]?.contentRect?.height;
       if (height) {
         // 扣除分页高度（约 32px）+ margin-top（12px）+ 缓冲
-        bodyHeight.value = Math.max(height - 44, 200);
+        tableHeight.value = height;
       }
     });
 
@@ -284,6 +308,9 @@ export default defineComponent({
       item: Partial<IHostComponent> | Partial<IHostListRow>,
       type: 'Host' | 'noProcess' | 'Thread'
     ) => {
+      if (props.readonly) {
+        return;
+      }
       if (type === 'Thread' && [1, 2].includes(item.status as number)) {
         const config = PROCESS_STATUS_TIPS_MAP[item.status as number] || {};
         tipsData.value = {
@@ -395,43 +422,44 @@ export default defineComponent({
               }}
             />
           )}
-          {locale.value !== 'enUS' ? (
-            <svg
-              class={['host-table-ip-mark', isMarked ? 'path-primary' : 'path-default']}
-              viewBox='0 0 28 16'
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                e.preventDefault();
-                emit('ipMark', row);
-              }}
-            >
-              <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z' />
-              <path
-                d='M5.1,11.3h1V7.5h2.6V7.1H5.3V6.3h3.4V5.9H5.7V4h7.7v2h-3.3v0.4h3.6v0.8h-3.6v0.4h2.8v3.8h1v0.8H5.1V11.3z M6.8,5.2h1.1V4.7H6.8V5.2z M11.7,8.2H7.3v0.3h4.4V8.2z M7.3,9.5h4.4V9.1H7.3V9.5z M7.3,10.4h4.4V10H7.3V10.4z M7.3,11.3h4.4v-0.3H7.3V11.3z M9,5.2h1.1V4.7H9V5.2z M12.2,5.2V4.7h-1.1v0.5H12.2z'
-                fill='#FFFFFF'
-              />
-              <path
-                d='M14.1,4.1h3.1v1.2h-0.8v5.4c0,0.4-0.1,0.6-0.2,0.8c-0.1,0.2-0.3,0.3-0.5,0.4s-0.7,0.1-1.4,0.1c0-0.4-0.1-0.7-0.2-1.1c0.3,0,0.5,0,0.8,0c0.2,0,0.4-0.1,0.4-0.4V5.3h-1.1V4.1z M19.4,7.5h1.2c0,0.9-0.1,1.6-0.2,2.1c0.8,0.5,1.7,1.1,2.5,1.7l-0.7,0.9c-0.6-0.5-1.3-1-2.2-1.7c-0.4,0.7-1.2,1.2-2.5,1.7c-0.2-0.3-0.4-0.7-0.7-1.1c0.6-0.2,1.2-0.4,1.6-0.7c0.4-0.3,0.7-0.7,0.8-1.1C19.3,8.9,19.4,8.3,19.4,7.5z M17.4,4h5.4v1.1h-2.3l-0.2,0.8h2.2v4h-1.2V7h-2.7v3h-1.2V5.9h1.5l0.2-0.8h-1.7V4z'
-                fill='#FFFFFF'
-              />
-            </svg>
-          ) : (
-            <svg
-              class={['host-table-ip-mark-en', isMarked ? 'path-primary' : 'path-default']}
-              viewBox='0 0 28 16'
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                e.preventDefault();
-                emit('ipMark', row);
-              }}
-            >
-              <g>
-                <path d='M13.7,5.7c-0.5,0-1,0.2-1.3,0.6C12,6.8,11.8,7.4,11.9,8c0,0.6,0.1,1.1,0.5,1.6c0.3,0.4,0.8,0.7,1.3,0.6c0.5,0,1-0.2,1.3-0.6c0.3-0.5,0.5-1.1,0.5-1.7c0-0.6-0.1-1.2-0.5-1.7C14.7,5.9,14.2,5.7,13.7,5.7z' />
-                <path d='M20.2,5.7h-0.6v2.2h0.6c0.9,0,1.3-0.4,1.3-1.1C21.5,6,21.1,5.7,20.2,5.7z' />
-                <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z M10.2,5.8H8.3v5.6H6.8V5.8H4.9V4.6h5.3V5.8z M16.1,10.5c-0.6,0.7-1.5,1-2.4,1c-0.9,0-1.8-0.3-2.4-1c-0.6-0.7-0.9-1.5-0.9-2.4c0-1,0.3-1.9,0.9-2.6c0.6-0.7,1.5-1,2.5-1c0.9,0,1.7,0.3,2.3,1C16.7,6.2,17,7,17,7.9C17,8.9,16.7,9.8,16.1,10.5z M22.3,8.4C21.7,8.9,21,9.1,20.3,9l-0.8,0v2.4h-1.5V4.6h2.3c1.7,0,2.5,0.7,2.5,2.1C23.1,7.4,22.8,8,22.3,8.4z' />
-              </g>
-            </svg>
-          )}
+          {!props.readonly &&
+            (locale.value !== 'enUS' ? (
+              <svg
+                class={['host-table-ip-mark', isMarked ? 'path-primary' : 'path-default']}
+                viewBox='0 0 28 16'
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  emit('ipMark', row);
+                }}
+              >
+                <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z' />
+                <path
+                  d='M5.1,11.3h1V7.5h2.6V7.1H5.3V6.3h3.4V5.9H5.7V4h7.7v2h-3.3v0.4h3.6v0.8h-3.6v0.4h2.8v3.8h1v0.8H5.1V11.3z M6.8,5.2h1.1V4.7H6.8V5.2z M11.7,8.2H7.3v0.3h4.4V8.2z M7.3,9.5h4.4V9.1H7.3V9.5z M7.3,10.4h4.4V10H7.3V10.4z M7.3,11.3h4.4v-0.3H7.3V11.3z M9,5.2h1.1V4.7H9V5.2z M12.2,5.2V4.7h-1.1v0.5H12.2z'
+                  fill='#FFFFFF'
+                />
+                <path
+                  d='M14.1,4.1h3.1v1.2h-0.8v5.4c0,0.4-0.1,0.6-0.2,0.8c-0.1,0.2-0.3,0.3-0.5,0.4s-0.7,0.1-1.4,0.1c0-0.4-0.1-0.7-0.2-1.1c0.3,0,0.5,0,0.8,0c0.2,0,0.4-0.1,0.4-0.4V5.3h-1.1V4.1z M19.4,7.5h1.2c0,0.9-0.1,1.6-0.2,2.1c0.8,0.5,1.7,1.1,2.5,1.7l-0.7,0.9c-0.6-0.5-1.3-1-2.2-1.7c-0.4,0.7-1.2,1.2-2.5,1.7c-0.2-0.3-0.4-0.7-0.7-1.1c0.6-0.2,1.2-0.4,1.6-0.7c0.4-0.3,0.7-0.7,0.8-1.1C19.3,8.9,19.4,8.3,19.4,7.5z M17.4,4h5.4v1.1h-2.3l-0.2,0.8h2.2v4h-1.2V7h-2.7v3h-1.2V5.9h1.5l0.2-0.8h-1.7V4z'
+                  fill='#FFFFFF'
+                />
+              </svg>
+            ) : (
+              <svg
+                class={['host-table-ip-mark-en', isMarked ? 'path-primary' : 'path-default']}
+                viewBox='0 0 28 16'
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  emit('ipMark', row);
+                }}
+              >
+                <g>
+                  <path d='M13.7,5.7c-0.5,0-1,0.2-1.3,0.6C12,6.8,11.8,7.4,11.9,8c0,0.6,0.1,1.1,0.5,1.6c0.3,0.4,0.8,0.7,1.3,0.6c0.5,0,1-0.2,1.3-0.6c0.3-0.5,0.5-1.1,0.5-1.7c0-0.6-0.1-1.2-0.5-1.7C14.7,5.9,14.2,5.7,13.7,5.7z' />
+                  <path d='M20.2,5.7h-0.6v2.2h0.6c0.9,0,1.3-0.4,1.3-1.1C21.5,6,21.1,5.7,20.2,5.7z' />
+                  <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z M10.2,5.8H8.3v5.6H6.8V5.8H4.9V4.6h5.3V5.8z M16.1,10.5c-0.6,0.7-1.5,1-2.4,1c-0.9,0-1.8-0.3-2.4-1c-0.6-0.7-0.9-1.5-0.9-2.4c0-1,0.3-1.9,0.9-2.6c0.6-0.7,1.5-1,2.5-1c0.9,0,1.7,0.3,2.3,1C16.7,6.2,17,7,17,7.9C17,8.9,16.7,9.8,16.1,10.5z M22.3,8.4C21.7,8.9,21,9.1,20.3,9l-0.8,0v2.4h-1.5V4.6h2.3c1.7,0,2.5,0.7,2.5,2.1C23.1,7.4,22.8,8,22.3,8.4z' />
+                </g>
+              </svg>
+            ))}
         </div>
       );
     };
@@ -471,9 +499,9 @@ export default defineComponent({
         <span
           style={{ backgroundColor: getAlarmColor(row.alarm_count) || undefined }}
           class={['host-table-alarm', { 'host-table-alarm--unresolve': hasAlarm }]}
-          onClick={() => handleGoEventCenter(row)}
-          onMouseenter={e => hasAlarm && handleUnresolveEnter(row, e)}
-          onMouseleave={() => hasAlarm && handleUnresolveLeave()}
+          onClick={props.readonly ? undefined : () => handleGoEventCenter(row)}
+          onMouseenter={props.readonly ? undefined : e => hasAlarm && handleUnresolveEnter(row, e)}
+          onMouseleave={props.readonly ? undefined : () => hasAlarm && handleUnresolveLeave()}
         >
           {row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--'}
         </span>
@@ -589,6 +617,14 @@ export default defineComponent({
         fixed: config.fixed,
       };
       base.cell = (_: unknown, { row }: { row: IHostListRow }) => {
+        if (HOST_METRIC_DATA_COLUMN_IDS.has(config.id)) {
+          if (props.metricLoading) {
+            return <div class='host-table-skeleton' />;
+          }
+          if (props.metricLoadError) {
+            return <span class='host-table-metric-error'>{t('加载失败')}</span>;
+          }
+        }
         switch (config.type) {
           case 'ip':
             return renderIpCell(row);
@@ -633,6 +669,18 @@ export default defineComponent({
         ref='table'
         class='host-list-table'
       >
+        {props.metricLoadError && (
+          <div class='host-list-table__metric-error'>
+            <span>{t('指标数据加载失败，当前仅展示主机基础信息')}</span>
+            <Button
+              class='host-list-table__metric-error-action'
+              text={true}
+              onClick={() => emit('retryMetric')}
+            >
+              {t('重新加载')}
+            </Button>
+          </div>
+        )}
         <div
           ref='body'
           class={['host-list-table__body', !props.data.length ? 'host-list-table__body--empty' : '']}

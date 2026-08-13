@@ -13,17 +13,20 @@ import time
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
+from redis.exceptions import WatchError
 from rest_framework import serializers
 
 from bk_monitor_base.strategy import NewSeriesSerializer as BaseNewSeriesSerializer
 
 from alarm_backends.core.cache import key
+from alarm_backends.core.storage.redis_cluster import routed_client
 from alarm_backends.service.detect.strategy import (
     BasicAlgorithmsCollection,
     ExprDetectAlgorithms,
 )
 from bkmonitor.utils.common_utils import count_md5
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.strategy import NewSeriesAlertMode
 from core.prometheus import metrics
 
 logger = logging.getLogger("detect")
@@ -36,12 +39,20 @@ _MIN_SOFT_TTL = 86400
 NEW_SERIES_TYPE = "NewSeries"
 # 新状态至少积累 5 个非空、非 partial 的有效检测周期，第 6 个有效周期开始告警。
 BASELINE_CYCLES = 5
+# active key 容量更新使用 WATCH 保证“清理、容量判断、续期/新增”原子；冲突时有限重试后安全降级。
+ACTIVE_UPDATE_RETRIES = 3
 
 
 class NewSeriesSerializer(BaseNewSeriesSerializer):
     """检测进程配置校验；保存层 serializer 位于 bkmonitor.strategy。"""
 
     threshold = serializers.IntegerField(label="告警阈值", required=False, default=0)
+    alert_mode = serializers.ChoiceField(
+        label="告警状态模式",
+        choices=NewSeriesAlertMode.CHOICES,
+        required=False,
+        default=NewSeriesAlertMode.ONCE,
+    )
 
 
 class NewSeries(BasicAlgorithmsCollection):
@@ -58,6 +69,7 @@ class NewSeries(BasicAlgorithmsCollection):
 
     基线：新状态前 5 个非空、非 partial 批次只灌库不告警，第 6 个有效批次开始检测。
     threshold=0 复用历史 seen/完成态，非零 threshold 使用隔离状态；各 threshold 独立累计进度。
+    alert_mode=continuous 时，首次出现仍只产一个异常点；后续有效出现只续期活跃观察状态。
     """
 
     config_serializer = NewSeriesSerializer
@@ -76,6 +88,8 @@ class NewSeries(BasicAlgorithmsCollection):
         self.effective_delay = self.detect_range
         self.max_series = int(self.validated_config.get("max_series", 100000))
         self.threshold = int(self.validated_config.get("threshold", 0))
+        self.alert_mode = self.validated_config.get("alert_mode", NewSeriesAlertMode.ONCE)
+        self.level = int(self.extra_config.get("algorithm_level", 0))
 
     def gen_expr(self):
         yield ExprDetectAlgorithms("is_new_series", self.desc_tpl)
@@ -146,6 +160,43 @@ class NewSeries(BasicAlgorithmsCollection):
         return cache_key, cache_key.get_key(**params)
 
     @classmethod
+    def active_state_key(cls, strategy_id, item_id, dimension_signature, threshold, detect_range, level=0):
+        return key.NEW_SERIES_ACTIVE_KEY.get_key(
+            strategy_id=strategy_id,
+            item_id=item_id,
+            dimension_signature=dimension_signature,
+            level=int(level),
+            threshold=cls.threshold_token(threshold),
+            detect_range=int(detect_range),
+        )
+
+    @classmethod
+    def claimed_state_key(cls, strategy_id, item_id, dimension_signature, threshold, detect_range, level=0):
+        return key.NEW_SERIES_CLAIMED_KEY.get_key(
+            strategy_id=strategy_id,
+            item_id=item_id,
+            dimension_signature=dimension_signature,
+            level=int(level),
+            threshold=cls.threshold_token(threshold),
+            detect_range=int(detect_range),
+        )
+
+    @classmethod
+    def terminated_state_key(cls, strategy_id, item_id, dimension_signature, threshold, detect_range, level=0):
+        return key.NEW_SERIES_TERMINATED_KEY.get_key(
+            strategy_id=strategy_id,
+            item_id=item_id,
+            dimension_signature=dimension_signature,
+            level=int(level),
+            threshold=cls.threshold_token(threshold),
+            detect_range=int(detect_range),
+        )
+
+    @staticmethod
+    def active_soft_ttl(detect_range):
+        return max(int(detect_range) * 2, _MIN_SOFT_TTL)
+
+    @classmethod
     def _mark_baseline_done(cls, item, sig, threshold, soft_ttl):
         params = {
             "strategy_id": item.strategy.id,
@@ -209,6 +260,10 @@ class NewSeries(BasicAlgorithmsCollection):
         if self.detect_range % 3600 == 0:
             return _("%(n)s 小时") % {"n": self.detect_range // 3600}
         return _("%(n)s 秒") % {"n": self.detect_range}
+
+    @staticmethod
+    def _observed_at():
+        return int(time.time())
 
     @classmethod
     def _is_log_count_item(cls, item):
@@ -299,14 +354,66 @@ class NewSeries(BasicAlgorithmsCollection):
 
         self._seen_before = entry["seen_before"]
         self._baseline_batch = entry["baseline_batch"]
-        self._compute_fire_map(data_points, {id(dp) for dp in eligible_data_points})
+        self._compute_fire_map(data_points, {id(dp) for dp in eligible_data_points}, item, sig)
 
-    def _compute_fire_map(self, data_points, eligible_data_point_ids):
+    def _compute_fire_map(self, data_points, eligible_data_point_ids, item, sig):
         # 预计算每个数据点是否告警，供 extra_context 纯读。判定口径与 detect_records 遍历同序：
         # is_new = 库无该指纹 或 距上次出现已超 detect_range；基线批次一律不报。
         # 批内去重：同一指纹仅放行首个符合点。按 id(data_point) 建键(而非 record_id)——
         # 同维度同时间戳的重复点 record_id 相同，按 record_id 建键会互相覆盖致 0 次告警。
         # 不变量：access 每条记录建独立 DataPoint，批内对象互不相同(id 唯一)；去重靠 flagged 按指纹判。
+        observed_at = self._observed_at()
+        eligible_fingerprints = list(
+            dict.fromkeys(
+                self._fingerprint(data_point) for data_point in data_points if id(data_point) in eligible_data_point_ids
+            )
+        )
+        new_fingerprints = set()
+        is_new_by_dp = {}
+        for data_point in data_points:
+            if id(data_point) not in eligible_data_point_ids:
+                is_new_by_dp[id(data_point)] = False
+                continue
+
+            fingerprint = self._fingerprint(data_point)
+            last_seen = self._seen_before.get(fingerprint)
+            is_new = (last_seen is None) or (int(data_point.timestamp) - last_seen > self.detect_range)
+            is_new_by_dp[id(data_point)] = is_new
+            if is_new:
+                new_fingerprints.add(fingerprint)
+
+        active_fingerprints = set()
+        claimed_fingerprints = set()
+        terminated_fingerprints = set()
+        if self.alert_mode == NewSeriesAlertMode.CONTINUOUS and not self._baseline_batch and eligible_fingerprints:
+            try:
+                active_fingerprints, claimed_fingerprints, terminated_fingerprints, active_read_error = (
+                    self._write_active(
+                        item,
+                        sig,
+                        eligible_fingerprints,
+                        new_fingerprints,
+                        observed_at,
+                    )
+                )
+            except Exception as e:  # noqa  首次异常仍保留；活跃态失败时退化为 once，而不是吞掉首次告警。
+                metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="active_failure").inc()
+                logger.exception(
+                    "[detect][new_series] strategy(%s) item(%s) active state update failed: %s",
+                    item.strategy.id,
+                    item.id,
+                    e,
+                )
+            else:
+                if active_read_error is not None:
+                    metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="active_failure").inc()
+                    logger.error(
+                        "[detect][new_series] strategy(%s) item(%s) active state read failed, used safe fallback: %s",
+                        item.strategy.id,
+                        item.id,
+                        active_read_error,
+                    )
+
         flagged = set()
         fire_by_dp = {}
         for data_point in data_points:
@@ -315,13 +422,327 @@ class NewSeries(BasicAlgorithmsCollection):
                 continue
 
             fingerprint = self._fingerprint(data_point)
-            last_seen = self._seen_before.get(fingerprint)
-            is_new = (last_seen is None) or (int(data_point.timestamp) - last_seen > self.detect_range)
-            fire = (not self._baseline_batch) and is_new and (fingerprint not in flagged)
+            is_new_lifecycle = (
+                is_new_by_dp[id(data_point)]
+                and fingerprint not in active_fingerprints
+                and fingerprint not in terminated_fingerprints
+            )
+            # WATCH 冲突前曾读到 active、重试后已缺失，说明 AlertManager 在本次检测期间先完成到期认领；
+            # 当前有效出现必须建立下一次生命周期，即使相邻源数据时间尚未超过 seen 窗口。
+            restarted_after_claim = fingerprint in claimed_fingerprints and fingerprint not in terminated_fingerprints
+            fire = (
+                (not self._baseline_batch)
+                and (is_new_lifecycle or restarted_after_claim)
+                and (fingerprint not in flagged)
+            )
             if fire:
                 flagged.add(fingerprint)
             fire_by_dp[id(data_point)] = fire
         self._fire_by_dp = fire_by_dp
+
+    def _read_active(self, item, sig, fingerprints):
+        if not fingerprints:
+            return {}
+        active_key = self.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=self.threshold,
+            detect_range=self.detect_range,
+            level=self.level,
+        )
+        client = key.NEW_SERIES_ACTIVE_KEY.client
+        active_before = {}
+        for i in range(0, len(fingerprints), CHUNK_SIZE):
+            chunk = fingerprints[i : i + CHUNK_SIZE]
+            pipe = client.pipeline(transaction=False)
+            for fingerprint in chunk:
+                pipe.zscore(active_key, fingerprint)
+            for fingerprint, score in zip(chunk, pipe.execute()):
+                if score is not None:
+                    active_before[fingerprint] = int(float(score))
+        return active_before
+
+    def _read_claimed(self, item, sig, fingerprints):
+        if not fingerprints:
+            return {}
+        claimed_key = self.claimed_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=self.threshold,
+            detect_range=self.detect_range,
+            level=self.level,
+        )
+        client = key.NEW_SERIES_CLAIMED_KEY.client
+        claimed_before = {}
+        for i in range(0, len(fingerprints), CHUNK_SIZE):
+            chunk = fingerprints[i : i + CHUNK_SIZE]
+            pipe = client.pipeline(transaction=False)
+            for fingerprint in chunk:
+                pipe.zscore(claimed_key, fingerprint)
+            for fingerprint, score in zip(chunk, pipe.execute()):
+                if score is not None:
+                    claimed_before[fingerprint] = int(float(score))
+        return claimed_before
+
+    def _read_terminated(self, item, sig, fingerprints):
+        if not fingerprints:
+            return {}
+        terminated_key = self.terminated_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=self.threshold,
+            detect_range=self.detect_range,
+            level=self.level,
+        )
+        client = key.NEW_SERIES_TERMINATED_KEY.client
+        terminated_before = {}
+        for i in range(0, len(fingerprints), CHUNK_SIZE):
+            chunk = fingerprints[i : i + CHUNK_SIZE]
+            pipe = client.pipeline(transaction=False)
+            for fingerprint in chunk:
+                pipe.zscore(terminated_key, fingerprint)
+            for fingerprint, score in zip(chunk, pipe.execute()):
+                if score is not None:
+                    terminated_before[fingerprint] = int(float(score))
+        return terminated_before
+
+    def _write_active(self, item, sig, eligible_fingerprints, new_fingerprints, observed_at):
+        active_key = self.active_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=self.threshold,
+            detect_range=self.detect_range,
+            level=self.level,
+        )
+        claimed_key = self.claimed_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=self.threshold,
+            detect_range=self.detect_range,
+            level=self.level,
+        )
+        terminated_key = self.terminated_state_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=self.threshold,
+            detect_range=self.detect_range,
+            level=self.level,
+        )
+        client = key.NEW_SERIES_ACTIVE_KEY.client
+        eligible_fingerprints = list(dict.fromkeys(eligible_fingerprints))
+        new_fingerprints = set(new_fingerprints)
+        soft_ttl = self.active_soft_ttl(self.detect_range)
+        observed_at = max(observed_at, self._observed_at())
+        stale_before = observed_at - soft_ttl
+        observed_active_before_conflict = set()
+        active_fingerprints = set()
+        claimed_fingerprints = set()
+        terminated_fingerprints = set()
+        active_read_error = None
+        rejected_count = 0
+        trimmed_count = 0
+        claimed_trimmed_count = 0
+        terminated_trimmed_count = 0
+
+        with routed_client(client, active_key) as active_client:
+            for attempt in range(ACTIVE_UPDATE_RETRIES):
+                pipe = active_client.pipeline(transaction=True)
+                try:
+                    pipe.watch(active_key, claimed_key, terminated_key)
+                    try:
+                        active_before = self._read_active(item, sig, eligible_fingerprints)
+                        active_read_error = None
+                    except Exception as e:  # noqa  仍用 XX 续期已有成员，避免瞬时读失败打断活跃告警。
+                        active_before = {}
+                        active_read_error = e
+                    try:
+                        claimed_before = self._read_claimed(item, sig, eligible_fingerprints)
+                        claimed_read_error = None
+                    except Exception as e:  # noqa  标记读取失败时仍保留 is_new 首次异常与 active 安全续期。
+                        claimed_before = {}
+                        claimed_read_error = e
+                    try:
+                        terminated_before = self._read_terminated(item, sig, eligible_fingerprints)
+                        terminated_read_error = None
+                    except Exception as e:  # noqa  终态标记读取失败时沿用活跃态失败的 once 安全降级。
+                        terminated_before = {}
+                        terminated_read_error = e
+                    current_read_error = active_read_error or claimed_read_error or terminated_read_error
+                    current_count = int(pipe.zcard(active_key))
+                    stale_count = int(pipe.zcount(active_key, "-inf", stale_before))
+                    live_count = max(0, current_count - stale_count)
+                    claimed_count = int(pipe.zcard(claimed_key))
+                    claimed_stale_count = int(pipe.zcount(claimed_key, "-inf", stale_before))
+                    claimed_live_count = max(0, claimed_count - claimed_stale_count)
+                    terminated_count = int(pipe.zcard(terminated_key))
+                    terminated_stale_count = int(pipe.zcount(terminated_key, "-inf", stale_before))
+                    terminated_live_count = max(0, terminated_count - terminated_stale_count)
+                    capacity = max(0, self.max_series)
+
+                    terminated_fingerprints = (
+                        {
+                            fingerprint
+                            for fingerprint, score in terminated_before.items()
+                            if score >= observed_at - self.detect_range
+                        }
+                        if terminated_read_error is None
+                        else set()
+                    )
+                    expired_terminated = (
+                        set(terminated_before) - terminated_fingerprints if terminated_read_error is None else set()
+                    )
+                    expired_live_terminated = {
+                        fingerprint
+                        for fingerprint in expired_terminated
+                        if terminated_before[fingerprint] > stale_before
+                    }
+
+                    if active_read_error is None:
+                        raw_active_fingerprints = {
+                            fingerprint for fingerprint, score in active_before.items() if score > stale_before
+                        }
+                        active_fingerprints = raw_active_fingerprints - terminated_fingerprints
+                        renew_fingerprints = [
+                            fingerprint for fingerprint in eligible_fingerprints if fingerprint in active_fingerprints
+                        ]
+                        terminating_active_count = len(raw_active_fingerprints & terminated_fingerprints)
+                    else:
+                        # 无法确认成员是否存在时，XX 只续期已有 member；普通 seen 维度不会被误激活。
+                        active_fingerprints = set()
+                        renew_fingerprints = eligible_fingerprints
+                        terminating_active_count = 0
+
+                    effective_live_count = max(0, live_count - terminating_active_count)
+                    trim_excess = max(0, effective_live_count - capacity)
+                    available = max(0, capacity - min(effective_live_count, capacity))
+
+                    claimed_from_marker = (
+                        {fingerprint for fingerprint, score in claimed_before.items() if score > stale_before}
+                        if claimed_read_error is None
+                        else set()
+                    )
+                    claimed_fingerprints = (
+                        claimed_from_marker
+                        | ((observed_active_before_conflict - active_fingerprints) & set(eligible_fingerprints))
+                    ) - terminated_fingerprints
+                    claimed_trim_excess = max(0, claimed_live_count - len(claimed_from_marker) - capacity)
+                    claimed_to_consume = list(claimed_fingerprints)
+                    terminated_to_consume = list(expired_terminated)
+                    terminated_trim_excess = max(0, terminated_live_count - len(expired_live_terminated) - capacity)
+                    create_candidates = [
+                        fingerprint
+                        for fingerprint in eligible_fingerprints
+                        if fingerprint not in active_fingerprints
+                        and fingerprint not in terminated_fingerprints
+                        and (fingerprint in new_fingerprints or fingerprint in claimed_fingerprints)
+                    ]
+
+                    admitted = create_candidates[:available]
+                    rejected_count = len(create_candidates) - len(admitted)
+
+                    pipe.multi()
+                    # key 级 TTL 无法回收持续被其它维度续期的孤儿 member；先清理足够久未活跃的成员。
+                    pipe.zremrangebyscore(active_key, "-inf", stale_before)
+                    if terminated_fingerprints:
+                        pipe.zrem(active_key, *terminated_fingerprints)
+                    for i in range(0, len(renew_fingerprints), CHUNK_SIZE):
+                        chunk = renew_fingerprints[i : i + CHUNK_SIZE]
+                        pipe.zadd(active_key, {fingerprint: observed_at for fingerprint in chunk}, xx=True)
+                    for i in range(0, len(admitted), CHUNK_SIZE):
+                        chunk = admitted[i : i + CHUNK_SIZE]
+                        pipe.zadd(active_key, {fingerprint: observed_at for fingerprint in chunk})
+                    if trim_excess:
+                        # max_series 下调时优先保留本批刚续期及最近出现的成员，淘汰最旧活跃状态。
+                        pipe.zremrangebyrank(active_key, 0, trim_excess - 1)
+                    pipe.expire(active_key, soft_ttl)
+                    pipe.zremrangebyscore(claimed_key, "-inf", stale_before)
+                    if terminated_fingerprints:
+                        pipe.zrem(claimed_key, *terminated_fingerprints)
+                    for i in range(0, len(claimed_to_consume), CHUNK_SIZE):
+                        chunk = claimed_to_consume[i : i + CHUNK_SIZE]
+                        if chunk:
+                            pipe.zrem(claimed_key, *chunk)
+                    if claimed_trim_excess:
+                        pipe.zremrangebyrank(claimed_key, 0, claimed_trim_excess - 1)
+                    pipe.expire(claimed_key, soft_ttl)
+                    pipe.zremrangebyscore(terminated_key, "-inf", stale_before)
+                    if terminated_to_consume:
+                        pipe.zrem(terminated_key, *terminated_to_consume)
+                    if terminated_trim_excess:
+                        pipe.zremrangebyrank(terminated_key, 0, terminated_trim_excess - 1)
+                    pipe.expire(terminated_key, soft_ttl)
+                    pipe.execute()
+                    trimmed_count = trim_excess
+                    claimed_trimmed_count = claimed_trim_excess
+                    terminated_trimmed_count = terminated_trim_excess
+                    active_read_error = current_read_error
+                    break
+                except WatchError:
+                    observed_active_before_conflict.update(active_fingerprints)
+                    if attempt + 1 == ACTIVE_UPDATE_RETRIES:
+                        raise
+                finally:
+                    pipe.reset()
+
+        if rejected_count:
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="active_over_limit").inc(
+                rejected_count
+            )
+            logger.warning(
+                "[detect][new_series] strategy(%s) item(%s) level(%s) active members rejected(%s), max_series(%s)",
+                item.strategy.id,
+                item.id,
+                self.level,
+                rejected_count,
+                self.max_series,
+            )
+
+        if trimmed_count:
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="active_trim").inc(
+                trimmed_count
+            )
+            logger.warning(
+                "[detect][new_series] strategy(%s) item(%s) level(%s) active members trimmed(%s), max_series(%s)",
+                item.strategy.id,
+                item.id,
+                self.level,
+                trimmed_count,
+                self.max_series,
+            )
+
+        if claimed_trimmed_count:
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="claimed_trim").inc(
+                claimed_trimmed_count
+            )
+            logger.warning(
+                "[detect][new_series] strategy(%s) item(%s) level(%s) claimed markers trimmed(%s), max_series(%s)",
+                item.strategy.id,
+                item.id,
+                self.level,
+                claimed_trimmed_count,
+                self.max_series,
+            )
+
+        if terminated_trimmed_count:
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="terminated_trim").inc(
+                terminated_trimmed_count
+            )
+            logger.warning(
+                "[detect][new_series] strategy(%s) item(%s) level(%s) terminated markers trimmed(%s), max_series(%s)",
+                item.strategy.id,
+                item.id,
+                self.level,
+                terminated_trimmed_count,
+                self.max_series,
+            )
+
+        return active_fingerprints, claimed_fingerprints, terminated_fingerprints, active_read_error
 
     def _read_and_write(self, data_points, item, sig):
         strategy_id = item.strategy.id

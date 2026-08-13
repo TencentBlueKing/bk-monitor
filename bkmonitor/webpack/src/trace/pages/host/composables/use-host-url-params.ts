@@ -136,7 +136,7 @@ export const useHostUrlParams = () => {
     hostStore.hostProcessName = (hostProcessName || '') as string;
     /** 恢复进程列表搜索关键词 */
     hostStore.hostProcessKeyword = (hostProcessKeyword || '') as string;
-    hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
+    hostStore.timeRange = from && to ? [from as string, to as string] : ['now-1h', 'now'];
     hostStore.timezone = (timezone as string) || window.timezone;
     hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
   }

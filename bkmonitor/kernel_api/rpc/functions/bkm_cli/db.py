@@ -43,6 +43,13 @@ class ModelSpec:
     fields: set[str] = field(default_factory=set)
     sensitive_fields: set[str] = field(default_factory=set)
     default_fields: set[str] = field(default_factory=set)
+    # 服务端强制叠加的行级范围。调用方可省略或显式传同值，但冲突条件必须拒绝，
+    # 避免静默覆盖后返回与请求语义不一致的证据。
+    fixed_filters: dict[str, Any] = field(default_factory=dict)
+    # 服务端惰性叠加的 queryset 范围，用于不能用固定字段值表达的关联限定。
+    queryset_scope: Callable[[Any], Any] | None = None
+    # list-db-models 中对 queryset_scope 的可审计说明，不暴露可执行对象。
+    server_scope: str = ""
     examples: list[dict[str, Any]] = field(default_factory=list)
     # 行级脱敏钩子：敏感性按行内容（而非固定字段）判定的模型使用，如 GlobalConfig 按 key 名脱敏 value。
     # 签名为 (serialized_item, instance)：必须从 instance 判定敏感性，
@@ -83,6 +90,59 @@ def _mask_global_config_row(item: dict[str, Any], instance: Any) -> dict[str, An
     if GLOBAL_CONFIG_SENSITIVE_KEY_PATTERN.search(key) or _looks_like_credential(item["value"]):
         item["value"] = MASKED_VALUE
     return item
+
+
+def _scope_by_graph_data_link_name(queryset: Any) -> Any:
+    from django.db.models import Exists, OuterRef
+
+    from metadata.models.data_link.data_link import DataLink
+
+    graph_data_links = DataLink.objects.filter(
+        bk_tenant_id=OuterRef("bk_tenant_id"),
+        data_link_name=OuterRef("data_link_name"),
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    return queryset.filter(Exists(graph_data_links))
+
+
+def _scope_by_graph_table_id(queryset: Any) -> Any:
+    from django.db.models import Exists, Func, OuterRef
+
+    from metadata.models.data_link.data_link import DataLink
+
+    graph_data_links = DataLink.objects.filter(
+        bk_tenant_id=OuterRef("bk_tenant_id"),
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        table_ids__contains=Func(OuterRef("table_id"), function="JSON_ARRAY"),
+    )
+    return queryset.filter(Exists(graph_data_links))
+
+
+def _scope_graph_data_source_result_table(queryset: Any) -> Any:
+    from django.db.models import Exists, Func, OuterRef
+
+    from metadata.models.data_link.data_link import DataLink
+
+    graph_data_links = DataLink.objects.filter(
+        bk_tenant_id=OuterRef("bk_tenant_id"),
+        bk_data_id=OuterRef("bk_data_id"),
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        table_ids__contains=Func(OuterRef("table_id"), function="JSON_ARRAY"),
+    )
+    return queryset.filter(Exists(graph_data_links))
+
+
+def _scope_graph_space_data_source(queryset: Any) -> Any:
+    from django.db.models import Exists, OuterRef
+
+    from metadata.models.data_link.data_link import DataLink
+
+    graph_data_links = DataLink.objects.filter(
+        bk_tenant_id=OuterRef("bk_tenant_id"),
+        bk_data_id=OuterRef("bk_data_id"),
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    return queryset.filter(Exists(graph_data_links))
 
 
 # DeploymentConfigVersion.params 是 SymmetricJsonField（落库加密、读时解密），可能含采集目标的账号口令。
@@ -315,6 +375,390 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             {
                 "filter": {"table_id__endswith": ".cpu_summary"},
                 "fields": ["table_id", "bk_tenant_id", "bk_biz_id", "default_storage", "data_label"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.result_table.ResultTableOption": ModelSpec(
+        model_path="metadata.models.result_table.ResultTableOption",
+        fields={"bk_tenant_id", "table_id", "name", "value_type", "value", "create_time"},
+        default_fields={"bk_tenant_id", "table_id", "name", "value_type", "value"},
+        fixed_filters={"name": "graph_relation_v4_data_link"},
+        note=(
+            "仅用于读取 Graph Relation V4 的 graph_relation_v4_data_link 选项，确认 write_targets。"
+            "服务端固定 name 条件，不能读取或过滤其他 ResultTableOption.value。"
+        ),
+        examples=[
+            {
+                "filter": {
+                    "bk_tenant_id": "system",
+                    "table_id": "system_2_demo.__default__",
+                    "name": "graph_relation_v4_data_link",
+                },
+                "fields": ["bk_tenant_id", "table_id", "name", "value_type", "value"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.storage.SurrealDBStorage": ModelSpec(
+        model_path="metadata.models.storage.SurrealDBStorage",
+        fields={"bk_tenant_id", "table_id", "table_type", "vertices", "relations", "storage_cluster_id"},
+        default_fields={"bk_tenant_id", "table_id", "table_type", "storage_cluster_id"},
+        queryset_scope=_scope_by_graph_table_id,
+        server_scope=("仅返回 table_id 存在于同租户 graph_relation_time_series DataLink.table_ids 的记录。"),
+        note=(
+            "Graph Relation V4 的本地 SurrealDB 存储声明，用于核对图表类型、顶点、关系和集群 ID。"
+            "不包含 SurrealDB 地址、账号、密码或 token。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "table_id": "system_2_demo.__default__"},
+                "fields": [
+                    "bk_tenant_id",
+                    "table_id",
+                    "table_type",
+                    "vertices",
+                    "relations",
+                    "storage_cluster_id",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.bkdata.result_table.BkBaseResultTable": ModelSpec(
+        model_path="metadata.models.bkdata.result_table.BkBaseResultTable",
+        fields={
+            "bk_tenant_id",
+            "data_link_name",
+            "bkbase_data_name",
+            "storage_type",
+            "monitor_table_id",
+            "storage_cluster_id",
+            "status",
+            "bkbase_table_id",
+            "bkbase_rt_name",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "data_link_name",
+            "storage_type",
+            "monitor_table_id",
+            "status",
+            "bkbase_table_id",
+            "bkbase_rt_name",
+        },
+        queryset_scope=_scope_by_graph_data_link_name,
+        server_scope=("仅返回 data_link_name 匹配同租户 graph_relation_time_series DataLink 的记录。"),
+        note=(
+            "BKBase 结果表落地状态，用 data_link_name/monitor_table_id 对账 DataLink，"
+            "并确认 storage_type、status 和 BKBase 回填 ID。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "monitor_table_id": "system_2_demo.__default__"},
+                "fields": [
+                    "bk_tenant_id",
+                    "data_link_name",
+                    "storage_type",
+                    "monitor_table_id",
+                    "status",
+                    "bkbase_table_id",
+                    "bkbase_rt_name",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_link.data_link.DataLink": ModelSpec(
+        model_path="metadata.models.data_link.data_link.DataLink",
+        fields={
+            "bk_tenant_id",
+            "data_link_name",
+            "namespace",
+            "data_link_strategy",
+            "bk_data_id",
+            "table_ids",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "data_link_name",
+            "namespace",
+            "data_link_strategy",
+            "bk_data_id",
+            "table_ids",
+        },
+        fixed_filters={"data_link_strategy": "graph_relation_time_series"},
+        note=(
+            "仅查询 graph_relation_time_series 链路主记录，核对租户、dataid、结果表列表和命名空间。"
+            "服务端固定 data_link_strategy，不扩展为其他 DataLink 的通用读取。"
+        ),
+        examples=[
+            {
+                "filter": {
+                    "bk_tenant_id": "system",
+                    "data_link_strategy": "graph_relation_time_series",
+                    "data_link_name__contains": "demo",
+                },
+                "fields": [
+                    "bk_tenant_id",
+                    "data_link_name",
+                    "namespace",
+                    "data_link_strategy",
+                    "bk_data_id",
+                    "table_ids",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_link.data_link_configs.ResultTableConfig": ModelSpec(
+        model_path="metadata.models.data_link.data_link_configs.ResultTableConfig",
+        fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "data_type",
+            "table_id",
+            "bkbase_table_id",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "status",
+            "data_type",
+            "table_id",
+            "bkbase_table_id",
+        },
+        queryset_scope=_scope_by_graph_data_link_name,
+        server_scope=("仅返回 data_link_name 匹配同租户 graph_relation_time_series DataLink 的记录。"),
+        note=(
+            "DataLink ResultTable 组件状态；Graph V4 需同时核对 VM 分支(data_type=metric)"
+            "与 SurrealDB 分支(data_type=graph)，不能用 data_type 固定裁掉任一分支。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "data_link_name": "demo_graph_relation"},
+                "fields": [
+                    "bk_tenant_id",
+                    "namespace",
+                    "name",
+                    "data_link_name",
+                    "status",
+                    "data_type",
+                    "table_id",
+                    "bkbase_table_id",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_link.data_link_configs.VMStorageBindingConfig": ModelSpec(
+        model_path="metadata.models.data_link.data_link_configs.VMStorageBindingConfig",
+        fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "vm_cluster_name",
+            "bkbase_result_table_name",
+            "table_id",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "status",
+            "vm_cluster_name",
+            "bkbase_result_table_name",
+            "table_id",
+        },
+        queryset_scope=_scope_by_graph_data_link_name,
+        server_scope=("仅返回 data_link_name 匹配同租户 graph_relation_time_series DataLink 的记录。"),
+        note=("Graph V4 VM 写入分支的绑定状态和逻辑集群名。仅开放集群标识，不开放存储地址、端口、账号、密码或 token。"),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "data_link_name": "demo_graph_relation"},
+                "fields": [
+                    "bk_tenant_id",
+                    "namespace",
+                    "name",
+                    "data_link_name",
+                    "status",
+                    "vm_cluster_name",
+                    "bkbase_result_table_name",
+                    "table_id",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_link.data_link_configs.SurrealDBBindingConfig": ModelSpec(
+        model_path="metadata.models.data_link.data_link_configs.SurrealDBBindingConfig",
+        fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "surrealdb_cluster_name",
+            "table_id",
+            "bkbase_result_table_name",
+            "table_type",
+            "vertices",
+            "relations",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "status",
+            "surrealdb_cluster_name",
+            "table_id",
+            "bkbase_result_table_name",
+            "table_type",
+        },
+        queryset_scope=_scope_by_graph_data_link_name,
+        server_scope=("仅返回 data_link_name 匹配同租户 graph_relation_time_series DataLink 的记录。"),
+        note=(
+            "Graph V4 SurrealDB 写入分支的绑定状态和图定义，用于与 SurrealDBStorage 对账。"
+            "仅开放逻辑集群名，不开放连接地址、凭据或 token。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "data_link_name": "demo_graph_relation"},
+                "fields": [
+                    "bk_tenant_id",
+                    "namespace",
+                    "name",
+                    "data_link_name",
+                    "status",
+                    "surrealdb_cluster_name",
+                    "table_id",
+                    "bkbase_result_table_name",
+                    "table_type",
+                    "vertices",
+                    "relations",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_link.data_link_configs.DataBusConfig": ModelSpec(
+        model_path="metadata.models.data_link.data_link_configs.DataBusConfig",
+        fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "data_id_name",
+            "bk_data_id",
+            "sink_names",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "status",
+            "data_id_name",
+            "bk_data_id",
+            "sink_names",
+        },
+        queryset_scope=_scope_by_graph_data_link_name,
+        server_scope=("仅返回 data_link_name 匹配同租户 graph_relation_time_series DataLink 的记录。"),
+        note=(
+            "Graph V4 VM/SurrealDB Databus 组件对账，sink_names 用于确认实际写入分支。"
+            "consumer_group 不属于本轮 Graph 控制面最小证据，保持不可读、不可过滤。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "data_link_name": "demo_graph_relation"},
+                "fields": [
+                    "bk_tenant_id",
+                    "namespace",
+                    "name",
+                    "data_link_name",
+                    "status",
+                    "data_id_name",
+                    "bk_data_id",
+                    "sink_names",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_source.DataSourceResultTable": ModelSpec(
+        model_path="metadata.models.data_source.DataSourceResultTable",
+        fields={"bk_tenant_id", "bk_data_id", "table_id", "create_time"},
+        default_fields={"bk_tenant_id", "bk_data_id", "table_id", "create_time"},
+        queryset_scope=_scope_graph_data_source_result_table,
+        server_scope=(
+            "仅返回 (bk_tenant_id, bk_data_id, table_id) 同时命中同一 graph_relation_time_series DataLink 的记录。"
+        ),
+        note="数据源与结果表映射，用于从 Graph V4 table_id 对账实际 bk_data_id；不开放创建人。",
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "table_id": "system_2_demo.__default__"},
+                "fields": ["bk_tenant_id", "bk_data_id", "table_id", "create_time"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.space.space.SpaceDataSource": ModelSpec(
+        model_path="metadata.models.space.space.SpaceDataSource",
+        fields={
+            "bk_tenant_id",
+            "space_type_id",
+            "space_id",
+            "bk_data_id",
+            "from_authorization",
+            "create_time",
+            "update_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "space_type_id",
+            "space_id",
+            "bk_data_id",
+            "from_authorization",
+        },
+        queryset_scope=_scope_graph_space_data_source,
+        server_scope=("仅返回 (bk_tenant_id, bk_data_id) 命中 graph_relation_time_series DataLink 的记录。"),
+        note="空间与数据源映射，用于确认 Graph V4 数据源对哪些空间可见；不开放创建人或更新人。",
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "bk_data_id": 50010},
+                "fields": [
+                    "bk_tenant_id",
+                    "space_type_id",
+                    "space_id",
+                    "bk_data_id",
+                    "from_authorization",
+                ],
                 "limit": 20,
             }
         ],
@@ -605,6 +1049,8 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
     queryset = getattr(model_cls, spec.manager_name).all()
+    if spec.queryset_scope is not None:
+        queryset = spec.queryset_scope(queryset)
     if spec.select_related:
         queryset = queryset.select_related(*spec.select_related)
     queryset = queryset.filter(**normalized_filter)
@@ -660,6 +1106,10 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
     }
     if spec.note:
         serialized["note"] = spec.note
+    if spec.fixed_filters:
+        serialized["fixed_filters"] = spec.fixed_filters
+    if spec.server_scope:
+        serialized["server_scope"] = spec.server_scope
     if spec.row_masker is not None:
         serialized["row_masking"] = spec.row_mask_note or f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
     # 仅非默认 manager 才回显，避免改动既有模型自描述（默认 objects 的模型输出保持不变）。
@@ -709,7 +1159,18 @@ def _normalize_filter(raw_filter: dict[str, Any], spec: ModelSpec) -> dict[str, 
         if lookup not in ALLOWED_LOOKUPS:
             _raise_discovery_error(f"不支持的 lookup: {lookup}")
         normalized_key = field_name if lookup == "exact" else f"{field_name}__{lookup}"
+        if normalized_key in normalized_filter:
+            _raise_discovery_error(f"filter 包含重复条件: {normalized_key}")
         normalized_filter[normalized_key] = value
+
+    for fixed_field, fixed_value in spec.fixed_filters.items():
+        for key, value in normalized_filter.items():
+            field_name, lookup = _split_lookup(key)
+            if field_name != fixed_field:
+                continue
+            if lookup != "exact" or value != fixed_value:
+                _raise_discovery_error(f"filter 与模型固定条件冲突: {fixed_field}")
+        normalized_filter[fixed_field] = fixed_value
     return normalized_filter
 
 

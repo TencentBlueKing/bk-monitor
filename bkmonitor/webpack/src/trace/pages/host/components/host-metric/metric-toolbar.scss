@@ -91,12 +91,12 @@
     width: 240px;
   }
 
-  &__checkbox {
+  .metric-toolbar__checkbox {
     font-size: 12px;
     color: #4d4f56;
     white-space: nowrap;
 
-    & + & {
+    & + .metric-toolbar__checkbox {
       margin-left: 0;
     }
   }
@@ -146,6 +146,51 @@
 
       .icon-monitor {
         color: #3a84ff;
+      }
+    }
+  }
+}
+
+.bk-popover.bk-pop2-content.metric-toolbar-column-popover {
+  padding: 0;
+
+  .metric-toolbar__column-menu {
+    display: flex;
+    flex-direction: column;
+    min-width: 88px;
+    padding: 4px 0;
+
+    &-item {
+      display: flex;
+      column-gap: 8px;
+      align-items: center;
+      height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #63656e;
+      cursor: pointer;
+
+      .icon-monitor {
+        font-size: 16px;
+        color: #979ba5;
+      }
+
+      &:hover {
+        color: #3a84ff;
+        background: #f5f7fa;
+
+        .icon-monitor {
+          color: #3a84ff;
+        }
+      }
+
+      &.active {
+        color: #3a84ff;
+        background: #e1ecff;
+
+        .icon-monitor {
+          color: #3a84ff;
+        }
       }
     }
   }

@@ -27,17 +27,19 @@
 import { type PropType, computed, defineComponent, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { Exception, Sideslider } from 'bkui-vue';
+import { getHostProcessUptime } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
 import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
+import TagOverflow from '../../../../../components/tag-overflow/tag-overflow';
 import TimeRange from '../../../../../components/time-range/time-range';
-import { getDefaultTimezone } from '../../../../../i18n/dayjs';
+import { handleTransformToTimestamp } from '../../../../../components/time-range/utils';
 import { ProcessDetailTabEnum } from '../../../../../pages/host/constants/enum';
 import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pages/host/constants/process';
-import { formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
+import { formatProcessSeriesAlias, formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
 import { useMetricAggregation } from '../../../composables/use-metric-aggregation';
 import { useProcessMetric } from '../../../composables/use-process-metric';
 import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
@@ -53,7 +55,7 @@ import type {
   ProcessDetailTabType,
 } from '../../../../../pages/host/types';
 import type { CustomOptions } from '../../../../trace-explore/components/explore-chart/use-echarts';
-import type { ProcessItem } from '../../../types/process';
+import type { ProcessItem, ProcessPort } from '../../../types/process';
 
 import './process-detail.scss';
 
@@ -92,20 +94,33 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const { processMetricAggregationState } = storeToRefs(useHostStore());
+    const {
+      processMetricAggregationState,
+      timeRange: hostTimeRange,
+      timezone: hostTimezone,
+    } = storeToRefs(useHostStore());
 
     /** 当前二级 Tab，默认指标视图 */
     const activeTab = shallowRef<ProcessDetailTabType>(ProcessDetailTabEnum.METRIC);
-    /** 抽屉本地的时间范围（独立于页面顶栏，仅驱动详情内图表） */
-    const timeRange = shallowRef<TimeRangeType>(['now-1d', 'now']);
-    /** 抽屉本地时区，跟随 timeRange 一起下发给图表 */
-    const timezone = shallowRef(getDefaultTimezone());
+    /** 抽屉时间范围初始继承页面顶栏，之后可在抽屉内独立调整 */
+    const timeRange = shallowRef<TimeRangeType>([...hostTimeRange.value]);
+    /** 抽屉时区初始继承页面顶栏，跟随 timeRange 一起下发给图表 */
+    const timezone = shallowRef(hostTimezone.value);
     /** 自动刷新间隔（秒），-1 表示关闭 */
     const refreshInterval = shallowRef(-1);
     /** 立即刷新信号：变更该值即触发下游图表重新取数 */
     const refreshImmediate = shallowRef('');
+    /** 进程运行时长快照：值为秒，观测时刻为抽屉局部时间范围的结束秒。 */
+    const processUptimeSnapshot = shallowRef<{ observedAt: number; value: null | number }>({
+      observedAt: 0,
+      value: null,
+    });
+    let processUptimeRequestId = 0;
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
+    const timeShift = computed(() =>
+      processMetricAggregationState.value.compareType === 'time' ? processMetricAggregationState.value.timeShift : []
+    );
 
     const cacheTimeRange = shallowRef(null);
     const showRestore = shallowRef(false);
@@ -141,6 +156,7 @@ export default defineComponent({
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
     provide('viewOptions', aggregation.viewOptions);
+    provide('timeOffset', timeShift);
 
     /** 根据选中节点类型，生成当前目标的查询参数 */
     const currentTarget = computed<CompareTarget | null>(() => {
@@ -167,18 +183,13 @@ export default defineComponent({
       ...(props.process?.name ? { display_name: props.process.name } : {}),
     }));
 
-    /**
-     * 图表自定义配置：图例名称中的进程唯一标识（如 127.0.0.1_elasticsearch_1000）替换为进程名展示。
-     * 注：取数仍使用唯一 id，此处仅做展示层替换，保留名称其余部分（如同环比后缀）。
-     */
+    /** 图表图例默认展示进程名，用户按 PID 分组时追加实例 PID。 */
     const chartCustomOptions: CustomOptions = {
       series: seriesData =>
-        seriesData.map(item => {
-          // @ts-expect-error
-          const dimensions = item.dimensions;
-          // @ts-expect-error
-          return { ...item, alias: dimensions ? `${dimensions.display_name}|${dimensions.pid}` : item.alias };
-        }),
+        seriesData.map(item => ({
+          ...item,
+          alias: formatProcessSeriesAlias(item.raw_data.dimensions, item.raw_data.alias ?? item.name),
+        })),
     };
 
     /**
@@ -244,7 +255,19 @@ export default defineComponent({
     const renderInfo = () => {
       const process = props.process;
       if (!process) return null;
-      const portConfig = PROCESS_PORT_STATUS_MAP[process.portStatus];
+      const ports: ProcessPort[] = process.ports?.length
+        ? process.ports
+        : process.protocol && process.bindIp && process.port
+          ? [
+              {
+                protocol: process.protocol,
+                bindIp: process.bindIp,
+                port: process.port,
+                portStatus: process.portStatus,
+              },
+            ]
+          : [];
+      const formatPort = (port: ProcessPort) => `${port.protocol} ${port.bindIp}:${port.port}`;
       return (
         <div class='process-detail-info'>
           <div class='process-detail-logo'>
@@ -259,23 +282,41 @@ export default defineComponent({
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('运行时长')}：</span>
-                <span class='process-detail-kv-value'>{formatProcessUptimeDetail(process.uptime)}</span>
+                <span class='process-detail-kv-value'>
+                  {formatProcessUptimeDetail(processUptimeSnapshot.value.value, processUptimeSnapshot.value.observedAt)}
+                </span>
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('实例数')}：</span>
                 <span class='process-detail-kv-value'>{process.instanceCount ?? '--'}</span>
               </div>
-              <div class='process-detail-kv'>
+              <div class='process-detail-kv process-detail-kv--ports'>
                 <span class='process-detail-kv-label'>{t('端口')}：</span>
-                <span
-                  style={{ backgroundColor: portConfig?.color || '#c4c6cc' }}
-                  class='process-detail-kv-dot'
-                />
-                <span class='process-detail-kv-value'>
-                  {process.protocol && process.bindIp && process.port
-                    ? `${process.protocol} ${process.bindIp}:${process.port}`
-                    : '--'}
-                </span>
+                <TagOverflow
+                  class='process-detail-port-list'
+                  getLabel={item => formatPort(item as ProcessPort)}
+                  list={ports}
+                  overflowClass='process-detail-port-more'
+                >
+                  {{
+                    default: ({ item }: { item: ProcessPort }) => {
+                      const portConfig = PROCESS_PORT_STATUS_MAP[item.portStatus];
+                      return (
+                        <span
+                          key={formatPort(item)}
+                          class='process-detail-port-item'
+                        >
+                          <span
+                            style={{ backgroundColor: portConfig?.color || '#c4c6cc' }}
+                            class='process-detail-kv-dot'
+                          />
+                          <span class='process-detail-kv-value'>{formatPort(item)}</span>
+                        </span>
+                      );
+                    },
+                    empty: () => <span class='process-detail-kv-value'>--</span>,
+                  }}
+                </TagOverflow>
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('启动命令')}：</span>
@@ -380,10 +421,55 @@ export default defineComponent({
       () => props.show,
       show => {
         if (show) {
+          timeRange.value = [...hostTimeRange.value];
+          timezone.value = hostTimezone.value;
           load();
           startRefreshTimer(refreshInterval.value);
         } else {
           clearRefreshTimer();
+        }
+      },
+      { immediate: true }
+    );
+
+    /** 按抽屉当前主机与局部时点重查运行时长，并阻止旧请求覆盖新快照。 */
+    watch(
+      [
+        () => props.show,
+        () => props.process?.name,
+        () => (props.selectedNode && 'bk_host_id' in props.selectedNode ? props.selectedNode.bk_host_id : null),
+        timeRange,
+        refreshImmediate,
+      ],
+      async () => {
+        const requestId = ++processUptimeRequestId;
+        processUptimeSnapshot.value = { observedAt: 0, value: null };
+        const node = props.selectedNode;
+        if (!props.show || !props.process?.name || !node || !('bk_host_id' in node)) return;
+
+        const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+        try {
+          const result = await getHostProcessUptime(
+            {
+              bk_biz_id: node.bk_biz_id,
+              bk_host_id: node.bk_host_id,
+              display_name: props.process.name,
+              start_time: startTime,
+              end_time: endTime,
+            },
+            { needMessage: false }
+          );
+          if (requestId !== processUptimeRequestId) return;
+
+          const value = result?.value === '' || result?.value == null ? null : Number(result.value);
+          processUptimeSnapshot.value = {
+            observedAt: endTime,
+            value: value != null && Number.isFinite(value) ? value : null,
+          };
+        } catch {
+          if (requestId === processUptimeRequestId) {
+            processUptimeSnapshot.value = { observedAt: endTime, value: null };
+          }
         }
       },
       { immediate: true }

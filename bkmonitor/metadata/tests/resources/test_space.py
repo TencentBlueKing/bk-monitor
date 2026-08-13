@@ -142,8 +142,7 @@ def test_get_space_detail(create_and_delete_space_record):
 
 
 @patch("metadata.task.tasks.push_space_to_redis.delay")
-@patch("metadata.task.tasks.push_and_publish_space_router.delay")
-def test_create_space(push_and_publish_space_router, push_space_to_redis, create_and_delete_space_record):
+def test_create_space(push_space_to_redis, create_and_delete_space_record):
     space_id = generate_random_string()
     space_name = generate_random_string()
     req_data = {
@@ -195,11 +194,10 @@ def test_create_space(push_and_publish_space_router, push_space_to_redis, create
     assert space_resource[0]["resource_type"] == TYPE_ID
     # 校验开启容器服务
     assert space_obj.is_bcs_valid
+    push_space_to_redis.assert_called_once_with(space_type=TYPE_ID, space_id=space_id)
 
 
-@patch("metadata.task.tasks.push_space_to_redis.delay")
-@patch("metadata.task.tasks.push_and_publish_space_router.delay")
-def test_update_space(push_and_publish_space_router, push_space_to_redis, create_and_delete_space_record):
+def test_update_space(create_and_delete_space_record):
     space_name = generate_random_string()
     resource_id = "100149"
     resource_type = "bkcc"

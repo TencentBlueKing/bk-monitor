@@ -25,6 +25,7 @@ from constants.action import (
     ALL_CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
     GLOBAL_BIZ_ID,
+    MAX_ACTION_EXECUTE_TIMEOUT,
     ActionSignal,
     IntervalNotifyMode,
     NoticeChannel,
@@ -321,7 +322,7 @@ class HttpCallBackConfigSlz(PollModeConfig):
 class ExecuteConfigSlz(serializers.Serializer):
     template_detail = serializers.JSONField(required=True)
     template_id = serializers.CharField(required=False, allow_blank=True)
-    timeout = serializers.IntegerField(required=False, default=600, min_value=60, max_value=7 * 24 * 60 * 60)
+    timeout = serializers.IntegerField(required=False, default=600, min_value=60, max_value=MAX_ACTION_EXECUTE_TIMEOUT)
 
 
 class ActionConfigBaseInfoSlz(serializers.ModelSerializer):

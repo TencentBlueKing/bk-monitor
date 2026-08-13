@@ -31,7 +31,12 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useHostStore } from '../../../../store/modules/host';
-import { type HostContentTab, type HostPerspective, HOST_PERSPECTIVE_TAB_MAP } from '../../constants/constants';
+import {
+  type HostContentTab,
+  type HostPerspective,
+  getHostPerspectiveTabList,
+  resolveHostContentTab,
+} from '../../constants/constants';
 import { isHostNode } from '../../utils/topo-tree';
 import HostList from '../host-list/host-list';
 import HostMetric from '../host-metric/host-metric';
@@ -54,6 +59,10 @@ export default defineComponent({
       type: Array as PropType<IHostTopoHostNode[]>,
       default: () => [],
     },
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     selectIpCell: (_row: IHostListRow) => true,
@@ -70,30 +79,68 @@ export default defineComponent({
     );
 
     /** 当前视角对应的 Tab 列表 */
-    const tabList = computed(() => HOST_PERSPECTIVE_TAB_MAP[perspective.value]);
+    const tabList = computed(() => getHostPerspectiveTabList(perspective.value, !!window.enable_cmdb_level));
 
     /** 当前激活 Tab */
-    const activeTab = shallowRef<HostContentTab>((route.query.activeTab as HostContentTab) || tabList.value[0].value);
+    const activeTab = shallowRef<HostContentTab>(resolveHostContentTab(route.query.activeTab, tabList.value));
 
-    watch(activeTab, () => {
-      hostActiveTab.value = activeTab.value;
-    });
-
-    // 切换视角时优先保持当前激活 Tab（若新视角支持该 Tab），否则回退到默认 Tab
-    watch(perspective, () => {
-      if (tabList.value.map(tab => tab.value).includes(hostActiveTab.value)) {
-        activeTab.value = hostActiveTab.value as HostContentTab;
-      } else {
-        activeTab.value = tabList.value[0].value;
+    watch(activeTab, value => {
+      if (hostActiveTab.value !== value) {
+        hostActiveTab.value = value;
       }
     });
+
+    // URL 参数会在父组件挂载时写入 store；同步校验视角和能力，避免恢复到不可用 Tab。
+    watch(
+      [() => props.selectedNode, perspective, hostActiveTab],
+      () => {
+        const requestedTab = hostActiveTab.value || route.query.activeTab;
+        // 拓扑尚未返回时无法判断 nodeId 是否为主机，先保留合法的主机详情直达 Tab。
+        if (!props.selectedNode && (requestedTab === 'system' || requestedTab === 'process')) {
+          activeTab.value = requestedTab;
+          if (hostActiveTab.value !== requestedTab) {
+            hostActiveTab.value = requestedTab;
+          }
+          return;
+        }
+        const nextActiveTab = resolveHostContentTab(requestedTab, tabList.value);
+        activeTab.value = nextActiveTab;
+        if (hostActiveTab.value !== nextActiveTab) {
+          hostActiveTab.value = nextActiveTab;
+        }
+      },
+      { immediate: true }
+    );
 
     const handleTabChange = (value: HostContentTab) => {
       activeTab.value = value;
     };
 
+    const handleTabKeydown = (event: KeyboardEvent, index: number) => {
+      const lastIndex = tabList.value.length - 1;
+      const nextIndexMap: Partial<Record<KeyboardEvent['key'], number>> = {
+        ArrowLeft: index === 0 ? lastIndex : index - 1,
+        ArrowRight: index === lastIndex ? 0 : index + 1,
+        End: lastIndex,
+        Home: 0,
+      };
+      const nextIndex = nextIndexMap[event.key];
+      if (nextIndex === undefined) {
+        return;
+      }
+      event.preventDefault();
+      handleTabChange(tabList.value[nextIndex].value);
+      const tabElements = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLElement>(
+        '[role="tab"]'
+      );
+      tabElements?.[nextIndex]?.focus();
+    };
+
     /** 点击主机列表 IP 单元格时向上冒泡，由页面层处理拓扑树聚焦 */
     const handleSelectIpCell = row => {
+      if (props.readonly) {
+        return;
+      }
       emit('selectIpCell', row);
     };
 
@@ -103,6 +150,9 @@ export default defineComponent({
      * @param {string} processName - 被点击的进程名称
      */
     const handleProcessClick = (row: IHostListRow, processName: string) => {
+      if (props.readonly) {
+        return;
+      }
       const targetRoute = router.resolve({
         name: 'host',
         query: {
@@ -121,6 +171,7 @@ export default defineComponent({
         case 'list':
           return (
             <HostList
+              readonly={props.readonly}
               selectedNode={props.selectedNode}
               onProcessClick={handleProcessClick}
               onSelectIpCell={handleSelectIpCell}
@@ -149,23 +200,40 @@ export default defineComponent({
 
     return () => (
       <div class='host-content-tabs'>
-        <div class='host-content-tabs__tabs'>
-          {tabList.value.map(tab => (
-            <div
-              key={tab.value}
-              class={['host-content-tabs__tab', { 'is-active': activeTab.value === tab.value }]}
-              onClick={() => handleTabChange(tab.value)}
-            >
-              <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
-              <span>{t(tab.label)}</span>
-            </div>
-          ))}
+        <div
+          class='host-content-tabs__tabs'
+          aria-label={t('主机观测视图')}
+          role='tablist'
+        >
+          {tabList.value.map((tab, index) => {
+            const isActive = activeTab.value === tab.value;
+            return (
+              <button
+                id={`host-content-tab-${tab.value}`}
+                key={tab.value}
+                class={['host-content-tabs__tab', { 'is-active': isActive }]}
+                aria-controls='host-content-panel'
+                aria-selected={isActive}
+                role='tab'
+                tabindex={isActive ? 0 : -1}
+                type='button'
+                onClick={() => handleTabChange(tab.value)}
+                onKeydown={(event: KeyboardEvent) => handleTabKeydown(event, index)}
+              >
+                <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
+                <span>{t(tab.label)}</span>
+              </button>
+            );
+          })}
         </div>
         <div
+          id='host-content-panel'
           class={{
             'is-host-list': activeTab.value === 'list',
             'host-content-tabs__content': true,
           }}
+          aria-labelledby={`host-content-tab-${activeTab.value}`}
+          role='tabpanel'
         >
           {props.selectedNode && renderContent()}
         </div>

@@ -24,28 +24,41 @@
  * IN THE SOFTWARE.
  */
 
-import { type ShallowRef, shallowRef, watch } from 'vue';
+import { type InjectionKey, type ShallowRef, provide, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
+import { storeToRefs } from 'pinia';
 
 import { isHostNode } from '../utils/topo-tree';
+import { useHostStore } from '@/store/modules/host';
 
 import type { IDetailItem } from '../../../components/common-detail/typing';
 import type { IHostTopoTreeNode } from '../types';
+
+interface IHostDetailState {
+  error: ShallowRef<boolean>;
+  retry: () => void;
+}
+
+export const HOST_DETAIL_STATE_KEY: InjectionKey<IHostDetailState> = Symbol('host-detail-state');
 
 /**
  * @description 监听拓扑选中节点变化（带防抖），调用接口获取主机详情数据
  */
 export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>) => {
+  const { refreshGeneration } = storeToRefs(useHostStore());
   /** 详情数据 */
   const detailData = shallowRef<IDetailItem[]>([]);
   /** 加载状态 */
   const loading = shallowRef(false);
+  /** 请求失败状态（与成功空数据分开） */
+  const error = shallowRef(false);
+  /** 仅允许最新节点 / 刷新代次对应的请求提交状态 */
+  let latestRequestId = 0;
 
   /** 获取详情数据 */
-  const fetchDetail = async (node: IHostTopoTreeNode) => {
-    loading.value = true;
+  const fetchDetail = async (node: IHostTopoTreeNode, requestId: number) => {
     try {
       const data = await getHostOrTopoNodeDetail(
         isHostNode(node)
@@ -58,7 +71,9 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
               bk_inst_id: node.bk_inst_id,
               bk_obj_id: node.bk_obj_id,
             }
-      ).catch(() => []);
+      );
+      if (requestId !== latestRequestId) return;
+      error.value = false;
       // 处理 list 类型数据
       detailData.value =
         data.map?.((item: IDetailItem) => {
@@ -69,24 +84,47 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
           return item;
         }) || [];
     } catch {
-      detailData.value = [];
+      if (requestId === latestRequestId) {
+        detailData.value = [];
+        error.value = true;
+      }
     } finally {
-      loading.value = false;
+      if (requestId === latestRequestId) {
+        loading.value = false;
+      }
     }
   };
 
   /** 防抖后的 fetch（300ms） */
   const debouncedFetch = useDebounceFn(fetchDetail, 300);
 
+  const requestDetail = (node: IHostTopoTreeNode) => {
+    const requestId = ++latestRequestId;
+    loading.value = true;
+    error.value = false;
+    debouncedFetch(node, requestId);
+  };
+
+  const retry = () => {
+    if (selectedNode.value) {
+      requestDetail(selectedNode.value);
+    }
+  };
+
+  provide(HOST_DETAIL_STATE_KEY, { error, retry });
+
   /** 监听选中节点变化 */
   watch(
-    () => selectedNode.value,
-    node => {
+    [() => selectedNode.value, refreshGeneration],
+    ([node]) => {
       if (!node) {
+        latestRequestId += 1;
         detailData.value = [];
+        loading.value = false;
+        error.value = false;
         return;
       }
-      debouncedFetch(node);
+      requestDetail(node);
     },
     { immediate: true }
   );
@@ -96,7 +134,9 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
 
   return {
     detailData,
+    error,
     loading,
+    retry,
     isHostSelected,
   };
 };

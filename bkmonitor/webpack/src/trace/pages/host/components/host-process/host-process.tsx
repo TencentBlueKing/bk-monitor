@@ -61,20 +61,21 @@ export default defineComponent({
     /** 从 store 获取当前选中进程名称和进程指标汇聚状态 */
     const { hostProcessName, processMetricAggregationState, hostProcessKeyword: keyword } = storeToRefs(useHostStore());
     /** 进程列表数据 hook（含加载状态、搜索、排序） */
-    const { loading, displayList, sortInfo, handleKeywordChange, handleSortChange } = useProcessList({
-      host: toRef(props, 'host'),
-      /**
-       * @description 数据加载完成回调：当 URL 带有 hostProcessName 时自动打开对应进程详情
-       * @param list - 加载完成的进程列表数据
-       */
-      loadDataEnd: (list: ProcessItem[]) => {
-        const row = list.find(item => item.name === hostProcessName.value);
-        if (row) {
-          handleRowClick(row);
-        }
-      },
-      keyword,
-    });
+    const { loadError, loading, displayList, sortInfo, loadData, handleKeywordChange, handleSortChange } =
+      useProcessList({
+        host: toRef(props, 'host'),
+        /**
+         * @description 数据加载完成回调：当 URL 带有 hostProcessName 时自动打开对应进程详情
+         * @param list - 加载完成的进程列表数据
+         */
+        loadDataEnd: (list: ProcessItem[]) => {
+          const row = list.find(item => item.name === hostProcessName.value);
+          if (row) {
+            handleRowClick(row);
+          }
+        },
+        keyword,
+      });
 
     /** 搜索输入防抖（300ms），避免每次按键触发过滤计算 */
     const debouncedKeywordChange = useDebounceFn((value: string) => {
@@ -113,6 +114,8 @@ export default defineComponent({
 
     return {
       t,
+      loadData,
+      loadError,
       loading: loading,
       keyword: keyword,
       displayList: displayList,
@@ -142,12 +145,13 @@ export default defineComponent({
         </div>
         <ProcessTable
           data={this.displayList}
-          emptyType={this.keyword ? 'search-empty' : 'empty'}
+          emptyType={this.loadError ? '500' : this.keyword ? 'search-empty' : 'empty'}
           loading={this.loading}
           sort={this.sortInfo}
           visibleColumns={this.visibleColumns}
           onClearFilter={() => this.handleKeywordChange('')}
           onColumnsChange={(cols: string[]) => (this.visibleColumns = cols)}
+          onRetry={this.loadData}
           onRowClick={this.handleRowClick}
           onSortChange={this.handleSortChange}
         />

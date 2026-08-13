@@ -40,6 +40,7 @@ import AlertContentDetail, {
 } from '../components/alert-content-detail/alert-content-detail';
 
 import type { UseAlertDialogsReturnType } from '../../../composables/use-alert-dialogs';
+import type { AlarmCenterPanelTabType } from '../../../utils/constant';
 import type { IUsePopoverTools } from './use-popover';
 
 export interface UseAlertHandlersOptions {
@@ -54,7 +55,7 @@ export interface UseAlertHandlersOptions {
   /** 保存告警内容数据含义回调 */
   saveContentNameEmit: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => void;
   /** 显示告警详情抽屉回调 */
-  showDetailEmit: (row: AlertTableItem, defaultTab?: string) => void;
+  showDetailEmit: (row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) => void;
 }
 
 export type UseAlertHandlersReturnType = ReturnType<typeof useAlertHandlers>;
@@ -86,7 +87,7 @@ export const useAlertHandlers = ({
    * @param {AlertTableItem} row - 告警记录行数据
    * @param {string} defaultTab - 默认选中的 Tab 页签名
    */
-  const handleAlertSliderShowDetail = (row: AlertTableItem, defaultTab?: string) => {
+  const handleAlertSliderShowDetail = (row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) => {
     showDetailEmit(row, defaultTab);
   };
 
