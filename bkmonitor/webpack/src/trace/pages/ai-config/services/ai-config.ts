@@ -24,7 +24,13 @@
  * IN THE SOFTWARE.
  */
 import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
-import { listSourceAnalysisBkciProjects, listSourceAnalysisBkciRepositories } from 'monitor-api/modules/issue';
+import {
+  getSourceAnalysisConfig,
+  listSourceAnalysisBkciProjects,
+  listSourceAnalysisBkciRepositories,
+  listSourceAnalysisRules,
+  saveSourceAnalysisConfig,
+} from 'monitor-api/modules/issue';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 
 import type {
@@ -35,6 +41,9 @@ import type {
   TBkciProjectsResult,
   TBkciRepositoriesParams,
   TBkciRepositoriesResult,
+  TGetSourceAnalysisConfigResult,
+  TSaveSourceAnalysisConfigParams,
+  TSourceAnalysisRule,
 } from '../typings';
 
 /** 获取 AI 设置配置，失败返回 null 由调用方决定降级表现 */
@@ -63,3 +72,13 @@ export const getBkciRepositories = (params: TBkciRepositoriesParams): Promise<TB
     list: [],
     total: 0,
   }));
+
+/** 保存业务代码库配置 */
+export const setSaveSourceAnalysisConfig = (params: TSaveSourceAnalysisConfigParams) =>
+  saveSourceAnalysisConfig(params);
+/** 查询业务代码库配置 */
+export const getSourceAnalysisConfigData = (params = {}): Promise<TGetSourceAnalysisConfigResult> =>
+  getSourceAnalysisConfig(params);
+/** 查询规则列表 */
+export const getListSourceAnalysisRules = (params = {}): Promise<TSourceAnalysisRule[]> =>
+  listSourceAnalysisRules(params);

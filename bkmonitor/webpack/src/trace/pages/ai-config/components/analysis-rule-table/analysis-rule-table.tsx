@@ -24,15 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Switcher } from 'bkui-vue';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import CommonTable from 'trace/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { useI18n } from 'vue-i18n';
 
 import TagCell from './tag-cell';
 
 import type { TSourceAnalysisRule } from '../../typings';
+import type { FilterValue } from '@blueking/tdesign-ui/typings/packages/table';
 import type { BaseTableColumn } from 'trace/pages/trace-explore/components/trace-explore-table/typing';
 
 import './analysis-rule-table.scss';
@@ -45,9 +47,76 @@ export default defineComponent({
       type: Array as PropType<any[]>,
       default: () => [],
     },
+    /** 列表加载中 */
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    /** 前端搜索关键词，仅匹配匹配方式 condition 的 value、智能体、知识库、skill */
+    searchValue: {
+      type: String,
+      default: '',
+    },
   },
-  setup() {
+  emits: ['clearSearch'],
+  setup(props, { emit }) {
     const { t } = useI18n();
+
+    /**
+     * @description 清空搜索值
+     */
+    const handleClearSearch = () => {
+      emit('clearSearch');
+    };
+
+    /** 表头筛选值（当前生效的列筛选） */
+    const columnFilter = shallowRef<FilterValue | undefined>(undefined);
+    /** 排序值，如 'priority' / '-priority' */
+    const sortValue = shallowRef('');
+
+    /** 经搜索、列筛选、排序后的规则列表 */
+    const filteredData = computed<TSourceAnalysisRule[]>(() => {
+      let rows = [...props.data];
+
+      // 1. 前端搜索：仅匹配匹配方式 condition 的 value、智能体、知识库、skill
+      const keyword = props.searchValue?.trim().toLowerCase();
+      if (keyword) {
+        rows = rows.filter((row: TSourceAnalysisRule) => {
+          const conditionValueMatch = row.conditions.some(condition =>
+            (condition.value ?? []).some(val => val.toLowerCase().includes(keyword))
+          );
+          const agentMatch = row.agent_id?.toLowerCase().includes(keyword);
+          const knowledgeMatch = (row.knowledge_base_ids ?? []).some(id => id.toLowerCase().includes(keyword));
+          const skillMatch = (row.skill_ids ?? []).some(id => id.toLowerCase().includes(keyword));
+          return conditionValueMatch || agentMatch || knowledgeMatch || skillMatch;
+        });
+      }
+
+      // 2. 列筛选：当前仅"启用状态"列支持筛选，根据选中的状态值过滤
+      const statusFilter = columnFilter.value?.is_enabled;
+      if (Array.isArray(statusFilter) && statusFilter.length > 0) {
+        rows = rows.filter((row: TSourceAnalysisRule) => statusFilter.includes(row.is_enabled));
+      }
+
+      // 3. 排序：按优先级字段升序/降序
+      if (sortValue.value) {
+        const descending = sortValue.value.startsWith('-');
+        const colKey = descending ? sortValue.value.slice(1) : sortValue.value;
+        if (colKey === 'priority') {
+          rows.sort((a: TSourceAnalysisRule, b: TSourceAnalysisRule) =>
+            descending ? b.priority - a.priority : a.priority - b.priority
+          );
+        }
+      }
+
+      return rows;
+    });
+
+    /** 过滤后是否为空：为空且非加载中时展示 EmptyStatus 空状态 */
+    const isEmpty = computed(() => !props.loading && filteredData.value.length === 0);
+
+    /** 空状态类型：搜索无结果时为 search-empty，否则为 empty */
+    const emptyType = computed(() => (props.searchValue ? 'search-empty' : 'empty'));
 
     /** 表格列配置 */
     const tableColumns = shallowRef<BaseTableColumn[]>([
@@ -69,9 +138,14 @@ export default defineComponent({
         resizable: true,
         width: 105,
         minWidth: 105,
-        sorter: false,
+        sorter: true,
         cellRenderer: (row: TSourceAnalysisRule) => <div class='priority-tag'>{row.priority}</div>,
-        title: () => <span>{t('优先级')}</span>,
+        title: () => (
+          <span>
+            <span>{t('优先级')}</span>
+            <span class='icon-monitor icon-hint' />
+          </span>
+        ),
       },
       {
         /** 智能体列 */
@@ -113,6 +187,23 @@ export default defineComponent({
         width: 73,
         minWidth: 73,
         sorter: false,
+        filter: {
+          list: [
+            {
+              label: t('启用'),
+              value: true,
+              checked: false,
+            },
+            {
+              label: t('停用'),
+              value: false,
+              checked: false,
+            },
+          ],
+          type: 'multiple',
+          showConfirmAndReset: true,
+          resetValue: [],
+        },
         cellRenderer: row => (
           <Switcher
             modelValue={row.is_enabled}
@@ -120,7 +211,7 @@ export default defineComponent({
             theme='primary'
           />
         ),
-        title: () => <span>状态</span>,
+        title: t('状态'),
       },
       {
         /** 操作列 */
@@ -136,21 +227,61 @@ export default defineComponent({
             <span class='icon-monitor icon-mc-delete-line' />
           </span>
         ),
-        title: () => <span>xxxx</span>,
+        title: () => '',
       },
     ] as any[]);
 
+    /**
+     * @description 表头列筛选变化：记录筛选值并驱动表格数据过滤
+     * @param {FilterValue} value 列筛选值，key 为 colKey，value 为选中的筛选项数组
+     */
+    const handleColumnFilter = (value: FilterValue) => {
+      columnFilter.value = value;
+    };
+
+    /**
+     * @description 表格排序变化：记录排序值并驱动表格数据排序
+     * @param {string} sort 排序值，如 'priority' 升序、'-priority' 降序
+     */
+    const handleSortChange = (sort: string) => {
+      sortValue.value = sort;
+    };
+
     return {
+      filteredData,
+      isEmpty,
+      emptyType,
+      handleClearSearch,
       tableColumns,
+      columnFilter,
+      sortValue,
+      handleColumnFilter,
+      handleSortChange,
     };
   },
   render() {
     return (
       <div class='ai-config-analysis-rule-table'>
-        {/* 通用表格组件展示源码分析规则 */}
+        {/* 过滤结果为空且非加载中时，展示自定义空状态 */}
         <CommonTable
+          empty={
+            (this.isEmpty
+              ? () => (
+                  <EmptyStatus
+                    scene='part'
+                    type={this.emptyType}
+                    onOperation={this.handleClearSearch}
+                  />
+                )
+              : undefined) as any
+          }
           columns={this.tableColumns}
-          data={this.data}
+          data={this.filteredData}
+          filterValue={this.columnFilter}
+          loading={this.loading}
+          sort={this.sortValue}
+          onFilterChange={this.handleColumnFilter}
+          onSortChange={this.handleSortChange as any}
         />
       </div>
     );
