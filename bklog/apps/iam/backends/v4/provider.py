@@ -149,6 +149,9 @@ class V4PermissionProvider(PermissionProvider):
             ]
 
         encoded_resources = [self.codec.encode_resource_for_auth(resource) for resource in matched_resources]
+        encoded_to_local_id = {
+            encoded["id"]: str(resource.id) for resource, encoded in zip(matched_resources, encoded_resources)
+        }
         chunks = array_chunk(encoded_resources, self.batch_chunk_size)
         action_results: dict[str, AuthResult] = {}
 
@@ -162,7 +165,8 @@ class V4PermissionProvider(PermissionProvider):
                 )
             except V4ClientError as error:
                 for resource in chunk:
-                    chunk_action_results[str(resource["id"])] = AuthResult.error(
+                    local_resource_id = encoded_to_local_id[str(resource["id"])]
+                    chunk_action_results[local_resource_id] = AuthResult.error(
                         self.name,
                         reason=error.reason,
                         error_type=error.error_type,
@@ -170,7 +174,8 @@ class V4PermissionProvider(PermissionProvider):
                 return chunk_action_results
 
             for resource_id, allowed in chunk_results.items():
-                chunk_action_results[resource_id] = (
+                local_resource_id = encoded_to_local_id[resource_id]
+                chunk_action_results[local_resource_id] = (
                     AuthResult.allow(self.name) if allowed else AuthResult.deny(self.name)
                 )
             return chunk_action_results
@@ -233,7 +238,8 @@ class V4PermissionProvider(PermissionProvider):
             return AuthorizedResourceScope.wildcard(encoded_resource_type, provider_name=self.name)
         if not ids:
             return AuthorizedResourceScope.empty(encoded_resource_type, provider_name=self.name)
-        return AuthorizedResourceScope.concrete(encoded_resource_type, set(ids), provider_name=self.name)
+        decoded_ids = {self.codec.decode_resource_id(encoded_resource_type, resource_id) for resource_id in ids}
+        return AuthorizedResourceScope.concrete(encoded_resource_type, decoded_ids, provider_name=self.name)
 
     def get_apply_data(
         self,

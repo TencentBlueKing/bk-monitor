@@ -63,7 +63,7 @@ def _build_related_resource_types(
                 {
                     "type": encoded_type,
                     "type_name": type_name,
-                    "id": str(resource.id),
+                    "id": codec.encode_resource_id(encoded_type, resource.id),
                     "name": resource.name,
                 }
             ]

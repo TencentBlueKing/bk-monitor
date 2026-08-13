@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+from copy import deepcopy
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import urljoin
@@ -27,6 +28,7 @@ import requests
 from requests.exceptions import RequestException, Timeout
 
 from apps.iam.backends.v4.config import V4Options
+from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.exceptions import (
     V4ClientError,
     V4RateLimitError,
@@ -42,10 +44,18 @@ logger = logging.getLogger("iam.v4.client")
 class V4Client:
     """通过 bkiam APIGateway 调用 IAM V4 开放接口的 HTTP 客户端。"""
 
-    def __init__(self, options: V4Options, *, username: str = "", bk_tenant_id: str = "") -> None:
+    def __init__(
+        self,
+        options: V4Options,
+        *,
+        username: str = "",
+        bk_tenant_id: str = "",
+        codec: V4ResourceCodec | None = None,
+    ) -> None:
         self.options = options
         self.username = username
         self.bk_tenant_id = bk_tenant_id
+        self.codec = codec or BklogNameCodec()
 
     def direct_auth(
         self,
@@ -123,9 +133,15 @@ class V4Client:
         return str(token)
 
     def generate_perm_apply_url(self, *, permissions: list[dict[str, Any]]) -> str:
+        normalized_permissions = deepcopy(permissions)
+        for permission in normalized_permissions:
+            for resource in permission.get("resources") or []:
+                self._encode_typed_resource(resource)
+                for ancestor in resource.get("ancestors") or []:
+                    self._encode_typed_resource(ancestor)
         body = {
             "system_id": self.options.system_id,
-            "permissions": permissions,
+            "permissions": normalized_permissions,
         }
         data = self._request("POST", self.options.apply_url_path, body=body)
         if not isinstance(data, dict):
@@ -151,15 +167,29 @@ class V4Client:
             if not isinstance(resources, list) or not 1 <= len(resources) <= 20:
                 raise ValueError("each IAM V4 authorization item must contain 1 to 20 resources")
 
+        normalized_items = deepcopy(items)
+        for item in normalized_items:
+            related_resource_type = str(item.get("related_resource_type_id") or "")
+            for resource in item["resources"]:
+                if not resource.get("type") and related_resource_type:
+                    resource["type"] = related_resource_type
+                self._encode_typed_resource(resource)
+
         result = self._request(
             "POST",
             self.options.add_authorization_path.format(system_id=self.options.system_id),
-            body=items,
+            body=normalized_items,
             extra_headers={"X-Bkiam-Operator": normalized_operator},
             expected_statuses={HTTPStatus.CREATED},
         )
         if result is not None:
             raise V4ResponseError("IAM V4 add-authorization response must be empty")
+
+    def _encode_typed_resource(self, resource: dict[str, Any]) -> None:
+        resource_type = str(resource.get("type") or "")
+        if not resource_type or "id" not in resource:
+            return
+        resource["id"] = self.codec.encode_resource_id(resource_type, resource["id"])
 
     def _request(
         self,

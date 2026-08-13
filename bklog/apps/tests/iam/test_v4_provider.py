@@ -22,6 +22,16 @@ class BklogNameCodecTest(SimpleTestCase):
     def test_encode_action_keeps_action_without_v2_suffix(self):
         self.assertEqual(self.codec.encode_action("manage_desensitize_rule"), "manage_desensitize_rule")
 
+    def test_negative_space_id_uses_reversible_iam_safe_encoding(self):
+        encoded = self.codec.encode_resource_id("space", "-5423")
+
+        self.assertEqual(encoded, "neg_5423")
+        self.assertEqual(self.codec.decode_resource_id("space", encoded), "-5423")
+
+    def test_space_id_encoding_keeps_positive_ids_and_other_resource_types(self):
+        self.assertEqual(self.codec.encode_resource_id("space", "5423"), "5423")
+        self.assertEqual(self.codec.encode_resource_id("collection", "-5423"), "-5423")
+
     def test_base_codec_keeps_protocol_names(self):
         codec = V4ResourceCodec()
 
@@ -42,6 +52,15 @@ class BklogNameCodecTest(SimpleTestCase):
         )
 
         self.assertEqual(self.codec.build_ancestors(resource), [{"type": "space", "id": "215"}])
+
+    def test_build_ancestors_encodes_negative_space_id_from_iam_path(self):
+        resource = ResourceInstance(
+            type="collection",
+            id="28",
+            attributes={"_bk_iam_path_": "/space,-5423/"},
+        )
+
+        self.assertEqual(self.codec.build_ancestors(resource), [{"type": "space", "id": "neg_5423"}])
 
     def test_build_ancestors_uses_resource_type_from_iam_path(self):
         resource = ResourceInstance(
@@ -95,6 +114,23 @@ class BklogNameCodecTest(SimpleTestCase):
 
         self.assertEqual(self.codec.encode_resource_for_auth(resource), {"id": "215", "attributes": {}})
 
+    def test_encode_negative_space_resource_for_auth(self):
+        resource = ResourceInstance(type="space", id="-5423")
+
+        self.assertEqual(self.codec.encode_resource_for_auth(resource), {"id": "neg_5423", "attributes": {}})
+
+    def test_encode_auth_resource_encodes_negative_space_id_in_path(self):
+        resource = ResourceInstance(
+            type="collection",
+            id="28",
+            attributes={"_bk_iam_path_": "/space,-5423/"},
+        )
+
+        self.assertEqual(
+            self.codec.encode_resource_for_auth(resource),
+            {"id": "28", "attributes": {"_bk_iam_path_": "/space,neg_5423/"}},
+        )
+
     def test_build_ancestors_accepts_path_collection(self):
         resource = ResourceInstance(
             type="collection",
@@ -121,6 +157,14 @@ class BklogNameCodecTest(SimpleTestCase):
             {"type": "collection", "id": "28", "ancestors": [{"type": "space", "id": "215"}]},
         )
 
+    def test_encode_negative_space_resource_for_apply(self):
+        resource = ResourceInstance(type="space", id="-5423")
+
+        self.assertEqual(
+            self.codec.encode_resource_for_apply(resource),
+            {"type": "space", "id": "neg_5423"},
+        )
+
 
 class V4PermissionProviderTest(SimpleTestCase):
     def setUp(self):
@@ -142,6 +186,29 @@ class V4PermissionProviderTest(SimpleTestCase):
 
         self.assertEqual(result.status, AuthStatus.ALLOW)
         self.client.direct_auth.assert_called_once()
+
+    def test_single_auth_encodes_negative_space_id(self):
+        self.client.direct_auth.return_value = True
+        request = AuthRequest(
+            subject=Subject(id="admin"),
+            action_id=ActionEnum.VIEW_BUSINESS,
+            resources=(
+                ResourceInstance(
+                    system=ResourceEnum.BUSINESS.system_id,
+                    type="space",
+                    id="-5423",
+                ),
+            ),
+        )
+
+        result = self.provider.is_allowed(request)
+
+        self.assertEqual(result.status, AuthStatus.ALLOW)
+        self.client.direct_auth.assert_called_once_with(
+            subject={"type": "user", "id": "admin"},
+            action_id="view_business",
+            resource={"id": "neg_5423", "attributes": {}},
+        )
 
     def test_single_deny_result(self):
         self.client.direct_auth.return_value = False
@@ -190,6 +257,26 @@ class V4PermissionProviderTest(SimpleTestCase):
         self.assertEqual(self.client.direct_auth_by_resources.call_count, 2)
         self.assertFalse(result.by_key()[("manage_collection_v2", "2")].allowed)
         self.client.direct_auth.assert_not_called()
+
+    def test_batch_maps_encoded_negative_space_result_back_to_local_id(self):
+        self.client.direct_auth_by_resources.return_value = {"neg_5423": True}
+        request = BatchAuthRequest(
+            subject=Subject(id="admin"),
+            action_ids=(ActionEnum.VIEW_BUSINESS,),
+            resource_groups=(
+                (
+                    ResourceInstance(
+                        system=ResourceEnum.BUSINESS.system_id,
+                        type="space",
+                        id="-5423",
+                    ),
+                ),
+            ),
+        )
+
+        result = self.provider.batch_is_allowed(request)
+
+        self.assertTrue(result.by_key()[(ActionEnum.VIEW_BUSINESS.id, "-5423")].allowed)
 
     def test_batch_missing_related_resource_returns_error_without_calling_client(self):
         request = BatchAuthRequest(
@@ -333,6 +420,27 @@ class V4PermissionProviderTest(SimpleTestCase):
             [[resource["id"] for resource in permission["resources"]] for permission in permissions],
         )
 
+    def test_apply_data_encodes_negative_space_id_for_iam_and_display_contract(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+        resource = ResourceInstance(
+            system=ResourceEnum.BUSINESS.system_id,
+            type="space",
+            id="-5423",
+            name="流水线空间",
+        )
+
+        apply_data, _ = self.provider.get_apply_data([ActionEnum.VIEW_BUSINESS], [resource])
+
+        permissions = self.client.generate_perm_apply_url.call_args.kwargs["permissions"]
+        self.assertEqual(
+            permissions,
+            [{"action_id": "view_business", "resources": [{"type": "space", "id": "neg_5423"}]}],
+        )
+        self.assertEqual(
+            apply_data["actions"][0]["related_resource_types"][0]["instances"][0][0]["id"],
+            "neg_5423",
+        )
+
     def test_apply_data_propagates_v4_error(self):
         self.client.generate_perm_apply_url.side_effect = V4ResponseError("missing url")
 
@@ -410,6 +518,14 @@ class V4PermissionProviderTest(SimpleTestCase):
         self.assertFalse(scope.is_wildcard)
         self.assertEqual(scope.ids, frozenset({"2", "3"}))
         self.client.list_authorized_resource.assert_called_once()
+
+    def test_list_authorized_resources_decodes_negative_space_ids(self):
+        self.client.username = "admin"
+        self.client.list_authorized_resource.return_value = {"type": "space", "ids": ["neg_5423", "2"]}
+
+        scope = self.provider.list_authorized_resources(action_id="view_business")
+
+        self.assertEqual(scope.ids, frozenset({"-5423", "2"}))
 
     def test_list_authorized_resources_returns_wildcard_scope(self):
         self.client.username = "admin"

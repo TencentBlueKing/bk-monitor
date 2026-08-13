@@ -166,6 +166,30 @@ class V4ClientTest(SimpleTestCase):
             self.client.generate_perm_apply_url(permissions=[])
 
     @patch("apps.iam.backends.v4.client.requests.request")
+    def test_apply_url_encodes_negative_space_ids_without_mutating_permissions(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"ok")
+        response.json.return_value = {"data": {"url": "https://iam.example/apply"}}
+        request_mock.return_value = response
+        permissions = [
+            {
+                "action_id": "search_log",
+                "resources": [
+                    {
+                        "type": "indices",
+                        "id": "20",
+                        "ancestors": [{"type": "space", "id": "-5423"}],
+                    }
+                ],
+            }
+        ]
+
+        self.client.generate_perm_apply_url(permissions=permissions)
+
+        sent_resources = request_mock.call_args.kwargs["json"]["permissions"][0]["resources"]
+        self.assertEqual(sent_resources[0]["ancestors"], [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(permissions[0]["resources"][0]["ancestors"], [{"type": "space", "id": "-5423"}])
+
+    @patch("apps.iam.backends.v4.client.requests.request")
     def test_auth_token_uses_configured_path(self, request_mock):
         self.client.options = replace(
             self.client.options,
@@ -269,6 +293,25 @@ class V4ClientTest(SimpleTestCase):
         request = request_mock.call_args.kwargs
         self.assertEqual(request["json"], items)
         self.assertEqual(request["headers"]["X-Bkiam-Operator"], "operator")
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_add_authorization_encodes_negative_space_id_without_mutating_caller_payload(self, request_mock):
+        request_mock.return_value = Mock(status_code=HTTPStatus.CREATED, content=b"")
+        items = [
+            {
+                "subject": {"type": "user", "id": "colecai"},
+                "role_id": "space_viewer",
+                "related_resource_type_id": "space",
+                "resources": [{"type": "space", "id": "-5423"}],
+                "expired_at": 1893456000,
+            }
+        ]
+
+        self.client.add_authorization(items=items, operator="colecai")
+
+        sent_items = request_mock.call_args.kwargs["json"]
+        self.assertEqual(sent_items[0]["resources"], [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(items[0]["resources"], [{"type": "space", "id": "-5423"}])
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_add_authorization_rejects_http_200(self, request_mock):
