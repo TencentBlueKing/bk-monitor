@@ -27,6 +27,7 @@ _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
+_LOG_COLLECTION_ETL_PREVIEW_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_etl_preview_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -116,6 +117,40 @@ def test_alert_handling_mcp_contract():
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["alert_handling_mcp"]
+
+
+def test_log_collection_etl_preview_mcp_contract():
+    """清洗预览 MCP 仅暴露无确认参数的只读预览 Tool。"""
+    paths = _load_paths(_LOG_COLLECTION_ETL_PREVIEW_MCP_FILE)
+
+    assert set(paths) == {"/mcp/preview_log_etl/"}
+    method_data = paths["/mcp/preview_log_etl/"]["post"]
+    assert method_data["operationId"] == "preview_log_etl"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["properties"]["etl_config"]["enum"] == [
+        "bk_log_text",
+        "bk_log_json",
+        "bk_log_regexp",
+        "bk_log_delimiter",
+    ]
+    assert schema["properties"]["data"]["maxLength"] == 10_000
+    assert schema["properties"]["etl_params"]["additionalProperties"] is False
+    assert "confirm" not in schema["properties"]
+
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+    assert gateway_resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_etl_preview/preview/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert gateway_resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
 
 
 def test_result_table_storage_status_apigw_contract():

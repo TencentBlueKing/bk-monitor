@@ -9,13 +9,103 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import re
 
 import six
 from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
+from constants.log_collection import (
+    ETL_CONFIG_DELIMITER,
+    ETL_CONFIG_JSON,
+    ETL_CONFIG_REGEXP,
+    ETL_CONFIG_TEXT,
+    ETL_PREVIEW_MAX_EXPRESSION_LENGTH,
+    ETL_PREVIEW_MAX_FIELDS,
+    ETL_PREVIEW_MAX_SAMPLE_LENGTH,
+    ETL_PREVIEW_MAX_SEPARATOR_LENGTH,
+    SUPPORTED_ETL_PREVIEW_CONFIGS,
+)
 from core.drf_resource import APIResource
+
+
+class EtlPreviewParamsSerializer(serializers.Serializer):
+    """MCP 清洗预览允许透传给 BKLOG 的最小参数集。"""
+
+    separator = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=ETL_PREVIEW_MAX_SEPARATOR_LENGTH,
+    )
+    separator_regexp = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=ETL_PREVIEW_MAX_EXPRESSION_LENGTH,
+    )
+    is_grok = serializers.BooleanField(required=False)
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    f"Unsupported etl_params fields: {', '.join(unknown_fields)}."
+                )
+        return super().to_internal_value(data)
+
+
+class EtlPreviewRequestSerializer(serializers.Serializer):
+    """通用 ETL Preview 请求；APIResource 与 Kernel Resource 共用。"""
+
+    bk_biz_id = serializers.IntegerField(required=True)
+    etl_config = serializers.ChoiceField(choices=SUPPORTED_ETL_PREVIEW_CONFIGS)
+    etl_params = EtlPreviewParamsSerializer(required=False, default=dict)
+    data = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=ETL_PREVIEW_MAX_SAMPLE_LENGTH,
+    )
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(f"Unsupported request fields: {', '.join(unknown_fields)}.")
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        etl_config = attrs["etl_config"]
+        etl_params = attrs["etl_params"]
+        provided_params = set(etl_params)
+        allowed_params = {
+            ETL_CONFIG_TEXT: set(),
+            ETL_CONFIG_JSON: set(),
+            ETL_CONFIG_DELIMITER: {"separator"},
+            ETL_CONFIG_REGEXP: {"separator_regexp", "is_grok"},
+        }[etl_config]
+        unsupported_params = sorted(provided_params - allowed_params)
+        if unsupported_params:
+            raise serializers.ValidationError(
+                {"etl_params": f"{etl_config} does not accept: {', '.join(unsupported_params)}."}
+            )
+        if etl_config == ETL_CONFIG_DELIMITER and "separator" not in etl_params:
+            raise serializers.ValidationError({"etl_params": "separator is required for bk_log_delimiter."})
+        if etl_config == ETL_CONFIG_REGEXP and "separator_regexp" not in etl_params:
+            raise serializers.ValidationError({"etl_params": "separator_regexp is required for bk_log_regexp."})
+        if etl_config == ETL_CONFIG_REGEXP and not etl_params.get("is_grok"):
+            try:
+                pattern = re.compile(etl_params["separator_regexp"])
+            except re.error as error:
+                raise serializers.ValidationError({"etl_params": f"Invalid regular expression: {error}."})
+            if len(pattern.groupindex) > ETL_PREVIEW_MAX_FIELDS:
+                raise serializers.ValidationError(
+                    {"etl_params": f"Regular expression supports at most {ETL_PREVIEW_MAX_FIELDS} named fields."}
+                )
+        return attrs
 
 
 class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -530,6 +620,14 @@ class ListCollectorsResource(LogSearchAPIGWResource):
 
     action = "/databus_list_collectors/"
     method = "GET"
+
+
+class LogEtlPreviewResource(LogSearchAPIGWResource):
+    """调用 BKLOG 无持久化副作用的通用 ETL Preview。"""
+
+    action = "/databus/clean_template/etl_preview/"
+    method = "POST"
+    RequestSerializer = EtlPreviewRequestSerializer
 
 
 class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):

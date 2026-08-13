@@ -1,0 +1,61 @@
+paths:
+  /mcp/preview_log_etl/:
+    post:
+      operationId: preview_log_etl
+      description: Preview how BKLOG extracts fields from one sample log using text, JSON, regular-expression, or delimiter ETL. This read-only tool never creates or changes clean templates, collectors, cleaning configurations, storage, or indexes. The response always contains success, fields, field_count, and error; validation failures return success=false. 预览一条样例日志经文本、JSON、正则或分隔符清洗后的字段提取结果。该只读工具不会创建或修改清洗模板、采集项、清洗配置、存储或索引；成功与校验失败统一返回 success、fields、field_count 和 error。
+      tags: [log_collection_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bk_biz_id, etl_config, data]
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID used for current-user permission and BKLOG feature-toggle evaluation. 用于当前用户权限与 BKLOG 灰度判断的业务 ID。
+                etl_config:
+                  type: string
+                  enum: [bk_log_text, bk_log_json, bk_log_regexp, bk_log_delimiter]
+                  description: Supported BKLOG ETL type. 支持的 BKLOG 清洗类型。
+                etl_params:
+                  type: object
+                  additionalProperties: false
+                  default: {}
+                  properties:
+                    separator:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                      description: Required only for bk_log_delimiter. 仅分隔符清洗必填。
+                    separator_regexp:
+                      type: string
+                      minLength: 1
+                      maxLength: 4096
+                      description: Required only for bk_log_regexp; named groups become fields. 仅正则清洗必填，命名捕获组会成为字段。
+                    is_grok:
+                      type: boolean
+                      description: Whether separator_regexp is a Grok expression; only valid for bk_log_regexp. 是否使用 Grok 表达式，仅正则清洗可用。
+                data:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                  description: One sample log. At most 100 extracted fields are returned. 单条样例日志，最多返回 100 个提取字段。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_etl_preview/preview/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
