@@ -36,7 +36,7 @@ from metadata.models.bcs.resource import PodMonitorInfo, ServiceMonitorInfo
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_bkdata_table_id
+from metadata.models.data_link.utils import compose_bkdata_table_id, find_registered_bkdata_data_id_name
 from metadata.models.data_source import DataSource
 from metadata.models.influxdb_cluster import InfluxDBClusterInfo, InfluxDBHostInfo
 from metadata.models.result_table import (
@@ -2659,30 +2659,61 @@ class Command(BaseCommand):
                         # 默认策略
                         data_link_strategy = DataLink.BK_STANDARD_V2_TIME_SERIES
 
-                    # 8. 组装bkbase_data_name（与apply_data_link保持一致）
-                    bkbase_data_name = compose_bkdata_data_id_name(
-                        data_name=data_source.data_name, strategy=data_link_strategy
-                    )
+                    # 8. 独立检查 DataId 注册状态；DataId 名称不等同于 DataLink 名称，
+                    # 缺失时继续检查既有链路，避免把真实 V4 链路误判为 V2。
+                    if not find_registered_bkdata_data_id_name(
+                        data_source, namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE
+                    ):
+                        result["issues"].append(
+                            f"[DataIdConfig] [bk_data_id={data_source.bk_data_id}] 未找到已注册的数据源配置"
+                        )
 
-                    # 9. 检查DataLink配置（参考apply_data_link中创建/获取的BkBaseResultTable）
-                    data_link = DataLink.objects.filter(
+                    # 9. 优先通过当前结果表的 BkBaseResultTable 关联定位 DataLink；
+                    # 关联记录不存在时，再按 bk_data_id 查找对应策略的链路。
+                    data_link_candidates = DataLink.objects.filter(
                         bk_tenant_id=data_source.bk_tenant_id,
-                        data_link_name=bkbase_data_name,
                         namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                         data_link_strategy=data_link_strategy,
-                    ).first()
+                    )
+                    configured_bk_base_result_table = (
+                        BkBaseResultTable.objects.filter(
+                            bk_tenant_id=self.bk_tenant_id,
+                            monitor_table_id=ds_rt.table_id,
+                            data_link_name__in=data_link_candidates.values("data_link_name"),
+                        )
+                        .order_by("-last_modify_time", "-create_time")
+                        .first()
+                    )
+                    if configured_bk_base_result_table:
+                        data_link = data_link_candidates.filter(
+                            data_link_name=configured_bk_base_result_table.data_link_name
+                        ).first()
+                    else:
+                        data_link = (
+                            data_link_candidates.filter(bk_data_id=data_source.bk_data_id)
+                            .order_by("-last_modify_time")
+                            .first()
+                        )
 
                     if not data_link:
-                        # 有 AccessVMRecord 但无 DataLink → V2 老链路接入（直连 VM，不经 BkBase）
-                        # 跳过后续 V4 状态检查
-                        if vm_record:
+                        has_bk_base_result_table = BkBaseResultTable.objects.filter(
+                            bk_tenant_id=self.bk_tenant_id,
+                            monitor_table_id=ds_rt.table_id,
+                        ).exists()
+                        if has_bk_base_result_table:
+                            result["issues"].append(
+                                f"[DataLink] [bk_data_id={data_source.bk_data_id}] "
+                                f"[strategy={data_link_strategy}] 计算平台结果表存在但未找到对应的数据链路配置"
+                            )
+                        elif vm_record:
+                            # 只有 BkBaseResultTable 和 DataLink 都不存在时，才识别为 V2 老链路。
                             result["warnings"].append(
-                                f"[DataLink] [data_link_name={bkbase_data_name}] "
+                                f"[DataLink] [bk_data_id={data_source.bk_data_id}] "
                                 "无 V4 数据链路记录，识别为 V2 链路接入（依赖 AccessVMRecord，不经 BkBase）"
                             )
                         else:
                             result["issues"].append(
-                                f"[DataLink] [data_link_name={bkbase_data_name}] "
+                                f"[DataLink] [bk_data_id={data_source.bk_data_id}] "
                                 f"[strategy={data_link_strategy}] 未找到对应的数据链路配置"
                             )
                         continue
@@ -2695,9 +2726,12 @@ class Command(BaseCommand):
                     )
 
                     # 10. 检查BkBaseResultTable（apply_data_link流程中首先创建的对象）
-                    bk_base_result_table = BkBaseResultTable.objects.filter(
-                        data_link_name=data_link.data_link_name, bk_tenant_id=self.bk_tenant_id
-                    ).first()
+                    bk_base_result_table = (
+                        configured_bk_base_result_table
+                        or BkBaseResultTable.objects.filter(
+                            data_link_name=data_link.data_link_name, bk_tenant_id=self.bk_tenant_id
+                        ).first()
+                    )
 
                     if not bk_base_result_table:
                         result["issues"].append(

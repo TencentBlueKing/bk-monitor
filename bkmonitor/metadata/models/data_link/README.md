@@ -257,8 +257,11 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 所有组件配置通过 `utils.compose_config(tpl, render_params, ...)` 渲染 Jinja2 模板并转 JSON。
 - 若模板渲染后 JSON 解析失败，返回空字典并记录错误日志。
 
-### 8.2 DataId 命名（`compose_bkdata_data_id_name`）
+### 8.2 DataId 注册与引用
 
+- `DataSource.register_to_bkbase` 注册数据源时，先按当前 `bk_tenant_id + namespace + bk_data_id` 查找 `DataIdConfig`；未命中时允许按规则生成名称并完成注册；
+- DataLink 是 DataId 的调用方：复用既有 Databus 时沿用其 `data_id_name`；新建 Databus 时只能通过 `get_registered_bkdata_data_id_name` 引用已注册的 `DataIdConfig`，未命中则直接抛错，不能自行生成名称；
+- 新 DataId 的名称生成规则如下：
 - 先清洗特殊字符，再处理中文拼音；
 - 空格去除，`-` 转 `_`，连续下划线压缩；
 - 长度受限时会截断并追加 5 位 MD5 后缀；
