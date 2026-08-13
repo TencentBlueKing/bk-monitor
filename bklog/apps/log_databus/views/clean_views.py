@@ -333,6 +333,8 @@ class CleanTemplateViewSet(ModelViewSet):
                         "config_version": 1,
                         "field_count": 2,
                         "active_collector_count": 2,
+                        "pending_sync_collector_count": 1,
+                        "related_index_set_count": 1,
                         "created_at": "2026-07-30 10:00:00",
                         "created_by": "admin",
                         "updated_at": "2026-07-30 10:00:00",
@@ -443,6 +445,10 @@ class CleanTemplateViewSet(ModelViewSet):
                 "visible_type": "current_biz",
                 "alias_settings": [],
                 "config_version": 1,
+                "field_count": 2,
+                "active_collector_count": 2,
+                "pending_sync_collector_count": 1,
+                "related_index_set_count": 1,
                 "created_at": "2026-07-30 10:00:00",
                 "created_by": "admin",
                 "updated_at": "2026-07-30 10:00:00",
@@ -451,7 +457,8 @@ class CleanTemplateViewSet(ModelViewSet):
             "result":true
         }
         """
-        return super().retrieve(request, *args, clean_template_id=clean_template_id, **kwargs)
+        clean_template = CleanTemplateHandler.fill_template_stats([self.get_object()])[0]
+        return Response(self.get_serializer(clean_template).data)
 
     def update(self, request, *args, clean_template_id=None, **kwargs):
         """
@@ -596,6 +603,7 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiSuccess {Int} bk_biz_id 业务ID
         @apiSuccess {Int/Null} index_set_id 索引集ID
         @apiSuccess {String/Null} index_set_name 索引集名称
+        @apiSuccess {Array} related_index_set_list 关联索引集（索引组）列表
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -606,7 +614,13 @@ class CleanTemplateViewSet(ModelViewSet):
                     "collector_config_name": "collector_name",
                     "bk_biz_id": 2,
                     "index_set_id": 3,
-                    "index_set_name": "index_set_name"
+                    "index_set_name": "index_set_name",
+                    "related_index_set_list": [
+                        {
+                            "index_set_id": 4,
+                            "index_set_name": "parent_index_set_name"
+                        }
+                    ]
                 }
             ],
             "result": true
@@ -623,6 +637,10 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiName sync_clean_template_collectors
         @apiGroup 23_clean_template
         @apiDescription 仅将模板配置同步到当前业务中失败、未同步或版本落后的关联采集项
+        @apiSuccess {Int} id 采集项ID
+        @apiSuccess {String} name 采集项名称
+        @apiSuccess {String="SUCCESS","FAILED"} status 单项同步结果
+        @apiSuccess {String} message 同步结果或错误信息
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -632,13 +650,13 @@ class CleanTemplateViewSet(ModelViewSet):
                     "id": 1,
                     "name": "collector_name",
                     "status": "SUCCESS",
-                    "description": "Sync clean template successfully"
+                    "message": "清洗模板同步成功"
                 },
                 {
                     "id": 2,
                     "name": "collector_name_2",
                     "status": "FAILED",
-                    "description": "Failed to sync clean template, reason: ..."
+                    "message": "同步期间清洗模板关联关系发生变化，实际 RT 配置可能与当前配置不一致，请确认并重新保存采集项配置"
                 }
             ],
             "result": true

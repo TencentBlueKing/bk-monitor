@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from enum import Enum
+
 import markdown
 from django.conf import settings
 from django.db.models import TextChoices
@@ -302,6 +304,15 @@ class CleanTemplateSyncStatus(ChoicesEnum):
         (RUNNING, _("同步中")),
         (SUCCESS, _("同步成功")),
         (FAILED, _("同步失败")),
+    )
+
+
+class CleanTemplateSyncMessage(Enum):
+    SUCCESS = _("清洗模板同步成功")
+    FAILED = _("清洗模板同步失败，原因：%(error)s")
+    ASSOCIATION_CHANGED_BEFORE_SYNC = _("同步前清洗模板关联关系已发生变化，本次同步已跳过")
+    ASSOCIATION_CHANGED_DURING_SYNC = _(
+        "同步期间清洗模板关联关系发生变化，实际 RT 配置可能与当前配置不一致，请确认并重新保存采集项配置"
     )
 
 

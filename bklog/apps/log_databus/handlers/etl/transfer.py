@@ -48,13 +48,8 @@ _CLEAN_TEMPLATE_ID_NOT_PROVIDED = object()
 
 
 class TransferEtlHandler(EtlHandler):
-    def _resolve_clean_template_id(self, clean_template_id=_CLEAN_TEMPLATE_ID_NOT_PROVIDED):
-        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
-            return self.data.clean_template_id
-        return clean_template_id
-
     def _validate_clean_template(self, clean_template_id):
-        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED or clean_template_id is None:
+        if clean_template_id is None:
             return None
 
         try:
@@ -79,10 +74,7 @@ class TransferEtlHandler(EtlHandler):
             copy.deepcopy(clean_template.etl_fields or []),
         )
 
-    def _update_clean_template(self, clean_template_id, clean_template):
-        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
-            return
-
+    def _update_clean_template(self, clean_template):
         if clean_template is not None:
             # 加事务和行锁，避免并发导致绑定到已经删除的模板
             with transaction.atomic():
@@ -143,7 +135,8 @@ class TransferEtlHandler(EtlHandler):
         **kwargs,
     ):
         # 未显式传入模板 ID 时沿用采集项当前关联，避免请求中的清洗参数与模板关联产生偏差。
-        clean_template_id = self._resolve_clean_template_id(clean_template_id)
+        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
+            clean_template_id = self.data.clean_template_id
         # 模板配置是关联关系的唯一可信来源，并在外部调用前固定本次应用的配置和版本快照。
         clean_template, etl_config, etl_params, fields = self._prepare_clean_template_config(
             clean_template_id,
@@ -318,7 +311,7 @@ class TransferEtlHandler(EtlHandler):
         # 模板批量同步由调用方基于 RUNNING 状态完成最终写回，
         # 避免覆盖并发的手动解除关联。
         if not sync_modify_result_table:
-            self._update_clean_template(clean_template_id, clean_template)
+            self._update_clean_template(clean_template)
 
         return {
             "collector_config_id": self.data.collector_config_id,

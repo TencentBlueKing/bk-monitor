@@ -26,7 +26,7 @@ from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
-from apps.log_databus.constants import AsyncStatus, CleanTemplateSyncStatus, EtlConfig
+from apps.log_databus.constants import AsyncStatus, CleanTemplateSyncMessage, CleanTemplateSyncStatus, EtlConfig
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
     CleanTemplateRepeatException,
@@ -37,7 +37,8 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import BKDataClean, CleanTemplate, CollectorConfig
 from apps.log_databus.tasks.bkdata import sync_clean
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
-from apps.log_search.models import LogIndexSet, Space
+from apps.log_search.constants import IndexSetDataType
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Space
 from apps.models import model_to_dict
 from apps.utils.lock import RedisLock
 from apps.utils.log import logger
@@ -138,6 +139,43 @@ class CleanTemplateHandler:
                 )
 
     @staticmethod
+    def get_related_index_set_map(index_set_ids) -> dict[str, list[dict]]:
+        """批量查询子索引集所属的索引组，并按子索引集 ID 返回。"""
+        index_set_ids = {str(index_set_id) for index_set_id in index_set_ids if index_set_id is not None}
+        if not index_set_ids:
+            return {}
+
+        relations = list(
+            LogIndexSetData.objects.filter(
+                result_table_id__in=index_set_ids,
+                type=IndexSetDataType.INDEX_SET.value,
+            )
+            .values("result_table_id", "index_set_id")
+            .order_by("index_set_id", "index_id")
+        )
+        related_index_sets = {
+            index_set["index_set_id"]: index_set
+            for index_set in LogIndexSet.objects.filter(
+                index_set_id__in={relation["index_set_id"] for relation in relations},
+                is_group=True,
+            ).values("index_set_id", "index_set_name")
+        }
+
+        related_index_set_map = {}
+        related_index_set_ids_map = {}
+        for relation in relations:
+            related_index_set = related_index_sets.get(relation["index_set_id"])
+            if not related_index_set:
+                continue
+            child_index_set_id = str(relation["result_table_id"])
+            related_index_set_ids = related_index_set_ids_map.setdefault(child_index_set_id, set())
+            if related_index_set["index_set_id"] in related_index_set_ids:
+                continue
+            related_index_set_ids.add(related_index_set["index_set_id"])
+            related_index_set_map.setdefault(child_index_set_id, []).append(related_index_set)
+        return related_index_set_map
+
+    @staticmethod
     def fill_template_stats(clean_templates):
         clean_templates = list(clean_templates)
         if not clean_templates:
@@ -145,24 +183,54 @@ class CleanTemplateHandler:
 
         clean_template_ids = [clean_template.clean_template_id for clean_template in clean_templates]
         bk_biz_ids = {clean_template.bk_biz_id for clean_template in clean_templates}
-        active_collector_count_map = dict(
+        collector_stats = (
             CollectorConfig.objects.filter(
                 clean_template_id__in=clean_template_ids,
                 bk_biz_id__in=bk_biz_ids,
                 is_active=True,
             )
-            .values("clean_template_id")
+            .values("clean_template_id", "clean_template_version", "clean_template_sync_status", "index_set_id")
             .annotate(total=Count("collector_config_id"))
-            .values_list("clean_template_id", "total")
         )
+        active_collector_count_map = {clean_template_id: 0 for clean_template_id in clean_template_ids}
+        pending_sync_collector_count_map = {clean_template_id: 0 for clean_template_id in clean_template_ids}
+        template_index_set_ids_map = {clean_template_id: set() for clean_template_id in clean_template_ids}
+        template_version_map = {
+            clean_template.clean_template_id: clean_template.config_version for clean_template in clean_templates
+        }
+        for stat in collector_stats:
+            clean_template_id = stat["clean_template_id"]
+            total = stat["total"]
+            active_collector_count_map[clean_template_id] += total
+            if stat["index_set_id"] is not None:
+                template_index_set_ids_map[clean_template_id].add(stat["index_set_id"])
+            if (
+                stat["clean_template_sync_status"]
+                in (CleanTemplateSyncStatus.FAILED.value, CleanTemplateSyncStatus.RUNNING.value)
+                or stat["clean_template_version"] is None
+                or stat["clean_template_version"] < template_version_map[clean_template_id]
+            ):
+                pending_sync_collector_count_map[clean_template_id] += total
+
+        related_index_set_map = CleanTemplateHandler.get_related_index_set_map(
+            {index_set_id for index_set_ids in template_index_set_ids_map.values() for index_set_id in index_set_ids}
+        )
+
         for clean_template in clean_templates:
             clean_template.field_count = sum(
                 not field.get("is_delete", False) and not field.get("is_built_in", False)
                 for field in (clean_template.etl_fields or [])
             )
-            clean_template.active_collector_count = active_collector_count_map.get(
-                clean_template.clean_template_id,
-                0,
+            clean_template.active_collector_count = active_collector_count_map[clean_template.clean_template_id]
+            clean_template.pending_sync_collector_count = pending_sync_collector_count_map[
+                clean_template.clean_template_id
+            ]
+            clean_template.related_index_set_count = len(
+                {
+                    related_index_set["index_set_id"]
+                    for index_set_id in template_index_set_ids_map[clean_template.clean_template_id]
+                    for related_index_set in related_index_set_map.get(str(index_set_id), [])
+                }
             )
         return clean_templates
 
@@ -271,10 +339,12 @@ class CleanTemplateHandler:
                 "index_set_name",
             )
         )
+        related_index_set_map = self.get_related_index_set_map({collector["index_set_id"] for collector in collectors})
         return [
             {
                 **collector,
                 "index_set_name": index_set_names.get(collector["index_set_id"]),
+                "related_index_set_list": related_index_set_map.get(str(collector["index_set_id"]), []),
             }
             for collector in collectors
         ]
@@ -335,28 +405,8 @@ class CleanTemplateHandler:
                 },
                 multi_func_params=True,
             )
-        sync_results = multi_execute_func.run(return_exception=True)
-        results = []
-        for collector in collectors:
-            result = sync_results.get(collector.collector_config_id)
-            if result is None:
-                continue
-            if isinstance(result, Exception):
-                logger.error(
-                    "sync clean template raised an unexpected exception, clean_template_id: %s, "
-                    "collector_config_id: %s, error: %s",
-                    self.data.clean_template_id,
-                    collector.collector_config_id,
-                    result,
-                )
-                result = {
-                    "id": collector.collector_config_id,
-                    "name": collector.collector_config_name,
-                    "status": CleanTemplateSyncStatus.FAILED.value,
-                    "description": f"Failed to sync clean template, reason: {result}",
-                }
-            results.append(result)
-        return results
+        sync_results = multi_execute_func.run()
+        return [sync_results[collector.collector_config_id] for collector in collectors]
 
     def _sync_collector(self, collector: CollectorConfig, template_version: int, clean_config: dict):
         # 不加采集项级别锁的原因：
@@ -364,11 +414,12 @@ class CleanTemplateHandler:
         #    无法真正防止 metadata 层面的并发冲突；
         # 2. 下方的条件更新（filter + update）已提供乐观并发控制，
         #    解绑/删除后同步写回不会覆盖新状态。
+        # 3. 外部写入开始后发生关联变化时无法撤销 RT 写入，返回失败并提示用户确认实际配置。
         result = {
             "id": collector.collector_config_id,
             "name": collector.collector_config_name,
             "status": CleanTemplateSyncStatus.SUCCESS.value,
-            "description": "Sync clean template successfully",
+            "message": str(CleanTemplateSyncMessage.SUCCESS.value),
         }
         try:
             updated = CollectorConfig.objects.filter(
@@ -379,7 +430,11 @@ class CleanTemplateHandler:
                 clean_template_sync_message="",
             )
             if not updated:
-                return None
+                result.update(
+                    status=CleanTemplateSyncStatus.FAILED.value,
+                    message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_BEFORE_SYNC.value),
+                )
+                return result
             handler = CollectorHandler.get_instance(collector_config_id=collector.collector_config_id)
             handler.create_or_update_clean_config(
                 is_update=True,
@@ -398,7 +453,17 @@ class CleanTemplateHandler:
                 clean_template_sync_message="",
             )
             if not updated:
-                return None
+                logger.warning(
+                    "clean template association changed during metadata synchronization, clean_template_id: %s, "
+                    "collector_config_id: %s",
+                    self.data.clean_template_id,
+                    collector.collector_config_id,
+                )
+                result.update(
+                    status=CleanTemplateSyncStatus.FAILED.value,
+                    message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value),
+                )
+                return result
         except Exception as error:  # pylint: disable=broad-except
             logger.exception(
                 "sync clean template failed, clean_template_id: %s, collector_config_id: %s",
@@ -406,12 +471,10 @@ class CleanTemplateHandler:
                 collector.collector_config_id,
             )
             result.update(
-                {
-                    "status": CleanTemplateSyncStatus.FAILED.value,
-                    "description": f"Failed to sync clean template, reason: {error}",
-                }
+                status=CleanTemplateSyncStatus.FAILED.value,
+                message=str(CleanTemplateSyncMessage.FAILED.value) % {"error": error},
             )
-            CollectorConfig.objects.filter(
+            updated = CollectorConfig.objects.filter(
                 collector_config_id=collector.collector_config_id,
                 clean_template_id=self.data.clean_template_id,
                 clean_template_sync_status=CleanTemplateSyncStatus.RUNNING.value,
@@ -420,6 +483,8 @@ class CleanTemplateHandler:
                 clean_template_sync_at=timezone.now(),
                 clean_template_sync_message=str(error),
             )
+            if not updated:
+                result["message"] = str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value)
         return result
 
     def preview(self, data: str):

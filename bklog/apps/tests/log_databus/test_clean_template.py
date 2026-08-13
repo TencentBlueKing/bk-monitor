@@ -28,7 +28,7 @@ from rest_framework.test import APIRequestFactory
 from apps.iam import ActionEnum
 from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.drf import ViewBusinessPermission
-from apps.log_databus.constants import CleanTemplateSyncStatus
+from apps.log_databus.constants import CleanTemplateSyncMessage, CleanTemplateSyncStatus
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
     CleanTemplateRepeatException,
@@ -42,8 +42,8 @@ from apps.log_databus.serializers import (
     FastContainerCollectorUpdateSerializer,
 )
 from apps.log_databus.views.clean_views import CleanTemplateViewSet
-from apps.log_search.models import LogIndexSet, Space
-
+from apps.log_search.constants import IndexSetDataType
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Space
 
 CREATE_PARAMS = {
     "name": "test",
@@ -175,6 +175,24 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertIsInstance(response.data, list)
         self.assertEqual([template["name"] for template in response.data], ["template-1", "template-0"])
 
+    def test_retrieve_returns_template_stats(self):
+        template = self.create_template()
+
+        request = APIRequestFactory().get(f"/databus/clean_template/{template['clean_template_id']}/")
+        view = CleanTemplateViewSet()
+        view.action_map = {"get": "retrieve"}
+        view.args = ()
+        view.kwargs = {"clean_template_id": template["clean_template_id"]}
+        view.format_kwarg = None
+        view.request = view.initialize_request(request)
+
+        response = view.retrieve(view.request, clean_template_id=template["clean_template_id"])
+
+        self.assertEqual(response.data["field_count"], 1)
+        self.assertEqual(response.data["active_collector_count"], 0)
+        self.assertEqual(response.data["pending_sync_collector_count"], 0)
+        self.assertEqual(response.data["related_index_set_count"], 0)
+
     def test_list_fills_all_template_stats_before_ordering_and_pagination(self):
         for index, field_count in enumerate((3, 1, 2)):
             fields = [{"field_name": f"field-{field_index}", "is_delete": False} for field_index in range(field_count)]
@@ -217,6 +235,21 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
             space_uid="bkcc__706",
             scenario_id="log",
         )
+        parent_index_sets = [
+            LogIndexSet.objects.create(
+                index_set_name=f"parent-{index}",
+                space_uid="bkcc__706",
+                scenario_id="log",
+                is_group=True,
+            )
+            for index in range(2)
+        ]
+        for parent_index_set in reversed(parent_index_sets):
+            LogIndexSetData.objects.create(
+                index_set_id=parent_index_set.index_set_id,
+                result_table_id=str(index_set.index_set_id),
+                type=IndexSetDataType.INDEX_SET.value,
+            )
         collector = self.create_collector(
             collector_config_name="with-index-set",
             clean_template_id=template_id,
@@ -241,9 +274,20 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertEqual(result[0]["collector_config_id"], collector.collector_config_id)
         self.assertEqual(result[0]["index_set_id"], index_set.index_set_id)
         self.assertEqual(result[0]["index_set_name"], "collector-index-set")
+        self.assertEqual(
+            result[0]["related_index_set_list"],
+            [
+                {"index_set_id": parent.index_set_id, "index_set_name": parent.index_set_name}
+                for parent in parent_index_sets
+            ],
+        )
         self.assertIsNone(result[1]["index_set_id"])
         self.assertIsNone(result[1]["index_set_name"])
+        self.assertEqual(result[1]["related_index_set_list"], [])
         self.assertNotIn("bk_biz_name", result[0])
+
+        template_data = self.list_templates(bk_biz_id=706).data[0]
+        self.assertEqual(template_data["related_index_set_count"], 2)
 
 
 @override_settings(IGNORE_IAM_PERMISSION=False)
@@ -343,6 +387,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             result = handler._sync_collector(collector, template_version=1, clean_config=clean_config)
         collector.refresh_from_db()
         self.assertEqual(result["status"], CleanTemplateSyncStatus.SUCCESS.value)
+        self.assertEqual(
+            result["message"],
+            str(CleanTemplateSyncMessage.SUCCESS.value),
+        )
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.SUCCESS.value)
         collector_handler.create_or_update_clean_config.assert_called_once_with(
@@ -356,11 +404,42 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             result = handler._sync_collector(collector, template_version=2, clean_config=clean_config)
         collector.refresh_from_db()
         self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertIn("boom", result["message"])
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.FAILED.value)
         self.assertEqual(collector.clean_template_sync_message, "boom")
 
-    def test_sync_collector_does_not_restore_manually_removed_association(self):
+    def test_sync_collector_returns_failure_when_association_changed_before_sync(self):
+        template = self.create_template()
+        template_id = template["clean_template_id"]
+        handler = CleanTemplateHandler(template_id)
+        collector = self.create_collector(clean_template_id=template_id)
+        clean_config = {
+            "etl_config": "bk_log_text",
+            "etl_params": {},
+            "fields": [],
+            "clean_template_id": template_id,
+        }
+        CollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).update(
+            clean_template_id=None,
+            clean_template_version=None,
+            clean_template_sync_status=None,
+        )
+
+        with patch("apps.log_databus.handlers.clean.CollectorHandler.get_instance") as get_instance:
+            result = handler._sync_collector(collector, template_version=1, clean_config=clean_config)
+
+        self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(
+            result["message"],
+            str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_BEFORE_SYNC.value),
+        )
+        get_instance.assert_not_called()
+        collector.refresh_from_db()
+        self.assertIsNone(collector.clean_template_id)
+        self.assertIsNone(collector.clean_template_sync_status)
+
+    def test_sync_collector_returns_failure_when_association_changes_during_sync(self):
         template = self.create_template()
         template_id = template["clean_template_id"]
         handler = CleanTemplateHandler(template_id)
@@ -387,7 +466,11 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             result = handler._sync_collector(collector, template_version=1, clean_config=clean_config)
 
         collector.refresh_from_db()
-        self.assertIsNone(result)
+        self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(
+            result["message"],
+            str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value),
+        )
         self.assertIsNone(collector.clean_template_id)
         self.assertIsNone(collector.clean_template_version)
         self.assertIsNone(collector.clean_template_sync_status)
@@ -422,6 +505,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
 
         collector.refresh_from_db()
         self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(
+            result["message"],
+            str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value),
+        )
         self.assertEqual(collector.clean_template_id, other_template_id)
         self.assertEqual(collector.clean_template_version, 1)
         self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.SUCCESS.value)
@@ -475,6 +562,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             clean_template_version=None,
         )
 
+        template_data = {item["name"]: item for item in self.list_templates(bk_biz_id=706).data}["test"]
+        self.assertEqual(template_data["active_collector_count"], 5)
+        self.assertEqual(template_data["pending_sync_collector_count"], 4)
+
         class InlineExecutor:
             def __init__(self):
                 self.tasks = []
@@ -482,7 +573,7 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             def append(self, result_key, func, params, multi_func_params):
                 self.tasks.append((result_key, func, params))
 
-            def run(self, return_exception):
+            def run(self):
                 return {result_key: func(**params) for result_key, func, params in self.tasks}
 
         def sync_result(collector, template_version, clean_config):
@@ -552,56 +643,85 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         self.assertIsNone(collector.clean_template_sync_status)
         self.assertEqual(collector.clean_template_sync_message, "")
 
-    def test_etl_uses_template_snapshot_and_updates_association(self):
+    def test_update_or_create_handles_clean_template_id_tristate(self):
         template = self.create_template(clean_type="bk_log_json", etl_params={"retain_original_text": True})
-        collector = self.create_collector()
-        handler = TransferEtlHandler(collector.collector_config_id)
-
-        clean_template, etl_config, etl_params, fields = handler._prepare_clean_template_config(
-            template["clean_template_id"],
-            "bk_log_text",
-            {"request": "params"},
-            [{"field_name": "request_field"}],
-        )
-        etl_params["mutated"] = True
-        fields.append({"field_name": "mutated"})
-
-        clean_template.refresh_from_db()
-        self.assertEqual(etl_config, "bk_log_json")
-        self.assertEqual(clean_template.etl_params, {"retain_original_text": True})
-        self.assertEqual(clean_template.etl_fields, CREATE_PARAMS["etl_fields"])
-
-        handler._update_clean_template(template["clean_template_id"], clean_template)
-        collector.refresh_from_db()
-        self.assertEqual(collector.clean_template_id, template["clean_template_id"])
-        self.assertEqual(collector.clean_template_version, 1)
-        self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.SUCCESS.value)
-
-    def test_etl_uses_current_template_when_template_id_is_omitted(self):
-        template = self.create_template(clean_type="bk_log_json", etl_params={"retain_original_text": True})
-        collector = self.create_collector(clean_template_id=template["clean_template_id"])
-        handler = TransferEtlHandler(collector.collector_config_id)
-
-        clean_template_id = handler._resolve_clean_template_id()
-        clean_template, etl_config, etl_params, fields = handler._prepare_clean_template_config(
-            clean_template_id,
-            "bk_log_text",
-            {"request": "params"},
-            [{"field_name": "request_field"}],
+        request_config = {
+            "etl_config": "bk_log_text",
+            "etl_params": {"request": "params"},
+            "fields": [{"field_name": "request_field"}],
+        }
+        cases = (
+            ("specified", None, True, template["clean_template_id"], "bk_log_json", template["clean_template_id"]),
+            (
+                "omitted",
+                template["clean_template_id"],
+                False,
+                None,
+                "bk_log_json",
+                template["clean_template_id"],
+            ),
+            ("explicit-null", template["clean_template_id"], True, None, "bk_log_text", None),
         )
 
-        self.assertEqual(clean_template_id, template["clean_template_id"])
-        self.assertEqual(clean_template.clean_template_id, template["clean_template_id"])
-        self.assertEqual(etl_config, "bk_log_json")
-        self.assertEqual(etl_params, {"retain_original_text": True})
-        self.assertEqual(fields, CREATE_PARAMS["etl_fields"])
+        storage_handler = MagicMock()
+        storage_handler.get_cluster_info_by_id.return_value = {
+            "cluster_type": "elasticsearch",
+            "cluster_config": {"version": "7.x", "custom_option": {}},
+        }
+        etl_storage = MagicMock()
+        with (
+            patch("apps.log_databus.handlers.etl.transfer.StorageHandler", return_value=storage_handler),
+            patch.object(TransferEtlHandler, "check_es_storage_capacity"),
+            patch(
+                "apps.log_databus.handlers.etl.transfer.EtlStorage.get_instance", return_value=etl_storage
+            ) as get_etl_storage,
+            patch.object(
+                TransferEtlHandler,
+                "_update_or_create_index_set",
+                return_value={"index_set_id": 1, "scenario_id": "log"},
+            ),
+            patch("apps.log_databus.handlers.etl.transfer.CollectorHandler.create_clean_stash"),
+            patch("apps.log_databus.handlers.etl.transfer.user_operation_record.delay"),
+        ):
+            for index, case in enumerate(cases):
+                name, current_template_id, include_template_id, supplied_template_id, etl_config, expected_id = case
+                with self.subTest(case=name):
+                    collector = self.create_collector(
+                        collector_config_name=f"collector-{name}",
+                        clean_template_id=current_template_id,
+                    )
+                    params = {
+                        **request_config,
+                        "table_id": f"table_{index}",
+                        "storage_cluster_id": 1,
+                        "retention": 7,
+                        "allocation_min_days": 0,
+                        "storage_replies": 1,
+                    }
+                    if include_template_id:
+                        params["clean_template_id"] = supplied_template_id
 
-    def test_explicit_null_template_id_does_not_reuse_current_template(self):
-        template = self.create_template()
-        collector = self.create_collector(clean_template_id=template["clean_template_id"])
-        handler = TransferEtlHandler(collector.collector_config_id)
+                    TransferEtlHandler(collector.collector_config_id).update_or_create(**params)
 
-        self.assertIsNone(handler._resolve_clean_template_id(None))
+                    update_params = etl_storage.update_or_create_result_table.call_args.kwargs
+                    self.assertEqual(
+                        update_params["etl_params"],
+                        {"retain_original_text": True} if expected_id else request_config["etl_params"],
+                    )
+                    self.assertEqual(
+                        update_params["fields"],
+                        CREATE_PARAMS["etl_fields"] if expected_id else request_config["fields"],
+                    )
+                    collector.refresh_from_db()
+                    self.assertEqual(collector.clean_template_id, expected_id)
+                    self.assertEqual(collector.clean_template_version, 1 if expected_id else None)
+                    self.assertEqual(
+                        collector.clean_template_sync_status,
+                        CleanTemplateSyncStatus.SUCCESS.value if expected_id else None,
+                    )
+                    get_etl_storage.assert_called_once_with(etl_config=etl_config)
+                    get_etl_storage.reset_mock()
+                    etl_storage.reset_mock()
 
     def test_etl_does_not_associate_deleted_template(self):
         template = self.create_template()
@@ -611,7 +731,7 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
 
         clean_template.delete()
         with self.assertRaises(CleanTemplateNotExistException):
-            handler._update_clean_template(template["clean_template_id"], clean_template)
+            handler._update_clean_template(clean_template)
 
         collector.refresh_from_db()
         self.assertIsNone(collector.clean_template_id)
