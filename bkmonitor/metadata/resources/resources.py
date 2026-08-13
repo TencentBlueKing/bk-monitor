@@ -3063,6 +3063,7 @@ class KafkaTailResource(Resource):
         logger.info(
             "KafkaTailResource: using kafka-python to tail,bk_data_id->[%s],topic->[%s]", datasource.bk_data_id, topic
         )
+        timeout_ms = settings.KAFKA_TAIL_API_TIMEOUT_SECONDS
 
         if mq_ins.is_ssl_verify:  # SSL验证是否强验证
             server = mq_ins.extranet_domain_name if mq_ins.extranet_domain_name else mq_ins.domain_name
@@ -3100,8 +3101,8 @@ class KafkaTailResource(Resource):
                 sasl_mechanism=sasl_mechanism,
                 sasl_plain_username=mq_ins.username,
                 sasl_plain_password=mq_ins.password,
-                request_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
-                consumer_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                request_timeout_ms=timeout_ms,
+                consumer_timeout_ms=timeout_ms,
                 ssl_cafile=ssl_cafile,
                 ssl_certfile=ssl_certfile,
                 ssl_keyfile=ssl_keyfile,
@@ -3110,8 +3111,8 @@ class KafkaTailResource(Resource):
         else:
             param = {
                 "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-                "request_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
-                "consumer_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                "request_timeout_ms": timeout_ms,
+                "consumer_timeout_ms": timeout_ms,
             }
             if datasource.mq_cluster.username:
                 param["sasl_plain_username"] = datasource.mq_cluster.username
@@ -3120,42 +3121,50 @@ class KafkaTailResource(Resource):
                 param["sasl_mechanism"] = "PLAIN"
             consumer = KafkaConsumer(topic, **param)
 
-        max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
-        retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
-        for attempt in range(max_retries):  # 边缘存查集群存在首次连接拉取时异常问题，添加重试机制
-            consumer.poll(size)
-            topic_partitions = consumer.partitions_for_topic(topic)
-            if topic_partitions:
-                break
-            logger.warning(
-                "KafkaTailResource: Failed to get partitions for topic->[%s],attempt->[%s],retrying.", topic, attempt
-            )
-            time.sleep(retry_delay)
-        else:
-            raise ValueError("failed to get partitions")
-        result = []
-        for partition in topic_partitions:
-            # 获取该分区最大偏移量
-            tp = TopicPartition(topic=datasource.mq_config.topic, partition=partition)
-            low_offset = consumer.beginning_offsets([tp])[tp]
-            high_offset = consumer.end_offsets([tp])[tp]
-            if size <= 0 or high_offset <= low_offset:
-                continue
-            start_offset = max(low_offset, high_offset - size)
-
-            # 设置消息消费偏移量
-            consumer.seek(tp, start_offset)
-            for msg in consumer:
-                try:
-                    result.append(json.loads(msg.value.decode()))
-                except Exception:  # pylint: disable=broad-except
-                    pass
-                if len(result) >= size:
-                    return result
-                if msg.offset >= high_offset - 1:
+        try:
+            max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
+            retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
+            for attempt in range(1, max_retries + 1):  # 等待 topic 元数据就绪，并兼容首次连接失败
+                consumer.poll(timeout_ms=timeout_ms)
+                topic_partitions = consumer.partitions_for_topic(topic)
+                if topic_partitions:
                     break
+                logger.warning(
+                    "KafkaTailResource: Failed to get partitions for topic->[%s],attempt->[%s/%s].",
+                    topic,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+            else:
+                raise ValueError("failed to get partitions")
 
-        return result
+            result = []
+            for partition in topic_partitions:
+                # 获取该分区最大偏移量
+                tp = TopicPartition(topic=topic, partition=partition)
+                low_offset = consumer.beginning_offsets([tp])[tp]
+                high_offset = consumer.end_offsets([tp])[tp]
+                if size <= 0 or high_offset <= low_offset:
+                    continue
+                start_offset = max(low_offset, high_offset - size)
+
+                # 设置消息消费偏移量
+                consumer.seek(tp, start_offset)
+                for msg in consumer:
+                    try:
+                        result.append(json.loads(msg.value.decode()))
+                    except Exception:  # pylint: disable=broad-except
+                        pass
+                    if len(result) >= size:
+                        return result
+                    if msg.offset >= high_offset - 1:
+                        break
+
+            return result
+        finally:
+            consumer.close()
 
     def _consume_with_gse_config(self, datasource, size):
         """
@@ -3267,43 +3276,60 @@ class KafkaTailResource(Resource):
                 raise KafkaException(errors)
             return result
 
+        timeout_ms = settings.KAFKA_TAIL_API_TIMEOUT_SECONDS
         consumer_config = {
             "bootstrap_servers": kafka_servers,
-            "request_timeout_ms": 1000,
-            "consumer_timeout_ms": 1000,
+            "request_timeout_ms": timeout_ms,
+            "consumer_timeout_ms": timeout_ms,
         }
 
         consumer = KafkaConsumer(topic, **consumer_config)
-        consumer.poll(size)
-        topic_partitions = consumer.partitions_for_topic(topic)
-        if not topic_partitions:
-            consumer.close()
-            raise ValueError(_("partition获取失败"))
-        result = []
-        for partition in topic_partitions:
-            # 获取该分区最大偏移量
-            tp = TopicPartition(topic=topic, partition=partition)
-            low_offset = consumer.beginning_offsets([tp])[tp]
-            high_offset = consumer.end_offsets([tp])[tp]
-            if size <= 0 or high_offset <= low_offset:
-                continue
-            start_offset = max(low_offset, high_offset - size)
-
-            # 设置消息消费偏移量
-            consumer.seek(tp, start_offset)
-            for msg in consumer:
-                try:
-                    result.append(json.loads(msg.value.decode()))
-                except Exception:  # pylint: disable=broad-except
-                    pass
-                if len(result) >= size:
-                    consumer.close()
-                    return result
-                if msg.offset >= high_offset - 1:
+        try:
+            max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
+            retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
+            for attempt in range(1, max_retries + 1):
+                consumer.poll(timeout_ms=timeout_ms)
+                topic_partitions = consumer.partitions_for_topic(topic)
+                if topic_partitions:
                     break
+                logger.warning(
+                    "KafkaTailResource: Failed to get partitions from GSE config,bk_data_id->[%s],"
+                    "topic->[%s],attempt->[%s/%s].",
+                    bk_data_id,
+                    topic,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+            else:
+                raise ValueError(_("partition获取失败"))
 
-        consumer.close()
-        return result
+            result = []
+            for partition in topic_partitions:
+                # 获取该分区最大偏移量
+                tp = TopicPartition(topic=topic, partition=partition)
+                low_offset = consumer.beginning_offsets([tp])[tp]
+                high_offset = consumer.end_offsets([tp])[tp]
+                if size <= 0 or high_offset <= low_offset:
+                    continue
+                start_offset = max(low_offset, high_offset - size)
+
+                # 设置消息消费偏移量
+                consumer.seek(tp, start_offset)
+                for msg in consumer:
+                    try:
+                        result.append(json.loads(msg.value.decode()))
+                    except Exception:  # pylint: disable=broad-except
+                        pass
+                    if len(result) >= size:
+                        return result
+                    if msg.offset >= high_offset - 1:
+                        break
+
+            return result
+        finally:
+            consumer.close()
 
 
 class GetBCSClusterRelatedDataLinkResource(Resource):
