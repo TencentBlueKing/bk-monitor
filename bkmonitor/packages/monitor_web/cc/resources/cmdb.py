@@ -69,6 +69,9 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
     :return {bk_host_id: AGENT_STATUS}
     """
+    if not hosts:
+        return {}
+
     status: dict[int, int] = {}
     now = int(time.time())
     # 前端默认时间范围为 now-7d ~ now，始终传递 start_time/end_time；
@@ -85,6 +88,7 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host], start_time: int = None, 
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if is_historical:
