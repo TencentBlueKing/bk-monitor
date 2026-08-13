@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+from django.conf import settings
 from django.test import SimpleTestCase
 
 from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec, V4ResourceCodec
@@ -285,6 +286,52 @@ class V4PermissionProviderTest(SimpleTestCase):
         self.assertEqual(apply_url, "https://bkiam.example/apply")
         self.assertEqual(apply_data["provider"], "v4")
         self.client.generate_perm_apply_url.assert_called_once()
+
+        # 展示数据与 V3 同构，且 id 用 V4 编码；permissions 是发给 IAM 的请求体，不进对外响应。
+        self.assertNotIn("permissions", apply_data)
+        self.assertEqual(apply_data["system_id"], "bk_log_search")
+        self.assertEqual(apply_data["system_name"], settings.BK_IAM_SYSTEM_NAME)
+        self.assertEqual(apply_data["actions"][0]["id"], "view_collection")
+        self.assertEqual(apply_data["actions"][0]["name"], ActionEnum.VIEW_COLLECTION.name)
+        self.assertEqual(
+            apply_data["actions"][0]["related_resource_types"][0]["instances"],
+            [[{"type": "collection", "type_name": ResourceEnum.COLLECTION.name, "id": "1", "name": ""}]],
+        )
+
+    def test_apply_data_matches_the_permissions_sent_to_iam(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+        resources = [
+            ResourceInstance(system=ResourceEnum.BUSINESS.system_id, type="space", id="10", name="空间A"),
+            ResourceInstance(
+                system=ResourceEnum.INDICES.system_id,
+                type="indices",
+                id="20",
+                name="索引集A",
+                attributes={"_bk_iam_path_": "/space,10/"},
+            ),
+        ]
+
+        apply_data, _ = self.provider.get_apply_data([ActionEnum.VIEW_BUSINESS, ActionEnum.SEARCH_LOG], resources)
+
+        def displayed_resource_ids(action):
+            return [
+                node["id"]
+                for resource_type in action["related_resource_types"]
+                for chain in resource_type["instances"]
+                for node in chain
+            ]
+
+        # 展示数据与申请单由两段代码分别构造，前端不会校验两者是否一致，只能靠测试锁住：
+        # 页面上写的动作和资源，必须就是申请单里的那一批。
+        permissions = self.client.generate_perm_apply_url.call_args.kwargs["permissions"]
+        self.assertEqual(
+            [action["id"] for action in apply_data["actions"]],
+            [permission["action_id"] for permission in permissions],
+        )
+        self.assertEqual(
+            [displayed_resource_ids(action) for action in apply_data["actions"]],
+            [[resource["id"] for resource in permission["resources"]] for permission in permissions],
+        )
 
     def test_apply_data_propagates_v4_error(self):
         self.client.generate_perm_apply_url.side_effect = V4ResponseError("missing url")

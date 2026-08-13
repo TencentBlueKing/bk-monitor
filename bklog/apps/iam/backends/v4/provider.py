@@ -3,6 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
+from django.conf import settings
+
+from apps.iam.backends.v4.apply import build_apply_data
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently
@@ -239,6 +242,7 @@ class V4PermissionProvider(PermissionProvider):
     ) -> tuple[dict[str, Any], str]:
         resources = resources or []
         permissions = []
+        action_resources: list[tuple[ActionDefinition, list[ResourceInstance]]] = []
         for action_ref in actions:
             action = self._resolve_action(action_ref)
             encoded_action_id = self.codec.encode_action(action.id)
@@ -248,20 +252,22 @@ class V4PermissionProvider(PermissionProvider):
                 self.codec.encode_resource_for_apply(resource) for resource in matched_resources
             )
             permissions.append(permission)
+            action_resources.append((action, matched_resources))
 
         try:
             apply_url = self.client.generate_perm_apply_url(permissions=permissions)
         except V4ClientError as error:
             raise RuntimeError(error.reason) from error
 
-        return (
-            {
-                "provider": self.name,
-                "system_id": self.client.options.system_id,
-                "permissions": permissions,
-            },
-            apply_url,
+        # 展示数据与 V3 同构，前端不需要区分当前是哪一代；permissions 只用于生成 apply_url，
+        # 属于发给 IAM 的请求体，留在日志里即可，不进对外的无权限响应。
+        apply_data = build_apply_data(
+            system_id=self.client.options.system_id,
+            system_name=settings.BK_IAM_SYSTEM_NAME,
+            codec=self.codec,
+            action_resources=action_resources,
         )
+        return {"provider": self.name, **apply_data}, apply_url
 
     @staticmethod
     def _build_subject(request: AuthRequest | BatchAuthRequest) -> dict[str, str]:

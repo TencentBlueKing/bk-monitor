@@ -109,6 +109,8 @@ class MetaViewSet(APIViewSet):
         @api {post} /iam/meta/get_apply_data/ 03_获取权限申请数据
         @apiName get_apply_data
         @apiGroup 99_IAM
+        @apiDescription IAM V3 与 V4 返回同一种结构；V4 模式下 actions[].id 不带 _v2 后缀，
+                        related_resource_types[].system_id 为日志平台自身系统。
         @apiParam {Array(String)}  action_ids 动作ID列表
         @apiParam {Array(Object)}  resources 资源列表
         @apiParam {string}  resources.type 资源类型
