@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
@@ -595,5 +596,8 @@ class QuickShield(AlertPermissionResource):
         return shield_params
 
     def perform_request(self, params):
+        # 事件屏蔽空选择会退化成仅 strategy_id，范围比「当前实例」更大，必须拒绝
+        if params["type"] == "event" and not params.get("dimension_keys") and not params.get("dimension_conditions"):
+            raise ValidationError(_("请选择屏蔽维度"))
         alert = AlertDocument.get(id=params["event_id"])
         return resource.shield.add_shield(self.handle(params, alert))
