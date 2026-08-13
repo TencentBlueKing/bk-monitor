@@ -34,6 +34,7 @@ from apps.log_databus.exceptions import (
     CleanTemplateRepeatException,
 )
 from apps.log_databus.handlers.clean import CleanTemplateHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CleanTemplate, CollectorConfig
 from apps.log_databus.serializers import (
@@ -371,6 +372,108 @@ class TestCleanTemplateSyncPermission(CleanTemplateTestCase):
 
 
 class TestCleanTemplateSync(CleanTemplateTestCase):
+    def test_sync_collector_runs_real_result_table_update_chain(self):
+        template = self.create_template()
+        template_id = template["clean_template_id"]
+        table_id = CollectorHandler.build_result_table_id(706, "collector")
+        collector = self.create_collector(
+            clean_template_id=template_id,
+            table_id=table_id,
+            etl_config="bk_log_text",
+        )
+        handler = CleanTemplateHandler(template_id)
+        clean_config = {
+            "etl_config": template["clean_type"],
+            "etl_params": copy.deepcopy(template["etl_params"]),
+            "fields": copy.deepcopy(template["etl_fields"]),
+            "clean_template_id": template_id,
+        }
+        result_table = {
+            "cluster_config": {"cluster_id": 11},
+            "storage_config": {
+                "retention": 14,
+                "warm_phase_days": 3,
+                "index_settings": {
+                    "number_of_shards": 4,
+                    "number_of_replicas": 2,
+                },
+            },
+        }
+        cluster_info = {
+            "cluster_type": "elasticsearch",
+            "cluster_config": {
+                "version": "7.x",
+                "custom_option": {
+                    "hot_warm_config": {
+                        "is_enabled": True,
+                        "hot_attr_name": "temperature",
+                        "hot_attr_value": "hot",
+                        "warm_attr_name": "temperature",
+                        "warm_attr_value": "warm",
+                    }
+                },
+            },
+        }
+
+        with (
+            patch(
+                "apps.log_databus.handlers.collector.base.TransferApi.get_result_table_storage",
+                return_value={table_id: result_table},
+            ),
+            patch("apps.log_databus.handlers.collector.base.StorageHandler") as collector_storage_handler,
+            patch("apps.log_databus.handlers.etl.transfer.StorageHandler") as transfer_storage_handler,
+            patch(
+                "apps.log_databus.handlers.etl_storage.base.get_es_config",
+                return_value={"ES_DATE_FORMAT": "%Y%m%d", "ES_SHARDS_SIZE": 30, "ES_SLICE_GAP": 1440},
+            ),
+            patch(
+                "apps.log_databus.handlers.etl_storage.base.TransferApi.get_result_table",
+                return_value={"table_id": table_id},
+            ),
+            patch("apps.log_databus.tasks.collector.TransferApi.modify_result_table") as modify_result_table,
+            patch("apps.log_databus.tasks.collector.modify_result_table.delay") as modify_result_table_delay,
+            patch.object(
+                TransferEtlHandler,
+                "_update_or_create_index_set",
+                return_value={"index_set_id": 1, "scenario_id": "log"},
+            ),
+            patch("apps.log_databus.handlers.etl.transfer.user_operation_record.delay"),
+        ):
+            collector_storage_handler.return_value.get_cluster_info_by_id.return_value = cluster_info
+            transfer_storage_handler.return_value.get_cluster_info_by_id.return_value = cluster_info
+
+            result = handler._sync_collector(collector, template_version=1, clean_config=clean_config)
+
+            self.assertEqual(result["status"], CleanTemplateSyncStatus.SUCCESS.value)
+            modify_result_table_delay.assert_not_called()
+            modify_result_table.assert_called_once()
+            result_table_params = modify_result_table.call_args.args[0]
+            self.assertEqual(result_table_params["table_id"], table_id)
+            self.assertEqual(result_table_params["default_storage_config"]["cluster_id"], 11)
+            self.assertEqual(result_table_params["default_storage_config"]["retention"], 14)
+            self.assertEqual(result_table_params["default_storage_config"]["warm_phase_days"], 3)
+            self.assertEqual(
+                result_table_params["default_storage_config"]["index_settings"]["number_of_shards"],
+                4,
+            )
+            self.assertEqual(
+                result_table_params["default_storage_config"]["index_settings"]["number_of_replicas"],
+                2,
+            )
+            self.assertIn("user", {field["field_name"] for field in result_table_params["field_list"]})
+
+            modify_result_table.side_effect = RuntimeError("metadata boom")
+            result = handler._sync_collector(collector, template_version=2, clean_config=clean_config)
+
+        collector.refresh_from_db()
+        self.assertEqual(modify_result_table.call_count, 2)
+        modify_result_table_delay.assert_not_called()
+        self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertIn("metadata boom", result["message"])
+        self.assertEqual(collector.clean_template_version, 1)
+        self.assertEqual(collector.clean_template_sync_status, CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(collector.clean_template_sync_message, "metadata boom")
+
     def test_sync_collector_records_success_and_failure(self):
         template = self.create_template()
         handler = CleanTemplateHandler(template["clean_template_id"])
