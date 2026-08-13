@@ -11,12 +11,9 @@ from django.conf import settings
 DEFAULT_V4_GRANT_EXPIRE_DAYS = 365
 MAX_V4_GRANT_EXPIRE_DAYS = 365
 DEFAULT_GRANT_MAX_ATTEMPTS = 12
-DEFAULT_GRANT_LEASE_SECONDS = 120
-MIN_GRANT_LEASE_SECONDS = 30
-DEFAULT_GRANT_COMPENSATION_BATCH_SIZE = 100
-MAX_GRANT_COMPENSATION_BATCH_SIZE = 1000
-DEFAULT_GRANT_COMPENSATION_TIME_BUDGET_SECONDS = 50
-MAX_GRANT_COMPENSATION_TIME_BUDGET_SECONDS = 55
+# 重试退避：首次等待 BASE 秒并逐次翻倍，封顶 MAX 秒，避免长时间故障时把队列打满。
+GRANT_RETRY_BASE_COUNTDOWN_SECONDS = 30
+GRANT_RETRY_MAX_COUNTDOWN_SECONDS = 600
 
 logger = logging.getLogger("iam.grant.config")
 
@@ -46,15 +43,20 @@ def _normalize_bounded_int(
     return configured
 
 
+def retry_countdown_seconds(retries: int) -> int:
+    """按已重试次数计算下一次投递的等待秒数。"""
+
+    # 先夹住指数再乘，避免 max_attempts 配得很大时算出天文数字。
+    exponent = min(max(0, retries), 16)
+    return min(GRANT_RETRY_BASE_COUNTDOWN_SECONDS * 2**exponent, GRANT_RETRY_MAX_COUNTDOWN_SECONDS)
+
+
 @dataclass(frozen=True, slots=True)
 class AuthorizationGrantConfig:
-    """授权双写及补偿状态机的运行参数。"""
+    """创建者授权双写的运行参数。"""
 
     v4_expire_days: int
     max_attempts: int
-    lease_seconds: int
-    compensation_batch_size: int
-    compensation_time_budget_seconds: int
 
     @classmethod
     def from_settings(cls) -> AuthorizationGrantConfig:
@@ -71,33 +73,5 @@ class AuthorizationGrantConfig:
                 setting_name="BK_IAM_GRANT_MAX_ATTEMPTS",
                 default=DEFAULT_GRANT_MAX_ATTEMPTS,
                 minimum=1,
-            ),
-            lease_seconds=_normalize_bounded_int(
-                getattr(settings, "BK_IAM_GRANT_LEASE_SECONDS", DEFAULT_GRANT_LEASE_SECONDS),
-                setting_name="BK_IAM_GRANT_LEASE_SECONDS",
-                default=DEFAULT_GRANT_LEASE_SECONDS,
-                minimum=MIN_GRANT_LEASE_SECONDS,
-            ),
-            compensation_batch_size=_normalize_bounded_int(
-                getattr(
-                    settings,
-                    "BK_IAM_GRANT_COMPENSATION_BATCH_SIZE",
-                    DEFAULT_GRANT_COMPENSATION_BATCH_SIZE,
-                ),
-                setting_name="BK_IAM_GRANT_COMPENSATION_BATCH_SIZE",
-                default=DEFAULT_GRANT_COMPENSATION_BATCH_SIZE,
-                minimum=1,
-                maximum=MAX_GRANT_COMPENSATION_BATCH_SIZE,
-            ),
-            compensation_time_budget_seconds=_normalize_bounded_int(
-                getattr(
-                    settings,
-                    "BK_IAM_GRANT_COMPENSATION_TIME_BUDGET_SECONDS",
-                    DEFAULT_GRANT_COMPENSATION_TIME_BUDGET_SECONDS,
-                ),
-                setting_name="BK_IAM_GRANT_COMPENSATION_TIME_BUDGET_SECONDS",
-                default=DEFAULT_GRANT_COMPENSATION_TIME_BUDGET_SECONDS,
-                minimum=1,
-                maximum=MAX_GRANT_COMPENSATION_TIME_BUDGET_SECONDS,
             ),
         )

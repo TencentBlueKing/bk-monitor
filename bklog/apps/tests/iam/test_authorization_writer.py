@@ -3,7 +3,8 @@ from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 
-from apps.iam.backends.legacy_v3 import LegacyV3AuthorizationWriter, LegacyV3GrantError
+from apps.iam.backends.v3.exceptions import V3GrantError
+from apps.iam.backends.v3.writer import V3AuthorizationWriter
 from apps.iam.backends.v4.exceptions import V4ClientError, V4RateLimitError, V4TimeoutError
 from apps.iam.backends.v4.writer import UnsupportedV4GrantResource, V4AuthorizationWriter
 from apps.iam.iam_engine.provider.capabilities import GrantFailureKind
@@ -89,18 +90,12 @@ class AuthorizationWriterTest(SimpleTestCase):
     def test_v3_false_tuple_is_normalized_to_failure(self):
         client = Mock()
         client.grant_resource_creator_actions.return_value = (False, "temporary failure")
-        writer = LegacyV3AuthorizationWriter(client)
+        writer = V3AuthorizationWriter(client)
 
-        with self.assertRaisesMessage(LegacyV3GrantError, "temporary failure"):
+        with self.assertRaisesMessage(V3GrantError, "temporary failure"):
             writer.grant_resource_creator_actions(
                 {"system": "bk_log_search", "type": "collection", "id": "1", "creator": "creator"}
             )
-
-    def test_v3_value_error_is_final(self):
-        self.assertEqual(
-            LegacyV3AuthorizationWriter.classify_failure(ValueError("invalid payload")),
-            GrantFailureKind.FAILED_FINAL,
-        )
 
     @patch("apps.iam.backends.v4.writer.V4Options.from_settings")
     @patch("apps.iam.backends.v4.writer.V4Client")

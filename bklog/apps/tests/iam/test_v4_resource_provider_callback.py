@@ -314,7 +314,7 @@ class V4DispatcherRegistrationTest(SimpleTestCase):
         self.assertNotIsInstance(iam_urls.dispatcher._provider["collection"], V4CollectionResourceProvider)
 
     def test_v4_dispatcher_uses_v4_callback_iam_client(self):
-        from apps.iam.handlers.compatible import V4CallbackIAM
+        from apps.iam.backends.v4.callback_client import V4CallbackIAM
         from apps.iam import urls as iam_urls
 
         self.assertIsInstance(iam_urls.v4_dispatcher.iam, V4CallbackIAM)

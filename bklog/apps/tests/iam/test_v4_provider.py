@@ -4,7 +4,7 @@ from django.test import SimpleTestCase
 
 from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.exceptions import V4ResponseError, V4TimeoutError
-from apps.iam.backends.v4.provider import V4PermissionProvider, _chunked
+from apps.iam.backends.v4.provider import V4PermissionProvider
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.resources import ResourceEnum
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
@@ -352,10 +352,6 @@ class V4PermissionProviderTest(SimpleTestCase):
             provider = V4PermissionProvider(self.client, batch_chunk_size=0)
 
         self.assertEqual(provider.batch_chunk_size, 100)
-
-    def test_chunk_helper_rejects_non_positive_size(self):
-        with self.assertRaisesMessage(ValueError, "chunk_size must be positive"):
-            list(_chunked([1], 0))
 
     def test_list_authorized_resources_returns_concrete_scope(self):
         self.client.username = "admin"

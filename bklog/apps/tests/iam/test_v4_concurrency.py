@@ -1,9 +1,14 @@
 import threading
 import time
 
+from django.conf import settings
 from django.test import SimpleTestCase
+from django.utils import timezone
+from opentelemetry.context import attach, detach, get_value, set_value
 
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently, run_pair_concurrently
+from apps.utils.local import activate_request, del_local_param, get_local_param, get_request, set_local_param
+from apps.utils.thread import generate_request
 
 
 class MapChunksConcurrentlyTest(SimpleTestCase):
@@ -76,3 +81,62 @@ class RunPairConcurrentlyTest(SimpleTestCase):
         elapsed = time.monotonic() - started_at
         self.assertEqual(result, ("left", "right"))
         self.assertLess(elapsed, 0.5)
+
+
+class ContextPropagationTest(SimpleTestCase):
+    """worker 线程必须继承调用线程的 OTel context、request 与时区，否则 V3/V4 请求的 span 挂不到请求 trace 上。"""
+
+    def setUp(self):
+        del_local_param("request")
+        del_local_param("time_zone")
+        self.addCleanup(del_local_param, "request")
+        self.addCleanup(del_local_param, "time_zone")
+
+    def _attach_probe(self, value):
+        token = attach(set_value("probe", value))
+        self.addCleanup(detach, token)
+
+    def test_map_chunks_propagates_trace_context(self):
+        self._attach_probe("on")
+
+        results = map_chunks_concurrently([1, 2], lambda _: get_value("probe"), max_workers=2)
+
+        self.assertEqual(results, ["on", "on"])
+
+    def test_run_pair_propagates_trace_context(self):
+        self._attach_probe("on")
+
+        self.assertEqual(
+            run_pair_concurrently(lambda: get_value("probe"), lambda: get_value("probe")),
+            ("on", "on"),
+        )
+
+    def test_propagates_request_without_rewriting_request_id(self):
+        request = activate_request(generate_request(), "fixed-id")
+
+        results = map_chunks_concurrently(
+            [1, 2],
+            lambda _: get_request().request_id,
+            max_workers=2,
+        )
+
+        self.assertEqual(results, ["fixed-id", "fixed-id"])
+        self.assertEqual(request.request_id, "fixed-id")
+
+    def test_propagates_time_zone(self):
+        # 刻意选一个与 settings.TIME_ZONE 不同的时区，否则 worker 里读到的默认时区会让断言恒真
+        self.assertNotEqual(settings.TIME_ZONE, "Europe/Amsterdam")
+        set_local_param("time_zone", "Europe/Amsterdam")
+
+        results = map_chunks_concurrently(
+            [1, 2],
+            lambda _: (get_local_param("time_zone"), timezone.get_current_timezone_name()),
+            max_workers=2,
+        )
+
+        self.assertEqual(results, [("Europe/Amsterdam", "Europe/Amsterdam")] * 2)
+
+    def test_missing_request_does_not_raise(self):
+        results = map_chunks_concurrently([1, 2], lambda chunk: get_request(peaceful=True) or chunk, max_workers=2)
+
+        self.assertEqual(results, [1, 2])

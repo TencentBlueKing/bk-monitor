@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
+from apps.iam.backends.v4.callback_client import V4CallbackIAM
 from apps.iam.backends.v4.config import resolve_callback_app_credentials
-from apps.iam.handlers.compatible import V4CallbackIAM
 
 
 @override_settings(
@@ -126,7 +126,7 @@ class V4CallbackIAMTest(SimpleTestCase):
         self.assertEqual(tenant_client.get_token("bklog_test")[2], "tenant-token")
         self.assertEqual(retrieve_mock.call_count, 2)
 
-    @patch("apps.iam.handlers.compatible.cache.get", side_effect=RuntimeError("cache read failed"))
+    @patch("apps.iam.backends.v4.callback_client.cache.get", side_effect=RuntimeError("cache read failed"))
     @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
     def test_cache_read_failure_falls_back_to_iam(self, retrieve_mock, _cache_get):
         with self.assertLogs("root", level="WARNING"):
@@ -135,7 +135,7 @@ class V4CallbackIAMTest(SimpleTestCase):
         self.assertEqual(result, (True, "success", "v4-token"))
         retrieve_mock.assert_called_once_with("bklog_test")
 
-    @patch("apps.iam.handlers.compatible.cache.set", side_effect=RuntimeError("cache write failed"))
+    @patch("apps.iam.backends.v4.callback_client.cache.set", side_effect=RuntimeError("cache write failed"))
     @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
     def test_cache_write_failure_keeps_fetched_token(self, retrieve_mock, _cache_set):
         with self.assertLogs("root", level="WARNING"):
@@ -173,11 +173,11 @@ class V4CallbackCredentialsTest(SimpleTestCase):
 
 
 class CompatibleIAMNonCompatModeTest(SimpleTestCase):
-    @patch("apps.iam.handlers.compatible.CompatibleIAM.in_compatibility_mode", return_value=False)
+    @patch("apps.iam.backends.v3.client.CompatibleIAM.in_compatibility_mode", return_value=False)
     @patch("iam.IAM._do_policy_query", return_value={"op": "any"})
     @patch("iam.IAM._do_policy_query_by_actions", return_value=[])
     def test_policy_query_delegates_to_super_when_not_compatible(self, by_actions_mock, query_mock, _compat_mock):
-        from apps.iam.handlers.compatible import CompatibleIAM
+        from apps.iam.backends.v3.client import CompatibleIAM
 
         client = CompatibleIAM("bk_log_search", "secret", "https://bk-iam.example/prod/", bk_tenant_id="system")
         request = MagicMock()

@@ -1,4 +1,4 @@
-"""为异常和持久化记录生成有长度限制且已脱敏的 IAM 错误摘要。"""
+"""为 IAM 异常生成有长度限制且已脱敏的诊断摘要。"""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ _SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
 _EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
 _LONG_NUMBER_PATTERN = re.compile(r"(?<!\d)\d{11,}(?!\d)")
 _OPAQUE_CREDENTIAL_PATTERN = re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9_+/=.~-]{32,}(?![A-Za-z0-9])")
-_LOGICAL_KEY_PATTERN = re.compile(r"(?i)\blogical_key\s*=\s*([a-f0-9]{64})\b")
 
 
 def sanitize_error_summary(value: Any, *, max_length: int = MAX_ERROR_SUMMARY_LENGTH) -> str:
@@ -28,23 +27,5 @@ def sanitize_error_summary(value: Any, *, max_length: int = MAX_ERROR_SUMMARY_LE
     summary = _SENSITIVE_ASSIGNMENT_PATTERN.sub("credential=<redacted>", summary)
     summary = _EMAIL_PATTERN.sub("<redacted-email>", summary)
     summary = _LONG_NUMBER_PATTERN.sub("<redacted-number>", summary)
-
-    def redact_opaque_value(match: re.Match) -> str:
-        token = match.group(0)
-        if _LOGICAL_KEY_PATTERN.fullmatch(token):
-            return token
-        prefix = summary[max(0, match.start() - 32) : match.start()]
-        if (
-            len(token) == 64
-            and re.fullmatch(r"(?i)[a-f0-9]{64}", token)
-            and re.search(r"(?i)logical_key\s*=\s*$", prefix)
-        ):
-            return token
-        return "<redacted-value>"
-
-    summary = _OPAQUE_CREDENTIAL_PATTERN.sub(redact_opaque_value, summary)
-    bounded_length = max(0, max_length)
-    for match in _LOGICAL_KEY_PATTERN.finditer(summary):
-        if match.start(1) < bounded_length < match.end(1):
-            return summary[: match.start()].rstrip()
-    return summary[:bounded_length]
+    summary = _OPAQUE_CREDENTIAL_PATTERN.sub("<redacted-value>", summary)
+    return summary[: max(0, max_length)]

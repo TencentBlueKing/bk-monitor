@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
 from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
@@ -58,17 +57,3 @@ class MigrationPolicy:
             writers.append((AuthMode.V4.value, v4_bundle.writer))
 
         return tuple(writers)
-
-
-class BoundPermissionApplicationAdapter:
-    """把平台侧申请实现绑定为 Bundle 可注入的 application 能力。"""
-
-    def __init__(self, handler: Callable[[list[Any], list[Any]], tuple[dict[str, Any], str]]) -> None:
-        self._handler = handler
-
-    def get_apply_data(
-        self,
-        actions: list[Any],
-        resources: list[Any] | None = None,
-    ) -> tuple[dict[str, Any], str]:
-        return self._handler(actions, resources or [])

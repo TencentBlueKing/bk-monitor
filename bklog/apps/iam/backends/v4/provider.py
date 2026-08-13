@@ -24,15 +24,10 @@ from apps.iam.iam_engine.provider.base import PermissionProvider
 WILDCARD_RESOURCE_ID = "*"
 
 
-def _chunked(items: list, chunk_size: int):
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive")
-    for index in range(0, len(items), chunk_size):
-        yield items[index : index + chunk_size]
-
-
 class V4PermissionProvider(PermissionProvider):
     name = "v4"
+    # IAM V4 的 authorized-resources 直接返回完整范围，不需要调用方预先加载候选。
+    requires_candidate_ids = False
 
     def __init__(
         self,
@@ -112,6 +107,9 @@ class V4PermissionProvider(PermissionProvider):
         resources_by_id: dict[str, ResourceInstance],
         chunk_max_workers: int,
     ) -> list[BatchAuthResultItem]:
+        # apps.utils.db 在模块级导入了 feature_toggle 模型，而本模块由 apps.iam 的 AppConfig 在应用加载前导入
+        from apps.utils.db import array_chunk
+
         action_id = to_definition_id(action_ref)
         encoded_action_id = self.codec.encode_action(action_id)
         action = self._resolve_action(action_ref)
@@ -148,7 +146,7 @@ class V4PermissionProvider(PermissionProvider):
             ]
 
         encoded_resources = [self.codec.encode_resource_for_auth(resource) for resource in matched_resources]
-        chunks = list(_chunked(encoded_resources, self.batch_chunk_size))
+        chunks = array_chunk(encoded_resources, self.batch_chunk_size)
         action_results: dict[str, AuthResult] = {}
 
         def _auth_chunk(chunk: list[dict[str, Any]]) -> dict[str, AuthResult]:
@@ -199,7 +197,10 @@ class V4PermissionProvider(PermissionProvider):
         action_id: str,
         resource_type: str = "space",
         subject: dict[str, str] | None = None,
+        candidate_ids: frozenset[str] | None = None,
     ) -> AuthorizedResourceScope:
+        # V4 由 IAM 直接返回完整授权范围，候选集只用于调用方后续求交，这里忽略。
+        del candidate_ids
         encoded_action_id = self.codec.encode_action(to_definition_id(action_id))
         encoded_resource_type = self.codec.encode_resource_type(resource_type)
         request_subject = subject or {"type": "user", "id": self.client.username}

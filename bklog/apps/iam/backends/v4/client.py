@@ -1,3 +1,20 @@
+"""IAM V4 开放接口的 HTTP 客户端。
+
+这里没有复用项目统一的 `apps.api.base.DataAPI`，是因为 IAM V4 的契约与 `DataAPI` 的三条硬性前提冲突，
+迁移过去会直接功能不可用或把鉴权变成 fail-open：
+
+1. 请求体必须是 dict：`DataAPI._send_request` 对 POST 走 `json.dumps(non_file_data)`，而 `non_file_data`
+   来自 `_split_file_data` 的 `data.items()`；而 `add_authorization` 要求顶层是 JSON 数组。
+2. 只接受 HTTP 200：`DataAPI` 以 `HTTP_STATUS_OK` 判定 HTTP 层成功，非 200 一律转 `DataAPIException`；
+   而 `add_authorization` 成功返回 201。
+3. 响应体必须是合法 JSON：`DataAPI` 对无法 `json()` 的响应抛「结果格式非json」；而上面 201 的成功响应体为空。
+
+只读接口同样不宜迁移：`DataAPI` 在响应缺少 `result` 字段时会补 `result = True`，而 IAM V4 的失败可能是
+HTTP 200 带 `{"error": {...}}`（见 `_request` 中对 `payload["error"]` 的处理），迁过去会被判成功，
+鉴权因此 fail-open。此外 `DataAPIException` 无法区分 timeout / 429 / 5xx，而授权重试分类依赖
+`V4TimeoutError` / `V4RateLimitError` / `V4ResponseError` 这套类型区分。
+"""
+
 from __future__ import annotations
 
 import json
