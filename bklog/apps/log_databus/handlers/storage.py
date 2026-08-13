@@ -556,9 +556,10 @@ class StorageHandler:
             # 默认集群权重: 推荐集群 > 其他
             cluster_obj["priority"] = 1 if cluster_obj["cluster_config"].get("is_default_cluster") else 2
 
+            # 未显式配置可见范围时仅归属业务可见，避免误注册为 _default 的业务集群全业务泄漏
             if not cluster_obj["cluster_config"]["custom_option"].get("visible_config"):
                 cluster_obj["cluster_config"]["custom_option"]["visible_config"] = {
-                    "visible_type": VisibleEnum.ALL_BIZ.value
+                    "visible_type": VisibleEnum.CURRENT_BIZ.value
                 }
 
             if (
