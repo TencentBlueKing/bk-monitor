@@ -199,7 +199,8 @@ class Application(AbstractRecordModel):
     log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
     # ↓ 1 个数据字段 (由定时任务刷新)
     service_count = models.IntegerField("服务个数", default=0)
-    # 负责人列表：应用创建/编辑时可主动指定负责人，创建/更新后会给这些用户授权 APM_APPLICATION 权限
+    # 负责人列表：应用创建/编辑时可主动指定负责人，创建/更新后会给这些用户授权
+    # APM_APPLICATION 权限，并同步授权所属业务的 VIEW_BUSINESS（创建者动作）以便能进入业务页面
     owners = models.JSONField("负责人列表", default=list, blank=True)
     # 租户id
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
@@ -720,10 +721,11 @@ class Application(AbstractRecordModel):
 
     def grant_owners(self, new_owners, previous_owners=None):
         """
-        给新增的负责人授权 APM_APPLICATION 权限。
+        给新增的负责人授权 APM_APPLICATION 权限，并同步授权所属业务查看权限。
 
         策略：
         - 仅对 new_owners 相对于 previous_owners 新增的用户调用 IAM `grant_creator_action`；
+        - 先授 APM 应用实例权限，再授所属业务（space）创建者权限，保证负责人能进入业务页面；
         - 被移除的用户不做 IAM 权限回收（bk-monitor 侧无回收能力，IAM 侧默认 6 个月有效期到期后自然失效）。
 
         :param new_owners: 目标负责人列表（数据库将被更新为该列表）
@@ -738,14 +740,24 @@ class Application(AbstractRecordModel):
         if not to_grant:
             return normalized_new
 
-        resource_instance = ResourceEnum.APM_APPLICATION.create_simple_instance(
+        permission = Permission()
+        app_resource = ResourceEnum.APM_APPLICATION.create_simple_instance(
             self.application_id, {"bk_biz_id": self.bk_biz_id}
         )
+        biz_resource = ResourceEnum.BUSINESS.create_simple_instance(self.bk_biz_id)
         for user in to_grant:
             try:
-                Permission().grant_creator_action(resource_instance, creator=user)
+                permission.grant_creator_action(app_resource, creator=user)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(f"application->({self.application_id}) grant owner({user}) action failed, reason: {e}")
+            try:
+                # 前端 APM 页面入口校验 view_business，仅有应用权限无法进入业务
+                permission.grant_creator_action(biz_resource, creator=user)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    f"application->({self.application_id}) grant owner({user}) "
+                    f"view_business(bk_biz_id={self.bk_biz_id}) failed, reason: {e}"
+                )
         return normalized_new
 
     @property
