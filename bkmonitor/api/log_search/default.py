@@ -426,11 +426,36 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         collector_config_id = serializers.IntegerField(required=True, label="采集器ID")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
 
     def get_request_url(self, validated_request_data):
         """
         获取最终请求的url，也可以由子类进行重写
         """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class UpdateLogCollectorCleanConfigResource(LogSearchAPIGWResource):
+    """更新或创建日志采集项清洗、存储与索引集配置。"""
+
+    action = "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        etl_config = serializers.CharField(required=True, label="清洗类型")
+        etl_params = serializers.DictField(required=True, label="清洗参数")
+        fields = serializers.ListField(child=serializers.DictField(), required=True, label="清洗字段")
+        storage_cluster_id = serializers.IntegerField(required=True, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=True, min_value=1, label="保留天数")
+        allocation_min_days = serializers.IntegerField(required=True, min_value=0, label="冷热数据生效天数")
+        storage_replies = serializers.IntegerField(required=True, min_value=0, label="ES副本数量")
+        es_shards = serializers.IntegerField(required=True, min_value=1, label="ES分片数量")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+    def get_request_url(self, validated_request_data):
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 

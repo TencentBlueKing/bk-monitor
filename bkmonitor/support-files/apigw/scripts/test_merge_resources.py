@@ -27,6 +27,9 @@ _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
+_LOG_COLLECTION_CLEAN_CONFIG_MCP_FILE = (
+    _RESOURCES_DIR / "internal/user/log_collection_clean_config_mcp.yaml"
+)
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -116,6 +119,36 @@ def test_alert_handling_mcp_contract():
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["alert_handling_mcp"]
+
+
+def test_log_collection_clean_config_mcp_contract():
+    """清洗修改必须保持单一高风险 Tool、完整存储参数和无模板边界。"""
+    paths = _load_paths(_LOG_COLLECTION_CLEAN_CONFIG_MCP_FILE)
+
+    assert set(paths) == {"/mcp/update_log_collector_clean_config/"}
+    method_data = paths["/mcp/update_log_collector_clean_config/"]["post"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert method_data["operationId"] == "update_log_collector_clean_config"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    assert method_data["x-bk-apigateway-resource"]["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_clean_config/update/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert {
+        "storage_cluster_id",
+        "retention",
+        "allocation_min_days",
+        "storage_replies",
+        "es_shards",
+        "confirm",
+    }.issubset(schema["required"])
+    assert schema["properties"]["confirm"]["enum"] == [True]
+    assert schema["additionalProperties"] is False
+    assert "template_id" not in schema["properties"]
+    assert "template_name" not in schema["properties"]
 
 
 def test_result_table_storage_status_apigw_contract():
