@@ -263,6 +263,22 @@ def create_or_delete_records(mocker):
         source_label="bk_monitor",
         type_label="time_series",
     )
+    # DataLink 是 DataId 的调用方，测试链路组装前必须先准备已注册的 DataIdConfig。
+    for registered_data_source in models.DataSource.objects.filter(bk_data_id__in=[50010, 50011, 50012]):
+        models.DataIdConfig.objects.create(
+            name=utils.compose_bkdata_data_id_name(registered_data_source.data_name),
+            namespace="bkmonitor",
+            bk_tenant_id=registered_data_source.bk_tenant_id,
+            bk_biz_id=1001,
+            bk_data_id=registered_data_source.bk_data_id,
+        )
+    models.DataIdConfig.objects.create(
+        name="bkm_bcs_BCS-K8S-10002_k8s_metric",
+        namespace="bkmonitor",
+        bk_tenant_id=federal_sub_data_source.bk_tenant_id,
+        bk_biz_id=1001,
+        bk_data_id=federal_sub_data_source.bk_data_id,
+    )
     models.BCSClusterInfo.objects.create(
         cluster_id="BCS-K8S-10002",
         bcs_api_cluster_id="BCS-K8S-10002",
@@ -463,6 +479,222 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     assert data_bus_ins.data_link_name == bkbase_data_name
     assert data_bus_ins.data_id_name == bkbase_data_name
     assert data_bus_ins.namespace == "bkmonitor"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_standard_v2_compose_prefers_data_id_config_name(create_or_delete_records, mocker):
+    """DataBus source 应优先使用同租户、同 namespace 下由 bk_data_id 关联的实际 DataId 名称。"""
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    generated_name = utils.compose_bkdata_data_id_name(ds.data_name)
+
+    # 这些记录用于确认解析过程不会跨租户或跨 namespace 复用同一个 bk_data_id。
+    models.DataIdConfig.objects.create(
+        name="wrong_tenant_data_id",
+        namespace="bkmonitor",
+        bk_tenant_id="other_tenant",
+        bk_biz_id=1001,
+        bk_data_id=ds.bk_data_id,
+    )
+    models.DataIdConfig.objects.create(
+        name="wrong_namespace_data_id",
+        namespace="bklog",
+        bk_tenant_id=ds.bk_tenant_id,
+        bk_biz_id=1001,
+        bk_data_id=ds.bk_data_id,
+    )
+    models.DataIdConfig.objects.create(
+        name="old_actual_data_id",
+        namespace="bkmonitor",
+        bk_tenant_id=ds.bk_tenant_id,
+        bk_biz_id=1001,
+        bk_data_id=ds.bk_data_id,
+    )
+    models.DataIdConfig.objects.create(
+        name="latest_actual_data_id",
+        namespace="bkmonitor",
+        bk_tenant_id=ds.bk_tenant_id,
+        bk_biz_id=1001,
+        bk_data_id=ds.bk_data_id,
+    )
+
+    datalink = DataLink.objects.create(
+        data_link_name=generated_name,
+        namespace="bkmonitor",
+        bk_tenant_id=ds.bk_tenant_id,
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=ds.bk_data_id,
+        table_ids=[rt.table_id],
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+    )
+
+    databus = DataBusConfig.objects.get(data_link_name=datalink.data_link_name)
+    assert databus.data_id_name == "latest_actual_data_id"
+    assert configs[-1]["spec"]["sources"][0]["name"] == "latest_actual_data_id"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_standard_v2_reapply_updates_existing_databus_data_id_name_without_reuse_context(
+    create_or_delete_records, mocker
+):
+    """组件复用未启用时，注册名漂移也应命中已有 Databus 并更新 source。"""
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    data_link_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    databus_name = utils.compose_bkdata_table_id(rt.table_id)
+    datalink = DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        bk_tenant_id=ds.bk_tenant_id,
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=ds.bk_data_id,
+        table_ids=[rt.table_id],
+    )
+    DataBusConfig.objects.create(
+        name=databus_name,
+        data_id_name="old_registered_data_id",
+        data_link_name=datalink.data_link_name,
+        namespace=datalink.namespace,
+        bk_biz_id=1001,
+        bk_tenant_id=ds.bk_tenant_id,
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+    models.DataIdConfig.objects.create(
+        name="new_registered_data_id",
+        namespace=datalink.namespace,
+        bk_tenant_id=ds.bk_tenant_id,
+        bk_biz_id=1001,
+        bk_data_id=ds.bk_data_id,
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+    )
+
+    assert (
+        DataBusConfig.objects.filter(
+            bk_tenant_id=ds.bk_tenant_id,
+            namespace=datalink.namespace,
+            name=databus_name,
+        ).count()
+        == 1
+    )
+    databus = DataBusConfig.objects.get(
+        bk_tenant_id=ds.bk_tenant_id,
+        namespace=datalink.namespace,
+        name=databus_name,
+    )
+    assert databus.data_id_name == "new_registered_data_id"
+    assert configs[-1]["spec"]["sources"][0]["name"] == "new_registered_data_id"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_standard_v2_compose_fails_when_data_id_config_missing(create_or_delete_records):
+    """DataLink 缺少已注册 DataId 依赖时必须立即报错，不能回退到规则生成名称。"""
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    models.DataIdConfig.objects.filter(
+        bk_tenant_id=ds.bk_tenant_id,
+        namespace="bkmonitor",
+        bk_data_id=ds.bk_data_id,
+    ).delete()
+    datalink = DataLink.objects.create(
+        data_link_name="missing_data_id_config_link",
+        namespace="bkmonitor",
+        bk_tenant_id=ds.bk_tenant_id,
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=ds.bk_data_id,
+        table_ids=[rt.table_id],
+    )
+
+    with pytest.raises(models.DataIdConfig.DoesNotExist, match="bk_data_id=50010"):
+        datalink.compose_configs(
+            bk_biz_id=1001,
+            data_source=ds,
+            table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+        )
+
+    assert not DataBusConfig.objects.filter(data_link_name=datalink.data_link_name).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_standard_v2_compose_prefers_existing_databus_when_data_id_config_missing(create_or_delete_records, mocker):
+    """复用既有 Databus 时应优先沿用其 data_id_name，不依赖 DataIdConfig。"""
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    models.DataIdConfig.objects.filter(
+        bk_tenant_id=ds.bk_tenant_id,
+        namespace="bkmonitor",
+        bk_data_id=ds.bk_data_id,
+    ).delete()
+    datalink = DataLink.objects.create(
+        data_link_name="existing_databus_without_data_id_config_link",
+        namespace="bkmonitor",
+        bk_tenant_id=ds.bk_tenant_id,
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=ds.bk_data_id,
+        table_ids=[rt.table_id],
+    )
+    DataBusConfig.objects.create(
+        name="legacy_databus",
+        data_id_name="legacy_registered_data_id",
+        data_link_name=datalink.data_link_name,
+        namespace=datalink.namespace,
+        bk_biz_id=1001,
+        bk_tenant_id=ds.bk_tenant_id,
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = datalink.compose_standard_time_series_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=ExistingComponentContext.from_datalink(datalink),
+    )
+
+    databus = DataBusConfig.objects.get(name="legacy_databus")
+    assert databus.data_id_name == "legacy_registered_data_id"
+    assert configs[-1]["spec"]["sources"][0]["name"] == "legacy_registered_data_id"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_register_to_bkbase_generates_name_when_data_id_config_missing(create_or_delete_records, mocker):
+    """DataSource 注册阶段允许在 DataIdConfig 缺失时按原规则生成名称。"""
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    models.DataIdConfig.objects.filter(
+        bk_tenant_id=ds.bk_tenant_id,
+        namespace="bkmonitor",
+        bk_data_id=ds.bk_data_id,
+    ).delete()
+    mocker.patch.object(models.DataIdConfig, "compose_predefined_config", return_value={"kind": "DataId"})
+    apply_mock = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
+
+    ds.register_to_bkbase(bk_biz_id=1001, namespace="bkmonitor")
+
+    generated_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    assert models.DataIdConfig.objects.filter(
+        bk_tenant_id=ds.bk_tenant_id,
+        namespace="bkmonitor",
+        bk_data_id=ds.bk_data_id,
+        name=generated_name,
+    ).exists()
+    apply_mock.assert_called_once_with(config=[{"kind": "DataId"}], bk_tenant_id=ds.bk_tenant_id)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6264,7 +6496,6 @@ def test_compose_custom_event_configs_reuses_legacy_components(create_or_delete_
         bk_tenant_id=bk_tenant_id,
         data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
     )
-
     ResultTableConfig.objects.create(
         name="legacy_event_rt",
         namespace=datalink.namespace,
@@ -6399,7 +6630,6 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
         bk_tenant_id=bk_tenant_id,
         data_link_strategy=DataLink.BK_LOG,
     )
-
     ResultTableConfig.objects.create(
         name="legacy_log_rt",
         namespace=datalink.namespace,

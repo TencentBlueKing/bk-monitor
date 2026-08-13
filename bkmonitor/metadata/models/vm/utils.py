@@ -36,6 +36,7 @@ from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
     compose_bkdata_table_id,
+    get_registered_bkdata_data_id_name,
 )
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
@@ -811,9 +812,6 @@ def create_bkbase_data_link(
     elif data_source.etl_config == EtlConfigs.BK_STANDARD.value:
         data_link_strategy = DataLink.BK_STANDARD_TIME_SERIES
 
-    # 组装计算平台侧的 data_name，作为新链路场景下的默认 DataLink / AccessVMRecord 查询键。
-    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name, strategy=data_link_strategy)
-    data_link_name = bkbase_data_name
     configured_bkbase_rt = _get_configured_bkbase_result_table(
         bk_tenant_id=data_source.bk_tenant_id,
         monitor_table_id=monitor_table_id,
@@ -821,7 +819,24 @@ def create_bkbase_data_link(
     )
     if configured_bkbase_rt:
         data_link_name = configured_bkbase_rt.data_link_name
-        bkbase_data_name = configured_bkbase_rt.bkbase_data_name or bkbase_data_name
+        bkbase_data_name = configured_bkbase_rt.bkbase_data_name
+        if not bkbase_data_name:
+            from metadata.models.data_link.data_link_configs import DataBusConfig
+
+            existing_databus = (
+                DataBusConfig.objects.filter(
+                    bk_tenant_id=data_source.bk_tenant_id,
+                    namespace=namespace,
+                    data_link_name=data_link_name,
+                )
+                .order_by("-last_modify_time", "-create_time")
+                .first()
+            )
+            bkbase_data_name = (
+                existing_databus.data_id_name
+                if existing_databus is not None
+                else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+            )
         logger.info(
             "create_bkbase_data_link: use configured BkBaseResultTable relation, data_id->[%s],"
             "monitor_table_id->[%s],data_link_name->[%s],bkbase_data_name->[%s]",
@@ -831,6 +846,9 @@ def create_bkbase_data_link(
             bkbase_data_name,
         )
     else:
+        # 新建 DataLink 只能依赖已经注册完成的 DataId，缺失配置时直接中止创建流程。
+        bkbase_data_name = get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+        data_link_name = bkbase_data_name
         logger.info(
             "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
             data_source.bk_data_id,

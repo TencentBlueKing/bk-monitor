@@ -2139,8 +2139,8 @@ def _create_biz_standard_time_series_datalink_for_bkcc(
     # 链路申请（DataLink 创建 + apply_data_link + sync_metadata + AccessVMRecord 写入）统一复用
     # create_bkbase_data_link，保证与常规 VM 链路使用同一套计算平台命名（含 40 字符截断/hash）、
     # AccessVMRecord 生成与状态处理逻辑，避免内置链路自行拼接 vm_result_table_id 产生漂移。
-    # 注意：create_bkbase_data_link 会以 compose_bkdata_data_id_name(data_name) 作为 DataLink 名称，
-    # 与 check_bkcc_space_builtin_datalink 的幂等判断需保持一致。
+    # 注意：create_bkbase_data_link 只允许使用 DataIdConfig 中按 bk_data_id 登记的名称，
+    # 缺失时会直接中止；与 check_bkcc_space_builtin_datalink 的依赖检查需保持一致。
     try:
         create_bkbase_data_link(
             bk_biz_id=bk_biz_id,
