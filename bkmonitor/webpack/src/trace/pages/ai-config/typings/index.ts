@@ -117,6 +117,25 @@ export type TBkciRepositoriesResult = {
   total: number;
 };
 
+/** 查询源码分析配置的返回结果 */
+export type TGetSourceAnalysisConfigResult = {
+  /** 业务 id */
+  bk_biz_id: number;
+  /** 蓝盾项目 id，未配置时为空 */
+  bkci_project_id: null | string;
+  /** 源码仓库别名，未配置时为空 */
+  repository_alias: null | string;
+  /** 更新时间戳，未配置时为空 */
+  updated_at: null | number;
+  /** 更新人，未配置时为空 */
+  updated_by: null | string;
+};
+
+export type TSaveSourceAnalysisConfigParams = {
+  bkci_project_id: string;
+  repository_alias: string;
+};
+
 /** 源码分析规则匹配条件 */
 export type TSourceAnalysisCondition = {
   /** 条件连接符，如 and / or */
