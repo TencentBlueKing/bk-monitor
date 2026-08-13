@@ -1,10 +1,20 @@
 import datetime
+import threading
 
 import pytest
 
 from metadata import models
 from metadata.resources import GetResultTableStorageStatus
-from metadata.service.result_table_storage_status import ResultTableStorageStatusService, build_doris_storage_runtime
+from metadata.service.result_table_storage_status import (
+    BoundedExecutor,
+    ClusterProbeScheduler,
+    MAX_PROBE_WORKERS,
+    MAX_PROBE_WORKERS_PER_CLUSTER,
+    ResultTableStorageStatusBatchService,
+    ResultTableStorageStatusService,
+    SchedulerQueueFullError,
+    build_doris_storage_runtime,
+)
 
 
 TENANT_ID = "storage-status-tenant"
@@ -57,16 +67,10 @@ def _create_segment(
     )
 
 
-def _available_health(cluster: models.ClusterInfo, timeout: int | None = None) -> dict:
+def _available_connectivity(cluster: models.ClusterInfo, timeout: int | None = None) -> dict:
     return {
-        "cluster_id": cluster.cluster_id,
-        "cluster_name": cluster.cluster_name,
-        "cluster_type": cluster.cluster_type,
-        "status": models.ClusterInfo.CHECK_STATUS_AVAILABLE,
         "is_connected": True,
-        "is_available": True,
         "error": None,
-        "details": {"timeout": timeout},
     }
 
 
@@ -109,11 +113,11 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
         is_current=True,
     )
 
-    health_check = mocker.patch.object(
+    connectivity_check = mocker.patch.object(
         models.ClusterInfo,
-        "health_check",
+        "check_connectivity",
         autospec=True,
-        side_effect=_available_health,
+        side_effect=_available_connectivity,
     )
     es_runtime = mocker.patch(
         "metadata.service.result_table_storage_status.query_es_storage_runtime",
@@ -157,7 +161,6 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
                     }
                 ],
                 "partitions": [{"PARTITION_NAME": "p20260301", "TABLE_ROWS": 3, "RAW_FIELD": "ignored"}],
-                "show_create_table": [{"Create Table": "CREATE TABLE ..."}],
             },
             "warnings": [],
             "errors": [],
@@ -184,20 +187,27 @@ def test_query_mixed_storage_history_deduplicates_clusters_and_projects_runtime(
         {"name": "dtEventTimeStamp", "position": 1, "is_nullable": False, "data_type": "bigint"}
     ]
     assert doris_result["runtime"]["partitions"] == [{"name": "p20260301", "rows": 3}]
-    assert doris_result["runtime"]["create_table"] == "CREATE TABLE ..."
     assert result["storage_configs"][models.ClusterInfo.TYPE_ES]["storage_cluster_id"] == es_cluster.cluster_id
     assert "password" not in result["storage_configs"][models.ClusterInfo.TYPE_ES]
     assert "username" not in es_result["cluster"]
-    assert health_check.call_count == 2
-    assert {item.kwargs["timeout"] for item in health_check.call_args_list} == {15}
+    assert es_result["connectivity"] == {"is_connected": True, "error": None}
+    assert doris_result["connectivity"] == {"is_connected": True, "error": None}
+    assert "health" not in es_result
+    assert "health" not in doris_result
+    assert connectivity_check.call_count == 2
+    assert {item.kwargs["timeout"] for item in connectivity_check.call_args_list} == {15}
     es_runtime.assert_called_once()
     assert es_runtime.call_args.kwargs["timeout"] == 15
     doris_runtime.assert_called_once()
-    assert doris_runtime.call_args.kwargs == {"storage_cluster_id": doris_cluster.cluster_id, "timeout": 15}
+    assert doris_runtime.call_args.kwargs == {
+        "storage_cluster_id": doris_cluster.cluster_id,
+        "timeout": 15,
+        "include_create_table": False,
+    }
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_health_failure_skips_runtime_and_returns_error(mocker):
+def test_connectivity_failure_skips_runtime_and_returns_error(mocker):
     table_id = "2_bklog.storage_unavailable"
     _create_result_table(table_id, models.ClusterInfo.TYPE_ES)
     cluster = _create_cluster(92001, models.ClusterInfo.TYPE_ES)
@@ -215,13 +225,10 @@ def test_health_failure_skips_runtime_and_returns_error(mocker):
     )
     mocker.patch.object(
         models.ClusterInfo,
-        "health_check",
+        "check_connectivity",
         return_value={
-            "status": models.ClusterInfo.CHECK_STATUS_UNAVAILABLE,
             "is_connected": False,
-            "is_available": False,
             "error": {"code": "CONNECTION_FAILED", "message": "timeout", "details": {}},
-            "details": {},
         },
     )
     es_runtime = mocker.patch("metadata.service.result_table_storage_status.query_es_storage_runtime")
@@ -231,7 +238,7 @@ def test_health_failure_skips_runtime_and_returns_error(mocker):
     cluster_result = result["cluster_results"][str(cluster.cluster_id)]
     assert cluster_result["runtime_skipped"] is True
     assert cluster_result["runtime"] is None
-    assert cluster_result["errors"][0]["code"] == "STORAGE_HEALTH_CHECK_FAILED"
+    assert cluster_result["errors"][0]["code"] == "STORAGE_CONNECTIVITY_CHECK_FAILED"
     es_runtime.assert_not_called()
 
 
@@ -267,7 +274,7 @@ def test_virtual_result_table_uses_origin_history(mocker):
         datetime.datetime(2025, 12, 1, tzinfo=datetime.timezone.utc),
         is_current=False,
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     es_runtime = mocker.patch(
         "metadata.service.result_table_storage_status.query_es_storage_runtime",
         return_value=({"indices": {}, "aliases": {}}, []),
@@ -292,27 +299,194 @@ def test_virtual_result_table_uses_origin_history(mocker):
 
 def test_resource_timeout_serializer_defaults_and_validates_range():
     default_serializer = GetResultTableStorageStatus.RequestSerializer(
-        data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo"}
+        data={"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.demo"]}
     )
     assert default_serializer.is_valid(), default_serializer.errors
     assert default_serializer.validated_data["timeout"] == 15
+    assert default_serializer.validated_data["total_timeout"] == 60
 
     valid_serializer = GetResultTableStorageStatus.RequestSerializer(
-        data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo", "timeout": 30}
+        data={"bk_tenant_id": TENANT_ID, "table_ids": [f"2_bklog.demo_{index}" for index in range(50)], "timeout": 30}
     )
     assert valid_serializer.is_valid(), valid_serializer.errors
 
     for timeout in (0, 31):
         serializer = GetResultTableStorageStatus.RequestSerializer(
-            data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo", "timeout": timeout}
+            data={"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.demo"], "timeout": timeout}
         )
         assert not serializer.is_valid()
+
+    for total_timeout in (0, 301):
+        serializer = GetResultTableStorageStatus.RequestSerializer(
+            data={"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.demo"], "total_timeout": total_timeout}
+        )
+        assert not serializer.is_valid()
+
+    for table_ids in ([], ["2_bklog.demo"] * 2, [f"2_bklog.demo_{index}" for index in range(51)]):
+        serializer = GetResultTableStorageStatus.RequestSerializer(
+            data={"bk_tenant_id": TENANT_ID, "table_ids": table_ids}
+        )
+        assert not serializer.is_valid()
+
+    legacy_serializer = GetResultTableStorageStatus.RequestSerializer(
+        data={"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.demo"}
+    )
+    assert not legacy_serializer.is_valid()
 
 
 @pytest.mark.django_db(databases="__all__")
 def test_resource_request_reports_missing_result_table():
-    with pytest.raises(ValueError, match="结果表不存在"):
-        GetResultTableStorageStatus().request({"bk_tenant_id": TENANT_ID, "table_id": "2_bklog.not_exists"})
+    result = GetResultTableStorageStatus().request({"bk_tenant_id": TENANT_ID, "table_ids": ["2_bklog.not_exists"]})
+
+    assert result == {
+        "items": [
+            {
+                "table_id": "2_bklog.not_exists",
+                "data": None,
+                "error": {
+                    "code": "RESULT_TABLE_NOT_FOUND",
+                    "message": "结果表不存在: table_id=2_bklog.not_exists",
+                    "details": {"table_id": "2_bklog.not_exists"},
+                },
+            }
+        ]
+    }
+
+
+def test_batch_service_preserves_input_order_and_isolates_table_failure(mocker):
+    def query(service):
+        if service.table_id == "2_bklog.missing":
+            raise ValueError(f"结果表不存在: table_id={service.table_id}")
+        return {"result_table": {"table_id": service.table_id}}
+
+    mocker.patch.object(ResultTableStorageStatusService, "query", autospec=True, side_effect=query)
+
+    result = ResultTableStorageStatusBatchService(
+        bk_tenant_id=TENANT_ID,
+        table_ids=["2_bklog.second", "2_bklog.missing", "2_bklog.first"],
+    ).query()
+
+    assert [item["table_id"] for item in result["items"]] == [
+        "2_bklog.second",
+        "2_bklog.missing",
+        "2_bklog.first",
+    ]
+    assert result["items"][0]["data"]["result_table"]["table_id"] == "2_bklog.second"
+    assert result["items"][1]["data"] is None
+    assert result["items"][1]["error"]["code"] == "RESULT_TABLE_NOT_FOUND"
+    assert result["items"][2]["data"]["result_table"]["table_id"] == "2_bklog.first"
+
+
+def test_batch_service_stops_waiting_and_cancels_pending_tables_at_deadline(mocker):
+    executor = BoundedExecutor(max_workers=1, max_queued_tasks=1, thread_name_prefix="test-storage-table-query")
+    started = threading.Event()
+    release = threading.Event()
+
+    def query(_service):
+        started.set()
+        assert release.wait(timeout=3)
+        return {}
+
+    mocker.patch(
+        "metadata.service.result_table_storage_status.shared_table_query_executor",
+        executor,
+    )
+    mocker.patch.object(ResultTableStorageStatusService, "query", autospec=True, side_effect=query)
+
+    try:
+        result = ResultTableStorageStatusBatchService(
+            bk_tenant_id=TENANT_ID,
+            table_ids=["2_bklog.first", "2_bklog.second", "2_bklog.third"],
+            total_timeout=1,
+        ).query()
+        assert started.is_set()
+        assert [item["error"]["code"] for item in result["items"]] == [
+            "BATCH_DEADLINE_EXCEEDED",
+            "BATCH_DEADLINE_EXCEEDED",
+            "BATCH_DEADLINE_EXCEEDED",
+        ]
+    finally:
+        release.set()
+        executor.shutdown()
+
+
+def test_cluster_probe_scheduler_limits_same_cluster_to_five_concurrent_tasks():
+    assert MAX_PROBE_WORKERS == 20
+    assert MAX_PROBE_WORKERS_PER_CLUSTER == 5
+
+    scheduler = ClusterProbeScheduler(max_workers=20, max_workers_per_cluster=5, max_queued_tasks=10)
+    lock = threading.Lock()
+    five_started = threading.Event()
+    release = threading.Event()
+    active = 0
+    max_active = 0
+
+    def probe(index):
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+            if active == 5:
+                five_started.set()
+        try:
+            assert release.wait(timeout=2)
+            return index
+        finally:
+            with lock:
+                active -= 1
+
+    try:
+        futures = [scheduler.submit((TENANT_ID, 1), probe, index) for index in range(6)]
+        assert five_started.wait(timeout=1)
+        assert max_active == 5
+
+        release.set()
+        assert [future.result(timeout=2) for future in futures] == list(range(6))
+        assert max_active == 5
+    finally:
+        release.set()
+        scheduler.shutdown()
+
+
+def test_cluster_probe_scheduler_allows_different_clusters_in_parallel():
+    scheduler = ClusterProbeScheduler(max_workers=2, max_workers_per_cluster=1, max_queued_tasks=2)
+    barrier = threading.Barrier(2)
+
+    def probe(cluster_id):
+        barrier.wait(timeout=1)
+        return cluster_id
+
+    try:
+        first_future = scheduler.submit((TENANT_ID, 1), probe, 1)
+        second_future = scheduler.submit((TENANT_ID, 2), probe, 2)
+        assert first_future.result(timeout=2) == 1
+        assert second_future.result(timeout=2) == 2
+    finally:
+        scheduler.shutdown()
+
+
+def test_cluster_probe_scheduler_rejects_when_bounded_queue_stays_full():
+    scheduler = ClusterProbeScheduler(max_workers=1, max_workers_per_cluster=1, max_queued_tasks=1)
+    started = threading.Event()
+    release = threading.Event()
+
+    def probe():
+        started.set()
+        assert release.wait(timeout=2)
+
+    try:
+        first = scheduler.submit((TENANT_ID, 1), probe)
+        assert started.wait(timeout=1)
+        second = scheduler.submit((TENANT_ID, 1), probe)
+        with pytest.raises(SchedulerQueueFullError):
+            scheduler.submit((TENANT_ID, 1), probe, enqueue_timeout=0)
+
+        release.set()
+        first.result(timeout=2)
+        second.result(timeout=2)
+    finally:
+        release.set()
+        scheduler.shutdown()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -332,7 +506,7 @@ def test_runtime_error_is_returned_without_failing_whole_response(mocker):
         datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
         is_current=True,
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     mocker.patch.object(
         models.DorisStorage,
         "query_physical_storage_metadata",
@@ -401,7 +575,7 @@ def test_storage_config_without_segment_is_still_reported_as_current(mocker):
         need_create_index=False,
         index_set="external-*",
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     mocker.patch(
         "metadata.service.result_table_storage_status.query_es_storage_runtime",
         return_value=({"indices": {"count": 0, "items": []}, "aliases": {"queried": False}}, []),
@@ -453,7 +627,6 @@ def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fie
                         "partition_description": "LESS THAN ('2026-08-04')",
                     }
                 ],
-                "show_create_table": [{"CREATE TABLE": "CREATE TABLE `demo` (...)"}],
             },
         },
         connection_cluster_id=42,
@@ -479,7 +652,6 @@ def test_build_doris_storage_runtime_supports_case_differences_and_drops_raw_fie
         "table": {"schema": "db", "name": "demo", "engine": "OLAP", "rows": 12, "data_length_bytes": 4096},
         "columns": [{"name": "value", "position": 2, "is_nullable": True, "column_type": "double"}],
         "partitions": [{"name": "p1", "method": "RANGE", "description": "LESS THAN ('2026-08-04')"}],
-        "create_table": "CREATE TABLE `demo` (...)",
     }
 
 
@@ -507,7 +679,7 @@ def test_historical_doris_uses_current_binding_with_explicit_best_effort_context
         datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
         is_current=True,
     )
-    mocker.patch.object(models.ClusterInfo, "health_check", autospec=True, side_effect=_available_health)
+    mocker.patch.object(models.ClusterInfo, "check_connectivity", autospec=True, side_effect=_available_connectivity)
     mocker.patch.object(
         models.DorisStorage,
         "query_physical_storage_metadata",
@@ -559,7 +731,7 @@ def test_conflicting_origin_tables_block_runtime_probe(mocker):
         storage_cluster_id=doris_cluster.cluster_id,
         bkbase_table_id="2_bklog_origin_doris",
     )
-    health_check = mocker.patch.object(models.ClusterInfo, "health_check")
+    connectivity_check = mocker.patch.object(models.ClusterInfo, "check_connectivity")
 
     result = ResultTableStorageStatusService(bk_tenant_id=TENANT_ID, table_id=table_id).query()
 
@@ -567,4 +739,4 @@ def test_conflicting_origin_tables_block_runtime_probe(mocker):
     assert result["segments"] == []
     assert result["cluster_results"] == {}
     assert result["errors"][0]["code"] == "STORAGE_ORIGIN_TABLE_CONFLICT"
-    health_check.assert_not_called()
+    connectivity_check.assert_not_called()

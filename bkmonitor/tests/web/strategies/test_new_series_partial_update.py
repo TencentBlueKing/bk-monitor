@@ -14,7 +14,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
 
 
-def test_partial_update_preserves_new_series_threshold():
+def test_partial_update_preserves_new_series_threshold_and_alert_mode():
     serializer = UpdatePartialStrategyV2Resource.RequestSerializer(
         data={
             "bk_biz_id": 2,
@@ -24,7 +24,7 @@ def test_partial_update_preserves_new_series_threshold():
                     {
                         "type": "NewSeries",
                         "level": 1,
-                        "config": {"detect_range": 86400, "threshold": -2},
+                        "config": {"detect_range": 86400, "threshold": -2, "alert_mode": "continuous"},
                     }
                 ]
             },
@@ -35,9 +35,10 @@ def test_partial_update_preserves_new_series_threshold():
 
     algorithm = serializer.validated_data["edit_data"]["algorithms"][0]
     assert algorithm["config"]["threshold"] == -2
+    assert algorithm["config"]["alert_mode"] == "continuous"
 
 
-def test_update_algorithms_preserves_threshold_when_saving():
+def test_update_algorithms_preserves_threshold_and_alert_mode_when_saving():
     strategy = mock.MagicMock()
     strategy.id = 1
     item = mock.MagicMock()
@@ -63,11 +64,55 @@ def test_update_algorithms_preserves_threshold_when_saving():
         {
             "type": "NewSeries",
             "level": 1,
-            "config": {"detect_range": 86400, "effective_delay": 86400, "max_series": 100000, "threshold": -2},
+            "config": {
+                "detect_range": 86400,
+                "effective_delay": 86400,
+                "max_series": 100000,
+                "threshold": -2,
+                "alert_mode": "continuous",
+            },
         }
     ]
 
     UpdatePartialStrategyV2Resource.update_algorithms(strategy, algorithms)
 
     assert item.algorithms[0].config["threshold"] == -2
+    assert item.algorithms[0].config["alert_mode"] == "continuous"
+    item.save_algorithms.assert_called_once_with()
+
+
+def test_partial_update_inherits_existing_auto_level_mode_before_validation():
+    strategy = mock.MagicMock()
+    strategy.id = 1
+    item = mock.MagicMock()
+    item.id = 2
+    item.algorithms = []
+    strategy.items = [item]
+
+    def inherit_auto_mode():
+        item.algorithms[0].config["alert_level_mode"] = "auto"
+        item.algorithms[0].config["alert_levels"] = [1, 2, 3]
+
+    strategy.inherit_dynamic_alert_level_mode.side_effect = inherit_auto_mode
+    strategy.to_dict.side_effect = lambda: {
+        "items": [
+            {
+                "algorithms": [algorithm.to_dict() for algorithm in item.algorithms],
+                "query_configs": [{"intelligent_detect": {"use_sdk": True}}],
+            }
+        ],
+        "detects": [{"level": 2}],
+    }
+    algorithms = [
+        {
+            "type": "IntelligentDetect",
+            "level": 2,
+            "config": {"args": {"$sensitivity": 5}, "plan_id": 1},
+        }
+    ]
+
+    UpdatePartialStrategyV2Resource.update_algorithms(strategy, algorithms)
+
+    assert item.algorithms[0].config["alert_level_mode"] == "auto"
+    strategy.inherit_dynamic_alert_level_mode.assert_called_once_with()
     item.save_algorithms.assert_called_once_with()

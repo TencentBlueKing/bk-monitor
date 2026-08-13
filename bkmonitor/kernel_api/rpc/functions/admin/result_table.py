@@ -108,6 +108,17 @@ RESULT_TABLE_ORDERING_FIELDS = {
     "create_time",
     "last_modify_time",
 }
+DORIS_STORAGE_SUMMARY_FIELDS = [
+    "table_id",
+    "bk_tenant_id",
+    "bkbase_table_id",
+    "origin_table_id",
+    "source_type",
+    "index_set",
+    "table_type",
+    "expire_days",
+    "storage_cluster_id",
+]
 FIELD_ORDERING_FIELDS = {
     "field_name",
     "field_type",
@@ -187,6 +198,29 @@ def _serialize_es_storage(es_storage: models.ESStorage) -> dict[str, Any]:
             "archive_index_days",
         ],
     )
+
+
+def _serialize_doris_storage(doris_storage: models.DorisStorage) -> dict[str, Any]:
+    item = serialize_model(doris_storage, DORIS_STORAGE_SUMMARY_FIELDS)
+    item["table_kind"] = "virtual" if doris_storage.origin_table_id else "physical"
+    return item
+
+
+def _build_result_table_storages(bk_tenant_id: str, table_id: str) -> dict[str, list[dict[str, Any]]]:
+    return {
+        "es": [
+            _serialize_es_storage(es_storage)
+            for es_storage in models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).order_by(
+                "id"
+            )
+        ],
+        "doris": [
+            _serialize_doris_storage(doris_storage)
+            for doris_storage in models.DorisStorage.objects.filter(
+                bk_tenant_id=bk_tenant_id, table_id=table_id
+            ).order_by("id")
+        ],
+    }
 
 
 def _serialize_access_vm_record(record: models.AccessVMRecord) -> dict[str, Any]:
@@ -487,14 +521,7 @@ def get_result_table_detail(params: dict[str, Any]) -> dict[str, Any]:
             ],
         }
     if "storages" in includes:
-        data["storages"] = {
-            "es": [
-                _serialize_es_storage(es_storage)
-                for es_storage in models.ESStorage.objects.filter(
-                    bk_tenant_id=bk_tenant_id, table_id=table_id
-                ).order_by("id")
-            ]
-        }
+        data["storages"] = _build_result_table_storages(bk_tenant_id, table_id)
     if "vm_records" in includes:
         data["access_vm_records"] = [
             _serialize_access_vm_record(record)

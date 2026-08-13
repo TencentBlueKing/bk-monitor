@@ -54,7 +54,8 @@ const router = useRouter();
 const store = useStore();
 
 const isSceneMode = computed(() => store.getters.isSceneMode);
-const isSceneRetrieveEnabled = computed(() => isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)]));
+const isExternal = computed(() => store.state.isExternal);
+const isSceneRetrieveEnabled = computed(() => !isExternal.value && isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)]));
 const retrieveType = computed(() => (isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal));
 const fieldSettingRef = ref(null);
 const timeSettingRef = ref(null);
@@ -106,8 +107,6 @@ const hasCollectorConfigId = computed(() => {
   const currentIndexSet = flatIndexSetList.value.find(item => item.index_set_id == indexSetId);
   return currentIndexSet?.collector_config_id;
 });
-
-const isExternal = computed(() => store.state.isExternal);
 
 const isFieldSettingShow = computed(() => {
   return !store.getters.isUnionSearch && !isExternal.value;

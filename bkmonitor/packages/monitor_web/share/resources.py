@@ -8,18 +8,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
 from datetime import datetime
 from functools import partial
 from secrets import token_hex
 
+from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.permission import ActionIdMap, Permission
-from bkmonitor.models import ApiAuthToken, TokenAccessRecord
+from bkmonitor.models import REGISTERED_SCENE_AUTH_TYPES, ApiAuthToken, AuthType, TokenAccessRecord
+from bkmonitor.share.handler import validate_host_share_scope
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
-from core.drf_resource import Resource
+from core.drf_resource import Resource, api
 from core.errors.share import TokenDeletedError, TokenExpiredError, TokenValidatedError
 
 logger = logging.getLogger("monitor_web")
@@ -42,6 +45,47 @@ def get_token_type(token_type):
     return token_type
 
 
+def validate_registered_scene_token_type(token_type):
+    if token_type.startswith("scene_") and token_type not in REGISTERED_SCENE_AUTH_TYPES:
+        raise TokenValidatedError
+
+
+def check_host_share_permission(token_type, bk_biz_id):
+    if token_type != AuthType.Host:
+        return
+    Permission(
+        username=get_global_user() or "unknown",
+        bk_tenant_id=get_request_tenant_id(),
+    ).is_allowed_by_biz(
+        bk_biz_id=bk_biz_id,
+        action=ActionEnum.VIEW_HOST,
+        raise_exception=True,
+    )
+
+
+def validate_host_share_target(token_type, bk_biz_id, data):
+    if token_type != AuthType.Host:
+        return None
+    scope = validate_host_share_scope(data)
+    if scope["target_type"] == "host":
+        hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[scope["bk_host_id"]])
+    else:
+        hosts = api.cmdb.get_host_by_topo_node(
+            bk_biz_id=bk_biz_id,
+            topo_nodes={scope["bk_obj_id"]: [scope["bk_inst_id"]]},
+        )
+    if not hosts:
+        raise TokenValidatedError
+    return scope
+
+
+def get_token_biz_id(token_obj):
+    biz_ids = [namespace[4:] for namespace in token_obj.namespaces if namespace.startswith("biz#")]
+    if len(biz_ids) != 1 or not biz_ids[0].isdigit():
+        raise TokenValidatedError
+    return int(biz_ids[0])
+
+
 class CreateShareTokenResource(Resource):
     """
     创建临时分享鉴权token
@@ -61,6 +105,16 @@ class CreateShareTokenResource(Resource):
     def perform_request(self, validated_request_data):
         # 获取当前租户
         bk_tenant_id = get_request_tenant_id()
+        # 自定义场景、apm、采集视图 类型解析处理
+        name = validated_request_data["type"]
+        token_type = get_token_type(validated_request_data["type"])
+        validate_registered_scene_token_type(token_type)
+        check_host_share_permission(token_type, validated_request_data["bk_biz_id"])
+        scope = validate_host_share_target(
+            token_type, validated_request_data["bk_biz_id"], validated_request_data["data"]
+        )
+        if scope:
+            validated_request_data["data"] = {**validated_request_data["data"], "scope": scope}
 
         # 创建唯一token，长度8位
         exist_tokens = list(
@@ -69,9 +123,6 @@ class CreateShareTokenResource(Resource):
         token = partial(token_hex, 8)()
         while token in exist_tokens:
             token = partial(token_hex, 8)()
-        # 自定义场景、apm、采集视图 类型解析处理
-        name = validated_request_data["type"]
-        token_type = get_token_type(validated_request_data["type"])
         create_params = {
             "bk_tenant_id": bk_tenant_id,
             "namespaces": [f"biz#{validated_request_data['bk_biz_id']}"],
@@ -120,6 +171,21 @@ class UpdateShareTokenResource(Resource):
                 raise TokenExpiredError
         except ApiAuthToken.DoesNotExist:
             raise TokenValidatedError
+        validate_registered_scene_token_type(token_obj.type)
+        if token_obj.type == AuthType.Host:
+            bk_biz_id = get_token_biz_id(token_obj)
+            check_host_share_permission(token_obj.type, bk_biz_id)
+            data = validated_request_data.get("data", token_obj.params.get("data", {}))
+            scope = validate_host_share_target(
+                token_obj.type,
+                bk_biz_id,
+                data,
+            )
+            data = {**data, "scope": scope}
+            if "data" in validated_request_data:
+                validated_request_data["data"] = data
+            else:
+                token_obj.params["data"] = data
         if validated_request_data.get("expire_time") and validated_request_data.get("expire_period"):
             token_obj.expire_time = datetime.fromtimestamp(validated_request_data["expire_time"])
             token_obj.params["expire_period"] = validated_request_data["expire_period"]

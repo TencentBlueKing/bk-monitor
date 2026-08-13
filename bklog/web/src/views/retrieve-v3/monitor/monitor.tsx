@@ -65,10 +65,15 @@ export default defineComponent({
       type: Function,
       default: null,
     },
+    handleRelatedTraceClick: {
+      type: Function,
+      default: null,
+    },
   },
   setup(props) {
     const store = useStore();
     provide('handleChartDataZoom', props.handleChartDataZoom);
+    provide('handleRelatedTraceClick', props.handleRelatedTraceClick);
     const {
       isSearchContextStickyTop,
       isSearchResultStickyTop,

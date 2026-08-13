@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
+import logging
 import time
 from urllib.parse import urljoin
 
@@ -23,12 +23,17 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.constants import AGENT_STATUS
+from monitor_web.scene_view.process_group import group_process_configs
+from monitor_web.scene_view.resources.view import GetSceneViewResource
+
+logger = logging.getLogger(__name__)
 
 
-class GetHostProcessPortStatusResource(Resource):
+class GetHostProcessPortStatusResource(ApiAuthResource):
     """
     获取主机进程端口状态（用于port-status图表）
     """
@@ -39,6 +44,10 @@ class GetHostProcessPortStatusResource(Resource):
         bk_target_cloud_id = serializers.CharField(required=False)
         display_name = serializers.CharField(required=False)
         bk_host_id = serializers.IntegerField(required=False)
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束查询区间，
+        # 不传则保持默认"最近五分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
         # 主机场景，以关联资源身份请求
         def validate_bk_biz_id(self, value):
@@ -53,53 +62,41 @@ class GetHostProcessPortStatusResource(Resource):
             if not hosts:
                 return []
             host = hosts[0]
-            ip, bk_cloud_id = host.bk_host_innerip, host.bk_cloud_id
         else:
-            ip, bk_cloud_id = params["bk_target_ip"], params["bk_target_cloud_id"]
+            hosts = api.cmdb.get_host_by_ip(
+                bk_biz_id=params["bk_biz_id"],
+                ips=[{"ip": params["bk_target_ip"], "bk_cloud_id": int(params["bk_target_cloud_id"])}],
+            )
+            if not hosts:
+                return []
+            host = hosts[0]
 
-        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        promql_statement = (
-            f"system:proc_port:proc_exists{{bk_target_ip='{ip}', "
-            f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
-        )
-        query_config = {"promql": promql_statement, "interval": 60}
-        data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
-        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
-        # 取最近5分钟的数据
-        end_time = int(time.time())
-        start_time = end_time - 300
-        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000)
-        if not data:
-            return []
-        else:
-            data: list[dict] = data
-
-        # 不同状态的展示信息
-        status_mapping = {
-            "listen": {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
-            "nonlisten": {"statusBgColor": "#f0f1f5", "statusColor": "#c4c6cc", "name": _("停用")},
-            "not_accurate_listen": {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
+        # 端口健康是进程级指标；图表按同名 CMDB 进程的端口展开，端口共享该进程的健康状态。
+        end_time = int(params.get("end_time") or time.time())
+        start_time = max(int(params.get("start_time") or end_time - 300), end_time - 300)
+        query_params = {
+            "bk_biz_id": params["bk_biz_id"],
+            "hosts": [host],
+            "start_time": start_time,
+            "end_time": end_time,
         }
-        port_latest_map: dict[str, tuple[int, str]] = {}
-        for item_data in data:
-            for key in status_mapping.keys():
-                ports = json.loads(item_data[key])
-                if not ports:
-                    continue
-                for port in ports:
-                    if key == "not_accurate_listen":
-                        # not_accurate_listen 字段格式：IP:PORT
-                        actual_port = port.rsplit(":", 1)[-1]
-                    else:
-                        actual_port = port
-                    # 取每个端口最新的一条数据
-                    _time = item_data.get("_time_", 0)
-                    if str(actual_port) not in port_latest_map or _time > port_latest_map[str(actual_port)][0]:
-                        port_latest_map[str(actual_port)] = (_time, key)
-        result: list[dict] = []
-        for actual_port, (_time, key) in port_latest_map.items():
-            result.append({"value": str(actual_port), **status_mapping[key]})
-        return result
+        port_health_result = resource.cc.get_process_port_health(**query_params)
+        process_result = resource.cc.get_process_info(**query_params, limit_port_num=0)
+        health = port_health_result.get(host.bk_host_id, {}).get(params["display_name"])
+        if health is None:
+            return []
+
+        status_mapping = {
+            0: {"statusBgColor": "#e7f9f2", "statusColor": "#3FC06D", "name": _("正常")},
+            1: {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
+        }
+        ports = {
+            str(port)
+            for process in process_result.get(host.bk_host_id, [])
+            if process["name"] == params["display_name"]
+            for port in process["ports"]
+        }
+        return [{"value": port, **status_mapping[health]} for port in sorted(ports)]
 
 
 class GetHostOrTopoNodeDetailResource(ApiAuthResource):
@@ -416,7 +413,7 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         return info
 
 
-class GetHostProcessUptimeResource(Resource):
+class GetHostProcessUptimeResource(ApiAuthResource):
     """
     获取主机/进程启动时间（用于场景视图text-unit图表）
     """
@@ -425,6 +422,8 @@ class GetHostProcessUptimeResource(Resource):
         bk_biz_id = serializers.IntegerField()
         display_name = serializers.CharField()
         bk_host_id = serializers.IntegerField()
+        start_time = serializers.IntegerField(required=False)
+        end_time = serializers.IntegerField(required=False)
 
     def perform_request(self, params):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
@@ -438,7 +437,7 @@ class GetHostProcessUptimeResource(Resource):
             table="system.proc",
             interval=60,
             group_by=["bk_target_ip", "bk_target_cloud_id", "display_name"],
-            metrics=[{"field": "uptime", "method": "MIN", "alias": "A"}],
+            metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
             filter_dict={
                 "bk_target_ip": ip,
                 "bk_target_cloud_id": bk_cloud_id,
@@ -446,7 +445,10 @@ class GetHostProcessUptimeResource(Resource):
             },
         )
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
-        data: list = query.query_data()
+        # 取选中时点的进程组快照；前端传秒，UQ 查询使用毫秒。
+        end_time = int(params.get("end_time") or time.time())
+        start_time = max(int(params.get("start_time") or end_time - 180), end_time - 180)
+        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000, instant=True)
         if data:
             value = data[-1]["_result_"]
         else:
@@ -454,12 +456,19 @@ class GetHostProcessUptimeResource(Resource):
         return {"value": value, "unit": "s"}
 
 
-class GetHostProcessListResource(Resource):
+class GetHostProcessListResource(ApiAuthResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bk_host_id = serializers.IntegerField(required=False)
         bk_target_ip = serializers.CharField(required=False)
         bk_target_cloud_id = serializers.IntegerField(required=False)
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束 TSDB 运行时指标查询区间，
+        # 不传则保持默认"最近三分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
 
     def perform_request(self, params):
         if not params.get("bk_host_id") and (
@@ -481,14 +490,117 @@ class GetHostProcessListResource(Resource):
         else:
             host = hosts[0]
 
-        processes = resource.cc.get_process_info(bk_biz_id, hosts=[host])
+        processes = resource.cc.get_process_info(
+            bk_biz_id,
+            hosts=[host],
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
+        )
         if host.bk_host_id not in processes:
             return []
 
-        return [
-            {"status": process["status"], "name": process["name"], "id": process["name"]}
-            for process in processes[host.bk_host_id]
-        ]
+        query_params = {
+            "bk_biz_id": bk_biz_id,
+            "hosts": [host],
+            "start_time": params.get("start_time"),
+            "end_time": params.get("end_time"),
+        }
+
+        # 四次 TSDB 查询并发执行，缩短接口延迟
+        pool = ThreadPool()
+        futures = {
+            "port_status": pool.apply_async(resource.cc.get_process_port_health, kwds=query_params),
+            "runtime": pool.apply_async(resource.cc.get_process_runtime_metrics, kwds=query_params),
+            "uptime": pool.apply_async(resource.cc.get_process_uptime, kwds=query_params),
+            "instance_count": pool.apply_async(resource.cc.get_process_instance_count, kwds=query_params),
+        }
+        pool.close()
+        pool.join()
+
+        # TSDB 查询异常兜底：各函数内部已有 try/except 返回 {}，
+        # 此处再捕获一层防止未知异常导致整接口 500
+        def _safe_get(key):
+            try:
+                return futures[key].get()
+            except Exception as e:
+                logger.warning("[get_host_process_list] %s failed, degrade to empty: %s", key, e)
+                return {}
+
+        host_port_status = _safe_get("port_status").get(host.bk_host_id, {})
+        host_runtime = _safe_get("runtime").get(host.bk_host_id, {})
+        host_uptime = _safe_get("uptime").get(host.bk_host_id, {})
+        instance_counts = _safe_get("instance_count").get(host.bk_host_id, {})
+
+        # UI 字段名 → system.proc 指标字段名 映射
+        # 用于 get_host_process_list 将 TSDB 运行时指标映射到前端 ProcessItem 字段
+        runtime_metric_map = {
+            "cpuUsage": "cpu_usage_pct",
+            "memRss": "mem_res",
+            "memUsage": "mem_usage_pct",
+            "fdNum": "fd_num",
+            "fdLimit": "fd_limit_soft",
+        }
+
+        # 数值精度格式化，与 unify_query.data_format 保持一致
+        def _round_metric(value):
+            if isinstance(value, int | float) and not isinstance(value, bool):
+                return round(value, settings.POINT_PRECISION)
+            return value
+
+        result = []
+        for process in group_process_configs(processes[host.bk_host_id]):
+            port_status = host_port_status.get(process["name"])
+            uptime_range = host_uptime.get(process["name"], {})
+            ports = [
+                {
+                    "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(binding.get("protocol")),
+                    "bindIp": binding.get("bindIp"),
+                    "port": binding.get("port"),
+                    "portStatus": port_status,
+                }
+                for binding in process["portBindings"]
+            ]
+            result.append(
+                {
+                    # process 场景变量 fields 约定 id→display_name；分组后继续使用进程名作为稳定 row key。
+                    "id": process["name"],
+                    "name": process["name"],
+                    "status": process["status"],
+                    # 兼容单端口消费者；代表端口及其他单值字段均来自同一条确定的 CMDB 配置。
+                    "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(process.get("protocol")),
+                    "bindIp": process.get("bindIp"),
+                    "port": process.get("port"),
+                    "portStatus": port_status,
+                    "ports": ports,
+                    "user": process.get("user"),
+                    "hostIp": host.ip,
+                    # Performance / resource metrics from system.proc (TSDB only)
+                    # 比值/百分比类指标做精度限制，绝对值类（字节/秒/计数）原样返回
+                    "cpuUsage": _round_metric(
+                        host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"])
+                    ),
+                    "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
+                    "memUsage": _round_metric(
+                        host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"])
+                    ),
+                    # 兼容旧调用方继续保留 uptime，并用最大值维持原有语义。
+                    "uptime": uptime_range.get("max"),
+                    "uptimeMin": uptime_range.get("min"),
+                    "uptimeMax": uptime_range.get("max"),
+                    "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
+                    # fdUsageRate = fdNum / fdLimit，返回比值（0~1），前端展示 % 时需自行 *100
+                    "fdUsageRate": (
+                        round(fd_num / fd_limit, settings.POINT_PRECISION)
+                        if (fd_num := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]))
+                        is not None
+                        and (fd_limit := host_runtime.get(process["name"], {}).get(runtime_metric_map["fdLimit"]))
+                        else None
+                    ),
+                    "instanceCount": instance_counts.get(process["name"], 1),
+                    "startCommand": process.get("startCommand"),
+                }
+            )
+        return result
 
 
 class GetHostListResource(Resource):
@@ -542,3 +654,95 @@ class GetHostInfoResource(Resource):
             "bk_host_id": host.bk_host_id,
             "bk_os_type": settings.OS_TYPE_NAME_DICT.get(int(host.bk_os_type)) if host.bk_os_type else "",
         }
+
+
+class GetHostViewsPanelsResource(Resource):
+    """
+    获取主机场景视图的 panels 列表
+    复用 GetSceneViewResource 逻辑，仅提取 panels 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "host",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["panels"]
+
+
+class GetHostViewsPanelsOrderResource(Resource):
+    """
+    获取主机场景视图的 order 列表
+    复用 GetSceneViewResource 逻辑，仅提取 order 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "host",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["order"]
+
+
+class GetProcessViewsPanelsResource(Resource):
+    """
+    获取进程场景视图的 panels 列表
+    复用 GetSceneViewResource 逻辑，仅提取 panels 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "process",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["panels"]
+
+
+class GetProcessViewsPanelsOrderResource(Resource):
+    """
+    获取进程场景视图的 order 列表
+    复用 GetSceneViewResource 逻辑，仅提取 order 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "process",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["order"]

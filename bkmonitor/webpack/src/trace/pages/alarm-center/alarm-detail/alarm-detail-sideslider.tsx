@@ -38,6 +38,7 @@ import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
 
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 import type { IAuthority } from '@/typings/authority';
 
 import './alarm-detail-sideslider.scss';
@@ -58,7 +59,7 @@ export default defineComponent({
       default: AlarmType.ALERT,
     },
     defaultTab: {
-      type: String,
+      type: String as PropType<'' | AlarmCenterPanelTabType>,
       default: '',
     },
     show: {
@@ -75,8 +76,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType, defaultTab, alarmDetail, actionDetail, bizId } =
-      storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, alarmDetail, actionDetail, bizId } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -94,14 +94,6 @@ export default defineComponent({
         if (newVal !== alarmType.value) {
           alarmType.value = newVal;
         }
-      },
-      { immediate: true }
-    );
-
-    watch(
-      () => props.defaultTab,
-      newVal => {
-        defaultTab.value = newVal || '';
       },
       { immediate: true }
     );
@@ -198,7 +190,7 @@ export default defineComponent({
         case AlarmType.ALERT:
           return (
             <div class='alarm-center-detail-wrapper'>
-              <DetailCommon />
+              <DetailCommon defaultTab={props.defaultTab} />
               {showAiAnalysis.value && <DiagnosticAnalysis onClose={() => handleAiAnalysisShowChange(false)} />}
             </div>
           );

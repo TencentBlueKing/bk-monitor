@@ -20,7 +20,8 @@ from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 
 OPERATION_DETAIL = "detail"
 OPERATION_LIST_BY_PRIORITY_GROUP = "list_by_priority_group"
-ALLOWED_OPERATIONS = {OPERATION_DETAIL, OPERATION_LIST_BY_PRIORITY_GROUP}
+OPERATION_SHARED_GROUP = "shared_group"
+ALLOWED_OPERATIONS = {OPERATION_DETAIL, OPERATION_LIST_BY_PRIORITY_GROUP, OPERATION_SHARED_GROUP}
 
 
 def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
@@ -30,7 +31,41 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
 
     if operation == OPERATION_DETAIL:
         return _inspect_strategy_detail(params)
+    if operation == OPERATION_SHARED_GROUP:
+        return _inspect_shared_group(params)
     return _list_by_priority_group(params)
+
+
+def _inspect_shared_group(params: dict[str, Any]) -> dict[str, Any]:
+    strategy_group_key = str(params.get("strategy_group_key") or "").strip()
+    if not strategy_group_key:
+        raise CustomException(message="operation=shared_group 必须提供 strategy_group_key")
+
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    detail = StrategyCacheManager.get_strategy_group_detail(strategy_group_key)
+    if not isinstance(detail, dict):
+        raise CustomException(message=f"共享查询组缓存结构异常: {strategy_group_key}")
+    members = []
+    for raw_strategy_id, raw_item_ids in detail.items():
+        try:
+            strategy_id = int(raw_strategy_id)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(raw_item_ids, list):
+            continue
+        item_ids = sorted(
+            item_id for item_id in raw_item_ids if isinstance(item_id, int) and not isinstance(item_id, bool)
+        )
+        members.append({"strategy_id": strategy_id, "item_ids": item_ids})
+
+    return {
+        "operation": OPERATION_SHARED_GROUP,
+        "strategy_group_key": strategy_group_key,
+        "found": bool(members),
+        "bk_biz_id": detail.get("bk_biz_id"),
+        "members": sorted(members, key=lambda item: item["strategy_id"]),
+    }
 
 
 def _inspect_strategy_detail(params: dict[str, Any]) -> dict[str, Any]:
@@ -253,13 +288,14 @@ def _optional_int(params: dict[str, Any], field_name: str) -> int | None:
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.inspect_strategy_config",
     summary="读取策略聚合配置",
-    description="bkm-cli inspect-strategy-config 后端函数，复用策略聚合逻辑读取策略详情或同优先级分组策略摘要。",
+    description="bkm-cli inspect-strategy-config 后端函数，读取策略详情、优先级分组摘要或当前 access 共享查询组成员。",
     handler=inspect_strategy_config,
     params_schema={
-        "operation": "detail | list_by_priority_group",
+        "operation": "detail | list_by_priority_group | shared_group",
         "bk_biz_id": "integer",
         "strategy_id": "operation=detail 必填",
         "priority_group_key": "operation=list_by_priority_group 必填",
+        "strategy_group_key": "operation=shared_group 必填",
         "include_user_groups": "boolean",
         "include_raw_model_ids": "boolean",
         "include_disabled": "boolean",
@@ -277,16 +313,17 @@ BkmCliOpRegistry.register(
     op_id="inspect-strategy-config",
     func_name="bkm_cli.inspect_strategy_config",
     summary="读取策略聚合配置",
-    description="通过 monitor-api 服务桥读取策略完整配置或同 priority_group_key 策略摘要。",
+    description="通过 monitor-api 服务桥读取策略完整配置、同 priority_group_key 策略摘要或当前 access 共享查询组成员。",
     capability_level="inspect",
     risk_level="low",
     requires_confirmation=False,
     audit_tags=["db", "strategy", "inspect"],
     params_schema={
-        "operation": "detail | list_by_priority_group",
+        "operation": "detail | list_by_priority_group | shared_group",
         "bk_biz_id": "integer",
         "strategy_id": "integer",
         "priority_group_key": "string",
+        "strategy_group_key": "string",
         "include_user_groups": "boolean",
         "include_raw_model_ids": "boolean",
         "include_disabled": "boolean",

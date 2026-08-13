@@ -26,32 +26,51 @@
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  type AiLevelSelectValue,
+  type AlertLevel,
+  type AlertLevelMode,
+  type IAiAlertLevelValue,
+  hydrateAiLevelSelectValue,
+  isAiAlertLevelValue,
+  normalizeAlertLevels,
+  serializeAiLevelSelectValue,
+  switchAiAlertLevelMode,
+} from '../../alert-level';
+
 import './ai-level-select.scss';
 
 interface IEvents {
-  onChange: number | number[];
+  onChange: AiLevelSelectValue;
 }
 
 interface IProps {
+  autoEnabled?: boolean;
   disabled?: boolean;
-  value?: number | number[];
+  value?: AiLevelSelectValue;
 }
 
 @Component
 export default class AiLevelSelect extends tsc<IProps, IEvents> {
   /** 勾选的告警级别 */
-  @Model('change', { required: true, type: [Number, Array] }) value: number | number[];
+  @Model('change', { required: true, type: [Number, Array, Object] }) value: AiLevelSelectValue;
   /** 是否禁用 */
   @Prop({ type: Boolean, default: false }) disabled: boolean;
+  /** 当前算法组合是否允许启用自动级别 */
+  @Prop({ type: Boolean, default: false }) autoEnabled: boolean;
   /** 已选择告警级别方式 auto：智能生成 manual: 手动指定 */
-  levelType: 'auto' | 'manual' = 'manual';
-  localValue: number | number[] = 1;
+  levelType: AlertLevelMode = 'manual';
+  localValue: IAiAlertLevelValue = { mode: 'manual', level: 1, alertLevels: [] };
+  /** 是否使用智能异常检测新增的结构化模型；其它算法继续按原数字模型收发。 */
+  structuredValue = false;
 
   /** 告警级别方式 */
-  levelTypeList = [
-    { id: 'auto', name: this.$t('智能生成'), disabled: true },
-    { id: 'manual', name: this.$t('手动指定'), disabled: false },
-  ];
+  get levelTypeList() {
+    return [
+      { id: 'auto', name: this.$t('智能生成'), disabled: !this.autoEnabled && this.levelType !== 'auto' },
+      { id: 'manual', name: this.$t('手动指定'), disabled: false },
+    ];
+  }
 
   /** 告警级别类型 */
   levelList = [
@@ -63,25 +82,25 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
   /** popover实例 */
   popoverInstance = null;
 
-  @Watch('value', { immediate: true })
-  watchValueChange(val) {
-    this.localValue = val;
-    this.levelType = Array.isArray(val) ? 'auto' : 'manual';
+  @Watch('value', { immediate: true, deep: true })
+  watchValueChange(val: AiLevelSelectValue) {
+    this.structuredValue = isAiAlertLevelValue(val);
+    this.localValue = hydrateAiLevelSelectValue(val);
+    this.levelType = this.localValue.mode;
   }
 
   @Emit('change')
   valueChange() {
-    return this.localValue;
+    return serializeAiLevelSelectValue(this.localValue, this.structuredValue);
   }
 
   /**
    * 告警方式切换事件
    * @param type 切换的告警方式
    */
-  levelTypeChange(type: 'auto' | 'manual') {
-    if (type === 'auto') this.localValue = [1, 2, 3];
-    else {
-      this.localValue = 1;
+  levelTypeChange(type: AlertLevelMode) {
+    this.localValue = switchAiAlertLevelMode(this.localValue, type);
+    if (type === 'manual') {
       this.popoverInstance?.destroy();
       this.popoverInstance = null;
     }
@@ -114,9 +133,11 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
    * @param val 改变后的值
    * @param oldVal 改变前的值
    */
-  aiLevelChange(val: number[], oldVal: number[]) {
+  aiLevelChange(val: AlertLevel[], oldVal: AlertLevel[]) {
     if (val.length === 0) {
-      this.localValue = oldVal;
+      this.localValue.alertLevels = [...oldVal];
+    } else {
+      this.localValue.alertLevels = normalizeAlertLevels(val);
     }
     this.valueChange();
   }
@@ -169,12 +190,12 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
         ) : (
           <bk-select
             class='level-select'
-            v-model={this.localValue}
+            v-model={this.localValue.level}
             behavior='simplicity'
             clearable={false}
             disabled={this.disabled}
             ext-popover-cls='level-select-popover'
-            prefix-icon={`icon-monitor ${this.levelList[(this.localValue as number) - 1].icon}`}
+            prefix-icon={`icon-monitor ${this.levelList[this.localValue.level - 1].icon}`}
             onChange={this.valueChange}
           >
             {this.levelList.map(item => (
@@ -201,7 +222,7 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
                 <span class='msg'>({this.$t('至少选择一个')})</span>
               </span>
               <bk-checkbox-group
-                v-model={this.localValue}
+                v-model={this.localValue.alertLevels}
                 onChange={this.aiLevelChange}
               >
                 {this.levelList.map(level => (

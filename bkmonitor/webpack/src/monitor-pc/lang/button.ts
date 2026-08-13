@@ -555,4 +555,6 @@ export default {
   取消授权: 'Cancel Authorization',
   取消关联: 'Cancel Association',
   去关联: 'Go to Association',
+  恢复默认: 'Restore Default',
+  删除分组: 'Delete Group',
 };

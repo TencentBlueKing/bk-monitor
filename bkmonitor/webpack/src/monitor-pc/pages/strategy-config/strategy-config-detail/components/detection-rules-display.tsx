@@ -29,6 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { getUnitInfo } from 'monitor-api/modules/strategies';
 
 import { CONDITION_METHOD_LIST, SIMPLE_METHOD_LIST } from '../../../../constant/constant';
+import {
+  getConfiguredAlertLevels,
+  isAutoAlertLevelRule,
+} from '../../strategy-config-set-new/detection-rules/alert-level';
 import AbnormalCluster from '../../strategy-config-set-new/detection-rules/components/abnormal-cluster/abnormal-cluster';
 import IntelligentDetect, {
   type ChartType,
@@ -246,9 +250,16 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   };
 
   get levelName() {
+    if (isAutoAlertLevelRule(this.value)) {
+      const levelNames = getConfiguredAlertLevels(this.value)
+        .map(level => this.levelList.find(item => item.id === level)?.name)
+        .filter(Boolean);
+      return levelNames.length ? `${this.$t('智能生成')}（${levelNames.join('、')}）` : this.$t('智能生成');
+    }
     return this.levelList.find(item => item.id === this.value.level)?.name;
   }
   get levelIcon() {
+    if (isAutoAlertLevelRule(this.value)) return '';
     return this.levelIconMap[this.value.level] || '';
   }
   get rulesName() {

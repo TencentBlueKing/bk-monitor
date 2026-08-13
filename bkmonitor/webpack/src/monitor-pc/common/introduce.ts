@@ -105,9 +105,11 @@ class IntroduceStore {
   }
 
   // 根据路由判断是否显示指南页面
-  getShowGuidePageByRoute(routeId: IntroduceRouteKey) {
-    if (routeId === IntroduceRouteKey['plugin-manager']) return !!this.data[routeId]?.introduce?.is_no_source;
-    return !!(this.data[routeId]?.introduce?.is_no_data || this.data[routeId]?.introduce?.is_no_source);
+  getShowGuidePageByRoute(routeId: IntroduceRouteKey | string) {
+    // 新版主机监控路由 navId 为 host，引导数据复用 performance
+    const introduceId = (routeId === 'host' ? IntroduceRouteKey.performance : routeId) as IntroduceRouteKey;
+    if (introduceId === IntroduceRouteKey['plugin-manager']) return !!this.data[introduceId]?.introduce?.is_no_source;
+    return !!(this.data[introduceId]?.introduce?.is_no_data || this.data[introduceId]?.introduce?.is_no_source);
   }
 
   // 初始化所有介绍数据

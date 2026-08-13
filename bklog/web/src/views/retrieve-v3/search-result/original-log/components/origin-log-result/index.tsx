@@ -25,9 +25,6 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import axios from 'axios';
-import { readBlobRespToJson, parseBigNumberList } from '@/common/util';
-
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -36,12 +33,19 @@ import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import { cloneDeep, debounce } from 'lodash-es';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { buildHighlightHtml, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
-import { retrieveRowCacheService } from '@/storage';
+import { relatedLogSearchRowCacheService, retrieveRowCacheService, retrieveSearchWorkerService } from '@/storage';
+import type { SearchStreamProgress } from '@/storage/services/retrieve-search-worker.service';
 import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 import { resolveAddToSearch } from '@/hooks/log-query-compiler';
 
 import RenderJsonCell from './render-json-cell';
-import { axiosInstance } from '@/api';
+import { buildOriginLogSearchFieldPayload, buildOriginLogSearchHeaders } from './build-origin-log-search-fields';
+import {
+  buildOriginLogLocalQuerySeed,
+  resolveLocalStoredRowCountAfterResult,
+  resolveOriginLogStreamMode,
+} from './resolve-origin-log-stream-mode';
 
 import './index.scss';
 
@@ -109,8 +113,13 @@ export default defineComponent({
     let total = 0;
     let isUnmounted = false;
     let requestSeq = 0;
-    let abortController: AbortController | null = null;
+    /** 本地 Stream 独立 queryKey，禁止与主检索 row_keys 混用 */
+    let localQueryKey = '';
+    /** 当前 localQueryKey 已写入的行数（不含主检索种子 keys） */
+    let localStoredRowCount = 0;
+    let activeLocalSearchRequestId = '';
     let scrollIntoViewTimer: ReturnType<typeof setTimeout> | null = null;
+    let appliedStreamRowCount = 0;
 
     const isMonitorApm = window.__IS_MONITOR_APM__;
 
@@ -128,32 +137,118 @@ export default defineComponent({
       exceptionMsg.value = message || '';
     };
 
-    const isRequestCanceled = (error: any) =>
-      axios.isCancel(error)
-      || error?.code === 'ERR_CANCELED'
+    const isRequestCanceled = (error: any) => error?.code === 'ERR_CANCELED'
       || error?.name === 'CanceledError'
-      || error?.name === 'AbortError';
+      || error?.name === 'AbortError'
+      || error?.message === 'Search request canceled';
 
-    /** 取消进行中的检索请求，保证永远只有最后一次生效 */
+    /** 取消进行中的本地 Stream，不影响主检索 requestId */
     const cancelPendingRequest = () => {
-      if (!abortController) {
+      if (!activeLocalSearchRequestId) {
         return;
       }
-      abortController.abort();
-      abortController = null;
+      retrieveSearchWorkerService.cancelSearch(activeLocalSearchRequestId);
+      activeLocalSearchRequestId = '';
     };
 
-    const requestLogList = (isManualSearch = true) => {
+    const clearLocalQueryCache = () => {
+      if (!localQueryKey) {
+        localStoredRowCount = 0;
+        appliedStreamRowCount = 0;
+        return;
+      }
+      const key = localQueryKey;
+      localQueryKey = '';
+      localStoredRowCount = 0;
+      appliedStreamRowCount = 0;
+      // 本地检索只清理 relatedLogSearchRows，绝不碰主检索 retrieveRows
+      relatedLogSearchRowCacheService.releaseQuery(key);
+      relatedLogSearchRowCacheService.clearQuery(key).catch((error) => {
+        console.warn('[origin-log-result] clear local query rows failed', error);
+      });
+    };
+
+    /** 将尚未展示的 rowKeys 增量读入 UI（仅追加未缓存 key） */
+    const appendLocalRenderEntries = async (rowKeys: string[]) => {
+      if (!rowKeys.length) return 0;
+      const existing = new Set(cachedRowKeys.value);
+      const nextKeys = rowKeys.filter(key => !existing.has(key));
+      if (!nextKeys.length) return 0;
+      const entries = await relatedLogSearchRowCacheService.getRenderEntries(nextKeys);
+      const rows: any[] = [];
+      const metas: (RetrieveRowRenderMeta | undefined)[] = [];
+      const keys: string[] = [];
+      nextKeys.forEach((key, index) => {
+        const entry = entries[index];
+        if (!entry?.row) return;
+        keys.push(key);
+        rows.push(entry.row);
+        metas.push(entry.renderMeta);
+      });
+      if (!rows.length) return 0;
+      logList.value.push(...rows);
+      renderMetaList.value.push(...metas);
+      cachedRowKeys.value.push(...keys);
+      return rows.length;
+    };
+
+    /**
+     * 同步本地渲染列表。
+     * - replace：progress/finish 的 rowKeys 为本次 writer 全量 keys（从 0 递增）
+     * - append：Worker writer 仅返回本页新增 keys
+     */
+    const syncLocalRenderList = async (rowKeys: string[], mode: 'replace' | 'append') => {
+      if (mode === 'append') {
+        const added = await appendLocalRenderEntries(rowKeys);
+        localStoredRowCount += added;
+        return;
+      }
+
+      const nextKeys = rowKeys.slice(appliedStreamRowCount);
+      const added = await appendLocalRenderEntries(nextKeys);
+      appliedStreamRowCount += added;
+      localStoredRowCount = Math.max(localStoredRowCount, appliedStreamRowCount);
+
+      if (appliedStreamRowCount < rowKeys.length) {
+        const missingKeys = rowKeys.slice(appliedStreamRowCount);
+        const filled = await appendLocalRenderEntries(missingKeys);
+        appliedStreamRowCount += filled;
+        localStoredRowCount = Math.max(localStoredRowCount, appliedStreamRowCount);
+      }
+    };
+
+    const requestLogList = async (isManualSearch = true) => {
       // 新请求发起前先取消旧请求，避免乱序回写
       cancelPendingRequest();
-      const controller = new AbortController();
-      abortController = controller;
-      const currentRequestSeq = ++requestSeq;
+      requestSeq += 1;
+      const currentRequestSeq = requestSeq;
+      const { isStorageAppend, syncMode, uiMode, writeMode } = resolveOriginLogStreamMode({
+        begin,
+        hasLocalQueryKey: !!localQueryKey,
+        isManualSearch,
+      });
 
       listLoading.value = true;
-      if (begin === 0) {
+      if (!isStorageAppend) {
         setExceptionMsg('');
+        appliedStreamRowCount = 0;
+        if (localQueryKey) {
+          clearLocalQueryCache();
+        }
+        localStoredRowCount = 0;
+        localQueryKey = relatedLogSearchRowCacheService.createQueryKey(
+          buildOriginLogLocalQuerySeed({
+            addition: requestOtherparams.addition,
+            indexSetId: props.indexSetId,
+            keyword: requestOtherparams.keyword,
+            searchMode: requestOtherparams.search_mode,
+            seq: currentRequestSeq,
+          }),
+        );
       }
+
+      const requestQueryKey = localQueryKey;
+      const requestStartSeq = isStorageAppend ? localStoredRowCount : 0;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = store.getters.isSceneMode
         ? '/search/scene/search/'
@@ -164,92 +259,135 @@ export default defineComponent({
         size,
         begin,
       };
-      const params: any = {
-        method: 'post',
-        url: searchUrl,
-        withCredentials: true,
-        baseURL: baseUrl,
-        responseType: 'blob',
-        data: requestData,
-        signal: controller.signal,
-        headers: {},
-      };
-      if (store.state.isExternal) {
-        params.headers = {
-          'X-Bk-Space-Uid': store.state.spaceUid,
-        };
-      }
-      axiosInstance(params)
-        .then((resp: any) => {
-          if (isUnmounted || currentRequestSeq !== requestSeq || controller.signal.aborted) {
-            return;
-          }
-          if (resp.data && !resp.message) {
-            readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
-              if (isUnmounted || currentRequestSeq !== requestSeq || controller.signal.aborted) {
-                return;
-              }
-              if (code === '9900403') {
-                store.commit('updateState', {
-                  authDialogData: {
-                    apply_url: data?.apply_url,
-                    apply_data: permission,
-                  },
-                });
-                setExceptionMsg(message || t('无权限'));
-                return;
-              }
-              if (result) {
-                begin += size;
-                total = data.total.toNumber();
-                const list = parseBigNumberList(data.list);
-                logList.value.push(...list);
-                renderMetaList.value.push(...list.map(() => undefined));
-                setExceptionMsg('');
-                if (isManualSearch) {
-                  // 本地重新检索后不再复用外部缓存 rowKey
-                  cachedRowKeys.value = [];
-                  choosedIndex.value = -1;
-                  handleChooseRow(0, list[0]);
-                }
-                return;
-              }
+      const { fieldMetadata, fieldNames } = buildOriginLogSearchFieldPayload(store.state);
+      let thisRequestId = '';
 
-              // 检索失败：首屏清空并回显错误；分页失败保留已加载数据
-              if (begin === 0) {
-                logList.value = [];
-                renderMetaList.value = [];
-                cachedRowKeys.value = [];
-                total = 0;
-              }
-              setExceptionMsg(message || t('检索失败'));
+      const isCurrentRequest = () => !isUnmounted && currentRequestSeq === requestSeq && requestQueryKey === localQueryKey;
+
+      const handleProgress = async (progress: SearchStreamProgress) => {
+        if (!isCurrentRequest() || progress.queryKey !== requestQueryKey) return;
+
+        if (progress.stage === 'meta' && progress.meta) {
+          const metaTotal = normalizeSearchTotal(progress.meta.total);
+          if (metaTotal > 0 || begin === 0) {
+            total = metaTotal;
+          }
+          if (String(progress.meta.code) === '9900403') {
+            store.commit('updateState', {
+              authDialogData: {
+                apply_url: progress.meta?.data?.apply_url ?? progress.meta?.apply_url,
+                apply_data: progress.meta?.permission,
+              },
             });
+            setExceptionMsg(progress.meta?.message || t('无权限'));
           }
-        })
-        .catch((error: any) => {
-          // 主动取消不视为失败，也不回写异常态
-          if (isRequestCanceled(error) || controller.signal.aborted || currentRequestSeq !== requestSeq) {
-            return;
+          return;
+        }
+
+        if (progress.stage === 'row' && progress.rowKeys?.length) {
+          await syncLocalRenderList(progress.rowKeys, syncMode);
+          if (isManualSearch && logList.value.length > 0 && choosedIndex.value < 0) {
+            handleChooseRow(0, logList.value[0]);
           }
-          if (isUnmounted) {
-            return;
-          }
-          if (begin === 0) {
-            logList.value = [];
-            renderMetaList.value = [];
-            cachedRowKeys.value = [];
-            total = 0;
-          }
-          setExceptionMsg(error?.message || error?.response?.message || t('检索失败'));
-        })
-        .finally(() => {
-          if (abortController === controller) {
-            abortController = null;
-          }
-          if (!isUnmounted && currentRequestSeq === requestSeq) {
-            listLoading.value = false;
-          }
+        }
+      };
+
+      try {
+        const workerResult = await retrieveSearchWorkerService.searchStream({
+          baseURL: baseUrl,
+          body: requestData,
+          fieldMetadata,
+          fieldNames,
+          headers: buildOriginLogSearchHeaders(store.state),
+          onRequestId: (requestId) => {
+            thisRequestId = requestId;
+            activeLocalSearchRequestId = requestId;
+          },
+          onProgress: (progress) => {
+            void handleProgress(progress);
+          },
+          queryKey: requestQueryKey,
+          // 物理隔离表：禁止写入主检索 retrieveRows
+          rowStore: 'relatedLogSearchRows',
+          searchPath: searchUrl,
+          startSeq: requestStartSeq,
+          writeMode,
         });
+
+        if (!isCurrentRequest()) {
+          // 过期请求：仅清理本次独立 query（分页复用中的 key 不删）
+          if (!isStorageAppend && requestQueryKey && requestQueryKey !== localQueryKey) {
+            relatedLogSearchRowCacheService.clearQuery(requestQueryKey).catch(() => undefined);
+          }
+          return;
+        }
+
+        const { code, data, result, message, permission, rowKeys } = workerResult;
+
+        if (code === '9900403') {
+          store.commit('updateState', {
+            authDialogData: {
+              apply_url: data?.apply_url,
+              apply_data: permission,
+            },
+          });
+          setExceptionMsg(message || t('无权限'));
+          return;
+        }
+
+        if (result) {
+          begin += size;
+          total = normalizeSearchTotal(data?.total) || total;
+          await syncLocalRenderList(rowKeys, syncMode);
+          localStoredRowCount = resolveLocalStoredRowCountAfterResult({
+            isStorageAppend,
+            requestStartSeq,
+            rowKeysLength: rowKeys.length,
+          });
+          if (!isStorageAppend) {
+            appliedStreamRowCount = rowKeys.length;
+          }
+          setExceptionMsg('');
+          if (isManualSearch) {
+            choosedIndex.value = -1;
+            if (logList.value[0]) {
+              handleChooseRow(0, logList.value[0]);
+            }
+          }
+          return;
+        }
+
+        // 仅清空「手动重搜」的首屏失败；种子后加载更多失败保留已有行
+        if (uiMode === 'replace') {
+          logList.value = [];
+          renderMetaList.value = [];
+          cachedRowKeys.value = [];
+          appliedStreamRowCount = 0;
+          localStoredRowCount = 0;
+          total = 0;
+        }
+        setExceptionMsg(message || t('检索失败'));
+      } catch (error: any) {
+        if (isRequestCanceled(error) || !isCurrentRequest()) {
+          return;
+        }
+        if (uiMode === 'replace') {
+          logList.value = [];
+          renderMetaList.value = [];
+          cachedRowKeys.value = [];
+          appliedStreamRowCount = 0;
+          localStoredRowCount = 0;
+          total = 0;
+        }
+        setExceptionMsg(error?.message || t('检索失败'));
+      } finally {
+        if (activeLocalSearchRequestId === thisRequestId) {
+          activeLocalSearchRequestId = '';
+        }
+        if (!isUnmounted && currentRequestSeq === requestSeq) {
+          listLoading.value = false;
+        }
+      }
     };
 
     const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
@@ -258,9 +396,9 @@ export default defineComponent({
           field: item.field,
           operator: item.operator,
           value:
-            item.hidden_values?.length > 0
-              ? item.value.filter(value => !item.hidden_values.includes(value))
-              : item.value,
+              item.hidden_values?.length > 0
+                ? item.value.filter(value => !item.hidden_values.includes(value))
+                : item.value,
         });
       }
       return addtions;
@@ -298,7 +436,7 @@ export default defineComponent({
         'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
       };
 
-      const targetField = fieldsMap.value[field]
+      const targetField =        fieldsMap.value[field]
         ?? store.state.visibleFields?.find?.(item => item.field_name === field)
         ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
       const textType = targetField?.field_type ?? '';
@@ -345,27 +483,36 @@ export default defineComponent({
     }) => {
       const searchMode = requestOtherparams.search_mode === 'sql' ? 'sql' : 'ui';
       const fieldName = data.option.fieldName || '*';
-      const fieldType = fieldsMap.value[fieldName]?.field_type
+      const fieldType =        fieldsMap.value[fieldName]?.field_type
         ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type
         ?? data.option.fieldType;
       /** 对象/数组不能 String()，否则会得到 "[object Object]" */
       const toScalarPlain = (val: any): string => {
         if (val === undefined || val === null || val === '') return '';
         if (typeof val === 'object') {
-          if (val._isBigNumber) return String(val).replace(/<\/?mark>/gim, '').trim();
+          if (val._isBigNumber) return String(val)
+            .replace(/<\/?mark>/gim, '')
+            .trim();
           return '';
         }
-        return String(val).replace(/<\/?mark>/gim, '').trim();
+        return String(val)
+          .replace(/<\/?mark>/gim, '')
+          .trim();
       };
       const row = logList.value[choosedIndex.value];
-      const fromRow = row ? (row[fieldName]
-        ?? fieldName.split('.').reduce((cur: any, key: string) => (cur == null ? undefined : cur[key]), row))
+      const fromRow = row
+        ? (row[fieldName]
+          ?? fieldName
+            .split('.')
+            .reduce((cur: any, key: string) => (cur === null || cur === undefined ? undefined : cur[key]), row))
         : undefined;
       // 时间格式化只影响展示；date 字段必须回取行内原始时间戳
       const isDateField = ['date', 'date_nanos'].includes(fieldType);
-      const rawValue = isDateField && fromRow !== undefined && fromRow !== null && fromRow !== ''
+      const rawValue =        isDateField && fromRow !== undefined && fromRow !== null && fromRow !== ''
         ? toScalarPlain(fromRow)
-        : String(data.option.value ?? '').replace(/<\/?mark>/gim, '').trim();
+        : String(data.option.value ?? '')
+          .replace(/<\/?mark>/gim, '')
+          .trim();
       let fullPlain = toScalarPlain(data.option.fullPlain);
       // 已污染的 "[object Object]" 视为缺失，回退行数据或放弃完整值
       if (isDateField || !fullPlain || fullPlain === '--' || fullPlain === '[object Object]') {
@@ -377,10 +524,8 @@ export default defineComponent({
       const soleByValue = Boolean(fullPlain && fullPlain === rawValue);
       const isSoleToken = Boolean(
         data.option.isSoleToken
-        || (typeof data.option.tokenCount === 'number'
-          && data.option.tokenCount === 1
-          && (!fullPlain || soleByValue))
-        || soleByValue,
+          || (typeof data.option.tokenCount === 'number' && data.option.tokenCount === 1 && (!fullPlain || soleByValue))
+          || soleByValue,
       );
       const payload = resolveAddToSearch({
         field: fieldName,
@@ -397,12 +542,7 @@ export default defineComponent({
       let isNeedRefresh = false;
       if (searchMode === 'ui') {
         const uiValue = [...(payload.value ?? [])];
-        const operator = getAdditionMappingOperator(
-          payload.operator,
-          payload.field,
-          uiValue,
-          data.option.depth ?? 0,
-        );
+        const operator = getAdditionMappingOperator(payload.operator, payload.field, uiValue, data.option.depth ?? 0);
         const searchItem = {
           disabled: false,
           field: payload.field,
@@ -454,12 +594,13 @@ export default defineComponent({
 
       choosedIndex.value = index;
       const rowKey = cachedRowKeys.value[index];
+      const row = fallbackRow || logList.value[index];
       if (rowKey) {
-        emit('choose-row', { rowKey });
+        // 附带行数据作 fallback：本地 Stream key 在 relatedLogSearchRows，解析侧会双表查找
+        emit('choose-row', row ? { rowKey, ...row } : { rowKey });
         return;
       }
-      // 本地重新检索后不再复用外部缓存 rowKey，需用当前列表行数据驱动上下文/实时日志更新
-      const row = fallbackRow || logList.value[index];
+      // 无 rowKey 时用当前列表行驱动上下文/实时日志更新
       if (row) {
         emit('choose-row', row);
       }
@@ -477,6 +618,8 @@ export default defineComponent({
     }, 600);
 
     const handleReset = () => {
+      cancelPendingRequest();
+      clearLocalQueryCache();
       logList.value = [];
       renderMetaList.value = [];
       cachedRowKeys.value = [];
@@ -526,6 +669,7 @@ export default defineComponent({
       isUnmounted = true;
       requestSeq += 1;
       cancelPendingRequest();
+      clearLocalQueryCache();
       handleScrollContent.cancel();
       if (scrollIntoViewTimer) {
         clearTimeout(scrollIntoViewTimer);
@@ -533,6 +677,7 @@ export default defineComponent({
       }
       logList.value = [];
       renderMetaList.value = [];
+      cachedRowKeys.value = [];
       removeSegmentLightStyle();
     });
 
@@ -576,7 +721,7 @@ export default defineComponent({
         // 设置外部数据：优先读 IndexedDB 渲染行（含检索高亮 overlay），避免初次丢失 mark
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
-        setExceptionMsg(outerLogResult.is_error ? (outerLogResult.exception_msg || '') : '');
+        setExceptionMsg(outerLogResult.is_error ? outerLogResult.exception_msg || '' : '');
         const rowKeys = outerLogResult.row_keys ?? [];
         cachedRowKeys.value = rowKeys;
         if (rowKeys.length) {
@@ -679,19 +824,20 @@ export default defineComponent({
                       <div class='index-column'>
                         <span>{index + 1}</span>
                         <div class='choosed-bgd'>
-                          <div class={['check-icon-main', { 'is-monitor-apm-icon':isMonitorApm }]}>
-                            {
-                              isMonitorApm ? (
-                                <span class='bk-icon icon-check-1'></span>
-                              ) : (
-                                <span class='bk-icon bklog-icon bklog-correct'></span>
-                              )
-                            }
+                          <div class={['check-icon-main', { 'is-monitor-apm-icon': isMonitorApm }]}>
+                            {isMonitorApm ? (
+                              <span class='bk-icon icon-check-1'></span>
+                            ) : (
+                              <span class='bk-icon bklog-icon bklog-correct'></span>
+                            )}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td style={rowStyle} domProps={{ innerHTML: renderTimeCell(row) }}></td>
+                    <td
+                      style={rowStyle}
+                      domProps={{ innerHTML: renderTimeCell(row) }}
+                    ></td>
                     <td style='padding:4px 0'>
                       <RenderJsonCell>
                         <JsonFormatter

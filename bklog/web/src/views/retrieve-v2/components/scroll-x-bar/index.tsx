@@ -70,22 +70,25 @@ export default defineComponent({
     };
 
     let isAnimating = false;
-    const handleScrollEvent = (event: MouseEvent) => {
-      event.stopPropagation();
-      event.preventDefault();
-      event.stopImmediatePropagation();
-
-      if (!isAnimating) {
-        isAnimating = true;
-        requestAnimationFrame(() => {
-          emit('scroll-change', { ...event, target: event.target || refSrollRoot.value });
-          isAnimating = false;
-        });
+    /**
+     * scroll 事件不冒泡也不可取消，只需按帧节流转发滚动位置。
+     * 订阅方只读取 target.scrollLeft，这里不再展开原生事件对象，避免每帧产生无用副本。
+     */
+    const handleScrollEvent = (event: Event) => {
+      if (isAnimating) {
+        return;
       }
+
+      isAnimating = true;
+      const target = (event.target as HTMLElement) || refSrollRoot.value;
+      requestAnimationFrame(() => {
+        isAnimating = false;
+        emit('scroll-change', { target });
+      });
     };
 
     onMounted(() => {
-      refSrollRoot.value?.addEventListener('scroll', handleScrollEvent);
+      refSrollRoot.value?.addEventListener('scroll', handleScrollEvent, { passive: true });
     });
 
     onBeforeUnmount(() => {

@@ -37,8 +37,8 @@ import * as authorityMap from '../../home/authority-map';
 import BasicConfiguration from './basic-configuration';
 import ConfigurationView from './configuration-view';
 import DataStatus from './data-state/data-state';
-import StorageState from './storage-state/storage-state';
 import CodeRedefine from './return-code';
+import StorageState from './storage-state/storage-state';
 
 import type { IAppInfo, IClusterItem, IMenuItem } from './type';
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -68,7 +68,7 @@ export default class ApplicationConfiguration extends tsc<undefined> {
       apdex_backend: 0,
       apdex_messaging: 0,
     },
-    owner: '',
+    owners: [],
     is_enabled: false,
     es_storage_index_name: '',
     application_datasource_config: {
@@ -140,7 +140,7 @@ export default class ApplicationConfiguration extends tsc<undefined> {
     return `${window.i18n.tc('应用')}：${this.appInfo.app_name}`;
   }
 
-  beforeRouteEnter(from, to, next) {
+  beforeRouteEnter(_from, _to, next) {
     next((vm: ApplicationConfiguration) => {
       vm.routeList = [
         // {

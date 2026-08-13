@@ -17,10 +17,13 @@ from urllib.parse import urlsplit
 from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
 from blueapps.account.handlers.response import ResponseHandler
+from blueapps.utils.request_provider import get_local_request_id
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import logout
-from django.http import HttpResponseForbidden, HttpResponseNotFound, JsonResponse
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
+from django.http import Http404, HttpResponseForbidden, HttpResponseNotFound, JsonResponse
+from django.http.multipartparser import MultiPartParserError
 from django.shortcuts import redirect, render
 from django.test import RequestFactory
 from django.urls import Resolver404, resolve
@@ -251,6 +254,9 @@ def dispatch_external_proxy(request):
 
         # transfer request.user 进行外部权限替换
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        if not external_user:
+            logger.warning("dispatch_plugin_query: external user is required")
+            return JsonResponse({"result": False, "message": "external user is required"}, status=403)
 
         # 如果参数不带 bk_biz_id，尝试从有权限的业务列表里选一个
         if not bk_biz_id:
@@ -268,7 +274,11 @@ def dispatch_external_proxy(request):
             authorizer_map, _ = GlobalConfig.objects.get_or_create(
                 key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
             )
-            user = auth.authenticate(username=authorizer_map.value[str(bk_biz_id)], tenant_id=DEFAULT_TENANT_ID)
+            authorizer = authorizer_map.value.get(str(bk_biz_id))
+            if not authorizer:
+                logger.error(f"业务{bk_biz_id}无对应授权人")
+                return JsonResponse({"result": False, "message": f"业务{bk_biz_id}无对应授权人"}, status=403)
+            user = auth.authenticate(username=authorizer, tenant_id=DEFAULT_TENANT_ID)
             auth.login(request, user)
             setattr(fake_request, "user", request.user)
         logger.info(
@@ -277,10 +287,15 @@ def dispatch_external_proxy(request):
         )
         # 处理grafana接口请求头，TC适配腾讯云数据源，DS适配数据源鉴权参数
         meta_prefixs = ["HTTP_X_TC", "HTTP_X_DS", "HTTP_X_GRAFANA"]
+        audit_meta_keys = {"HTTP_X_REAL_IP", "HTTP_X_FORWARDED_FOR", "HTTP_USER_AGENT", "REMOTE_ADDR"}
         for key, value in request.META.items():
             key = key.upper()
-            if any(key.startswith(prefix) for prefix in meta_prefixs):
+            if key in audit_meta_keys or any(key.startswith(prefix) for prefix in meta_prefixs):
                 fake_request.META[key] = value
+        # fake_request 不经过 Blueapps 中间件，显式复用外层请求已生成的 request_id。
+        request_id = get_local_request_id()
+        fake_request.META["HTTP_X_REQUEST_ID"] = request_id
+        setattr(fake_request, "request_id", request_id)
 
         # 绕过csrf鉴权
         setattr(fake_request, "csrf_processing_done", True)
@@ -291,6 +306,8 @@ def dispatch_external_proxy(request):
         setattr(fake_request, "session", request.session)
         # use in get_core_context
         setattr(fake_request, "LANGUAGE_CODE", request.LANGUAGE_CODE)
+        # 内部请求绕过 Django 中间件，通过外层请求在响应阶段上报真实目标和结果。
+        setattr(request, "_audit_request", fake_request)
         setattr(local, "current_request", fake_request)
 
         # resolve view_func
@@ -298,15 +315,30 @@ def dispatch_external_proxy(request):
         view_func, kwargs = match.func, match.kwargs
 
         # call view_func
-        return view_func(fake_request, **kwargs)
+        response = view_func(fake_request, **kwargs)
+        setattr(fake_request, "_audit_response_status", response.status_code)
+        return response
 
     except Resolver404:
         logger.warning(f"dispatch_plugin_query: resolve view func 404 for: {url}")
-        return JsonResponse(
+        response = JsonResponse(
             {"result": False, "message": f"dispatch_plugin_query: resolve view func 404 for: {url}"}, status=404
         )
+        if "fake_request" in locals():
+            setattr(fake_request, "_audit_response_status", response.status_code)
+        return response
 
     except Exception as e:
+        if "fake_request" in locals():
+            if isinstance(e, Http404):
+                status_code = 404
+            elif isinstance(e, PermissionDenied):
+                status_code = 403
+            elif isinstance(e, MultiPartParserError | BadRequest | SuspiciousOperation):
+                status_code = 400
+            else:
+                status_code = getattr(e, "status_code", 500)
+            setattr(fake_request, "_audit_response_status", status_code)
         logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
 
