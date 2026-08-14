@@ -67,6 +67,7 @@ import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } fr
 import AlarmHandlingList from './alarm-handling/alarm-handling-list-new';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
+import { isAutoAlertLevelRule } from './detection-rules/alert-level';
 import DetectionRules from './detection-rules/detection-rules';
 import JudgingCondition, {
   type IJudgingData,
@@ -1983,6 +1984,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    */
   handleQueryConfig(type: 'promsql' | 'sumbit' = 'sumbit') {
     const hasIntelligentDetect = this.detectionConfig?.data?.some(item => item.type === 'IntelligentDetect');
+    const hasAutoAlertLevel = this.detectionConfig?.data?.some(isAutoAlertLevelRule);
     return this.selectMetricData.map(item => {
       const common = {
         data_label: item.curRealMetric?.data_label || item.data_label,
@@ -2008,7 +2010,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         query_string: item.keywords_query_string,
         custom_event_name: item.custom_event_name,
         functions: this.isKpiAnomalySdkEnabled || !hasIntelligentDetect ? item.functions : [],
-        intelligent_detect: this.id && hasIntelligentDetect ? item.intelligent_detect : undefined,
+        intelligent_detect: hasAutoAlertLevel
+          ? { ...(item.intelligent_detect || {}), use_sdk: true }
+          : this.id && hasIntelligentDetect
+            ? item.intelligent_detect
+            : undefined,
         time_field: (hasIntelligentDetect ? 'dtEventTimeStamp' : item.time_field) || 'time',
         bkmonitor_strategy_id: item.metric_field || item.bkmonitor_strategy_id,
         alert_name: item.metric_field,

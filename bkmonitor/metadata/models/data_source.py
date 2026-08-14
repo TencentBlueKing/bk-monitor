@@ -353,12 +353,15 @@ class DataSource(models.Model):
         Args:
             bk_biz_id: 业务ID
             namespace: 命名空间
-            bkbase_data_name: 指定计算平台数据源名称，如果为空，则使用数据源名称自动生成
+            bkbase_data_name: 指定计算平台数据源名称；为空时先复用当前 Data ID 已登记的名称，
+                未找到再使用数据源名称自动生成。
         """
 
         from metadata.models.data_link import DataIdConfig, utils
 
-        # 如果未指定计算平台数据源名称，则使用数据源名称自动生成
+        # 如果未指定计算平台数据源名称，优先复用当前 Data ID 已登记的资源名。
+        if not bkbase_data_name:
+            bkbase_data_name = utils.find_registered_bkdata_data_id_name(self, namespace=namespace)
         if not bkbase_data_name:
             bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
 
@@ -367,8 +370,7 @@ class DataSource(models.Model):
             bk_tenant_id=self.bk_tenant_id,
             namespace=namespace,
             name=bkbase_data_name,
-            bk_biz_id=bk_biz_id,
-            defaults={"bk_data_id": self.bk_data_id},
+            defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
         )
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)

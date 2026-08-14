@@ -372,7 +372,7 @@ paths:
   /app/metadata/get_result_table_storage_status/:
     get:
       operationId: metadata_get_result_table_storage_status
-      description: 查询结果表 ES/Doris 存储状态和历史分段
+      description: 批量查询结果表 ES/Doris 存储状态和历史分段
       tags:
       - metadata
       x-bk-apigateway-resource:
@@ -388,7 +388,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: metadata get result table storage status
+        descriptionEn: metadata batch get result table storage status
   /app/metadata/get_cluster_info/:
     get:
       operationId: metadata_get_cluster_info

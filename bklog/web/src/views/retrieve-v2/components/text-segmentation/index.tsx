@@ -129,7 +129,12 @@ export default defineComponent({
       e.preventDefault();
       e.stopImmediatePropagation();
       RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
-      showAll.value = !showAll.value;
+      const nextShowAll = !showAll.value;
+      showAll.value = nextShowAll;
+      // 收起后清零滚动，避免 overflow:hidden 仍保留旧 scrollTop 导致「更多」错位
+      if (!nextShowAll && refContent.value) {
+        refContent.value.scrollTop = 0;
+      }
 
       renderMoreItems?.();
     };

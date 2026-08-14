@@ -51,7 +51,6 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
-  const defaultTab = shallowRef('');
   const bizId = shallowRef<number>((window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined);
   const appStore = useAppStore();
   /** 数据间隔 */
@@ -122,7 +121,6 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     alarmDetail,
     detail,
     alarmId,
-    defaultTab,
     actionId,
     actionDetail,
     alarmType,

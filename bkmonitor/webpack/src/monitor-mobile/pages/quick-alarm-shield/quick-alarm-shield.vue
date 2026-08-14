@@ -495,6 +495,14 @@ export default class AlarmDetail extends Vue {
       });
       return;
     }
+    if (this.shieldType === 'event' && !this.selectedDimension.length) {
+      Toast({
+        message: this.$tc('请选择屏蔽维度'),
+        duration: 2000,
+        position: 'bottom',
+      });
+      return;
+    }
     this.loading = true;
     const params: Record<string, any> = {
       event_id: this.eventId,
@@ -503,6 +511,8 @@ export default class AlarmDetail extends Vue {
       desc: this.reason,
     };
     if (this.shieldType === 'event') {
+      // 同时提交 dimension_keys，兼容尚未升级的后台
+      params.dimension_keys = this.selectedDimension;
       params.dimension_conditions = this.selectedDimension.map(item => {
         const dimension = this.dimensions.find(dimension => dimension.key === item);
         return {

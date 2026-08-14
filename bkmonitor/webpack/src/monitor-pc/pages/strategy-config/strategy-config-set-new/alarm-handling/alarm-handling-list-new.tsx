@@ -27,6 +27,7 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CommonItem from '../components/common-form-item';
+import { getConfiguredAlertLevels } from '../detection-rules/alert-level';
 import AlarmHandling, { type IValue as IAlarmItem, type IAllDefense } from './alarm-handling';
 import IssueAgg from './issue-agg';
 import SimpleSelect from './simple-select';
@@ -197,7 +198,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   handleTabChange(tab: ActionTypeEnum, index: number) {
     if (tab === actionType.issueAgg && !this.localValue[index]?.issueConfig) {
       // 切换到issueConfig需要填充默认值
-      const levels = this.detectionConfig?.data?.map(item => item.level).filter(Boolean);
+      const levels = this.detectionConfig?.data?.flatMap(getConfiguredAlertLevels);
       const localValueItem = this.localValue[index];
       this.localValue.splice(index, 1, {
         ...localValueItem,

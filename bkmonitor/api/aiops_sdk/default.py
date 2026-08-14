@@ -102,6 +102,7 @@ class KpiSdkResource(SdkResource):
     # 智能异常检测远程访问地址
     base_url = settings.AIOPS_SERVER_KPI_URL
 
+
 class BKFaraGrayMixin:
     def get_request_url(self, validated_request_data):
         """根据灰度参数动态选择服务地址和 action 路径"""
@@ -146,9 +147,24 @@ class KpiGroupPredictResource(KpiSdkResource, SdkGroupPredictResource):
     pass
 
 
+class SasSdkResource(SdkResource):
+    name = "sas"
+    base_url = settings.AIOPS_SERVER_SAS_URL
+    TIMEOUT = settings.AIOPS_SAS_TIMEOUT
+    IS_STANDARD_FORMAT = False
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+
+class SasPredictResource(SasSdkResource, SdkPredictResource):
+    """异常等级评分 SDK。"""
+
+    action = settings.AIOPS_SAS_PREDICT_SDK
+
+
 class AcdSdkResource(SdkResource):
     # 离群检测远程访问地址
     base_url = settings.AIOPS_SERVER_ACD_URL
+
 
 class AcdPredictResource(AcdSdkResource, SdkPredictResource):
     """离群检测SDK执行时序预测逻辑."""

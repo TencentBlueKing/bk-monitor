@@ -251,51 +251,16 @@ class AssignRuleMatch:
         return self.assign_rule.get("user_type", UserGroupType.MAIN)
 
 
-class AlertAssignMatchManager:
-    """
-    告警分派管理
-    """
+class AlertMatchContext:
+    """告警条件匹配上下文，不包含分派规则或分派结果。"""
 
-    def __init__(
-        self,
-        alert: AlertDocument,
-        notice_users=None,
-        group_rules: list = None,
-        assign_mode=None,
-        notice_type=None,
-        cmdb_attrs=None,
-    ):
-        """
-        :param alert: 告警
-        :param notice_users: 通知人员
-        :param group_rules: 指定的分派规则, 以优先级
-        """
+    def __init__(self, alert: AlertDocument, notice_users=None, cmdb_attrs=None):
         self.alert = alert
         self.origin_severity = alert.severity
-        # 仅通知情况下
-        self.origin_notice_users_object = None
         self.notice_users = notice_users or []
-        # 针对存量的数据，默认为通知+分派规则
-        self.assign_mode = assign_mode or [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
-        self.notice_type = notice_type
+        self.bk_biz_id = self.alert.event.bk_biz_id
         self.cmdb_dimensions = self.get_match_cmdb_dimensions(cmdb_attrs)
         self.dimensions = self.get_match_dimensions()
-        extra_info = self.alert.extra_info.to_dict() if self.alert.extra_info else {}
-        self.rule_snaps = extra_info.get("rule_snaps") or {}
-        self.bk_biz_id = self.alert.event.bk_biz_id
-        self.group_rules = group_rules or []
-        self.matched_rules: List[AssignRuleMatch] = []
-        self.matched_rule_info = {
-            "notice_upgrade_user_groups": [],
-            "follow_groups": [],
-            "notice_appointees": [],
-            "itsm_actions": {},
-            "severity": 0,
-            "additional_tags": [],
-            "rule_snaps": {},
-            "group_info": {},
-        }
-        self.severity_source = ""
 
     def get_match_cmdb_dimensions(self, cmdb_attrs):
         """
@@ -371,6 +336,48 @@ class AlertAssignMatchManager:
                 host_ids.add(host.bk_host_id)
 
         return list(host_ids)
+
+
+class AlertAssignMatchManager(AlertMatchContext):
+    """
+    告警分派管理
+    """
+
+    def __init__(
+        self,
+        alert: AlertDocument,
+        notice_users=None,
+        group_rules: list = None,
+        assign_mode=None,
+        notice_type=None,
+        cmdb_attrs=None,
+    ):
+        """
+        :param alert: 告警
+        :param notice_users: 通知人员
+        :param group_rules: 指定的分派规则, 以优先级
+        """
+        super().__init__(alert, notice_users=notice_users, cmdb_attrs=cmdb_attrs)
+        # 仅通知情况下
+        self.origin_notice_users_object = None
+        # 针对存量的数据，默认为通知+分派规则
+        self.assign_mode = assign_mode or [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
+        self.notice_type = notice_type
+        extra_info = self.alert.extra_info.to_dict() if self.alert.extra_info else {}
+        self.rule_snaps = extra_info.get("rule_snaps") or {}
+        self.group_rules = group_rules or []
+        self.matched_rules: List[AssignRuleMatch] = []
+        self.matched_rule_info = {
+            "notice_upgrade_user_groups": [],
+            "follow_groups": [],
+            "notice_appointees": [],
+            "itsm_actions": {},
+            "severity": 0,
+            "additional_tags": [],
+            "rule_snaps": {},
+            "group_info": {},
+        }
+        self.severity_source = ""
 
     def get_matched_rules(self) -> List[AssignRuleMatch]:
         """

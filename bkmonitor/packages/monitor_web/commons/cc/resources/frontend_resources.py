@@ -9,20 +9,55 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.commons.tools import get_host_view_display_fields
+from bkmonitor.share.api_auth_resource import ApiAuthResource
 from core.drf_resource import Resource, api, resource
+from core.errors.share import InvalidParamsError
 from monitor_web.commons.cc.utils import foreach_topo_tree
 
 
-class GetTopoTree(Resource):
+class GetTopoTree(ApiAuthResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务id")
         instance_type = serializers.ChoiceField(required=False, choices=["host", "service"], label="实例类型")
         remove_empty_nodes = serializers.BooleanField(required=False, default=False, label="是否删除空节点")
+        bk_host_id = serializers.IntegerField(required=False, label="分享主机ID")
+        bk_obj_id = serializers.CharField(required=False, label="分享拓扑对象ID")
+        bk_inst_id = serializers.IntegerField(required=False, label="分享拓扑实例ID")
+
+        def validate(self, attrs):
+            if bool(attrs.get("bk_obj_id")) != (attrs.get("bk_inst_id") is not None):
+                raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
+            return attrs
+
+    @classmethod
+    def filter_scope_node(cls, node, params):
+        if params.get("bk_host_id") is not None and str(node.get("bk_host_id")) == str(params["bk_host_id"]):
+            return copy.deepcopy(node)
+        if (
+            params.get("bk_obj_id")
+            and params.get("bk_inst_id") is not None
+            and str(node.get("bk_obj_id")) == str(params["bk_obj_id"])
+            and str(node.get("bk_inst_id")) == str(params["bk_inst_id"])
+        ):
+            return copy.deepcopy(node)
+
+        children = []
+        for child in node.get("child", []):
+            scoped_child = cls.filter_scope_node(child, params)
+            if scoped_child:
+                children.append(scoped_child)
+        if not children:
+            return None
+
+        scoped_node = copy.copy(node)
+        scoped_node["child"] = children
+        return scoped_node
 
     @staticmethod
     def handle_node(node, node_link, other_param):
@@ -75,6 +110,11 @@ class GetTopoTree(Resource):
 
     def perform_request(self, validated_request_data):
         topo_tree = resource.commons.cc_topo_tree(validated_request_data)
+
+        if validated_request_data.get("bk_host_id") is not None or validated_request_data.get("bk_obj_id"):
+            topo_tree = self.filter_scope_node(topo_tree, validated_request_data)
+            if not topo_tree:
+                return []
 
         # 如果传了remove_empty_nodes参数，则过滤掉空节点
         if validated_request_data.get("remove_empty_nodes"):

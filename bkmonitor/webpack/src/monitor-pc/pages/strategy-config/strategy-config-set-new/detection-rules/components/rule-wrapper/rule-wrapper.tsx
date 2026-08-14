@@ -55,6 +55,7 @@ interface RuleWrapperProps {
   data?: IDetectionTypeRuleData;
   index: number;
   isEdit?: boolean;
+  isKpiAnomalySdkEnabled?: boolean;
   isRealtime?: boolean;
   metricData?: MetricDetail[];
   readonly?: boolean;
@@ -78,6 +79,8 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   /** 是否编辑 */
   @Prop({ type: Boolean, default: false }) isEdit: boolean;
+  /** 是否支持 KPI SDK 检测模式 */
+  @Prop({ type: Boolean, default: false }) isKpiAnomalySdkEnabled: boolean;
   /** 是否是实时选项 */
   @Prop({ type: Boolean, default: false }) isRealtime: boolean;
   /** 指标数据 */
@@ -110,6 +113,10 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
   /** 其他已选择算法的数据 */
   get otherSelectRuleData() {
     return this.selectRuleData.filter((_, index) => index !== this.index);
+  }
+
+  get autoLevelEnabled() {
+    return this.isKpiAnomalySdkEnabled && this.metricData.length === 1 && this.otherSelectRuleData.length === 0;
   }
 
   /** 指标的汇聚周期 */
@@ -159,6 +166,7 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
         return (
           <IntelligentDetect
             ref='ruleRef'
+            autoLevelEnabled={this.autoLevelEnabled}
             data={this.data}
             interval={this.interval}
             isEdit={this.isEdit}

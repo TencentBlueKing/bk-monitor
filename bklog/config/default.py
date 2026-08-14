@@ -366,6 +366,8 @@ if IS_K8S_DEPLOY_MODE:
                 "propagate": True,
             },
             "bk_monitor": {"handlers": ["stdout"], "level": LOG_LEVEL, "propagate": True},
+            # 审计事件，bk_audit 的 exporter 会关闭 propagate，必须显式挂 handler
+            "bk_audit": {"handlers": ["stdout"], "level": LOG_LEVEL, "propagate": True},
         },
     }
     #

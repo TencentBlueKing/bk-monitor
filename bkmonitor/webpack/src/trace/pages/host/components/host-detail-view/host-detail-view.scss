@@ -1,0 +1,34 @@
+.host-detail-view-wrapper {
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+  overflow-y: auto;
+  background-color: #fff;
+  border-left: 1px solid #eaebf0;
+
+  .host-detail-view {
+    height: auto;
+  }
+
+  .host-detail-view-title {
+    display: flex;
+    align-items: center;
+    height: 42px;
+    font-size: 14px;
+    color: #313238;
+    white-space: nowrap;
+  }
+
+  .host-detail-view-skeleton {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+
+    .host-detail-view-skeleton-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+    }
+  }
+}

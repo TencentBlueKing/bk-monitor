@@ -1,0 +1,238 @@
+// 主机 hover 提示：保留换行展示「IP / 主机名」两行（弹层挂载在 body，需全局样式）
+.host-topo-tooltips {
+  white-space: pre-line;
+}
+
+.host-topo-tree {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family: MicrosoftYaHei, sans-serif;
+  background: #fff;
+
+  &__header {
+    flex: 0 0 auto;
+    padding: 12px 16px 8px;
+    background: #f5f7fa;
+  }
+
+  &__title {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  &__search {
+    margin-bottom: 8px;
+  }
+
+  &__tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__tools-label {
+    font-family: MicrosoftYaHei, sans-serif;
+    font-size: 12px;
+    color: #4d4f56;
+  }
+
+  &__tools-icons {
+    display: flex;
+    align-items: center;
+  }
+
+  &__tools-icon {
+    margin-left: 12px;
+    font-size: 16px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  &__loading {
+    .skeleton-row {
+      height: 32px;
+      padding: 6px 4px;
+
+      .skeleton-element {
+        width: 100%;
+        height: 20px;
+      }
+    }
+  }
+
+  &__scroller {
+    position: relative;
+    height: 100%;
+    padding: 8px 16px 0;
+    contain: strict;
+    overflow: auto;
+  }
+
+  &__spacer {
+    position: relative;
+    width: 100%;
+  }
+
+  &__visible-rows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    will-change: transform;
+  }
+
+  &__row {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    padding-right: 4px;
+    overflow: hidden;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f5f7fa;
+
+      .topo-node {
+        .topo-node__compare {
+          display: flex;
+        }
+      }
+    }
+
+    &.is-selected {
+      --topo-node-count-color: #3a84ff;
+      --topo-node-label-color: #3a84ff;
+
+      background-color: #e1ecff;
+    }
+  }
+
+  &__line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    pointer-events: none;
+    background-color: #ebeef5;
+
+    &--children {
+      top: calc(50% + 14px);
+    }
+  }
+
+  &__arrow {
+    position: relative;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 100%;
+
+    &::after {
+      position: absolute;
+      top: 50%;
+      left: 7px;
+      width: 0;
+      height: 0;
+      content: '';
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 5px solid #979ba5;
+      transform: translateY(-50%);
+      transform-origin: 2px center;
+      transition: transform 0.1s ease;
+    }
+
+    &--expanded::after {
+      transform: translateY(-50%) rotate(90deg);
+    }
+
+    &--hidden {
+      visibility: hidden;
+    }
+  }
+
+  &__empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: 12px;
+    color: #979ba5;
+    transform: translate(-50%, -50%);
+  }
+
+  // 自定义节点内容
+  .topo-node {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    line-height: 20px;
+
+    &__label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--topo-node-label-color, #313238);
+      white-space: nowrap;
+    }
+
+    &__count {
+      flex-shrink: 0;
+      padding-left: 8px;
+      margin-left: auto;
+      font-weight: 700;
+      color: var(--topo-node-count-color, #a3b1cc);
+    }
+
+    &__ip {
+      flex-shrink: 0;
+      color: var(--topo-node-label-color, inherit);
+    }
+
+    &__alias {
+      margin-left: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #a3b1cc;
+      white-space: nowrap;
+    }
+
+    &__compare {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: none;
+      align-items: center;
+      height: 24px;
+      padding: 0 6px;
+      font-size: 12px;
+      font-weight: 400;
+      color: #3a84ff;
+      border-radius: 4px;
+      border: 1px solid #eaebf0;
+      background: #fff;
+      box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .select-compare-host-icon {
+      font-size: 20px;
+      color: #979ba5;
+    }
+  }
+}

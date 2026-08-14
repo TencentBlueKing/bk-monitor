@@ -145,6 +145,30 @@ class UnifyQueryAPIResource(Resource):
 class QueryDataResource(UnifyQueryAPIResource):
     """
     查询数据
+
+    返回示例：
+    {
+      "series": [
+        {
+          "name": "_result0",
+          "metric_name": "system.cpu_summary.usage",
+          "columns": ["_time", "_value", "bk_target_ip"],
+          "types": ["time", "double", "string"],
+          "group_keys": ["bk_target_ip"],
+          "group_values": ["127.0.1.10"],
+          "values": [
+            [1657848000, 12.5, "127.0.1.11"],
+            [1657848060, 13.1, "127.0.1.12"]
+          ],
+          "stat": {"avg": 12.8, "max": 13.1, "min": 12.5, "count": 2}
+        }
+      ],
+      "status": {"series_limit_reached": false, "is_partial": false},
+      "trace_id": "a1b2c3d4",
+      "is_partial": false,
+      "result_table_id": ["system.cpu_summary"]
+    }
+
     """
 
     method = "POST"
@@ -521,3 +545,15 @@ class QueryMultiResource(UnifyQueryAPIResource):
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
+
+
+class QueryInfoFieldMapResource(UnifyQueryAPIResource):
+    method = "POST"
+    path = "/query/ts/info/field_map"
+
+    class RequestSerializer(serializers.Serializer):
+        data_source = serializers.CharField(default="bkmonitor")
+        table_id = serializers.CharField(allow_blank=True)
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        space_uid = serializers.CharField(allow_blank=True, allow_null=True, required=False)

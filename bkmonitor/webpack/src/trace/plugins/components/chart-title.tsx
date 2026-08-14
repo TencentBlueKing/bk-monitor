@@ -65,6 +65,10 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    showMetricAlarm: {
+      type: Boolean,
+      default: true,
+    },
     details: {
       type: Object,
       default: () => ({}),
@@ -117,11 +121,11 @@ export default defineComponent({
         placements: ['top'],
       };
     });
-    const showMetricAlarm = computed(() => props.metrics?.length === 1);
+    const shouldShowMetricAlarm = computed(() => props.showMetricAlarm && props.metrics?.length === 1);
     const metricTitleData: ComputedRef<IExtendMetricData> = computed<IExtendMetricData>(() => props.metrics[0]);
 
     const metricTitleTooltips = () => {
-      return showMetricAlarm.value
+      return shouldShowMetricAlarm.value
         ? createMetricTitleTooltips(metricTitleData.value)
         : deduplicateByField(props.metrics, 'metric_id')
             .map(metric => createMetricTitleTooltips(metric))
@@ -130,8 +134,8 @@ export default defineComponent({
 
     watch(
       () => props.metrics,
-      async (v, o) => {
-        if (props.metrics?.length !== 1) return;
+      async (_, o) => {
+        if (!props.showMetricAlarm || props.metrics?.length !== 1) return;
         const id = props.metrics[0].metric_id || `${props.metrics[0].result_table_id}.${props.metrics[0].metric_field}`;
         const oldId = o?.length ? o[0].metric_id || `${o[0].result_table_id}.${o[0].metric_field}` : '';
         if (id === oldId) return;
@@ -257,7 +261,7 @@ export default defineComponent({
       alarmStatus,
       isShowChildren,
       alarmTips,
-      showMetricAlarm,
+      shouldShowMetricAlarm,
       metricTitleData,
       isToolsShow,
       isAlertListShown,
@@ -290,7 +294,7 @@ export default defineComponent({
           onClick={this.handleShowMenu}
         >
           <div class='main-title'>
-            {this.showMetricAlarm ? (
+            {this.shouldShowMetricAlarm ? (
               <Popover
                 key={this.alarmTips.content}
                 content={this.alarmTips.content}
@@ -308,7 +312,7 @@ export default defineComponent({
             >
               {this.$slots.title ? this.$slots.title() : this.title}
             </div>
-            {this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
+            {this.shouldShowMetricAlarm && this.metricTitleData?.collect_interval ? (
               <Popover content={this.t('数据步长')}>
                 <span class='title-interval'>{this.metricTitleData.collect_interval}m</span>
               </Popover>
@@ -333,7 +337,7 @@ export default defineComponent({
             ) : undefined}
             <span class='title-center' />
             <div class='custom-tools-wrapper'>{this.$slots?.customTools?.()}</div>
-            {this.showMetricAlarm && this.metricTitleData ? (
+            {this.shouldShowMetricAlarm && this.metricTitleData ? (
               <Popover content={this.t('添加策略')}>
                 <i
                   style={{

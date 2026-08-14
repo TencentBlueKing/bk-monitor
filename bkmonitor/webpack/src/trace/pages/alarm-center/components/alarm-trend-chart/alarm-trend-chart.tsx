@@ -174,6 +174,10 @@ export default defineComponent({
       };
     };
 
+    const customSeries = series => {
+      return series.map(item => ({ ...item, name: item.alias }));
+    };
+
     /** 图表框选 */
     const handleDataZoomChange = dataZoom => {
       // #if IS_APM_MONITOR
@@ -190,6 +194,7 @@ export default defineComponent({
       duration,
       handleDurationChange,
       formatterData,
+      customSeries,
       handleDataZoomChange,
       handleIntervalChange,
     };
@@ -209,7 +214,11 @@ export default defineComponent({
             default: () => (
               <div class='alarm-trend-chart-container'>
                 <ExploreChart
-                  customOptions={{ formatterData: this.formatterData, tooltips: { showTotal: true } }}
+                  customOptions={{
+                    formatterData: this.formatterData,
+                    series: this.customSeries,
+                    tooltips: { showTotal: true },
+                  }}
                   panel={this.panel}
                   params={this.params}
                   showTitle={false}

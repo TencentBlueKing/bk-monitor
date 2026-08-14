@@ -25,7 +25,11 @@
  */
 import UseJsonFormatter from '../hooks/use-json-formatter';
 
+import type { PrimitiveMarkMap } from '../views/retrieve-core/marked-json';
 import type { Ref } from 'vue';
+
+/** 惰性求值：大字段拼接完整原文成本高，只在真正需要解析字段归属时执行 */
+type SegmentResolveText = (() => string) | string;
 
 type RootFieldOperator = {
   isJson: boolean;
@@ -34,12 +38,14 @@ type RootFieldOperator = {
   /** 展示文本（可含时间格式化）；检索回取仍用 value 原始值 */
   stringValue?: string;
   /** 分词字段归属解析用完整原文（可长于 1000 截断展示） */
-  segmentResolveText?: string;
+  segmentResolveText?: SegmentResolveText;
   editor?: UseJsonFormatter;
   field: any;
   precomputedSegments?: Record<string, any[]>;
   enableLeafTruncate?: boolean;
   parsedFromJsonString?: boolean;
+  /** 数字 / 布尔等字面量上的检索命中，按 JSON 结构路径透传 */
+  primitiveMarks?: PrimitiveMarkMap;
   resolveFieldDisplayName?: (_fieldName: string) => string;
 };
 
@@ -50,11 +56,12 @@ type RootField = {
     ref: Ref<HTMLElement>;
     value: boolean | number | object | string;
     stringValue?: string;
-    segmentResolveText?: string;
+    segmentResolveText?: SegmentResolveText;
     field: any;
     precomputedSegments?: Record<string, any[]>;
     enableLeafTruncate?: boolean;
     parsedFromJsonString?: boolean;
+    primitiveMarks?: PrimitiveMarkMap;
     resolveFieldDisplayName?: (_fieldName: string) => string;
   };
 };
@@ -83,6 +90,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
       parsedFromJsonString: !!value.parsedFromJsonString,
       resolveFieldDisplayName: value.resolveFieldDisplayName,
       segmentResolveText: value.segmentResolveText,
+      primitiveMarks: value.primitiveMarks,
     },
   });
 
@@ -160,6 +168,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
           parsedFromJsonString: formatter.parsedFromJsonString,
+          primitiveMarks: formatter.primitiveMarks,
           resolveFieldDisplayName: formatter.resolveFieldDisplayName,
         });
 
@@ -175,6 +184,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
           parsedFromJsonString: formatter.parsedFromJsonString,
+          primitiveMarks: formatter.primitiveMarks,
           resolveFieldDisplayName: formatter.resolveFieldDisplayName,
         });
       }

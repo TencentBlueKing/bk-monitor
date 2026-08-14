@@ -1,0 +1,33 @@
+.abnormal-tips-wrap {
+  padding: 5px;
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    width: 195px;
+    height: auto;
+    font-size: 0;
+
+    &.is-en {
+      width: 300px;
+    }
+  }
+
+  &__text {
+    font-size: 12px;
+    line-height: 20px;
+  }
+
+  &__link {
+    font-size: 12px;
+    line-height: 20px;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .icon-mc-link {
+      margin-left: 4px;
+      font-size: 12px;
+    }
+  }
+}

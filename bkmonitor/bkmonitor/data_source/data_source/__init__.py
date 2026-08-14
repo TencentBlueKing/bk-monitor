@@ -2506,6 +2506,11 @@ class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
                     # 排除无需返回的字段。
                     continue
 
+                # 新版本 collector 会补充 app_name & bk_biz_id 作为 Span 元数据。
+                # 如果旧版本没有补充，增量应用会返回字段默认值，在此进行移除，避免干扰上层逻辑。
+                if field in ["bk_biz_id", "app_name"] and value in (None, "", "0", 0):
+                    continue
+
                 # TODO(crayon) 目前 Nested 字段在 Doris 查询仅返回字符串，为保证功能可用，此处转为结构化数据，等待 unify-query 支持
                 if field in self.NESTED_FIELDS and isinstance(value, str):
                     try:
@@ -2976,6 +2981,28 @@ class BkMonitorAlertDataSource(BkFtaEventDataSource):
             self.filter_dict["strategy_id"] = self.strategy_id
 
 
+class BkRumDataSource(BkApmTraceDataSource):
+    data_source_label = DataSourceLabel.BK_RUM
+    data_type_label = DataTypeLabel.LOG
+
+    # Span 对象字段
+    SPAN_OBJECT_FIELDS: set[str] = {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE, OtlpKey.STATUS}
+
+    # 预计算字段
+    PRE_CALCULATE_OBJECT_FIELDS: set[str] = set()
+
+    # 对象字段，需要进行存在性校验，选用 Set 结构以提升效率。
+    OBJECT_FIELDS: set[str] = SPAN_OBJECT_FIELDS | PRE_CALCULATE_OBJECT_FIELDS
+
+    def _fetch_black_list(self) -> list[str | int]:
+        return []
+
+
+class BkRumTimeSeriesDataSource(BkRumDataSource):
+    data_source_label = DataSourceLabel.BK_RUM
+    data_type_label = DataTypeLabel.TIME_SERIES
+
+
 @lru_cache_with_ttl(ttl=120)
 def judge_auto_filter(bk_biz_id: int, table_id: str) -> dict[str, Any]:
     """
@@ -3089,6 +3116,8 @@ def load_data_source(data_source_label: str, data_type_label: str) -> type[DataS
         BkFtaEventDataSource,
         BkApmTraceDataSource,
         BkApmTraceTimeSeriesDataSource,
+        BkRumDataSource,
+        BkRumTimeSeriesDataSource,
         PrometheusTimeSeriesDataSource,
     ]
 

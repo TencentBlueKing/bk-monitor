@@ -664,7 +664,7 @@ class AlertDetailResource(Resource):
 
         result = AlertQueryHandler.clean_document(alert)
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
-        result["extend_info"] = resource.alert.alert_related_info(ids=[alert_id]).get(alert_id, {})
+        result["extend_info"] = resource.alert.alert_related_info(alerts=[alert]).get(alert_id, {})
         self.clean_graph_panel_where(graph_panel)
         result["graph_panel"] = graph_panel
 
@@ -993,6 +993,13 @@ class AlertRelatedInfoResource(Resource):
         """
         related_infos = defaultdict(dict)
 
+        def normalize_positive_id(value) -> int | None:
+            try:
+                normalized_id = int(value)
+            except (TypeError, ValueError):
+                return None
+            return normalized_id if normalized_id > 0 else None
+
         # 提取事件的主机IP和服务实例ID，按业务分组
         instances_by_biz = defaultdict(lambda: {"ips": {}, "service_instance_ids": {}, "host_ids": {}})
         for alert in alerts:
@@ -1002,9 +1009,9 @@ class AlertRelatedInfoResource(Resource):
                 continue
             try:
                 if event.target_type == EventTargetType.HOST:
-                    if hasattr(event, "bk_host_id"):
-                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(event.bk_host_id)
-                    else:
+                    if bk_host_id := normalize_positive_id(getattr(event, "bk_host_id", None)):
+                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = bk_host_id
+                    elif event.ip:
                         instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
                             "ip": event.ip,
                             "bk_cloud_id": int(event.bk_cloud_id),
@@ -1012,10 +1019,12 @@ class AlertRelatedInfoResource(Resource):
                     related_infos[alert.id]["ip"] = event.ip
                     related_infos[alert.id]["bk_cloud_id"] = getattr(event, "bk_cloud_id", "")
                     related_infos[alert.id]["type"] = "host"
+                    related_infos[alert.id]["hostname"] = ""
+                    related_infos[alert.id]["topo_info"] = ""
                 elif dimensions_dict.get("ip"):
                     bk_cloud_id = dimensions_dict.get("bk_cloud_id", 0)
-                    if dimensions_dict.get("bk_host_id"):
-                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(dimensions_dict["bk_host_id"])
+                    if bk_host_id := normalize_positive_id(dimensions_dict.get("bk_host_id")):
+                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = bk_host_id
                     else:
                         instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
                             "ip": dimensions_dict["ip"],
@@ -1025,8 +1034,11 @@ class AlertRelatedInfoResource(Resource):
                     related_infos[alert.id]["ip"] = dimensions_dict["ip"]
                     related_infos[alert.id]["bk_cloud_id"] = bk_cloud_id
                     related_infos[alert.id]["type"] = dimensions_dict.get("target_type", "")
+                    related_infos[alert.id]["hostname"] = ""
+                    related_infos[alert.id]["topo_info"] = ""
                 elif event.target_type == EventTargetType.SERVICE:
-                    instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
+                    if service_instance_id := normalize_positive_id(getattr(event, "bk_service_instance_id", None)):
+                        instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = service_instance_id
             except AttributeError:
                 continue
 
@@ -1041,32 +1053,72 @@ class AlertRelatedInfoResource(Resource):
             service_instance_ids = instances["service_instance_ids"]
             host_ids = instances["host_ids"]
             # 查询主机和服务实例信息
-            hosts: list[Host] = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values()))
-            hosts.extend(api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=list(host_ids.values())))
-            service_instances: list[ServiceInstance] = api.cmdb.get_service_instance_by_id(
-                bk_biz_id=bk_biz_id, service_instance_ids=list(service_instance_ids.values())
-            )
+            hosts: list[Host] = []
+            if ips:
+                hosts.extend(api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values())))
+            if host_ids:
+                hosts.extend(api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=list(host_ids.values())))
+
+            service_instances: list[ServiceInstance] = []
+            if service_instance_ids:
+                service_instances.extend(
+                    api.cmdb.get_service_instance_by_id(
+                        bk_biz_id=bk_biz_id, service_instance_ids=list(service_instance_ids.values())
+                    )
+                )
 
             # 将主机和服务实例转为模块ID
-            host_to_module_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_module_ids for host in hosts}
+            host_to_module_id = {
+                (host.bk_host_innerip, host.bk_cloud_id): [
+                    bk_module_id for value in host.bk_module_ids if (bk_module_id := normalize_positive_id(value))
+                ]
+                for host in hosts
+            }
             host_to_hostname = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_name for host in hosts}
-            host_id_to_module_id = {host.bk_host_id: host.bk_module_ids for host in hosts}
+            host_id_to_module_id = {
+                host.bk_host_id: [
+                    bk_module_id for value in host.bk_module_ids if (bk_module_id := normalize_positive_id(value))
+                ]
+                for host in hosts
+            }
             host_id_to_hostname = {host.bk_host_id: host.bk_host_name for host in hosts}
-            service_to_module_id = {service.service_instance_id: service.bk_module_id for service in service_instances}
+            service_to_module_id = {}
+            for service in service_instances:
+                if bk_module_id := normalize_positive_id(service.bk_module_id):
+                    service_to_module_id[service.service_instance_id] = bk_module_id
 
             all_bk_module_ids = set()
-            for host in hosts:
-                all_bk_module_ids.update(host.bk_module_ids)
-            for service_instance in service_instances:
-                all_bk_module_ids.add(service_instance.bk_module_id)
+            for bk_module_ids in host_to_module_id.values():
+                all_bk_module_ids.update(bk_module_ids)
+            all_bk_module_ids.update(service_to_module_id.values())
 
             # 查询模块和集群信息
-            modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=all_bk_module_ids)
-            module_to_set = {module.bk_module_id: module.bk_set_id for module in modules}
-            sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(module_to_set.values()))
-            module_names = {module.bk_module_id: module.bk_module_name for module in modules}
-            set_names = {s.bk_set_id: s.bk_set_name for s in sets}
-            environment_types = {s.bk_set_id: s.bk_set_env for s in sets}
+            modules = []
+            if all_bk_module_ids:
+                modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=all_bk_module_ids)
+            module_to_set = {}
+            module_names = {}
+            for module in modules:
+                bk_module_id = normalize_positive_id(module.bk_module_id)
+                if not bk_module_id:
+                    continue
+                module_names[bk_module_id] = module.bk_module_name
+                if bk_set_id := normalize_positive_id(module.bk_set_id):
+                    module_to_set[bk_module_id] = bk_set_id
+            bk_set_ids = list(module_to_set.values())
+            sets = []
+            if bk_set_ids:
+                sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=bk_set_ids)
+            set_names = {
+                bk_set_id: bk_set.bk_set_name
+                for bk_set in sets
+                if (bk_set_id := normalize_positive_id(bk_set.bk_set_id))
+            }
+            environment_types = {
+                bk_set_id: bk_set.bk_set_env
+                for bk_set in sets
+                if (bk_set_id := normalize_positive_id(bk_set.bk_set_id))
+            }
 
             # 事件对应到模块ID
             alert_to_module_ids = {}

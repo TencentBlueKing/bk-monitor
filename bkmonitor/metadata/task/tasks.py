@@ -57,15 +57,12 @@ from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_bkbase_data_link,
-    create_fed_bkbase_data_link,
-    get_vm_cluster_id_name,
     report_metadata_data_link_status_info,
 )
 from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
-from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
-from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
+from metadata.utils.redis_tools import bkbase_redis_client
 
 logger = logging.getLogger("metadata")
 
@@ -562,8 +559,8 @@ def _manage_es_storage(es_storage: models.ESStorage):
 # TODO: 多租户改造
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def push_and_publish_space_router(
-    space_type: str | None = None,
-    space_id: str | None = None,
+    space_type: str,
+    space_id: str,
     table_id_list: list | None = None,
 ):
     """推送并发布空间路由功能"""
@@ -573,102 +570,38 @@ def push_and_publish_space_router(
         space_id,
         json.dumps(table_id_list),
     )
-    from metadata.models.space.constants import (
-        SPACE_TO_RESULT_TABLE_CHANNEL,
-        SpaceTypes,
-    )
-    from metadata.models.space.ds_rt import get_space_table_id_data_id
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-    target_space = None
-    if space_type and space_id:
-        try:
-            target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
-        except models.Space.DoesNotExist:
-            logger.warning(
-                "push_and_publish_space_router: space not found, space_type->[%s], space_id->[%s], skip",
-                space_type,
-                space_id,
-            )
-            return
-
-    # 指定空间时只获取该空间的结果表；未指定空间时由后续逻辑按租户全量刷新。
-    if not table_id_list and target_space:
-        table_id_list = list(
-            get_space_table_id_data_id(
-                space_type,
-                space_id,
-                bk_tenant_id=target_space.bk_tenant_id,
-            ).keys()
+    try:
+        target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+    except models.Space.DoesNotExist:
+        logger.warning(
+            "push_and_publish_space_router: space not found, space_type->[%s], space_id->[%s], skip",
+            space_type,
+            space_id,
         )
-    elif table_id_list is None:
-        table_id_list = []
+        return
 
     space_client = SpaceTableIDRedis()
-    # 更新空间下的结果表相关数据
-    if target_space:
-        # 更新相关数据到 redis
-        space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
-    else:
-        # NOTE: 现阶段仅针对 bkcc 类型做处理
-        spaces = list(models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value))
-        # 使用线程处理
-        bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list, is_publish=False), spaces)
+    space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
 
-        # 通知到使用方
-        push_redis_keys = []
-        for space in spaces:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
-            else:
-                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
-        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
+    # table_id_list 未传或为空时，不刷新结果表详情 / data_label 路由
+    # （push_table_id_detail 在 table_id_list 为空时会走租户全量刷新，需显式指定才执行）
+    if not table_id_list:
+        logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
+        return
 
-    # 更新结果表详情和 data_label 路由。没有明确空间时，按 ResultTable 的租户拆分，避免同名 RT 串租户。
-    table_ids_by_tenant: dict[str, set[str]] = {}
-    if target_space:
-        table_ids_by_tenant[target_space.bk_tenant_id] = set(table_id_list)
-    elif table_id_list:
-        # 兼容只有 Storage、没有 ResultTable 的早期路由。
-        tenant_aware_models = [
-            (models.ResultTable, "table_id"),
-            (models.ESStorage, "table_id"),
-            (models.DorisStorage, "table_id"),
-            (models.InfluxDBStorage, "table_id"),
-            (models.AccessVMRecord, "result_table_id"),
-        ]
-        for model, table_id_field in tenant_aware_models:
-            rows = model.objects.filter(**{f"{table_id_field}__in": table_id_list}).values_list(
-                "bk_tenant_id",
-                table_id_field,
-            )
-            for bk_tenant_id, table_id in rows:
-                table_ids_by_tenant.setdefault(bk_tenant_id, set()).add(table_id)
-    else:
-        tenant_ids = set(models.Space.objects.values_list("bk_tenant_id", flat=True)) | set(
-            models.ResultTable.objects.values_list("bk_tenant_id", flat=True)
-        )
-        tenant_ids.update(models.ESStorage.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.DorisStorage.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.InfluxDBStorage.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.AccessVMRecord.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.RecordRule.objects.values_list("bk_tenant_id", flat=True))
-        if not tenant_ids:
-            tenant_ids.add(DEFAULT_TENANT_ID)
-        table_ids_by_tenant = {bk_tenant_id: set() for bk_tenant_id in tenant_ids}
-
-    for bk_tenant_id, tenant_table_ids in table_ids_by_tenant.items():
-        sorted_table_ids = sorted(tenant_table_ids)
-        space_client.push_data_label_table_ids(
-            bk_tenant_id=bk_tenant_id,
-            table_id_list=sorted_table_ids,
-            is_publish=True,
-        )
-        space_client.push_table_id_detail(
-            bk_tenant_id=bk_tenant_id,
-            table_id_list=sorted_table_ids,
-            is_publish=True,
-        )
+    sorted_table_ids = sorted(set(table_id_list))
+    space_client.push_data_label_table_ids(
+        bk_tenant_id=target_space.bk_tenant_id,
+        table_id_list=sorted_table_ids,
+        is_publish=True,
+    )
+    space_client.push_table_id_detail(
+        bk_tenant_id=target_space.bk_tenant_id,
+        table_id_list=sorted_table_ids,
+        is_publish=True,
+    )
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 
@@ -1572,40 +1505,21 @@ def bulk_refresh_data_link_status():
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_create_fed_data_link(sub_clusters):
-    from metadata.models import DataSource, DataSourceResultTable
+    """兼容旧队列任务名，实际创建逻辑统一转发到联邦 reconciliation service。"""
+    from metadata.service.federation_data_link import ensure_federal_subset_data_link
 
     logger.info("bulk_create_fed_data_link: start to bulk create fed datalinks for->[%s]", sub_clusters)
-    for sub_cluster_id in sub_clusters:
+    for sub_cluster_id in sorted(set(sub_clusters)):
         # 打印日志记录更新的子集群ID
         logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
         try:
             sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
-            ds = DataSource.objects.get(bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID)
-            table_id = DataSourceResultTable.objects.get(
-                bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID
-            ).table_id
-            vm_cluster = get_vm_cluster_id_name(
+            ensure_federal_subset_data_link(
                 bk_tenant_id=sub_cluster.bk_tenant_id,
-                space_type=SpaceTypes.BKCC.value,
-                space_id=str(sub_cluster.bk_biz_id),
-            )
-
-            logger.info(
-                "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
-                sub_cluster_id,
-                sub_cluster.K8sMetricDataID,
-                table_id,
-            )
-
-            create_fed_bkbase_data_link(
-                bk_biz_id=sub_cluster.bk_biz_id,
-                monitor_table_id=table_id,
-                data_source=ds,
-                storage_cluster_name=vm_cluster.get("cluster_name"),
-                bcs_cluster_id=sub_cluster.cluster_id,
+                sub_cluster_id=sub_cluster_id,
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
+            logger.exception("update_fed_bkbase data_link failed, sub_cluster_id->[%s],error->[%s]", sub_cluster_id, e)
             continue
 
 
@@ -2204,8 +2118,8 @@ def _create_biz_standard_time_series_datalink_for_bkcc(
     # 链路申请（DataLink 创建 + apply_data_link + sync_metadata + AccessVMRecord 写入）统一复用
     # create_bkbase_data_link，保证与常规 VM 链路使用同一套计算平台命名（含 40 字符截断/hash）、
     # AccessVMRecord 生成与状态处理逻辑，避免内置链路自行拼接 vm_result_table_id 产生漂移。
-    # 注意：create_bkbase_data_link 会以 compose_bkdata_data_id_name(data_name) 作为 DataLink 名称，
-    # 与 check_bkcc_space_builtin_datalink 的幂等判断需保持一致。
+    # 注意：create_bkbase_data_link 只允许使用 DataIdConfig 中按 bk_data_id 登记的名称，
+    # 缺失时会直接中止；与 check_bkcc_space_builtin_datalink 的依赖检查需保持一致。
     try:
         create_bkbase_data_link(
             bk_biz_id=bk_biz_id,
