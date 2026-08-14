@@ -36,6 +36,7 @@ import {
   watch,
 } from 'vue';
 
+import { Checkbox } from 'bkui-vue';
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 
@@ -109,12 +110,14 @@ export default defineComponent({
     const active = ref<string>();
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const activeTab = ref<string>('AlarmDetail');
+    /** 告警二级 tab 默认选中视图 */
+    const activeTab = ref<string>('FailureView');
     provide('activeName', active);
     const incidentResults = inject<Ref<object>>('incidentResults');
     /** 是否用户手动切换过tab，避免接口返回数据后自动覆盖用户选择 */
     const isTabManuallySwitched = ref(false);
     const searchValidate = ref<boolean>(true);
+    const isViewNewestAlarm = ref<boolean>(false);
     const tabList = [
       {
         name: FailureContentTabView.FAILURE_TOPO,
@@ -258,6 +261,8 @@ export default defineComponent({
       searchValidate,
       showTabList,
       handleCloseCollapse,
+      t,
+      isViewNewestAlarm,
     };
   },
   render() {
@@ -310,6 +315,10 @@ export default defineComponent({
                   ))}
                 </div>
 
+                <div class='head-filter'>
+                  <Checkbox v-model={this.isViewNewestAlarm}>{this.t('仅看最新排障记录中新增的告警')}</Checkbox>
+                </div>
+
                 <div style={{ flex: 1 }}>
                   <FilterSearchInput
                     inputStatus={this.inputStatus}
@@ -324,6 +333,7 @@ export default defineComponent({
                 {this.activeTab === 'FailureView' ? (
                   <FailureView
                     alertIdsObject={this.alertIdsObject}
+                    isViewNewestAlarm={this.isViewNewestAlarm}
                     searchValidate={this.searchValidate}
                     onRefresh={this.refresh}
                   />
@@ -331,6 +341,7 @@ export default defineComponent({
                   <AlarmDetail
                     alertIdsObject={this.alertIdsObject}
                     filterSearch={this.$props.filterSearch}
+                    isViewNewestAlarm={this.isViewNewestAlarm}
                     searchValidate={this.searchValidate}
                     onRefresh={this.refresh}
                   />
