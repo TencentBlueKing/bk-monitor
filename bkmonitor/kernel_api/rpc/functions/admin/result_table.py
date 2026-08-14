@@ -23,9 +23,11 @@ from kernel_api.rpc.functions.admin.common import (
     get_page_list_bk_tenant_id,
     get_scoped_map_value,
     normalize_include,
+    normalize_int_list_filter,
     normalize_ordering,
     normalize_optional_bool,
     normalize_pagination,
+    normalize_string_list_filter,
     paginate_queryset,
     require_bk_tenant_id,
     serialize_model,
@@ -274,17 +276,13 @@ def _build_result_table_queryset(params: dict[str, Any], bk_tenant_id: str | Non
         )
     if params.get("table_name_zh"):
         queryset = queryset.filter(table_name_zh__contains=str(params["table_name_zh"]).strip())
-    if params.get("bk_biz_id") not in (None, ""):
-        try:
-            queryset = queryset.filter(bk_biz_id=int(params["bk_biz_id"]))
-        except (TypeError, ValueError) as error:
-            raise CustomException(message="bk_biz_id 必须是整数") from error
-    if params.get("bk_data_id") not in (None, ""):
-        try:
-            bk_data_id = int(params["bk_data_id"])
-        except (TypeError, ValueError) as error:
-            raise CustomException(message="bk_data_id 必须是整数") from error
-        relation_queryset = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id)
+    bk_biz_ids = normalize_int_list_filter(params, "bk_biz_id", "bk_biz_ids")
+    if bk_biz_ids:
+        queryset = queryset.filter(bk_biz_id__in=bk_biz_ids)
+
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
+    if bk_data_ids:
+        relation_queryset = models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_ids)
         if bk_tenant_id:
             table_ids = relation_queryset.filter(bk_tenant_id=bk_tenant_id).values_list("table_id", flat=True)
             queryset = queryset.filter(table_id__in=table_ids)
@@ -294,9 +292,15 @@ def _build_result_table_queryset(params: dict[str, Any], bk_tenant_id: str | Non
                 "table_id",
                 relation_queryset.values_list("bk_tenant_id", "table_id"),
             )
-    for field in ["data_label", "label", "schema_type", "default_storage"]:
-        if params.get(field) not in (None, ""):
-            queryset = queryset.filter(**{field: params[field]})
+    for singular_field, plural_field in [
+        ("data_label", "data_labels"),
+        ("label", "labels"),
+        ("schema_type", "schema_types"),
+        ("default_storage", "default_storages"),
+    ]:
+        values = normalize_string_list_filter(params, singular_field, plural_field)
+        if values:
+            queryset = queryset.filter(**{f"{singular_field}__in": values})
     for field in ["is_enable", "is_deleted", "is_builtin"]:
         field_value = normalize_optional_bool(params.get(field), field)
         if field_value is not None:
@@ -362,11 +366,17 @@ def _build_result_table_summary(bk_tenant_id: str, table_id: str) -> dict[str, i
         "table_id": "可选，结果表 ID，支持精确、前缀或受控包含匹配",
         "table_name_zh": "可选，中文名包含匹配",
         "bk_biz_id": "可选，所属业务",
+        "bk_biz_ids": "可选，所属业务 ID 数组，最多 100 项；与 bk_biz_id 合并去重",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，数据标签",
+        "data_labels": "可选，数据标签数组，最多 100 项；与 data_label 合并去重",
         "label": "可选，结果表标签",
+        "labels": "可选，结果表标签数组，最多 100 项；与 label 合并去重",
         "schema_type": "可选，free / dynamic / fixed",
+        "schema_types": "可选，schema 类型数组，最多 100 项；与 schema_type 合并去重",
         "default_storage": "可选，默认存储",
+        "default_storages": "可选，默认存储数组，最多 100 项；与 default_storage 合并去重",
         "is_enable": "可选，是否启用",
         "is_deleted": "可选，是否删除",
         "is_builtin": "可选，是否内置",
@@ -374,7 +384,14 @@ def _build_result_table_summary(bk_tenant_id: str, table_id: str) -> dict[str, i
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(RESULT_TABLE_ORDERING_FIELDS))}",
     },
-    example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20, "ordering": "table_id"},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "schema_types": ["free", "fixed"],
+        "page": 1,
+        "page_size": 20,
+        "ordering": "table_id",
+    },
 )
 def list_result_tables(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)

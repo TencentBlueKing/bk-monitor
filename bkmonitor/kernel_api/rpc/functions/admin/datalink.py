@@ -22,10 +22,13 @@ from kernel_api.rpc.functions.admin.common import (
     get_bk_tenant_id,
     get_page_list_bk_tenant_id,
     normalize_include,
+    normalize_int_list_filter,
     normalize_optional_bool,
     normalize_pagination,
+    normalize_string_list_filter,
     paginate_queryset,
     serialize_model,
+    tenant_filter_kwargs,
 )
 from metadata import models
 from metadata.models.data_link.data_link_configs import ClusterConfig, COMPONENT_CLASS_MAP
@@ -57,6 +60,7 @@ KIND_EXTRA_FIELDS = {
     "VmStorageBinding": ["vm_cluster_name", "bkbase_result_table_name", "table_id"],
     "ElasticSearchBinding": ["es_cluster_name", "table_id", "bkbase_result_table_name", "timezone"],
     "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name"],
+    "SurrealDBBinding": ["table_id", "bkbase_result_table_name", "surrealdb_cluster_name"],
     "Databus": ["data_id_name", "bk_data_id", "sink_names", "consumer_group"],
     "ConditionalSink": [],
     "BasereportSink": ["vm_storage_binding_names", "result_table_ids"],
@@ -107,6 +111,7 @@ KIND_FILTER_MAP: dict[str, list[str]] = {
     "VmStorageBinding": ["vm_cluster_name"],
     "ElasticSearchBinding": ["es_cluster_name"],
     "DorisBinding": ["doris_cluster_name"],
+    "SurrealDBBinding": ["surrealdb_cluster_name"],
     "ConditionalSink": [],
 }
 
@@ -250,18 +255,34 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
         "namespace": "可选，命名空间精确匹配",
+        "namespaces": "可选，命名空间数组，最多 100 项；与 namespace 合并去重",
         "search": "可选，按 name 模糊匹配",
         "status": "可选，状态精确匹配",
+        "statuses": "可选，状态数组，最多 100 项；与 status 合并去重",
         "bk_data_id": "可选，数据源 ID (DataId/Databus 类型)",
+        "bk_data_ids": "可选，数据源 ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_type": "可选，结果表类型 (ResultTable 类型)",
+        "data_types": "可选，结果表类型数组，最多 100 项；与 data_type 合并去重",
         "vm_cluster_name": "可选，VM 集群名称 (VmStorageBinding 类型)",
+        "vm_cluster_names": "可选，VM 集群名称数组，最多 100 项；与 vm_cluster_name 合并去重",
         "es_cluster_name": "可选，ES 集群名称 (ElasticSearchBinding 类型)",
+        "es_cluster_names": "可选，ES 集群名称数组，最多 100 项；与 es_cluster_name 合并去重",
         "doris_cluster_name": "可选，Doris 集群名称 (DorisBinding 类型)",
+        "doris_cluster_names": "可选，Doris 集群名称数组，最多 100 项；与 doris_cluster_name 合并去重",
+        "surrealdb_cluster_name": "可选，SurrealDB 集群名称 (SurrealDBBinding 类型)",
+        "surrealdb_cluster_names": "可选，SurrealDB 集群名称数组，最多 100 项；与 surrealdb_cluster_name 合并去重",
         "has_data_link": "可选，true=筛选已关联 DataLink 的组件，false=筛选未关联的组件",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "kind": "VmStorageBinding", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "kind": "VmStorageBinding",
+        "namespaces": ["default", "bkdata"],
+        "vm_cluster_names": ["vm-primary", "vm-backup"],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_components(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -276,10 +297,14 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
         )
 
     if kind in CLUSTER_CONFIG_KINDS:
-        queryset = filter_by_bk_tenant_id(ClusterConfig.objects.filter(kind=kind), bk_tenant_id)
+        queryset = ClusterConfig.objects.filter(kind=kind, **tenant_filter_kwargs(bk_tenant_id))
 
-        if params.get("namespace"):
-            queryset = queryset.filter(namespace=str(params["namespace"]).strip())
+        namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
+        if namespaces:
+            if "namespaces" not in params and len(namespaces) == 1:
+                queryset = queryset.filter(namespace=namespaces[0])
+            else:
+                queryset = queryset.filter(namespace__in=namespaces)
         if params.get("search"):
             queryset = queryset.filter(name__contains=str(params["search"]).strip())
 
@@ -290,12 +315,14 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
         model_class = _get_component_model(kind)
         queryset = filter_by_bk_tenant_id(model_class.objects.all(), bk_tenant_id)
 
-        if params.get("namespace"):
-            queryset = queryset.filter(namespace=str(params["namespace"]).strip())
+        namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
+        if namespaces:
+            queryset = queryset.filter(namespace__in=namespaces)
         if params.get("search"):
             queryset = queryset.filter(name__contains=str(params["search"]).strip())
-        if params.get("status") not in (None, ""):
-            queryset = queryset.filter(status=params["status"])
+        statuses = normalize_string_list_filter(params, "status", "statuses")
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
 
         has_data_link = normalize_optional_bool(params.get("has_data_link"), "has_data_link")
         if has_data_link is True:
@@ -304,15 +331,13 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
             queryset = queryset.filter(Q(data_link_name="") | Q(data_link_name__isnull=True))
 
         for field_name in KIND_FILTER_MAP.get(kind, []):
-            value = params.get(field_name)
-            if value is not None and value != "":
-                if field_name == "bk_data_id":
-                    try:
-                        queryset = queryset.filter(bk_data_id=int(value))
-                    except (TypeError, ValueError):
-                        raise CustomException(message="bk_data_id 必须是整数") from None
-                else:
-                    queryset = queryset.filter(**{field_name: value})
+            plural_field = f"{field_name}s"
+            if field_name == "bk_data_id":
+                values = normalize_int_list_filter(params, field_name, plural_field, positive=True)
+            else:
+                values = normalize_string_list_filter(params, field_name, plural_field)
+            if values:
+                queryset = queryset.filter(**{f"{field_name}__in": values})
 
         queryset = queryset.order_by("-create_time")
         items_raw, total = paginate_queryset(queryset, page=page, page_size=page_size)
@@ -428,13 +453,21 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
     description="查询集群配置列表，支持按 kind、namespace、name 过滤和分页。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
-        "kind": "可选，集群类型: KafkaChannel, VmStorage, ElasticSearch, Doris",
+        "kind": "可选，集群类型: KafkaChannel, VmStorage, ElasticSearch, Doris, SurrealDB",
+        "kinds": "可选，集群类型数组，最多 100 项；与 kind 合并去重",
         "namespace": "可选，命名空间精确匹配",
+        "namespaces": "可选，命名空间数组，最多 100 项；与 namespace 合并去重",
         "search": "可选，按 name 模糊匹配",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "kind": "ElasticSearch", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "kinds": ["ElasticSearch", "Doris"],
+        "namespaces": ["default", "bkdata"],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_cluster_configs(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -442,10 +475,12 @@ def list_cluster_configs(params: dict[str, Any]) -> dict[str, Any]:
 
     queryset = filter_by_bk_tenant_id(ClusterConfig.objects.all(), bk_tenant_id)
 
-    if params.get("kind") not in (None, ""):
-        queryset = queryset.filter(kind=str(params["kind"]).strip())
-    if params.get("namespace") not in (None, ""):
-        queryset = queryset.filter(namespace=str(params["namespace"]).strip())
+    kinds = normalize_string_list_filter(params, "kind", "kinds")
+    if kinds:
+        queryset = queryset.filter(kind__in=kinds)
+    namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
+    if namespaces:
+        queryset = queryset.filter(namespace__in=namespaces)
     if params.get("search") not in (None, ""):
         queryset = queryset.filter(name__contains=str(params["search"]).strip())
 
@@ -599,13 +634,23 @@ def get_cluster_config_component_config(params: dict[str, Any]) -> dict[str, Any
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "namespace": "可选，命名空间精确匹配",
+        "namespaces": "可选，命名空间数组，最多 100 项；与 namespace 合并去重",
         "search": "可选，按 data_link_name 模糊匹配",
         "data_link_strategy": "可选，链路策略精确匹配",
+        "data_link_strategies": "可选，链路策略数组，最多 100 项；与 data_link_strategy 合并去重",
         "bk_data_id": "可选，关联数据源 ID 精确匹配",
+        "bk_data_ids": "可选，关联数据源 ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "namespaces": ["default", "bkdata"],
+        "data_link_strategies": ["bk_standard_v2_time_series", "bk_log"],
+        "bk_data_ids": [50010, 50011],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_datalinks(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -613,17 +658,17 @@ def list_datalinks(params: dict[str, Any]) -> dict[str, Any]:
 
     queryset = filter_by_bk_tenant_id(models.DataLink.objects.all(), bk_tenant_id)
 
-    if params.get("namespace") not in (None, ""):
-        queryset = queryset.filter(namespace=str(params["namespace"]).strip())
+    namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
+    if namespaces:
+        queryset = queryset.filter(namespace__in=namespaces)
     if params.get("search") not in (None, ""):
         queryset = queryset.filter(data_link_name__contains=str(params["search"]).strip())
-    if params.get("data_link_strategy") not in (None, ""):
-        queryset = queryset.filter(data_link_strategy=params["data_link_strategy"])
-    if params.get("bk_data_id") not in (None, ""):
-        try:
-            queryset = queryset.filter(bk_data_id=int(params["bk_data_id"]))
-        except (TypeError, ValueError):
-            raise CustomException(message="bk_data_id 必须是整数") from None
+    data_link_strategies = normalize_string_list_filter(params, "data_link_strategy", "data_link_strategies")
+    if data_link_strategies:
+        queryset = queryset.filter(data_link_strategy__in=data_link_strategies)
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
+    if bk_data_ids:
+        queryset = queryset.filter(bk_data_id__in=bk_data_ids)
 
     queryset = queryset.order_by("-create_time")
     items_raw, total = paginate_queryset(queryset, page=page, page_size=page_size)

@@ -163,28 +163,36 @@ class TraceQuery(BaseQuery):
         result_table_ids: list[str],
         trace_ids: list[str],
         retention: int,
-        start_time: int | None,
-        end_time: int | None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        select_fields: list[str] | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        select_fields = select_fields or [
+            "trace_id",
+            "app_name",
+            "error",
+            "trace_duration",
+            "root_service_category",
+            "root_span_id",
+        ]
         base_q: QueryConfigBuilder = (
             QueryConfigBuilder(cls.USING)
             .alias("a")
             .filter(trace_id__eq=trace_ids)
-            .values("trace_id", "app_name", "error", "trace_duration", "root_service_category", "root_span_id")
+            .values(*select_fields)
             .time_field(cls.DEFAULT_TIME_FIELD)
             .order_by(f"{cls.DEFAULT_TIME_FIELD} desc")
         )
 
         start_time, end_time = cls.get_retention_time_range(retention, start_time, end_time)
         queries: list[QueryConfigBuilder] = [base_q.table(result_table_id) for result_table_id in result_table_ids]
-        queryset = cls._add_query(
-            UnifyQuerySet().start_time(start_time).end_time(end_time).time_align(False).is_es_batch(), queries
-        )
+        queryset = cls._add_query(UnifyQuerySet().start_time(start_time).end_time(end_time).time_align(False), queries)
 
         # 查询多表数据，合并返回，不同查询模式下均能支持：
         # ES - 并发查询后合并。
         # UnifyQuery - 多 Table 且 alias 相同的情况下，会自动聚合多表查询结果。
-        return list(queryset.expression("a").limit(len(trace_ids)))
+        return list(queryset.expression("a").limit(limit or len(trace_ids)))
 
     def query_simple_info(
         self, start_time: int | None, end_time: int | None, offset: int, limit: int
