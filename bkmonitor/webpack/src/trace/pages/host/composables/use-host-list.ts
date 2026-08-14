@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
+import { type Ref, type ShallowRef, computed, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Message } from 'bkui-vue';
@@ -39,8 +39,14 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import useUserConfig from '../../../hooks/useUserConfig';
 import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
-import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
-import { getHostInfoList, getHostMetricInfoList } from '../services/host-service';
+import {
+  HOST_FILTER_FIELDS,
+  HOST_LIST_COLUMNS,
+  HOST_LIST_DEFAULT_PAGE_SIZE,
+  HOST_PROGRESSIVE_METRIC_FIELD_IDS,
+} from '../constants/host-list';
+import { getHostInfoList, getHostMetricInfoList, hostMetricSnapshotService } from '../services/host-service';
+import { HOST_METRIC_SNAPSHOT_SECTIONS } from '../types/host-metric-progressive';
 import { resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListWorker } from './use-host-list-worker';
 import { useHostUrlParams } from './use-host-url-params';
@@ -57,12 +63,22 @@ import type {
   IHostQuickCardStats,
   TCopyIpField,
 } from '../types';
+import type { IHostMetricInfo } from '../types/host';
+import type {
+  HostMetricProgressiveState,
+  IHostMetricSnapshotQuery,
+  IHostMetricSnapshotResult,
+  IHostMetricSnapshotSection,
+  IHostMetricSnapshotService,
+} from '../types/host-metric-progressive';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 interface IUseHostListOptions {
   activeCategory: ShallowRef<'' | EHostQuickCategory>;
   filterExpanded: ShallowRef<boolean>;
   keyword: ShallowRef<string>;
+  /** 快照接口的领域适配器；具体 HTTP 契约只在 service 层实现 */
+  progressiveMetricService?: IHostMetricSnapshotService;
   readonly: boolean;
   /** 当前选中的拓扑节点（页面层注入），用于联动过滤主机列表 */
   selectedNode: Ref<IHostTopoTreeNode | null>;
@@ -84,6 +100,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   const hostListWorker = useHostListWorker();
   const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(useHostStore());
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+  const progressiveMetricService = options.progressiveMetricService ?? hostMetricSnapshotService;
+  const progressiveEnabled = !!window.enable_host_metric_progressive;
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
@@ -93,6 +111,9 @@ export const useHostList = (options: IUseHostListOptions) => {
   const metricLoading = shallowRef(false);
   /** 指标数据加载失败（保留基础行，仅指标列展示错误态） */
   const metricLoadError = shallowRef(false);
+  /** 渐进指标状态；旧链路始终视为 READY，保持现有交互 */
+  const metricProgressiveState = shallowRef<HostMetricProgressiveState>(progressiveEnabled ? 'RUNNING' : 'READY');
+  const metricSemanticsReady = computed(() => !progressiveEnabled || metricProgressiveState.value === 'READY');
   /** 全量主机行数（主线程不持有全量行对象） */
   const rawRowCount = shallowRef(0);
   /** retrieval-filter 语句模式 */
@@ -102,6 +123,11 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 排序（tdesign 字符串格式：`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
+  const availableSortInfo = computed(() =>
+    metricSemanticsReady.value || !HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(sortInfo.value.replace(/^-/, ''))
+      ? sortInfo.value
+      : ''
+  );
   /** 当前页码 */
   const page = shallowRef(1);
   /** 每页条数（初始值取全局统一页码配置，未配置时回退到默认 50） */
@@ -124,8 +150,12 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** 当前页数据（Worker 仅回传一页，避免主线程持有全量） */
   const pagedRows = shallowRef<IHostListRow[]>([]);
 
-  /** retrieval-filter 字段列表（静态定义） */
-  const filterFields = HOST_FILTER_FIELDS;
+  /** 快照 READY 前只开放基础主机字段，避免局部页指标产生全局假结果 */
+  const availableFilterFields = computed(() =>
+    metricSemanticsReady.value
+      ? HOST_FILTER_FIELDS
+      : HOST_FILTER_FIELDS.filter(field => !HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(field.name))
+  );
 
   /** 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原 */
   const filterOptionsMap = shallowRef<Record<string, unknown>>({});
@@ -134,12 +164,37 @@ export const useHostList = (options: IUseHostListOptions) => {
   let dataRequestGeneration = 0;
   let metricRequestGeneration = 0;
   let selectionRequestGeneration = 0;
+  let snapshotAttemptGeneration = 0;
+  let snapshotHostSetMismatch = false;
+  let snapshotHostSetRealignmentUsed = false;
+  const loadedPageHostIds = new Set<number>();
+  const pendingPageHostIds = new Set<number>();
+  let currentPageRequestKey = '';
+  let disposed = false;
+  let currentCanonicalTime:
+    | undefined
+    | {
+        endTime: number;
+        epoch: number;
+        startTime: number;
+      };
+
+  onScopeDispose(() => {
+    disposed = true;
+    dataRequestGeneration += 1;
+    metricRequestGeneration += 1;
+    snapshotAttemptGeneration += 1;
+    loadedPageHostIds.clear();
+    pendingPageHostIds.clear();
+    currentPageRequestKey = '';
+    currentCanonicalTime = undefined;
+  });
 
   const getRequestScope = () => resolveHostRequestScope(options.readonly, route.query, selectedNode.value);
 
   watch([timeRange, timezone], () => {
     setUrlParams();
-    loadMetricData();
+    progressiveEnabled ? loadData() : loadMetricData();
   });
 
   watch(refreshGeneration, () => {
@@ -197,14 +252,16 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 获取计算参数 */
   const getComputeParams = () => ({
-    activeCategory: activeCategory.value,
+    activeCategory: metricSemanticsReady.value ? activeCategory.value : '',
     keyword: keyword.value,
     page: page.value,
     pageSize: pageSize.value,
     selectedNode: selectedNode.value,
-    sortInfo: sortInfo.value,
+    sortInfo: availableSortInfo.value,
     stickyValue: stickyValue.value,
-    where: where.value,
+    where: metricSemanticsReady.value
+      ? where.value
+      : where.value.filter(item => !HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(item.key)),
   });
 
   const refreshList = (immediate = false) => {
@@ -220,6 +277,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     categoryStats.value = data.categoryStats;
     total.value = data.total;
     pagedRows.value = data.pagedRows;
+    if (progressiveEnabled && metricProgressiveState.value !== 'READY') {
+      void loadPageMetricData(data.pagedRows, dataRequestGeneration);
+    }
   });
 
   /** 检索候选项获取函数（Worker 内基于全量数据构建的候选项映射） */
@@ -253,15 +313,285 @@ export const useHostList = (options: IUseHostListOptions) => {
     refreshList(true);
   };
 
+  const waitForSnapshotPoll = (delay: number) =>
+    delay > 0 ? new Promise(resolve => setTimeout(resolve, delay)) : Promise.resolve();
+
+  const mergeSnapshotSections = (sections: Map<string, IHostMetricSnapshotSection>) => {
+    const metricListMap: Record<string, Partial<IHostMetricInfo>> = {};
+    for (const sectionName of HOST_METRIC_SNAPSHOT_SECTIONS) {
+      const section = sections.get(sectionName);
+      if (!section) {
+        return null;
+      }
+      for (const [hostId, data] of Object.entries(section.data)) {
+        metricListMap[hostId] = { ...metricListMap[hostId], ...data };
+      }
+    }
+    return metricListMap;
+  };
+
+  const toSnapshotQuery = (startTime: number, endTime: number): IHostMetricSnapshotQuery => {
+    const scope = getRequestScope();
+    return {
+      bkBizId: window.cc_biz_id,
+      ...(scope.bk_host_id === undefined ? {} : { bkHostId: scope.bk_host_id }),
+      ...(scope.bk_inst_id === undefined ? {} : { bkInstId: scope.bk_inst_id }),
+      ...(scope.bk_obj_id === undefined ? {} : { bkObjId: scope.bk_obj_id }),
+      endTime,
+      startTime,
+    };
+  };
+
+  const isTerminalSnapshotState = (status: HostMetricProgressiveState) =>
+    status === 'EXPIRED' || status === 'FAILED' || status === 'UNAVAILABLE';
+
+  const isCurrentSnapshotAttempt = (epoch: number, attempt: number) =>
+    !disposed && epoch === dataRequestGeneration && attempt === snapshotAttemptGeneration;
+
+  const mergeSnapshotResultSections = (
+    sections: Map<string, IHostMetricSnapshotSection>,
+    result: IHostMetricSnapshotResult
+  ) => {
+    for (const section of result.sections) {
+      sections.set(section.name, section);
+    }
+  };
+
+  const collectMetricSnapshot = async (
+    epoch: number,
+    attempt: number,
+    query: IHostMetricSnapshotQuery,
+    onCanonicalTime: (query: IHostMetricSnapshotQuery) => void
+  ) => {
+    const createResult = await progressiveMetricService.create(query);
+    if (!isCurrentSnapshotAttempt(epoch, attempt)) {
+      return null;
+    }
+    const canonicalQuery = {
+      ...query,
+      endTime: Number.isFinite(createResult.canonicalEndTime) ? createResult.canonicalEndTime : query.endTime,
+      startTime: Number.isFinite(createResult.canonicalStartTime) ? createResult.canonicalStartTime : query.startTime,
+    };
+    onCanonicalTime(canonicalQuery);
+    let result = createResult;
+    let sinceRevision = 0;
+    let hasPolled = false;
+    const sections = new Map<string, IHostMetricSnapshotSection>();
+    while (isCurrentSnapshotAttempt(epoch, attempt)) {
+      if (isTerminalSnapshotState(result.status)) {
+        return { query: canonicalQuery, result };
+      }
+      if (result.status === 'READY') {
+        const metricListMap = mergeSnapshotSections(sections);
+        if (metricListMap) {
+          return {
+            query: canonicalQuery,
+            result,
+            metricListMap,
+          };
+        }
+        if (hasPolled) {
+          throw new Error('host metric snapshot is incomplete');
+        }
+        sinceRevision = 0;
+      }
+      if (!result.snapshotId) {
+        return {
+          query: canonicalQuery,
+          result: { ...result, status: 'UNAVAILABLE' as const },
+        };
+      }
+      await waitForSnapshotPoll(result.status === 'READY' ? 0 : (result.retryAfterMs ?? 1000));
+      if (!isCurrentSnapshotAttempt(epoch, attempt)) {
+        return null;
+      }
+      result = await progressiveMetricService.poll({
+        ...canonicalQuery,
+        sinceRevision,
+        snapshotId: result.snapshotId,
+      });
+      hasPolled = true;
+      if (!isCurrentSnapshotAttempt(epoch, attempt)) {
+        return null;
+      }
+      sinceRevision = result.revision;
+      mergeSnapshotResultSections(sections, result);
+    }
+    return null;
+  };
+
+  const runProgressiveSnapshot = async (
+    epoch: number,
+    attempt: number,
+    query: IHostMetricSnapshotQuery,
+    baseReady: Promise<Awaited<ReturnType<typeof getHostInfoList>> | null>,
+    updateCanonicalTime: (value: { endTime: number; startTime: number }) => void
+  ) => {
+    let retryQuery = query;
+    try {
+      while (isCurrentSnapshotAttempt(epoch, attempt)) {
+        metricProgressiveState.value = 'RUNNING';
+        const snapshotPromise = collectMetricSnapshot(epoch, attempt, retryQuery, canonicalQuery => {
+          retryQuery = canonicalQuery;
+          updateCanonicalTime({ endTime: canonicalQuery.endTime, startTime: canonicalQuery.startTime });
+        });
+        const [requestBaseList, snapshot] = await Promise.all([baseReady, snapshotPromise]);
+        if (!isCurrentSnapshotAttempt(epoch, attempt) || !requestBaseList || !snapshot) {
+          return;
+        }
+        retryQuery = snapshot.query;
+        if (isTerminalSnapshotState(snapshot.result.status)) {
+          snapshotHostSetMismatch = false;
+          metricProgressiveState.value = snapshot.result.status;
+          await waitForSnapshotPoll(snapshot.result.retryAfterMs ?? 1000);
+          continue;
+        }
+        const hostIds = [...new Set(requestBaseList.map(row => row.bk_host_id))];
+        const hostIdsHash = await progressiveMetricService.hashHostIds(hostIds);
+        if (!isCurrentSnapshotAttempt(epoch, attempt)) {
+          return;
+        }
+        if (snapshot.result.hostCount !== hostIds.length || snapshot.result.hostIdsHash !== hostIdsHash) {
+          snapshotHostSetMismatch = true;
+          if (!snapshotHostSetRealignmentUsed) {
+            snapshotHostSetRealignmentUsed = true;
+            void loadDataInternal();
+            return;
+          }
+          metricProgressiveState.value = 'FAILED';
+          return;
+        }
+        const result = await hostListWorker.replaceMetrics(epoch, snapshot.metricListMap);
+        if (!result.applied || !isCurrentSnapshotAttempt(epoch, attempt)) {
+          return;
+        }
+        filterOptionsMap.value = result.filterOptionsMap;
+        snapshotHostSetMismatch = false;
+        snapshotHostSetRealignmentUsed = false;
+        metricProgressiveState.value = 'READY';
+        metricLoading.value = false;
+        metricLoadError.value = false;
+        refreshList(true);
+        return;
+      }
+    } catch {
+      if (isCurrentSnapshotAttempt(epoch, attempt)) {
+        snapshotHostSetMismatch = false;
+        metricProgressiveState.value = 'FAILED';
+        await waitForSnapshotPoll(1000);
+        if (isCurrentSnapshotAttempt(epoch, attempt)) {
+          void runProgressiveSnapshot(epoch, attempt, retryQuery, baseReady, updateCanonicalTime);
+        }
+      }
+    }
+  };
+
+  const startProgressiveSnapshot = (
+    epoch: number,
+    baseReady: Promise<Awaited<ReturnType<typeof getHostInfoList>> | null>
+  ) => {
+    const time = currentCanonicalTime;
+    if (!progressiveEnabled || disposed || time?.epoch !== epoch) {
+      return;
+    }
+    const attempt = ++snapshotAttemptGeneration;
+    metricProgressiveState.value = 'RUNNING';
+    void runProgressiveSnapshot(
+      epoch,
+      attempt,
+      toSnapshotQuery(time.startTime, time.endTime),
+      baseReady,
+      canonicalTime => {
+        if (isCurrentSnapshotAttempt(epoch, attempt)) {
+          currentCanonicalTime = { ...canonicalTime, epoch };
+        }
+      }
+    );
+  };
+
+  const loadPageMetricData = async (rows: IHostListRow[], epoch: number) => {
+    if (!progressiveEnabled || epoch !== dataRequestGeneration || metricProgressiveState.value === 'READY') {
+      return;
+    }
+    const canonicalTime = currentCanonicalTime;
+    if (canonicalTime?.epoch !== epoch) {
+      return;
+    }
+    const hostIds = [...new Set(rows.map(row => row.bk_host_id))].slice(0, pageSize.value);
+    currentPageRequestKey = `${epoch}:${hostIds.join(',')}`;
+    const requestKey = currentPageRequestKey;
+    const missingHostIds = hostIds.filter(id => !loadedPageHostIds.has(id) && !pendingPageHostIds.has(id));
+    if (!missingHostIds.length) {
+      metricLoading.value = false;
+      return;
+    }
+    for (const hostId of missingHostIds) {
+      pendingPageHostIds.add(hostId);
+    }
+    metricLoading.value = true;
+    metricLoadError.value = false;
+    try {
+      const metricListMap = await getHostMetricInfoList({
+        ...getRequestScope(),
+        bk_host_ids: missingHostIds,
+        end_time: canonicalTime.endTime,
+        query_mode: 'page',
+        start_time: canonicalTime.startTime,
+      });
+      if (epoch !== dataRequestGeneration || metricProgressiveState.value === 'READY') {
+        return;
+      }
+      const result = await hostListWorker.patchMetrics(epoch, missingHostIds, metricListMap);
+      if (!result.applied || epoch !== dataRequestGeneration) {
+        return;
+      }
+      for (const hostId of missingHostIds) {
+        loadedPageHostIds.add(hostId);
+      }
+      refreshList(true);
+    } catch {
+      if (epoch === dataRequestGeneration && requestKey === currentPageRequestKey) {
+        metricLoadError.value = true;
+      }
+    } finally {
+      if (epoch === dataRequestGeneration) {
+        for (const hostId of missingHostIds) {
+          pendingPageHostIds.delete(hostId);
+        }
+        if (requestKey === currentPageRequestKey) {
+          metricLoading.value = false;
+        } else {
+          void loadPageMetricData(pagedRows.value, epoch);
+        }
+      }
+    }
+  };
+
   /** 加载数据：基础数据先渲染，指标数据后补充 */
-  const loadData = async () => {
+  const loadDataInternal = async () => {
+    if (disposed) {
+      return;
+    }
     const requestGeneration = ++dataRequestGeneration;
     metricRequestGeneration += 1;
     let requestBaseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
+    let resolveBaseReady: (baseList: Awaited<ReturnType<typeof getHostInfoList>> | null) => void = () => {};
+    const baseReady = new Promise<Awaited<ReturnType<typeof getHostInfoList>> | null>(resolve => {
+      resolveBaseReady = resolve;
+    });
     loading.value = true;
     metricLoading.value = true;
     loadError.value = false;
     metricLoadError.value = false;
+    loadedPageHostIds.clear();
+    pendingPageHostIds.clear();
+    currentPageRequestKey = '';
+    if (progressiveEnabled) {
+      metricProgressiveState.value = 'RUNNING';
+      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      currentCanonicalTime = { endTime, epoch: requestGeneration, startTime };
+      startProgressiveSnapshot(requestGeneration, baseReady);
+    }
     // 手动/定时刷新时重置选择（对标旧版 handleResetCheck）
     selectAllMode.value = HostSelectAllModeEnum.NONE;
     selectedRowKeys.value = new Set();
@@ -269,13 +599,19 @@ export const useHostList = (options: IUseHostListOptions) => {
     try {
       requestBaseList = await getHostInfoList(getRequestScope());
       if (requestGeneration !== dataRequestGeneration) {
+        resolveBaseReady(null);
         return;
       }
       baseList = requestBaseList;
-      const initResult = await hostListWorker.initBaseData(requestBaseList);
+      const initResult = await hostListWorker.initBaseData(
+        requestBaseList,
+        progressiveEnabled ? requestGeneration : undefined
+      );
       if (requestGeneration !== dataRequestGeneration) {
+        resolveBaseReady(null);
         return;
       }
+      resolveBaseReady(requestBaseList);
       rawRowCount.value = initResult.rawRowCount;
       await loadStickyConfig();
       if (requestGeneration !== dataRequestGeneration) {
@@ -302,6 +638,7 @@ export const useHostList = (options: IUseHostListOptions) => {
       pagedRows.value = [];
       filterOptionsMap.value = {};
       metricRequestGeneration += 1;
+      resolveBaseReady(null);
       loadError.value = true;
       metricLoading.value = false;
       return;
@@ -317,15 +654,18 @@ export const useHostList = (options: IUseHostListOptions) => {
       }
       return;
     }
+    if (progressiveEnabled) {
+      return;
+    }
     const metricGeneration = ++metricRequestGeneration;
     try {
-      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
-      const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
+      const bkHostIds = requestBaseList.map(row => row.bk_host_id);
+      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
         ...getRequestScope(),
-        bk_host_ids,
-        start_time,
-        end_time,
+        bk_host_ids: bkHostIds,
+        start_time: startTime,
+        end_time: endTime,
       });
       if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
         return;
@@ -347,8 +687,19 @@ export const useHostList = (options: IUseHostListOptions) => {
     }
   };
 
+  const loadData = () => {
+    snapshotHostSetMismatch = false;
+    snapshotHostSetRealignmentUsed = false;
+    return loadDataInternal();
+  };
+
   const loadMetricData = async () => {
     if (!baseList.length) {
+      return;
+    }
+
+    if (progressiveEnabled) {
+      await loadPageMetricData(pagedRows.value, dataRequestGeneration);
       return;
     }
 
@@ -357,13 +708,13 @@ export const useHostList = (options: IUseHostListOptions) => {
     metricLoadError.value = false;
     try {
       const requestBaseList = baseList;
-      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
-      const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
+      const bkHostIds = requestBaseList.map(row => row.bk_host_id);
+      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
         ...getRequestScope(),
-        bk_host_ids,
-        start_time,
-        end_time,
+        bk_host_ids: bkHostIds,
+        start_time: startTime,
+        end_time: endTime,
       });
       if (requestGeneration !== metricRequestGeneration) {
         return;
@@ -383,6 +734,17 @@ export const useHostList = (options: IUseHostListOptions) => {
         metricLoading.value = false;
       }
     }
+  };
+
+  const retryMetricSnapshot = () => {
+    if (!isTerminalSnapshotState(metricProgressiveState.value)) {
+      return;
+    }
+    if (snapshotHostSetMismatch) {
+      void loadData();
+      return;
+    }
+    startProgressiveSnapshot(dataRequestGeneration, Promise.resolve(baseList));
   };
 
   /** 过滤条件变化后统一回到第一页 */
@@ -411,11 +773,18 @@ export const useHostList = (options: IUseHostListOptions) => {
     filterExpanded.value = !filterExpanded.value;
   };
   const handleCategoryClick = (key: EHostQuickCategory) => {
+    if (!metricSemanticsReady.value) {
+      return;
+    }
     activeCategory.value = activeCategory.value === key ? '' : key;
     resetPage();
   };
   const handleSortChange = (sort: string | string[]) => {
-    sortInfo.value = Array.isArray(sort) ? sort[0] || '' : sort;
+    const nextSort = Array.isArray(sort) ? sort[0] || '' : sort;
+    if (!metricSemanticsReady.value && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(nextSort.replace(/^-/, ''))) {
+      return;
+    }
+    sortInfo.value = nextSort;
     // 排序后 page / none 模式清空选择（对齐旧版 current 模式行为）
     // across 模式保持选择（跨页全选语义不受排序影响）
     if (selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
@@ -577,6 +946,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     loadError,
     metricLoading,
     metricLoadError,
+    metricProgressiveState,
+    metricSemanticsReady,
+    availableSortInfo,
     rawRowCount,
     keyword,
     where,
@@ -593,13 +965,14 @@ export const useHostList = (options: IUseHostListOptions) => {
     categoryStats,
     pagedRows,
     total,
-    filterFields,
+    availableFilterFields,
     filterOptionsMap,
     stickyValue,
     // 方法
     getValueFn,
     loadData,
     loadMetricData,
+    retryMetricSnapshot,
     handleKeywordChange,
     handleWhereChange,
     handleQueryStringChange,

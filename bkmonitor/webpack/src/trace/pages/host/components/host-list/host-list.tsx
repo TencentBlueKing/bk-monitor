@@ -26,6 +26,7 @@
 
 import { type PropType, computed, defineComponent, toRef } from 'vue';
 
+import { Button } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useHostStore } from 'trace/store/modules/host';
 
@@ -112,7 +113,8 @@ export default defineComponent({
           class='host-list-content'
         >
           <HostStatCards
-            activeKey={ctx.activeCategory.value}
+            activeKey={ctx.metricSemanticsReady.value ? ctx.activeCategory.value : ''}
+            disabled={!ctx.metricSemanticsReady.value}
             stats={ctx.categoryStats.value}
             onCardClick={(key: EHostQuickCategory) => ctx.handleCategoryClick(key)}
           />
@@ -128,7 +130,7 @@ export default defineComponent({
             />
             {ctx.filterExpanded.value && (
               <HostListFilter
-                fields={ctx.filterFields}
+                fields={ctx.availableFilterFields.value}
                 filterMode={ctx.filterMode.value}
                 filterOptionsMap={ctx.filterOptionsMap.value}
                 getValueFn={ctx.getValueFn}
@@ -141,18 +143,37 @@ export default defineComponent({
               />
             )}
           </div>
+          {!ctx.metricSemanticsReady.value && (
+            <div class='host-list__metric-progress'>
+              <span>
+                {['EXPIRED', 'FAILED', 'UNAVAILABLE'].includes(ctx.metricProgressiveState.value)
+                  ? window.i18n.t('全量指标暂不可用，当前按页加载指标')
+                  : window.i18n.t('全量指标准备中，当前按页加载指标')}
+              </span>
+              {['EXPIRED', 'FAILED', 'UNAVAILABLE'].includes(ctx.metricProgressiveState.value) && (
+                <Button
+                  text={true}
+                  theme='primary'
+                  onClick={ctx.retryMetricSnapshot}
+                >
+                  {window.i18n.t('重试全量指标')}
+                </Button>
+              )}
+            </div>
+          )}
           <HostListTable
             data={ctx.pagedRows.value}
             emptyType={ctx.rawRowCount.value > 0 && ctx.total.value === 0 ? 'search-empty' : 'empty'}
             markValue={ctx.stickyValue.value}
             metricLoadError={ctx.metricLoadError.value}
             metricLoading={ctx.metricLoading.value}
+            metricSemanticsReady={ctx.metricSemanticsReady.value}
             page={ctx.page.value}
             pageSize={ctx.pageSize.value}
             readonly={props.readonly}
             selectedRowKeys={ctx.selectedRowKeys.value}
             selectType={ctx.selectType.value}
-            sort={ctx.sortInfo.value}
+            sort={ctx.availableSortInfo.value}
             total={ctx.total.value}
             visibleColumns={ctx.visibleColumns.value}
             onClearFilter={ctx.handleClearFilter}

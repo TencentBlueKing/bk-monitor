@@ -28,13 +28,13 @@ import { type PropType, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import { HOST_QUICK_CARD_LIST } from '../../constants/host-list';
-
-import type { EHostQuickCategory, IHostQuickCardStats } from '../../types/host-list';
 import AlarmHostIcon from '../../../../static/img/alarm-host.png';
 import CpuUsageIcon from '../../../../static/img/cpu-usage.png';
 import DiskUsageIcon from '../../../../static/img/disk-usage.png';
 import MemoryUsageIcon from '../../../../static/img/memory-usage.png';
+import { HOST_QUICK_CARD_LIST } from '../../constants/host-list';
+
+import type { EHostQuickCategory, IHostQuickCardStats } from '../../types/host-list';
 
 import './host-stat-cards.scss';
 
@@ -48,8 +48,13 @@ export default defineComponent({
     },
     /** 当前激活的分类（空为未激活） */
     activeKey: {
-      type: String as PropType<EHostQuickCategory | ''>,
+      type: String as PropType<'' | EHostQuickCategory>,
       default: '',
+    },
+    /** 全量指标未就绪时禁止快捷全局过滤。 */
+    disabled: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
@@ -79,14 +84,18 @@ export default defineComponent({
         {HOST_QUICK_CARD_LIST.map(card => (
           <div
             key={card.key}
-            class={['host-stat-cards__item', { 'is-active': props.activeKey === card.key }]}
-            onClick={() => emit('cardClick', card.key)}
+            class={[
+              'host-stat-cards__item',
+              { 'is-active': props.activeKey === card.key, 'is-disabled': props.disabled },
+            ]}
+            title={props.disabled ? t('全量指标准备中') : ''}
+            onClick={() => !props.disabled && emit('cardClick', card.key)}
           >
-            <div class='host-stat-cards__active-bar' />
+            <div class='host-stat-cards-active' />
             <img
-              src={getIcon(card.key)}
-              alt={card.name}
               class='host-stat-cards__icon'
+              alt={card.name}
+              src={getIcon(card.key)}
             />
             <div class='host-stat-cards__desc'>
               <span class='host-stat-cards__name'>{t(card.name)}</span>

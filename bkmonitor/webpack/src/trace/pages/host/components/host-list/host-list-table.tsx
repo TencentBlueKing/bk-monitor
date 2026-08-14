@@ -55,6 +55,7 @@ import {
   HOST_LIST_ELLIPSIS_CELL_CLASS,
   HOST_LIST_PAGE_SIZE_LIST,
   HOST_METRIC_HEADER_ICON_MAP,
+  HOST_PROGRESSIVE_METRIC_FIELD_IDS,
   HOST_STATUS_MAP,
   HOST_STATUS_TIPS_MAP,
   PROCESS_STATUS_TIPS_MAP,
@@ -170,6 +171,11 @@ export default defineComponent({
     metricLoadError: {
       type: Boolean,
       default: false,
+    },
+    /** 全量快照未就绪时禁用所有依赖指标的全局排序。 */
+    metricSemanticsReady: {
+      type: Boolean,
+      default: true,
     },
     /** 置顶配置 */
     markValue: {
@@ -363,7 +369,11 @@ export default defineComponent({
     const tableSort = computed<TableSort>(() => {
       if (!props.sort) return [];
       const descending = props.sort.startsWith('-');
-      return [{ sortBy: descending ? props.sort.slice(1) : props.sort, descending }];
+      const sortBy = descending ? props.sort.slice(1) : props.sort;
+      if (!props.metricSemanticsReady && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(sortBy)) {
+        return [];
+      }
+      return [{ sortBy, descending }];
     });
 
     /** 字段设置：全部字段 + 当前展示字段 */
@@ -570,7 +580,10 @@ export default defineComponent({
     const renderMetricHeader = (column: IHostColumnConfig) => {
       const iconClass = HOST_METRIC_HEADER_ICON_MAP[column.id];
       return (
-        <div class='host-table-metric-header'>
+        <div
+          class='host-table-metric-header'
+          title={!props.metricSemanticsReady ? (t('全量指标准备中') as string) : ''}
+        >
           {iconClass && <i class={['icon-monitor', iconClass, 'host-table-metric-header__agg']} />}
           <span class={['host-table-metric-header__title', HOST_LIST_ELLIPSIS_CELL_CLASS]}>{t(column.name)}</span>
         </div>
@@ -601,7 +614,15 @@ export default defineComponent({
 
     /** 构建某一列的 tdesign 配置 */
     const buildColumn = (config: IHostColumnConfig) => {
-      let title = () => <span class={HOST_LIST_ELLIPSIS_CELL_CLASS}>{t(config.name)}</span>;
+      const metricSemanticsDisabled = !props.metricSemanticsReady && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(config.id);
+      let title = () => (
+        <span
+          class={HOST_LIST_ELLIPSIS_CELL_CLASS}
+          title={metricSemanticsDisabled ? (t('全量指标准备中') as string) : ''}
+        >
+          {t(config.name)}
+        </span>
+      );
       if (config.type === 'checkbox') {
         title = () => renderCheckboxHeader();
       } else if (config.type === 'metric') {
@@ -612,7 +633,7 @@ export default defineComponent({
         title,
         minWidth: config.minWidth,
         width: config.width,
-        sorter: config.sortable,
+        sorter: config.sortable && !metricSemanticsDisabled,
         ellipsis: false,
         fixed: config.fixed,
       };
@@ -661,6 +682,9 @@ export default defineComponent({
 
     const handleSortChange = (sortEvent: TableSort) => {
       const target = Array.isArray(sortEvent) ? sortEvent[0] : sortEvent;
+      if (!props.metricSemanticsReady && target?.sortBy && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(target.sortBy)) {
+        return;
+      }
       emit('sortChange', target?.sortBy ? `${target.descending ? '-' : ''}${target.sortBy}` : '');
     };
 

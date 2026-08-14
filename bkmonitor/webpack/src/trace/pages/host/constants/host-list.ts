@@ -61,6 +61,19 @@ export const HOST_QUICK_CARD_LIST: IHostQuickCard[] = [
 export const HOST_METRIC_COLUMN_KEYS = ['cpu_usage', 'mem_usage', 'disk_in_use', 'io_util', 'psc_mem_usage'] as const;
 export type HostMetricColumnKey = (typeof HOST_METRIC_COLUMN_KEYS)[number];
 
+/** 快照 READY 前不可用于全局筛选、排序、快捷统计或关键字匹配的补充字段 */
+export const HOST_PROGRESSIVE_METRIC_FIELD_IDS = new Set([
+  'status',
+  'alarm_count',
+  'cpu_usage',
+  'mem_usage',
+  'disk_in_use',
+  'io_util',
+  'psc_mem_usage',
+  'cpu_load',
+  'display_name',
+]);
+
 /** 表格列定义 */
 export interface IHostColumnConfig {
   /** 是否默认展示 */

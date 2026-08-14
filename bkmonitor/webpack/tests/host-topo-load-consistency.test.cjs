@@ -28,6 +28,9 @@ const loadHostService = getTopoTree => {
   const originalLoad = Module._load;
 
   Module._load = function loadWithHostServiceStubs(request, parent, isMain) {
+    if (request === 'monitor-api/base') {
+      return { request: () => async () => ({}) };
+    }
     if (request === 'monitor-api/modules/commons') {
       return { getTopoTree };
     }

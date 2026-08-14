@@ -49,14 +49,42 @@ export interface IHostListComputeParams {
 
 type WorkerResponse =
   | {
+      applied: boolean;
+      epoch: number;
+      filterOptionsMap: Record<string, IValue[]>;
+      rawRowCount: number;
+      requestId: number;
+      type: 'INIT_BASE_DONE';
+    }
+  | {
+      applied: boolean;
+      epoch: number;
+      filterOptionsMap: Record<string, IValue[]>;
+      requestId: number;
+      type: 'MERGE_METRICS_DONE';
+    }
+  | {
+      applied: boolean;
+      epoch: number;
+      filterOptionsMap: Record<string, IValue[]>;
+      requestId: number;
+      type: 'REPLACE_METRICS_DONE';
+    }
+  | {
+      applied: boolean;
+      epoch: number;
+      filterOptionsMap: Record<string, IValue[]>;
+      requestId: number;
+      type: 'RESET_METRICS_DONE';
+    }
+  | { applied: boolean; epoch: number; requestId: number; type: 'PATCH_METRICS_DONE' }
+  | {
       categoryStats: IHostQuickCardStats;
       pagedRows: IHostListRow[];
       requestId: number;
       total: number;
       type: 'COMPUTE_DONE';
     }
-  | { filterOptionsMap: Record<string, IValue[]>; rawRowCount: number; requestId: number; type: 'INIT_BASE_DONE' }
-  | { filterOptionsMap: Record<string, IValue[]>; requestId: number; type: 'MERGE_METRICS_DONE' }
   | { ips: string[]; requestId: number; type: 'GET_SELECTED_IPS_DONE' }
   | { requestId: number; result: { count: number; list: IValue[] }; type: 'GET_FILTER_OPTIONS_DONE' }
   | { requestId: number; rowKeys: string[]; type: 'GET_FILTERED_ROW_KEYS_DONE' }
@@ -108,9 +136,13 @@ export const useHostListWorker = () => {
   const worker = shallowRef<null | Worker>(null);
   let requestSeq = 0;
   let latestComputeId = 0;
+  let disposed = false;
   const pendingRequests = new Map<number, { reject: (reason?: unknown) => void; resolve: (value: unknown) => void }>();
 
   const ensureWorker = () => {
+    if (disposed) {
+      throw new Error('host list worker has been disposed');
+    }
     if (worker.value) {
       return worker.value;
     }
@@ -160,16 +192,38 @@ export const useHostListWorker = () => {
     onComputeDone = handler;
   };
 
-  const initBaseData = (baseList: IHostBaseInfo[]) =>
+  const initBaseData = (baseList: IHostBaseInfo[], epoch?: number) =>
     postRequest<Extract<WorkerResponse, { type: 'INIT_BASE_DONE' }>>({
       baseList,
+      epoch,
       type: 'INIT_BASE',
     });
 
-  const mergeMetrics = (metricListMap: Record<string, IHostMetricInfo>) =>
+  const mergeMetrics = (metricListMap: Record<string, Partial<IHostMetricInfo>>) =>
     postRequest<Extract<WorkerResponse, { type: 'MERGE_METRICS_DONE' }>>({
       metricListMap,
       type: 'MERGE_METRICS',
+    });
+
+  const resetMetrics = (epoch: number) =>
+    postRequest<Extract<WorkerResponse, { type: 'RESET_METRICS_DONE' }>>({
+      epoch,
+      type: 'RESET_METRICS',
+    });
+
+  const patchMetrics = (epoch: number, hostIds: number[], metricListMap: Record<string, Partial<IHostMetricInfo>>) =>
+    postRequest<Extract<WorkerResponse, { type: 'PATCH_METRICS_DONE' }>>({
+      epoch,
+      hostIds,
+      metricListMap,
+      type: 'PATCH_METRICS',
+    });
+
+  const replaceMetrics = (epoch: number, metricListMap: Record<string, Partial<IHostMetricInfo>>) =>
+    postRequest<Extract<WorkerResponse, { type: 'REPLACE_METRICS_DONE' }>>({
+      epoch,
+      metricListMap,
+      type: 'REPLACE_METRICS',
     });
 
   const computeNow = (params: IHostListComputeParams) => {
@@ -218,8 +272,12 @@ export const useHostListWorker = () => {
     });
 
   onScopeDispose(() => {
+    disposed = true;
     worker.value?.terminate();
     worker.value = null;
+    for (const { reject } of pendingRequests.values()) {
+      reject(new Error('host list worker has been disposed'));
+    }
     pendingRequests.clear();
   });
 
@@ -230,6 +288,9 @@ export const useHostListWorker = () => {
     getSelectedIps,
     initBaseData,
     mergeMetrics,
+    patchMetrics,
+    replaceMetrics,
+    resetMetrics,
     scheduleCompute,
     setComputeHandler,
     getFilterOptionsMap,
