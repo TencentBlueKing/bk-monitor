@@ -31,7 +31,6 @@ from fta_web.issue.resources import (
     ReanalyzeSourceAnalysisResource,
     RetrySourceAnalysisResource,
     SourceAnalysisExecutionBaseResource,
-    SourceAnalysisRawResource,
     SourceAnalysisResource,
     StartSourceAnalysisResource,
 )
@@ -112,18 +111,17 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertTrue(result["is_repository_configured"])
         self.assertFalse(result["is_configured"])
 
-    def test_success_view_projects_page_fields_and_hides_execution_context(self):
+    def test_success_view_returns_result_card_and_markdown_content(self):
         payload = {
             "schema_version": "1.0.0",
             "result_type": SourceAnalysisResultType.INSUFFICIENT_EVIDENCE,
-            "analysis_summary": {"conclusion": "证据不足"},
-            "responsibility": None,
-            "repair_suggestion": None,
-            "evidence_chain": [],
-            "next_actions": [{"title": "补充证据", "description": "查询运行 Commit"}],
-            "source_build": {"project_id": "project-a"},
-            "code_association": {"repository_alias": "repo-a"},
-            "execution_context": {"analysis_id": "internal"},
+            "result_card": {
+                "description": "现有证据无法确认唯一责任提交。",
+                "responsibility": None,
+            },
+            "content_type": "text/markdown",
+            "content": "# 分析报告\n\n缺少告警时刻的运行 Commit 映射。",
+            "internal_debug": {"analysis_id": "internal"},
         }
         execution = self.create_execution(
             status=SourceAnalysisStatus.SUCCESS,
@@ -139,8 +137,19 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertFalse(result["is_repository_configured"])
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
         self.assertEqual(result["latest"]["status_display"], "分析完成（证据不足）")
-        self.assertNotIn("execution_context", result["latest"]["result"])
-        self.assertEqual(result["latest"]["result"]["result_type"], SourceAnalysisResultType.INSUFFICIENT_EVIDENCE)
+        self.assertEqual(
+            result["latest"]["result"],
+            {
+                "schema_version": "1.0.0",
+                "result_type": SourceAnalysisResultType.INSUFFICIENT_EVIDENCE,
+                "result_card": {
+                    "description": "现有证据无法确认唯一责任提交。",
+                    "responsibility": None,
+                },
+                "content_type": "text/markdown",
+                "content": "# 分析报告\n\n缺少告警时刻的运行 Commit 映射。",
+            },
+        )
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)
@@ -160,38 +169,19 @@ class TestSourceAnalysisFrontendResources(TestCase):
         payload = {
             "schema_version": "1.0.0",
             "result_type": SourceAnalysisResultType.HIGH_CONFIDENCE,
-            "analysis_summary": {
-                "conclusion": "定位到责任提交",
-                "root_cause": "空值校验被删除",
-                "impact_scope": "登录接口",
-                "insufficient_evidence_reason": None,
-            },
-            "responsibility": {
-                "commit_id": "a3fa531",
-                "commit_message": "remove null check",
-                "author_name": "Edwin Wu",
-                "bk_username": "edwinwu",
-                "committed_at": "2026-07-28T09:32:15+08:00",
-                "reason": "异常行与 Git blame 一致",
-            },
-            "repair_suggestion": {
-                "problem_description": "缺少空值校验",
-                "fix_strategy": "恢复空值校验",
-                "changes": [{"suggested_code": "if value is None: return"}],
-                "validation_suggestions": ["补充单测"],
-            },
-            "evidence_chain": [
-                {
-                    "title": "异常命中空值解引用",
-                    "summary": "堆栈定位到 LoginHandler.java:126",
-                    "excerpt": "NullPointerException",
+            "result_card": {
+                "description": "空值校验被删除导致登录接口出现空指针。",
+                "responsibility": {
+                    "commit_id": "a3fa531",
+                    "commit_message": "remove null check",
+                    "author_name": "Edwin Wu",
+                    "bk_username": "edwinwu",
+                    "internal_score": 0.98,
                 },
-                {"title": "第二条证据", "summary": "快览不返回"},
-            ],
-            "next_actions": [{"title": "第一步", "description": "快览只保留第一条"}],
-            "source_build": {"project_id": "project-a", "pipeline_id": "pipeline-a"},
-            "code_association": {"repository_alias": "repo-a"},
-            "execution_context": {"analysis_id": "internal"},
+                "internal_trace": "not-for-frontend",
+            },
+            "content_type": "text/markdown",
+            "content": "# 分析报告\n\n```diff\n- value.getName()\n+ value == null ? null : value.getName()\n```",
         }
         self.create_execution(
             status=SourceAnalysisStatus.SUCCESS,
@@ -218,53 +208,20 @@ class TestSourceAnalysisFrontendResources(TestCase):
             },
         )
         self.assertEqual(
-            latest["result"]["analysis_summary"], {"conclusion": "定位到责任提交", "insufficient_evidence_reason": None}
-        )
-        self.assertEqual(latest["result"]["repair_suggestion"], {"fix_strategy": "恢复空值校验"})
-        self.assertEqual(
-            latest["result"]["evidence_chain"],
-            [{"title": "异常命中空值解引用", "summary": "堆栈定位到 LoginHandler.java:126"}],
-        )
-        self.assertNotIn("source_build", latest["result"])
-        self.assertNotIn("code_association", latest["result"])
-
-    def test_raw_result_returns_validated_payload(self):
-        payload = {
-            "schema_version": "1.0.0",
-            "result_type": SourceAnalysisResultType.HIGH_CONFIDENCE,
-            "execution_context": {"analysis_id": "internal"},
-        }
-        execution = self.create_execution(
-            status=SourceAnalysisStatus.SUCCESS,
-            stage=None,
-            result_type=SourceAnalysisResultType.HIGH_CONFIDENCE,
-            result_schema_version="1.0.0",
-            result_payload=payload,
-        )
-
-        result = SourceAnalysisRawResource().perform_request(
+            latest["result"],
             {
-                "bk_biz_id": self.BK_BIZ_ID,
-                "issue_id": self.ISSUE_ID,
-                "analysis_id": execution.analysis_id,
-            }
+                "result_type": SourceAnalysisResultType.HIGH_CONFIDENCE,
+                "result_card": {
+                    "description": "空值校验被删除导致登录接口出现空指针。",
+                    "responsibility": {
+                        "commit_id": "a3fa531",
+                        "commit_message": "remove null check",
+                        "author_name": "Edwin Wu",
+                        "bk_username": "edwinwu",
+                    },
+                },
+            },
         )
-
-        self.assertEqual(result, payload)
-
-    def test_raw_result_rejects_non_success_execution(self):
-        execution = self.create_execution()
-
-        with self.assertRaises(SourceAnalysisOperationConflictError) as context:
-            SourceAnalysisRawResource().perform_request(
-                {
-                    "bk_biz_id": self.BK_BIZ_ID,
-                    "issue_id": self.ISSUE_ID,
-                    "analysis_id": execution.analysis_id,
-                }
-            )
-
-        self.assertEqual(context.exception.data, {"reason": "source_analysis_result_not_ready"})
 
     @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
@@ -412,12 +369,12 @@ class TestSourceAnalysisFrontendRoutes(TestCase):
             "startSourceAnalysis",
             "retrySourceAnalysis",
             "reanalyzeSourceAnalysis",
-            "sourceAnalysisRaw",
         )
         for method in expected_methods:
             with self.subTest(method=method):
                 self.assertIn(f"export const {method} = request(", source)
                 self.assertIn(f"  {method},", source)
+        self.assertNotIn("sourceAnalysisRaw", source)
 
     def test_urls_expose_finalized_methods(self):
         expected = {
@@ -426,7 +383,6 @@ class TestSourceAnalysisFrontendRoutes(TestCase):
             "/fta/issue/issue/start_source_analysis/": {"post": "issue/start_source_analysis"},
             "/fta/issue/issue/retry_source_analysis/": {"post": "issue/retry_source_analysis"},
             "/fta/issue/issue/reanalyze_source_analysis/": {"post": "issue/reanalyze_source_analysis"},
-            "/fta/issue/issue/source_analysis_raw/": {"get": "issue/source_analysis_raw"},
         }
 
         for path, actions in expected.items():
@@ -434,7 +390,7 @@ class TestSourceAnalysisFrontendRoutes(TestCase):
                 self.assertEqual(resolve(path).func.actions, actions)
 
     def test_viewset_uses_issue_read_and_write_permissions(self):
-        for action in ("issue/ai_analysis_overview", "issue/source_analysis", "issue/source_analysis_raw"):
+        for action in ("issue/ai_analysis_overview", "issue/source_analysis"):
             view = IssueViewSet()
             view.action = action
             self.assertEqual(view.get_permissions()[0].actions, [ActionEnum.VIEW_EVENT])

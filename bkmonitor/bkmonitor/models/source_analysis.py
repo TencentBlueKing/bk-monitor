@@ -99,7 +99,7 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     """单次源码分析的执行记录、状态机与输入快照。
 
     Issue 本体存放在 ES，这里只按字符串关联 issue_id，与 IssueMergeRelation、IssueTapdRelation 保持一致。
-    执行链路为 analysis_id -> bkfara_task_id -> bkci_build_id，analysis_id 同时是 BKM 到 BKFara 的任务幂等键。
+    执行链路以 analysis_id -> bkfara_task_id 标识，analysis_id 同时是 BKM 到 BKFara 的任务幂等键。
 
     status、stage、trigger_type、failure_stage、result_type 的取值分别由 constants.issue 下的同名常量类定义。
     这些字段刻意不声明 choices：状态流转统一走条件更新，choices 在此不产生任何校验，
@@ -198,11 +198,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     bkfara_task_id = models.CharField(
         max_length=128, null=True, blank=True, default=None, verbose_name="BKFara 任务 ID"
     )
-    bkci_pipeline_id = models.CharField(
-        max_length=128, null=True, blank=True, default=None, verbose_name="蓝盾流水线 ID"
-    )
-    bkci_build_id = models.CharField(max_length=128, null=True, blank=True, default=None, verbose_name="蓝盾构建 ID")
-
     failure_stage = models.CharField(
         max_length=32,
         null=True,
@@ -227,8 +222,8 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     result_schema_version = models.CharField(
         max_length=16, null=True, blank=True, default=None, verbose_name="结果 Schema 版本"
     )
-    # 已通过 Schema 校验的原始结果，"查看原始 JSON" 直接读这里，不回源对象存储
-    result_payload = JsonField(null=True, blank=True, default=None, verbose_name="原始分析结果")
+    # 已通过 Schema 校验的结果协议，包含结论卡片与 Markdown 正文
+    result_payload = JsonField(null=True, blank=True, default=None, verbose_name="分析结果")
 
     started_at = models.DateTimeField(null=True, blank=True, default=None, verbose_name="开始执行时间")
     finished_at = models.DateTimeField(null=True, blank=True, default=None, verbose_name="终态时间")

@@ -21,7 +21,6 @@ export const sourceAnalysis = request('GET', 'fta/issue/issue/source_analysis/')
 export const startSourceAnalysis = request('POST', 'fta/issue/issue/start_source_analysis/');
 export const retrySourceAnalysis = request('POST', 'fta/issue/issue/retry_source_analysis/');
 export const reanalyzeSourceAnalysis = request('POST', 'fta/issue/issue/reanalyze_source_analysis/');
-export const sourceAnalysisRaw = request('GET', 'fta/issue/issue/source_analysis_raw/');
 export const assignIssue = request('POST', 'fta/issue/issue/assign/');
 export const resolveIssue = request('POST', 'fta/issue/issue/resolve/');
 export const reopenIssue = request('POST', 'fta/issue/issue/reopen/');
@@ -73,7 +72,6 @@ export default {
   startSourceAnalysis,
   retrySourceAnalysis,
   reanalyzeSourceAnalysis,
-  sourceAnalysisRaw,
   assignIssue,
   resolveIssue,
   reopenIssue,

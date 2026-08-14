@@ -75,7 +75,6 @@ class IssueViewSet(ResourceViewSet):
         "issue/detail",
         "issue/ai_analysis_overview",
         "issue/source_analysis",
-        "issue/source_analysis_raw",
         "issue/activities",
         "issue/history",
         "issue/top_n",
@@ -238,12 +237,11 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.issue.issue_detail, endpoint="issue/detail"),
         # AI 分析快览采用通用聚合结构，当前只返回 source_analysis 模块
         ResourceRoute("GET", resource.issue.ai_analysis_overview, endpoint="issue/ai_analysis_overview"),
-        # 源码分析最新状态、触发操作与原始结果
+        # 源码分析最新状态、展示结果与触发操作
         ResourceRoute("GET", resource.issue.source_analysis, endpoint="issue/source_analysis"),
         ResourceRoute("POST", resource.issue.start_source_analysis, endpoint="issue/start_source_analysis"),
         ResourceRoute("POST", resource.issue.retry_source_analysis, endpoint="issue/retry_source_analysis"),
         ResourceRoute("POST", resource.issue.reanalyze_source_analysis, endpoint="issue/reanalyze_source_analysis"),
-        ResourceRoute("GET", resource.issue.source_analysis_raw, endpoint="issue/source_analysis_raw"),
         # 指派负责人（含改派，支持批量）
         ResourceRoute("POST", resource.issue.assign_issue, endpoint="issue/assign"),
         # 标记为已解决（支持批量）

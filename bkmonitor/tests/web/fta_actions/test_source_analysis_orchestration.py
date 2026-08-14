@@ -114,8 +114,6 @@ class TestSourceAnalysisOrchestration(TestCase):
             return {
                 "status": "running",
                 "stage": "analyzing",
-                "bkci_pipeline_id": "pipeline-1",
-                "bkci_build_id": "build-1",
             }
 
         execute_task.side_effect = execute
@@ -140,8 +138,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         )
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
         self.assertEqual(execution.stage, SourceAnalysisStage.ANALYZING)
-        self.assertEqual(execution.bkci_pipeline_id, "pipeline-1")
-        self.assertEqual(execution.bkci_build_id, "build-1")
 
     @patch("fta_web.issue.resources.api.bk_incident.execute_source_analysis_task")
     @patch("fta_web.issue.resources.api.bk_incident.create_source_analysis_task")
@@ -205,7 +201,7 @@ class TestSourceAnalysisOrchestration(TestCase):
         execution = self.create_execution()
         create_task.return_value = {"task_id": "task-1"}
         execute_task.side_effect = TimeoutError("timeout")
-        get_task.return_value = {"status": "running", "stage": "analyzing", "bkci_build_id": "build-1"}
+        get_task.return_value = {"status": "running", "stage": "analyzing"}
 
         should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
 
@@ -214,7 +210,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         get_task.assert_called_once_with(bk_biz_id=2, task_id="task-1")
         execution.refresh_from_db()
         self.assertEqual(execution.bkfara_task_id, "task-1")
-        self.assertEqual(execution.bkci_build_id, "build-1")
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
@@ -312,13 +307,9 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_request_id, "request-2")
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
-    def test_remote_success_waits_for_pr9_result_validation(self, get_task):
+    def test_remote_success_waits_for_result_validation(self, get_task):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
-        get_task.return_value = {
-            "status": "success",
-            "bkci_pipeline_id": "pipeline-1",
-            "bkci_build_id": "build-1",
-        }
+        get_task.return_value = {"status": "success"}
 
         should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
 
@@ -327,22 +318,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
         self.assertEqual(execution.stage, SourceAnalysisStage.VALIDATING)
         self.assertIsNone(execution.result_payload)
-
-    def test_bkci_identifiers_are_not_applied_when_execution_is_terminal(self):
-        execution = self.create_execution(status=SourceAnalysisStatus.RUNNING)
-        IssueSourceAnalysisExecution.objects.filter(pk=execution.pk).update(
-            status=SourceAnalysisStatus.FAILED,
-            active_key=None,
-        )
-
-        SourceAnalysisExecutionBaseResource._save_bkci_identifiers(
-            execution,
-            {"bkci_pipeline_id": "pipeline-1", "bkci_build_id": "build-1"},
-        )
-
-        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
-        self.assertIsNone(execution.bkci_pipeline_id)
-        self.assertIsNone(execution.bkci_build_id)
 
     def test_recovery_only_returns_stale_active_records(self):
         stale = self.create_execution(issue_id="issue-stale")
