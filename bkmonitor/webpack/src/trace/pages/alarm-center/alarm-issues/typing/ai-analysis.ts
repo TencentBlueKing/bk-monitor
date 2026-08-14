@@ -41,24 +41,134 @@ export interface AIAnalysisOverview {
   source_analysis: SourceAnalysisOverview;
 }
 
-/** 源码分析责任提交 */
-export interface SourceAnalysisResponsibility {
+/** 责任提交 */
+export interface AnalysisResponsibility {
   /** 提交者姓名 */
   author_name: string;
-  /** 蓝鲸用户名；无法映射时不支持一键分派 */
-  bk_username: null | string;
+  /** 蓝鲸用户名 */
+  bk_username: string;
   /** 提交 ID */
   commit_id: string;
   /** 提交信息 */
   commit_message: string;
+  /** 提交时间（ISO 8601） */
+  committed_at: string;
+  /** 定责原因 */
+  reason: string;
 }
 
-/** 源码分析结论卡片 */
-export interface SourceAnalysisResultCard {
-  /** 一句话根因或证据不足说明 */
+/** 分析摘要 */
+export interface AnalysisSummary {
+  /** 结论 */
+  conclusion: string;
+  /** 影响范围 */
+  impact_scope: null | string;
+  /** 证据不足原因（仅 INSUFFICIENT_EVIDENCE 有值） */
+  insufficient_evidence_reason: null | string;
+  /** 根因 */
+  root_cause: null | string;
+}
+
+/** 代码关联信息 */
+export interface CodeAssociation {
+  /** 关联查询状态 */
+  association_query_status: string;
+  /** 默认分支 */
+  default_branch: string;
+  /** 降级原因 */
+  fallback_reason: null | string;
+  /** 代码库别名 */
+  repository_alias: string;
+  /** 解析模式 */
+  resolution_mode: string;
+  /** 解析出的分支 */
+  resolved_branch: null | string;
+  /** 解析出的提交 ID */
+  resolved_commit_id: null | string;
+  /** SCM 类型 */
+  scm_type: string;
+}
+
+/** 证据链项 */
+export interface EvidenceChainItem {
+  /** 证据 ID */
+  evidence_id: string;
+  /** 摘录 */
+  excerpt: string;
+  /** 来源信息 */
+  source: EvidenceSource;
+  /** 摘要 */
+  summary: string;
+  /** 标题 */
+  title: string;
+  /** 证据类型 */
+  type: string;
+}
+
+/** 证据来源 */
+export interface EvidenceSource {
+  /** 构建 ID */
+  build_id: null | string;
+  /** 提交 ID */
+  commit_id: null | string;
+  /** 结束行号 */
+  end_line: null | number;
+  /** 文件路径 */
+  file_path: null | string;
+  /** 引用 ID */
+  reference_id: string;
+  /** 引用类型 */
+  reference_type: string;
+  /** 请求 ID */
+  request_id: null | string;
+  /** 起始行号 */
+  start_line: null | number;
+  /** 来源系统 */
+  system: string;
+  /** Trace ID */
+  trace_id: null | string;
+}
+
+/** 下一步动作 */
+export interface NextAction {
+  /** 描述 */
   description: string;
-  /** 责任提交；证据不足或无法明确责任提交时为空 */
-  responsibility: null | SourceAnalysisResponsibility;
+  /** 标题 */
+  title: string;
+}
+
+/** 修复变更项 */
+export interface RepairChange {
+  /** 变更说明 */
+  changes: string;
+  /** 当前代码 */
+  current_code: string;
+  /** diff 内容 */
+  diff: string;
+  /** 结束行号 */
+  end_line: number;
+  /** 说明 */
+  explanation: string;
+  /** 文件路径 */
+  file_path: string;
+  /** 起始行号 */
+  start_line: number;
+  /** 建议代码 */
+  suggested_code: string;
+  /** 符号名 */
+  symbol: string;
+}
+
+/** 修复建议 */
+export interface RepairSuggestion {
+  /** 变更列表 */
+  changes: RepairChange[];
+  /** 修复策略 */
+  fix_strategy: string;
+  /** 问题描述 */
+  problem_description: string;
+  /** 验证建议 */
+  validation_suggestions: string[];
 }
 
 /** 源码分析配置可用性 */
@@ -79,6 +189,8 @@ export type SourceAnalysisConflictReason =
   | 'source_analysis_already_running'
   | 'source_analysis_not_configured'
   | 'source_analysis_not_retryable'
+  | 'source_analysis_result_not_found'
+  | 'source_analysis_result_not_ready'
   | 'source_analysis_target_not_failed'
   | 'source_analysis_target_not_success';
 
@@ -173,18 +285,71 @@ export interface SourceAnalysisOverviewLatest {
 export interface SourceAnalysisOverviewResult {
   /** 结果类型 */
   result_type: SourceAnalysisResultType;
-  /** 快览卡片 */
-  result_card: SourceAnalysisResultCard;
+  /** 分析摘要 */
+  analysis_summary: {
+    /** 结论 */
+    conclusion: string;
+    /** 证据不足原因（仅 INSUFFICIENT_EVIDENCE 有值） */
+    insufficient_evidence_reason: null | string;
+  };
+  /** 证据链（快览只返回首条摘要） */
+  evidence_chain: {
+    /** 摘要 */
+    summary: string;
+    /** 标题 */
+    title: string;
+  }[];
+  /** 下一步动作（INSUFFICIENT_EVIDENCE 时可能非空） */
+  next_actions: {
+    /** 描述 */
+    description: string;
+    /** 标题 */
+    title: string;
+  }[];
+  /** 修复建议（INSUFFICIENT_EVIDENCE 时为 null） */
+  repair_suggestion: {
+    /** 修复策略 */
+    fix_strategy: string;
+  } | null;
+  /** 责任提交（INSUFFICIENT_EVIDENCE 时为 null） */
+  responsibility: {
+    /** 提交者姓名 */
+    author_name: string;
+    /** 蓝鲸用户名 */
+    bk_username: string;
+    /** 提交 ID */
+    commit_id: string;
+    /** 提交信息 */
+    commit_message: string;
+  } | null;
 }
 
-/** 源码分析完整结果 */
-export interface SourceAnalysisResult extends SourceAnalysisOverviewResult {
-  /** Markdown 报告正文 */
-  content: string;
-  /** 正文格式，本期固定为 Markdown */
-  content_type: 'text/markdown';
+/** 查看原始 JSON 请求参数 */
+export interface SourceAnalysisRawParams extends AIAnalysisBaseParams {
+  /** 目标成功记录的分析 ID */
+  analysis_id: string;
+}
+
+/** 源码分析结果（页面展示 DTO，不含 execution_context 和 COS URL） */
+export interface SourceAnalysisResult {
+  /** 分析摘要 */
+  analysis_summary: AnalysisSummary;
+  /** 代码关联信息 */
+  code_association: CodeAssociation;
+  /** 证据链 */
+  evidence_chain: EvidenceChainItem[];
+  /** 下一步动作 */
+  next_actions: NextAction[];
+  /** 修复建议（INSUFFICIENT_EVIDENCE 时为 null） */
+  repair_suggestion: null | RepairSuggestion;
+  /** 责任提交（INSUFFICIENT_EVIDENCE 时为 null） */
+  responsibility: AnalysisResponsibility | null;
+  /** 结果类型 */
+  result_type: SourceAnalysisResultType;
   /** Schema 版本 */
   schema_version: string;
+  /** 来源构建信息 */
+  source_build: SourceBuild;
 }
 
 /** 源码分析结果类型 */
@@ -212,4 +377,24 @@ export type SourceAnalysisUnavailableReason = 'no_matched_rule' | 'rule_disabled
 export interface SourceAnalysisView extends SourceAnalysisConfig {
   /** 最新执行记录（从未执行时为 null） */
   latest: null | SourceAnalysisLatest;
+}
+
+/** 来源构建信息 */
+export interface SourceBuild {
+  /** 构建 ID */
+  build_id: string;
+  /** 构建编号 */
+  build_number: number;
+  /** 结束时间（ISO 8601） */
+  finished_at: string;
+  /** 流水线 ID */
+  pipeline_id: string;
+  /** 蓝盾构建项目 ID */
+  project_id: string;
+  /** 开始时间（ISO 8601） */
+  started_at: string;
+  /** 发起人 */
+  started_by: string;
+  /** 构建状态 */
+  status: string;
 }
