@@ -515,16 +515,22 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return {**source_analysis_view, "latest": overview_latest}
 
     @staticmethod
-    def build_analysis_context(rule: IssueSourceAnalysisRule) -> dict:
-        """构造首次分析前的关联参数 ID 预览，不请求上游解析名称。"""
+    def build_next_execution_context(
+        parameters: IssueSourceAnalysisRule | IssueSourceAnalysisExecution,
+        *,
+        trigger_type: str,
+        source: str,
+    ) -> dict:
+        """构造下一次执行的关联参数预览，不请求上游解析名称。"""
 
         return {
-            "source": "matched_rule_preview",
-            "bkci_project_id": str(rule.bkci_project_id),
-            "repository_alias": str(rule.repository_alias),
-            "agent_id": str(rule.agent_id),
-            "knowledge_base_ids": list(map(str, rule.knowledge_base_ids)),
-            "skill_ids": list(map(str, rule.skill_ids)),
+            "trigger_type": trigger_type,
+            "source": source,
+            "bkci_project_id": str(parameters.bkci_project_id),
+            "repository_alias": str(parameters.repository_alias),
+            "agent_id": str(parameters.agent_id),
+            "knowledge_base_ids": list(map(str, parameters.knowledge_base_ids)),
+            "skill_ids": list(map(str, parameters.skill_ids)),
         }
 
     @classmethod
@@ -533,7 +539,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         bk_biz_id: int,
         issue_id: str,
         *,
-        include_analysis_context: bool = True,
+        include_next_execution_context: bool = True,
     ) -> dict:
         """构造前端统一消费的最新状态视图。"""
 
@@ -550,9 +556,26 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "unavailable_reason_display": None,
                 "latest": cls.serialize_execution(latest),
             }
-            if include_analysis_context:
-                # 参数卡片只用于首次分析前展示；执行后不再返回规则参数。
-                result["analysis_context"] = None
+            if include_next_execution_context:
+                next_execution_context = None
+                if latest.status == SourceAnalysisStatus.FAILED and latest.failure_retryable:
+                    # 重试复用失败执行的不可变输入快照，不受当前规则调整影响。
+                    next_execution_context = cls.build_next_execution_context(
+                        latest,
+                        trigger_type=SourceAnalysisTriggerType.RETRY,
+                        source="execution_snapshot",
+                    )
+                elif latest.status == SourceAnalysisStatus.SUCCESS:
+                    # 重新分析会重新选择最新告警并匹配当前规则；这里返回同口径的确认前预览。
+                    alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
+                    rule = cls.get_matched_rule(bk_biz_id, alert) if alert is not None else None
+                    if rule is not None:
+                        next_execution_context = cls.build_next_execution_context(
+                            rule,
+                            trigger_type=SourceAnalysisTriggerType.REANALYZE,
+                            source="matched_rule_preview",
+                        )
+                result["next_execution_context"] = next_execution_context
             return result
 
         alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
@@ -566,8 +589,16 @@ class SourceAnalysisExecutionBaseResource(Resource):
             ),
             "latest": None,
         }
-        if include_analysis_context:
-            result["analysis_context"] = cls.build_analysis_context(rule) if rule is not None else None
+        if include_next_execution_context:
+            result["next_execution_context"] = (
+                cls.build_next_execution_context(
+                    rule,
+                    trigger_type=SourceAnalysisTriggerType.INITIAL,
+                    source="matched_rule_preview",
+                )
+                if rule is not None
+                else None
+            )
         return result
 
     @classmethod
@@ -1137,7 +1168,7 @@ class AIAnalysisOverviewResource(SourceAnalysisExecutionBaseResource):
             self.build_source_analysis_view(
                 bk_biz_id,
                 validated_request_data["issue_id"],
-                include_analysis_context=False,
+                include_next_execution_context=False,
             )
         )
         return {"source_analysis": source_analysis}

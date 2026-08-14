@@ -93,14 +93,15 @@ class TestSourceAnalysisFrontendResources(TestCase):
                 "is_configured": False,
                 "unavailable_reason": "no_matched_rule",
                 "unavailable_reason_display": "当前 Issue 未匹配到可用的源码分析规则。",
-                "analysis_context": None,
+                "next_execution_context": None,
                 "latest": None,
             },
         )
 
-    def test_query_without_execution_returns_matched_rule_analysis_context(self):
+    def test_query_without_execution_returns_initial_context(self):
         rule = self.create_rule()
         expected_context = {
+            "trigger_type": SourceAnalysisTriggerType.INITIAL,
             "source": "matched_rule_preview",
             "bkci_project_id": "project-a",
             "repository_alias": "repo-a",
@@ -114,16 +115,20 @@ class TestSourceAnalysisFrontendResources(TestCase):
             patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(rule, None)),
             patch.object(
                 SourceAnalysisExecutionBaseResource,
-                "build_analysis_context",
+                "build_next_execution_context",
                 return_value=expected_context,
             ) as build_context,
         ):
             result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
-        self.assertEqual(result["analysis_context"], expected_context)
-        build_context.assert_called_once_with(rule)
+        self.assertEqual(result["next_execution_context"], expected_context)
+        build_context.assert_called_once_with(
+            rule,
+            trigger_type=SourceAnalysisTriggerType.INITIAL,
+            source="matched_rule_preview",
+        )
 
-    def test_build_analysis_context_only_returns_rule_ids(self):
+    def test_build_next_execution_context_only_returns_parameter_ids(self):
         rule = SimpleNamespace(
             bkci_project_id="project-a",
             repository_alias="repo-a",
@@ -132,11 +137,16 @@ class TestSourceAnalysisFrontendResources(TestCase):
             knowledge_base_ids=["knowledge-a"],
         )
 
-        result = SourceAnalysisExecutionBaseResource.build_analysis_context(rule)
+        result = SourceAnalysisExecutionBaseResource.build_next_execution_context(
+            rule,
+            trigger_type=SourceAnalysisTriggerType.REANALYZE,
+            source="matched_rule_preview",
+        )
 
         self.assertEqual(
             result,
             {
+                "trigger_type": SourceAnalysisTriggerType.REANALYZE,
                 "source": "matched_rule_preview",
                 "bkci_project_id": "project-a",
                 "repository_alias": "repo-a",
@@ -145,6 +155,101 @@ class TestSourceAnalysisFrontendResources(TestCase):
                 "skill_ids": ["skill-a"],
             },
         )
+
+    def test_retryable_failure_returns_failed_execution_snapshot(self):
+        execution = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            stage=None,
+            failure_retryable=True,
+            bkci_project_id="snapshot-project",
+            repository_alias="snapshot-repo",
+            agent_id="snapshot-agent",
+            knowledge_base_ids=["snapshot-knowledge"],
+            skill_ids=["snapshot-skill"],
+        )
+
+        with patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert") as get_latest_alert:
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertEqual(
+            result["next_execution_context"],
+            {
+                "trigger_type": SourceAnalysisTriggerType.RETRY,
+                "source": "execution_snapshot",
+                "bkci_project_id": execution.bkci_project_id,
+                "repository_alias": execution.repository_alias,
+                "agent_id": execution.agent_id,
+                "knowledge_base_ids": execution.knowledge_base_ids,
+                "skill_ids": execution.skill_ids,
+            },
+        )
+        get_latest_alert.assert_not_called()
+
+    def test_success_returns_current_matched_rule_for_reanalysis(self):
+        self.create_execution(
+            status=SourceAnalysisStatus.SUCCESS,
+            stage=None,
+            bkci_project_id="old-project",
+            repository_alias="old-repo",
+            agent_id="old-agent",
+            knowledge_base_ids=["old-knowledge"],
+            skill_ids=["old-skill"],
+        )
+        rule = self.create_rule(
+            bkci_project_id="current-project",
+            repository_alias="current-repo",
+            agent_id="current-agent",
+            knowledge_base_ids=["current-knowledge"],
+            skill_ids=["current-skill"],
+        )
+        alert = SimpleNamespace()
+
+        with (
+            patch.object(
+                SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=alert
+            ) as get_latest_alert,
+            patch.object(
+                SourceAnalysisExecutionBaseResource, "get_matched_rule", return_value=rule
+            ) as get_matched_rule,
+        ):
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertEqual(
+            result["next_execution_context"],
+            {
+                "trigger_type": SourceAnalysisTriggerType.REANALYZE,
+                "source": "matched_rule_preview",
+                "bkci_project_id": "current-project",
+                "repository_alias": "current-repo",
+                "agent_id": "current-agent",
+                "knowledge_base_ids": ["current-knowledge"],
+                "skill_ids": ["current-skill"],
+            },
+        )
+        get_latest_alert.assert_called_once()
+        get_matched_rule.assert_called_once_with(self.BK_BIZ_ID, alert)
+
+    def test_active_execution_does_not_return_next_execution_context(self):
+        self.create_execution(status=SourceAnalysisStatus.RUNNING)
+
+        with patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert") as get_latest_alert:
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertIsNone(result["next_execution_context"])
+        get_latest_alert.assert_not_called()
+
+    def test_non_retryable_failure_does_not_return_next_execution_context(self):
+        self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            stage=None,
+            failure_retryable=False,
+        )
+
+        with patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert") as get_latest_alert:
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertIsNone(result["next_execution_context"])
+        get_latest_alert.assert_not_called()
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)
@@ -180,12 +285,15 @@ class TestSourceAnalysisFrontendResources(TestCase):
             result_payload=payload,
         )
 
-        with patch.object(SourceAnalysisExecutionBaseResource, "build_analysis_context") as build_context:
+        with (
+            patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None),
+            patch.object(SourceAnalysisExecutionBaseResource, "build_next_execution_context") as build_context,
+        ):
             result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
         self.assertTrue(result["is_configured"])
         self.assertFalse(result["is_repository_configured"])
-        self.assertIsNone(result["analysis_context"])
+        self.assertIsNone(result["next_execution_context"])
         build_context.assert_not_called()
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
         self.assertEqual(result["latest"]["status_display"], "分析完成（证据不足）")
@@ -216,21 +324,21 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
         self.assertEqual(set(result), {"source_analysis"})
         self.assertTrue(result["source_analysis"]["is_repository_configured"])
-        self.assertNotIn("analysis_context", result["source_analysis"])
+        self.assertNotIn("next_execution_context", result["source_analysis"])
 
-    def test_overview_does_not_resolve_analysis_context_for_matched_rule(self):
+    def test_overview_does_not_build_next_execution_context_for_matched_rule(self):
         rule = self.create_rule()
         with (
             patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=SimpleNamespace()),
             patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(rule, None)),
-            patch.object(SourceAnalysisExecutionBaseResource, "build_analysis_context") as build_context,
+            patch.object(SourceAnalysisExecutionBaseResource, "build_next_execution_context") as build_context,
         ):
             result = AIAnalysisOverviewResource().perform_request(
                 {"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID}
             )
 
         self.assertTrue(result["source_analysis"]["is_configured"])
-        self.assertNotIn("analysis_context", result["source_analysis"])
+        self.assertNotIn("next_execution_context", result["source_analysis"])
         build_context.assert_not_called()
 
     def test_overview_crops_full_source_analysis_result(self):
