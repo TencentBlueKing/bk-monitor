@@ -216,8 +216,10 @@ class PatternHandler:
             if remark_obj:
                 remark = remark_obj["remark"]
                 owners = remark_obj["owners"]
-                strategy_id = remark_obj["strategy_id"]
-                strategy_enabled = remark_obj["strategy_enabled"]
+                # 策略与告警组绑定在具体分组组合上，继承来的行不带出它们，否则会出现停不掉的假开关
+                is_exact_remark = ClusteringRemark.is_groups_exact(remark_obj["groups"], group_dict)
+                strategy_id = remark_obj["strategy_id"] if is_exact_remark else 0
+                strategy_enabled = remark_obj["strategy_enabled"] if is_exact_remark else False
             else:
                 remark = []
                 owners = []

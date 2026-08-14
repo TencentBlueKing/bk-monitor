@@ -130,6 +130,30 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["remark"], [])
         self.assertEqual(result[0]["owners"], [])
 
+    def test_does_not_inherit_strategy_binding(self):
+        build_remark(
+            {"service_name": "gamesvr"},
+            remark=[INHERITED_REMARK],
+            owners=["admin"],
+            strategy_id=7,
+            strategy_enabled=True,
+        )
+
+        result = self.search()
+
+        # 备注可继承，但策略属于父维度：子维度行展示成已启用会得到一个停不掉的开关
+        self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
+        self.assertEqual(result[0]["strategy_id"], 0)
+        self.assertFalse(result[0]["strategy_enabled"])
+
+    def test_keeps_strategy_binding_on_exact_group(self):
+        build_remark(CURRENT_GROUPS, remark=[INHERITED_REMARK], strategy_id=7, strategy_enabled=True)
+
+        result = self.search()
+
+        self.assertEqual(result[0]["strategy_id"], 7)
+        self.assertTrue(result[0]["strategy_enabled"])
+
     def test_group_value_is_compared_strictly(self):
         # 等长时该判定必须与 group_hash 相等等价，否则展示端会命中写入端定位不到的记录
         self.assertTrue(ClusteringRemark.is_groups_inheritable({"service_name": "1"}, {"service_name": "1"}))

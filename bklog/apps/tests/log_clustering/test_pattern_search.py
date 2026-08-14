@@ -412,8 +412,9 @@ class TestPatternSearch(TestCase):
 
         self.assertEqual(result[0]["remark"], ["default fallback remark"])
         self.assertEqual(result[0]["owners"], ["admin"])
-        self.assertEqual(result[0]["strategy_id"], 1)
-        self.assertTrue(result[0]["strategy_enabled"])
+        # 策略绑定在具体分组组合上，不随备注继承到分组行
+        self.assertEqual(result[0]["strategy_id"], 0)
+        self.assertFalse(result[0]["strategy_enabled"])
 
     @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
     @patch.object(PatternHandler, "_multi_query")

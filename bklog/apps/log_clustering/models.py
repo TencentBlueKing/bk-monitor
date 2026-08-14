@@ -123,6 +123,11 @@ class ClusteringRemark(SoftDeleteModel):
         return all(field in group_dict and value == group_dict[field] for field, value in remark_groups.items())
 
     @classmethod
+    def is_groups_exact(cls, remark_groups: dict, group_dict: dict) -> bool:
+        """备注分组与当前分组组合完全一致，等价于 group_hash 相等。"""
+        return len(remark_groups or {}) == len(group_dict) and cls.is_groups_inheritable(remark_groups, group_dict)
+
+    @classmethod
     def _inherit_rank(cls, candidate, remark_groups: dict, group_fields: list, matched_by_signature: bool) -> tuple:
         """继承候选排序键，越小越优先：命中维度多者优先，其次 signature 命中，同长度再按 group_fields 顺序。"""
         group_fields = group_fields or []
@@ -165,7 +170,7 @@ class ClusteringRemark(SoftDeleteModel):
             remark_groups = cls._read_candidate_field(candidate, "groups") or {}
             if not cls.is_groups_inheritable(remark_groups, group_dict):
                 continue
-            if not allow_inherit and len(remark_groups) != len(group_dict):
+            if not allow_inherit and not cls.is_groups_exact(remark_groups, group_dict):
                 continue
             rank = cls._inherit_rank(candidate, remark_groups, group_fields, matched_by_signature)
             if selected_rank is None or rank < selected_rank:
@@ -183,9 +188,11 @@ class ClusteringRemark(SoftDeleteModel):
     @classmethod
     def get_exact_remark(cls, bk_biz_id: int, signature: str, origin_pattern: str, groups: dict):
         """定位当前分组组合的精确备注记录。"""
+        # 并发下可能物化出重复记录，按 id 定序保证后续写入始终落到同一条
         return (
             cls.filter_matched_remarks(bk_biz_id, signature, origin_pattern)
             .filter(group_hash=cls.convert_groups_to_groups_hash(groups))
+            .order_by("id")
             .first()
         )
 
