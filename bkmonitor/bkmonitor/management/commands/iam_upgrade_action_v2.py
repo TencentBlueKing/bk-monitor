@@ -24,6 +24,7 @@ import time
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from iam import IAM
 from iam.api.http import http_post
 from iam.auth.models import Action
 from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest
@@ -35,7 +36,6 @@ from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.iam.action import ActionMeta, get_action_by_id
-from bkmonitor.iam.compatible import CompatibleIAM
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.common import DEFAULT_TENANT_ID
 
@@ -104,7 +104,7 @@ class Command(BaseCommand):
             for app in Application.objects.values("application_id", "app_alias")
         }
 
-        self.iam_client: CompatibleIAM | None = None
+        self.iam_client: IAM | None = None
         self.system_id = settings.BK_IAM_SYSTEM_ID
         self.username = ""
 
@@ -125,12 +125,12 @@ class Command(BaseCommand):
 
         # 并发数
         concurrency = int(concurrency) if concurrency else 50
-        print("upgrade with concurrency: %s" % concurrency)
+        print(f"upgrade with concurrency: {concurrency}")
 
         # 按用户名过滤
         self.username = username
         if username:
-            print("upgrade for user: %s" % username)
+            print(f"upgrade for user: {username}")
 
         self.upgrade_policy(concurrency)
 
@@ -225,7 +225,7 @@ class Command(BaseCommand):
                 )
             )
 
-            print("[grant_resource] [END] action[%s]" % action.id)
+            print(f"[grant_resource] [END] action[{action.id}]")
 
         print("[upgrade_policy] [END]")
 
@@ -255,7 +255,11 @@ class Command(BaseCommand):
             print("Congratulations! IAM upgrade successfully!!!")
             return True
 
-        print("Sorry, maybe something wrong with IAM upgrade. Following actions not OK: %s" % ", ".join(no_ok_actions))
+        print(
+            "Sorry, maybe something wrong with IAM upgrade. Following actions not OK: {}".format(
+                ", ".join(no_ok_actions)
+            )
+        )
         return False
 
     def query_polices(self, action_id):
@@ -404,8 +408,9 @@ class Command(BaseCommand):
                     results.append(self.grant_resource_chunked(resource, chunk))
         except Exception as e:  # pylint: disable=broad-except
             print(
-                "grant permission error for action[%s], subject[%s]: %s"
-                % (resource["actions"][0]["id"], resource["subject"], e)
+                "grant permission error for action[{}], subject[{}]: {}".format(
+                    resource["actions"][0]["id"], resource["subject"], e
+                )
             )
         return results
 

@@ -11,16 +11,18 @@ specific language governing permissions and limitations under the License.
 # ---------------------------------------------------------------------------
 # Permission — IAM 鉴权适配层（Facade）
 #
-# 改造说明 (2026-08, Step 3):
-#   鉴权核心已委托给 IAMFramework（is_allowed / batch_is_allowed / get_apply_url）。
+# 改造说明:
+#   鉴权核心已委托给 IAMFramework（is_allowed / batch_is_allowed / get_apply_url /
+#   filter_space_list_by_action）。
 #   Permission 保留：Django 身份解析、token 分享检查、skip_check 绕过、
-#   SaaS 空间全家桶、Grafana/Kernel API 兼容路径。
+#   SaaS 空间全家桶。
 #
-#   仍保留的旧依赖方法（等框架能力补齐后迁移）：
-#     - grant_creator_action  → 已委托框架 _fw.grant_creator_action()
-#     - filter_space_list_by_action → 待迁移到框架 filter_visible_resources
-#     - get_iam_client → 待收口
-#     - make_resource / batch_make_resource → 等 resource.py 改造
+#   仍保留的旧依赖：
+#     - get_iam_client → V3 平台 SDK 客户端，仅供 v3 平台集成点使用
+#                        （反向回调 dispatcher + V1 遗留迁移工具），
+#                        非 provider 中立鉴权入口，禁止新增调用方
+#     - make_resource / batch_make_resource → monitor_web/iam/ 回调使用，
+#                        已是纯 FwResource 构造
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -29,16 +31,15 @@ import logging
 from collections import defaultdict
 
 from django.conf import settings
-from iam.exceptions import AuthAPIError
 
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, get_action_by_id
-from bkmonitor.iam.definitions.resource_types import ResourceTypes
-from bkmonitor.iam.compatible import CompatibleIAM
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
-from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
+from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied, ProviderError
+from bkmonitor.iam.iam_v3.client import V3Client
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -50,7 +51,6 @@ from bkmonitor.iam.iam_engine.core.types import (
 )
 from bkmonitor.iam.iam_engine.django.facade import get_framework
 from bkmonitor.iam.resource import Business as BusinessResource
-from bkmonitor.iam.resource import get_resource_by_id
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
 from constants.common import DEFAULT_TENANT_ID
@@ -94,8 +94,6 @@ class Permission:
     权限中心鉴权封装 — IAMFramework 适配层。
     """
 
-    _codec = MonitorV3Codec()
-
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
         if username and bk_tenant_id:
             # 指定用户
@@ -117,8 +115,6 @@ class Permission:
                     raise ValueError("must provide `username` or `request` param to init")
                 self.bk_tenant_id = DEFAULT_TENANT_ID
 
-        # 旧 CompatibleIAM（Grafana/Kernel API 穿透 + filter_space_list_by_action）
-        self.iam_client = self.get_iam_client(self.bk_tenant_id)
         self.request = request
 
         # 新框架引用
@@ -130,17 +126,33 @@ class Permission:
             self.skip_check = request.skip_check
 
     # ================================================================
-    # 身份 + CompatibleIAM 客户端（Grafana/Kernel API 穿透用）
+    # V3 平台 SDK 客户端（仅 v3 平台集成点使用，非 provider 中立鉴权入口）
     # ================================================================
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
+        """获取 V3 平台 SDK 客户端。
+
+        仅限 v3 平台集成点使用：
+          * IAM v3 平台反向回调端点（ResourceApiDispatcher，平台调我们）
+          * V1 遗留数据的迁移/清理历史工具（migrate.py / iam_upgrade_action_v2 / iam_delete_action_v1）
+
+        非 provider 中立鉴权入口——业务鉴权一律走框架（is_allowed /
+        filter_visible_resources 等），禁止新增调用方。
+        """
         app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
         if settings.ROLE in ["api", "worker"]:
             # 后台api模式下使用SaaS身份
             app_code, secret_key = settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY
 
-        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id)
+        return V3Client(
+            app_code,
+            secret_key,
+            settings.BK_IAM_APIGATEWAY_URL,
+            system_id=settings.BK_IAM_SYSTEM_ID,
+            codec=MonitorV3Codec(),
+            bk_tenant_id=bk_tenant_id,
+        )
 
     # ================================================================
     # 鉴权 — 框架委托
@@ -209,7 +221,7 @@ class Permission:
         if not actions:
             detail_resources = []
             if fw_resource:
-                detail_resources = [get_resource_by_id(fw_resource.type).create_instance(fw_resource.id)]
+                detail_resources = [fw_resource]
             try:
                 actions = [get_action_by_id(action_id_biz)]
             except ActionNotExistError:
@@ -265,18 +277,18 @@ class Permission:
 
         action_ids_biz = [to_action_id(a) for a in actions]
 
-        # 构建批量请求：每种资源列表一个请求
+        # 按资源类型分组（框架批量契约：同批同类型），
+        # 每个 (action, 类型组) 一次批量调用（替代 N×M 次单资源调用）
+        subject = FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id)
+        grouped: dict[str, list[FwResource]] = {}
         for resource_list in resources:
-            resource_id = resource_list[0].id
-            rtype = resource_list[0].type
+            resource = resource_list[0]
+            grouped.setdefault(str(resource.type), []).append(FwResource(type=resource.type, id=resource.id))
 
-            for action_id_biz in action_ids_biz:
+        for action_id_biz in action_ids_biz:
+            for fw_resources in grouped.values():
                 batch_result = self._fw.batch_by_resource(
-                    BatchByResourceRequest(
-                        subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
-                        action_id=action_id_biz,
-                        resources=(FwResource(type=rtype, id=resource_id),),
-                    )
+                    BatchByResourceRequest(subject=subject, action_id=action_id_biz, resources=tuple(fw_resources))
                 )
                 for item in batch_result.items:
                     result[item.resource_id][action_id_biz] = item.allowed
@@ -326,9 +338,9 @@ class Permission:
                 creator=creator or self.username,
                 tenant_id=self.bk_tenant_id,
             )
-            logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}")
+            logger.info(f"[grant_creator_action] Success! resource: {resource}")
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
+            logger.exception(f"[grant_creator_action] Failed! resource: {resource}, result: {e}")
             if raise_exception:
                 raise e
 
@@ -363,8 +375,8 @@ class Permission:
 
         try:
             result = self._fw.filter_visible_resources(subject, action_id_biz, candidates)
-        except AuthAPIError as e:
-            logger.exception("[IAM AuthAPI Error]: %s", e)
+        except ProviderError as e:
+            logger.exception("[IAM Policy Query Error]: %s", e)
             return []
 
         if result.all_granted:
@@ -374,26 +386,19 @@ class Permission:
         return [s for s in space_list if str(s["bk_biz_id"]) in visible_ids]
 
     # ================================================================
-    # Resource 构造 — 保留（monitor_web/iam/ 回调使用，等 resource.py 改造）
+    # Resource 构造 — 保留（monitor_web/iam/ 回调使用）
     # ================================================================
 
     @classmethod
     def make_resource(cls, resource_type: str, instance_id: str):
-        resource_meta = get_resource_by_id(resource_type)
-        return resource_meta.create_instance(instance_id)
+        return FwResource(type=resource_type, id=str(instance_id))
 
     @classmethod
     def batch_make_resource(cls, resources: list[dict]):
         return [cls.make_resource(r["type"], r["id"]) for r in resources]
 
     # ================================================================
-    # list_actions — 已弃用
+    # list_actions — 已弃用（有一个端点依旧在调用）
     # ================================================================
-
     def list_actions(self):
-        """[DEPRECATED] 获取权限中心注册的动作列表。
-
-        调用方 GetAuthorityMetaResource 未注册到 URL，此方法无实际调用。
-        如需列出 actions，请使用 IAMFramework。
-        """
         raise NotImplementedError("list_actions is deprecated. Use IAMFramework to query actions from schema.")

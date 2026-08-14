@@ -19,6 +19,7 @@ from bk_dataview.api import get_or_create_org
 from bk_dataview.models import Dashboard
 from bk_dataview.permissions import BasePermission, GrafanaPermission, GrafanaRole
 from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderError
 from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject as FwSubject, SubjectType
 from bkmonitor.iam.iam_engine.django.facade import get_framework
 from bkmonitor.models.external_iam import ExternalPermission
@@ -192,7 +193,7 @@ class DashboardPermission(BasePermission):
             return fw.has_any_permission(subject, ActionEnum.VIEW_SINGLE_DASHBOARD) or fw.has_any_permission(
                 subject, ActionEnum.EDIT_SINGLE_DASHBOARD
             )
-        except AuthAPIError:
+        except ProviderError:
             logger.exception("[grafana] has_any_dashboard_permission 查询失败, username=%s", username)
             return False
 

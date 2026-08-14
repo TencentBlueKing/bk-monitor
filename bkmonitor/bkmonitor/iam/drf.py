@@ -27,6 +27,7 @@ from rest_framework import permissions
 
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
+from bkmonitor.utils.request import get_request
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -260,6 +261,9 @@ def insert_permission_field(
     """数据返回后，注入权限字段（内部委托 IAMFramework）。
 
     保留旧签名兼容，但不再创建 iam.Resource 或调用 Permission()。
+
+    兼容说明：instance_create_func / batch_create 参数仅为兼容旧调用方签名保留，
+    当前实现不再使用（实例统一构造为 FwResource）。
     """
     action_ids = _to_action_ids(actions)
     resource_type = resource_meta.id if hasattr(resource_meta, "id") else resource_meta
@@ -346,6 +350,9 @@ def filter_data_by_permission(
     """根据权限过滤/标注数据（内部委托 IAMFramework）。
 
     保留旧签名兼容。mode: "any"=任一通过/"all"=全部通过/"insert"=插入不删。
+
+    兼容说明：instance_create_func 参数仅为兼容旧调用方签名保留，
+    当前实现不再使用（实例统一构造为 FwResource）。
     """
     if isinstance(data, dict):
         data = [data]
@@ -371,7 +378,11 @@ def filter_data_by_permission(
 
     # 批量鉴权
     fw = get_framework()
-    subject = FwSubject(id=username or "", type=SubjectType.USER, tenant_id=bk_tenant_id or "")
+    if not username:
+        # 未显式传 username：与 Permission.__init__ 的解析链对齐，从当前请求解析用户
+        request = get_request(peaceful=True)
+        username = request.user.username if request else ""
+    subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=bk_tenant_id or "")
     allowed_map: dict[tuple[str, str], bool] = {}
 
     for aid in action_ids:

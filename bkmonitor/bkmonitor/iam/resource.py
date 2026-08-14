@@ -11,32 +11,20 @@ specific language governing permissions and limitations under the License.
 # ---------------------------------------------------------------------------
 # resource.py — ResourceEnum 定义（元数据从 definitions/resource_types.py 派生）
 #
-# 改造说明 (2026-08, Step 4+6):
+# 改造说明:
 #   - ResourceEnum 成员是轻量包装类，元数据从 ResourceTypeDef 自动派生
 #   - 实例创建方法返回未解析的 FwResource（仅 type + id），
 #     框架自动通过 ResourceResolver 补全 name / ancestor_chain
-#   - V3InstanceResolver / batch_get_display_names / batch_get_parent 已移除
+#   - 已移除：ResourceMeta / parent_resource / system_id / selection_mode /
+#     related_instance_selections / _all_resources / get_resource_by_id
+#     （元数据查询统一走 get_framework().schema，父资源走 rt_def.ancestor）
 #   - 切换到 V4 后：ResourceEnum 成员直接作为 ResourceTypeDef 使用
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
-from django.conf import settings
-
 from bkmonitor.iam.definitions.resource_types import ResourceTypes as _NewResourceTypes
 from bkmonitor.iam.iam_engine.core.types import ResourceInstance
-from core.errors.iam import ResourceNotExistError
-
-
-# ============================================================================
-# ResourceMeta — 最小基类（保留仅为 drf.py / upgrade.py 类型注解兼容）
-# ============================================================================
-
-
-class ResourceMeta:
-    """[DEPRECATED] 旧资源类型基类。drf.py/upgrade.py 类型注解兼容。Step 5 后可删除。"""
-
-    pass
 
 
 # ============================================================================
@@ -44,17 +32,12 @@ class ResourceMeta:
 # ============================================================================
 
 
-class Business(ResourceMeta):
+class Business:
     """空间资源 — 顶级资源。"""
 
     _rt_def = _NewResourceTypes.SPACE
-    _v3 = _rt_def.extensions.get("v3", {})
-    system_id: str = settings.BK_IAM_SYSTEM_ID
     id: str = _rt_def.id
     name: str = _rt_def.name
-    selection_mode: str = _v3.get("selection_mode", "")
-    related_instance_selections: list = _v3.get("related_instance_selections", [])
-    parent_resource: type[ResourceMeta] | None = None
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -65,17 +48,12 @@ class Business(ResourceMeta):
         return cls.create_simple_instance(instance_id, attribute)
 
 
-class ApmApplication(ResourceMeta):
+class ApmApplication:
     """APM 应用资源 — 父资源 Business。"""
 
     _rt_def = _NewResourceTypes.APM_APPLICATION
-    _v3 = _rt_def.extensions.get("v3", {})
-    system_id: str = settings.BK_IAM_SYSTEM_ID
     id: str = _rt_def.id
     name: str = _rt_def.name
-    selection_mode: str = _v3.get("selection_mode", "")
-    related_instance_selections: list = _v3.get("related_instance_selections", [])
-    parent_resource: type[ResourceMeta] | None = None  # 模块末尾 _resolve_parent_refs 设置
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -90,17 +68,12 @@ class ApmApplication(ResourceMeta):
         return ResourceInstance(type=cls.id, id=str(item.get("application_id", "")))
 
 
-class GrafanaDashboard(ResourceMeta):
+class GrafanaDashboard:
     """Grafana 仪表盘资源 — 父资源 Business。"""
 
     _rt_def = _NewResourceTypes.GRAFANA_DASHBOARD
-    _v3 = _rt_def.extensions.get("v3", {})
-    system_id: str = settings.BK_IAM_SYSTEM_ID
     id: str = _rt_def.id
     name: str = _rt_def.name
-    selection_mode: str = _v3.get("selection_mode", "")
-    related_instance_selections: list = _v3.get("related_instance_selections", [])
-    parent_resource: type[ResourceMeta] | None = None
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -111,17 +84,12 @@ class GrafanaDashboard(ResourceMeta):
         return cls.create_simple_instance(instance_id, attribute)
 
 
-class RumApplication(ResourceMeta):
+class RumApplication:
     """RUM 应用资源 — 父资源 Business。"""
 
     _rt_def = _NewResourceTypes.RUM_APPLICATION
-    _v3 = _rt_def.extensions.get("v3", {})
-    system_id: str = settings.BK_IAM_SYSTEM_ID
     id: str = _rt_def.id
     name: str = _rt_def.name
-    selection_mode: str = _v3.get("selection_mode", "")
-    related_instance_selections: list = _v3.get("related_instance_selections", [])
-    parent_resource: type[ResourceMeta] | None = None
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -134,28 +102,6 @@ class RumApplication(ResourceMeta):
     @classmethod
     def create_instance_by_info(cls, item: dict) -> ResourceInstance:
         return ResourceInstance(type=cls.id, id=str(item.get("application_id", "")))
-
-
-# ============================================================================
-# 延迟解析 ancestor → parent_resource
-# ============================================================================
-
-_RESOURCE_BY_ID: dict[str, type] = {
-    _NewResourceTypes.SPACE.id: Business,
-    _NewResourceTypes.APM_APPLICATION.id: ApmApplication,
-    _NewResourceTypes.GRAFANA_DASHBOARD.id: GrafanaDashboard,
-    _NewResourceTypes.RUM_APPLICATION.id: RumApplication,
-}
-
-for _rt_def in (
-    _NewResourceTypes.SPACE,
-    _NewResourceTypes.APM_APPLICATION,
-    _NewResourceTypes.GRAFANA_DASHBOARD,
-    _NewResourceTypes.RUM_APPLICATION,
-):
-    _cls = _RESOURCE_BY_ID.get(_rt_def.id)
-    if _cls is not None and _rt_def.ancestor:
-        _cls.parent_resource = _RESOURCE_BY_ID.get(_rt_def.ancestor)
 
 
 # ============================================================================
@@ -168,16 +114,3 @@ class ResourceEnum:
     APM_APPLICATION = ApmApplication
     GRAFANA_DASHBOARD = GrafanaDashboard
     RUM_APPLICATION = RumApplication
-
-
-# ============================================================================
-# _all_resources / get_resource_by_id — 向后兼容
-# ============================================================================
-
-_all_resources: dict[str, type] = {r.id: r for r in ResourceEnum.__dict__.values() if hasattr(r, "id")}
-
-
-def get_resource_by_id(resource_id: str):
-    if resource_id not in _all_resources:
-        raise ResourceNotExistError({"resource_id": resource_id})
-    return _all_resources[resource_id]

@@ -11,13 +11,13 @@ specific language governing permissions and limitations under the License.
 # ---------------------------------------------------------------------------
 # V3PermissionProvider — IAM v3 (ABAC) 鉴权 Provider
 #
-# 只实现"方言层"接口：接收编码后的 Dialect* 结构，通过 CompatibleIAM SDK
+# 只实现"方言层"接口：接收编码后的 Dialect* 结构，通过 V3Client SDK
 # 调用 V3 IAM 平台 API。业务命名 ↔ V3 方言的编解码全部由基类和注入的 codec 完成。
 #
 # codec 类通过 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 配置。
 #
 # 与 V4 Provider 的关键差异：
-#   1. 使用 CompatibleIAM SDK（而非 V4 HTTP client）
+#   1. 使用 V3Client SDK（而非 V4 HTTP client）
 #   2. 读操作走 is_allowed_with_cache（SDK 缓存），写操作走 is_allowed
 #   3. 批量鉴权走 batch_resource_multi_actions_allowed
 #   4. apply_url 走 SDK 的 Application + get_apply_url
@@ -42,6 +42,7 @@ from iam.utils import gen_perms_apply_data
 
 from .client import V3Client
 from .policy_converter import iam_dict_to_expression
+from ..iam_engine.core.exceptions import ProviderError
 from ..iam_engine.core.types import (
     ResourceInstance as CoreResourceInstance,
     Subject as CoreSubject,
@@ -87,7 +88,7 @@ class V3PermissionProvider(PermissionProvider):
     """IAM v3 ABAC 权限 Provider。
 
     鉴权：
-        is_allowed 调 CompatibleIAM SDK；读操作走缓存、写操作不走。
+        is_allowed 调 V3Client SDK；读操作走缓存、写操作不走。
 
     编解码：
         codec 类通过 options.codec_class 配置（dotted path），
@@ -104,7 +105,7 @@ class V3PermissionProvider(PermissionProvider):
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         """初始化 V3 Provider。
 
-        从 options 解析 V3Options、实例化 CompatibleIAM。
+        从 options 解析 V3Options、实例化 V3Client。
         codec 由基类 PermissionProvider.__init__ 根据 options.codec_class 创建。
 
         Args:
@@ -408,7 +409,7 @@ class V3PermissionProvider(PermissionProvider):
 
         语义约定：
           * 查询成功、用户无权限（IAM 返回空策略）→ PolicyExpression.none()
-          * 查询失败（AuthAPIError）→ 向上抛，由调用方（framework/permission 层）降级处理
+          * 查询失败 → 抛框架统一异常 ProviderError，由调用方（framework/permission 层）降级处理
         """
         action_id_biz = to_action_id(action_id)
         try:
@@ -422,8 +423,13 @@ class V3PermissionProvider(PermissionProvider):
         client = self._get_client(subject.tenant_id)
         sdk_request = client.make_request(subject.id, v3_action_id)
 
-        # AuthAPIError 不捕获：向上抛，由调用方决定降级策略
-        dict_ast = client._do_policy_query(sdk_request, with_resources=False)
+        # SDK 异常在 provider 公开边界转换为框架统一异常（上层不感知 v3/v4 差异）
+        try:
+            dict_ast = client._do_policy_query(sdk_request, with_resources=False)
+        except AuthAPIError as e:
+            raise ProviderError(
+                f"[iam_v3:query_policy] policy query failed, action={action_id_biz}, user={subject.id}"
+            ) from e
         expr = iam_dict_to_expression(dict_ast)
         return expr if expr is not None else PolicyExpression.none()
 
@@ -436,7 +442,7 @@ class V3PermissionProvider(PermissionProvider):
 
         语义约定：
           * 批量成功、未返回/空 condition 的 action（用户无权限）→ PolicyExpression.none()
-          * 批量失败（AuthAPIError）→ 向上抛，由调用方（framework/permission 层）降级为逐个查询
+          * 批量失败 → 抛框架统一异常 ProviderError，由调用方（framework/permission 层）降级为逐个查询
         """
         action_ids_biz = [to_action_id(a) for a in action_ids]
         valid_aids = []
@@ -455,8 +461,13 @@ class V3PermissionProvider(PermissionProvider):
         client = self._get_client(subject.tenant_id)
         sdk_request = client.make_multi_action_request(subject.id, v3_action_ids)
 
-        # AuthAPIError 不捕获：向上抛，批量失败由调用方降级处理
-        raw_list = client._do_policy_query_by_actions(sdk_request, with_resources=False)
+        # SDK 异常在 provider 公开边界转换为框架统一异常（上层不感知 v3/v4 差异）
+        try:
+            raw_list = client._do_policy_query_by_actions(sdk_request, with_resources=False)
+        except AuthAPIError as e:
+            raise ProviderError(
+                f"[iam_v3:query_policy_by_actions] batch policy query failed, actions={valid_aids}, user={subject.id}"
+            ) from e
 
         # raw_list: [{"action": {"id": "v3_id"}, "condition": {...}}, ...]
         # 先构建有效结果，再补齐未返回的 action

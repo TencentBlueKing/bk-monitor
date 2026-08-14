@@ -11,26 +11,108 @@ specific language governing permissions and limitations under the License.
 # ---------------------------------------------------------------------------
 # action.py — ActionEnum 定义（自动从 definitions/actions.py 派生）
 #
-# 改造说明 (2026-08):
-#   - ActionEnum 成员现在是 ActionDef 实例，不再是 ActionMeta 实例
+# 改造说明:
+#   - ActionEnum 成员是 ActionMeta 实例（ActionDef 子类，兼容旧 ActionMeta 接口）
 #   - ActionEnum.XXX.id 返回 Business ID（如 "view_business"），而非 V3 平台 ID
 #   - V3 平台 ID 映射由 v3/codec.py 的处理
 #   - 新增 action 只需在 definitions/actions.py 添加 ActionDef，ActionEnum 自动感知
-#   - ActionMeta 类已删除；旧代码应使用 ActionDef 或直接使用 ActionEnum 成员
 #
 # 外部调用者兼容性：
 #   - BusinessActionPermission([ActionEnum.VIEW_SYNTHETIC])  ← 不变
 #   - Permission().is_allowed_by_biz(biz_id, ActionEnum.VIEW_BUSINESS) ← 不变
-#   - ActionEnum.VIEW_SINGLE_DASHBOARD.id  ← 值从 "view_single_dashboard" 不变（该 action 无 _v2 后缀）
-#
-#   注意：依赖 ActionMeta 类、_all_actions、get_action_by_id 的旧代码
-#   （permission.py、drf.py 等）将在后续步骤中改造。
+#   - ActionEnum.VIEW_SINGLE_DASHBOARD.id  ← 值 "view_single_dashboard" 不变
+#   - action.type / action.related_resource_types 等旧 ActionMeta 属性 ← 由兼容 property 提供
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
+from typing import Any
+
 from bkmonitor.iam.definitions.actions import Actions as _NewActions
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+from bkmonitor.iam.definitions.resource_types import ResourceTypes as _NewResourceTypes
+from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+
+
+# 资源类型 ID → V3 system_id 映射（由 definitions/resource_types.py 派生）
+_RESOURCE_TYPE_SYSTEM_IDS: dict[str, str] = {
+    rt.id: rt.extensions.get("v3", {}).get("system_id", "")
+    for rt in vars(_NewResourceTypes).values()
+    if isinstance(rt, ResourceTypeDef)
+}
+
+
+# ============================================================================
+# ActionMeta — 旧接口兼容类（ActionDef 子类）
+# ============================================================================
+
+
+class ActionMeta(ActionDef):
+    """旧 ActionMeta 兼容类（对外接口保活）。
+
+    框架内部统一使用 ActionDef：id 为框架操作 ID（Business ID，如 "view_business"），
+    V3 平台 ID 由 codec 编解码（extensions["v3"]["action_id"]）。本类以 property 提供
+    旧 ActionMeta 接口：
+
+      * type                   — ABAC 动作分类 "view"/"manage"（extensions["v3"]["type"]，
+                                 不是任何 id/别名）
+      * version                — extensions["v3"]["version"]
+      * related_resource_types — 旧格式 [{"id": ..., "system_id": ...}]，由 resource_type 派生
+      * name_en / description_en / related_actions — 新定义无对应字段，返回空值
+    """
+
+    @property
+    def type(self) -> str:
+        """ABAC 动作分类（"view" / "manage"）。等价 extensions["v3"]["type"]。"""
+        return self.extensions.get("v3", {}).get("type", "")
+
+    @property
+    def version(self) -> int:
+        return self.extensions.get("v3", {}).get("version", 0)
+
+    @property
+    def related_resource_types(self) -> list[dict[str, Any]]:
+        if not self.resource_type:
+            return []
+        return [{"id": self.resource_type, "system_id": _RESOURCE_TYPE_SYSTEM_IDS.get(self.resource_type, "")}]
+
+    @property
+    def name_en(self) -> str:
+        return ""
+
+    @property
+    def description_en(self) -> str:
+        return ""
+
+    @property
+    def related_actions(self) -> list:
+        return []
+
+    def is_read_action(self) -> bool:
+        return self.type == "view"
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "name_en": self.name_en,
+            "type": self.type,
+            "version": self.version,
+            "related_resource_types": self.related_resource_types,
+            "related_actions": self.related_actions,
+            "description": self.description,
+            "description_en": self.description_en,
+        }
+
+    @classmethod
+    def from_def(cls, action_def: ActionDef) -> ActionMeta:
+        """将 ActionDef 包装为 ActionMeta 兼容实例。"""
+        return cls(
+            id=action_def.id,
+            name=action_def.name,
+            resource_type=action_def.resource_type,
+            description=action_def.description,
+            extensions=action_def.extensions,
+        )
 
 
 # ============================================================================
@@ -42,25 +124,27 @@ class ActionEnum:
     """IAM 操作枚举。
 
     成员由 definitions/actions.py 的 Actions 类自动生成，
-    每个成员是一个 ActionDef 实例。新增 action 只需在 definitions/actions.py
-    添加定义即可，无需修改本文件。
+    每个成员是一个 ActionMeta 实例（ActionDef 子类，兼容旧接口）。
+    新增 action 只需在 definitions/actions.py 添加定义即可，无需修改本文件。
 
-    ActionDef 属性：
+    属性：
         .id             — Business action ID（如 "view_business"）
         .name           — 中文名（如 "业务访问"）
         .resource_type  — 关联资源类型 ID；空字符串表示无资源
         .description    — 描述
         .extensions     — Provider 私有扩展字段（如 v3 的 type/version/action_id）
+        .type           — 兼容旧接口：ABAC 分类 "view"/"manage"
+        .related_resource_types — 兼容旧接口：旧格式资源类型列表
     """
 
 
-# 遍历 Actions 类，将每个 ActionDef 成员自动挂载到 ActionEnum
+# 遍历 Actions 类，将每个 ActionDef 包装为 ActionMeta 挂载到 ActionEnum
 for _act_name, _act_def in vars(_NewActions).items():
     if _act_name.startswith("_"):
         continue
     if not isinstance(_act_def, ActionDef):
         continue
-    setattr(ActionEnum, _act_name, _act_def)
+    setattr(ActionEnum, _act_name, ActionMeta.from_def(_act_def))
 
 
 # ============================================================================
@@ -87,35 +171,6 @@ def get_action_by_id(action_id: str | ActionDef) -> ActionDef:
         raise ActionNotExistError({"action_id": action_id})
 
     return _all_actions[action_id]
-
-
-# ============================================================================
-# 以下函数已弃用，仅保留以防止 import 报错，将在后续步骤中清理
-# ============================================================================
-
-
-# DEPRECATED: fetch_related_actions — 依赖旧 ActionMeta.related_actions，
-# 该字段在 ActionDef 中不存在且原有调用已全部注释。
-# 保留仅为兼容 import，始终返回空字典。
-def fetch_related_actions(actions: list[ActionDef | str]) -> dict[str, ActionDef]:
-    """
-    [DEPRECATED] 递归获取 action 动作依赖列表。
-
-    依赖旧 ActionMeta.related_actions 字段，ActionDef 中无此概念。
-    所有原有调用（permission.py 中）已注释，此函数不再使用。
-    """
-    return {}
-
-
-# DEPRECATED: generate_all_actions_json — 依赖旧 ActionMeta.to_json()，
-# ActionDef 无此方法。旧 migration JSON 生成方式已由 iam_engine 替代。
-def generate_all_actions_json() -> list:
-    """
-    [DEPRECATED] 生成 migrations 的 json 配置。
-
-    依赖旧 ActionMeta.to_json()；新的 migration 机制由 iam_engine 提供。
-    """
-    return []
 
 
 # ============================================================================

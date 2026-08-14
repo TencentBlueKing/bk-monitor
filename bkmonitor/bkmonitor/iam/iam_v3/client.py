@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 #   1. V1→V2 迁移兼容（V1 双查 + biz→space 替换 + OR 合并）
 #   2. Action 语义别名（new_dashboard → manage_dashboard + manage_datasource）
 #
-# 与 bkmonitor.iam.compatible.CompatibleIAM 的区别：
+# 设计要点（旧 CompatibleIAM 兼容层已删除，本类是其替代）：
 #   - 不依赖 Django settings / GlobalConfig
 #   - 不依赖 bkmonitor.iam.action.get_action_by_id
 #   - 使用注入的 NameCodec 做 action_id 编解码
