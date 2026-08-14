@@ -321,7 +321,8 @@ class TestCleanTemplateSyncPermission(CleanTemplateTestCase):
     def test_view_uses_business_permission_by_default(self):
         self.assertEqual(CleanTemplateViewSet.permission_classes, (ViewBusinessPermission,))
 
-    def test_all_collectors_allowed_returns_authorized_ids(self):
+    @override_settings(CLEAN_TEMPLATE_SYNC_BATCH_SIZE=2)
+    def test_all_collectors_allowed_returns_authorized_batch_ids(self):
         template_data = self.create_template()
         template = CleanTemplate.objects.get(clean_template_id=template_data["clean_template_id"])
         collectors = [
@@ -330,10 +331,12 @@ class TestCleanTemplateSyncPermission(CleanTemplateTestCase):
                 clean_template_id=template.clean_template_id,
                 clean_template_version=None,
             )
-            for index in range(2)
+            for index in range(3)
         ]
+        expected_collectors = collectors[:2]
         permission_result = {
-            str(collector.collector_config_id): {ActionEnum.MANAGE_COLLECTION.id: True} for collector in collectors
+            str(collector.collector_config_id): {ActionEnum.MANAGE_COLLECTION.id: True}
+            for collector in expected_collectors
         }
 
         request = self._request()
@@ -341,7 +344,7 @@ class TestCleanTemplateSyncPermission(CleanTemplateTestCase):
             permission_class.return_value.batch_is_allowed.return_value = permission_result
             collector_ids = CleanTemplateViewSet._get_authorized_sync_collector_ids(request, template)
 
-        self.assertEqual(collector_ids, [collector.collector_config_id for collector in collectors])
+        self.assertEqual(collector_ids, [collector.collector_config_id for collector in expected_collectors])
         permission_class.assert_called_once_with(request=request)
         actions, resources = permission_class.return_value.batch_is_allowed.call_args.args
         self.assertEqual(actions, [ActionEnum.MANAGE_COLLECTION])
@@ -691,7 +694,7 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         self.assertEqual(template_data["pending_sync_collector_count"], 4)
 
         class InlineExecutor:
-            def __init__(self):
+            def __init__(self, max_workers=None):
                 self.tasks = []
 
             def append(self, result_key, func, params, multi_func_params):
@@ -703,8 +706,9 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         def sync_result(collector, template_version, clean_config):
             return {"id": collector.collector_config_id, "status": CleanTemplateSyncStatus.SUCCESS.value}
 
+        executor = InlineExecutor()
         with (
-            patch("apps.log_databus.handlers.clean.MultiExecuteFunc", InlineExecutor),
+            patch("apps.log_databus.handlers.clean.MultiExecuteFunc", return_value=executor) as executor_class,
             patch.object(handler, "_sync_collector", side_effect=sync_result) as mock_sync,
         ):
             results = handler._sync_collectors()
@@ -716,11 +720,40 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             outdated.collector_config_id,
         ]
         self.assertEqual([result["id"] for result in results], expected_ids)
+        executor_class.assert_called_once_with(max_workers=CleanTemplateHandler.SYNC_MAX_WORKERS)
         self.assertEqual(
             [call.kwargs["collector"].collector_config_id for call in mock_sync.call_args_list],
             expected_ids,
         )
         self.assertTrue(all(call.kwargs["template_version"] == 2 for call in mock_sync.call_args_list))
+
+    @override_settings(CLEAN_TEMPLATE_SYNC_BATCH_SIZE=2)
+    def test_sync_collectors_limits_batch(self):
+        template = self.create_template()
+        handler = CleanTemplateHandler(template["clean_template_id"])
+        collectors = [
+            self.create_collector(
+                collector_config_name=f"collector-{index}",
+                clean_template_id=template["clean_template_id"],
+                clean_template_version=None,
+            )
+            for index in range(3)
+        ]
+        expected_ids = [collector.collector_config_id for collector in collectors[:2]]
+        executor = MagicMock()
+        executor.run.return_value = {
+            collector_id: {"id": collector_id, "status": CleanTemplateSyncStatus.SUCCESS.value}
+            for collector_id in expected_ids
+        }
+
+        with patch("apps.log_databus.handlers.clean.MultiExecuteFunc", return_value=executor):
+            results = handler._sync_collectors()
+
+        self.assertEqual([result["id"] for result in results], expected_ids)
+        self.assertEqual(
+            [call.kwargs["result_key"] for call in executor.append.call_args_list],
+            expected_ids,
+        )
 
 
 class TestCleanTemplatePreview(CleanTemplateTestCase):

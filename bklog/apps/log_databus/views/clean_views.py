@@ -225,7 +225,7 @@ class CleanTemplateViewSet(ModelViewSet):
                 "collector_config_name",
                 "bk_biz_id",
             )
-            .order_by("collector_config_id")
+            .order_by("collector_config_id")[: settings.CLEAN_TEMPLATE_SYNC_BATCH_SIZE]
         )
         collector_ids = [collector["collector_config_id"] for collector in collectors]
         if settings.IGNORE_IAM_PERMISSION or not collectors:

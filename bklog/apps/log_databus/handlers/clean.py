@@ -24,6 +24,7 @@ from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
 from math import isfinite
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
@@ -142,6 +143,7 @@ class CleanHandler:
 
 
 class CleanTemplateHandler:
+    SYNC_MAX_WORKERS = 20
     SYNC_LOCK_TTL = 5 * 60
 
     def __init__(self, clean_template_id=None):
@@ -400,9 +402,9 @@ class CleanTemplateHandler:
         )
         if collector_config_ids is not None:
             collectors = collectors.filter(collector_config_id__in=collector_config_ids)
-        collectors = list(collectors.order_by("collector_config_id"))
+        collectors = list(collectors.order_by("collector_config_id")[: settings.CLEAN_TEMPLATE_SYNC_BATCH_SIZE])
 
-        multi_execute_func = MultiExecuteFunc()
+        multi_execute_func = MultiExecuteFunc(max_workers=self.SYNC_MAX_WORKERS)
         for collector in collectors:
             multi_execute_func.append(
                 result_key=collector.collector_config_id,
@@ -418,12 +420,6 @@ class CleanTemplateHandler:
         return [sync_results[collector.collector_config_id] for collector in collectors]
 
     def _sync_collector(self, collector: CollectorConfig, template_version: int, clean_config: dict):
-        # 不加采集项级别锁的原因：
-        # 1. 用户手动 ETL 操作中 modify_result_table 是异步执行的，锁在异步 task 执行前就已释放，
-        #    无法真正防止 metadata 层面的并发冲突；
-        # 2. 下方的条件更新（filter + update）已提供乐观并发控制，
-        #    解绑/删除后同步写回不会覆盖新状态。
-        # 3. 外部写入开始后发生关联变化时无法撤销 RT 写入，返回失败并提示用户确认实际配置。
         result = {
             "id": collector.collector_config_id,
             "name": collector.collector_config_name,
