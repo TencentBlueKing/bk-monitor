@@ -166,6 +166,30 @@ class V4ClientTest(SimpleTestCase):
             self.client.generate_perm_apply_url(permissions=[])
 
     @patch("apps.iam.backends.v4.client.requests.request")
+    def test_apply_url_encodes_negative_space_ids_without_mutating_permissions(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"ok")
+        response.json.return_value = {"data": {"url": "https://iam.example/apply"}}
+        request_mock.return_value = response
+        permissions = [
+            {
+                "action_id": "search_log",
+                "resources": [
+                    {
+                        "type": "indices",
+                        "id": "20",
+                        "ancestors": [{"type": "space", "id": "-5423"}],
+                    }
+                ],
+            }
+        ]
+
+        self.client.generate_perm_apply_url(permissions=permissions)
+
+        sent_resources = request_mock.call_args.kwargs["json"]["permissions"][0]["resources"]
+        self.assertEqual(sent_resources[0]["ancestors"], [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(permissions[0]["resources"][0]["ancestors"], [{"type": "space", "id": "-5423"}])
+
+    @patch("apps.iam.backends.v4.client.requests.request")
     def test_auth_token_uses_configured_path(self, request_mock):
         self.client.options = replace(
             self.client.options,
@@ -195,6 +219,26 @@ class V4ClientTest(SimpleTestCase):
 
         with self.assertRaisesRegex(V4ClientError, "action not found"):
             self.client.direct_auth(subject={"type": "user", "id": "admin"}, action_id="missing")
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_non_json_error_response_is_redacted_and_bounded(self, request_mock):
+        secret = "a" * 40
+        response = Mock(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            content=b"upstream-error",
+            text=f"token={secret} operator=user@example.com phone=13800138000 " + "detail " * 100,
+        )
+        response.json.side_effect = ValueError("invalid json")
+        request_mock.return_value = response
+
+        with self.assertRaises(V4ClientError) as context:
+            self.client.direct_auth(subject={"type": "user", "id": "admin"}, action_id="missing")
+
+        summary = str(context.exception)
+        self.assertNotIn(secret, summary)
+        self.assertNotIn("user@example.com", summary)
+        self.assertNotIn("13800138000", summary)
+        self.assertLessEqual(len(summary), 256)
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_invalid_json_response_is_rejected(self, request_mock):
@@ -230,6 +274,78 @@ class V4ClientTest(SimpleTestCase):
         request_mock.return_value = Mock(status_code=HTTPStatus.NO_CONTENT, content=b"")
 
         self.assertIsNone(self.client._request("POST", "/empty"))
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_add_authorization_sends_operator_and_requires_created(self, request_mock):
+        request_mock.return_value = Mock(status_code=HTTPStatus.CREATED, content=b"")
+        items = [
+            {
+                "subject": {"type": "user", "id": "creator"},
+                "role_id": "space_operator",
+                "related_resource_type_id": "collection",
+                "resources": [{"type": "collection", "id": "1"}],
+                "expired_at": 1893456000,
+            }
+        ]
+
+        self.client.add_authorization(items=items, operator="operator")
+
+        request = request_mock.call_args.kwargs
+        self.assertEqual(request["json"], items)
+        self.assertEqual(request["headers"]["X-Bkiam-Operator"], "operator")
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_add_authorization_encodes_negative_space_id_without_mutating_caller_payload(self, request_mock):
+        request_mock.return_value = Mock(status_code=HTTPStatus.CREATED, content=b"")
+        items = [
+            {
+                "subject": {"type": "user", "id": "colecai"},
+                "role_id": "space_viewer",
+                "related_resource_type_id": "space",
+                "resources": [{"type": "space", "id": "-5423"}],
+                "expired_at": 1893456000,
+            }
+        ]
+
+        self.client.add_authorization(items=items, operator="colecai")
+
+        sent_items = request_mock.call_args.kwargs["json"]
+        self.assertEqual(sent_items[0]["resources"], [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(items[0]["resources"], [{"type": "space", "id": "-5423"}])
+
+    @patch("apps.iam.backends.v4.client.requests.request")
+    def test_add_authorization_rejects_http_200(self, request_mock):
+        response = Mock(status_code=HTTPStatus.OK, content=b"{}")
+        response.json.return_value = {"data": {}}
+        request_mock.return_value = response
+
+        with self.assertRaises(V4ClientError):
+            self.client.add_authorization(
+                items=[{"resources": [{"type": "collection", "id": "1"}]}],
+                operator="operator",
+            )
+
+    def test_add_authorization_enforces_batch_limits_before_request(self):
+        with self.assertRaisesRegex(ValueError, "1 to 20"):
+            self.client.add_authorization(
+                items=[{"resources": [{"type": "collection", "id": str(index)}]} for index in range(21)],
+                operator="operator",
+            )
+
+    def test_add_authorization_requires_operator_and_valid_resources(self):
+        with self.assertRaisesRegex(ValueError, "non-empty operator"):
+            self.client.add_authorization(items=[{"resources": [{"type": "collection", "id": "1"}]}], operator=" ")
+
+        with self.assertRaisesRegex(ValueError, "1 to 20 resources"):
+            self.client.add_authorization(items=[{"resources": []}], operator="operator")
+
+    def test_add_authorization_rejects_non_empty_success_body(self):
+        with patch.object(self.client, "_request", return_value={"unexpected": True}):
+            with self.assertRaisesRegex(V4ResponseError, "must be empty"):
+                self.client.add_authorization(
+                    items=[{"resources": [{"type": "collection", "id": "1"}]}],
+                    operator="operator",
+                )
 
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_success_response_with_error_body_is_rejected(self, request_mock):

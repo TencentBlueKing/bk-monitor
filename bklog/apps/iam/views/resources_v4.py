@@ -19,9 +19,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from copy import copy
+
 from django.conf import settings
 
 from apps.iam import ResourceEnum
+from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec
 from apps.iam.views.resources import (
     BaseResourceProvider,
     CollectionResourceProvider,
@@ -30,11 +33,58 @@ from apps.iam.views.resources import (
     ResourceApiDispatcher,
 )
 from apps.log_search.models import Space
+from iam.contrib.django.dispatcher import InvalidPageException
 from iam.resource.provider import ListResult
+
+
+_RESOURCE_CODEC = BklogNameCodec()
 
 
 class V4ResourceApiDispatcher(ResourceApiDispatcher):
     """V4 资源回调 Dispatcher：多租户模式下禁止回退默认 Tenant。"""
+
+    @staticmethod
+    def _parse_page_integer(value, *, field: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int | str):
+            raise InvalidPageException(f"page.{field} must be an integer")
+        try:
+            return int(value)
+        except ValueError as error:
+            raise InvalidPageException(f"page.{field} must be an integer") from error
+
+    @classmethod
+    def _validate_page(cls, data: dict) -> None:
+        page = data.get("page")
+        if not isinstance(page, dict):
+            raise InvalidPageException("page is required and must be an object")
+
+        limit = cls._parse_page_integer(page.get("limit"), field="limit")
+        if limit <= 0:
+            raise InvalidPageException("page.limit must be an integer greater than 0")
+
+        offset = cls._parse_page_integer(page.get("offset"), field="offset")
+        if offset < 0:
+            raise InvalidPageException("page.offset must be an integer greater than or equal to 0")
+
+    def _dispatch_list_attr_value(self, request, data, request_id):
+        self._validate_page(data)
+        return super()._dispatch_list_attr_value(request, data, request_id)
+
+    def _dispatch_list_instance(self, request, data, request_id):
+        self._validate_page(data)
+        return super()._dispatch_list_instance(request, data, request_id)
+
+    def _dispatch_list_instance_by_policy(self, request, data, request_id):
+        self._validate_page(data)
+        return super()._dispatch_list_instance_by_policy(request, data, request_id)
+
+    def _dispatch_search_instance(self, request, data, request_id):
+        self._validate_page(data)
+        return super()._dispatch_search_instance(request, data, request_id)
+
+    def _dispatch_fetch_instance_list(self, request, data, request_id):
+        self._validate_page(data)
+        return super()._dispatch_fetch_instance_list(request, data, request_id)
 
     def _get_options(self, request):
         # 跳过 V3 Dispatcher 的默认租户回退，由 V4 回调强制校验请求头。
@@ -52,7 +102,43 @@ def _fix_nested_path_to_string(results: list[dict]) -> None:
         path = item.get("_bk_iam_path_")
         if isinstance(path, list) and path and path[0]:
             biz_id = path[0][0]["id"]
-            item["_bk_iam_path_"] = f"/{ResourceEnum.BUSINESS.id},{biz_id}/"
+            encoded_biz_id = _RESOURCE_CODEC.encode_resource_id(BKLOG_ROOT_RESOURCE_TYPE_ID, biz_id)
+            item["_bk_iam_path_"] = f"/{ResourceEnum.BUSINESS.id},{encoded_biz_id}/"
+
+
+def _with_decoded_parent_space(filter_obj):
+    parent = getattr(filter_obj, "parent", None)
+    if not isinstance(parent, dict) or parent.get("id") in (None, ""):
+        return filter_obj
+    decoded_filter = copy(filter_obj)
+    decoded_parent = dict(parent)
+    decoded_parent["id"] = _RESOURCE_CODEC.decode_resource_id(BKLOG_ROOT_RESOURCE_TYPE_ID, parent["id"])
+    decoded_filter["parent"] = decoded_parent
+    return decoded_filter
+
+
+def _decode_policy_expression(value):
+    if isinstance(value, list):
+        return [_decode_policy_expression(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    decoded = {key: _decode_policy_expression(item) for key, item in value.items()}
+    field = str(decoded.get("field") or "")
+    expression_value = decoded.get("value")
+    if field.endswith("._bk_iam_path_") and isinstance(expression_value, str):
+        decoded["value"] = _RESOURCE_CODEC.decode_iam_path(expression_value)
+    elif field == "space.id" and expression_value is not None:
+        decoded["value"] = _RESOURCE_CODEC.decode_resource_id(BKLOG_ROOT_RESOURCE_TYPE_ID, expression_value)
+    return decoded
+
+
+def _with_decoded_policy_expression(filter_obj):
+    expression = getattr(filter_obj, "expression", None)
+    if expression is None:
+        return filter_obj
+    decoded_filter = copy(filter_obj)
+    decoded_filter["expression"] = _decode_policy_expression(expression)
+    return decoded_filter
 
 
 def _fix_approver_field(results: list[dict]) -> None:
@@ -79,7 +165,7 @@ class V4SpaceResourceProvider(BaseResourceProvider):
     @staticmethod
     def _to_result_item(space: dict) -> dict:
         return {
-            "id": str(space["bk_biz_id"]),
+            "id": _RESOURCE_CODEC.encode_resource_id(BKLOG_ROOT_RESOURCE_TYPE_ID, space["bk_biz_id"]),
             "display_name": f"[{space['space_type_name']}] {space['space_name']}",
         }
 
@@ -98,7 +184,10 @@ class V4SpaceResourceProvider(BaseResourceProvider):
         if not filter.ids:
             return ListResult(results=[], count=0)
 
-        spaces = Space.get_spaces_by_bk_biz_ids(tenant_id, filter.ids)
+        decoded_ids = [
+            _RESOURCE_CODEC.decode_resource_id(BKLOG_ROOT_RESOURCE_TYPE_ID, resource_id) for resource_id in filter.ids
+        ]
+        spaces = Space.get_spaces_by_bk_biz_ids(tenant_id, decoded_ids)
 
         results = []
         for space in spaces:
@@ -124,7 +213,7 @@ class V4SpaceResourceProvider(BaseResourceProvider):
 
 class V4CollectionResourceProvider(CollectionResourceProvider):
     def list_instance(self, filter, page, **options):
-        result = super().list_instance(filter, page, **options)
+        result = super().list_instance(_with_decoded_parent_space(filter), page, **options)
         _fix_nested_path_to_string(result.results)
         return result
 
@@ -132,11 +221,17 @@ class V4CollectionResourceProvider(CollectionResourceProvider):
         result = super().fetch_instance_info(filter, **options)
         _fix_approver_field(result.results)
         return result
+
+    def search_instance(self, filter, page, **options):
+        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
+
+    def list_instance_by_policy(self, filter, page, **options):
+        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)
 
 
 class V4IndicesResourceProvider(IndicesResourceProvider):
     def list_instance(self, filter, page, **options):
-        result = super().list_instance(filter, page, **options)
+        result = super().list_instance(_with_decoded_parent_space(filter), page, **options)
         _fix_nested_path_to_string(result.results)
         return result
 
@@ -144,11 +239,17 @@ class V4IndicesResourceProvider(IndicesResourceProvider):
         result = super().fetch_instance_info(filter, **options)
         _fix_approver_field(result.results)
         return result
+
+    def search_instance(self, filter, page, **options):
+        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
+
+    def list_instance_by_policy(self, filter, page, **options):
+        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)
 
 
 class V4EsSourceResourceProvider(EsSourceResourceProvider):
     def list_instance(self, filter, page, **options):
-        result = super().list_instance(filter, page, **options)
+        result = super().list_instance(_with_decoded_parent_space(filter), page, **options)
         _fix_nested_path_to_string(result.results)
         return result
 
@@ -156,3 +257,9 @@ class V4EsSourceResourceProvider(EsSourceResourceProvider):
         result = super().fetch_instance_info(filter, **options)
         _fix_approver_field(result.results)
         return result
+
+    def search_instance(self, filter, page, **options):
+        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
+
+    def list_instance_by_policy(self, filter, page, **options):
+        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)

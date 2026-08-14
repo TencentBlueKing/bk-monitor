@@ -48,6 +48,12 @@ def _search_filter(**kwargs):
     return get_filter_obj(data, ["parent", "action", "keyword", "ancestors"])
 
 
+def _policy_filter(**kwargs):
+    data = {"expression": None}
+    data.update(kwargs)
+    return get_filter_obj(data, ["expression"])
+
+
 class FixHelperTest(SimpleTestCase):
     def test_fix_nested_path_to_string(self):
         results = [
@@ -117,6 +123,14 @@ class V4SpaceResourceProviderTest(SimpleTestCase):
         for item in result.results:
             self.assertNotIn("_bk_iam_path_", item)
 
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_page")
+    def test_list_instance_encodes_negative_space_id(self, mock_spaces):
+        mock_spaces.return_value = ([{"bk_biz_id": -5423, "space_type_name": "研发项目", "space_name": "gggg"}], 1)
+
+        result = self.provider.list_instance(_list_filter(), _page(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(result.results[0]["id"], "neg_5423")
+
     @patch("apps.iam.views.resources_v4.Space.get_spaces_by_bk_biz_ids")
     def test_fetch_instance_info(self, mock_spaces):
         mock_spaces.return_value = [self.spaces[0]]
@@ -126,6 +140,18 @@ class V4SpaceResourceProviderTest(SimpleTestCase):
         self.assertEqual(result.count, 1)
         self.assertEqual(result.results[0]["id"], "10")
         self.assertEqual(result.results[0]["_bk_iam_approvers_"], [])
+
+    @patch("apps.iam.views.resources_v4.Space.get_spaces_by_bk_biz_ids")
+    def test_fetch_instance_info_decodes_negative_space_id_for_local_query(self, mock_spaces):
+        mock_spaces.return_value = [{"bk_biz_id": -5423, "space_type_name": "研发项目", "space_name": "gggg"}]
+
+        result = self.provider.fetch_instance_info(
+            _fetch_filter(ids=["neg_5423"]),
+            bk_tenant_id="tenant-1",
+        )
+
+        mock_spaces.assert_called_once_with("tenant-1", ["-5423"])
+        self.assertEqual(result.results[0]["id"], "neg_5423")
 
     @patch("apps.iam.views.resources_v4.Space.get_spaces_by_bk_biz_ids")
     def test_fetch_instance_info_without_ids_returns_empty_without_query(self, get_spaces_by_ids):
@@ -168,6 +194,61 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
 
         self.assertEqual(result.results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},10/")
         self.assertIsInstance(result.results[0]["_bk_iam_path_"], str)
+
+    def test_v4_collection_list_instance_encodes_negative_space_path(self):
+        provider = V4CollectionResourceProvider()
+        nested = ListResult(
+            results=[
+                {
+                    "id": "1",
+                    "display_name": "c1",
+                    "_bk_iam_path_": [[{"type": "space", "id": "-5423", "display_name": "gggg"}]],
+                }
+            ],
+            count=1,
+        )
+
+        with patch.object(CollectionResourceProvider, "list_instance", return_value=nested):
+            result = provider.list_instance(_list_filter(), _page(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(result.results[0]["_bk_iam_path_"], "/space,neg_5423/")
+
+    def test_v4_collection_parent_filter_decodes_negative_space_id(self):
+        provider = V4CollectionResourceProvider()
+        filter_obj = _list_filter(parent={"type": "space", "id": "neg_5423"})
+
+        with patch.object(CollectionResourceProvider, "list_instance", return_value=ListResult([], 0)) as list_mock:
+            provider.list_instance(filter_obj, _page(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(list_mock.call_args.args[0].parent["id"], "-5423")
+
+    def test_v4_collection_search_decodes_negative_parent_space_id(self):
+        provider = V4CollectionResourceProvider()
+        filter_obj = _search_filter(parent={"type": "space", "id": "neg_5423"}, keyword="采集")
+
+        with patch.object(CollectionResourceProvider, "search_instance", return_value=ListResult([], 0)) as search_mock:
+            provider.search_instance(filter_obj, _page(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(search_mock.call_args.args[0].parent["id"], "-5423")
+
+    def test_v4_collection_policy_decodes_negative_space_id_in_path(self):
+        provider = V4CollectionResourceProvider()
+        filter_obj = _policy_filter(
+            expression={
+                "op": "starts_with",
+                "field": "collection._bk_iam_path_",
+                "value": "/space,neg_5423/",
+            }
+        )
+
+        with patch.object(
+            CollectionResourceProvider,
+            "list_instance_by_policy",
+            return_value=ListResult([], 0),
+        ) as policy_mock:
+            provider.list_instance_by_policy(filter_obj, _page(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(policy_mock.call_args.args[0].expression["value"], "/space,-5423/")
 
     def test_v4_collection_fetch_instance_info_converts_approver(self):
         provider = V4CollectionResourceProvider()
@@ -314,7 +395,7 @@ class V4DispatcherRegistrationTest(SimpleTestCase):
         self.assertNotIsInstance(iam_urls.dispatcher._provider["collection"], V4CollectionResourceProvider)
 
     def test_v4_dispatcher_uses_v4_callback_iam_client(self):
-        from apps.iam.handlers.compatible import V4CallbackIAM
+        from apps.iam.backends.v4.callback_client import V4CallbackIAM
         from apps.iam import urls as iam_urls
 
         self.assertIsInstance(iam_urls.v4_dispatcher.iam, V4CallbackIAM)

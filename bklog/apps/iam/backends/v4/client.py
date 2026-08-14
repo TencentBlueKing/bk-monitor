@@ -1,7 +1,25 @@
+"""IAM V4 开放接口的 HTTP 客户端。
+
+这里没有复用项目统一的 `apps.api.base.DataAPI`，是因为 IAM V4 的契约与 `DataAPI` 的三条硬性前提冲突，
+迁移过去会直接功能不可用或把鉴权变成 fail-open：
+
+1. 请求体必须是 dict：`DataAPI._send_request` 对 POST 走 `json.dumps(non_file_data)`，而 `non_file_data`
+   来自 `_split_file_data` 的 `data.items()`；而 `add_authorization` 要求顶层是 JSON 数组。
+2. 只接受 HTTP 200：`DataAPI` 以 `HTTP_STATUS_OK` 判定 HTTP 层成功，非 200 一律转 `DataAPIException`；
+   而 `add_authorization` 成功返回 201。
+3. 响应体必须是合法 JSON：`DataAPI` 对无法 `json()` 的响应抛「结果格式非json」；而上面 201 的成功响应体为空。
+
+只读接口同样不宜迁移：`DataAPI` 在响应缺少 `result` 字段时会补 `result = True`，而 IAM V4 的失败可能是
+HTTP 200 带 `{"error": {...}}`（见 `_request` 中对 `payload["error"]` 的处理），迁过去会被判成功，
+鉴权因此 fail-open。此外 `DataAPIException` 无法区分 timeout / 429 / 5xx，而授权重试分类依赖
+`V4TimeoutError` / `V4RateLimitError` / `V4ResponseError` 这套类型区分。
+"""
+
 from __future__ import annotations
 
 import json
 import logging
+from copy import deepcopy
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import urljoin
@@ -10,6 +28,7 @@ import requests
 from requests.exceptions import RequestException, Timeout
 
 from apps.iam.backends.v4.config import V4Options
+from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.exceptions import (
     V4ClientError,
     V4RateLimitError,
@@ -17,6 +36,7 @@ from apps.iam.backends.v4.exceptions import (
     V4TimeoutError,
     V4TransportError,
 )
+from apps.iam.error_summary import sanitize_error_summary
 
 logger = logging.getLogger("iam.v4.client")
 
@@ -24,10 +44,18 @@ logger = logging.getLogger("iam.v4.client")
 class V4Client:
     """通过 bkiam APIGateway 调用 IAM V4 开放接口的 HTTP 客户端。"""
 
-    def __init__(self, options: V4Options, *, username: str = "", bk_tenant_id: str = "") -> None:
+    def __init__(
+        self,
+        options: V4Options,
+        *,
+        username: str = "",
+        bk_tenant_id: str = "",
+        codec: V4ResourceCodec | None = None,
+    ) -> None:
         self.options = options
         self.username = username
         self.bk_tenant_id = bk_tenant_id
+        self.codec = codec or BklogNameCodec()
 
     def direct_auth(
         self,
@@ -105,9 +133,15 @@ class V4Client:
         return str(token)
 
     def generate_perm_apply_url(self, *, permissions: list[dict[str, Any]]) -> str:
+        normalized_permissions = deepcopy(permissions)
+        for permission in normalized_permissions:
+            for resource in permission.get("resources") or []:
+                self._encode_typed_resource(resource)
+                for ancestor in resource.get("ancestors") or []:
+                    self._encode_typed_resource(ancestor)
         body = {
             "system_id": self.options.system_id,
-            "permissions": permissions,
+            "permissions": normalized_permissions,
         }
         data = self._request("POST", self.options.apply_url_path, body=body)
         if not isinstance(data, dict):
@@ -117,7 +151,55 @@ class V4Client:
             raise V4ResponseError("IAM V4 apply response missing url")
         return str(url)
 
-    def _request(self, method: str, path: str, *, body: dict | list | None = None) -> Any:
+    def add_authorization(self, *, items: list[dict[str, Any]], operator: str) -> None:
+        """为主体新增角色授权。
+
+        IAM V4 当前契约单次最多接收 20 个授权项，每项最多 20 个资源，
+        并以 HTTP 201 空响应表示成功。
+        """
+        normalized_operator = str(operator or "").strip()
+        if not normalized_operator:
+            raise ValueError("IAM V4 authorization requires a non-empty operator")
+        if not 1 <= len(items) <= 20:
+            raise ValueError("IAM V4 authorization items must contain 1 to 20 entries")
+        for item in items:
+            resources = item.get("resources") if isinstance(item, dict) else None
+            if not isinstance(resources, list) or not 1 <= len(resources) <= 20:
+                raise ValueError("each IAM V4 authorization item must contain 1 to 20 resources")
+
+        normalized_items = deepcopy(items)
+        for item in normalized_items:
+            related_resource_type = str(item.get("related_resource_type_id") or "")
+            for resource in item["resources"]:
+                if not resource.get("type") and related_resource_type:
+                    resource["type"] = related_resource_type
+                self._encode_typed_resource(resource)
+
+        result = self._request(
+            "POST",
+            self.options.add_authorization_path.format(system_id=self.options.system_id),
+            body=normalized_items,
+            extra_headers={"X-Bkiam-Operator": normalized_operator},
+            expected_statuses={HTTPStatus.CREATED},
+        )
+        if result is not None:
+            raise V4ResponseError("IAM V4 add-authorization response must be empty")
+
+    def _encode_typed_resource(self, resource: dict[str, Any]) -> None:
+        resource_type = str(resource.get("type") or "")
+        if not resource_type or "id" not in resource:
+            return
+        resource["id"] = self.codec.encode_resource_id(resource_type, resource["id"])
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        body: dict | list | None = None,
+        extra_headers: dict[str, str] | None = None,
+        expected_statuses: set[int] | None = None,
+    ) -> Any:
         if not self.options.gateway_url:
             logger.error("IAM V4 gateway is not configured; set BKAPP_IAM_V4_API_BASE_URL to the bkiam APIGateway root")
             raise V4TransportError("IAM V4 gateway is not configured (BKAPP_IAM_V4_API_BASE_URL)")
@@ -137,6 +219,7 @@ class V4Client:
             ),
             "X-Bk-Tenant-Id": tenant_id,
         }
+        headers.update(extra_headers or {})
         try:
             response = requests.request(
                 method=method,
@@ -153,7 +236,12 @@ class V4Client:
         if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             raise V4RateLimitError("IAM V4 rate limited", status_code=response.status_code)
 
-        if not (HTTPStatus.OK <= response.status_code < HTTPStatus.MULTIPLE_CHOICES):
+        status_is_expected = (
+            response.status_code in expected_statuses
+            if expected_statuses is not None
+            else HTTPStatus.OK <= response.status_code < HTTPStatus.MULTIPLE_CHOICES
+        )
+        if not status_is_expected:
             reason = self._extract_error_reason(response)
             raise V4ClientError(
                 reason or f"IAM V4 HTTP {response.status_code}",
@@ -273,10 +361,10 @@ class V4Client:
         try:
             payload = response.json()
         except ValueError:
-            return response.text
+            return sanitize_error_summary(response.text)
         if isinstance(payload, dict):
             error = payload.get("error")
             if isinstance(error, dict):
-                return str(error.get("message") or error.get("code") or "")
-            return str(payload.get("message") or "")
-        return response.text
+                return sanitize_error_summary(error.get("message") or error.get("code") or "")
+            return sanitize_error_summary(payload.get("message") or "")
+        return sanitize_error_summary(response.text)

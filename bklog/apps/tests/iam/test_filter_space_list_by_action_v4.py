@@ -10,6 +10,14 @@ from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.types import AuthorizedResourceScope
 
 
+def make_scope_provider(scope=None, *, side_effect=None, requires_candidate_ids=False) -> MagicMock:
+    """构造实现 AuthorizedScopeProvider 契约的假 Provider。"""
+    provider = MagicMock()
+    provider.requires_candidate_ids = requires_candidate_ids
+    provider.list_authorized_resources = MagicMock(return_value=scope, side_effect=side_effect)
+    return provider
+
+
 class FilterSpaceListByActionV4Test(SimpleTestCase):
     def setUp(self):
         self.permission = Permission(username="admin", bk_tenant_id="tenant-1")
@@ -35,13 +43,9 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.concrete(
-            "space",
-            {"2", "4", "100"},
-            provider_name="v4",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"2", "4", "100"}, provider_name="v4")
         )
-        self.permission._v4_provider = v4_provider
 
         results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
         self.assertEqual([space["bk_biz_id"] for space in results], [2, 4])
@@ -52,12 +56,9 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.wildcard(
-            "space",
-            provider_name="v4",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.wildcard("space", provider_name="v4")
         )
-        self.permission._v4_provider = v4_provider
 
         results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
         self.assertEqual([space["bk_biz_id"] for space in results], [2, 3, 4])
@@ -68,14 +69,9 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.error(
-            "space",
-            provider_name="v4",
-            reason="timeout",
-            error_type="TimeoutError",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.error("space", provider_name="v4", reason="timeout", error_type="TimeoutError")
         )
-        self.permission._v4_provider = v4_provider
 
         with self.assertLogs(level="ERROR") as logs, self.assertRaises(IAMDependencyError):
             self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
@@ -100,8 +96,13 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.UNION
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        self.permission._authorized_space_ids_v3 = MagicMock(side_effect=IAMDependencyError("v3 down", provider="v3"))
-        self.permission._authorized_space_ids_v4 = MagicMock(return_value={"3"})
+        self.permission._v3_provider = make_scope_provider(
+            AuthorizedResourceScope.error("space", provider_name="v3", reason="v3 down", error_type="AuthAPIError"),
+            requires_candidate_ids=True,
+        )
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"3"}, provider_name="v4")
+        )
 
         with self.assertLogs(level="WARNING") as logs:
             results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
@@ -117,11 +118,47 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.UNION
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        self.permission._authorized_space_ids_v3 = MagicMock(return_value={"2"})
-        self.permission._authorized_space_ids_v4 = MagicMock(return_value={"4"})
+        self.permission._v3_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v3"),
+            requires_candidate_ids=True,
+        )
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"4"}, provider_name="v4")
+        )
 
         results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
         self.assertEqual([space["bk_biz_id"] for space in results], [2, 4])
+
+    @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
+    def test_union_degrades_when_one_side_provider_is_not_configured(self):
+        mode_provider = MagicMock()
+        mode_provider.get_mode.return_value = AuthMode.UNION
+        self.permission._mode_router = MagicMock(mode_provider=mode_provider)
+
+        self.permission._v3_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v3"),
+            requires_candidate_ids=True,
+        )
+
+        with patch.object(Permission, "get_v4_provider", return_value=None), self.assertLogs(level="WARNING") as logs:
+            results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
+
+        self.assertEqual([space["bk_biz_id"] for space in results], [2])
+        self.assertIn("v4_error=IAM v4 provider is not configured", logs.records[0].getMessage())
+
+    @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
+    def test_unconfigured_provider_fails_closed_without_loading_all_spaces(self):
+        mode_provider = MagicMock()
+        mode_provider.get_mode.return_value = AuthMode.V4
+        self.permission._mode_router = MagicMock(mode_provider=mode_provider)
+
+        # 未配置的 Provider 读不到 requires_candidate_ids，早期实现会在选路时抛 AttributeError。
+        with (
+            patch.object(Permission, "get_v4_provider", return_value=None),
+            self.assertLogs(level="ERROR"),
+            self.assertRaises(IAMDependencyError),
+        ):
+            self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1")
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_union_calls_v3_and_v4_concurrently(self):
@@ -135,19 +172,19 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         started = threading.Event()
         release = threading.Event()
 
-        def v3_side_effect(_action, _local_ids):
+        def v3_side_effect(**_kwargs):
             started.set()
             release.wait(timeout=1)
-            return {"2"}
+            return AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v3")
 
-        def v4_side_effect(_action, _local_ids):
+        def v4_side_effect(**_kwargs):
             if not started.wait(timeout=1):
-                return set()
+                return AuthorizedResourceScope.empty("space", provider_name="v4")
             release.set()
-            return {"4"}
+            return AuthorizedResourceScope.concrete("space", {"4"}, provider_name="v4")
 
-        self.permission._authorized_space_ids_v3 = MagicMock(side_effect=v3_side_effect)
-        self.permission._authorized_space_ids_v4 = MagicMock(side_effect=v4_side_effect)
+        self.permission._v3_provider = make_scope_provider(side_effect=v3_side_effect, requires_candidate_ids=True)
+        self.permission._v4_provider = make_scope_provider(side_effect=v4_side_effect)
 
         started_at = time.monotonic()
         results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
@@ -162,8 +199,13 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.UNION
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        self.permission._authorized_space_ids_v3 = MagicMock(side_effect=IAMDependencyError("v3", provider="v3"))
-        self.permission._authorized_space_ids_v4 = MagicMock(side_effect=IAMDependencyError("v4", provider="v4"))
+        self.permission._v3_provider = make_scope_provider(
+            AuthorizedResourceScope.error("space", provider_name="v3", reason="v3", error_type="AuthAPIError"),
+            requires_candidate_ids=True,
+        )
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.error("space", provider_name="v4", reason="v4", error_type="V4ClientError")
+        )
 
         with self.assertLogs(level="ERROR") as logs, self.assertRaises(IAMDependencyError):
             self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
@@ -191,9 +233,7 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         mode_provider = MagicMock()
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.empty("space", provider_name="v4")
-        self.permission._v4_provider = v4_provider
+        self.permission._v4_provider = make_scope_provider(AuthorizedResourceScope.empty("space", provider_name="v4"))
 
         results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
         self.assertEqual([space["bk_biz_id"] for space in results], [4])
@@ -222,7 +262,7 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
 
         self.permission.iam_client._eval_expr.side_effect = _eval
 
-        with patch("apps.iam.handlers.permission.make_expression", return_value="expr"):
+        with patch("apps.iam.backends.v3.scope.make_expression", return_value="expr"):
             results = self.permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, "tenant-1", self.spaces)
         self.assertEqual([space["bk_biz_id"] for space in results], [2])
         self.assertEqual(self.permission.iam_client._eval_expr.call_count, 3)
@@ -251,13 +291,9 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.concrete(
-            "space",
-            {"2", "4", "100"},
-            provider_name="v4",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"2", "4", "100"}, provider_name="v4")
         )
-        self.permission._v4_provider = v4_provider
 
         targeted_spaces = [
             {"bk_biz_id": 2, "space_name": "biz-2"},
@@ -282,12 +318,9 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.wildcard(
-            "space",
-            provider_name="v4",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.wildcard("space", provider_name="v4")
         )
-        self.permission._v4_provider = v4_provider
 
         all_spaces = [
             {"bk_biz_id": 2, "space_name": "biz-2"},
@@ -307,12 +340,7 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.empty(
-            "space",
-            provider_name="v4",
-        )
-        self.permission._v4_provider = v4_provider
+        self.permission._v4_provider = make_scope_provider(AuthorizedResourceScope.empty("space", provider_name="v4"))
 
         with patch("apps.log_search.models.Space.get_all_spaces") as get_all_spaces:
             with patch(
@@ -331,14 +359,9 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.error(
-            "space",
-            provider_name="v4",
-            reason="timeout",
-            error_type="TimeoutError",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.error("space", provider_name="v4", reason="timeout", error_type="TimeoutError")
         )
-        self.permission._v4_provider = v4_provider
 
         with patch("apps.log_search.models.Space.get_all_spaces") as get_all_spaces:
             with self.assertRaises(IAMDependencyError):
@@ -351,13 +374,9 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         mode_provider.get_mode.return_value = AuthMode.V4
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
 
-        v4_provider = MagicMock()
-        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.concrete(
-            "space",
-            {"2"},
-            provider_name="v4",
+        self.permission._v4_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v4")
         )
-        self.permission._v4_provider = v4_provider
 
         targeted_spaces = [
             {"bk_biz_id": 2, "space_name": "biz-2"},
@@ -378,7 +397,10 @@ class FilterSpaceListByActionV4TargetedQueryTest(SimpleTestCase):
         mode_provider = MagicMock()
         mode_provider.get_mode.return_value = AuthMode.V3
         self.permission._mode_router = MagicMock(mode_provider=mode_provider)
-        self.permission._authorized_space_ids_v3 = MagicMock(return_value={"2"})
+        self.permission._v3_provider = make_scope_provider(
+            AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v3"),
+            requires_candidate_ids=True,
+        )
 
         with patch(
             "apps.log_search.models.Space.get_all_spaces",

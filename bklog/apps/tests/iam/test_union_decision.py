@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 
-from apps.iam.iam_engine.core.types import AuthResult, AuthStatus
-from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
+from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult, AuthStatus
+from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy, UnionScopePolicy
 
 
 class AuthResultTest(SimpleTestCase):
@@ -73,3 +73,79 @@ class UnionDecisionPolicyTest(SimpleTestCase):
         if status is AuthStatus.DENY:
             return AuthResult.deny(provider_name=provider_name)
         return AuthResult.error(provider_name=provider_name, reason="provider unavailable")
+
+
+class UnionScopePolicyTest(SimpleTestCase):
+    def test_concrete_scopes_are_merged(self):
+        merged = UnionScopePolicy.merge(
+            (
+                AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v3"),
+                AuthorizedResourceScope.concrete("space", {"4"}, provider_name="v4"),
+            )
+        )
+
+        self.assertEqual(merged.ids, frozenset({"2", "4"}))
+        self.assertEqual(merged.resource_type, "space")
+        self.assertEqual(merged.provider_name, "union")
+        self.assertFalse(merged.is_wildcard)
+
+    def test_any_wildcard_wins_over_concrete_ids(self):
+        merged = UnionScopePolicy.merge(
+            (
+                AuthorizedResourceScope.concrete("space", {"2"}, provider_name="v3"),
+                AuthorizedResourceScope.wildcard("space", provider_name="v4"),
+            )
+        )
+
+        self.assertTrue(merged.is_wildcard)
+        self.assertEqual(merged.ids, frozenset())
+
+    def test_single_failure_degrades_to_the_healthy_side(self):
+        merged = UnionScopePolicy.merge(
+            (
+                AuthorizedResourceScope.error("space", provider_name="v3", reason="v3 down"),
+                AuthorizedResourceScope.concrete("space", {"4"}, provider_name="v4"),
+            )
+        )
+
+        self.assertTrue(merged.ok)
+        self.assertEqual(merged.ids, frozenset({"4"}))
+
+    def test_a_failed_side_never_contributes_a_wildcard(self):
+        merged = UnionScopePolicy.merge(
+            (
+                AuthorizedResourceScope.error("space", provider_name="v3", reason="v3 down"),
+                AuthorizedResourceScope.empty("space", provider_name="v4"),
+            )
+        )
+
+        self.assertTrue(merged.ok)
+        self.assertFalse(merged.is_wildcard)
+        self.assertEqual(merged.ids, frozenset())
+
+    def test_all_failures_fail_closed_and_keep_both_reasons(self):
+        merged = UnionScopePolicy.merge(
+            (
+                AuthorizedResourceScope.error("space", provider_name="v3", reason="v3 down", error_type="AuthAPIError"),
+                AuthorizedResourceScope.error("space", provider_name="v4", reason="timeout", error_type="TimeoutError"),
+            )
+        )
+
+        self.assertFalse(merged.ok)
+        self.assertEqual(merged.provider_name, "union")
+        self.assertEqual(merged.reason, "v3=v3 down; v4=timeout")
+        self.assertEqual(merged.error_type, "AuthAPIError; TimeoutError")
+
+    def test_resource_type_is_taken_from_the_first_scope_that_declares_one(self):
+        merged = UnionScopePolicy.merge(
+            (
+                AuthorizedResourceScope.error("", provider_name="v3", reason="v3 down"),
+                AuthorizedResourceScope.concrete("space", {"4"}, provider_name="v4"),
+            )
+        )
+
+        self.assertEqual(merged.resource_type, "space")
+
+    def test_empty_input_is_a_programming_error(self):
+        with self.assertRaises(ValueError):
+            UnionScopePolicy.merge(())

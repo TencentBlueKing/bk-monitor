@@ -244,6 +244,7 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
+    "apps.iam.tasks.grant",
 )
 
 if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
@@ -458,6 +459,21 @@ BK_IAM_V4_AUTH_TOKEN_PATH = os.getenv(
     "api/v1/open/rbac/model/systems/{system_id}/auth-token/",
 )
 BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS = os.getenv("BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS", "300")
+BK_IAM_V4_ADD_AUTHORIZATION_PATH = os.getenv(
+    "BKAPP_IAM_V4_ADD_AUTHORIZATION_PATH",
+    "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/",
+)
+BK_IAM_V4_GRANT_EXPIRE_DAYS = os.getenv("BK_IAM_V4_GRANT_EXPIRE_DAYS", "365")
+BK_IAM_GRANT_MAX_ATTEMPTS = os.getenv("BK_IAM_GRANT_MAX_ATTEMPTS", "12")
+
+# IAM V4 权限模型 as-code：基线文件在 support-files/iam/v4/，由 manage.py iam_v4_migrate_model 收敛。
+BK_IAM_V4_MODEL_BASE_PATH = os.getenv("BKAPP_IAM_V4_MODEL_BASE_PATH", "api/v1/open/rbac/model/systems/")
+# 打开后 post_migrate 会自动把模型基线同步到权限中心；默认关闭，先用命令 dry-run 确认计划。
+BK_IAM_V4_MODEL_MIGRATE_ENABLED = os.getenv("BKAPP_IAM_V4_MODEL_MIGRATE_ENABLED", "off") == "on"
+# 系统管理员；留空表示不由 as-code 托管，同步时既不下发也不比对，避免清空人工配置。
+BK_IAM_V4_MODEL_MANAGERS = os.getenv("BKAPP_IAM_V4_MODEL_MANAGERS", "").strip()
+# V4 资源回调地址；留空时由 BK_IAM_RESOURCE_API_HOST 拼出 api/v1/iam/v4/resource/。
+BK_IAM_V4_CALLBACK_URL = os.getenv("BKAPP_IAM_V4_CALLBACK_URL", "").strip()
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"

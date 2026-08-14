@@ -3,6 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
+from django.conf import settings
+
+from apps.iam.backends.v4.apply import build_apply_data
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently
@@ -24,15 +27,10 @@ from apps.iam.iam_engine.provider.base import PermissionProvider
 WILDCARD_RESOURCE_ID = "*"
 
 
-def _chunked(items: list, chunk_size: int):
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive")
-    for index in range(0, len(items), chunk_size):
-        yield items[index : index + chunk_size]
-
-
 class V4PermissionProvider(PermissionProvider):
     name = "v4"
+    # IAM V4 的 authorized-resources 直接返回完整范围，不需要调用方预先加载候选。
+    requires_candidate_ids = False
 
     def __init__(
         self,
@@ -112,6 +110,9 @@ class V4PermissionProvider(PermissionProvider):
         resources_by_id: dict[str, ResourceInstance],
         chunk_max_workers: int,
     ) -> list[BatchAuthResultItem]:
+        # apps.utils.db 在模块级导入了 feature_toggle 模型，而本模块由 apps.iam 的 AppConfig 在应用加载前导入
+        from apps.utils.db import array_chunk
+
         action_id = to_definition_id(action_ref)
         encoded_action_id = self.codec.encode_action(action_id)
         action = self._resolve_action(action_ref)
@@ -148,7 +149,10 @@ class V4PermissionProvider(PermissionProvider):
             ]
 
         encoded_resources = [self.codec.encode_resource_for_auth(resource) for resource in matched_resources]
-        chunks = list(_chunked(encoded_resources, self.batch_chunk_size))
+        encoded_to_local_id = {
+            encoded["id"]: str(resource.id) for resource, encoded in zip(matched_resources, encoded_resources)
+        }
+        chunks = array_chunk(encoded_resources, self.batch_chunk_size)
         action_results: dict[str, AuthResult] = {}
 
         def _auth_chunk(chunk: list[dict[str, Any]]) -> dict[str, AuthResult]:
@@ -161,7 +165,8 @@ class V4PermissionProvider(PermissionProvider):
                 )
             except V4ClientError as error:
                 for resource in chunk:
-                    chunk_action_results[str(resource["id"])] = AuthResult.error(
+                    local_resource_id = encoded_to_local_id[str(resource["id"])]
+                    chunk_action_results[local_resource_id] = AuthResult.error(
                         self.name,
                         reason=error.reason,
                         error_type=error.error_type,
@@ -169,7 +174,8 @@ class V4PermissionProvider(PermissionProvider):
                 return chunk_action_results
 
             for resource_id, allowed in chunk_results.items():
-                chunk_action_results[resource_id] = (
+                local_resource_id = encoded_to_local_id[resource_id]
+                chunk_action_results[local_resource_id] = (
                     AuthResult.allow(self.name) if allowed else AuthResult.deny(self.name)
                 )
             return chunk_action_results
@@ -199,7 +205,10 @@ class V4PermissionProvider(PermissionProvider):
         action_id: str,
         resource_type: str = "space",
         subject: dict[str, str] | None = None,
+        candidate_ids: frozenset[str] | None = None,
     ) -> AuthorizedResourceScope:
+        # V4 由 IAM 直接返回完整授权范围，候选集只用于调用方后续求交，这里忽略。
+        del candidate_ids
         encoded_action_id = self.codec.encode_action(to_definition_id(action_id))
         encoded_resource_type = self.codec.encode_resource_type(resource_type)
         request_subject = subject or {"type": "user", "id": self.client.username}
@@ -229,7 +238,8 @@ class V4PermissionProvider(PermissionProvider):
             return AuthorizedResourceScope.wildcard(encoded_resource_type, provider_name=self.name)
         if not ids:
             return AuthorizedResourceScope.empty(encoded_resource_type, provider_name=self.name)
-        return AuthorizedResourceScope.concrete(encoded_resource_type, set(ids), provider_name=self.name)
+        decoded_ids = {self.codec.decode_resource_id(encoded_resource_type, resource_id) for resource_id in ids}
+        return AuthorizedResourceScope.concrete(encoded_resource_type, decoded_ids, provider_name=self.name)
 
     def get_apply_data(
         self,
@@ -238,6 +248,7 @@ class V4PermissionProvider(PermissionProvider):
     ) -> tuple[dict[str, Any], str]:
         resources = resources or []
         permissions = []
+        action_resources: list[tuple[ActionDefinition, list[ResourceInstance]]] = []
         for action_ref in actions:
             action = self._resolve_action(action_ref)
             encoded_action_id = self.codec.encode_action(action.id)
@@ -247,20 +258,22 @@ class V4PermissionProvider(PermissionProvider):
                 self.codec.encode_resource_for_apply(resource) for resource in matched_resources
             )
             permissions.append(permission)
+            action_resources.append((action, matched_resources))
 
         try:
             apply_url = self.client.generate_perm_apply_url(permissions=permissions)
         except V4ClientError as error:
             raise RuntimeError(error.reason) from error
 
-        return (
-            {
-                "provider": self.name,
-                "system_id": self.client.options.system_id,
-                "permissions": permissions,
-            },
-            apply_url,
+        # 展示数据与 V3 同构，前端不需要区分当前是哪一代；permissions 只用于生成 apply_url，
+        # 属于发给 IAM 的请求体，留在日志里即可，不进对外的无权限响应。
+        apply_data = build_apply_data(
+            system_id=self.client.options.system_id,
+            system_name=settings.BK_IAM_SYSTEM_NAME,
+            codec=self.codec,
+            action_resources=action_resources,
         )
+        return {"provider": self.name, **apply_data}, apply_url
 
     @staticmethod
     def _build_subject(request: AuthRequest | BatchAuthRequest) -> dict[str, str]:

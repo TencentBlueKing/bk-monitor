@@ -13,7 +13,10 @@ DEFAULT_AUTH_BY_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system
 DEFAULT_AUTHORIZED_RESOURCES_PATH = "api/v1/open/rbac/authorization/systems/{system_id}/relation/authorized-resources/"
 DEFAULT_APPLY_URL_PATH = "api/v1/open/application/permission-apply-urls/"
 DEFAULT_AUTH_TOKEN_PATH = "api/v1/open/rbac/model/systems/{system_id}/auth-token/"
+# 权限模型管理 API 根路径；system / resource-type / action / role 的增删改查都挂在它下面。
+DEFAULT_MODEL_BASE_PATH = "api/v1/open/rbac/model/systems/"
 DEFAULT_TIMEOUT_SECONDS = 10.0
+DEFAULT_ADD_AUTHORIZATION_PATH = "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/"
 DEFAULT_BATCH_CHUNK_SIZE = 100
 MAX_BATCH_CHUNK_SIZE = 100
 DEFAULT_BATCH_MAX_WORKERS = 4
@@ -166,6 +169,8 @@ class V4Options:
     apply_url_path: str
     auth_token_path: str = DEFAULT_AUTH_TOKEN_PATH
     auth_token_cache_seconds: int = DEFAULT_AUTH_TOKEN_CACHE_SECONDS
+    add_authorization_path: str = DEFAULT_ADD_AUTHORIZATION_PATH
+    model_base_path: str = DEFAULT_MODEL_BASE_PATH
 
     @classmethod
     def from_settings(cls, *, bk_tenant_id: str = "", for_resource_callback: bool = False) -> V4Options:
@@ -207,4 +212,10 @@ class V4Options:
                     DEFAULT_AUTH_TOKEN_CACHE_SECONDS,
                 )
             ),
+            add_authorization_path=getattr(
+                settings,
+                "BK_IAM_V4_ADD_AUTHORIZATION_PATH",
+                DEFAULT_ADD_AUTHORIZATION_PATH,
+            ),
+            model_base_path=getattr(settings, "BK_IAM_V4_MODEL_BASE_PATH", DEFAULT_MODEL_BASE_PATH),
         )
