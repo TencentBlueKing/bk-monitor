@@ -160,6 +160,11 @@ export default defineComponent({
       type: [Number, String] as PropType<number | string>,
       default: '',
     },
+    /** 行选中模式：single 单选、multiple 多选、null 不启用选中高亮 */
+    activeRowType: {
+      type: String as PropType<'multiple' | 'single' | null>,
+      default: 'single',
+    },
   },
   emits: {
     /** 当前页变化回调 */
@@ -403,7 +408,7 @@ export default defineComponent({
               empty: this.tableEmptyRender,
             }}
             activeRowKeys={this.activeRowKeys}
-            activeRowType='single'
+            activeRowType={this.activeRowType}
             bkUiSettings={this.tableSettings}
             columns={this.tableColumns}
             data={this.data}

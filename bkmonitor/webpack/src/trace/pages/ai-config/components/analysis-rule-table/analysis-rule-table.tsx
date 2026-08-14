@@ -26,11 +26,12 @@
 
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import { Switcher } from 'bkui-vue';
+import { InfoBox, Switcher } from 'bkui-vue';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import CommonTable from 'trace/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { useI18n } from 'vue-i18n';
 
+import { updateSourceAnalysisRuleApi } from '../../services/ai-config';
 import TagCell from './tag-cell';
 
 import type { TSourceAnalysisRule } from '../../typings';
@@ -58,7 +59,16 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['clearSearch'],
+  emits: {
+    /** 清空搜索值 */
+    clearSearch: () => true,
+    /** 规则局部更新（如启停、调整优先级）后回写列表 */
+    updateRule: (_rule: TSourceAnalysisRule) => true,
+    /** 编辑规则 */
+    editRule: (_rule: TSourceAnalysisRule) => true,
+    /** 删除规则 */
+    deleteRule: (_rule: TSourceAnalysisRule) => true,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -141,9 +151,16 @@ export default defineComponent({
         sorter: true,
         cellRenderer: (row: TSourceAnalysisRule) => <div class='priority-tag'>{row.priority}</div>,
         title: () => (
-          <span>
+          <span class='priority-col-title'>
             <span>{t('优先级')}</span>
-            <span class='icon-monitor icon-hint' />
+            {/* 优先级说明提示图标：hover 展示数值区间说明 */}
+            <span
+              class='icon-monitor icon-hint'
+              v-bk-tooltips={{
+                placement: 'top',
+                content: t('数值越高，优先级越高，最大值为10000'),
+              }}
+            />
           </span>
         ),
       },
@@ -206,6 +223,7 @@ export default defineComponent({
         },
         cellRenderer: row => (
           <Switcher
+            beforeChange={() => handleEnableChange(row)}
             modelValue={row.is_enabled}
             size='small'
             theme='primary'
@@ -221,10 +239,29 @@ export default defineComponent({
         width: 72,
         minWidth: 72,
         sorter: false,
-        cellRenderer: _row => (
-          <span>
-            <span class='icon-monitor icon-bianji' />
-            <span class='icon-monitor icon-mc-delete-line' />
+        cellRenderer: (row: TSourceAnalysisRule) => (
+          <span class='operate-col-wrap'>
+            {/* 编辑规则按钮 */}
+            <span
+              class='icon-monitor icon-bianji'
+              onClick={() => {
+                emit('editRule', row);
+              }}
+            />
+            {/* 删除规则按钮：默认策略置灰不可删除 */}
+            <span
+              class={['icon-monitor icon-mc-delete-line', { 'is-disabled': row.is_default }]}
+              v-bk-tooltips={{
+                placement: 'top',
+                content: t('默认策略不可删除'),
+                disabled: !row.is_default,
+              }}
+              onClick={() => {
+                if (!row.is_default) {
+                  emit('deleteRule', row);
+                }
+              }}
+            />
           </span>
         ),
         title: () => '',
@@ -246,6 +283,33 @@ export default defineComponent({
     const handleSortChange = (sort: string) => {
       sortValue.value = sort;
     };
+
+    /** 启停规则切换：二次确认后调用更新接口，成功则 resolve(true) 使开关生效 */
+    function handleEnableChange(row: TSourceAnalysisRule) {
+      return new Promise(resolve => {
+        InfoBox({
+          title: row.is_enabled ? t('确定停用此规则') : t('确定启用此规则'),
+          onConfirm: () => {
+            const isEnabled = !row.is_enabled;
+            console.log(row.id);
+            updateSourceAnalysisRuleApi(row.id, { is_enabled: isEnabled })
+              .then(data => {
+                resolve(!!data?.is_enabled);
+                emit('updateRule', {
+                  ...row,
+                  is_enabled: isEnabled,
+                });
+              })
+              .catch(() => {
+                resolve(false);
+              });
+          },
+          onCancel: () => {
+            resolve(false);
+          },
+        });
+      });
+    }
 
     return {
       filteredData,
@@ -275,6 +339,7 @@ export default defineComponent({
                 )
               : undefined) as any
           }
+          activeRowType={null}
           columns={this.tableColumns}
           data={this.filteredData}
           filterValue={this.columnFilter}
