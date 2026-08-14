@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export * from './enum';
+export * from './source-analysis-rule';
+
 /** AI 设置页面的 Tab */
 export enum EAiConfigTab {
   /** 异常检测 */
@@ -134,50 +137,4 @@ export type TGetSourceAnalysisConfigResult = {
 export type TSaveSourceAnalysisConfigParams = {
   bkci_project_id: string;
   repository_alias: string;
-};
-
-/** 源码分析规则匹配条件 */
-export type TSourceAnalysisCondition = {
-  /** 条件连接符，如 and / or */
-  condition: string;
-  /** 匹配字段 */
-  field: string;
-  /** 匹配方法，如 eq / contains */
-  method: string;
-  /** 匹配值列表 */
-  value: string[];
-};
-
-/** 源码分析规则 */
-export type TSourceAnalysisRule = {
-  /** 智能体 id */
-  agent_id: string;
-  /** 业务 id */
-  bk_biz_id: number;
-  /** 蓝盾项目 id */
-  bkci_project_id: string;
-  /** 匹配条件列表 */
-  conditions: TSourceAnalysisCondition[];
-  /** 创建时间戳 */
-  created_at: number;
-  /** 创建人 */
-  created_by: string;
-  /** 规则 id */
-  id: number;
-  /** 是否为默认规则 */
-  is_default: boolean;
-  /** 是否启用 */
-  is_enabled: boolean;
-  /** 关联知识库 id 列表 */
-  knowledge_base_ids: string[];
-  /** 优先级 */
-  priority: number;
-  /** 源码仓库别名 */
-  repository_alias: string;
-  /** 关联 skill id 列表 */
-  skill_ids: string[];
-  /** 更新时间戳 */
-  updated_at: number;
-  /** 更新人 */
-  updated_by: string;
 };

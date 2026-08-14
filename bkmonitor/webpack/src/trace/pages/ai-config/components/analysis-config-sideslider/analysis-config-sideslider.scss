@@ -43,6 +43,19 @@
         .main-section-content {
           min-height: 80px;
         }
+
+        &.process-params-section {
+          .main-section-content {
+            display: flex;
+            flex-direction: column;
+            row-gap: 24px;
+
+            h5 {
+              padding: 0;
+              margin: 0;
+            }
+          }
+        }
       }
     }
   }

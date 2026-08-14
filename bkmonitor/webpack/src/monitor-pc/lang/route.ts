@@ -98,7 +98,6 @@ export default {
   'route-平台设置': 'Platform Settings',
   'route-默认仪表盘': 'Dashboard Home',
   'route-发送历史': 'Send History',
-  'route-AI设置': 'AI Settings',
   'route-配置规则': 'Configuration Rules',
   'route-指标管理': 'Metrics Manage',
   'route-配置应用': 'Configuration Application',
@@ -106,6 +105,7 @@ export default {
   'route-轮值': 'Rotation',
   'route-管理': 'Management',
   'route-告警中心': 'Alarm Center',
+  'route-AI设置': 'AI Settings',
   // 面包屑 标题定位
   'route-新建策略': 'New Alert Rules',
   'route-新建拨测任务': 'New Check',
