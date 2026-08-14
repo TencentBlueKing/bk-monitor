@@ -62,10 +62,10 @@ class V3PermissionProvider(PermissionProvider):
                 self.codec.encode_resource_groups(request),
             )
         except AuthAPIError as error:
-            metrics.observe_provider_latency(self.name, metrics.AUTH_API_BATCH_IS_ALLOWED, start_at, ok=False)
-            return self._batch_error_result(request, error)
+            result = self._batch_error_result(request, error)
+            metrics.observe_batch_latency(self.name, start_at, result.items)
+            return result
 
-        metrics.observe_provider_latency(self.name, metrics.AUTH_API_BATCH_IS_ALLOWED, start_at, ok=True)
         normalized_result = {
             str(resource_id): {str(action_id): allowed for action_id, allowed in action_results.items()}
             for resource_id, action_results in raw_result.items()
@@ -84,6 +84,8 @@ class V3PermissionProvider(PermissionProvider):
             else:
                 result = AuthResult.deny(provider_name=self.name)
             items.append(BatchAuthResultItem(action_id, resource_id, result))
+        # 逐条结果构造完才记耗时：请求成功但部分条目缺失也要计入 error，口径与 V4 一致。
+        metrics.observe_batch_latency(self.name, start_at, items)
         return BatchAuthResult(items=tuple(items))
 
     def list_authorized_resources(

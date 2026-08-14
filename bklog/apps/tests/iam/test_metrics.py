@@ -13,6 +13,7 @@ from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.permission import Permission
 from apps.iam.handlers.resources import ResourceEnum
 from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
 from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult
 from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
@@ -173,6 +174,17 @@ class AuthDecisionMetricsTest(MetricPatchMixin, TestCase):
             [("v4", "deny")],
         )
         self.divergence_count.labels.assert_not_called()
+
+    def test_illegal_mode_configuration_is_normalized_to_invalid(self):
+        self.mode_provider.get_mode.side_effect = InvalidAuthModeError("v5-typo", "unsupported auth mode")
+
+        self.assertFalse(self._is_allowed())
+
+        # 非法模式来自 FeatureToggle，是运维可改写的 DB 字段，不归一 label 就不再是有限枚举
+        self.assertEqual(label_kwargs(self.decision_count)[0]["mode"], "invalid")
+        provider = label_kwargs(self.provider_count)[0]
+        self.assertEqual((provider["mode"], provider["provider"]), ("invalid", "mode"))
+        self.assertEqual(provider["error_type"], "InvalidPermissionMode")
 
     def test_action_without_related_resource_uses_none_resource_type(self):
         self.iam_client.is_allowed.return_value = True
@@ -408,6 +420,15 @@ class ProviderLatencyMetricsTest(SimpleTestCase):
             ],
         )
 
+    def test_v3_batch_with_missing_entries_is_counted_as_error_like_v4(self):
+        # 请求本身成功，但响应缺了该 Action 的结果，逐条会生成 IncompleteBatchResult
+        self.v3_client.batch_resource_multi_actions_allowed.return_value = {"2": {}}
+
+        self.v3.batch_is_allowed(self.batch_request)
+
+        # V4 用「任一条目失败即 error」判定，V3 必须同口径，两侧错误率曲线才可比
+        self.assertEqual(self._observations(), [("v3", "batch_is_allowed", "error")])
+
     def test_v3_space_scope_status_follows_the_returned_scope(self):
         self.v3.scope_query = Mock(
             list_authorized_resources=Mock(
@@ -528,14 +549,19 @@ class GrantSyncMetricsTest(TestCase):
         )
         self.dispatch.assert_not_called()
 
-    def test_v4_sync_failure_is_recorded_when_the_retry_task_is_dispatched(self):
+    def test_v4_sync_failure_and_dispatch_result_are_counted_separately(self):
         self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
 
         self.assertEqual(self._grant(), (True, "success"))
 
+        # 同步失败与投递结果是两件事，各记一次，V4 同步失败率才能独立算出来
         self.assertEqual(
             self._results(),
-            [("v3", "collection", "succeeded"), ("v4", "collection", "fallback_dispatched")],
+            [
+                ("v3", "collection", "succeeded"),
+                ("v4", "collection", "sync_failed"),
+                ("v4", "collection", "fallback_dispatched"),
+            ],
         )
 
     def test_dispatch_failure_is_recorded_separately(self):
@@ -546,15 +572,42 @@ class GrantSyncMetricsTest(TestCase):
 
         self.assertEqual(
             self._results(),
-            [("v3", "collection", "succeeded"), ("v4", "collection", "dispatch_failed")],
+            [
+                ("v3", "collection", "succeeded"),
+                ("v4", "collection", "sync_failed"),
+                ("v4", "collection", "dispatch_failed"),
+            ],
         )
 
-    def test_rolled_back_transaction_reports_no_v4_fallback(self):
+    def test_rolled_back_transaction_still_reports_the_sync_failure(self):
         self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
 
-        # 业务回滚时回落任务不投递，也就不该出现投递类结果
         with self.captureOnCommitCallbacks(execute=False):
             self.orchestrator.grant_creator_action(self.application)
 
-        self.assertEqual(self._results(), [("v3", "collection", "succeeded")])
+        # 回滚时回落任务不投递，所以没有投递类结果；但同步失败已经发生，不能因回滚而丢样本，
+        # 否则同一次调用里 V3 全额上报、V4 静默，失败率会系统性偏低。
+        self.assertEqual(
+            self._results(),
+            [("v3", "collection", "succeeded"), ("v4", "collection", "sync_failed")],
+        )
         self.dispatch.assert_not_called()
+
+    def test_observer_failure_neither_breaks_the_grant_nor_the_commit_callback(self):
+        observer = Mock(side_effect=RuntimeError("metrics backend unavailable"))
+        orchestrator = DualWriteGrantOrchestrator(
+            writers=(("v3", self.v3_writer), ("v4", self.v4_writer)),
+            tenant_id="tenant-1",
+            operator="operator",
+            grant_observer=observer,
+            dispatch_v4_grant=self.dispatch,
+        )
+        self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            result = orchestrator.grant_creator_action(self.application, raise_exception=True)
+
+        # 观测是纯旁路：observer 抛异常既不能改变授权结果，也不能打断提交后回调
+        self.assertEqual(result, (True, "success"))
+        self.dispatch.assert_called_once()
+        self.assertEqual(observer.call_count, 3)

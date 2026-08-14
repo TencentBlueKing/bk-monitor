@@ -136,6 +136,9 @@ class DualWriteGrantOrchestrator:
                 type(error).__name__,
                 sanitize_error_summary(error),
             )
+            # 同步尝试已经失败，这个事实与事务是否提交无关，必须在这里独立计数：回滚时回调不执行，
+            # 只靠投递结果反推会让 V4 同步失败率系统性偏低。
+            self._observe(AuthMode.V4.value, application, "sync_failed")
             # Django 会把回调提升到最外层事务；业务回滚时任务不投递，不会给不存在的资源授权。
             transaction.on_commit(lambda: self._dispatch_after_commit(task_kwargs))
             return
@@ -144,12 +147,13 @@ class DualWriteGrantOrchestrator:
         self._observe(AuthMode.V4.value, application, "succeeded")
 
     def _dispatch_after_commit(self, task_kwargs: dict[str, Any]) -> None:
-        resource_type = task_kwargs["resource_meta"]["resource_type"]
+        result = "fallback_dispatched"
         try:
             self.dispatch_v4_grant(task_kwargs)
         except Exception as error:  # pylint: disable=broad-except
             # 提交后回调抛错会打断同批次其他回调，所以这里必须吞掉；按类文档的尽力投递契约，
             # 投递失败只能靠这条日志被发现和人工重放。
+            result = "dispatch_failed"
             logger.exception(
                 "[IAM DualWrite] v4 dispatch failed tenant_id=%s resource=%s error_type=%s error=%s",
                 task_kwargs["tenant_id"],
@@ -157,14 +161,26 @@ class DualWriteGrantOrchestrator:
                 type(error).__name__,
                 error,
             )
-            self.grant_observer(AuthMode.V4.value, resource_type, "dispatch_failed")
-            return
-
-        # 同步失败的次数由回落投递结果反推：投递成功计 fallback_dispatched，失败计 dispatch_failed。
-        self.grant_observer(AuthMode.V4.value, resource_type, "fallback_dispatched")
+        self._notify_observer(AuthMode.V4.value, task_kwargs["resource_meta"]["resource_type"], result)
 
     def _observe(self, target_version: str, application: Mapping[str, Any], result: str) -> None:
-        self.grant_observer(target_version, _resource_meta(application)["resource_type"], result)
+        self._notify_observer(target_version, _resource_meta(application)["resource_type"], result)
+
+    def _notify_observer(self, target_version: str, resource_type: str, result: str) -> None:
+        """观测是纯旁路：observer 由调用方注入，本层无法约束它的实现，异常一律吞掉。
+
+        上抛会有两种后果：同步路径把观测失败伪装成授权失败，提交后回调里还会打断同批次其他业务回调。
+        """
+        try:
+            self.grant_observer(target_version, resource_type, result)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception(
+                "[IAM DualWrite] grant observer failed target_version=%s result=%s error_type=%s error=%s",
+                target_version,
+                result,
+                type(error).__name__,
+                error,
+            )
 
 
 def _resource_meta(application: Mapping[str, Any]) -> dict[str, str]:

@@ -22,13 +22,7 @@ from apps.iam.iam_engine.core.requests import (
     ResourceTypeDefinition,
     to_definition_id,
 )
-from apps.iam.iam_engine.core.types import (
-    AuthResult,
-    AuthStatus,
-    AuthorizedResourceScope,
-    BatchAuthResult,
-    BatchAuthResultItem,
-)
+from apps.iam.iam_engine.core.types import AuthResult, AuthorizedResourceScope, BatchAuthResult, BatchAuthResultItem
 from apps.iam.iam_engine.provider.base import PermissionProvider
 
 
@@ -112,12 +106,7 @@ class V4PermissionProvider(PermissionProvider):
         )
         items = [item for action_items in per_action_items for item in action_items]
         # 多 Action 与分片都在本方法内并发展开，这里记录的是一次批量鉴权的整体开销。
-        metrics.observe_provider_latency(
-            self.name,
-            metrics.AUTH_API_BATCH_IS_ALLOWED,
-            start_at,
-            ok=all(item.result.status is not AuthStatus.ERROR for item in items),
-        )
+        metrics.observe_batch_latency(self.name, start_at, items)
         return BatchAuthResult(items=tuple(items))
 
     def _batch_auth_one_action(
