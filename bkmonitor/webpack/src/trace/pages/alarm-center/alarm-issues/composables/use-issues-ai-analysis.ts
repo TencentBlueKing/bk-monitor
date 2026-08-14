@@ -30,6 +30,7 @@ import { createGlobalState } from '@vueuse/core';
 import {
   getIssueAiAnalysisOverview,
   getIssueSourceAnalysis,
+  reanalyzeIssueSourceAnalysis,
   startIssueSourceAnalysis,
 } from '../services/issues-ai-analysis';
 import useRequestAbort from '@/hooks/useRequestAbort';
@@ -52,19 +53,19 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
 
   const getSourceAnalysisData = async (params: AIAnalysisBaseParams) => {
     clearTimeout(timer);
-    loading.sourceAnalysis = true;
+    if (!sourceAnalysisIsPending.value) {
+      loading.sourceAnalysis = true;
+    }
     try {
       if (sourceAnalysisScene.value === 'overview') {
         const data = await overviewRun(params);
         if (overviewSignal?.aborted) return;
         sourceAnalysisData.value = data.source_analysis;
-        console.log(3);
       } else {
         const data = await sourceRun(params);
         if (sourceSignal?.aborted) return;
         sourceAnalysisData.value = data;
       }
-      console.log(2);
     } catch (err) {
       console.info('err', err);
     }
@@ -73,8 +74,11 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
         getSourceAnalysisData(params);
       }, 3000);
     }
-    console.log('1');
     loading.sourceAnalysis = false;
+  };
+
+  const clearSetTimeout = () => {
+    clearTimeout(timer);
   };
 
   /**
@@ -83,12 +87,22 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
   const handleToSetting = () => {};
 
   /**
-   * 立即分析
+   * 立即分析（第一次分析才调用这个接口）
    */
   const handleStartAnalysis = async (params: AIAnalysisBaseParams) => {
+    if (loading.startAnalysis) return;
     loading.startAnalysis = true;
-    sourceAnalysisData.value = await startIssueSourceAnalysis(params);
-    loading.startAnalysis = false;
+    sourceAnalysisData.value = await startIssueSourceAnalysis(params).finally(() => {
+      loading.startAnalysis = false;
+    });
+  };
+
+  const handleReanalyzeSourceAnalysis = async (params: AIAnalysisBaseParams) => {
+    if (loading.startAnalysis) return;
+    loading.startAnalysis = true;
+    sourceAnalysisData.value = await reanalyzeIssueSourceAnalysis(params).finally(() => {
+      loading.startAnalysis = false;
+    });
   };
 
   return {
@@ -99,5 +113,7 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
     getSourceAnalysisData,
     handleToSetting,
     handleStartAnalysis,
+    handleReanalyzeSourceAnalysis,
+    clearSetTimeout,
   };
 });

@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, watch } from 'vue';
 
-import { Exception, Loading } from 'bkui-vue';
+import { Button, Exception, Loading } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
@@ -34,22 +34,26 @@ import BasicCard from '../basic-card/basic-card';
 
 import type { IssueDetail } from '../../../typing';
 
-import './issues-ai-analysis-view.scss';
+import './issues-ai-analysis-overview.scss';
 export default defineComponent({
-  name: 'IssuesAiAnalysisView',
+  name: 'IssuesAiAnalysisOverview',
   props: {
     detail: {
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
     },
   },
-  setup(props) {
+  emits: {
+    viewReport: () => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const {
       sourceAnalysisData,
       loading: analysisLoading,
       sourceAnalysisIsPending,
+      handleReanalyzeSourceAnalysis,
       getSourceAnalysisData,
       handleToSetting,
       handleStartAnalysis,
@@ -105,6 +109,18 @@ export default defineComponent({
         );
       }
 
+      if (!sourceAnalysisData.value.is_configured) {
+        return (
+          <Exception
+            class='tips-exception'
+            scene='part'
+            type='search-empty'
+          >
+            {sourceAnalysisData.value.unavailable_reason_display}
+          </Exception>
+        );
+      }
+
       /** 配置了仓库，但是没有分析 */
       if (!sourceAnalysisData.value.latest) {
         return (
@@ -127,7 +143,6 @@ export default defineComponent({
                 <span
                   class='btn'
                   onClick={() => {
-                    if (analysisLoading.startAnalysis) return;
                     handleStartAnalysis({
                       bk_biz_id: props.detail.bk_biz_id,
                       issue_id: props.detail.id,
@@ -165,31 +180,39 @@ export default defineComponent({
 
       return (
         <div class='analysis-content'>
-          <div class='analysis-item'>
-            <span class='item-label'>{t('责任提交')}:</span>
-            <span class='item-content'>
-              <span class='commit-id'>{result.responsibility.commit_id.slice(-7)}</span>
-              <span
-                class='commit-message'
-                v-overflow-tips
+          <div class='analysis-overview-info'>{result.result_card.description}</div>
+          <div class='operation-btns'>
+            <Button
+              theme='primary'
+              text
+              onClick={() => {
+                emit('viewReport');
+              }}
+            >
+              <i class='icon-monitor icon-back-right' />
+              {t('查看完整报告')}
+            </Button>
+            <div class='divider' />
+            <Loading
+              loading={analysisLoading.startAnalysis}
+              mode='spin'
+              size='mini'
+              theme='primary'
+            >
+              <Button
+                theme='primary'
+                text
+                onClick={() => {
+                  handleReanalyzeSourceAnalysis({
+                    bk_biz_id: props.detail.bk_biz_id,
+                    issue_id: props.detail.id,
+                  });
+                }}
               >
-                {result.responsibility.commit_message}
-              </span>
-              <span>·</span>
-              <span class='commit-author'>{result.responsibility.bk_username}</span>
-            </span>
-          </div>
-          <div class='analysis-item'>
-            <span class='item-label'>{t('修复建议')}:</span>
-            <span class='item-content'>
-              <span>{result.repair_suggestion.fix_strategy}</span>
-            </span>
-          </div>
-          <div class='analysis-item'>
-            <span class='item-label'>{t('排查链路')}:</span>
-            <span class='item-content'>
-              <span>前端事件上报连接超时，建议优先检查配置与 Pod 网络可达性</span>
-            </span>
+                <i class='icon-monitor icon-shuaxin' />
+                {t('重新分析')}
+              </Button>
+            </Loading>
           </div>
         </div>
       );
@@ -206,7 +229,7 @@ export default defineComponent({
   render() {
     return (
       <BasicCard
-        class='issues-detail-issues-ai-analysis-view'
+        class='issues-detail-issues-ai-analysis-overview'
         title={this.t('AI 分析快览')}
       >
         {this.loading && this.renderSkeleton()}

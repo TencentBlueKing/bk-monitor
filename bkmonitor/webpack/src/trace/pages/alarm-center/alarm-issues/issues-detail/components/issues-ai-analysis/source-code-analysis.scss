@@ -1,0 +1,99 @@
+.source-code-analysis {
+  .config-guide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 500px;
+
+    .guide-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+      background-color: #f0f4fa;
+      border-radius: 40px;
+
+      .icon-monitor {
+        font-size: 32px;
+      }
+    }
+
+    .guide-title {
+      margin-bottom: 12px;
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 28px;
+      color: #313238;
+    }
+
+    .guide-desc {
+      max-width: 312px;
+      margin-bottom: 24px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      text-align: center;
+    }
+
+    .guide-alert {
+      margin-bottom: 8px;
+
+      &.pending {
+        color: #3a84ff;
+      }
+    }
+
+    .guide-card {
+      padding: 8px 12px;
+      margin-bottom: 24px;
+      background: #ebfaf0;
+      border: 1px solid #65c389;
+      border-radius: 6px;
+
+      .card-header {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        height: 24px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #2caf5e;
+
+        .divider {
+          width: 1px;
+          height: 14px;
+          background-color: #2caf5e;
+        }
+      }
+
+      .relation-info {
+        padding-left: 16px;
+
+        .relation-item {
+          line-height: 20px;
+          color: #4d4f56;
+          list-style: inside;
+
+          .relation-label {
+            font-weight: 600;
+          }
+        }
+      }
+    }
+
+    .guide-btns {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+
+      .bk-button {
+        border-radius: 4px;
+      }
+    }
+  }
+}

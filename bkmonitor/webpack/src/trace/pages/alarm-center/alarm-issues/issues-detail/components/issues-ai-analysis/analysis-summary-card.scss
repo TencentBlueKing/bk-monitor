@@ -1,0 +1,57 @@
+.analysis-summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgb(240 245 255 / 60%);
+  border: 1px solid #cddffe;
+  border-radius: 6px;
+
+  .analysis-summary-card-left {
+    display: flex;
+    gap: 13px;
+    align-items: center;
+
+    .bk-progress {
+      .status-text {
+        font-size: 12px;
+        font-weight: 500;
+        color: #977210;
+
+        &.is-high-confidence {
+          color: #4d4f56;
+        }
+      }
+    }
+
+    .analysis-summary-info {
+      .analysis-summary-desc {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4e4f56;
+      }
+    }
+  }
+
+  .analysis-summary-card-right {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+
+    .analysis-users-tag {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      height: 30px;
+      padding: 0 10px;
+      background: #f7f9fd;
+      border: 1px solid #e2e8f3;
+      border-radius: 4px;
+
+      .person {
+        color: #8e9fbd;
+      }
+    }
+  }
+}
