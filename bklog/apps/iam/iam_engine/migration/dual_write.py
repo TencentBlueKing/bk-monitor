@@ -45,11 +45,17 @@ class DualWriteGrantOrchestrator:
         tenant_id: str,
         operator: str,
         dispatch_v4_grant: Callable[[dict[str, Any]], None],
+        grant_observer: Callable[[str, str, str], None],
     ) -> None:
+        """grant_observer 按 (target_version, resource_type, result) 接收每个目标的双写结果。
+
+        观测实现由调用方注入，本层不依赖具体的指标或日志设施。
+        """
         self.writers = tuple(writers)
         self.tenant_id = tenant_id
         self.operator = operator
         self.dispatch_v4_grant = dispatch_v4_grant
+        self.grant_observer = grant_observer
 
     def grant_creator_action(self, application: Mapping[str, Any], *, raise_exception: bool = False) -> Any:
         """同步完成 V3 与 V4 授权并返回 V3 结果，V4 同步失败时回落到提交后的重试任务。"""
@@ -70,6 +76,7 @@ class DualWriteGrantOrchestrator:
                     type(error).__name__,
                     error,
                 )
+                self._observe(target_version, application, "failed")
                 if raise_exception:
                     raise
                 continue
@@ -82,6 +89,7 @@ class DualWriteGrantOrchestrator:
                 _describe(application, self.tenant_id),
                 result,
             )
+            self._observe(target_version, application, "succeeded")
 
         return grant_result
 
@@ -102,6 +110,7 @@ class DualWriteGrantOrchestrator:
                 type(error).__name__,
                 error,
             )
+            self._observe(AuthMode.V4.value, application, "prepare_failed")
             if raise_exception:
                 raise
             return
@@ -132,8 +141,10 @@ class DualWriteGrantOrchestrator:
             return
 
         logger.info("[IAM DualWrite] v4 sync grant succeeded %s", _describe(application, self.tenant_id))
+        self._observe(AuthMode.V4.value, application, "succeeded")
 
     def _dispatch_after_commit(self, task_kwargs: dict[str, Any]) -> None:
+        resource_type = task_kwargs["resource_meta"]["resource_type"]
         try:
             self.dispatch_v4_grant(task_kwargs)
         except Exception as error:  # pylint: disable=broad-except
@@ -146,6 +157,14 @@ class DualWriteGrantOrchestrator:
                 type(error).__name__,
                 error,
             )
+            self.grant_observer(AuthMode.V4.value, resource_type, "dispatch_failed")
+            return
+
+        # 同步失败的次数由回落投递结果反推：投递成功计 fallback_dispatched，失败计 dispatch_failed。
+        self.grant_observer(AuthMode.V4.value, resource_type, "fallback_dispatched")
+
+    def _observe(self, target_version: str, application: Mapping[str, Any], result: str) -> None:
+        self.grant_observer(target_version, _resource_meta(application)["resource_type"], result)
 
 
 def _resource_meta(application: Mapping[str, Any]) -> dict[str, str]:

@@ -24,6 +24,7 @@ from typing import Any
 from django.conf import settings
 from iam import Resource
 
+from apps.iam import metrics
 from apps.iam.backends.v3 import V3AuthorizationWriter, V3PermissionProvider
 from apps.iam.backends.v3.client import build_v3_client
 from apps.iam.backends.v3.meta import get_system_info as get_v3_system_info
@@ -42,6 +43,7 @@ from apps.iam.iam_engine.core.requests import (
     BatchAuthRequest as EngineBatchAuthRequest,
     ResourceInstance as EngineResourceInstance,
     Subject as EngineSubject,
+    to_definition_id,
 )
 from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, AuthorizedResourceScope, BatchAuthDecision
 from apps.iam.iam_engine.migration.policy import ApplicationResolution, MigrationPolicy
@@ -331,7 +333,7 @@ class Permission:
 
         request = self.make_engine_request(action, resources)
         decision = self.mode_router.is_allowed(request)
-        self._record_decision(action.id, decision)
+        self._record_decision(action.id, decision, self._resource_type_label(request.resources))
         result = decision.allowed
 
         if not result and raise_exception:
@@ -361,7 +363,7 @@ class Permission:
         actions = [get_action_by_id(action) for action in actions]
         request = self.make_engine_batch_request(actions, resources)
         decision = self.mode_router.batch_is_allowed(request)
-        self._record_batch_decision(decision)
+        self._record_batch_decision(decision, request)
         result = decision.as_allowed_dict()
 
         # ===== 针对demo业务的权限豁免 开始 ===== #
@@ -378,7 +380,68 @@ class Permission:
         return result
 
     @staticmethod
-    def _record_decision(action_id: str, decision: AuthDecision) -> None:
+    def _resource_type_label(resources: tuple[EngineResourceInstance, ...]) -> str:
+        """无关联资源的 Action 用 none 占位，保证 label 取值集合固定。"""
+        if not resources:
+            return "none"
+        return to_definition_id(resources[0].type)
+
+    @classmethod
+    def _observe_decision(cls, decision: AuthDecision, *, action_id: str, resource_type: str, api: str) -> None:
+        """把一次决策拆成决策级、Provider 级和 union 分歧三类指标。
+
+        mode、degraded 和 hit_provider_names 都由 ModeRouter 与 UnionDecisionPolicy 算定，这里只做 label
+        归一，不重新推导，避免观测口径与真实决策口径出现两套实现。
+        """
+        metrics.IAM_AUTH_DECISION_COUNT.labels(
+            mode=decision.mode,
+            action_id=action_id,
+            resource_type=resource_type,
+            api=api,
+            allowed=str(decision.allowed).lower(),
+            hit_provider="+".join(sorted(decision.hit_provider_names)) or "none",
+            degraded=str(decision.degraded).lower(),
+        ).inc()
+        for result in decision.provider_results:
+            metrics.IAM_PROVIDER_RESULT_COUNT.labels(
+                mode=decision.mode,
+                provider=result.provider_name,
+                action_id=action_id,
+                api=api,
+                status=result.status.value,
+                error_type=result.error_type,
+            ).inc()
+        for pattern in cls._union_divergence_patterns(decision):
+            metrics.IAM_UNION_DIVERGENCE_COUNT.labels(action_id=action_id, api=api, pattern=pattern).inc()
+
+    @staticmethod
+    def _union_divergence_patterns(decision: AuthDecision) -> tuple[str, ...]:
+        """只统计双栈同时参与时的分歧，单栈模式没有可比对的另一侧。"""
+        if decision.mode != AuthMode.UNION.value or len(decision.provider_results) < 2:
+            return ()
+
+        error_results = tuple(result for result in decision.provider_results if result.status is AuthStatus.ERROR)
+        if len(error_results) == len(decision.provider_results):
+            return ("both_error",)
+
+        patterns = [f"{result.provider_name}_error" for result in error_results]
+        # 只有一侧明确允许、另一侧明确拒绝才是策略层面的不一致；报错那一侧已由上面的 pattern 说明，
+        # 再计一次 only_allow 会把依赖故障和策略差异混成同一个口径。
+        allowed_results = tuple(result for result in decision.provider_results if result.status is AuthStatus.ALLOW)
+        denied_results = tuple(result for result in decision.provider_results if result.status is AuthStatus.DENY)
+        if len(allowed_results) == 1 and denied_results:
+            patterns.append(f"{allowed_results[0].provider_name}_only_allow")
+        return tuple(patterns)
+
+    @classmethod
+    def _record_decision(cls, action_id: str, decision: AuthDecision, resource_type: str) -> None:
+        cls._observe_decision(
+            decision,
+            action_id=action_id,
+            resource_type=resource_type,
+            api=metrics.AUTH_API_IS_ALLOWED,
+        )
+
         error_results = tuple(result for result in decision.provider_results if result.status is AuthStatus.ERROR)
         if not error_results:
             return
@@ -392,8 +455,20 @@ class Permission:
             tuple((result.provider_name, result.error_type, result.reason) for result in error_results),
         )
 
-    @staticmethod
-    def _record_batch_decision(decision: BatchAuthDecision) -> None:
+    @classmethod
+    def _record_batch_decision(cls, decision: BatchAuthDecision, request: EngineBatchAuthRequest) -> None:
+        resource_types = {
+            str(resource_group[0].id): to_definition_id(resource_group[0].type)
+            for resource_group in request.resource_groups
+        }
+        for item in decision.items:
+            cls._observe_decision(
+                item.decision,
+                action_id=item.action_id,
+                resource_type=resource_types.get(item.resource_id, "none"),
+                api=metrics.AUTH_API_BATCH_IS_ALLOWED,
+            )
+
         error_results = tuple(
             result
             for item in decision.items
@@ -571,12 +646,29 @@ class Permission:
             lambda: _query(*scope_providers[1]),
         )
         failed = [scope for scope in scopes if not scope.ok]
+        if failed:
+            self._observe_scope_divergence(action.id, failed, total=len(scopes))
         if failed and len(failed) < len(scopes):
             logger.warning(
                 "[IAM Decision] union space scope degraded: %s",
                 "; ".join(f"{scope.provider_name or 'unknown'}_error={scope.reason}" for scope in failed),
             )
         return UnionScopePolicy.merge(scopes)
+
+    @staticmethod
+    def _observe_scope_divergence(action_id: str, failed: list[AuthorizedResourceScope], *, total: int) -> None:
+        """授权范围查询的单侧降级与双侧失败，pattern 口径与鉴权决策保持一致。"""
+        patterns = (
+            ("both_error",)
+            if len(failed) == total
+            else tuple(f"{scope.provider_name or 'unknown'}_error" for scope in failed)
+        )
+        for pattern in patterns:
+            metrics.IAM_UNION_DIVERGENCE_COUNT.labels(
+                action_id=action_id,
+                api=metrics.AUTH_API_SPACE_SCOPE,
+                pattern=pattern,
+            ).inc()
 
     @staticmethod
     def _merge_authorized_scope_with_local(scope: AuthorizedResourceScope, local_ids: set[str]) -> set[str]:
@@ -629,5 +721,18 @@ class Permission:
             tenant_id=self.bk_tenant_id,
             operator=self.username,
             dispatch_v4_grant=dispatch_v4_creator_grant,
+            grant_observer=self._observe_grant,
         )
         return orchestrator.grant_creator_action(application, raise_exception=raise_exception)
+
+    @staticmethod
+    def _observe_grant(target_version: str, resource_type: str, result: str) -> None:
+        """双写编排层的观测出口。
+
+        指标注册在 bklog 侧，由这里注入而不是让 iam_engine 直接依赖 apps.iam.metrics。
+        """
+        metrics.IAM_GRANT_SYNC_COUNT.labels(
+            target_version=target_version,
+            resource_type=resource_type,
+            result=result,
+        ).inc()

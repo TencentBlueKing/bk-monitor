@@ -32,11 +32,13 @@ class DualWriteGrantOrchestratorTest(TestCase):
         self.v4_writer = Mock()
         self.v4_writer.prepare_resource_creator_actions.return_value = self.v4_prepared
         self.dispatch = Mock()
+        self.grant_observer = Mock()
         self.orchestrator = DualWriteGrantOrchestrator(
             writers=(("v3", self.v3_writer), ("v4", self.v4_writer)),
             tenant_id="tenant-1",
             operator="operator",
             dispatch_v4_grant=self.dispatch,
+            grant_observer=self.grant_observer,
         )
 
     @property
@@ -160,6 +162,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
             tenant_id="tenant-1",
             operator="operator",
             dispatch_v4_grant=self.dispatch,
+            grant_observer=self.grant_observer,
         )
 
         with self.captureOnCommitCallbacks(execute=True):

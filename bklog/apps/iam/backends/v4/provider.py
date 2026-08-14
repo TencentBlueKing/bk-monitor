@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from django.conf import settings
 
+from apps.iam import metrics
 from apps.iam.backends.v4.apply import build_apply_data
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
@@ -20,7 +22,13 @@ from apps.iam.iam_engine.core.requests import (
     ResourceTypeDefinition,
     to_definition_id,
 )
-from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem, AuthorizedResourceScope
+from apps.iam.iam_engine.core.types import (
+    AuthResult,
+    AuthStatus,
+    AuthorizedResourceScope,
+    BatchAuthResult,
+    BatchAuthResultItem,
+)
 from apps.iam.iam_engine.provider.base import PermissionProvider
 
 
@@ -64,6 +72,7 @@ class V4PermissionProvider(PermissionProvider):
     def is_allowed(self, request: AuthRequest) -> AuthResult:
         subject = self._build_subject(request)
         action_id = self.codec.encode_action(to_definition_id(request.action_id))
+        start_at = time.time()
         try:
             if request.resources:
                 resource = self.codec.encode_resource_for_auth(request.resources[0])
@@ -71,12 +80,14 @@ class V4PermissionProvider(PermissionProvider):
             else:
                 allowed = self.client.direct_auth(subject=subject, action_id=action_id)
         except V4ClientError as error:
+            metrics.observe_provider_latency(self.name, metrics.AUTH_API_IS_ALLOWED, start_at, ok=False)
             return AuthResult.error(
                 provider_name=self.name,
                 reason=error.reason,
                 error_type=error.error_type,
             )
 
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_IS_ALLOWED, start_at, ok=True)
         if allowed:
             return AuthResult.allow(provider_name=self.name)
         return AuthResult.deny(provider_name=self.name)
@@ -87,6 +98,7 @@ class V4PermissionProvider(PermissionProvider):
         action_refs = list(request.action_ids)
         # 多 Action 已在外层并发，内层分片改为串行，避免线程池成倍嵌套。
         chunk_max_workers = self.batch_max_workers if len(action_refs) == 1 else 1
+        start_at = time.time()
         per_action_items = map_chunks_concurrently(
             action_refs,
             lambda action_ref: self._batch_auth_one_action(
@@ -99,6 +111,13 @@ class V4PermissionProvider(PermissionProvider):
             max_workers=self.batch_max_workers,
         )
         items = [item for action_items in per_action_items for item in action_items]
+        # 多 Action 与分片都在本方法内并发展开，这里记录的是一次批量鉴权的整体开销。
+        metrics.observe_provider_latency(
+            self.name,
+            metrics.AUTH_API_BATCH_IS_ALLOWED,
+            start_at,
+            ok=all(item.result.status is not AuthStatus.ERROR for item in items),
+        )
         return BatchAuthResult(items=tuple(items))
 
     def _batch_auth_one_action(
@@ -219,6 +238,7 @@ class V4PermissionProvider(PermissionProvider):
                 reason="IAM V4 authorized-resources requires a non-empty subject id",
                 error_type="InvalidSubject",
             )
+        start_at = time.time()
         try:
             payload = self.client.list_authorized_resource(
                 subject=request_subject,
@@ -226,6 +246,7 @@ class V4PermissionProvider(PermissionProvider):
                 resource_type=encoded_resource_type,
             )
         except V4ClientError as error:
+            metrics.observe_provider_latency(self.name, metrics.AUTH_API_SPACE_SCOPE, start_at, ok=False)
             return AuthorizedResourceScope.error(
                 encoded_resource_type,
                 provider_name=self.name,
@@ -233,6 +254,7 @@ class V4PermissionProvider(PermissionProvider):
                 error_type=error.error_type,
             )
 
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_SPACE_SCOPE, start_at, ok=True)
         ids = payload.get("ids") or []
         if ids == [WILDCARD_RESOURCE_ID]:
             return AuthorizedResourceScope.wildcard(encoded_resource_type, provider_name=self.name)

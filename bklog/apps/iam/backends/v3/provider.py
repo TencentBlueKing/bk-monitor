@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from typing import Any
 
 from iam import Resource
 from iam.exceptions import AuthAPIError
 
+from apps.iam import metrics
 from apps.iam.backends.v3.apply import V3ApplicationBuilder
 from apps.iam.backends.v3.codec import V3RequestCodec
 from apps.iam.backends.v3.scope import V3AuthorizedScopeQuery
@@ -36,28 +38,34 @@ class V3PermissionProvider(PermissionProvider):
         self.scope_query = V3AuthorizedScopeQuery(client, system_id, codec=self.codec)
 
     def is_allowed(self, request: AuthRequest) -> AuthResult:
+        start_at = time.time()
         try:
             allowed = self.client.is_allowed(self.codec.encode_auth_request(request))
         except AuthAPIError as error:
+            metrics.observe_provider_latency(self.name, metrics.AUTH_API_IS_ALLOWED, start_at, ok=False)
             return AuthResult.error(
                 provider_name=self.name,
                 reason=str(error) or "IAM V3 request failed",
                 error_type=type(error).__name__,
             )
 
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_IS_ALLOWED, start_at, ok=True)
         if allowed:
             return AuthResult.allow(provider_name=self.name)
         return AuthResult.deny(provider_name=self.name)
 
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthResult:
+        start_at = time.time()
         try:
             raw_result = self.client.batch_resource_multi_actions_allowed(
                 self.codec.encode_batch_request(request),
                 self.codec.encode_resource_groups(request),
             )
         except AuthAPIError as error:
+            metrics.observe_provider_latency(self.name, metrics.AUTH_API_BATCH_IS_ALLOWED, start_at, ok=False)
             return self._batch_error_result(request, error)
 
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_BATCH_IS_ALLOWED, start_at, ok=True)
         normalized_result = {
             str(resource_id): {str(action_id): allowed for action_id, allowed in action_results.items()}
             for resource_id, action_results in raw_result.items()
@@ -86,12 +94,16 @@ class V3PermissionProvider(PermissionProvider):
         subject: dict[str, str] | None = None,
         candidate_ids: frozenset[str] | None = None,
     ) -> AuthorizedResourceScope:
-        return self.scope_query.list_authorized_resources(
+        start_at = time.time()
+        # V3 没有列出已授权资源的接口，耗时包含 policy_query 之后的本地表达式求值，这正是该路径的真实开销。
+        scope = self.scope_query.list_authorized_resources(
             action_id=action_id,
             resource_type=resource_type,
             subject=subject,
             candidate_ids=candidate_ids,
         )
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_SPACE_SCOPE, start_at, ok=scope.ok)
+        return scope
 
     def get_apply_data(
         self,
