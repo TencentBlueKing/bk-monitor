@@ -25,13 +25,9 @@ from constants.issue import (
     SourceAnalysisStatus,
     SourceAnalysisTriggerType,
 )
-from core.errors.issue import SourceAnalysisOperationConflictError, SourceAnalysisUpstreamUnavailableError
+from core.errors.issue import SourceAnalysisOperationConflictError
 from fta_web.issue.resources import (
     AIAnalysisOverviewResource,
-    ListSourceAnalysisAgentsResource,
-    ListSourceAnalysisBkciProjectsResource,
-    ListSourceAnalysisKnowledgeBasesResource,
-    ListSourceAnalysisSkillsResource,
     ReanalyzeSourceAnalysisResource,
     RetrySourceAnalysisResource,
     SourceAnalysisExecutionBaseResource,
@@ -106,11 +102,11 @@ class TestSourceAnalysisFrontendResources(TestCase):
         rule = self.create_rule()
         expected_context = {
             "source": "matched_rule_preview",
-            "project": {"id": "project-a", "name": "Project A"},
-            "repository": {"id": "repo-a", "name": "repo-a"},
-            "agent": {"id": "agent-a", "name": "Agent A"},
-            "knowledge_bases": [],
-            "skills": [],
+            "bkci_project_id": "project-a",
+            "repository_alias": "repo-a",
+            "agent_id": "agent-a",
+            "knowledge_base_ids": [],
+            "skill_ids": [],
         }
 
         with (
@@ -125,34 +121,9 @@ class TestSourceAnalysisFrontendResources(TestCase):
             result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
         self.assertEqual(result["analysis_context"], expected_context)
-        build_context.assert_called_once_with(self.BK_BIZ_ID, rule)
+        build_context.assert_called_once_with(rule)
 
-    @patch.object(ListSourceAnalysisKnowledgeBasesResource, "perform_request", return_value={"total": 0, "list": []})
-    @patch.object(
-        ListSourceAnalysisSkillsResource,
-        "perform_request",
-        side_effect=[
-            {"total": 2, "list": [{"id": "other-skill", "name": "Other Skill"}]},
-            {"total": 2, "list": [{"id": "skill-a", "name": "Skill A"}]},
-        ],
-    )
-    @patch.object(
-        ListSourceAnalysisAgentsResource,
-        "perform_request",
-        return_value={"total": 1, "list": [{"id": "agent-a", "name": "Agent A"}]},
-    )
-    @patch.object(
-        ListSourceAnalysisBkciProjectsResource,
-        "perform_request",
-        return_value=[{"id": "project-a", "name": "Project A"}],
-    )
-    def test_build_analysis_context_resolves_visible_resource_names(
-        self,
-        _list_projects,
-        _list_agents,
-        list_skills,
-        _list_knowledge_bases,
-    ):
+    def test_build_analysis_context_only_returns_rule_ids(self):
         rule = SimpleNamespace(
             bkci_project_id="project-a",
             repository_alias="repo-a",
@@ -161,48 +132,19 @@ class TestSourceAnalysisFrontendResources(TestCase):
             knowledge_base_ids=["knowledge-a"],
         )
 
-        result = SourceAnalysisExecutionBaseResource.build_analysis_context(self.BK_BIZ_ID, rule)
+        result = SourceAnalysisExecutionBaseResource.build_analysis_context(rule)
 
         self.assertEqual(
             result,
             {
                 "source": "matched_rule_preview",
-                "project": {"id": "project-a", "name": "Project A"},
-                "repository": {"id": "repo-a", "name": "repo-a"},
-                "agent": {"id": "agent-a", "name": "Agent A"},
-                "knowledge_bases": [{"id": "knowledge-a", "name": "knowledge-a"}],
-                "skills": [{"id": "skill-a", "name": "Skill A"}],
+                "bkci_project_id": "project-a",
+                "repository_alias": "repo-a",
+                "agent_id": "agent-a",
+                "knowledge_base_ids": ["knowledge-a"],
+                "skill_ids": ["skill-a"],
             },
         )
-        self.assertEqual(list_skills.call_count, 2)
-
-    @patch.object(
-        ListSourceAnalysisAgentsResource,
-        "perform_request",
-        side_effect=SourceAnalysisUpstreamUnavailableError(),
-    )
-    @patch.object(
-        ListSourceAnalysisBkciProjectsResource,
-        "perform_request",
-        side_effect=SourceAnalysisUpstreamUnavailableError(),
-    )
-    def test_build_analysis_context_falls_back_to_ids_when_name_lookup_fails(
-        self,
-        _list_projects,
-        _list_agents,
-    ):
-        rule = SimpleNamespace(
-            bkci_project_id="project-a",
-            repository_alias="repo-a",
-            agent_id="agent-a",
-            skill_ids=[],
-            knowledge_base_ids=[],
-        )
-
-        result = SourceAnalysisExecutionBaseResource.build_analysis_context(self.BK_BIZ_ID, rule)
-
-        self.assertEqual(result["project"], {"id": "project-a", "name": "project-a"})
-        self.assertEqual(result["agent"], {"id": "agent-a", "name": "agent-a"})
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)

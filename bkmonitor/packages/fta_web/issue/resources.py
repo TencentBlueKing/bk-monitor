@@ -336,7 +336,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
         "updated_at",
         "failure",
     )
-    ANALYSIS_CONTEXT_PAGE_SIZE = 100
 
     @staticmethod
     def db_alias() -> str:
@@ -516,95 +515,16 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return {**source_analysis_view, "latest": overview_latest}
 
     @staticmethod
-    def _build_analysis_context_option(resource_id: str, names: dict[str, str]) -> dict:
-        resource_id = str(resource_id)
-        return {"id": resource_id, "name": names.get(resource_id) or resource_id}
-
-    @classmethod
-    def _resolve_project_name(cls, bk_biz_id: int, project_id: str) -> str:
-        """按当前用户可见的蓝盾项目补充名称，失败时退化为稳定的项目 ID。"""
-
-        try:
-            projects = ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": bk_biz_id})
-            names = {str(project["id"]): str(project["name"]) for project in projects}
-            return names.get(str(project_id)) or str(project_id)
-        except (SourceAnalysisUpstreamUnavailableError, KeyError, TypeError, ValueError) as error:
-            # 名称只用于分析前展示，不能因为上游展示信息暂不可用而阻断分析入口。
-            logger.warning("Failed to resolve source analysis project name: %s", type(error).__name__)
-            return str(project_id)
-
-    @classmethod
-    def _resolve_paged_option_names(
-        cls, list_resource_class, bk_biz_id: int, resource_ids: list[str]
-    ) -> dict[str, str]:
-        """分页解析当前用户可见的 AI 资源名称，未找到或上游失败时由调用方回退到 ID。"""
-
-        target_ids = set(map(str, resource_ids))
-        if not target_ids:
-            return {}
-
-        names: dict[str, str] = {}
-        page = 1
-        seen = 0
-        try:
-            while page <= SourceAnalysisBaseResource.AIDEV_MAX_PAGES:
-                response = list_resource_class().perform_request(
-                    {
-                        "bk_biz_id": bk_biz_id,
-                        "keyword": "",
-                        "page": page,
-                        "page_size": cls.ANALYSIS_CONTEXT_PAGE_SIZE,
-                    }
-                )
-                options = response.get("list")
-                total = int(response.get("total"))
-                if not isinstance(options, list) or any(not isinstance(option, dict) for option in options):
-                    raise ValueError("invalid source analysis option response")
-
-                for option in options:
-                    option_id = str(option["id"])
-                    if option_id in target_ids and option.get("name"):
-                        names[option_id] = str(option["name"])
-
-                seen += len(options)
-                if target_ids.issubset(names) or not options or seen >= total:
-                    return names
-                page += 1
-        except (SourceAnalysisUpstreamUnavailableError, KeyError, TypeError, ValueError) as error:
-            # 分析可用性由规则和执行快照决定；名称解析只做非阻塞展示增强。
-            logger.warning("Failed to resolve source analysis option names: %s", type(error).__name__)
-        return names
-
-    @classmethod
-    def build_analysis_context(cls, bk_biz_id: int, rule: IssueSourceAnalysisRule) -> dict:
-        """构造首次分析前的关联参数预览，不把实时名称写入规则或执行快照。"""
-
-        project_id = str(rule.bkci_project_id)
-        repository_alias = str(rule.repository_alias)
-        agent_id = str(rule.agent_id)
-        skill_ids = list(map(str, rule.skill_ids))
-        knowledge_base_ids = list(map(str, rule.knowledge_base_ids))
-
-        project_name = cls._resolve_project_name(bk_biz_id, project_id)
-        agent_names = cls._resolve_paged_option_names(ListSourceAnalysisAgentsResource, bk_biz_id, [agent_id])
-        skill_names = cls._resolve_paged_option_names(ListSourceAnalysisSkillsResource, bk_biz_id, skill_ids)
-        knowledge_base_names = cls._resolve_paged_option_names(
-            ListSourceAnalysisKnowledgeBasesResource,
-            bk_biz_id,
-            knowledge_base_ids,
-        )
+    def build_analysis_context(rule: IssueSourceAnalysisRule) -> dict:
+        """构造首次分析前的关联参数 ID 预览，不请求上游解析名称。"""
 
         return {
             "source": "matched_rule_preview",
-            "project": {"id": project_id, "name": project_name},
-            # 蓝盾代码库别名不可修改，既是执行参数，也是当前产品中的展示名称。
-            "repository": {"id": repository_alias, "name": repository_alias},
-            "agent": cls._build_analysis_context_option(agent_id, agent_names),
-            "knowledge_bases": [
-                cls._build_analysis_context_option(resource_id, knowledge_base_names)
-                for resource_id in knowledge_base_ids
-            ],
-            "skills": [cls._build_analysis_context_option(resource_id, skill_names) for resource_id in skill_ids],
+            "bkci_project_id": str(rule.bkci_project_id),
+            "repository_alias": str(rule.repository_alias),
+            "agent_id": str(rule.agent_id),
+            "knowledge_base_ids": list(map(str, rule.knowledge_base_ids)),
+            "skill_ids": list(map(str, rule.skill_ids)),
         }
 
     @classmethod
@@ -631,7 +551,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "latest": cls.serialize_execution(latest),
             }
             if include_analysis_context:
-                # 参数卡片只用于首次分析前展示；执行后轮询不能反复请求蓝盾和 AIDEV 解析名称。
+                # 参数卡片只用于首次分析前展示；执行后不再返回规则参数。
                 result["analysis_context"] = None
             return result
 
@@ -647,7 +567,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             "latest": None,
         }
         if include_analysis_context:
-            result["analysis_context"] = cls.build_analysis_context(bk_biz_id, rule) if rule is not None else None
+            result["analysis_context"] = cls.build_analysis_context(rule) if rule is not None else None
         return result
 
     @classmethod
