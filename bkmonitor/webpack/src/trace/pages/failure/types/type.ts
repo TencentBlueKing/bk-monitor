@@ -450,8 +450,10 @@ export interface IEventsAnalysis {
   $index?: number;
   _sub_count?: number; // 子事件条数
   _sub_unit?: string; // 子事件标题单位
+  allContents?: any; // 全部事件内容列表
   contents?: any; // 事件内容的表格映射value
   fields?: Record<string, string>; // 事件内容的表格映射label
+  isGeneral: boolean; // 是否是通用事件
   title?: string; // 事件主标题
   top?: number; // 展示事件条数
   total?: number; // 事件总条数
