@@ -149,7 +149,7 @@ class TestFilterDorisCluster(TestCase):
                 cluster_query_type=ClusterTypeEnum.DORIS.value,
             )
 
-    def test_public_cluster_without_visible_config_is_hidden_from_other_biz(self):
+    def test_legacy_public_cluster_without_visible_config_remains_visible(self):
         cluster_obj = _doris_cluster_obj(
             registered_system=REGISTERED_SYSTEM_DEFAULT,
             custom_option={},
@@ -157,10 +157,12 @@ class TestFilterDorisCluster(TestCase):
 
         result = self._get_cluster_groups(cluster_obj)
 
-        self.assertEqual(result, [])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["storage_cluster_id"], 10)
+        self.assertTrue(result[0]["is_platform"])
         self.assertEqual(
             cluster_obj["cluster_config"]["custom_option"]["visible_config"],
-            {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+            {"visible_type": VisibleEnum.ALL_BIZ.value},
         )
 
     def test_public_cluster_with_explicit_all_biz_is_visible_to_other_biz(self):
@@ -189,6 +191,17 @@ class TestFilterDorisCluster(TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["bk_biz_id"], TARGET_BIZ)
         self.assertFalse(result[0]["is_platform"])
+
+    def test_private_cluster_is_hidden_from_other_biz(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system="bkdata",
+            custom_option={
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+            },
+        )
+
+        self.assertEqual(self._get_cluster_groups(cluster_obj), [])
 
     def test_public_cluster_editable_only_for_blueking(self):
         cluster_obj = _doris_cluster_obj(
