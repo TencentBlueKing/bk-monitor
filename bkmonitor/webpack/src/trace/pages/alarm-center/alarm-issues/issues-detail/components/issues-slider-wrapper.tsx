@@ -45,7 +45,8 @@ import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-i
 import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
-import IssuesAiAnalysisView from './issues-ai-analysis-view/issues-ai-analysis-view';
+import IssuesAiAnalysis from './issues-ai-analysis/issues-ai-analysis';
+import IssuesAiAnalysisOverview from './issues-ai-analysis/issues-ai-analysis-overview';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
@@ -73,6 +74,7 @@ const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
   { label: window.i18n.t('最近的告警'), name: IssueDetailTabEnum.LATEST },
   { label: window.i18n.t('最早的告警'), name: IssueDetailTabEnum.EARLIEST },
   { label: window.i18n.t('告警列表'), name: IssueDetailTabEnum.LIST },
+  { label: window.i18n.t('AI 分析'), name: IssueDetailTabEnum.AI_ANALYSIS },
 ];
 
 export default defineComponent({
@@ -477,6 +479,8 @@ export default defineComponent({
               onShowAlertDetail={handleShowAlertDetail}
             />
           );
+        case IssueDetailTabEnum.AI_ANALYSIS:
+          return <IssuesAiAnalysis detail={props.detail} />;
         default:
           return null;
       }
@@ -553,7 +557,12 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
-          <IssuesAiAnalysisView detail={this.detail} />
+          <IssuesAiAnalysisOverview
+            detail={this.detail}
+            onViewReport={() => {
+              this.handleTabChange(IssueDetailTabEnum.AI_ANALYSIS);
+            }}
+          />
           <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />
           <IssuesActivity

@@ -1,4 +1,4 @@
-.issues-detail-issues-ai-analysis-view {
+.issues-detail-issues-ai-analysis-overview {
   .basic-card-content {
     margin-top: 12px;
   }
@@ -35,26 +35,21 @@
     gap: 8px;
     padding: 8px 0;
 
-    .analysis-item {
+    .operation-btns {
       display: flex;
-      line-height: 20px;
-      color: #4d4f56;
+      gap: 12px;
+      align-items: center;
+      height: 20px;
 
-      .item-label {
-        flex-shrink: 0;
+      .divider {
+        width: 1px;
+        height: 12px;
+        background-color: #c1cde5;
+      }
+
+      .icon-shuaxin {
         margin-right: 4px;
-        font-weight: 600;
-        line-height: 20px;
-        color: #313238;
-      }
-
-      .commit-id {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .commit-message {
-        margin: 0 4px;
+        font-size: 12px;
       }
     }
   }

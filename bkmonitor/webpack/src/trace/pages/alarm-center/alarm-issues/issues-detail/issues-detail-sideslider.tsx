@@ -33,6 +33,7 @@ import { appendQueryStringCondition } from 'trace/components/retrieval-filter/qu
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
+import { useIssuesAiAnalysis } from '../composables/use-issues-ai-analysis';
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
@@ -71,6 +72,7 @@ export default defineComponent({
   emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
     const issuesDetailStore = useIssuesDetailStore();
+    const { clearSetTimeout } = useIssuesAiAnalysis();
     const { bizId, issueId, detail, loading, timeRange, timezone, refreshInterval } = storeToRefs(issuesDetailStore);
     const isFullscreen = shallowRef(false);
     let timer = null;
@@ -100,6 +102,7 @@ export default defineComponent({
       // alarm-center 所有运行时关闭均经此函数（无外部直接置 alarmDetailShow=false 的运行时路径）
       if (!isShow) {
         issuesDetailStore.reset();
+        clearSetTimeout();
       }
       emit('update:show', isShow);
     };

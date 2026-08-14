@@ -42,6 +42,8 @@ export const IssueDetailTabEnum = {
   EARLIEST: 'earliest',
   /** 告警列表 */
   LIST: 'list',
+  /** AI 分析 */
+  AI_ANALYSIS: 'ai_analysis',
 } as const;
 
 /** Issues 优先级枚举 */

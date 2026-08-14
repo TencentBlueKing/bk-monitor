@@ -29,7 +29,6 @@ import {
   reanalyzeSourceAnalysis,
   retrySourceAnalysis,
   sourceAnalysis,
-  sourceAnalysisRaw,
   startSourceAnalysis,
 } from 'monitor-api/modules/issue';
 
@@ -37,7 +36,6 @@ import type { RequestOptions } from '../../services/base';
 import type {
   AIAnalysisBaseParams,
   AIAnalysisOverview,
-  SourceAnalysisRawParams,
   SourceAnalysisRetryParams,
   SourceAnalysisView,
 } from '../typing';
@@ -105,17 +103,4 @@ export const reanalyzeIssueSourceAnalysis = (
   options?: RequestOptions
 ): Promise<SourceAnalysisView> => {
   return reanalyzeSourceAnalysis(params, options);
-};
-
-/**
- * @description 查看原始 JSON，返回已校验的原始 Schema v1.0.0 JSON，不返回 COS URL
- * @param {SourceAnalysisRawParams} params - 查询请求参数（bk_biz_id / issue_id / analysis_id）
- * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<Record<string, unknown>>} 原始 Schema v1.0.0 JSON
- */
-export const getIssueSourceAnalysisRaw = (
-  params: SourceAnalysisRawParams,
-  options?: RequestOptions
-): Promise<Record<string, unknown>> => {
-  return sourceAnalysisRaw(params, options);
 };

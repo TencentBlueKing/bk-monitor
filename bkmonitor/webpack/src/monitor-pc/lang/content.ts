@@ -518,4 +518,7 @@ export default {
   'CPU 五分钟负载': 'CPU 5 minute load',
   '内网 IPv6': 'Inner IPv6',
   '磁盘 IO 使用率': 'Disk IO usage',
+  '由 {name} 分析 · {time}': 'Analyzed by {name} · {time}',
+  '由 {name} 于 {time} 发起, 完成后将通过企业微信通知本次发起人':
+    'Initiated by {name} on {time}, and will notify the initiator by WeChat Work after completion',
 };
