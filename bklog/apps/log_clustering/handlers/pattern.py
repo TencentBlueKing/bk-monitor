@@ -21,10 +21,10 @@ the project delivered to anyone in the future.
 
 import copy
 import re
+from itertools import chain
 
 import arrow
 from django.conf import settings
-from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
@@ -37,7 +37,6 @@ from apps.feature_toggle.plugins.constants import (
 )
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
-    CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST,
     DEFAULT_ACTION_NOTICE,
     DEFAULT_ALERT_NOTICE,
     DEFAULT_LABEL,
@@ -65,7 +64,10 @@ from apps.log_clustering.models import (
     ClusteringRemark,
     SignatureStrategySettings,
 )
-from apps.log_clustering.utils.pattern import parse_pattern_placeholders
+from apps.log_clustering.utils.pattern import (
+    is_remark_group_inherit_allowed,
+    parse_pattern_placeholders,
+)
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
@@ -155,13 +157,13 @@ class PatternHandler:
         signature_map_origin_log = array_hash(pattern_map, "signature", "origin_log")
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
-        # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
+        # 业务下所有有内容的备注，signature 和 origin_pattern 可能不相同，按两者分别建索引后逐行挑候选
         clustering_remarks = ClusteringRemark.objects.filter(
             bk_biz_id=self._clustering_config.bk_biz_id, source_app_code=get_external_app_code()
         ).values(
+            "id",
             "signature",
             "origin_pattern",
-            "group_hash",
             "remark",
             "owners",
             "groups",
@@ -169,19 +171,18 @@ class PatternHandler:
             "strategy_enabled",
         )
 
-        signature_map_remark = {}
-        signature_map_remark_without_group = {}
-        origin_pattern_map_remark = {}
-        origin_pattern_map_remark_without_group = {}
+        signature_map_remarks = {}
+        origin_pattern_map_remarks = {}
 
         for remark in clustering_remarks:
-            signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
-            if self._allow_remark_group_fallback and not remark["groups"]:
-                signature_map_remark_without_group[remark["signature"]] = remark
+            if not (remark["remark"] or remark["owners"]):
+                continue
+            signature_map_remarks.setdefault(remark["signature"], []).append(remark)
             if remark["origin_pattern"]:
-                origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
-                if self._allow_remark_group_fallback and not remark["groups"]:
-                    origin_pattern_map_remark_without_group[remark["origin_pattern"]] = remark
+                origin_pattern_map_remarks.setdefault(remark["origin_pattern"], []).append(remark)
+
+        group_fields = self._clustering_config.group_fields or []
+        allow_remark_group_inherit = self._allow_remark_group_inherit
 
         result = []
         for pattern in pattern_aggs:
@@ -199,31 +200,18 @@ class PatternHandler:
 
             group_dict = dict(zip(self._group_by, group))
 
-            group_hash = ClusteringRemark.convert_groups_to_groups_hash(group_dict)
-
-            # 黑名单业务严格匹配 group_hash；其余业务兼容空维度备注降级展示。
-            remark_obj = None
-            exact_signature_remark_obj = signature_map_remark.get((signature, group_hash))
-            exact_origin_pattern_remark_obj = (
-                origin_pattern_map_remark.get((signature_origin_pattern, group_hash))
-                if signature_origin_pattern
-                else None
+            # 备注分组维度是当前分组组合子集时即可继承展示，空维度备注是其中的特例；黑名单业务只认精确分组。
+            remark_obj = ClusteringRemark.select_inherited_remark(
+                chain(
+                    signature_map_remarks.get(signature, []),
+                    origin_pattern_map_remarks.get(signature_origin_pattern, []),
+                ),
+                signature=signature,
+                origin_pattern=signature_origin_pattern,
+                group_dict=group_dict,
+                group_fields=group_fields,
+                allow_inherit=allow_remark_group_inherit,
             )
-            fallback_signature_remark_obj = signature_map_remark_without_group.get(signature)
-            fallback_origin_pattern_remark_obj = (
-                origin_pattern_map_remark_without_group.get(signature_origin_pattern)
-                if signature_origin_pattern
-                else None
-            )
-            for candidate in [
-                exact_signature_remark_obj,
-                exact_origin_pattern_remark_obj,
-                fallback_signature_remark_obj,
-                fallback_origin_pattern_remark_obj,
-            ]:
-                if candidate and (candidate["remark"] or candidate["owners"]):
-                    remark_obj = candidate
-                    break
 
             if remark_obj:
                 remark = remark_obj["remark"]
@@ -303,16 +291,10 @@ class PatternHandler:
         return visible_key in new_class_visible_keys
 
     @cached_property
-    def _allow_remark_group_fallback(self) -> bool:
+    def _allow_remark_group_inherit(self) -> bool:
         feature_toggle = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE)
         feature_config = feature_toggle.feature_config if feature_toggle else {}
-        if not isinstance(feature_config, dict):
-            return True
-
-        biz_id_black_list = feature_config.get(CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST, [])
-        if not isinstance(biz_id_black_list, list | tuple | set):
-            return True
-        return str(self._clustering_config.bk_biz_id) not in {str(bk_biz_id) for bk_biz_id in biz_id_black_list}
+        return is_remark_group_inherit_allowed(feature_config, self._clustering_config.bk_biz_id)
 
     def _get_remark_and_owner(self, result):
         if self._remark_config == RemarkConfigEnum.REMARKED.value:
@@ -783,23 +765,22 @@ class PatternHandler:
             if record["signature"]
         ]
 
+    def _materialize_remark(self, params: dict):
+        """写入前物化继承内容，避免新建的精确记录在展示端把继承来的备注挤掉。"""
+        return ClusteringRemark.materialize_inherited_remark(
+            bk_biz_id=self._clustering_config.bk_biz_id,
+            signature=params["signature"],
+            origin_pattern=params.get("origin_pattern") or "",
+            groups=params["groups"],
+            group_fields=self._clustering_config.group_fields or [],
+            allow_inherit=self._allow_remark_group_inherit,
+        )
+
     def set_clustering_owner(self, params: dict):
         """
         日志聚类-数据指纹 页面展示信息修改
         """
-        condition = Q(signature=params["signature"])
-        if params.get("origin_pattern"):
-            condition |= Q(origin_pattern=params["origin_pattern"])
-
-        remark_obj = (
-            ClusteringRemark.objects.filter(condition)
-            .filter(
-                bk_biz_id=self._clustering_config.bk_biz_id,
-                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
-            )
-            .filter(source_app_code=get_external_app_code())
-            .first()
-        )
+        remark_obj = self._materialize_remark(params)
 
         owners = list(set(params.get("owners", [])))
 
@@ -863,19 +844,7 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
-        condition = Q(signature=params["signature"])
-        if params.get("origin_pattern"):
-            condition |= Q(origin_pattern=params["origin_pattern"])
-
-        remark_obj = (
-            ClusteringRemark.objects.filter(condition)
-            .filter(
-                bk_biz_id=self._clustering_config.bk_biz_id,
-                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
-            )
-            .filter(source_app_code=get_external_app_code())
-            .first()
-        )
+        remark_obj = self._materialize_remark(params)
         now = int(arrow.now().timestamp() * 1000)
         # 如果不存在则新建  同时同步其它signature或origin_pattern相同的ClusteringRemark
         if method == "create":

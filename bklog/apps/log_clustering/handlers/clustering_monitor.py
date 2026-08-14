@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
@@ -67,8 +66,8 @@ from apps.log_clustering.models import (
     SignatureStrategySettings,
 )
 from apps.log_clustering.utils.monitor import MonitorUtils
+from apps.log_clustering.utils.pattern import is_remark_group_inherit_allowed
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_external_app_code
 from apps.utils.time_handler import DAY
 
 
@@ -565,20 +564,21 @@ class ClusteringMonitorHandler:
 
     @atomic
     def save_pattern_strategy(self, table_id, params):
-        # 策略
-        condition = Q(signature=params["signature"])
-        if params.get("origin_pattern"):
-            condition |= Q(origin_pattern=params["origin_pattern"])
-
-        remark_obj = (
-            ClusteringRemark.objects.filter(condition)
-            .filter(
-                bk_biz_id=self.clustering_config.bk_biz_id,
-                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
-            )
-            .filter(source_app_code=get_external_app_code())
-            .first()
+        # 策略：责任人可能来自继承，先物化成当前分组组合的记录再挂策略
+        remark_obj = ClusteringRemark.materialize_inherited_remark(
+            bk_biz_id=self.clustering_config.bk_biz_id,
+            signature=params["signature"],
+            origin_pattern=params.get("origin_pattern") or "",
+            groups=params["groups"],
+            group_fields=self.clustering_config.group_fields or [],
+            allow_inherit=is_remark_group_inherit_allowed(self.conf, self.clustering_config.bk_biz_id),
         )
+
+        if not remark_obj:
+            # 该分组组合既没有备注记录也没有可继承内容：启用缺少责任人，停用则没有策略可停
+            if params["strategy_enabled"]:
+                raise ClusteringOwnersNotExistException()
+            return {"strategy_id": None}
 
         if remark_obj.strategy_id:
             conditions = [{"key": "strategy_id", "value": [remark_obj.strategy_id]}]

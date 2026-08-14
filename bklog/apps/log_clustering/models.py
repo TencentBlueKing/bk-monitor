@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import hashlib
 import json
 
@@ -102,6 +103,138 @@ class ClusteringRemark(SoftDeleteModel):
         """
         sorted_groups = sorted(groups.items(), key=lambda x: x[0])
         return hashlib.md5(json.dumps(sorted_groups).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _read_candidate_field(candidate, field):
+        """候选备注在展示侧是 values() 出来的字典，在写入侧是模型实例。"""
+        if isinstance(candidate, dict):
+            return candidate.get(field)
+        return getattr(candidate, field, None)
+
+    @classmethod
+    def is_groups_inheritable(cls, remark_groups: dict, group_dict: dict) -> bool:
+        """
+        备注分组键集合是当前分组组合的子集，且公共字段取值一致时，可被当前分组组合继承。
+
+        取值按原值严格比较：键集合等长时该判定与 group_hash 相等完全等价，展示端与写入端定位到的记录才不会分裂。
+        """
+        if not isinstance(remark_groups, dict):
+            return False
+        return all(field in group_dict and value == group_dict[field] for field, value in remark_groups.items())
+
+    @classmethod
+    def _inherit_rank(cls, candidate, remark_groups: dict, group_fields: list, matched_by_signature: bool) -> tuple:
+        """继承候选排序键，越小越优先：命中维度多者优先，其次 signature 命中，同长度再按 group_fields 顺序。"""
+        group_fields = group_fields or []
+        matched_field_orders = sorted(
+            group_fields.index(field) if field in group_fields else len(group_fields) for field in remark_groups
+        )
+        return (
+            -len(remark_groups),
+            0 if matched_by_signature else 1,
+            matched_field_orders,
+            cls._read_candidate_field(candidate, "id") or 0,
+        )
+
+    @classmethod
+    def select_inherited_remark(
+        cls,
+        candidates,
+        signature: str,
+        origin_pattern: str,
+        group_dict: dict,
+        group_fields: list,
+        allow_inherit: bool = True,
+    ):
+        """
+        按子集维度继承规则挑出当前分组组合应使用的备注，展示与写入物化共用该解析器。
+
+        allow_inherit 为 False 时退化为精确分组匹配。
+        """
+        selected = None
+        selected_rank = None
+        for candidate in candidates:
+            if not (cls._read_candidate_field(candidate, "remark") or cls._read_candidate_field(candidate, "owners")):
+                continue
+            matched_by_signature = cls._read_candidate_field(candidate, "signature") == signature
+            matched_by_origin_pattern = bool(origin_pattern) and (
+                cls._read_candidate_field(candidate, "origin_pattern") == origin_pattern
+            )
+            if not matched_by_signature and not matched_by_origin_pattern:
+                continue
+            remark_groups = cls._read_candidate_field(candidate, "groups") or {}
+            if not cls.is_groups_inheritable(remark_groups, group_dict):
+                continue
+            if not allow_inherit and len(remark_groups) != len(group_dict):
+                continue
+            rank = cls._inherit_rank(candidate, remark_groups, group_fields, matched_by_signature)
+            if selected_rank is None or rank < selected_rank:
+                selected, selected_rank = candidate, rank
+        return selected
+
+    @classmethod
+    def filter_matched_remarks(cls, bk_biz_id: int, signature: str, origin_pattern: str = ""):
+        """同一业务下 signature 或 origin_pattern 命中的全部备注。"""
+        condition = Q(signature=signature)
+        if origin_pattern:
+            condition |= Q(origin_pattern=origin_pattern)
+        return cls.objects.filter(condition).filter(bk_biz_id=bk_biz_id, source_app_code=get_external_app_code())
+
+    @classmethod
+    def get_exact_remark(cls, bk_biz_id: int, signature: str, origin_pattern: str, groups: dict):
+        """定位当前分组组合的精确备注记录。"""
+        return (
+            cls.filter_matched_remarks(bk_biz_id, signature, origin_pattern)
+            .filter(group_hash=cls.convert_groups_to_groups_hash(groups))
+            .first()
+        )
+
+    @classmethod
+    def materialize_inherited_remark(
+        cls,
+        bk_biz_id: int,
+        signature: str,
+        origin_pattern: str,
+        groups: dict,
+        group_fields: list,
+        allow_inherit: bool = True,
+    ):
+        """
+        写入前把继承来的内容复制成当前分组组合的独立记录。
+
+        写入一旦建出精确记录，展示端就会优先命中它，继承内容会从该行消失，因此写入前先物化。
+        strategy_id、strategy_enabled、notice_group_id 绑定具体分组组合的策略与告警组，复制后两条记录会指向
+        同一策略互相干扰，因此不参与复制。
+        """
+        exact_remark = cls.get_exact_remark(bk_biz_id, signature, origin_pattern, groups)
+        if exact_remark or not allow_inherit:
+            return exact_remark
+
+        inherited_remark = cls.select_inherited_remark(
+            cls.filter_matched_remarks(bk_biz_id, signature, origin_pattern),
+            signature=signature,
+            origin_pattern=origin_pattern,
+            group_dict=groups,
+            group_fields=group_fields,
+        )
+        if not inherited_remark:
+            return None
+
+        remark_obj, __ = cls.objects.get_or_create(
+            bk_biz_id=bk_biz_id,
+            signature=signature,
+            group_hash=cls.convert_groups_to_groups_hash(groups),
+            source_app_code=get_external_app_code(),
+            is_deleted=False,
+            defaults={
+                "origin_pattern": origin_pattern or inherited_remark.origin_pattern,
+                "groups": groups,
+                # 编辑与删除按 create_time + username + 原文匹配，复制时必须原样保留这些字段
+                "remark": copy.deepcopy(inherited_remark.remark) or [],
+                "owners": list(inherited_remark.owners or []),
+            },
+        )
+        return remark_obj
 
 
 class ClusteringConfig(SoftDeleteModel):
