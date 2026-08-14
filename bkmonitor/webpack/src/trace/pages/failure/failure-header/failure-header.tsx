@@ -26,7 +26,7 @@
 
 import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
-import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
+import { Dialog, Form, Input, Loading, Message, Popover, Progress } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -35,6 +35,7 @@ import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
 import { useIncidentInject } from '../utils';
 import FailureEditDialog from './failure-edit-dialog';
+import FailureHeaderCollapseLabels from './failure-header-collapse-labels';
 
 import type { IIncident } from '../types';
 import type { IAggregationRoot } from '../types';
@@ -380,26 +381,27 @@ export default defineComponent({
             {level_alias}
           </span>
           <div class='header-info'>
-            <span class='info-id'>{id}</span>
+            <div class='info-id'>{id}</div>
             <div class='info-name'>
-              <label
-                class='info-name-title mr8'
+              <div
+                class='info-name-title'
                 title={incident_name}
               >
                 {incident_name}
-              </label>
-              {(labels || []).map((item: any) => (
-                <Tag key={item}>{item.replace(/\//g, '')}</Tag>
-              ))}
-              <span
-                class='info-edit'
-                onClick={() => {
-                  this.isShow = true;
-                }}
-              >
-                <i class='icon-monitor icon-bianji info-edit-icon' />
-                {this.t('编辑')}
-              </span>
+              </div>
+              {/* 标签与编辑贴在一起，剩余空白留在编辑按钮右侧 */}
+              <div class='info-name-extra'>
+                <FailureHeaderCollapseLabels labels={labels || []} />
+                <div
+                  class='info-edit'
+                  onClick={() => {
+                    this.isShow = true;
+                  }}
+                >
+                  <i class='icon-monitor icon-bianji info-edit-icon' />
+                  {this.t('编辑')}
+                </div>
+              </div>
             </div>
           </div>
           <Popover

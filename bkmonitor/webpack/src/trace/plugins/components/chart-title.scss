@@ -141,6 +141,15 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       .instant-icon {
         margin-left: 8px;
       }
+
+      /* 最新排障主告警标识（仅故障视图图表标题） */
+      .new-badge {
+        height: 100%;
+        margin-right: 5px;
+        font-size: 19px;
+        font-weight: normal;
+        color: #ea3636;
+      }
     }
 
     .sub-title {

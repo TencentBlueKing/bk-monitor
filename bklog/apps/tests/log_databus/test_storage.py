@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import (
+    ClusterTypeEnum,
     DORIS_CLUSTER_TYPE,
     REGISTERED_SYSTEM_DEFAULT,
     VisibleEnum,
@@ -136,6 +137,71 @@ class TestFilterDorisCluster(TestCase):
         self.addCleanup(patcher_idx.stop)
         patcher_es.start()
         patcher_idx.start()
+
+    @staticmethod
+    def _get_cluster_groups(cluster_obj):
+        with patch(
+            "apps.log_databus.handlers.storage.FeatureToggleObject.switch", return_value=True
+        ), patch("apps.log_databus.handlers.storage.MultiExecuteFunc") as mock_multi_execute:
+            mock_multi_execute.return_value.run.return_value = {DORIS_CLUSTER_TYPE: [cluster_obj]}
+            return StorageHandler().get_cluster_groups(
+                TARGET_BIZ,
+                cluster_query_type=ClusterTypeEnum.DORIS.value,
+            )
+
+    def test_legacy_public_cluster_without_visible_config_remains_visible(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system=REGISTERED_SYSTEM_DEFAULT,
+            custom_option={},
+        )
+
+        result = self._get_cluster_groups(cluster_obj)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["storage_cluster_id"], 10)
+        self.assertTrue(result[0]["is_platform"])
+        self.assertEqual(
+            cluster_obj["cluster_config"]["custom_option"]["visible_config"],
+            {"visible_type": VisibleEnum.ALL_BIZ.value},
+        )
+
+    def test_public_cluster_with_explicit_all_biz_is_visible_to_other_biz(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system=REGISTERED_SYSTEM_DEFAULT,
+            custom_option={"visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value}},
+        )
+
+        result = self._get_cluster_groups(cluster_obj)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["storage_cluster_id"], 10)
+        self.assertTrue(result[0]["is_platform"])
+
+    def test_private_cluster_owned_by_current_biz_remains_visible(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system="bkdata",
+            custom_option={
+                "bk_biz_id": TARGET_BIZ,
+                "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+            },
+        )
+
+        result = self._get_cluster_groups(cluster_obj)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["bk_biz_id"], TARGET_BIZ)
+        self.assertFalse(result[0]["is_platform"])
+
+    def test_private_cluster_is_hidden_from_other_biz(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system="bkdata",
+            custom_option={
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+            },
+        )
+
+        self.assertEqual(self._get_cluster_groups(cluster_obj), [])
 
     def test_public_cluster_editable_only_for_blueking(self):
         cluster_obj = _doris_cluster_obj(

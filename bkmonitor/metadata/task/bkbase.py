@@ -254,6 +254,48 @@ def _get_attr_by_path(data: dict[str, Any], path: str) -> Any:
     return value
 
 
+def _normalize_bkbase_doris_owner(cluster: models.ClusterInfo, bk_biz_id: Any) -> list[str]:
+    """根据 BKBase 的明确归属信息修正历史业务 Doris 集群，保留无归属信息的公共集群。"""
+    if (
+        cluster.cluster_type != models.ClusterInfo.TYPE_DORIS
+        or bk_biz_id in (None, "")
+        or cluster.registered_system
+        not in {
+            models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM,
+            models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
+        }
+    ):
+        return []
+
+    try:
+        custom_option = json.loads(cluster.custom_option or "{}")
+    except (TypeError, json.JSONDecodeError):
+        logger.warning(
+            "sync_bkbase_cluster_info: skip normalizing Doris cluster %s because custom_option is invalid JSON",
+            cluster.cluster_name,
+        )
+        return []
+
+    if not isinstance(custom_option, dict):
+        logger.warning(
+            "sync_bkbase_cluster_info: skip normalizing Doris cluster %s because custom_option is not an object",
+            cluster.cluster_name,
+        )
+        return []
+
+    update_fields = []
+    if custom_option.get("bk_biz_id") != bk_biz_id:
+        custom_option["bk_biz_id"] = bk_biz_id
+        cluster.custom_option = json.dumps(custom_option)
+        update_fields.append("custom_option")
+
+    if cluster.registered_system == models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM:
+        cluster.registered_system = models.ClusterInfo.BKDATA_REGISTERED_SYSTEM
+        update_fields.append("registered_system")
+
+    return update_fields
+
+
 def sync_bkbase_cluster_info(
     bk_tenant_id: str, cluster_data: dict[str, Any], field_mappings: dict, cluster_type: str, update: bool = False
 ):
@@ -361,6 +403,10 @@ def sync_bkbase_cluster_info(
             # 更新集群信息
             is_updated = False
             update_fields: list[str] = []
+            forced_update_fields = _normalize_bkbase_doris_owner(cluster, bk_biz_id)
+            if forced_update_fields:
+                is_updated = True
+                update_fields.extend(forced_update_fields)
 
             for field, value in need_update_fields.items():
                 if value is not None and getattr(cluster, field) != value:
@@ -381,9 +427,15 @@ def sync_bkbase_cluster_info(
 
             # 如果字段有更新，则保存模型
             if is_updated:
-                if update:
-                    logger.info(f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name}")
-                    cluster.save(update_fields=update_fields)
+                save_fields = update_fields if update else forced_update_fields
+                if save_fields:
+                    logger.info(
+                        "sync_bkbase_cluster_info: updated %s cluster: %s, fields: %s",
+                        cluster_type,
+                        cluster_name,
+                        save_fields,
+                    )
+                    cluster.save(update_fields=save_fields)
                 else:
                     logger.info(
                         f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name} but not saved because update is False"
