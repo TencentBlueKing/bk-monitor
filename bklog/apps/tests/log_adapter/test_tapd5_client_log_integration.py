@@ -121,7 +121,7 @@ class TestDispatchExternalProxyHttpIntegration(TestCase):
                   side_effect=lambda **kw: kw["response"]),
         ]
 
-    @patch("blueapps.account.middlewares.WeixinLoginRequiredMiddleware.process_view", return_value=None)
+    @patch("blueapps.account.middlewares.WeixinLoginRequiredMiddleware.process_view", return_value=None, create=True)
     def test_post_to_dispatch_external_proxy_url_returns_200(self, _mock_login_mw):
         """HTTP POST /dispatch_external_proxy/ → 200（URL 路由正确命中）"""
         body = self._build_body()
@@ -137,14 +137,14 @@ class TestDispatchExternalProxyHttpIntegration(TestCase):
         self.assertEqual(response.status_code, 200,
                          f"HTTP 集成：代理层放行应返回 200，实际 {response.status_code}")
 
-    @patch("blueapps.account.middlewares.WeixinLoginRequiredMiddleware.process_view", return_value=None)
+    @patch("blueapps.account.middlewares.WeixinLoginRequiredMiddleware.process_view", return_value=None, create=True)
     def test_get_request_rejected_by_require_post(self, _mock_login_mw):
         """GET 请求被 @require_POST 拒绝 → 405 Method Not Allowed"""
         response = self.client.get("/dispatch_external_proxy/")
         self.assertEqual(response.status_code, 405,
                          f"GET 请求应被 require_POST 拒绝返回 405，实际 {response.status_code}")
 
-    @patch("blueapps.account.middlewares.WeixinLoginRequiredMiddleware.process_view", return_value=None)
+    @patch("blueapps.account.middlewares.WeixinLoginRequiredMiddleware.process_view", return_value=None, create=True)
     def test_invalid_json_body_returns_400(self, _mock_login_mw):
         """非法 JSON 请求体 → 400 Bad Request"""
         response = self.client.post(
