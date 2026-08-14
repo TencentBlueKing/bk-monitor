@@ -91,6 +91,50 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
         self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
 
+    def test_inherits_remark_only_when_source_has_no_owner(self):
+        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
+        self.assertEqual(result[0]["owners"], [])
+
+    def test_inherits_owner_only_when_source_has_no_remark(self):
+        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], ["admin"])
+
+    def test_split_content_keeps_only_the_winning_candidate(self):
+        # 备注与负责人取自同一条获胜记录，分散在不同深度时落选那条的内容不展示
+        build_remark({}, remark=[INHERITED_REMARK], owners=[])
+        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], ["admin"])
+
+    def test_split_content_keeps_deeper_remark_over_shallower_owner(self):
+        build_remark({}, remark=[], owners=["admin"])
+        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
+        self.assertEqual(result[0]["owners"], [])
+
+    def test_exact_owner_only_record_stops_inheriting_parent_remark(self):
+        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
+        build_remark(CURRENT_GROUPS, remark=[], owners=["admin"])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], ["admin"])
+
     def test_skips_remark_when_shared_dimension_value_differs(self):
         build_remark({"service_name": "relaysvr"}, remark=[INHERITED_REMARK])
 
@@ -262,6 +306,59 @@ class TestPatternRemarkMaterialize(TestCase):
         self.assertEqual([item["remark"] for item in self.get_materialized().remark], ["new remark"])
 
 
+class TestPatternRemarkMaterializeSplitContent(TestCase):
+    """写入端：备注与负责人分散在不同深度记录时，物化只能带走获胜的那一条。"""
+
+    def setUp(self) -> None:  # pylint: disable=invalid-name
+        ClusteringConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            min_members=100,
+            max_dist_list="xxx",
+            predefined_varibles="^hi",
+            delimeter="x",
+            max_log_length=1024,
+            bk_biz_id=BK_BIZ_ID,
+            group_fields=GROUP_FIELDS,
+        )
+        toggle_patcher = patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
+        toggle_patcher.start().return_value = Toggle(feature_config={})
+        self.addCleanup(toggle_patcher.stop)
+        username_patcher = patch("apps.log_clustering.handlers.pattern.get_request_username", return_value="tester")
+        username_patcher.start()
+        self.addCleanup(username_patcher.stop)
+        self.handler = PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS))
+
+    def create_remark(self):
+        self.handler.set_clustering_remark(
+            {
+                "signature": SIGNATURE,
+                "origin_pattern": "",
+                "groups": copy.deepcopy(CURRENT_GROUPS),
+                "remark": "new remark",
+            },
+            method="create",
+        )
+        return ClusteringRemark.objects.get(group_hash=ClusteringRemark.convert_groups_to_groups_hash(CURRENT_GROUPS))
+
+    def test_materialize_carries_owner_from_remark_less_source(self):
+        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+
+        materialized = self.create_remark()
+
+        self.assertEqual([item["remark"] for item in materialized.remark], ["new remark"])
+        self.assertEqual(materialized.owners, ["admin"])
+
+    def test_materialize_drops_content_from_losing_candidate(self):
+        build_remark({}, remark=[INHERITED_REMARK], owners=[])
+        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+
+        materialized = self.create_remark()
+
+        # 空维备注不在获胜记录上，物化带不走；精确记录建成后该行也不再向上继承
+        self.assertEqual([item["remark"] for item in materialized.remark], ["new remark"])
+        self.assertEqual(materialized.owners, ["admin"])
+
+
 class TestSavePatternStrategyRemarkFallback(TestCase):
     """启停告警入口：无精确记录时先物化，彻底没有可继承内容时也不能抛 AttributeError。"""
 
@@ -270,7 +367,10 @@ class TestSavePatternStrategyRemarkFallback(TestCase):
         self.handler.index_set_id = INDEX_SET_ID
         self.handler.bk_biz_id = BK_BIZ_ID
         self.handler.conf = {}
-        self.handler.clustering_config = SimpleNamespace(bk_biz_id=BK_BIZ_ID, group_fields=GROUP_FIELDS)
+        self.handler.clustering_config = SimpleNamespace(
+            bk_biz_id=BK_BIZ_ID, group_fields=GROUP_FIELDS, new_cls_index_set_id=None
+        )
+        self.handler.index_set = SimpleNamespace(index_set_name="test_set", time_field="dtEventTimeStamp")
 
     def params(self, strategy_enabled):
         return {
@@ -288,6 +388,50 @@ class TestSavePatternStrategyRemarkFallback(TestCase):
     def test_enable_without_any_remark_raises_owners_not_exist(self):
         with self.assertRaises(ClusteringOwnersNotExistException):
             self.handler.save_pattern_strategy("2_bklog.rt", self.params(strategy_enabled=True))
+
+    def test_enable_with_inherited_owner_creates_dedicated_strategy(self):
+        source = build_remark(
+            {"service_name": "gamesvr"},
+            remark=[INHERITED_REMARK],
+            owners=["admin"],
+            strategy_id=7,
+            strategy_enabled=True,
+        )
+
+        with (
+            patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi") as mock_api,
+            patch("apps.log_clustering.handlers.clustering_monitor.MonitorUtils") as mock_utils,
+            patch("apps.log_clustering.handlers.clustering_monitor.LogIndexSet") as mock_index_set,
+        ):
+            mock_api.search_user_groups.return_value = []
+            mock_api.save_alarm_strategy_v3.return_value = {"id": 888}
+            mock_utils.save_notice_group.return_value = {"id": 555}
+            mock_index_set.objects.filter.return_value.first.return_value = SimpleNamespace(index_set_name="test_set")
+
+            result = self.handler.save_pattern_strategy("2_bklog.rt", self.params(strategy_enabled=True))
+
+            strategy_params = mock_api.save_alarm_strategy_v3.call_args.kwargs["params"]
+            notice_receiver = mock_utils.save_notice_group.call_args.kwargs["notice_receiver"]
+
+        materialized = ClusteringRemark.objects.get(
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash(CURRENT_GROUPS)
+        )
+        source.refresh_from_db()
+
+        self.assertEqual(result, {"strategy_id": 888})
+        self.assertEqual(materialized.owners, ["admin"])
+        self.assertEqual(materialized.strategy_id, 888)
+        self.assertTrue(materialized.strategy_enabled)
+        self.assertEqual(materialized.notice_group_id, 555)
+        self.assertEqual(notice_receiver, [{"type": "user", "id": "admin"}])
+        self.assertEqual(
+            strategy_params["items"][0]["query_configs"][0]["agg_dimension"],
+            ["__dist_05", "service_name", "func"],
+        )
+        # 请求不带 id 才是新建；带上会把父分组那条策略改成子分组的配置
+        self.assertNotIn("id", strategy_params)
+        self.assertEqual(source.strategy_id, 7)
+        self.assertTrue(source.strategy_enabled)
 
     def test_disable_materializes_inherited_remark_without_strategy_binding(self):
         build_remark(
