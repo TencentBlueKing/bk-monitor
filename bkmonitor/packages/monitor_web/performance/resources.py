@@ -391,9 +391,13 @@ class SearchHostMetricResource(ApiAuthResource):
     查询指定主机的agent及指标信息
     """
 
+    PAGE_QUERY_MODE = "page"
+    PAGE_HOST_LIMIT = 100
+
     class RequestSerializer(serializers.Serializer):
         bk_host_ids = serializers.ListField(label="主机ID", child=serializers.IntegerField())
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        query_mode = serializers.ChoiceField(choices=("full", "page"), default="full")
         bk_host_id = serializers.IntegerField(required=False, label="分享主机ID")
         bk_obj_id = serializers.CharField(required=False, label="分享拓扑对象ID")
         bk_inst_id = serializers.IntegerField(required=False, label="分享拓扑实例ID")
@@ -405,6 +409,16 @@ class SearchHostMetricResource(ApiAuthResource):
         # 主机场景，以关联资源身份请求
         def validate_bk_biz_id(self, value):
             return validate_bk_biz_id(value)
+
+        def validate(self, attrs):
+            if (
+                attrs["query_mode"] == SearchHostMetricResource.PAGE_QUERY_MODE
+                and len(attrs["bk_host_ids"]) > SearchHostMetricResource.PAGE_HOST_LIMIT
+            ):
+                raise serializers.ValidationError(
+                    {"bk_host_ids": f"page query supports at most {SearchHostMetricResource.PAGE_HOST_LIMIT} hosts"}
+                )
+            return attrs
 
     @staticmethod
     def validate_scope_host_ids(params):
@@ -489,6 +503,7 @@ class SearchHostMetricResource(ApiAuthResource):
         start_time: int = None,
         end_time: int = None,
         fail_on_incomplete: bool = False,
+        filter_by_hosts: bool = False,
     ):
         """
         获取进程信息
@@ -503,6 +518,7 @@ class SearchHostMetricResource(ApiAuthResource):
             start_time=start_time,
             end_time=end_time,
             fail_on_incomplete=fail_on_incomplete,
+            filter_by_hosts=filter_by_hosts,
         )
         for bk_host_id in result:
             if bk_host_id not in data:
@@ -564,7 +580,10 @@ class SearchHostMetricResource(ApiAuthResource):
         futures = {
             "agent_status": pool.apply_async(self.get_agent_status, args=(*task_args, True)),
             "performance_data": pool.apply_async(self.get_performance_data, args=(*task_args, True)),
-            "process_status": pool.apply_async(self.get_process_status, args=(*task_args, True)),
+            "process_status": pool.apply_async(
+                self.get_process_status,
+                args=(*task_args, True, params.get("query_mode") == self.PAGE_QUERY_MODE),
+            ),
             "alarm_count": pool.apply_async(self.get_alarm_count, args=task_args),
         }
         pool.close()

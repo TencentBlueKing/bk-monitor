@@ -3,9 +3,10 @@ from unittest.mock import Mock
 import pytest
 
 from api.cmdb.mock import HOSTS
-from core.drf_resource import resource
+from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from monitor_web.performance.resources import SearchHostMetricResource
+from monitor_web.performance.views import SearchHostMetricViewSet
 
 
 def mock_other_sections(mocker, failed_section: str | None = None):
@@ -13,6 +14,65 @@ def mock_other_sections(mocker, failed_section: str | None = None):
         method = mocker.patch.object(SearchHostMetricResource, f"get_{section}")
         if section == failed_section:
             method.side_effect = RuntimeError(f"{section} failed")
+
+
+def test_search_host_metric_response_uses_gzip():
+    assert SearchHostMetricViewSet.resource_routes[0].content_encoding == "gzip"
+
+
+def test_get_process_multiple_hosts_use_cmdb_host_list(mocker):
+    batch_request = mocker.patch("api.cmdb.default.batch_request", return_value=[])
+
+    result = api.cmdb.get_process(bk_biz_id=2, bk_host_ids=[1, 2])
+
+    assert result == []
+    assert batch_request.call_args.args[1] == {"bk_biz_id": 2, "bk_host_list": [1, 2]}
+
+
+def test_get_process_empty_host_list_does_not_query_all_hosts(mocker):
+    batch_request = mocker.patch("api.cmdb.default.batch_request")
+
+    result = api.cmdb.get_process(bk_biz_id=2, bk_host_ids=[])
+
+    assert result == []
+    batch_request.assert_not_called()
+
+
+def test_get_process_without_host_filter_keeps_business_cache(mocker):
+    batch_request = mocker.patch("api.cmdb.default.batch_request")
+    get_service_instance_by_biz = mocker.patch("api.cmdb.default.get_service_instance_by_biz", return_value=[])
+
+    result = api.cmdb.get_process(bk_biz_id=2)
+
+    assert result == []
+    get_service_instance_by_biz.assert_called_once_with(2)
+    batch_request.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("query_mode", "host_count", "expected_valid"),
+    [("page", 100, True), ("page", 101, False), ("full", 101, True)],
+)
+def test_search_host_metric_page_mode_limits_one_page(query_mode, host_count, expected_valid):
+    serializer = SearchHostMetricResource.RequestSerializer(
+        data={"bk_biz_id": 2, "bk_host_ids": list(range(host_count)), "query_mode": query_mode}
+    )
+
+    assert serializer.is_valid() is expected_valid
+    assert ("bk_host_ids" in serializer.errors) is (not expected_valid)
+
+
+@pytest.mark.parametrize(("query_params", "expected_filter"), [({}, False), ({"query_mode": "page"}, True)])
+def test_search_host_metric_mode_controls_process_cmdb_host_filter(mocker, query_params, expected_filter):
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_by_id", return_value=HOSTS[:2])
+    mock_other_sections(mocker)
+
+    SearchHostMetricResource().perform_request(
+        {"bk_biz_id": 2, "bk_host_ids": [host.bk_host_id for host in HOSTS[:2]], **query_params}
+    )
+
+    process_status = SearchHostMetricResource.get_process_status
+    assert process_status.call_args.args[-1] is expected_filter
 
 
 @pytest.mark.parametrize("failed_section", ["agent_status", "performance_data", "process_status", "alarm_count"])

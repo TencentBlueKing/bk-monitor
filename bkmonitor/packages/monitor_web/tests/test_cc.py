@@ -470,6 +470,38 @@ class TestGetHostPerformanceData:
             }
 
 
+class TestGetProcessInfo:
+    def test_multiple_hosts_query_cmdb_by_host_list(self, mocker):
+        get_process = mocker.patch("monitor_web.cc.resources.cmdb.api.cmdb.get_process", return_value=[])
+        mocker.patch("monitor_web.cc.resources.cmdb.get_process_status", return_value={})
+
+        result = resource.cc.get_process_info(bk_biz_id=2, hosts=HOSTS[:2], filter_by_hosts=True)
+
+        assert result == {}
+        get_process.assert_called_once_with(
+            bk_biz_id=2,
+            bk_host_ids=[HOSTS[0].bk_host_id, HOSTS[1].bk_host_id],
+        )
+
+    def test_multiple_hosts_keep_full_business_query_by_default(self, mocker):
+        get_process = mocker.patch("monitor_web.cc.resources.cmdb.api.cmdb.get_process", return_value=[])
+        mocker.patch("monitor_web.cc.resources.cmdb.get_process_status", return_value={})
+
+        resource.cc.get_process_info(bk_biz_id=2, hosts=HOSTS[:2])
+
+        get_process.assert_called_once_with(bk_biz_id=2)
+
+    def test_empty_hosts_do_not_query_cmdb(self, mocker):
+        get_process = mocker.patch("monitor_web.cc.resources.cmdb.api.cmdb.get_process")
+        get_process_status = mocker.patch("monitor_web.cc.resources.cmdb.get_process_status")
+
+        result = resource.cc.get_process_info(bk_biz_id=2, hosts=[])
+
+        assert result == {}
+        get_process.assert_not_called()
+        get_process_status.assert_not_called()
+
+
 class TestGetProcessStatus:
     """
     测试 resource.cc.get_process_status

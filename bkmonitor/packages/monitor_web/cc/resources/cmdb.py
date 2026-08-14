@@ -202,6 +202,7 @@ def get_process_info(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    filter_by_hosts: bool = False,
 ) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
@@ -211,6 +212,7 @@ def get_process_info(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选），用于限定进程存活状态的判定窗口
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param filter_by_hosts: 多主机查询时是否将主机列表下推至 CMDB。默认保持全业务缓存查询行为。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -233,13 +235,18 @@ def get_process_info(
     """
     pp_info = defaultdict(list)
 
-    # 如果只有一台机器，可以直接使用bk_host_id参数进行检索
-    bk_host_id = None
+    if not hosts:
+        return pp_info
+
+    # 单主机沿用旧参数；页级多主机查询显式下推，其他调用保持全业务缓存查询行为。
+    process_query = {"bk_biz_id": bk_biz_id}
     if len(hosts) == 1:
-        bk_host_id = hosts[0].bk_host_id
+        process_query["bk_host_id"] = hosts[0].bk_host_id
+    elif filter_by_hosts:
+        process_query["bk_host_ids"] = [host.bk_host_id for host in hosts]
 
     # 查询进程信息
-    result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
+    result = api.cmdb.get_process(**process_query)
 
     # 查询进程状态数据
     statuses: dict[int, dict[str, int]] = get_process_status(

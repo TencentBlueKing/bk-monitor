@@ -673,6 +673,7 @@ class GetProcess(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         bk_host_id = serializers.IntegerField(label="主机ID", required=False, allow_null=True)
+        bk_host_ids = serializers.ListField(label="主机ID列表", child=serializers.IntegerField(), required=False)
         include_multiple_bind_info = serializers.BooleanField(
             required=False, label="是否返回多个绑定信息", default=False
         )
@@ -684,6 +685,11 @@ class GetProcess(Resource):
         }
         if validated_request_data.get("bk_host_id"):
             params["bk_host_id"] = validated_request_data["bk_host_id"]
+            response_data = batch_request(client.list_service_instance_detail, params, limit=500)
+        elif validated_request_data.get("bk_host_ids") is not None:
+            if not validated_request_data["bk_host_ids"]:
+                return []
+            params["bk_host_list"] = validated_request_data["bk_host_ids"]
             response_data = batch_request(client.list_service_instance_detail, params, limit=500)
         else:
             response_data = get_service_instance_by_biz(validated_request_data["bk_biz_id"])
