@@ -40,8 +40,10 @@ export type IHostBaseInfo = {
   bk_cloud_name: string;
   bk_host_id: number;
   bk_host_innerip: string;
+  bk_host_innerip_v6: string;
   bk_host_name: string;
   bk_host_outerip: string;
+  bk_host_outerip_v6: string;
   bk_os_name: string;
   bk_os_type: string;
   display_name: string;
@@ -65,8 +67,6 @@ export type IHostComponent = {
 /** 带指标数据的主机列表项 */
 export interface IHostMetricInfo extends IHostBaseInfo {
   alarm_count: IHostAlarmCount[];
-  bk_host_innerip_v6: string;
-  bk_host_outerip_v6: string;
   bk_state: string;
   component: IHostComponent[];
   cpu_load: number;

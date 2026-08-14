@@ -11,6 +11,19 @@
     gap: 8px;
     margin: 16px 0;
   }
+
+  &__metric-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    background: #f0f5ff;
+    border-radius: 2px;
+  }
 }
 
 /** 真实内容容器 */

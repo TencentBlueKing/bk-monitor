@@ -129,7 +129,7 @@ const matchQuickCategory = (row, category) => {
   }
 };
 
-const matchKeyword = (row, keyword) => {
+const matchKeyword = (row, keyword, includeMetricFields = true) => {
   const kw = keyword.trim().toLowerCase();
   if (!kw) {
     return true;
@@ -138,14 +138,17 @@ const matchKeyword = (row, keyword) => {
     row.bk_host_innerip,
     row.bk_host_innerip_v6,
     row.bk_host_outerip,
+    row.bk_host_outerip_v6,
     row.bk_host_name,
     row.display_name,
     row.bk_os_name,
     row.bk_cloud_name,
     row.clusterNames,
     row.moduleNames,
-    row.processNames,
   ];
+  if (includeMetricFields) {
+    fields.push(row.processNames);
+  }
   return fields.some(field => !!field && String(field).toLowerCase().includes(kw));
 };
 
@@ -390,8 +393,11 @@ const buildFilterOptionsMap = rows => {
 };
 
 let baseRows = [];
-let rawRows = [];
+let committedRows = [];
+let pageMetricMap = {};
 let filterOptionsMap = new Map();
+let currentEpoch = 0;
+let metricsReady = false;
 
 const optionsMapToRecord = map => {
   const record = {};
@@ -407,49 +413,125 @@ const filterByConditions = (rows, params) =>
     row =>
       matchQuickCategory(row, params.activeCategory) &&
       matchWhere(row, params.where) &&
-      matchKeyword(row, params.keyword)
+      matchKeyword(row, params.keyword, metricsReady)
   );
 
 /** 拓扑 + 条件过滤后的全量行（不含分页） */
 const getFilteredRows = params => {
-  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
+  const nodeScopedRows = committedRows.filter(row => matchTopoNode(row, params.selectedNode));
   return filterByConditions(nodeScopedRows, params);
 };
 
 const runCompute = params => {
-  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
+  const nodeScopedRows = committedRows.filter(row => matchTopoNode(row, params.selectedNode));
   const categoryStats = computeCategoryStats(nodeScopedRows);
   const filteredRows = filterByConditions(nodeScopedRows, params);
   const sortedRows = sortRows(filteredRows, params.sortInfo, params.stickyValue);
   const total = sortedRows.length;
   const start = (params.page - 1) * params.pageSize;
-  const pagedRows = sortedRows.slice(start, start + params.pageSize);
+  const slicedRows = sortedRows.slice(start, start + params.pageSize);
+  const pagedRows = metricsReady
+    ? slicedRows
+    : slicedRows.map(row => createHostListRow(row, pageMetricMap[String(row.bk_host_id)]));
   return { categoryStats, pagedRows, total };
+};
+
+const isCurrentEpoch = message => Number(message.epoch) === currentEpoch;
+
+const replaceCommittedMetrics = metricListMap => {
+  committedRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
+  pageMetricMap = {};
+  metricsReady = true;
+  filterOptionsMap = buildFilterOptionsMap(committedRows);
 };
 
 self.onmessage = event => {
   const message = event.data;
   switch (message.type) {
     case 'INIT_BASE': {
+      const nextEpoch = message.epoch === undefined ? currentEpoch + 1 : Number(message.epoch);
+      if (nextEpoch < currentEpoch) {
+        self.postMessage({
+          applied: false,
+          epoch: currentEpoch,
+          filterOptionsMap: optionsMapToRecord(filterOptionsMap),
+          rawRowCount: committedRows.length,
+          requestId: message.requestId,
+          type: 'INIT_BASE_DONE',
+        });
+        break;
+      }
+      currentEpoch = nextEpoch;
       baseRows = message.baseList;
-      rawRows = baseRows.map(row => createHostListRow(row));
-      filterOptionsMap = buildFilterOptionsMap(rawRows);
+      committedRows = baseRows.map(row => createHostListRow(row));
+      pageMetricMap = {};
+      metricsReady = false;
+      filterOptionsMap = buildFilterOptionsMap(committedRows);
       self.postMessage({
+        applied: true,
+        epoch: currentEpoch,
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),
-        rawRowCount: rawRows.length,
+        rawRowCount: committedRows.length,
         requestId: message.requestId,
         type: 'INIT_BASE_DONE',
       });
       break;
     }
     case 'MERGE_METRICS': {
-      const metricListMap = message.metricListMap;
-      rawRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
-      filterOptionsMap = buildFilterOptionsMap(rawRows);
+      replaceCommittedMetrics(message.metricListMap);
       self.postMessage({
+        applied: true,
+        epoch: currentEpoch,
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),
         requestId: message.requestId,
         type: 'MERGE_METRICS_DONE',
+      });
+      break;
+    }
+    case 'RESET_METRICS': {
+      const applied = isCurrentEpoch(message);
+      if (applied) {
+        committedRows = baseRows.map(row => createHostListRow(row));
+        pageMetricMap = {};
+        metricsReady = false;
+        filterOptionsMap = buildFilterOptionsMap(committedRows);
+      }
+      self.postMessage({
+        applied,
+        epoch: currentEpoch,
+        filterOptionsMap: optionsMapToRecord(filterOptionsMap),
+        requestId: message.requestId,
+        type: 'RESET_METRICS_DONE',
+      });
+      break;
+    }
+    case 'PATCH_METRICS': {
+      const applied = isCurrentEpoch(message);
+      if (applied && !metricsReady) {
+        for (const hostId of message.hostIds || []) {
+          delete pageMetricMap[String(hostId)];
+        }
+        pageMetricMap = { ...pageMetricMap, ...message.metricListMap };
+      }
+      self.postMessage({
+        applied: applied && !metricsReady,
+        epoch: currentEpoch,
+        requestId: message.requestId,
+        type: 'PATCH_METRICS_DONE',
+      });
+      break;
+    }
+    case 'REPLACE_METRICS': {
+      const applied = isCurrentEpoch(message);
+      if (applied) {
+        replaceCommittedMetrics(message.metricListMap);
+      }
+      self.postMessage({
+        applied,
+        epoch: currentEpoch,
+        filterOptionsMap: optionsMapToRecord(filterOptionsMap),
+        requestId: message.requestId,
+        type: 'REPLACE_METRICS_DONE',
       });
       break;
     }
@@ -481,7 +563,7 @@ self.onmessage = event => {
     case 'GET_SELECTED_IPS': {
       const keySet = new Set(message.rowKeys.map(String));
       // 表格 rowKey 为 id，同时兼容 rowId
-      const ips = rawRows
+      const ips = committedRows
         .filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)))
         .map(row => row.bk_host_innerip)
         .filter(Boolean);
@@ -495,7 +577,7 @@ self.onmessage = event => {
     case 'GET_SELECTED_ROWS': {
       const keySet = new Set(message.rowKeys.map(String));
       // 表格 rowKey 为 id，同时兼容 rowId
-      const rows = rawRows.filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)));
+      const rows = committedRows.filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)));
       self.postMessage({
         rows,
         requestId: message.requestId,
