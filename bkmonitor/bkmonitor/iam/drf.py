@@ -35,9 +35,11 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceInstance as FwResource,
     Subject as FwSubject,
     SubjectType,
+    to_action_id,
 )
 from bkmonitor.iam.iam_engine.django.facade import get_framework
 from core.errors.iam import PermissionDeniedError
+from bkmonitor.iam.permission import check_iam_preflight, check_iam_batch_preflight
 
 logger = logging.getLogger("apm")
 
@@ -47,28 +49,36 @@ logger = logging.getLogger("apm")
 # ============================================================================
 
 
-def _fw_check_any(request, action_ids, resources=None):
-    """逐个 action 鉴权，任一通过即放行（OR 语义）。全部拒绝时抛 PermissionDeniedError。"""
+def _fw_check_any(request, action_refs, resources=None):
+    """逐个 action 鉴权，任一通过即放行（OR 语义）。全部拒绝时抛 PermissionDeniedError。
+
+    每个 action 先走前置豁免（token 临时分享 / skip_check），与旧版
+    IAMPermission → Permission().is_allowed 的豁免语义一致。
+    """
     fw = get_framework()
     subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
 
     fw_resources = tuple(resources) if resources else ()
 
-    for aid in action_ids:
+    for action in action_refs:
+        # 前置豁免（token 临时分享 / skip_check，与旧版一致）
+        if check_iam_preflight(request, action):
+            return True
+
         fw_resource = fw_resources[0] if fw_resources else None
-        allowed = fw.is_allowed(AuthRequest(subject=subject, action_id=aid, resource=fw_resource))
+        allowed = fw.is_allowed(AuthRequest(subject=subject, action_id=to_action_id(action), resource=fw_resource))
         if allowed:
             return True
 
     apply_url = fw.get_apply_url(
         ApplyURLRequest(
             subject=subject,
-            action_ids=tuple(action_ids),
+            action_ids=tuple(to_action_id(a) for a in action_refs),
             resources=fw_resources,
         )
     )
     raise PermissionDeniedError(
-        context={"action_name": action_ids[-1] if action_ids else ""},
+        context={"action_name": to_action_id(action_refs[-1]) if action_refs else ""},
         data={"apply_url": apply_url},
     )
 
@@ -104,6 +114,8 @@ class IAMPermission(permissions.BasePermission):
 
     def __init__(self, actions=None, resources=None):
         super().__init__()
+        # 保留原始引用（ActionEnum 成员或 str），供前置豁免的 ActionIdMap 判定使用
+        self._action_refs = list(actions or [])
         self._action_ids = _to_action_ids(actions)
         self.resources = resources or []  # 兼容旧 IAMPermission 接口
 
@@ -112,7 +124,7 @@ class IAMPermission(permissions.BasePermission):
             return True
 
         fw_resources = _to_fw_resources(self.resources)
-        _fw_check_any(request, self._action_ids, fw_resources)
+        _fw_check_any(request, self._action_refs, fw_resources)
         return True
 
     def has_object_permission(self, request, view, obj):
@@ -294,21 +306,27 @@ def insert_permission_field(
             if not resource_by_id:
                 return response
 
-            # 批量鉴权
-            fw = get_framework()
-            subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
+            # 前置豁免（复刻旧 Permission().batch_is_allowed 语义：token 分享 / skip_check）
             allowed_map: dict[tuple[str, str], bool] = {}
-
-            for aid in action_ids:
-                batch_result = fw.batch_by_resource(
-                    BatchByResourceRequest(
-                        subject=subject,
-                        action_id=aid,
-                        resources=tuple(resource_by_id.values()),
+            exemption = check_iam_batch_preflight(request, actions) if request is not None else None
+            if exemption is not None:
+                for aid in action_ids:
+                    for rid in resource_by_id:
+                        allowed_map[(aid, rid)] = exemption.get(aid, False)
+            else:
+                # 批量鉴权
+                fw = get_framework()
+                subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
+                for aid in action_ids:
+                    batch_result = fw.batch_by_resource(
+                        BatchByResourceRequest(
+                            subject=subject,
+                            action_id=aid,
+                            resources=tuple(resource_by_id.values()),
+                        )
                     )
-                )
-                for item_result in batch_result.items:
-                    allowed_map[(aid, item_result.resource_id)] = item_result.allowed
+                    for item_result in batch_result.items:
+                        allowed_map[(aid, item_result.resource_id)] = item_result.allowed
 
             # 回填
             for idx, rid in item_resource_ids:
@@ -317,12 +335,15 @@ def insert_permission_field(
                 perm = {}
                 for aid in action_ids:
                     perm[aid] = allowed_map.get((aid, rid), False)
-                result_list[idx].setdefault("permission", {})
-                result_list[idx]["permission"].update(perm)
+                # 注意：dict.update 是浅拷贝，always_allowed 豁免必须作用于已写入的
+                # permission dict 本身（与旧版 item["permission"] 原地修改语义一致），
+                # 否则修改局部 perm 不会反映到响应数据上。
+                permission_dict = result_list[idx].setdefault("permission", {})
+                permission_dict.update(perm)
 
                 if always_allowed(result_list[idx]):
-                    for k in perm:
-                        perm[k] = True
+                    for k in permission_dict:
+                        permission_dict[k] = True
 
             return response
 
@@ -378,23 +399,34 @@ def filter_data_by_permission(
 
     # 批量鉴权
     fw = get_framework()
+    request = None
     if not username:
-        # 未显式传 username：与 Permission.__init__ 的解析链对齐，从当前请求解析用户
+        # 未显式传 username：与 Permission.__init__ 的解析链对齐，从当前请求解析用户。
+        # 旧版 Permission() 由此拿到 request，进而生效 token / request.skip_check 豁免，
+        # 因此这里保留解析出的 request 供前置豁免使用。
         request = get_request(peaceful=True)
         username = request.user.username if request else ""
     subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=bk_tenant_id or "")
     allowed_map: dict[tuple[str, str], bool] = {}
 
-    for aid in action_ids:
-        batch_result = fw.batch_by_resource(
-            BatchByResourceRequest(
-                subject=subject,
-                action_id=aid,
-                resources=tuple(resource_by_id.values()),
+    # 前置豁免（复刻旧 Permission(...).batch_is_allowed 语义：username 显式传入时
+    # 旧版不读 request，仅 settings 级 skip_check 生效；未传时读当前请求的 token/skip_check）
+    exemption = check_iam_batch_preflight(request, actions)
+    if exemption is not None:
+        for aid in action_ids:
+            for rid in resource_by_id:
+                allowed_map[(aid, rid)] = exemption.get(aid, False)
+    else:
+        for aid in action_ids:
+            batch_result = fw.batch_by_resource(
+                BatchByResourceRequest(
+                    subject=subject,
+                    action_id=aid,
+                    resources=tuple(resource_by_id.values()),
+                )
             )
-        )
-        for item_result in batch_result.items:
-            allowed_map[(aid, item_result.resource_id)] = item_result.allowed
+            for item_result in batch_result.items:
+                allowed_map[(aid, item_result.resource_id)] = item_result.allowed
 
     # 过滤/标注
     allowed_data = []

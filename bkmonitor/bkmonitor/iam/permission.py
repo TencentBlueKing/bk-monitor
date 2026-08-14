@@ -89,6 +89,79 @@ ActionIdMap = {
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]
 
 
+def _skip_check_enabled(request) -> bool:
+    """skip_check 解析：request 级覆盖 settings 级（与 Permission.__init__ 的合并逻辑一致）。"""
+    if request is not None and hasattr(request, "skip_check"):
+        return bool(request.skip_check)
+    return bool(getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False))
+
+
+def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
+    """直连框架的调用方（DRF 权限类等）使用的前置豁免判定。
+
+    复刻旧版 Permission.is_allowed 的豁免顺序，命中任一即放行（返回 True），
+    否则返回 False 进入真实鉴权：
+      1. token 临时分享豁免（ApiAuthToken + ActionIdMap + api_paths；
+         含历史遗留的 generator 恒真行为，与旧版逐字一致，不做修改）
+      2. skip_check 豁免（request 级覆盖 settings 级）
+
+    Args:
+        request: Django request；None 表示后台/无请求上下文（只认 settings 级）
+        action_ref: ActionDef 成员或 action_id 字符串（token 分支的 ActionIdMap 判定需要成员引用）
+        skip_check: 调用方已解析好的 skip 值（如 Permission 实例的 self.skip_check）；
+                    为 None 时按 request 级覆盖 settings 级自动解析。
+    """
+    # token 临时分享权限豁免（与旧版 is_allowed 逻辑逐字一致）
+    if request is not None and getattr(request, "token", None):
+        try:
+            record = ApiAuthToken.objects.get(token=request.token, bk_tenant_id=request.user.tenant_id)
+        except ApiAuthToken.DoesNotExist:
+            record = None
+
+        action_id = action_ref.id if hasattr(action_ref, "id") else action_ref
+        if (
+            action_id == ActionEnum.VIEW_BUSINESS.id
+            or (record and action_ref in ActionIdMap[record.type])
+            or path in request.path
+            for path in api_paths
+        ):
+            return True
+
+    if skip_check is not None:
+        return bool(skip_check)
+    return _skip_check_enabled(request)
+
+
+def check_iam_batch_preflight(request, actions) -> dict | None:
+    """直连框架的批量调用方（insert_permission_field / filter_data_by_permission）使用的前置豁免。
+
+    复刻旧版 Permission.batch_is_allowed 的豁免语义：
+      * request 带 token 且 ApiAuthToken 记录不存在 → 抛 TokenValidatedError（与旧版一致）；
+      * token 存在时对每条 action 独立判定（view_business 恒等 / ActionIdMap 命中）；
+      * skip_check（request 级覆盖 settings 级）→ 全部 True。
+
+    Returns:
+        None: 无需豁免，进入真实批量鉴权；
+        {action_id: bool}: 豁免结果（对整批资源一致）。
+    """
+    if request is not None and getattr(request, "token", None):
+        try:
+            record = ApiAuthToken.objects.get(token=request.token, bk_tenant_id=request.user.tenant_id)
+        except ApiAuthToken.DoesNotExist:
+            raise TokenValidatedError
+
+        result = {}
+        for action in actions:
+            action_id = action.id if hasattr(action, "id") else str(action)
+            result[action_id] = action_id == "view_business" or (record and action in ActionIdMap[record.type])
+        return result
+
+    if _skip_check_enabled(request):
+        return {a.id if hasattr(a, "id") else str(a): True for a in actions}
+
+    return None
+
+
 class Permission:
     """
     权限中心鉴权封装 — IAMFramework 适配层。
@@ -162,23 +235,9 @@ class Permission:
         """
         校验用户是否有动作的权限（委托 IAMFramework）。
         """
-        # token 临时分享权限豁免
-        if self.request and getattr(self.request, "token", None):
-            try:
-                record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
-            except ApiAuthToken.DoesNotExist:
-                record = None
-
-            action_id = action.id if hasattr(action, "id") else action
-            if (
-                action_id == ActionEnum.VIEW_BUSINESS.id
-                or (record and action in ActionIdMap[record.type])
-                or path in self.request.path
-                for path in api_paths
-            ):
-                return True
-
-        if self.skip_check:
+        # token 临时分享 / skip_check 前置豁免（与旧版逻辑一致；skip_check 传实例值，
+        # 兼容调用方构造后修改 permission.skip_check 的既有用法）
+        if check_iam_preflight(self.request, action, skip_check=self.skip_check):
             return True
 
         # 构建 FwResource（兼容 iam.Resource 旧调用方）
