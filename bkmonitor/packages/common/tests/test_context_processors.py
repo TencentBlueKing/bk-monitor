@@ -99,3 +99,14 @@ def test_get_basic_context_disables_ai_assistant_by_environment_variable():
         context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
 
     assert context["ENABLE_AI_ASSISTANT"] == "false"
+
+
+@override_settings(ENABLE_HOST_METRIC_PROGRESSIVE=True)
+def test_get_basic_context_exposes_host_metric_progressive_switch():
+    with (
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ENABLE_HOST_METRIC_PROGRESSIVE"] is True

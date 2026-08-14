@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -13,6 +12,16 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from rest_framework.exceptions import ValidationError
+
+
+def reject_generic_async_task(view_func):
+    def wrapped(view, request, *args, **kwargs):
+        if "HTTP_X_ASYNC_TASK" in request.META:
+            raise ValidationError("generic async task is not supported for host metric snapshots")
+        return view_func(view, request, *args, **kwargs)
+
+    return wrapped
 
 
 class PermissionMixin:
@@ -72,4 +81,24 @@ class SearchHostMetricViewSet(PermissionMixin, ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", resource.performance.search_host_metric, content_encoding="gzip"),
+    ]
+
+
+class HostMetricSnapshotViewSet(PermissionMixin, ResourceViewSet):
+    """创建或轮询主机指标共享快照。"""
+
+    resource_routes = [
+        ResourceRoute(
+            "POST",
+            resource.performance.create_host_metric_snapshot,
+            content_encoding="gzip",
+            decorators=[reject_generic_async_task],
+        ),
+        ResourceRoute(
+            "GET",
+            resource.performance.get_host_metric_snapshot,
+            pk_field="snapshot_id",
+            content_encoding="gzip",
+            decorators=[reject_generic_async_task],
+        ),
     ]

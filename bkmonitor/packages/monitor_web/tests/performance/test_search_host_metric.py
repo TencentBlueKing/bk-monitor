@@ -1,4 +1,6 @@
+from types import SimpleNamespace
 from unittest.mock import Mock
+from importlib import import_module
 
 import pytest
 
@@ -183,3 +185,271 @@ def test_reused_agent_and_process_helpers_keep_partial_degradation_by_default(mo
 
     assert agent_status
     assert process_status == {}
+
+
+@pytest.mark.parametrize(
+    "helper_name",
+    ["get_agent_status", "get_host_performance_data", "get_process_status"],
+)
+def test_snapshot_can_explicitly_omit_uq_host_target_without_losing_host_whitelist(mocker, helper_name):
+    data_source_class = Mock(return_value=Mock())
+    mocker.patch("monitor_web.cc.resources.cmdb.load_data_source", return_value=data_source_class)
+    query = Mock(is_partial=False)
+    query.query_data.return_value = []
+    mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery", return_value=query)
+    mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail", return_value=[])
+
+    helper = getattr(resource.cc, helper_name)
+    result = helper(bk_biz_id=2, hosts=HOSTS[:1], target_filter={})
+
+    assert data_source_class.call_args.kwargs["filter_dict"] == {}
+    assert set(result).issubset({HOSTS[0].bk_host_id})
+
+
+def test_existing_host_metric_helpers_keep_builder_when_target_filter_is_unspecified(mocker):
+    expected_filter = {"targets": [{"bk_host_id": [str(HOSTS[0].bk_host_id)]}]}
+    build_filter = mocker.patch(
+        "monitor_web.cc.resources.cmdb._build_host_target_filter",
+        return_value=expected_filter,
+    )
+    data_source_class = Mock(return_value=Mock())
+    mocker.patch("monitor_web.cc.resources.cmdb.load_data_source", return_value=data_source_class)
+    query = Mock(is_partial=False)
+    query.query_data.return_value = []
+    mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery", return_value=query)
+
+    resource.cc.get_host_performance_data(bk_biz_id=2, hosts=HOSTS[:1])
+
+    build_filter.assert_called_once_with(2, HOSTS[:1])
+    assert data_source_class.call_args.kwargs["filter_dict"] == expected_filter
+
+
+def test_strict_agent_status_rejects_nodeman_chunk_failure(mocker):
+    mocker.patch("monitor_web.cc.resources.cmdb.load_data_source", return_value=Mock(return_value=Mock()))
+    query = Mock(is_partial=False)
+    query.query_data.return_value = []
+    mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery", return_value=query)
+    failed_future = Mock()
+    failed_future.get.side_effect = RuntimeError("nodeman failed")
+    pool = Mock()
+    pool.apply_async.return_value = failed_future
+    mocker.patch("monitor_web.cc.resources.cmdb.ThreadPool", return_value=pool)
+
+    with pytest.raises(RuntimeError, match="node manager returned incomplete"):
+        resource.cc.get_agent_status(bk_biz_id=2, hosts=HOSTS[:1], fail_on_incomplete=True)
+
+
+def test_default_agent_status_keeps_nodeman_chunk_failure_degradation(mocker):
+    mocker.patch("monitor_web.cc.resources.cmdb.load_data_source", return_value=Mock(return_value=Mock()))
+    query = Mock(is_partial=False)
+    query.query_data.return_value = []
+    mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery", return_value=query)
+    failed_future = Mock()
+    failed_future.get.side_effect = RuntimeError("nodeman failed")
+    pool = Mock()
+    pool.apply_async.return_value = failed_future
+    mocker.patch("monitor_web.cc.resources.cmdb.ThreadPool", return_value=pool)
+
+    result = resource.cc.get_agent_status(bk_biz_id=2, hosts=HOSTS[:1])
+
+    assert result == {HOSTS[0].bk_host_id: 2}
+
+
+def test_business_alarm_query_uses_paginated_composite_aggregation_and_cmdb_whitelist(mocker):
+    ipv4_host = HOSTS[0]
+    ipv6_host = HOSTS[2]
+
+    def aggregation_response(buckets, after_key=None):
+        aggregation = SimpleNamespace(buckets=buckets)
+        if after_key is not None:
+            aggregation.after_key = after_key
+        return SimpleNamespace(aggregations=SimpleNamespace(host_alarm_identity=aggregation))
+
+    responses = [
+        aggregation_response(
+            [
+                SimpleNamespace(key={"bk_host_id": str(ipv4_host.bk_host_id), "severity": 1}, doc_count=3),
+                SimpleNamespace(key={"bk_host_id": "999999", "severity": 1}, doc_count=99),
+            ],
+            after_key={"bk_host_id": str(ipv4_host.bk_host_id), "severity": 1},
+        ),
+        aggregation_response(
+            [SimpleNamespace(key={"bk_host_id": str(ipv6_host.bk_host_id), "severity": 2}, doc_count=4)]
+        ),
+        aggregation_response(
+            [
+                SimpleNamespace(
+                    key={"bk_cloud_id": str(ipv4_host.bk_cloud_id), "ip": ipv4_host.bk_host_innerip, "severity": 1},
+                    doc_count=2,
+                ),
+                SimpleNamespace(key={"bk_cloud_id": "0", "ip": "203.0.113.1", "severity": 1}, doc_count=88),
+            ]
+        ),
+        aggregation_response(
+            [
+                SimpleNamespace(
+                    key={
+                        "bk_cloud_id": str(ipv6_host.bk_cloud_id),
+                        "ipv6": ipv6_host.bk_host_innerip_v6,
+                        "severity": 3,
+                    },
+                    doc_count=5,
+                )
+            ]
+        ),
+    ]
+    searches = []
+    for response in responses:
+        search = Mock()
+        search.filter.return_value = search
+        search.exclude.return_value = search
+        search.extra.return_value = search
+        search.execute.return_value = response
+        search.scan.side_effect = AssertionError("business snapshot must not scan alert documents")
+        searches.append(search)
+    search_api = mocker.patch("monitor_web.cc.resources.cmdb.AlertDocument.search", side_effect=searches)
+
+    result = resource.cc.get_host_alarm_count(
+        bk_biz_id=2,
+        hosts=[ipv4_host, ipv6_host],
+        start_time=100,
+        end_time=200,
+        filter_by_host_ip=False,
+    )
+
+    assert result[ipv4_host.bk_host_id] == {1: 5, 2: 0, 3: 0}
+    assert result[ipv6_host.bk_host_id] == {1: 0, 2: 4, 3: 5}
+    assert search_api.call_count == 4
+    first_composite = searches[0].aggs.bucket.call_args.kwargs
+    second_composite = searches[1].aggs.bucket.call_args.kwargs
+    assert first_composite["size"] == 1000
+    assert "after" not in first_composite
+    assert second_composite["after"] == {"bk_host_id": str(ipv4_host.bk_host_id), "severity": 1}
+
+    def identity_queries(search, method):
+        return [
+            call.args[0].to_dict()
+            for call in getattr(search, method).call_args_list
+            if call.args and hasattr(call.args[0], "to_dict")
+        ]
+
+    non_empty_host_id = {
+        "bool": {
+            "filter": [{"exists": {"field": "event.bk_host_id"}}],
+            "must_not": [{"term": {"event.bk_host_id": ""}}],
+        }
+    }
+    non_empty_ipv4 = {
+        "bool": {
+            "filter": [{"exists": {"field": "event.ip"}}],
+            "must_not": [{"term": {"event.ip": ""}}],
+        }
+    }
+    non_empty_ipv6 = {
+        "bool": {
+            "filter": [{"exists": {"field": "event.ipv6"}}],
+            "must_not": [{"term": {"event.ipv6": ""}}],
+        }
+    }
+    assert non_empty_host_id in identity_queries(searches[0], "filter")
+    assert non_empty_host_id in identity_queries(searches[2], "exclude")
+    assert non_empty_ipv4 in identity_queries(searches[2], "filter")
+    assert non_empty_host_id in identity_queries(searches[3], "exclude")
+    assert non_empty_ipv4 in identity_queries(searches[3], "exclude")
+    assert non_empty_ipv6 in identity_queries(searches[3], "filter")
+
+
+def test_business_alarm_identity_priority_treats_empty_values_as_missing():
+    cmdb = import_module("monitor_web.cc.resources.cmdb")
+    host_id = cmdb._non_empty_host_alarm_identity("event.bk_host_id")
+    ipv4 = cmdb._non_empty_host_alarm_identity("event.ip")
+    ipv6 = cmdb._non_empty_host_alarm_identity("event.ipv6")
+
+    ipv4_query = cmdb.AlertDocument.search().exclude(host_id).filter(ipv4).to_dict()["query"]
+    ipv6_query = cmdb.AlertDocument.search().exclude(host_id).exclude(ipv4).filter(ipv6).to_dict()["query"]
+
+    assert {
+        "bool": {
+            "should": [
+                {"bool": {"must_not": [{"exists": {"field": "event.bk_host_id"}}]}},
+                {"term": {"event.bk_host_id": ""}},
+            ]
+        }
+    } in ipv4_query["bool"]["filter"]
+    assert {
+        "bool": {"filter": [{"exists": {"field": "event.ip"}}], "must_not": [{"term": {"event.ip": ""}}]}
+    } in ipv4_query["bool"]["filter"]
+    assert {
+        "bool": {"should": [{"bool": {"must_not": [{"exists": {"field": "event.ip"}}]}}, {"term": {"event.ip": ""}}]}
+    } in ipv6_query["bool"]["filter"]
+    assert {
+        "bool": {"filter": [{"exists": {"field": "event.ipv6"}}], "must_not": [{"term": {"event.ipv6": ""}}]}
+    } in ipv6_query["bool"]["filter"]
+
+
+def test_scoped_alarm_query_filters_event_host_id_ipv4_and_ipv6(mocker):
+    known_host = HOSTS[3]
+    search = Mock()
+    search.filter.return_value = search
+    search.source.return_value = search
+    search.scan.return_value = []
+    mocker.patch("monitor_web.cc.resources.cmdb.AlertDocument.search", return_value=search)
+
+    resource.cc.get_host_alarm_count(
+        bk_biz_id=2,
+        hosts=[known_host],
+        start_time=100,
+        end_time=200,
+    )
+
+    identity_filter = next(
+        call.args[0] for call in search.filter.call_args_list if call.args and not isinstance(call.args[0], str)
+    )
+    query = identity_filter.to_dict()["bool"]
+    assert query["minimum_should_match"] == 1
+    assert {next(iter(clause["terms"])) for clause in query["should"]} == {
+        "event.bk_host_id",
+        "event.ip",
+        "event.ipv6",
+    }
+    assert {"terms": {"event.bk_host_id": [str(known_host.bk_host_id)]}} in query["should"]
+
+
+def test_alarm_host_mapping_supports_event_and_dimension_host_id_and_ipv6():
+    known_host = HOSTS[2]
+    known_host_ids = {known_host.bk_host_id}
+    ip_to_host_id = {(known_host.bk_host_innerip_v6, int(known_host.bk_cloud_id or 0)): known_host.bk_host_id}
+
+    event_host = SimpleNamespace(
+        event=SimpleNamespace(bk_host_id=str(known_host.bk_host_id), ip="", ipv6="", bk_cloud_id=0), dimensions=[]
+    )
+    event_ipv6 = SimpleNamespace(
+        event=SimpleNamespace(
+            bk_host_id=None,
+            ip="",
+            ipv6=known_host.bk_host_innerip_v6,
+            bk_cloud_id=known_host.bk_cloud_id,
+        ),
+        dimensions=[],
+    )
+    dimension_host = SimpleNamespace(
+        event=SimpleNamespace(bk_host_id=None, ip="", ipv6="", bk_cloud_id=0),
+        dimensions=[SimpleNamespace(key="bk_host_id", value=str(known_host.bk_host_id))],
+    )
+    dimension_ipv6 = SimpleNamespace(
+        event=SimpleNamespace(bk_host_id=None, ip="", ipv6="", bk_cloud_id=0),
+        dimensions=[
+            SimpleNamespace(key="ipv6", value=known_host.bk_host_innerip_v6),
+            SimpleNamespace(key="bk_cloud_id", value=str(known_host.bk_cloud_id)),
+        ],
+    )
+    unknown = SimpleNamespace(
+        event=SimpleNamespace(bk_host_id=999999, ip="203.0.113.1", ipv6="", bk_cloud_id=0), dimensions=[]
+    )
+
+    resolver = import_module("monitor_web.cc.resources.cmdb")._resolve_host_id_from_alert
+    assert resolver(event_host, known_host_ids, ip_to_host_id) == known_host.bk_host_id
+    assert resolver(event_ipv6, known_host_ids, ip_to_host_id) == known_host.bk_host_id
+    assert resolver(dimension_host, known_host_ids, ip_to_host_id) == known_host.bk_host_id
+    assert resolver(dimension_ipv6, known_host_ids, ip_to_host_id) == known_host.bk_host_id
+    assert resolver(unknown, known_host_ids, ip_to_host_id) is None

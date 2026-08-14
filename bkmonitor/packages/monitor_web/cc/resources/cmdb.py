@@ -24,9 +24,13 @@ from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import HOST_SCENARIO, TargetFieldType
 from core.drf_resource import api
+from elasticsearch_dsl import Q
 from monitor.constants import AGENT_STATUS
 
 logger = logging.getLogger(__name__)
+
+HOST_ALARM_COMPOSITE_PAGE_SIZE = 1000
+HOST_ALARM_COMPOSITE_AGGREGATION = "host_alarm_identity"
 
 
 def topo_tree(bk_biz_id):
@@ -65,6 +69,7 @@ def get_agent_status(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    target_filter: dict | None = None,
 ) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
@@ -74,6 +79,7 @@ def get_agent_status(
                       是否有数据上报来判定 Agent 状态，跳过 node_man 实时查询（历史场景无意义）。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param target_filter: UQ 目标过滤条件。None 沿用按 hosts 构造的默认条件；{} 仅供服务端可信的全业务查询。
     :return {bk_host_id: AGENT_STATUS}
     """
     if not hosts:
@@ -95,7 +101,7 @@ def get_agent_status(
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
-        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts) if target_filter is None else target_filter,
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if is_historical:
@@ -158,11 +164,16 @@ def get_agent_status(
     pool.close()
     pool.join()
     result = []
+    node_man_failed = False
     for future in futures:
         try:
             result.extend(future.get())
         except Exception as e:
             logger.error("get_agent_status error: %s", e)
+            node_man_failed = True
+
+    if fail_on_incomplete and node_man_failed:
+        raise RuntimeError("node manager returned incomplete agent status")
 
     for info in result:
         host_id = info["host_id"]
@@ -203,6 +214,7 @@ def get_process_info(
     end_time: int = None,
     fail_on_incomplete: bool = False,
     filter_by_hosts: bool = False,
+    target_filter: dict | None = None,
 ) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
@@ -213,6 +225,7 @@ def get_process_info(
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :param filter_by_hosts: 多主机查询时是否将主机列表下推至 CMDB。默认保持全业务缓存查询行为。
+    :param target_filter: 进程状态 UQ 目标过滤条件。None 沿用默认条件；{} 仅供服务端可信的全业务查询。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -250,7 +263,12 @@ def get_process_info(
 
     # 查询进程状态数据
     statuses: dict[int, dict[str, int]] = get_process_status(
-        bk_biz_id, hosts, start_time, end_time, fail_on_incomplete=fail_on_incomplete
+        bk_biz_id,
+        hosts,
+        start_time,
+        end_time,
+        fail_on_incomplete=fail_on_incomplete,
+        target_filter=target_filter,
     )
 
     bk_host_ids = {host.bk_host_id for host in hosts}
@@ -293,6 +311,7 @@ def get_process_status(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    target_filter: dict | None = None,
 ) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
@@ -302,6 +321,7 @@ def get_process_status(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param target_filter: UQ 目标过滤条件。None 沿用按 hosts 构造的默认条件；{} 仅供服务端可信的全业务查询。
     """
     result = defaultdict(dict)
     for bk_host_id, display_name, value in _query_proc_metrics(
@@ -313,6 +333,7 @@ def get_process_status(
         start_time,
         end_time,
         fail_on_incomplete=fail_on_incomplete,
+        target_filter=target_filter,
     ):
         result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
@@ -327,6 +348,7 @@ def _query_proc_metrics(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    target_filter: dict | None = None,
 ):
     """
     查询 system.proc / system.proc_port 指标的公共生成器。
@@ -342,6 +364,7 @@ def _query_proc_metrics(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常
+    :param target_filter: UQ 目标过滤条件。None 沿用按 hosts 构造的默认条件；{} 表示不附加目标条件。
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
     """
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
@@ -354,7 +377,7 @@ def _query_proc_metrics(
         metrics=[{"field": field, "method": method, "alias": "A"}],
         table=table,
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
-        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts) if target_filter is None else target_filter,
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if start_time is not None and end_time is not None:
@@ -569,6 +592,7 @@ def get_host_performance_data(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    target_filter: dict | None = None,
 ) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
@@ -578,6 +602,7 @@ def get_host_performance_data(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :param fail_on_incomplete: 查询异常或 UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param target_filter: UQ 目标过滤条件。None 沿用按 hosts 构造的默认条件；{} 仅供服务端可信的全业务查询。
     """
     if not hosts:
         return {}
@@ -599,7 +624,7 @@ def get_host_performance_data(
 
     # 与主机图表保持相同的目标维度：IPv4 使用 IP+云区域，IPv6 使用主机 ID。
     # IPv4 身份不完整时保留全量查询，避免过滤掉只能通过 bk_host_id 回填的兼容数据。
-    target_filter = _build_host_target_filter(bk_biz_id, hosts)
+    target_filter = _build_host_target_filter(bk_biz_id, hosts) if target_filter is None else target_filter
 
     def get_metric_data(metric):
         # 每个线程写入独立的临时 dict，避免多线程并发写同一 data 的竞态
@@ -831,18 +856,146 @@ def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> tuple[int, int
     return enabled, disabled
 
 
+def _build_host_alarm_search(
+    bk_biz_id: int,
+    *,
+    days: int,
+    start_time: int | None,
+    end_time: int | None,
+):
+    is_historical = start_time is not None and end_time is not None
+    search_object = (
+        AlertDocument.search(
+            start_time=start_time if is_historical else None,
+            end_time=end_time if is_historical else None,
+            days=None if is_historical else days,
+        )
+        .filter("term", status=EventStatus.ABNORMAL)
+        .filter("term", **{"event.bk_biz_id": bk_biz_id})
+    )
+    if is_historical:
+        search_object = search_object.filter("range", begin_time={"gte": start_time, "lte": end_time})
+    return search_object
+
+
+def _non_empty_host_alarm_identity(field: str):
+    return Q(
+        "bool",
+        filter=[Q("exists", field=field)],
+        must_not=[Q("term", **{field: ""})],
+    )
+
+
+def _iter_business_host_alarm_buckets(
+    bk_biz_id: int,
+    *,
+    days: int,
+    start_time: int | None,
+    end_time: int | None,
+    identity: str,
+):
+    source_fields = {
+        "bk_host_id": [{"bk_host_id": {"terms": {"field": "event.bk_host_id"}}}],
+        "ip": [
+            {"bk_cloud_id": {"terms": {"field": "event.bk_cloud_id"}}},
+            {"ip": {"terms": {"field": "event.ip"}}},
+        ],
+        "ipv6": [
+            {"bk_cloud_id": {"terms": {"field": "event.bk_cloud_id"}}},
+            {"ipv6": {"terms": {"field": "event.ipv6"}}},
+        ],
+    }
+    after_key = None
+    while True:
+        search_object = _build_host_alarm_search(
+            bk_biz_id,
+            days=days,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        if identity == "bk_host_id":
+            search_object = search_object.filter(_non_empty_host_alarm_identity("event.bk_host_id"))
+        elif identity == "ip":
+            search_object = search_object.exclude(_non_empty_host_alarm_identity("event.bk_host_id"))
+            search_object = search_object.filter(_non_empty_host_alarm_identity("event.ip"))
+        else:
+            search_object = search_object.exclude(_non_empty_host_alarm_identity("event.bk_host_id"))
+            search_object = search_object.exclude(_non_empty_host_alarm_identity("event.ip"))
+            search_object = search_object.filter(_non_empty_host_alarm_identity("event.ipv6"))
+
+        composite_params = {
+            "size": HOST_ALARM_COMPOSITE_PAGE_SIZE,
+            "sources": [*source_fields[identity], {"severity": {"terms": {"field": "severity"}}}],
+        }
+        if after_key:
+            composite_params["after"] = after_key
+        search_object = search_object.extra(size=0)
+        search_object.aggs.bucket(HOST_ALARM_COMPOSITE_AGGREGATION, "composite", **composite_params)
+        aggregation = getattr(search_object.execute().aggregations, HOST_ALARM_COMPOSITE_AGGREGATION)
+        buckets = list(aggregation.buckets)
+        yield from buckets
+
+        after_key = getattr(aggregation, "after_key", None)
+        if hasattr(after_key, "to_dict"):
+            after_key = after_key.to_dict()
+        if not after_key or not buckets:
+            break
+
+
+def _get_business_host_alarm_count(
+    bk_biz_id: int,
+    hosts: list[Host],
+    ip_to_host_id: dict[tuple, int],
+    *,
+    days: int,
+    start_time: int | None,
+    end_time: int | None,
+) -> dict[int, dict[int, int]]:
+    known_host_ids = {host.bk_host_id for host in hosts}
+    alarm_count_info = {host.bk_host_id: {1: 0, 2: 0, 3: 0} for host in hosts}
+    for identity in ("bk_host_id", "ip", "ipv6"):
+        for bucket in _iter_business_host_alarm_buckets(
+            bk_biz_id,
+            days=days,
+            start_time=start_time,
+            end_time=end_time,
+            identity=identity,
+        ):
+            key = bucket.key.to_dict() if hasattr(bucket.key, "to_dict") else bucket.key
+            try:
+                severity = int(key["severity"])
+                if identity == "bk_host_id":
+                    host_id = int(key["bk_host_id"])
+                    if host_id not in known_host_ids:
+                        continue
+                else:
+                    host_id = ip_to_host_id.get((key[identity], int(key["bk_cloud_id"])))
+                    if host_id is None:
+                        continue
+                alarm_count_info[host_id][severity] += int(bucket.doc_count)
+            except (KeyError, TypeError, ValueError):
+                continue
+    return alarm_count_info
+
+
 # 获取主机告警事件
 def get_host_alarm_count(
-    bk_biz_id: int, hosts: list[Host], days: int = 7, start_time: int = None, end_time: int = None
+    bk_biz_id: int,
+    hosts: list[Host],
+    days: int = 7,
+    start_time: int = None,
+    end_time: int = None,
+    filter_by_host_ip: bool = True,
 ) -> dict[int, dict[int, int]]:
     """
-    获取主机关联告警数量，当不传主机时，统计所有主机数据
-    todo: 在ipv6改造后，alert需要添加bk_host_id，该函数需要额外适配
-    支持两种匹配方式（按优先级）：
-    1. event.ip + event.bk_cloud_id 匹配（传统主机告警）
-    2. dimensions 中提取 ip + bk_cloud_id 匹配（K8s告警）
-    优化：传入主机时按 event.ip 做 terms 过滤，避免全索引扫描；
-         无 event.ip 的 K8s 告警（仅 dimensions 匹配）可能被遗漏，属已知权衡。
+    获取主机关联告警数量，结果只包含传入的 CMDB 主机白名单。
+    页级查询支持三种匹配方式（按优先级）：
+    1. event.bk_host_id
+    2. event.ip / event.ipv6 + event.bk_cloud_id
+    3. dimensions 中的 bk_host_id，或 IPv4 / IPv6 + bk_cloud_id
+    页级查询按 event.bk_host_id / event.ip / event.ipv6 做 terms 过滤；完整业务快照使用有界 composite
+    聚合，依次统计 host_id、缺 host_id 的 IPv4、再缺 IPv4 的 IPv6，避免线性 terms 和文档 scan。
+    两种模式均可能遗漏仅存在于 dimensions 的告警，属已知权衡。
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param days: 查询范围（天），仅在未传 start_time/end_time 时生效
@@ -854,57 +1007,76 @@ def get_host_alarm_count(
     if not hosts:
         return {}
 
-    # 收集主机IP用于ES端过滤，避免全索引扫描
-    host_ips = set()
+    # 收集主机IP用于ES端过滤，完整业务快照由调用方显式关闭线性 terms。
+    host_ipv4s = set()
+    host_ipv6s = set()
+    ip_to_host_id = {}
     for host in hosts:
-        inner_ip = host.bk_host_innerip
-        if inner_ip:
-            host_ips.update(ip.strip() for ip in inner_ip.split(",") if ip.strip())
+        for address_field in ("bk_host_innerip", "bk_host_innerip_v6"):
+            addresses = getattr(host, address_field, "") or ""
+            for ip in (value.strip() for value in addresses.split(",")):
+                if not ip:
+                    continue
+                (host_ipv6s if address_field == "bk_host_innerip_v6" else host_ipv4s).add(ip)
+                ip_to_host_id[(ip, int(host.bk_cloud_id or 0))] = host.bk_host_id
 
-    is_historical = start_time is not None and end_time is not None
-    search_object = (
-        AlertDocument.search(
-            start_time=start_time if is_historical else None,
-            end_time=end_time if is_historical else None,
-            days=None if is_historical else days,
+    if not filter_by_host_ip:
+        return _get_business_host_alarm_count(
+            bk_biz_id,
+            hosts,
+            ip_to_host_id,
+            days=days,
+            start_time=start_time,
+            end_time=end_time,
         )
-        .filter("term", status=EventStatus.ABNORMAL)
-        .filter("term", **{"event.bk_biz_id": bk_biz_id})
-        .source(["event.ip", "event.bk_cloud_id", "severity", "dimensions"])
-    )
-    if is_historical:
-        # 补充 ES range 过滤，按告警开始时间精确约束，避免索引按天选择带来的边界数据
-        search_object = search_object.filter("range", begin_time={"gte": start_time, "lte": end_time})
 
-    if host_ips:
-        search_object = search_object.filter("terms", **{"event.ip": list(host_ips)})
+    search_object = _build_host_alarm_search(
+        bk_biz_id,
+        days=days,
+        start_time=start_time,
+        end_time=end_time,
+    ).source(["event.bk_host_id", "event.ip", "event.ipv6", "event.bk_cloud_id", "severity", "dimensions"])
 
-    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
+    identity_filters = [Q("terms", **{"event.bk_host_id": sorted(str(host.bk_host_id) for host in hosts)})]
+    if host_ipv4s:
+        identity_filters.append(Q("terms", **{"event.ip": sorted(host_ipv4s)}))
+    if host_ipv6s:
+        identity_filters.append(Q("terms", **{"event.ipv6": sorted(host_ipv6s)}))
+    search_object = search_object.filter(Q("bool", should=identity_filters, minimum_should_match=1))
 
+    known_host_ids = {host.bk_host_id for host in hosts}
     alarm_count_info = {host.bk_host_id: {1: 0, 2: 0, 3: 0} for host in hosts}
     for alert in search_object.scan():
-        host_id = _resolve_host_id_from_alert(alert, ip_to_host_id)
+        host_id = _resolve_host_id_from_alert(alert, known_host_ids, ip_to_host_id)
         if host_id is None:
             continue
         alarm_count_info[host_id][int(alert.severity)] += 1
     return alarm_count_info
 
 
-def _resolve_host_id_from_alert(alert, ip_to_host_id: dict[tuple, int]) -> int | None:
+def _resolve_host_id_from_alert(alert, known_host_ids: set[int], ip_to_host_id: dict[tuple, int]) -> int | None:
     """
     从告警中解析出 bk_host_id，支持多种匹配方式。
     :return: bk_host_id 或 None（无法匹配）
     """
-    # 优先级1：event.ip + event.bk_cloud_id 匹配（传统主机告警）
+    # 优先级1：event.bk_host_id 与服务端 CMDB 白名单匹配。
     try:
-        ip = alert.event.ip
-        bk_cloud_id = int(alert.event.bk_cloud_id)
-        if ip and (ip, bk_cloud_id) in ip_to_host_id:
-            return ip_to_host_id[(ip, bk_cloud_id)]
+        host_id = int(alert.event.bk_host_id)
+        if host_id in known_host_ids:
+            return host_id
     except (ValueError, TypeError, AttributeError):
         pass
 
-    # 优先级2：从 dimensions 中提取（K8s 告警通过 KubernetesCMDBEnricher 写入）
+    # 优先级2：event.ip / event.ipv6 + event.bk_cloud_id 匹配。
+    try:
+        bk_cloud_id = int(alert.event.bk_cloud_id)
+        for ip in (getattr(alert.event, "ip", ""), getattr(alert.event, "ipv6", "")):
+            if ip and (ip, bk_cloud_id) in ip_to_host_id:
+                return ip_to_host_id[(ip, bk_cloud_id)]
+    except (ValueError, TypeError, AttributeError):
+        pass
+
+    # 优先级3：从 dimensions 中提取（K8s 告警通过 KubernetesCMDBEnricher 写入）。
     try:
         dimensions = alert.dimensions or []
         dim_map = {}
@@ -914,10 +1086,25 @@ def _resolve_host_id_from_alert(alert, ip_to_host_id: dict[tuple, int]) -> int |
             if key and value is not None:
                 dim_map[key] = value
 
-        # dimensions 中的 ip + bk_cloud_id 匹配
-        if "ip" in dim_map and "bk_cloud_id" in dim_map:
-            ip = dim_map["ip"]
-            bk_cloud_id = int(dim_map["bk_cloud_id"])
+        if "bk_host_id" in dim_map:
+            host_id = int(dim_map["bk_host_id"])
+            if host_id in known_host_ids:
+                return host_id
+
+        ip = next(
+            (
+                dim_map[key]
+                for key in ("ip", "ipv6", "bk_target_ip", "bk_host_innerip", "bk_host_innerip_v6")
+                if key in dim_map
+            ),
+            None,
+        )
+        cloud_id = next(
+            (dim_map[key] for key in ("bk_cloud_id", "bk_target_cloud_id") if key in dim_map),
+            None,
+        )
+        if ip is not None and cloud_id is not None:
+            bk_cloud_id = int(cloud_id)
             if (ip, bk_cloud_id) in ip_to_host_id:
                 return ip_to_host_id[(ip, bk_cloud_id)]
     except (ValueError, TypeError, AttributeError):
