@@ -556,6 +556,7 @@ class StorageHandler:
             # 默认集群权重: 推荐集群 > 其他
             cluster_obj["priority"] = 1 if cluster_obj["cluster_config"].get("is_default_cluster") else 2
 
+            # 兼容 visible_config 上线前注册的历史公共集群
             if not cluster_obj["cluster_config"]["custom_option"].get("visible_config"):
                 cluster_obj["cluster_config"]["custom_option"]["visible_config"] = {
                     "visible_type": VisibleEnum.ALL_BIZ.value

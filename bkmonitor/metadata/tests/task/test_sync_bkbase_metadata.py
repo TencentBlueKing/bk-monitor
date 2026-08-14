@@ -735,8 +735,11 @@ def test_sync_bkbase_doris_cluster_custom_option(create_or_delete_records):
     )
     cluster = models.ClusterInfo.objects.get(cluster_name="doris_custom_option")
     assert cluster.custom_option == json.dumps({"bk_biz_id": 100380})
+    assert cluster.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM
 
-    cluster.custom_option = json.dumps({"source": "manual"})
+    cluster.custom_option = json.dumps(
+        {"source": "manual", "visible_config": {"visible_type": "current_biz"}}
+    )
     cluster.save(update_fields=["custom_option"])
     sync_bkbase_cluster_info(
         bk_tenant_id="system",
@@ -746,7 +749,97 @@ def test_sync_bkbase_doris_cluster_custom_option(create_or_delete_records):
         update=True,
     )
     cluster.refresh_from_db()
-    assert cluster.custom_option == json.dumps({"source": "manual"})
+    assert json.loads(cluster.custom_option) == {
+        "source": "manual",
+        "visible_config": {"visible_type": "current_biz"},
+        "bk_biz_id": 100380,
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_doris_owner_normalization_ignores_update_switch(create_or_delete_records):
+    doris_config = next(
+        config for config in BKBASE_V4_KIND_STORAGE_CONFIGS if config["cluster_type"] == models.ClusterInfo.TYPE_DORIS
+    )
+    cluster_data = {
+        "kind": "Doris",
+        "metadata": {"namespace": "bklog", "name": "legacy_private_doris", "labels": {}, "annotations": {}},
+        "spec": {
+            "host": "legacy_private_doris.test",
+            "port": 9030,
+            "user": "testuser",
+            "password": "testpwd",
+            "bk_biz_id": 100380,
+        },
+    }
+    cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_name="legacy_private_doris",
+        display_name="legacy_private_doris",
+        domain_name="legacy_private_doris.test",
+        port=9030,
+        description="",
+        is_default_cluster=False,
+        custom_option=json.dumps(
+            {"source": "manual", "visible_config": {"visible_type": "current_biz"}}
+        ),
+    )
+
+    sync_bkbase_cluster_info(
+        bk_tenant_id="system",
+        cluster_data=cluster_data,
+        field_mappings=doris_config["field_mappings"],
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        update=False,
+    )
+
+    cluster.refresh_from_db()
+    assert cluster.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM
+    assert json.loads(cluster.custom_option) == {
+        "source": "manual",
+        "visible_config": {"visible_type": "current_biz"},
+        "bk_biz_id": 100380,
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_legacy_public_doris_without_owner_remains_default(create_or_delete_records):
+    doris_config = next(
+        config for config in BKBASE_V4_KIND_STORAGE_CONFIGS if config["cluster_type"] == models.ClusterInfo.TYPE_DORIS
+    )
+    cluster_data = {
+        "kind": "Doris",
+        "metadata": {"namespace": "bklog", "name": "legacy_public_doris", "labels": {}, "annotations": {}},
+        "spec": {
+            "host": "legacy_public_doris.test",
+            "port": 9030,
+            "user": "testuser",
+            "password": "testpwd",
+        },
+    }
+    cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_name="legacy_public_doris",
+        display_name="legacy_public_doris",
+        domain_name="legacy_public_doris.test",
+        port=9030,
+        description="",
+        is_default_cluster=False,
+    )
+
+    sync_bkbase_cluster_info(
+        bk_tenant_id="system",
+        cluster_data=cluster_data,
+        field_mappings=doris_config["field_mappings"],
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        update=False,
+    )
+
+    cluster.refresh_from_db()
+    assert cluster.registered_system == models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM
+    assert cluster.custom_option == ""
 
 
 # 计算平台Meta接口的返回值(这里只Mock了监控平台需要关注的部分)
