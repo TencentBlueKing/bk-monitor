@@ -2470,6 +2470,10 @@ class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
         return settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
 
     def switch_unify_query(self, bk_biz_id: int) -> bool:
+        # PREFIX# 开头的表名表示按索引前缀检索，无法被结果表路由解析，只能走 ES 查询。
+        if self.table.startswith("PREFIX#"):
+            return False
+
         for field_cond in self._get_conditions().get("field_list", []):
             # 如果存在 ES 检索的特殊操作符，则不使用 unify-query。
             # 背景：之前用户输入 events.a.b.c 时，SaaS 需要根据 mapping 判断是否为嵌套字段，增加 nested 检索关键字。
