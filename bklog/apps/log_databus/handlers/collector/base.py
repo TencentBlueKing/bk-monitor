@@ -1376,6 +1376,7 @@ class CollectorHandler:
 
     def create_clean_stash(self, params: dict):
         model_fields = {
+            "clean_template_id": params.get("clean_template_id"),
             "clean_type": params["clean_type"],
             "etl_params": params["etl_params"],
             "etl_fields": params["etl_fields"],
@@ -1714,7 +1715,19 @@ class CollectorHandler:
         index_set.tag_ids = list((existing - old_scene_tag_ids) | set(tag_ids))
         index_set.save(update_fields=["tag_ids"])
 
-    def create_or_update_clean_config(self, is_update, params):
+    @staticmethod
+    def _get_current_allocation_min_days(result_table: dict) -> int:
+        # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。
+        allocation_min_days = result_table["storage_config"].get("warm_phase_days") or 0
+        if not allocation_min_days:
+            return 0
+
+        storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+        cluster_config = StorageHandler(storage_cluster_id).get_cluster_info_by_id().get("cluster_config", {})
+        hot_warm_enabled = cluster_config.get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled", False)
+        return allocation_min_days if hot_warm_enabled else 0
+
+    def create_or_update_clean_config(self, is_update, params, sync_modify_result_table=False):
         if is_update:
             table_id = self.data.table_id
             # 更新场景，需要把之前的存储设置拿出来，和更新的配置合并一下
@@ -1725,14 +1738,21 @@ class CollectorHandler:
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
+            current_storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+            target_storage_cluster_id = params.get("storage_cluster_id", current_storage_cluster_id)
+            allocation_min_days = params.get("allocation_min_days", 0)
+            if "allocation_min_days" not in params and target_storage_cluster_id == current_storage_cluster_id:
+                allocation_min_days = self._get_current_allocation_min_days(result_table)
+
             default_etl_params = {
+                "table_id": table_id.split(".")[-1],
                 "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
                 "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
                 "retention": result_table["storage_config"].get("retention", 0),
-                "allocation_min_days": params.get("allocation_min_days", 0),
+                "allocation_min_days": allocation_min_days,
                 "etl_config": self.data.etl_config,
             }
             default_etl_params.update(params)
@@ -1743,7 +1763,10 @@ class CollectorHandler:
         from apps.log_databus.handlers.etl import EtlHandler
 
         etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        result = etl_handler.update_or_create(**params)
+        result = etl_handler.update_or_create(
+            **params,
+            sync_modify_result_table=sync_modify_result_table,
+        )
         self._sync_scene_tags_to_index_set(params["labels"])
         return result
 
@@ -1874,9 +1897,7 @@ class CollectorHandler:
 
     @staticmethod
     def get_or_create_parent_index_set_ids_by_parent_index_set_names(
-        parent_index_set_names,
-        bk_biz_id: int | None = None,
-        space_uid: str | None = None
+        parent_index_set_names, bk_biz_id: int | None = None, space_uid: str | None = None
     ) -> list | None:
         if parent_index_set_names is None:
             return None
