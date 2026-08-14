@@ -25,7 +25,7 @@
  */
 import { defineComponent, onMounted, shallowRef, watch } from 'vue';
 
-import { Button, Input, Select } from 'bkui-vue';
+import { Button, InfoBox, Input, Select } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { debounce } from 'lodash';
 import OverflowTips from 'trace/directive/overflow-tips';
@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n';
 import { useBkciProjectsSelect } from '../../composables/use-bkci-projects-select';
 import { useBkciRepositoriesSelect } from '../../composables/use-bkci-repositories-select';
 import {
+  deleteSourceAnalysisRuleApi,
   getListSourceAnalysisRules,
   getSourceAnalysisConfigData,
   setSaveSourceAnalysisConfig,
@@ -174,6 +175,38 @@ export default defineComponent({
       repositoriesSelect.handleToggle(val);
     };
 
+    /** 规则局部更新（启停等）：将更新后的规则回写到列表对应项 */
+    const handleTableUpdateRule = (rule: TSourceAnalysisRule) => {
+      sourceAnalysisRules.value = sourceAnalysisRules.value.map(item => (item.id === rule.id ? rule : item));
+    };
+
+    /** 编辑规则：打开编辑弹窗（待接入编辑能力） */
+    const handleEditRule = (rule: TSourceAnalysisRule) => {
+      console.log(rule);
+    };
+    /** 删除规则：二次确认后调用删除接口并同步移除列表项（默认策略不可删除） */
+    const handleDeleteRule = (rule: TSourceAnalysisRule) => {
+      InfoBox({
+        title: t('确定删除此规则'),
+        beforeClose: action => {
+          console.log(action);
+          if (action === 'confirm') {
+            return new Promise(resolve => {
+              deleteSourceAnalysisRuleApi(rule.id)
+                .then(() => {
+                  resolve(true);
+                  sourceAnalysisRules.value = sourceAnalysisRules.value.filter(item => item.id !== rule.id);
+                })
+                .catch(() => {
+                  resolve(false);
+                });
+            });
+          }
+          return true;
+        },
+      });
+    };
+
     /** 蓝盾项目切换/清空时，同步清空已选的源码仓库 */
     watch(
       () => bkciProjectId.value,
@@ -215,6 +248,9 @@ export default defineComponent({
       handleBindConfirm,
       handleSaveConfig,
       handleClearSearch,
+      handleTableUpdateRule,
+      handleEditRule,
+      handleDeleteRule,
     };
   },
   render() {
@@ -435,6 +471,9 @@ export default defineComponent({
                   loading={this.rulesLoading}
                   searchValue={this.searchValue}
                   onClearSearch={this.handleClearSearch}
+                  onDeleteRule={this.handleDeleteRule}
+                  onEditRule={this.handleEditRule}
+                  onUpdateRule={this.handleTableUpdateRule}
                 />
                 <AnalysisConfigSideslider
                   v-model:show={this.showBindModal}
