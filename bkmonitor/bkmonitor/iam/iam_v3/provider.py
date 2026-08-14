@@ -15,13 +15,6 @@ specific language governing permissions and limitations under the License.
 # 调用 V3 IAM 平台 API。业务命名 ↔ V3 方言的编解码全部由基类和注入的 codec 完成。
 #
 # codec 类通过 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 配置。
-#
-# 与 V4 Provider 的关键差异：
-#   1. 使用 V3Client SDK（而非 V4 HTTP client）
-#   2. 读操作走 is_allowed_with_cache（SDK 缓存），写操作走 is_allowed
-#   3. 批量鉴权走 batch_resource_multi_actions_allowed
-#   4. apply_url 走 SDK 的 Application + get_apply_url
-#   5. Phase 1：plan_migration / apply_migration 返回空（V3 迁移走原有 JSON 方式）
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations

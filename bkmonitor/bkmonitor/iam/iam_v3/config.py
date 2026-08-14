@@ -14,10 +14,6 @@ from __future__ import annotations
 # V3 Provider 配置契约
 #
 # 风格对齐 V4Options，frozen dataclass + from_dict() 启动期校验。
-#
-# V3 特有字段：
-#   bk_tenant_id — V3Client 构造时需要，V4 没有这个字段
-#   system       — 无 callback_url（V3 不通过系统注册 API 配置回调）
 # ---------------------------------------------------------------------------
 
 from dataclasses import dataclass, field
