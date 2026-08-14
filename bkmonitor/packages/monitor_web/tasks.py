@@ -1815,3 +1815,7 @@ def migrate_all_panels_task(bk_biz_id, org_id):
         ApplicationConfig.objects.update_or_create(
             cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_migrate_all_panels", defaults={"value": result}
         )
+
+
+# Celery only autodiscovers the app-level tasks module. Import the dedicated implementation so workers register it.
+from monitor_web.performance.tasks import build_host_metric_snapshot as build_host_metric_snapshot  # noqa: E402,F401

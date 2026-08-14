@@ -9,13 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 
 from api.cmdb.define import Host, TopoNode
 from bkm_space.validate import validate_bk_biz_id
+from django.conf import settings
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.cache import CacheType
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.user import get_request_username
 from bkmonitor.views import serializers
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
@@ -23,6 +27,16 @@ from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.share import InvalidParamsError, ParamsPermissionDeniedError
 from monitor_web.constants import AGENT_STATUS
+from monitor_web.performance.snapshot import (
+    SNAPSHOT_DEADLINE,
+    SNAPSHOT_SECTIONS,
+    HostMetricSnapshotStore,
+    SnapshotState,
+    SnapshotUnavailable,
+    build_host_ids_hash,
+    build_snapshot_fingerprint,
+    canonicalize_snapshot_time,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -372,7 +386,9 @@ class SearchHostInfoResource(ApiAuthResource):
                     "bk_cloud_id": host.bk_cloud_id,
                     "bk_cloud_name": host.bk_cloud_name,
                     "bk_host_innerip": host.bk_host_innerip,
+                    "bk_host_innerip_v6": host.bk_host_innerip_v6,
                     "bk_host_outerip": host.bk_host_outerip,
+                    "bk_host_outerip_v6": host.bk_host_outerip_v6,
                     "bk_os_type": host.bk_os_type,
                     "bk_os_name": host.bk_os_name,
                     "region": host.bk_province_name,
@@ -455,6 +471,7 @@ class SearchHostMetricResource(ApiAuthResource):
         start_time: int = None,
         end_time: int = None,
         fail_on_incomplete: bool = False,
+        target_filter: dict | None = None,
     ):
         """
         获取Agent状态
@@ -465,6 +482,7 @@ class SearchHostMetricResource(ApiAuthResource):
             start_time=start_time,
             end_time=end_time,
             fail_on_incomplete=fail_on_incomplete,
+            target_filter=target_filter,
         )
         for bk_host_id, status in agent_statuses.items():
             if bk_host_id not in data:
@@ -479,6 +497,7 @@ class SearchHostMetricResource(ApiAuthResource):
         start_time: int = None,
         end_time: int = None,
         fail_on_incomplete: bool = False,
+        target_filter: dict | None = None,
     ):
         """
         获取指标信息
@@ -489,6 +508,7 @@ class SearchHostMetricResource(ApiAuthResource):
             start_time=start_time,
             end_time=end_time,
             fail_on_incomplete=fail_on_incomplete,
+            target_filter=target_filter,
         )
         for bk_host_id, metrics in result.items():
             if bk_host_id not in data:
@@ -504,6 +524,7 @@ class SearchHostMetricResource(ApiAuthResource):
         end_time: int = None,
         fail_on_incomplete: bool = False,
         filter_by_hosts: bool = False,
+        target_filter: dict | None = None,
     ):
         """
         获取进程信息
@@ -519,6 +540,7 @@ class SearchHostMetricResource(ApiAuthResource):
             end_time=end_time,
             fail_on_incomplete=fail_on_incomplete,
             filter_by_hosts=filter_by_hosts,
+            target_filter=target_filter,
         )
         for bk_host_id in result:
             if bk_host_id not in data:
@@ -539,13 +561,22 @@ class SearchHostMetricResource(ApiAuthResource):
 
     @staticmethod
     def get_alarm_count(
-        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+        filter_by_host_ip: bool = True,
     ):
         """
         获取告警信息
         """
         result = resource.cc.get_host_alarm_count(
-            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+            filter_by_host_ip=filter_by_host_ip,
         )
         for bk_host_id in result:
             if bk_host_id not in data:
@@ -598,3 +629,196 @@ class SearchHostMetricResource(ApiAuthResource):
         if failed_sections:
             raise CustomException("get host metric data failed", data={"failed_sections": failed_sections})
         return data
+
+
+class HostMetricSnapshotRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务ID")
+    start_time = serializers.IntegerField(label="开始时间(秒级时间戳)")
+    end_time = serializers.IntegerField(label="结束时间(秒级时间戳)")
+    bk_host_id = serializers.IntegerField(required=False, label="分享主机ID")
+    bk_obj_id = serializers.CharField(required=False, label="分享拓扑对象ID")
+    bk_inst_id = serializers.IntegerField(required=False, label="分享拓扑实例ID")
+
+    def to_internal_value(self, data):
+        unknown_fields = set(data) - set(self.fields)
+        if unknown_fields:
+            raise serializers.ValidationError({field: ["unexpected field"] for field in sorted(unknown_fields)})
+        return super().to_internal_value(data)
+
+    def validate_bk_biz_id(self, value):
+        return validate_bk_biz_id(value)
+
+    def validate(self, attrs):
+        if attrs["end_time"] <= attrs["start_time"]:
+            raise serializers.ValidationError({"end_time": ["must be greater than start_time"]})
+        has_host = attrs.get("bk_host_id") is not None
+        has_topo = attrs.get("bk_obj_id") is not None or attrs.get("bk_inst_id") is not None
+        if has_host and has_topo:
+            raise serializers.ValidationError({"bk_host_id": ["host and topology scopes are mutually exclusive"]})
+        if bool(attrs.get("bk_obj_id")) != (attrs.get("bk_inst_id") is not None):
+            raise serializers.ValidationError({"bk_obj_id": ["bk_obj_id and bk_inst_id must be provided together"]})
+        return attrs
+
+
+def build_host_metric_snapshot_scope(params: dict) -> dict:
+    if params.get("bk_host_id") is not None:
+        return {"bk_host_id": params["bk_host_id"], "type": "host"}
+    if params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
+        return {
+            "bk_inst_id": params["bk_inst_id"],
+            "bk_obj_id": params["bk_obj_id"],
+            "type": "topology",
+        }
+    return {"type": "business"}
+
+
+def resolve_host_metric_snapshot_scope(params: dict) -> tuple[dict, list[Host]]:
+    bk_biz_id = params["bk_biz_id"]
+    scope = build_host_metric_snapshot_scope(params)
+    if scope["type"] == "host":
+        hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[params["bk_host_id"]])
+    elif scope["type"] == "topology":
+        hosts = api.cmdb.get_host_by_topo_node(
+            bk_biz_id=bk_biz_id,
+            topo_nodes={params["bk_obj_id"]: [params["bk_inst_id"]]},
+        )
+    else:
+        hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+    return scope, hosts
+
+
+def _unavailable_snapshot_response():
+    return {
+        "data": {},
+        "expired": False,
+        "failed_sections": [],
+        "retry_after": 5,
+        "revision": 0,
+        "sections": {},
+        "snapshot_id": "",
+        "state": SnapshotState.UNAVAILABLE,
+    }
+
+
+def _expired_snapshot_response(snapshot_id: str):
+    return {
+        "data": {},
+        "expired": True,
+        "failed_sections": [],
+        "retry_after": 5,
+        "revision": 0,
+        "sections": {},
+        "snapshot_id": snapshot_id,
+        "state": SnapshotState.EXPIRED,
+    }
+
+
+class CreateHostMetricSnapshotResource(ApiAuthResource):
+    RequestSerializer = HostMetricSnapshotRequestSerializer
+
+    def perform_request(self, params):
+        if not settings.ENABLE_HOST_METRIC_PROGRESSIVE:
+            return _unavailable_snapshot_response()
+        scope = build_host_metric_snapshot_scope(params)
+        request = get_request(peaceful=True)
+        canonical_time = canonicalize_snapshot_time(
+            params["start_time"],
+            params["end_time"],
+            is_share=bool(request and getattr(request, "token", None)),
+        )
+        bk_tenant_id = get_request_tenant_id()
+        fingerprint = build_snapshot_fingerprint(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=params["bk_biz_id"],
+            scope=scope,
+            time_key=canonical_time.time_key,
+        )
+        now = int(time.time())
+        payload = {
+            "bk_biz_id": params["bk_biz_id"],
+            "bk_tenant_id": bk_tenant_id,
+            "canonical_end_time": canonical_time.end_time,
+            "canonical_start_time": canonical_time.start_time,
+            "deadline_at": now + SNAPSHOT_DEADLINE,
+            "host_count": 0,
+            "host_ids_hash": "",
+            "scope": scope,
+            "sections": {section: {"state": "PENDING"} for section in SNAPSHOT_SECTIONS},
+            "username": get_request_username(),
+        }
+        try:
+            store = HostMetricSnapshotStore()
+            manifest, created = store.create_or_get(fingerprint, payload)
+            if created:
+                from monitor_web.performance.tasks import build_host_metric_snapshot
+
+                try:
+                    build_host_metric_snapshot.delay(manifest["snapshot_id"])
+                except Exception:
+                    logger.exception("enqueue host metric snapshot failed, bk_biz_id=%s", params["bk_biz_id"])
+                    store.fail(manifest["snapshot_id"], "enqueue_failed")
+                else:
+                    latest = store.get_manifest(manifest["snapshot_id"])
+                    if latest and latest["state"] == SnapshotState.RUNNING and not store.renew_capacity(latest):
+                        store.expire(manifest["snapshot_id"], allow_ready=False)
+            response = store.build_response(manifest["snapshot_id"], now=now, include_data=False)
+            response["revision"] = 0
+            return response
+        except SnapshotUnavailable:
+            logger.warning("host metric snapshot unavailable, bk_biz_id=%s", params["bk_biz_id"])
+            return _unavailable_snapshot_response()
+
+
+class GetHostMetricSnapshotResource(ApiAuthResource):
+    class RequestSerializer(HostMetricSnapshotRequestSerializer):
+        snapshot_id = serializers.CharField(label="快照ID")
+        since_revision = serializers.IntegerField(required=False, min_value=0, label="已加载版本")
+
+    def perform_request(self, params):
+        if not settings.ENABLE_HOST_METRIC_PROGRESSIVE:
+            return _unavailable_snapshot_response()
+        snapshot_id = params["snapshot_id"]
+        try:
+            store = HostMetricSnapshotStore()
+            manifest = store.get_manifest(snapshot_id)
+            if not manifest:
+                return _expired_snapshot_response(snapshot_id)
+
+            scope = build_host_metric_snapshot_scope(params)
+            is_bound = (
+                manifest.get("bk_tenant_id") == get_request_tenant_id()
+                and manifest.get("bk_biz_id") == params["bk_biz_id"]
+                and manifest.get("scope") == scope
+                and manifest.get("canonical_start_time") == params["start_time"]
+                and manifest.get("canonical_end_time") == params["end_time"]
+            )
+            current = store.get_current(manifest["fingerprint"])
+            if not is_bound or not current or current["snapshot_id"] != snapshot_id:
+                return _expired_snapshot_response(snapshot_id)
+
+            response = store.build_response(
+                snapshot_id,
+                since_revision=params.get("since_revision", 0),
+            )
+            if response.get("data") or response.get("state") == SnapshotState.READY:
+                try:
+                    _, hosts = resolve_host_metric_snapshot_scope(params)
+                    current_host_hash = build_host_ids_hash(host.bk_host_id for host in hosts)
+                except Exception:
+                    logger.exception(
+                        "resolve host metric snapshot poll scope failed, bk_biz_id=%s", params["bk_biz_id"]
+                    )
+                    store.expire(snapshot_id)
+                    return _expired_snapshot_response(snapshot_id)
+                current = store.get_current(manifest["fingerprint"])
+                if (
+                    response.get("host_ids_hash") != current_host_hash
+                    or not current
+                    or current["snapshot_id"] != snapshot_id
+                ):
+                    store.expire(snapshot_id)
+                    return _expired_snapshot_response(snapshot_id)
+            return response
+        except SnapshotUnavailable:
+            logger.warning("host metric snapshot poll unavailable, bk_biz_id=%s", params["bk_biz_id"])
+            return _unavailable_snapshot_response()

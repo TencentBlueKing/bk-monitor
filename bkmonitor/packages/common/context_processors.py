@@ -198,6 +198,8 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "GRAPH_WATERMARK": settings.GRAPH_WATERMARK,
             # 是否开启前端视图部分，按拓扑聚合的能力。（不包含对监控策略部分的功能）
             "ENABLE_CMDB_LEVEL": settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL,
+            # 是否开启主机列表指标渐进式加载
+            "ENABLE_HOST_METRIC_PROGRESSIVE": settings.ENABLE_HOST_METRIC_PROGRESSIVE,
             # 事件中心一键拉取功能展示
             "ENABLE_CREATE_CHAT_GROUP": settings.ENABLE_CREATE_CHAT_GROUP,
             # 用于全局设置蓝鲸监控机器人发送图片是否开启

@@ -989,6 +989,8 @@ warnings.filterwarnings(
 #
 IS_ACCESS_BK_DATA = os.getenv("BKAPP_IS_ACCESS_BK_DATA", "") == "true"  # 是否接入计算平台
 IS_ENABLE_VIEW_CMDB_LEVEL = False  # 是否开启前端视图部分的CMDB预聚合
+ENABLE_HOST_METRIC_PROGRESSIVE = os.getenv("ENABLE_HOST_METRIC_PROGRESSIVE", "false").lower() == "true"
+HOST_METRIC_SNAPSHOT_MAX_CONCURRENT_PER_BIZ = max(1, int(os.getenv("HOST_METRIC_SNAPSHOT_MAX_CONCURRENT_PER_BIZ", 1)))
 IS_MIGRATE_AIOPS_STRATEGY = False
 
 # 数据接入相关

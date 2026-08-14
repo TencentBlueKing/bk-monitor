@@ -87,6 +87,7 @@ HOST_SHARE_ALLOWED_ACTIONS = {
     "monitor_web.grafana.views.GrafanaViewSet": {"time_series/unify_query"},
     "monitor_web.performance.views.SearchHostInfoViewSet": {"create"},
     "monitor_web.performance.views.SearchHostMetricViewSet": {"create"},
+    "monitor_web.performance.views.HostMetricSnapshotViewSet": {"create", "retrieve"},
     "monitor_web.scene_view.views.SceneViewViewSet": {
         "get_host_metric_group_panel_order",
         "get_host_or_topo_node_detail",
