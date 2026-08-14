@@ -817,7 +817,7 @@ class TestRealFrameworkQuery:
           - 每个 action 含 action_id / grant_type / permissions 字段
           - summary 含 total_actions / granted_actions
         """
-        username = __import__("os").environ.get("IAM_TEST_USER", "xuchaoshan")
+        username = __import__("os").environ.get("IAM_TEST_USER", "admin")
         tenant_id = __import__("os").environ.get("IAM_TENANT_ID", "system")
 
         result = query_user_permissions({"username": username, "bk_tenant_id": tenant_id})
@@ -851,9 +851,9 @@ class TestRealFrameworkQuery:
         assert summary["total_actions"] == len(actions)
 
         # ---- 将 query_user_permissions 的完整返回值落盘，供人工核对数据结构 ----
-        import json
-        import os as _os
-
-        diag_path = _os.path.join(_os.path.dirname(__file__), "_iam_diag.json")
-        with open(diag_path, "w") as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
+        # import json
+        # import os as _os
+        #
+        # diag_path = _os.path.join(_os.path.dirname(__file__), "_iam_diag.json")
+        # with open(diag_path, "w") as f:
+        #     json.dump(result, f, ensure_ascii=False, indent=2)
