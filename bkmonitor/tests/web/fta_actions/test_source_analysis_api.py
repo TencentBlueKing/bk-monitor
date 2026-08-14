@@ -25,9 +25,13 @@ from constants.issue import (
     SourceAnalysisStatus,
     SourceAnalysisTriggerType,
 )
-from core.errors.issue import SourceAnalysisOperationConflictError
+from core.errors.issue import SourceAnalysisOperationConflictError, SourceAnalysisUpstreamUnavailableError
 from fta_web.issue.resources import (
     AIAnalysisOverviewResource,
+    ListSourceAnalysisAgentsResource,
+    ListSourceAnalysisBkciProjectsResource,
+    ListSourceAnalysisKnowledgeBasesResource,
+    ListSourceAnalysisSkillsResource,
     ReanalyzeSourceAnalysisResource,
     RetrySourceAnalysisResource,
     SourceAnalysisExecutionBaseResource,
@@ -93,9 +97,112 @@ class TestSourceAnalysisFrontendResources(TestCase):
                 "is_configured": False,
                 "unavailable_reason": "no_matched_rule",
                 "unavailable_reason_display": "当前 Issue 未匹配到可用的源码分析规则。",
+                "analysis_context": None,
                 "latest": None,
             },
         )
+
+    def test_query_without_execution_returns_matched_rule_analysis_context(self):
+        rule = self.create_rule()
+        expected_context = {
+            "source": "matched_rule_preview",
+            "project": {"id": "project-a", "name": "Project A"},
+            "repository": {"id": "repo-a", "name": "repo-a"},
+            "agent": {"id": "agent-a", "name": "Agent A"},
+            "knowledge_bases": [],
+            "skills": [],
+        }
+
+        with (
+            patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=SimpleNamespace()),
+            patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(rule, None)),
+            patch.object(
+                SourceAnalysisExecutionBaseResource,
+                "build_analysis_context",
+                return_value=expected_context,
+            ) as build_context,
+        ):
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertEqual(result["analysis_context"], expected_context)
+        build_context.assert_called_once_with(self.BK_BIZ_ID, rule)
+
+    @patch.object(ListSourceAnalysisKnowledgeBasesResource, "perform_request", return_value={"total": 0, "list": []})
+    @patch.object(
+        ListSourceAnalysisSkillsResource,
+        "perform_request",
+        side_effect=[
+            {"total": 2, "list": [{"id": "other-skill", "name": "Other Skill"}]},
+            {"total": 2, "list": [{"id": "skill-a", "name": "Skill A"}]},
+        ],
+    )
+    @patch.object(
+        ListSourceAnalysisAgentsResource,
+        "perform_request",
+        return_value={"total": 1, "list": [{"id": "agent-a", "name": "Agent A"}]},
+    )
+    @patch.object(
+        ListSourceAnalysisBkciProjectsResource,
+        "perform_request",
+        return_value=[{"id": "project-a", "name": "Project A"}],
+    )
+    def test_build_analysis_context_resolves_visible_resource_names(
+        self,
+        _list_projects,
+        _list_agents,
+        list_skills,
+        _list_knowledge_bases,
+    ):
+        rule = SimpleNamespace(
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+            agent_id="agent-a",
+            skill_ids=["skill-a"],
+            knowledge_base_ids=["knowledge-a"],
+        )
+
+        result = SourceAnalysisExecutionBaseResource.build_analysis_context(self.BK_BIZ_ID, rule)
+
+        self.assertEqual(
+            result,
+            {
+                "source": "matched_rule_preview",
+                "project": {"id": "project-a", "name": "Project A"},
+                "repository": {"id": "repo-a", "name": "repo-a"},
+                "agent": {"id": "agent-a", "name": "Agent A"},
+                "knowledge_bases": [{"id": "knowledge-a", "name": "knowledge-a"}],
+                "skills": [{"id": "skill-a", "name": "Skill A"}],
+            },
+        )
+        self.assertEqual(list_skills.call_count, 2)
+
+    @patch.object(
+        ListSourceAnalysisAgentsResource,
+        "perform_request",
+        side_effect=SourceAnalysisUpstreamUnavailableError(),
+    )
+    @patch.object(
+        ListSourceAnalysisBkciProjectsResource,
+        "perform_request",
+        side_effect=SourceAnalysisUpstreamUnavailableError(),
+    )
+    def test_build_analysis_context_falls_back_to_ids_when_name_lookup_fails(
+        self,
+        _list_projects,
+        _list_agents,
+    ):
+        rule = SimpleNamespace(
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+            agent_id="agent-a",
+            skill_ids=[],
+            knowledge_base_ids=[],
+        )
+
+        result = SourceAnalysisExecutionBaseResource.build_analysis_context(self.BK_BIZ_ID, rule)
+
+        self.assertEqual(result["project"], {"id": "project-a", "name": "project-a"})
+        self.assertEqual(result["agent"], {"id": "agent-a", "name": "agent-a"})
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)
@@ -131,10 +238,13 @@ class TestSourceAnalysisFrontendResources(TestCase):
             result_payload=payload,
         )
 
-        result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+        with patch.object(SourceAnalysisExecutionBaseResource, "build_analysis_context") as build_context:
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
         self.assertTrue(result["is_configured"])
         self.assertFalse(result["is_repository_configured"])
+        self.assertIsNone(result["analysis_context"])
+        build_context.assert_not_called()
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
         self.assertEqual(result["latest"]["status_display"], "分析完成（证据不足）")
         self.assertEqual(
@@ -164,6 +274,22 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
         self.assertEqual(set(result), {"source_analysis"})
         self.assertTrue(result["source_analysis"]["is_repository_configured"])
+        self.assertNotIn("analysis_context", result["source_analysis"])
+
+    def test_overview_does_not_resolve_analysis_context_for_matched_rule(self):
+        rule = self.create_rule()
+        with (
+            patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=SimpleNamespace()),
+            patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(rule, None)),
+            patch.object(SourceAnalysisExecutionBaseResource, "build_analysis_context") as build_context,
+        ):
+            result = AIAnalysisOverviewResource().perform_request(
+                {"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID}
+            )
+
+        self.assertTrue(result["source_analysis"]["is_configured"])
+        self.assertNotIn("analysis_context", result["source_analysis"])
+        build_context.assert_not_called()
 
     def test_overview_crops_full_source_analysis_result(self):
         payload = {
