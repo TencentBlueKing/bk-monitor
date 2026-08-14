@@ -37,10 +37,11 @@ from apps.log_databus.exceptions import (
     CollectorConfigNotExistException,
 )
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import BKDataClean, CleanStash, CleanTemplate, CollectorConfig
 from apps.log_databus.tasks.bkdata import sync_clean
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
-from apps.log_search.constants import IndexSetDataType
+from apps.log_search.constants import IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Space
 from apps.models import model_to_dict
 from apps.utils.lock import RedisLock
@@ -345,15 +346,24 @@ class CleanTemplateHandler:
                 "collector_config_name",
                 "bk_biz_id",
                 "index_set_id",
+                "collector_scenario_id",
+                "environment",
             )
             .order_by("collector_config_id")
         )
+        LogCollectorHandler.fill_container_fields(collectors)
         related_index_set_map = self.get_related_index_set_map({collector["index_set_id"] for collector in collectors})
         return [
             {
                 "collector_config_id": collector["collector_config_id"],
                 "collector_config_name": collector["collector_config_name"],
                 "bk_biz_id": collector["bk_biz_id"],
+                "log_access_type": LogAccessTypeEnum.get_log_access_type(
+                    scenario_id="",
+                    collector_scenario_id=collector["collector_scenario_id"] or "",
+                    environment=collector["environment"] or "",
+                    container_collector_type=collector.get("container_collector_type", ""),
+                ),
                 "related_index_set_list": related_index_set_map.get(str(collector["index_set_id"]), []),
             }
             for collector in collectors

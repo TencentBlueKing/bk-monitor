@@ -601,6 +601,7 @@ class CleanTemplateViewSet(ModelViewSet):
         @apiSuccess {Int} collector_config_id 采集项ID
         @apiSuccess {String} collector_config_name 采集项名称
         @apiSuccess {Int} bk_biz_id 业务ID
+        @apiSuccess {String} log_access_type 日志接入类型
         @apiSuccess {Array} related_index_set_list 关联索引集（索引组）列表
         @apiSuccessExample {json} 成功返回:
         {
@@ -611,6 +612,7 @@ class CleanTemplateViewSet(ModelViewSet):
                     "collector_config_id": 1,
                     "collector_config_name": "collector_name",
                     "bk_biz_id": 2,
+                    "log_access_type": "linux",
                     "related_index_set_list": [
                         {
                             "index_set_id": 4,

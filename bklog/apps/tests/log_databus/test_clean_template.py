@@ -28,7 +28,12 @@ from rest_framework.test import APIRequestFactory
 from apps.iam import ActionEnum
 from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.drf import ViewBusinessPermission
-from apps.log_databus.constants import CleanTemplateSyncMessage, CleanTemplateSyncStatus
+from apps.log_databus.constants import (
+    CleanTemplateSyncMessage,
+    CleanTemplateSyncStatus,
+    ContainerCollectorType,
+    Environment,
+)
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
     CleanTemplateRepeatException,
@@ -36,7 +41,7 @@ from apps.log_databus.exceptions import (
 from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
-from apps.log_databus.models import CleanStash, CleanTemplate, CollectorConfig
+from apps.log_databus.models import CleanStash, CleanTemplate, CollectorConfig, ContainerCollectorConfig
 from apps.log_databus.serializers import (
     CleanStashSerializer,
     CollectorEtlStorageSerializer,
@@ -44,7 +49,7 @@ from apps.log_databus.serializers import (
     FastContainerCollectorUpdateSerializer,
 )
 from apps.log_databus.views.clean_views import CleanTemplateViewSet
-from apps.log_search.constants import IndexSetDataType
+from apps.log_search.constants import IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Space
 
 CREATE_PARAMS = {
@@ -294,6 +299,8 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
             ["with-index-set", "without-index-set"],
         )
         self.assertEqual(result[0]["collector_config_id"], collector.collector_config_id)
+        self.assertEqual(result[0]["log_access_type"], LogAccessTypeEnum.LINUX.value)
+        self.assertEqual(result[1]["log_access_type"], LogAccessTypeEnum.LINUX.value)
         self.assertNotIn("index_set_id", result[0])
         self.assertNotIn("index_set_name", result[0])
         self.assertEqual(
@@ -310,6 +317,37 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
 
         template_data = self.list_templates(bk_biz_id=706).data[0]
         self.assertEqual(template_data["related_index_set_count"], 2)
+
+    def test_list_collectors_returns_container_log_access_type(self):
+        template_id = self.create_template()["clean_template_id"]
+        container_file = self.create_collector(
+            collector_config_name="container-file",
+            clean_template_id=template_id,
+            environment=Environment.CONTAINER,
+        )
+        container_stdout = self.create_collector(
+            collector_config_name="container-stdout",
+            clean_template_id=template_id,
+            environment=Environment.CONTAINER,
+        )
+        ContainerCollectorConfig.objects.create(
+            collector_config_id=container_file.collector_config_id,
+            collector_type=ContainerCollectorType.CONTAINER,
+        )
+        ContainerCollectorConfig.objects.create(
+            collector_config_id=container_stdout.collector_config_id,
+            collector_type=ContainerCollectorType.STDOUT,
+        )
+
+        result = CleanTemplateHandler(template_id).list_collectors()
+
+        self.assertEqual(
+            {item["collector_config_name"]: item["log_access_type"] for item in result},
+            {
+                "container-file": LogAccessTypeEnum.CONTAINER_FILE.value,
+                "container-stdout": LogAccessTypeEnum.CONTAINER_STDOUT.value,
+            },
+        )
 
 
 @override_settings(IGNORE_IAM_PERMISSION=False)
