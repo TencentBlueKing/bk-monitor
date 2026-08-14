@@ -201,7 +201,7 @@ class PatternHandler:
             group_dict = dict(zip(self._group_by, group))
 
             # 备注分组维度是当前分组组合子集时即可继承展示，空维度备注是其中的特例；黑名单业务只认精确分组。
-            remark_obj = ClusteringRemark.select_inherited_remark(
+            content = ClusteringRemark.resolve_inherited_content(
                 chain(
                     signature_map_remarks.get(signature, []),
                     origin_pattern_map_remarks.get(signature_origin_pattern, []),
@@ -213,18 +213,11 @@ class PatternHandler:
                 allow_inherit=allow_remark_group_inherit,
             )
 
-            if remark_obj:
-                remark = remark_obj["remark"]
-                owners = remark_obj["owners"]
-                # 策略与告警组绑定在具体分组组合上，继承来的行不带出它们，否则会出现停不掉的假开关
-                is_exact_remark = ClusteringRemark.is_groups_exact(remark_obj["groups"], group_dict)
-                strategy_id = remark_obj["strategy_id"] if is_exact_remark else 0
-                strategy_enabled = remark_obj["strategy_enabled"] if is_exact_remark else False
-            else:
-                remark = []
-                owners = []
-                strategy_id = 0
-                strategy_enabled = False
+            remark = content.remark_source["remark"] if content.remark_source else []
+            owners = content.owner_source["owners"] if content.owner_source else []
+            # 策略与告警组绑定在具体分组组合上，继承来的行不带出它们，否则会出现停不掉的假开关
+            strategy_id = content.exact["strategy_id"] if content.exact else 0
+            strategy_enabled = content.exact["strategy_enabled"] if content.exact else False
 
             result.append(
                 {

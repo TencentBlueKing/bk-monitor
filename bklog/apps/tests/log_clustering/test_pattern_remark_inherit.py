@@ -107,26 +107,36 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["remark"], [])
         self.assertEqual(result[0]["owners"], ["admin"])
 
-    def test_split_content_keeps_only_the_winning_candidate(self):
-        # 备注与负责人取自同一条获胜记录，分散在不同深度时落选那条的内容不展示
+    def test_inherits_remark_and_owner_from_different_ancestors(self):
+        # 业务常把默认负责人挂在空维、把备注写在中间层，绑定成同一条会丢掉其中一半
         build_remark({}, remark=[INHERITED_REMARK], owners=[])
         build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
 
         result = self.search()
 
-        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
         self.assertEqual(result[0]["owners"], ["admin"])
 
-    def test_split_content_keeps_deeper_remark_over_shallower_owner(self):
+    def test_inherits_owner_from_empty_group_while_remark_comes_from_deeper(self):
         build_remark({}, remark=[], owners=["admin"])
         build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
 
         result = self.search()
 
         self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
-        self.assertEqual(result[0]["owners"], [])
+        self.assertEqual(result[0]["owners"], ["admin"])
+
+    def test_each_field_picks_its_own_deepest_ancestor(self):
+        build_remark({}, remark=[{**INHERITED_REMARK, "remark": "empty group"}], owners=["biz_owner"])
+        build_remark({"service_name": "gamesvr"}, remark=[{**INHERITED_REMARK, "remark": "one dimension"}], owners=[])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"][0]["remark"], "one dimension")
+        self.assertEqual(result[0]["owners"], ["biz_owner"])
 
     def test_exact_owner_only_record_stops_inheriting_parent_remark(self):
+        # 精确记录整条胜出，否则用户在该行删光备注后祖先备注会重新冒出来
         build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
         build_remark(CURRENT_GROUPS, remark=[], owners=["admin"])
 
@@ -134,6 +144,15 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
         self.assertEqual(result[0]["remark"], [])
         self.assertEqual(result[0]["owners"], ["admin"])
+
+    def test_exact_remark_only_record_stops_inheriting_parent_owner(self):
+        build_remark({}, remark=[], owners=["biz_owner"])
+        build_remark(CURRENT_GROUPS, remark=[INHERITED_REMARK], owners=[])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
+        self.assertEqual(result[0]["owners"], [])
 
     def test_skips_remark_when_shared_dimension_value_differs(self):
         build_remark({"service_name": "relaysvr"}, remark=[INHERITED_REMARK])
@@ -348,14 +367,14 @@ class TestPatternRemarkMaterializeSplitContent(TestCase):
         self.assertEqual([item["remark"] for item in materialized.remark], ["new remark"])
         self.assertEqual(materialized.owners, ["admin"])
 
-    def test_materialize_drops_content_from_losing_candidate(self):
+    def test_materialize_merges_remark_and_owner_from_different_ancestors(self):
         build_remark({}, remark=[INHERITED_REMARK], owners=[])
         build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
 
         materialized = self.create_remark()
 
-        # 空维备注不在获胜记录上，物化带不走；精确记录建成后该行也不再向上继承
-        self.assertEqual([item["remark"] for item in materialized.remark], ["new remark"])
+        # 精确记录一旦建成该行就不再向上继承，物化必须把两个来源都固化下来
+        self.assertEqual([item["remark"] for item in materialized.remark], ["inherited remark", "new remark"])
         self.assertEqual(materialized.owners, ["admin"])
 
 

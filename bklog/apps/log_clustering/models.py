@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import copy
 import hashlib
 import json
+from typing import NamedTuple
 
 import arrow
 from django.db import models
@@ -76,6 +77,14 @@ class AiopsSignatureAndPattern(SoftDeleteModel):
 
     class Meta:
         index_together = ["model_id", "signature"]
+
+
+class InheritedRemarkContent(NamedTuple):
+    """当前分组组合解析出的备注来源，无精确记录时备注与负责人可能来自不同祖先。"""
+
+    exact: object = None
+    remark_source: object = None
+    owner_source: object = None
 
 
 class ClusteringRemark(SoftDeleteModel):
@@ -150,16 +159,22 @@ class ClusteringRemark(SoftDeleteModel):
         group_dict: dict,
         group_fields: list,
         allow_inherit: bool = True,
+        required_field: str = "",
     ):
         """
-        按子集维度继承规则挑出当前分组组合应使用的备注，展示与写入物化共用该解析器。
+        按子集维度继承规则挑出当前分组组合应使用的备注。
 
         allow_inherit 为 False 时退化为精确分组匹配。
+        required_field 限定候选必须在该字段上有内容，用于备注与负责人各自独立继承。
         """
         selected = None
         selected_rank = None
         for candidate in candidates:
-            if not (cls._read_candidate_field(candidate, "remark") or cls._read_candidate_field(candidate, "owners")):
+            remark = cls._read_candidate_field(candidate, "remark")
+            owners = cls._read_candidate_field(candidate, "owners")
+            if required_field and not cls._read_candidate_field(candidate, required_field):
+                continue
+            if not (remark or owners):
                 continue
             matched_by_signature = cls._read_candidate_field(candidate, "signature") == signature
             matched_by_origin_pattern = bool(origin_pattern) and (
@@ -176,6 +191,40 @@ class ClusteringRemark(SoftDeleteModel):
             if selected_rank is None or rank < selected_rank:
                 selected, selected_rank = candidate, rank
         return selected
+
+    @classmethod
+    def resolve_inherited_content(
+        cls,
+        candidates,
+        signature: str,
+        origin_pattern: str,
+        group_dict: dict,
+        group_fields: list,
+        allow_inherit: bool = True,
+    ) -> "InheritedRemarkContent":
+        """
+        解析当前分组组合应使用的备注与负责人来源，展示与写入物化共用该解析器。
+
+        精确记录整条胜出：否则用户在精确行删光备注后，祖先备注会重新展示出来，删除等于失效。
+        没有精确记录时备注与负责人各自向上挑最优候选，业务常把默认负责人挂在空维记录、把备注写在中间层，
+        绑定成同一条会丢掉其中一半，而负责人为空会直接挡住该行启用告警。
+        """
+        candidates = list(candidates)
+        select_kwargs = {
+            "signature": signature,
+            "origin_pattern": origin_pattern,
+            "group_dict": group_dict,
+            "group_fields": group_fields,
+        }
+
+        exact = cls.select_inherited_remark(candidates, allow_inherit=False, **select_kwargs)
+        if exact or not allow_inherit:
+            return InheritedRemarkContent(exact=exact, remark_source=exact, owner_source=exact)
+
+        return InheritedRemarkContent(
+            remark_source=cls.select_inherited_remark(candidates, required_field="remark", **select_kwargs),
+            owner_source=cls.select_inherited_remark(candidates, required_field="owners", **select_kwargs),
+        )
 
     @classmethod
     def filter_matched_remarks(cls, bk_biz_id: int, signature: str, origin_pattern: str = ""):
@@ -217,14 +266,15 @@ class ClusteringRemark(SoftDeleteModel):
         if exact_remark or not allow_inherit:
             return exact_remark
 
-        inherited_remark = cls.select_inherited_remark(
+        content = cls.resolve_inherited_content(
             cls.filter_matched_remarks(bk_biz_id, signature, origin_pattern),
             signature=signature,
             origin_pattern=origin_pattern,
             group_dict=groups,
             group_fields=group_fields,
         )
-        if not inherited_remark:
+        remark_source, owner_source = content.remark_source, content.owner_source
+        if not remark_source and not owner_source:
             return None
 
         remark_obj, __ = cls.objects.get_or_create(
@@ -234,11 +284,11 @@ class ClusteringRemark(SoftDeleteModel):
             source_app_code=get_external_app_code(),
             is_deleted=False,
             defaults={
-                "origin_pattern": origin_pattern or inherited_remark.origin_pattern,
+                "origin_pattern": origin_pattern or (remark_source or owner_source).origin_pattern,
                 "groups": groups,
                 # 编辑与删除按 create_time + username + 原文匹配，复制时必须原样保留这些字段
-                "remark": copy.deepcopy(inherited_remark.remark) or [],
-                "owners": list(inherited_remark.owners or []),
+                "remark": copy.deepcopy(remark_source.remark) if remark_source else [],
+                "owners": list(owner_source.owners or []) if owner_source else [],
             },
         )
         return remark_obj
