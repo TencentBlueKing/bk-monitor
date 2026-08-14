@@ -1776,7 +1776,7 @@ class TestSqlAndGrepApi(TestCase):
     # Fixtures
     # ==================================================================
 
-    def _build_native_doris_index_set(self) -> LogIndexSet:
+    def _build_native_doris_index_set(self, **extra) -> LogIndexSet:
         """原生 Doris：storage_cluster_type=doris，support_doris=False"""
         collector_config = CollectorConfig.objects.create(
             table_id="591_native",
@@ -1786,14 +1786,16 @@ class TestSqlAndGrepApi(TestCase):
             category_id="other_rt",
             storage_cluster_type=DORIS_CLUSTER_TYPE,
         )
-        index_set = LogIndexSet.objects.create(
-            index_set_name="native_doris",
-            space_uid="bkcc__2",
-            scenario_id=Scenario.LOG,
-            collector_config_id=collector_config.collector_config_id,
-            doris_table_id=None,
-            support_doris=False,
-        )
+        params = {
+            "index_set_name": "native_doris",
+            "space_uid": "bkcc__2",
+            "scenario_id": Scenario.LOG,
+            "collector_config_id": collector_config.collector_config_id,
+            "doris_table_id": None,
+            "support_doris": False,
+        }
+        params.update(extra)
+        index_set = LogIndexSet.objects.create(**params)
         collector_config.index_set_id = index_set.index_set_id
         collector_config.save(update_fields=["index_set_id"])
         LogIndexSetData.objects.create(
@@ -2042,6 +2044,19 @@ class TestSqlAndGrepApi(TestCase):
         self._run_capability_matrix(
             index_set,
             scenario_name="原生 Doris",
+            is_rejected=False,
+            expect_table_id_suffix=f"bklog_index_set_{index_set.index_set_id}",
+        )
+
+    def test_native_doris_with_legacy_fields_uses_default_route(self):
+        """原生 Doris 即使残留旧 analysis 字段，五个入口仍统一走默认路由。"""
+        index_set = self._build_native_doris_index_set(
+            support_doris=True,
+            doris_table_id="db.legacy_analysis_table",
+        )
+        self._run_capability_matrix(
+            index_set,
+            scenario_name="原生 Doris + 遗留 analysis 字段",
             is_rejected=False,
             expect_table_id_suffix=f"bklog_index_set_{index_set.index_set_id}",
         )

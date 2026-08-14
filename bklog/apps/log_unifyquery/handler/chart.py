@@ -42,12 +42,12 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             self.table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
 
             index_set_obj = index_info.get("index_set_obj")
-
             if index_set_obj:
-                is_manual_connect_doris = (
-                    True if index_set_obj.support_doris and index_set_obj.doris_table_id else False
-                )
-                if not is_manual_connect_doris and native_doris_map.get(index_info["index_set_id"], False):
+                # 普通索引集以实际存储类型为准，原生 Doris 优先走默认路由。
+                # 索引组保留原语义：父组配置了有效 Legacy Doris 时仍走 analysis 路由。
+                is_native_doris = native_doris_map.get(index_info["index_set_id"], False)
+                is_legacy_doris = bool(index_set_obj.support_doris and index_set_obj.doris_table_id)
+                if is_native_doris and (not index_set_obj.is_group or not is_legacy_doris):
                     self.table_id = f"bklog_index_set_{index_info['index_set_id']}"
 
             query_dict = {
