@@ -53,6 +53,15 @@ const defaultComputeParams = {
   where: [],
 };
 
+test('page metric cache does not mutate object properties from worker messages', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/workers/host-list.worker.raw.js'),
+    'utf8'
+  );
+  assert.match(source, /let pageMetricMap = new Map\(\)/);
+  assert.doesNotMatch(source, /delete pageMetricMap\[/);
+});
+
 test('page metrics overlay the visible page without changing global sort or statistics', () => {
   const worker = createWorkerHarness();
   worker.send({

@@ -394,7 +394,7 @@ const buildFilterOptionsMap = rows => {
 
 let baseRows = [];
 let committedRows = [];
-let pageMetricMap = {};
+let pageMetricMap = new Map();
 let filterOptionsMap = new Map();
 let currentEpoch = 0;
 let metricsReady = false;
@@ -432,7 +432,7 @@ const runCompute = params => {
   const slicedRows = sortedRows.slice(start, start + params.pageSize);
   const pagedRows = metricsReady
     ? slicedRows
-    : slicedRows.map(row => createHostListRow(row, pageMetricMap[String(row.bk_host_id)]));
+    : slicedRows.map(row => createHostListRow(row, pageMetricMap.get(String(row.bk_host_id))));
   return { categoryStats, pagedRows, total };
 };
 
@@ -440,7 +440,7 @@ const isCurrentEpoch = message => Number(message.epoch) === currentEpoch;
 
 const replaceCommittedMetrics = metricListMap => {
   committedRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
-  pageMetricMap = {};
+  pageMetricMap = new Map();
   metricsReady = true;
   filterOptionsMap = buildFilterOptionsMap(committedRows);
 };
@@ -464,7 +464,7 @@ self.onmessage = event => {
       currentEpoch = nextEpoch;
       baseRows = message.baseList;
       committedRows = baseRows.map(row => createHostListRow(row));
-      pageMetricMap = {};
+      pageMetricMap = new Map();
       metricsReady = false;
       filterOptionsMap = buildFilterOptionsMap(committedRows);
       self.postMessage({
@@ -492,7 +492,7 @@ self.onmessage = event => {
       const applied = isCurrentEpoch(message);
       if (applied) {
         committedRows = baseRows.map(row => createHostListRow(row));
-        pageMetricMap = {};
+        pageMetricMap = new Map();
         metricsReady = false;
         filterOptionsMap = buildFilterOptionsMap(committedRows);
       }
@@ -509,9 +509,11 @@ self.onmessage = event => {
       const applied = isCurrentEpoch(message);
       if (applied && !metricsReady) {
         for (const hostId of message.hostIds || []) {
-          delete pageMetricMap[String(hostId)];
+          pageMetricMap.delete(String(hostId));
         }
-        pageMetricMap = { ...pageMetricMap, ...message.metricListMap };
+        for (const [hostId, metric] of Object.entries(message.metricListMap || {})) {
+          pageMetricMap.set(hostId, metric);
+        }
       }
       self.postMessage({
         applied: applied && !metricsReady,
