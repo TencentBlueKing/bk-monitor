@@ -553,7 +553,10 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
-          <IssuesAiAnalysisView detail={this.detail} />
+          <IssuesAiAnalysisView
+            detail={this.detail}
+            onAssigneeChange={this.handleAssigneeChange}
+          />
           <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />
           <IssuesActivity

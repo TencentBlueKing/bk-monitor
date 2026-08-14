@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { Exception, Loading } from 'bkui-vue';
+import { Button, Exception, Loading, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
+import { assignIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
 
-import type { IssueDetail } from '../../../typing';
+import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
 import './issues-ai-analysis-view.scss';
 export default defineComponent({
@@ -43,8 +44,12 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  setup(props) {
+  emits: {
+    assigneeChange: (_users: string[], _activities: IssueActivityItem[]) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
+    const assigning = shallowRef(false);
 
     const {
       sourceAnalysisData,
@@ -56,6 +61,25 @@ export default defineComponent({
     } = useIssuesAiAnalysis();
 
     const loading = computed(() => analysisLoading.sourceAnalysis);
+
+    const handleAssignResponsibility = async (username: string) => {
+      if (!username || assigning.value) return;
+
+      assigning.value = true;
+      const { succeeded, failed } = await assignIssues({
+        issues: [{ bk_biz_id: props.detail.bk_biz_id, issue_id: props.detail.id }],
+        assignee: [username],
+      });
+      const succeededItem = succeeded.find(item => item.issue_id === props.detail.id);
+      if (succeededItem) {
+        emit('assigneeChange', [username], succeededItem.activities);
+      }
+      Message({
+        theme: succeededItem ? 'success' : 'error',
+        message: succeededItem ? t('操作成功') : failed[0]?.message || t('操作失败'),
+      });
+      assigning.value = false;
+    };
 
     watch(
       () => props.detail,
@@ -160,37 +184,55 @@ export default defineComponent({
       }
 
       const {
-        latest: { result },
+        latest: { failure, result },
       } = sourceAnalysisData.value;
+      if (!result) {
+        return <div class='analysis-error'>{failure?.message || t('源码分析未生成有效结果')}</div>;
+      }
+
+      const { result_card: resultCard, result_type: resultType } = result;
+      const responsibility = resultCard.responsibility;
+      const bkUsername = responsibility?.bk_username;
+      const resultTypeText = resultType === 'HIGH_CONFIDENCE' ? t('高置信度') : t('证据不足');
 
       return (
         <div class='analysis-content'>
           <div class='analysis-item'>
-            <span class='item-label'>{t('责任提交')}:</span>
-            <span class='item-content'>
-              <span class='commit-id'>{result.responsibility.commit_id.slice(-7)}</span>
-              <span
-                class='commit-message'
-                v-overflow-tips
-              >
-                {result.responsibility.commit_message}
+            <span class='item-label'>{t('分析结论')}:</span>
+            <span class={['result-type', resultType.toLowerCase().replace('_', '-')]}>{resultTypeText}</span>
+          </div>
+          <div class='analysis-item'>
+            <span class='item-label'>{t('结论说明')}:</span>
+            <span class='item-content description'>{resultCard.description}</span>
+          </div>
+          {responsibility && (
+            <div class='analysis-item'>
+              <span class='item-label'>{t('责任提交')}:</span>
+              <span class='item-content responsibility-content'>
+                <span class='commit-id'>{responsibility.commit_id.slice(-7)}</span>
+                <span
+                  class='commit-message'
+                  v-overflow-tips
+                >
+                  {responsibility.commit_message}
+                </span>
+                <span>·</span>
+                <span class='commit-author'>{bkUsername || responsibility.author_name}</span>
+                {bkUsername && (
+                  <Button
+                    class='assign-button'
+                    loading={assigning.value}
+                    size='small'
+                    text
+                    theme='primary'
+                    onClick={() => handleAssignResponsibility(bkUsername)}
+                  >
+                    {t('一键分派')}
+                  </Button>
+                )}
               </span>
-              <span>·</span>
-              <span class='commit-author'>{result.responsibility.bk_username}</span>
-            </span>
-          </div>
-          <div class='analysis-item'>
-            <span class='item-label'>{t('修复建议')}:</span>
-            <span class='item-content'>
-              <span>{result.repair_suggestion.fix_strategy}</span>
-            </span>
-          </div>
-          <div class='analysis-item'>
-            <span class='item-label'>{t('排查链路')}:</span>
-            <span class='item-content'>
-              <span>前端事件上报连接超时，建议优先检查配置与 Pod 网络可达性</span>
-            </span>
-          </div>
+            </div>
+          )}
         </div>
       );
     };

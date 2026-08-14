@@ -327,16 +327,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
         RULE_DISABLED: _("当前 Issue 匹配的源码分析规则已停用。"),
     }
 
-    RESULT_VIEW_FIELDS = (
-        "analysis_summary",
-        "responsibility",
-        "repair_suggestion",
-        "evidence_chain",
-        "next_actions",
-        "source_build",
-        "code_association",
-    )
-
     OVERVIEW_EXECUTION_FIELDS = (
         "analysis_id",
         "status",
@@ -425,15 +415,18 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def serialize_result(cls, execution: IssueSourceAnalysisExecution) -> dict | None:
-        """生成页面安全投影；execution_context 仅允许通过原始 JSON 接口读取。"""
+        """按定稿协议返回结论卡片和 Markdown 正文，不透传 BKFara 内部字段。"""
 
         if execution.status != SourceAnalysisStatus.SUCCESS or not isinstance(execution.result_payload, dict):
             return None
+        result_card = cls._serialize_result_card(execution.result_payload.get("result_card"))
         result = {
             "schema_version": execution.result_schema_version or execution.result_payload.get("schema_version"),
             "result_type": execution.result_type or execution.result_payload.get("result_type"),
+            "result_card": result_card,
+            "content_type": execution.result_payload.get("content_type"),
+            "content": execution.result_payload.get("content"),
         }
-        result.update({field: execution.result_payload.get(field) for field in cls.RESULT_VIEW_FIELDS})
         return result
 
     @classmethod
@@ -482,31 +475,31 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return {field: value.get(field) for field in fields}
 
     @classmethod
+    def _serialize_result_card(cls, result_card) -> dict | None:
+        if not isinstance(result_card, dict):
+            return None
+        return {
+            "description": result_card.get("description"),
+            "responsibility": cls._project_fields(
+                result_card.get("responsibility"),
+                ("commit_id", "commit_message", "author_name", "bk_username"),
+            ),
+        }
+
+    @classmethod
     def serialize_overview_result(cls, result: dict | None) -> dict | None:
-        """裁剪右侧快览结果，避免下发代码片段、完整证据链和构建详情。"""
+        """裁剪右侧快览结果，只保留结论分类、说明和可选责任提交。"""
 
         if result is None:
             return None
 
-        evidence_chain = result.get("evidence_chain")
-        first_evidence = evidence_chain[0] if isinstance(evidence_chain, list) and evidence_chain else None
-        next_actions = result.get("next_actions")
-        first_next_action = next_actions[0] if isinstance(next_actions, list) and next_actions else None
+        result_card = cls._serialize_result_card(result.get("result_card"))
+        if result_card is None:
+            return None
+
         return {
             "result_type": result["result_type"],
-            "analysis_summary": cls._project_fields(
-                result.get("analysis_summary"),
-                ("conclusion", "insufficient_evidence_reason"),
-            ),
-            "responsibility": cls._project_fields(
-                result.get("responsibility"),
-                ("commit_id", "commit_message", "author_name", "bk_username"),
-            ),
-            "repair_suggestion": cls._project_fields(result.get("repair_suggestion"), ("fix_strategy",)),
-            "evidence_chain": [cls._project_fields(first_evidence, ("title", "summary"))] if first_evidence else [],
-            "next_actions": [cls._project_fields(first_next_action, ("title", "description"))]
-            if first_next_action
-            else [],
+            "result_card": result_card,
         }
 
     @classmethod
@@ -929,7 +922,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
         except Exception as error:
             return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_EXECUTE, error)
         if isinstance(task_state, dict) and task_state.get("status") == cls.BKFARA_CREATED:
-            cls._save_bkci_identifiers(execution, task_state)
             return cls._execute_bkfara_task(execution)
         return cls._apply_bkfara_task_state(execution, task_state)
 
@@ -1025,7 +1017,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
             return False
 
-        cls._save_bkci_identifiers(execution, task_state)
         status = task_state["status"]
         if status == cls.BKFARA_CREATED:
             return True
@@ -1054,26 +1045,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
             failure_request_id=failure.get("request_id"),
         )
         return False
-
-    @staticmethod
-    def _save_bkci_identifiers(execution: IssueSourceAnalysisExecution, task_state: dict) -> None:
-        updates = {}
-        for field in ("bkci_pipeline_id", "bkci_build_id"):
-            value = task_state.get(field)
-            if value:
-                updates[field] = str(value)
-        if not updates:
-            return
-        updates["update_time"] = timezone.now()
-        updated = IssueSourceAnalysisExecution.objects.filter(
-            pk=execution.pk,
-            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
-        ).update(**updates)
-        if not updated:
-            execution.refresh_from_db()
-            return
-        for field, value in updates.items():
-            setattr(execution, field, value)
 
     @classmethod
     def _handle_upstream_error(
@@ -1222,35 +1193,6 @@ class ReanalyzeSourceAnalysisResource(SourceAnalysisExecutionBaseResource):
         if created:
             self.dispatch_execution(execution)
         return self.build_source_analysis_view(bk_biz_id, issue_id)
-
-
-class SourceAnalysisRawResource(SourceAnalysisExecutionBaseResource):
-    """读取所属 Issue 的已校验成功原始 JSON，不返回 COS 地址。"""
-
-    RequestSerializer = SourceAnalysisRetryRequestSerializer
-
-    def perform_request(self, validated_request_data: dict) -> dict:
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        _canonical_issue_id, issue_ids = self.resolve_display_scope(
-            bk_biz_id,
-            validated_request_data["issue_id"],
-        )
-        execution = IssueSourceAnalysisExecution.objects.filter(
-            bk_biz_id=bk_biz_id,
-            issue_id__in=issue_ids,
-            analysis_id=validated_request_data["analysis_id"],
-        ).first()
-        if execution is None:
-            self.raise_operation_conflict(
-                "source_analysis_result_not_found",
-                _("未找到指定的源码分析结果。"),
-            )
-        if execution.status != SourceAnalysisStatus.SUCCESS or not isinstance(execution.result_payload, dict):
-            self.raise_operation_conflict(
-                "source_analysis_result_not_ready",
-                _("指定的源码分析结果尚未就绪。"),
-            )
-        return execution.result_payload
 
 
 class SourceAnalysisConditionSerializer(serializers.Serializer):
