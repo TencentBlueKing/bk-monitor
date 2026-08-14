@@ -1,12 +1,14 @@
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
+import pytz
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.utils import timezone
 from opentelemetry.context import attach, detach, get_value, set_value
 
-from apps.iam.backends.v4.concurrency import map_chunks_concurrently, run_pair_concurrently
+from apps.iam.backends.v4.concurrency import _bind_current_context, map_chunks_concurrently, run_pair_concurrently
 from apps.utils.local import activate_request, del_local_param, get_local_param, get_request, set_local_param
 from apps.utils.thread import generate_request
 
@@ -140,3 +142,61 @@ class ContextPropagationTest(SimpleTestCase):
         results = map_chunks_concurrently([1, 2], lambda chunk: get_request(peaceful=True) or chunk, max_workers=2)
 
         self.assertEqual(results, [1, 2])
+
+    def test_restores_reused_worker_context(self):
+        caller_request = activate_request(generate_request(), "caller-id")
+        set_local_param("time_zone", "Europe/Amsterdam")
+        self._attach_probe("caller")
+
+        worker_request = generate_request()
+
+        def seed_worker_context():
+            activate_request(worker_request, "worker-id")
+            set_local_param("time_zone", "Asia/Tokyo")
+            timezone.activate(pytz.timezone("Asia/Tokyo"))
+            attach(set_value("probe", "worker"))
+
+        def read_context():
+            request = get_request(peaceful=True)
+            return (
+                getattr(request, "request_id", None),
+                get_local_param("time_zone"),
+                timezone.get_current_timezone_name(),
+                get_value("probe"),
+            )
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(seed_worker_context).result()
+            bound_context = executor.submit(_bind_current_context(read_context)).result()
+            restored_context = executor.submit(read_context).result()
+
+        self.assertEqual(bound_context, ("caller-id", "Europe/Amsterdam", "Europe/Amsterdam", "caller"))
+        self.assertEqual(restored_context, ("worker-id", "Asia/Tokyo", "Asia/Tokyo", "worker"))
+        self.assertEqual(caller_request.request_id, "caller-id")
+
+    def test_restores_reused_worker_context_after_exception(self):
+        activate_request(generate_request(), "caller-id")
+        set_local_param("time_zone", "Europe/Amsterdam")
+
+        def seed_worker_context():
+            activate_request(generate_request(), "worker-id")
+            set_local_param("time_zone", "Asia/Tokyo")
+            timezone.activate(pytz.timezone("Asia/Tokyo"))
+
+        def raise_error():
+            raise ValueError("worker failed")
+
+        def read_context():
+            return (
+                get_request().request_id,
+                get_local_param("time_zone"),
+                timezone.get_current_timezone_name(),
+            )
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(seed_worker_context).result()
+            with self.assertRaisesRegex(ValueError, "worker failed"):
+                executor.submit(_bind_current_context(raise_error)).result()
+            restored_context = executor.submit(read_context).result()
+
+        self.assertEqual(restored_context, ("worker-id", "Asia/Tokyo", "Asia/Tokyo"))

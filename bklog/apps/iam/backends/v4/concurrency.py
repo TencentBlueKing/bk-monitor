@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import nullcontext
 from functools import partial
 from typing import TypeVar
 
@@ -9,11 +10,12 @@ import pytz
 from django.utils import timezone
 from opentelemetry.context import attach, detach, get_current
 
-from apps.utils.local import activate_request, get_local_param, get_request, set_local_param
+from apps.utils.local import activate_request, del_local_param, get_local_param, get_request, set_local_param
 
 T = TypeVar("T")
 R = TypeVar("R")
 L = TypeVar("L")
+_MISSING = object()
 
 
 def _bind_current_context(func: Callable[[], R]) -> Callable[[], R]:
@@ -26,6 +28,8 @@ def _bind_current_context(func: Callable[[], R]) -> Callable[[], R]:
     time_zone = get_local_param("time_zone")
 
     def _run() -> R:
+        previous_request = get_local_param("request", _MISSING)
+        previous_time_zone = get_local_param("time_zone", _MISSING)
         token = attach(trace_context)
         try:
             if request is not None:
@@ -33,12 +37,24 @@ def _bind_current_context(func: Callable[[], R]) -> Callable[[], R]:
                 activate_request(request, getattr(request, "request_id", None))
             if time_zone:
                 set_local_param("time_zone", time_zone)
-                timezone.activate(pytz.timezone(time_zone))
-            return func()
+            timezone_context = timezone.override(pytz.timezone(time_zone)) if time_zone else nullcontext()
+            with timezone_context:
+                return func()
         finally:
+            _restore_local_param("request", previous_request)
+            _restore_local_param("time_zone", previous_time_zone)
             detach(token)
 
     return _run
+
+
+def _restore_local_param(key: str, previous_value: object) -> None:
+    """恢复 worker 原有线程变量，避免共享线程池复用时把本次请求上下文带给下一任务。"""
+
+    if previous_value is _MISSING:
+        del_local_param(key)
+        return
+    set_local_param(key, previous_value)
 
 
 def map_chunks_concurrently(
