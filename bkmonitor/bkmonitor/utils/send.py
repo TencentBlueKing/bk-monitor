@@ -30,7 +30,7 @@ from bkmonitor.utils.text import (
     get_content_length,
 )
 from common.context_processors import Platform
-from constants.action import ActionPluginType, NoticeType, NoticeWay
+from constants.action import ActionPluginType, NoticeChannel, NoticeType, NoticeWay
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -183,17 +183,29 @@ class BaseSender:
     def get_sender(cls, context: dict[str, Any]) -> str | None:
         return settings.WECOM_ROBOT_ACCOUNT.get(str(context.get("alert_level")))
 
+    @staticmethod
+    def _get_notice_channel(context: Any) -> str | None:
+        if context is None:
+            return None
+        if isinstance(context, dict):
+            return context.get("notice_channel")
+        return getattr(context, "notice_channel", None)
+
     @classmethod
     def is_wxwork_layouts_enabled(
         cls, bk_biz_id: int, notice_way: str, context: dict[str, Any], content_template_path: str
     ) -> bool:
         """判断是否切换至企业微信卡片通知
         判断规则：
+        - 通知渠道不能是 bkchat：外部 webhook 无法渲染 layouts 卡片。
         - 业务 ID 在灰度业务列表内。
-        - 通知渠道为企微机器人或 RTX。
+        - 通知方式为企微机器人或 RTX。
         - RTX 渠道需开启企微机器人功能且配置发送者。
         - layouts 通知模板 存在。
         """
+        if cls._get_notice_channel(context) == NoticeChannel.BK_CHAT:
+            return False
+
         is_gray: bool = (
             bk_biz_id in settings.WECOM_LAYOUTS_BIZ_LIST or str(bk_biz_id) in settings.WECOM_LAYOUTS_BIZ_LIST
         )
@@ -869,6 +881,13 @@ class NoneTemplateSender(Sender):
 
 
 class ChannelBkchatSender(BaseSender):
+    @classmethod
+    def is_wxwork_layouts_enabled(
+        cls, bk_biz_id: int, notice_way: str, context: dict[str, Any], content_template_path: str
+    ) -> bool:
+        # bkchat 外部 webhook 无法渲染企微 layouts 卡片，始终走 markdown/text
+        return False
+
     def send_default(self, notice_way, notice_receivers, action_plugin=ActionPluginType.NOTICE):
         """
         蓝鲸信息流通知发送

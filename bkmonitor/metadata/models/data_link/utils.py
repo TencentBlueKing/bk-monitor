@@ -159,6 +159,59 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> 
     return data_id_name
 
 
+def find_registered_bkdata_data_id_name(data_source: "DataSource", namespace: str) -> str | None:
+    """在租户和命名空间范围内按 Data ID 查找最近更新的已注册资源名。"""
+    data_id_config = (
+        models.DataIdConfig.objects.filter(
+            bk_tenant_id=data_source.bk_tenant_id,
+            namespace=namespace,
+            bk_data_id=data_source.bk_data_id,
+        )
+        .exclude(name="")
+        .only("name")
+        .order_by("-last_modify_time", "-id")
+        .first()
+    )
+    return data_id_config.name if data_id_config is not None else None
+
+
+def get_registered_bkdata_data_id_name(
+    data_source: "DataSource",
+    namespace: str,
+) -> str:
+    """获取 DataLink 依赖的已注册 BKBase DataId 名称。
+
+    DataLink 是 DataId 的调用方，不能在依赖缺失时自行生成名称继续执行。当前租户和
+    命名空间下没有对应 ``DataIdConfig`` 时直接抛错，由上层中止链路配置流程。
+
+    Args:
+        data_source: 待接入 DataLink 的监控数据源。
+        namespace: BKBase 资源命名空间。
+
+    Returns:
+        已注册且可供 DataBus source 引用的 DataId 名称。
+
+    Raises:
+        DataIdConfig.DoesNotExist: 当前作用域内没有该 ``bk_data_id`` 的注册记录。
+    """
+    data_id_name = find_registered_bkdata_data_id_name(data_source, namespace)
+    if data_id_name:
+        logger.info(
+            "get_registered_bkdata_data_id_name: use DataIdConfig name, tenant->[%s], namespace->[%s], "
+            "bk_data_id->[%s], name->[%s]",
+            data_source.bk_tenant_id,
+            namespace,
+            data_source.bk_data_id,
+            data_id_name,
+        )
+        return data_id_name
+
+    raise models.DataIdConfig.DoesNotExist(
+        "DataIdConfig not found, "
+        f"bk_tenant_id={data_source.bk_tenant_id}, namespace={namespace}, bk_data_id={data_source.bk_data_id}"
+    )
+
+
 def compose_transfer_consumer_group(data_source: "DataSource") -> str:
     """按 transfer 规则生成消费组：配置前缀 + 数据源 Kafka topic。"""
     topic = data_source.mq_config.topic

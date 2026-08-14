@@ -646,6 +646,99 @@ def test_check_bcs_clusters_status(
     # print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
 
 
+def test_check_vm_datalink_dependencies_uses_bkbase_result_table_relation():
+    """DataId 注册名变化后，Checker 仍应通过 BkBaseResultTable 找到真实 V4 链路。"""
+    from metadata.management.commands.check_bcs_cluster_status import Command
+
+    bk_tenant_id = "system"
+    bk_data_id = 990001
+    table_id = "990001_bkmonitor_time_series_990001.__default__"
+    data_link_name = "historical_vm_data_link"
+    data_source = models.DataSource.objects.create(
+        bk_data_id=bk_data_id,
+        bk_tenant_id=bk_tenant_id,
+        data_name="checker_data_id_name_drift",
+        data_description="",
+        mq_cluster_id=0,
+        mq_config_id=0,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        creator="pytest",
+        last_modify_user="pytest",
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        bk_data_id=bk_data_id,
+        table_id=table_id,
+        creator="pytest",
+    )
+    models.ResultTable.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+        table_name_zh="checker",
+        is_custom_table=False,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FIXED,
+        default_storage=models.ClusterInfo.TYPE_INFLUXDB,
+        creator="pytest",
+        last_modify_user="pytest",
+    )
+    vm_cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        cluster_id=990001,
+        cluster_name="checker_vm_data_link_cluster",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+        port=8428,
+        is_default_cluster=False,
+    )
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        result_table_id=table_id,
+        vm_cluster_id=vm_cluster.cluster_id,
+        storage_cluster_id=vm_cluster.cluster_id,
+        bk_base_data_id=bk_data_id,
+        bk_base_data_name="historical_data_id_name",
+        vm_result_table_id="2_bkm_checker",
+    )
+    models.DataIdConfig.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        namespace="bkmonitor",
+        name="latest_data_id_name",
+        bk_biz_id=2,
+        bk_data_id=bk_data_id,
+    )
+    DataLink.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=bk_data_id,
+        table_ids=[table_id],
+    )
+    BkBaseResultTable.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bkbase_data_name="historical_data_id_name",
+        monitor_table_id=table_id,
+        bkbase_rt_name="bkm_checker",
+        bkbase_table_id="2_bkm_checker",
+        storage_cluster_id=vm_cluster.cluster_id,
+    )
+
+    command = Command()
+    command.bk_tenant_id = bk_tenant_id
+    command._data_sources = {bk_data_id: data_source}
+    result = command.check_vm_datalink_dependencies(BCSClusterInfo(cluster_id="BCS-K8S-CHECKER"))
+
+    assert result["details"]["data_link"]["links"] == [
+        {
+            "data_link_name": data_link_name,
+            "data_link_strategy": DataLink.BK_STANDARD_V2_TIME_SERIES,
+        }
+    ]
+    assert not any("识别为 V2 链路接入" in warning for warning in result["warnings"])
+
+
 def test_update_bcs_cluster_cloud_id_config(
     monkeypatch, monkeypatch_k8s_node_list_by_cluster, monkeypatch_cmdb_get_info_by_ip, add_bcs_cluster_info
 ):

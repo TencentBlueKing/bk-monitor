@@ -15,7 +15,12 @@ from monitor_web.commons.cc.resources.frontend_resources import GetTopoTree
 from monitor_web.grafana.resources.unify_query import GraphUnifyQueryResource
 from monitor_web.performance.resources import SearchHostInfoResource, SearchHostMetricResource
 from monitor_web.scene_view.resources.host import GetHostProcessListResource
-from monitor_web.share.resources import CreateShareTokenResource, UpdateShareTokenResource
+from monitor_web.share.resources import (
+    CreateShareTokenResource,
+    DeleteShareTokenResource,
+    GetShareTokenListResource,
+    UpdateShareTokenResource,
+)
 
 
 def make_view(module, name, action):
@@ -298,6 +303,81 @@ def test_host_scope_absolute_time_lock_requires_exact_bounds(mocker):
     checker.check({"bk_host_id": 100, "start_time": 100, "end_time": 200})
     with pytest.raises(SearchLockedError):
         checker.check({"bk_host_id": 100, "start_time": 101, "end_time": 200})
+
+
+@pytest.mark.parametrize(
+    "default_time_range",
+    [
+        ["2026-08-13 00:00:00+0800", "2026-08-13 01:00:00+0800"],
+        ["now-1h", "invalid"],
+    ],
+)
+def test_host_scope_non_dynamic_default_range_cannot_bypass_absolute_time_lock(mocker, default_time_range):
+    mock_host_scope(mocker)
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    token.params.update(
+        {
+            "lock_search": True,
+            "start_time": 100,
+            "end_time": 200,
+            "default_time_range": default_time_range,
+        }
+    )
+    checker = HostApiAuthChecker(token)
+
+    checker.check({"bk_host_id": 100, "start_time": 100, "end_time": 200})
+    with pytest.raises(SearchLockedError):
+        checker.check({"bk_host_id": 100, "start_time": 101, "end_time": 200})
+
+
+@pytest.mark.parametrize(
+    "default_time_range",
+    [
+        ["now-7d", "now"],
+        ["now-1M/M", "now/M"],
+    ],
+)
+def test_host_scope_dynamic_default_range_keeps_relative_time_semantics(mocker, default_time_range):
+    mock_host_scope(mocker)
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    token.params.update(
+        {
+            "lock_search": True,
+            "start_time": 100,
+            "end_time": 200,
+            "default_time_range": default_time_range,
+        }
+    )
+
+    HostApiAuthChecker(token).check({"bk_host_id": 100, "start_time": 300, "end_time": 400})
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/rest/v2/commons/get_topo_tree/",
+        "/rest/v2/performance/search_host_info/",
+        "/rest/v2/scene_view/get_host_or_topo_node_detail/",
+    ],
+)
+def test_host_scope_absolute_time_lock_keeps_time_independent_target_routes_available(mocker, path):
+    mock_host_scope(mocker)
+    token = make_host_token({"version": 1, "target_type": "host", "bk_host_id": 100})
+    token.params.update(
+        {
+            "lock_search": True,
+            "start_time": 100,
+            "end_time": 200,
+            "default_time_range": ["2026-08-13 00:00:00+0800", "2026-08-13 01:00:00+0800"],
+        }
+    )
+    checker = HostApiAuthChecker(token)
+    checker.request = SimpleNamespace(
+        method="POST",
+        resolver_match=resolve(path),
+    )
+
+    checker.check({"bk_host_id": 100})
 
 
 @pytest.mark.parametrize(
@@ -720,6 +800,105 @@ def test_create_host_share_token_requires_view_host(mocker):
     )
     permission.assert_called_once_with(username="token-creator", bk_tenant_id="system")
     create.assert_not_called()
+
+
+def test_list_host_share_tokens_requires_view_host(mocker):
+    expected_permission_error = RuntimeError("VIEW_HOST required")
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    permission.return_value.is_allowed_by_biz.side_effect = expected_permission_error
+    mocker.patch("monitor_web.share.resources.get_global_user", return_value="token-viewer")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    token_filter = mocker.patch.object(ApiAuthToken.origin_objects, "filter")
+
+    with pytest.raises(RuntimeError, match="VIEW_HOST required"):
+        GetShareTokenListResource().perform_request({"bk_biz_id": 2, "type": "host"})
+
+    permission.return_value.is_allowed_by_biz.assert_called_once_with(
+        bk_biz_id=2,
+        action=ActionEnum.VIEW_HOST,
+        raise_exception=True,
+    )
+    permission.assert_called_once_with(username="token-viewer", bk_tenant_id="system")
+    token_filter.assert_not_called()
+
+
+def test_delete_host_share_tokens_requires_view_host(mocker):
+    expected_permission_error = RuntimeError("VIEW_HOST required")
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    permission.return_value.is_allowed_by_biz.side_effect = expected_permission_error
+    mocker.patch("monitor_web.share.resources.get_global_user", return_value="token-manager")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    token_filter = mocker.patch.object(ApiAuthToken.objects, "filter")
+
+    with pytest.raises(RuntimeError, match="VIEW_HOST required"):
+        DeleteShareTokenResource().perform_request({"bk_biz_id": 2, "type": "host", "tokens": ["share-token"]})
+
+    permission.return_value.is_allowed_by_biz.assert_called_once_with(
+        bk_biz_id=2,
+        action=ActionEnum.VIEW_HOST,
+        raise_exception=True,
+    )
+    permission.assert_called_once_with(username="token-manager", bk_tenant_id="system")
+    token_filter.assert_not_called()
+
+
+@pytest.mark.parametrize("operation", ["list", "delete"])
+def test_non_host_share_token_management_does_not_require_view_host(mocker, operation):
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+
+    if operation == "list":
+        token_queryset = mocker.MagicMock()
+        token_queryset.order_by.return_value = token_queryset
+        token_queryset.values_list.return_value = []
+        token_queryset.__iter__.return_value = iter([])
+        mocker.patch.object(ApiAuthToken.origin_objects, "filter", return_value=token_queryset)
+        mocker.patch.object(GetShareTokenListResource, "get_access_record_dict", return_value={})
+
+        result = GetShareTokenListResource().perform_request({"bk_biz_id": 2, "type": "dashboard"})
+
+        assert result == []
+    else:
+        token_queryset = mocker.patch.object(ApiAuthToken.objects, "filter").return_value
+        token_queryset.update.return_value = 1
+
+        result = DeleteShareTokenResource().perform_request(
+            {"bk_biz_id": 2, "type": "dashboard", "tokens": ["share-token"]}
+        )
+
+        assert result == 1
+
+    permission.assert_not_called()
+
+
+def test_delete_host_share_tokens_keeps_tenant_biz_type_and_token_filters(mocker):
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    mocker.patch("monitor_web.share.resources.get_global_user", return_value="token-manager")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    token_filter = mocker.patch.object(ApiAuthToken.objects, "filter")
+    token_filter.return_value.update.return_value = 1
+
+    result = DeleteShareTokenResource().perform_request(
+        {
+            "bk_biz_id": 2,
+            "type": "host",
+            "tokens": ["matching-token", "other-biz-or-type-token"],
+        }
+    )
+
+    assert result == 1
+    token_filter.assert_called_once_with(
+        bk_tenant_id="system",
+        namespaces=["biz#2"],
+        type__in=["host"],
+        token__in=["matching-token", "other-biz-or-type-token"],
+    )
+    token_filter.return_value.update.assert_called_once()
+    permission.return_value.is_allowed_by_biz.assert_called_once_with(
+        bk_biz_id=2,
+        action=ActionEnum.VIEW_HOST,
+        raise_exception=True,
+    )
 
 
 def test_create_unregistered_scene_host_token_is_rejected(mocker):

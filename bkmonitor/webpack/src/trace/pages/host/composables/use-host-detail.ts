@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type ShallowRef, shallowRef, watch } from 'vue';
+import { type InjectionKey, type ShallowRef, provide, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
@@ -36,6 +36,13 @@ import { useHostStore } from '@/store/modules/host';
 import type { IDetailItem } from '../../../components/common-detail/typing';
 import type { IHostTopoTreeNode } from '../types';
 
+interface IHostDetailState {
+  error: ShallowRef<boolean>;
+  retry: () => void;
+}
+
+export const HOST_DETAIL_STATE_KEY: InjectionKey<IHostDetailState> = Symbol('host-detail-state');
+
 /**
  * @description 监听拓扑选中节点变化（带防抖），调用接口获取主机详情数据
  */
@@ -45,6 +52,8 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
   const detailData = shallowRef<IDetailItem[]>([]);
   /** 加载状态 */
   const loading = shallowRef(false);
+  /** 请求失败状态（与成功空数据分开） */
+  const error = shallowRef(false);
   /** 仅允许最新节点 / 刷新代次对应的请求提交状态 */
   let latestRequestId = 0;
 
@@ -64,6 +73,7 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
             }
       );
       if (requestId !== latestRequestId) return;
+      error.value = false;
       // 处理 list 类型数据
       detailData.value =
         data.map?.((item: IDetailItem) => {
@@ -76,6 +86,7 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
     } catch {
       if (requestId === latestRequestId) {
         detailData.value = [];
+        error.value = true;
       }
     } finally {
       if (requestId === latestRequestId) {
@@ -87,18 +98,33 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
   /** 防抖后的 fetch（300ms） */
   const debouncedFetch = useDebounceFn(fetchDetail, 300);
 
+  const requestDetail = (node: IHostTopoTreeNode) => {
+    const requestId = ++latestRequestId;
+    loading.value = true;
+    error.value = false;
+    debouncedFetch(node, requestId);
+  };
+
+  const retry = () => {
+    if (selectedNode.value) {
+      requestDetail(selectedNode.value);
+    }
+  };
+
+  provide(HOST_DETAIL_STATE_KEY, { error, retry });
+
   /** 监听选中节点变化 */
   watch(
     [() => selectedNode.value, refreshGeneration],
     ([node]) => {
-      const requestId = ++latestRequestId;
       if (!node) {
+        latestRequestId += 1;
         detailData.value = [];
         loading.value = false;
+        error.value = false;
         return;
       }
-      loading.value = true;
-      debouncedFetch(node, requestId);
+      requestDetail(node);
     },
     { immediate: true }
   );
@@ -108,7 +134,9 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
 
   return {
     detailData,
+    error,
     loading,
+    retry,
     isHostSelected,
   };
 };

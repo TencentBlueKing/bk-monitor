@@ -14,11 +14,10 @@ from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
-    DataIdConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
 )
-from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_transfer_consumer_group
+from metadata.models.data_link.utils import compose_transfer_consumer_group, get_registered_bkdata_data_id_name
 from metadata.models.result_table import GraphRelationV4DataLinkOption, LogV4DataLinkOption
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
 
@@ -95,25 +94,12 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
     # SurrealDB DataBus 使用独立消费组，避免双写时与 VM 竞争 Kafka 分区。
     consumer_group = None
     data_source_created_from = data_source.created_from
-    data_id_name = compose_bkdata_data_id_name(data_source.data_name)
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         consumer_group = compose_transfer_consumer_group(data_source)
         data_source.register_to_bkbase(
             bk_biz_id=target_bk_biz_id,
             namespace="bkmonitor",
-            bkbase_data_name=data_id_name,
         )
-    elif not DataIdConfig.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        namespace="bkmonitor",
-        name=data_id_name,
-    ).exists():
-        data_source.register_to_bkbase(
-            bk_biz_id=target_bk_biz_id,
-            namespace="bkmonitor",
-            bkbase_data_name=data_id_name,
-        )
-
     # 3. 只解析 Option 实际启用分支的依赖：
     # SurrealDB-only 不要求 AccessVMRecord/VM 集群，VM-only 不要求 SurrealDBStorage。
     vm_cluster = _resolve_graph_relation_vm_cluster(rt) if option.should_write_vm else None
@@ -149,7 +135,11 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             configured_rt = candidate
             break
 
-    data_link_name = configured_rt.data_link_name if configured_rt else data_id_name
+    data_link_name = (
+        configured_rt.data_link_name
+        if configured_rt
+        else get_registered_bkdata_data_id_name(data_source, namespace="bkmonitor")
+    )
     datalink = DataLink.objects.filter(
         bk_tenant_id=bk_tenant_id,
         data_link_name=data_link_name,
@@ -200,7 +190,8 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
         ).last()
         vm_record_values = {
             "bk_base_data_id": data_source.bk_data_id,
-            "bk_base_data_name": bkbase_rt.bkbase_data_name or data_id_name,
+            "bk_base_data_name": bkbase_rt.bkbase_data_name
+            or get_registered_bkdata_data_id_name(data_source, namespace="bkmonitor"),
             "vm_cluster_id": vm_cluster.cluster_id,
             "vm_result_table_id": bkbase_rt.bkbase_table_id,
         }
