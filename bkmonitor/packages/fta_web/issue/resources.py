@@ -514,8 +514,60 @@ class SourceAnalysisExecutionBaseResource(Resource):
         overview_latest["result"] = cls.serialize_overview_result(latest["result"])
         return {**source_analysis_view, "latest": overview_latest}
 
+    @staticmethod
+    def build_next_execution_context(
+        parameters: IssueSourceAnalysisRule | IssueSourceAnalysisExecution,
+        *,
+        trigger_type: str,
+        source: str,
+    ) -> dict:
+        """构造下一次执行的关联参数预览，不请求上游解析名称。"""
+
+        return {
+            "trigger_type": trigger_type,
+            "source": source,
+            "bkci_project_id": str(parameters.bkci_project_id),
+            "repository_alias": str(parameters.repository_alias),
+            "agent_id": str(parameters.agent_id),
+            "knowledge_base_ids": list(map(str, parameters.knowledge_base_ids)),
+            "skill_ids": list(map(str, parameters.skill_ids)),
+        }
+
     @classmethod
-    def build_source_analysis_view(cls, bk_biz_id: int, issue_id: str) -> dict:
+    def build_reanalysis_context_preview(
+        cls,
+        bk_biz_id: int,
+        issue_id: str,
+        issue_ids: list[str],
+    ) -> dict | None:
+        """按当前规则构造重新分析参数预览；实时依赖异常时不阻断已持久化结果展示。"""
+
+        try:
+            alert = cls.get_latest_alert(bk_biz_id, issue_id, issue_ids)
+            rule = cls.get_matched_rule(bk_biz_id, alert) if alert is not None else None
+            if rule is None:
+                return None
+            return cls.build_next_execution_context(
+                rule,
+                trigger_type=SourceAnalysisTriggerType.REANALYZE,
+                source="matched_rule_preview",
+            )
+        except Exception:  # NOCC:broad-except(参数预览是可降级的辅助信息)
+            logger.exception(
+                "Failed to build source analysis reanalysis preview: bk_biz_id=%s, issue_id=%s",
+                bk_biz_id,
+                _sanitize_for_log(issue_id),
+            )
+            return None
+
+    @classmethod
+    def build_source_analysis_view(
+        cls,
+        bk_biz_id: int,
+        issue_id: str,
+        *,
+        include_next_execution_context: bool = True,
+    ) -> dict:
         """构造前端统一消费的最新状态视图。"""
 
         config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
@@ -524,17 +576,35 @@ class SourceAnalysisExecutionBaseResource(Resource):
         latest = cls.get_latest_execution(bk_biz_id, issue_ids)
         if latest is not None:
             # 已有执行记录时应持续可见；重试复用快照，重新分析会在写入口重新匹配当前规则。
-            return {
+            result = {
                 "is_repository_configured": is_repository_configured,
                 "is_configured": True,
                 "unavailable_reason": None,
                 "unavailable_reason_display": None,
                 "latest": cls.serialize_execution(latest),
             }
+            if include_next_execution_context:
+                next_execution_context = None
+                if latest.status == SourceAnalysisStatus.FAILED and latest.failure_retryable:
+                    # 重试复用失败执行的不可变输入快照，不受当前规则调整影响。
+                    next_execution_context = cls.build_next_execution_context(
+                        latest,
+                        trigger_type=SourceAnalysisTriggerType.RETRY,
+                        source="execution_snapshot",
+                    )
+                elif latest.status == SourceAnalysisStatus.SUCCESS:
+                    # 重新分析会重新选择最新告警并匹配当前规则；这里返回同口径的确认前预览。
+                    next_execution_context = cls.build_reanalysis_context_preview(
+                        bk_biz_id,
+                        canonical_issue_id,
+                        issue_ids,
+                    )
+                result["next_execution_context"] = next_execution_context
+            return result
 
         alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
         rule, unavailable_reason = cls.get_rule_availability(bk_biz_id, alert)
-        return {
+        result = {
             "is_repository_configured": is_repository_configured,
             "is_configured": rule is not None,
             "unavailable_reason": unavailable_reason,
@@ -543,6 +613,17 @@ class SourceAnalysisExecutionBaseResource(Resource):
             ),
             "latest": None,
         }
+        if include_next_execution_context:
+            result["next_execution_context"] = (
+                cls.build_next_execution_context(
+                    rule,
+                    trigger_type=SourceAnalysisTriggerType.INITIAL,
+                    source="matched_rule_preview",
+                )
+                if rule is not None
+                else None
+            )
+        return result
 
     @classmethod
     def get_latest_alert(cls, bk_biz_id: int, issue_id: str, alert_issue_ids: list[str]) -> AlertDocument | None:
@@ -1108,7 +1189,11 @@ class AIAnalysisOverviewResource(SourceAnalysisExecutionBaseResource):
     def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_id = validated_request_data["bk_biz_id"]
         source_analysis = self.build_source_analysis_overview(
-            self.build_source_analysis_view(bk_biz_id, validated_request_data["issue_id"])
+            self.build_source_analysis_view(
+                bk_biz_id,
+                validated_request_data["issue_id"],
+                include_next_execution_context=False,
+            )
         )
         return {"source_analysis": source_analysis}
 
