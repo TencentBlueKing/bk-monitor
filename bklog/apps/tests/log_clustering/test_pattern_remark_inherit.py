@@ -15,7 +15,7 @@ INDEX_SET_ID = 123
 BK_BIZ_ID = 2
 SIGNATURE = "e4b60ecf"
 GROUP_FIELDS = ["service_name", "func"]
-CURRENT_GROUPS = {"service_name": "gamesvr", "func": "AddExp"}
+CURRENT_GROUPS = {"service_name": "service_a", "func": "func_a"}
 
 PARAMS = {
     "addition": [],
@@ -70,14 +70,14 @@ class TestPatternRemarkSubsetInherit(TestCase):
         ):
             mock_toggle.return_value = Toggle(feature_config=feature_config or {})
             mock_multi_query.return_value = {
-                "pattern_aggs": [{"key": SIGNATURE, "doc_count": 34, "group": "gamesvr|AddExp"}],
+                "pattern_aggs": [{"key": SIGNATURE, "doc_count": 34, "group": "service_a|func_a"}],
                 "year_on_year_result": {},
                 "new_class": set(),
             }
             return PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS)).pattern_search()
 
     def test_inherits_remark_from_subset_group(self):
-        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[INHERITED_REMARK], owners=["admin"])
 
         result = self.search()
 
@@ -92,7 +92,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
 
     def test_inherits_remark_only_when_source_has_no_owner(self):
-        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
+        build_remark({"service_name": "service_a"}, remark=[INHERITED_REMARK], owners=[])
 
         result = self.search()
 
@@ -100,7 +100,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["owners"], [])
 
     def test_inherits_owner_only_when_source_has_no_remark(self):
-        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[], owners=["admin"])
 
         result = self.search()
 
@@ -110,7 +110,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
     def test_inherits_remark_and_owner_from_different_ancestors(self):
         # 业务常把默认负责人挂在空维、把备注写在中间层，绑定成同一条会丢掉其中一半
         build_remark({}, remark=[INHERITED_REMARK], owners=[])
-        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[], owners=["admin"])
 
         result = self.search()
 
@@ -119,7 +119,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
     def test_inherits_owner_from_empty_group_while_remark_comes_from_deeper(self):
         build_remark({}, remark=[], owners=["admin"])
-        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
+        build_remark({"service_name": "service_a"}, remark=[INHERITED_REMARK], owners=[])
 
         result = self.search()
 
@@ -128,7 +128,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
     def test_each_field_picks_its_own_deepest_ancestor(self):
         build_remark({}, remark=[{**INHERITED_REMARK, "remark": "empty group"}], owners=["biz_owner"])
-        build_remark({"service_name": "gamesvr"}, remark=[{**INHERITED_REMARK, "remark": "one dimension"}], owners=[])
+        build_remark({"service_name": "service_a"}, remark=[{**INHERITED_REMARK, "remark": "one dimension"}], owners=[])
 
         result = self.search()
 
@@ -137,7 +137,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
     def test_exact_owner_only_record_stops_inheriting_parent_remark(self):
         # 精确记录整条胜出，否则用户在该行删光备注后祖先备注会重新冒出来
-        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=[])
+        build_remark({"service_name": "service_a"}, remark=[INHERITED_REMARK], owners=[])
         build_remark(CURRENT_GROUPS, remark=[], owners=["admin"])
 
         result = self.search()
@@ -156,7 +156,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
     def test_empty_exact_record_still_blocks_inheritance(self):
         # 删光备注后精确记录会变成空记录，不认它的话祖先内容会重新冒出来，删除等于白删
-        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[INHERITED_REMARK], owners=["admin"])
         build_remark(CURRENT_GROUPS, remark=[], owners=[])
 
         result = self.search()
@@ -165,14 +165,14 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["owners"], [])
 
     def test_skips_remark_when_shared_dimension_value_differs(self):
-        build_remark({"service_name": "relaysvr"}, remark=[INHERITED_REMARK])
+        build_remark({"service_name": "service_b"}, remark=[INHERITED_REMARK])
 
         result = self.search()
 
         self.assertEqual(result[0]["remark"], [])
 
     def test_skips_remark_when_group_is_not_subset(self):
-        build_remark({"service_name": "gamesvr", "module": "trade"}, remark=[INHERITED_REMARK])
+        build_remark({"service_name": "service_a", "module": "module_a"}, remark=[INHERITED_REMARK])
 
         result = self.search()
 
@@ -180,7 +180,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
     def test_prefers_candidate_with_more_matched_dimensions(self):
         build_remark({}, remark=[{**INHERITED_REMARK, "remark": "empty group"}])
-        build_remark({"service_name": "gamesvr"}, remark=[{**INHERITED_REMARK, "remark": "one dimension"}])
+        build_remark({"service_name": "service_a"}, remark=[{**INHERITED_REMARK, "remark": "one dimension"}])
         build_remark(CURRENT_GROUPS, remark=[{**INHERITED_REMARK, "remark": "exact"}])
 
         result = self.search()
@@ -188,15 +188,15 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["remark"][0]["remark"], "exact")
 
     def test_breaks_same_length_tie_by_group_fields_order(self):
-        build_remark({"func": "AddExp"}, remark=[{**INHERITED_REMARK, "remark": "by func"}])
-        build_remark({"service_name": "gamesvr"}, remark=[{**INHERITED_REMARK, "remark": "by service_name"}])
+        build_remark({"func": "func_a"}, remark=[{**INHERITED_REMARK, "remark": "by func"}])
+        build_remark({"service_name": "service_a"}, remark=[{**INHERITED_REMARK, "remark": "by service_name"}])
 
         result = self.search()
 
         self.assertEqual(result[0]["remark"][0]["remark"], "by service_name")
 
     def test_does_not_inherit_for_black_list_biz(self):
-        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[INHERITED_REMARK], owners=["admin"])
 
         result = self.search(feature_config={CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST: [BK_BIZ_ID]})
 
@@ -205,7 +205,7 @@ class TestPatternRemarkSubsetInherit(TestCase):
 
     def test_does_not_inherit_strategy_binding(self):
         build_remark(
-            {"service_name": "gamesvr"},
+            {"service_name": "service_a"},
             remark=[INHERITED_REMARK],
             owners=["admin"],
             strategy_id=7,
@@ -255,7 +255,7 @@ class TestPatternRemarkMaterialize(TestCase):
             group_fields=GROUP_FIELDS,
         )
         self.source = build_remark(
-            {"service_name": "gamesvr"},
+            {"service_name": "service_a"},
             remark=[INHERITED_REMARK],
             owners=["admin"],
             strategy_id=7,
@@ -370,7 +370,7 @@ class TestPatternRemarkMaterializeSplitContent(TestCase):
         return ClusteringRemark.objects.get(group_hash=ClusteringRemark.convert_groups_to_groups_hash(CURRENT_GROUPS))
 
     def test_materialize_carries_owner_from_remark_less_source(self):
-        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[], owners=["admin"])
 
         materialized = self.create_remark()
 
@@ -379,7 +379,7 @@ class TestPatternRemarkMaterializeSplitContent(TestCase):
 
     def test_materialize_merges_remark_and_owner_from_different_ancestors(self):
         build_remark({}, remark=[INHERITED_REMARK], owners=[])
-        build_remark({"service_name": "gamesvr"}, remark=[], owners=["admin"])
+        build_remark({"service_name": "service_a"}, remark=[], owners=["admin"])
 
         materialized = self.create_remark()
 
@@ -414,7 +414,7 @@ class TestDeleteInheritedRemarkRoundTrip(TestCase):
     def search(self):
         with patch.object(PatternHandler, "_multi_query") as mock_multi_query:
             mock_multi_query.return_value = {
-                "pattern_aggs": [{"key": SIGNATURE, "doc_count": 34, "group": "gamesvr|AddExp"}],
+                "pattern_aggs": [{"key": SIGNATURE, "doc_count": 34, "group": "service_a|func_a"}],
                 "year_on_year_result": {},
                 "new_class": set(),
             }
@@ -482,7 +482,7 @@ class TestSavePatternStrategyRemarkFallback(TestCase):
 
     def test_enable_with_inherited_owner_creates_dedicated_strategy(self):
         source = build_remark(
-            {"service_name": "gamesvr"},
+            {"service_name": "service_a"},
             remark=[INHERITED_REMARK],
             owners=["admin"],
             strategy_id=7,
@@ -526,7 +526,7 @@ class TestSavePatternStrategyRemarkFallback(TestCase):
 
     def test_disable_materializes_inherited_remark_without_strategy_binding(self):
         build_remark(
-            {"service_name": "gamesvr"},
+            {"service_name": "service_a"},
             remark=[INHERITED_REMARK],
             owners=["admin"],
             strategy_id=7,
