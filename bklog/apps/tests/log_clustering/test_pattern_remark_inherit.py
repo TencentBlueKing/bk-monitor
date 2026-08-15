@@ -336,7 +336,7 @@ class TestPatternRemarkMaterialize(TestCase):
 
 
 class TestPatternRemarkMaterializeSplitContent(TestCase):
-    """写入端：备注与负责人分散在不同深度记录时，物化只能带走获胜的那一条。"""
+    """写入端：备注与负责人分散在不同深度记录时，物化必须把两个来源都固化下来。"""
 
     def setUp(self) -> None:  # pylint: disable=invalid-name
         ClusteringConfig.objects.create(
@@ -383,7 +383,7 @@ class TestPatternRemarkMaterializeSplitContent(TestCase):
 
         materialized = self.create_remark()
 
-        # 精确记录一旦建成该行就不再向上继承，物化必须把两个来源都固化下来
+        # 精确记录一旦建成该行就不再向上继承，两个来源都必须固化
         self.assertEqual([item["remark"] for item in materialized.remark], ["inherited remark", "new remark"])
         self.assertEqual(materialized.owners, ["admin"])
 
