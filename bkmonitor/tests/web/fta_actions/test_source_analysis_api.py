@@ -229,6 +229,36 @@ class TestSourceAnalysisFrontendResources(TestCase):
         get_latest_alert.assert_called_once()
         get_matched_rule.assert_called_once_with(self.BK_BIZ_ID, alert)
 
+    def test_success_result_remains_visible_when_reanalysis_preview_fails(self):
+        execution = self.create_execution(
+            status=SourceAnalysisStatus.SUCCESS,
+            stage=None,
+            result_type=SourceAnalysisResultType.HIGH_CONFIDENCE,
+            result_schema_version="1.0.0",
+            result_payload={
+                "schema_version": "1.0.0",
+                "result_type": SourceAnalysisResultType.HIGH_CONFIDENCE,
+                "result_card": {"description": "已持久化的分析结论", "responsibility": None},
+                "content_type": "text/markdown",
+                "content": "# 已持久化的分析报告",
+            },
+        )
+
+        with (
+            patch.object(
+                SourceAnalysisExecutionBaseResource,
+                "get_latest_alert",
+                side_effect=RuntimeError("alert query unavailable"),
+            ),
+            patch("fta_web.issue.resources.logger.exception") as log_exception,
+        ):
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertIsNone(result["next_execution_context"])
+        self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
+        self.assertEqual(result["latest"]["result"]["content"], "# 已持久化的分析报告")
+        log_exception.assert_called_once()
+
     def test_active_execution_does_not_return_next_execution_context(self):
         self.create_execution(status=SourceAnalysisStatus.RUNNING)
 

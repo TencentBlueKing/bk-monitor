@@ -534,6 +534,33 @@ class SourceAnalysisExecutionBaseResource(Resource):
         }
 
     @classmethod
+    def build_reanalysis_context_preview(
+        cls,
+        bk_biz_id: int,
+        issue_id: str,
+        issue_ids: list[str],
+    ) -> dict | None:
+        """按当前规则构造重新分析参数预览；实时依赖异常时不阻断已持久化结果展示。"""
+
+        try:
+            alert = cls.get_latest_alert(bk_biz_id, issue_id, issue_ids)
+            rule = cls.get_matched_rule(bk_biz_id, alert) if alert is not None else None
+            if rule is None:
+                return None
+            return cls.build_next_execution_context(
+                rule,
+                trigger_type=SourceAnalysisTriggerType.REANALYZE,
+                source="matched_rule_preview",
+            )
+        except Exception:  # NOCC:broad-except(参数预览是可降级的辅助信息)
+            logger.exception(
+                "Failed to build source analysis reanalysis preview: bk_biz_id=%s, issue_id=%s",
+                bk_biz_id,
+                _sanitize_for_log(issue_id),
+            )
+            return None
+
+    @classmethod
     def build_source_analysis_view(
         cls,
         bk_biz_id: int,
@@ -567,14 +594,11 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     )
                 elif latest.status == SourceAnalysisStatus.SUCCESS:
                     # 重新分析会重新选择最新告警并匹配当前规则；这里返回同口径的确认前预览。
-                    alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
-                    rule = cls.get_matched_rule(bk_biz_id, alert) if alert is not None else None
-                    if rule is not None:
-                        next_execution_context = cls.build_next_execution_context(
-                            rule,
-                            trigger_type=SourceAnalysisTriggerType.REANALYZE,
-                            source="matched_rule_preview",
-                        )
+                    next_execution_context = cls.build_reanalysis_context_preview(
+                        bk_biz_id,
+                        canonical_issue_id,
+                        issue_ids,
+                    )
                 result["next_execution_context"] = next_execution_context
             return result
 
