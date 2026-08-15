@@ -11,16 +11,23 @@ specific language governing permissions and limitations under the License.
 from datetime import timedelta
 from unittest.mock import MagicMock, call, patch
 
+from django.db import DatabaseError
 from django.test import TestCase
 from django.utils import timezone
 
 from api.bk_incident.default import (
     CreateSourceAnalysisTaskResource,
     ExecuteSourceAnalysisTaskResource,
+    GetSourceAnalysisResultResource,
     GetSourceAnalysisTaskResource,
 )
 from bkmonitor.models import IssueSourceAnalysisExecution
-from constants.issue import SourceAnalysisFailureStage, SourceAnalysisStage, SourceAnalysisStatus
+from constants.issue import (
+    SourceAnalysisFailureStage,
+    SourceAnalysisResultType,
+    SourceAnalysisStage,
+    SourceAnalysisStatus,
+)
 from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
 from fta_web.tasks import recover_source_analysis_executions, run_source_analysis_execution
 
@@ -57,14 +64,18 @@ class TestSourceAnalysisMockContract(TestCase):
             }
         )
         self.assertTrue(execute_request.is_valid(), execute_request.errors)
+        result_request = GetSourceAnalysisResultResource.RequestSerializer(data={"bk_biz_id": 2, "task_id": "task-1"})
+        self.assertTrue(result_request.is_valid(), result_request.errors)
         self.assertIsNone(CreateSourceAnalysisTaskResource.ResponseSerializer)
         self.assertIsNone(ExecuteSourceAnalysisTaskResource.ResponseSerializer)
         self.assertIsNone(GetSourceAnalysisTaskResource.ResponseSerializer)
+        self.assertIsNone(GetSourceAnalysisResultResource.ResponseSerializer)
 
     def test_resources_keep_endpoint_unbound_until_bkfara_publishes_contract(self):
         self.assertEqual(CreateSourceAnalysisTaskResource.action, "")
         self.assertEqual(ExecuteSourceAnalysisTaskResource.action, "")
         self.assertEqual(GetSourceAnalysisTaskResource.action, "")
+        self.assertEqual(GetSourceAnalysisResultResource.action, "")
 
     @patch("api.bk_incident.default.APIResource.perform_request", return_value={"task_id": "task-1"})
     def test_source_analysis_base_preserves_bk_biz_id(self, perform_request):
@@ -100,6 +111,27 @@ class TestSourceAnalysisOrchestration(TestCase):
         }
         defaults.update(kwargs)
         return IssueSourceAnalysisExecution.objects.create(**defaults)
+
+    @staticmethod
+    def build_result(result_type=SourceAnalysisResultType.HIGH_CONFIDENCE) -> dict:
+        responsibility = None
+        if result_type == SourceAnalysisResultType.HIGH_CONFIDENCE:
+            responsibility = {
+                "commit_id": "a3fa531",
+                "commit_message": "restore session guard",
+                "author_name": "Edwin Wu",
+                "bk_username": "edwinwu",
+            }
+        return {
+            "schema_version": "1.0.0",
+            "result_type": result_type,
+            "result_card": {
+                "description": "Session 空值检查缺失导致异常。",
+                "responsibility": responsibility,
+            },
+            "content_type": "text/markdown",
+            "content": "# 分析结论\n\nSession 空值检查缺失导致异常。",
+        }
 
     @patch("fta_web.issue.resources.api.bk_incident.execute_source_analysis_task")
     @patch("fta_web.issue.resources.api.bk_incident.create_source_analysis_task")
@@ -306,14 +338,80 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertTrue(execution.failure_retryable)
         self.assertEqual(execution.failure_request_id, "request-2")
 
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_result")
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
-    def test_remote_success_waits_for_result_validation(self, get_task):
+    def test_remote_success_persists_valid_result(self, get_task, get_result):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
         get_task.return_value = {"status": "success"}
+        get_result.return_value = self.build_result()
 
         should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
 
         self.assertFalse(should_poll)
+        get_result.assert_called_once_with(bk_biz_id=2, task_id="task-1")
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.SUCCESS)
+        self.assertIsNone(execution.stage)
+        self.assertEqual(execution.result_schema_version, "1.0.0")
+        self.assertEqual(execution.result_type, SourceAnalysisResultType.HIGH_CONFIDENCE)
+        self.assertEqual(execution.result_payload, get_result.return_value)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_result")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_insufficient_evidence_is_persisted_as_success(self, get_task, get_result):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {"status": "success"}
+        get_result.return_value = self.build_result(SourceAnalysisResultType.INSUFFICIENT_EVIDENCE)
+
+        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertFalse(should_poll)
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.SUCCESS)
+        self.assertEqual(execution.result_type, SourceAnalysisResultType.INSUFFICIENT_EVIDENCE)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_result")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_result_fetch_timeout_keeps_validating_for_retry(self, get_task, get_result):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {"status": "success"}
+        get_result.side_effect = TimeoutError("timeout")
+
+        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertTrue(should_poll)
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+        self.assertEqual(execution.stage, SourceAnalysisStage.VALIDATING)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_result")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_invalid_result_marks_retryable_validation_failure(self, get_task, get_result):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {"status": "success"}
+        get_result.return_value = {"schema_version": "1.0.0"}
+
+        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertFalse(should_poll)
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.RESULT_VALIDATE)
+        self.assertEqual(execution.failure_code, "RESULT_SCHEMA_INVALID")
+        self.assertTrue(execution.failure_retryable)
+        self.assertIsNone(execution.result_payload)
+
+    @patch.object(IssueSourceAnalysisExecution, "mark_success", side_effect=DatabaseError("database unavailable"))
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_result")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_result_persist_error_keeps_validating_for_retry(self, get_task, get_result, _mark_success):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {"status": "success"}
+        get_result.return_value = self.build_result()
+
+        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertTrue(should_poll)
         execution.refresh_from_db()
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
         self.assertEqual(execution.stage, SourceAnalysisStage.VALIDATING)

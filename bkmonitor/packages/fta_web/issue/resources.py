@@ -19,7 +19,7 @@ import re
 from threading import BoundedSemaphore
 import time
 
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
@@ -88,6 +88,11 @@ from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
+from fta_web.issue.source_analysis_result import (
+    SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
+    SourceAnalysisResultValidationError,
+    SourceAnalysisResultValidator,
+)
 from fta_web.tasks import run_source_analysis_execution
 from fta_web.constants import TapdWorkspaceBindStatus
 from fta_web.issue.utils.tapd import (
@@ -407,7 +412,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
         try:
             run_source_analysis_execution.apply_async(args=(execution.analysis_id,))
-        except Exception:
+        except DatabaseError:
             logger.exception(
                 "Failed to dispatch source analysis execution, analysis_id=%s",
                 execution.analysis_id,
@@ -1107,9 +1112,9 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 stage = SourceAnalysisStage.ANALYZING
             return cls._mark_running(execution, stage)
         if status == cls.BKFARA_SUCCESS:
-            # PR 9 会在此阶段拉取、校验并持久化结果；本 PR 不写入未经校验的结果。
-            cls._mark_running(execution, SourceAnalysisStage.VALIDATING)
-            return False
+            if not cls._mark_running(execution, SourceAnalysisStage.VALIDATING):
+                return False
+            return cls._fetch_validate_and_persist_result(execution)
 
         failure = task_state.get("failure") or {}
         if not isinstance(failure, dict):
@@ -1125,6 +1130,53 @@ class SourceAnalysisExecutionBaseResource(Resource):
             failure_retryable=bool(failure.get("retryable", False)),
             failure_request_id=failure.get("request_id"),
         )
+        return False
+
+    @classmethod
+    def _fetch_validate_and_persist_result(cls, execution: IssueSourceAnalysisExecution) -> bool:
+        """成功任务只持久化通过 v1.0.0 Schema 与业务语义校验的结果。"""
+
+        try:
+            raw_result = api.bk_incident.get_source_analysis_result(
+                bk_biz_id=execution.bk_biz_id,
+                task_id=execution.bkfara_task_id,
+            )
+        except Exception as error:
+            return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.RESULT_FETCH, error)
+
+        try:
+            result = SourceAnalysisResultValidator.validate(raw_result)
+        except SourceAnalysisResultValidationError as error:
+            logger.warning(
+                "Invalid BKFara source analysis result: analysis_id=%s, code=%s, path=%s",
+                execution.analysis_id,
+                error.code,
+                error.path,
+            )
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.RESULT_VALIDATE,
+                failure_code=error.code,
+                failure_message=error.safe_message,
+                failure_retryable=True,
+            )
+            return False
+
+        try:
+            execution.mark_success(
+                result_type=result["result_type"],
+                result_payload=result,
+                result_schema_version=SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
+            )
+        except SourceAnalysisInvalidStatusTransitionError:
+            execution.refresh_from_db()
+        except Exception:
+            # 数据库瞬时失败时保留 validating 活动态，由既有 10 秒轮询和 10 分钟补偿重试。
+            logger.exception(
+                "Failed to persist source analysis result, analysis_id=%s",
+                execution.analysis_id,
+            )
+            return True
         return False
 
     @classmethod
