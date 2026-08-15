@@ -157,7 +157,8 @@ class PatternHandler:
         signature_map_origin_log = array_hash(pattern_map, "signature", "origin_log")
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
-        # 业务下所有有内容的备注，signature 和 origin_pattern 可能不相同，按两者分别建索引后逐行挑候选
+        # 业务下所有备注，signature 和 origin_pattern 可能不相同，按两者分别建索引后逐行挑候选。
+        # 空记录也要保留：它可能是用户删光备注后的精确记录，丢掉会让该行重新继承祖先内容
         clustering_remarks = ClusteringRemark.objects.filter(
             bk_biz_id=self._clustering_config.bk_biz_id, source_app_code=get_external_app_code()
         ).values(
@@ -175,8 +176,6 @@ class PatternHandler:
         origin_pattern_map_remarks = {}
 
         for remark in clustering_remarks:
-            if not (remark["remark"] or remark["owners"]):
-                continue
             signature_map_remarks.setdefault(remark["signature"], []).append(remark)
             if remark["origin_pattern"]:
                 origin_pattern_map_remarks.setdefault(remark["origin_pattern"], []).append(remark)

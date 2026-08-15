@@ -154,6 +154,16 @@ class TestPatternRemarkSubsetInherit(TestCase):
         self.assertEqual(result[0]["remark"], [INHERITED_REMARK])
         self.assertEqual(result[0]["owners"], [])
 
+    def test_empty_exact_record_still_blocks_inheritance(self):
+        # 删光备注后精确记录会变成空记录，不认它的话祖先内容会重新冒出来，删除等于白删
+        build_remark({"service_name": "gamesvr"}, remark=[INHERITED_REMARK], owners=["admin"])
+        build_remark(CURRENT_GROUPS, remark=[], owners=[])
+
+        result = self.search()
+
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], [])
+
     def test_skips_remark_when_shared_dimension_value_differs(self):
         build_remark({"service_name": "relaysvr"}, remark=[INHERITED_REMARK])
 
@@ -376,6 +386,68 @@ class TestPatternRemarkMaterializeSplitContent(TestCase):
         # 精确记录一旦建成该行就不再向上继承，物化必须把两个来源都固化下来
         self.assertEqual([item["remark"] for item in materialized.remark], ["inherited remark", "new remark"])
         self.assertEqual(materialized.owners, ["admin"])
+
+
+class TestDeleteInheritedRemarkRoundTrip(TestCase):
+    """删除继承来的备注后，该行不能再把祖先内容展示回来。"""
+
+    def setUp(self) -> None:  # pylint: disable=invalid-name
+        ClusteringConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            min_members=100,
+            max_dist_list="xxx",
+            predefined_varibles="^hi",
+            delimeter="x",
+            max_log_length=1024,
+            bk_biz_id=BK_BIZ_ID,
+            model_id="model_1",
+            group_fields=GROUP_FIELDS,
+        )
+        AiopsSignatureAndPattern.objects.create(model_id="model_1", signature=SIGNATURE, pattern="some pattern")
+        toggle_patcher = patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
+        toggle_patcher.start().return_value = Toggle(feature_config={})
+        self.addCleanup(toggle_patcher.stop)
+        username_patcher = patch("apps.log_clustering.handlers.pattern.get_request_username", return_value="tester")
+        username_patcher.start()
+        self.addCleanup(username_patcher.stop)
+
+    def search(self):
+        with patch.object(PatternHandler, "_multi_query") as mock_multi_query:
+            mock_multi_query.return_value = {
+                "pattern_aggs": [{"key": SIGNATURE, "doc_count": 34, "group": "gamesvr|AddExp"}],
+                "year_on_year_result": {},
+                "new_class": set(),
+            }
+            return PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS)).pattern_search()[0]
+
+    def delete_inherited_remark(self):
+        PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS)).set_clustering_remark(
+            {
+                "signature": SIGNATURE,
+                "origin_pattern": "",
+                "groups": copy.deepcopy(CURRENT_GROUPS),
+                "create_time": INHERITED_REMARK["create_time"],
+                "remark": INHERITED_REMARK["remark"],
+            },
+            method="delete",
+        )
+
+    def test_delete_sticks_when_no_owner_exists(self):
+        build_remark({}, remark=[INHERITED_REMARK], owners=[])
+
+        self.assertEqual(self.search()["remark"], [INHERITED_REMARK])
+        self.delete_inherited_remark()
+
+        self.assertEqual(self.search()["remark"], [])
+
+    def test_delete_sticks_and_keeps_inherited_owner(self):
+        build_remark({}, remark=[INHERITED_REMARK], owners=["admin"])
+
+        self.delete_inherited_remark()
+
+        row = self.search()
+        self.assertEqual(row["remark"], [])
+        self.assertEqual(row["owners"], ["admin"])
 
 
 class TestSavePatternStrategyRemarkFallback(TestCase):

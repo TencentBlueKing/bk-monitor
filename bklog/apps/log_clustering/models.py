@@ -151,6 +151,36 @@ class ClusteringRemark(SoftDeleteModel):
         )
 
     @classmethod
+    def _matches_signature_or_pattern(cls, candidate, signature: str, origin_pattern: str) -> tuple:
+        """返回候选是否归属当前 Pattern，以及是否由 signature 命中（用于继承排序）。"""
+        matched_by_signature = cls._read_candidate_field(candidate, "signature") == signature
+        matched_by_origin_pattern = bool(origin_pattern) and (
+            cls._read_candidate_field(candidate, "origin_pattern") == origin_pattern
+        )
+        return matched_by_signature or matched_by_origin_pattern, matched_by_signature
+
+    @classmethod
+    def select_exact_remark(cls, candidates, signature: str, origin_pattern: str, group_dict: dict):
+        """
+        定位当前分组组合的精确候选，不要求其有内容。
+
+        用户删光备注后精确记录会变成空记录，此时若不认它，展示端会重新继承祖先内容，删除等于白删。
+        """
+        selected = None
+        for candidate in candidates:
+            matched, __ = cls._matches_signature_or_pattern(candidate, signature, origin_pattern)
+            if not matched:
+                continue
+            if not cls.is_groups_exact(cls._read_candidate_field(candidate, "groups") or {}, group_dict):
+                continue
+            # 并发下可能物化出重复记录，按 id 定序保证展示与写入落到同一条
+            if selected is None or (cls._read_candidate_field(candidate, "id") or 0) < (
+                cls._read_candidate_field(selected, "id") or 0
+            ):
+                selected = candidate
+        return selected
+
+    @classmethod
     def select_inherited_remark(
         cls,
         candidates,
@@ -158,33 +188,19 @@ class ClusteringRemark(SoftDeleteModel):
         origin_pattern: str,
         group_dict: dict,
         group_fields: list,
-        allow_inherit: bool = True,
-        required_field: str = "",
+        required_field: str,
     ):
-        """
-        按子集维度继承规则挑出当前分组组合应使用的备注。
-
-        allow_inherit 为 False 时退化为精确分组匹配。
-        required_field 限定候选必须在该字段上有内容，用于备注与负责人各自独立继承。
-        """
+        """按子集维度继承规则，挑出 required_field 上有内容的最优祖先候选。"""
         selected = None
         selected_rank = None
         for candidate in candidates:
-            if required_field:
-                if not cls._read_candidate_field(candidate, required_field):
-                    continue
-            elif not (cls._read_candidate_field(candidate, "remark") or cls._read_candidate_field(candidate, "owners")):
+            if not cls._read_candidate_field(candidate, required_field):
                 continue
-            matched_by_signature = cls._read_candidate_field(candidate, "signature") == signature
-            matched_by_origin_pattern = bool(origin_pattern) and (
-                cls._read_candidate_field(candidate, "origin_pattern") == origin_pattern
-            )
-            if not matched_by_signature and not matched_by_origin_pattern:
+            matched, matched_by_signature = cls._matches_signature_or_pattern(candidate, signature, origin_pattern)
+            if not matched:
                 continue
             remark_groups = cls._read_candidate_field(candidate, "groups") or {}
             if not cls.is_groups_inheritable(remark_groups, group_dict):
-                continue
-            if not allow_inherit and not cls.is_groups_exact(remark_groups, group_dict):
                 continue
             rank = cls._inherit_rank(candidate, remark_groups, group_fields, matched_by_signature)
             if selected_rank is None or rank < selected_rank:
@@ -204,22 +220,22 @@ class ClusteringRemark(SoftDeleteModel):
         """
         解析当前分组组合应使用的备注与负责人来源，展示与写入物化共用该解析器。
 
-        精确记录整条胜出：否则用户在精确行删光备注后，祖先备注会重新展示出来，删除等于失效。
+        精确记录整条胜出且不要求有内容：否则用户删光备注后祖先内容会重新展示出来，删除等于白删。
         没有精确记录时备注与负责人各自向上挑最优候选，业务常把默认负责人挂在空维记录、把备注写在中间层，
         绑定成同一条会丢掉其中一半，而负责人为空会直接挡住该行启用告警。
         """
         candidates = list(candidates)
+
+        exact = cls.select_exact_remark(candidates, signature, origin_pattern, group_dict)
+        if exact or not allow_inherit:
+            return InheritedRemarkContent(exact=exact, remark_source=exact, owner_source=exact)
+
         select_kwargs = {
             "signature": signature,
             "origin_pattern": origin_pattern,
             "group_dict": group_dict,
             "group_fields": group_fields,
         }
-
-        exact = cls.select_inherited_remark(candidates, allow_inherit=False, **select_kwargs)
-        if exact or not allow_inherit:
-            return InheritedRemarkContent(exact=exact, remark_source=exact, owner_source=exact)
-
         return InheritedRemarkContent(
             remark_source=cls.select_inherited_remark(candidates, required_field="remark", **select_kwargs),
             owner_source=cls.select_inherited_remark(candidates, required_field="owners", **select_kwargs),
