@@ -170,11 +170,10 @@ class ClusteringRemark(SoftDeleteModel):
         selected = None
         selected_rank = None
         for candidate in candidates:
-            remark = cls._read_candidate_field(candidate, "remark")
-            owners = cls._read_candidate_field(candidate, "owners")
-            if required_field and not cls._read_candidate_field(candidate, required_field):
-                continue
-            if not (remark or owners):
+            if required_field:
+                if not cls._read_candidate_field(candidate, required_field):
+                    continue
+            elif not (cls._read_candidate_field(candidate, "remark") or cls._read_candidate_field(candidate, "owners")):
                 continue
             matched_by_signature = cls._read_candidate_field(candidate, "signature") == signature
             matched_by_origin_pattern = bool(origin_pattern) and (
