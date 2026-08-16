@@ -65,7 +65,6 @@ logger = logging.getLogger("metadata")
 _MISSING_CONFIG_FIELD = object()
 SURREALDB_RT_SUFFIX = "_graph"
 DATABUS_MONITOR_LABEL_PREFIX = "bk-monitor/"
-DATABUS_LEGACY_MONITOR_LABEL_PREFIXES = ("bkmonitor.io/",)
 DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY = f"{DATABUS_MONITOR_LABEL_PREFIX}data-link-strategy"
 DATABUS_MONITOR_LABEL_RESULT_TABLE_ID = f"{DATABUS_MONITOR_LABEL_PREFIX}result-table-id"
 DATABUS_MONITOR_LABEL_DATA_SOURCE_ID = f"{DATABUS_MONITOR_LABEL_PREFIX}data-source-id"
@@ -2019,9 +2018,7 @@ class DataLink(models.Model):
             metadata = config["metadata"]
             labels = metadata.setdefault("labels", {})
             metadata["labels"] = {
-                key: value
-                for key, value in labels.items()
-                if not key.startswith((DATABUS_MONITOR_LABEL_PREFIX, *DATABUS_LEGACY_MONITOR_LABEL_PREFIXES))
+                key: value for key, value in labels.items() if not key.startswith(DATABUS_MONITOR_LABEL_PREFIX)
             }
             metadata["labels"].update(monitor_labels)
 
