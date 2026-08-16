@@ -324,8 +324,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.bkbase.sync_bkbase_rt_meta_info_all", "0 */6 * * *", "global"),
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
-    # BkBase V4 链路组件同步与状态自动兜底刷新，4h 一次
-    ("metadata.task.refresh_data_link.refresh_data_link_status", "0 */4 * * *", "global"),
+    # BkBase V4 链路组件同步与状态自动兜底刷新，30min 一次
+    ("metadata.task.refresh_data_link.refresh_data_link_status", "*/30 * * * *", "global"),
 ]
 
 # 排除特定的定时任务
