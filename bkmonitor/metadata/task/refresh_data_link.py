@@ -19,7 +19,7 @@ logger = logging.getLogger("metadata")
 @share_lock(identify="metadata_refreshDataLink", ttl=1800)
 def refresh_data_link_status():
     """
-    批量刷新链路组件状态及链路整体状态。
+    批量发现并同步链路组件，同时刷新组件状态及链路整体状态。
     """
-    logger.info("refresh_data_link_status: cron task started, dispatch bulk refresh task")
+    logger.info("refresh_data_link_status: cron task started, dispatch bulk reconcile task")
     bulk_refresh_data_link_status.delay()

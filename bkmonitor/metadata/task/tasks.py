@@ -14,6 +14,7 @@ import time
 import traceback
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
@@ -50,7 +51,7 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ResultTableConfig
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.space.space import Space
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -782,6 +783,7 @@ def _check_and_delete_ds_consul_config(data_source: DataSource):
 
 ComponentBatchKey = tuple[str, str, str]
 DataLinkStatusKey = tuple[str, str]
+ParsedComponentConfig = tuple[dict[str, Any], dict[str, Any]]
 STORAGE_BINDING_KIND_MAP = {
     DataLinkKind.ESSTORAGEBINDING.value: DataLinkKind.ELASTICSEARCH.value,
     DataLinkKind.DORISBINDING.value: DataLinkKind.DORIS.value,
@@ -792,8 +794,17 @@ STORAGE_BINDING_CLUSTER_TYPE_MAP = {
     DataLinkKind.DORISBINDING.value: ClusterInfo.TYPE_DORIS,
     DataLinkKind.VMSTORAGEBINDING.value: ClusterInfo.TYPE_VM,
 }
-STORAGE_BINDING_NAMESPACES = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+DATA_LINK_DISCOVERY_NAMESPACES = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+STORAGE_BINDING_NAMESPACES = DATA_LINK_DISCOVERY_NAMESPACES
 STORAGE_BINDING_FILTER_THRESHOLD = 1000
+
+
+@dataclass
+class DataLinkRefreshStats:
+    created_count: int = 0
+    updated_count: int = 0
+    terminated_count: int = 0
+    untrusted_batch_count: int = 0
 
 
 def _normalize_data_link_tenant_id(bk_tenant_id: str | None) -> str:
@@ -819,6 +830,127 @@ def _parse_list_data_link_statuses(configs: Any) -> dict[str, str] | None:
             return None
         statuses[name] = phase
     return statuses
+
+
+def _get_annotation_value(annotations: dict[str, Any], key: str) -> Any:
+    """兼容 BKBase annotation key 的大小写/下划线差异。"""
+    normalized_key = key.replace("_", "").lower()
+    for annotation_key, value in annotations.items():
+        if annotation_key.replace("_", "").lower() == normalized_key:
+            return value
+    return None
+
+
+def _get_bkbase_components_config(
+    bk_tenant_id: str,
+    kind: str,
+    namespace: str,
+    config: dict[str, Any],
+    result_table_ids: dict[str, str] | None = None,
+) -> ParsedComponentConfig:
+    """将 BKBase 组件配置转换为本地模型的基础字段和扩展字段。"""
+    metadata = config["metadata"]
+    annotations: dict[str, Any] = metadata.get("annotations", {})
+    labels: dict[str, Any] = metadata.get("labels", {})
+    bk_biz_id = int(labels.get("bk_biz_id", 0))
+    name: str = metadata["name"]
+    status: str = config["status"]["phase"]
+    spec: dict[str, Any] = config["spec"]
+
+    base_config: dict[str, Any] = {
+        "data_link_name": "",
+        "bk_tenant_id": bk_tenant_id,
+        "namespace": namespace,
+        "name": name,
+        "bk_biz_id": bk_biz_id,
+    }
+    extra_config: dict[str, Any] = {"status": status}
+
+    def _get_result_table_id(rt_name: str) -> str:
+        if result_table_ids is not None:
+            return result_table_ids.get(rt_name, "")
+        return (
+            ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace, name=rt_name)
+            .values_list("table_id", flat=True)
+            .first()
+            or ""
+        )
+
+    match kind:
+        case DataLinkKind.DATAID.value:
+            extra_config["bk_data_id"] = int(annotations.get("dataId") or annotations.get("DataId") or 0)
+        case DataLinkKind.RESULTTABLE.value:
+            extra_config["bkbase_table_id"] = _get_annotation_value(annotations, "ResultTableId") or ""
+            if not extra_config["bkbase_table_id"]:
+                extra_config["bkbase_table_id"] = f"{spec['bizId']}_{name}"
+            extra_config["data_type"] = spec["dataType"]
+        case DataLinkKind.VMSTORAGEBINDING.value:
+            extra_config["vm_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
+        case DataLinkKind.ESSTORAGEBINDING.value:
+            extra_config["es_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.DORISBINDING.value:
+            extra_config["doris_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.SURREALDBBINDING.value:
+            extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
+            extra_config["table_type"] = spec.get("table_type", "temporary")
+            extra_config["vertices"] = spec.get("vertices", [])
+            extra_config["relations"] = spec.get("relations", [])
+        case DataLinkKind.DATABUS.value:
+            extra_config["data_id_name"] = spec["sources"][0]["name"]
+            extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
+            extra_config["consumer_group"] = spec.get("consumerGroup", "")
+        case DataLinkKind.BASEREPORTSINK.value:
+            vm_storage_binding_names = []
+            for mapping in spec.get("mappings", []):
+                for sink in mapping.get("sinks", []):
+                    if sink.get("kind") == DataLinkKind.VMSTORAGEBINDING.value and sink.get("name"):
+                        vm_storage_binding_names.append(sink["name"])
+            extra_config["vm_storage_binding_names"] = list(dict.fromkeys(vm_storage_binding_names))
+    return base_config, extra_config
+
+
+def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
+    if value:
+        return True
+    return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
+
+
+def _parse_bkbase_component_configs(
+    configs: Any, *, bk_tenant_id: str, namespace: str, kind: str
+) -> dict[str, ParsedComponentConfig] | None:
+    """完整解析可信的非空组件列表；任一配置不完整时拒绝整个批次。"""
+    remote_statuses = _parse_list_data_link_statuses(configs)
+    if remote_statuses is None:
+        return None
+
+    result_table_ids = None
+    if kind in {DataLinkKind.VMSTORAGEBINDING.value, DataLinkKind.SURREALDBBINDING.value}:
+        result_table_ids = dict(
+            ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace).values_list(
+                "name", "table_id"
+            )
+        )
+
+    parsed_configs: dict[str, ParsedComponentConfig] = {}
+    try:
+        for config in configs:
+            base_config, extra_config = _get_bkbase_components_config(
+                bk_tenant_id=bk_tenant_id,
+                kind=kind,
+                namespace=namespace,
+                config=config,
+                result_table_ids=result_table_ids,
+            )
+            parsed_configs[base_config["name"]] = (base_config, extra_config)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return None
+    return parsed_configs
 
 
 def _parse_storage_binding_reference(
@@ -1315,16 +1447,46 @@ def _mark_component_links_untrusted(components: list[Any], untrusted_links: set[
             untrusted_links.add((_normalize_data_link_tenant_id(component.bk_tenant_id), component.data_link_name))
 
 
-def _refresh_data_link_component_statuses() -> tuple[
-    dict[DataLinkStatusKey, list[str]], set[DataLinkStatusKey], dict[DataLinkStatusKey, int], int
+def _get_data_link_discovery_tenant_ids() -> set[str]:
+    """获取远端组件发现范围；失败时由本地批次继续兜底刷新。"""
+    try:
+        tenants = api.bk_login.list_tenant()
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception("bulk_refresh_data_link_status: list tenants failed, error->[%s]", error)
+        return set()
+
+    if not isinstance(tenants, list):
+        logger.warning("bulk_refresh_data_link_status: ignore invalid tenant list->[%s]", tenants)
+        return set()
+
+    tenant_ids = set()
+    for tenant in tenants:
+        if not isinstance(tenant, dict) or not tenant.get("id"):
+            logger.warning("bulk_refresh_data_link_status: ignore invalid tenant config->[%s]", tenant)
+            continue
+        tenant_ids.add(str(tenant["id"]))
+    return tenant_ids
+
+
+def _reconcile_data_link_components() -> tuple[
+    dict[DataLinkStatusKey, list[str]],
+    set[DataLinkStatusKey],
+    dict[DataLinkStatusKey, int],
+    DataLinkRefreshStats,
 ]:
-    """批量刷新全部本地 DataLink 组件，并返回用于汇总链路状态的信息。"""
+    """通过远端批量列表统一发现、同步并刷新本地 DataLink 组件。"""
     statuses_by_link: dict[DataLinkStatusKey, list[str]] = defaultdict(list)
     untrusted_links: set[DataLinkStatusKey] = set()
     biz_id_by_link: dict[DataLinkStatusKey, int] = {}
-    changed_count = 0
+    stats = DataLinkRefreshStats()
+    discovery_tenant_ids = _get_data_link_discovery_tenant_ids()
 
-    for kind, component_class in COMPONENT_CLASS_MAP.items():
+    # ResultTable 必须先于依赖其 table_id 的 VM/SurrealDB Binding 落库。
+    component_items = sorted(
+        COMPONENT_CLASS_MAP.items(),
+        key=lambda item: item[0] != DataLinkKind.RESULTTABLE.value,
+    )
+    for kind, component_class in component_items:
         components_by_batch: dict[ComponentBatchKey, list[Any]] = defaultdict(list)
         for component in component_class.objects.all().iterator(chunk_size=1000):
             batch_key = (
@@ -1334,7 +1496,15 @@ def _refresh_data_link_component_statuses() -> tuple[
             )
             components_by_batch[batch_key].append(component)
 
-        for (bk_tenant_id, namespace, component_kind), components in components_by_batch.items():
+        batch_keys = set(components_by_batch)
+        batch_keys.update(
+            (bk_tenant_id, namespace, kind)
+            for bk_tenant_id in discovery_tenant_ids
+            for namespace in DATA_LINK_DISCOVERY_NAMESPACES
+        )
+
+        for bk_tenant_id, namespace, component_kind in sorted(batch_keys):
+            components = components_by_batch.get((bk_tenant_id, namespace, component_kind), [])
             bkbase_kind = DataLinkKind.get_choice_value(component_kind)
             try:
                 configs = api.bkdata.list_data_link(
@@ -1352,10 +1522,30 @@ def _refresh_data_link_component_statuses() -> tuple[
                     error,
                 )
                 _mark_component_links_untrusted(components, untrusted_links)
+                stats.untrusted_batch_count += 1
                 continue
 
-            remote_statuses = _parse_list_data_link_statuses(configs)
-            if remote_statuses is None:
+            try:
+                parsed_configs = _parse_bkbase_component_configs(
+                    configs,
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    kind=component_kind,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "bulk_refresh_data_link_status: parse components failed, tenant->[%s], namespace->[%s], "
+                    "kind->[%s], error->[%s]",
+                    bk_tenant_id,
+                    namespace,
+                    component_kind,
+                    error,
+                )
+                _mark_component_links_untrusted(components, untrusted_links)
+                stats.untrusted_batch_count += 1
+                continue
+
+            if parsed_configs is None:
                 logger.warning(
                     "bulk_refresh_data_link_status: list components returned empty or invalid data, "
                     "tenant->[%s], namespace->[%s], kind->[%s], skip batch",
@@ -1364,6 +1554,7 @@ def _refresh_data_link_component_statuses() -> tuple[
                     component_kind,
                 )
                 _mark_component_links_untrusted(components, untrusted_links)
+                stats.untrusted_batch_count += 1
                 continue
 
             if component_kind in STORAGE_BINDING_KIND_MAP:
@@ -1378,25 +1569,56 @@ def _refresh_data_link_component_statuses() -> tuple[
                         "bulk_refresh_data_link_status: storage binding reference check failed, issue->[%s]", issue
                     )
 
+            components_by_name = {component.name: component for component in components}
             now = timezone.now()
+            created_components = []
             changed_components = []
-            for component in components:
-                component_status = remote_statuses.get(component.name, DataLinkResourceStatus.TERMINATED.value)
-                if component.status != component_status:
-                    component.status = component_status
+            update_fields = set()
+            terminated_count = 0
+
+            for name, (base_config, extra_config) in parsed_configs.items():
+                component = components_by_name.get(name)
+                if component is None:
+                    created_components.append(component_class(**base_config, **extra_config))
+                    continue
+
+                is_updated = False
+                for field, value in extra_config.items():
+                    if (
+                        _should_update_bkbase_component_field(component_kind, field, value)
+                        and getattr(component, field) != value
+                    ):
+                        setattr(component, field, value)
+                        update_fields.add(field)
+                        is_updated = True
+                if is_updated:
                     component.last_modify_time = now
                     changed_components.append(component)
+                    update_fields.add("last_modify_time")
+
+            remote_names = set(parsed_configs)
+            for component in components:
+                if component.name in remote_names or component.status == DataLinkResourceStatus.TERMINATED.value:
+                    continue
+                component.status = DataLinkResourceStatus.TERMINATED.value
+                component.last_modify_time = now
+                changed_components.append(component)
+                update_fields.update({"status", "last_modify_time"})
+                terminated_count += 1
 
             try:
-                if changed_components:
-                    component_class.objects.bulk_update(
-                        changed_components,
-                        ["status", "last_modify_time"],
-                        batch_size=1000,
-                    )
+                with transaction.atomic():
+                    if created_components:
+                        component_class.objects.bulk_create(created_components, batch_size=1000)
+                    if changed_components:
+                        component_class.objects.bulk_update(
+                            changed_components,
+                            sorted(update_fields),
+                            batch_size=1000,
+                        )
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception(
-                    "bulk_refresh_data_link_status: update components failed, tenant->[%s], namespace->[%s], "
+                    "bulk_refresh_data_link_status: reconcile components failed, tenant->[%s], namespace->[%s], "
                     "kind->[%s], error->[%s]",
                     bk_tenant_id,
                     namespace,
@@ -1404,10 +1626,13 @@ def _refresh_data_link_component_statuses() -> tuple[
                     error,
                 )
                 _mark_component_links_untrusted(components, untrusted_links)
+                stats.untrusted_batch_count += 1
                 continue
 
-            changed_count += len(changed_components)
-            for component in components:
+            stats.created_count += len(created_components)
+            stats.updated_count += len(changed_components) - terminated_count
+            stats.terminated_count += terminated_count
+            for component in [*components, *created_components]:
                 if component.data_link_name and kind != DataLinkKind.DATAID.value:
                     link_key = (bk_tenant_id, component.data_link_name)
                     statuses_by_link[link_key].append(component.status)
@@ -1419,7 +1644,7 @@ def _refresh_data_link_component_statuses() -> tuple[
                     status=component.status,
                 )
 
-    return statuses_by_link, untrusted_links, biz_id_by_link, changed_count
+    return statuses_by_link, untrusted_links, biz_id_by_link, stats
 
 
 def _refresh_bkbase_result_table_statuses(
@@ -1471,14 +1696,14 @@ def _refresh_bkbase_result_table_statuses(
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_refresh_data_link_status():
-    """批量刷新全部本地 DataLink 组件状态及链路整体状态。"""
+    """批量发现、同步 DataLink 组件，并刷新组件及链路整体状态。"""
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="bulk_refresh_data_link_status", status=TASK_STARTED, process_target=None
     ).inc()
 
     start_time = time.time()
-    logger.info("bulk_refresh_data_link_status: start to refresh all local data_link components")
-    statuses_by_link, untrusted_links, biz_id_by_link, changed_component_count = _refresh_data_link_component_statuses()
+    logger.info("bulk_refresh_data_link_status: start to reconcile all data_link components")
+    statuses_by_link, untrusted_links, biz_id_by_link, refresh_stats = _reconcile_data_link_components()
     changed_bkbase_count = _refresh_bkbase_result_table_statuses(
         statuses_by_link=statuses_by_link,
         untrusted_links=untrusted_links,
@@ -1486,13 +1711,25 @@ def bulk_refresh_data_link_status():
     )
     cost_time = time.time() - start_time
     logger.info(
-        "bulk_refresh_data_link_status: finished, changed components->[%s], changed bkbase records->[%s], "
+        "bulk_refresh_data_link_status: finished, created components->[%s], updated components->[%s], "
+        "terminated components->[%s], changed bkbase records->[%s], untrusted batches->[%s], "
         "untrusted links->[%s], cost_time->[%s]",
-        changed_component_count,
+        refresh_stats.created_count,
+        refresh_stats.updated_count,
+        refresh_stats.terminated_count,
         changed_bkbase_count,
+        refresh_stats.untrusted_batch_count,
         len(untrusted_links),
         cost_time,
     )
+    for operation, count in (
+        ("created", refresh_stats.created_count),
+        ("updated", refresh_stats.updated_count),
+        ("terminated", refresh_stats.terminated_count),
+        ("bkbase_updated", changed_bkbase_count),
+        ("untrusted_batch", refresh_stats.untrusted_batch_count),
+    ):
+        metrics.METADATA_DATA_LINK_REFRESH_TOTAL.labels(operation=operation).inc(count)
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="bulk_refresh_data_link_status", status=TASK_FINISHED_SUCCESS, process_target=None

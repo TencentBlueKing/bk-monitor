@@ -6,17 +6,59 @@ import pytest
 
 from metadata import models
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP
 from metadata.task.refresh_data_link import refresh_data_link_status
 from metadata.task.tasks import (
     _check_storage_binding_reference,
+    _reconcile_data_link_components,
     _refresh_bkbase_result_table_statuses,
-    _refresh_data_link_component_statuses,
     batch_check_storage_binding_references,
 )
 
 
 def _remote_component(name: str, status: str) -> dict:
-    return {"metadata": {"name": name}, "status": {"phase": status}}
+    return {
+        "metadata": {"name": name, "labels": {"bk_biz_id": "2"}, "annotations": {}},
+        "spec": {"bizId": 2, "dataType": "metric"},
+        "status": {"phase": status},
+    }
+
+
+def _remote_databus_component(name: str, status: str) -> dict:
+    return {
+        "metadata": {"name": name, "labels": {"bk_biz_id": "2"}, "annotations": {}},
+        "spec": {
+            "sources": [{"kind": DataLinkKind.DATAID.value, "name": f"{name}_data_id"}],
+            "sinks": [{"kind": DataLinkKind.RESULTTABLE.value, "name": f"{name}_rt"}],
+        },
+        "status": {"phase": status},
+    }
+
+
+def _remote_component_for_kind(kind: str, name: str) -> dict:
+    if kind == DataLinkKind.RESULTTABLE.value:
+        return _remote_component(name, DataLinkResourceStatus.OK.value)
+    if kind == DataLinkKind.DATABUS.value:
+        return _remote_databus_component(name, DataLinkResourceStatus.OK.value)
+
+    metadata = {"name": name, "labels": {"bk_biz_id": "2"}, "annotations": {}}
+    spec = {}
+    if kind == DataLinkKind.DATAID.value:
+        metadata["annotations"] = {"dataId": "60010"}
+    elif kind in {
+        DataLinkKind.VMSTORAGEBINDING.value,
+        DataLinkKind.ESSTORAGEBINDING.value,
+        DataLinkKind.DORISBINDING.value,
+        DataLinkKind.SURREALDBBINDING.value,
+    }:
+        spec = {"storage": {"name": f"{name}_storage"}, "data": {"name": "discovered_result_table"}}
+        if kind == DataLinkKind.SURREALDBBINDING.value:
+            spec.update({"table_type": "normal", "vertices": [], "relations": []})
+    elif kind == DataLinkKind.BASEREPORTSINK.value:
+        spec = {
+            "mappings": [{"sinks": [{"kind": DataLinkKind.VMSTORAGEBINDING.value, "name": "discovered_vm_binding"}]}]
+        }
+    return {"metadata": metadata, "spec": spec, "status": {"phase": DataLinkResourceStatus.OK.value}}
 
 
 def _remote_storage_binding(
@@ -55,7 +97,7 @@ def _remote_storage_binding(
     return {
         "kind": binding_kind,
         "metadata": metadata,
-        "spec": {"storage": storage},
+        "spec": {"storage": storage, "data": {"name": f"{name}_rt"}},
         "status": {"phase": status},
     }
 
@@ -84,6 +126,8 @@ def _create_result_table_component(
         data_link_name=data_link_name,
         bk_biz_id=2,
         status=status,
+        bkbase_table_id=f"2_{name}",
+        data_type="metric",
     )
 
 
@@ -125,18 +169,19 @@ def _mock_storage_binding_lists(mocker, configs_by_batch):
 
 
 def _refresh_and_aggregate():
-    statuses_by_link, untrusted_links, biz_id_by_link, changed_count = _refresh_data_link_component_statuses()
+    statuses_by_link, untrusted_links, biz_id_by_link, refresh_stats = _reconcile_data_link_components()
     changed_bkbase_count = _refresh_bkbase_result_table_statuses(
         statuses_by_link=statuses_by_link,
         untrusted_links=untrusted_links,
         biz_id_by_link=biz_id_by_link,
     )
-    return changed_count, changed_bkbase_count
+    return refresh_stats.updated_count + refresh_stats.terminated_count, changed_bkbase_count
 
 
 @pytest.fixture(autouse=True)
 def mock_status_metrics(mocker):
     mocker.patch("metadata.task.tasks.report_metadata_data_link_status_info")
+    mocker.patch("metadata.task.tasks.api.bk_login.list_tenant", return_value=[])
 
 
 def test_refresh_data_link_status_dispatches_task_without_records(mocker):
@@ -648,11 +693,11 @@ def test_refresh_storage_binding_reference_issue_keeps_remote_status(mocker):
     mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
     warning = mocker.patch("metadata.task.tasks.logger.warning")
 
-    statuses_by_link, untrusted_links, _, changed_count = _refresh_data_link_component_statuses()
+    statuses_by_link, untrusted_links, _, refresh_stats = _reconcile_data_link_components()
 
     component.refresh_from_db()
     assert component.status == DataLinkResourceStatus.OK.value
-    assert changed_count == 1
+    assert refresh_stats.updated_count == 1
     assert statuses_by_link[("tencent", "es_link")] == [DataLinkResourceStatus.OK.value]
     assert untrusted_links == set()
     warning.assert_called_once()
@@ -676,9 +721,9 @@ def test_refresh_components_batches_by_tenant_namespace_and_kind(mocker):
 
     list_data_link.side_effect = list_side_effect
 
-    _, _, _, changed_count = _refresh_data_link_component_statuses()
+    _, _, _, refresh_stats = _reconcile_data_link_components()
 
-    assert changed_count == 3
+    assert refresh_stats.updated_count == 3
     assert models.ResultTableConfig.objects.get(name="rt_a").status == DataLinkResourceStatus.OK.value
     assert models.ResultTableConfig.objects.get(name="rt_b").status == DataLinkResourceStatus.PENDING.value
     assert models.ResultTableConfig.objects.get(name="rt_c").status == DataLinkResourceStatus.FAILED.value
@@ -686,6 +731,197 @@ def test_refresh_components_batches_by_tenant_namespace_and_kind(mocker):
         call(bk_tenant_id="system", namespace="bkmonitor", kind="resulttables"),
         call(bk_tenant_id="tenant-a", namespace="bklog", kind="resulttables"),
     ]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_discovers_all_component_kinds_without_local_records(mocker):
+    mocker.patch("metadata.task.tasks.api.bk_login.list_tenant", return_value=[{"id": "tenant-a"}])
+    remote_configs = {
+        DataLinkKind.get_choice_value(kind): _remote_component_for_kind(kind, f"discovered_{kind.lower()}")
+        for kind in COMPONENT_CLASS_MAP
+    }
+    remote_configs["resulttables"] = _remote_component_for_kind(
+        DataLinkKind.RESULTTABLE.value,
+        "discovered_result_table",
+    )
+    list_data_link = mocker.patch("metadata.task.tasks.api.bkdata.list_data_link")
+
+    def list_side_effect(**kwargs):
+        if kwargs["namespace"] == "bkmonitor":
+            return [remote_configs[kwargs["kind"]]]
+        return []
+
+    list_data_link.side_effect = list_side_effect
+
+    _, _, _, refresh_stats = _reconcile_data_link_components()
+
+    assert refresh_stats.created_count == len(COMPONENT_CLASS_MAP)
+    assert refresh_stats.untrusted_batch_count == len(COMPONENT_CLASS_MAP)
+    assert list_data_link.call_count == len(COMPONENT_CLASS_MAP) * 2
+    for kind, component_class in COMPONENT_CLASS_MAP.items():
+        name = "discovered_result_table" if kind == DataLinkKind.RESULTTABLE.value else f"discovered_{kind.lower()}"
+        component = component_class.objects.get(bk_tenant_id="tenant-a", namespace="bkmonitor", name=name)
+        assert component.status == DataLinkResourceStatus.OK.value
+        assert component.data_link_name == ""
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_uses_one_response_for_config_status_and_aggregation(mocker):
+    component = _create_result_table_component("reconcile_rt", "reconcile_link")
+    component.bkbase_table_id = "old_table_id"
+    component.save(update_fields=["bkbase_table_id", "last_modify_time"])
+    bkbase_record = _create_bkbase_result_table("reconcile_link")
+    list_data_link = mocker.patch(
+        "metadata.task.tasks.api.bkdata.list_data_link",
+        return_value=[_remote_component("reconcile_rt", DataLinkResourceStatus.OK.value)],
+    )
+
+    changed_count, changed_bkbase_count = _refresh_and_aggregate()
+
+    component.refresh_from_db()
+    bkbase_record.refresh_from_db()
+    assert changed_count == 1
+    assert changed_bkbase_count == 1
+    assert component.bkbase_table_id == "2_reconcile_rt"
+    assert component.status == DataLinkResourceStatus.OK.value
+    assert bkbase_record.status == DataLinkResourceStatus.OK.value
+    list_data_link.assert_called_once_with(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        kind="resulttables",
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_tenant_discovery_failure_still_refreshes_local_custom_namespace(mocker):
+    component = _create_result_table_component("custom_rt", "custom_link", namespace="custom")
+    mocker.patch("metadata.task.tasks.api.bk_login.list_tenant", side_effect=RuntimeError("tenant unavailable"))
+    list_data_link = mocker.patch(
+        "metadata.task.tasks.api.bkdata.list_data_link",
+        return_value=[_remote_component("custom_rt", DataLinkResourceStatus.OK.value)],
+    )
+
+    _, _, _, refresh_stats = _reconcile_data_link_components()
+
+    component.refresh_from_db()
+    assert refresh_stats.updated_count == 1
+    assert component.status == DataLinkResourceStatus.OK.value
+    list_data_link.assert_called_once_with(
+        bk_tenant_id="system",
+        namespace="custom",
+        kind="resulttables",
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_updates_databus_consumer_group(mocker):
+    component = _create_databus_component("consumer_databus", "consumer_link")
+    remote_config = _remote_databus_component("consumer_databus", DataLinkResourceStatus.OK.value)
+    remote_config["spec"]["consumerGroup"] = "bkmonitor_consumer"
+    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+
+    _, _, _, refresh_stats = _reconcile_data_link_components()
+
+    component.refresh_from_db()
+    assert refresh_stats.updated_count == 1
+    assert component.consumer_group == "bkmonitor_consumer"
+    assert component.status == DataLinkResourceStatus.OK.value
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_updates_empty_surrealdb_definitions(mocker):
+    component = models.SurrealDBBindingConfig.objects.create(
+        name="graph_rt",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="graph_link",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        surrealdb_cluster_name="surreal-default",
+        bkbase_result_table_name="graph_rt",
+        table_type="normal",
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    remote_config = _remote_component_for_kind(DataLinkKind.SURREALDBBINDING.value, "graph_rt")
+    remote_config["spec"]["storage"]["name"] = "surreal-default"
+    remote_config["spec"]["data"]["name"] = "graph_rt"
+    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+
+    _reconcile_data_link_components()
+
+    component.refresh_from_db()
+    assert component.vertices == []
+    assert component.relations == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_keeps_falsy_non_surrealdb_fields(mocker):
+    component = models.DataIdConfig.objects.create(
+        name="metric_data",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="metric_link",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        bk_data_id=60010,
+    )
+    remote_config = _remote_component_for_kind(DataLinkKind.DATAID.value, "metric_data")
+    remote_config["metadata"]["annotations"] = {}
+    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+
+    _, _, _, refresh_stats = _reconcile_data_link_components()
+
+    component.refresh_from_db()
+    assert refresh_stats.updated_count == 0
+    assert component.bk_data_id == 60010
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_storage_bindings_fill_table_id_from_result_table(mocker):
+    result_table = _create_result_table_component("graph_rt", "graph_link", status=DataLinkResourceStatus.OK.value)
+    result_table.table_id = "2_graph_rt.__default__"
+    result_table.save(update_fields=["table_id", "last_modify_time"])
+    vm_binding = models.VMStorageBindingConfig.objects.create(
+        name="graph_vm",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="graph_link",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        vm_cluster_name="vm-default",
+        bkbase_result_table_name="graph_rt",
+    )
+    surrealdb_binding = models.SurrealDBBindingConfig.objects.create(
+        name="graph_surrealdb",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="graph_link",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.OK.value,
+        surrealdb_cluster_name="surreal-default",
+        bkbase_result_table_name="graph_rt",
+    )
+
+    def list_side_effect(**kwargs):
+        if kwargs["kind"] == "resulttables":
+            return [_remote_component("graph_rt", DataLinkResourceStatus.OK.value)]
+        if kwargs["kind"] == "vmstoragebindings":
+            config = _remote_component_for_kind(DataLinkKind.VMSTORAGEBINDING.value, "graph_vm")
+            config["spec"]["data"]["name"] = "graph_rt"
+            return [config]
+        config = _remote_component_for_kind(DataLinkKind.SURREALDBBINDING.value, "graph_surrealdb")
+        config["spec"]["data"]["name"] = "graph_rt"
+        return [config]
+
+    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+
+    _reconcile_data_link_components()
+
+    vm_binding.refresh_from_db()
+    surrealdb_binding.refresh_from_db()
+    assert vm_binding.table_id == "2_graph_rt.__default__"
+    assert surrealdb_binding.table_id == "2_graph_rt.__default__"
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -716,7 +952,7 @@ def test_refresh_aggregates_mixed_component_status_as_pending(mocker):
     def list_side_effect(**kwargs):
         if kwargs["kind"] == "resulttables":
             return [_remote_component("mixed_rt", DataLinkResourceStatus.OK.value)]
-        return [_remote_component("mixed_databus", DataLinkResourceStatus.FAILED.value)]
+        return [_remote_databus_component("mixed_databus", DataLinkResourceStatus.FAILED.value)]
 
     mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
 
@@ -733,8 +969,9 @@ def test_refresh_aggregates_all_ok_components_as_ok(mocker):
     bkbase_record = _create_bkbase_result_table("ok_link")
 
     def list_side_effect(**kwargs):
-        name = "ok_rt" if kwargs["kind"] == "resulttables" else "ok_databus"
-        return [_remote_component(name, DataLinkResourceStatus.OK.value)]
+        if kwargs["kind"] == "resulttables":
+            return [_remote_component("ok_rt", DataLinkResourceStatus.OK.value)]
+        return [_remote_databus_component("ok_databus", DataLinkResourceStatus.OK.value)]
 
     mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
 
@@ -750,6 +987,7 @@ def test_refresh_aggregates_all_ok_components_as_ok(mocker):
         [],
         [{}],
         [{"metadata": {"name": "safe_rt"}, "status": {}}],
+        [{"metadata": {"name": "safe_rt"}, "status": {"phase": "Ok"}}],
         "invalid",
     ],
 )
@@ -787,6 +1025,33 @@ def test_refresh_skips_failed_batch_and_link_aggregation(mocker):
     assert changed_bkbase_count == 0
     assert component.status == DataLinkResourceStatus.CREATING.value
     assert bkbase_record.status == DataLinkResourceStatus.CREATING.value
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_rolls_back_failed_batch_and_skips_link_aggregation(mocker):
+    component = _create_result_table_component("rollback_rt", "rollback_link")
+    bkbase_record = _create_bkbase_result_table("rollback_link")
+    mocker.patch(
+        "metadata.task.tasks.api.bkdata.list_data_link",
+        return_value=[_remote_component("rollback_rt", DataLinkResourceStatus.OK.value)],
+    )
+    mocker.patch.object(models.ResultTableConfig.objects, "bulk_update", side_effect=RuntimeError("db unavailable"))
+
+    statuses_by_link, untrusted_links, biz_id_by_link, refresh_stats = _reconcile_data_link_components()
+    changed_bkbase_count = _refresh_bkbase_result_table_statuses(
+        statuses_by_link=statuses_by_link,
+        untrusted_links=untrusted_links,
+        biz_id_by_link=biz_id_by_link,
+    )
+
+    component.refresh_from_db()
+    bkbase_record.refresh_from_db()
+    assert refresh_stats.updated_count == 0
+    assert refresh_stats.untrusted_batch_count == 1
+    assert changed_bkbase_count == 0
+    assert component.status == DataLinkResourceStatus.CREATING.value
+    assert bkbase_record.status == DataLinkResourceStatus.CREATING.value
+    assert ("system", "rollback_link") in untrusted_links
 
 
 @pytest.mark.django_db(databases="__all__")
