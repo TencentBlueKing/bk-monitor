@@ -360,6 +360,143 @@ def test_compose_apm_all_type_table_ids(create_or_delete_records):
     }
 
 
+def create_log_global_table(
+    *,
+    table_id: str,
+    query_router_config: dict,
+    storage_type: str = models.ClusterInfo.TYPE_ES,
+    bk_biz_id: int = 999,
+    bk_tenant_id: str = "system",
+    is_enable: bool = True,
+    is_deleted: bool = False,
+    value_type: str = models.ResultTableOption.TYPE_DICT,
+    raw_value: str | None = None,
+) -> None:
+    models.ResultTable.objects.create(
+        table_id=table_id,
+        table_name_zh=table_id,
+        bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
+        default_storage=storage_type,
+        is_custom_table=False,
+        is_enable=is_enable,
+        is_deleted=is_deleted,
+    )
+    models.ResultTableOption.objects.create(
+        table_id=table_id,
+        name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
+        value=raw_value if raw_value is not None else json.dumps(query_router_config),
+        value_type=value_type,
+        creator="system",
+        bk_tenant_id=bk_tenant_id,
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_global_table_ids_match_specific_space_type_and_all(create_or_delete_records):
+    spaces = {
+        space.space_type_id: space
+        for space in models.Space.objects.filter(space_type_id__in=["bkcc", "bkci", "bksaas"])
+    }
+    for space_type in spaces:
+        create_log_global_table(
+            table_id=f"global_{space_type}.log",
+            query_router_config={
+                "space_type": space_type,
+                "filter_key": "space_id",
+                "filter_value": "space_id",
+            },
+        )
+    create_log_global_table(
+        table_id="global_all.log",
+        storage_type=models.ClusterInfo.TYPE_DORIS,
+        query_router_config={
+            "space_type": "all",
+            "filter_key": "bk_biz_id",
+            "filter_value": "bk_biz_id",
+        },
+    )
+
+    client = SpaceTableIDRedis()
+    compose_methods = {
+        "bkcc": client._compose_bkcc_space_table_ids,
+        "bkci": client._compose_bkci_space_table_ids,
+        "bksaas": client._compose_bksaas_space_table_ids,
+    }
+    for space_type, space in spaces.items():
+        values = client._compose_log_global_table_ids(space)
+        space_values = compose_methods[space_type](space)
+
+        assert values[f"global_{space_type}.log"] == {"filters": [{"space_id": space.space_id}]}
+        assert values["global_all.log"] == {"filters": [{"bk_biz_id": space.get_bk_biz_id()}]}
+        assert set(values) == {f"global_{space_type}.log", "global_all.log"}
+        assert space_values[f"global_{space_type}.log"] == values[f"global_{space_type}.log"]
+        assert space_values["global_all.log"] == values["global_all.log"]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_global_table_ids_keep_owner_route_unfiltered(create_or_delete_records):
+    create_log_global_table(
+        table_id="owner_global.log",
+        bk_biz_id=1,
+        query_router_config={
+            "space_type": "all",
+            "filter_key": "bk_biz_id",
+            "filter_value": "bk_biz_id",
+        },
+    )
+    client = SpaceTableIDRedis()
+    bkcc_space = models.Space.objects.get(space_type_id="bkcc", space_id="1")
+    bksaas_space = models.Space.objects.get(space_type_id="bksaas", space_id="monitor_saas")
+
+    assert "owner_global.log" not in client._compose_log_global_table_ids(bkcc_space)
+    assert client._compose_bkcc_space_table_ids(bkcc_space)["owner_global.log"] == {"filters": []}
+    assert client._compose_log_global_table_ids(bksaas_space)["owner_global.log"] == {
+        "filters": [{"bk_biz_id": bksaas_space.get_bk_biz_id()}]
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_global_table_ids_ignore_invalid_or_ineligible_options(create_or_delete_records):
+    create_log_global_table(table_id="valid_default.log", query_router_config={})
+    create_log_global_table(table_id="invalid_json.log", query_router_config={}, raw_value="{")
+    create_log_global_table(
+        table_id="invalid_type.log",
+        query_router_config={"space_type": "all"},
+        value_type=models.ResultTableOption.TYPE_STRING,
+    )
+    create_log_global_table(
+        table_id="empty_filter_key.log",
+        query_router_config={"space_type": "all", "filter_key": "", "filter_value": "space_id"},
+    )
+    create_log_global_table(
+        table_id="unknown_space_type.log",
+        query_router_config={"space_type": "bcs", "filter_key": "bk_biz_id", "filter_value": "bk_biz_id"},
+    )
+    create_log_global_table(
+        table_id="unknown_filter_value.log",
+        query_router_config={"space_type": "all", "filter_key": "bk_biz_id", "filter_value": "space_uid"},
+    )
+    create_log_global_table(table_id="disabled.log", query_router_config={}, is_enable=False)
+    create_log_global_table(table_id="deleted.log", query_router_config={}, is_deleted=True)
+    create_log_global_table(
+        table_id="vm_storage.log",
+        query_router_config={},
+        storage_type=models.ClusterInfo.TYPE_VM,
+    )
+    create_log_global_table(
+        table_id="other_tenant.log",
+        query_router_config={},
+        bk_tenant_id="other-tenant",
+    )
+
+    space = models.Space.objects.get(space_type_id="bksaas", space_id="monitor_saas")
+    values = SpaceTableIDRedis()._compose_log_global_table_ids(space)
+
+    assert values == {"valid_default.log": {"filters": [{"bk_biz_id": space.get_bk_biz_id()}]}}
+    assert models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG not in models.ResultTableOption.QUERY_OPTION_NAME_LIST
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_compose_bkci_level_table_ids(create_or_delete_records):
     """
