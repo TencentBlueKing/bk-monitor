@@ -1377,4 +1377,22 @@ export default {
   '关联空间的索引集，无法编辑': 'Index sets from associated spaces cannot be edited',
   '请{0}编辑。': 'Please edit {0}.',
   前往对应的空间: 'Go to the corresponding space',
+  '确认同步后，会将模板最新清洗配置同步到以下所有采集项。该操作会影响线上日志字段解析结果。':
+    'After confirmation, the latest cleaning configuration will be synced to all collection items below. This may affect online log field parsing.',
+  '选择<同步所有采集项> 后，系统会将最新配置更新到全部关联采集项，可能会影响线上日志字段解析结果。':
+    'After selecting <Sync All Collection Items>, the latest configuration will be applied to all related collection items and may affect online log field parsing results.',
+  '当前模板已生效到{0}个采集项，关联{1}个索引集': 'The current template is active in {0} collection items and related to {1} index sets',
+  '您已修改过模板配置，确认后将和模板解除绑定关系，本次清洗配置将保存并单独生效该索引集，是否确认。':
+    'You have modified the template configuration. After confirmation, it will be unbound from the template and saved as an independent cleaning configuration for this index set. Continue?',
+  '当前清洗配置处于模板绑定状态，无法修改采集配置。如需修改，请点击':
+    'The current cleaning configuration is bound to a template and cannot be modified. To make changes, click',
+  '解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。': 'After unbinding, it will be instantiated as a manually configured scrubbing rule and will no longer update with the template.',
+  请选择采集项: 'Please select the data collection items.',
+  请选择左侧模板: 'Please select a template from the left.',
+  '如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。': 'If you edit the content in the list below, it will automatically detach from the template and switch to manual configuration of cleaning rules.',
+  '该模板已同步至关联采集项，无需同步': 'This template has already been synchronized to the associated collection items; no further synchronization is required.',
+  '确定删除该清洗模板？': 'Are you sure you want to delete this cleaning template?',
+  '删除模板后，原来关联的采集项，将实例化为手动配置的清洗规则。': 'After deleting the template, the previously associated data collection items will be instantiated as manually configured cleaning rules.',
+  '模板名称：': 'Template Name:',
+  '确定解除与模板的关联关系？': 'Are you sure you want to remove the association with the template?',
 };

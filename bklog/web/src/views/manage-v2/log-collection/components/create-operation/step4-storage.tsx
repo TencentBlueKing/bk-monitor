@@ -384,6 +384,7 @@ export default defineComponent({
           // 回填清洗配置到 formData，与旧版保持一致
           formData.value = {
             ...formData.value,
+            clean_template_id: res.data.clean_template_id ?? null,
             etl_config: res.data.clean_type,
             etl_params: res.data.etl_params,
             fields: res.data.etl_fields,
@@ -425,7 +426,7 @@ export default defineComponent({
       }
       await handleTabClick(clusterType ?? activeTab.value, true);
       if (!isCustomReport.value) {
-        getCleanStash();
+        await getCleanStash();
       }
     });
 
@@ -690,12 +691,21 @@ export default defineComponent({
     }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       // 从 formData 读取清洗相关数据，与旧版保持一致
-      const { etl_config, etl_params, fields, retention, allocation_min_days, storage_replies, es_shards } = formData.value;
+      const {
+        etl_config,
+        etl_params,
+        fields,
+        retention,
+        allocation_min_days,
+        storage_replies,
+        es_shards,
+      } = formData.value;
       const collectorConfigId = currentCollect.value?.collector_config_id || route.params.collectorId;
       const tableId = props.isClone
         ? currentCollect.value.collector_config_name_en
         : (formData.value.table_id || currentCollect.value.collector_config_name_en);
       const data = {
+        clean_template_id: formData.value.clean_template_id ?? null,
         collector_config_id: collectorConfigId,
         retention: Number(retention),
         allocation_min_days: Number(allocation_min_days),

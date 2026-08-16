@@ -88,7 +88,7 @@ export default defineComponent({
     },
     sortConfig: {
       type: Object as PropType<ISortConfig>,
-      default: () => {},
+      default: () => ({}),
     },
     emptyType: {
       type: String,
@@ -127,6 +127,10 @@ export default defineComponent({
     rowHeight: {
       type: Number,
       default: 32,
+    },
+    rowKey: {
+      type: String,
+      default: 'key',
     },
   },
   emits: ['sort-change', 'page-change', 'filter-change', 'empty-click', 'cell-click'],
@@ -519,7 +523,7 @@ export default defineComponent({
               loading-props={{ indicator: false }}
               on-page-change={handlePageChange}
               pagination={props.pagination}
-              row-key='key'
+              row-key={props.rowKey}
               height={props.height}
               maxHeight={props.maxHeight}
               rowHeight={props.rowHeight}

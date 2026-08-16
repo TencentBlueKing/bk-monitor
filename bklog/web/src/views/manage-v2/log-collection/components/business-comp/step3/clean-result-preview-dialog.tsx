@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
@@ -7,6 +7,7 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
  * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
@@ -19,8 +20,8 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
  * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { defineComponent, ref, computed, watch, onBeforeUnmount, onMounted, nextTick } from 'vue';
@@ -43,6 +44,7 @@ type TemplateFieldItem = {
   is_analyzed: boolean;
   is_case_sensitive: boolean;
   tokenize_on_chars?: string;
+  [key: string]: unknown;
 };
 
 /** 选中清洗模板 */
@@ -54,53 +56,56 @@ type CleanTemplate = {
   etl_fields: TemplateFieldItem[];
   description?: string;
   bk_biz_id?: number;
+  [key: string]: unknown;
+};
+
+/** 预览确认后可直接回填清洗表单的完整模板数据 */
+type CleanTemplateFormData = CleanTemplate & {
+  etl_config: CleanTemplate['clean_type'];
 };
 
 /** 预览弹窗内部的字段行 */
 type PreviewFieldRow = TemplateFieldItem & {
-  /** 前端推断的字段类型（基于 value 推断） */
-  inferredType: string;
+  /** 后端推断的字段类型 */
+  inferredType: string | null;
   /** 字段值（调试返回） */
   value: unknown;
-  /** 是否空值异常 */
+  /** 是否空值冲突 */
   empty: boolean;
-  /** 是否类型不匹配异常 */
+  /** 是否类型不匹配冲突 */
   typeErr: boolean;
   /** 解析状态：'success' | 'error' */
   status: 'success' | 'error';
+  /** 后端返回的冲突类型 */
+  errorType: null | 'TYPE_MISMATCH' | 'EMPTY_VALUE';
+  /** 后端返回的冲突说明 */
+  errorMessage: string;
 };
 
-/** 调试接口的字段数据（只有 field_name + value） */
+/** 已保存模板预览接口的字段数据 */
 type DebugFieldItem = {
   field_name: string;
+  field_type: string;
+  inferred_field_type: string | null;
   value: unknown;
+  error_type: null | 'TYPE_MISMATCH' | 'EMPTY_VALUE';
+  error_message: string;
 };
 
-/** int 类型最大值（与父组件保持一致） */
-const MAX_INT_VALUE = 2_147_483_647;
-
-/**
- * 根据 value 推断字段类型
- * 规则：
- *  - number 整数 > MAX_INT_VALUE => long，否则 int
- *  - number 非整数 => double
- *  - 纯对象（非数组） => object
- *  - 其他 => string
- */
-const detectFieldType = (value: unknown): string => {
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) {
-      return value > MAX_INT_VALUE ? 'long' : 'int';
-    }
-    return 'double';
-  }
-  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-    return 'object';
-  }
-  return 'string';
+type DebugPreviewData = {
+  fields: DebugFieldItem[];
+  match_rate: number;
+  normal_count: number;
+  abnormal_count: number;
 };
 
-/** 是否为空值（视为空值异常） */
+/** 用于判断模板字段配置是否发生净变化的可编辑字段快照 */
+type EditableFieldSnapshot = Pick<
+  TemplateFieldItem,
+  'field_name' | 'field_type' | 'is_analyzed' | 'is_case_sensitive' | 'tokenize_on_chars'
+>;
+
+/** 是否为空值（视为空值冲突） */
 const isEmptyValue = (value: unknown): boolean => {
   if (value === null || value === undefined) return true;
   if (typeof value === 'string') return value.trim() === '';
@@ -157,6 +162,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 日志样例刷新加载中 */
+    logExampleLoading: {
+      type: Boolean,
+      default: false,
+    },
     /** 是否为清洗模板编辑模式（用于判断调哪个接口） */
     isTempField: {
       type: Boolean,
@@ -167,20 +177,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 是否为编辑模式（用于判断是否显示采集下发提示） */
-    isEdit: {
-      type: Boolean,
-      default: false,
-    },
-    /** 是否为 clone 模式（用于判断是否显示采集下发提示） */
-    isClone: {
-      type: Boolean,
-      default: false,
-    },
-    /** 是否从清洗列表进入（用于判断是否显示采集下发提示） */
-    isCleanField: {
-      type: Boolean,
-      default: false,
+    /** 当前采集项的下发状态 */
+    collectStatus: {
+      type: String,
+      default: '',
     },
   },
   emits: ['close', 'confirm', 'refresh'],
@@ -191,11 +191,13 @@ export default defineComponent({
     const logExampleText = ref(props.logExample || '');
     /** 表格数据 */
     const tableData = ref<PreviewFieldRow[]>([]);
+    /** 当前调试结果对应的模板字段配置快照 */
+    const initialEditableFieldsSnapshot = ref('[]');
     /** 调试加载中 */
     const isDebugLoading = ref(false);
     /** 解析成功率（保留 1 位小数） */
     const successRate = ref(0);
-    /** 异常字段数（用于 UI 显示） */
+    /** 冲突字段数（用于 UI 显示） */
     const errorFieldCount = ref(0);
     /** 正常字段数（用于 UI 显示） */
     const normalFieldCount = ref(0);
@@ -246,11 +248,13 @@ export default defineComponent({
           } else {
             // 没有调试样例时不初始化表格，显示暂无数据
             tableData.value = [];
+            initialEditableFieldsSnapshot.value = '[]';
           }
         } else {
           // 关闭时清空数据
           hasLoaded.value = false;
           tableData.value = [];
+          initialEditableFieldsSnapshot.value = '[]';
         }
       },
       { immediate: true },
@@ -265,6 +269,7 @@ export default defineComponent({
             handleDebug();
           } else {
             tableData.value = [];
+            initialEditableFieldsSnapshot.value = '[]';
           }
         }
       },
@@ -294,89 +299,53 @@ export default defineComponent({
       }
       destroyTippyInstances();
       tableData.value = [];
+      initialEditableFieldsSnapshot.value = '[]';
     });
 
-    /** 仅基于模板初始化表格（不发起调试） */
-    const initFromTemplate = () => {
-      if (!props.template) {
-        tableData.value = [];
-        return;
-      }
-      const rows: PreviewFieldRow[] = (props.template.etl_fields || []).map((f) => {
-        const inferredType = f.field_type || 'string';
-        return {
-          ...f,
-          inferredType,
-          value: f.value,
-          empty: isEmptyValue(f.value),
-          typeErr: false,
-          status: 'success',
-        };
-      });
-      tableData.value = rows;
-      updateStatistics();
+    /** 提取并序列化表格中的可编辑模板配置 */
+    const serializeEditableFields = (rows: PreviewFieldRow[]): string => {
+      const editableFields: EditableFieldSnapshot[] = rows.map(row => ({
+        field_name: row.field_name || '',
+        field_type: row.field_type || '',
+        is_analyzed: !!row.is_analyzed,
+        is_case_sensitive: !!row.is_case_sensitive,
+        tokenize_on_chars: row.tokenize_on_chars || '',
+      }));
+      return JSON.stringify(editableFields);
     };
 
-    /** 根据调试结果更新统计 */
-    const updateStatistics = () => {
-      const total = tableData.value.length;
-      const errCount = tableData.value.filter(r => r.status === 'error').length;
-      const normal = total - errCount;
-      errorFieldCount.value = errCount;
-      normalFieldCount.value = normal;
-      successRate.value = total > 0 ? Number(((normal / total) * 100).toFixed(1)) : 0;
+    /** 更新本次调试结果的字段配置比较基线 */
+    const updateEditableFieldsSnapshot = (rows: PreviewFieldRow[]) => {
+      initialEditableFieldsSnapshot.value = serializeEditableFields(rows);
     };
+
+
 
     /**
      * 重新调试
-     * - etl_config 取自选中模板的 clean_type
-     * - etl_params 按模板类型组装
-     * - 返回的字段只有 field_name / value，前端推断类型
+     * 使用已保存模板预览接口，解析配置和字段匹配结果均来自后端。
      */
     const handleDebug = () => {
       if (!props.template) return;
-      const { clean_type, etl_params } = props.template;
-      const data: Record<string, unknown> = {
-        etl_config: clean_type,
-        etl_params: {} as Record<string, unknown>,
+      const data = {
         data: logExampleText.value,
       };
-      // 按清洗类型组装 etl_params
-      if (clean_type === 'bk_log_delimiter') {
-        data.etl_params = {
-          ...(etl_params || {}),
-          separator: (etl_params as any)?.separator ?? '',
-        };
-      } else if (clean_type === 'bk_log_regexp') {
-        data.etl_params = {
-          ...(etl_params || {}),
-          separator_regexp: (etl_params as any)?.separator_regexp ?? '',
-        };
-        // 正则模式按父组件逻辑加 bk_biz_id
-        data.bk_biz_id = props.bkBizId;
-      } else {
-        // JSON：直接透传模板的 etl_params
-        data.etl_params = { ...(etl_params || {}) };
-      }
 
       isDebugLoading.value = true;
-      const urlParams: Record<string, unknown> = {};
-      if (!props.isTempField && props.collectorConfigId) {
-        urlParams.collector_config_id = props.collectorConfigId;
-      }
-      const requestUrl = props.isTempField ? 'clean/getEtlPreview' : 'collect/getEtlPreview';
 
       $http
-        .request(requestUrl, { params: urlParams, data })
+        .request('clean/getTemplateEtlPreview', {
+          params: {
+            clean_template_id: props.template.clean_template_id,
+          },
+          data,
+        })
         .then((res: any) => {
-          const dataFields: DebugFieldItem[] = res?.data?.fields || [];
-          buildTableFromDebug(dataFields);
+          buildTableFromDebug(res?.data);
           hasLoaded.value = true;
         })
         .catch((err: unknown) => {
           console.warn('清洗结果预览调试失败', err);
-          // 失败时使用模板字段回退
-          initFromTemplate();
         })
         .finally(() => {
           isDebugLoading.value = false;
@@ -385,35 +354,36 @@ export default defineComponent({
 
     /**
      * 根据调试结果构建表格
-     *  - 空值：empty = true（空值异常）
-     *  - 类型不匹配：typeErr = true（前端推断类型 vs 模板中字段类型不一致）
-     *  - 解析状态：有异常 = error，否则 success
+     * 初始字段类型、推断类型和冲突状态均以后端返回为准。
      */
-    const buildTableFromDebug = (dataFields: DebugFieldItem[]) => {
-      const list: PreviewFieldRow[] = dataFields.map((item) => {
-        const inferredType = detectFieldType(item.value);
+    const buildTableFromDebug = (previewData?: DebugPreviewData) => {
+      const list: PreviewFieldRow[] = (previewData?.fields || []).map((item) => {
         const templateField = templateFieldMap.value.get(item.field_name);
-        const templateType = templateField?.field_type;
-        const empty = isEmptyValue(item.value);
-        const typeErr = !!templateType && templateType !== inferredType;
-        const status: 'success' | 'error' = empty || typeErr ? 'error' : 'success';
+        const empty = item.error_type === 'EMPTY_VALUE';
+        const typeErr = item.error_type === 'TYPE_MISMATCH';
         return {
+          ...structuredClone(templateField ?? {}),
           field_name: item.field_name || '',
-          field_type: templateType || inferredType,
-          inferredType,
+          field_type: item.field_type || 'string',
+          inferredType: item.inferred_field_type,
           value: item.value,
-          is_delete: false,
-          is_built_in: false,
+          is_delete: templateField?.is_delete ?? false,
+          is_built_in: templateField?.is_built_in ?? false,
           is_analyzed: templateField?.is_analyzed ?? false,
           is_case_sensitive: templateField?.is_case_sensitive ?? false,
           tokenize_on_chars: templateField?.tokenize_on_chars ?? '',
           empty,
           typeErr,
-          status,
+          status: item.error_type ? 'error' : 'success',
+          errorType: item.error_type,
+          errorMessage: item.error_message || '',
         };
       });
       tableData.value = list;
-      updateStatistics();
+      updateEditableFieldsSnapshot(list);
+      successRate.value = Number(previewData?.match_rate ?? 0);
+      errorFieldCount.value = Number(previewData?.abnormal_count ?? 0);
+      normalFieldCount.value = Number(previewData?.normal_count ?? 0);
     };
 
     /** 编辑字段名 */
@@ -424,6 +394,10 @@ export default defineComponent({
     /** 编辑字段类型 */
     const handleTypeChange = (row: PreviewFieldRow, value: string) => {
       row.field_type = value;
+      if (row.errorType === 'TYPE_MISMATCH' && row.inferredType) {
+        row.typeErr = value !== row.inferredType;
+        row.status = row.typeErr ? 'error' : 'success';
+      }
     };
 
     /** 分词类型变更（tippy 弹窗内） */
@@ -477,7 +451,7 @@ export default defineComponent({
                         'participle-btn': true,
                         'is-selected': currentParticipleState.value === option.id,
                       }}
-                      disabled={!cacheData.value.is_analyzed && option.id === 'custom'}
+                      disabled={!cacheData.value.is_analyzed}
                       size='small'
                       on-click={() => handleChangeParticipleState(option.id)}
                     >
@@ -488,6 +462,7 @@ export default defineComponent({
                 {currentParticipleState.value === 'custom' && (
                   <bk-input
                     class='custom-input'
+                    disabled={!cacheData.value.is_analyzed}
                     value={cacheData.value.tokenize_on_chars}
                     on-change={(value: string) => {
                       cacheData.value.tokenize_on_chars = value;
@@ -498,6 +473,7 @@ export default defineComponent({
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('大小写敏感')}</span>
                 <bk-switcher
+                  disabled={!cacheData.value.is_analyzed}
                   theme='primary'
                   value={cacheData.value.is_case_sensitive}
                   on-change={(value: boolean) => {
@@ -600,11 +576,13 @@ export default defineComponent({
 
     /** 销毁所有 tippy 实例 */
     const destroyTippyInstances = () => {
-      tippyInstances.forEach(i => {
+      tippyInstances.forEach((i) => {
         try {
           i.hide();
           i.destroy();
-        } catch (_) {}
+        } catch {
+          // Ignore errors from instances that have already been destroyed.
+        }
       });
       tippyInstances = [];
     };
@@ -629,28 +607,35 @@ export default defineComponent({
       }
     };
 
-    /** 忽略异常并继续填入 */
+    /** 忽略冲突并返回包含预览字段修改的完整模板 */
     const handleConfirm = () => {
-      const resultFields = tableData.value.map(row => ({
-        field_name: row.field_name,
-        field_type: row.field_type,
-        value: row.value,
-        is_delete: row.is_delete,
-        is_built_in: row.is_built_in,
-        is_analyzed: row.is_analyzed,
-        is_case_sensitive: row.is_case_sensitive,
-        tokenize_on_chars: row.tokenize_on_chars,
-      }));
-      emit('confirm', resultFields, logExampleText.value);
+      if (!props.template || tableData.value.length === 0) return;
+      const templateData: CleanTemplateFormData = {
+        ...props.template,
+        etl_config: props.template.clean_type,
+        etl_fields: tableData.value.map(({
+          inferredType: _inferredType,
+          empty: _empty,
+          typeErr: _typeErr,
+          status: _status,
+          errorType: _errorType,
+          errorMessage: _errorMessage,
+          ...field
+        }) => field as TemplateFieldItem),
+      };
+      emit('confirm', templateData, logExampleText.value, hasTemplateConfigModified.value);
     };
 
-    /** 是否存在异常（用于控制异常 alert 显示） */
-    const hasException = computed(() => errorFieldCount.value > 0);
+    /** 是否存在冲突 */
+    const hasException = computed(() => tableData.value.some(row => row.status === 'error'));
 
-    /** 是否显示"采集下发暂未完成"提示：编辑/克隆/清洗列表进入 且 尚无调试样例 */
-    const showCollectingTip = computed(
-      () => (props.isEdit || props.isClone || props.isCleanField) && !logExampleText.value,
-    );
+    /** 模板字段配置是否相对本次调试结果发生净变化 */
+    const hasTemplateConfigModified = computed(() => (
+      serializeEditableFields(tableData.value) !== initialEditableFieldsSnapshot.value
+    ));
+
+    /** 仅在采集下发中且尚无调试样例时显示提示 */
+    const showCollectingTip = computed(() => props.collectStatus === 'running' && !logExampleText.value);
 
     /** 刷新日志样例：emit 给父组件调用接口获取日志数据 */
     const handleRefresh = () => {
@@ -676,14 +661,14 @@ export default defineComponent({
         width: 90,
         className: () => 'preview-disabled-column',
         cell: (_h: any, { row }: { row: PreviewFieldRow }) => {
-          // 构建异常原因 tooltip 内容
+          // 构建冲突原因 tooltip 内容
           const buildStatusErrorTips = () => {
             const reasons: string[] = [];
             if (row.empty) {
               reasons.push(t('message 捕获组未命中 key=value 片段'));
             }
             if (row.typeErr) {
-              reasons.push(t('类型不匹配'));
+              reasons.push(t('字段类型不匹配'));
             }
             return reasons.length > 0
               ? { content: reasons.join('；'), placement: 'top' }
@@ -696,7 +681,7 @@ export default defineComponent({
               v-bk-tooltips={row.status === 'error' ? buildStatusErrorTips() : false}
             >
               <span class='status-dot' />
-              <span>{row.status === 'error' ? t('异常') : t('成功')}</span>
+              <span>{row.status === 'error' ? t('冲突') : t('成功')}</span>
             </div>
           );
         },
@@ -782,17 +767,50 @@ export default defineComponent({
         header-position='left'
         show-footer={true}
         mask-close={false}
-        ok-text={hasException.value ? t('忽略异常并继续填入') : t('确认并填入')}
         on-value-change={handleDialogValueChange}
-        on-confirm={handleConfirm}
         on-closed={handleClose}
+        scopedSlots={{
+          footer: () => (
+            <div>
+              {hasTemplateConfigModified.value ? (
+                <bk-popconfirm
+                  width={288}
+                  content={t('您已修改过模板配置，确认后将和模板解除绑定关系，本次清洗配置将保存并单独生效该索引集，是否确认。')}
+                  trigger='click'
+                  on-confirm={handleConfirm}
+                >
+                  <bk-button
+                    class='mr-8'
+                    theme='primary'
+                    disabled={tableData.value.length === 0}
+                  >
+                    {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
+                  </bk-button>
+                </bk-popconfirm>
+              ) : (
+                <bk-button
+                  class='mr-8'
+                  theme='primary'
+                  disabled={tableData.value.length === 0}
+                  on-click={handleConfirm}
+                >
+                  {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
+                </bk-button>
+              )}
+              <bk-button on-click={handleClose}>{t('取消')}</bk-button>
+            </div>
+          ),
+        }}
       >
         <div
           class='clean-result-preview-dialog'
           v-bkloading={{ isLoading: isDebugLoading.value, size: 'mini' }}
         >
           {/* 调试样例 */}
-          <div class='log-example-section'>
+          <div
+            class='log-example-section'
+            v-bkloading={{ isLoading: props.logExampleLoading, size: 'mini' }}
+          >
             <div class='section-label'>
               <span class='section-label-text'>
                 {t('调试样例')}
@@ -845,7 +863,7 @@ export default defineComponent({
                 <div class='stat-value is-success'>{successRate.value}%</div>
               </div>
               <div class='stat-card'>
-                <div class='stat-label'>{t('异常字段')}</div>
+                <div class='stat-label'>{t('冲突字段')}</div>
                 <div class='stat-value is-error'>{errorFieldCount.value}</div>
               </div>
               <div class='stat-card'>
@@ -855,20 +873,18 @@ export default defineComponent({
             </div>
           )}
 
-          {/* 异常说明 alert */}
-          {hasException.value && (
-            <bk-alert
-              class='exception-alert'
-              type='warning'
+          {/* 冲突说明 alert */}
+          <bk-alert
+            class='exception-alert'
+            type='warning'
+          >
+            <div
+              slot='title'
+              class='exception-title'
             >
-              <div
-                slot='title'
-                class='exception-title'
-              >
-                <div class='exception-header'>{t('如果在下方列表编辑了内容，将自动脱离模版，转为手动配置清洗规则。')}</div>
-              </div>
-            </bk-alert>
-          )}
+              <div class='exception-header'>{t('如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。')}</div>
+            </div>
+          </bk-alert>
 
           {/* 字段表格 */}
           <TableComponent
