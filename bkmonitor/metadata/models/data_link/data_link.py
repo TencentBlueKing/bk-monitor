@@ -57,13 +57,34 @@ from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, Surrea
 from metadata.models.vm.record import AccessVMRecord
 
 if TYPE_CHECKING:
-    from metadata.models import DataSource
+    from metadata.models import DataSource, ResultTable
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
 
 _MISSING_CONFIG_FIELD = object()
 SURREALDB_RT_SUFFIX = "_graph"
+DATABUS_MONITOR_LABEL_PREFIX = "bk-monitor/"
+DATABUS_LEGACY_MONITOR_LABEL_PREFIXES = ("bkmonitor.io/",)
+DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY = f"{DATABUS_MONITOR_LABEL_PREFIX}data-link-strategy"
+DATABUS_MONITOR_LABEL_RESULT_TABLE_ID = f"{DATABUS_MONITOR_LABEL_PREFIX}result-table-id"
+DATABUS_MONITOR_LABEL_DATA_SOURCE_ID = f"{DATABUS_MONITOR_LABEL_PREFIX}data-source-id"
+LEGACY_DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY = "bkm_data_link_strategy"
+
+
+def compose_databus_monitor_labels(
+    strategy: str,
+    table: "ResultTable | None",
+    data_source: "DataSource",
+) -> dict[str, str]:
+    """基于监控侧链路上下文生成 Databus metadata labels。"""
+
+    label_values = {
+        DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY: strategy,
+        DATABUS_MONITOR_LABEL_RESULT_TABLE_ID: table.table_id if table is not None else None,
+        DATABUS_MONITOR_LABEL_DATA_SOURCE_ID: data_source.bk_data_id,
+    }
+    return {key: str(value) for key, value in label_values.items() if value is not None and value != ""}
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -1964,6 +1985,48 @@ class DataLink(models.Model):
         ]
         return configs
 
+    def _get_databus_monitor_label_table(self) -> "ResultTable | None":
+        """仅在链路唯一关联一张结果表时返回对应的监控侧 ResultTable。"""
+
+        from metadata.models import ResultTable
+
+        table_ids = {table_id for table_id in self.table_ids if table_id}
+        if len(table_ids) != 1:
+            return None
+
+        table_id = table_ids.pop()
+        table = ResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+        if table is None:
+            logger.warning(
+                "get_databus_monitor_label_table: result table not found, omit table label, "
+                "data_link_name->[%s],bk_tenant_id->[%s],table_id->[%s]",
+                self.data_link_name,
+                self.bk_tenant_id,
+                table_id,
+            )
+        return table
+
+    @staticmethod
+    def _inject_databus_monitor_labels(
+        configs: list[dict[str, Any]],
+        monitor_labels: dict[str, str],
+    ) -> None:
+        """替换 Databus 中由监控侧统一托管的 metadata labels。"""
+
+        for config in configs:
+            if config.get("kind") != DataLinkKind.DATABUS.value:
+                continue
+
+            metadata = config["metadata"]
+            labels = metadata.setdefault("labels", {})
+            metadata["labels"] = {
+                key: value
+                for key, value in labels.items()
+                if not key.startswith((DATABUS_MONITOR_LABEL_PREFIX, *DATABUS_LEGACY_MONITOR_LABEL_PREFIXES))
+                and key != LEGACY_DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY
+            }
+            metadata["labels"].update(monitor_labels)
+
     def apply_data_link(self, *args, **kwargs):
         """
         组装配置并下发数据链路
@@ -2078,6 +2141,19 @@ class DataLink(models.Model):
             raise e
 
         configs = self.merge_existing_component_configs(configs)
+        data_source = kwargs.get("data_source")
+        if data_source is None:
+            logger.warning(
+                "apply_data_link: data_source missing, skip databus monitor labels, data_link_name->[%s]",
+                self.data_link_name,
+            )
+        else:
+            monitor_labels = compose_databus_monitor_labels(
+                strategy=self.data_link_strategy,
+                table=self._get_databus_monitor_label_table(),
+                data_source=data_source,
+            )
+            self._inject_databus_monitor_labels(configs, monitor_labels)
         components_to_delete = self._get_absent_components_to_delete(
             configs,
             force_delete=force_cleanup_absent_components,

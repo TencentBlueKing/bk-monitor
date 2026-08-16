@@ -34,6 +34,7 @@ from metadata.models.data_link.component_reuse import (
     ComponentReuseError,
     ExistingComponentContext,
 )
+from metadata.models.data_link.data_link import compose_databus_monitor_labels
 from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
@@ -125,6 +126,26 @@ def _apply_standard_v2_data_link(data_link_ins: DataLink, data_source: models.Da
 
 def _get_databus_config_payload(configs: list[dict]) -> dict:
     return next(config for config in configs if config["kind"] == DataLinkKind.DATABUS.value)
+
+
+def test_compose_databus_monitor_labels_uses_monitor_context():
+    table = SimpleNamespace(table_id="1001_bkmonitor.metric")
+    data_source = SimpleNamespace(bk_data_id=50010)
+
+    assert compose_databus_monitor_labels("bk_standard_v2_time_series", table, data_source) == {
+        "bk-monitor/data-link-strategy": "bk_standard_v2_time_series",
+        "bk-monitor/result-table-id": "1001_bkmonitor.metric",
+        "bk-monitor/data-source-id": "50010",
+    }
+
+
+def test_compose_databus_monitor_labels_omits_missing_table():
+    data_source = SimpleNamespace(bk_data_id=50010)
+
+    assert compose_databus_monitor_labels("basereport_time_series_v1", None, data_source) == {
+        "bk-monitor/data-link-strategy": "basereport_time_series_v1",
+        "bk-monitor/data-source-id": "50010",
+    }
 
 
 def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | dict:
@@ -1150,10 +1171,11 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
 
-    data_link_ins, _ = DataLink.objects.get_or_create(
+    data_link_ins, _ = DataLink.objects.update_or_create(
         data_link_name=bkbase_data_name,
         namespace="bkmonitor",
         data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        defaults={"bk_data_id": ds.bk_data_id, "table_ids": [rt.table_id]},
     )
 
     def _get_data_link(bk_tenant_id, kind, namespace, name):
@@ -1172,6 +1194,24 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
                     "custom_config": {"keep": True},
                     "maintainers": ["legacy"],
                 },
+                "status": {"phase": DataLinkResourceStatus.OK.value},
+            }
+        if kind == DataLinkKind.get_choice_value(DataLinkKind.DATABUS.value) and name == bkbase_vmrt_name:
+            return {
+                "kind": DataLinkKind.DATABUS.value,
+                "metadata": {
+                    "name": name,
+                    "namespace": namespace,
+                    "labels": {
+                        "bk_biz_id": "legacy",
+                        "external": "keep",
+                        "bkm_data_link_strategy": "legacy_strategy",
+                        "bkmonitor.io/data-link-strategy": "stale_strategy",
+                        "bkmonitor.io/stale": "remove",
+                        "bk-monitor/stale": "remove",
+                    },
+                },
+                "spec": {},
                 "status": {"phase": DataLinkResourceStatus.OK.value},
             }
         kind_name_map = {
@@ -1200,6 +1240,7 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
 
     configs = mock_apply_with_retry.call_args.args[0]
     result_table_config = configs[0]
+    databus_config = _get_databus_config_payload(configs)
 
     assert mock_get.call_count == 3
     mock_get.assert_any_call(
@@ -1215,6 +1256,13 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
     assert result_table_config["spec"]["alias"] == bkbase_vmrt_name
     assert result_table_config["spec"]["bizId"] == 2
     assert result_table_config["spec"]["custom_config"] == {"keep": True}
+    assert databus_config["metadata"]["labels"] == {
+        "bk_biz_id": "1001",
+        "external": "keep",
+        "bk-monitor/data-link-strategy": DataLink.BK_STANDARD_V2_TIME_SERIES,
+        "bk-monitor/result-table-id": rt.table_id,
+        "bk-monitor/data-source-id": str(ds.bk_data_id),
+    }
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1867,6 +1915,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch.object(DataLink, "get_existing_component_config", return_value=None),
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
@@ -1875,6 +1924,20 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
 
     data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
     data_source = models.DataSource.objects.get(data_name="system_1_sys_base")
+    applied_configs = mock_apply_with_retry.call_args.args[0]
+    applied_databuses = [config for config in applied_configs if config["kind"] == DataLinkKind.DATABUS.value]
+    assert applied_databuses
+    for databus in applied_databuses:
+        assert databus["metadata"]["labels"] == {
+            "bk_biz_id": "1",
+            "bk-monitor/data-link-strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
+            "bk-monitor/data-source-id": str(data_source.bk_data_id),
+        }
+    assert all(
+        not any(key.startswith("bk-monitor/") for key in config["metadata"]["labels"])
+        for config in applied_configs
+        if config["kind"] != DataLinkKind.DATABUS.value
+    )
     storage_cluster_name = "vm-default"
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
         actual_configs = data_link_ins.compose_configs(
