@@ -1205,7 +1205,6 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
                     "labels": {
                         "bk_biz_id": "legacy",
                         "external": "keep",
-                        "bkm_data_link_strategy": "legacy_strategy",
                         "bkmonitor.io/data-link-strategy": "stale_strategy",
                         "bkmonitor.io/stale": "remove",
                         "bk-monitor/stale": "remove",

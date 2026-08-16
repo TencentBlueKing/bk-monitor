@@ -69,7 +69,6 @@ DATABUS_LEGACY_MONITOR_LABEL_PREFIXES = ("bkmonitor.io/",)
 DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY = f"{DATABUS_MONITOR_LABEL_PREFIX}data-link-strategy"
 DATABUS_MONITOR_LABEL_RESULT_TABLE_ID = f"{DATABUS_MONITOR_LABEL_PREFIX}result-table-id"
 DATABUS_MONITOR_LABEL_DATA_SOURCE_ID = f"{DATABUS_MONITOR_LABEL_PREFIX}data-source-id"
-LEGACY_DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY = "bkm_data_link_strategy"
 
 
 def compose_databus_monitor_labels(
@@ -2023,7 +2022,6 @@ class DataLink(models.Model):
                 key: value
                 for key, value in labels.items()
                 if not key.startswith((DATABUS_MONITOR_LABEL_PREFIX, *DATABUS_LEGACY_MONITOR_LABEL_PREFIXES))
-                and key != LEGACY_DATABUS_MONITOR_LABEL_DATA_LINK_STRATEGY
             }
             metadata["labels"].update(monitor_labels)
 
