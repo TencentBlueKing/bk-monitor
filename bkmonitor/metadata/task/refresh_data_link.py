@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from alarm_backends.core.lock.service_lock import share_lock
-from metadata.task.tasks import bulk_refresh_data_link_status
+from metadata.task.bkbase import bulk_refresh_data_link_status
 
 logger = logging.getLogger("metadata")
 

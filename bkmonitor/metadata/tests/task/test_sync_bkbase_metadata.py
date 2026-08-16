@@ -19,9 +19,9 @@ from metadata.task.bkbase import (
     sync_all_bkbase_cluster_info,
     sync_bkbase_cluster_info,
     sync_bkbase_rt_meta_info_all,
+    sync_bkbase_v4_metadata,
 )
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
-from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.tests.common_utils import consul_client
 
 # 定义 Mock 的 Redis hgetall 返回值

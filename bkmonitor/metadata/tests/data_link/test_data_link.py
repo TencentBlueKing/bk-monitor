@@ -66,10 +66,9 @@ from metadata.service.federation_data_link import (
     FederationNamespaceConflictError,
     ensure_federal_subset_data_link,
 )
+from metadata.task.bkbase import _get_bkbase_components_config, _should_update_bkbase_component_field
 from metadata.task.tasks import (
-    _get_bkbase_components_config,
     _get_bk_biz_internal_data_ids,
-    _should_update_bkbase_component_field,
     create_base_event_datalink_for_bkcc,
     create_basereport_datalink_for_bkcc,
     create_biz_ping_datalink_for_bkcc,

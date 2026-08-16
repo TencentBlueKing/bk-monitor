@@ -8,7 +8,7 @@ from metadata import models
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP
 from metadata.task.refresh_data_link import refresh_data_link_status
-from metadata.task.tasks import (
+from metadata.task.bkbase import (
     _check_storage_binding_reference,
     _reconcile_data_link_components,
     _refresh_bkbase_result_table_statuses,
@@ -165,7 +165,7 @@ def _mock_storage_binding_lists(mocker, configs_by_batch):
     def list_side_effect(**kwargs):
         return configs_by_batch.get((kwargs["namespace"], kwargs["kind"]), [])
 
-    return mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+    return mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=list_side_effect)
 
 
 def _refresh_and_aggregate():
@@ -180,8 +180,8 @@ def _refresh_and_aggregate():
 
 @pytest.fixture(autouse=True)
 def mock_status_metrics(mocker):
-    mocker.patch("metadata.task.tasks.report_metadata_data_link_status_info")
-    mocker.patch("metadata.task.tasks.api.bk_login.list_tenant", return_value=[])
+    mocker.patch("metadata.task.bkbase.report_metadata_data_link_status_info")
+    mocker.patch("metadata.task.bkbase.api.bk_login.list_tenant", return_value=[])
 
 
 def test_refresh_data_link_status_dispatches_task_without_records(mocker):
@@ -312,7 +312,7 @@ def test_batch_check_storage_binding_references_checks_two_namespaces_and_three_
         namespace="bklog",
         index1="Doris/bklog/old_storage",
     )
-    list_data_link = mocker.patch("metadata.task.tasks.api.bkdata.list_data_link")
+    list_data_link = mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link")
 
     def list_side_effect(**kwargs):
         if kwargs["namespace"] == "bklog" and kwargs["kind"] == "dorisbindings":
@@ -656,7 +656,7 @@ def test_batch_check_vm_reports_ambiguous_local_clusters(mocker):
 
 def test_batch_check_storage_binding_references_propagates_api_error(mocker):
     list_data_link = mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         side_effect=RuntimeError("bkbase unavailable"),
     )
 
@@ -690,8 +690,8 @@ def test_refresh_storage_binding_reference_issue_keeps_remote_status(mocker):
         storage_name="new_es",
         index1="ElasticSearch/tencent/bklog/old_es",
     )
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
-    warning = mocker.patch("metadata.task.tasks.logger.warning")
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
+    warning = mocker.patch("metadata.task.bkbase.logger.warning")
 
     statuses_by_link, untrusted_links, _, refresh_stats = _reconcile_data_link_components()
 
@@ -709,7 +709,7 @@ def test_refresh_components_batches_by_tenant_namespace_and_kind(mocker):
     _create_result_table_component("rt_b", "link_b")
     _create_result_table_component("rt_c", "link_c", tenant="tenant-a", namespace="bklog")
 
-    list_data_link = mocker.patch("metadata.task.tasks.api.bkdata.list_data_link")
+    list_data_link = mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link")
 
     def list_side_effect(**kwargs):
         if kwargs["bk_tenant_id"] == "system":
@@ -735,7 +735,7 @@ def test_refresh_components_batches_by_tenant_namespace_and_kind(mocker):
 
 @pytest.mark.django_db(databases="__all__")
 def test_refresh_discovers_all_component_kinds_without_local_records(mocker):
-    mocker.patch("metadata.task.tasks.api.bk_login.list_tenant", return_value=[{"id": "tenant-a"}])
+    mocker.patch("metadata.task.bkbase.api.bk_login.list_tenant", return_value=[{"id": "tenant-a"}])
     remote_configs = {
         DataLinkKind.get_choice_value(kind): _remote_component_for_kind(kind, f"discovered_{kind.lower()}")
         for kind in COMPONENT_CLASS_MAP
@@ -744,7 +744,7 @@ def test_refresh_discovers_all_component_kinds_without_local_records(mocker):
         DataLinkKind.RESULTTABLE.value,
         "discovered_result_table",
     )
-    list_data_link = mocker.patch("metadata.task.tasks.api.bkdata.list_data_link")
+    list_data_link = mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link")
 
     def list_side_effect(**kwargs):
         if kwargs["namespace"] == "bkmonitor":
@@ -772,7 +772,7 @@ def test_refresh_uses_one_response_for_config_status_and_aggregation(mocker):
     component.save(update_fields=["bkbase_table_id", "last_modify_time"])
     bkbase_record = _create_bkbase_result_table("reconcile_link")
     list_data_link = mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         return_value=[_remote_component("reconcile_rt", DataLinkResourceStatus.OK.value)],
     )
 
@@ -795,9 +795,9 @@ def test_refresh_uses_one_response_for_config_status_and_aggregation(mocker):
 @pytest.mark.django_db(databases="__all__")
 def test_refresh_tenant_discovery_failure_still_refreshes_local_custom_namespace(mocker):
     component = _create_result_table_component("custom_rt", "custom_link", namespace="custom")
-    mocker.patch("metadata.task.tasks.api.bk_login.list_tenant", side_effect=RuntimeError("tenant unavailable"))
+    mocker.patch("metadata.task.bkbase.api.bk_login.list_tenant", side_effect=RuntimeError("tenant unavailable"))
     list_data_link = mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         return_value=[_remote_component("custom_rt", DataLinkResourceStatus.OK.value)],
     )
 
@@ -818,7 +818,7 @@ def test_refresh_updates_databus_consumer_group(mocker):
     component = _create_databus_component("consumer_databus", "consumer_link")
     remote_config = _remote_databus_component("consumer_databus", DataLinkResourceStatus.OK.value)
     remote_config["spec"]["consumerGroup"] = "bkmonitor_consumer"
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
 
     _, _, _, refresh_stats = _reconcile_data_link_components()
 
@@ -846,7 +846,7 @@ def test_refresh_updates_empty_surrealdb_definitions(mocker):
     remote_config = _remote_component_for_kind(DataLinkKind.SURREALDBBINDING.value, "graph_rt")
     remote_config["spec"]["storage"]["name"] = "surreal-default"
     remote_config["spec"]["data"]["name"] = "graph_rt"
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
 
     _reconcile_data_link_components()
 
@@ -868,7 +868,7 @@ def test_refresh_keeps_falsy_non_surrealdb_fields(mocker):
     )
     remote_config = _remote_component_for_kind(DataLinkKind.DATAID.value, "metric_data")
     remote_config["metadata"]["annotations"] = {}
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=[remote_config])
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
 
     _, _, _, refresh_stats = _reconcile_data_link_components()
 
@@ -914,7 +914,7 @@ def test_refresh_storage_bindings_fill_table_id_from_result_table(mocker):
         config["spec"]["data"]["name"] = "graph_rt"
         return [config]
 
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=list_side_effect)
 
     _reconcile_data_link_components()
 
@@ -929,7 +929,7 @@ def test_refresh_marks_missing_component_and_link_terminated(mocker):
     component = _create_result_table_component("missing_rt", "terminated_link")
     bkbase_record = _create_bkbase_result_table("terminated_link")
     mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         return_value=[_remote_component("another_rt", DataLinkResourceStatus.OK.value)],
     )
 
@@ -954,7 +954,7 @@ def test_refresh_aggregates_mixed_component_status_as_pending(mocker):
             return [_remote_component("mixed_rt", DataLinkResourceStatus.OK.value)]
         return [_remote_databus_component("mixed_databus", DataLinkResourceStatus.FAILED.value)]
 
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=list_side_effect)
 
     _refresh_and_aggregate()
 
@@ -973,7 +973,7 @@ def test_refresh_aggregates_all_ok_components_as_ok(mocker):
             return [_remote_component("ok_rt", DataLinkResourceStatus.OK.value)]
         return [_remote_databus_component("ok_databus", DataLinkResourceStatus.OK.value)]
 
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=list_side_effect)
 
     _refresh_and_aggregate()
 
@@ -997,7 +997,7 @@ def test_refresh_skips_empty_or_invalid_batch(mocker, remote_result):
     bkbase_record = _create_bkbase_result_table("safe_link")
     component_modify_time = component.last_modify_time
     bkbase_modify_time = bkbase_record.last_modify_time
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", return_value=remote_result)
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=remote_result)
 
     changed_count, changed_bkbase_count = _refresh_and_aggregate()
 
@@ -1015,7 +1015,7 @@ def test_refresh_skips_empty_or_invalid_batch(mocker, remote_result):
 def test_refresh_skips_failed_batch_and_link_aggregation(mocker):
     component = _create_result_table_component("failed_batch_rt", "failed_batch_link")
     bkbase_record = _create_bkbase_result_table("failed_batch_link")
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=RuntimeError("bkbase unavailable"))
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=RuntimeError("bkbase unavailable"))
 
     changed_count, changed_bkbase_count = _refresh_and_aggregate()
 
@@ -1032,7 +1032,7 @@ def test_refresh_rolls_back_failed_batch_and_skips_link_aggregation(mocker):
     component = _create_result_table_component("rollback_rt", "rollback_link")
     bkbase_record = _create_bkbase_result_table("rollback_link")
     mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         return_value=[_remote_component("rollback_rt", DataLinkResourceStatus.OK.value)],
     )
     mocker.patch.object(models.ResultTableConfig.objects, "bulk_update", side_effect=RuntimeError("db unavailable"))
@@ -1065,7 +1065,7 @@ def test_refresh_skips_link_aggregation_when_one_component_batch_is_untrusted(mo
             return [_remote_component("partial_rt", DataLinkResourceStatus.OK.value)]
         return []
 
-    mocker.patch("metadata.task.tasks.api.bkdata.list_data_link", side_effect=list_side_effect)
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=list_side_effect)
 
     changed_count, changed_bkbase_count = _refresh_and_aggregate()
 
@@ -1090,7 +1090,7 @@ def test_refresh_does_not_write_unchanged_status(mocker):
     component_modify_time = component.last_modify_time
     bkbase_modify_time = bkbase_record.last_modify_time
     mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         return_value=[_remote_component("unchanged_rt", DataLinkResourceStatus.OK.value)],
     )
 
@@ -1109,7 +1109,7 @@ def test_refresh_component_without_data_link_does_not_update_bkbase_status(mocke
     component = _create_result_table_component("orphan_rt", "")
     bkbase_record = _create_bkbase_result_table("orphan_link")
     mocker.patch(
-        "metadata.task.tasks.api.bkdata.list_data_link",
+        "metadata.task.bkbase.api.bkdata.list_data_link",
         return_value=[_remote_component("orphan_rt", DataLinkResourceStatus.OK.value)],
     )
 
