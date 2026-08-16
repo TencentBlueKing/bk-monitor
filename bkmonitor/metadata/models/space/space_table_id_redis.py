@@ -120,24 +120,6 @@ class SpaceTableIDRedis:
             RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [space_redis_key])
         logger.info("push space table_id data successfully, space_type: %s, space_id: %s", space_type, space_id)
 
-    def push_multi_space_table_ids(self, spaces: list[models.Space], is_publish: bool | None = False) -> None:
-        """
-        批量推送空间数据
-        """
-        # 推送数据
-        for space in spaces:
-            self.push_space_table_ids(space.space_type_id, space.space_id, is_publish=False)
-
-        # 通知使用方
-        if is_publish:
-            push_redis_keys = []
-            for space in spaces:
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
-                else:
-                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
-            RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
-
     def push_data_label_table_ids(
         self,
         data_label_list: list | None = None,
@@ -1041,6 +1023,7 @@ class SpaceTableIDRedis:
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
+        _values.update(self._compose_log_global_table_ids(space))
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -1104,6 +1087,7 @@ class SpaceTableIDRedis:
             )
         )
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
+        _values.update(self._compose_log_global_table_ids(space))
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -1152,7 +1136,80 @@ class SpaceTableIDRedis:
             )
         )
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
+        _values.update(self._compose_log_global_table_ids(space))
         return _values
+
+    def _compose_log_global_table_ids(self, space: models.Space) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        """按 query_router_config 组装 ES/Doris 日志全局表。"""
+
+        options = list(
+            models.ResultTableOption.objects.filter(
+                bk_tenant_id=space.bk_tenant_id,
+                name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
+            ).values("table_id", "value", "value_type")
+        )
+        if not options:
+            return {}
+
+        result_tables = {
+            result_table.table_id: result_table
+            for result_table in models.ResultTable.objects.filter(
+                bk_tenant_id=space.bk_tenant_id,
+                table_id__in={option["table_id"] for option in options},
+                default_storage__in=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+                is_deleted=False,
+                is_enable=True,
+            )
+        }
+        if not result_tables:
+            return {}
+
+        current_bk_biz_id = space.get_bk_biz_id()
+        supported_space_types = self.SUPPORT_SPACE_TYPES | {SpaceTypes.ALL.value}
+        values: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for option in options:
+            table_id = option["table_id"]
+            result_table = result_tables.get(table_id)
+            # 归属业务通过原有 ES/Doris 路由查询全量数据，不追加特殊过滤条件。
+            if not result_table or result_table.bk_biz_id == current_bk_biz_id:
+                continue
+
+            try:
+                if option["value_type"] != models.ResultTableOption.TYPE_DICT:
+                    raise ValueError(f"value_type {option['value_type']} is not dict")
+                config = json.loads(option["value"])
+                if not isinstance(config, dict):
+                    raise ValueError("query_router_config is not a dict")
+
+                config = models.VMShortLinkRecord.normalize_query_router_config(
+                    config,
+                    default_space_type=SpaceTypes.ALL.value,
+                )
+                router_space_type = config[models.VMShortLinkRecord.QUERY_ROUTER_SPACE_TYPE]
+                if router_space_type not in supported_space_types:
+                    raise ValueError(f"query_router_config.space_type {router_space_type} is not supported")
+            except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as err:
+                logger.warning(
+                    "_compose_log_global_table_ids: invalid query_router_config, "
+                    "table_id->[%s], bk_tenant_id->[%s], error->[%s]",
+                    table_id,
+                    space.bk_tenant_id,
+                    err,
+                )
+                continue
+
+            if router_space_type not in [SpaceTypes.ALL.value, space.space_type_id]:
+                continue
+
+            filter_value_type = config[models.VMShortLinkRecord.QUERY_ROUTER_FILTER_VALUE]
+            filter_value = (
+                space.space_id
+                if filter_value_type == models.VMShortLinkRecord.FILTER_VALUE_SPACE_ID
+                else current_bk_biz_id
+            )
+            values[table_id] = {"filters": [{config[models.VMShortLinkRecord.QUERY_ROUTER_FILTER_KEY]: filter_value}]}
+
+        return values
 
     def _compose_vm_short_link_table_ids(
         self, space_type: str, space_id: str, bk_tenant_id: str = DEFAULT_TENANT_ID

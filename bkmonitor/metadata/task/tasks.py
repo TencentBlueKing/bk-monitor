@@ -2320,12 +2320,8 @@ def create_single_tenant_system_datalink(
         prefix=BASEREPORT_SOURCE_SYSTEM,
     )
 
-    # 刷新查询路由表数据
+    # 刷新结果表详情路由数据
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
-    SpaceTableIDRedis().push_multi_space_table_ids(
-        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
-        is_publish=True,
-    )
 
 
 def create_single_tenant_system_proc_datalink(
@@ -2425,11 +2421,7 @@ def create_single_tenant_system_proc_datalink(
             prefix="",
         )
 
-    # 刷新查询路由表数据
+    # 刷新结果表详情路由数据
     SpaceTableIDRedis().push_table_id_detail(
         bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=list(data_id_to_table_id.values()), is_publish=True
-    )
-    SpaceTableIDRedis().push_multi_space_table_ids(
-        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
-        is_publish=True,
     )
