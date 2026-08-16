@@ -120,24 +120,6 @@ class SpaceTableIDRedis:
             RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [space_redis_key])
         logger.info("push space table_id data successfully, space_type: %s, space_id: %s", space_type, space_id)
 
-    def push_multi_space_table_ids(self, spaces: list[models.Space], is_publish: bool | None = False) -> None:
-        """
-        批量推送空间数据
-        """
-        # 推送数据
-        for space in spaces:
-            self.push_space_table_ids(space.space_type_id, space.space_id, is_publish=False)
-
-        # 通知使用方
-        if is_publish:
-            push_redis_keys = []
-            for space in spaces:
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
-                else:
-                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
-            RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
-
     def push_data_label_table_ids(
         self,
         data_label_list: list | None = None,
@@ -1198,10 +1180,6 @@ class SpaceTableIDRedis:
                 config = json.loads(option["value"])
                 if not isinstance(config, dict):
                     raise ValueError("query_router_config is not a dict")
-
-                filter_key = config.get(models.VMShortLinkRecord.QUERY_ROUTER_FILTER_KEY)
-                if filter_key is not None and (not isinstance(filter_key, str) or not filter_key.strip()):
-                    raise ValueError("query_router_config.filter_key is empty")
 
                 config = models.VMShortLinkRecord.normalize_query_router_config(
                     config,

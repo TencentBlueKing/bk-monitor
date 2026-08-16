@@ -493,7 +493,10 @@ def test_compose_log_global_table_ids_ignore_invalid_or_ineligible_options(creat
     space = models.Space.objects.get(space_type_id="bksaas", space_id="monitor_saas")
     values = SpaceTableIDRedis()._compose_log_global_table_ids(space)
 
-    assert values == {"valid_default.log": {"filters": [{"bk_biz_id": space.get_bk_biz_id()}]}}
+    assert values == {
+        "valid_default.log": {"filters": [{"bk_biz_id": space.get_bk_biz_id()}]},
+        "empty_filter_key.log": {"filters": [{"bk_biz_id": space.space_id}]},
+    }
     assert models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG not in models.ResultTableOption.QUERY_OPTION_NAME_LIST
 
 
