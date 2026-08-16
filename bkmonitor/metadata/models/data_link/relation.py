@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 本模块用于重建 BKBase V4 DataLink 组件间的关联关系。
 
 背景：
-    sync_bkbase_v4_datalink_components 将 BKBase 侧所有组件同步回监控平台后，
-    这些组件的 data_link_name 字段均为空，组件间关联关系缺失，无法串成完整的 DataLink。
+    refresh_data_link_status 将 BKBase 侧所有组件同步回监控平台后，
+    新发现组件的 data_link_name 字段为空，组件间关联关系缺失，无法串成完整的 DataLink。
 
 用途：
     以 DataBus 为单位，通过已有的关联字段（sink_names、bkbase_result_table_name）
@@ -1572,7 +1572,7 @@ def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_r
     单个 DataBus 失败不影响其他 DataBus 的处理。
 
     适用场景：
-        sync_bkbase_v4_datalink_components 同步完成后，组件 data_link_name 均为空，
+        refresh_data_link_status 同步完成后，新发现组件的 data_link_name 均为空，
         需要调用本函数补全 data_link_name 并创建 DataLink 记录。
 
     Args:
