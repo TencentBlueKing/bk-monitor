@@ -1936,7 +1936,15 @@ class BaseIndexSetHandler:
         )
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids)
-        if is_doris or is_analysis:
+        # 仅普通原生 Doris 的默认路由忽略历史 Doris 标签，索引组和 analysis 保持原语义。
+        is_standalone_native_doris = (
+            is_doris
+            and not is_analysis
+            and parent_index_set is None
+            and not index_set.is_group
+            and index_set.is_native_doris()
+        )
+        if (is_doris and not is_standalone_native_doris) or is_analysis:
             db_doris_table_id = index_set.doris_table_id
             is_manual_connect_doris = True if index_set.support_doris and db_doris_table_id else False
             if not is_manual_connect_doris:

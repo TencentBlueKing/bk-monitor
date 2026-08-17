@@ -1596,6 +1596,31 @@ class TestSyncRouter(TestCase):
             self.assertTrue(info["table_id"].endswith(".__default__"))
             self.assertTrue(info["is_enable"])
 
+    def test_native_doris_with_legacy_manual_fields_default_uses_native_route(self):
+        """原生 Doris 即使残留手动 Doris 标签和配置，默认路由仍使用 LogIndexSetData。"""
+        doris_tag_id = self._ensure_doris_tag()
+        index_set = self._build_native_doris_index_set(
+            tag_ids=[doris_tag_id],
+            support_doris=True,
+            doris_table_id="db.legacy_doris_table.doris",
+        )
+
+        default_table_infos = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(len(default_table_infos), 1)
+        self.assertEqual(
+            default_table_infos[0]["table_id"],
+            f"bklog_index_set_{index_set.index_set_id}_591_native.__default__",
+        )
+        self.assertEqual(default_table_infos[0]["source_type"], Scenario.LOG)
+
+        analysis_table_infos = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True)
+        self.assertEqual(len(analysis_table_infos), 1)
+        self.assertEqual(
+            analysis_table_infos[0]["table_id"],
+            f"bklog_index_set_{index_set.index_set_id}_db.legacy_doris_table.__analysis__",
+        )
+        self.assertEqual(analysis_table_infos[0]["source_type"], Scenario.BKDATA)
+
     # ==================================================================
     # 场景 2：存量 ES + Doris 采集项
     # ==================================================================
