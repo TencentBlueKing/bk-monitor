@@ -11,9 +11,10 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import struct
 from collections.abc import Mapping
+from functools import lru_cache
 
 from alarm_backends.core.alarm_engine.contract import validate_detection_outcome, validate_trigger_strategy_ir
-from alarm_backends.core.alarm_engine.encoder import encode_json_document
+from alarm_backends.core.alarm_engine.encoder import decode_json_document, encode_json_document
 
 DEFAULT_DELIVERY_TIMEOUT_MS = 3000
 PARTITION_HASH_VERSION = "trigger-input-partition-v1"
@@ -118,6 +119,12 @@ def build_kafka_detection_publisher(config: Mapping, *, allowed_topics, producer
         producer_factory = Producer
     producer = producer_factory(producer_config)
     return KafkaDetectionPublisher(producer=producer, topic=topic, flush_timeout=flush_timeout)
+
+
+@lru_cache(maxsize=1)
+def get_cached_kafka_detection_publisher(config_json: str, allowed_topics: tuple[str, ...]):
+    config = decode_json_document(config_json)
+    return build_kafka_detection_publisher(config, allowed_topics=set(allowed_topics))
 
 
 def _partition_key(strategy_ir: Mapping) -> bytes:

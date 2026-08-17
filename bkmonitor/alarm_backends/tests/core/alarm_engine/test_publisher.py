@@ -13,6 +13,7 @@ import json
 
 import pytest
 
+from alarm_backends.core.alarm_engine import publisher as publisher_module
 from alarm_backends.core.alarm_engine.encoder import decode_json_document
 from alarm_backends.core.alarm_engine.publisher import (
     DetectionPublishError,
@@ -125,6 +126,36 @@ def test_build_kafka_detection_publisher_rejects_disabled_idempotence():
             producer_factory=lambda _config: FakeProducer(),
             allowed_topics={"alarm-engine-detection-shadow"},
         )
+
+
+def test_cached_kafka_detection_publisher_reuses_process_producer(monkeypatch):
+    publisher_module.get_cached_kafka_detection_publisher.cache_clear()
+    expected = object()
+    calls = []
+
+    def build(config, *, allowed_topics):
+        calls.append((config, allowed_topics))
+        return expected
+
+    monkeypatch.setattr(publisher_module, "build_kafka_detection_publisher", build)
+    config_json = json.dumps(
+        {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    first = publisher_module.get_cached_kafka_detection_publisher(config_json, ("alarm-engine-detection-shadow",))
+    second = publisher_module.get_cached_kafka_detection_publisher(config_json, ("alarm-engine-detection-shadow",))
+
+    assert first is expected
+    assert second is expected
+    assert calls == [
+        (
+            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            {"alarm-engine-detection-shadow"},
+        )
+    ]
+    publisher_module.get_cached_kafka_detection_publisher.cache_clear()
 
 
 def _batch():

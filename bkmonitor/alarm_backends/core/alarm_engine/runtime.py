@@ -24,6 +24,27 @@ class DetectionNotFinalized(ContractValidationError):
     """Raised when a record batch cannot safely be projected as a business outcome."""
 
 
+def attach_detection_correlations(anomaly_outputs: Sequence[dict], outcomes: Sequence[Mapping]) -> None:
+    """Attach private input coordinates to legacy anomaly points for the Python Trigger tap."""
+
+    anomalous_outcomes = {
+        outcome["record"]["record_id"]: outcome for outcome in outcomes if outcome.get("outcome") == "ANOMALOUS"
+    }
+    attached = set()
+    for output in anomaly_outputs:
+        record_id = output["data"]["record_id"]
+        outcome = anomalous_outcomes.get(record_id)
+        if outcome is None or record_id in attached:
+            raise ContractValidationError(f"legacy anomaly output has no unique anomalous outcome: {record_id}")
+        output["_alarm_engine"] = {
+            "input_id": outcome["input_id"],
+            "strategy_ref": copy.deepcopy(outcome["strategy_ref"]),
+        }
+        attached.add(record_id)
+    if attached != set(anomalous_outcomes):
+        raise ContractValidationError("anomalous outcome has no legacy anomaly output")
+
+
 def prepare_finalized_threshold_batch(
     *,
     tenant_id: str,
