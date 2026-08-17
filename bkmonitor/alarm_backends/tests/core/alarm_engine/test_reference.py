@@ -22,7 +22,9 @@ from alarm_backends.core.alarm_engine.contract import (
 )
 from alarm_backends.core.alarm_engine.encoder import decode_json_document
 from alarm_backends.core.alarm_engine.reference import build_reference_trigger_decision_batch
-from alarm_backends.tests.alarm_engine_fixtures import TRIGGER_POINT, TRIGGER_STRATEGY
+from alarm_backends.core.alarm_engine.reference import build_terminal_reference_decision_batches
+from alarm_backends.core.alarm_engine.runtime import prepare_finalized_threshold_batch
+from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY, TRIGGER_POINT, TRIGGER_STRATEGY
 
 
 def legacy_bytes(strategy):
@@ -231,3 +233,134 @@ def test_reference_rejects_tenant_mapping_drift_from_acknowledged_detect_input()
 
     with pytest.raises(ContractValidationError, match="acknowledged Detect input"):
         build_reference(point=point, strategy=strategy, event_record=None, tenant_id="tenant-b")
+
+
+def test_terminal_reference_projects_only_detection_terminal_outcomes_after_ack():
+    strategy = copy.deepcopy(DETECT_STRATEGY)
+    detection = prepare_finalized_threshold_batch(
+        tenant_id="default",
+        strategy=strategy,
+        item_id=2,
+        legacy_json=legacy_bytes(strategy),
+        batch_id="detect-batch",
+        data_points=copy.deepcopy(DETECT_RECORDS),
+        anomaly_outputs=[
+            {
+                "data": copy.deepcopy(DETECT_RECORDS[0]),
+                "anomaly": {
+                    "3": {
+                        "anomaly_id": f"{DETECT_RECORDS[0]['record_id']}.1.2.3",
+                        "anomaly_message": "threshold matched",
+                    }
+                },
+            }
+        ],
+        finalized=True,
+    )
+
+    reference_batches = build_terminal_reference_decision_batches(
+        strategy_ir=detection["strategy_ir"],
+        detection_outcomes=detection["outcomes"],
+    )
+    reference = reference_batches[0]
+
+    assert [decision["input_id"] for decision in reference["decisions"]] == [detection["outcomes"][1]["input_id"]]
+    assert reference["decisions"][0]["outcome"] == "NO_TRIGGER"
+    assert reference["decisions"][0]["reason_code"] == "INPUT_NORMAL"
+
+
+@pytest.mark.parametrize(
+    ("outcome", "error_code"),
+    [
+        ("ERROR", "ALGORITHM_ERROR"),
+        ("UNSUPPORTED", "UNSUPPORTED_STRATEGY"),
+    ],
+)
+def test_terminal_reference_preserves_detection_error_terminal(outcome, error_code):
+    strategy = copy.deepcopy(DETECT_STRATEGY)
+    strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+        tenant_id="default",
+        purpose="DETECT",
+        strategy=strategy,
+        item_id=2,
+        legacy_json=legacy_bytes(strategy),
+    )
+    source = build_detection_outcome(
+        strategy_ir=strategy_ir,
+        batch_id="detect-batch",
+        data_raw=copy.deepcopy(DETECT_RECORDS[0]),
+        evaluations=[],
+        outcome=outcome,
+        error_code=error_code,
+    )
+
+    reference_batches = build_terminal_reference_decision_batches(
+        strategy_ir=strategy_ir,
+        detection_outcomes=[source],
+    )
+    reference = reference_batches[0]
+
+    assert reference["decisions"][0]["outcome"] == outcome
+    assert reference["decisions"][0]["reason_code"] == error_code
+
+
+def test_terminal_reference_returns_none_when_all_inputs_require_real_trigger():
+    strategy = copy.deepcopy(DETECT_STRATEGY)
+    detection = prepare_finalized_threshold_batch(
+        tenant_id="default",
+        strategy=strategy,
+        item_id=2,
+        legacy_json=legacy_bytes(strategy),
+        batch_id="detect-batch",
+        data_points=[copy.deepcopy(DETECT_RECORDS[0])],
+        anomaly_outputs=[
+            {
+                "data": copy.deepcopy(DETECT_RECORDS[0]),
+                "anomaly": {"3": {"anomaly_id": f"{DETECT_RECORDS[0]['record_id']}.1.2.3"}},
+            }
+        ],
+        finalized=True,
+    )
+
+    assert (
+        build_terminal_reference_decision_batches(
+            strategy_ir=detection["strategy_ir"],
+            detection_outcomes=detection["outcomes"],
+        )
+        == []
+    )
+
+
+@pytest.mark.parametrize(("outcome_count", "expected_chunk_sizes"), [(500, [500]), (501, [500, 1])])
+def test_terminal_reference_chunks_at_the_wire_outcome_limit(outcome_count, expected_chunk_sizes):
+    strategy = copy.deepcopy(DETECT_STRATEGY)
+    strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+        tenant_id="default",
+        purpose="DETECT",
+        strategy=strategy,
+        item_id=2,
+        legacy_json=legacy_bytes(strategy),
+    )
+    template = copy.deepcopy(DETECT_RECORDS[1])
+    outcomes = []
+    for index in range(outcome_count):
+        record = copy.deepcopy(template)
+        record["record_id"] = f"{index:032x}.{index + 1}"
+        record["time"] = index + 1
+        record["values"]["timestamp"] = index + 1
+        outcomes.append(
+            build_detection_outcome(
+                strategy_ir=strategy_ir,
+                batch_id="detect-batch",
+                data_raw=record,
+                evaluations=[{"level": level, "result": "NORMAL"} for level in strategy_ir["required_levels"]],
+                outcome="NORMAL",
+            )
+        )
+
+    batches = build_terminal_reference_decision_batches(
+        strategy_ir=strategy_ir,
+        detection_outcomes=outcomes,
+    )
+
+    assert [len(batch["decisions"]) for batch in batches] == expected_chunk_sizes

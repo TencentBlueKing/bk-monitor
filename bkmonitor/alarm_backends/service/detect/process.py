@@ -204,6 +204,10 @@ class DetectProcess(BaseAbnormalPushProcessor):
             return 0
 
         from alarm_backends.core.alarm_engine.publisher import get_cached_kafka_detection_publisher
+        from alarm_backends.core.alarm_engine.reference import build_terminal_reference_decision_batches
+        from alarm_backends.core.alarm_engine.reference_publisher import (
+            get_cached_kafka_reference_decision_publisher,
+        )
 
         config_json = json.dumps(
             settings.ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG,
@@ -212,7 +216,53 @@ class DetectProcess(BaseAbnormalPushProcessor):
         )
         allowed_topics = tuple(sorted(set(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS)))
         publisher = get_cached_kafka_detection_publisher(config_json, allowed_topics)
-        return sum(publisher.publish_batch(batch) for batch in batches)
+        reference_publisher = None
+        reference_initialization_failed = False
+        reference_enabled = settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED
+
+        published = 0
+        for batch in batches:
+            published += publisher.publish_batch(batch)
+            if not reference_enabled:
+                continue
+            try:
+                reference_batches = build_terminal_reference_decision_batches(
+                    strategy_ir=batch["strategy_ir"],
+                    detection_outcomes=batch["outcomes"],
+                )
+            except Exception:
+                logger.exception("[alarm engine shadow] failed to project terminal reference decision")
+                continue
+            if not reference_batches or reference_initialization_failed:
+                continue
+            if reference_publisher is None:
+                try:
+                    from alarm_backends.core.alert.adapter import MonitorEventAdapter
+
+                    reference_config_json = json.dumps(
+                        settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    reference_allowed_topics = tuple(
+                        sorted(set(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS))
+                    )
+                    forbidden_topics = tuple(sorted(set(allowed_topics) | {MonitorEventAdapter.get_output_topic()}))
+                    reference_publisher = get_cached_kafka_reference_decision_publisher(
+                        reference_config_json,
+                        reference_allowed_topics,
+                        forbidden_topics,
+                    )
+                except Exception:
+                    logger.exception("[alarm engine shadow] failed to initialize terminal reference publisher")
+                    reference_initialization_failed = True
+                    continue
+            try:
+                for reference_batch in reference_batches:
+                    reference_publisher.publish_batch(reference_batch)
+            except Exception:
+                logger.exception("[alarm engine shadow] failed to publish terminal reference decision")
+        return published
 
     def push_data(self):
         current_time = time.time()

@@ -71,7 +71,7 @@ class KafkaDetectionPublisher:
         if not outcomes:
             return 0
 
-        partition_key = _partition_key(strategy_ir)
+        partition_key = trigger_partition_key(strategy_ir)
         microbatches = self._plan_microbatches(strategy_ir, outcomes)
         delivery_errors = []
 
@@ -193,12 +193,12 @@ def get_cached_kafka_detection_publisher(config_json: str, allowed_topics: tuple
     return build_kafka_detection_publisher(config, allowed_topics=set(allowed_topics))
 
 
-def _partition_key(strategy_ir: Mapping) -> bytes:
-    ref = strategy_ir["strategy_ref"]
+def trigger_partition_key(document: Mapping) -> bytes:
+    ref = document["strategy_ref"]
     fields = (
         PARTITION_HASH_VERSION,
-        strategy_ir["tenant_id"],
-        strategy_ir["purpose"],
+        document["tenant_id"],
+        document["purpose"],
         ref["strategy_id"],
         ref["item_id"],
     )

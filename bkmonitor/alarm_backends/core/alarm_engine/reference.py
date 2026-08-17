@@ -19,6 +19,8 @@ from alarm_backends.core.alarm_engine.contract import (
     build_trigger_strategy_ir_from_legacy_config,
     derive_trigger_decision_id,
     json_values_equal,
+    validate_detection_outcome,
+    validate_trigger_strategy_ir,
 )
 
 
@@ -113,6 +115,46 @@ def build_reference_trigger_decision_batch(
         batch_id=source["batch_id"],
         decisions=[decision],
     )
+
+
+def build_terminal_reference_decision_batches(*, strategy_ir: Mapping, detection_outcomes: list[Mapping]) -> list[dict]:
+    """Project ACKed non-anomalous DetectionOutcomes without invoking the legacy Trigger."""
+
+    validate_trigger_strategy_ir(strategy_ir)
+    if not isinstance(detection_outcomes, list) or not detection_outcomes:
+        raise ContractValidationError("reference detection_outcomes must be a non-empty array")
+    batch_id = None
+    decisions = []
+    for source in detection_outcomes:
+        validate_detection_outcome(source, strategy_ir)
+        if batch_id is None:
+            batch_id = source["batch_id"]
+        elif source["batch_id"] != batch_id:
+            raise ContractValidationError("reference detection_outcomes must share one batch_id")
+        if source["outcome"] == "ANOMALOUS":
+            continue
+        if source["outcome"] == "NORMAL":
+            outcome = "NO_TRIGGER"
+            reason_code = "INPUT_NORMAL"
+        else:
+            outcome = source["outcome"]
+            reason_code = source["error_code"]
+        decisions.append(
+            {
+                "decision_id": derive_trigger_decision_id(source["input_id"]),
+                "input_id": source["input_id"],
+                "record_id": source["record"]["record_id"],
+                "outcome": outcome,
+                "reason_code": reason_code,
+                "anomaly_timestamps": [],
+            }
+        )
+    return [
+        build_trigger_decision_batch(
+            strategy_ir=strategy_ir, batch_id=batch_id, decisions=decisions[start : start + 500]
+        )
+        for start in range(0, len(decisions), 500)
+    ]
 
 
 def _parse_trigger_result(
