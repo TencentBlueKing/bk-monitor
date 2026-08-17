@@ -129,23 +129,230 @@ def _get_databus_config_payload(configs: list[dict]) -> dict:
 
 
 def test_compose_databus_monitor_labels_uses_monitor_context():
-    table = SimpleNamespace(table_id="1001_bkmonitor.metric")
-    data_source = SimpleNamespace(bk_data_id=50010)
+    table = SimpleNamespace(
+        table_id="1001_bkmonitor.metric",
+        bk_biz_id=1001,
+        label="others",
+        data_label="",
+        is_builtin=False,
+        is_custom_table=True,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="",
+        space_type_id="all",
+        source_label="custom",
+        type_label="time_series",
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=True,
+    )
 
     assert compose_databus_monitor_labels("bk_standard_v2_time_series", table, data_source) == {
-        "bk-monitor/data-link-strategy": "bk_standard_v2_time_series",
-        "bk-monitor/result-table-id": "1001_bkmonitor.metric",
-        "bk-monitor/data-source-id": "50010",
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "custom",
+        "bk-monitor/data-type": "metric",
     }
 
 
-def test_compose_databus_monitor_labels_omits_missing_table():
-    data_source = SimpleNamespace(bk_data_id=50010)
+def test_compose_databus_monitor_labels_without_table_uses_data_source_context():
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="bksaas__demo",
+        space_type_id="all",
+        source_label="bk_monitor",
+        type_label="others",
+        etl_config=EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
+        is_custom_source=False,
+    )
 
     assert compose_databus_monitor_labels("basereport_time_series_v1", None, data_source) == {
-        "bk-monitor/data-link-strategy": "basereport_time_series_v1",
-        "bk-monitor/data-source-id": "50010",
+        "bk-monitor/space-type": "bksaas",
+        "bk-monitor/data-scene": "system",
+        "bk-monitor/data-type": "metric",
     }
+
+
+def test_compose_databus_monitor_labels_prioritizes_apm_and_normalizes_trace():
+    table = SimpleNamespace(label="apm", data_label="", bk_biz_id=1001, is_builtin=False, is_custom_table=True)
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="bkci__project",
+        space_type_id="all",
+        source_label="bk_apm",
+        type_label="log",
+        etl_config=EtlConfigs.BK_STANDARD.value,
+        is_custom_source=True,
+    )
+
+    assert compose_databus_monitor_labels("bk_standard_time_series", table, data_source) == {
+        "bk-monitor/space-type": "bkci",
+        "bk-monitor/data-scene": "apm",
+        "bk-monitor/data-type": "trace",
+    }
+
+
+def test_compose_databus_monitor_labels_prioritizes_uptimecheck_over_plugin():
+    table = SimpleNamespace(
+        label="uptimecheck",
+        data_label="",
+        bk_biz_id=0,
+        is_builtin=False,
+        is_custom_table=True,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="",
+        space_type_id="default",
+        source_label="custom",
+        type_label="time_series",
+        etl_config=EtlConfigs.BK_EXPORTER.value,
+        is_custom_source=True,
+    )
+
+    assert compose_databus_monitor_labels("bk_exporter_time_series", table, data_source) == {
+        "bk-monitor/space-type": "other",
+        "bk-monitor/data-scene": "uptimecheck",
+        "bk-monitor/data-type": "metric",
+    }
+
+
+def test_compose_databus_monitor_labels_falls_back_to_other():
+    table = SimpleNamespace(label="others", data_label="", bk_biz_id=0, is_builtin=False, is_custom_table=False)
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="bcs__cluster",
+        space_type_id="bcs",
+        source_label="others",
+        type_label="others",
+        etl_config="unknown",
+        is_custom_source=False,
+    )
+
+    assert compose_databus_monitor_labels("unknown", table, data_source) == {
+        "bk-monitor/space-type": "other",
+        "bk-monitor/data-scene": "other",
+        "bk-monitor/data-type": "other",
+    }
+
+
+@pytest.mark.parametrize(
+    ("strategy", "source_label", "type_label", "etl_config", "expected_scene", "expected_type"),
+    [
+        ("bk_exporter_time_series", "bk_monitor", "time_series", "bk_exporter", "plugin", "metric"),
+        ("base_event_v1", "bk_monitor", "event", "bk_multi_tenancy_agent_event", "system", "event"),
+        ("bk_log", "bk_log_search", "log", "bk_flat_batch", "log", "log"),
+    ],
+)
+def test_compose_databus_monitor_labels_maps_strategy_scenes_and_types(
+    strategy,
+    source_label,
+    type_label,
+    etl_config,
+    expected_scene,
+    expected_type,
+):
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="",
+        space_type_id="all",
+        source_label=source_label,
+        type_label=type_label,
+        etl_config=etl_config,
+        is_custom_source=False,
+    )
+
+    assert compose_databus_monitor_labels(strategy, None, data_source) == {
+        "bk-monitor/space-type": "other",
+        "bk-monitor/data-scene": expected_scene,
+        "bk-monitor/data-type": expected_type,
+    }
+
+
+def test_compose_databus_monitor_labels_classifies_system_base_data_label_as_system():
+    table = SimpleNamespace(
+        bk_biz_id=0,
+        label="os",
+        data_label="system_base",
+        is_builtin=False,
+        is_custom_table=True,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=1100030,
+        data_name="system_base_metric",
+        space_uid="",
+        space_type_id="all",
+        source_label="bk_monitor",
+        type_label="time_series",
+        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+        is_custom_source=True,
+    )
+
+    assert compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_TIME_SERIES, table, data_source) == {
+        "bk-monitor/space-type": "other",
+        "bk-monitor/data-scene": "system",
+        "bk-monitor/data-type": "metric",
+    }
+
+
+def test_compose_databus_monitor_labels_does_not_query_bcs_for_regular_data_source(mocker):
+    table = SimpleNamespace(
+        bk_biz_id=1001,
+        label="others",
+        data_label="",
+        is_builtin=False,
+        is_custom_table=True,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        bk_tenant_id="system",
+        data_name="custom_metric",
+        space_uid="",
+        space_type_id="all",
+        source_label="custom",
+        type_label="time_series",
+        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+        is_custom_source=True,
+    )
+    mock_filter = mocker.patch.object(models.BCSClusterInfo.objects, "filter")
+
+    assert (
+        compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_TIME_SERIES, table, data_source)["bk-monitor/data-scene"]
+        == "custom"
+    )
+    mock_filter.assert_not_called()
+
+
+def test_compose_databus_monitor_labels_queries_bcs_by_cluster_and_usage(mocker):
+    table = SimpleNamespace(
+        bk_biz_id=1001,
+        label="others",
+        data_label="",
+        is_builtin=False,
+        is_custom_table=True,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=60010,
+        bk_tenant_id="system",
+        data_name="bcs_BCS-K8S-10001_custom_metric",
+        space_uid="",
+        space_type_id="all",
+        source_label="bk_monitor",
+        type_label="time_series",
+        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+        is_custom_source=False,
+    )
+    mock_filter = mocker.patch.object(models.BCSClusterInfo.objects, "filter")
+    mock_filter.return_value.exists.return_value = True
+
+    assert (
+        compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_TIME_SERIES, table, data_source)["bk-monitor/data-scene"]
+        == "k8s"
+    )
+    mock_filter.assert_called_once_with(
+        bk_tenant_id="system",
+        cluster_id="BCS-K8S-10001",
+        CustomMetricDataID=60010,
+    )
 
 
 def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | dict:
@@ -443,6 +650,58 @@ def create_or_delete_records(mocker):
         bk_data_id__in=[50010, 50011, 50012, 60010, 60011, 70010, 80010, 90010, 90011]
     ).delete()
     models.DataLink.objects.filter(data_link_name__in=["base_1_system_proc_perf", "base_1_system_proc_port"]).delete()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_databus_monitor_labels_resolves_negative_biz_space_by_tenant(create_or_delete_records):
+    space = models.Space.objects.create(
+        space_type_id="bkci",
+        space_id="project-1",
+        space_name="project-1",
+        bk_tenant_id="system",
+    )
+    table = SimpleNamespace(
+        bk_biz_id=-space.id,
+        bk_tenant_id="system",
+        label="others",
+        data_label="",
+        is_builtin=False,
+        is_custom_table=True,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=0,
+        bk_tenant_id="system",
+        space_uid="",
+        space_type_id="all",
+        source_label="custom",
+        type_label="event",
+        etl_config=EtlConfigs.BK_STANDARD_V2_EVENT.value,
+        is_custom_source=True,
+    )
+
+    assert compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_EVENT, table, data_source) == {
+        "bk-monitor/space-type": "bkci",
+        "bk-monitor/data-scene": "custom",
+        "bk-monitor/data-type": "event",
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_databus_monitor_labels_classifies_bcs_custom_metric_as_k8s(create_or_delete_records):
+    data_source = models.DataSource.objects.get(bk_data_id=60010)
+    table = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_60010.__default__")
+    cluster = models.BCSClusterInfo.objects.get(K8sMetricDataID=data_source.bk_data_id)
+    cluster.K8sMetricDataID = 0
+    cluster.CustomMetricDataID = data_source.bk_data_id
+    cluster.save(update_fields=["K8sMetricDataID", "CustomMetricDataID"])
+    data_source.data_name = "bcs_BCS-K8S-10001_custom_metric"
+    data_source.save(update_fields=["data_name"])
+
+    assert compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_TIME_SERIES, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "k8s",
+        "bk-monitor/data-type": "metric",
+    }
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1256,9 +1515,37 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
     assert databus_config["metadata"]["labels"] == {
         "bk_biz_id": "1001",
         "external": "keep",
-        "bk-monitor/data-link-strategy": DataLink.BK_STANDARD_V2_TIME_SERIES,
-        "bk-monitor/result-table-id": rt.table_id,
-        "bk-monitor/data-source-id": str(ds.bk_data_id),
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "custom",
+        "bk-monitor/data-type": "metric",
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_injects_labels_when_compose_arguments_are_positional(create_or_delete_records, mocker):
+    data_source = models.DataSource.objects.get(bk_data_id=50010)
+    table = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    data_link, _ = DataLink.objects.update_or_create(
+        data_link_name=utils.compose_bkdata_data_id_name(data_source.data_name),
+        namespace="bkmonitor",
+        defaults={
+            "data_link_strategy": DataLink.BK_STANDARD_V2_TIME_SERIES,
+            "bk_data_id": 0,
+            "table_ids": [table.table_id],
+        },
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    mocker.patch.object(DataLink, "get_existing_component_config", return_value=None)
+    mock_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"})
+
+    data_link.apply_data_link(1001, data_source, table.table_id, "vm-plat")
+
+    databus = _get_databus_config_payload(mock_apply.call_args.args[0])
+    assert databus["metadata"]["labels"] == {
+        "bk_biz_id": "1001",
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "custom",
+        "bk-monitor/data-type": "metric",
     }
 
 
@@ -1927,8 +2214,9 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
     for databus in applied_databuses:
         assert databus["metadata"]["labels"] == {
             "bk_biz_id": "1",
-            "bk-monitor/data-link-strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
-            "bk-monitor/data-source-id": str(data_source.bk_data_id),
+            "bk-monitor/space-type": "other",
+            "bk-monitor/data-scene": "system",
+            "bk-monitor/data-type": "metric",
         }
     assert all(
         not any(key.startswith("bk-monitor/") for key in config["metadata"]["labels"])

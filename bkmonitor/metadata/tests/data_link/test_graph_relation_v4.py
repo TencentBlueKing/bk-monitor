@@ -226,10 +226,10 @@ def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
 
     ctx["data_link"].apply_data_link(
-        bk_biz_id=2,
-        data_source=ctx["data_source"],
-        table_id=ctx["table_id"],
-        storage_cluster_name=ctx["vm_cluster"].cluster_name,
+        2,
+        ctx["data_source"],
+        ctx["table_id"],
+        ctx["vm_cluster"].cluster_name,
     )
 
     configs = mock_apply.call_args.args[0]
@@ -237,9 +237,9 @@ def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_
     assert len(databuses) == 2
     expected_labels = {
         "bk_biz_id": "2",
-        "bk-monitor/data-link-strategy": DataLink.GRAPH_RELATION_TIME_SERIES,
-        "bk-monitor/result-table-id": ctx["table_id"],
-        "bk-monitor/data-source-id": str(ctx["data_source"].bk_data_id),
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "custom",
+        "bk-monitor/data-type": "metric",
     }
     assert all(databus["metadata"]["labels"] == expected_labels for databus in databuses)
     assert all(
