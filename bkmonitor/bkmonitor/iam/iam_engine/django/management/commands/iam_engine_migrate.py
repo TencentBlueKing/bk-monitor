@@ -112,6 +112,13 @@ class Command(BaseCommand):
                             f"{len(report.failed)} failure(s), skipped={report.skipped_reason}"
                         )
                     )
+                    # 逐条打印失败详情（含异常类型），便于定位平台拒绝/校验错误
+                    for actual, error in report.failed:
+                        self.stderr.write(
+                            self.style.ERROR(
+                                f"    - {actual.kind.value} {actual.change_type.value} {actual.entity_id}: {error}"
+                            )
+                        )
                     break
 
     # ------------------------------------------------------------------

@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from ..iam_engine.core.exceptions import ProviderUnavailable
+from ..iam_engine.core.exceptions import MigrationFailed, ProviderUnavailable
 from ..iam_engine.provider.codec import IdentityCodec, NameCodec
 from ..iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
 from ..iam_engine.schema.visibility import is_visible_to
@@ -169,7 +169,7 @@ class V4Migrator:
                 report.applied.append(actual)
                 logger.info("[iam_v4:migration:apply] %s %s", actual.change_type.value, actual.entity_id)
             except Exception as e:
-                report.failed.append((actual, str(e)[:500]))
+                report.failed.append((actual, f"{type(e).__name__}: {e}"[:500]))
                 logger.error("[iam_v4:migration:fail] %s %s: %s", actual.change_type.value, actual.entity_id, e)
 
         report.finished_at = datetime.now(tz=timezone.utc)
@@ -505,55 +505,61 @@ class V4Migrator:
     # ================================================================
 
     def _apply_change(self, change: Change) -> None:
-        if change.kind == EntityKind.SYSTEM:
-            if change.change_type == ChangeType.CREATE:
-                self._client.create_system(change.after or {})
-            elif change.change_type == ChangeType.UPDATE:
-                self._client.update_system(change.after or {})
-        elif change.kind == EntityKind.RESOURCE_TYPE:
-            d_entity_id = self._codec.encode_resource_type(change.entity_id)
-            if change.change_type == ChangeType.CREATE:
-                self._client.batch_create_resource_types([change.after])
-            elif change.change_type == ChangeType.UPDATE:
-                self._client.update_resource_type(d_entity_id, change.after or {})
-            elif change.change_type == ChangeType.DELETE:
-                self._client.delete_resource_type(d_entity_id)
-        elif change.kind == EntityKind.ACTION:
-            d_entity_id = self._codec.encode_action(change.entity_id)
-            if change.change_type == ChangeType.CREATE:
-                self._client.batch_create_actions([change.after])
-            elif change.change_type == ChangeType.UPDATE:
-                self._client.update_action(d_entity_id, {"name": (change.after or {}).get("name", "")})
-            elif change.change_type == ChangeType.DELETE:
-                self._client.delete_action(d_entity_id)
-        elif change.kind == EntityKind.ROLE:
-            d_entity_id = self._codec.encode_role(change.entity_id)
-            if change.change_type == ChangeType.CREATE:
-                self._client.batch_create_roles([change.after])
-            elif change.change_type == ChangeType.UPDATE:
-                self._client.update_role(
-                    d_entity_id,
-                    {
-                        "name": (change.after or {}).get("name", ""),
-                        "description": (change.after or {}).get("description", ""),
-                    },
-                )
-                before_actions = (change.before or {}).get("actions", []) or []
-                after_actions = (change.after or {}).get("actions", []) or []
+        """执行单个 Change；失败统一包装为 MigrationFailed（与 v3 V3Migrator 对齐）。"""
+        try:
+            if change.kind == EntityKind.SYSTEM:
+                if change.change_type == ChangeType.CREATE:
+                    self._client.create_system(change.after or {})
+                elif change.change_type == ChangeType.UPDATE:
+                    self._client.update_system(change.after or {})
+            elif change.kind == EntityKind.RESOURCE_TYPE:
+                d_entity_id = self._codec.encode_resource_type(change.entity_id)
+                if change.change_type == ChangeType.CREATE:
+                    self._client.batch_create_resource_types([change.after])
+                elif change.change_type == ChangeType.UPDATE:
+                    self._client.update_resource_type(d_entity_id, change.after or {})
+                elif change.change_type == ChangeType.DELETE:
+                    self._client.delete_resource_type(d_entity_id)
+            elif change.kind == EntityKind.ACTION:
+                d_entity_id = self._codec.encode_action(change.entity_id)
+                if change.change_type == ChangeType.CREATE:
+                    self._client.batch_create_actions([change.after])
+                elif change.change_type == ChangeType.UPDATE:
+                    self._client.update_action(d_entity_id, {"name": (change.after or {}).get("name", "")})
+                elif change.change_type == ChangeType.DELETE:
+                    self._client.delete_action(d_entity_id)
+            elif change.kind == EntityKind.ROLE:
+                d_entity_id = self._codec.encode_role(change.entity_id)
+                if change.change_type == ChangeType.CREATE:
+                    self._client.batch_create_roles([change.after])
+                elif change.change_type == ChangeType.UPDATE:
+                    self._client.update_role(
+                        d_entity_id,
+                        {
+                            "name": (change.after or {}).get("name", ""),
+                            "description": (change.after or {}).get("description", ""),
+                        },
+                    )
+                    before_actions = (change.before or {}).get("actions", []) or []
+                    after_actions = (change.after or {}).get("actions", []) or []
 
-                def _key(a: dict) -> tuple:
-                    return (a.get("id", ""), a.get("resource_type_id", ""))
+                    def _key(a: dict) -> tuple:
+                        return (a.get("id", ""), a.get("resource_type_id", ""))
 
-                before_map = {_key(a): a for a in before_actions}
-                after_map = {_key(a): a for a in after_actions}
-                to_remove = [before_map[k] for k in before_map.keys() - after_map.keys()]
-                to_add = [after_map[k] for k in after_map.keys() - before_map.keys()]
-                if to_remove:
-                    self._client.batch_delete_role_actions(d_entity_id, to_remove)
-                if to_add:
-                    self._client.batch_create_role_actions(d_entity_id, to_add)
-            elif change.change_type == ChangeType.DELETE:
-                self._client.delete_role(d_entity_id)
+                    before_map = {_key(a): a for a in before_actions}
+                    after_map = {_key(a): a for a in after_actions}
+                    to_remove = [before_map[k] for k in before_map.keys() - after_map.keys()]
+                    to_add = [after_map[k] for k in after_map.keys() - before_map.keys()]
+                    if to_remove:
+                        self._client.batch_delete_role_actions(d_entity_id, to_remove)
+                    if to_add:
+                        self._client.batch_create_role_actions(d_entity_id, to_add)
+                elif change.change_type == ChangeType.DELETE:
+                    self._client.delete_role(d_entity_id)
+        except Exception as e:
+            raise MigrationFailed(
+                f"{change.kind.value} {change.change_type.value} {change.entity_id} failed: {e}"
+            ) from e
 
     # ================================================================
     # helpers
@@ -570,18 +576,19 @@ class V4Migrator:
     def _topology_sort(cls, changes: list[Change]) -> list[Change]:
         """按拓扑顺序排序 changes。
 
-        总体两阶段：CREATE/UPDATE 全部先执行 → DELETE 全部后执行。
-        CREATE/UPDATE 阶段内：System → RT(父→子) → Action → Role
-        DELETE 阶段内：Role → Action → RT(子→父) → System
-        （避免出现 "action 还被 role 引用就先删 action" 的问题）
+        总体两阶段：DELETE 全部先执行 → CREATE/UPDATE 后执行（先删后建）。
+        与 v3 provider 执行策略一致：平台对同名实体重建（id 变更）有约束，
+        必须先删旧再建新；同时保证依赖方向不被破坏——
+        DELETE 阶段内：Role → Action → RT(子→父) → System（引用者先删）
+        CREATE/UPDATE 阶段内：System → RT(父→子) → Action → Role（被引用者先建）
         """
 
         def key(c: Change) -> tuple:
             kind_order = cls._KIND_ORDER.get(c.kind, 99)
             depth = cls._ancestor_depth(c)
             if c.change_type == ChangeType.DELETE:
-                return (1, -kind_order, -depth, c.entity_id)
-            return (0, kind_order, depth, c.entity_id)
+                return (0, -kind_order, -depth, c.entity_id)
+            return (1, kind_order, depth, c.entity_id)
 
         return sorted(changes, key=key)
 
