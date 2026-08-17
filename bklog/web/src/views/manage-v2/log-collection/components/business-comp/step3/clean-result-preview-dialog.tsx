@@ -660,7 +660,7 @@ export default defineComponent({
           const buildStatusErrorTips = () => {
             const reasons: string[] = [];
             if (row.empty) {
-              reasons.push(t('message 捕获组未命中 key=value 片段'));
+              reasons.push(t('未从样例中匹配到有效值'));
             }
             if (row.typeErr) {
               reasons.push(t('字段类型不匹配'));
@@ -746,7 +746,7 @@ export default defineComponent({
             {row.empty && (
               <i
                 class='bk-icon icon-exclamation-circle-shape value-empty-icon'
-                v-bk-tooltips={{ content: t('message 捕获组未命中 key=value 片段'), placement: 'top' }}
+                v-bk-tooltips={{ content: t('未从样例中匹配到有效值'), placement: 'top' }}
               />
             )}
           </div>
