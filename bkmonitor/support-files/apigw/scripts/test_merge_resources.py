@@ -138,7 +138,7 @@ def test_update_service_config_apigw_contract():
     assert set(path_data) == {"post"}
     method_data = path_data["post"]
     gateway_resource = method_data["x-bk-apigateway-resource"]
-    assert method_data["operationId"] == "update_service_config"
+    assert method_data["operationId"] == "apm_update_service_config"
     assert gateway_resource["isPublic"] is False
     assert gateway_resource["allowApplyPermission"] is False
     assert gateway_resource["backend"]["method"] == "post"
