@@ -60,10 +60,10 @@ export default defineConfig({
           dest: outputDir,
           rename: 'package.json',
         },
-        {
-          src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
-          dest: outputDir,
-        },
+        // {
+        //   src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
+        //   dest: outputDir,
+        // },
       ],
     }),
     // 供 vue3 宿主使用的作用域样式副本，避免包内 bkui-vue2 样式与宿主的 bkui-vue3 互相污染
