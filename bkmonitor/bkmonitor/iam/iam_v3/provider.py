@@ -619,9 +619,12 @@ class V3PermissionProvider(PermissionProvider):
                     after={
                         "id": rt.id,
                         "name": rt.name,
+                        "name_en": v3_ext.get("name_en") or rt.id,
                         "system_id": v3_ext.get("system_id", "bk_monitorv3"),
                         "selection_mode": v3_ext.get("selection_mode", "instance"),
                         "related_instance_selections": v3_ext.get("related_instance_selections", []),
+                        # v3 平台必填：资源实例回调 API 路径（老版本在迁移 json 配置，现从 options 读）
+                        "provider_config": {"path": self._cfg.provider_config_path},
                     },
                     reason="New resource type",
                 )
@@ -641,8 +644,10 @@ class V3PermissionProvider(PermissionProvider):
                     after={
                         "id": dialect_id,
                         "name": action.name,
+                        "name_en": v3_ext.get("name_en") or action.id,
                         "type": v3_ext.get("type", ""),
                         "version": v3_ext.get("version", 1),
+                        "related_actions": v3_ext.get("related_actions", []),
                         "related_resource_types": self._build_related_resource_types(action),
                     },
                     reason="New action",
@@ -821,7 +826,15 @@ class V3PermissionProvider(PermissionProvider):
     # ================================================================
 
     def _execute_change(self, client, change) -> None:
-        """按 Change 类型调用 V3 SDK Client 执行。"""
+        """按 Change 类型调用 V3 SDK Client 执行。
+
+        CREATE/UPDATE 前统一补全 v3 平台必填字段（name_en / provider_config），
+        以覆盖任意来源的 plan（diff_snapshots / 迁移文件 / plan_migration）：
+          * name_en        —— extensions["v3"]["name_en"] 优先，缺省兜底 entity_id
+          * provider_config—— 资源类型必填，从 V3Options.provider_config_path 读取
+            （老版本配置在部署下发的 iam_migrations json，本框架统一由 options 提供，
+            不放进资源定义对象）
+        """
         from ..iam_engine.schema.diff import ChangeType, EntityKind
 
         system_id = self._cfg.system.id
@@ -837,7 +850,24 @@ class V3PermissionProvider(PermissionProvider):
                 raise RuntimeError(f"System {change.change_type.value} failed: {_msg}")
 
         elif change.kind == EntityKind.ACTION:
-            data = change.after
+            data = dict(change.after or {})
+            if change.change_type in (ChangeType.CREATE, ChangeType.UPDATE):
+                data.setdefault("name_en", change.entity_id)
+                # diff_snapshots / 迁移文件链路只产出框架概念 resource_type_id，
+                # v3 平台要求 related_resource_types（含实例选择器）+ type/version；
+                # plan_migration 链路已带完整字段，此处仅兜底补全
+                if not data.get("related_resource_types"):
+                    try:
+                        action_def = self.schema.get_action(change.entity_id)
+                        data["related_resource_types"] = self._build_related_resource_types(action_def)
+                        v3_ext = dict(action_def.extensions.get("v3", {}))
+                        data.setdefault("type", v3_ext.get("type", ""))
+                        data.setdefault("version", v3_ext.get("version", 1))
+                        data.setdefault("related_actions", v3_ext.get("related_actions", []))
+                    except Exception:
+                        pass
+                # resource_type_id 是框架概念字段，v3 平台不识别，剔除
+                data.pop("resource_type_id", None)
             if change.change_type == ChangeType.CREATE:
                 ok, _msg = client.add_action(system_id, data)
             elif change.change_type == ChangeType.UPDATE:
@@ -850,7 +880,37 @@ class V3PermissionProvider(PermissionProvider):
                 raise RuntimeError(f"Action {change.change_type.value} {data.get('id')} failed: {_msg}")
 
         elif change.kind == EntityKind.RESOURCE_TYPE:
-            data = change.after
+            data = dict(change.after or {})
+            if change.change_type in (ChangeType.CREATE, ChangeType.UPDATE):
+                data.setdefault("name_en", change.entity_id)
+                data.setdefault("provider_config", {"path": self._cfg.provider_config_path})
+                # diff/迁移文件链路只产出 id/name/ancestors，补 v3 平台字段
+                try:
+                    rt_def = self.schema.get_resource_type(change.entity_id)
+                    v3_ext = dict(rt_def.extensions.get("v3", {}))
+                    data.setdefault("system_id", v3_ext.get("system_id", "bk_monitorv3"))
+                    data.setdefault("selection_mode", v3_ext.get("selection_mode", "instance"))
+                    data.setdefault("related_instance_selections", v3_ext.get("related_instance_selections", []))
+                except Exception:
+                    v3_ext = {}
+                # 框架 ancestors -> v3 parents（平台资源拓扑；ancestor 缺失时从 schema 补）
+                if not data.get("parents"):
+                    ancestor_ids: list[str] = []
+                    raw_ancestors = data.pop("ancestors", None) or []
+                    if raw_ancestors:
+                        ancestor_ids = [a if isinstance(a, str) else a.get("id", "") for a in raw_ancestors]
+                    else:
+                        try:
+                            rt_def = self.schema.get_resource_type(change.entity_id)
+                            if rt_def.ancestor:
+                                ancestor_ids = [rt_def.ancestor]
+                        except Exception:
+                            pass
+                    ancestor_ids = [a for a in ancestor_ids if a]
+                    if ancestor_ids:
+                        data["parents"] = [
+                            {"id": a, "system_id": data.get("system_id", "bk_monitorv3")} for a in ancestor_ids
+                        ]
             if change.change_type == ChangeType.CREATE:
                 ok, _msg = client.add_resource_type(system_id, data)
             elif change.change_type == ChangeType.UPDATE:

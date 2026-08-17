@@ -30,6 +30,7 @@ class ResourceTypes:
             "v3": {
                 "system_id": "bk_monitorv3",
                 "selection_mode": "instance",
+                "name_en": "Space",
                 "related_instance_selections": [
                     {"system_id": "bk_monitorv3", "id": "space_list"},
                 ],
@@ -44,6 +45,7 @@ class ResourceTypes:
             "v3": {
                 "system_id": "bk_monitorv3",
                 "selection_mode": "instance",
+                "name_en": "APM Application",
                 "related_instance_selections": [
                     {"system_id": "bk_monitorv3", "id": "apm_application_list_v2"},
                 ],
@@ -58,6 +60,7 @@ class ResourceTypes:
             "v3": {
                 "system_id": "bk_monitorv3",
                 "selection_mode": "instance",
+                "name_en": "Grafana Dashboard",
                 "related_instance_selections": [
                     {"system_id": "bk_monitorv3", "id": "grafana_dashboard_list"},
                 ],
@@ -72,6 +75,7 @@ class ResourceTypes:
             "v3": {
                 "system_id": "bk_monitorv3",
                 "selection_mode": "instance",
+                "name_en": "RUM Application",
                 "related_instance_selections": [
                     {"system_id": "bk_monitorv3", "id": "rum_application_list_v2"},
                 ],

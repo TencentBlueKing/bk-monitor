@@ -106,6 +106,9 @@ class V3Options:
     timeout: int = 30
     chunk_size: int = 20
     max_workers: int = 1
+    #: 资源类型注册时的 provider_config.path（bkmonitor 资源实例回调 API）。
+    #: 老版本在部署下发的 iam_migrations json 中配置
+    provider_config_path: str = "/rest/v2/iam/resource/"
     extra: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -124,6 +127,7 @@ class V3Options:
             "timeout",
             "chunk_size",
             "max_workers",
+            "provider_config_path",
         }
         try:
             base_url = raw["base_url"]
@@ -147,5 +151,6 @@ class V3Options:
             timeout=int(raw.get("timeout", 30)),
             chunk_size=int(raw.get("chunk_size", 20)),
             max_workers=int(raw.get("max_workers", 1)),
+            provider_config_path=raw.get("provider_config_path", "/rest/v2/iam/resource/"),
             extra=extra,
         )

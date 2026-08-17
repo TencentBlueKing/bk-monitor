@@ -1362,6 +1362,7 @@ BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
 # ---- IAM v3 鉴权 ----
 BK_IAM_V3_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or BK_IAM_APIGATEWAY_URL
 BK_IAM_V3_SYSTEM_ID = os.getenv("BK_IAM_V3_SYSTEM_ID", BK_IAM_SYSTEM_ID)
+BKAPP_IAM_RESOURCE_PATH = os.getenv("BKAPP_IAM_RESOURCE_PATH", "/rest/v2/iam/resource/")
 
 IAM_FRAMEWORK = {
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
@@ -1395,6 +1396,7 @@ IAM_FRAMEWORK = {
                 "resolver_class": "bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver",
                 "base_url": BK_IAM_V3_API_BASE_URL,
                 "bk_tenant_id": "system",
+                "provider_config_path": BKAPP_IAM_RESOURCE_PATH,
                 "credentials": {
                     "app_code": BK_IAM_APP_CODE,
                     "app_secret": BK_IAM_APP_SECRET,
