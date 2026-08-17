@@ -545,14 +545,10 @@ export default defineComponent({
       await requestData();
     };
 
-    const handleFilterChange = (filterData: Record<string, string | string[]>) => {
-      const getFilterValue = (key: 'clean_type' | 'created_by' | 'updated_by') => {
-        const value = filterData[key];
-        return Array.isArray(value) ? value.join('') : value || '';
-      };
-      params.clean_type = getFilterValue('clean_type');
-      params.created_by = getFilterValue('created_by');
-      params.updated_by = getFilterValue('updated_by');
+    const handleFilterChange = (filterData: Record<string, string>) => {
+      params.clean_type = filterData.clean_type || '';
+      params.created_by = filterData.created_by || '';
+      params.updated_by = filterData.updated_by || '';
       isFilterSearch.value = Boolean(params.clean_type || params.created_by || params.updated_by);
       search();
     };
@@ -594,9 +590,11 @@ export default defineComponent({
       const iconClass = CLEAN_TYPE_ICON_MAP[row.clean_type];
       return (
         <div class='template-info'>
-          <div class='template-icon'>
-            {iconClass ? <i class={iconClass} /> : <i class='bk-icon icon-file' />}
-          </div>
+          {iconClass && (
+            <div class='template-icon'>
+              <i class={iconClass} />
+            </div>
+          )}
           <div class='template-meta'>
             <button
               class='template-name'

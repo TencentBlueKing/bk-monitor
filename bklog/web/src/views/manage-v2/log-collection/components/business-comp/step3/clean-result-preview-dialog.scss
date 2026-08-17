@@ -51,7 +51,6 @@
       }
     }
 
-    /* 采集下发暂未完成提示：紧挨调试样例文本 */
     .collecting-tip {
       display: inline-flex;
       align-items: center;
@@ -77,7 +76,6 @@
       }
     }
 
-    /* 刷新图标：始终在最右侧 */
     .refresh-link {
       display: inline-flex;
       align-items: center;
@@ -339,7 +337,6 @@
       }
     }
 
-    // 可编辑列内的输入框/下拉框去除边框（参考 field-list.scss 实现）
     .preview-editable-column {
       .bk-form-input {
         border: none !important;

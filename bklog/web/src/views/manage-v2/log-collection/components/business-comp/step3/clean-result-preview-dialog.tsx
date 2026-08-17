@@ -260,21 +260,6 @@ export default defineComponent({
       { immediate: true },
     );
 
-    // 模板变化时（如切换父组件模板），同步重建表格
-    watch(
-      () => props.template?.clean_template_id,
-      () => {
-        if (props.visible) {
-          if (props.template && logExampleText.value) {
-            handleDebug();
-          } else {
-            tableData.value = [];
-            initialEditableFieldsSnapshot.value = '[]';
-          }
-        }
-      },
-    );
-
     // 表格数据变化时，重新初始化 tippy 弹窗
     watch(
       () => tableData.value.length,

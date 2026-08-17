@@ -54,8 +54,7 @@ export default defineComponent({
 
     const handleConfirm = () => {
       handleCancel();
-      // 先关闭 Popover，确保 document click listener 已移除，再通知调用方执行删除。
-      setTimeout(() => emit('confirm'), 0);
+      emit('confirm');
     };
 
     const renderContent = () => (

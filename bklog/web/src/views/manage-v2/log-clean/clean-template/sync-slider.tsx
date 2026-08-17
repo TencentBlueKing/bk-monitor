@@ -155,11 +155,7 @@ export default defineComponent({
         quick-close={!isSyncing.value}
         show-mask={true}
         transfer
-        {...{
-          on: {
-            'update:isShow': handleClose,
-          },
-        }}
+        onAnimation-end={handleClose}
       >
         <template slot='header'>
           <div class='sync-slider-title'>
