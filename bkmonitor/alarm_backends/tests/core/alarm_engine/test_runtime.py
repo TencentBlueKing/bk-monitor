@@ -18,7 +18,12 @@ from alarm_backends.core.alarm_engine.contract import (
     build_trigger_strategy_ir,
     derive_input_id,
 )
-from alarm_backends.core.alarm_engine.runtime import project_detection_outcomes
+from alarm_backends.core.alarm_engine.runtime import (
+    DetectionNotFinalized,
+    prepare_finalized_threshold_batch,
+    project_detection_outcomes,
+)
+from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 
 
 def test_project_detection_outcomes_covers_every_record_and_required_level():
@@ -161,6 +166,50 @@ def test_project_detection_outcomes_rejects_non_string_level_key():
                     },
                 }
             ],
+        )
+
+
+def test_prepare_finalized_threshold_batch_uses_exact_strategy_snapshot():
+    legacy_json = json.dumps(DETECT_STRATEGY).encode()
+    record = copy.deepcopy(DETECT_RECORDS[0])
+    anomaly_output = {
+        "data": record,
+        "anomaly": {
+            "3": {
+                "anomaly_id": f"{record['record_id']}.1.2.3",
+                "anomaly_message": "threshold matched",
+            }
+        },
+    }
+
+    batch = prepare_finalized_threshold_batch(
+        tenant_id="default",
+        strategy=DETECT_STRATEGY,
+        item_id=2,
+        legacy_json=legacy_json,
+        batch_id="batch-1",
+        data_points=[record],
+        anomaly_outputs=[anomaly_output],
+        finalized=True,
+    )
+
+    assert batch["strategy_ir"]["legacy_json_b64"]
+    assert batch["strategy_ir"]["strategy_ref"]["generation"] == str(DETECT_STRATEGY["update_time"])
+    assert batch["outcomes"][0]["outcome"] == "ANOMALOUS"
+
+
+@pytest.mark.parametrize("finalized", [False, None, 0, 1, "false", object()])
+def test_prepare_finalized_threshold_batch_does_not_infer_normal_before_finalization(finalized):
+    with pytest.raises(DetectionNotFinalized):
+        prepare_finalized_threshold_batch(
+            tenant_id="default",
+            strategy=DETECT_STRATEGY,
+            item_id=2,
+            legacy_json=json.dumps(DETECT_STRATEGY).encode(),
+            batch_id="batch-1",
+            data_points=[copy.deepcopy(DETECT_RECORDS[1])],
+            anomaly_outputs=[],
+            finalized=finalized,
         )
 
 

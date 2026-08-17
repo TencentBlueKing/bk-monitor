@@ -14,9 +14,45 @@ from collections.abc import Mapping, Sequence
 from alarm_backends.core.alarm_engine.contract import (
     ContractValidationError,
     build_detection_outcome,
+    build_trigger_strategy_ir_from_legacy_config,
     validate_trigger_strategy_ir,
 )
 from alarm_backends.core.alarm_engine.encoder import encode_json_document
+
+
+class DetectionNotFinalized(ContractValidationError):
+    """Raised when a record batch cannot safely be projected as a business outcome."""
+
+
+def prepare_finalized_threshold_batch(
+    *,
+    tenant_id: str,
+    strategy: Mapping,
+    item_id: str | int,
+    legacy_json: bytes,
+    batch_id: str,
+    data_points: Sequence[Mapping],
+    anomaly_outputs: Sequence[Mapping],
+    finalized: bool,
+) -> dict:
+    """Build the first DETECT-only Threshold input batch after finalization is proven."""
+
+    if finalized is not True:
+        raise DetectionNotFinalized("detection batch is not finalized")
+    strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+        tenant_id=tenant_id,
+        purpose="DETECT",
+        strategy=strategy,
+        item_id=item_id,
+        legacy_json=legacy_json,
+    )
+    outcomes = project_detection_outcomes(
+        strategy_ir=strategy_ir,
+        batch_id=batch_id,
+        data_points=data_points,
+        anomaly_outputs=anomaly_outputs,
+    )
+    return {"strategy_ir": strategy_ir, "outcomes": outcomes}
 
 
 def project_detection_outcomes(
