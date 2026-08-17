@@ -1363,6 +1363,20 @@ BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
 BK_IAM_V3_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or BK_IAM_APIGATEWAY_URL
 BK_IAM_V3_SYSTEM_ID = os.getenv("BK_IAM_V3_SYSTEM_ID", BK_IAM_SYSTEM_ID)
 BKAPP_IAM_RESOURCE_PATH = os.getenv("BKAPP_IAM_RESOURCE_PATH", "/rest/v2/iam/resource/")
+BK_IAM_V3_SYSTEM_DESCRIPTION_EN = os.getenv(
+    "BK_IAM_V3_SYSTEM_DESCRIPTION_EN",
+    "BKMonitor is a product that monitors the host and Internet applications. "
+    "The monitoring service can be used to collect monitoring metrics of host "
+    "(system performance, component services, databases, logs, etc.), detect the "
+    "availability of Internet application services, and set alarms for metrics.",
+)
+BK_IAM_V3_SYSTEM_NAME_EN = os.getenv("BK_IAM_V3_SYSTEM_NAME_EN", "BKMonitor")
+BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
+    c.strip()
+    for c in os.getenv("BK_IAM_V3_SYSTEM_CLIENTS", "bk_monitorv3,bkci,bk_paas3,paasv3cli").split(",")
+    if c.strip()
+]
+
 
 IAM_FRAMEWORK = {
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
@@ -1404,9 +1418,10 @@ IAM_FRAMEWORK = {
                 "system": {
                     "id": BK_IAM_V3_SYSTEM_ID,
                     "name": "监控平台",
-                    "description": "蓝鲸监控平台 IAM v3 权限系统",
-                    "managers": [m.strip() for m in os.getenv("BK_IAM_V3_MANAGERS", "admin").split(",") if m.strip()],
-                    "clients": [APP_CODE],
+                    "description": "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。",
+                    "name_en": BK_IAM_V3_SYSTEM_NAME_EN,
+                    "description_en": BK_IAM_V3_SYSTEM_DESCRIPTION_EN,
+                    "clients": BK_IAM_V3_SYSTEM_CLIENTS_LIST,
                 },
             },
         },

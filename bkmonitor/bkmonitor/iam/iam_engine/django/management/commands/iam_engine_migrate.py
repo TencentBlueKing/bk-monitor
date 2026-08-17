@@ -100,9 +100,18 @@ class Command(BaseCommand):
                     )
                 elif report.success:
                     recorder.record(provider.name, migration.name, changes_count=len(report.applied))
+                    # skipped 按原因分组展示（remote_exists / no_platform_concept 等）
+                    skipped_text = ""
+                    if report.skipped:
+                        reasons: dict[str, int] = {}
+                        for _c, reason in report.skipped:
+                            reasons[reason] = reasons.get(reason, 0) + 1
+                        detail = ", ".join(f"{count} {reason}" for reason, count in sorted(reasons.items()))
+                        skipped_text = f", skipped {len(report.skipped)} ({detail})"
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"  [{provider.name}] {migration.name}: applied {len(report.applied)} change(s)"
+                            f"  [{provider.name}] {migration.name}: "
+                            f"applied {len(report.applied)} change(s){skipped_text}"
                         )
                     )
                 else:

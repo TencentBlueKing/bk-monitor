@@ -115,7 +115,10 @@ class MigrationReport:
         applied: 已成功应用的变更
         would_apply: dry-run 模式下的预执行变更
         failed: 失败的变更及错误信息
-        skipped_reason: 跳过原因（如多副本锁竞争）
+        skipped: 被跳过（未执行）的变更及原因
+                 （如 "remote_exists"：平台已存在无需操作；
+                   "no_platform_concept"：方言层无实体概念，如 v3 的角色）
+        skipped_reason: 计划级跳过原因（如多副本锁竞争）
     """
 
     provider_name: str
@@ -124,6 +127,7 @@ class MigrationReport:
     applied: list[Change] = field(default_factory=list)
     would_apply: list[Change] = field(default_factory=list)
     failed: list[tuple[Change, str]] = field(default_factory=list)
+    skipped: list[tuple[Change, str]] = field(default_factory=list)
     skipped_reason: str = ""
 
     @property

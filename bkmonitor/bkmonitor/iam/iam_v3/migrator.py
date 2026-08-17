@@ -97,13 +97,18 @@ class V3Migrator:
         changes: list[Change] = []
 
         # ---- System ----
-        system_info = {
+        # 只含"已配置"字段：name_en/description_en 为空串表示未配置（不管理，
+        # 远端保留既有值）；实际注册以 _reconcile_system_changes 为准。
+        system_info: dict = {
             "id": self._cfg.system.id,
             "name": self._cfg.system.name,
             "description": self._cfg.system.description,
-            "managers": list(self._cfg.system.managers),
             "clients": list(self._cfg.system.clients),
         }
+        if self._cfg.system.name_en:
+            system_info["name_en"] = self._cfg.system.name_en
+        if self._cfg.system.description_en:
+            system_info["description_en"] = self._cfg.system.description_en
         changes.append(
             Change(
                 kind=EntityKind.SYSTEM,
@@ -243,6 +248,11 @@ class V3Migrator:
             if change.change_type == ChangeType.NOOP:
                 continue
 
+            # ROLE：v3 平台无角色实体概念，静默跳过（不产生平台调用、不计入 applied）
+            if change.kind == EntityKind.ROLE:
+                report.skipped.append((change, "no_platform_concept"))
+                continue
+
             # SYSTEM 已在主循环前通过 _reconcile_system_changes 单独 reconcile，
             # 这里直接执行，不再经过 _reconcile_change（后者对 SYSTEM 返回 None）
             actual = (
@@ -251,6 +261,8 @@ class V3Migrator:
                 else self._reconcile_change(change, remote_actions, remote_rts)
             )
             if actual is None:
+                # reconcile 判定无需执行（如平台已存在）→ 跳过并记录原因
+                report.skipped.append((change, "remote_exists"))
                 continue
 
             if dry_run:
@@ -276,13 +288,14 @@ class V3Migrator:
         remote_system 已存在且匹配 → 替换为 NOOP。
         remote_system 已存在但不同 → 替换为 UPDATE。
 
-        平台 system 的 clients/managers 是逗号分隔字符串，且可能包含其他系统
-        注册的 client（如 bkci / bk_paas3 / paasv3cli）——本地配置只有本系统的
-        APP_CODE。因此：
-          * 本地值一律序列化为逗号串（平台 serializer 要求）；
-          * UPDATE 时 clients/managers 按"本地 ∪ 平台"合并，绝不覆盖平台已有值，
-            避免把其他系统从 client 白名单中踢掉；
-          * 元数据（name/description）以本地配置为准同步。
+        全部由 default 配置驱动（配置即权威，不做本地∪平台合并）：
+          * id/name/description/name_en/description_en/clients 均为配置字段；
+          * clients 以配置为准整体比较与同步（默认值即老版本 json 的
+            "bk_monitorv3,bkci,bk_paas3,paasv3cli"），部署方通过环境变量
+            BK_IAM_V3_SYSTEM_CLIENTS 控制白名单；
+          * name_en/description_en 默认取老版本 json 既有值（非空），
+            显式配空串 = 不管理该字段；
+          * 平台 system 模型无 managers 字段，配置契约中已移除。
         """
 
         def _to_csv(items) -> str:
@@ -291,38 +304,34 @@ class V3Migrator:
         def _csv_set(raw) -> set:
             return {x for x in (raw or "").split(",") if x}
 
-        local = {
+        # 只含已配置字段：name_en/description_en 空串时不加入（不管理）
+        local: dict = {
             "id": self._cfg.system.id,
             "name": self._cfg.system.name,
             "description": self._cfg.system.description,
-            "managers": _to_csv(self._cfg.system.managers),
             "clients": _to_csv(self._cfg.system.clients),
         }
+        if self._cfg.system.name_en:
+            local["name_en"] = self._cfg.system.name_en
+        if self._cfg.system.description_en:
+            local["description_en"] = self._cfg.system.description_en
         if remote_system is None:
             return system_changes  # 系统未注册，保留原样（CREATE）
 
-        # 元数据一致 + 本地 clients/managers 均已包含在平台现值 → NOOP
-        meta_ok = self._system_dicts_equal(local, remote_system, {"id", "name", "description"})
-        clients_ok = set(self._cfg.system.clients) <= _csv_set(remote_system.get("clients"))
-        managers_ok = set(self._cfg.system.managers) <= _csv_set(remote_system.get("managers"))
-        if meta_ok and clients_ok and managers_ok:
+        # 已配置字段（clients 按集合比较，顺序无关）与远端一致 → NOOP
+        meta_ok = self._system_dicts_equal(local, remote_system, set(local) - {"clients"})
+        clients_ok = _csv_set(local["clients"]) == _csv_set(remote_system.get("clients"))
+        if meta_ok and clients_ok:
             return [Change(kind=EntityKind.SYSTEM, change_type=ChangeType.NOOP, entity_id=self._cfg.system.id)]
 
-        # UPDATE：clients/managers 与平台合并（保留其他系统注册值），元数据用本地
-        merged = {
-            "id": self._cfg.system.id,
-            "name": self._cfg.system.name,
-            "description": self._cfg.system.description,
-            "managers": _to_csv(sorted(set(self._cfg.system.managers) | _csv_set(remote_system.get("managers")))),
-            "clients": _to_csv(sorted(set(self._cfg.system.clients) | _csv_set(remote_system.get("clients")))),
-        }
+        # UPDATE：以本地配置为准整体同步（clients 不做合并，按配置覆盖）
         return [
             Change(
                 kind=EntityKind.SYSTEM,
                 change_type=ChangeType.UPDATE,
                 entity_id=self._cfg.system.id,
                 before=remote_system,
-                after=merged,
+                after=local,
                 reason="System config differs",
             )
         ]
@@ -418,7 +427,7 @@ class V3Migrator:
             data = self._enrich_resource_type_payload(change, dict(change.after or {}))
             self._apply_resource_type_change(client, change, data)
             return
-        # ROLE：v3 平台无角色概念，静默跳过（无平台调用）
+        # ROLE：防御分支（正常路径已在 apply 循环前置进 skipped，见 apply_migration）
 
     def _v3_ext_of(self, data: dict, lookup: Callable[[], ActionDef | ResourceTypeDef]) -> tuple:
         """取 v3 方言字段与实体定义。

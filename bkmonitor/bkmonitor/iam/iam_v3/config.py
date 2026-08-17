@@ -42,20 +42,26 @@ class V3Credentials:
 
 @dataclass(frozen=True)
 class V3SystemInfo:
-    """V3 Provider 的接入系统信息契约。
+    """V3 Provider 的接入系统信息契约（对齐平台 system 模型字段）。
 
     Attributes:
-        id:           系统唯一标识（如 "bk_monitorv3"）
-        name:         系统展示名
-        description:  系统描述
-        managers:     系统管理员用户名列表
-        clients:      允许调用该系统权限的蓝鲸应用列表
+        id:             系统唯一标识（如 "bk_monitorv3"）
+        name:           系统展示名
+        description:    系统描述
+        name_en:        系统英文名；空串 = 未配置（系统迁移不管理，保留远端值）
+        description_en: 系统英文描述；空串 = 未配置（同上）
+        clients:        允许调用该系统权限的蓝鲸应用列表
+
+    注：平台 system 模型无 managers 字段（老版本迁移 json 亦无），
+    故配置契约中不提供；老 json 的 name_en/description_en 由远端保留，
+    本地为空串时不参与比较与更新。
     """
 
     id: str
     name: str
     description: str = ""
-    managers: tuple[str, ...] = ()
+    name_en: str = ""
+    description_en: str = ""
     clients: tuple[str, ...] = ()
 
     @classmethod
@@ -65,12 +71,14 @@ class V3SystemInfo:
                 id=raw["id"],
                 name=raw["name"],
                 description=raw.get("description", ""),
-                managers=tuple(raw.get("managers", ())),
+                name_en=raw.get("name_en", ""),
+                description_en=raw.get("description_en", ""),
                 clients=tuple(raw.get("clients", ())),
             )
         except KeyError as exc:
             raise ValueError(
-                f"V3 system 缺少必填字段 {exc.args[0]!r}; 需要: id, name (可选: description, managers, clients)"
+                f"V3 system 缺少必填字段 {exc.args[0]!r}; "
+                "需要: id, name (可选: description, name_en, description_en, clients)"
             ) from exc
 
 

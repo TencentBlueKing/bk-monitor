@@ -158,6 +158,8 @@ class V4Migrator:
             # reconcile：将"本地期望"与"远端实际"对照，决定真实操作
             actual = self._reconcile_change(change, remote_actions, remote_rts, remote_roles)
             if actual is None:
+                # reconcile 判定无需执行（如平台已存在）→ 跳过并记录原因
+                report.skipped.append((change, "remote_exists"))
                 continue
 
             if dry_run:
