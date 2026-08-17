@@ -85,6 +85,11 @@ export const allRouteConfig: IRouteConfig[] = [
     name: 'route-RUM',
     route: 'rum',
   },
+  {
+    id: 'ai-config',
+    name: 'route-AI设置',
+    route: 'ai-config',
+  },
 ];
 
 export const createRouteConfig = () => allRouteConfig;

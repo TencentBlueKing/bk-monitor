@@ -557,4 +557,8 @@ export default {
   去关联: 'Go to Association',
   恢复默认: 'Restore Default',
   删除分组: 'Delete Group',
+
+  // AI设置
+  刷新状态: 'Refresh Status',
+  立即添加: 'Add Now',
 };

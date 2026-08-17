@@ -25,13 +25,10 @@
  */
 import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
 import {
-  deleteSourceAnalysisRule,
   getSourceAnalysisConfig,
   listSourceAnalysisBkciProjects,
   listSourceAnalysisBkciRepositories,
-  listSourceAnalysisRules,
   saveSourceAnalysisConfig,
-  updateSourceAnalysisRule,
 } from 'monitor-api/modules/issue';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 
@@ -45,7 +42,6 @@ import type {
   TBkciRepositoriesResult,
   TGetSourceAnalysisConfigResult,
   TSaveSourceAnalysisConfigParams,
-  TSourceAnalysisRule,
 } from '../typings';
 
 /** 获取 AI 设置配置，失败返回 null 由调用方决定降级表现 */
@@ -81,13 +77,3 @@ export const setSaveSourceAnalysisConfig = (params: TSaveSourceAnalysisConfigPar
 /** 查询业务代码库配置 */
 export const getSourceAnalysisConfigData = (params = {}): Promise<TGetSourceAnalysisConfigResult> =>
   getSourceAnalysisConfig(params);
-/** 查询规则列表 */
-export const getListSourceAnalysisRules = (params = {}): Promise<TSourceAnalysisRule[]> =>
-  listSourceAnalysisRules(params);
-/** 局部修改、启停或调整优先级 */
-export const updateSourceAnalysisRuleApi = (
-  id: number,
-  params: Partial<TSourceAnalysisRule>
-): Promise<TSourceAnalysisRule> => updateSourceAnalysisRule(id, params);
-/** 删除规则 */
-export const deleteSourceAnalysisRuleApi = (id: number) => deleteSourceAnalysisRule(id);

@@ -25,7 +25,7 @@
  */
 import { defineComponent, onMounted, shallowRef, watch } from 'vue';
 
-import { Button, InfoBox, Input, Select } from 'bkui-vue';
+import { Button, InfoBox, Input, Message, Select } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { debounce } from 'lodash';
 import OverflowTips from 'trace/directive/overflow-tips';
@@ -33,16 +33,23 @@ import { useI18n } from 'vue-i18n';
 
 import { useBkciProjectsSelect } from '../../composables/use-bkci-projects-select';
 import { useBkciRepositoriesSelect } from '../../composables/use-bkci-repositories-select';
+import { SidesliderTypeEnum } from '../../constants';
+import { getSourceAnalysisConfigData, setSaveSourceAnalysisConfig } from '../../services/ai-config';
 import {
-  deleteSourceAnalysisRuleApi,
-  getListSourceAnalysisRules,
-  getSourceAnalysisConfigData,
-  setSaveSourceAnalysisConfig,
-} from '../../services/ai-config';
+  createSourceAnalysisRule,
+  deleteSourceAnalysisRule,
+  listSourceAnalysisRules,
+  updateSourceAnalysisRule,
+} from '../../services/source-analysis-rule';
 import AnalysisConfigSideslider from '../analysis-config-sideslider/analysis-config-sideslider';
 import AnalysisRuleTable from '../analysis-rule-table/analysis-rule-table';
 
-import type { TSourceAnalysisRule } from '../../typings';
+import type {
+  ConfirmPayload,
+  CreateSourceAnalysisRuleParams,
+  SidesliderType,
+  SourceAnalysisRuleDto,
+} from '../../typings';
 
 import './source-code-analysis.scss';
 
@@ -65,13 +72,17 @@ export default defineComponent({
     /** 源码仓库下拉选择（依赖蓝盾项目） */
     const repositoriesSelect = useBkciRepositoriesSelect({ bkciProjectId });
     /** 源码分析规则列表（当前为 mock 数据，后续接入真实接口） */
-    const sourceAnalysisRules = shallowRef<TSourceAnalysisRule[]>([]);
+    const sourceAnalysisRules = shallowRef<SourceAnalysisRuleDto[]>([]);
 
     /** 规则搜索关键字 */
     const searchValue = shallowRef('');
 
     /** 新增绑定侧弹窗显隐状态 */
     const showBindModal = shallowRef(false);
+    /** 侧弹窗操作类型：新增 / 编辑 */
+    const sidesliderType = shallowRef<SidesliderType>(SidesliderTypeEnum.ADD);
+    /** 编辑态当前规则 id */
+    const editRuleId = shallowRef<number>();
 
     /** 蓝盾项目必填校验错误提示 */
     const projectErrMsg = shallowRef('');
@@ -83,18 +94,50 @@ export default defineComponent({
     const rulesLoading = shallowRef(false);
 
     /**
-     * @description 打开新增绑定侧弹窗
+     * @description 统一控制侧弹窗显隐，并在关闭时重置操作类型与规则 id
+     * @param show 是否展示
+     * @param config 打开时携带的操作类型与规则 id（关闭时无需传）
+     * @param config.type 侧弹窗操作类型，缺省时默认为新增
+     * @param config.ruleId 编辑态下当前规则 id，新增态不传
      */
-    const handleOpenBindModal = () => {
-      showBindModal.value = true;
+    const handleRuleSliderChange = (
+      show: boolean,
+      config?: {
+        ruleId?: number;
+        type?: SidesliderType;
+      }
+    ) => {
+      sidesliderType.value = config?.type ?? SidesliderTypeEnum.ADD;
+      editRuleId.value = config?.ruleId;
+      showBindModal.value = show;
     };
 
     /**
      * @description 提交绑定
+     * 侧弹窗准备好参数后抛出，父组件按 新增/编辑 态执行接口，
+     * 成功后 resolve 并关闭弹窗，失败 reject 保留弹窗。
+     * @param payload 侧弹窗抛出的提交载荷
+     * @param payload.params 新增/编辑规则接口所需参数
+     * @param payload.resolve 提交成功回调，通知侧弹窗关闭 loading
+     * @param payload.reject 提交失败回调，通知侧弹窗保留并恢复按钮态
      */
-    const handleBindConfirm = () => {
-      // TODO: 提交绑定逻辑
-      showBindModal.value = false;
+    const handleBindConfirm = async (payload: ConfirmPayload) => {
+      const isEditMode = sidesliderType.value === SidesliderTypeEnum.EDIT;
+      try {
+        if (isEditMode && editRuleId.value) {
+          await updateSourceAnalysisRule(editRuleId.value, payload.params as Partial<CreateSourceAnalysisRuleParams>);
+          Message({ theme: 'success', message: t('编辑成功') });
+        } else {
+          await createSourceAnalysisRule(payload.params as CreateSourceAnalysisRuleParams);
+          Message({ theme: 'success', message: t('新增成功') });
+        }
+        payload.resolve();
+        handleRuleSliderChange(false);
+        handleFetchRules();
+      } catch {
+        payload.reject();
+        Message({ theme: 'error', message: isEditMode ? t('编辑失败') : t('新增失败') });
+      }
     };
 
     /**
@@ -136,7 +179,7 @@ export default defineComponent({
     const handleFetchRules = async () => {
       rulesLoading.value = true;
       try {
-        const rules = await getListSourceAnalysisRules().catch(() => []);
+        const rules = await listSourceAnalysisRules().catch(() => []);
         sourceAnalysisRules.value = rules ?? [];
       } finally {
         rulesLoading.value = false;
@@ -176,23 +219,19 @@ export default defineComponent({
     };
 
     /** 规则局部更新（启停等）：将更新后的规则回写到列表对应项 */
-    const handleTableUpdateRule = (rule: TSourceAnalysisRule) => {
+    const handleTableUpdateRule = (rule: SourceAnalysisRuleDto) => {
       sourceAnalysisRules.value = sourceAnalysisRules.value.map(item => (item.id === rule.id ? rule : item));
     };
 
-    /** 编辑规则：打开编辑弹窗（待接入编辑能力） */
-    const handleEditRule = (rule: TSourceAnalysisRule) => {
-      console.log(rule);
-    };
     /** 删除规则：二次确认后调用删除接口并同步移除列表项（默认策略不可删除） */
-    const handleDeleteRule = (rule: TSourceAnalysisRule) => {
+    const handleDeleteRule = (rule: SourceAnalysisRuleDto) => {
       InfoBox({
         title: t('确定删除此规则'),
         beforeClose: action => {
           console.log(action);
           if (action === 'confirm') {
             return new Promise(resolve => {
-              deleteSourceAnalysisRuleApi(rule.id)
+              deleteSourceAnalysisRule(rule.id)
                 .then(() => {
                   resolve(true);
                   sourceAnalysisRules.value = sourceAnalysisRules.value.filter(item => item.id !== rule.id);
@@ -222,6 +261,8 @@ export default defineComponent({
     return {
       t,
       showBindModal,
+      sidesliderType,
+      editRuleId,
       sourceAnalysisRules,
       searchValue,
       bkciProjectId,
@@ -244,12 +285,11 @@ export default defineComponent({
       handleRepositoriesToggle,
       handleRepositoriesSearch: handleRepositoriesSearchDebounce,
       handleRepositoriesScrollEnd: repositoriesSelect.handleScrollEnd,
-      handleOpenBindModal,
+      handleRuleSliderChange,
       handleBindConfirm,
       handleSaveConfig,
       handleClearSearch,
       handleTableUpdateRule,
-      handleEditRule,
       handleDeleteRule,
     };
   },
@@ -451,7 +491,7 @@ export default defineComponent({
                   <Button
                     outline={true}
                     theme='primary'
-                    onClick={this.handleOpenBindModal}
+                    onClick={() => this.handleRuleSliderChange(true)}
                   >
                     <Plus style='font-size: 20px; margin-right: 4px;' />
                     {this.t('新增绑定配置')}
@@ -472,13 +512,18 @@ export default defineComponent({
                   searchValue={this.searchValue}
                   onClearSearch={this.handleClearSearch}
                   onDeleteRule={this.handleDeleteRule}
-                  onEditRule={this.handleEditRule}
+                  onEditRule={(rule: SourceAnalysisRuleDto) =>
+                    this.handleRuleSliderChange(true, { type: SidesliderTypeEnum.EDIT, ruleId: rule.id })
+                  }
                   onUpdateRule={this.handleTableUpdateRule}
                 />
                 <AnalysisConfigSideslider
-                  v-model:show={this.showBindModal}
                   processName='IEG - 登陆服务'
+                  ruleId={this.editRuleId}
+                  show={this.showBindModal}
+                  type={this.sidesliderType}
                   onConfirm={this.handleBindConfirm}
+                  onUpdate:show={this.handleRuleSliderChange}
                 />
               </div>
             ),

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@antv/g6": "^4.8.25",
+    "@blueking/ai-ui-sdk": "0.4.1-beta.19",
     "@blueking/bk-user-display-name": "1.0.3-beta.3",
     "@blueking/bk-user-selector": "0.1.8",
     "@blueking/date-picker": "3.0.6",
