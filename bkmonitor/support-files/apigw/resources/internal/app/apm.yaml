@@ -1117,7 +1117,7 @@ paths:
         descriptionEn: "query apm event statistics graph"
   /app/apm/service/update_service_config/:
     post:
-      operationId: update_service_config
+      operationId: apm_update_service_config
       description: 【APM】应用下服务配置修改
       x-bk-apigateway-resource:
         isPublic: false
