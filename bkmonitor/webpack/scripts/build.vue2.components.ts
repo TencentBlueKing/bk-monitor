@@ -28,6 +28,7 @@ import { getBabelOutputPlugin } from '@rollup/plugin-babel';
 import vueTsx from '@vitejs/plugin-vue2-jsx';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
+import { analyzer } from 'vite-bundle-analyzer';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 import { scopeVue2Css } from './plugin-scope-vue2-css';
@@ -60,15 +61,14 @@ export default defineConfig({
           rename: 'package.json',
         },
         {
-          src: resolve(__dirname, './readme.vue2.md'),
+          src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
           dest: outputDir,
-          rename: 'readme.md',
         },
       ],
     }),
     // 供 vue3 宿主使用的作用域样式副本，避免包内 bkui-vue2 样式与宿主的 bkui-vue3 互相污染
     scopeVue2Css({ outDir: outputDir }),
-    // analyzer() 会在构建结束后常驻一个分析服务（默认 8888），命令不会退出，需要时再手动开启
+    analyzer()
   ],
   build: {
     copyPublicDir: false,
