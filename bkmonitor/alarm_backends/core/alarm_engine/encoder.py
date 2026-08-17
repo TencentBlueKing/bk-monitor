@@ -16,6 +16,9 @@ from typing import Any
 from alarm_backends.core.alarm_engine.contract import ContractValidationError
 
 
+MAX_TRIGGER_DECISION_BATCH_BYTES = 512 * 1024
+
+
 def _validate_json_value(value: Any, field: str = "contract payload") -> None:
     if isinstance(value, Mapping):
         for key, child in value.items():
@@ -92,4 +95,25 @@ def decode_json_document(payload: bytes | str) -> dict:
     if not isinstance(document, dict):
         raise ContractValidationError("contract payload must contain a JSON object")
     _validate_json_value(document)
+    return document
+
+
+def encode_trigger_decision_batch(document: Mapping) -> bytes:
+    from alarm_backends.core.alarm_engine.contract import validate_trigger_decision_batch
+
+    validate_trigger_decision_batch(document)
+    payload = encode_json_document(document)
+    if len(payload) > MAX_TRIGGER_DECISION_BATCH_BYTES:
+        raise ContractValidationError("trigger decision batch exceeds encoded byte limit")
+    return payload
+
+
+def decode_trigger_decision_batch(payload: bytes | str) -> dict:
+    if len(payload.encode("utf-8") if isinstance(payload, str) else payload) > MAX_TRIGGER_DECISION_BATCH_BYTES:
+        raise ContractValidationError("trigger decision batch exceeds encoded byte limit")
+    document = decode_json_document(payload)
+
+    from alarm_backends.core.alarm_engine.contract import validate_trigger_decision_batch
+
+    validate_trigger_decision_batch(document)
     return document

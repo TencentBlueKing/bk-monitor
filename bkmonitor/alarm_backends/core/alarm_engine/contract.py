@@ -23,6 +23,10 @@ SCHEMA_MAJOR = 1
 SCHEMA_MINOR = 0
 DETECTION_OUTCOME_SCHEMA = "detection-outcome"
 TRIGGER_STRATEGY_IR_SCHEMA = "trigger-strategy-ir"
+TRIGGER_DECISION_BATCH_SCHEMA = "trigger-decision-batch"
+TRIGGER_DECISION_ALGORITHM = "trigger-window-v1"
+TRIGGER_DECISION_ID_VERSION = "trigger-decision-id-v1"
+TRIGGER_PARTITION_HASH_VERSION = "trigger-input-partition-v1"
 
 FEATURE_FULL_LEVEL_EVALUATIONS = "full-level-evaluations-v1"
 FEATURE_RAW_JSON = "raw-json-v1"
@@ -291,6 +295,22 @@ def derive_input_id(
             raise ContractValidationError("input_id canonical fields must contain valid UTF-8") from exc
         if len(encoded) > 2**32 - 1:
             raise ContractValidationError("input_id canonical field exceeds uint32 length")
+        digest.update(struct.pack(">I", len(encoded)))
+        digest.update(encoded)
+    return digest.hexdigest()
+
+
+def derive_trigger_decision_id(input_id: str) -> str:
+    """Derive the stable Trigger decision coordinate shared with the Go evaluator."""
+
+    fields = (
+        TRIGGER_DECISION_ID_VERSION,
+        TRIGGER_DECISION_ALGORITHM,
+        _require_sha256(input_id, "decision_id.input_id"),
+    )
+    digest = hashlib.sha256()
+    for field in fields:
+        encoded = field.encode("utf-8")
         digest.update(struct.pack(">I", len(encoded)))
         digest.update(encoded)
     return digest.hexdigest()
@@ -719,3 +739,136 @@ def can_drive_trigger(document: Mapping, strategy_ir: Mapping) -> bool:
 
     validate_detection_outcome(document, strategy_ir)
     return document["outcome"] in {"NORMAL", "ANOMALOUS"}
+
+
+def build_trigger_decision_batch(*, strategy_ir: Mapping, batch_id: str, decisions: list[Mapping]) -> dict:
+    """Build the Trigger decision wire shared by the Go candidate and Python reference."""
+
+    validate_trigger_strategy_ir(strategy_ir)
+    document = {
+        "schema": {"name": TRIGGER_DECISION_BATCH_SCHEMA, "major": SCHEMA_MAJOR, "minor": SCHEMA_MINOR},
+        "required_features": [],
+        "partition_hash_version": TRIGGER_PARTITION_HASH_VERSION,
+        "batch_id": _require_nonempty_string(batch_id, "trigger decision batch_id"),
+        "tenant_id": strategy_ir["tenant_id"],
+        "purpose": strategy_ir["purpose"],
+        "strategy_ref": copy.deepcopy(strategy_ir["strategy_ref"]),
+        "decision_algorithm": TRIGGER_DECISION_ALGORITHM,
+        "decisions": copy.deepcopy(decisions),
+    }
+    validate_trigger_decision_batch(document)
+    return document
+
+
+def validate_trigger_decision_batch(document: Mapping) -> None:
+    document = _require_mapping(document, "trigger decision batch")
+    schema = _require_mapping(document.get("schema"), "schema")
+    schema_minor = schema.get("minor")
+    if isinstance(schema_minor, bool) or not isinstance(schema_minor, int):
+        raise ContractValidationError("schema.minor must be a non-negative 32-bit signed integer")
+    _validate_fixed_fields(
+        document,
+        "trigger decision batch",
+        required={
+            "schema",
+            "required_features",
+            "partition_hash_version",
+            "batch_id",
+            "tenant_id",
+            "purpose",
+            "strategy_ref",
+            "decision_algorithm",
+            "decisions",
+        },
+        schema_minor=schema_minor,
+    )
+    _validate_header(document, name=TRIGGER_DECISION_BATCH_SCHEMA, required_features=set())
+    if document.get("partition_hash_version") != TRIGGER_PARTITION_HASH_VERSION:
+        raise ContractValidationError("unsupported trigger decision partition hash version")
+    _require_nonempty_string(document.get("batch_id"), "trigger decision batch_id")
+    tenant_id = _require_nonempty_string(document.get("tenant_id"), "trigger decision tenant_id")
+    purpose = _normalize_purpose(document.get("purpose"))
+    strategy_ref = _normalize_strategy_ref(document.get("strategy_ref"), schema_minor=schema_minor)
+    if document.get("decision_algorithm") != TRIGGER_DECISION_ALGORITHM:
+        raise ContractValidationError("unsupported trigger decision algorithm")
+
+    decisions = document.get("decisions")
+    if not isinstance(decisions, list) or not 1 <= len(decisions) <= 500:
+        raise ContractValidationError("trigger decision batch must contain between 1 and 500 decisions")
+    input_ids = set()
+    decision_ids = set()
+    for decision in decisions:
+        _validate_trigger_decision(decision, schema_minor=schema_minor)
+        expected_input_id = derive_input_id(
+            tenant_id=tenant_id,
+            purpose=purpose,
+            strategy_id=strategy_ref["strategy_id"],
+            item_id=strategy_ref["item_id"],
+            strategy_content_sha256=strategy_ref["content_sha256"],
+            record_id=decision["record_id"],
+        )
+        if decision["input_id"] != expected_input_id:
+            raise ContractValidationError("trigger decision input_id does not match batch identity and record_id")
+        if decision["input_id"] in input_ids or decision["decision_id"] in decision_ids:
+            raise ContractValidationError("trigger decision batch contains duplicate decision identity")
+        if purpose != "DETECT" and (
+            decision["outcome"] != "UNSUPPORTED" or decision["reason_code"] != "UNSUPPORTED_STRATEGY"
+        ):
+            raise ContractValidationError("unsupported purpose requires UNSUPPORTED_STRATEGY decision")
+        input_ids.add(decision["input_id"])
+        decision_ids.add(decision["decision_id"])
+
+
+def _validate_trigger_decision(decision: Any, *, schema_minor: int) -> None:
+    decision = _validate_fixed_fields(
+        decision,
+        "trigger decision",
+        required={
+            "decision_id",
+            "input_id",
+            "record_id",
+            "outcome",
+            "reason_code",
+            "anomaly_timestamps",
+        },
+        optional={"level"},
+        schema_minor=schema_minor,
+    )
+    input_id = _require_sha256(decision.get("input_id"), "trigger decision input_id")
+    if decision.get("decision_id") != derive_trigger_decision_id(input_id):
+        raise ContractValidationError("trigger decision_id does not match canonical tuple")
+    _, source_time = _parse_record_id(decision.get("record_id"))
+    if "level" in decision:
+        _require_positive_int(decision.get("level"), "trigger decision level")
+    timestamps = decision.get("anomaly_timestamps")
+    if not isinstance(timestamps, list):
+        raise ContractValidationError("trigger decision anomaly_timestamps must be an array")
+    for timestamp in timestamps:
+        _require_source_time(timestamp, "trigger decision anomaly timestamp")
+        if timestamp > source_time:
+            raise ContractValidationError("trigger decision anomaly timestamp exceeds source time")
+    if any(right <= left for left, right in zip(timestamps, timestamps[1:])):
+        raise ContractValidationError("trigger decision anomaly_timestamps must be strictly increasing")
+
+    outcome = decision.get("outcome")
+    reason_code = decision.get("reason_code")
+    if outcome == "TRIGGER":
+        if (
+            reason_code != "TRIGGER_CONDITION_MET"
+            or "level" not in decision
+            or not timestamps
+            or timestamps[-1] != source_time
+        ):
+            raise ContractValidationError("TRIGGER decision requires condition, level and current timestamp")
+        return
+    if outcome == "NO_TRIGGER":
+        if reason_code not in {"INPUT_NORMAL", "TRIGGER_CONDITION_NOT_MET"}:
+            raise ContractValidationError("unsupported NO_TRIGGER reason_code")
+        if "level" in decision or timestamps:
+            raise ContractValidationError("NO_TRIGGER decision must not carry level or timestamps")
+        return
+    if outcome in ERROR_CODES:
+        if reason_code not in ERROR_CODES[outcome] or "level" in decision or timestamps:
+            raise ContractValidationError(f"invalid {outcome} trigger decision")
+        return
+    raise ContractValidationError(f"unsupported trigger decision outcome: {outcome}")

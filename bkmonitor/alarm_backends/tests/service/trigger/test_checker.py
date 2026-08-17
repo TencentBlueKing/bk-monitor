@@ -8,13 +8,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
+import json
 
 import arrow
 import pytest
 from django.test import TestCase
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
+from alarm_backends.core.alarm_engine.contract import (
+    build_detection_outcome,
+    build_trigger_strategy_ir_from_legacy_config,
+)
+from alarm_backends.core.alarm_engine.reference import build_reference_trigger_decision_batch
 from alarm_backends.core.cache.key import CHECK_RESULT_CACHE_KEY
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.checker import AnomalyChecker
@@ -75,7 +82,6 @@ CHECK_RESULT_SETS = {
 
 
 class TestChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     @classmethod
@@ -100,6 +106,45 @@ class TestChecker(TestCase):
 
         with self.assertRaises(StrategyItemNotFound):
             AnomalyChecker(POINT, STRATEGY, 23)
+
+    def test_alarm_engine_reference_uses_real_checker_event_shape(self):
+        self.insert_check_result(3)
+        point = copy.deepcopy(POINT)
+        strategy = copy.deepcopy(STRATEGY)
+        strategy["update_time"] = 1569246480
+        raw = json.dumps(strategy, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        _, event_record = AnomalyChecker(point, strategy, 1).check()
+        strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+            tenant_id="default",
+            purpose="DETECT",
+            strategy=strategy,
+            item_id=1,
+            legacy_json=raw,
+        )
+        evaluations = [
+            {"level": level, "result": "ANOMALOUS", "anomaly": copy.deepcopy(point["anomaly"][str(level)])}
+            for level in strategy_ir["required_levels"]
+        ]
+        detected = build_detection_outcome(
+            strategy_ir=strategy_ir,
+            batch_id="authoritative-detect-batch",
+            data_raw=point["data"],
+            evaluations=evaluations,
+            outcome="ANOMALOUS",
+        )
+
+        batch = build_reference_trigger_decision_batch(
+            strategy=strategy,
+            legacy_json=raw,
+            strategy_snapshot_key=point["strategy_snapshot_key"],
+            tenant_id_resolver=lambda _bk_biz_id: "default",
+            expected_input_id=detected["input_id"],
+            item_id=1,
+            point=point,
+            event_record=event_record,
+        )
+
+        assert batch["decisions"][0]["outcome"] == "TRIGGER"
 
     def setUp(self):
         get_node_by_strategy_id(0)

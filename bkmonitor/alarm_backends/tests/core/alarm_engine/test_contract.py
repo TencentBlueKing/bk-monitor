@@ -16,14 +16,23 @@ import pytest
 from alarm_backends.core.alarm_engine.contract import (
     ContractValidationError,
     build_detection_outcome,
+    build_trigger_decision_batch,
     build_trigger_strategy_ir,
     build_trigger_strategy_ir_from_legacy_config,
     can_drive_trigger,
     derive_input_id,
+    derive_trigger_decision_id,
     validate_detection_outcome,
+    validate_trigger_decision_batch,
     validate_trigger_strategy_ir,
 )
-from alarm_backends.core.alarm_engine.encoder import decode_json_document, encode_json_document
+from alarm_backends.core.alarm_engine.encoder import (
+    MAX_TRIGGER_DECISION_BATCH_BYTES,
+    decode_json_document,
+    decode_trigger_decision_batch,
+    encode_json_document,
+    encode_trigger_decision_batch,
+)
 
 
 LEGACY_JSON = b'{"id":1,"update_time":1569246480}'
@@ -102,6 +111,96 @@ def test_input_id_uses_frozen_length_prefixed_tuple():
     )
 
     assert input_id == EXPECTED_INPUT_ID
+
+
+def test_trigger_decision_id_matches_go_golden():
+    assert derive_trigger_decision_id("a" * 64) == "ff722dbf77ffa1b06945ab996e22adbefd6f22c32dec2173fd1ed659b874a130"
+
+
+def test_trigger_decision_batch_round_trip_contract():
+    strategy_ir = make_strategy_ir()
+    source = build_outcome()
+    decision = {
+        "decision_id": derive_trigger_decision_id(source["input_id"]),
+        "input_id": source["input_id"],
+        "record_id": source["record"]["record_id"],
+        "outcome": "NO_TRIGGER",
+        "reason_code": "INPUT_NORMAL",
+        "anomaly_timestamps": [],
+    }
+
+    batch = build_trigger_decision_batch(
+        strategy_ir=strategy_ir,
+        batch_id="python-reference-batch",
+        decisions=[decision],
+    )
+
+    validate_trigger_decision_batch(batch)
+    assert decode_trigger_decision_batch(encode_trigger_decision_batch(batch)) == batch
+    assert batch["schema"] == {"name": "trigger-decision-batch", "major": 1, "minor": 0}
+    assert batch["decision_algorithm"] == "trigger-window-v1"
+
+
+def test_trigger_decision_codec_enforces_exact_encoded_byte_limit():
+    strategy_ir = make_strategy_ir()
+    source = build_outcome()
+    decision = {
+        "decision_id": derive_trigger_decision_id(source["input_id"]),
+        "input_id": source["input_id"],
+        "record_id": source["record"]["record_id"],
+        "outcome": "NO_TRIGGER",
+        "reason_code": "INPUT_NORMAL",
+        "anomaly_timestamps": [],
+    }
+    batch = build_trigger_decision_batch(
+        strategy_ir=strategy_ir,
+        batch_id="python-reference-batch",
+        decisions=[decision],
+    )
+    batch["schema"]["minor"] = 1
+    batch["padding"] = ""
+    base_size = len(encode_json_document(batch))
+    batch["padding"] = "x" * (MAX_TRIGGER_DECISION_BATCH_BYTES - base_size)
+
+    exact = encode_trigger_decision_batch(batch)
+    assert len(exact) == MAX_TRIGGER_DECISION_BATCH_BYTES
+    assert decode_trigger_decision_batch(exact) == batch
+
+    batch["padding"] += "x"
+    with pytest.raises(ContractValidationError, match="byte limit"):
+        encode_trigger_decision_batch(batch)
+    with pytest.raises(ContractValidationError, match="byte limit"):
+        decode_trigger_decision_batch(encode_json_document(batch))
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda decision: decision.update(decision_id="0" * 64),
+        lambda decision: decision.update(record_id=f"{DIMENSIONS_MD5}.1569246481"),
+        lambda decision: decision.update(level=1),
+        lambda decision: decision.update(anomaly_timestamps=[SOURCE_TIME]),
+    ],
+)
+def test_trigger_decision_batch_rejects_identity_and_terminal_drift(mutate):
+    strategy_ir = make_strategy_ir()
+    source = build_outcome()
+    decision = {
+        "decision_id": derive_trigger_decision_id(source["input_id"]),
+        "input_id": source["input_id"],
+        "record_id": source["record"]["record_id"],
+        "outcome": "NO_TRIGGER",
+        "reason_code": "INPUT_NORMAL",
+        "anomaly_timestamps": [],
+    }
+    mutate(decision)
+
+    with pytest.raises(ContractValidationError):
+        build_trigger_decision_batch(
+            strategy_ir=strategy_ir,
+            batch_id="python-reference-batch",
+            decisions=[decision],
+        )
 
 
 def test_input_id_uses_utf8_byte_length_and_rejects_invalid_surrogate():
