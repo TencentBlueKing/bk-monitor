@@ -1057,7 +1057,19 @@ class AlertRelatedInfoResource(Resource):
             if ips:
                 hosts.extend(api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values())))
             if host_ids:
-                hosts.extend(api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=list(host_ids.values())))
+                hosts.extend(
+                    api.cmdb.get_host_by_id(
+                        bk_biz_id=bk_biz_id,
+                        bk_host_ids=list(host_ids.values()),
+                        fields=[
+                            "bk_host_id",
+                            "bk_host_innerip",
+                            "bk_host_innerip_v6",
+                            "bk_cloud_id",
+                            "bk_host_name",
+                        ],
+                    )
+                )
 
             service_instances: list[ServiceInstance] = []
             if service_instance_ids:
