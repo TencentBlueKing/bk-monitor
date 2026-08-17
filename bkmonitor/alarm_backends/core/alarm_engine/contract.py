@@ -378,24 +378,19 @@ def build_trigger_strategy_ir_from_legacy_config(
     items = strategy.get("items")
     if not isinstance(items, list) or not items:
         raise ContractValidationError("unsupported strategy without items")
+    item = None
     for strategy_item in items:
         strategy_item = _require_mapping(strategy_item, "strategy item")
-        algorithms = strategy_item.get("algorithms")
-        if not isinstance(algorithms, list) or not algorithms:
-            raise ContractValidationError("unsupported strategy item without algorithms")
-        if any(not isinstance(algorithm, Mapping) or algorithm.get("type") != "Threshold" for algorithm in algorithms):
-            raise ContractValidationError("unsupported non-Threshold algorithm")
-
-    item = next(
-        (
-            strategy_item
-            for strategy_item in items
-            if _canonical_decimal(strategy_item.get("id"), "strategy item id") == normalized_item_id
-        ),
-        None,
-    )
+        if _canonical_decimal(strategy_item.get("id"), "strategy item id") == normalized_item_id:
+            item = strategy_item
+            break
     if item is None:
         raise ContractValidationError("unsupported strategy item: item_id not found")
+    algorithms = item.get("algorithms")
+    if not isinstance(algorithms, list) or not algorithms:
+        raise ContractValidationError("unsupported strategy item without algorithms")
+    if any(not isinstance(algorithm, Mapping) or algorithm.get("type") != "Threshold" for algorithm in algorithms):
+        raise ContractValidationError("unsupported non-Threshold algorithm")
     if _require_mapping(item.get("no_data_config", {}), "no_data_config").get("is_enabled"):
         raise ContractValidationError("unsupported no-data configuration")
 

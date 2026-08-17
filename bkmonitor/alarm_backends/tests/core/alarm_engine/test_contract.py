@@ -481,6 +481,39 @@ def test_strategy_ir_adapter_uses_threshold_strategy_semantics_without_reencodin
     assert base64.b64decode(strategy_ir["legacy_json_b64"], validate=True) == legacy_json
 
 
+@pytest.mark.parametrize("target_first", [True, False])
+def test_strategy_ir_adapter_only_checks_algorithms_for_target_item(target_first):
+    target_item = {
+        "id": 1,
+        "query_configs": [{"agg_interval": 60}],
+        "algorithms": [{"level": 1, "type": "Threshold"}],
+        "no_data_config": {"is_enabled": False},
+    }
+    other_item = {
+        "id": 2,
+        "query_configs": [{"agg_interval": 60}],
+        "algorithms": [{"level": 1, "type": "IntelligentDetect"}],
+        "no_data_config": {"is_enabled": False},
+    }
+    strategy = {
+        "id": 1,
+        "update_time": SOURCE_TIME,
+        "items": [target_item, other_item] if target_first else [other_item, target_item],
+        "detects": [{"level": 1, "trigger_config": {"count": 1, "check_window": 5}}],
+    }
+
+    strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+        tenant_id="default",
+        purpose="DETECT",
+        strategy=strategy,
+        item_id=1,
+        legacy_json=encode_json_document(strategy),
+    )
+
+    assert strategy_ir["strategy_ref"]["item_id"] == "1"
+    assert strategy_ir["required_levels"] == [1]
+
+
 def test_strategy_ir_adapter_rejects_boolean_integer_type_drift():
     strategy = {
         "id": 1,
