@@ -297,7 +297,7 @@ export default defineComponent({
           </div>
           <div class={['content', { 'has-err': !!params.err }]}>
             {params.content()}
-            {/* {params.err ? <div class='err-msg'>{params.err}</div> : null} */}
+            {params.err ? <div class='err-msg'>{params.err}</div> : null}
           </div>
         </div>
       );

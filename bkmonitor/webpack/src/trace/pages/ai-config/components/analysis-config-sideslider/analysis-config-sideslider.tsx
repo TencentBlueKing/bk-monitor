@@ -23,10 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, watch } from 'vue';
 
-import { Button, Sideslider } from 'bkui-vue';
+import { Button, Input, Sideslider, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
+
+import { useMatchRuleFields } from '../../composables/use-match-rule-fields';
+import { useRuleBasicInfo } from '../../composables/use-rule-basic-info';
+import MatchRule from '../match-rule/match-rule';
 
 import './analysis-config-sideslider.scss';
 
@@ -56,6 +60,26 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const {
+      conditions,
+      priority,
+      isEnabled,
+      errors,
+      handleConditionsChange,
+      handlePriorityChange,
+      handleEnabledChange,
+      validate,
+    } = useRuleBasicInfo();
+    const { fields: matchRuleFields, fetchFields: fetchMatchRuleFields } = useMatchRuleFields();
+
+    watch(
+      () => props.show,
+      () => {
+        if (props.show) {
+          fetchMatchRuleFields();
+        }
+      }
+    );
 
     /**
      * @description 关闭抽屉
@@ -65,9 +89,10 @@ export default defineComponent({
     };
 
     /**
-     * @description 确认提交
+     * @description 确认提交：先校验基础信息，通过后抛出 confirm 事件
      */
     const handleConfirm = () => {
+      if (!validate()) return;
       emit('confirm');
     };
 
@@ -87,7 +112,56 @@ export default defineComponent({
           <div class='main-section-header'>
             <div class='main-section-title'>{t('基础信息')}</div>
           </div>
-          <div class='main-section-content'>{/* 告警策略匹配规则、优先级、状态等详细内容待实现 */}</div>
+          <div class='main-section-content'>
+            <div class='form-item'>
+              <div class='form-item-label'>
+                <span>{t('告警策略匹配规则')}</span>
+                <span class='required-star'>*</span>
+              </div>
+              <div class='form-item-content'>
+                <MatchRule
+                  fields={matchRuleFields.value}
+                  value={conditions.value}
+                  onUpdate:value={handleConditionsChange}
+                />
+                {errors.value?.conditions && <div class='form-item-error'>{errors.value.conditions}</div>}
+              </div>
+            </div>
+            <div class='form-items mt-24'>
+              <div class='form-item'>
+                <div class='form-item-label'>
+                  <span>{t('优先级')}</span>
+                  <span class='required-star'>*</span>
+                  <span class='form-item-label-tip'>
+                    <span class='icon-monitor icon-hint' />
+                    {t('数值越高，优先级越高，最大值为10000')}
+                  </span>
+                </div>
+                <div class='form-item-content'>
+                  <Input
+                    style='width: 340px'
+                    modelValue={priority.value}
+                    type='number'
+                    onUpdate:modelValue={handlePriorityChange}
+                  />
+                  {errors.value?.priority && <div class='form-item-error'>{errors.value.priority}</div>}
+                </div>
+              </div>
+              <div class='form-item'>
+                <div class='form-item-label'>
+                  <span>{t('状态')}</span>
+                  <span class='required-star'>*</span>
+                </div>
+                <div class='form-item-content'>
+                  <Switcher
+                    class='mt-6'
+                    modelValue={isEnabled.value}
+                    onChange={handleEnabledChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       );
     };
@@ -128,6 +202,13 @@ export default defineComponent({
     };
 
     return {
+      conditions,
+      priority,
+      isEnabled,
+      errors,
+      handleConditionsChange,
+      handlePriorityChange,
+      handleEnabledChange,
       renderHeader,
       renderBasicInfo,
       renderProcessParams,

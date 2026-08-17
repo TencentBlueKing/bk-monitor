@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { InfoBox, Switcher } from 'bkui-vue';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
+import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import CommonTable from 'trace/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { useI18n } from 'vue-i18n';
 
@@ -327,27 +328,30 @@ export default defineComponent({
     return (
       <div class='ai-config-analysis-rule-table'>
         {/* 过滤结果为空且非加载中时，展示自定义空状态 */}
-        <CommonTable
-          empty={
-            (this.isEmpty
-              ? () => (
-                  <EmptyStatus
-                    scene='part'
-                    type={this.emptyType}
-                    onOperation={this.handleClearSearch}
-                  />
-                )
-              : undefined) as any
-          }
-          activeRowType={null}
-          columns={this.tableColumns}
-          data={this.filteredData}
-          filterValue={this.columnFilter}
-          loading={this.loading}
-          sort={this.sortValue}
-          onFilterChange={this.handleColumnFilter}
-          onSortChange={this.handleSortChange as any}
-        />
+        {this.loading ? (
+          <TableSkeleton type={2} />
+        ) : (
+          <CommonTable
+            empty={
+              (this.isEmpty
+                ? () => (
+                    <EmptyStatus
+                      scene='part'
+                      type={this.emptyType}
+                      onOperation={this.handleClearSearch}
+                    />
+                  )
+                : undefined) as any
+            }
+            activeRowType={null}
+            columns={this.tableColumns}
+            data={this.filteredData}
+            filterValue={this.columnFilter}
+            sort={this.sortValue}
+            onFilterChange={this.handleColumnFilter}
+            onSortChange={this.handleSortChange as any}
+          />
+        )}
       </div>
     );
   },
