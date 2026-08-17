@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, set, watch } from 'vue';
+import { computed, ref, set, watch, onMounted, onUpdated } from 'vue';
 
 import {
   getOperatorKey,
@@ -8,7 +8,6 @@ import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
-import jsCookie from 'js-cookie';
 
 import IPSelector from '../components/ip-selector';
 import { operatorMapping, translateKeys } from '../utils/const-values';
@@ -19,8 +18,11 @@ import {
   getInputQueryIpSelectItem,
 } from '../utils/const.common';
 import useFocusInput from '../utils/use-focus-input';
+import { hostHasRenderableContent } from '../utils/host-has-content';
+import { getAiSpanPaddingLeft, getCustomPlaceholderStyle } from '../utils/get-ai-span-padding';
 import UiInputOptions from './ui-input-option.vue';
 import RetrieveHelper from '@/views/retrieve-helper';
+import jsCookie from 'js-cookie';
 
 const props = defineProps({
   value: {
@@ -40,19 +42,6 @@ const { t } = useLocale();
 const popoverRefs = ref(new Map());
 const morePopoverRefs = ref([]);
 
-const language = (jsCookie.get('blueking_language') || 'zh-cn');
-const aiSpanPadding = ({
-  en: '126px',
-  'zh-cn': '94px',
-});
-
-const paddingLeft = computed(() => {
-  if (inputValueLength.value === 0) {
-    return aiSpanPadding[language];
-  }
-
-  return '0px';
-});
 const setPopoverRef = (el, parentIndex, childIndex) => {
   const key = `${parentIndex}-${childIndex}`;
   if (el) {
@@ -67,6 +56,25 @@ const setMorePopoverRef = (el, index) => {
   }
 };
 const inputValueLength = ref(0);
+
+const language = jsCookie.get('blueking_language') || 'zh-cn';
+
+const paddingLeft = computed(() => getAiSpanPaddingLeft(language, inputValueLength.value));
+
+const refCustomPlaceholder = ref(null);
+const isCustomPlaceholderEmpty = ref(true);
+
+const syncCustomPlaceholderEmpty = () => {
+  isCustomPlaceholderEmpty.value = !hostHasRenderableContent(refCustomPlaceholder.value);
+};
+
+onMounted(syncCustomPlaceholderEmpty);
+onUpdated(syncCustomPlaceholderEmpty);
+
+const customPlaceholderStyle = computed(() => getCustomPlaceholderStyle(
+  isCustomPlaceholderEmpty.value,
+  paddingLeft.value,
+));
 
 // const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
@@ -786,8 +794,10 @@ const formatDateTimeField = (value, fieldType) => {
       >
     </li>
     <li
-      class="search-item"
-      :style="{'margin-left': paddingLeft}"
+      ref="refCustomPlaceholder"
+      class="search-item custom-placeholder-item"
+      :class="{ 'is-slot-empty': isCustomPlaceholderEmpty }"
+      :style="customPlaceholderStyle"
     >
       <slot
         name="custom-placeholder"
