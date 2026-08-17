@@ -15,6 +15,7 @@ from apps.iam.views.resources_v4 import (
     V4EsSourceResourceProvider,
     V4IndicesResourceProvider,
     V4SpaceResourceProvider,
+    _attach_space_paths,
     _fix_approver_field,
     _fix_nested_path_to_string,
 )
@@ -82,6 +83,13 @@ class FixHelperTest(SimpleTestCase):
         self.assertNotIn("_bk_iam_approver_", results[0])
         self.assertEqual(results[1]["_bk_iam_approvers_"], [])
         self.assertNotIn("_bk_iam_approver_", results[1])
+
+    def test_attach_space_paths_encodes_negative_space_id(self):
+        results = [{"id": "1", "display_name": "c1"}]
+
+        _attach_space_paths(results, {"1": "-5423"})
+
+        self.assertEqual(results[0]["_bk_iam_path_"], "/space,neg_5423/")
 
 
 class V4SpaceResourceProviderTest(SimpleTestCase):
@@ -231,6 +239,23 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
 
         self.assertEqual(search_mock.call_args.args[0].parent["id"], "-5423")
 
+    def test_v4_collection_parent_and_keyword_reuses_search_instance(self):
+        provider = V4CollectionResourceProvider()
+        filter_obj = _list_filter(
+            parent={"type": "space", "id": "neg_5423"},
+            search={"collection": ["采集"]},
+            resource_type_chain=[{"id": "space"}, {"id": "collection"}],
+        )
+
+        with patch.object(CollectionResourceProvider, "search_instance", return_value=ListResult([], 0)) as search_mock:
+            with patch.object(CollectionResourceProvider, "list_instance") as list_mock:
+                provider.list_instance(filter_obj, _page(), bk_tenant_id="tenant-1")
+
+        search_mock.assert_called_once()
+        list_mock.assert_not_called()
+        self.assertEqual(search_mock.call_args.args[0].keyword, "采集")
+        self.assertEqual(search_mock.call_args.args[0].parent["id"], "-5423")
+
     def test_v4_collection_policy_decodes_negative_space_id_in_path(self):
         provider = V4CollectionResourceProvider()
         filter_obj = _policy_filter(
@@ -253,7 +278,14 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
     def test_v4_collection_fetch_instance_info_converts_approver(self):
         provider = V4CollectionResourceProvider()
         legacy = ListResult(
-            results=[{"id": "1", "display_name": "c1", "_bk_iam_approver_": "admin"}],
+            results=[
+                {
+                    "id": "1",
+                    "display_name": "c1",
+                    "_bk_iam_approver_": "admin",
+                    "_bk_iam_path_": [[{"type": "space", "id": "10", "display_name": "10"}]],
+                }
+            ],
             count=1,
         )
 
@@ -262,6 +294,21 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
 
         self.assertEqual(result.results[0]["_bk_iam_approvers_"], ["admin"])
         self.assertNotIn("_bk_iam_approver_", result.results[0])
+        self.assertEqual(result.results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},10/")
+
+    def test_v4_collection_fetch_attaches_encoded_space_path_from_lookup(self):
+        provider = V4CollectionResourceProvider()
+        legacy = ListResult(
+            results=[{"id": "1", "display_name": "c1", "_bk_iam_approver_": "admin"}],
+            count=1,
+        )
+
+        with patch.object(CollectionResourceProvider, "fetch_instance_info", return_value=legacy):
+            with patch.object(provider, "_instance_space_ids", return_value={"1": "-5423"}):
+                result = provider.fetch_instance_info(_fetch_filter(ids=["1"]), bk_tenant_id="tenant-1")
+
+        self.assertEqual(result.results[0]["_bk_iam_path_"], "/space,neg_5423/")
+        self.assertEqual(result.results[0]["_bk_iam_approvers_"], ["admin"])
 
     def test_v4_indices_list_and_fetch_format(self):
         provider = V4IndicesResourceProvider()
@@ -276,7 +323,14 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
             count=1,
         )
         legacy = ListResult(
-            results=[{"id": "9", "display_name": "idx", "_bk_iam_approver_": "alice"}],
+            results=[
+                {
+                    "id": "9",
+                    "display_name": "idx",
+                    "_bk_iam_approver_": "alice",
+                    "_bk_iam_path_": [[{"type": "space", "id": "5", "display_name": "5"}]],
+                }
+            ],
             count=1,
         )
 
@@ -288,6 +342,7 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
         self.assertEqual(listed.results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},5/")
         self.assertEqual(fetched.results[0]["_bk_iam_approvers_"], ["alice"])
         self.assertNotIn("_bk_iam_approver_", fetched.results[0])
+        self.assertEqual(fetched.results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},5/")
 
     def test_v4_es_source_list_and_fetch_format(self):
         provider = V4EsSourceResourceProvider()
@@ -302,7 +357,14 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
             count=1,
         )
         legacy = ListResult(
-            results=[{"id": "3", "display_name": "es", "_bk_iam_approver_": "bob"}],
+            results=[
+                {
+                    "id": "3",
+                    "display_name": "es",
+                    "_bk_iam_approver_": "bob",
+                    "_bk_iam_path_": [[{"type": "space", "id": "7", "display_name": "7"}]],
+                }
+            ],
             count=1,
         )
 
@@ -314,6 +376,7 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
         self.assertEqual(listed.results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},7/")
         self.assertEqual(fetched.results[0]["_bk_iam_approvers_"], ["bob"])
         self.assertNotIn("_bk_iam_approver_", fetched.results[0])
+        self.assertEqual(fetched.results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},7/")
 
 
 class EsSourceCrashFixAndIsolationTest(SimpleTestCase):
