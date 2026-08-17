@@ -57,6 +57,7 @@ from constants.issue import (
     IssueActivityType,
     IssuePriority,
     IssueStatus,
+    SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
     SourceAnalysisResultType,
     SourceAnalysisStage,
@@ -88,6 +89,11 @@ from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
+from fta_web.issue.source_analysis_result import (
+    SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
+    SourceAnalysisResultValidationError,
+    SourceAnalysisResultValidator,
+)
 from fta_web.tasks import run_source_analysis_execution
 from fta_web.constants import TapdWorkspaceBindStatus
 from fta_web.issue.utils.tapd import (
@@ -439,9 +445,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
         is_failed = execution.status == SourceAnalysisStatus.FAILED
         failure = None
         if is_failed:
+            failure_message = execution.failure_message
+            if failure_message in SourceAnalysisFailureMessage.LOCALIZED_MESSAGES:
+                failure_message = _(failure_message)
             failure = {
                 "code": execution.failure_code,
-                "message": execution.failure_message,
+                "message": failure_message,
                 "retryable": bool(execution.failure_retryable),
                 "request_id": execution.failure_request_id,
             }
@@ -1022,7 +1031,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
                 failure_code="BKFARA_INVALID_RESPONSE",
-                failure_message="BKFara 创建任务响应缺少 task_id",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_CREATE_MISSING_TASK_ID,
                 failure_retryable=False,
             )
             return False
@@ -1040,7 +1049,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
                 failure_code="BKFARA_TASK_ID_CONFLICT",
-                failure_message="相同 analysis_id 返回了不同的 BKFara task_id",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_ID_CONFLICT,
                 failure_retryable=False,
             )
             return False
@@ -1093,7 +1102,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
                 failure_code="BKFARA_INVALID_RESPONSE",
-                failure_message="BKFara 任务状态响应非法",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_STATE_INVALID,
                 failure_retryable=False,
             )
             return False
@@ -1107,9 +1116,9 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 stage = SourceAnalysisStage.ANALYZING
             return cls._mark_running(execution, stage)
         if status == cls.BKFARA_SUCCESS:
-            # PR 9 会在此阶段拉取、校验并持久化结果；本 PR 不写入未经校验的结果。
-            cls._mark_running(execution, SourceAnalysisStage.VALIDATING)
-            return False
+            if not cls._mark_running(execution, SourceAnalysisStage.VALIDATING):
+                return False
+            return cls._fetch_validate_and_persist_result(execution)
 
         failure = task_state.get("failure") or {}
         if not isinstance(failure, dict):
@@ -1121,10 +1130,50 @@ class SourceAnalysisExecutionBaseResource(Resource):
             execution,
             failure_stage=failure_stage,
             failure_code=str(failure.get("code") or "BKFARA_TASK_FAILED"),
-            failure_message=str(failure.get("message") or "BKFara 源码分析任务执行失败"),
+            failure_message=str(failure.get("message") or SourceAnalysisFailureMessage.BKFARA_TASK_FAILED),
             failure_retryable=bool(failure.get("retryable", False)),
             failure_request_id=failure.get("request_id"),
         )
+        return False
+
+    @classmethod
+    def _fetch_validate_and_persist_result(cls, execution: IssueSourceAnalysisExecution) -> bool:
+        """成功任务只持久化通过 v1.0.0 Schema 与业务语义校验的结果。"""
+
+        try:
+            raw_result = api.bk_incident.get_source_analysis_result(
+                bk_biz_id=execution.bk_biz_id,
+                task_id=execution.bkfara_task_id,
+            )
+        except Exception as error:
+            return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.RESULT_FETCH, error)
+
+        try:
+            result = SourceAnalysisResultValidator.validate(raw_result)
+        except SourceAnalysisResultValidationError as error:
+            logger.warning(
+                "Invalid BKFara source analysis result: analysis_id=%s, code=%s, path=%s",
+                execution.analysis_id,
+                error.code,
+                error.path,
+            )
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.RESULT_VALIDATE,
+                failure_code=error.code,
+                failure_message=error.safe_message,
+                failure_retryable=True,
+            )
+            return False
+
+        try:
+            execution.mark_success(
+                result_type=result["result_type"],
+                result_payload=result,
+                result_schema_version=SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
+            )
+        except SourceAnalysisInvalidStatusTransitionError:
+            execution.refresh_from_db()
         return False
 
     @classmethod
@@ -1149,7 +1198,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             execution,
             failure_stage=failure_stage,
             failure_code=str(error_data.get("code") or type(error).__name__),
-            failure_message=str(error_data.get("message") or "BKFara 请求失败"),
+            failure_message=str(error_data.get("message") or SourceAnalysisFailureMessage.BKFARA_REQUEST_FAILED),
             failure_retryable=False,
             failure_request_id=error_data.get("request_id"),
         )

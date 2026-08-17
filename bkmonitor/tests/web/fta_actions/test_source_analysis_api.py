@@ -20,6 +20,7 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisExecution, IssueSourceAnalysisRule
 from bkmonitor.utils.user import set_local_username
 from constants.issue import (
+    SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
     SourceAnalysisResultType,
     SourceAnalysisStatus,
@@ -184,6 +185,39 @@ class TestSourceAnalysisFrontendResources(TestCase):
             },
         )
         get_latest_alert.assert_not_called()
+
+    @patch("fta_web.issue.resources._", side_effect=lambda message: f"translated:{message}")
+    def test_local_failure_message_is_translated_when_serialized(self, translate):
+        execution = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            stage=None,
+            failure_code="RESULT_SCHEMA_INVALID",
+            failure_message=SourceAnalysisFailureMessage.RESULT_SCHEMA_INVALID,
+            failure_retryable=True,
+        )
+
+        result = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+
+        self.assertEqual(
+            result["failure"]["message"],
+            f"translated:{SourceAnalysisFailureMessage.RESULT_SCHEMA_INVALID}",
+        )
+        translate.assert_called_once_with(SourceAnalysisFailureMessage.RESULT_SCHEMA_INVALID)
+
+    @patch("fta_web.issue.resources._")
+    def test_upstream_failure_message_is_not_translated(self, translate):
+        execution = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            stage=None,
+            failure_code="UPSTREAM_ERROR",
+            failure_message="upstream dynamic message",
+            failure_retryable=False,
+        )
+
+        result = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+
+        self.assertEqual(result["failure"]["message"], "upstream dynamic message")
+        translate.assert_not_called()
 
     def test_success_returns_current_matched_rule_for_reanalysis(self):
         self.create_execution(
