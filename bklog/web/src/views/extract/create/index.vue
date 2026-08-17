@@ -166,6 +166,7 @@
 
 <script>
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+  import { manageDraftCacheService } from '@/storage';
   import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log-ip-selector/log-ip-selector';
   // #else
   // #code const LogIpSelector = () => null;
@@ -222,8 +223,12 @@
     methods: {
       async checkIsClone() {
         if (this.isClone) {
-          const cloneData = JSON.parse(sessionStorage.getItem('cloneData'));
+          let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
+          if (!Object.keys(cloneData).length) {
+            cloneData = await manageDraftCacheService.get('cloneData') || {};
+          }
           sessionStorage.removeItem('cloneData');
+          manageDraftCacheService.remove('cloneData').catch(() => {});
           this.ipList = cloneData.ip_list; // 克隆下载目标
           this.fileOrPath = cloneData.preview_directory; // 克隆目录
           this.$refs.textFilter.handleClone(cloneData); // 克隆文本过滤

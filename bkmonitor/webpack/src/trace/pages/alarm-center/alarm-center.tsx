@@ -102,6 +102,7 @@ import { useIssuesImpactScopeDrawer } from './alarm-issues/components/issues-imp
 import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './alarm-issues/components/issues-operation-dialogs/issues-operation-dialogs';
+import { useIssuesTableEnhancement } from './alarm-issues/composables/use-issues-table-enhancement';
 import { IssuesBatchActionEnum, TREND_RANGE_SECONDS_MAP, TrendRangeEnum } from './alarm-issues/constant';
 import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-actions';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
@@ -120,6 +121,8 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
+import type { IssuesService } from './services/issues-services';
+import type { AlarmCenterPanelTabType } from './utils/constant';
 
 import './alarm-center.scss';
 
@@ -157,8 +160,18 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink, trendRange, trendLoading } =
-      useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+
+    const {
+      trendRange,
+      trendLoading,
+      onTrendRangeChange: handleTrendRangeChange,
+    } = useIssuesTableEnhancement({
+      data: data as Ref<IssueItem[]>,
+      serviceInstance: computed(() => alarmStore.alarmService as IssuesService),
+      endTime: computed(() => alarmStore.commonFilterParams.end_time),
+      alarmType: computed(() => alarmStore.alarmType),
+    });
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -344,7 +357,7 @@ export default defineComponent({
         return;
       }
 
-      // 请求拦截器已统一弹出错误提示；异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
+      // 异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
       const res = await updateIssueName({
         bk_biz_id: targetRow.bk_biz_id,
         issue_id: id,
@@ -407,7 +420,7 @@ export default defineComponent({
     const defaultFavoriteId = shallowRef(null);
     /* 当前选择的收藏项 */
     const currentFavorite = shallowRef(null);
-    const alarmDetailDefaultTab = shallowRef('');
+    const alarmDetailDefaultTab = shallowRef<'' | AlarmCenterPanelTabType>('');
     // 当前选择的收藏项（检索条件栏使用）
     const retrievalSelectFavorite = computed(() => {
       if (currentFavorite.value) {
@@ -746,7 +759,7 @@ export default defineComponent({
      * @param {AlertTableItem} row - 告警记录行数据
      * @param {string} defaultTab - 默认选中的 Tab 页签名
      */
-    function handleShowAlertDetail(row: AlertTableItem, defaultTab?: string) {
+    function handleShowAlertDetail(row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) {
       alarmDetailDefaultTab.value = defaultTab || '';
       detailId.value = row.id;
       detailBizId.value = row.bk_biz_id;
@@ -766,8 +779,10 @@ export default defineComponent({
     /**
      * @description 展示 Issue 详情
      * @param {IssueItem} item - Issue 行数据
+     * @param {string} defaultTab - issues详情侧弹 - 告警详情区域内容 - 默认选中的 Tab 页签名
      */
-    const handleIssuesShowDetail = (item: IssueItem) => {
+    const handleIssuesShowDetail = (item: IssueItem, defaultTab?: AlarmCenterPanelTabType) => {
+      alarmDetailDefaultTab.value = defaultTab || '';
       detailId.value = item.id;
       detailBizId.value = item.bk_biz_id;
       handleDetailShowChange(true);
@@ -777,6 +792,7 @@ export default defineComponent({
       alarmDetailShow.value = show;
       if (show) return;
       detailId.value = '';
+      detailBizId.value = undefined;
       alarmDetailDefaultTab.value = '';
     }
 
@@ -863,6 +879,21 @@ export default defineComponent({
     };
 
     /**
+     * 缓存 URL 一次性入口参数（autoShowAlertAction / 旧版 batchAction）。
+     * urlParams watch 与 onBeforeMount 末尾的 setUrlParams 不会携带该字段，会冲掉 route.query，
+     * 列表数据返回后再读 route 会失效，故在 setup 阶段先行缓存。
+     */
+    const pendingAutoShowAlertAction = shallowRef<AlertAllActionEnum | undefined>(
+      (route?.query?.autoShowAlertAction as AlertAllActionEnum) || legacyBatchAction.value
+    );
+    const pendingAutoShowIsLegacy = shallowRef(!!route?.query?.batchAction);
+
+    const clearPendingAutoShowAlertAction = () => {
+      pendingAutoShowAlertAction.value = undefined;
+      pendingAutoShowIsLegacy.value = false;
+    };
+
+    /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
      * 同时兼容旧版 fta-solutions/pages/event 的 ?batchAction=alarmConfirm|quickShield 入口
@@ -870,8 +901,8 @@ export default defineComponent({
      * @returns {boolean} 是否自动打开了告警确认 | 告警屏蔽 dialog
      */
     const autoShowAlertDialog = () => {
-      const isLegacy = !!route?.query?.batchAction;
-      const alertAction = (route?.query?.autoShowAlertAction as AlertAllActionEnum) || legacyBatchAction.value;
+      const isLegacy = pendingAutoShowIsLegacy.value;
+      const alertAction = pendingAutoShowAlertAction.value;
       const isCanAutoShowAlertDialog = CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS.includes(alertAction);
       if (isLegacy && !/(^action_id).+/g.test(alarmStore.queryString || '')) {
         return false;
@@ -890,6 +921,7 @@ export default defineComponent({
         selectedRowData: data.value,
       });
       handleAlertDialogShow(alertAction, selectedRowKeys.value);
+      clearPendingAutoShowAlertAction();
       return true;
     };
 
@@ -1160,6 +1192,7 @@ export default defineComponent({
       impactScopeResource,
       handleImpactScopeClick,
       setUrlParams,
+      clearPendingAutoShowAlertAction,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
       handleAlertDialogHide,
@@ -1226,6 +1259,7 @@ export default defineComponent({
       tapdBizId,
       tapdIssueId,
       handleIssuesTapdShowChange,
+      handleTrendRangeChange,
     };
   },
   render() {
@@ -1455,7 +1489,7 @@ export default defineComponent({
                                 onSortChange={sort => this.handleSortChange(sort as string)}
                                 onSplitClick={this.handleIssuesSplitClick}
                                 onTrendRangeChange={(range: TrendRangeType) => {
-                                  this.trendRange = range;
+                                  this.handleTrendRangeChange(range);
                                   this.handleCurrentPageChange(1);
                                 }}
                               />
@@ -1513,6 +1547,7 @@ export default defineComponent({
             [
               <IssuesDetailSideSlider
                 key='issues-detail'
+                defaultInnerTab={this.alarmDetailDefaultTab}
                 issueBizId={this.detailBizId}
                 issueId={this.detailId}
                 show={this.alarmDetailShow}
@@ -1567,6 +1602,7 @@ export default defineComponent({
             onConfirm={this.handleAlertDialogConfirm}
             onUpdate:show={() => {
               this.handleAlertDialogHide();
+              this.clearPendingAutoShowAlertAction();
               this.setUrlParams({ autoShowAlertAction: '' });
             }}
           />

@@ -40,7 +40,10 @@ import {
   splitIssue,
   updateIssuePriority,
 } from 'monitor-api/modules/issue';
+import { bkUiMessage } from 'trace/common/message';
 import { downFile } from 'trace/utils/utils';
+
+import { IssueErrorCodeEnum } from '../constant';
 
 import type { RequestOptions } from '../../services/base';
 import type {
@@ -100,14 +103,31 @@ export const updateIssueName = async (
   params: RenameIssueParams,
   options?: RequestOptions
 ): Promise<RenameIssueSucceededItem> => {
-  return renameIssue(
-    {
-      bk_biz_id: params.bk_biz_id,
-      issue_id: String(params.issue_id).trim(),
-      new_name: String(params.new_name).trim(),
-    },
-    options
-  );
+  try {
+    return await renameIssue(
+      {
+        bk_biz_id: params.bk_biz_id,
+        issue_id: String(params.issue_id).trim(),
+        new_name: String(params.new_name).trim(),
+      },
+      { ...(options || {}), needMessage: false }
+    );
+  } catch (err: unknown) {
+    const errorDetails = (
+      err as {
+        data?: { error_details?: { code?: number; overview?: string; popup_message?: string } };
+      }
+    ).data?.error_details;
+    if (errorDetails?.code === IssueErrorCodeEnum.RENAME_NAME_EXISTS) {
+      Message({
+        theme: errorDetails?.popup_message ?? 'warning',
+        message: errorDetails?.overview,
+      });
+    } else if (errorDetails) {
+      bkUiMessage(errorDetails);
+    }
+    throw err;
+  }
 };
 
 /**

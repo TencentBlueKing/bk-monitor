@@ -28,7 +28,9 @@ import { defineComponent, ref, onMounted, computed, onBeforeUnmount } from 'vue'
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import { useRoute } from 'vue-router/composables';
+import { InfoBox } from 'bk-magic-vue';
 import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
@@ -44,6 +46,18 @@ import GrokInput from '@/views/manage-v2/grok-manage/components/grok-input';
 import { useSpaceSelector } from '../../../hooks/use-space-selector';
 import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
+import {
+  DEFAULT_EXPAND_DEPTH,
+  EXT_JSON_EXPAND_DEPTH_TOGGLE,
+  getExpandDepthLabel,
+  isExpandDepthChanged,
+  pickPublicExtJsonConfig,
+  shouldSubmitExtJsonConfig,
+  toExpandDepthSelect,
+  toSubmitExpandDepth,
+  UNLIMITED_EXPAND_DEPTH,
+  type ExpandDepthSelect,
+} from '@/components/collection-access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
@@ -235,6 +249,7 @@ export default defineComponent({
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const curCollect = computed(() => store.getters['collect/curCollect']);
     const bkBizId = computed(() => store.getters.bkBizId);
+    const spaceUid = computed(() => store.getters.spaceUid);
     const mySpaceList = computed(() => store.state.mySpaceList);
 
     const showCardConfig = computed(() => {
@@ -293,6 +308,27 @@ export default defineComponent({
       time_format: '',
       time_zone: '',
     });
+    /** 动态字段解析层级下拉值 */
+    const expandDepthSelect = ref<ExpandDepthSelect>(DEFAULT_EXPAND_DEPTH);
+    const sessionLastExpandDepth = ref<ExpandDepthSelect | null>(null);
+    const originHadExtJsonConfig = ref(false);
+    const originRetainExtraJson = ref(false);
+    const originExpandDepthSelect = ref<ExpandDepthSelect | null>(null);
+    const expandDepthInited = ref(false);
+    const isChangingExpandDepth = ref(false);
+    const expandDepthExampleVisible = ref(false);
+    const expandDepthExampleInput = `{
+  "__ext_json": {
+    "trace_id": "abc123",
+    "service": {
+      "name": "order",
+      "labels": {
+        "region": "shanghai",
+        "zone": "ap-1"
+      }
+    }
+  }
+}`;
     const copyText = ref({});
     const rowTemplate = ref({
       alias_name: '',
@@ -364,6 +400,135 @@ export default defineComponent({
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
+
+    const isExtJsonExpandDepthEnabled = computed(() =>
+      isFeatureToggleOn(EXT_JSON_EXPAND_DEPTH_TOGGLE, [String(bkBizId.value), String(spaceUid.value)]),
+    );
+
+    /** 仅控制「动态字段解析层级」，不影响「JSON 字段动态新增」 */
+    const showExpandDepthConfig = computed(
+      () =>
+        isExtJsonExpandDepthEnabled.value &&
+        cleaningMode.value === 'bk_log_json' &&
+        !!formData.value.etl_params?.retain_extra_json,
+    );
+
+    const expandDepthOptions = computed(() => [
+      { id: 1 as const, name: t('1 层'), desc: t('只展开 __ext_json 下第一层字段') },
+      { id: 2 as const, name: t('2 层'), desc: t('展开到第二层，推荐') },
+      { id: 3 as const, name: t('3 层'), desc: t('展开到第三层') },
+      {
+        id: UNLIMITED_EXPAND_DEPTH,
+        name: t('无限'),
+        desc: t('保持完整动态展开，存在字段膨胀风险'),
+      },
+    ]);
+
+    const expandDepthExampleTitle = computed(() => {
+      if (expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH) {
+        return t('无限展示');
+      }
+      return t('{n} 层展示', { n: expandDepthSelect.value });
+    });
+
+    const expandDepthExampleResult = computed(() => {
+      if (expandDepthSelect.value === 1) {
+        return `__ext_json.trace_id          keyword
+__ext_json.service           ${t('动态对象字段')}`;
+      }
+      if (expandDepthSelect.value === 3 || expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH) {
+        return `__ext_json.trace_id                 keyword
+__ext_json.service.name           keyword
+__ext_json.service.labels.region  keyword
+__ext_json.service.labels.zone    keyword`;
+      }
+      return `__ext_json.trace_id          keyword
+__ext_json.service.name     keyword
+__ext_json.service.labels   ${t('动态对象字段')}`;
+    });
+
+    const expandDepthExampleNote = computed(() => {
+      if (expandDepthSelect.value === 1) {
+        return t('service 内部不再继续生成字段。');
+      }
+      if (expandDepthSelect.value === 2) {
+        return t('labels 内部不再继续生成字段。');
+      }
+      if (expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH) {
+        return t('无限模式下将完整展开动态字段。');
+      }
+      return t('更深层级的对象将按动态对象字段处理，不再继续展开。');
+    });
+
+    const initExpandDepthFromEtlParams = (etlParams: any = {}, { resetOrigin = true } = {}) => {
+      const params = etlParams && typeof etlParams === 'object' ? etlParams : {};
+      const retainExtraJson = !!params.retain_extra_json;
+      const publicConfig = pickPublicExtJsonConfig(params.ext_json_config);
+      const hadConfig = !!publicConfig;
+      const select = retainExtraJson
+        ? toExpandDepthSelect(hadConfig ? publicConfig.expand_depth : null)
+        : DEFAULT_EXPAND_DEPTH;
+
+      expandDepthSelect.value = select;
+      sessionLastExpandDepth.value = select;
+      if (resetOrigin) {
+        originHadExtJsonConfig.value = hadConfig;
+        originRetainExtraJson.value = retainExtraJson;
+        originExpandDepthSelect.value = hadConfig ? select : UNLIMITED_EXPAND_DEPTH;
+      }
+      expandDepthInited.value = true;
+    };
+
+    /** 仅同步层级选择缓存；开关本身仍走原有 retain_extra_json 赋值逻辑 */
+    const syncExpandDepthOnRetainExtraJsonChange = (val: boolean) => {
+      if (!expandDepthInited.value || !isExtJsonExpandDepthEnabled.value) {
+        return;
+      }
+      if (val) {
+        expandDepthSelect.value = sessionLastExpandDepth.value ?? DEFAULT_EXPAND_DEPTH;
+      } else {
+        sessionLastExpandDepth.value = expandDepthSelect.value;
+      }
+    };
+
+    const handleExpandDepthSelected = (val: ExpandDepthSelect) => {
+      expandDepthSelect.value = val;
+      sessionLastExpandDepth.value = val;
+    };
+
+    const needConfirmExpandDepthChange = () => {
+      if (!isExtJsonExpandDepthEnabled.value || !formData.value.etl_params?.retain_extra_json) {
+        return false;
+      }
+      if (!isUpdate.value && !props.isCleanField) {
+        return false;
+      }
+      return isExpandDepthChanged(
+        expandDepthSelect.value,
+        originExpandDepthSelect.value,
+        originHadExtJsonConfig.value,
+        originRetainExtraJson.value,
+      );
+    };
+
+    const confirmExpandDepthChange = () => {
+      if (!needConfirmExpandDepthChange()) {
+        return Promise.resolve(true);
+      }
+      return new Promise<boolean>(resolve => {
+        InfoBox({
+          type: 'warning',
+          title: t('确认调整动态字段解析层级？'),
+          okText: t('确认调整'),
+          cancelText: t('取消'),
+          subTitle: t(
+            '调整后系统将创建新的 ES 索引，仅影响配置生效后写入的数据。历史索引不会改变，因此不同时间段可检索的字段可能不完全一致。',
+          ),
+          confirmFn: () => resolve(true),
+          cancelFn: () => resolve(false),
+        });
+      });
+    };
     /** 清洗规则配置方式：manual 手动配置 / template 使用模板 */
     const cleanRuleMode = ref<'manual' | 'template'>('manual');
     /** 当前采集项是否已经绑定清洗模板 */
@@ -407,7 +572,10 @@ export default defineComponent({
      * 保存初始表单数据快照
      */
     const saveInitialFormData = () => {
-      initialFormData.value = structuredClone(formData.value);
+      initialFormData.value = structuredClone({
+        ...formData.value,
+        expandDepthSelect: expandDepthSelect.value,
+      });
       initialCleanTemplateId.value = getSubmitCleanTemplateId();
     };
 
@@ -415,7 +583,10 @@ export default defineComponent({
      * 判断配置是否有变更
      */
     const hasConfigChanged = () => {
-      return !deepEqual(formData.value, initialFormData.value)
+      return !deepEqual(
+        { ...formData.value, expandDepthSelect: expandDepthSelect.value },
+        initialFormData.value,
+      )
         || getSubmitCleanTemplateId() !== initialCleanTemplateId.value;
     };
 
@@ -516,6 +687,7 @@ export default defineComponent({
           formData.value.visible_bk_biz_id = res.data.visible_bk_biz_id ?? [];
           visibleBkBiz.value = res.data.visible_bk_biz_id;
           await restoreCleanTemplateAssociation(res.data.clean_template_id);
+          initExpandDepthFromEtlParams(etl_params);
           cacheTemplateData.value = deepClone(formData.value);
           return;
         }
@@ -632,6 +804,7 @@ export default defineComponent({
               ),
               etl_fields: copyFields.filter(item => !item.is_built_in),
             };
+            initExpandDepthFromEtlParams(formData.value.etl_params);
             await restoreCleanTemplateAssociation(res.data.clean_template_id);
             cacheTemplateData.value = deepClone(formData.value);
 
@@ -1522,6 +1695,62 @@ export default defineComponent({
         </div>
       </div>
     );
+    /** 动态字段解析层级：独立渲染，避免影响「JSON 字段动态新增」 */
+    const renderExpandDepthConfig = () => (
+      <div class='label-form-box expand-depth-form-box'>
+        <span class='label-title no-require'>{t('动态字段解析层级（实验）')}</span>
+        <div class='form-box expand-depth-config'>
+          <bk-select
+            class='expand-depth-select'
+            clearable={false}
+            value={expandDepthSelect.value}
+            on-selected={handleExpandDepthSelected}
+            style='width: 300px;'
+          >
+            {expandDepthOptions.value.map(option => (
+              <bk-option
+                id={option.id}
+                key={option.id}
+                name={option.name}
+              >
+                <div class='expand-depth-option'>
+                  <span
+                    class='expand-depth-option-name'
+                    style='margin-right: 10px;'
+                  >
+                    {option.name}
+                  </span>
+                  <span class='expand-depth-option-desc'>{option.desc}</span>
+                </div>
+              </bk-option>
+            ))}
+          </bk-select>
+          <p class='expand-depth-tips'>
+            {t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。')}
+          </p>
+          {expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH && (
+            <bk-alert
+              class='expand-depth-alert'
+              type='warning'
+              title={t(
+                '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。',
+              )}
+            />
+          )}
+          <bk-button
+            class='expand-depth-example-btn'
+            text
+            theme='primary'
+            on-click={() => {
+              expandDepthExampleVisible.value = true;
+            }}
+          >
+            {t('查看解析示例')}
+          </bk-button>
+        </div>
+      </div>
+    );
+
     /** 高级设置表单内容 */
     const renderAdvancedContent = () => (
       <div class='advanced-setting'>
@@ -1732,7 +1961,12 @@ export default defineComponent({
                 disabled={isTemplateBound.value}
                 value={formData.value.etl_params.retain_extra_json}
                 on-change={(val: boolean) => {
-                  formData.value.etl_params.retain_extra_json = val;
+                  // 整体替换 etl_params，确保 Vue2 能触发 showExpandDepthConfig 更新
+                  formData.value.etl_params = {
+                    ...formData.value.etl_params,
+                    retain_extra_json: val,
+                  };
+                  syncExpandDepthOnRetainExtraJsonChange(val);
                 }}
               />
               <InfoTips
@@ -1742,6 +1976,7 @@ export default defineComponent({
             </div>
           </div>
         )}
+        {showExpandDepthConfig.value ? renderExpandDepthConfig() : null}
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('路径元数据')}</span>
           <div class='form-box mt-5'>
@@ -1956,33 +2191,42 @@ export default defineComponent({
         </div>
       </div>
     );
-    const cardConfig = [
-      {
+    // 显式收集卡片内依赖，避免 Vue2 下嵌套 renderFn 漏追踪导致开关变更后高级设置不刷新
+    const cardConfig = computed(() => {
+      void cleaningMode.value;
+      void formData.value.etl_params?.retain_extra_json;
+      void formData.value.log_reporting_time;
+      void enableMetaData.value;
+      void isExtJsonExpandDepthEnabled.value;
+      void expandDepthSelect.value;
+      return [
+        {
         title: t('基础信息'),
         key: 'basicInfo',
         renderFn: renderBasicInfo,
       },
       {
-        title: t('清洗设置'),
-        key: 'cleanSetting',
-        renderFn: renderSetting,
-      },
-      {
+          title: t('清洗设置'),
+          key: 'cleanSetting',
+          renderFn: renderSetting,
+        },
+        {
         title: t('清洗结果'),
         key: 'cleanResult',
         renderFn: renderCleanResult,
       },
       {
-        title: t('高级设置'),
-        key: 'advancedSetting',
-        renderFn: renderAdvanced,
-      },
-      {
-        title: t('可见范围设置'),
-        key: 'visibilitySettings',
-        renderFn: renderVisibility,
-      },
-    ];
+          title: t('高级设置'),
+          key: 'advancedSetting',
+          renderFn: renderAdvanced,
+        },
+        {
+          title: t('可见范围设置'),
+          key: 'visibilitySettings',
+          renderFn: renderVisibility,
+        },
+      ];
+    });
     /**
      * 提交前的相关检验
      * @param callback
@@ -2051,7 +2295,24 @@ export default defineComponent({
       action = 'next',
       callback,
     }: ISubmitOptions = {}) => {
-      handleSubmitValidate(() => {
+      handleSubmitValidate(async () => {
+        isChangingExpandDepth.value =
+          isExtJsonExpandDepthEnabled.value &&
+          !!formData.value.etl_params?.retain_extra_json &&
+          isExpandDepthChanged(
+            expandDepthSelect.value,
+            originExpandDepthSelect.value,
+            originHadExtJsonConfig.value,
+            originRetainExtraJson.value,
+          );
+        const confirmed = await confirmExpandDepthChange();
+        if (!confirmed) {
+          isChangingExpandDepth.value = false;
+          loading.value = false;
+          callback?.(false);
+          return;
+        }
+
         const { etl_params: etlParams, etl_fields } = formData.value;
         const submitEtlParams = structuredClone(etlParams);
         if (enableMetaData.value) {
@@ -2081,7 +2342,7 @@ export default defineComponent({
         const isNeedCreate = (isUpdate.value && !!storage_cluster_id) || props.isCleanField;
         const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
         // 构建 payload（对齐旧版逻辑）
-        const payload = {
+        const payload: Record<string, any> = {
           retain_original_text: submitEtlParams.retain_original_text,
           original_text_is_case_sensitive: submitEtlParams.original_text_is_case_sensitive ?? false,
           original_text_tokenize_on_chars: submitEtlParams.original_text_tokenize_on_chars ?? '',
@@ -2091,6 +2352,29 @@ export default defineComponent({
           record_parse_failure: submitEtlParams.enable_retain_content,
           metadata_fields: submitEtlParams.metadata_fields,
         };
+        if (
+          shouldSubmitExtJsonConfig({
+            retainExtraJson: !!payload.retain_extra_json,
+            featureEnabled: isExtJsonExpandDepthEnabled.value,
+            currentSelect: expandDepthSelect.value,
+            originHadConfig: originHadExtJsonConfig.value,
+            originRetainExtraJson: originRetainExtraJson.value,
+          })
+        ) {
+          // 仅提交 expand_depth，不覆盖后台隐藏的 overflow_strategy
+          payload.ext_json_config = {
+            expand_depth: toSubmitExpandDepth(expandDepthSelect.value),
+          };
+          // 同步到 formData，供存储步骤透传
+          formData.value.etl_params = {
+            ...formData.value.etl_params,
+            ext_json_config: { expand_depth: payload.ext_json_config.expand_depth },
+          };
+        } else if (formData.value.etl_params.ext_json_config) {
+          // 存量无限场景：不主动改写，同时避免把 overflow_strategy 透传到下一步
+          const { ext_json_config: _ignored, ...rest } = formData.value.etl_params as any;
+          formData.value.etl_params = rest;
+        }
         const data = {
           bk_biz_id: bkBizId.value,
           etl_params: {
@@ -2133,12 +2417,27 @@ export default defineComponent({
           .then(res => {
             loading.value = false;
             if (res?.result) {
+              const showedDepthSuccess = isChangingExpandDepth.value && isNeedCreate;
+              if (showedDepthSuccess) {
+                const depthLabel = getExpandDepthLabel(expandDepthSelect.value, key => t(key));
+                showMessage(
+                  t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }),
+                );
+                originHadExtJsonConfig.value = true;
+                originRetainExtraJson.value = true;
+                originExpandDepthSelect.value = expandDepthSelect.value;
+                isChangingExpandDepth.value = false;
+              }
               if (action === 'saveOnly') {
                 // 只保存，不跳转
-                showMessage(t('保存成功'));
+                if (!showedDepthSuccess) {
+                  showMessage(t('保存成功'));
+                }
                 callback?.(true);
               } else if (action === 'back') {
-                showMessage(t('保存成功'));
+                if (!showedDepthSuccess) {
+                  showMessage(t('保存成功'));
+                }
                 // 保存成功后跳转到列表页
                 goListPage();
               } else {
@@ -2160,11 +2459,19 @@ export default defineComponent({
                 }
               }
             } else {
+              if (isChangingExpandDepth.value && isNeedCreate) {
+                showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
+                isChangingExpandDepth.value = false;
+              }
               callback?.(false);
             }
           })
           .catch(() => {
             loading.value = false;
+            if (isChangingExpandDepth.value && isNeedCreate) {
+              showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
+              isChangingExpandDepth.value = false;
+            }
             callback?.(false);
           });
       });
@@ -2235,6 +2542,33 @@ export default defineComponent({
             showReportLogSlider.value = value;
           }}
         />
+        <bk-dialog
+          ext-cls='expand-depth-example-dialog'
+          header-position='left'
+          mask-close={true}
+          show-footer={false}
+          title={t('解析示例')}
+          value={expandDepthExampleVisible.value}
+          width={640}
+          on-cancel={() => {
+            expandDepthExampleVisible.value = false;
+          }}
+          on-value-change={(val: boolean) => {
+            expandDepthExampleVisible.value = val;
+          }}
+        >
+          <div class='expand-depth-example-content'>
+            <div class='example-block'>
+              <div class='example-label'>{t('输入')}</div>
+              <pre class='example-code'>{expandDepthExampleInput}</pre>
+            </div>
+            <div class='example-block'>
+              <div class='example-label'>{expandDepthExampleTitle.value}</div>
+              <pre class='example-code'>{expandDepthExampleResult.value}</pre>
+              <p class='example-note'>{expandDepthExampleNote.value}</p>
+            </div>
+          </div>
+        </bk-dialog>
         <div class='classify-btns-fixed'>
           {!props.isTempField && !props.isCleanField && (
             <bk-button

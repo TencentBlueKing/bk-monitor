@@ -34,6 +34,7 @@ import { BK_LOG_STORAGE, type RouteParams, SEARCH_MODE_DIC } from '@/store/store
 import RequestPool from '@/store/request-pool';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { retrieveRowCacheService, storageHealthService } from '@/storage';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import { getSceneFieldKeys, getDefaultOp, getSceneConfig, getAllSceneFieldOpKeys } from './search-bar/scene-filter/scene-config';
@@ -238,8 +239,9 @@ export default () => {
    */
   const getIndexSetList = (beforeResolveFn?: () => void) => {
     store.commit('updateIndexSetQueryResult', {
-      origin_log_list: [],
-      list: [],
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
       exception_msg: '',
       is_error: false,
     });
@@ -453,7 +455,11 @@ export default () => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_PENDING);
 
           resolveAdditionKeyword().then(async () => {
-            if (isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])) {
+            const isExternal = store.state.isExternal;
+            if (
+              !isExternal
+              && isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
+            ) {
               if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
                 // 场景化检索：请求场景配置，从URL获取筛选参数
                 const sceneCleared = await requestSceneConfigs();
@@ -464,6 +470,9 @@ export default () => {
               } else {
                 requestSceneConfigs();
               }
+            } else if (isExternal && store.state.indexItem.retrieve_type === RetrieveType.Scene) {
+              // PO 环境下隐藏场景化检索，若 URL 携带 retrieve_type=scene 则回退到常规检索
+              clearSceneRetrieveToNormal(store.getters['retrieve/sceneConfigList']);
             }
 
             store
@@ -772,10 +781,16 @@ export default () => {
   onUnmounted(() => {
     RequestPool.cancelAll();
     RetrieveHelper.destroy();
+    const activeRowQueryKey = store.state.indexSetQueryResult.row_query_key;
+    if (activeRowQueryKey) {
+      storageHealthService.clearActiveQuery(activeRowQueryKey);
+      retrieveRowCacheService.releaseQuery(activeRowQueryKey);
+    }
     // 清理掉当前查询结果，避免下次进入空白展示，同时释放检索页大对象引用。
     store.commit('resetIndexSetQueryResult', {
-      origin_log_list: [],
-      list: [],
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
       is_error: false,
       exception_msg: '',
     });

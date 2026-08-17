@@ -1,3 +1,5 @@
+@import '../styles/mixins';
+
 .alarm-center-header-comp {
   width: 100%;
 
@@ -27,38 +29,16 @@
     }
 
     .alarm-type-nav-bar {
-      display: flex;
-      height: 100%;
-      margin-right: auto;
-      line-height: 52px;
-
-      &-item {
-        padding: 0 16px;
-        cursor: pointer;
-
-        .bar-name {
-          height: 100%;
-          font-size: 16px;
-          color: #313238;
-          letter-spacing: 0;
-        }
-
-        &.active {
-          .bar-name {
-            color: #3a84ff;
-            border-bottom: 2px solid #3a84ff;
-          }
-        }
-      }
+      @include common-nav-bar;
     }
   }
 
   .access-guide-link {
     display: flex;
-    align-items: center;
     gap: 4px;
+    align-items: center;
+    margin-right: 10px;
     color: #3a84ff;
     cursor: pointer;
-    margin-right: 10px;
   }
 }

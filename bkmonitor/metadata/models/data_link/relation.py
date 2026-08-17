@@ -24,7 +24,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections.abc import Sequence
-from typing import TypeAlias, cast
+from typing import Literal, TypeAlias, cast
 
 from django.db import transaction
 from django.db.models import Q
@@ -54,7 +54,6 @@ from metadata.models.data_link.data_link_configs import (
     DataLinkResourceConfigBase,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
-    GraphRelationBindingConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -260,11 +259,6 @@ REBUILT_DATA_LINK_NAME_PREFIX = "rebuilt__"
 DATA_LINK_COMPONENT_NAME_MAX_LENGTH = cast(int, DataBusConfig._meta.get_field("data_link_name").max_length)
 
 
-def _compose_rebuilt_graph_binding_name(data_link_name: str) -> str:
-    """Keep rebuilt GraphRelationBindingConfig.name within its 64-char DB limit."""
-    return utils.compose_bkdata_table_id(data_link_name)
-
-
 def _compose_rebuilt_graph_data_link_name(databus: DataBusConfig) -> str:
     raw_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus.name}"
     return f"{REBUILT_DATA_LINK_NAME_PREFIX}{utils.compose_bkdata_table_id(raw_name)}"
@@ -282,20 +276,6 @@ def _compose_rebuilt_simple_data_link_name(databus: DataBusConfig) -> str:
     if len(databus.name) <= remain_length:
         return f"{name_prefix}{databus.name}"
     return f"{name_prefix}{databus.name[-remain_length:]}"
-
-
-def _find_databus_name_for_sink(
-    databus_instances: list[DataBusConfig],
-    sink_kind: str,
-    sink_name: str,
-) -> str:
-    if not sink_name:
-        return ""
-    target_sink = f"{sink_kind}:{sink_name}"
-    for databus in databus_instances:
-        if target_sink in (databus.sink_names or []):
-            return databus.name
-    return sink_name
 
 
 def _restore_rebuilt_surrealdb_storage(surrealdb_binding: SurrealDBBindingConfig | None) -> None:
@@ -795,12 +775,24 @@ def _is_graph_relation_rebuild(
     sink_map: dict[str, list[str]],
     rt_instances: Sequence[ResultTableConfig],
 ) -> bool:
-    if databus.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
-        return True
+    # SurrealDB sink 可直接标识 Graph；VM-only 则只认 V4 option 或既有 DataLink/BkBase 关系。
     if DataLinkKind.SURREALDBBINDING.value in sink_map:
         return True
     if DataLinkKind.VMSTORAGEBINDING.value not in sink_map:
         return False
+
+    from metadata.models.result_table import ResultTableOption
+
+    table_ids = [rt.table_id for rt in rt_instances if rt.table_id]
+    if (
+        table_ids
+        and ResultTableOption.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            table_id__in=table_ids,
+            name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        ).exists()
+    ):
+        return True
 
     bkbase_rt_names = [rt.name for rt in rt_instances if rt.name]
     if not bkbase_rt_names:
@@ -1274,19 +1266,6 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             return None
         result_table_name_to_table_id[rt_instance.name] = rt_instance.table_id
     table_ids = list(dict.fromkeys(rt.table_id for rt in rt_instances if rt.table_id))
-    graph_relation_binding = (
-        GraphRelationBindingConfig.objects.filter(
-            bk_tenant_id=databus.bk_tenant_id,
-            namespace=databus.namespace,
-            data_link_name="",
-            table_id__in=table_ids,
-        )
-        .order_by("id")
-        .first()
-        if table_ids
-        else None
-    )
-
     # 反补sink的table_id
     for sink_instance in sink_instances:
         if not isinstance(sink_instance, STORAGE_BINDING_MODELS):
@@ -1319,7 +1298,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     has_doris = DataLinkKind.DORISBINDING.value in sink_map
     if has_es and has_doris:
         strategy = DataLink.BK_LOG
-    elif graph_relation_binding or _is_graph_relation_rebuild(databus, sink_map, rt_instances):
+    elif _is_graph_relation_rebuild(databus, sink_map, rt_instances):
         strategy = DataLink.GRAPH_RELATION_TIME_SERIES
     else:
         strategy = ETL_CONFIG_TO_STRATEGY.get(data_source.etl_config)
@@ -1331,6 +1310,51 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             )
             return None
 
+    if strategy == DataLink.GRAPH_RELATION_TIME_SERIES and len(table_ids) != 1:
+        logger.warning(
+            "rebuild_databus_relation: databus->[%s] graph relation requires exactly one monitor table_id, "
+            "resolved table_ids->[%s], skip",
+            databus_name,
+            table_ids,
+        )
+        return None
+
+    if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+        from metadata.models.result_table import ResultTableOption
+
+        graph_table_id = table_ids[0]
+        if (
+            not ResultTable.objects.using(DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=databus.bk_tenant_id,
+                table_id=graph_table_id,
+            )
+            .exists()
+        ):
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] graph ResultTable table_id->[%s] not found, skip",
+                databus_name,
+                graph_table_id,
+            )
+            return None
+        graph_option_count = (
+            ResultTableOption.objects.using(DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=databus.bk_tenant_id,
+                table_id=graph_table_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            )
+            .count()
+        )
+        if graph_option_count > 1:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] graph ResultTable table_id->[%s] has %s V4 options, skip",
+                databus_name,
+                graph_table_id,
+                graph_option_count,
+            )
+            return None
+
     # Step 8: graph rebuild 使用短 data_link_name，避免写入 64 字符的组件外键时超长。
     if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
         data_link_name = _compose_rebuilt_graph_data_link_name(databus)
@@ -1339,9 +1363,18 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
 
     # Step 9: graph rebuild 补全 BkBaseResultTable 信息，便于 dry_run 审核和实际落库。
     graph_bkbase_result_table = None
+    graph_relation_v4_option = None
     if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+        from metadata.models.result_table import GraphRelationV4DataLinkOption
+
         graph_vm_binding = next((i for i in sink_instances if isinstance(i, VMStorageBindingConfig)), None)
         graph_surrealdb_binding = next((i for i in sink_instances if isinstance(i, SurrealDBBindingConfig)), None)
+        graph_write_targets: list[Literal["vm", "surrealdb"]] = []
+        if graph_vm_binding:
+            graph_write_targets.append("vm")
+        if graph_surrealdb_binding:
+            graph_write_targets.append("surrealdb")
+        graph_relation_v4_option = GraphRelationV4DataLinkOption(write_targets=graph_write_targets).model_dump()
         graph_bkbase_result_table = _build_graph_bkbase_result_table(
             data_link_name=data_link_name,
             databus=databus,
@@ -1368,11 +1401,42 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             "components": _serialize_datalink_components(
                 [data_id_config, *rt_instances, *sink_instances, *databus_instances],
             ),
+            **({"graph_relation_v4_option": graph_relation_v4_option} if graph_relation_v4_option is not None else {}),
             **({"bkbase_result_table": graph_bkbase_result_table} if graph_bkbase_result_table else {}),
         }
 
     # Step 10-11: 在事务中批量更新组件 data_link_name 并创建/更新 DataLink 记录
-    with transaction.atomic():
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+            from metadata.models.result_table import ResultTableOption
+
+            graph_table_id = table_ids[0]
+            graph_result_table = (
+                ResultTable.objects.using(DATABASE_CONNECTION_NAME)
+                .select_for_update()
+                .filter(
+                    bk_tenant_id=databus.bk_tenant_id,
+                    table_id=graph_table_id,
+                )
+                .first()
+            )
+            graph_option_ids = list(
+                ResultTableOption.objects.using(DATABASE_CONNECTION_NAME)
+                .select_for_update()
+                .filter(
+                    bk_tenant_id=databus.bk_tenant_id,
+                    table_id=graph_table_id,
+                    name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+                )
+                .values_list("id", flat=True)[:2]
+            )
+            if graph_result_table is None or len(graph_option_ids) > 1:
+                logger.warning(
+                    "rebuild_databus_relation: databus->[%s] graph option target changed after precheck, skip",
+                    databus_name,
+                )
+                return None
+
         # 先创建/更新 DataLink 记录，确保主记录存在后再关联组件
         data_link, created = DataLink.objects.update_or_create(
             bk_tenant_id=databus.bk_tenant_id,
@@ -1390,8 +1454,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         for databus_instance in databus_instances:
             databus_instance.data_link_name = data_link_name
             databus_instance.bk_data_id = data_source.bk_data_id
-            databus_instance.data_link_strategy = strategy if strategy == DataLink.GRAPH_RELATION_TIME_SERIES else ""
-            databus_instance.save(update_fields=["data_link_name", "bk_data_id", "data_link_strategy"])
+            databus_instance.save(update_fields=["data_link_name", "bk_data_id"])
 
         # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
         for instance in sink_instances:
@@ -1404,85 +1467,20 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         ResultTableConfig.objects.bulk_update(rt_instances, ["data_link_name", "table_id"])
 
         if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
-            vm_binding = next((i for i in sink_instances if isinstance(i, VMStorageBindingConfig)), None)
+            from metadata.models.result_table import ResultTableOption
+
             surrealdb_binding = next((i for i in sink_instances if isinstance(i, SurrealDBBindingConfig)), None)
-            graph_binding_name = _compose_rebuilt_graph_binding_name(data_link_name)
-            write_mode = GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
-            if vm_binding and not surrealdb_binding:
-                write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
-            elif surrealdb_binding and not vm_binding:
-                write_mode = GraphRelationBindingConfig.WRITE_MODE_SURREALDB
 
             _restore_rebuilt_surrealdb_storage(surrealdb_binding)
-            graph_binding_lookup = {
-                "bk_tenant_id": databus.bk_tenant_id,
-                "namespace": databus.namespace,
-                "name": graph_binding_name,
-            }
-            resolved_graph_table_id = table_ids[0] if table_ids else ""
-            existing_graph_binding = GraphRelationBindingConfig.objects.filter(
+            option_value, option_value_type = ResultTableOption._parse_value(graph_relation_v4_option)
+            ResultTableOption.objects.using(DATABASE_CONNECTION_NAME).update_or_create(
                 bk_tenant_id=databus.bk_tenant_id,
-                namespace=databus.namespace,
-                data_link_name="",
-                table_id=resolved_graph_table_id,
-            ).first()
-            if existing_graph_binding:
-                graph_binding_lookup = {"pk": existing_graph_binding.pk}
-            fallback_graph_binding = existing_graph_binding or graph_relation_binding
-            graph_result_table_name = getattr(surrealdb_binding, "bkbase_result_table_name", "") or getattr(
-                fallback_graph_binding, "graph_result_table_name", ""
-            )
-            surrealdb_binding_name = getattr(surrealdb_binding, "name", "") or getattr(
-                fallback_graph_binding, "surrealdb_binding_name", ""
-            )
-            graph_databus_name = _find_databus_name_for_sink(
-                databus_instances,
-                DataLinkKind.SURREALDBBINDING.value,
-                getattr(surrealdb_binding, "name", ""),
-            ) or getattr(fallback_graph_binding, "graph_databus_name", "")
-
-            GraphRelationBindingConfig.objects.update_or_create(
-                **graph_binding_lookup,
+                table_id=table_ids[0],
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
                 defaults={
-                    "name": getattr(existing_graph_binding, "name", graph_binding_name),
-                    "data_link_name": data_link_name,
-                    "namespace": databus.namespace,
-                    "bk_tenant_id": databus.bk_tenant_id,
-                    "bk_biz_id": databus.bk_biz_id,
-                    "status": databus.status,
-                    "write_mode": write_mode,
-                    "vm_cluster_name": getattr(vm_binding, "vm_cluster_name", ""),
-                    "surrealdb_cluster_name": getattr(
-                        surrealdb_binding,
-                        "surrealdb_cluster_name",
-                        getattr(fallback_graph_binding, "surrealdb_cluster_name", ""),
-                    ),
-                    "table_id": table_ids[0] if table_ids else "",
-                    "bkbase_result_table_name": getattr(vm_binding, "bkbase_result_table_name", ""),
-                    "graph_result_table_name": graph_result_table_name,
-                    "vm_storage_binding_name": getattr(vm_binding, "name", ""),
-                    "vm_databus_name": _find_databus_name_for_sink(
-                        databus_instances,
-                        DataLinkKind.VMSTORAGEBINDING.value,
-                        getattr(vm_binding, "name", ""),
-                    ),
-                    "surrealdb_binding_name": surrealdb_binding_name,
-                    "graph_databus_name": graph_databus_name,
-                    "table_type": getattr(
-                        surrealdb_binding,
-                        "table_type",
-                        getattr(fallback_graph_binding, "table_type", "temporary"),
-                    ),
-                    "vertices": getattr(
-                        surrealdb_binding,
-                        "vertices",
-                        getattr(fallback_graph_binding, "vertices", []),
-                    ),
-                    "relations": getattr(
-                        surrealdb_binding,
-                        "relations",
-                        getattr(fallback_graph_binding, "relations", []),
-                    ),
+                    "value": option_value,
+                    "value_type": option_value_type,
+                    "creator": "system",
                 },
             )
             BkBaseResultTable.objects.update_or_create(

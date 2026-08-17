@@ -50,6 +50,7 @@ from constants.apm import (
     TRACE_RESULT_TABLE_OPTION,
     TraceDataSourceConfig,
     DEFAULT_DATA_LABEL,
+    normalize_app_name,
 )
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -87,12 +88,13 @@ class ApmDataSourceConfigBase(models.Model):
     @property
     def data_name(self) -> str:
         bk_biz_id = int(self.bk_biz_id)
+        safe_app_name = normalize_app_name(self.app_name)
 
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
+            return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{safe_app_name}"
         else:
             return (
-                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
+                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{safe_app_name}"
             )
 
     @property
@@ -375,7 +377,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
 
     @property
     def event_group_name(self) -> str:
-        return f"bkapm_{self.app_name}_{self.DATASOURCE_TYPE}"
+        return f"bkapm_{normalize_app_name(self.app_name)}_{self.DATASOURCE_TYPE}"
 
     @property
     def table_id(self) -> str:
@@ -384,12 +386,13 @@ class MetricDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        safe_app_name = normalize_app_name(app_name)
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_{cls.DATASOURCE_TYPE}_{safe_app_name}.{cls.DEFAULT_MEASUREMENT}"
         else:
             return (
                 f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}_"
-                f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
+                f"{cls.DATASOURCE_TYPE}_{safe_app_name}.{cls.DEFAULT_MEASUREMENT}"
             )
 
     def is_metric_group_dimensions_enabled(self) -> bool:
@@ -480,10 +483,10 @@ class LogDataSource(ApmDataSourceConfigBase):
     @classmethod
     def app_name_to_log_config_name(cls, app_name: str):
         """
-        LOG 和 APM 的英文名不同规则：APM 允许中划线(-)，LOG 不允许，所以这里替换为下划线(_)
+        LOG 和 APM 的英文名不同规则：APM 允许中划线(-)/点(.)，LOG 不允许，所以这里统一替换为下划线(_)
         并且日志的名称必须大于等于 5 个字符
         """
-        res = app_name.replace("-", "_")
+        res = normalize_app_name(app_name)
         if len(res) < 5:
             res = f"otlp_{res}"
         return res
@@ -515,8 +518,10 @@ class LogDataSource(ApmDataSourceConfigBase):
                     **{
                         "bk_tenant_id": bk_biz_id_to_bk_tenant_id(bk_biz_id),
                         "bk_biz_id": bk_biz_id,
+                        # 英文名（资源标识）需满足 [a-z0-9_] 规范，走归一化；
+                        # 中文/展示名保留用户输入的原始 app_name，避免大写被丢失
                         "collector_config_name_en": valid_log_config_name,
-                        "collector_config_name": valid_log_config_name,
+                        "collector_config_name": app_name,
                         "custom_type": "otlp_log",
                         "category_id": "application_check",
                         # 兼容集群不支持冷热配置
@@ -540,7 +545,8 @@ class LogDataSource(ApmDataSourceConfigBase):
                     bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
                     collector_config_id=obj.collector_config_id,
                     category_id="application_check",
-                    collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    # 展示名保留用户输入的原始 app_name（含大小写）
+                    collector_config_name=app_name,
                     allocation_min_days=0,
                     **storage_params,
                 )
@@ -909,10 +915,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        safe_app_name = normalize_app_name(app_name)
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{safe_app_name}"
         else:
-            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
+            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{safe_app_name}"
 
     def create_or_update_result_table(self, global_mode: bool = False, table_id: str | None = None, **option) -> None:
         """创建或更新结果表。
@@ -1110,7 +1117,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
-        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_(\d+)$")
+        # ES 索引名中 app_name 已被 normalize（`.`/`-` -> `_`），构造正则时需保持一致
+        safe_app_name = normalize_app_name(app_name)
+        pattern = re.compile(rf".*_bkapm_trace_{re.escape(safe_app_name)}_(\d{{8}})_(\d+)$")
 
         for name in index_names:
             match = pattern.search(name)
@@ -1542,7 +1551,8 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
-        return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
+        safe_app_name = normalize_app_name(app_name)
+        return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{safe_app_name}"
 
     def is_bkbase_v4_link(self) -> bool:
         return (self.bkdata_datalink_config.get("version") or 3) == 4

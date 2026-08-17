@@ -35,7 +35,7 @@ import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import reportLogStore from '../../../../store/modules/report-log';
-import { ESearchPopoverType, ESearchType, flattenRoute, highLightContent } from '../utils';
+import { ESearchPopoverType, ESearchType, flattenRoute, splitHighlightFragments } from '../utils';
 
 import type { IDataItem, IRouteItem, ISearchItem, ISearchListItem } from '../type';
 
@@ -261,6 +261,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       // 提取事件字符串中的数据
       const parsedData = this.extractDataFromEventString(eventString);
       if (parsedData) {
+        // sse 输出了数据就可以关闭loading
+        this.isLoading = false;
         this.searchLenArr = [];
         // 如果提取到了有效数据，更新搜索列表
         this.searchList = this.updateSearchList(this.searchList, parsedData);
@@ -315,10 +317,15 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     const hasOperatorKeys = [ESearchType.strategy, ESearchType.bcs_cluster, ESearchType.host];
     const isHost = type === ESearchType.host;
     const isBcsCluster = type === ESearchType.bcs_cluster;
+    // trace 类型走应用别名展示，不使用搜索词高亮分词
+    const isTrace = type === ESearchType.trace;
+
     return (
       <div
         class={[
           'new-home-select-group-item',
+          // 用于 highlightedIndexFocus 定位 DOM 节点，实现键盘选中后自动滚动到可视区
+          `item_${parentInd}_${ind}`,
           {
             active: this.highlightedIndex[0] === parentInd && this.highlightedIndex[1] === ind,
           },
@@ -327,7 +334,29 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       >
         {isHost && <span class='ip-tag'>{item.bk_cloud_id}:</span>}
         <span class='item-label'>
-          <span domPropsInnerHTML={item.nameSearch} />
+          {!isTrace && (
+            <span>
+              {splitHighlightFragments(item.name || '', this.searchValue).map(fragment =>
+                fragment.highlight ? (
+                  <span
+                    key={fragment.start}
+                    class='highlight'
+                  >
+                    {fragment.text}
+                  </span>
+                ) : (
+                  fragment.text
+                )
+              )}
+            </span>
+          )}
+          {isTrace && (
+            // trace 应用展示别名(app_alias) + 应用名，区别于普通项的搜索词高亮
+            <span class='app-name-wrap'>
+              <span class='app-alias'>{item.app_alias || ''}</span>
+              <span class='app-name'>{item.app_name ? `（${item.app_name}）` : ''}</span>
+            </span>
+          )}
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
           {isHost && item.compare_hosts.length > 0 && (
@@ -359,6 +388,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               tag.list.includes(item.bk_biz_id) && (
                 <span
                   key={tag.id}
+                  // 支持通过 tag.styles 自定义标签样式（颜色、背景等）
+                  style={tag.styles}
                   class='list-item-tag'
                 >
                   {tag.name}
@@ -500,13 +531,21 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 渲染搜索列表 */
   renderGroupList() {
     return this.searchList.map((item, ind) => {
-      const data = highLightContent(this.searchValue, item.items, ['name']);
+      const isTrace = item.type === ESearchType.trace;
       return (
         <div key={item.name}>
           <span class='new-home-select-item-title'>
             {item.name}（{item.items.length}）
           </span>
-          {data.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
+          {isTrace && (
+            // trace 搜索时展示提示条：搜索词 + 引导文案 + 命中应用数
+            <div class='new-home-select-item-title-trace-tip'>
+              <span class='trace-id'>{this.searchValue}</span>
+              <span class='help-tips'>{this.$t('请选择下方应用进入 Trace 详情')}</span>
+              <span class='count-tag'>{this.$t('命中{0}个应用', [item.items.length])}</span>
+            </div>
+          )}
+          {item.items.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
         </div>
       );
     });
@@ -633,7 +672,17 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       }
     }
     this.highlightedIndex = [parentId, ind];
+    this.highlightedIndexFocus();
   }
+
+  /** 键盘切换选中后将当前高亮项滚动到可视区域 */
+  highlightedIndexFocus() {
+    const parentInd = this.highlightedIndex[0] || 0;
+    const ind = this.highlightedIndex[1] || 0;
+    const el = this.$el.querySelector(`.new-home-select-group-item.item_${parentInd}_${ind}`);
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', container: 'nearest' });
+  }
+
   /** 键盘向上切换选中设置当前的index */
   setHighlightIndexDown(key: string = ESearchPopoverType.searchList) {
     if (this[key].length === 0) {

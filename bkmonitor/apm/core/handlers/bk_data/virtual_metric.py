@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 import traceback
@@ -21,6 +21,7 @@ from apm.models import ApmApplication
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.dataflow.task.apm_metrics import APMVirtualMetricTask
 from common.log import logger
+from constants.apm import normalize_app_name
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from metadata.models.storage import DataBusStatus
@@ -53,12 +54,12 @@ class VirtualMetricFlow:
     @property
     def datasource_name(self):
         # 数据源id
-        return f"{self.PREFIX}_{self.app_name}"[-50:]
+        return f"{self.PREFIX}_{normalize_app_name(self.app_name)}"[-50:]
 
     @property
     def datasource_cleans_table_id(self):
         # 数据源清洗结果表id
-        return f"{self.PREFIX}_{self.app_name}"
+        return f"{self.PREFIX}_{normalize_app_name(self.app_name)}"
 
     @property
     def datasource_cleans_table_id_with_biz(self):
@@ -88,7 +89,7 @@ class VirtualMetricFlow:
             self._create_start_flow()
 
             logger.info(
-                f"[BkBaseVirtualMetricHandler] bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} " f"创建虚拟指标成功"
+                f"[BkBaseVirtualMetricHandler] bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} 创建虚拟指标成功"
             )
         except Exception as e:  # noqa
             msg = f"APM bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} 创建虚拟指标失败: {e} {traceback.format_exc()}"

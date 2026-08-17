@@ -72,7 +72,7 @@ export default {
   告警流控: 'Alarm flow control',
   事件忽略: 'Ignore related event',
   套餐: 'Package',
-  '大于 {0}': 'Greater than {0}',
+  '大于 {0} 新增数据值': 'Greater than {0} new data values',
 
   // "[功能名称] (enable)"
   是否开启通知: 'Notify (enable)',
@@ -189,10 +189,13 @@ export default {
   日志分析: 'Log analysis',
   '日志分析总结：': 'Log analysis summary:',
   示例事件: 'Example event',
+  通用事件: 'General event',
   告警类别: 'Alarm category',
   事件类别: 'Event category',
   '（共 {0} 个{1}）': ' (total {0} {1})',
   '（共 {0} 个{1}，展示 {2} 如下）': ' (total {0} {1}, show {2} below)',
+  '（共 {0} 个{1}，示例如下）': ' (total {0} {1}, example below)',
+  '（共 {0} 个事件，示例如下）': ' (total {0} events, example below)',
   '示例日志：': 'Example log:',
   '（共 {0} 条日志）': ' (total {0} logs)',
   独立查看: 'View independently',
@@ -223,4 +226,5 @@ export default {
   时间窗口接近: 'Time window close to each other',
   日志聚类一致: 'Log clustering consistent',
   人工确认同根因: 'Manual confirmation same root cause',
+  命令执行时间: 'Command execution time',
 };

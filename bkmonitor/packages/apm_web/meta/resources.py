@@ -134,6 +134,7 @@ from constants.apm import (
     StandardFieldCategory,
     TailSamplingSupportMethod,
     TelemetryDataType,
+    normalize_app_name,
 )
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel
@@ -175,7 +176,7 @@ class CreateApplicationResource(Resource):
             )
 
         bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
+        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-zA-Z0-9_.-]+$")
         app_alias = serializers.CharField(label="应用别名", max_length=255)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         plugin_id = serializers.CharField(
@@ -204,6 +205,14 @@ class CreateApplicationResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        # ↓ 负责人列表（可选）：创建时会写入数据库，并对列表中每个用户授予 APM_APPLICATION 权限
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            default=list,
+            allow_empty=True,
+        )
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -227,6 +236,13 @@ class CreateApplicationResource(Resource):
             bk_tenant_id = get_request_tenant_id()
         else:
             bk_tenant_id = DEFAULT_TENANT_ID
+
+        # 默认将创建者加入 owners 列表（置于列表首位，_normalize_owners 会兜底去重）
+        owners = list(validated_request_data.get("owners") or [])
+        creator = get_request_username()
+        if creator and creator not in owners:
+            owners.insert(0, creator)
+
         app = Application.create_application(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -243,6 +259,8 @@ class CreateApplicationResource(Resource):
             # ↓ 两个可选项
             storage_options=validated_request_data.get("datasource_option"),
             plugin_config=validated_request_data.get("plugin_config"),
+            # ↓ 负责人列表（默认包含创建者）
+            owners=owners,
         )
 
         from apm_web.tasks import APMEvent, report_apm_application_event
@@ -266,10 +284,21 @@ class CheckDuplicateNameResource(Resource):
         exists = serializers.BooleanField(label="是否存在")
 
     def perform_request(self, validated_request_data):
-        if Application.origin_objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        ).exists():
+        # 与 Application.check_application 保持一致的重名判定口径：
+        # 1) 大小写不敏感的精确重名（MyApp 与 myapp 视为同名）；
+        # 2) 归一化后重名（my.app / my-app / MyApp 归一化后均为 myapp）。
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+
+        if Application.origin_objects.filter(bk_biz_id=bk_biz_id, app_name__iexact=app_name).exists():
             return {"exists": True}
+
+        normalized = normalize_app_name(app_name)
+        exist_names = Application.origin_objects.filter(bk_biz_id=bk_biz_id).values_list("app_name", flat=True)
+        for exist_name in exist_names:
+            if normalize_app_name(exist_name) == normalized:
+                return {"exists": True}
+
         return {"exists": False}
 
 
@@ -739,6 +768,12 @@ class SetupResource(Resource):
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
         plugin_config = PluginConfigSerializer(required=False)
         application_qps_config = serializers.IntegerField(label="qps", required=False)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            allow_empty=True,
+        )
 
         def validate(self, attrs):
             res = super().validate(attrs)
@@ -807,10 +842,25 @@ class SetupResource(Resource):
             )
 
     class ApplicationSetupProcessor(SetupProcessor):
-        update_key = ["app_alias", "description"]
+        update_key = ["app_alias", "description", "owners"]
 
         def setup(self):
-            Application.objects.filter(application_id=self._application.application_id).update(**self._params)
+            application_id = self._application.application_id
+            # 字段更新：存在什么就写什么（app_alias / description / owners 三个字段都支持）
+            update_fields = {k: v for k, v in self._params.items() if k in self.update_key}
+
+            # owners 字段需要额外做标准化与授权
+            if "owners" in update_fields:
+                previous_owners = list(self._application.owners or [])
+                normalized_owners = Application._normalize_owners(update_fields["owners"])
+                update_fields["owners"] = normalized_owners
+
+                Application.objects.filter(application_id=application_id).update(**update_fields)
+                # 主动授权：仅对新增的负责人授权，被移除的不做权限回收
+                self._application.owners = normalized_owners
+                self._application.grant_owners(normalized_owners, previous_owners=previous_owners)
+            elif update_fields:
+                Application.objects.filter(application_id=application_id).update(**update_fields)
 
     class ApdexSetupProcessor(SetupProcessor):
         group_key = "application_apdex_config"
@@ -1026,7 +1076,7 @@ class ListApplicationResource(PageListResource):
             2. 有服务的其次
             3. 分组内按名称排序
             """
-            first, second, third = 1, 1, app.get("app_name", "")
+            first, second, third = 1, 1, normalize_app_name(app.get("app_name", ""))
             if (
                 app.get("trace_data_status") == DataStatus.NORMAL
                 or app.get("profiling_data_status") == DataStatus.NORMAL

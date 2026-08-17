@@ -1,0 +1,37 @@
+.metric-table {
+  &__name {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  &__group-select {
+    width: 100%;
+
+    .bk-select {
+      width: 100%;
+    }
+  }
+
+  .add-group-select.bk-select {
+    .bk-input {
+      border: none;
+      border-radius: 4px;
+      box-shadow: none;
+    }
+
+    &.is-focus {
+      .bk-input {
+        border: 1px solid #3a84ff;
+      }
+    }
+
+    .angle-down {
+      opacity: 0;
+    }
+  }
+
+  .metric-list-drag {
+    font-size: 12px;
+    color: #979ba5;
+  }
+}

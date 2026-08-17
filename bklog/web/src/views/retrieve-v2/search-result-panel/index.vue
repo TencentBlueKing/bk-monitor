@@ -4,11 +4,20 @@ import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch 
 import useStore from '@/hooks/use-store';
 import { getCommonFilterAdditionWithValues } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 import { throttle } from 'lodash-es';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import NoIndexSet from '../result-comp/no-index-set';
 import LogResult from './log-result/index';
+
+const DEFAULT_FIELDS_WIDTH = 200;
+
+const props = defineProps({
+  activeTab: { type: String, default: '' },
+});
+const emit = defineEmits(['update:active-tab']);
+
 
 // #if MONITOR_APP !== 'trace'
 const SearchResultChart = defineAsyncComponent(() =>
@@ -33,13 +42,6 @@ const LogClustering = defineAsyncComponent(() =>
 // #else
 // #code const LogClustering = () => null;
 // #endif
-
-const DEFAULT_FIELDS_WIDTH = 200;
-
-const props = defineProps({
-  activeTab: { type: String, default: '' },
-});
-const emit = defineEmits(['update:active-tab']);
 
 const store = useStore();
 const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
@@ -66,9 +68,6 @@ const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
 const heightNum = ref(isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT);
 const shouldRenderTrendChart = ref(false);
 const isTrendChartPending = ref(!shouldRenderTrendChart.value);
-const TREND_CHART_MIN_DELAY = 500;
-let renderTrendChartDelayTimer = null;
-let renderTrendChartIdleTimer = null;
 
 const setTrendChartPending = () => {
   if (!isOriginShow.value) {
@@ -81,46 +80,17 @@ const setTrendChartPending = () => {
   RetrieveHelper.setTrendGraphHeight(heightNum.value);
 };
 
-const clearRenderTrendChartTimer = () => {
-  if (renderTrendChartDelayTimer) {
-    window.clearTimeout(renderTrendChartDelayTimer);
-    renderTrendChartDelayTimer = null;
-  }
-
-  if (renderTrendChartIdleTimer) {
-    if (window.cancelIdleCallback) {
-      window.cancelIdleCallback(renderTrendChartIdleTimer);
-    } else {
-      window.clearTimeout(renderTrendChartIdleTimer);
-    }
-    renderTrendChartIdleTimer = null;
-  }
-};
-
 const scheduleRenderTrendChart = () => {
-  if (shouldRenderTrendChart.value || renderTrendChartDelayTimer || renderTrendChartIdleTimer) {
+  if (shouldRenderTrendChart.value) {
     return;
   }
 
-  const render = () => {
-    renderTrendChartIdleTimer = null;
-    shouldRenderTrendChart.value = true;
-  };
+  if (!isOriginShow.value) {
+    return;
+  }
 
-  renderTrendChartDelayTimer = window.setTimeout(() => {
-    renderTrendChartDelayTimer = null;
-
-    if (!isOriginShow.value) {
-      return;
-    }
-
-    if (window.requestIdleCallback) {
-      renderTrendChartIdleTimer = window.requestIdleCallback(render, { timeout: 3000 });
-      return;
-    }
-
-    renderTrendChartIdleTimer = window.setTimeout(render, 1200);
-  }, TREND_CHART_MIN_DELAY);
+  // 立即渲染，不延迟
+  shouldRenderTrendChart.value = true;
 };
 
 watch(isOriginShow, (value) => {
@@ -143,7 +113,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  clearRenderTrendChartTimer();
   RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
 });
 
@@ -167,6 +136,13 @@ RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 const changeTotalCount = (count) => {
   totalCount.value = count;
 };
+watch(
+  () => normalizeSearchTotal(store.state.searchTotal),
+  count => {
+    totalCount.value = count;
+  },
+  { immediate: true },
+);
 const changeQueueRes = (status) => {
   queueStatus.value = status;
 };
@@ -261,50 +237,51 @@ const rightContentStyle = computed(() => {
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
-        <div
-          v-show="isOriginShow"
-          :class="[
-            'trend-chart-reserved',
-            RetrieveHelper.randomTrendGraphClassName,
-            { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
-          ]"
-          :style="{ height: `${heightNum}px` }"
-        >
-          <SearchResultChart
-            v-if="shouldRenderTrendChart"
-            @change-queue-res="changeQueueRes"
-            @change-total-count="changeTotalCount"
-            @toggle-change="handleToggleChange"
-            @trend-ready="handleTrendReady"
-          />
+        <template v-if="!__IS_MONITOR_TRACE__">
           <div
-            v-if="isTrendChartPending || !shouldRenderTrendChart"
-            class="trend-chart-skeleton"
-            aria-hidden="true"
+            v-show="isOriginShow"
+            :class="[
+              'trend-chart-reserved',
+              RetrieveHelper.randomTrendGraphClassName,
+              { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
+            ]"
+            :style="{ height: `${heightNum}px` }"
           >
-            <div class="trend-chart-skeleton-title">
-              <span class="trend-chart-skeleton-caret" />
-              <span class="trend-chart-skeleton-title-line" />
-              <span class="trend-chart-skeleton-meta-line" />
-            </div>
+            <SearchResultChart
+              v-if="shouldRenderTrendChart"
+              @change-queue-res="changeQueueRes"
+              @change-total-count="changeTotalCount"
+              @toggle-change="handleToggleChange"
+              @trend-ready="handleTrendReady"
+            />
             <div
-              v-if="isTrendChartShow"
-              class="trend-chart-skeleton-body"
+              v-if="isTrendChartPending || !shouldRenderTrendChart"
+              class="trend-chart-skeleton"
+              aria-hidden="true"
             >
-              <span
-                v-for="index in 36"
-                :key="index"
-                class="trend-chart-skeleton-bar"
-                :style="{ height: `${24 + ((index * 17) % 78)}px` }"
-              />
+              <div class="trend-chart-skeleton-title">
+                <span class="trend-chart-skeleton-caret" />
+                <span class="trend-chart-skeleton-title-line" />
+                <span class="trend-chart-skeleton-meta-line" />
+              </div>
+              <div
+                v-if="isTrendChartShow"
+                class="trend-chart-skeleton-body"
+              >
+                <span
+                  v-for="index in 36"
+                  :key="index"
+                  class="trend-chart-skeleton-bar"
+                  :style="{ height: `${24 + ((index * 17) % 78)}px` }"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          v-show="isOriginShow"
-          class="split-line"
-        />
-
+          <div
+            v-show="isOriginShow"
+            class="split-line"
+          />
+        </template>
         <keep-alive>
           <LogResult
             v-if="isOriginShow"

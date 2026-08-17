@@ -668,6 +668,10 @@ class SpaceTableIDRedis:
             table_id__in=selected_table_ids,
         ).values("table_id", "name", "value", "value_type")
         for option in options:
+            # 只保留查询选项
+            if option["name"] not in models.ResultTableOption.QUERY_OPTION_NAME_LIST:
+                continue
+
             try:
                 value = (
                     option["value"]
@@ -711,6 +715,10 @@ class SpaceTableIDRedis:
         cluster_ids = {record["cluster_id"] for record in storage_records}
         cluster_ids.update(row["storage_cluster_id"] for row in es_rows)
         cluster_ids.update(row["storage_cluster_id"] for row in doris_rows)
+        # 虚拟表当前 Storage 指向的 cluster 缺失时，顶层路由会回退到实体表的
+        # 同类型 Storage；因此实体表 Storage 的 cluster 也必须在本次批量查询中加载。
+        cluster_ids.update(row["storage_cluster_id"] for row in origin_es_map.values())
+        cluster_ids.update(row["storage_cluster_id"] for row in origin_doris_map.values())
         cluster_map = {
             row["cluster_id"]: row
             for row in models.ClusterInfo.objects.filter(
@@ -801,6 +809,11 @@ class SpaceTableIDRedis:
                 storage = target_es or origin_es
                 storage_id = storage.get("storage_cluster_id", 0)
                 cluster = cluster_map.get(storage_id)
+                # 仅在虚拟表 cluster 不存在时回退实体表；若 cluster 存在但类型错误，
+                # 保持严格校验失败，避免掩盖虚拟表指向错误类型集群的配置问题。
+                if not cluster:
+                    storage_id = origin_es.get("storage_cluster_id", 0)
+                    cluster = cluster_map.get(storage_id)
                 if (
                     not cluster
                     or cluster["cluster_type"] != models.ClusterInfo.TYPE_ES
@@ -832,6 +845,9 @@ class SpaceTableIDRedis:
                 storage = target_doris or origin_doris
                 storage_id = storage.get("storage_cluster_id", 0)
                 cluster = cluster_map.get(storage_id)
+                if not cluster:
+                    storage_id = origin_doris.get("storage_cluster_id", 0)
+                    cluster = cluster_map.get(storage_id)
                 if not cluster or cluster["cluster_type"] != models.ClusterInfo.TYPE_DORIS or not doris_db:
                     logger.error(
                         "compose log detail: Doris config incomplete, tenant->[%s], table_id->[%s], cluster_id->[%s]",
@@ -851,6 +867,7 @@ class SpaceTableIDRedis:
                     "data_label": data_label,
                     "labels": labels,
                     "field_alias": field_alias,
+                    "options": options_map.get(table_id) or {},
                 }
             else:
                 continue
@@ -1560,15 +1577,24 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias", "default_storage"],
+            value_field_list=[
+                "bk_biz_id",
+                "table_id",
+                "schema_type",
+                "data_label",
+                "bk_biz_id_alias",
+                "default_storage",
+                "is_deleted",
+            ],
             other_filter={"bk_tenant_id": bk_tenant_id},
         )  # 新增bk_biz_id_alias,部分业务存在自定义过滤规则别名需求，如bk_biz_id -> appid
 
-        # ES / Doris 路由由后续独立流程处理，这里仅按 default_storage 排除，不再根据 RT 启用或删除状态过滤。
+        # 除了vm表外，保留es/doris全局表
         _table_list = [
             data
             for data in _table_list
             if data["default_storage"] not in [models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS]
+            or (data["bk_biz_id"] == 0 and not data["is_deleted"])
         ]
         table_ids = {data["table_id"] for data in _table_list}
         table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}

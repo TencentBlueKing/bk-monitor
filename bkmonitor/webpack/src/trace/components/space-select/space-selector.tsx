@@ -133,12 +133,16 @@ export default defineComponent({
     });
 
     const handleDebounceSearchChange = useDebounceFn(handleSearchChange, 300);
+    /** bizWithAlertStatistics 返回的业务名缓存，供已选无权限业务兜底展示 */
+    const bizNameMap = shallowRef(new Map<number, string>());
 
     initLocalSpaceList();
     onUnmounted(() => {});
     watch(
       () => props.value,
       val => {
+        // value 可能在 setAllowed 完成后才变为目标无权限 biz，需补齐列表项后再同步勾选文案
+        ensureSelectedNoAuthSpaces(val);
         handleWatchValue(val);
       }
     );
@@ -177,6 +181,61 @@ export default defineComponent({
       emit('applyAuth', [bizId]);
     }
 
+    function isSpecialSpaceId(id: number | string) {
+      if (specialIds.includes(id as (typeof specialIds)[number]) || specialIds.includes(String(id) as any)) {
+        return true;
+      }
+      const num = Number(id);
+      return num === authorityBizId || num === hasDataBizId;
+    }
+
+    function syncNoAuthBizIds() {
+      const noAuthIds: number[] = [];
+      for (const item of localSpaceList.value) {
+        if (item.noAuth && !item.hasData) {
+          noAuthIds.push(+item.id);
+        }
+      }
+      appStore.noAuthBizIds = noAuthIds;
+    }
+
+    /**
+     * 已选但不在列表中的业务补成无权限项（对齐旧版：无权限也可展示并申请）
+     * 不依赖 business_list 是否命中，避免 id 类型不一致 / 接口缺项导致触发器空白
+     */
+    function ensureSelectedNoAuthSpaces(val: (number | string)[] = []) {
+      const existingIds = new Set(localSpaceList.value.map(item => +item.id));
+      const missing: ILocalSpaceList[] = [];
+      for (const id of val) {
+        if (isSpecialSpaceId(id)) continue;
+        const numId = Number(id);
+        if (!Number.isFinite(numId) || numId === 0 || existingIds.has(numId)) continue;
+        const name = bizNameMap.value.get(numId) || `#${numId}`;
+        const noAuthItem = {
+          space_name: name,
+          isSpecial: false,
+          tags: [],
+          isCheck: false,
+          show: true,
+          preciseMatch: false,
+          py_text: '',
+          space_id: String(numId),
+          space_type_id: ETagsType.BKCC,
+          id: numId,
+          bk_biz_id: numId,
+          name,
+          noAuth: true,
+          hasData: false,
+        } as ILocalSpaceList;
+        missing.push(noAuthItem);
+        existingIds.add(numId);
+      }
+      if (!missing.length) return;
+      localSpaceList.value = [...localSpaceList.value, ...missing];
+      syncNoAuthBizIds();
+      setPaginationData(true);
+    }
+
     function handleWatchValue(val) {
       if (JSON.stringify(val) === JSON.stringify(localValue.value)) {
         return;
@@ -186,7 +245,8 @@ export default defineComponent({
       const nameList = [];
       const strList = [];
       for (const item of localSpaceList.value) {
-        const has = localValue.value.includes(item.id);
+        // 兼容 number / string id，避免无权限项勾选与触发器文案丢失
+        const has = localValue.value.some(v => String(v) === String(item.id) || +v === +item.id);
         item.isCheck = has;
         if (has) {
           nameList.push(item.name);
@@ -324,7 +384,7 @@ export default defineComponent({
           resetCurBiz(+localCurrentSpace.value);
         }
       }
-      if (!!localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value)) {
+      if (localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value)) {
         handleAutoSetCurBiz();
         setTimeout(() => {
           handleChange();
@@ -434,19 +494,31 @@ export default defineComponent({
     }
 
     async function setAllowed() {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-        () => ({})
-      );
-      const allBizList = business_list.map(item => ({
-        id: item.bk_biz_id,
+      const statistics = (await bizWithAlertStatistics().catch(() => ({}))) as {
+        business_list?: { bk_biz_id: number; bk_biz_name: string }[];
+        business_with_alert?: { bk_biz_id: number; bk_biz_name: string }[];
+        business_with_permission?: { bk_biz_id: number; bk_biz_name: string }[];
+      };
+      const businessList = statistics.business_list || [];
+      const businessWithAlert = statistics.business_with_alert || [];
+      const businessWithPermission = statistics.business_with_permission || [];
+      const allBizList = businessList.map(item => ({
+        id: +item.bk_biz_id,
         name: item.bk_biz_name,
       }));
-      // const businessWithPermissionSet = new Set();
-      const curIdsSet = new Set();
+      const nameMap = new Map<number, string>();
+      for (const item of allBizList) {
+        nameMap.set(item.id, item.name);
+      }
+      for (const item of businessWithAlert) {
+        nameMap.set(+item.bk_biz_id, item.bk_biz_name);
+      }
+      bizNameMap.value = nameMap;
+
+      const curIdsSet = new Set<number>();
       for (const item of localSpaceList.value) {
-        if (!specialIds.includes(item.id)) {
-          curIdsSet.add(item.id);
+        if (!isSpecialSpaceId(item.id)) {
+          curIdsSet.add(+item.id);
         }
       }
       const nullItem = {
@@ -461,52 +533,48 @@ export default defineComponent({
         space_type_id: ETagsType.BKCC,
       };
       const otherSpaces = [];
-      if (business_with_alert?.length) {
-        for (const item of business_with_alert) {
-          if (!curIdsSet.has(item.bk_biz_id)) {
-            curIdsSet.add(item.bk_biz_id);
-            otherSpaces.push({
-              ...nullItem,
-              ...item,
-              id: item.bk_biz_id,
-              name: item.bk_biz_name,
-              noAuth: true,
-              hasData: true,
-            });
-          }
+      for (const item of businessWithAlert) {
+        const bizId = +item.bk_biz_id;
+        if (!curIdsSet.has(bizId)) {
+          curIdsSet.add(bizId);
+          otherSpaces.push({
+            ...nullItem,
+            ...item,
+            id: bizId,
+            bk_biz_id: bizId,
+            name: item.bk_biz_name,
+            noAuth: true,
+            hasData: true,
+          });
         }
       }
-      const data =
-        business_with_permission.map(item => ({
-          ...item,
-          id: item.bk_biz_id,
-          name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-        })) || [];
+      const permissionIds = new Set(businessWithPermission.map(item => +item.bk_biz_id));
+      // 当前已选但不在有权限列表中的业务：补无权限项（接口无名时用 #id 兜底）
       for (const id of props.value) {
-        const bizItem = allBizList.find(set => set.id === id);
-        if (bizItem && !data.some(set => set.id === id)) {
-          if (!curIdsSet.has(bizItem.id)) {
-            curIdsSet.add(bizItem.id);
-            otherSpaces.push({
-              ...nullItem,
-              ...bizItem,
-              id: bizItem.id,
-              name: bizItem.name,
-              noAuth: true,
-              hasData: false,
-            });
-          }
-        }
+        if (isSpecialSpaceId(id)) continue;
+        const numId = Number(id);
+        if (!Number.isFinite(numId) || numId === 0 || curIdsSet.has(numId) || permissionIds.has(numId)) continue;
+        const bizItem = allBizList.find(set => set.id === numId);
+        const name = bizItem?.name || nameMap.get(numId) || `#${numId}`;
+        curIdsSet.add(numId);
+        otherSpaces.push({
+          ...nullItem,
+          ...(bizItem || {}),
+          id: numId,
+          bk_biz_id: numId,
+          name,
+          space_name: name,
+          space_id: String(numId),
+          noAuth: true,
+          hasData: false,
+        });
       }
-      localSpaceList.value.push(...otherSpaces);
-      // 将无权限空间 ID（noAuth && !hasData）同步到 appStore，供其他组件使用
-      const noAuthIds: number[] = [];
-      for (const item of localSpaceList.value) {
-        if (!!item.noAuth && !item.hasData) {
-          noAuthIds.push(item.id as number);
-        }
+      if (otherSpaces.length) {
+        localSpaceList.value = [...localSpaceList.value, ...otherSpaces];
       }
-      appStore.noAuthBizIds = noAuthIds;
+      syncNoAuthBizIds();
+      // value 可能已在 await 期间更新，再兜底补一次
+      ensureSelectedNoAuthSpaces(props.value);
       localValue.value = [];
       handleWatchValue(props.value);
       setPaginationData(true);
@@ -602,7 +670,9 @@ export default defineComponent({
     }
 
     function handleSelectOption(item: ILocalSpaceList) {
-      if (!!item.noAuth && !item.hasData) {
+      // 无权限业务：点击整行与「申请权限」一致，走申请流程
+      if (item.noAuth && !item.hasData) {
+        handleApplyAuth(item.id);
         return;
       }
       selectOption(item, !item.isCheck);
@@ -868,6 +938,7 @@ export default defineComponent({
                           (!!item.noAuth && !item.hasData),
                       },
                     ]}
+                    v-authority={{ active: !!(item.noAuth && !item.hasData) }}
                     onClick={() => this.handleSelectOption(item)}
                   >
                     {this.multiple && (
@@ -905,13 +976,16 @@ export default defineComponent({
                     )} */}
                     </span>
                     <span class='space-tags'>
-                      {!!item.noAuth && !item.hasData ? (
+                      {item.noAuth && !item.hasData ? (
                         <Button
                           class='auth-button'
                           size='small'
                           theme='primary'
                           text
-                          onClick={() => this.handleApplyAuth(item.id)}
+                          onClick={(e: Event) => {
+                            e.stopPropagation();
+                            this.handleApplyAuth(item.id);
+                          }}
                         >
                           {this.t('申请权限')}
                         </Button>

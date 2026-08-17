@@ -11,11 +11,13 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 import typing
+import uuid
 from collections import defaultdict
 from multiprocessing.pool import ApplyResult
 from typing import Any
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils.translation import gettext as _
 from pypinyin import lazy_pinyin
 from rest_framework import serializers
@@ -33,6 +35,7 @@ from constants.cmdb import TargetNodeType
 from core.drf_resource import CacheResource, api
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
+from core.errors.common import CustomError
 from . import client
 from .define import Business, Host, Module, Process, ServiceInstance, Set, TopoTree
 
@@ -176,6 +179,46 @@ def _get_topo_tree(bk_biz_id):
     return sort_topo_tree_by_pinyin([response_data])[0]
 
 
+class ServiceInstanceModuleIndex:
+    CACHE_KEY = "web_cache:cc_cache_always:service_instance_module_index:v2:{}:{}"
+    WRITE_ID_FIELD = "write_id"
+    INDEX_FIELD = "module_to_service_instance_ids"
+
+    @classmethod
+    def cache_key(cls, bk_biz_id: int) -> str:
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        return cls.CACHE_KEY.format(bk_tenant_id, bk_biz_id)
+
+    @classmethod
+    def build(cls, service_instances: list[dict]) -> dict[str, list[int]]:
+        module_to_service_instance_ids = defaultdict(list)
+        for service_instance in service_instances:
+            module_to_service_instance_ids[str(service_instance["bk_module_id"])].append(service_instance["id"])
+        return dict(module_to_service_instance_ids)
+
+    @classmethod
+    def set(cls, bk_biz_id: int, service_instances: list[dict]) -> None:
+        cache_key = cls.cache_key(bk_biz_id)
+        cache_value = {
+            cls.WRITE_ID_FIELD: uuid.uuid4().hex,
+            cls.INDEX_FIELD: cls.build(service_instances),
+        }
+        cache.set(cache_key, cache_value, CacheType.CC_CACHE_ALWAYS.timeout)
+        persisted_value = cache.get(cache_key)
+        if (
+            not isinstance(persisted_value, dict)
+            or persisted_value.get(cls.WRITE_ID_FIELD) != cache_value[cls.WRITE_ID_FIELD]
+        ):
+            raise RuntimeError(_("服务实例拓扑索引写入校验失败"))
+
+    @classmethod
+    def get(cls, bk_biz_id: int) -> dict[str, list[int]] | None:
+        cache_value = cache.get(cls.cache_key(bk_biz_id))
+        if cache_value is None:
+            return None
+        return cache_value[cls.INDEX_FIELD]
+
+
 @using_cache(CacheType.CC_CACHE_ALWAYS, is_cache_func=lambda res: res)
 def get_service_instance_by_biz(bk_biz_id):
     """
@@ -185,7 +228,9 @@ def get_service_instance_by_biz(bk_biz_id):
     :return: 服务实例列表
     :rtype: list
     """
-    return batch_request(client.list_service_instance_detail, {"bk_biz_id": bk_biz_id})
+    service_instances = batch_request(client.list_service_instance_detail, {"bk_biz_id": bk_biz_id})
+    ServiceInstanceModuleIndex.set(bk_biz_id, service_instances)
+    return service_instances
 
 
 def _trans_topo_node_to_module_ids(bk_biz_id: int, topo_nodes: dict[str, typing.Iterable[int]]) -> set[int]:
@@ -576,6 +621,29 @@ class GetServiceInstanceByTopoNode(Resource):
         return [ServiceInstance(**instance) for instance in service_instances]
 
 
+class GetServiceInstanceIdsByTopoNode(Resource):
+    """
+    根据拓扑节点获取服务实例 ID，不加载服务实例完整明细
+    """
+
+    RequestSerializer = GetServiceInstanceByTopoNode.RequestSerializer
+
+    def perform_request(self, params):
+        module_index = ServiceInstanceModuleIndex.get(params["bk_biz_id"])
+        if module_index is None:
+            raise CustomError(message=_("服务实例拓扑索引尚未就绪，请稍后重试"))
+
+        if params.get("topo_nodes", {}):
+            module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], params["topo_nodes"])
+        else:
+            module_ids = {int(module_id) for module_id in module_index}
+
+        service_instance_ids = []
+        for module_id in module_ids:
+            service_instance_ids.extend(module_index.get(str(module_id), []))
+        return service_instance_ids
+
+
 class GetServiceInstanceByID(Resource):
     """
     根据服务实例ID获取服务实例
@@ -791,6 +859,30 @@ class GetServiceInstanceByTemplate(Resource):
             topo_nodes = []
 
         return api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes=topo_nodes)
+
+
+class GetServiceInstanceIdsByTemplate(Resource):
+    """
+    获取模板下的服务实例 ID，不加载服务实例完整明细
+    """
+
+    RequestSerializer = GetServiceInstanceByTemplate.RequestSerializer
+
+    def perform_request(self, params):
+        bk_biz_id = params["bk_biz_id"]
+        bk_obj_id = params["bk_obj_id"]
+        template_ids = params["template_ids"]
+
+        if bk_obj_id == TargetNodeType.SERVICE_TEMPLATE:
+            modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, service_template_ids=template_ids)
+            topo_nodes = {"module": [m.bk_module_id for m in modules]}
+        elif bk_obj_id == TargetNodeType.SET_TEMPLATE:
+            sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, set_template_ids=template_ids)
+            topo_nodes = {"set": [s.bk_set_id for s in sets]}
+        else:
+            topo_nodes = []
+
+        return api.cmdb.get_service_instance_ids_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes=topo_nodes)
 
 
 class GetMainlineObjectTopo(Resource):

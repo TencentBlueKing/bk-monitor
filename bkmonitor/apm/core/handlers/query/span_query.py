@@ -47,67 +47,60 @@ class SpanQuery(BaseQuery):
         exclude_fields: list[str] | None = None,
         query_string: str | None = None,
         sort: list[str] | None = None,
-    ) -> tuple[list[dict[str, Any]], int]:
+    ) -> list[dict[str, Any]]:
         select_fields: list[str] = self._get_select_fields(exclude_fields)
-        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = self.build_query_q(filters, query_string).order_by(
-            *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
-        )
+        queries: list[QueryConfigBuilder] = [
+            q.order_by(*(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])).values(*select_fields)
+            for q in self.build_queries(filters, query_string)
+        ]
+        return self._query_list(queries, start_time, end_time, offset, limit)
 
-        page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.SPAN_ID, offset, limit)
-        return page_data["data"], page_data["total"]
+    def query_by_trace_id(
+        self,
+        trace_id: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = constants.DISCOVER_BATCH_SIZE,
+    ) -> list[dict[str, Any]]:
+        queries: list[QueryConfigBuilder] = [
+            q.order_by(OtlpKey.START_TIME).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
+            for q in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        # 跨业务目标无法收敛到同一空间，需要全局查询
+        bk_biz_ids: set[int] = {data_source.app.bk_biz_id for data_source in self.data_sources}
+        qs: UnifyQuerySet = self.get_qs(start_time, end_time, using_scope=len(bk_biz_ids) == 1).limit(limit)
+        return list(self._add_query(qs, queries))
 
-    def query_by_trace_id(self, trace_id: str) -> list[dict[str, Any]]:
-        q: QueryConfigBuilder = (
-            self.q.time_field(OtlpKey.START_TIME)
+    def cross_query_by_trace_id(
+        self,
+        trace_id: str,
+        trace_scope_table: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """在 Trace 数据源域索引集中查询 Span，索引集成员可能重叠，需要按 SpanId 去重"""
+        qs: UnifyQuerySet = self.get_qs(start_time, end_time).is_es_batch().limit(constants.DISCOVER_BATCH_SIZE)
+        data_sources: list[QueryConfigBuilder] = [
+            QueryConfigBuilder(self.USING)
+            .table(trace_scope_table)
             .order_by(OtlpKey.START_TIME)
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
-        )
-        return list(self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE))
+        ]
+        spans: list[dict[str, Any]] = list(self._add_query(qs, data_sources))
 
-    def query_by_span_id(self, span_id) -> dict[str, Any] | None:
-        q: QueryConfigBuilder = (
-            self.q.time_field(OtlpKey.START_TIME)
-            .order_by(f"{OtlpKey.START_TIME} desc")
-            .filter(**{f"{OtlpKey.SPAN_ID}__eq": span_id})
-        )
-        return self.time_range_queryset().add_query(q).first()
+        # 解决索引前缀相同导致的查询数据重复问题。
+        seen: set[str] = set()
+        deduped_spans: list[dict[str, Any]] = []
+        for span in spans:
+            span_id: str = span.get(OtlpKey.SPAN_ID, "")
+            if span_id not in seen:
+                seen.add(span_id)
+                deduped_spans.append(span)
+        return deduped_spans
 
-    def query_field_topk(
-        self,
-        start_time: int | None,
-        end_time: int | None,
-        field: str,
-        limit: int,
-        filters: list[types.Filter] | None = None,
-        query_string: str | None = None,
-    ):
-        return self._query_field_topk(self.build_query_q(filters, query_string), start_time, end_time, field, limit)
-
-    def query_field_aggregated_value(
-        self,
-        start_time: int | None,
-        end_time: int | None,
-        field: str,
-        method: str,
-        filters: list[types.Filter] | None = None,
-        query_string: str | None = None,
-    ):
-        return self._query_field_aggregated_value(
-            self.build_query_q(filters, query_string), start_time, end_time, field, method
-        )
-
-    def query_option_values(
-        self,
-        datasource_type: str,
-        start_time: int,
-        end_time: int,
-        fields: list[str],
-        limit: int,
-        filters: list[types.Filter],
-        query_string: str,
-    ) -> dict[str, list[str]]:
-        q: QueryConfigBuilder = (
-            self._get_q(datasource_type).filter(self._build_filters(filters)).query_string(query_string)
-        )
-        return self._query_option_values(start_time, end_time, fields, q, limit)
+    def query_by_span_id(self, span_id: str) -> dict[str, Any] | None:
+        queries: list[QueryConfigBuilder] = [
+            q.order_by(f"{OtlpKey.START_TIME} desc").filter(**{f"{OtlpKey.SPAN_ID}__eq": span_id})
+            for q in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        return self._add_query(self.get_qs(), queries).first()

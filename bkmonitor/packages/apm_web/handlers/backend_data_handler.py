@@ -585,9 +585,13 @@ class MetricBackendHandler(TelemetryBackendHandler):
             if interval:
                 start_time = time_interval_align(timestamp=start_time, interval=interval)
                 end_time = time_interval_align(timestamp=end_time, interval=interval)
+            resource_info = {"kind": "DataId", "namespace": "bkmonitor", "name": data_id_name}
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                resource_info["tenant"] = self.app.bk_tenant_id
+
             try:
                 resp = api.bkdata.get_v4_metrics_msgs_stat(
-                    resource={"kind": "DataId", "namespace": "bkmonitor", "name": data_id_name},
+                    resource=resource_info,
                     start=start_time,
                     end=end_time,
                     step=grain,
@@ -803,8 +807,12 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
             if interval:
                 start_time = time_interval_align(timestamp=start_time, interval=interval)
                 end_time = time_interval_align(timestamp=end_time, interval=interval)
+            resource_info = {"kind": "DataId", "namespace": namespace, "name": data_id_name}
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                resource_info["tenant"] = self.app.bk_tenant_id
+
             resp = api.bkdata.get_v4_metrics_msgs_stat(
-                resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
+                resource=resource_info,
                 start=start_time,
                 end=end_time,
                 step=grain,

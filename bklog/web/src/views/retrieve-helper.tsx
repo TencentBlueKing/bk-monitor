@@ -26,13 +26,22 @@
 
 import { Ref } from 'vue';
 
+import { getSelectionRanges } from '@/common/selection-util';
 import { parseTableRowData } from '@/common/util';
 import { getLocationQueryParams } from '@/utils';
 
 import AiAssitantHelper from '@/global/ai-assitant/ai-assitant-helper';
 import RetrieveBase from './retrieve-core/base';
 import { GradeFieldValueType, type GradeConfiguration, type GradeSetting } from './retrieve-core/interface';
-import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
+import {
+  buildPageHighlightKeyword,
+  clearPageHighlightKeywords,
+  getPageHighlightOptions,
+  pageHighlightState as pageHighlightStateRef,
+  setPageHighlightKeywords,
+  setPageHighlightOptions,
+  type PageHighlightAccuracy,
+} from './retrieve-core/page-highlight';
 import RetrieveEvent from './retrieve-core/retrieve-events';
 import { RouteQueryTab } from './retrieve-v3/index.type';
 
@@ -99,15 +108,12 @@ class RetrieveHelper extends RetrieveBase {
    * @param lineSpacing 行间距，默认为0，如果 > 0，点击位置在行间距内也判定为点击在选择区域内
    */
   isClickOnSelection(e: MouseEvent, lineSpacing = 0) {
-    const selection = window.getSelection();
+    // 事件 target 用于定位 shadow root：Trace 宿主下 document 选区会被 retarget 到 shadow host，
+    // 矩形会退化成整个宿主容器，导致容器内任意点击都被判定为点在选区上
+    const ranges = getSelectionRanges(e.target as Node);
 
     // 如果没有选中文本，直接返回 false
-    if (!selection || selection.isCollapsed) {
-      return false;
-    }
-
-    const rangeCount = selection.rangeCount;
-    if (rangeCount === 0) {
+    if (!ranges.length) {
       return false;
     }
 
@@ -118,7 +124,11 @@ class RetrieveHelper extends RetrieveBase {
     };
 
     // 遍历所有选中的范围
-    for (const range of Array.from({ length: rangeCount }, (_, i) => selection.getRangeAt(i))) {
+    for (const range of ranges) {
+      if (range.collapsed) {
+        continue;
+      }
+
       // 获取范围的边界矩形
       const rects = range.getClientRects();
 
@@ -182,8 +192,8 @@ class RetrieveHelper extends RetrieveBase {
         }
       }
       Object.assign(memoryObj, {
-        [bizAppKey]: idList
-      })
+        [bizAppKey]: idList,
+      });
       localStorage.setItem('MONITOR_LOG_RECENT_INDEX_SET_ID', JSON.stringify(memoryObj));
     }
     this.indexSetIdList = idList;
@@ -194,56 +204,50 @@ class RetrieveHelper extends RetrieveBase {
   }
 
   /**
-   * // 初始化 Mark.js 实例
-   * @param target
+   * 页面内高亮状态。
+   * 最终方案不再创建 mark.js/IntersectionObserver 实例，高亮由文本渲染阶段消费该响应式状态。
    */
-  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
-    this.markInstance = new OptimizedHighlighter({
-      target: target ?? (() => document.getElementById(this.logRowsContainerId)),
-      chunkStrategy: 'fixed',
-    });
+  pageHighlightState = pageHighlightStateRef;
+
+  setMarkInstance(_target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
+    // no-op: kept as lifecycle boundary for callers; render-time highlighter has no DOM instance to initialize.
   }
 
   destroyMarkInstance() {
-    this.markInstance?.destroy();
+    clearPageHighlightKeywords();
   }
 
-  highlightElement(target) {
-    this.markInstance?.highlightElement(target);
+  highlightElement(_target?: HTMLElement) {
+    // no-op: newly rendered text consumes pageHighlightState during its own render/append stage.
+  }
+
+  setHighlightCaseSensitive(caseSensitive: boolean) {
+    setPageHighlightOptions({ caseSensitive });
+  }
+
+  setHighlightRegExpMode(regExpMark: boolean) {
+    setPageHighlightOptions({ regExpMark });
+  }
+
+  setHighlightAccuracy(accuracy: PageHighlightAccuracy) {
+    setPageHighlightOptions({ accuracy });
   }
 
   /**
-   * 高亮关键词
+   * 高亮关键词：只更新页面内高亮状态，不扫描/改写已经渲染的 DOM。
    * @param keywords 关键词
-   * @param reset 是否重置
-   * @param _afterMarkFn 高亮后回调
    */
-  highLightKeywords(keywords?: string[], reset = true, _afterMarkFn?: () => void) {
-    if (!this.markInstance) {
-      return;
-    }
+  highLightKeywords(keywords?: string[], _reset = true, _afterMarkFn?: () => void) {
+    const options = getPageHighlightOptions();
+    const highlightKeywords = (keywords ?? [])
+      .map((keyword, index) => buildPageHighlightKeyword(keyword, index, this.RGBA_LIST, options))
+      .filter((keyword): keyword is NonNullable<typeof keyword> => Boolean(keyword));
 
-    const { caseSensitive, regExpMark, accuracy } = this.markInstance.getMarkOptions();
-    this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
-    this.markInstance.unmark();
-    const formatRegStr = !regExpMark;
-    this.markInstance.highlight(
-      (keywords ?? []).map((keyword, index) => {
-        const colorPair = this.RGBA_LIST[index % this.RGBA_LIST.length];
-        return {
-          text: keyword,
-          className: `highlight-${index}`,
-          backgroundColor: colorPair[0],
-          color: colorPair[1],
-          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
-        };
-      }),
-      reset,
-    );
+    setPageHighlightKeywords(highlightKeywords, this.RGBA_LIST);
   }
 
   updateMarkElement() {
-    this.markInstance.incrementalUpdate();
+    // no-op: rendering is state-driven.
   }
 
   isMatchedGroup(group, fieldValue, isGradeMatchValue) {

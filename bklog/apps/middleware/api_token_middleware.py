@@ -23,11 +23,6 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
     def process_view(self, request, view, *args, **kwargs):
         # 支持两种方式：1. 同时传 space_uid 和 token；2. 只传 token
         if "HTTP_X_BKLOG_TOKEN" not in request.META:
-            is_authenticated = getattr(getattr(request, "user", None), "is_authenticated", False)
-            if callable(is_authenticated):
-                is_authenticated = is_authenticated()
-            if is_authenticated:
-                return
             return super().process_view(request, view, *args, **kwargs)
 
         token = request.META["HTTP_X_BKLOG_TOKEN"]

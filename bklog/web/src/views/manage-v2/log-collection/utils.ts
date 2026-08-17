@@ -77,6 +77,17 @@ export const GLOBAL_CATEGORIES_ENUM = [
   { label: window.$t('第三方ES'), value: 'es' },
   { label: window.$t('自定义上报'), value: 'custom_report' },
 ];
+
+/** 日志类型图标映射（log_access_type -> icon） */
+export const LOG_TYPE_ICON_MAP: Record<string, string> = {
+  linux: 'bklog-icon bklog-zhujicaiji-zhujirizhi',
+  winevent: 'bklog-icon bklog-zhujicaiji-windows-event-rizhi',
+  container_file: 'bklog-icon bklog-k8s-wenjiancaiji',
+  container_stdout: 'bklog-icon bklog-k8s-biaozhunshuchu',
+  bkdata: 'bklog-icon bklog-3fang-jisuanpingtai',
+  es: 'bklog-icon bklog-3fang-es',
+  custom_report: 'bklog-icon bklog-3fang-zidingyishangbao',
+};
 /**
  * 自定义日志分类
  */
@@ -101,8 +112,8 @@ export const IS_RELATED_SPACE_ENUM = [
   { label: window.$t('关联空间'), value: 'related_space' },
 ];
 
-/** 表格需要展示的字段 */
-export const SETTING_FIELDS = [
+/** 旧版表格需要展示的字段 */
+export const LEGACY_SETTING_FIELDS = [
   // 数据ID
   {
     id: 'bk_data_id',
@@ -127,7 +138,7 @@ export const SETTING_FIELDS = [
   },
   // 存储名
   {
-    id: 'table_id',
+    id: 'bk_data_name',
     label: window.$t('存储名'),
   },
   // 存储名
@@ -193,6 +204,60 @@ export const SETTING_FIELDS = [
   {
     id: 'updated_at',
     label: window.$t('更新时间'),
+  },
+];
+
+/** 表格需要展示的字段 */
+export const SETTING_FIELDS = [
+  {
+    id: 'collector_config_name',
+    label: window.$t('采集名 / 数据名'),
+    disabled: true,
+  },
+  {
+    id: 'storage_usage',
+    label: window.$t('日用量 / 总用量'),
+    disabled: true,
+  },
+  {
+    id: 'storage_display_name',
+    label: window.$t('存储集群 / 过期时间'),
+  },
+  {
+    id: 'log_access_type',
+    label: window.$t('接入类型'),
+  },
+  {
+    id: 'label',
+    label: window.$t('标签'),
+  },
+  {
+    id: 'bk_data_name',
+    label: window.$t('存储名'),
+  },
+  {
+    id: 'es_host_state',
+    label: window.$t('采集状态'),
+  },
+  {
+    id: 'updated_by',
+    label: window.$t('最近更新'),
+  },
+  {
+    id: 'index_set_id',
+    label: window.$t('所属索引集'),
+  },
+  {
+    id: 'is_related_space',
+    label: window.$t('采集项来源'),
+  },
+  {
+    id: 'collector_scenario_id',
+    label: window.$t('日志类型'),
+  },
+  {
+    id: 'created_by',
+    label: window.$t('创建'),
   },
 ];
 
@@ -433,8 +498,8 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 检索 - 判定 is_search 字段
       return !!(row.is_search as boolean);
     case 'edit':
-      // 编辑 - 采集状态不为"停用"
-      return !isTerminated;
+      // 编辑 - 采集状态不为"停用"且允许编辑
+      return !isTerminated && !!(row.is_editable as boolean);
     case 'clean':
       // 清洗 - 采集项已完成且采集状态不为"停用"
       return isCompleted && !isTerminated;

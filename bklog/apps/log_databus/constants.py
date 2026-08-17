@@ -19,6 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
+from enum import Enum
+
 import markdown
 from django.conf import settings
 from django.db.models import TextChoices
@@ -49,6 +52,22 @@ FEATURE_TOGGLE_ES_CLUSTER_TYPE = "es_cluster_type_setup"
 DORIS_STORAGE_CLUSTER = "doris_storage_cluster"
 
 DEFAULT_RETENTION = 14
+
+LOG_COLLECTOR_ORDERING_CHOICES = (
+    "name",
+    "-name",
+    "retention",
+    "-retention",
+    "updated_at",
+    "-updated_at",
+    "created_at",
+    "-created_at",
+    "daily_usage",
+    "-daily_usage",
+    "total_usage",
+    "-total_usage",
+)
+DEFAULT_LOG_COLLECTOR_ORDERING = "-updated_at"
 
 # 节点管理支持的cmdb 主机信息
 CC_HOST_FIELDS = [
@@ -291,6 +310,27 @@ V4_RESERVED_FIELD_NAMES = {
 class AsyncStatus:
     RUNNING = "RUNNING"
     DONE = "DONE"
+
+
+class CleanTemplateSyncStatus(ChoicesEnum):
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+    _choices_labels = (
+        (RUNNING, _("同步中")),
+        (SUCCESS, _("同步成功")),
+        (FAILED, _("同步失败")),
+    )
+
+
+class CleanTemplateSyncMessage(Enum):
+    SUCCESS = _("清洗模板同步成功")
+    FAILED = _("清洗模板同步失败，请稍后重试")
+    ASSOCIATION_CHANGED_BEFORE_SYNC = _("同步前清洗模板关联关系已发生变化，本次同步已跳过")
+    ASSOCIATION_CHANGED_DURING_SYNC = _(
+        "同步期间清洗模板关联关系发生变化，实际 RT 配置可能与当前配置不一致，请确认并重新保存采集项配置"
+    )
 
 
 FIELD_TEMPLATE = {
@@ -952,7 +992,7 @@ SCENE_SEARCH_DIMENSIONS = {
             "choices_type": "static",
             "choices": [
                 {"id": "stdout", "name": _("标准输出")},
-                {"id": "file", "name": _("容器文件")},
+                {"id": "json", "name": _("JSON 日志")},
             ],
         },
         {
@@ -1191,6 +1231,74 @@ def build_scene_labels(scene: str, **dynamic_tags) -> dict:
         if value:
             labels[key] = str(value)
     return labels
+
+
+# Collectors created by the BlueKing PaaS platform. Their result tables are named
+# `{app_code}__{module_name}__{json|stdout}`, which is the only place the three
+# bk_paas dynamic tags can be recovered from.
+# `paasv3cli` is the app code PaaS uses on cloud (上云) deployments; on-premise
+# deployments report as `bk_paas` / `bk_paas3`.
+PAAS_APP_CODES = {"bk_paas", "bk_paas3", "paasv3cli"}
+PAAS_TABLE_NAME_RE = re.compile(r"^(?P<app_code>.+?)__(?P<module_name>.+)__(?P<stream>json|stdout)$")
+
+
+def parse_paas_table_name(table_id: str) -> tuple | None:
+    """Parse (app_code, module_name, stream) out of a PaaS result table id.
+
+    `space_4336327_bklog.fusion_system_mcp__default__stdout`
+        -> ("fusion_system_mcp", "default", "stdout")
+    Returns None when the name does not follow the PaaS convention.
+    """
+    if not table_id:
+        return None
+    match = PAAS_TABLE_NAME_RE.match(table_id.split(".", 1)[-1])
+    if not match:
+        return None
+    return match.group("app_code"), match.group("module_name"), match.group("stream")
+
+
+def detect_container_stream(collector_types) -> str:
+    """Resolve the container stream while preserving stdout precedence."""
+    collector_types = set(collector_types)
+    if ContainerCollectorType.STDOUT in collector_types:
+        return "stdout"
+    if ContainerCollectorType.CONTAINER in collector_types:
+        return "file"
+    return ""
+
+
+def build_collector_scene_labels(
+    *,
+    collector_scenario_id: str,
+    custom_type: str = "",
+    environment: str = "",
+    is_container_collector: bool | None = None,
+    bcs_cluster_id: str = "",
+    container_stream: str = "",
+    bk_app_code: str = "",
+    table_id: str = "",
+    collector_config_name_en: str = "",
+) -> dict:
+    """Build scene labels from model-independent collector attributes."""
+    if bk_app_code in PAAS_APP_CODES:
+        paas_name = parse_paas_table_name(table_id or collector_config_name_en)
+        if paas_name:
+            app_code, module_name, stream = paas_name
+            return build_scene_labels("bk_paas", app_code=app_code, module_name=module_name, stream=stream)
+
+    # Keep these value comparisons local to avoid importing log_search.constants,
+    # which already imports this module.
+    if collector_scenario_id == "custom" and custom_type == "otlp_log":
+        return build_scene_labels("trpc")
+
+    if is_container_collector is None:
+        is_custom_container = collector_scenario_id == "custom" and custom_type == "log"
+        is_container_collector = environment == Environment.CONTAINER or is_custom_container
+    if is_container_collector:
+        return build_scene_labels("k8s", cluster_id=bcs_cluster_id or "", stream=container_stream)
+
+    scene = COLLECTOR_SCENARIO_TO_SCENE.get(collector_scenario_id, "host")
+    return build_scene_labels(scene)
 
 
 # doris 集群默认日志过期天数

@@ -1,0 +1,26 @@
+{
+  "project": "blueking-log",
+  "generatedAt": "2026-07-30T08:33:39.052Z",
+  "pages": [
+    "index.html",
+    "modules.html",
+    "routes.html",
+    "components.html",
+    "sources.html",
+    "impact.html"
+  ],
+  "diagrams": [
+    ".docs/diagrams/A-整体前端架构图.mmd",
+    ".docs/diagrams/B-应用启动时序图.mmd",
+    ".docs/diagrams/C-路由守卫执行流程.mmd",
+    ".docs/diagrams/D-Retrieve检索模块初始化数据流.mmd",
+    ".docs/diagrams/E-HTTP请求处理流程.mmd",
+    ".docs/diagrams/F-Vuex-Store状态流转图.mmd",
+    ".docs/diagrams/G-检索模块API调用链路图.mmd",
+    ".docs/diagrams/H-Manage管理模块组件结构图.mmd",
+    ".docs/diagrams/I-完整页面请求时序图.mmd",
+    ".docs/diagrams/J-API-Key映射查找流程.mmd",
+    ".docs/diagrams/K-分层架构全景图.mmd",
+    ".docs/diagrams/L-空间切换数据流.mmd"
+  ]
+}

@@ -72,8 +72,12 @@ export const useChartOperation = (defaultTimeRange: MaybeRef<DateValue>) => {
 
   watch(
     () => get(defaultTimeRange),
-    () => {
-      initDefaultTimeRange(get(defaultTimeRange));
+    val => {
+      // 与当前展示范围一致时跳过（多图联动回写自身缩放结果时，避免清掉复位按钮）
+      if (JSON.stringify(timeRange.value) === JSON.stringify(val)) {
+        return;
+      }
+      initDefaultTimeRange(val);
     },
     { immediate: true }
   );

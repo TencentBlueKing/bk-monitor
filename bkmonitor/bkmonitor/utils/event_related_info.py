@@ -68,22 +68,26 @@ def get_event_relation_info(event: Event):
     return content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
 
 
-def get_alert_relation_info(alert: AlertDocument, length_limit=True):
+def get_alert_relation_info(alert: AlertDocument, length_limit=True, query_config=None):
     """
     获取事件最近的日志
     1. 自定义事件：查询事件关联的最近一条事件信息
     2. 日志关键字：查询符合条件的一条日志信息
     3. 第三方告警源： 查询符合条件的一条告警信息
+
+    :param query_config: 调用方预取的 QueryConfigModel 数据（含 data_source_label / data_type_label），
+                         传入时跳过 DB 查询，适用于批量场景。
     """
     if not alert.strategy:
         return ""
 
     content = ""
-    query_config = (
-        QueryConfigModel.objects.filter(strategy_id=alert.strategy["id"])
-        .values("data_source_label", "data_type_label", "config")
-        .first()
-    )
+    if query_config is None:
+        query_config = (
+            QueryConfigModel.objects.filter(strategy_id=alert.strategy["id"])
+            .values("data_source_label", "data_type_label")
+            .first()
+        )
 
     alert_info_getters: dict[str, Callable[[AlertDocument, str], str]] = {
         ClusteringType.COUNT: get_alert_info_for_log_clustering_count,

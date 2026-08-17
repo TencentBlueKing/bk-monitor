@@ -6,9 +6,11 @@
     font-size: var(--table-fount-size);
     line-height: 22px;
 
+    /**
+     * 每个结果单元格一个，行数 × 列数很容易到几百。
+     * 这里不能做 GPU 层提升：横向滚动时合成器要逐层搬运，层越多越卡。
+     */
     .bklog-word-segment {
-      will-change: transform;
-      transform: translateZ(0); /* 强制开启GPU加速 */
       text-align: left;
       word-break: break-all;
       white-space: pre-line;
@@ -17,6 +19,21 @@
 
       mark {
         background-color: #faeeb1;
+      }
+
+      mark.result-highlight {
+        padding: 1px 2px;
+        background-color: #faeeb1;
+        border-radius: 2px;
+      }
+
+      mark.page-highlight {
+        padding: 1px 0;
+        border-radius: 2px;
+      }
+
+      mark.result-highlight.page-highlight {
+        box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
       }
     }
 
@@ -43,8 +60,8 @@
 
     span {
       &.segment-content {
+        // 词元数量级到万，逐个做视口相关性检查得不偿失
         span {
-          content-visibility: auto;
           white-space: pre-wrap;
         }
 
@@ -81,8 +98,17 @@
     }
   }
   &.bklog-root-field {
-    mark {
+    mark.result-highlight {
       background-color: #faeeb1;
+    }
+
+    mark.page-highlight {
+      padding: 1px 0;
+      border-radius: 2px;
+    }
+
+    mark.result-highlight.page-highlight {
+      box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
     }
   }
 }

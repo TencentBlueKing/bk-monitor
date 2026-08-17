@@ -108,6 +108,12 @@
           font-weight: 700;
         }
       }
+
+      .issues-name-exception-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
   }
 
@@ -260,12 +266,23 @@
 
   // ===================== 负责人列 =====================
   .issues-assignee-cell {
-    .issues-assignee-unassigned-col {
+    .issues-assignee-col {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       align-items: center;
       cursor: pointer;
+
+      .explore-user-tags-col {
+        height: 32px;
+
+        .item-tags {
+          .bk-tag {
+            cursor: unset;
+            border-radius: 4px !important;
+          }
+        }
+      }
 
       .assignee-tag-wrapper {
         display: inline-flex;
@@ -286,12 +303,6 @@
         .assignee-tag-wrapper {
           background-color: #f0f4fa;
         }
-      }
-    }
-
-    .explore-user-tags-col {
-      .bk-tag {
-        border-radius: 4px !important;
       }
     }
   }
@@ -367,6 +378,101 @@
 
     .issues-assignee-cell {
       opacity: $ended-opacity-text;
+    }
+  }
+}
+
+// ===================== JSON 查看器 Popover 样式 =====================
+.tippy-box[data-theme~='issues-json-popover'] {
+  border: 1px solid #dcdee5;
+
+  .issues-log-popover-wrapper {
+    max-height: 48vh;
+    overflow-y: hidden;
+    scrollbar-gutter: stable;
+
+    &:hover {
+      overflow-y: auto;
+    }
+
+    .issues-log-popover-header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+
+      .issues-log-popover-header-text {
+        display: block;
+        padding: 8px 12px;
+        font-weight: 700;
+        line-height: 20px;
+        color: #313238;
+        border-bottom: 1px solid #eaebf0;
+      }
+    }
+
+    .issues-log-popover-content {
+      padding: 8px 12px;
+
+      .vjs-tree-node {
+        font-size: 12px;
+        line-height: 22px;
+
+        &:not(:has(.vjs-carets-open)) {
+          padding-left: 9px;
+        }
+
+        &:has(.vjs-carets-open) {
+          padding-left: 20px;
+        }
+
+        .vjs-carets-open {
+          right: 5px;
+          display: flex;
+          align-items: center;
+          height: 100%;
+          color: #1f6d89;
+        }
+
+        .vjs-indent-unit.has-line {
+          width: 2em;
+          border-left-style: solid;
+        }
+
+        .vjs-key {
+          flex-shrink: 0;
+          color: #9d694c;
+        }
+
+        .vjs-value {
+          &.vjs-value-string {
+            color: #1f6d89;
+            white-space: pre-wrap;
+          }
+
+          &.vjs-value-number {
+            color: #2caf5e;
+          }
+        }
+      }
+
+      .issues-string-popover-pre {
+        padding: 0;
+        margin: 0;
+        line-height: 22px;
+        color: #1f6d89;
+        word-break: break-all;
+        white-space: pre-wrap;
+      }
+    }
+
+    .issues-log-popover-footer {
+      position: sticky;
+      bottom: 0;
+      display: flex;
+      justify-content: flex-end;
+      padding: 8px 12px;
+      background: #fff;
+      border-top: 1px solid #eaebf0;
     }
   }
 }

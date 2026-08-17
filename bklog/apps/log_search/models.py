@@ -35,16 +35,20 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from jinja2 import FileSystemLoader
 from jinja2.sandbox import SandboxedEnvironment as Environment
+from redis.exceptions import RedisError
 
 from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
-from apps.log_databus.constants import EsSourceType
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EsSourceType
 from apps.log_search.constants import (
+    ASYNC_EXPORT_SCENE_ID,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportStatus,
+    ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
     INDEX_SET_NO_DATA_CHECK_PREFIX,
     INDEX_SET_NOT_EXISTED,
@@ -76,6 +80,8 @@ from apps.log_search.constants import (
     IndexSetDataType,
 )
 from apps.log_search.exceptions import (
+    AsyncExportRequestBusyException,
+    ConcurrentExportLimitException,
     CouldNotFindTemplateException,
     DefaultConfigNotAllowedDelete,
     IndexSetNameDuplicateException,
@@ -93,6 +99,7 @@ from apps.models import (
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
 from apps.utils.local import get_request_app_code, get_request_tenant_id
+from apps.utils.log import logger
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -703,6 +710,196 @@ class LogIndexSet(SoftDeleteModel):
         """
         fields["usable_reason"] = str(fields.get("usable_reason", ""))
         return fields
+
+    @staticmethod
+    def is_support_sql_and_grep(index_set_id, index_set_obj=None) -> bool:
+        index_set_obj = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+
+        if not index_set_obj:
+            return False
+
+        if index_set_obj.support_doris and index_set_obj.doris_table_id:
+            return True
+
+        if index_set_obj.is_native_doris():
+            return True
+
+        return False
+
+    def is_native_doris(self) -> bool:
+        return self.check_is_native_doris(self)
+
+    @classmethod
+    def get_is_native_doris(cls, index_set_id: int):
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set_obj:
+            return False
+        else:
+            return cls.check_is_native_doris(index_set_obj)
+
+    @staticmethod
+    def check_is_native_doris(index_set_obj):
+        from apps.log_databus.models import CollectorConfig
+
+        if index_set_obj.is_group:
+            child_index_set_ids = index_set_obj.get_child_index_set_ids()
+            collector_config_ids = [
+                collector_config_id
+                for collector_config_id in LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids).values_list(
+                    "collector_config_id", flat=True
+                )
+                if collector_config_id
+            ]
+            if not child_index_set_ids or len(child_index_set_ids) != len(collector_config_ids):
+                return False
+            storage_cluster_types = set(
+                CollectorConfig.objects.filter(collector_config_id__in=collector_config_ids).values_list(
+                    "storage_cluster_type", flat=True
+                )
+            )
+            if {DORIS_CLUSTER_TYPE} == storage_cluster_types:
+                return True
+        else:
+            if not index_set_obj.collector_config_id:
+                return False
+            collector_config_obj = CollectorConfig.objects.filter(
+                collector_config_id=index_set_obj.collector_config_id
+            ).first()
+            if collector_config_obj and collector_config_obj.storage_cluster_type == DORIS_CLUSTER_TYPE:
+                return True
+        return False
+
+    @staticmethod
+    def batch_get_is_native_doris(index_set_ids: list) -> dict:
+        if not index_set_ids:
+            return {}
+
+        from apps.log_databus.models import CollectorConfig
+        from apps.log_search.constants import IndexSetDataType
+
+        index_set_id_to_storage_map = {}
+
+        index_set_infos = LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values(
+            "index_set_id", "is_group", "collector_config_id"
+        )
+
+        index_set_group_ids = []
+        non_index_set_group_map = {}
+
+        for index_set_info in index_set_infos:
+            if index_set_info["is_group"]:
+                index_set_group_ids.append(index_set_info["index_set_id"])
+            else:
+                non_index_set_group_map[index_set_info["index_set_id"]] = index_set_info["collector_config_id"]
+
+        # 处理非索引组
+        non_index_set_group_cc_ids = [cc_id for cc_id in non_index_set_group_map.values() if cc_id]
+
+        cc_storage_map = {}
+
+        if non_index_set_group_cc_ids:
+            cc_storage_map = dict(
+                CollectorConfig.objects.filter(collector_config_id__in=non_index_set_group_cc_ids).values_list(
+                    "collector_config_id", "storage_cluster_type"
+                )
+            )
+
+        for index_set_id, cc_id in non_index_set_group_map.items():
+            if not cc_id:
+                index_set_id_to_storage_map[index_set_id] = False
+            else:
+                index_set_id_to_storage_map[index_set_id] = cc_storage_map.get(cc_id) == DORIS_CLUSTER_TYPE
+
+        # 处理索引组
+        if index_set_group_ids:
+            index_set_data_infos = LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_group_ids,
+                type=IndexSetDataType.INDEX_SET.value,
+            ).values("index_set_id", "result_table_id")
+
+            parent_is_id_to_child_is_ids_map = defaultdict(set)
+            all_child_is_ids = set()
+
+            for index_set_data_info in index_set_data_infos:
+                parent_is_id = index_set_data_info["index_set_id"]
+                child_is_id = int(index_set_data_info["result_table_id"])
+                parent_is_id_to_child_is_ids_map[parent_is_id].add(child_is_id)
+                all_child_is_ids.add(child_is_id)
+
+            if all_child_is_ids:
+                is_id_to_cc_id_map = dict(
+                    LogIndexSet.objects.filter(index_set_id__in=all_child_is_ids).values_list(
+                        "index_set_id", "collector_config_id"
+                    )
+                )
+
+                all_child_cc_ids = [cc_id for cc_id in is_id_to_cc_id_map.values() if cc_id]
+                child_cc_to_storage_map = {}
+
+                if all_child_cc_ids:
+                    child_cc_to_storage_map = dict(
+                        CollectorConfig.objects.filter(collector_config_id__in=all_child_cc_ids).values_list(
+                            "collector_config_id", "storage_cluster_type"
+                        )
+                    )
+
+                for index_set_group_id in index_set_group_ids:
+                    child_is_ids = parent_is_id_to_child_is_ids_map.get(index_set_group_id, set())
+
+                    if not child_is_ids:
+                        index_set_id_to_storage_map[index_set_group_id] = False
+                        continue
+
+                    child_cc_ids = [
+                        is_id_to_cc_id_map.get(child_is_id)
+                        for child_is_id in child_is_ids
+                        if is_id_to_cc_id_map.get(child_is_id)
+                    ]
+
+                    if len(child_is_ids) != len(child_cc_ids):
+                        index_set_id_to_storage_map[index_set_group_id] = False
+                        continue
+
+                    storage_types = {
+                        child_cc_to_storage_map.get(child_cc_id) for child_cc_id in child_cc_ids if child_cc_id
+                    }
+
+                    index_set_id_to_storage_map[index_set_group_id] = storage_types == {DORIS_CLUSTER_TYPE}
+            else:
+                for index_set_group_id in index_set_group_ids:
+                    index_set_id_to_storage_map[index_set_group_id] = False
+
+        return index_set_id_to_storage_map
+
+    @staticmethod
+    def get_default_sort_list(index_set_id, index_set_obj=None):
+        index_set_obj = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+
+        default_sort_list = []
+
+        if index_set_obj:
+            time_field = None
+
+            if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:
+                time_field = "dtEventTimeStamp"
+            elif index_set_obj.time_field:
+                time_field = index_set_obj.time_field
+            else:
+                # 遍历 index_set_data 取任意一个不为空的时间字段
+                time_fields = LogIndexSetData.objects.filter(index_set_id=index_set_id).values_list(
+                    "time_field", flat=True
+                )
+                for t_f in time_fields:
+                    if t_f:
+                        time_field = t_f
+
+            if time_field:
+                if index_set_obj.sort_fields:
+                    return [[field, "desc"] for field in index_set_obj.sort_fields]
+
+                default_sort_list = [[time_field, "desc"]]
+
+        return default_sort_list
 
     class Meta:
         ordering = ("-orders", "-index_set_id")
@@ -1359,10 +1556,94 @@ class AsyncTask(OperateRecordModel):
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
 
+    @classmethod
+    def check_running_count_by_user(cls, username: str, is_scene: bool = False):
+        running_status = [
+            ExportStatus.DOWNLOAD_LOG,
+            ExportStatus.EXPORT_PACKAGE,
+            ExportStatus.EXPORT_UPLOAD,
+        ]
+        qs = cls.objects.filter(created_by=username, export_type=ExportType.ASYNC)
+
+        if is_scene:
+            qs = qs.filter(scenario_id=ASYNC_EXPORT_SCENE_ID)
+        else:
+            qs = qs.exclude(scenario_id=ASYNC_EXPORT_SCENE_ID)
+
+        if (
+            qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
+            >= settings.MAX_CONCURRENT_EXPORT_TASKS
+        ):
+            raise ConcurrentExportLimitException(
+                ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)
+            )
+
+    @classmethod
+    def async_export_task_create_with_running_limit(cls, username: str, is_scene: bool = False, **task_params):
+        """
+        校验并创建异步导出任务
+
+        Redis 启用且可用时，在用户导出分组锁内完成并发数复检与任务创建，避免并发请求击穿限制；
+        Redis 禁用或连接异常时降级为非原子校验，极端并发下任务数可能短暂超过限制。
+        """
+
+        def check_and_create_task():
+            cls.check_running_count_by_user(username, is_scene=is_scene)
+            task_params["created_by"] = username
+            task_params["export_type"] = ExportType.ASYNC
+            return cls.objects.create(**task_params)
+
+        if not settings.USE_REDIS:
+            return check_and_create_task()
+
+        task_group = ASYNC_EXPORT_SCENE_ID if is_scene else "default"
+        username_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()[:32]
+        lock_key = f"async_export_create:{task_group}:{username_hash}"
+
+        try:
+            lock = cache.lock(lock_key, timeout=30, blocking_timeout=5)
+            lock_acquired = lock.acquire()
+        except RedisError:
+            logger.exception(
+                "[AsyncTask.async_export_task_create_with_running_limit] Redis is unavailable, "
+                "falling back to non-atomic validation, lock_key=%s",
+                lock_key,
+            )
+            return check_and_create_task()
+
+        if not lock_acquired:
+            logger.warning(
+                "[AsyncTask.async_export_task_create_with_running_limit] failed to acquire lock, lock_key=%s",
+                lock_key,
+            )
+            raise AsyncExportRequestBusyException()
+
+        try:
+            with atomic():
+                return check_and_create_task()
+        finally:
+            try:
+                lock.release()
+            except RedisError:
+                logger.exception(
+                    "[AsyncTask.async_export_task_create_with_running_limit] failed to release lock, lock_key=%s",
+                    lock_key,
+                )
+
     class Meta:
         db_table = "export_task"
         verbose_name = _("导出任务")
         verbose_name_plural = _("42_导出任务")
+        indexes = [
+            models.Index(
+                fields=[
+                    "created_by",
+                    "export_type",
+                    "export_status",
+                ],
+                name="export_task_user_run_idx",
+            ),
+        ]
 
 
 class EmailTemplate(OperateRecordModel):

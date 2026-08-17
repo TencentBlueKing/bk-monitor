@@ -222,7 +222,7 @@ class ClusterInfo(models.Model):
 
         return data
 
-    def health_check(self, timeout: int | None = None) -> dict[str, Any]:
+    def health_check(self, timeout: int | None = None, include_node_details: bool = False) -> dict[str, Any]:
         """探测集群连接和可用状态，返回统一结构。"""
 
         if timeout is None:
@@ -249,6 +249,11 @@ class ClusterInfo(models.Model):
         try:
             if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
                 raise ValueError("timeout 必须是大于 0 的整数")
+            if self.cluster_type == self.TYPE_ES and include_node_details:
+                return getattr(self, checker_name)(
+                    timeout=timeout,
+                    include_node_details=True,
+                )
             return getattr(self, checker_name)(timeout=timeout)
         except ValueError as error:
             return self._build_cluster_check_result(
@@ -278,6 +283,89 @@ class ClusterInfo(models.Model):
                 ),
             )
 
+    def check_connectivity(self, timeout: int | None = None) -> dict[str, Any]:
+        """仅检查 ES/Doris 集群能否建立连接，不采集健康、节点或容量信息。"""
+
+        if timeout is None:
+            timeout = self.DEFAULT_CHECK_TIMEOUT
+        checker_name = {
+            self.TYPE_ES: "_check_es_connectivity",
+            self.TYPE_DORIS: "_check_doris_connectivity",
+        }.get(self.cluster_type)
+
+        if not checker_name:
+            return {
+                "is_connected": False,
+                "error": self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_UNSUPPORTED_CLUSTER_TYPE,
+                    message=f"暂不支持检查集群连通性: {self.cluster_type}",
+                    details={"cluster_type": self.cluster_type},
+                ),
+            }
+
+        try:
+            if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+                raise ValueError("timeout 必须是大于 0 的整数")
+            getattr(self, checker_name)(timeout=timeout)
+        except ValueError as error:
+            return {
+                "is_connected": False,
+                "error": self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_INVALID_CONFIG,
+                    message="集群连接配置不完整或不合法",
+                    details=self._format_check_exception(error),
+                ),
+            }
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception(
+                "ClusterInfo.check_connectivity failed, cluster_id->[%s], cluster_type->[%s]",
+                self.cluster_id,
+                self.cluster_type,
+            )
+            return {
+                "is_connected": False,
+                "error": self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_CONNECTION_FAILED,
+                    message="集群连接失败",
+                    details=self._format_check_exception(error),
+                ),
+            }
+        return {"is_connected": True, "error": None}
+
+    def _check_es_connectivity(self, timeout: int) -> None:
+        client = es_tools.get_client_by_datasource_info(
+            {
+                "port": self.port,
+                "schema": self.schema,
+                "version": self.version,
+                "domain_name": self.domain_name,
+                "is_ssl_verify": self.is_ssl_verify,
+                "auth_info": {"password": self.password, "username": self.username},
+            }
+        )
+        if not client.ping(params={"request_timeout": timeout}):
+            raise ConnectionError("Elasticsearch ping 失败")
+
+    def _check_doris_connectivity(self, timeout: int) -> None:
+        self._validate_check_endpoint()
+        connection = pymysql.connect(
+            host=self.domain_name,
+            port=int(self.port),
+            user=self.username or "",
+            password=self.password or "",
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=timeout,
+            read_timeout=timeout,
+            write_timeout=timeout,
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+        finally:
+            connection.close()
+
     def _build_cluster_check_result(
         self,
         status: str,
@@ -306,6 +394,146 @@ class ClusterInfo(models.Model):
     @staticmethod
     def _format_check_exception(error: Exception) -> dict[str, str]:
         return {"type": error.__class__.__name__, "message": str(error)}
+
+    @staticmethod
+    def _parse_check_int(value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_check_float(value: Any) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(str(value).strip().rstrip("%"))
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_check_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int | float):
+            return bool(value)
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y"}
+
+    @staticmethod
+    def _normalize_es_roles(value: Any) -> list[str]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, list | tuple | set):
+            return [str(role) for role in value if role not in (None, "", "-")]
+        return [role.strip() for role in str(value).split(",") if role.strip() and role.strip() != "-"]
+
+    @classmethod
+    def _build_es_node_roles_lookup(
+        cls, node_rows: list[dict[str, Any]]
+    ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+        """将 CAT nodes 的版本差异投影为按节点名和 IP 查询的角色映射。"""
+
+        roles_by_name: dict[str, list[str]] = {}
+        roles_by_ip: dict[str, list[str]] = {}
+        for row in node_rows:
+            if not isinstance(row, dict):
+                continue
+            roles = cls._normalize_es_roles(cls._get_check_row_value(row, "node.role", "role", "roles", "nodeRole"))
+            name = cls._get_check_row_value(row, "name", "node")
+            ip = cls._get_check_row_value(row, "ip")
+            if name not in (None, ""):
+                roles_by_name[str(name)] = roles
+            if ip not in (None, ""):
+                roles_by_ip[str(ip)] = roles
+        return roles_by_name, roles_by_ip
+
+    @staticmethod
+    def _parse_doris_size_bytes(value: Any) -> int | None:
+        """将 SHOW BACKENDS 的容量值转换为 bytes。"""
+
+        if value in (None, ""):
+            return None
+        if isinstance(value, int | float) and not isinstance(value, bool):
+            return int(value)
+
+        match = re.fullmatch(r"\s*([+-]?[\d,.]+)\s*([KMGTPE]?B)?\s*", str(value), flags=re.IGNORECASE)
+        if not match:
+            return None
+
+        try:
+            number = float(match.group(1).replace(",", ""))
+        except ValueError:
+            return None
+        unit = (match.group(2) or "B").upper()
+        unit_power = {"B": 0, "KB": 1, "MB": 2, "GB": 3, "TB": 4, "PB": 5, "EB": 6}
+        return int(number * (1024 ** unit_power[unit]))
+
+    @staticmethod
+    def _calculate_check_percent(used: int | None, total: int | None) -> float | None:
+        if used is None or total in (None, 0):
+            return None
+        return round(used * 100 / total, 2)
+
+    @staticmethod
+    def _sum_check_values(values: list[int | None]) -> int | None:
+        valid_values = [value for value in values if value is not None]
+        return sum(valid_values) if valid_values else None
+
+    @staticmethod
+    def _get_check_row_value(row: dict[str, Any], *names: str) -> Any:
+        for name in names:
+            if name in row:
+                return row[name]
+        normalized_row = {str(key).lower(): value for key, value in row.items()}
+        for name in names:
+            if name.lower() in normalized_row:
+                return normalized_row[name.lower()]
+        return None
+
+    @classmethod
+    def _build_check_capacity(
+        cls, total_bytes: int | None, available_bytes: int | None, used_bytes: int | None = None
+    ) -> dict[str, int | float | None]:
+        if used_bytes is None and total_bytes is not None and available_bytes is not None:
+            used_bytes = max(total_bytes - available_bytes, 0)
+        return {
+            "total_bytes": total_bytes,
+            "used_bytes": used_bytes,
+            "available_bytes": available_bytes,
+            "used_percent": cls._calculate_check_percent(used_bytes, total_bytes),
+        }
+
+    @classmethod
+    def _build_doris_backend_detail(cls, row: dict[str, Any]) -> dict[str, Any]:
+        total_bytes = cls._parse_doris_size_bytes(cls._get_check_row_value(row, "TotalCapacity"))
+        available_bytes = cls._parse_doris_size_bytes(cls._get_check_row_value(row, "AvailCapacity"))
+        capacity = cls._build_check_capacity(total_bytes=total_bytes, available_bytes=available_bytes)
+        row_used_percent = cls._parse_check_float(cls._get_check_row_value(row, "UsedPct"))
+        if row_used_percent is not None:
+            capacity["used_percent"] = row_used_percent
+
+        return {
+            "backend_id": cls._parse_check_int(cls._get_check_row_value(row, "BackendId")),
+            "host": cls._get_check_row_value(row, "Host"),
+            "alive": cls._parse_check_bool(cls._get_check_row_value(row, "Alive")),
+            "decommissioned": cls._parse_check_bool(
+                cls._get_check_row_value(row, "SystemDecommissioned", "IsDecommissioned")
+            ),
+            "tablet_count": cls._parse_check_int(cls._get_check_row_value(row, "TabletNum")),
+            "capacity": capacity,
+            "data_used_bytes": cls._parse_doris_size_bytes(cls._get_check_row_value(row, "DataUsedCapacity")),
+            "trash_used_bytes": cls._parse_doris_size_bytes(
+                cls._get_check_row_value(row, "TrashUsedCapacity", "TrashUsedCapcacity")
+            ),
+            "remote_used_bytes": cls._parse_doris_size_bytes(cls._get_check_row_value(row, "RemoteUsedCapacity")),
+            "max_disk_used_percent": cls._parse_check_float(cls._get_check_row_value(row, "MaxDiskUsedPct")),
+            "last_heartbeat": cls._get_check_row_value(row, "LastHeartbeat"),
+            "error_message": cls._get_check_row_value(row, "ErrMsg", "ErrorMessage") or "",
+            "version": cls._get_check_row_value(row, "Version"),
+            "node_role": cls._get_check_row_value(row, "NodeRole"),
+        }
 
     def _validate_check_endpoint(self) -> None:
         if not self.domain_name:
@@ -386,26 +614,18 @@ class ClusterInfo(models.Model):
         has_ssl = bool(
             self.is_ssl_verify or self.ssl_certificate_authorities or self.ssl_certificate or self.ssl_certificate_key
         )
-        has_sasl = bool(self.username and self.password)
-        if self.is_auth and not has_sasl:
-            raise ValueError("Kafka 开启鉴权但缺少 username/password")
-
-        if self.security_protocol:
-            security_protocol = self.security_protocol
-        elif has_ssl and has_sasl:
-            security_protocol = "SASL_SSL"
-        elif has_ssl:
-            security_protocol = "SSL"
-        elif has_sasl:
-            security_protocol = config.KAFKA_SASL_PROTOCOL
-        else:
-            security_protocol = "PLAINTEXT"
-        conf["security.protocol"] = security_protocol
-
-        if has_sasl:
+        use_ssl = self.security_protocol in {"SSL", "SASL_SSL"} or has_ssl
+        has_credentials = bool(self.username and self.password)
+        if self.is_auth:
+            if not has_credentials:
+                raise ValueError("Kafka 开启鉴权但缺少 username/password")
+            security_protocol = "SASL_SSL" if use_ssl else config.KAFKA_SASL_PROTOCOL
             conf["sasl.mechanisms"] = self.sasl_mechanisms or config.KAFKA_SASL_MECHANISM
             conf["sasl.username"] = self.username
             conf["sasl.password"] = self.password
+        else:
+            security_protocol = "SSL" if use_ssl else "PLAINTEXT"
+        conf["security.protocol"] = security_protocol
 
         if self.ssl_insecure_skip_verify:
             conf["enable.ssl.certificate.verification"] = False
@@ -433,24 +653,139 @@ class ClusterInfo(models.Model):
                 "topic_count": len(metadata.topics or {}),
                 "security_protocol": conf.get("security.protocol"),
                 "sasl_mechanisms": conf.get("sasl.mechanisms"),
-                "auth_enabled": bool(self.is_auth or self.username),
+                "auth_enabled": self.is_auth,
             },
         )
 
-    def _check_es_cluster(self, timeout: int) -> dict[str, Any]:
-        client = es_tools.get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.cluster_id)
+    def _check_es_cluster(self, timeout: int, include_node_details: bool = False) -> dict[str, Any]:
+        client = es_tools.get_client_by_datasource_info(
+            {
+                "port": self.port,
+                "schema": self.schema,
+                "version": self.version,
+                "domain_name": self.domain_name,
+                "is_ssl_verify": self.is_ssl_verify,
+                "auth_info": {"password": self.password, "username": self.username},
+            }
+        )
         try:
             health = client.cluster.health(request_timeout=timeout)
         except TypeError:
             health = client.cluster.health()
 
         health_status = (health or {}).get("status")
+        number_of_data_nodes = self._parse_check_int((health or {}).get("number_of_data_nodes"))
         details = {
             "health_status": health_status,
             "number_of_nodes": (health or {}).get("number_of_nodes"),
             "active_shards": (health or {}).get("active_shards"),
+            "initializing_shards": (health or {}).get("initializing_shards"),
+            "relocating_shards": (health or {}).get("relocating_shards"),
             "unassigned_shards": (health or {}).get("unassigned_shards"),
+            "nodes": {"total": number_of_data_nodes, "available": number_of_data_nodes},
         }
+        roles_by_name: dict[str, list[str]] = {}
+        roles_by_ip: dict[str, list[str]] = {}
+        if include_node_details:
+            try:
+                node_rows = client.cat.nodes(
+                    format="json",
+                    h="name,ip,node.role",
+                    params={"request_timeout": timeout},
+                )
+                if not isinstance(node_rows, list):
+                    raise ValueError("Elasticsearch nodes 返回格式不正确")
+                roles_by_name, roles_by_ip = self._build_es_node_roles_lookup(node_rows)
+            except Exception as error:  # pylint: disable=broad-except
+                logger.warning(
+                    "ClusterInfo ES node roles collection failed, cluster_id->[%s], error->[%s]",
+                    self.cluster_id,
+                    error,
+                )
+                details.setdefault("collection_errors", []).append(
+                    {
+                        "component": "node_details",
+                        "code": "ES_NODES_QUERY_FAILED",
+                        "message": "Elasticsearch 节点角色查询失败",
+                        "details": self._format_check_exception(error),
+                    }
+                )
+        try:
+            allocations = client.cat.allocation(format="json", bytes="b", params={"request_timeout": timeout})
+            if not isinstance(allocations, list):
+                raise ValueError("Elasticsearch allocation 返回格式不正确")
+
+            node_details = []
+            for row in allocations:
+                if not isinstance(row, dict):
+                    continue
+                total_bytes = self._parse_check_int(self._get_check_row_value(row, "disk.total", "diskTotal"))
+                available_bytes = self._parse_check_int(self._get_check_row_value(row, "disk.avail", "diskAvail"))
+                used_bytes = self._parse_check_int(self._get_check_row_value(row, "disk.used", "diskUsed"))
+                # _cat/allocation 会包含 UNASSIGNED 汇总行，该行没有磁盘容量。
+                if total_bytes is None:
+                    continue
+                capacity = self._build_check_capacity(
+                    total_bytes=total_bytes,
+                    available_bytes=available_bytes,
+                    used_bytes=used_bytes,
+                )
+                row_used_percent = self._parse_check_float(
+                    self._get_check_row_value(row, "disk.percent", "diskPercent")
+                )
+                if row_used_percent is not None:
+                    capacity["used_percent"] = row_used_percent
+                node_name = self._get_check_row_value(row, "node", "name")
+                node_ip = self._get_check_row_value(row, "ip")
+                roles = roles_by_name.get(str(node_name)) if node_name not in (None, "") else None
+                if roles is None and node_ip not in (None, ""):
+                    roles = roles_by_ip.get(str(node_ip))
+                if roles is None:
+                    roles = self._normalize_es_roles(
+                        self._get_check_row_value(row, "node.role", "role", "roles", "nodeRole")
+                    )
+                node_details.append(
+                    {
+                        "name": node_name,
+                        "host": self._get_check_row_value(row, "host"),
+                        "ip": node_ip,
+                        "roles": roles,
+                        "shard_count": self._parse_check_int(self._get_check_row_value(row, "shards", "shardCount")),
+                        "capacity": capacity,
+                        "indices_store_bytes": self._parse_check_int(
+                            self._get_check_row_value(row, "disk.indices", "diskIndices")
+                        ),
+                    }
+                )
+
+            total_bytes = self._sum_check_values([row["capacity"]["total_bytes"] for row in node_details])
+            available_bytes = self._sum_check_values([row["capacity"]["available_bytes"] for row in node_details])
+            used_bytes = self._sum_check_values([row["capacity"]["used_bytes"] for row in node_details])
+            details["capacity"] = self._build_check_capacity(
+                total_bytes=total_bytes,
+                available_bytes=available_bytes,
+                used_bytes=used_bytes,
+            )
+            details["indices_store_bytes"] = self._sum_check_values(
+                [row["indices_store_bytes"] for row in node_details]
+            )
+            details["node_details"] = node_details
+            if number_of_data_nodes is None:
+                details["nodes"] = {"total": len(node_details), "available": len(node_details)}
+        except Exception as error:  # pylint: disable=broad-except
+            logger.warning(
+                "ClusterInfo ES allocation collection failed, cluster_id->[%s], error->[%s]",
+                self.cluster_id,
+                error,
+            )
+            details.setdefault("collection_errors", []).append(
+                {
+                    "component": "capacity",
+                    "code": "ES_ALLOCATION_QUERY_FAILED",
+                    "message": "Elasticsearch 集群容量查询失败",
+                    "details": self._format_check_exception(error),
+                }
+            )
         if health_status == "red":
             return self._build_cluster_check_result(
                 status=self.CHECK_STATUS_UNAVAILABLE,
@@ -524,6 +859,61 @@ class ClusterInfo(models.Model):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 row = cursor.fetchone()
+                details: dict[str, Any] = {"query": "SELECT 1", "response": row}
+                try:
+                    cursor.execute("SHOW BACKENDS")
+                    backend_rows = cursor.fetchall()
+                    if not isinstance(backend_rows, list | tuple):
+                        raise ValueError("Doris SHOW BACKENDS 返回格式不正确")
+
+                    node_details = [
+                        self._build_doris_backend_detail(backend_row)
+                        for backend_row in backend_rows
+                        if isinstance(backend_row, dict)
+                    ]
+                    active_nodes = [node for node in node_details if not node["decommissioned"]]
+                    available_nodes = [node for node in active_nodes if node["alive"]]
+                    details["nodes"] = {"total": len(active_nodes), "available": len(available_nodes)}
+
+                    total_bytes = self._sum_check_values([node["capacity"]["total_bytes"] for node in active_nodes])
+                    available_bytes = self._sum_check_values(
+                        [node["capacity"]["available_bytes"] for node in active_nodes]
+                    )
+                    details["capacity"] = self._build_check_capacity(
+                        total_bytes=total_bytes,
+                        available_bytes=available_bytes,
+                    )
+                    details["data_used_bytes"] = self._sum_check_values(
+                        [node["data_used_bytes"] for node in active_nodes]
+                    )
+                    details["trash_used_bytes"] = self._sum_check_values(
+                        [node["trash_used_bytes"] for node in active_nodes]
+                    )
+                    details["remote_used_bytes"] = self._sum_check_values(
+                        [node["remote_used_bytes"] for node in active_nodes]
+                    )
+                    details["tablet_count"] = self._sum_check_values([node["tablet_count"] for node in active_nodes])
+                    max_disk_used_percent = [
+                        node["max_disk_used_percent"]
+                        for node in active_nodes
+                        if node["max_disk_used_percent"] is not None
+                    ]
+                    details["max_disk_used_percent"] = max(max_disk_used_percent) if max_disk_used_percent else None
+                    details["node_details"] = node_details
+                except Exception as error:  # pylint: disable=broad-except
+                    logger.warning(
+                        "ClusterInfo Doris backend collection failed, cluster_id->[%s], error->[%s]",
+                        self.cluster_id,
+                        error,
+                    )
+                    details.setdefault("collection_errors", []).append(
+                        {
+                            "component": "backends",
+                            "code": "DORIS_BACKENDS_QUERY_FAILED",
+                            "message": "Doris 集群后端状态和容量查询失败",
+                            "details": self._format_check_exception(error),
+                        }
+                    )
         finally:
             connection.close()
 
@@ -531,7 +921,7 @@ class ClusterInfo(models.Model):
             status=self.CHECK_STATUS_AVAILABLE,
             is_connected=True,
             is_available=True,
-            details={"query": "SELECT 1", "response": row},
+            details=details,
         )
 
     @classmethod
@@ -2639,18 +3029,19 @@ class ESStorage(models.Model, StorageResultTable):
     def search_format_v1(self):
         return f"{self.index_name}_*"
 
-    def index_exist(self):
+    def index_exist(self, request_timeout: int | None = None):
         """
         判断该index是否已经存在,优先v2，随后v1
         :return: True | False
         """
-        stat_info_list = self.es_client.indices.stats(self.search_format_v2())
+        request_kwargs = {"request_timeout": request_timeout} if request_timeout is not None else {}
+        stat_info_list = self.es_client.indices.stats(self.search_format_v2(), **request_kwargs)
         for stat_index_name in list(stat_info_list["indices"].keys()):
             re_result = self.index_re_v2.match(stat_index_name)
             if re_result:
                 logger.debug("table_id->[%s] found v2 index list->[%s]", self.table_id, str(stat_info_list))
                 return True
-        stat_info_list = self.es_client.indices.stats(self.search_format_v1())
+        stat_info_list = self.es_client.indices.stats(self.search_format_v1(), **request_kwargs)
         for stat_index_name in list(stat_info_list["indices"].keys()):
             re_result = self.index_re_v1.match(stat_index_name)
             if re_result:
@@ -2659,11 +3050,15 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] no index", self.table_id)
         return False
 
-    def _get_index_infos(self, namespaced: str) -> tuple[dict[str, dict[str, Any]], str]:
+    def _get_index_infos(
+        self, namespaced: str, request_timeout: int | None = None
+    ) -> tuple[dict[str, dict[str, Any]], str]:
         index_version = ""
         extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
             namespaced
         ]
+        if request_timeout is not None:
+            extra["request_timeout"] = request_timeout
         getdata = {
             ESNamespacedClientType.CAT.value: lambda d: {idx["index"]: idx for idx in d},
             ESNamespacedClientType.INDICES.value: lambda d: d["indices"],
@@ -2683,8 +3078,10 @@ class ESStorage(models.Model, StorageResultTable):
 
         return index_info_map, index_version
 
-    def get_index_names(self) -> list[str]:
-        index_info_map, index_version = self._get_index_infos(ESNamespacedClientType.CAT.value)
+    def get_index_names(self, request_timeout: int | None = None) -> list[str]:
+        index_info_map, index_version = self._get_index_infos(
+            ESNamespacedClientType.CAT.value, request_timeout=request_timeout
+        )
         if index_version == "v2":
             index_re = self.index_re_v2
         else:
@@ -2698,7 +3095,7 @@ class ESStorage(models.Model, StorageResultTable):
             index_names.append(index_name)
         return index_names
 
-    def get_index_stats(self):
+    def get_index_stats(self, request_timeout: int | None = None):
         """
         获取index的统计信息
         stats格式为：{
@@ -2713,10 +3110,10 @@ class ESStorage(models.Model, StorageResultTable):
           }
         }
         """
-        return self._get_index_infos(ESNamespacedClientType.INDICES.value)
+        return self._get_index_infos(ESNamespacedClientType.INDICES.value, request_timeout=request_timeout)
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2), reraise=True)
-    def current_index_info(self):
+    def current_index_info(self, request_timeout: int | None = None):
         """
         返回当前使用的最新index相关的信息
         :return: {
@@ -2725,7 +3122,7 @@ class ESStorage(models.Model, StorageResultTable):
             "size": 123123,  # index大小，单位byte
         }
         """
-        indices, index_version = self.get_index_stats()
+        indices, index_version = self.get_index_stats(request_timeout=request_timeout)
         # 如果index_re为空，说明没找到任何可用的index
         if index_version == "":
             logger.info("index->[%s] has no index now, will raise a fake not found error", self.index_name)
@@ -3052,7 +3449,7 @@ class ESStorage(models.Model, StorageResultTable):
         if not force_move:
             for index in last_indexes:
                 index_info = es_storage.get_index_info(index)
-                if index_info["status"] == "red":
+                if index_info.get("index_status") == "red":
                     print(f"索引->[{index}]状态为red，因此要强制进行写别名的移动")
                     force_move = True
                     break
@@ -6011,7 +6408,14 @@ class DorisStorage(models.Model, StorageResultTable):
             "storage_config": spec.get("storage_config") or {},
         }
 
-    def _query_doris_physical_metadata(self, database: str, table: str, connection_config: dict[str, Any]) -> dict:
+    def _query_doris_physical_metadata(
+        self,
+        database: str,
+        table: str,
+        connection_config: dict[str, Any],
+        timeout: int = 10,
+        include_create_table: bool = True,
+    ) -> dict:
         connection = pymysql.connect(
             host=connection_config["host"],
             port=int(connection_config["port"]),
@@ -6020,9 +6424,9 @@ class DorisStorage(models.Model, StorageResultTable):
             database=database,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.DictCursor,
-            connect_timeout=10,
-            read_timeout=10,
-            write_timeout=10,
+            connect_timeout=timeout,
+            read_timeout=timeout,
+            write_timeout=timeout,
         )
         try:
             with connection.cursor() as cursor:
@@ -6058,16 +6462,18 @@ class DorisStorage(models.Model, StorageResultTable):
                 )
                 partitions = cursor.fetchall()
 
-                quoted_table = ".".join([self._quote_doris_identifier(database), self._quote_doris_identifier(table)])
-                cursor.execute(f"SHOW CREATE TABLE {quoted_table}")
-                create_table = cursor.fetchall()
-
-                return {
+                result = {
                     "tables": tables,
                     "columns": columns,
                     "partitions": partitions,
-                    "show_create_table": create_table,
                 }
+                if include_create_table:
+                    quoted_table = ".".join(
+                        [self._quote_doris_identifier(database), self._quote_doris_identifier(table)]
+                    )
+                    cursor.execute(f"SHOW CREATE TABLE {quoted_table}")
+                    result["show_create_table"] = cursor.fetchall()
+                return result
         finally:
             connection.close()
 
@@ -6225,7 +6631,12 @@ class DorisStorage(models.Model, StorageResultTable):
 
         return result
 
-    def query_physical_storage_metadata(self, storage_cluster_id: int | None = None) -> dict[str, Any]:
+    def query_physical_storage_metadata(
+        self,
+        storage_cluster_id: int | None = None,
+        timeout: int = 10,
+        include_create_table: bool = True,
+    ) -> dict[str, Any]:
         """
         查询 DorisStorage 关联物理表的原始元信息。
 
@@ -6353,6 +6764,8 @@ class DorisStorage(models.Model, StorageResultTable):
                     database=physical_table["database"],
                     table=physical_table["table"],
                     connection_config=connection_config,
+                    timeout=timeout,
+                    include_create_table=include_create_table,
                 )
             except Exception as error:  # pylint: disable=broad-except
                 errors.append(
@@ -6497,6 +6910,8 @@ class SurrealDBStorage(models.Model, StorageResultTable):
     """
 
     STORAGE_TYPE = ClusterInfo.TYPE_SURREALDB
+    UPGRADE_FIELD_CONFIG = ("table_type", "vertices", "relations", "storage_cluster_id")
+    JSON_FIELDS = ("vertices", "relations")
 
     TEMPORARY_TABLE_TYPE = "temporary"  # 图能力表，支持顶点/边写入，支持指标入图
     NORMAL_TABLE_TYPE = "normal"  # 基础表，无图能力
@@ -6523,6 +6938,7 @@ class SurrealDBStorage(models.Model, StorageResultTable):
         vertices=None,
         relations=None,
         storage_cluster_id=None,
+        create_storage_cluster_record=True,
         **kwargs,
     ):
         """
@@ -6534,6 +6950,7 @@ class SurrealDBStorage(models.Model, StorageResultTable):
         :param vertices: 顶点定义列表
         :param relations: 关系定义列表
         :param storage_cluster_id: SurrealDB 集群ID
+        :param create_storage_cluster_record: 是否创建当前存储集群记录，作为额外存储时应关闭
         """
         if storage_cluster_id is None:
             storage_cluster_id = ClusterInfo.objects.get(
@@ -6559,25 +6976,26 @@ class SurrealDBStorage(models.Model, StorageResultTable):
                         "storage_cluster_id": storage_cluster_id,
                     },
                 )
-                surrealdb_cluster_ids = ClusterInfo.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    cluster_type=ClusterInfo.TYPE_SURREALDB,
-                ).values_list("cluster_id", flat=True)
-                StorageClusterRecord.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    table_id=table_id,
-                    is_current=True,
-                    cluster_id__in=surrealdb_cluster_ids,
-                ).exclude(cluster_id=storage_cluster_id).update(is_current=False)
-                StorageClusterRecord.objects.update_or_create(
-                    bk_tenant_id=bk_tenant_id,
-                    table_id=table_id,
-                    cluster_id=storage_cluster_id,
-                    defaults={
-                        "enable_time": django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
-                        "is_current": True,
-                    },
-                )
+                if create_storage_cluster_record:
+                    surrealdb_cluster_ids = ClusterInfo.objects.filter(
+                        bk_tenant_id=bk_tenant_id,
+                        cluster_type=ClusterInfo.TYPE_SURREALDB,
+                    ).values_list("cluster_id", flat=True)
+                    StorageClusterRecord.objects.filter(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=table_id,
+                        is_current=True,
+                        cluster_id__in=surrealdb_cluster_ids,
+                    ).exclude(cluster_id=storage_cluster_id).update(is_current=False)
+                    StorageClusterRecord.objects.update_or_create(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=table_id,
+                        cluster_id=storage_cluster_id,
+                        defaults={
+                            "enable_time": django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
+                            "is_current": True,
+                        },
+                    )
                 action = "created" if created else "updated"
                 logger.info("CreateSurrealDBStorage: %s SurrealDB storage table[%s] success", action, record.table_id)
         except Exception as e:  # pylint: disable=broad-except
@@ -6588,6 +7006,20 @@ class SurrealDBStorage(models.Model, StorageResultTable):
 
     def add_field(self, field):
         pass
+
+    def update_storage(self, **kwargs):
+        """更新普通 SurrealDB storage，并校验目标集群归属当前租户。"""
+        storage_cluster_id = kwargs.get("storage_cluster_id")
+        if (
+            storage_cluster_id is not None
+            and not ClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+                cluster_id=storage_cluster_id,
+            ).exists()
+        ):
+            raise ValueError("SurrealDB存储集群配置有误，请确认或联系管理员处理")
+        return super().update_storage(**kwargs)
 
     @property
     def consul_config(self):

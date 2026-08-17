@@ -196,7 +196,6 @@
             v-if="isDorisEnabled"
             :active-tab="clusterType"
             :is-doris-enabled="isDorisEnabled"
-            :disabled="isEdit"
             @tab-click="handleClusterTypeChange"
           />
           <cluster-table

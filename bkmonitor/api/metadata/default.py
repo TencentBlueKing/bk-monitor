@@ -208,6 +208,35 @@ class GetResultTableStorageResource(MetaDataAPIGWResource):
         storage_type = serializers.CharField(required=True)
 
 
+class GetResultTableStorageStatusResource(MetaDataAPIGWResource):
+    """批量查询结果表 ES/Doris 存储状态和历史分段。"""
+
+    action = "/app/metadata/get_result_table_storage_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        table_ids = serializers.ListField(
+            required=True,
+            min_length=1,
+            max_length=50,
+            child=serializers.CharField(label="结果表ID"),
+            label="结果表ID列表",
+        )
+        timeout = serializers.IntegerField(required=False, default=15, min_value=1, max_value=30, label="超时时间")
+        total_timeout = serializers.IntegerField(
+            required=False,
+            default=60,
+            min_value=1,
+            max_value=300,
+            label="批量查询总超时时间",
+        )
+
+        def validate_table_ids(self, value):
+            if len(value) != len(set(value)):
+                raise serializers.ValidationError("结果表ID不能重复")
+            return value
+
+
 class GetTsDataResource(MetaDataAPIGWResource):
     """
     数据查询
@@ -743,6 +772,30 @@ class QueryClusterInfoResource(MetaDataAPIGWResource):
         cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
         is_plain_text = serializers.BooleanField(required=False, label="是否需要明文显示登陆信息", default=False)
         registered_system = serializers.CharField(required=False, label="来源系统名称", default="")
+
+
+class GetClusterStatusResource(MetaDataAPIGWResource):
+    """批量查询存储集群运行状态。"""
+
+    action = "/app/metadata/get_cluster_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_ids = serializers.ListField(
+            label="存储集群ID列表",
+            child=serializers.IntegerField(min_value=1),
+            allow_empty=False,
+            min_length=1,
+            max_length=20,
+        )
+        timeout = serializers.IntegerField(
+            label="单次底层探测操作超时时间（秒）",
+            required=False,
+            default=5,
+            min_value=1,
+            max_value=30,
+        )
+        include_node_details = serializers.BooleanField(label="是否返回节点明细", required=False, default=False)
 
 
 class AccessBkDataByResultTable(MetaDataAPIGWResource):

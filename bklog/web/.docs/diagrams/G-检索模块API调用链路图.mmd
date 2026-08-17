@@ -1,46 +1,24 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8eaf6', 'primaryTextColor': '#283593', 'primaryBorderColor': '#3f51b5', 'lineColor': '#7986cb'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e8eaf6', 'primaryTextColor': '#283593', 'primaryBorderColor': '#3f51b5', 'lineColor': '#7986cb'}}}%%
 flowchart TD
-    subgraph "Preload 阶段"
-        P1[space/getMySpaceList<br/>GET /meta/spaces/mine/]
-        P2[userInfo/getUsername]
-        P3[collect/globals<br/>GET /meta/globals/]
-        P4[meta/getUserGuide<br/>GET /meta/user_guide/]
-    end
-
-    subgraph "索引集操作"
-        I1[retrieve/getIndexSetList<br/>GET /search/index_set/]
-        I2[requestIndexSetFieldInfo]
-        I2A[单索引: GET /search/index_set/:id/fields/]
-        I2B[联合: unionSearch/unionMapping]
-        I3[requestIndexSetQuery]
-        I3A[单索引: POST /search/index_set/:id/search/]
-        I3B[联合: POST /search/index_set/union_search/]
-    end
-
-    subgraph "衍生能力"
-        D1[趋势图<br/>POST /search/index_set/:id/aggs/date_histogram/]
-        D2[Terms 聚合<br/>POST /search/index_set/:id/aggs/terms/]
-        D3[上下文<br/>POST /search/index_set/:id/context/]
-        D4[实时日志<br/>POST /search/index_set/:id/tail_f/]
-        D5[导出<br/>POST /search/index_set/:id/export/]
-    end
-
-    subgraph "分享 & data_id"
-        S1[创建分享<br/>POST /share/create_or_update_token/]
-        S2[获取分享参数<br/>GET share/get_share_params/]
-        S3[data_id 解析<br/>GET /index_set/query_by_dataid/]
-    end
-
-    P1 --> I1
-    I1 --> I2
-    I2 --> I2A
-    I2 --> I2B
-    I2A --> I3
-    I2B --> I3
-    I3 --> I3A
-    I3 --> I3B
-    I3A --> D1
-    I3A --> D2
-    I3A --> D3
-    I3A --> D4
-    I3A --> D5
+  PRELOAD[应用 preload<br/>空间 / 用户 / 全局配置] --> INDEX[GET /search/index_set/]
+  INDEX --> FIELD{字段元数据}
+  FIELD -->|普通| F1[GET /search/index_set/:id/fields/]
+  FIELD -->|联合| F2[unionSearch/unionMapping]
+  FIELD -->|场景| F3[POST /search/scene/fields/]
+  F1 --> META[normalize fields<br/>field cache + IndexedDB]
+  F2 --> META
+  F3 --> META
+  META --> QUERY{主查询分支}
+  QUERY -->|普通单索引| Q1[POST /search/index_set/:id/search/?stream=true]
+  QUERY -->|联合索引| Q2[POST /search/index_set/union_search/?stream=true]
+  QUERY -->|场景检索| Q3[POST /search/scene/search/?stream=true]
+  Q1 --> WORKER[WebWorker<br/>fetch + NDJSON/JSON]
+  Q2 --> WORKER
+  Q3 --> WORKER
+  WORKER --> ROWS[IndexedDB retrieveRows<br/>row_keys + query metadata]
+  ROWS --> RESULT[Vuex + 结果组件]
+  RESULT --> DERIVED[趋势 / Terms / 上下文 / 实时 / 导出 / Grep / 聚类]
+  DERIVED --> NORMAL[普通与联合 API]
+  DERIVED --> SCENARIO[场景 API]
+  NORMAL --> SERVICES[src/services/retrieve.ts]
+  SCENARIO --> SERVICES

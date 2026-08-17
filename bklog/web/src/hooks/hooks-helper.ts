@@ -72,93 +72,40 @@ export const getTargetElement = (
   return (target as Ref<HTMLElement>)?.value;
 };
 
+type LayoutReadTask = () => (() => void) | void;
+
+const layoutReadQueue: LayoutReadTask[] = [];
+let layoutReadHandle = 0;
+
 /**
- *
- * @param str
- * @param delimiterPattern
- * @param wordsplit 是否分词
- * @returns
+ * 批量执行 DOM 测量：先跑完所有读、再统一执行写。
+ * 单元格分词是逐个渲染的，若每个单元格各自 requestAnimationFrame 去读
+ * offsetHeight / scrollHeight，一屏就会产生几百次强制同步布局。
  */
-export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit = true) => {
-  if (!str) {
-    return [];
-  }
+const flushLayoutReads = () => {
+  layoutReadHandle = 0;
+  const tasks = layoutReadQueue.splice(0, layoutReadQueue.length);
+  const writes: Array<() => void> = [];
 
-  const tokens: Record<string, any>[] = [];
-  let processedLength = 0;
-  const CHUNK_SIZE = 200;
-
-  if (wordsplit) {
-    const MAX_TOKENS = 500;
-    // 转义特殊字符，并构建用于分割的正则表达式
-    const regexPattern = delimiterPattern
-      .split('')
-      .map(delimiter => `\\${delimiter}`)
-      .join('|');
-
-    const DELIMITER_REGEX = new RegExp(`(${regexPattern})`);
-    const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
-
-    const segments = str.split(/(<mark>.*?<\/mark>)/gi);
-
-    for (const segment of segments) {
-      if (tokens.length >= MAX_TOKENS) {
-        break;
-      }
-      const isMark = MARK_REGEX.test(segment);
-
-      const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
-      const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
-
-      if (isMark) {
-        processedLength += '<mark>'.length;
-
-        if (normalTokens.length === segmengtSplitList.length) {
-          processedLength += '</mark>'.length;
-        }
-      }
-
-      for (const t of normalTokens) {
-        processedLength += t.length;
-        tokens.push({
-          text: t,
-          isMark,
-          isCursorText: !DELIMITER_REGEX.test(t),
-        });
-      }
+  for (const task of tasks) {
+    const write = task();
+    if (write) {
+      writes.push(write);
     }
   }
 
-  if (processedLength < str.length) {
-    const remaining = str.slice(processedLength);
+  for (const write of writes) {
+    write();
+  }
+};
 
-    const segments = remaining.split(/(<mark>.*?<\/mark>)/gi);
-    for (const segment of segments) {
-      const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
-      const isMark = MARK_REGEX.test(segment);
-      const chunkCount = Math.ceil(segment.length / CHUNK_SIZE);
-
-      if (isMark) {
-        tokens.push({
-          text: segment.replace(MARK_REGEX, '$1'),
-          isMark: true,
-          isCursorText: false,
-          isBlobWord: false,
-        });
-      } else {
-        for (let i = 0; i < chunkCount; i++) {
-          tokens.push({
-            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-            isMark: false,
-            isCursorText: false,
-            isBlobWord: false,
-          });
-        }
-      }
-    }
+const scheduleLayoutRead = (task: LayoutReadTask) => {
+  layoutReadQueue.push(task);
+  if (layoutReadHandle) {
+    return;
   }
 
-  return tokens;
+  layoutReadHandle = requestAnimationFrame(flushLayoutReads);
 };
 
 /**
@@ -173,12 +120,14 @@ export const setScrollLoadCell = (
   wordList: unknown[],
   rootElement: HTMLElement,
   contentElement: HTMLElement,
-  renderFn: (item: unknown) => HTMLElement,
+  renderFn: (_item: unknown, _index?: number) => HTMLElement,
+  options: { pageSize?: number; maxAutoRenderItems?: number } = {},
 ) => {
   let startIndex = 0;
   let scrollEvtAdded = false;
   let scrollHandler: EventListener | null = null;
-  const pageSize = 50;
+  const pageSize = options.pageSize ?? 50;
+  const maxAutoRenderItems = options.maxAutoRenderItems ?? Number.POSITIVE_INFINITY;
 
   const defaultRenderFn = (item: any) => {
     const child = document.createElement('span');
@@ -191,27 +140,34 @@ export const setScrollLoadCell = (
    * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
    */
   const appendLastTag = () => {
-    if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
-      const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
-      if (scrollHeight > offsetHeight) {
-        const child = document.createElement('span');
-        child.classList.add('last-placeholder');
-        contentElement?.append?.(child);
-      }
+    if (contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
+      return undefined;
     }
+
+    const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
+    if (scrollHeight <= offsetHeight) {
+      return undefined;
+    }
+
+    return () => {
+      const child = document.createElement('span');
+      child.classList.add('last-placeholder');
+      contentElement?.append?.(child);
+    };
   };
 
   const appendPageItems = (size?) => {
     if (startIndex > wordList.length) {
-      requestAnimationFrame(appendLastTag);
+      scheduleLayoutRead(appendLastTag);
       startIndex = wordList.length;
       return false;
     }
 
     const fragment = document.createDocumentFragment();
     const pageItems = wordList.slice(startIndex, startIndex + (size ?? pageSize));
-    for (const item of pageItems) {
-      const child = renderFn?.(item) ?? defaultRenderFn(item);
+    for (let i = 0; i < pageItems.length; i++) {
+      const item = pageItems[i];
+      const child = renderFn?.(item, startIndex + i) ?? defaultRenderFn(item);
 
       fragment.appendChild(child);
     }
@@ -256,21 +212,44 @@ export const setScrollLoadCell = (
    * 动态渲染列表，根据内容高度自动判定是否添加滚动监听事件
    */
   const setListItem = (size?, next?) => {
-    if (appendPageItems(size)) {
-      requestAnimationFrame(() => {
-        if (rootElement) {
-          const { offsetHeight, scrollHeight } = rootElement;
-          if (offsetHeight * 1.2 > scrollHeight) {
-            setListItem(undefined, next);
-          } else {
+    if (!appendPageItems(size)) {
+      return;
+    }
+
+    // 首批即渲染完全部分词（绝大多数单元格）：没有后续内容要追加，
+    // 唯一还需要的测量合并进共享批量读，避免每个单元格独占 2-3 次 rAF 与强制同步布局。
+    if (startIndex >= wordList.length) {
+      scheduleLayoutRead(() => {
+        const appendPlaceholder = appendLastTag();
+        const isOverflow = rootElement ? rootElement.offsetHeight * 1.2 <= rootElement.scrollHeight : false;
+
+        return () => {
+          appendPlaceholder?.();
+          // 与原逻辑一致：内容溢出才触发后置处理并挂滚动续渲
+          if (isOverflow) {
             next?.();
             if (!scrollEvtAdded) {
               addScrollEvent(next);
             }
           }
-        }
+        };
       });
+      return;
     }
+
+    requestAnimationFrame(() => {
+      if (rootElement) {
+        const { offsetHeight, scrollHeight } = rootElement;
+        if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
+          setListItem(undefined, next);
+        } else {
+          next?.();
+          if (!scrollEvtAdded) {
+            addScrollEvent(next);
+          }
+        }
+      }
+    });
   };
 
   const reset = list => {
@@ -331,4 +310,38 @@ export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, o
   virtualTarget.style.setProperty('top', `${y + offsetY}px`);
 
   return virtualTarget;
+};
+
+/**
+ * 归一到最外层 .valid-text。
+ * 页面高亮 / 检索高亮会在分词内部插入 mark/span；若 inner 节点也被打上 valid-text，
+ * closest 会命中内层，导致点击分词取到残缺文本、tokenIndex 膨胀，划词 start/end 漂移。
+ */
+export const resolveOuterValidText = (el: Element | null | undefined): HTMLElement | null => {
+  if (!el) {
+    return null;
+  }
+  let current = (el.classList?.contains('valid-text')
+    ? el
+    : el.closest?.('.valid-text')) as HTMLElement | null;
+  if (!current) {
+    return null;
+  }
+  let parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+  while (parent) {
+    current = parent;
+    parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+  }
+  return current;
+};
+
+/** 仅保留最外层 .valid-text，过滤高亮产生的内层同名节点 */
+export const listOuterValidTextNodes = (root: ParentNode | null | undefined): HTMLElement[] => {
+  if (!root) {
+    return [];
+  }
+  return Array.from(root.querySelectorAll('.valid-text')).filter((node) => {
+    const el = node as HTMLElement;
+    return !el.parentElement?.closest?.('.valid-text');
+  }) as HTMLElement[];
 };

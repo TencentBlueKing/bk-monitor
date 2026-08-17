@@ -93,3 +93,7 @@ src/views/playground/*
 src/local.**
 local.cookie
 .cookie
+.aafe.config.json
+test
+output
+.session_tmps

@@ -574,6 +574,9 @@ BKAPP_ADMIN_BIZ_ID = int(os.environ.get("BKAPP_ADMIN_BIZ_ID", 2))
 # APM 共享数据源匹配规则配置
 APM_SHARED_DATASOURCE_RULES = {}
 
+# 开启跨应用 Trace 索引集同步的数据源域 ID 白名单
+APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST = []
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -1828,15 +1831,13 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
-# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，-1 表示全量灰度，优先级高于 DB 配置）
-_log_uq_white_biz_env = os.getenv("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", "")
-LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV = (
-    [int(biz_id.strip()) for biz_id in _log_uq_white_biz_env.split(",") if biz_id.strip()]
-    if _log_uq_white_biz_env
+# 日志 UnifyQuery 查询业务黑名单（环境变量，逗号分隔业务 ID）
+_log_uq_black_biz_env: str = os.getenv("LOG_UNIFY_QUERY_BLACK_BIZ_LIST", "")
+LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV: list[int] = (
+    [int(biz_id.strip()) for biz_id in _log_uq_black_biz_env.split(",") if biz_id.strip()]
+    if _log_uq_black_biz_env
     else []
 )
-# 日志 UnifyQuery 查询业务白名单（DB 动态配置）
-LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
 
 # APM 调用分析启用全局指标的应用列表
 APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
@@ -1919,6 +1920,8 @@ SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_
 AIOPS_SERVER_TF_URL = os.getenv("BKAPP_AIOPS_SERVER_TF_URL", "http://bk-aiops-serving-tf:8000")
 # 智能异常检测远程访问地址
 AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-serving-kpi:8000")
+# 异常等级评分远程访问地址，由部署环境显式配置
+AIOPS_SERVER_SAS_URL = os.getenv("BKAPP_AIOPS_SERVER_SAS_URL", "")
 # 离群检测远程访问地址
 AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
 # SDK执行预测逻辑接口
@@ -1927,6 +1930,25 @@ AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/api/aiops/default/")
 AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/api/aiops/init_depend/")
 # SDK执行分组预测逻辑接口
 AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/api/aiops/group_predict/")
+# 异常等级评分接口
+AIOPS_SAS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_SAS_PREDICT_SDK", "/aiops/serving/default/")
+AIOPS_SAS_TIMEOUT = max(1, int(os.getenv("BKAPP_AIOPS_SAS_TIMEOUT", 15)))
+# SAS 是 KPI 检测后的增量阶段，批次总预算不超过单请求超时，避免拖长 detect 主链路
+AIOPS_SAS_BATCH_TIMEOUT = max(
+    1, min(int(os.getenv("BKAPP_AIOPS_SAS_BATCH_TIMEOUT", AIOPS_SAS_TIMEOUT)), AIOPS_SAS_TIMEOUT)
+)
+
+
+def _parse_aiops_sas_threshold(name, default):
+    try:
+        return float(os.getenv(name, default))
+    except (TypeError, ValueError):
+        # 保留进程可用性，由检测链路将非法阈值按 SAS 不可用回退为预警
+        return None
+
+
+AIOPS_SAS_FATAL_THRESHOLD = _parse_aiops_sas_threshold("BKAPP_AIOPS_SAS_FATAL_THRESHOLD", 0.8)
+AIOPS_SAS_WARNING_THRESHOLD = _parse_aiops_sas_threshold("BKAPP_AIOPS_SAS_WARNING_THRESHOLD", 0.5)
 # bkfara apigew地址
 BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
 BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")

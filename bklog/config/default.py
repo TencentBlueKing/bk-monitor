@@ -114,6 +114,8 @@ else:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     INSTALLED_APPS += ("version_log",)
 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 # 设置pyinstrument的profiler开关
 PYINSTRUMENT_URL_ARGUMENT = "bk-log-profile"
 
@@ -363,6 +365,8 @@ if IS_K8S_DEPLOY_MODE:
                 "propagate": True,
             },
             "bk_monitor": {"handlers": ["stdout"], "level": LOG_LEVEL, "propagate": True},
+            # 审计事件，bk_audit 的 exporter 会关闭 propagate，必须显式挂 handler
+            "bk_audit": {"handlers": ["stdout"], "level": LOG_LEVEL, "propagate": True},
         },
     }
     #
@@ -931,6 +935,9 @@ ES_STORAGE_DEFAULT_DURATION = int(os.environ.get("BKAPP_ES_STORAGE_DURATION", 7)
 ES_PRIVATE_STORAGE_DURATION = int(os.environ.get("BKAPP_ES_PRIVATE_STORAGE_DURATION", 365))
 ES_PUBLIC_STORAGE_DURATION = int(os.environ.get("BKAPP_ES_PUBLIC_STORAGE_DURATION", 7))
 
+# 清洗模板同步批次配置
+CLEAN_TEMPLATE_SYNC_BATCH_SIZE = int(os.environ.get("BKAPP_CLEAN_TEMPLATE_SYNC_BATCH_SIZE", 50))
+
 # 公共集群存储容量限制
 ES_STORAGE_CAPACITY = os.environ.get("BKAPP_ES_STORAGE_CAPACITY", 0)
 
@@ -1345,6 +1352,9 @@ except ValueError:
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
 TGPA_TRANSCEIVER_TOOL_URL = os.getenv("BKAPP_TGPA_TRANSCEIVER_TOOL_URL", "")
 TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
+
+# 异步下载最大并发任务数
+MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
 
 """
 以下为框架代码 请勿修改

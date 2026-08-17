@@ -280,6 +280,7 @@ def sync_bkbase_cluster_info(
     password = _get_attr_by_path(cluster_spec, field_mappings["password"])
     version = _get_attr_by_path(cluster_spec, field_mappings.get("version", ""))
     bk_biz_id = _get_attr_by_path(cluster_spec, field_mappings.get("bk_biz_id", ""))
+    schema = _get_attr_by_path(cluster_spec, field_mappings.get("schema", ""))
 
     # kafka 集群专用字段
     sasl_mechanisms = _get_attr_by_path(cluster_spec, field_mappings.get("sasl_mechanisms", ""))
@@ -342,6 +343,8 @@ def sync_bkbase_cluster_info(
         # "version": version,
         # "gse_stream_to_id": stream_to_id,
     }
+    if schema:
+        need_update_fields["schema"] = schema
 
     with transaction.atomic():
         cluster = models.ClusterInfo.objects.filter(
@@ -405,6 +408,7 @@ def sync_bkbase_cluster_info(
                 registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                 registered_to_bkbase=True,
                 version=version,
+                schema=schema or None,
                 gse_stream_to_id=stream_to_id or -1,
             )
             logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
@@ -606,7 +610,6 @@ def _get_bkbase_components_config(
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
             extra_config["consumer_group"] = spec.get("consumerGroup", "")
-            extra_config["data_link_strategy"] = labels.get("bkm_data_link_strategy", "")
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -690,8 +693,6 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
 
 def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
     if value:
-        return True
-    if kind == DataLinkKind.DATABUS.value and field == "data_link_strategy" and value == "":
         return True
     return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
 

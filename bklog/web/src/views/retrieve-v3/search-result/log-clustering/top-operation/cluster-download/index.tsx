@@ -66,8 +66,8 @@ export default defineComponent({
       }
 
       // 如果没有数据，禁用按钮
-      const rawData = props.logTableRef.value.getRawData?.() || [];
-      return rawData.length === 0;
+      const rawDataCount = props.logTableRef.value.getRawDataCount?.() ?? 0;
+      return rawDataCount === 0;
     });
 
     // 获取当前索引集信息
@@ -179,7 +179,7 @@ export default defineComponent({
         isDownloading.value = true;
 
         // 从logTableRef获取原始数据
-        const rawData = props.logTableRef.value?.getRawData?.() || [];
+        const rawData = (await props.logTableRef.value?.getRawData?.()) || [];
         const displayMode = props.logTableRef.value?.getDisplayMode?.() || 'flatten';
 
         // 转换为CSV格式

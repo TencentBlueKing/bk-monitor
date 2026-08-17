@@ -438,6 +438,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
         es_cluster_name="es_default",
         bk_biz_id=1,
         data_link_name="base_1_agent_event",
+        table_id="base_system_1_event",
     )
 
     expected_config = {
@@ -445,6 +446,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
         "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
         "spec": {
             "data": {"kind": "ResultTable", "name": "base_1_agent_event", "namespace": "bkmonitor"},
+            "doc_type": "base_system_1_event",
             "maintainers": ["admin"],
             "storage": {"kind": "ElasticSearch", "name": "es_default", "namespace": "bkmonitor"},
             "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
@@ -487,6 +489,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
         },
         "spec": {
             "data": {"kind": "ResultTable", "name": "base_1_agent_event", "tenant": "system", "namespace": "bkmonitor"},
+            "doc_type": "base_system_1_event",
             "maintainers": ["admin"],
             "storage": {"kind": "ElasticSearch", "tenant": "system", "name": "es_default", "namespace": "bkmonitor"},
             "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],

@@ -6,10 +6,11 @@ You may obtain a copy of the License at http://opensource.org/licenses/MIT
 
 平台 API 能力 catalog 聚合入口。
 
-已注册 domain —— bkdata（bk-base 只读查询）、nodeman（节点管理订阅实例状态，只读）。
-后续 domain（cmdb / metadata / gse / ...）在此 import 子模块触发注册。
+已注册 domain —— bkdata（bk-base 只读查询）、gse（当前路由配置，只读）、
+nodeman（节点管理订阅实例状态，只读）。
+后续 domain（cmdb / metadata / ...）在此 import 子模块触发注册。
 """
 
-from . import _catalog, _lint, bkdata, nodeman  # noqa: F401
+from . import _catalog, _lint, bkdata, gse, nodeman  # noqa: F401
 
-__all__ = ["_catalog", "_lint", "bkdata", "nodeman"]
+__all__ = ["_catalog", "_lint", "bkdata", "gse", "nodeman"]

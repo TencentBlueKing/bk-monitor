@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import os
 
 from bk_audit.contrib.opentelemetry.setup import setup
 from django.apps import AppConfig
 
-from apps.log_audit.client import bk_audit_client
+from apps.log_audit.client import bk_audit_client, otlp_report_enabled
+from apps.utils.log import logger
 
 
 class AuditConfig(AppConfig):
@@ -33,6 +32,11 @@ class AuditConfig(AppConfig):
     # BKAPP_OTEL_LOG_ENDPOINT: 审计中心获取上报endpoint
     # BKAPP_OTEL_LOG_BK_DATA_TOKEN: 审计中心获取上报token
     def ready(self):
-        if not os.getenv("BKAPP_OTEL_LOG_ENDPOINT", ""):
+        if not otlp_report_enabled():
+            logger.warning("[audit] OTLP 上报未启用，审计事件仅输出到 bk_audit 日志器")
             return
-        setup(bk_audit_client)
+        try:
+            setup(bk_audit_client)
+        except Exception:  # pylint: disable=broad-except
+            # 初始化失败不能阻断应用启动，但必须留下痕迹，否则审计事件会静默丢失
+            logger.exception("[audit] 初始化 OTLP 上报失败")

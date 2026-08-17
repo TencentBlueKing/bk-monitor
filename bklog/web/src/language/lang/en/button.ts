@@ -60,6 +60,7 @@ export default {
   归档: 'Archive',
   确定: 'Confirm', // 确定语境的位置,确定和确认，保留确认
   确认: 'Confirm',
+  确认调整: 'Confirm Change',
   停用: 'Disable',
   检索: 'Explore',
   失败: 'Failure',
@@ -86,6 +87,7 @@ export default {
   新建配置: 'New',
   返回列表: 'Back',
   设为降序: 'Desc',
+  展开更多: 'Show More',
   保存模板: 'Save as Template',
   申请权限: 'Apply',
   开始采集: 'Start',

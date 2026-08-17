@@ -131,8 +131,8 @@ class TestDelimiterLogField(TestCase):
         self.assertEqual(len(log_rules), 1)
         self.assertEqual(log_rules[0]["input_id"], "iter_item")
 
-    def test_log_generated_when_enable_retain_content(self):
-        """enable_retain_content=True 时应生成 log assign"""
+    def test_log_not_generated_when_enable_retain_content_without_original_text(self):
+        """retain_original_text=False 时 enable_retain_content 失效，不应生成 log assign"""
         etl_params = {
             "separator": "|",
             "retain_original_text": False,
@@ -142,9 +142,7 @@ class TestDelimiterLogField(TestCase):
         config = get_fresh_config()
         result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
-        log_rules = find_rules_by_output(rules, "log")
-        self.assertEqual(len(log_rules), 1)
-        self.assertEqual(log_rules[0]["input_id"], "iter_item")
+        assert_rule_absent(self, rules, "log")
 
 
 class TestDelimiterStructure(TestCase):

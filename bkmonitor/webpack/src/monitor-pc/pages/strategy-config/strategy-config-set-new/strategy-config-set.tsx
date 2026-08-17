@@ -67,6 +67,7 @@ import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } fr
 import AlarmHandlingList from './alarm-handling/alarm-handling-list-new';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
+import { isAutoAlertLevelRule } from './detection-rules/alert-level';
 import DetectionRules from './detection-rules/detection-rules';
 import JudgingCondition, {
   type IJudgingData,
@@ -1286,21 +1287,24 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           custom_event_name,
           bkmonitor_strategy_id,
         }) => {
-          const curMetric = metricList?.find(set => set.metric_id === metric_id) || {
-            data_source_label,
-            data_type_label,
-            metric_field,
-            metric_field_name: metric_field,
-            metric_id,
-            result_table_id,
-            data_label,
-            unit,
-            index_set_id,
-            query_string,
-            custom_event_name,
-            bkmonitor_strategy_id,
-            dimensions: [],
-          };
+          // strategy 存的 metric_id 可能与 get_metric_list 返回不一致（如 data_label 别名），
+          // 按 metric_id 查询有结果但精确匹配失败时，使用返回的第一条指标补齐 dimensions 等元信息
+          const curMetric = metricList?.find(set => set.metric_id === metric_id) ||
+            metricList?.[0] || {
+              data_source_label,
+              data_type_label,
+              metric_field,
+              metric_field_name: metric_field,
+              metric_id,
+              result_table_id,
+              data_label,
+              unit,
+              index_set_id,
+              query_string,
+              custom_event_name,
+              bkmonitor_strategy_id,
+              dimensions: [],
+            };
 
           this.dataMode =
             agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')
@@ -1589,7 +1593,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (this.detectionConfig.unit && this.metricData[0].unit !== this.detectionConfig.unitType) {
       this.detectionConfig.unit = '';
     }
-    if (this.metricData.length >= 1 && !!this.metricData[0].metric_id) {
+    if (this.metricData.length >= 1 && this.metricData[0].metric_id) {
       this.baseConfig.scenario = this.metricData[0].result_table_label;
     }
     this.handleDetectionRulesUnit();
@@ -1980,6 +1984,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    */
   handleQueryConfig(type: 'promsql' | 'sumbit' = 'sumbit') {
     const hasIntelligentDetect = this.detectionConfig?.data?.some(item => item.type === 'IntelligentDetect');
+    const hasAutoAlertLevel = this.detectionConfig?.data?.some(isAutoAlertLevelRule);
     return this.selectMetricData.map(item => {
       const common = {
         data_label: item.curRealMetric?.data_label || item.data_label,
@@ -2005,7 +2010,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         query_string: item.keywords_query_string,
         custom_event_name: item.custom_event_name,
         functions: this.isKpiAnomalySdkEnabled || !hasIntelligentDetect ? item.functions : [],
-        intelligent_detect: this.id && hasIntelligentDetect ? item.intelligent_detect : undefined,
+        intelligent_detect: hasAutoAlertLevel
+          ? { ...(item.intelligent_detect || {}), use_sdk: true }
+          : this.id && hasIntelligentDetect
+            ? item.intelligent_detect
+            : undefined,
         time_field: (hasIntelligentDetect ? 'dtEventTimeStamp' : item.time_field) || 'time',
         bkmonitor_strategy_id: item.metric_field || item.bkmonitor_strategy_id,
         alert_name: item.metric_field,
@@ -2409,7 +2418,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     });
     if (metricList.length) {
       this.metricData = targetRes.query_configs.map(item => {
-        const metricItem = metricList?.find(set => set.metric_id === item.metric_id);
+        // 与编辑回填一致：metric_id 精确匹配失败时回退到接口返回的第一条指标
+        const metricItem = metricList?.find(set => set.metric_id === item.metric_id) || metricList?.[0];
         const resultTableIdList = (item.result_table_id || metricItem.result_table_id).split('.');
         const curMetric = metricItem || {
           data_source_label: metricList?.data_source_label || item.data_source_label,

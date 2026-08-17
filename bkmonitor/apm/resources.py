@@ -2094,7 +2094,7 @@ class QueryEbpfProfileResource(Resource):
         )
 
 
-""""后端直接调用的类"""
+# ==================== 外部 API（网关侧对外简化调用入口） ====================
 
 
 class CreateApplicationSimpleResource(Resource):
@@ -2109,7 +2109,7 @@ class CreateApplicationSimpleResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id", required=False)
-        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
+        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-zA-Z0-9_.-]+$")
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         plugin_id = serializers.CharField(label="插件ID", max_length=255, required=False)
@@ -2122,6 +2122,12 @@ class CreateApplicationSimpleResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=False, default=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=False, default=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=False, default=False)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            allow_empty=True,
+        )
 
     def fill_default(self, validate_data):
         if not validate_data.get("bk_biz_id"):
@@ -2154,6 +2160,84 @@ class CreateApplicationSimpleResource(Resource):
         self.fill_default(validated_request_data)
         app = CreateApplicationResource()(**validated_request_data)
         return ApplicationInfoResource()(application_id=app["application_id"])["token"]
+
+
+class UpdateApplicationSimpleResource(Resource):
+    """外部系统更新 APM 应用信息（支持修改别名/描述/负责人，并对新增负责人主动授权）"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+        space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
+        description = serializers.CharField(label="描述", required=False, max_length=255, allow_blank=True)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            allow_empty=True,
+        )
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("space_uid"):
+            validated_request_data["bk_biz_id"] = space_uid_to_bk_biz_id(validated_request_data["space_uid"])
+
+        from apm_web.models import Application
+        from apm_web.meta.resources import SetupResource
+
+        application = Application.origin_objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        ).first()
+        if not application:
+            raise ValueError(
+                f"应用不存在: bk_biz_id={validated_request_data['bk_biz_id']}, "
+                f"app_name={validated_request_data['app_name']}"
+            )
+
+        setup_params = {"application_id": application.application_id}
+        for field in ("app_alias", "description", "owners"):
+            if field in validated_request_data:
+                setup_params[field] = validated_request_data[field]
+
+        if len(setup_params) == 1:
+            # 只传了 application_id，没有任何可更新字段
+            return {"application_id": application.application_id}
+
+        SetupResource()(**setup_params)
+        return {"application_id": application.application_id}
+
+
+class DetailApplicationSimpleResource(Resource):
+    """外部系统查询 APM 应用详情（在原详情基础上补充 SaaS 层的 owners 字段）"""
+
+    RequestSerializer = ApplicationRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        # 复用现有详情接口，拿到数据链路层的完整信息
+        data = ApplicationInfoResource()(**validated_request_data)
+
+        # 补充 SaaS 层管理属性 owners（数据层模型无此字段，需反查 apm_web.Application）
+        owners: list = []
+        try:
+            from apm_web.models import Application as WebApplication
+
+            web_app = WebApplication.origin_objects.filter(
+                bk_biz_id=data.get("bk_biz_id"),
+                app_name=data.get("app_name"),
+            ).first()
+            if web_app and web_app.owners:
+                owners = list(web_app.owners)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "get application owners failed, bk_biz_id=%s, app_name=%s, err=%s",
+                data.get("bk_biz_id"),
+                data.get("app_name"),
+                exc,
+            )
+
+        data["owners"] = owners
+        return data
 
 
 class DeleteApplicationSimpleResource(Resource):

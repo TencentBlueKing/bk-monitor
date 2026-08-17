@@ -166,7 +166,13 @@ class IncidentDocument(IncidentBaseDocument):
         if self.id is None:
             self.id = f"{self.create_time}{self.incident_id}"
 
-    def generate_assignees(self, snapshot) -> None:
+    @staticmethod
+    def get_alert_document(alert_id, alert_docs=None) -> AlertDocument:
+        if alert_docs is not None and str(alert_id) in alert_docs:
+            return alert_docs[str(alert_id)]
+        return AlertDocument.get(alert_id)
+
+    def generate_assignees(self, snapshot, alert_docs=None) -> None:
         """生成故障负责人
 
         :param snapshot: 故障分析结果图谱快照信息
@@ -174,19 +180,19 @@ class IncidentDocument(IncidentBaseDocument):
         assignees = set()
         for incident_alert in snapshot.alert_entity_mapping.values():
             if incident_alert.entity.is_root:
-                alert_doc = AlertDocument.get(incident_alert.id)
+                alert_doc = self.get_alert_document(incident_alert.id, alert_docs)
                 assignees = assignees | set(alert_doc.assignee)
 
         self.assignees = list(assignees)
 
-    def generate_handlers(self, snapshot) -> None:
+    def generate_handlers(self, snapshot, alert_docs=None) -> None:
         """生成故障处理人
 
         :param snapshot: 故障分析结果图谱快照信息
         """
         handlers = set()
         for incident_alert in snapshot.alert_entity_mapping.values():
-            alert_doc = AlertDocument.get(incident_alert.id)
+            alert_doc = self.get_alert_document(incident_alert.id, alert_docs)
             handlers = handlers | set(alert_doc.assignee)
 
         self.handlers = list(handlers)

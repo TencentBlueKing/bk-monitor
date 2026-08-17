@@ -1,0 +1,19 @@
+paths:
+  /app/custom_metric/query_protocols/:
+    post:
+      operationId: query_custom_time_series_protocols
+      description: 批量查询自定义指标上报协议
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/custom_metric/query_custom_time_series_protocols/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: Query custom time series protocols

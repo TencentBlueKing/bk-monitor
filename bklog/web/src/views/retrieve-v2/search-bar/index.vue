@@ -34,6 +34,10 @@ import AiParseResultBanner from './components/ai-parse-result-banner';
 import SqlQuery from './sql-mode/sql-query';
 import UiInput from './ui-mode/ui-input';
 import { withoutValueConditionList } from './utils/const.common';
+import {
+  resolveUiToSqlConvertOutcome,
+  shouldConvertUiToSqlOnModeSwitch,
+} from './utils/ui-to-sql-mode';
 
 const props = defineProps({
   // activeFavorite: {
@@ -75,7 +79,7 @@ const props = defineProps({
    */
   popupAppendToBody: {
     type: Boolean,
-    default: false,
+    default: true,
   },
 });
 
@@ -155,7 +159,8 @@ const isInputLoading = computed(() => {
 });
 
 const isSearching = computed(() => {
-  return store.state.indexSetQueryResult.is_loading;
+  const queryResult = store.state.indexSetQueryResult;
+  return queryResult.is_loading && !queryResult.is_pagination_loading;
 });
 
 const btnIconName = computed(() => {
@@ -209,7 +214,7 @@ watch(
     nextTick(() => {
       uiQueryValue.value.forEach(
         (v) =>
-          (v.field_type = (indexFieldInfo.value.fields ?? []).find(
+          (v.field_type = store.getters.rawFieldList.find(
             (f) => f.field_name === v.field
           )?.field_type)
       );
@@ -268,7 +273,7 @@ const formatAddition = (addition) => {
   return addition.map((v) => {
     const value = {
       ...v,
-      field_type: (indexFieldInfo.value.fields ?? []).find(
+      field_type: store.getters.rawFieldList.find(
         (f) => f.field_name === v.field
       )?.field_type,
     };
@@ -465,29 +470,91 @@ const handleHeightChange = (height) => {
 };
 
 /**
+ * 应用查询模式切换（更新 storage / indexItem / 路由，不自动发起查询）
+ */
+const applySearchModeChange = (nextType, nextMode, extraParams = {}) => {
+  store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
+  store.commit('updateIndexItemParams', {
+    search_mode: nextMode,
+    ...extraParams,
+  });
+  setRouteParams();
+  emit('mode-change', nextMode);
+};
+
+/**
+ * UI 模式条件转换为语句模式 keyword（与复制查询条件共用 generateQueryString）
+ */
+const convertUiAdditionToKeyword = (currentAddition) => {
+  return $http
+    .request('retrieve/generateQueryString', {
+      data: {
+        addition: currentAddition,
+      },
+    })
+    .then((res) => {
+      const outcome = resolveUiToSqlConvertOutcome(res);
+      if (outcome.ok) {
+        return outcome.keyword;
+      }
+      return Promise.reject(new Error($t('UI查询转换语句模式失败')));
+    });
+};
+
+/**
  * 切换查询模式
+ * UI → 语句：将 addition 转为 keyword 填充语句框，不自动查询
+ * 语句 → UI：保持原行为
  */
 const handleQueryTypeChange = () => {
   const nextType = activeIndex.value === 0 ? 1 : 0;
   const nextMode = SEARCH_MODE_DIC[nextType];
   inspectResponse.value.is_legal = true;
   inspectResponse.value.is_resolved = false;
-  if (isGloalUsage.value) {
-    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
-    store.commit('updateIndexItemParams', {
-      search_mode: nextMode,
-    });
 
-    if (
-      addition.value.length > 0 ||
-      (keyword.value !== '*' && keyword.value !== '')
-    ) {
-      handleBtnQueryClick();
-    } else {
-      setRouteParams();
-    }
-  } else {
+  if (!isGloalUsage.value) {
     localModeActiveIndex.value = nextType;
+    emit('mode-change', nextMode);
+    return;
+  }
+
+  // UI → 语句：转换查询条件并填充，不自动发起查询
+  if (shouldConvertUiToSqlOnModeSwitch(activeIndex.value, nextType, addition.value.length)) {
+    const currentAddition = addition.value;
+    convertUiAdditionToKeyword(currentAddition)
+      .then((querystring) => {
+        sqlQueryValue.value = querystring;
+        applySearchModeChange(nextType, nextMode, { keyword: querystring });
+      })
+      .catch((err) => {
+        console.log(err);
+        bkMessage({
+          theme: 'warning',
+          message: err?.message || $t('UI查询转换语句模式失败'),
+        });
+        applySearchModeChange(nextType, nextMode);
+      });
+    return;
+  }
+
+  if (activeIndex.value === 0 && nextType === 1) {
+    applySearchModeChange(nextType, nextMode);
+    return;
+  }
+
+  // 语句 → UI：保持原有切换行为
+  store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
+  store.commit('updateIndexItemParams', {
+    search_mode: nextMode,
+  });
+
+  if (
+    addition.value.length > 0 ||
+    (keyword.value !== '*' && keyword.value !== '')
+  ) {
+    handleBtnQueryClick();
+  } else {
+    setRouteParams();
   }
   emit('mode-change', nextMode);
 };
@@ -1003,11 +1070,11 @@ defineExpose({
 
     .bk-loading-title {
       margin-top: 0;
+      color: transparent;
       background-image: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
-      -webkit-background-clip: text;
+      background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
-      color: transparent;
     }
   }
 }

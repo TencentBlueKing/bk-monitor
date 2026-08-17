@@ -176,11 +176,11 @@ export interface ListFieldCandidatesParams {
   page_size: number;
   /** 容器场景下必填，集群 ID 列表 */
   bcs_cluster_ids?: string[];
-  /** 主机场景下必填，二维数组格式：[[{field_name, value, op}, ...]] */
+  /** 主机/PaaS/服务场景必填，二维数组格式：[[{field_name, value, op}, ...]] */
   table_id_conditions?: Array<Array<{ field_name: string; value: string[]; op: string }>>;
-  /** 主机场景必填 */
+  /** 主机/PaaS/服务场景必填 */
   start_time?: number;
-  /** 主机场景必填 */
+  /** 主机/PaaS/服务场景必填 */
   end_time?: number;
 }
 

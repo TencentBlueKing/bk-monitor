@@ -77,7 +77,7 @@ class TestCleanResult(TestCase):
 
     def setUp(self):
         CacheNode.refresh_from_settings()
-        redis_pipeline = CheckResult.pipeline()
+        redis_pipeline = CheckResult.begin_pipeline_batch()
 
         self.strategy_cache_patcher = patch(
             "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategies",

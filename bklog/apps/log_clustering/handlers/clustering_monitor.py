@@ -100,7 +100,7 @@ class ClusteringMonitorHandler:
             "agg_condition": agg_condition,
             "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
             "index_set_id": self.index_set_id,
-            "result_table_id": "",
+            "result_table_id": self.log_index_set_data["result_table_id"],
             "query_string": "*",
             "functions": [],
             "time_field": DEFAULT_TIME_FIELD,
@@ -222,7 +222,8 @@ class ClusteringMonitorHandler:
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
         level = params.get("level", 2)
         detect_range = params.get("interval", 30) * DAY
-        new_class_threshold = params.get("threshold", 1)
+        # BKLOG 对外语义是日志数 >= threshold，NewSeries 检测器使用严格大于判断。
+        new_class_threshold = params.get("threshold", 1) - 1
         agg_dimension = [SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]
 
         labels = DEFAULT_LABEL.copy()
@@ -463,10 +464,12 @@ class ClusteringMonitorHandler:
         if strategy_type == StrategiesType.NEW_CLS_strategy:
             if algorithms_config["type"] == NEW_SERIES_ALGORITHM_TYPE:
                 detect_range = algorithms_config["config"].get("detect_range", 0)
+                # 将 NewSeries 的严格大于阈值还原为 BKLOG 的最小日志条数。
+                new_class_threshold = algorithms_config["config"].get(NEW_SERIES_THRESHOLD_CONFIG_KEY, 0) + 1
                 data.update(
                     {
                         "interval": detect_range // DAY,
-                        "threshold": algorithms_config["config"].get(NEW_SERIES_THRESHOLD_CONFIG_KEY, 0),
+                        "threshold": new_class_threshold,
                     }
                 )
             else:

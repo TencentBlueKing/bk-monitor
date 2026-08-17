@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -14,6 +13,7 @@ from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.utils.tenant import is_biz_in_tenant
 
 
 class GlobalSettingPermission(IAMPermission):
@@ -58,6 +58,9 @@ class BusinessViewPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.biz_id is None:
             return True
+
+        if request.biz_id and not is_biz_in_tenant(request.biz_id, getattr(request.user, "tenant_id", None)):
+            return False
 
         return Permission().is_allowed_by_biz(
             bk_biz_id=request.biz_id,

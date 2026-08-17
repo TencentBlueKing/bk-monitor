@@ -179,9 +179,12 @@ export const useIssuesDialogs = (
    * @returns {AlertOperationDialogParams} dialog私有参数
    */
   const getDialogParamByDialogType = (
-    _dialogType: IssuesBatchActionType,
-    _data: IssueItem[]
+    dialogType: IssuesBatchActionType,
+    data: IssueItem[]
   ): IssuesOperationDialogParams => {
+    if (dialogType === IssuesBatchActionEnum.ASSIGN && data.length === 1) {
+      return { assignee: data[0].assignee };
+    }
     return {};
   };
 
