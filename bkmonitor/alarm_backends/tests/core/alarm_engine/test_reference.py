@@ -21,8 +21,12 @@ from alarm_backends.core.alarm_engine.contract import (
     build_trigger_strategy_ir_from_legacy_config,
 )
 from alarm_backends.core.alarm_engine.encoder import decode_json_document
-from alarm_backends.core.alarm_engine.reference import build_reference_trigger_decision_batch
-from alarm_backends.core.alarm_engine.reference import build_terminal_reference_decision_batches
+from alarm_backends.core.alarm_engine.reference import (
+    build_reference_trigger_decision_batch,
+    build_reference_trigger_decision_candidate,
+    build_terminal_reference_decision_batches,
+    is_alarm_engine_shadow_strategy_selected,
+)
 from alarm_backends.core.alarm_engine.runtime import prepare_finalized_threshold_batch
 from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY, TRIGGER_POINT, TRIGGER_STRATEGY
 
@@ -233,6 +237,41 @@ def test_reference_rejects_tenant_mapping_drift_from_acknowledged_detect_input()
 
     with pytest.raises(ContractValidationError, match="acknowledged Detect input"):
         build_reference(point=point, strategy=strategy, event_record=None, tenant_id="tenant-b")
+
+
+def test_unconfirmed_reference_candidate_preserves_the_same_trigger_identity():
+    point = copy.deepcopy(TRIGGER_POINT)
+    strategy = copy.deepcopy(TRIGGER_STRATEGY)
+    strategy["update_time"] = 1569246480
+    raw = legacy_bytes(strategy)
+
+    candidate = build_reference_trigger_decision_candidate(
+        strategy=strategy,
+        legacy_json=raw,
+        strategy_snapshot_key=point["strategy_snapshot_key"],
+        tenant_id_resolver=lambda _bk_biz_id: "default",
+        item_id=1,
+        point=point,
+        event_record=triggered_event(point),
+    )
+    acknowledged = build_reference(
+        point=point,
+        strategy=strategy,
+        event_record=triggered_event(point),
+        raw=raw,
+    )
+
+    assert candidate == acknowledged
+
+
+@pytest.mark.parametrize("selector", [(True,), (1.9,), ("01",), (" 1 ",), "1,", None])
+def test_alarm_engine_shadow_strategy_selector_rejects_noncanonical_values(selector):
+    assert not is_alarm_engine_shadow_strategy_selected(selector, 1)
+
+
+@pytest.mark.parametrize("selector", [(1,), ("1",), "1", ("2", 1)])
+def test_alarm_engine_shadow_strategy_selector_accepts_exact_positive_ids(selector):
+    assert is_alarm_engine_shadow_strategy_selected(selector, 1)
 
 
 def test_terminal_reference_projects_only_detection_terminal_outcomes_after_ack():

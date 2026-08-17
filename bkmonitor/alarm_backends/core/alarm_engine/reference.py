@@ -35,6 +35,55 @@ def build_reference_trigger_decision_batch(
     point: Mapping,
     event_record: Mapping | None,
 ) -> dict:
+    """Project one real Trigger result and verify it against an acknowledged Detection input."""
+
+    return _build_reference_trigger_decision_batch(
+        strategy=strategy,
+        legacy_json=legacy_json,
+        strategy_snapshot_key=strategy_snapshot_key,
+        tenant_id_resolver=tenant_id_resolver,
+        expected_input_id=expected_input_id,
+        item_id=item_id,
+        point=point,
+        event_record=event_record,
+    )
+
+
+def build_reference_trigger_decision_candidate(
+    *,
+    strategy: Mapping,
+    legacy_json: bytes,
+    strategy_snapshot_key: str,
+    tenant_id_resolver: Callable[[int], str],
+    item_id: str | int,
+    point: Mapping,
+    event_record: Mapping | None,
+) -> dict:
+    """Project an unconfirmed Trigger result for later TriggerInput correlation."""
+
+    return _build_reference_trigger_decision_batch(
+        strategy=strategy,
+        legacy_json=legacy_json,
+        strategy_snapshot_key=strategy_snapshot_key,
+        tenant_id_resolver=tenant_id_resolver,
+        expected_input_id=None,
+        item_id=item_id,
+        point=point,
+        event_record=event_record,
+    )
+
+
+def _build_reference_trigger_decision_batch(
+    *,
+    strategy: Mapping,
+    legacy_json: bytes,
+    strategy_snapshot_key: str,
+    tenant_id_resolver: Callable[[int], str],
+    expected_input_id: str | None,
+    item_id: str | int,
+    point: Mapping,
+    event_record: Mapping | None,
+) -> dict:
     """Project one real legacy Python Trigger result without mutating its Redis point."""
 
     point = _require_mapping(point, "reference point")
@@ -87,7 +136,7 @@ def build_reference_trigger_decision_batch(
         evaluations=evaluations,
         outcome="ANOMALOUS",
     )
-    if source["input_id"] != expected_input_id:
+    if expected_input_id is not None and source["input_id"] != expected_input_id:
         raise ContractValidationError("reference input_id does not match the acknowledged Detect input")
     decision = {
         "decision_id": derive_trigger_decision_id(source["input_id"]),
@@ -115,6 +164,41 @@ def build_reference_trigger_decision_batch(
         batch_id=source["batch_id"],
         decisions=[decision],
     )
+
+
+def parse_alarm_engine_shadow_strategy_ids(configured_strategy_ids) -> set[int] | None:
+    """Parse the shared canonical selector, returning None for invalid configuration."""
+
+    if isinstance(configured_strategy_ids, str):
+        configured_strategy_ids = [] if not configured_strategy_ids else configured_strategy_ids.split(",")
+    try:
+        allowed_strategy_ids = set()
+        for configured_strategy_id in configured_strategy_ids:
+            if isinstance(configured_strategy_id, bool):
+                raise ValueError
+            if isinstance(configured_strategy_id, int):
+                if configured_strategy_id <= 0:
+                    raise ValueError
+                allowed_strategy_ids.add(configured_strategy_id)
+                continue
+            if (
+                not isinstance(configured_strategy_id, str)
+                or not configured_strategy_id.isascii()
+                or not configured_strategy_id.isdigit()
+                or configured_strategy_id.startswith("0")
+            ):
+                raise ValueError
+            allowed_strategy_ids.add(int(configured_strategy_id))
+    except (TypeError, ValueError):
+        return None
+    return allowed_strategy_ids
+
+
+def is_alarm_engine_shadow_strategy_selected(configured_strategy_ids, strategy_id: int) -> bool:
+    """Return whether a canonical positive strategy ID is explicitly selected."""
+
+    allowed_strategy_ids = parse_alarm_engine_shadow_strategy_ids(configured_strategy_ids)
+    return allowed_strategy_ids is not None and strategy_id in allowed_strategy_ids
 
 
 def build_terminal_reference_decision_batches(*, strategy_ir: Mapping, detection_outcomes: list[Mapping]) -> list[dict]:

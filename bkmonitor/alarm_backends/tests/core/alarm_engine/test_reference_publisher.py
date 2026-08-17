@@ -29,12 +29,19 @@ class FakeProducer:
         self.delivery_error = delivery_error
         self.remaining = remaining
         self.messages = []
+        self.flush_calls = 0
+        self.pending_payload_bytes = 0
+        self.flushed_payload_bytes = []
 
     def produce(self, **message):
         self.messages.append(message)
+        self.pending_payload_bytes += len(message["value"])
 
     def flush(self, timeout):
+        self.flush_calls += 1
         self.flush_timeout = timeout
+        self.flushed_payload_bytes.append(self.pending_payload_bytes)
+        self.pending_payload_bytes = 0
         for message in self.messages:
             message["on_delivery"](self.delivery_error, None)
         return self.remaining
@@ -56,6 +63,69 @@ def test_reference_publisher_uses_official_codec_partition_key_and_broker_ack():
     assert message["topic"] == "alarm-engine-reference-shadow"
     assert message["key"].hex() == "76822eff60b83ab18de1ec5ecf6c194f6e933f12af8b28e199f2a43f8a730c27"
     assert decode_trigger_decision_batch(message["value"]) == batch
+
+
+def test_reference_publisher_batches_share_one_broker_ack_barrier():
+    producer = FakeProducer()
+    publisher = KafkaReferenceDecisionPublisher(
+        producer=producer,
+        topic="alarm-engine-reference-shadow",
+        flush_timeout=4,
+    )
+    first = _normal_reference_batch()
+    second = copy.deepcopy(first)
+    second["batch_id"] = "batch-2"
+
+    assert publisher.publish_batches([first, second]) == 2
+    assert len(producer.messages) == 2
+    assert producer.flush_calls == 1
+
+
+def test_reference_publisher_bounds_each_ack_group_by_encoded_bytes():
+    producer = FakeProducer()
+    publisher = KafkaReferenceDecisionPublisher(
+        producer=producer,
+        topic="alarm-engine-reference-shadow",
+        flush_timeout=4,
+    )
+    first = _normal_reference_batch()
+    second = copy.deepcopy(first)
+    second["batch_id"] = "batch-2"
+    for batch in (first, second):
+        batch["schema"]["minor"] = 1
+        batch["padding"] = "x" * (300 * 1024)
+
+    assert publisher.publish_batches([first, second]) == 2
+    assert producer.flush_calls == 2
+    assert all(payload_bytes <= 512 * 1024 for payload_bytes in producer.flushed_payload_bytes)
+
+
+def test_reference_publisher_does_not_consume_past_one_size_lookahead_after_ack_failure():
+    producer = FakeProducer(remaining=1)
+    publisher = KafkaReferenceDecisionPublisher(
+        producer=producer,
+        topic="alarm-engine-reference-shadow",
+        flush_timeout=4,
+    )
+    batches = []
+    for index in range(3):
+        batch = _normal_reference_batch()
+        batch["batch_id"] = f"batch-{index}"
+        batch["schema"]["minor"] = 1
+        batch["padding"] = "x" * (300 * 1024)
+        batches.append(batch)
+    consumed = []
+
+    def iter_batches():
+        for batch in batches:
+            consumed.append(batch["batch_id"])
+            yield batch
+
+    with pytest.raises(ReferenceDecisionPublishError, match="flush timeout"):
+        publisher.publish_batches(iter_batches())
+
+    assert consumed == ["batch-0", "batch-1"]
+    assert producer.flush_calls == 1
 
 
 @pytest.mark.parametrize(

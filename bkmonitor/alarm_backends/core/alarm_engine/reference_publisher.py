@@ -8,10 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from functools import lru_cache
 
-from alarm_backends.core.alarm_engine.encoder import decode_json_document, encode_trigger_decision_batch
+from alarm_backends.core.alarm_engine.encoder import (
+    MAX_TRIGGER_DECISION_BATCH_BYTES,
+    decode_json_document,
+    encode_trigger_decision_batch,
+)
 from alarm_backends.core.alarm_engine.publisher import DEFAULT_DELIVERY_TIMEOUT_MS, trigger_partition_key
 
 
@@ -30,34 +34,57 @@ class KafkaReferenceDecisionPublisher:
         self.flush_timeout = flush_timeout
 
     def publish_batch(self, batch: Mapping) -> int:
-        payload = encode_trigger_decision_batch(batch)
-        delivery_errors = []
+        return self.publish_batches([batch])
 
-        def on_delivery(error, _message):
-            if error is not None:
-                delivery_errors.append(error)
+    def publish_batches(self, batches: Iterable[Mapping]) -> int:
+        def publish_prepared(prepared):
+            delivery_errors = []
 
-        try:
-            self.producer.produce(
-                topic=self.topic,
-                key=trigger_partition_key(batch),
-                value=payload,
-                on_delivery=on_delivery,
-            )
-            if hasattr(self.producer, "poll"):
-                self.producer.poll(0)
+            def on_delivery(error, _message):
+                if error is not None:
+                    delivery_errors.append(error)
+
+            for partition_key, payload, _decision_count in prepared:
+                self.producer.produce(
+                    topic=self.topic,
+                    key=partition_key,
+                    value=payload,
+                    on_delivery=on_delivery,
+                )
+                if hasattr(self.producer, "poll"):
+                    self.producer.poll(0)
             remaining = self.producer.flush(timeout=self.flush_timeout)
+            if remaining:
+                raise ReferenceDecisionPublishError(
+                    f"reference decision publish flush timeout: {remaining} message(s) unacknowledged"
+                )
+            if delivery_errors:
+                raise ReferenceDecisionPublishError(
+                    f"reference decision publish broker rejected message: {delivery_errors[0]}"
+                )
+            return sum(decision_count for _partition_key, _payload, decision_count in prepared)
+
+        published = 0
+        prepared = []
+        prepared_bytes = 0
+        try:
+            for batch in batches:
+                # One encoded lookahead is needed to decide whether the current ACK group is full;
+                # official per-message validation bounds both the group and lookahead to 512 KiB each.
+                payload = encode_trigger_decision_batch(batch)
+                if prepared and prepared_bytes + len(payload) > MAX_TRIGGER_DECISION_BATCH_BYTES:
+                    published += publish_prepared(prepared)
+                    prepared = []
+                    prepared_bytes = 0
+                prepared.append((trigger_partition_key(batch), payload, len(batch["decisions"])))
+                prepared_bytes += len(payload)
+            if prepared:
+                published += publish_prepared(prepared)
+        except ReferenceDecisionPublishError:
+            raise
         except Exception as error:
             raise ReferenceDecisionPublishError(f"reference decision publish failed: {error}") from error
-        if remaining:
-            raise ReferenceDecisionPublishError(
-                f"reference decision publish flush timeout: {remaining} message(s) unacknowledged"
-            )
-        if delivery_errors:
-            raise ReferenceDecisionPublishError(
-                f"reference decision publish broker rejected message: {delivery_errors[0]}"
-            )
-        return len(batch["decisions"])
+        return published
 
 
 def build_kafka_reference_decision_publisher(

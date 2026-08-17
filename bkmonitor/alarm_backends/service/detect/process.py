@@ -119,28 +119,12 @@ class DetectProcess(BaseAbnormalPushProcessor):
         if not settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED:
             return []
 
-        configured_strategy_ids = settings.ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS
-        if isinstance(configured_strategy_ids, str):
-            configured_strategy_ids = [] if not configured_strategy_ids else configured_strategy_ids.split(",")
-        try:
-            allowed_strategy_ids = set()
-            for strategy_id in configured_strategy_ids:
-                if isinstance(strategy_id, bool):
-                    raise ValueError
-                if isinstance(strategy_id, int):
-                    if strategy_id <= 0:
-                        raise ValueError
-                    allowed_strategy_ids.add(strategy_id)
-                    continue
-                if (
-                    not isinstance(strategy_id, str)
-                    or not strategy_id.isascii()
-                    or not strategy_id.isdigit()
-                    or strategy_id.startswith("0")
-                ):
-                    raise ValueError
-                allowed_strategy_ids.add(int(strategy_id))
-        except (TypeError, ValueError):
+        from alarm_backends.core.alarm_engine.reference import parse_alarm_engine_shadow_strategy_ids
+
+        allowed_strategy_ids = parse_alarm_engine_shadow_strategy_ids(
+            settings.ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS
+        )
+        if allowed_strategy_ids is None:
             logger.warning("[alarm engine shadow] configured strategy selector is invalid")
             return []
         if int(self.strategy_id) not in allowed_strategy_ids:
