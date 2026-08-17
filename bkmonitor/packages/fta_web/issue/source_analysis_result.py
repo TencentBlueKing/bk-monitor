@@ -4,7 +4,7 @@ import json
 
 from jsonschema import Draft202012Validator
 
-from constants.issue import SourceAnalysisResultType
+from constants.issue import SourceAnalysisFailureMessage, SourceAnalysisResultType
 
 
 SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION = "1.0.0"
@@ -90,10 +90,10 @@ class SourceAnalysisResultValidationError(ValueError):
     """可安全写入执行记录的结果校验错误，不携带原始结果内容。"""
 
     MESSAGES = {
-        "RESULT_NOT_JSON": "分析结果不是有效的 JSON，请重试；若持续失败请联系管理员。",
-        "RESULT_SCHEMA_UNSUPPORTED": "分析结果版本暂不受支持，请重试；若持续失败请联系管理员。",
-        "RESULT_SCHEMA_INVALID": "分析结果格式校验失败，请重试；若持续失败请联系管理员。",
-        "RESULT_SEMANTIC_INVALID": "分析结果语义校验失败，请重试；若持续失败请联系管理员。",
+        "RESULT_NOT_JSON": SourceAnalysisFailureMessage.RESULT_NOT_JSON,
+        "RESULT_SCHEMA_UNSUPPORTED": SourceAnalysisFailureMessage.RESULT_SCHEMA_UNSUPPORTED,
+        "RESULT_SCHEMA_INVALID": SourceAnalysisFailureMessage.RESULT_SCHEMA_INVALID,
+        "RESULT_SEMANTIC_INVALID": SourceAnalysisFailureMessage.RESULT_SEMANTIC_INVALID,
     }
 
     def __init__(self, code: str, path: str | None = None):

@@ -23,6 +23,7 @@ from api.bk_incident.default import (
 )
 from bkmonitor.models import IssueSourceAnalysisExecution
 from constants.issue import (
+    SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
     SourceAnalysisResultType,
     SourceAnalysisStage,
@@ -399,23 +400,32 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.RESULT_VALIDATE)
         self.assertEqual(execution.failure_code, "RESULT_SCHEMA_INVALID")
         self.assertTrue(execution.failure_retryable)
+        self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.RESULT_SCHEMA_INVALID)
         self.assertIsNone(execution.result_payload)
 
     @patch.object(IssueSourceAnalysisExecution, "mark_success", side_effect=DatabaseError("database unavailable"))
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_result")
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
-    def test_result_persist_error_keeps_validating_for_retry(self, get_task, get_result, _mark_success):
+    def test_result_persist_error_propagates(self, get_task, get_result, _mark_success):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
         get_task.return_value = {"status": "success"}
         get_result.return_value = self.build_result()
 
-        should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+        with self.assertRaisesMessage(DatabaseError, "database unavailable"):
+            SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
 
-        self.assertTrue(should_poll)
         execution.refresh_from_db()
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
         self.assertEqual(execution.stage, SourceAnalysisStage.VALIDATING)
         self.assertIsNone(execution.result_payload)
+
+    @patch.object(run_source_analysis_execution, "apply_async", side_effect=RuntimeError("broker unavailable"))
+    def test_dispatch_error_is_left_for_periodic_recovery(self, apply_async):
+        execution = self.create_execution()
+
+        SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+
+        apply_async.assert_called_once_with(args=(execution.analysis_id,))
 
     def test_recovery_only_returns_stale_active_records(self):
         stale = self.create_execution(issue_id="issue-stale")

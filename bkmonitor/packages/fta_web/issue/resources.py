@@ -19,7 +19,7 @@ import re
 from threading import BoundedSemaphore
 import time
 
-from django.db import DatabaseError, IntegrityError, transaction
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
@@ -57,6 +57,7 @@ from constants.issue import (
     IssueActivityType,
     IssuePriority,
     IssueStatus,
+    SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
     SourceAnalysisResultType,
     SourceAnalysisStage,
@@ -412,7 +413,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
         try:
             run_source_analysis_execution.apply_async(args=(execution.analysis_id,))
-        except DatabaseError:
+        except Exception:
             logger.exception(
                 "Failed to dispatch source analysis execution, analysis_id=%s",
                 execution.analysis_id,
@@ -444,9 +445,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
         is_failed = execution.status == SourceAnalysisStatus.FAILED
         failure = None
         if is_failed:
+            failure_message = execution.failure_message
+            if failure_message in SourceAnalysisFailureMessage.LOCALIZED_MESSAGES:
+                failure_message = _(failure_message)
             failure = {
                 "code": execution.failure_code,
-                "message": execution.failure_message,
+                "message": failure_message,
                 "retryable": bool(execution.failure_retryable),
                 "request_id": execution.failure_request_id,
             }
@@ -1027,7 +1031,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
                 failure_code="BKFARA_INVALID_RESPONSE",
-                failure_message="BKFara 创建任务响应缺少 task_id",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_CREATE_MISSING_TASK_ID,
                 failure_retryable=False,
             )
             return False
@@ -1045,7 +1049,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
                 failure_code="BKFARA_TASK_ID_CONFLICT",
-                failure_message="相同 analysis_id 返回了不同的 BKFara task_id",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_ID_CONFLICT,
                 failure_retryable=False,
             )
             return False
@@ -1098,7 +1102,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
                 failure_code="BKFARA_INVALID_RESPONSE",
-                failure_message="BKFara 任务状态响应非法",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_STATE_INVALID,
                 failure_retryable=False,
             )
             return False
@@ -1126,7 +1130,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             execution,
             failure_stage=failure_stage,
             failure_code=str(failure.get("code") or "BKFARA_TASK_FAILED"),
-            failure_message=str(failure.get("message") or "BKFara 源码分析任务执行失败"),
+            failure_message=str(failure.get("message") or SourceAnalysisFailureMessage.BKFARA_TASK_FAILED),
             failure_retryable=bool(failure.get("retryable", False)),
             failure_request_id=failure.get("request_id"),
         )
@@ -1170,13 +1174,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
         except SourceAnalysisInvalidStatusTransitionError:
             execution.refresh_from_db()
-        except Exception:
-            # 数据库瞬时失败时保留 validating 活动态，由既有 10 秒轮询和 10 分钟补偿重试。
-            logger.exception(
-                "Failed to persist source analysis result, analysis_id=%s",
-                execution.analysis_id,
-            )
-            return True
         return False
 
     @classmethod
@@ -1201,7 +1198,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             execution,
             failure_stage=failure_stage,
             failure_code=str(error_data.get("code") or type(error).__name__),
-            failure_message=str(error_data.get("message") or "BKFara 请求失败"),
+            failure_message=str(error_data.get("message") or SourceAnalysisFailureMessage.BKFARA_REQUEST_FAILED),
             failure_retryable=False,
             failure_request_id=error_data.get("request_id"),
         )
