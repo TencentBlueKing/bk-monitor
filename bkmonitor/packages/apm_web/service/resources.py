@@ -530,10 +530,10 @@ class ServiceConfigResource(Resource):
         bk_biz_id: int,
         app_name: str,
         service_name: str,
-        relation_type: str,
+        table: str,
+        unique_fields: tuple[str, ...],
         new_relations: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        table, unique_fields = cls.INCREMENTAL_EVENT_RELATION_CONFIG[relation_type]
         existing_relation: dict[str, Any] = (
             EventServiceRelation.get_relation_qs(
                 bk_biz_id,
@@ -551,7 +551,7 @@ class ServiceConfigResource(Resource):
 
         deduped_relations: dict[tuple[Any, ...], dict[str, Any]] = {}
         # 存量排在新增数据之前，身份相同时由 setdefault 保留原配置。
-        for relation in [*existing_relations, *new_relations]:
+        for relation in itertools.chain(existing_relations, new_relations):
             unique_key: tuple[Any, ...] = tuple(relation.get(field) for field in unique_fields)
             deduped_relations.setdefault(unique_key, relation)
 
@@ -571,14 +571,19 @@ class ServiceConfigResource(Resource):
 
         # 预处理数据
         model_cls: type[ServiceBase] = cls.RELATION_MODEL_MAP[relation_type]
-        if relation_type in cls.INCREMENTAL_EVENT_RELATION_CONFIG:
+        incremental_config: tuple[str, tuple[str, ...]] | None = cls.INCREMENTAL_EVENT_RELATION_CONFIG.get(
+            relation_type
+        )
+        if incremental_config is not None:
             if not relation_data:
                 return
+            table, unique_fields = incremental_config
             prepare_datas: list[dict[str, Any]] = cls._prepare_incremental_event_relations(
                 bk_biz_id,
                 app_name,
                 service_name,
-                relation_type,
+                table,
+                unique_fields,
                 relation_data,
             )
         else:
@@ -593,8 +598,7 @@ class ServiceConfigResource(Resource):
             for data in prepare_datas
         ]
         # 执行同步
-        if relation_type in cls.INCREMENTAL_EVENT_RELATION_CONFIG:
-            table = cls.INCREMENTAL_EVENT_RELATION_CONFIG[relation_type][0]
+        if incremental_config is not None:
             model_cls.sync_relations(
                 bk_biz_id,
                 app_name,

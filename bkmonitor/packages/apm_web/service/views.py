@@ -29,6 +29,7 @@ from apm_web.service.resources import (
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.action import ActionMeta
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -36,14 +37,17 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 class ServiceViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
-    def get_permissions(self):
-        if self.action in ["app_query_by_index_set"]:
+    def get_permissions(self) -> list[InstanceActionForDataPermission]:
+        if self.action == "app_query_by_index_set":
             return []
 
+        required_action: ActionMeta = (
+            ActionEnum.MANAGE_APM_APPLICATION if self.action == "service_config" else ActionEnum.VIEW_APM_APPLICATION
+        )
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
-                [ActionEnum.VIEW_APM_APPLICATION],
+                [required_action],
                 ResourceEnum.APM_APPLICATION,
                 get_instance_id=Application.get_application_id_by_app_name,
             )

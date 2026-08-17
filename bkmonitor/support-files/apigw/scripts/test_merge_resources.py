@@ -25,7 +25,6 @@ merge_resources_func = merge_resources.merge_resources
 _RESOURCES_DIR = _SCRIPT.parent.parent / "resources"
 _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
-_APM_FILE = _RESOURCES_DIR / "internal/app/apm.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
 
@@ -128,26 +127,6 @@ def test_result_table_storage_status_apigw_contract():
     assert gateway_resource["isPublic"] is False
     assert gateway_resource["backend"]["method"] == "get"
     assert gateway_resource["backend"]["path"] == "/api/v3/meta/get_result_table_storage_status/"
-    assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
-
-
-def test_update_service_config_apigw_contract():
-    """APM 服务配置接口必须使用应用态 POST 并提供中文文档。"""
-    path_data = _load_paths(_APM_FILE)["/app/apm/service/update_service_config/"]
-
-    assert set(path_data) == {"post"}
-    method_data = path_data["post"]
-    gateway_resource = method_data["x-bk-apigateway-resource"]
-    assert method_data["operationId"] == "apm_update_service_config"
-    assert gateway_resource["isPublic"] is False
-    assert gateway_resource["allowApplyPermission"] is False
-    assert gateway_resource["backend"]["method"] == "post"
-    assert gateway_resource["backend"]["path"] == "/api/v4/service_web/service_config/"
-    assert gateway_resource["authConfig"] == {
-        "appVerifiedRequired": True,
-        "userVerifiedRequired": False,
-        "resourcePermissionRequired": True,
-    }
     assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 

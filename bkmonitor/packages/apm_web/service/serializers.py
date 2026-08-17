@@ -111,8 +111,16 @@ class ServiceConfigSerializer(serializers.Serializer):
             "incremental_cicd_relations",
             "incremental_k8s_relations",
         }
-        if incremental_fields and "event_relation" in request_fields:
-            raise serializers.ValidationError(_("event_relation 不能与增量事件关联字段同时提交"))
+        full_relation_fields: set[str] = request_fields & {
+            "app_relation",
+            "cmdb_relation",
+            "log_relation_list",
+            "apdex_relation",
+            "uri_relation",
+            "event_relation",
+        }
+        if incremental_fields and (full_relation_fields or "labels" in request_fields):
+            raise serializers.ValidationError(_("增量事件关联字段不能与其他服务配置字段同时提交"))
 
         uri_relations: list[str] = attrs["uri_relation"]
         if len(set(uri_relations)) != len(uri_relations):
@@ -123,8 +131,8 @@ class ServiceConfigSerializer(serializers.Serializer):
                 attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
             )
 
-        if incremental_fields:
-            # 增量请求只处理显式字段，避免完整保存协议的默认值清空其他配置。
+        if incremental_fields or not full_relation_fields:
+            # 增量、空请求和仅标签请求只处理显式字段，避免完整保存协议的默认值清空其他配置。
             for field in set(attrs) - request_fields:
                 attrs.pop(field)
 

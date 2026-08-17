@@ -17,6 +17,8 @@ from apm_web.models import (
 )
 from apm_web.service.resources import ServiceConfigResource
 from apm_web.service.serializers import ServiceConfigSerializer
+from apm_web.service.views import ServiceViewSet
+from bkmonitor.iam import ActionEnum
 from monitor_web.data_explorer.event.constants import EventCategory
 
 pytestmark = pytest.mark.django_db
@@ -88,7 +90,7 @@ def test_incremental_serializer_only_keeps_explicit_config_fields() -> None:
 
 
 def test_full_save_serializer_keeps_existing_default_semantics() -> None:
-    serializer = ServiceConfigSerializer(data=BASE_REQUEST)
+    serializer = ServiceConfigSerializer(data={**BASE_REQUEST, "uri_relation": []})
 
     assert serializer.is_valid(), serializer.errors
     assert serializer.validated_data["app_relation"] is None
@@ -99,17 +101,37 @@ def test_full_save_serializer_keeps_existing_default_semantics() -> None:
     assert serializer.validated_data["event_relation"] == []
 
 
-def test_incremental_serializer_rejects_mixed_event_save_modes() -> None:
+def test_base_only_serializer_does_not_apply_full_save_defaults() -> None:
+    serializer = ServiceConfigSerializer(data=BASE_REQUEST)
+
+    assert serializer.is_valid(), serializer.errors
+    assert set(serializer.validated_data) == set(BASE_REQUEST)
+
+
+def test_labels_only_serializer_does_not_apply_relation_defaults() -> None:
+    serializer = ServiceConfigSerializer(data={**BASE_REQUEST, "labels": ["critical"]})
+
+    assert serializer.is_valid(), serializer.errors
+    assert set(serializer.validated_data) == {*BASE_REQUEST, "labels"}
+
+
+@pytest.mark.parametrize(
+    "full_config",
+    [
+        {"app_relation": None},
+        {"cmdb_relation": None},
+        {"log_relation_list": []},
+        {"apdex_relation": None},
+        {"uri_relation": []},
+        {"event_relation": []},
+        {"labels": []},
+    ],
+)
+def test_incremental_serializer_rejects_mixed_save_modes(full_config: dict[str, Any]) -> None:
     serializer = ServiceConfigSerializer(
         data={
             **BASE_REQUEST,
-            "event_relation": [
-                {
-                    "table": EventCategory.K8S_EVENT.value,
-                    "relations": [EXISTING_K8S_RELATION],
-                    "options": {},
-                }
-            ],
+            **full_config,
             "incremental_k8s_relations": [NEW_K8S_RELATION],
         }
     )
@@ -130,6 +152,16 @@ def test_incremental_serializer_rejects_incomplete_relations(field: str, relatio
 
     assert not serializer.is_valid()
     assert field in serializer.errors
+
+
+def test_service_config_requires_manage_permission() -> None:
+    view = ServiceViewSet()
+    view.action = "service_config"
+
+    permissions = view.get_permissions()
+
+    assert len(permissions) == 1
+    assert permissions[0].actions == [ActionEnum.MANAGE_APM_APPLICATION]
 
 
 def test_incremental_relations_create_event_records(
@@ -271,6 +303,25 @@ def test_empty_incremental_relations_do_not_change_existing_record(
     assert relation.relations == [EXISTING_K8S_RELATION]
     assert relation.options == {"is_auto": False}
     assert relation.updated_at == updated_at
+
+
+def test_base_only_request_does_not_delete_existing_relations(
+    application: Application,
+    disable_config_delivery: None,
+) -> None:
+    app_relation = AppServiceRelation.objects.create(
+        **BASE_REQUEST,
+        relate_bk_biz_id=3,
+        relate_app_name="payment",
+    )
+    uri_relation = UriServiceRelation.objects.create(**BASE_REQUEST, uri="/checkout", rank=0)
+
+    ServiceConfigResource().request(BASE_REQUEST)
+
+    app_relation.refresh_from_db()
+    uri_relation.refresh_from_db()
+    assert app_relation.relate_app_name == "payment"
+    assert uri_relation.uri == "/checkout"
 
 
 def test_incremental_request_rolls_back_all_relations_on_failure(
