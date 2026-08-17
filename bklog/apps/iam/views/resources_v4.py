@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import binascii
 import json
 from copy import copy
 
@@ -34,7 +35,10 @@ from apps.iam.views.resources import (
     IndicesResourceProvider,
     ResourceApiDispatcher,
 )
-from apps.log_search.models import Space
+from apps.log_databus.models import CollectorConfig
+from apps.log_search.models import LogIndexSet, Space
+from apps.utils.log import logger
+from bkm_space.utils import space_uid_to_bk_biz_id
 from iam.contrib.django.dispatcher import InvalidPageException
 from iam.resource.provider import ListResult
 
@@ -62,8 +66,25 @@ class V4ResourceApiDispatcher(ResourceApiDispatcher):
 
     def _dispatch(self, request):
         """复用旧版 Dispatcher 执行请求，并将结果转换为 IAM V4 响应协议。"""
-        legacy_response = super()._dispatch(request)
-        request_id = legacy_response.get("X-Request-Id", "")
+        request_id = request.META.get("HTTP_X_REQUEST_ID", "")
+        try:
+            legacy_response = super()._dispatch(request)
+        except (binascii.Error, UnicodeDecodeError, ValueError):
+            # SDK 在鉴权阶段解析 Basic 头时抛出，不在其 try 覆盖范围内
+            logger.warning("iam v4 callback(%s) invalid authorization header", request_id)
+            return _iam_v4_response(
+                {"error": {"code": "UNAUTHENTICATED", "message": "basic auth failed"}},
+                status=401,
+                request_id=request_id,
+            )
+        except Exception:
+            logger.exception("iam v4 callback(%s) unexpected error", request_id)
+            return _iam_v4_response(
+                {"error": {"code": "INTERNAL", "message": "internal server error"}},
+                status=500,
+                request_id=request_id,
+            )
+        request_id = legacy_response.get("X-Request-Id", request_id)
 
         try:
             payload = json.loads(legacy_response.content)
@@ -114,6 +135,33 @@ class V4ResourceApiDispatcher(ResourceApiDispatcher):
         }
         return normalized
 
+    @classmethod
+    def _normalize_list_instance_keyword(cls, data: dict) -> dict:
+        """把 V4 list_instance 的 filter.keyword 转成 SDK 认识的 search / resource_type_chain。"""
+        filter_data = data.get("filter")
+        if not isinstance(filter_data, dict):
+            return data
+        keyword = filter_data.get("keyword")
+        if not isinstance(keyword, str) or not keyword.strip() or filter_data.get("search"):
+            return data
+        resource_type = data.get("type")
+        if not isinstance(resource_type, str) or not resource_type:
+            return data
+
+        normalized = dict(data)
+        normalized_filter = dict(filter_data)
+        normalized_filter["search"] = {resource_type: [keyword.strip()]}
+        if not normalized_filter.get("resource_type_chain"):
+            if resource_type == ResourceEnum.BUSINESS.id:
+                normalized_filter["resource_type_chain"] = [{"id": ResourceEnum.BUSINESS.id}]
+            else:
+                normalized_filter["resource_type_chain"] = [
+                    {"id": ResourceEnum.BUSINESS.id},
+                    {"id": resource_type},
+                ]
+        normalized["filter"] = normalized_filter
+        return normalized
+
     @staticmethod
     def _parse_page_integer(value, *, field: str) -> int:
         if isinstance(value, bool) or not isinstance(value, int | str):
@@ -144,6 +192,7 @@ class V4ResourceApiDispatcher(ResourceApiDispatcher):
 
     def _dispatch_list_instance(self, request, data, request_id):
         data = self._normalize_page(data)
+        data = self._normalize_list_instance_keyword(data)
         self._validate_page(data)
         return super()._dispatch_list_instance(request, data, request_id)
 
@@ -225,6 +274,79 @@ def _fix_approver_field(results: list[dict]) -> None:
             item["_bk_iam_approvers_"] = [approver] if approver else []
 
 
+def _search_keywords(filter_obj, resource_type: str) -> list[str]:
+    search = getattr(filter_obj, "search", None) or {}
+    if not isinstance(search, dict):
+        return []
+    keywords = search.get(resource_type) or []
+    return [keyword for keyword in keywords if isinstance(keyword, str) and keyword]
+
+
+def _with_keyword(filter_obj, keyword: str):
+    keyword_filter = copy(filter_obj)
+    keyword_filter["keyword"] = keyword
+    return keyword_filter
+
+
+def _attach_space_paths(results: list[dict], biz_id_by_id: dict[str, str]) -> None:
+    """为缺少路径的实例补上空间路径，再统一转成 V4 字符串形态。"""
+    for item in results:
+        path = item.get("_bk_iam_path_")
+        if isinstance(path, str) and path:
+            continue
+        if isinstance(path, list) and path:
+            continue
+        biz_id = biz_id_by_id.get(str(item.get("id")))
+        if biz_id in (None, ""):
+            continue
+        item["_bk_iam_path_"] = [[{"type": ResourceEnum.BUSINESS.id, "id": str(biz_id), "display_name": str(biz_id)}]]
+    _fix_nested_path_to_string(results)
+
+
+def _int_ids(results: list[dict]) -> list[int]:
+    ids = []
+    for item in results:
+        try:
+            ids.append(int(item["id"]))
+        except (TypeError, ValueError, KeyError):
+            continue
+    return ids
+
+
+class _V4ChildResourceProvider:
+    """collection / indices / es_source 共用的 V4 格式转换与 keyword 兼容。"""
+
+    _search_resource_type = ""
+
+    def list_instance(self, filter, page, **options):
+        decoded = _with_decoded_parent_space(filter)
+        keywords = _search_keywords(decoded, self._search_resource_type)
+        parent = getattr(decoded, "parent", None)
+        if isinstance(parent, dict) and parent.get("id") not in (None, "") and keywords:
+            # V3 list_instance 在有 parent 时会丢掉 search；改走已支持「上级 + keyword」的 search_instance
+            return super().search_instance(_with_keyword(decoded, keywords[0]), page, **options)
+        result = super().list_instance(decoded, page, **options)
+        _fix_nested_path_to_string(result.results)
+        return result
+
+    def fetch_instance_info(self, filter, **options):
+        result = super().fetch_instance_info(filter, **options)
+        _fix_approver_field(result.results)
+        missing_path = [item for item in result.results if not item.get("_bk_iam_path_")]
+        biz_id_by_id = self._instance_space_ids(missing_path, **options) if missing_path else {}
+        _attach_space_paths(result.results, biz_id_by_id)
+        return result
+
+    def search_instance(self, filter, page, **options):
+        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
+
+    def list_instance_by_policy(self, filter, page, **options):
+        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)
+
+    def _instance_space_ids(self, results: list[dict], **options) -> dict[str, str]:
+        raise NotImplementedError
+
+
 class V4SpaceResourceProvider(BaseResourceProvider):
     """IAM V4 space 资源回调。实例 ID 使用 bk_biz_id，与 ResourceEnum.BUSINESS 保持一致。
 
@@ -287,55 +409,40 @@ class V4SpaceResourceProvider(BaseResourceProvider):
         return ListResult(results=[], count=0)
 
 
-class V4CollectionResourceProvider(CollectionResourceProvider):
-    def list_instance(self, filter, page, **options):
-        result = super().list_instance(_with_decoded_parent_space(filter), page, **options)
-        _fix_nested_path_to_string(result.results)
-        return result
+class V4CollectionResourceProvider(_V4ChildResourceProvider, CollectionResourceProvider):
+    _search_resource_type = "collection"
 
-    def fetch_instance_info(self, filter, **options):
-        result = super().fetch_instance_info(filter, **options)
-        _fix_approver_field(result.results)
-        return result
-
-    def search_instance(self, filter, page, **options):
-        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
-
-    def list_instance_by_policy(self, filter, page, **options):
-        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)
+    def _instance_space_ids(self, results: list[dict], **options) -> dict[str, str]:
+        ids = _int_ids(results)
+        if not ids:
+            return {}
+        return {
+            str(pk): str(bk_biz_id)
+            for pk, bk_biz_id in CollectorConfig.objects.filter(pk__in=ids).values_list("pk", "bk_biz_id")
+        }
 
 
-class V4IndicesResourceProvider(IndicesResourceProvider):
-    def list_instance(self, filter, page, **options):
-        result = super().list_instance(_with_decoded_parent_space(filter), page, **options)
-        _fix_nested_path_to_string(result.results)
-        return result
+class V4IndicesResourceProvider(_V4ChildResourceProvider, IndicesResourceProvider):
+    _search_resource_type = "indices"
 
-    def fetch_instance_info(self, filter, **options):
-        result = super().fetch_instance_info(filter, **options)
-        _fix_approver_field(result.results)
-        return result
-
-    def search_instance(self, filter, page, **options):
-        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
-
-    def list_instance_by_policy(self, filter, page, **options):
-        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)
+    def _instance_space_ids(self, results: list[dict], **options) -> dict[str, str]:
+        ids = _int_ids(results)
+        if not ids:
+            return {}
+        return {
+            str(pk): str(space_uid_to_bk_biz_id(space_uid))
+            for pk, space_uid in LogIndexSet.objects.filter(pk__in=ids).values_list("pk", "space_uid")
+        }
 
 
-class V4EsSourceResourceProvider(EsSourceResourceProvider):
-    def list_instance(self, filter, page, **options):
-        result = super().list_instance(_with_decoded_parent_space(filter), page, **options)
-        _fix_nested_path_to_string(result.results)
-        return result
+class V4EsSourceResourceProvider(_V4ChildResourceProvider, EsSourceResourceProvider):
+    _search_resource_type = "es_source"
 
-    def fetch_instance_info(self, filter, **options):
-        result = super().fetch_instance_info(filter, **options)
-        _fix_approver_field(result.results)
-        return result
-
-    def search_instance(self, filter, page, **options):
-        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
-
-    def list_instance_by_policy(self, filter, page, **options):
-        return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)
+    def _instance_space_ids(self, results: list[dict], **options) -> dict[str, str]:
+        ids = {str(item.get("id")) for item in results}
+        clusters = self.list_clusters(bk_tenant_id=options["bk_tenant_id"])
+        return {
+            str(cluster["id"]): str(cluster["bk_biz_id"])
+            for cluster in clusters
+            if str(cluster["id"]) in ids and cluster.get("bk_biz_id") not in (None, "")
+        }

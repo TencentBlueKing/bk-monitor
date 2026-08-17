@@ -141,6 +141,82 @@ class V4ResourceDispatcherPaginationTest(SimpleTestCase):
                 self.assertEqual(payload["error"]["code"], "INVALID_ARGUMENT")
                 self.provider.list_instance.assert_not_called()
 
+    def test_list_instance_keyword_is_normalized_to_search(self):
+        self.provider.list_instance.return_value = ListResult(results=[], count=0)
+        request = self.request_factory.post(
+            "/api/v1/iam/v4/resource/",
+            data=json.dumps(
+                {
+                    "method": "list_instance",
+                    "type": "space",
+                    "filter": {"keyword": "蓝鲸"},
+                    "page": {"limit": 10, "offset": 0},
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Basic test",
+            HTTP_X_REQUEST_ID="keyword-test",
+        )
+
+        response = self.dispatcher._dispatch(request)
+
+        self.assertEqual(response.status_code, 200)
+        list_filter = self.provider.list_instance.call_args.args[0]
+        self.assertEqual(list_filter.search, {"space": ["蓝鲸"]})
+
+    def test_list_instance_keyword_does_not_override_existing_search(self):
+        self.provider.list_instance.return_value = ListResult(results=[], count=0)
+        request = self.request_factory.post(
+            "/api/v1/iam/v4/resource/",
+            data=json.dumps(
+                {
+                    "method": "list_instance",
+                    "type": "space",
+                    "filter": {"keyword": "ignored", "search": {"space": ["keep"]}},
+                    "page": {"limit": 10, "offset": 0},
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Basic test",
+        )
+
+        self.dispatcher._dispatch(request)
+
+        list_filter = self.provider.list_instance.call_args.args[0]
+        self.assertEqual(list_filter.search, {"space": ["keep"]})
+
+    def test_list_instance_collection_keyword_adds_resource_type_chain(self):
+        collection_provider = Mock()
+        collection_provider.list_instance.return_value = ListResult(results=[], count=0)
+        self.dispatcher._provider["collection"] = collection_provider
+        request = self.request_factory.post(
+            "/api/v1/iam/v4/resource/",
+            data=json.dumps(
+                {
+                    "method": "list_instance",
+                    "type": "collection",
+                    "filter": {"keyword": "采集"},
+                    "page": {"limit": 10, "offset": 0},
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Basic test",
+        )
+
+        response = self.dispatcher._dispatch(request)
+
+        self.assertEqual(response.status_code, 200)
+        list_filter = collection_provider.list_instance.call_args.args[0]
+        self.assertEqual(list_filter.search, {"collection": ["采集"]})
+        self.assertEqual(list_filter.resource_type_chain, [{"id": "space"}, {"id": "collection"}])
+
+    def test_blank_list_instance_keyword_is_ignored(self):
+        normalized = V4ResourceApiDispatcher._normalize_list_instance_keyword(
+            {"type": "space", "filter": {"keyword": "  "}}
+        )
+        self.assertEqual(normalized["filter"], {"keyword": "  "})
+        self.assertNotIn("search", normalized["filter"])
+
     def test_all_paginated_methods_validate_before_provider_call(self):
         method_to_provider_method = {
             "list_attr_value": "list_attr_value",
@@ -229,6 +305,97 @@ class V4ResourceDispatcherPaginationTest(SimpleTestCase):
             {"error": {"code": "UNAUTHENTICATED", "message": "basic auth failed"}},
         )
         self.provider.list_instance.assert_not_called()
+
+    def _dispatcher_with_sdk_basic_auth(self):
+        from iam.iam import IAM as SdkIAM
+
+        iam = Mock()
+        iam.is_basic_auth_allowed = lambda system, auth: SdkIAM.is_basic_auth_allowed(iam, system, auth)
+        dispatcher = V4ResourceApiDispatcher(iam, system="bklog_test")
+        dispatcher._provider["space"] = self.provider
+        return dispatcher
+
+    def test_malformed_basic_auth_returns_native_401_instead_of_html_500(self):
+        dispatcher = self._dispatcher_with_sdk_basic_auth()
+        request = self.request_factory.post(
+            "/api/v1/iam/v4/resource/",
+            data=json.dumps(
+                {
+                    "method": "list_instance",
+                    "type": "space",
+                    "filter": {},
+                    "page": {"limit": 10, "offset": 0},
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Basic YWJj",
+            HTTP_X_REQUEST_ID="malformed-auth-test",
+        )
+
+        response = dispatcher._dispatch(request)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response["X-Request-Id"], "malformed-auth-test")
+        self.assertEqual(
+            json.loads(response.content),
+            {"error": {"code": "UNAUTHENTICATED", "message": "basic auth failed"}},
+        )
+        self.assertTrue(response["Content-Type"].startswith("application/json"))
+        self.provider.list_instance.assert_not_called()
+
+    def test_invalid_base64_basic_auth_returns_native_401(self):
+        dispatcher = self._dispatcher_with_sdk_basic_auth()
+        request = self.request_factory.post(
+            "/api/v1/iam/v4/resource/",
+            data=json.dumps(
+                {
+                    "method": "list_instance",
+                    "type": "space",
+                    "filter": {},
+                    "page": {"limit": 10, "offset": 0},
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Basic !!!",
+            HTTP_X_REQUEST_ID="invalid-b64-auth-test",
+        )
+
+        response = dispatcher._dispatch(request)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response["X-Request-Id"], "invalid-b64-auth-test")
+        self.assertEqual(
+            json.loads(response.content),
+            {"error": {"code": "UNAUTHENTICATED", "message": "basic auth failed"}},
+        )
+        self.provider.list_instance.assert_not_called()
+
+    @patch("apps.iam.views.resources.ResourceApiDispatcher._dispatch", side_effect=RuntimeError("boom"))
+    def test_unexpected_dispatch_exception_returns_native_500(self, _legacy_dispatch):
+        request = self.request_factory.post(
+            "/api/v1/iam/v4/resource/",
+            data=json.dumps(
+                {
+                    "method": "list_instance",
+                    "type": "space",
+                    "filter": {},
+                    "page": {"limit": 10, "offset": 0},
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Basic test",
+            HTTP_X_REQUEST_ID="unexpected-error-test",
+        )
+
+        response = self.dispatcher._dispatch(request)
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response["X-Request-Id"], "unexpected-error-test")
+        self.assertEqual(
+            json.loads(response.content),
+            {"error": {"code": "INTERNAL", "message": "internal server error"}},
+        )
+        self.assertNotIn("boom", response.content.decode())
 
     def test_invalid_json_returns_native_400(self):
         request = self.request_factory.post(
