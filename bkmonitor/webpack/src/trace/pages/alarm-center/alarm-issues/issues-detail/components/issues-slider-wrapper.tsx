@@ -480,7 +480,12 @@ export default defineComponent({
             />
           );
         case IssueDetailTabEnum.AI_ANALYSIS:
-          return <IssuesAiAnalysis detail={props.detail} />;
+          return (
+            <IssuesAiAnalysis
+              detail={props.detail}
+              onAssigneeChange={handleAssigneeChange}
+            />
+          );
         default:
           return null;
       }

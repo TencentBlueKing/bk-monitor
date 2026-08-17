@@ -241,6 +241,19 @@ class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
         task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
 
 
+class GetSourceAnalysisResultResource(BkFaraSourceAnalysisBaseResource):
+    """读取源码分析成功结果（临时 mock 协议）。"""
+
+    # TODO: BKFara 发布正式接口后补充路径，并在本 Resource 内适配为 BKM 结果 envelope。
+    action = ""
+    method = "GET"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
+
+
 class GetIncidentDiagnosisResource(IncidentBaseResource):
     """
     获取故障诊断面板数据(incident_diagnosis.sub_panels)

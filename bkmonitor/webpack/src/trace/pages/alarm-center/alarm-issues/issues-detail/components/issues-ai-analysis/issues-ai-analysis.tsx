@@ -31,7 +31,7 @@ import { useI18n } from 'vue-i18n';
 
 import SourceCodeAnalysis from './source-code-analysis';
 
-import type { IssueDetail } from '../../../typing';
+import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
 import './issues-ai-analysis.scss';
 export default defineComponent({
@@ -41,6 +41,9 @@ export default defineComponent({
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
     },
+  },
+  emits: {
+    assigneeChange: (_users: string[], _activities: IssueActivityItem[]) => true,
   },
   setup() {
     const { t } = useI18n();
@@ -81,6 +84,9 @@ export default defineComponent({
             <SourceCodeAnalysis
               detail={this.detail}
               show={this.currentTab === 'source'}
+              onAssigneeChange={(users, activities) => {
+                this.$emit('assigneeChange', users, activities);
+              }}
             />
           </Tab.TabPanel>
         </Tab>

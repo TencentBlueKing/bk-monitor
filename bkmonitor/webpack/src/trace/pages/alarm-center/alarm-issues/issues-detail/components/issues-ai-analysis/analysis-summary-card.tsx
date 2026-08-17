@@ -40,9 +40,20 @@ export default defineComponent({
       type: Object as PropType<SourceAnalysisView>,
       default: () => ({}),
     },
+    loading: {
+      type: Object as PropType<{
+        assigneeChange: boolean;
+        retryAnalysis: boolean;
+      }>,
+      default: () => ({
+        retryAnalysis: false,
+        assigneeChange: false,
+      }),
+    },
   },
   emits: {
     reanalyzeAnalysis: () => true,
+    assigneeChange: () => true,
   },
   setup(props) {
     const { t } = useI18n();
@@ -88,6 +99,7 @@ export default defineComponent({
               })}
             </span>
             <Button
+              loading={this.loading.retryAnalysis}
               theme='primary'
               text
               onClick={() => {
@@ -98,13 +110,18 @@ export default defineComponent({
             </Button>
           </div>
 
-          <Button
-            size='small'
-            theme='primary'
-            onClick={() => {}}
-          >
-            {this.t('重新分派')}
-          </Button>
+          {result.result_card.responsibility.bk_username && (
+            <Button
+              loading={this.loading.assigneeChange}
+              size='small'
+              theme='primary'
+              onClick={() => {
+                this.$emit('assigneeChange');
+              }}
+            >
+              {this.t('重新分派')}
+            </Button>
+          )}
         </div>
       </div>
     );

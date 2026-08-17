@@ -32,10 +32,10 @@ import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import CommonTable from 'trace/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { useI18n } from 'vue-i18n';
 
-import { updateSourceAnalysisRuleApi } from '../../services/ai-config';
+import { updateSourceAnalysisRule } from '../../services/source-analysis-rule';
 import TagCell from './tag-cell';
 
-import type { TSourceAnalysisRule } from '../../typings';
+import type { SourceAnalysisRuleDto } from '../../typings';
 import type { FilterValue } from '@blueking/tdesign-ui/typings/packages/table';
 import type { BaseTableColumn } from 'trace/pages/trace-explore/components/trace-explore-table/typing';
 
@@ -64,11 +64,11 @@ export default defineComponent({
     /** 清空搜索值 */
     clearSearch: () => true,
     /** 规则局部更新（如启停、调整优先级）后回写列表 */
-    updateRule: (_rule: TSourceAnalysisRule) => true,
+    updateRule: (_rule: SourceAnalysisRuleDto) => true,
     /** 编辑规则 */
-    editRule: (_rule: TSourceAnalysisRule) => true,
+    editRule: (_rule: SourceAnalysisRuleDto) => true,
     /** 删除规则 */
-    deleteRule: (_rule: TSourceAnalysisRule) => true,
+    deleteRule: (_rule: SourceAnalysisRuleDto) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -86,13 +86,13 @@ export default defineComponent({
     const sortValue = shallowRef('');
 
     /** 经搜索、列筛选、排序后的规则列表 */
-    const filteredData = computed<TSourceAnalysisRule[]>(() => {
+    const filteredData = computed<SourceAnalysisRuleDto[]>(() => {
       let rows = [...props.data];
 
       // 1. 前端搜索：仅匹配匹配方式 condition 的 value、智能体、知识库、skill
       const keyword = props.searchValue?.trim().toLowerCase();
       if (keyword) {
-        rows = rows.filter((row: TSourceAnalysisRule) => {
+        rows = rows.filter((row: SourceAnalysisRuleDto) => {
           const conditionValueMatch = row.conditions.some(condition =>
             (condition.value ?? []).some(val => val.toLowerCase().includes(keyword))
           );
@@ -106,7 +106,7 @@ export default defineComponent({
       // 2. 列筛选：当前仅"启用状态"列支持筛选，根据选中的状态值过滤
       const statusFilter = columnFilter.value?.is_enabled;
       if (Array.isArray(statusFilter) && statusFilter.length > 0) {
-        rows = rows.filter((row: TSourceAnalysisRule) => statusFilter.includes(row.is_enabled));
+        rows = rows.filter((row: SourceAnalysisRuleDto) => statusFilter.includes(row.is_enabled));
       }
 
       // 3. 排序：按优先级字段升序/降序
@@ -114,7 +114,7 @@ export default defineComponent({
         const descending = sortValue.value.startsWith('-');
         const colKey = descending ? sortValue.value.slice(1) : sortValue.value;
         if (colKey === 'priority') {
-          rows.sort((a: TSourceAnalysisRule, b: TSourceAnalysisRule) =>
+          rows.sort((a: SourceAnalysisRuleDto, b: SourceAnalysisRuleDto) =>
             descending ? b.priority - a.priority : a.priority - b.priority
           );
         }
@@ -150,7 +150,7 @@ export default defineComponent({
         width: 105,
         minWidth: 105,
         sorter: true,
-        cellRenderer: (row: TSourceAnalysisRule) => <div class='priority-tag'>{row.priority}</div>,
+        cellRenderer: (row: SourceAnalysisRuleDto) => <div class='priority-tag'>{row.priority}</div>,
         title: () => (
           <span class='priority-col-title'>
             <span>{t('优先级')}</span>
@@ -240,7 +240,7 @@ export default defineComponent({
         width: 72,
         minWidth: 72,
         sorter: false,
-        cellRenderer: (row: TSourceAnalysisRule) => (
+        cellRenderer: (row: SourceAnalysisRuleDto) => (
           <span class='operate-col-wrap'>
             {/* 编辑规则按钮 */}
             <span
@@ -286,14 +286,14 @@ export default defineComponent({
     };
 
     /** 启停规则切换：二次确认后调用更新接口，成功则 resolve(true) 使开关生效 */
-    function handleEnableChange(row: TSourceAnalysisRule) {
+    function handleEnableChange(row: SourceAnalysisRuleDto) {
       return new Promise(resolve => {
         InfoBox({
           title: row.is_enabled ? t('确定停用此规则') : t('确定启用此规则'),
           onConfirm: () => {
             const isEnabled = !row.is_enabled;
             console.log(row.id);
-            updateSourceAnalysisRuleApi(row.id, { is_enabled: isEnabled })
+            updateSourceAnalysisRule(row.id, { is_enabled: isEnabled })
               .then(data => {
                 resolve(!!data?.is_enabled);
                 emit('updateRule', {

@@ -1,4 +1,15 @@
 .source-code-analysis {
+  .skeleton-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+
+    .skeleton-element {
+      height: 32px;
+    }
+  }
+
   .config-guide {
     display: flex;
     flex-direction: column;
@@ -17,6 +28,10 @@
       background-color: #f0f4fa;
       border-radius: 40px;
 
+      &.failed {
+        background-color: #fff0f0;
+      }
+
       .icon-monitor {
         font-size: 32px;
       }
@@ -28,6 +43,10 @@
       font-weight: 400;
       line-height: 28px;
       color: #313238;
+
+      &.failed {
+        color: #ea3636;
+      }
     }
 
     .guide-desc {
@@ -44,6 +63,10 @@
 
       &.pending {
         color: #3a84ff;
+      }
+
+      &.failed {
+        color: #ea3636;
       }
     }
 

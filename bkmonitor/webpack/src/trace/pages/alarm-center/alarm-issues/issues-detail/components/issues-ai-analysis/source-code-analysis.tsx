@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onBeforeUnmount, watchEffect } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, watchEffect } from 'vue';
 
-import { Alert, Button } from 'bkui-vue';
+import { Alert, Button, Message } from 'bkui-vue';
 import { Success } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
+import { assignIssues } from '../../../services/issues-operations';
 import AnalysisSummaryCard from './analysis-summary-card';
 
-import type { IssueDetail, SourceAnalysisView } from '../../../typing';
+import type { IssueActivityItem, IssueDetail, SourceAnalysisView } from '../../../typing';
 
 import './source-code-analysis.scss';
 
@@ -50,10 +51,31 @@ export default defineComponent({
       default: false,
     },
   },
-  setup(props) {
+  emits: {
+    assigneeChange: (_users: string[], _activities: IssueActivityItem[]) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
-    const { sourceAnalysisData, sourceAnalysisIsPending, sourceAnalysisScene, getSourceAnalysisData } =
-      useIssuesAiAnalysis();
+    const {
+      sourceAnalysisData,
+      sourceAnalysisIsPending,
+      sourceAnalysisScene,
+      loading,
+      getSourceAnalysisData,
+      handleReanalyzeSourceAnalysis,
+      handleStartAnalysis,
+    } = useIssuesAiAnalysis();
+
+    const assigneeChangeLoading = shallowRef(false);
+    /**
+     * 总结卡片所需的loading状态
+     */
+    const summaryCardLoading = computed(() => {
+      return {
+        assigneeChange: assigneeChangeLoading.value,
+        retryAnalysis: loading.retryAnalysis,
+      };
+    });
 
     watchEffect(() => {
       sourceAnalysisScene.value = props.show ? 'view' : 'overview';
@@ -62,7 +84,45 @@ export default defineComponent({
       }
     });
 
+    const handleAssigneeChange = () => {
+      assigneeChangeLoading.value = true;
+      assignIssues({
+        issues: [
+          {
+            bk_biz_id: props.detail.bk_biz_id,
+            issue_id: props.detail.id,
+          },
+        ],
+        assignee: [sourceAnalysisData.value.latest.result.result_card.responsibility.bk_username],
+      })
+        .then(({ succeeded, failed }) => {
+          const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
+          if (activeItem) {
+            emit('assigneeChange', [], activeItem.activities);
+          }
+          Message({
+            theme: activeItem ? 'success' : 'error',
+            message: activeItem ? t('操作成功') : failed[0]?.message,
+          });
+        })
+        .finally(() => {
+          assigneeChangeLoading.value = false;
+        });
+    };
+
     const renderSourceCodeAnalysisView = () => {
+      if (loading.sourceAnalysis)
+        return (
+          <div class='skeleton-wrapper'>
+            {new Array(10).fill(0).map((_, index) => (
+              <div
+                key={index}
+                class='skeleton-element'
+              />
+            ))}
+          </div>
+        );
+
       if (!sourceAnalysisData.value) return;
       /** 没有配置仓库 */
       if (!sourceAnalysisData.value.is_repository_configured) {
@@ -134,7 +194,18 @@ export default defineComponent({
               </ul>
             </div>
             <div class='guide-btns'>
-              <Button theme='primary'>{t('立即分析')}</Button>
+              <Button
+                loading={loading.retryAnalysis}
+                theme='primary'
+                onClick={() => {
+                  handleStartAnalysis({
+                    bk_biz_id: props.detail.bk_biz_id,
+                    issue_id: props.detail.id,
+                  });
+                }}
+              >
+                {t('立即分析')}
+              </Button>
               <Button>{t('修改配置')}</Button>
             </div>
           </div>
@@ -179,9 +250,61 @@ export default defineComponent({
         );
       }
 
+      /** 分析失败 */
+      if (sourceAnalysisData.value.latest.status === 'failed') {
+        return (
+          <div class='config-guide'>
+            <div class='guide-icon failed'>
+              <i class='icon-monitor icon-alert-line' />
+            </div>
+            <div class='guide-title failed'>{t('源码分析失败')}</div>
+            <div
+              style='margin-bottom: 8px'
+              class='guide-desc'
+            >
+              {t('蓝盾流水线执行失败，未生成本次分析结果')}
+            </div>
+            <Alert
+              class='guide-alert failed'
+              showIcon={false}
+              theme='danger'
+              title={sourceAnalysisData.value.latest.failure.message}
+            />
+            <div class='guide-btns'>
+              {sourceAnalysisData.value.latest.failure.retryable && (
+                <Button
+                  loading={loading.retryAnalysis}
+                  theme='primary'
+                  onClick={() => {
+                    handleReanalyzeSourceAnalysis({
+                      bk_biz_id: props.detail.bk_biz_id,
+                      issue_id: props.detail.id,
+                      analysis_id: sourceAnalysisData.value.latest.analysis_id,
+                    });
+                  }}
+                >
+                  {t('重新分析')}
+                </Button>
+              )}
+              <Button>{t('查看配置')}</Button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div class='source-code-analysis-view'>
-          <AnalysisSummaryCard sourceAnalysisData={sourceAnalysisData.value as SourceAnalysisView} />
+          <AnalysisSummaryCard
+            loading={summaryCardLoading.value}
+            sourceAnalysisData={sourceAnalysisData.value as SourceAnalysisView}
+            onAssigneeChange={handleAssigneeChange}
+            onReanalyzeAnalysis={() => {
+              handleReanalyzeSourceAnalysis({
+                bk_biz_id: props.detail.bk_biz_id,
+                issue_id: props.detail.id,
+              });
+            }}
+          />
         </div>
       );
     };

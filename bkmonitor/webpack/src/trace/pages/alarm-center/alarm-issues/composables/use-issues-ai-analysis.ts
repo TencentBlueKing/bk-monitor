@@ -31,18 +31,26 @@ import {
   getIssueAiAnalysisOverview,
   getIssueSourceAnalysis,
   reanalyzeIssueSourceAnalysis,
+  retryIssueSourceAnalysis,
   startIssueSourceAnalysis,
 } from '../services/issues-ai-analysis';
 import useRequestAbort from '@/hooks/useRequestAbort';
 
-import type { AIAnalysisBaseParams, SourceAnalysisOverview, SourceAnalysisView } from '../typing';
+import type {
+  AIAnalysisBaseParams,
+  SourceAnalysisOverview,
+  SourceAnalysisRetryParams,
+  SourceAnalysisView,
+} from '../typing';
 
 export const useIssuesAiAnalysis = createGlobalState(() => {
   const sourceAnalysisData = shallowRef<SourceAnalysisOverview | SourceAnalysisView>(null);
   const loopStatus = ['pending', 'running'];
   const loading = reactive({
+    /** 源码分析结果loading */
     sourceAnalysis: false,
-    startAnalysis: false,
+    /** 重新分析loading */
+    retryAnalysis: false,
   });
   const sourceAnalysisScene = shallowRef<'overview' | 'view'>('overview');
   const sourceAnalysisIsPending = computed(() => loopStatus.includes(sourceAnalysisData.value?.latest?.status));
@@ -90,19 +98,30 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
    * 立即分析（第一次分析才调用这个接口）
    */
   const handleStartAnalysis = async (params: AIAnalysisBaseParams) => {
-    if (loading.startAnalysis) return;
-    loading.startAnalysis = true;
+    if (loading.retryAnalysis) return;
+    loading.retryAnalysis = true;
     sourceAnalysisData.value = await startIssueSourceAnalysis(params).finally(() => {
-      loading.startAnalysis = false;
+      loading.retryAnalysis = false;
     });
   };
 
-  const handleReanalyzeSourceAnalysis = async (params: AIAnalysisBaseParams) => {
-    if (loading.startAnalysis) return;
-    loading.startAnalysis = true;
-    sourceAnalysisData.value = await reanalyzeIssueSourceAnalysis(params).finally(() => {
-      loading.startAnalysis = false;
-    });
+  /**
+   * 重新分析分为两种情况
+   * 1. 失败重试（失败重试时，需要传递analysis_id）
+   * 2. 重新分析（重新分析时，不需要传递analysis_id）
+   */
+  const handleReanalyzeSourceAnalysis = async (params: AIAnalysisBaseParams | SourceAnalysisRetryParams) => {
+    if (loading.retryAnalysis) return;
+    loading.retryAnalysis = true;
+    if (sourceAnalysisData.value.latest.status === 'failed' && sourceAnalysisData.value.latest.failure.retryable) {
+      sourceAnalysisData.value = await retryIssueSourceAnalysis(params as SourceAnalysisRetryParams).finally(() => {
+        loading.retryAnalysis = false;
+      });
+    } else {
+      sourceAnalysisData.value = await reanalyzeIssueSourceAnalysis(params).finally(() => {
+        loading.retryAnalysis = false;
+      });
+    }
   };
 
   return {

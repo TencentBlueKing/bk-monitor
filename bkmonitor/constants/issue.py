@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, gettext_noop
 
 
 class IssueStatus:
@@ -156,6 +156,38 @@ class SourceAnalysisFailureStage:
         (RESULT_ARCHIVE, _("归档分析结果")),
         (RESULT_FETCH, _("读取分析结果")),
         (RESULT_PERSIST, _("持久化分析结果")),
+    )
+
+
+class SourceAnalysisFailureMessage:
+    """BKM 本地产生的失败文案。
+
+    执行任务只保存稳定原文，查询接口再按当前请求语言翻译，避免把 Celery Worker
+    的默认语言固化到执行记录中。``gettext_noop`` 只负责标记待翻译文案。
+    """
+
+    BKFARA_CREATE_MISSING_TASK_ID = gettext_noop("BKFara 创建任务响应缺少 task_id")
+    BKFARA_TASK_ID_CONFLICT = gettext_noop("相同 analysis_id 返回了不同的 BKFara task_id")
+    BKFARA_TASK_STATE_INVALID = gettext_noop("BKFara 任务状态响应非法")
+    BKFARA_TASK_FAILED = gettext_noop("BKFara 源码分析任务执行失败")
+    BKFARA_REQUEST_FAILED = gettext_noop("BKFara 请求失败")
+    RESULT_NOT_JSON = gettext_noop("分析结果不是有效的 JSON，请重试；若持续失败请联系管理员。")
+    RESULT_SCHEMA_UNSUPPORTED = gettext_noop("分析结果版本暂不受支持，请重试；若持续失败请联系管理员。")
+    RESULT_SCHEMA_INVALID = gettext_noop("分析结果格式校验失败，请重试；若持续失败请联系管理员。")
+    RESULT_SEMANTIC_INVALID = gettext_noop("分析结果语义校验失败，请重试；若持续失败请联系管理员。")
+
+    LOCALIZED_MESSAGES = frozenset(
+        {
+            BKFARA_CREATE_MISSING_TASK_ID,
+            BKFARA_TASK_ID_CONFLICT,
+            BKFARA_TASK_STATE_INVALID,
+            BKFARA_TASK_FAILED,
+            BKFARA_REQUEST_FAILED,
+            RESULT_NOT_JSON,
+            RESULT_SCHEMA_UNSUPPORTED,
+            RESULT_SCHEMA_INVALID,
+            RESULT_SEMANTIC_INVALID,
+        }
     )
 
 
