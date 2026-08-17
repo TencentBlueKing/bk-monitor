@@ -14,7 +14,7 @@ import json
 import pytest
 
 from alarm_backends.core.alarm_engine import publisher as publisher_module
-from alarm_backends.core.alarm_engine.encoder import decode_json_document
+from alarm_backends.core.alarm_engine.encoder import decode_json_document, encode_json_document
 from alarm_backends.core.alarm_engine.publisher import (
     DetectionPublishError,
     KafkaDetectionPublisher,
@@ -40,7 +40,7 @@ class FakeProducer:
         return self.remaining
 
 
-def test_kafka_detection_publisher_waits_for_delivery_and_emits_self_contained_envelope():
+def test_kafka_detection_publisher_waits_for_delivery_and_emits_self_contained_microbatch():
     producer = FakeProducer()
     publisher = KafkaDetectionPublisher(producer=producer, topic="alarm-engine-detection-shadow", flush_timeout=4)
     batch = _batch()
@@ -60,8 +60,104 @@ def test_kafka_detection_publisher_waits_for_delivery_and_emits_self_contained_e
         "required_features": [],
         "partition_hash_version": "trigger-input-partition-v1",
         "strategy_ir": batch["strategy_ir"],
-        "detection_outcome": batch["outcomes"][0],
+        "detection_outcomes": batch["outcomes"],
     }
+
+
+def test_kafka_detection_publisher_splits_microbatches_by_count():
+    producer = FakeProducer()
+    publisher = KafkaDetectionPublisher(
+        producer=producer,
+        topic="alarm-engine-detection-shadow",
+        flush_timeout=4,
+        max_outcomes_per_message=1,
+        max_envelope_bytes=512 * 1024,
+    )
+    batch = _batch(include_normal=True)
+
+    assert publisher.publish_batch(batch) == 2
+    assert len(producer.messages) == 2
+    assert [len(decode_json_document(message["value"])["detection_outcomes"]) for message in producer.messages] == [
+        1,
+        1,
+    ]
+
+
+def test_kafka_detection_publisher_splits_microbatches_by_encoded_bytes():
+    producer = FakeProducer()
+    batch = _batch(include_normal=True)
+    single_envelope = {
+        "schema": {"name": "trigger-input", "major": 1, "minor": 0},
+        "required_features": [],
+        "partition_hash_version": "trigger-input-partition-v1",
+        "strategy_ir": batch["strategy_ir"],
+        "detection_outcomes": batch["outcomes"][:1],
+    }
+    publisher = KafkaDetectionPublisher(
+        producer=producer,
+        topic="alarm-engine-detection-shadow",
+        flush_timeout=4,
+        max_outcomes_per_message=500,
+        max_envelope_bytes=len(encode_json_document(single_envelope)),
+    )
+
+    assert publisher.publish_batch(batch) == 2
+    assert len(producer.messages) == 2
+
+
+def test_kafka_detection_publisher_rejects_a_single_oversized_outcome_before_produce():
+    producer = FakeProducer()
+    publisher = KafkaDetectionPublisher(
+        producer=producer,
+        topic="alarm-engine-detection-shadow",
+        flush_timeout=4,
+        max_outcomes_per_message=500,
+        max_envelope_bytes=1,
+    )
+
+    with pytest.raises(DetectionPublishError, match="exceeds"):
+        publisher.publish_batch(_batch())
+
+    assert producer.messages == []
+
+
+@pytest.mark.parametrize(
+    ("mutate", "error"),
+    [
+        (lambda batch: batch["outcomes"][1].__setitem__("batch_id", "another-batch"), "share one batch_id"),
+        (
+            lambda batch: batch["outcomes"].__setitem__(1, copy.deepcopy(batch["outcomes"][0])),
+            "duplicate input_id",
+        ),
+    ],
+)
+def test_kafka_detection_publisher_rejects_microbatch_identity_contradictions_before_produce(mutate, error):
+    producer = FakeProducer()
+    publisher = KafkaDetectionPublisher(producer=producer, topic="alarm-engine-detection-shadow", flush_timeout=4)
+    batch = _batch(include_normal=True)
+    mutate(batch)
+
+    with pytest.raises(DetectionPublishError, match=error):
+        publisher.publish_batch(batch)
+
+    assert producer.messages == []
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"max_outcomes_per_message": 501},
+        {"max_envelope_bytes": 512 * 1024 + 1},
+    ],
+)
+def test_kafka_detection_publisher_rejects_limits_above_wire_v1(kwargs):
+    with pytest.raises(ValueError, match="must be between"):
+        KafkaDetectionPublisher(
+            producer=FakeProducer(),
+            topic="alarm-engine-detection-shadow",
+            flush_timeout=4,
+            **kwargs,
+        )
 
 
 @pytest.mark.parametrize(
@@ -158,16 +254,17 @@ def test_cached_kafka_detection_publisher_reuses_process_producer(monkeypatch):
     publisher_module.get_cached_kafka_detection_publisher.cache_clear()
 
 
-def _batch():
+def _batch(*, include_normal=False):
     strategy = copy.deepcopy(DETECT_STRATEGY)
-    record = copy.deepcopy(DETECT_RECORDS[0])
+    records = copy.deepcopy(DETECT_RECORDS if include_normal else DETECT_RECORDS[:1])
+    record = records[0]
     return prepare_finalized_threshold_batch(
         tenant_id="default",
         strategy=strategy,
         item_id=2,
         legacy_json=json.dumps(strategy).encode(),
         batch_id="batch-1",
-        data_points=[record],
+        data_points=records,
         anomaly_outputs=[
             {
                 "data": record,

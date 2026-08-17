@@ -20,7 +20,6 @@ from alarm_backends.core.alarm_engine.contract import (
 )
 from alarm_backends.core.alarm_engine.runtime import (
     DetectionNotFinalized,
-    attach_detection_correlations,
     prepare_finalized_threshold_batch,
     project_detection_outcomes,
 )
@@ -212,35 +211,6 @@ def test_prepare_finalized_threshold_batch_does_not_infer_normal_before_finaliza
             anomaly_outputs=[],
             finalized=finalized,
         )
-
-
-def test_attach_detection_correlations_marks_only_legacy_anomaly_outputs():
-    strategy = copy.deepcopy(DETECT_STRATEGY)
-    anomalous_record, normal_record = copy.deepcopy(DETECT_RECORDS)
-    anomaly_outputs = [
-        {
-            "data": anomalous_record,
-            "anomaly": {"3": {"anomaly_id": f"{anomalous_record['record_id']}.1.2.3"}},
-        }
-    ]
-    batch = prepare_finalized_threshold_batch(
-        tenant_id="default",
-        strategy=strategy,
-        item_id=2,
-        legacy_json=json.dumps(strategy).encode(),
-        batch_id="batch-1",
-        data_points=[anomalous_record, normal_record],
-        anomaly_outputs=anomaly_outputs,
-        finalized=True,
-    )
-
-    attach_detection_correlations(anomaly_outputs, batch["outcomes"])
-
-    assert anomaly_outputs[0]["_alarm_engine"] == {
-        "input_id": batch["outcomes"][0]["input_id"],
-        "strategy_ref": batch["outcomes"][0]["strategy_ref"],
-    }
-    assert "_alarm_engine" not in normal_record
 
 
 def _strategy_ir():

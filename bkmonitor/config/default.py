@@ -1361,6 +1361,11 @@ AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 PUSH_MONITOR_EVENT_TO_FTA = True
 # 监控推送事件数据给自愈的 kafka topic
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
+# Alarm Engine Trigger-only Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
+ALARM_ENGINE_DETECTION_SHADOW_ENABLED = False
+ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS = ()
+ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG = {}
+ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS = ()
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数

@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+import uuid
 
 from django.conf import settings
 
@@ -114,6 +115,105 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
         NewSeries.bootstrap_empty_batch(item)
 
+    def prepare_alarm_engine_detection_batches(self):
+        if not settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED:
+            return []
+
+        configured_strategy_ids = settings.ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS
+        if isinstance(configured_strategy_ids, str):
+            configured_strategy_ids = [] if not configured_strategy_ids else configured_strategy_ids.split(",")
+        try:
+            allowed_strategy_ids = set()
+            for strategy_id in configured_strategy_ids:
+                if isinstance(strategy_id, bool):
+                    raise ValueError
+                if isinstance(strategy_id, int):
+                    if strategy_id <= 0:
+                        raise ValueError
+                    allowed_strategy_ids.add(strategy_id)
+                    continue
+                if (
+                    not isinstance(strategy_id, str)
+                    or not strategy_id.isascii()
+                    or not strategy_id.isdigit()
+                    or strategy_id.startswith("0")
+                ):
+                    raise ValueError
+                allowed_strategy_ids.add(int(strategy_id))
+        except (TypeError, ValueError):
+            logger.warning("[alarm engine shadow] configured strategy selector is invalid")
+            return []
+        if int(self.strategy_id) not in allowed_strategy_ids:
+            return []
+
+        finalized = int(self.strategy_id) not in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS
+        if not finalized:
+            return []
+
+        legacy_json = key.STRATEGY_SNAPSHOT_KEY.client.get(self.strategy.snapshot_key)
+        if isinstance(legacy_json, str):
+            legacy_json = legacy_json.encode()
+        if not isinstance(legacy_json, bytes) or not legacy_json:
+            logger.warning(f"[alarm engine shadow] strategy({self.strategy_id}) snapshot is unavailable")
+            return []
+
+        from alarm_backends.core.alarm_engine.contract import ContractValidationError, json_values_equal
+        from alarm_backends.core.alarm_engine.runtime import prepare_finalized_threshold_batch
+
+        batch_id = uuid.uuid4().hex
+        batches = []
+        for item in self.strategy.items:
+            input_points = self.inputs.get(item.id, [])
+            if not input_points:
+                continue
+            source_strategy = input_points[0].item.strategy
+            if (
+                any(data_point.item.strategy is not source_strategy for data_point in input_points)
+                or int(source_strategy.id) != int(self.strategy_id)
+                or not json_values_equal(source_strategy.config, self.strategy.config)
+            ):
+                logger.warning(
+                    f"[alarm engine shadow] strategy({self.strategy_id}) item({item.id}) input snapshot is stale"
+                )
+                continue
+            data_points = [data_point.as_dict() for data_point in input_points]
+            if not data_points:
+                continue
+            try:
+                batch = prepare_finalized_threshold_batch(
+                    tenant_id=self.strategy.bk_tenant_id,
+                    strategy=self.strategy.config,
+                    item_id=item.id,
+                    legacy_json=legacy_json,
+                    batch_id=batch_id,
+                    data_points=data_points,
+                    anomaly_outputs=self.outputs.get(item.id, []),
+                    finalized=finalized,
+                )
+            except ContractValidationError as error:
+                logger.debug(
+                    f"[alarm engine shadow] strategy({self.strategy_id}) item({item.id}) is ineligible: {error}"
+                )
+                continue
+            batches.append(batch)
+        return batches
+
+    @staticmethod
+    def publish_alarm_engine_detection_batches(batches):
+        if not batches:
+            return 0
+
+        from alarm_backends.core.alarm_engine.publisher import get_cached_kafka_detection_publisher
+
+        config_json = json.dumps(
+            settings.ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        allowed_topics = tuple(sorted(set(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS)))
+        publisher = get_cached_kafka_detection_publisher(config_json, allowed_topics)
+        return sum(publisher.publish_batch(batch) for batch in batches)
+
     def push_data(self):
         current_time = time.time()
         max_latency = 0
@@ -143,6 +243,15 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
+        try:
+            alarm_engine_batches = self.prepare_alarm_engine_detection_batches()
+        except Exception:
+            logger.exception(f"[alarm engine shadow] strategy({self.strategy_id}) failed to prepare detection batch")
+            alarm_engine_batches = []
+        try:
+            self.publish_alarm_engine_detection_batches(alarm_engine_batches)
+        except Exception:
+            logger.exception(f"[alarm engine shadow] strategy({self.strategy_id}) failed to publish detection batch")
         if anomaly_count > 1000:
             # 获取 Redis 节点信息（带异常处理）
             try:

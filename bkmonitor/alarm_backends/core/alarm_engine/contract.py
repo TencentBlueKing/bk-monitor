@@ -242,6 +242,11 @@ def _json_values_equal(left: Any, right: Any) -> bool:
     return type(left) is type(right) and left == right
 
 
+def json_values_equal(left: Any, right: Any) -> bool:
+    """Compare JSON values without Python's bool/int or int/float coercion."""
+    return _json_values_equal(left, right)
+
+
 def _normalize_strategy_ref(strategy_ref: Any, *, schema_minor: int = SCHEMA_MINOR) -> dict[str, str]:
     strategy_ref = _validate_fixed_fields(
         strategy_ref,
