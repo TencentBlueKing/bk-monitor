@@ -1704,6 +1704,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <bk-select
             class='expand-depth-select'
             clearable={false}
+            disabled={isTemplateBound.value}
             value={expandDepthSelect.value}
             on-selected={handleExpandDepthSelected}
             style='width: 300px;'
