@@ -1116,7 +1116,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: "query apm event statistics graph"
   /app/apm/service/update_service_config/:
-    get:
+    post:
       operationId: update_service_config
       description: 【APM】应用下服务配置修改
       x-bk-apigateway-resource:
@@ -1277,4 +1277,3 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "export profile query"
-

@@ -19,6 +19,7 @@ from typing import Any
 from datetime import timedelta
 
 import arrow
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -50,6 +51,7 @@ from apm_web.models import (
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
+from apm_web.tasks import update_application_config
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
@@ -72,6 +74,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import Resource, api
+from monitor_web.data_explorer.event.constants import EventCategory
 
 
 class ApplicationListResource(Resource):
@@ -473,13 +476,25 @@ class LogServiceRelationBkLogIndexSet(Resource):
 class ServiceConfigResource(Resource):
     RequestSerializer = ServiceConfigSerializer
 
-    RELATION_MODEL_MAP = {
+    RELATION_MODEL_MAP: dict[str, type[ServiceBase]] = {
         "app_relation": AppServiceRelation,
         "cmdb_relation": CMDBServiceRelation,
         "log_relation_list": LogServiceRelation,
         "apdex_relation": ApdexServiceRelation,
         "uri_relation": UriServiceRelation,
         "event_relation": EventServiceRelation,
+        "incremental_cicd_relations": EventServiceRelation,
+        "incremental_k8s_relations": EventServiceRelation,
+    }
+    INCREMENTAL_EVENT_RELATION_CONFIG: dict[str, tuple[str, tuple[str, ...]]] = {
+        "incremental_cicd_relations": (
+            EventCategory.CICD_EVENT.value,
+            ("project_id", "pipeline_id"),
+        ),
+        "incremental_k8s_relations": (
+            EventCategory.K8S_EVENT.value,
+            ("bcs_cluster_id", "namespace", "kind", "name"),
+        ),
     }
 
     @classmethod
@@ -510,23 +525,85 @@ class ServiceConfigResource(Resource):
         return list(unique_relations.values())
 
     @classmethod
-    def update_relation(cls, bk_biz_id: int, app_name: str, service_name: str, relation_type: str, relation_data: Any):
+    def _prepare_incremental_event_relations(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        relation_type: str,
+        new_relations: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        table, unique_fields = cls.INCREMENTAL_EVENT_RELATION_CONFIG[relation_type]
+        existing_relation: dict[str, Any] = (
+            EventServiceRelation.get_relation_qs(
+                bk_biz_id,
+                app_name,
+                [service_name],
+                table=table,
+            )
+            .order_by("id")
+            .values("relations", "options")
+            .first()
+            or {}
+        )
+        existing_relations: list[dict[str, Any]] = existing_relation.get("relations") or []
+        options: dict[str, Any] = existing_relation.get("options") or {}
+
+        deduped_relations: dict[tuple[Any, ...], dict[str, Any]] = {}
+        # 存量排在新增数据之前，身份相同时由 setdefault 保留原配置。
+        for relation in [*existing_relations, *new_relations]:
+            unique_key: tuple[Any, ...] = tuple(relation.get(field) for field in unique_fields)
+            deduped_relations.setdefault(unique_key, relation)
+
+        return [{"table": table, "relations": list(deduped_relations.values()), "options": options}]
+
+    @classmethod
+    def update_relation(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        relation_type: str,
+        relation_data: Any,
+    ) -> None:
         if relation_type not in cls.RELATION_MODEL_MAP:
             return
 
         # 预处理数据
         model_cls: type[ServiceBase] = cls.RELATION_MODEL_MAP[relation_type]
-        prepare_handler: Callable[[Any], list[dict[str, Any]]] = getattr(
-            cls, f"_prepare_{relation_type}", cls._prepare_default
-        )
-        prepare_datas: list[dict[str, Any]] = prepare_handler(relation_data)
+        if relation_type in cls.INCREMENTAL_EVENT_RELATION_CONFIG:
+            if not relation_data:
+                return
+            prepare_datas: list[dict[str, Any]] = cls._prepare_incremental_event_relations(
+                bk_biz_id,
+                app_name,
+                service_name,
+                relation_type,
+                relation_data,
+            )
+        else:
+            prepare_handler: Callable[[Any], list[dict[str, Any]]] = getattr(
+                cls, f"_prepare_{relation_type}", cls._prepare_default
+            )
+            prepare_datas = prepare_handler(relation_data)
+
         # 构建模型记录数据
         records: list[dict[str, Any]] = [
             {"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service_name, "is_global": False, **data}
             for data in prepare_datas
         ]
         # 执行同步
-        if relation_type == "event_relation":
+        if relation_type in cls.INCREMENTAL_EVENT_RELATION_CONFIG:
+            table = cls.INCREMENTAL_EVENT_RELATION_CONFIG[relation_type][0]
+            model_cls.sync_relations(
+                bk_biz_id,
+                app_name,
+                service_name,
+                records,
+                is_delete=False,
+                table=table,
+            )
+        elif relation_type == "event_relation":
             model_cls.sync_relations(bk_biz_id, app_name, service_name, records, is_delete=False)
         else:
             model_cls.sync_relations(bk_biz_id, app_name, service_name, records)
@@ -541,10 +618,12 @@ class ServiceConfigResource(Resource):
             json.dumps(labels),
         )
 
+    @transaction.atomic
     def perform_request(self, validated_request_data: dict[str, Any]) -> None:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
+        application: Application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
 
         # 对 labels 单独作处理
         if "labels" in validated_request_data:
@@ -558,11 +637,14 @@ class ServiceConfigResource(Resource):
                 update_relation(relation_type, relation_data)
 
         # 下发修改后的配置
-        application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
-        from apm_web.tasks import update_application_config
-
-        update_application_config.delay(
-            application.bk_biz_id, application.app_name, {"service_configs": application.get_service_transfer_config()}
+        transfer_config: dict[str, Any] = {"service_configs": application.get_service_transfer_config()}
+        transaction.on_commit(
+            functools.partial(
+                update_application_config.delay,
+                application.bk_biz_id,
+                application.app_name,
+                transfer_config,
+            )
         )
 
 
