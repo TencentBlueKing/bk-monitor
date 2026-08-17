@@ -70,7 +70,7 @@ Read and follow `.ai-agent/skills/minimal-convergent-self-test.md` to:
 2. Run unit tests with Mock
 3. Ask before any browser MCP; require user-provided URL for UI
 4. 执行 UI 前补全并锁定 `ui_test_paths`，再按路径操作
-5. 自测结束后：若任务过程中**有关联 TAPD 单** → `tapd-submit-backfill.md`（Commit → PR → 条件回填）；无 TAPD 关联则跳过 TAPD 回填
+5. 自测结束后：若任务过程中**有关联 TAPD 单** → `tapd-submit-backfill.md`（按 submit.cli 执行 Commit/PR → 条件回填）；无 TAPD 关联则跳过 TAPD 回填
 
 Collect `test_results`（及 UI 时的 `ui_test_paths`）from that skill.
 
