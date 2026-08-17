@@ -141,12 +141,7 @@ def diff_snapshots(current: dict, previous: dict) -> list[Change]:
 
     # --- Roles ---
     for r_id, r_data in cur_roles.items():
-        after = {
-            "id": r_id,
-            "name": r_data["name"],
-            "description": r_data.get("description", ""),
-            "actions": r_data.get("actions", []),
-        }
+        after = _role_after(r_id, r_data)
         if r_id not in prev_roles:
             changes.append(
                 Change(
@@ -156,12 +151,7 @@ def diff_snapshots(current: dict, previous: dict) -> list[Change]:
         else:
             prev_r = prev_roles[r_id]
             if prev_r != r_data:
-                before = {
-                    "id": r_id,
-                    "name": prev_r["name"],
-                    "description": prev_r.get("description", ""),
-                    "actions": prev_r.get("actions", []),
-                }
+                before = _role_after(r_id, prev_r)
                 changes.append(
                     Change(
                         kind=EntityKind.ROLE,
@@ -179,12 +169,7 @@ def diff_snapshots(current: dict, previous: dict) -> list[Change]:
                 kind=EntityKind.ROLE,
                 change_type=ChangeType.DELETE,
                 entity_id=r_id,
-                before={
-                    "id": r_id,
-                    "name": prev_r["name"],
-                    "description": prev_r.get("description", ""),
-                    "actions": prev_r.get("actions", []),
-                },
+                before=_role_after(r_id, prev_r),
                 reason="Role removed from schema",
                 destructive=True,
             )
@@ -193,16 +178,33 @@ def diff_snapshots(current: dict, previous: dict) -> list[Change]:
     return changes
 
 
-def _rt_after(rt_id: str, data: dict) -> dict:
-    return {
-        "id": rt_id,
+def _entity_after(entity_id: str, data: dict, extra: dict | None = None) -> dict:
+    """构造实体快照的 after/before：完整搬运快照字段（含 extensions，不解释其内部）。
+
+    迁移文件据此自包含（provider 可读取自己关心的方言字段，如 extensions["v3"]["action_id"]），
+    diff 层保持中立——只搬运不解释。
+    """
+    after = {
+        "id": entity_id,
         "name": data["name"],
-        "ancestors": [data.get("ancestor", "")] if data.get("ancestor") else [],
+        "description": data.get("description", ""),
+        "extensions": dict(data.get("extensions", {})),
     }
+    if extra:
+        after.update(extra)
+    return after
 
 
 def _action_after(a_id: str, data: dict) -> dict:
-    return {"id": a_id, "name": data["name"], "resource_type_id": data.get("resource_type", "")}
+    return _entity_after(a_id, data, {"resource_type_id": data.get("resource_type", "")})
+
+
+def _rt_after(rt_id: str, data: dict) -> dict:
+    return _entity_after(rt_id, data, {"ancestors": [data.get("ancestor", "")] if data.get("ancestor") else []})
+
+
+def _role_after(r_id: str, data: dict) -> dict:
+    return _entity_after(r_id, data, {"actions": data.get("actions", [])})
 
 
 def _field_diff(prev: dict, cur: dict) -> list[str]:
@@ -213,4 +215,4 @@ def _field_diff(prev: dict, cur: dict) -> list[str]:
 
 def _change_reason(prev: dict, cur: dict) -> str:
     changed = _field_diff(prev, cur)
-    return f"Changed: {', '.join(changed)}" if changed else "Changed"
+    return f"fields changed: {', '.join(changed)}" if changed else "Changed"

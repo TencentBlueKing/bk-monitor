@@ -38,6 +38,11 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true", help="只打印计划，不执行")
         parser.add_argument("--skip-system", action="store_true", help="跳过系统迁移前置步骤")
         parser.add_argument(
+            "--allow-destructive",
+            action="store_true",
+            help="允许破坏性变更（DELETE / 方言 id 变更重建）；默认禁止，含破坏性变更的计划会被跳过或报错",
+        )
+        parser.add_argument(
             "--directory",
             default=None,
             help="迁移文件目录（默认从 IAM_FRAMEWORK.MIGRATION.directory 读取）",
@@ -48,6 +53,7 @@ class Command(BaseCommand):
         provider_filter = options["provider"]
         dry_run = options["dry_run"]
         skip_system = options["skip_system"]
+        allow_destructive = options["allow_destructive"]
         recorder = DjangoMigrationRecorder()
 
         providers = [fw.get_provider(provider_filter)] if provider_filter else list(fw.providers.values())
@@ -55,7 +61,7 @@ class Command(BaseCommand):
         for provider in providers:
             # ── ① 系统迁移 ──
             if not skip_system:
-                self._migrate_system(provider, fw, dry_run)
+                self._migrate_system(provider, fw, dry_run, allow_destructive)
 
             # ── ② 文件迁移 ──
             directory = self._get_directory(options, provider)
@@ -85,7 +91,7 @@ class Command(BaseCommand):
                 report = provider.apply_migration(
                     plan,
                     dry_run=dry_run,
-                    allow_destructive=False,
+                    allow_destructive=allow_destructive,
                 )
 
                 if dry_run:
@@ -112,7 +118,7 @@ class Command(BaseCommand):
     # 系统迁移
     # ------------------------------------------------------------------
 
-    def _migrate_system(self, provider, fw, dry_run: bool) -> None:
+    def _migrate_system(self, provider, fw, dry_run: bool, allow_destructive: bool = False) -> None:
         """系统注册/更新。
 
         plan_migration(scope="system") 生成系统计划（纯本地），
@@ -124,7 +130,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.WARNING(f"[{provider.name}] system plan failed: {e}"))
             return
 
-        report = provider.apply_migration(plan, dry_run=dry_run, allow_destructive=False)
+        report = provider.apply_migration(plan, dry_run=dry_run, allow_destructive=allow_destructive)
 
         if report.success:
             if report.applied:

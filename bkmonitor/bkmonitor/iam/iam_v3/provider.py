@@ -731,7 +731,7 @@ class V3PermissionProvider(PermissionProvider):
                 continue
 
             try:
-                self._execute_change(client, actual)
+                self._execute_change(client, actual, allow_destructive=allow_destructive)
                 report.applied.append(actual)
             except Exception as e:
                 report.failed.append((actual, str(e)[:500]))
@@ -825,102 +825,189 @@ class V3PermissionProvider(PermissionProvider):
     # 内部：执行
     # ================================================================
 
-    def _execute_change(self, client, change) -> None:
-        """按 Change 类型调用 V3 SDK Client 执行。
+    def _execute_change(self, client, change, *, allow_destructive: bool = False) -> None:
+        """按 Change 类型调用 V3 SDK Client 执行（CREATE/UPDATE 前统一方言补全）。
 
-        CREATE/UPDATE 前统一补全 v3 平台必填字段（name_en / provider_config），
-        以覆盖任意来源的 plan（diff_snapshots / 迁移文件 / plan_migration）：
-          * name_en        —— extensions["v3"]["name_en"] 优先，缺省兜底 entity_id
-          * provider_config—— 资源类型必填，从 V3Options.provider_config_path 读取
-            （老版本配置在部署下发的 iam_migrations json，本框架统一由 options 提供，
-            不放进资源定义对象）
+        职责分层：
+          * _enrich_action_payload / _enrich_resource_type_payload：方言字段补全
+            （优先 after.extensions——迁移文件自包含；缺失回查 schema——兼容旧文件）
+          * _apply_*_change：按类型执行；ACTION UPDATE 时检测方言 id 变更，
+            不允许破坏性变更则明确报错，允许则按"先建后删"重建
         """
-        from ..iam_engine.schema.diff import ChangeType, EntityKind
-
-        system_id = self._cfg.system.id
+        from ..iam_engine.schema.diff import EntityKind
 
         if change.kind == EntityKind.SYSTEM:
-            if change.change_type == ChangeType.CREATE:
-                ok, _msg = client.add_system(system_id, change.after)
-            elif change.change_type == ChangeType.UPDATE:
-                ok, _msg = client.update_system(system_id, change.after)
-            else:
-                return
-            if not ok:
-                raise RuntimeError(f"System {change.change_type.value} failed: {_msg}")
+            self._apply_system_change(client, change)
+            return
+        if change.kind == EntityKind.ACTION:
+            data = self._enrich_action_payload(change, dict(change.after or {}))
+            self._apply_action_change(client, change, data, allow_destructive)
+            return
+        if change.kind == EntityKind.RESOURCE_TYPE:
+            data = self._enrich_resource_type_payload(change, dict(change.after or {}))
+            self._apply_resource_type_change(client, change, data)
+            return
+        # ROLE：v3 平台无角色概念，静默跳过（无平台调用）
 
-        elif change.kind == EntityKind.ACTION:
-            data = dict(change.after or {})
-            if change.change_type in (ChangeType.CREATE, ChangeType.UPDATE):
-                data.setdefault("name_en", change.entity_id)
-                # diff_snapshots / 迁移文件链路只产出框架概念 resource_type_id，
-                # v3 平台要求 related_resource_types（含实例选择器）+ type/version；
-                # plan_migration 链路已带完整字段，此处仅兜底补全
-                if not data.get("related_resource_types"):
-                    try:
-                        action_def = self.schema.get_action(change.entity_id)
-                        data["related_resource_types"] = self._build_related_resource_types(action_def)
-                        v3_ext = dict(action_def.extensions.get("v3", {}))
-                        data.setdefault("type", v3_ext.get("type", ""))
-                        data.setdefault("version", v3_ext.get("version", 1))
-                        data.setdefault("related_actions", v3_ext.get("related_actions", []))
-                    except Exception:
-                        pass
-                # resource_type_id 是框架概念字段，v3 平台不识别，剔除
-                data.pop("resource_type_id", None)
-            if change.change_type == ChangeType.CREATE:
-                ok, _msg = client.add_action(system_id, data)
-            elif change.change_type == ChangeType.UPDATE:
-                ok, _msg = client.update_action(system_id, data)
-            elif change.change_type == ChangeType.DELETE:
-                ok, _msg = client.delete_action(system_id, data)
-            else:
-                return
-            if not ok:
-                raise RuntimeError(f"Action {change.change_type.value} {data.get('id')} failed: {_msg}")
+    def _v3_ext_of(self, data: dict, lookup) -> tuple:
+        """取 v3 方言字段与实体定义。
 
-        elif change.kind == EntityKind.RESOURCE_TYPE:
-            data = dict(change.after or {})
-            if change.change_type in (ChangeType.CREATE, ChangeType.UPDATE):
-                data.setdefault("name_en", change.entity_id)
-                data.setdefault("provider_config", {"path": self._cfg.provider_config_path})
-                # diff/迁移文件链路只产出 id/name/ancestors，补 v3 平台字段
-                try:
-                    rt_def = self.schema.get_resource_type(change.entity_id)
-                    v3_ext = dict(rt_def.extensions.get("v3", {}))
-                    data.setdefault("system_id", v3_ext.get("system_id", "bk_monitorv3"))
-                    data.setdefault("selection_mode", v3_ext.get("selection_mode", "instance"))
-                    data.setdefault("related_instance_selections", v3_ext.get("related_instance_selections", []))
-                except Exception:
-                    v3_ext = {}
-                # 框架 ancestors -> v3 parents（平台资源拓扑；ancestor 缺失时从 schema 补）
-                if not data.get("parents"):
-                    ancestor_ids: list[str] = []
-                    raw_ancestors = data.pop("ancestors", None) or []
-                    if raw_ancestors:
-                        ancestor_ids = [a if isinstance(a, str) else a.get("id", "") for a in raw_ancestors]
-                    else:
-                        try:
-                            rt_def = self.schema.get_resource_type(change.entity_id)
-                            if rt_def.ancestor:
-                                ancestor_ids = [rt_def.ancestor]
-                        except Exception:
-                            pass
-                    ancestor_ids = [a for a in ancestor_ids if a]
-                    if ancestor_ids:
-                        data["parents"] = [
-                            {"id": a, "system_id": data.get("system_id", "bk_monitorv3")} for a in ancestor_ids
-                        ]
-            if change.change_type == ChangeType.CREATE:
-                ok, _msg = client.add_resource_type(system_id, data)
-            elif change.change_type == ChangeType.UPDATE:
-                ok, _msg = client.update_resource_type(system_id, data)
-            elif change.change_type == ChangeType.DELETE:
-                ok, _msg = client.delete_resource_type(system_id, data)
-            else:
+        - v3_ext：优先 after.extensions（迁移文件自包含，不解释其内部）；
+          缺失时回查 schema（兼容 plan_migration 扁平 after 与旧迁移文件）。
+        - entity_def：总是尝试从 schema 获取（related_resource_types / parents 等
+          平台结构需要从定义重建），获取失败时为 None。
+
+        Returns:
+            (v3_ext, entity_def)：entity_def 为 ActionDef/ResourceTypeDef 或 None
+        """
+        v3_ext = dict((data.get("extensions") or {}).get("v3", {}))
+        entity = None
+        try:
+            entity = lookup()
+            if not v3_ext:
+                v3_ext = dict(entity.extensions.get("v3", {}))
+        except Exception:
+            entity = None
+        return v3_ext, entity
+
+    def _action_v3_ext(self, change, data: dict) -> tuple:
+        return self._v3_ext_of(data, lambda: self.schema.get_action(change.entity_id))
+
+    def _resource_type_v3_ext(self, change, data: dict) -> tuple:
+        return self._v3_ext_of(data, lambda: self.schema.get_resource_type(change.entity_id))
+
+    def _enrich_action_payload(self, change, data: dict) -> dict:
+        """ACTION 方言补全：id 编码 + name_en/type/version/related_actions/related_resource_types。"""
+        from ..iam_engine.schema.diff import ChangeType
+
+        v3_ext, action_def = self._action_v3_ext(change, data)
+        # id：diff/迁移文件链路的 after 为业务 id，必须编码为 v3 平台方言 id（encode 幂等）
+        data["id"] = self.codec.encode_action(change.entity_id)
+        if change.change_type not in (ChangeType.CREATE, ChangeType.UPDATE):
+            return data
+        data.setdefault("name_en", v3_ext.get("name_en") or change.entity_id)
+        if action_def is not None:
+            data.setdefault("related_resource_types", self._build_related_resource_types(action_def))
+            data.setdefault("type", v3_ext.get("type", ""))
+            data.setdefault("version", v3_ext.get("version", 1))
+            data.setdefault("related_actions", v3_ext.get("related_actions", []))
+        # resource_type_id 是框架概念字段，v3 平台不识别，剔除
+        data.pop("resource_type_id", None)
+        return data
+
+    def _enrich_resource_type_payload(self, change, data: dict) -> dict:
+        """RT 方言补全：id 编码 + name_en/provider_config/system_id/selection_mode/parents。"""
+        from ..iam_engine.schema.diff import ChangeType
+
+        v3_ext, rt_def = self._resource_type_v3_ext(change, data)
+        data["id"] = self.codec.encode_resource_type(change.entity_id)
+        if change.change_type not in (ChangeType.CREATE, ChangeType.UPDATE):
+            return data
+        data.setdefault("name_en", v3_ext.get("name_en") or change.entity_id)
+        data.setdefault("provider_config", {"path": self._cfg.provider_config_path})
+        if rt_def is not None:
+            data.setdefault("system_id", v3_ext.get("system_id", "bk_monitorv3"))
+            data.setdefault("selection_mode", v3_ext.get("selection_mode", "instance"))
+            data.setdefault("related_instance_selections", v3_ext.get("related_instance_selections", []))
+        self._apply_parents(change, data, rt_def)
+        return data
+
+    def _apply_parents(self, change, data: dict, rt_def) -> None:
+        """框架 ancestors -> v3 parents；ancestor 缺失时从 schema 的 rt_def.ancestor 补。"""
+        if data.get("parents"):
+            return
+        ancestor_ids = [a if isinstance(a, str) else a.get("id", "") for a in (data.pop("ancestors", None) or [])]
+        if not ancestor_ids and rt_def is not None and rt_def.ancestor:
+            ancestor_ids = [rt_def.ancestor]
+        ancestor_ids = [a for a in ancestor_ids if a]
+        if ancestor_ids:
+            data["parents"] = [{"id": a, "system_id": data.get("system_id", "bk_monitorv3")} for a in ancestor_ids]
+
+    def _apply_system_change(self, client, change) -> None:
+        from ..iam_engine.schema.diff import ChangeType
+
+        system_id = self._cfg.system.id
+        data = change.after or {}
+        if change.change_type == ChangeType.CREATE:
+            ok, _msg = client.add_system(system_id, data)
+        elif change.change_type == ChangeType.UPDATE:
+            ok, _msg = client.update_system(system_id, data)
+        else:
+            return
+        if not ok:
+            raise RuntimeError(f"System {change.change_type.value} failed: {_msg}")
+
+    def _apply_action_change(self, client, change, data: dict, allow_destructive: bool) -> None:
+        """ACTION 执行；UPDATE 时检测方言 id 变更（重建或报错，见 _action_dialect_id_changed）。"""
+        from ..iam_engine.schema.diff import ChangeType
+
+        system_id = self._cfg.system.id
+        if change.change_type == ChangeType.CREATE:
+            ok, _msg = client.add_action(system_id, data)
+        elif change.change_type == ChangeType.UPDATE:
+            old_dialect_id = self._action_dialect_id_changed(change, data)
+            if old_dialect_id:
+                if not allow_destructive:
+                    raise RuntimeError(
+                        "action 方言 id 变更（{} -> {}）需要重建，"
+                        "请允许破坏性变更后执行（migrate 命令加 --allow-destructive），"
+                        "或先清理旧 action 的关联策略".format(old_dialect_id, data.get("id"))
+                    )
+                self._rebuild_action(client, system_id, old_dialect_id, data)
                 return
-            if not ok:
-                raise RuntimeError(f"ResourceType {change.change_type.value} {data.get('id')} failed: {_msg}")
+            ok, _msg = client.update_action(system_id, data)
+        elif change.change_type == ChangeType.DELETE:
+            ok, _msg = client.delete_action(system_id, data)
+        else:
+            return
+        if not ok:
+            raise RuntimeError("Action {} {} failed: {}".format(change.change_type.value, data.get("id"), _msg))
+
+    def _action_dialect_id_changed(self, change, data: dict) -> str | None:
+        """方言 id 变更检测：before/after 的 extensions["v3"]["action_id"] 不同则返回旧方言 id。
+
+        依赖新 diff 产物（before/after 含 extensions）；旧迁移文件无 extensions 时无法检测（返回 None）。
+        """
+        before = change.before or {}
+        old = (before.get("extensions") or {}).get("v3", {}).get("action_id", "")
+        new = (data.get("extensions") or {}).get("v3", {}).get("action_id", "") or data.get("id", "")
+        if old and new and old != new:
+            return old
+        return None
+
+    def _rebuild_action(self, client, system_id: str, old_dialect_id: str, data: dict) -> None:
+        """方言 id 变更重建（先建后删，更安全）：新 id 建立失败不影响旧 id。
+
+        新 id 建立成功但旧 id 删除失败（如策略关联）时抛错提示清理，保留新 id（部分完成状态）。
+        """
+        ok, _msg = client.add_action(system_id, data)
+        if not ok:
+            raise RuntimeError(
+                "重建失败：新 action {} 创建失败（{}）；旧 action {} 未受影响".format(
+                    data.get("id"), _msg, old_dialect_id
+                )
+            )
+        ok, _msg = client.delete_action(system_id, {"id": old_dialect_id})
+        if not ok:
+            raise RuntimeError(
+                "重建部分完成：新 action {} 已创建，旧 action {} 删除失败（{}）；"
+                "请先清理旧 action 的关联策略后手动删除".format(data.get("id"), old_dialect_id, _msg)
+            )
+
+    def _apply_resource_type_change(self, client, change, data: dict) -> None:
+        from ..iam_engine.schema.diff import ChangeType
+
+        system_id = self._cfg.system.id
+        if change.change_type == ChangeType.CREATE:
+            ok, _msg = client.add_resource_type(system_id, data)
+        elif change.change_type == ChangeType.UPDATE:
+            ok, _msg = client.update_resource_type(system_id, data)
+        elif change.change_type == ChangeType.DELETE:
+            ok, _msg = client.delete_resource_type(system_id, data)
+        else:
+            return
+        if not ok:
+            raise RuntimeError("ResourceType {} {} failed: {}".format(change.change_type.value, data.get("id"), _msg))
 
     # ================================================================
     # 内部：从 schema 拼 V3 的 related_resource_types
