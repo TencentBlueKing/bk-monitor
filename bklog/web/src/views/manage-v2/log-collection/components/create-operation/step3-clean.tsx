@@ -254,8 +254,8 @@ export default defineComponent({
 
     const showCardConfig = computed(() => {
       let list = props.isTempField
-        ? cardConfig.filter(item => item.key !== 'visibilitySettings')
-        : cardConfig.filter(item => !['basicInfo', 'visibilitySettings'].includes(item.key));
+        ? cardConfig.value.filter(item => item.key !== 'visibilitySettings')
+        : cardConfig.value.filter(item => !['basicInfo', 'visibilitySettings'].includes(item.key));
       // 未开启清洗时不显示"清洗结果"卡片
       if (!isClean.value) {
         list = list.filter(item => item.key !== 'cleanResult');
@@ -683,6 +683,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           },
         });
         if (res.data) {
+          const { etl_params } = res.data;
           applyEtlConfigToForm(res.data);
           formData.value.visible_bk_biz_id = res.data.visible_bk_biz_id ?? [];
           visibleBkBiz.value = res.data.visible_bk_biz_id;
@@ -797,9 +798,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 },
                 etlParams
                   ? {
-                      ...structuredClone(etlParams),
-                      metadata_fields: etlParams.metadata_fields || [],
-                    }
+                    ...structuredClone(etlParams),
+                    metadata_fields: etlParams.metadata_fields || [],
+                  }
                   : {},
               ),
               etl_fields: copyFields.filter(item => !item.is_built_in),
@@ -2201,21 +2202,21 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       void expandDepthSelect.value;
       return [
         {
-        title: t('基础信息'),
-        key: 'basicInfo',
-        renderFn: renderBasicInfo,
-      },
-      {
+          title: t('基础信息'),
+          key: 'basicInfo',
+          renderFn: renderBasicInfo,
+        },
+        {
           title: t('清洗设置'),
           key: 'cleanSetting',
           renderFn: renderSetting,
         },
         {
-        title: t('清洗结果'),
-        key: 'cleanResult',
-        renderFn: renderCleanResult,
-      },
-      {
+          title: t('清洗结果'),
+          key: 'cleanResult',
+          renderFn: renderCleanResult,
+        },
+        {
           title: t('高级设置'),
           key: 'advancedSetting',
           renderFn: renderAdvanced,
