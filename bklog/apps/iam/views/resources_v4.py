@@ -19,9 +19,11 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
 from copy import copy
 
 from django.conf import settings
+from django.http import JsonResponse
 
 from apps.iam import ResourceEnum
 from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec
@@ -39,9 +41,78 @@ from iam.resource.provider import ListResult
 
 _RESOURCE_CODEC = BklogNameCodec()
 
+_IAM_V4_ERROR_BY_LEGACY_CODE = {
+    400: (400, "INVALID_ARGUMENT"),
+    401: (401, "UNAUTHENTICATED"),
+    404: (404, "NOT_FOUND"),
+    406: (400, "INVALID_ARGUMENT"),
+    422: (400, "INVALID_ARGUMENT"),
+}
+
+
+def _iam_v4_response(payload: dict, *, status: int, request_id: str = "") -> JsonResponse:
+    response = JsonResponse(payload, status=status)
+    if request_id:
+        response["X-Request-Id"] = request_id
+    return response
+
 
 class V4ResourceApiDispatcher(ResourceApiDispatcher):
     """V4 资源回调 Dispatcher：多租户模式下禁止回退默认 Tenant。"""
+
+    def _dispatch(self, request):
+        """复用旧版 Dispatcher 执行请求，并将结果转换为 IAM V4 响应协议。"""
+        legacy_response = super()._dispatch(request)
+        request_id = legacy_response.get("X-Request-Id", "")
+
+        try:
+            payload = json.loads(legacy_response.content)
+        except (TypeError, ValueError):
+            return _iam_v4_response(
+                {"error": {"code": "INTERNAL", "message": "internal server error"}},
+                status=500,
+                request_id=request_id,
+            )
+
+        if payload.get("result") is True and payload.get("code") == 0 and "data" in payload:
+            return _iam_v4_response({"data": payload["data"]}, status=200, request_id=request_id)
+
+        try:
+            legacy_code = int(payload.get("code"))
+        except (TypeError, ValueError):
+            legacy_code = 500
+        status, error_code = _IAM_V4_ERROR_BY_LEGACY_CODE.get(legacy_code, (500, "INTERNAL"))
+        message = payload.get("message") or "internal server error"
+        if status == 500:
+            message = "internal server error"
+        return _iam_v4_response(
+            {"error": {"code": error_code, "message": message}},
+            status=status,
+            request_id=request_id,
+        )
+
+    @classmethod
+    def _normalize_page(cls, data: dict) -> dict:
+        """将文档中的 page/page_size 分页格式转换为 SDK 使用的 limit/offset 格式。"""
+        page = data.get("page")
+        if not isinstance(page, dict) or "limit" in page or "offset" in page:
+            return data
+        if "page" not in page and "page_size" not in page:
+            return data
+
+        page_number = cls._parse_page_integer(page.get("page"), field="page")
+        page_size = cls._parse_page_integer(page.get("page_size"), field="page_size")
+        if page_number <= 0:
+            raise InvalidPageException("page.page must be an integer greater than 0")
+        if page_size <= 0:
+            raise InvalidPageException("page.page_size must be an integer greater than 0")
+
+        normalized = dict(data)
+        normalized["page"] = {
+            "limit": page_size,
+            "offset": (page_number - 1) * page_size,
+        }
+        return normalized
 
     @staticmethod
     def _parse_page_integer(value, *, field: str) -> int:
@@ -67,22 +138,27 @@ class V4ResourceApiDispatcher(ResourceApiDispatcher):
             raise InvalidPageException("page.offset must be an integer greater than or equal to 0")
 
     def _dispatch_list_attr_value(self, request, data, request_id):
+        data = self._normalize_page(data)
         self._validate_page(data)
         return super()._dispatch_list_attr_value(request, data, request_id)
 
     def _dispatch_list_instance(self, request, data, request_id):
+        data = self._normalize_page(data)
         self._validate_page(data)
         return super()._dispatch_list_instance(request, data, request_id)
 
     def _dispatch_list_instance_by_policy(self, request, data, request_id):
+        data = self._normalize_page(data)
         self._validate_page(data)
         return super()._dispatch_list_instance_by_policy(request, data, request_id)
 
     def _dispatch_search_instance(self, request, data, request_id):
+        data = self._normalize_page(data)
         self._validate_page(data)
         return super()._dispatch_search_instance(request, data, request_id)
 
     def _dispatch_fetch_instance_list(self, request, data, request_id):
+        data = self._normalize_page(data)
         self._validate_page(data)
         return super()._dispatch_fetch_instance_list(request, data, request_id)
 
