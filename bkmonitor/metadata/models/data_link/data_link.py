@@ -85,10 +85,10 @@ DATABUS_MONITOR_METRIC_STRATEGIES = {
     "bcs_federal_proxy_time_series",
     "bcs_federal_subset_time_series",
     "basereport_time_series_v1",
-    "graph_relation_time_series",
     "system_proc_perf",
     "system_proc_port",
 }
+DATABUS_MONITOR_GRAPH_STRATEGIES = {"graph_relation_time_series"}
 DATABUS_MONITOR_EVENT_STRATEGIES = {"bk_standard_v2_event", "base_event_v1"}
 DATABUS_MONITOR_LOG_STRATEGIES = {"bk_log"}
 DATABUS_MONITOR_K8S_STRATEGIES = {
@@ -159,6 +159,9 @@ def _resolve_databus_monitor_space_type(table: "ResultTable | None", data_source
 
 def _resolve_databus_monitor_data_type(strategy: str, data_source: "DataSource") -> str:
     """推导 Databus 承载的数据类型。"""
+
+    if strategy in DATABUS_MONITOR_GRAPH_STRATEGIES:
+        return "graph"
 
     source_label = getattr(data_source, "source_label", "") or ""
     type_label = getattr(data_source, "type_label", "") or ""
@@ -234,6 +237,8 @@ def _resolve_databus_monitor_data_scene(
     table_label = getattr(table, "label", "") if table is not None else ""
     data_label = getattr(table, "data_label", "") if table is not None else ""
 
+    if strategy in DATABUS_MONITOR_GRAPH_STRATEGIES:
+        return "relation"
     if source_label == DataSourceLabel.BK_APM or table_label == "apm":
         return "apm"
     if (

@@ -235,6 +235,31 @@ def test_compose_databus_monitor_labels_falls_back_to_other():
     }
 
 
+def test_compose_databus_monitor_labels_classifies_graph_relation_by_strategy():
+    table = SimpleNamespace(
+        bk_biz_id=2,
+        label="others",
+        data_label="",
+        is_builtin=True,
+        is_custom_table=False,
+    )
+    data_source = SimpleNamespace(
+        bk_data_id=50010,
+        space_uid="bkcc__2",
+        space_type_id="bkcc",
+        source_label="bk_monitor",
+        type_label="time_series",
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+    )
+
+    assert compose_databus_monitor_labels(DataLink.GRAPH_RELATION_TIME_SERIES, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "relation",
+        "bk-monitor/data-type": "graph",
+    }
+
+
 @pytest.mark.parametrize(
     ("strategy", "source_label", "type_label", "etl_config", "expected_scene", "expected_type"),
     [

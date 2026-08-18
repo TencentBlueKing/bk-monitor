@@ -238,8 +238,8 @@ def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_
     expected_labels = {
         "bk_biz_id": "2",
         "bk-monitor/space-type": "bkcc",
-        "bk-monitor/data-scene": "custom",
-        "bk-monitor/data-type": "metric",
+        "bk-monitor/data-scene": "relation",
+        "bk-monitor/data-type": "graph",
     }
     assert all(databus["metadata"]["labels"] == expected_labels for databus in databuses)
     assert all(
