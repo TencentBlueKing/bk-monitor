@@ -39,6 +39,7 @@ from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CleanTemplate, CollectorConfig
+from apps.log_databus.serializers import CollectorEtlFieldsSerializer, CollectorEtlParamsSerializer
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
@@ -67,16 +68,18 @@ class TransferEtlHandler(EtlHandler):
         if clean_template is None:
             return clean_template, etl_config, etl_params, fields
 
-        # 兼容模板脏数据
-        etl_fields = copy.deepcopy(clean_template.etl_fields or [])
-        for field in etl_fields:
-            field.setdefault("is_dimension", not field.get("is_analyzed", False))
+        etl_params_serializer = CollectorEtlParamsSerializer(data=copy.deepcopy(clean_template.etl_params or {}))
+        etl_params_serializer.is_valid(raise_exception=True)
+        etl_fields_serializer = CollectorEtlFieldsSerializer(
+            data=copy.deepcopy(clean_template.etl_fields or []), many=True
+        )
+        etl_fields_serializer.is_valid(raise_exception=True)
 
         return (
             clean_template,
             clean_template.clean_type,
-            copy.deepcopy(clean_template.etl_params or {}),
-            etl_fields,
+            etl_params_serializer.validated_data,
+            etl_fields_serializer.validated_data,
         )
 
     def _update_clean_template(self, clean_template):

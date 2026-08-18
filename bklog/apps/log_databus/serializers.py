@@ -873,10 +873,10 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
 
 class CollectorMetadataSerializer(serializers.Serializer):
     field_name = serializers.CharField(label=_("字段名"), required=True)
-    value = serializers.CharField(label=_("字段的值"), required=True, allow_null=True, allow_blank=True)
+    value = serializers.CharField(label=_("字段的值"), required=False, allow_null=True, allow_blank=True)
     metadata_type = serializers.ChoiceField(
         label=_("元数据类型"),
-        required=True,
+        required=False,
         choices=MetadataTypeEnum.get_choices(),
     )
 

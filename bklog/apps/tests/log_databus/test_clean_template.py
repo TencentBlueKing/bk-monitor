@@ -63,10 +63,11 @@ CREATE_PARAMS = {
             "alias_name": "",
             "field_type": "long",
             "description": "字段描述",
-            "is_analyzed": True,
+            "is_analyzed": False,
             "is_dimension": True,
             "is_time": True,
             "is_delete": False,
+            "option": {"time_zone": 8, "time_format": "epoch_millis"},
         }
     ],
     "bk_biz_id": 706,
@@ -904,6 +905,22 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
             "etl_params": {"request": "params"},
             "fields": [{"field_name": "request_field"}],
         }
+        serialized_template_etl_params = {
+            "retain_original_text": True,
+            "original_text_is_case_sensitive": False,
+            "original_text_tokenize_on_chars": "",
+            "retain_extra_json": False,
+            "enable_retain_content": True,
+            "record_parse_failure": True,
+        }
+        serialized_template_fields = [
+            {
+                **CREATE_PARAMS["etl_fields"][0],
+                "tokenize_on_chars": "",
+                "is_built_in": False,
+                "is_case_sensitive": False,
+            }
+        ]
         cases = (
             ("specified", None, True, template["clean_template_id"], "bk_log_json", template["clean_template_id"]),
             (
@@ -960,11 +977,11 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
                     update_params = etl_storage.update_or_create_result_table.call_args.kwargs
                     self.assertEqual(
                         update_params["etl_params"],
-                        {"retain_original_text": True} if expected_id else request_config["etl_params"],
+                        serialized_template_etl_params if expected_id else request_config["etl_params"],
                     )
                     self.assertEqual(
                         update_params["fields"],
-                        CREATE_PARAMS["etl_fields"] if expected_id else request_config["fields"],
+                        serialized_template_fields if expected_id else request_config["fields"],
                     )
                     collector.refresh_from_db()
                     self.assertEqual(collector.clean_template_id, expected_id)
