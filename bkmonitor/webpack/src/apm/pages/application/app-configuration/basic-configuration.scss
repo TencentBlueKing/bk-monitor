@@ -117,6 +117,14 @@
       }
     }
 
+    .owners-user-selector.monitor-user-selector-v2 {
+      width: 470px;
+
+      .bk-user-selector {
+        height: unset;
+      }
+    }
+
     .bk-form-item {
       &:nth-last-of-type(-n + 2) {
         margin-bottom: 0px;
