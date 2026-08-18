@@ -613,6 +613,63 @@ class UpdateCustomReportResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class FastCreateLogCollectorResource(LogSearchAPIGWResource):
+    """快速创建 Linux、Windows 或容器日志采集项。"""
+
+    action = "/databus_collectors/fast_create/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        environment = serializers.ChoiceField(
+            required=True,
+            choices=["linux", "windows", "container"],
+            label="采集环境",
+        )
+        collector_config_name = serializers.CharField(required=True, max_length=50, label="采集项名称")
+        collector_config_name_en = serializers.CharField(
+            required=True,
+            min_length=5,
+            max_length=50,
+            label="采集项英文名",
+        )
+        collector_scenario_id = serializers.CharField(required=True, label="日志类型")
+        category_id = serializers.CharField(required=False, label="分类ID")
+        description = serializers.CharField(
+            required=False,
+            allow_blank=True,
+            allow_null=True,
+            max_length=100,
+            label="描述",
+        )
+        target_object_type = serializers.CharField(required=False, label="主机目标类型")
+        target_node_type = serializers.CharField(required=False, label="主机节点类型")
+        target_nodes = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            label="主机目标节点",
+        )
+        params = serializers.DictField(required=False, label="主机采集参数")
+        data_encoding = serializers.CharField(required=False, label="日志字符集")
+        bcs_cluster_id = serializers.CharField(required=False, label="BCS集群ID")
+        configs = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            allow_empty=False,
+            label="容器日志配置",
+        )
+        add_pod_label = serializers.BooleanField(required=False, label="是否添加Pod标签")
+        add_pod_annotation = serializers.BooleanField(required=False, label="是否添加Pod注解")
+        extra_labels = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            label="额外标签",
+        )
+        yaml_config_enabled = serializers.BooleanField(required=False, label="是否使用YAML配置")
+        yaml_config = serializers.CharField(required=False, allow_blank=True, label="YAML配置内容")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+
 class StartCollectorsResource(LogSearchAPIGWResource):
     """
     开启自定义上报

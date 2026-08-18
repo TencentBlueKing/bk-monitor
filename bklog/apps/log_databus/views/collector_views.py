@@ -117,17 +117,17 @@ class CollectorViewSet(ModelViewSet):
         with ignored(Exception, log_exception=True):
             auth_info = Permission.get_auth_info(self.request)
             # ESQUERY白名单不需要鉴权
-            enforce_permission = str(self.request.query_params.get("enforce_permission", "")).lower() in {
-                "1",
-                "true",
-                "yes",
-            }
+            query_params = getattr(self.request, "query_params", {})
+            request_data = getattr(self.request, "data", {})
+            enforce_permission = str(
+                query_params.get("enforce_permission") or request_data.get("enforce_permission") or ""
+            ).lower() in {"1", "true", "yes"}
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST and not enforce_permission:
                 return []
 
         if self.action in ["list_scenarios", "batch_subscription_status", "search_object_attribute"]:
             return []
-        if self.action in ["create", "only_create", "custom_create"]:
+        if self.action in ["create", "only_create", "custom_create", "fast_create"]:
             return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
         if self.action == "task_status":
             read_only = str(self.request.query_params.get("read_only", "true")).lower() in {"1", "true", "yes"}

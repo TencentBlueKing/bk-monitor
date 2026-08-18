@@ -230,6 +230,41 @@ def test_promql_query_config_apigw_contract():
         assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 
+def test_log_collection_create_mcp_contract():
+    """采集创建 MCP 只提供 Fast Create，并显式锁定写操作、权限和默认基础设施选择。"""
+    create_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_create_mcp.yaml"
+    paths = _load_paths(create_mcp_file)
+
+    assert set(paths) == {"/mcp/fast_create_log_collector/"}
+    method_data = paths["/mcp/fast_create_log_collector/"]["post"]
+    assert method_data["operationId"] == "fast_create_log_collector"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["environment"]["enum"] == ["linux", "windows", "container"]
+    assert schema["properties"]["confirm"]["enum"] == [True]
+    assert "storage_cluster_id" not in schema["properties"]
+    assert "data_link_id" not in schema["properties"]
+    assert "bk_username" not in schema["properties"]
+    assert schema["properties"]["target_nodes"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["properties"]["params"]["additionalProperties"] is False
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_create/fast_create/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
 def test_result_table_storage_status_apigw_contract():
     """结果表存储状态接口必须保持内部应用态注册，并提供对应中文文档。"""
     method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_result_table_storage_status/"]["get"]
