@@ -1325,7 +1325,6 @@ export default class BasicInfo extends tsc<IProps> {
                   required
                 >
                   <UserSelector
-                    style='width: 470px'
                     class='owners-user-selector'
                     userIds={this.formData.owners}
                     onChange={(val: string[]) => {
