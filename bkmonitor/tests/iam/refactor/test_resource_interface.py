@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 # 测试目标：
 #   1. ResourceEnum 成员 / .id / .name 与旧版一致（接口稳定性）
 #   2. create_* 系列返回 ResourceInstance（type+id），可被新版鉴权路径消费
-#   3. V3ResourceResolver 补全 name / ancestor_chain，与旧版 create_instance
+#   3. MonitorResourceResolver 补全 name / ancestor_chain，与旧版 create_instance
 #      的 DB 查询语义一致（鉴权路径一致性的资源侧前提）
 #   4. 旧版接口移除项（system_id / parent_resource / get_resource_by_id /
 #      batch_get_display_names / batch_get_parent / to_json）显式记录
@@ -82,7 +82,7 @@ class TestCreateInstance:
     def test_attribute_param_is_now_ignored(self):
         """已知行为差异：旧版 create_simple_instance 会把 attribute 写进
         iam.Resource.attribute（含 bk_biz_id / name / _bk_iam_path_）；
-        新版返回裸 ResourceInstance，属性由 V3ResourceResolver 在鉴权时补全。
+        新版返回裸 ResourceInstance，属性由 MonitorResourceResolver 在鉴权时补全。
         """
         r = ApmApplication.create_simple_instance("app-1", {"bk_biz_id": "2"})
         assert r.attributes == {}
@@ -115,13 +115,13 @@ class TestRemovedInterfaces:
         assert not hasattr(GrafanaDashboard, "batch_get_parent")
 
 
-class TestV3ResourceResolver:
-    """V3ResourceResolver 补全行为与旧版 create_instance 的 DB 查询语义一致。"""
+class TestMonitorResourceResolver:
+    """MonitorResourceResolver 补全行为与旧版 create_instance 的 DB 查询语义一致。"""
 
     def _resolver(self):
-        from bkmonitor.iam.adapters.v3.resolver import V3ResourceResolver
+        from bkmonitor.iam.adapters.resolver import MonitorResourceResolver
 
-        return V3ResourceResolver()
+        return MonitorResourceResolver()
 
     def test_resolve_unknown_type_passthrough(self):
         resolver = self._resolver()
@@ -137,7 +137,7 @@ class TestV3ResourceResolver:
         space.space_type_id = "bkcc"
         space.space_name = "蓝鲸"
         space_api.SpaceApi.get_space_detail.return_value = space
-        with patch("bkmonitor.iam.adapters.v3.resolver.space_api", space_api):
+        with patch("bkmonitor.iam.adapters.resolver.space_api", space_api):
             r = resolver.resolve(ResourceInstance(type="space", id="2"))
         assert r.type == "space"
         assert r.id == "2"
@@ -147,14 +147,14 @@ class TestV3ResourceResolver:
         resolver = self._resolver()
         space_api = MagicMock()
         space_api.SpaceApi.get_space_detail.side_effect = Exception("boom")
-        with patch("bkmonitor.iam.adapters.v3.resolver.space_api", space_api):
+        with patch("bkmonitor.iam.adapters.resolver.space_api", space_api):
             r = resolver.resolve(ResourceInstance(type="space", id="999"))
         assert r.name == "999"  # 查不到时退化为实例 ID（旧版同）
 
     def test_resolve_apm(self):
         resolver = self._resolver()
         with patch(
-            "bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver._get_apm_app_info",
+            "bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_apm_app_info",
             return_value={"application_id": "app-1", "app_name": "demo", "bk_biz_id": 2},
         ):
             r = resolver.resolve(ResourceInstance(type="apm_application", id="app-1"))
@@ -165,7 +165,7 @@ class TestV3ResourceResolver:
 
     def test_resolve_apm_missing(self):
         resolver = self._resolver()
-        with patch("bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver._get_apm_app_info", return_value=None):
+        with patch("bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_apm_app_info", return_value=None):
             r = resolver.resolve(ResourceInstance(type="apm_application", id="app-x"))
         assert r.name == ""
         assert r.ancestor_chain == ()
@@ -177,8 +177,8 @@ class TestV3ResourceResolver:
         dashboard.title = "大盘"
         dashboard.org_id = 1
         with (
-            patch("bkmonitor.iam.adapters.v3.resolver.Dashboard.objects.filter") as m_filter,
-            patch("bkmonitor.iam.adapters.v3.resolver.get_org_by_id", return_value={"name": "3"}),
+            patch("bkmonitor.iam.adapters.resolver.Dashboard.objects.filter") as m_filter,
+            patch("bkmonitor.iam.adapters.resolver.get_org_by_id", return_value={"name": "3"}),
         ):
             m_filter.return_value.only.return_value.first.return_value = dashboard
             r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="uid-1"))
@@ -189,7 +189,7 @@ class TestV3ResourceResolver:
     def test_resolve_rum(self):
         resolver = self._resolver()
         with patch(
-            "bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver._get_rum_app_info",
+            "bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_rum_app_info",
             return_value={"application_id": "rum-1", "app_name": "r", "bk_biz_id": 7},
         ):
             r = resolver.resolve(ResourceInstance(type="rum_application", id="rum-1"))
@@ -202,7 +202,7 @@ class TestSdkResourceParity:
 
     旧路径：Business.create_simple_instance(bk_biz_id) -> iam.Resource(
                 system=bk_monitorv3, type=space, id=bk_biz_id, attribute={id,name,...})
-    新路径：FwResource(type=space, id=bk_biz_id) -> V3ResourceResolver 补全
+    新路径：FwResource(type=space, id=bk_biz_id) -> MonitorResourceResolver 补全
                 -> V3Client.make_resource(type, id, ancestors=...) -> iam.Resource
     """
 

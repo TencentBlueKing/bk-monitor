@@ -13,6 +13,26 @@ import pytest
 from bk_dataview.models import Dashboard
 from monitor_web.grafana.permissions import DashboardPermission
 
+# Dashboard 在 bk_dataview 库、业务/空间映射在 monitor_api 库：
+# 模块级标记放开三个库的测试隔离（仅 db fixture 只放开 default，会触发
+# DatabaseOperationForbidden / Database access not allowed）
+pytestmark = pytest.mark.django_db(databases=["default", "bk_dataview", "monitor_api"])
+
+
+@pytest.fixture(scope="session", autouse=True)
+def create_grafana_tables(django_db_setup, django_db_blocker):
+    """bk_dataview 模型均为 managed=False（schema 由 grafana 外部维护），
+    测试库不会自动建表；按需在 bk_dataview 测试库中建 dashboard 表。"""
+    from django.db import connections
+
+    with django_db_blocker.unblock():
+        conn = connections["bk_dataview"]
+        with conn.cursor() as cur:
+            cur.execute("SHOW TABLES LIKE 'dashboard'")
+            if not cur.fetchone():
+                with conn.schema_editor() as schema_editor:
+                    schema_editor.create_model(Dashboard)
+
 
 @pytest.fixture
 def org_id():
@@ -36,6 +56,7 @@ def sample_folders(db, org_id):
             title=f"测试文件夹{i}",
             is_folder=True,
             folder_id=0,
+            version=1,  # version 无模型默认值且 NOT NULL，必须显式提供
         )
         for i in range(1, 4)
     ]
@@ -54,6 +75,7 @@ def sample_dashboards(db, org_id, sample_folders):
                 title=f"仪表盘{folder.id}_{j}",
                 is_folder=False,
                 folder_id=folder.id,
+                version=1,  # version 无模型默认值且 NOT NULL，必须显式提供
             )
             dashboards.append(dashboard)
     return dashboards

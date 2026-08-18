@@ -575,8 +575,13 @@ class TestDrfPreflight:
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             assert perm.has_permission(request, view=None) is True
 
-    def test_token_no_record_bypass(self, fake_framework):
-        """token 存在但记录不存在：generator 恒真 → 放行（与旧版 is_allowed 逐字一致）。"""
+    def test_token_no_record_denied(self, fake_framework):
+        """token 存在但记录不存在：不豁免 → 走真实鉴权 → 拒绝。
+
+        旧版此处存在生成器表达式恒真 bug（任何带 token 的请求直接放行），
+        check_iam_preflight 已用 any(...) 显式求值修复（见 permission.py 注释）：
+        记录不存在且非 view_business / ActionIdMap / api_paths 命中时不再豁免。
+        """
         from bkmonitor.models import ApiAuthToken
 
         fw, provider = fake_framework
@@ -586,7 +591,10 @@ class TestDrfPreflight:
         request.path = "/whatever/"
         with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
-            assert perm.has_permission(request, view=None) is True
+            with pytest.raises(PermissionDeniedError):
+                perm.has_permission(request, view=None)
+        # 前置豁免未放行，框架被真实调用（is_allowed 返回 False → 拒绝）
+        assert len(provider.is_allowed_calls) == 1
 
     def test_token_action_id_map_hit(self, fake_framework):
         """token 记录存在且 ActionIdMap 命中 → 放行（不调框架）。"""

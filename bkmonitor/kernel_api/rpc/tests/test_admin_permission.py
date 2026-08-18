@@ -646,7 +646,7 @@ class TestQueryUserPermissions:
             ],
             # all global
             "manage_global_setting": [_expr_any()],
-            # error global
+            # none global（expr=None → 无权限，非查询失败）
             "view_self_state": [None],
             # V1+V2 merge — both any
             "manage_public_plugin": [
@@ -698,10 +698,10 @@ class TestQueryUserPermissions:
         assert plugin["grant_type"] == "none"
         assert plugin["permissions"] == []
 
-        # error → note
+        # none（expr 为 None 时兜底为无权限；error 仅由 failed_action_ids 查询失败产生）
         state = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("view_self_state"))
-        assert state["grant_type"] == "error"
-        assert state["note"] == "IAM 查询失败"
+        assert state["grant_type"] == "none"
+        assert state["permissions"] == []
 
         # global all
         setting = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("manage_global_setting"))

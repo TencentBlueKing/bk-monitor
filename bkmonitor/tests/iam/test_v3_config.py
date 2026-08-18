@@ -56,7 +56,8 @@ class TestV3SystemInfo:
         assert s.id == "bk_monitorv3"
         assert s.name == "监控平台"
         assert s.description == ""
-        assert s.managers == ()
+        # 平台 system 模型无 managers 字段（见 V3SystemInfo 契约注释），配置中不提供
+        assert not hasattr(s, "managers")
         assert s.clients == ()
 
     def test_from_dict_full(self):
@@ -69,7 +70,8 @@ class TestV3SystemInfo:
         }
         s = V3SystemInfo.from_dict(raw)
         assert s.description == "蓝鲸监控 V3"
-        assert s.managers == ("admin",)
+        # managers 不在配置契约中，多余字段被忽略
+        assert not hasattr(s, "managers")
         assert s.clients == ("bk_monitor", "bk_log")
 
     def test_missing_id(self):
@@ -118,7 +120,7 @@ class TestV3Options:
             "system": {"id": "x", "name": "y"},
         }
         opts = V3Options.from_dict(raw)
-        assert opts.bk_tenant_id == ""
+        assert opts.bk_tenant_id == "system"
         assert opts.timeout == 30
         assert opts.chunk_size == 20
         assert opts.max_workers == 1

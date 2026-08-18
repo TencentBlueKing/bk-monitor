@@ -390,8 +390,9 @@ class TestV3ProviderDialectMethods:
                 ),
             ],
         )
-        # mock 迁移执行用的 do_migrate Client，避免真实网络调用
-        with patch("iam.contrib.iam_migration.utils.do_migrate.Client") as mock_client_cls:
+        # mock 迁移执行用的 IamMigrateClient（migrator 模块内以该名字引用；
+        # patch 源模块属性不会影响 migrator 已绑定的引用），避免真实网络调用
+        with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as mock_client_cls:
             mock_migration_client = MagicMock()
             mock_migration_client.add_system.return_value = (True, "")
             mock_client_cls.return_value = mock_migration_client

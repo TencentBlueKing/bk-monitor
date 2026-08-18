@@ -211,7 +211,6 @@ class Permission:
 
         仅限 v3 平台集成点使用：
           * IAM v3 平台反向回调端点（ResourceApiDispatcher，平台调我们）
-          * V1 遗留数据的迁移/清理历史工具（migrate.py / iam_upgrade_action_v2 / iam_delete_action_v1）
 
         非 provider 中立鉴权入口——业务鉴权一律走框架（is_allowed /
         filter_visible_resources 等），禁止新增调用方。
