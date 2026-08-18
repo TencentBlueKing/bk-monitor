@@ -39,6 +39,8 @@ const hostStoreStub = {
   refreshImmediate,
   timeRange,
 };
+const CommonDetailStub = { name: 'CommonDetailStub' };
+const EmptyStatusStub = { name: 'EmptyStatusStub' };
 
 let randomSequence = 0;
 let detailRequests = [];
@@ -64,6 +66,12 @@ Module._load = function load(request, parent, isMain) {
   }
   if (request === 'vue' && filename.endsWith('/components/host-metric/host-metric.tsx')) {
     return { ...vue, onMounted: () => {}, provide: (key, value) => provided.set(key, value) };
+  }
+  if (request === 'vue' && filename.endsWith('/composables/use-host-detail.ts')) {
+    return { ...vue, provide: (key, value) => provided.set(key, value) };
+  }
+  if (request === 'vue' && filename.endsWith('/components/host-detail-view/host-detail-view.tsx')) {
+    return { ...vue, inject: key => provided.get(key) };
   }
   if (request === 'vue') {
     return vue;
@@ -107,6 +115,18 @@ Module._load = function load(request, parent, isMain) {
   }
   if (request === 'vue-i18n') {
     return { useI18n: () => ({ t: value => value }) };
+  }
+  if (
+    filename.endsWith('/components/host-detail-view/host-detail-view.tsx') &&
+    request === '../../../../components/common-detail/host-detail-view'
+  ) {
+    return { __esModule: true, default: CommonDetailStub };
+  }
+  if (
+    filename.endsWith('/components/host-detail-view/host-detail-view.tsx') &&
+    request === '../../../../components/empty-status/empty-status'
+  ) {
+    return { __esModule: true, default: EmptyStatusStub };
   }
   if (request === '../../services/global-service' && filename.endsWith('/components/alarm-tools/index.tsx')) {
     return {
@@ -155,6 +175,7 @@ const { useHostStore } = require('../src/trace/store/modules/host.ts');
 const { useHostDetail } = require('../src/trace/pages/host/composables/use-host-detail.ts');
 const AlarmTools = require('../src/trace/pages/host/components/alarm-tools/index.tsx').default;
 const HostMetric = require('../src/trace/pages/host/components/host-metric/host-metric.tsx').default;
+const HostDetailView = require('../src/trace/pages/host/components/host-detail-view/host-detail-view.tsx').default;
 Module._load = originalLoad;
 
 const hostNode = id => ({
@@ -179,6 +200,30 @@ const collectNumbers = vnode => {
   if (!vnode || typeof vnode !== 'object') return [];
   const children = Array.isArray(vnode.children) ? vnode.children : [];
   return children.flatMap(collectNumbers);
+};
+
+const renderHostDetail = overrides => {
+  const setupState = HostDetailView.setup();
+  return HostDetailView.render.call({
+    data: [],
+    loading: false,
+    readonly: false,
+    width: 320,
+    ...setupState,
+    detailError: setupState.detailError.value,
+    ...overrides,
+  });
+};
+
+const findVNodeByStatusType = (vnode, statusType) => {
+  if (!vnode || typeof vnode !== 'object') return null;
+  if (vnode.props?.type === statusType) return vnode;
+  const children = Array.isArray(vnode.children) ? vnode.children : [];
+  for (const child of children) {
+    const match = findVNodeByStatusType(child, statusType);
+    if (match) return match;
+  }
+  return null;
 };
 
 test('立即刷新与自动刷新推进同一个刷新代次', async () => {
@@ -246,6 +291,68 @@ test('旧主机详情请求不能覆盖新节点', async t => {
   detailRequests[0].resolve([{ label: 'node', type: 'text', value: 'old' }]);
   await flushPromises();
   assert.equal(detail.detailData.value[0].value, 'new');
+});
+
+test('主机详情成功返回空数组时保持普通空态', async t => {
+  detailRequests = [];
+  refreshGeneration.value = 0;
+  const selectedNode = vue.shallowRef(hostNode(1));
+  const scope = vue.effectScope();
+  t.after(() => scope.stop());
+  const detail = scope.run(() => useHostDetail(selectedNode));
+
+  detailRequests[0].resolve([]);
+  await flushPromises();
+
+  assert.deepEqual(detail.detailData.value, []);
+  assert.equal(detail.error.value, false);
+  const emptyStatus = findVNodeByStatusType(renderHostDetail(), 'empty');
+  assert.equal(emptyStatus.props.type, 'empty');
+  assert.equal(emptyStatus.props.showOperation, false);
+});
+
+test('主机详情请求失败时展示500且重试可恢复', async t => {
+  detailRequests = [];
+  refreshGeneration.value = 0;
+  const selectedNode = vue.shallowRef(hostNode(1));
+  const scope = vue.effectScope();
+  t.after(() => scope.stop());
+  const detail = scope.run(() => useHostDetail(selectedNode));
+
+  detailRequests[0].reject(new Error('request failed'));
+  await flushPromises();
+
+  assert.equal(detail.error.value, true);
+  const errorStatus = findVNodeByStatusType(renderHostDetail(), '500');
+  assert.equal(errorStatus.props.type, '500');
+  errorStatus.props.onOperation('refresh');
+  assert.equal(detailRequests.length, 2);
+  assert.equal(detail.loading.value, true);
+  assert.equal(detail.error.value, false);
+
+  detailRequests[1].resolve([{ label: 'node', type: 'text', value: 'recovered' }]);
+  await flushPromises();
+  assert.equal(detail.detailData.value[0].value, 'recovered');
+  assert.equal(detail.error.value, false);
+});
+
+test('旧主机详情失败不能覆盖新节点成功状态', async t => {
+  detailRequests = [];
+  refreshGeneration.value = 0;
+  const selectedNode = vue.shallowRef(hostNode(1));
+  const scope = vue.effectScope();
+  t.after(() => scope.stop());
+  const detail = scope.run(() => useHostDetail(selectedNode));
+
+  selectedNode.value = hostNode(2);
+  await vue.nextTick();
+  detailRequests[1].resolve([{ label: 'node', type: 'text', value: 'new' }]);
+  await flushPromises();
+  detailRequests[0].reject(new Error('stale request failed'));
+  await flushPromises();
+
+  assert.equal(detail.detailData.value[0].value, 'new');
+  assert.equal(detail.error.value, false);
 });
 
 test('告警计数随刷新代次请求且旧节点结果不能回写', async t => {

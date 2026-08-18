@@ -312,9 +312,11 @@ class Permission:
             # 业务查看权限校验/操作对应类型action/graph_unify_query跳过，在auth中间件中已校验
             if (
                 action_id == ActionEnum.VIEW_BUSINESS.id
-                or (record and action in ActionIdMap[record.type])
-                or path in self.request.path
-                for path in api_paths
+                or (
+                    record
+                    and any(action_id == allowed_action.id for allowed_action in ActionIdMap.get(record.type, []))
+                )
+                or any(path in self.request.path for path in api_paths)
             ):
                 return True
 

@@ -40,11 +40,13 @@ import {
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { random } from 'monitor-common/utils';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
 import { useAppReadonlyInject } from '../../../../provider';
 import { resolveGraphPanel } from '../variables/resolve';
+import EmptyStatus from '@/components/empty-status/empty-status';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
@@ -182,7 +184,7 @@ export default defineComponent({
       return props.downSampleRange;
     };
 
-    const { options, loading, metricList, targets, series, chartId } = useEcharts({
+    const { options, loadError, loading, metricList, targets, series, chartId, getEchartOptions } = useEcharts({
       panel: resolvedPanel,
       chartRef: chartMainRef,
       $api: instance.appContext.config.globalProperties.$api,
@@ -198,6 +200,11 @@ export default defineComponent({
       customOptions: props.customOptions,
       downSampleRangeComputed: props.downSampleRange ? downSampleRangeComputed : undefined,
     });
+
+    const handleRetry = async () => {
+      options.value = await getEchartOptions();
+      chartId.value = random(8);
+    };
 
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -234,6 +241,7 @@ export default defineComponent({
       showRestore,
       instance,
       options,
+      loadError,
       loading,
       metricList,
       legendData,
@@ -248,6 +256,7 @@ export default defineComponent({
       handleDataZoom,
       handleMouseInChange,
       handleRestore,
+      handleRetry,
     };
   },
   render() {
@@ -299,6 +308,11 @@ export default defineComponent({
         />
         {this.loading ? (
           <ChartSkeleton />
+        ) : this.loadError ? (
+          <EmptyStatus
+            type='500'
+            onOperation={this.handleRetry}
+          />
         ) : this.options ? (
           this.isShowStatistics ? (
             <ResizeLayout

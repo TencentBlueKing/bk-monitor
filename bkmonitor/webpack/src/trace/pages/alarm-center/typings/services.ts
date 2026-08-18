@@ -221,6 +221,8 @@ export type AlertTableItem = {
   ipv6: null | string;
   is_ack: boolean | null;
   is_blocked: boolean;
+  /** 是否为最新排障记录中新增的告警（故障场景） */
+  is_current_primary?: boolean;
   is_handled: boolean;
   is_shielded: boolean;
   items: AlertContentItem[];

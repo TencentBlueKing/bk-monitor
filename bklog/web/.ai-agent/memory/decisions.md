@@ -2,6 +2,28 @@
 
 Record durable decisions, alternatives, tradeoffs and consequences here.
 
+## 2026-08-17 UI 检索栏保留 custom-placeholder，空内容不占 flex
+
+- 背景：条件 tag 较多时，`ui-input.vue` 输入框后的空 `<li class="search-item">` 被 `flex-wrap` 挤到第二行，检索栏被撑高。
+- 根因：`custom-placeholder` 宿主套了 `.search-item`（40px 高 + padding + 空输入时 94px margin）。独立使用 search-bar 时常不填充该 slot，但空元素仍参与换行。slot 本身是历史扩展点，不能删。
+- 决策：保留 UI/SQL 的 `custom-placeholder` 及 search-bar 透传；用 DOM 是否有可渲染子节点（忽略 comment/空白）判断空态，空则 `display: none` 且不施加 `margin-left`。有自定义内容时必须保留按 `blueking_language` + `aiSpanPadding` 计算的 `paddingLeft`（en=126px / zh-cn=94px，输入非空为 0px），以 `margin-left` 给输入提示让位。输入提示继续用 `is-focus-input::after`。
+- 约束：不要用 `$slots` 有无代替内容判断（透传空 slot 也会有函数）；不要用 CSS `:empty`（Vue 2 comment 会使 :empty 失效）；不要删除 language → `paddingLeft` 计算，否则自定义 placeholder 会与输入提示重叠。
+
+## 2026-08-17 setQueryCondition addition.value 必须是数组
+
+- 背景：日志聚类 ContentTable 点击数量/占比（`handleMenuBatchClick`）走 `setQueryCondition` 时报 `Cannot read properties of undefined (reading '0')`。
+- 根因：`getAdditionMappingOperator` 无条件用 `value[0]` 构造 `boolMapping`；聚类下钻把 `value` 传成字符串或 `undefined`（`row.group[index]` / `row.signature.toString()`），与 addition 契约不一致。
+- 决策：`setQueryConditionAction` 入口用 `normalizeAdditionValue` 把标量/`null`/`undefined` 收成数组；`boolMapping` 仅在 `field_type === 'boolean'` 时按 `value?.[0]` 懒构建。调用方（v3 ContentTable / pattern-analysis-slider、v2 data-fingerprint）下钻条件一律传 `value: [x]`。
+- 约束：不要再在 operator 映射里对未归一化的 `value[0]` 做 eager 读取；同文件 SQL 路径已按「数组取首项、否则当标量」处理，保持兼容。
+- 入口：`src/store/actions/query-condition-actions.js`；调用方 `content-table/index.tsx`、`pattern-analysis-slider/index.tsx`、`data-fingerprint.vue`。
+
+## 2026-08-17 独立新开检索页不得继承嵌入布局 query
+
+- 背景：监控「数据探索 → 日志聚类」点击签名 `window.open` 新开页缺少 HeadNav。`app.tsx` 用 `query.from === 'monitor'` / `query.hl === '1'` 隐藏导航；`getConditionRouterParams` 从当前 `route.query` 展开 `...reset` 把布局参数带进独立页。
+- 决策（更新）：监控嵌入（`__IS_MONITOR_COMPONENT__` 或 `from=monitor` iframe）新开 Tab 必须落在监控 `{top.origin}/?bizId=#/log-retrieval?...&from=monitor`，不要用日志平台 `/retrieve`，也不要再用 `monitorLink` 的 APM/Trace 路由。独立 bklog 仍走 `$router.resolve` 并剔除 `from`/`hl`。
+- 入口：`src/common/embed-layout-query.js` 的 `buildMonitorLogRetrievalUrl` / `isMonitorEmbedContext`；v2 `panel-util.js`、v3 `content-table/utils.ts`。
+- 约束：host 优先 `window.top.location`（跨域失败回退 `MONITOR_URL`）；hash 同步当前 query，并强制 `from=monitor`、`indexId`、`bizId`、`spaceUid`、`pid`。
+
 ## 2026-05-21 retrieve-v2 字段设置收起态吸顶
 
 - 背景：`field-filter.vue` 收起态入口在纵向滚动后定位不正确，原因是按钮模板内联 `position: absolute; top: 64px; transform: translate(-50%, -50%)` 覆盖样式，同时外层 `.field-list-sticky` 仅在展开态 `.is-show` 时 sticky。

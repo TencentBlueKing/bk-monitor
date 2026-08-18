@@ -29,6 +29,7 @@ import { bkTooltips } from 'bkui-vue';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { initLogRetrieveWindowsFields } from 'monitor-ui/chart-plugins/utils/init-windows';
 
+import FailureViewChartEntry from '../../pages/failure/failure-view/components/failure-view-chart-entry';
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import FailureAlarmChart from '../charts/failure-chart/failure-alarm-chart';
@@ -57,6 +58,8 @@ export default defineComponent({
     needCheck: { type: Boolean, default: false },
     /** 是否显示告警视图图表 */
     isAlarmView: { type: Boolean, default: false },
+    /** 是否使用新版告警视图图表，目前仅告警视图 failure-view 传入 */
+    isNewAlarmView: { type: Boolean, default: false },
     groupId: { type: String, default: '' },
   },
   emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries', 'successLoad'],
@@ -136,6 +139,15 @@ export default defineComponent({
     };
 
     function handlePanel2Chart() {
+      if (props.isNewAlarmView) {
+        return (
+          <FailureViewChartEntry
+            detail={props.panel}
+            groupId={props.groupId}
+            onSuccessLoad={handleSuccessLoad}
+          />
+        );
+      }
       if (props.isAlarmView) {
         return (
           <FailureAlarmChart

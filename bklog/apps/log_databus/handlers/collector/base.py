@@ -95,7 +95,6 @@ from apps.log_databus.models import (
     DataLinkConfig,
 )
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
-from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.constants import (
     CollectorScenarioEnum,
@@ -112,7 +111,6 @@ from apps.log_search.models import (
     IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
-    Scenario,
     Space,
 )
 from apps.models import model_to_dict
@@ -1353,8 +1351,7 @@ class CollectorHandler:
             return []
         if not result_table_id:
             raise CollectNotSuccess
-        result = EsRoute(scenario_id=Scenario.LOG, indices=result_table_id).cat_indices()
-        return StorageHandler.sort_indices(result)
+        return StorageHandler.get_result_table_indices(result_table_id)
 
     def get_clean_stash(self):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
@@ -1874,9 +1871,7 @@ class CollectorHandler:
 
     @staticmethod
     def get_or_create_parent_index_set_ids_by_parent_index_set_names(
-        parent_index_set_names,
-        bk_biz_id: int | None = None,
-        space_uid: str | None = None
+        parent_index_set_names, bk_biz_id: int | None = None, space_uid: str | None = None
     ) -> list | None:
         if parent_index_set_names is None:
             return None
