@@ -12,6 +12,8 @@ import copy
 
 import pytest
 
+from django.db.utils import DataError
+
 from bkmonitor.models import (
     Action as ActionModel,
     ActionNoticeMapping,
@@ -19,6 +21,7 @@ from bkmonitor.models import (
     DetectModel,
     ItemModel,
     QueryConfigModel,
+    StrategyHistoryModel,
     StrategyModel,
     NoticeTemplate,
 )
@@ -428,6 +431,45 @@ class TestItem:
         query_config_obj = QueryConfigModel.objects.get(strategy_id=1, id=item.query_configs[0].id)
         assert query_config_obj.config["unit"] == "xxx"
 
+    def test_save_truncates_overlong_name(self, clean_model):
+        config = {
+            "id": 0,
+            "name": "name",
+            "expression": "a",
+            "origin_sql": "test",
+            "no_data_config": {},
+            "target": [[]],
+            "algorithms": [
+                {"id": 0, "type": "operate", "level": 1, "config": {"floor": 1, "ceil": 1}, "unit_prefix": "%"}
+            ],
+            "query_configs": [
+                {
+                    "data_source_label": "bk_monitor",
+                    "data_type_label": "time_series",
+                    "alias": "A",
+                    "id": 0,
+                    "result_table_id": "xxxx",
+                    "metric_field": "aaa",
+                    "unit": "xxx",
+                    "agg_method": "avg",
+                    "agg_condition": [],
+                    "agg_dimension": [],
+                    "agg_interval": 60,
+                }
+            ],
+        }
+        item = Item(strategy_id=1, **config)
+        item.save()
+
+        max_length = ItemModel._meta.get_field("name").max_length
+        item.name = "n" * (max_length + 21)
+        item.save()
+
+        item_obj = ItemModel.objects.get(id=item.id)
+        assert len(item_obj.name) == max_length
+        assert item_obj.name == "n" * max_length
+        assert item.name == item_obj.name
+
 
 class TestStrategy:
     Config = {
@@ -567,3 +609,39 @@ class TestStrategy:
         assert s1.to_dict() == strategies[0].to_dict()
         assert s2.to_dict() == strategies[1].to_dict()
         assert s3.to_dict() == strategies[2].to_dict()
+
+    def test_save_data_error_keeps_history_and_rolls_back(self, clean_model, monkeypatch):
+        strategy = Strategy(**copy.deepcopy(self.Config))
+        strategy.save()
+        strategy_id = strategy.id
+        original_name = StrategyModel.objects.get(id=strategy_id).name
+
+        def boom(self, *args, **kwargs):
+            raise DataError("Data too long for column 'name' at row 1")
+
+        monkeypatch.setattr(Item, "save", boom)
+        strategy.name = "updated-name"
+        with pytest.raises(DataError, match="Data too long"):
+            strategy.save()
+
+        assert StrategyModel.objects.get(id=strategy_id).name == original_name
+        failed = StrategyHistoryModel.objects.filter(strategy_id=strategy_id, status=False).order_by("-id").first()
+        assert failed is not None
+        assert "Data too long" in failed.message
+        assert "TransactionManagementError" not in failed.message
+
+    def test_save_create_failure_leaves_no_strategy(self, clean_model, monkeypatch):
+        def boom(self, *args, **kwargs):
+            raise DataError("Data too long for column 'name' at row 1")
+
+        monkeypatch.setattr(Item, "save", boom)
+        strategy = Strategy(**copy.deepcopy(self.Config))
+        with pytest.raises(DataError, match="Data too long"):
+            strategy.save()
+
+        assert StrategyModel.objects.count() == 0
+        history = StrategyHistoryModel.objects.filter(status=False).order_by("-id").first()
+        assert history is not None
+        assert history.strategy_id == 0
+        assert "Data too long" in history.message
+        assert "TransactionManagementError" not in history.message

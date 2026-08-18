@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { onExternalParams } from 'monitor-common/utils/iframe-bridge';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
@@ -122,6 +123,8 @@ export default class Application extends tsc<undefined> {
   ];
   dashboardId = '';
   isShowServiceAdd = false;
+  /** 取消订阅父页面参数联动 */
+  unsubscribeExternalParams: () => void = null;
   get pluginsList() {
     return applicationStore.pluginsListGetter || [];
   }
@@ -194,6 +197,49 @@ export default class Application extends tsc<undefined> {
     destroyTimezone();
     next();
   }
+  mounted() {
+    this.unsubscribeExternalParams = onExternalParams(this.handleExternalParams);
+  }
+  beforeDestroy() {
+    this.unsubscribeExternalParams?.();
+  }
+  /** 父页面下发应用参数时联动刷新，与当前应用一致则不重复刷新 */
+  handleExternalParams(params: Record<string, string>) {
+    const appName = params['filter-app_name'];
+    if (!appName || appName === this.appName) return;
+    this.applyAppName(appName);
+  }
+  /** 切换当前应用并刷新视图，导航栏选择与父页面联动共用 */
+  applyAppName(appName: string) {
+    this.appName = appName;
+    this.getServiceList();
+    const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
+    this.viewOptions = {
+      filters: {
+        app_name: appName,
+      },
+    };
+    this.$router.replace({
+      name: this.$route.name,
+      query: {
+        to,
+        from,
+        interval,
+        timezone,
+        refreshInterval,
+        dashboardId,
+        'filter-app_name': appName,
+      },
+    });
+    const [homeNav, appNav] = this.routeList;
+    if (homeNav && appNav) {
+      homeNav.query = { app_name: appName };
+      appNav.name = `${this.$tc('应用')}：${appName}`;
+      appNav.selectOption.value = appName;
+    }
+    this.pageKey += 1;
+    this.handleGetAppInfo();
+  }
   /** 切换时间范围重新请求以获取无数据状态 */
   handelTimeRangeChange() {
     this.handleGetAppInfo();
@@ -229,31 +275,7 @@ export default class Application extends tsc<undefined> {
   /** 导航栏下拉选择 */
   async handleNavSelect(item: ISelectItem, navId: string) {
     if (navId === 'application') {
-      this.appName = item.id;
-      this.getServiceList();
-      const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
-      this.viewOptions = {
-        filters: {
-          app_name: this.appName,
-        },
-      };
-      this.$router.replace({
-        name: this.$route.name,
-        query: {
-          to,
-          from,
-          interval,
-          timezone,
-          refreshInterval,
-          dashboardId,
-          'filter-app_name': this.appName,
-        },
-      });
-      this.routeList[0].query = { app_name: this.appName };
-      this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
-      this.routeList[1].selectOption.value = this.appName;
-      this.pageKey += 1;
-      this.handleGetAppInfo();
+      this.applyAppName(item.id);
     } else {
       const { dashboardId, to, from } = this.$route.query;
       this.$router.push({

@@ -584,7 +584,6 @@ class AuthenticationMiddleware(MiddlewareMixin):
         if not record.is_allowed_view(view):
             return HttpResponseForbidden("API Token is not allowed")
 
-        # TODO: 检查命名空间与租户id是否匹配
         if not record.is_allowed_namespace(f"biz#{request.biz_id}"):
             if not request.biz_id:
                 return HttpResponseForbidden("params `bk_biz_id` is required")
@@ -592,16 +591,17 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
             )
 
-        # grafana、as_code场景权限模式：替换请求用户为令牌创建者
-        if record.type.lower() in ["as_code", "grafana"]:
-            username = "system" if record.type.lower() == "as_code" else "admin"
-            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+        token_type = record.type.lower()
+        # grafana、as_code场景权限模式：使用当前租户的管理员用户
+        if token_type in ["as_code", "grafana"]:
+            username = get_admin_username(record.bk_tenant_id)
+            user = auth.authenticate(username=username, bk_tenant_id=record.bk_tenant_id)
             auth.login(request, user)
             request.skip_check = True
-        elif record.type.lower() == "entity":
+        elif token_type == "entity":
             # 实体关系权限模式：替换请求用户为令牌创建者
-            username = record.create_user or "system"
-            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            username = record.create_user or get_admin_username(record.bk_tenant_id)
+            user = auth.authenticate(username=username, bk_tenant_id=record.bk_tenant_id)
             auth.login(request, user)
             request.token = token
             request.skip_check = True

@@ -107,13 +107,18 @@ class CollectorViewSet(ModelViewSet):
     filter_fields_exclude = ["collector_config_overlay", "extra_labels"]
     model = CollectorConfig
     search_fields = ("collector_config_name", "table_id", "bk_biz_id")
-    ordering_fields = ("updated_at", "updated_by")
+    ordering_fields = ("updated_at", "updated_by", "collector_config_id")
 
     def get_permissions(self):
         with ignored(Exception, log_exception=True):
             auth_info = Permission.get_auth_info(self.request)
             # ESQUERY白名单不需要鉴权
-            if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
+            enforce_permission = str(self.request.query_params.get("enforce_permission", "")).lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+            if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST and not enforce_permission:
                 return []
 
         if self.action in ["list_scenarios", "batch_subscription_status", "search_object_attribute"]:

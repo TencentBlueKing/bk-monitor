@@ -41,21 +41,27 @@ from apps.utils.drf import GeneralSerializer
 from bkm_ipchooser.constants import TemplateType
 
 
-def is_file_path_legal(file_path):
+def check_file_path_legal(file_path):
+    """校验日志提取路径，不合法时抛出 ValidationError 并说明具体原因"""
     if not file_path.startswith(constants.ALLOWED_DIR_PREFIX):
-        return False
+        raise serializers.ValidationError(_("请指定正确的目录"))
 
-    # 不能包含 '//', 特殊字符('.'在后面处理，创建任务时可以包含'.'
+    # 不能包含 '//'
     if re.findall(r"//+", file_path):
-        return False
-    # 不能有 '/.' 或者 './'
-    if re.findall(r"/\.", file_path) or re.findall(r"\./", file_path):
-        return False
+        raise serializers.ValidationError(_("请指定正确的目录"))
+
+    segments = file_path.split("/")
+    # 按路径段判断，'/data/logs/..' 这类结尾形式没有后继斜杠，用正则容易漏拦
+    if any(segment in {".", ".."} for segment in segments):
+        raise serializers.ValidationError(_("目录不支持 '.' 与 '..' 相对路径"))
+    # 点开头的目录多用于存放凭证等敏感文件，不纳入日志提取范围
+    if any(segment.startswith(".") for segment in segments):
+        raise serializers.ValidationError(_("不支持以 '.' 开头的目录或文件"))
+
     # 正则匹配
     pattern = re.compile(rf"^[{settings.EXTRACT_FILE_PATTERN_CHARACTERS}]+$")
     if not pattern.match(file_path):
-        return False
-    return True
+        raise serializers.ValidationError(_("请指定正确的目录"))
 
 
 class BkIpSerializer(serializers.Serializer):
@@ -89,8 +95,7 @@ class ExplorerListSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        if not is_file_path_legal(attrs["path"]):
-            raise serializers.ValidationError(_("请指定正确的目录"))
+        check_file_path_legal(attrs["path"])
         if attrs["time_range"] not in constants.ALLOWED_TIME_RANGE:
             raise serializers.ValidationError(_("请指定正确的时间跨度"))
         if attrs["time_range"] in [constants.PreDateMode.CUSTOM.value]:
@@ -259,8 +264,7 @@ class CreateTaskSerializer(serializers.Serializer):
 
         for file_path in value:
             # 创建任务时对路径前缀做校验
-            if not is_file_path_legal(file_path):
-                raise serializers.ValidationError(_("请指定正确的目录"))
+            check_file_path_legal(file_path)
         return value
 
     def validate_preview_time_range(self, value):
@@ -425,9 +429,7 @@ class UpdateOrCreateStrategiesSerializer(serializers.ModelSerializer):
         if attrs["select_type"] not in ["module", "topo"]:
             raise serializers.ValidationError(_("请指定正确的目标选择类型"))
         for v_dir in attrs["visible_dir"]:
-            if not is_file_path_legal(v_dir):
-                # if not v_dir.startswith(ALLOWED_DIR_PREFIX) or re.findall(r"\./", v_dir):
-                raise serializers.ValidationError(_("请指定正确的目录"))
+            check_file_path_legal(v_dir)
             if not v_dir.endswith("/"):
                 raise serializers.ValidationError(_("目录请以 '/' 结尾"))
 

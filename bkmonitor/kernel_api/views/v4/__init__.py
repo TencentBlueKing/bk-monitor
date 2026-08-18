@@ -41,6 +41,7 @@ from .event_v2 import *  # noqa
 from .gse import *  # noqa
 from .log_search import *  # noqa
 from .log_extract import *  # noqa
+from .log_collection import *  # noqa
 from .log_collection_status import *  # noqa
 from .subscribe import *  # noqa
 from .utils import *  # noqa
