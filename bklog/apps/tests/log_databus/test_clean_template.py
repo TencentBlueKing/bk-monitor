@@ -897,6 +897,21 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         clean_stash.refresh_from_db()
         self.assertIsNone(clean_stash.clean_template_id)
 
+    def test_prepare_clean_template_config_fills_missing_is_dimension(self):
+        template = self.create_template(
+            etl_fields=[
+                {"field_name": "analyzed", "is_analyzed": True},
+                {"field_name": "not_analyzed", "is_analyzed": False},
+            ]
+        )
+        collector = self.create_collector()
+
+        _, _, _, fields = TransferEtlHandler(collector.collector_config_id)._prepare_clean_template_config(
+            template["clean_template_id"], "bk_log_text", {}, []
+        )
+
+        self.assertEqual([field["is_dimension"] for field in fields], [False, True])
+
     def test_update_or_create_handles_clean_template_id_tristate(self):
         template = self.create_template(clean_type="bk_log_json", etl_params={"retain_original_text": True})
         request_config = {
