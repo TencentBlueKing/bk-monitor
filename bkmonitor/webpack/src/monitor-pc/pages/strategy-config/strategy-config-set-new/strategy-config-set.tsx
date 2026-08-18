@@ -2044,8 +2044,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /**
    * @description: 处理保存时监控项名字
-   * 与后端 ItemModel.name max_length=256 对齐。多指标公式展开后经常超长，
-   * 不截断会在更新策略时触发 MySQL 1406，整次保存失败。
    */
   handleMetricName() {
     if (this.monitorDataEditMode === 'Source') {
@@ -2057,7 +2055,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.metricData.find(item => alias?.toLocaleLowerCase() === item.alias?.toLocaleLowerCase()) || {};
       return metric_field_name ? `${agg_method}(${metric_field_name})` : alias;
     });
-    return name.slice(0, 256);
+    return name;
   }
 
   /**
