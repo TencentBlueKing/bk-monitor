@@ -536,4 +536,16 @@ export default {
 
   '暂未关联蓝盾项目 & 源码仓库，{0}': 'No BK-DevOps project & source code repository has been associated yet, {0}',
   '已关联蓝盾项目 & 源码仓库，{0}': 'BK-DevOps project & source code repository has been associated, {0}',
+
+  // AI 设置
+  暂无关联知识库: 'No knowledge base associated',
+  可绑定本空间有使用权限的知识库: 'You can bind knowledge bases with usage permissions in this space',
+  暂无关联Skill: 'No Skill associated',
+  '可绑定本空间有使用权限的 Skill': 'You can bind Skills with usage permissions in this space',
+  暂无关联智能体: 'No agent associated',
+  可绑定本空间有使用权限的智能体: 'You can bind agents with usage permissions in this space',
+  数据未变更: 'Data has not changed',
+  '数据未就绪，请稍后重试': 'Data is not ready, please try again later',
+  优先级不能为空: 'Priority cannot be empty',
+  匹配条件不能为空: 'Matching conditions cannot be empty',
 };

@@ -300,4 +300,16 @@ export default {
   视图分组管理: 'View Group Management',
   主机拓扑: 'Host Topology',
   进程详情: 'Process Details',
+
+  // AI 设置
+  编辑绑定: 'Edit Binding',
+  新增绑定: 'Add Binding',
+  关联智能体: 'Associate Agent',
+  '关联 Skill': 'Associate Skill',
+  关联知识库: 'Associate Knowledge Base',
+  流程实例参数: 'Process Instance Parameters',
+  当前绑定流程: 'Current Bound Process',
+  知识库: 'Knowledge Base',
+  Skill: 'Skill',
+  智能体: 'Agent',
 };

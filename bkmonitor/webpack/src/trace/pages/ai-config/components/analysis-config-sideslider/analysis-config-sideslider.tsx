@@ -25,16 +25,22 @@
  */
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { RenderAgentCard, RenderKnowledgebaseCard, RenderSkillCard } from '@blueking/ai-ui-sdk/components';
-import { ResourceCardType } from '@blueking/ai-ui-sdk/enums';
+import {
+  RenderAgentCard,
+  RenderKnowledgebaseCard,
+  RenderResourceDialog,
+  RenderSkillCard,
+} from '@blueking/ai-ui-sdk/components';
+import { Module, ResourceCardType } from '@blueking/ai-ui-sdk/enums';
 import { Button, Input, Message, Sideslider, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useAiResources } from '../../composables/use-ai-resources';
 import { useMatchRuleFields } from '../../composables/use-match-rule-fields';
+import { useResourceDialog } from '../../composables/use-resource-dialog';
 import { useRuleBasicInfo } from '../../composables/use-rule-basic-info';
 import { useSourceAnalysisRuleDetail } from '../../composables/use-source-analysis-rule-detail';
-import { AiResourceEnum, SidesliderTypeEnum } from '../../constants';
+import { AiResourceEnum, RESOURCE_DIALOG_TITLE_MAP, SidesliderTypeEnum } from '../../constants';
 import MatchRule from '../match-rule/match-rule';
 import ResourceCollapseList from '../resource-collapse-list/resource-collapse-list';
 
@@ -42,6 +48,9 @@ import type { ConfirmPayload, SidesliderType } from '../../typings';
 import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
 
 import './analysis-config-sideslider.scss';
+
+/** AI SDK API 前缀 */
+const AI_UI_SDK_API_PREFIX = '';
 
 /**
  * @description 新增/编辑绑定侧弹窗
@@ -115,14 +124,25 @@ export default defineComponent({
 
     const { agents, skills, knowledgebases, fetchResources } = useAiResources();
 
+    const {
+      dialogIsShow,
+      dialogModule,
+      dialogMultiple,
+      handleOpenResourceDialog,
+      handleCloseResourceDialog,
+      handleDialogConfirm,
+    } = useResourceDialog({
+      addResource: handleAddResource,
+    });
+
     /** 是否编辑态 */
     const isEdit = computed(() => props.type === SidesliderTypeEnum.EDIT);
-
     /** 根据当前规则中的资源 id 在全量资源池中匹配完整数据 */
-    const selectedAgent = computed<IAgent | null>(() => {
+    const selectedAgent = computed<IAgent[]>(() => {
       const rule = detail.value;
-      if (!rule?.agent_id) return null;
-      return agents.value.find(item => String(item.id) === rule.agent_id) ?? null;
+      if (!rule?.agent_id) return [];
+      const agent = agents.value.find(item => String(item.id) === rule.agent_id);
+      return agent ? [agent] : [];
     });
     const selectedSkills = computed<ISkill[]>(() => {
       const rule = detail.value;
@@ -135,23 +155,11 @@ export default defineComponent({
       return knowledgebases.value.filter(item => rule.knowledge_base_ids.includes(String(item.id)));
     });
 
-    const handleAddAgent = (agent?: IAgent) => {
-      if (!agent) return;
-      handleAddResource(AiResourceEnum.AGENT, String(agent.id));
-    };
-
-    const handleAddSkill = (data?: ISkill | ISkill[]) => {
-      if (!data) return;
-      const list = Array.isArray(data) ? data : [data];
-      const nextIds = [...new Set([...(detail.value?.skill_ids ?? []), ...list.map(item => String(item.id))])];
-      handleAddResource(AiResourceEnum.SKILL, nextIds);
-    };
-
-    const handleAddKnowledgebase = (data?: IKnowledgebase | IKnowledgebase[]) => {
-      if (!data) return;
-      const list = Array.isArray(data) ? data : [data];
-      const nextIds = [...new Set([...(detail.value?.knowledge_base_ids ?? []), ...list.map(item => String(item.id))])];
-      handleAddResource(AiResourceEnum.KNOWLEDGE_BASE, nextIds);
+    // TODO: 接入真实空间 / 用户 / 接口前缀配置
+    const dialogEnv = {
+      spaceId: '',
+      memberUrl: '',
+      spaces: [],
     };
 
     /**
@@ -281,27 +289,26 @@ export default defineComponent({
         <ResourceCollapseList
           count={detail.value?.agent_id ? 1 : 0}
           emptyText={t('暂无关联智能体')}
-          headerTip={t('智能体配置说明')}
+          headerTip={t('可绑定本空间有使用权限的智能体')}
           title={t('智能体')}
-          onAdd={handleAddAgent}
+          onAdd={() => handleOpenResourceDialog(Module.Agent)}
           onClear={() => {
             handleClearResources(AiResourceEnum.AGENT);
           }}
         >
-          {selectedAgent.value &&
-            ((agent: IAgent) => (
-              <RenderAgentCard
-                key={agent.id}
-                agent={agent}
-                apiPrefix=''
-                isShowOperation={true}
-                showDeleteTips={false}
-                type={ResourceCardType.Info}
-                onDelete={(agent: IAgent) => {
-                  handleRemoveResource(AiResourceEnum.AGENT, String(agent.id));
-                }}
-              />
-            ))(selectedAgent.value)}
+          {selectedAgent.value.map(agent => (
+            <RenderAgentCard
+              key={agent.id}
+              agent={agent}
+              apiPrefix={AI_UI_SDK_API_PREFIX}
+              isShowOperation={true}
+              showDeleteTips={false}
+              type={ResourceCardType.Info}
+              onDelete={(agent: IAgent) => {
+                handleRemoveResource(AiResourceEnum.AGENT, String(agent.id));
+              }}
+            />
+          ))}
         </ResourceCollapseList>
       );
     };
@@ -314,9 +321,9 @@ export default defineComponent({
         <ResourceCollapseList
           count={selectedSkills.value.length}
           emptyText={t('暂无关联Skill')}
-          headerTip={t('Skill 配置说明')}
+          headerTip={t('可绑定本空间有使用权限的 Skill')}
           title={t('Skill')}
-          onAdd={handleAddSkill}
+          onAdd={() => handleOpenResourceDialog(Module.Skill)}
           onClear={() => {
             handleClearResources(AiResourceEnum.SKILL);
           }}
@@ -324,7 +331,7 @@ export default defineComponent({
           {selectedSkills.value.map(item => (
             <RenderSkillCard
               key={item.id}
-              apiPrefix=''
+              apiPrefix={AI_UI_SDK_API_PREFIX}
               isShowOperation={true}
               showDeleteTips={false}
               skill={item}
@@ -344,9 +351,9 @@ export default defineComponent({
         <ResourceCollapseList
           count={selectedKnowledgebases.value.length}
           emptyText={t('暂无关联知识库')}
-          headerTip={t('知识库配置说明')}
+          headerTip={t('可绑定本空间有使用权限的知识库')}
           title={t('知识库')}
-          onAdd={handleAddKnowledgebase}
+          onAdd={() => handleOpenResourceDialog(Module.Knowledgebase)}
           onClear={() => {
             handleClearResources(AiResourceEnum.KNOWLEDGE_BASE);
           }}
@@ -354,7 +361,7 @@ export default defineComponent({
           {selectedKnowledgebases.value.map(item => (
             <RenderKnowledgebaseCard
               key={item.id}
-              apiPrefix=''
+              apiPrefix={AI_UI_SDK_API_PREFIX}
               isShowOperation={true}
               knowledgebase={item}
               showDeleteTips={false}
@@ -416,10 +423,37 @@ export default defineComponent({
       );
     };
 
+    /**
+     * @description 渲染资源选择弹窗
+     */
+    const renderResourceDialog = () => {
+      return (
+        <RenderResourceDialog
+          agents={selectedAgent.value}
+          apiPrefix={AI_UI_SDK_API_PREFIX}
+          isShow={dialogIsShow.value}
+          knowledgebases={selectedKnowledgebases.value}
+          memberUrl={dialogEnv.memberUrl}
+          module={dialogModule.value}
+          multiple={dialogMultiple.value}
+          skills={selectedSkills.value}
+          spaceId={dialogEnv.spaceId}
+          spaces={dialogEnv.spaces}
+          title={RESOURCE_DIALOG_TITLE_MAP[dialogModule.value]}
+          username={window.username}
+          onConfirm={handleDialogConfirm}
+          onUpdate:isShow={(v: boolean) => {
+            dialogIsShow.value = v;
+          }}
+        />
+      );
+    };
+
     watch(
       () => props.show,
       newVal => {
         if (!newVal) {
+          handleCloseResourceDialog();
           resetState();
           return;
         }
@@ -444,6 +478,7 @@ export default defineComponent({
       isEdit,
       renderBasicInfo,
       renderProcessParams,
+      renderResourceDialog,
       renderFooter,
     };
   },
@@ -467,6 +502,7 @@ export default defineComponent({
             <div class='analysis-config-sideslider-main'>
               {this.renderBasicInfo()}
               {this.renderProcessParams()}
+              {this.renderResourceDialog()}
             </div>
           ),
           footer: this.renderFooter,
