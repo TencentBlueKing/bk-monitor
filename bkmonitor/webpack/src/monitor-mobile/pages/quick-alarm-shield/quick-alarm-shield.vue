@@ -495,7 +495,8 @@ export default class AlarmDetail extends Vue {
       });
       return;
     }
-    if (this.shieldType === 'event' && !this.selectedDimension.length) {
+    // 无维度告警渲染不出 checkbox，selectedDimension 恒为空；拦截会让用户无法提交。
+    if (this.shieldType === 'event' && this.dimensions.length > 0 && !this.selectedDimension.length) {
       Toast({
         message: this.$tc('请选择屏蔽维度'),
         duration: 2000,
