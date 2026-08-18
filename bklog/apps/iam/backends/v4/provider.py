@@ -13,7 +13,6 @@ from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCod
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently
 from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size, normalize_batch_max_workers
 from apps.iam.backends.v4.exceptions import V4ClientError
-from apps.iam.handlers.actions import ActionEnum
 from apps.iam.iam_engine.core.requests import (
     ActionDefinition,
     AuthRequest,
@@ -344,7 +343,9 @@ class V4PermissionProvider(PermissionProvider):
         action 解决。子资源 id 保持原值，不做无限制申请。
         """
         space_type = self.codec.root_resource_type_id or BKLOG_ROOT_RESOURCE_TYPE_ID
-        view_business_id = self.codec.encode_action(ActionEnum.VIEW_BUSINESS.id)
+        if not self.codec.root_view_action_id:
+            return permissions
+        view_business_id = self.codec.encode_action(self.codec.root_view_action_id)
         present_space_ids: set[str] = set()
         view_business_permission: dict[str, Any] | None = None
         for permission in permissions:

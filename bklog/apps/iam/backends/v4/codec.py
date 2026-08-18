@@ -29,6 +29,7 @@ class V4ResourceCodec:
     """将引擎资源编码成 IAM V4 鉴权和申请接口需要的格式。"""
 
     root_resource_type_id = ""
+    root_view_action_id = ""
 
     def encode_action(self, action_id: str) -> str:
         return to_definition_id(action_id)
@@ -141,6 +142,7 @@ class BklogNameCodec(V4ResourceCodec):
     """在通用 V4 编码上适配日志平台的 Action 命名。"""
 
     root_resource_type_id = BKLOG_ROOT_RESOURCE_TYPE_ID
+    root_view_action_id = "view_business_v2"
 
     def encode_action(self, action_id: str) -> str:
         action_id = to_definition_id(action_id)
