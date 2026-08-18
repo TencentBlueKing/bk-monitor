@@ -1812,6 +1812,7 @@ class FastCollectorCreateSerializer(
 class FastContainerCollectorUpdateSerializer(
     CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
 ):
+    update_clean_config = serializers.BooleanField(label=_("是否同步更新清洗配置"), required=False, default=True)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50, required=False)
     description = serializers.CharField(label=_("备注说明"), max_length=100, required=False, allow_blank=True)
     collector_scenario_id = serializers.ChoiceField(
@@ -1839,9 +1840,22 @@ class FastContainerCollectorUpdateSerializer(
         return yaml_text
 
 
+class PartialPluginParamSerializer(PluginParamSerializer):
+    """Fast Update 仅保留调用方显式提交的插件参数，避免默认值覆盖存量配置。"""
+
+    def to_internal_value(self, data):
+        validated_data = super().to_internal_value(data)
+        return {field: value for field, value in validated_data.items() if field in data}
+
+    def validate(self, attrs):
+        # PluginParamSerializer 的跨字段校验面向完整对象；PATCH 的完整性在合并存量参数后校验。
+        return attrs
+
+
 class FastCollectorUpdateSerializer(
     CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
 ):
+    update_clean_config = serializers.BooleanField(label=_("是否同步更新清洗配置"), required=False, default=True)
     collector_config_name = serializers.CharField(label=_("采集名称"), required=False, max_length=50)
     description = serializers.CharField(
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
@@ -1849,9 +1863,9 @@ class FastCollectorUpdateSerializer(
     target_object_type = serializers.CharField(label=_("目标类型"), required=False)
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
-    params = PluginParamSerializer(required=False)
+    params = PartialPluginParamSerializer(required=False)
     data_encoding = serializers.ChoiceField(
-        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False, default=EncodingsEnum.UTF.value
+        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False
     )
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)

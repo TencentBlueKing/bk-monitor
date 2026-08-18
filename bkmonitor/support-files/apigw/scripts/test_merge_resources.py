@@ -277,6 +277,40 @@ def test_result_table_storage_status_apigw_contract():
     assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 
+def test_log_collection_update_mcp_contract():
+    """采集更新 MCP 只提供 Fast Update，并使用写请求后端。"""
+    update_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_update_mcp.yaml"
+    paths = _load_paths(update_mcp_file)
+
+    assert set(paths) == {"/mcp/fast_update_log_collector/"}
+    method_data = paths["/mcp/fast_update_log_collector/"]["post"]
+    assert method_data["operationId"] == "fast_update_log_collector"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["collector_config_id"]["minimum"] == 1
+    assert "environment" not in schema["properties"]
+    assert "etl_config" not in schema["properties"]
+    assert schema["properties"]["target_nodes"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["extra_labels"]["items"]["additionalProperties"] is False
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_update/fast_update/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
 def test_repository_resources_have_unique_operation_ids():
     """仓库内现有 apigw 资源定义必须无重复 operationId（回归基线）。"""
     public_dirs = ["internal", "external"]

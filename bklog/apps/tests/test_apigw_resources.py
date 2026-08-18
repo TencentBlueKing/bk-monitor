@@ -33,6 +33,7 @@ PUBLIC_RESOURCES = {
     ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
     ("GET", "/databus_collectors/{collector_config_id}/task_status/"),
     ("GET", "/index_set/{index_set_id}/"),
+    ("GET", "/databus_collectors/{collector_config_id}/update_context/"),
     ("GET", "/search_index_set/"),
     ("GET", "/search_index_set/{index_set_id}/fields/"),
     ("POST", "/databus_collectors/fast_create/"),

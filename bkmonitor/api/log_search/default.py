@@ -576,6 +576,53 @@ class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class LogCollectorUpdateContextResource(LogSearchAPIGWResource):
+    """获取采集项 Fast Update 最小上下文。"""
+
+    action = "/databus_collectors/{collector_config_id}/update_context/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class FastUpdateLogCollectorResource(LogSearchAPIGWResource):
+    """快速更新单个日志采集项。"""
+
+    action = "/databus_collectors/{collector_config_id}/fast_update/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        update_clean_config = serializers.BooleanField(required=False, default=True, label="是否同步更新清洗配置")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+        collector_config_name = serializers.CharField(required=False, max_length=50, label="采集项名称")
+        description = serializers.CharField(
+            required=False, allow_blank=True, allow_null=True, max_length=100, label="描述"
+        )
+        target_object_type = serializers.CharField(required=False, label="目标类型")
+        target_node_type = serializers.CharField(required=False, label="节点类型")
+        target_nodes = serializers.ListField(child=serializers.DictField(), required=False, label="目标节点")
+        params = serializers.DictField(required=False, label="采集参数")
+        data_encoding = serializers.CharField(required=False, label="日志字符集")
+        collector_scenario_id = serializers.CharField(required=False, label="日志类型")
+        configs = serializers.ListField(child=serializers.DictField(), required=False, label="容器日志配置")
+        add_pod_label = serializers.BooleanField(required=False, label="是否添加 Pod 标签")
+        add_pod_annotation = serializers.BooleanField(required=False, label="是否添加 Pod 注解")
+        extra_labels = serializers.ListField(child=serializers.DictField(), required=False, label="额外标签")
+        yaml_config_enabled = serializers.BooleanField(required=False, label="是否使用 YAML 配置")
+        yaml_config = serializers.CharField(required=False, allow_blank=True, label="YAML 配置内容")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
 class LogSearchIndexSetResource(IndexSetResource):
     """
     索引集列表

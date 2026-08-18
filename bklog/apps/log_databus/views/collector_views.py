@@ -23,6 +23,7 @@ import base64
 
 from django.conf import settings
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
@@ -152,6 +153,8 @@ class CollectorViewSet(ModelViewSet):
             "etl_preview",
             "update_or_create_clean_config",
             "custom_update",
+            "fast_update",
+            "update_context",
             "report_token",
         ]:
             return [InstanceActionPermission([ActionEnum.MANAGE_COLLECTION], ResourceEnum.COLLECTION)]
@@ -2420,6 +2423,21 @@ class CollectorViewSet(ModelViewSet):
         handler = CollectorHandler.get_instance(env=request.data.get("environment", Environment.LINUX))
         data = self.params_valid(handler.FAST_CREATE_SERIALIZER)
         return Response(handler.fast_create(data))
+
+    @detail_route(methods=["GET"], url_path="update_context")
+    def update_context(self, request, collector_config_id):
+        """返回 Fast Update 字段校验所需的最小采集项上下文。"""
+        collector = get_object_or_404(CollectorConfig, collector_config_id=collector_config_id)
+        return Response(
+            {
+                "collector_config_id": collector.collector_config_id,
+                "bk_biz_id": collector.bk_biz_id,
+                "environment": collector.environment,
+                "collector_scenario_id": collector.collector_scenario_id,
+                "yaml_config_enabled": collector.yaml_config_enabled,
+                "subscription_id": collector.subscription_id,
+            }
+        )
 
     @detail_route(methods=["POST"])
     def fast_update(self, request, collector_config_id):
