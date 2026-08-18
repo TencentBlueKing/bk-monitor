@@ -65,6 +65,7 @@ from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
 from metadata.models.data_link.data_link_configs import DataIdConfig
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
+    find_registered_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
 )
@@ -2902,9 +2903,9 @@ class KafkaTailResource(Resource):
                 result = self._consume_with_gse_config_by_bk_data_id(bk_data_id, size)
                 result.reverse()
                 return result
-            dsrt = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first()
+            dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).first()
             if dsrt:
-                result_table = models.ResultTable.objects.get(table_id=dsrt.table_id)
+                result_table = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=dsrt.table_id)
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
@@ -2927,7 +2928,26 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+            if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+                namespace = validated_request_data["namespace"]
+                data_id_name = find_registered_bkdata_data_id_name(datasource, namespace=namespace)
+                if not data_id_name:
+                    logger.warning(
+                        "KafkaTailResource: custom format DataIdConfig not found, "
+                        "bk_tenant_id->[%s], namespace->[%s], bk_data_id->[%s]",
+                        bk_tenant_id,
+                        namespace,
+                        datasource.bk_data_id,
+                    )
+                    return []
+                res = api.bkdata.tail_kafka_data(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    name=data_id_name,
+                    limit=size,
+                )
+                result = [json.loads(data) for data in res]
+            elif result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 data_id_config_name = compose_bkdata_data_id_name(datasource.data_name)
                 try:
                     data_id_config = DataIdConfig.objects.get(
