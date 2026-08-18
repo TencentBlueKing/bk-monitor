@@ -1417,4 +1417,5 @@ export default {
   '按用量排序需要实时请求集群使用情况，需等待较长时间，点击确认执行':
     'Sorting by usage requires a real-time request for cluster usage and may take a while. Click Confirm to proceed.',
   '搜索 数据 ID、采集名、数据名、存储集群、存储名': 'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
+  仅新创建采集项支持选择采集范围: 'Collection range can only be selected when creating a new collection item',
 };
