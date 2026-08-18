@@ -2103,6 +2103,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         <BklogPopover
           ref={advancedTemplateBoundPopoverRef}
           trigger='hover'
+          hideDelay={600}
           options={{
             placement: 'top',
             theme: 'bklog-dark',
