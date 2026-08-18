@@ -34,13 +34,23 @@ class Command(BaseCommand):
     help = "应用 IAM schema 迁移：系统注册 + 迁移文件。"
 
     def add_arguments(self, parser):
+        from django.conf import settings
+
+        raw = getattr(settings, "IAM_FRAMEWORK", {})
+        default_allow_destructive = bool(raw.get("MIGRATION", {}).get("allow_destructive", False))
+
         parser.add_argument("--provider", default=None, help="Provider 名（如 v4）；不指定则全部执行")
         parser.add_argument("--dry-run", action="store_true", help="只打印计划，不执行")
         parser.add_argument("--skip-system", action="store_true", help="跳过系统迁移前置步骤")
         parser.add_argument(
             "--allow-destructive",
             action="store_true",
-            help="允许破坏性变更（DELETE / 方言 id 变更重建）；默认禁止，含破坏性变更的计划会被跳过或报错",
+            default=default_allow_destructive,
+            help=(
+                "允许破坏性变更（DELETE / 方言 id 变更重建）；"
+                "默认值取自 IAM_FRAMEWORK.MIGRATION.allow_destructive（当前默认: "
+                f"{default_allow_destructive}），命令行显式传入 --allow-destructive 时优先"
+            ),
         )
         parser.add_argument(
             "--directory",

@@ -570,10 +570,6 @@ class V3PermissionProvider(PermissionProvider):
     # plan_migration / apply_migration
     # ================================================================
 
-    # ================================================================
-    # plan_migration / apply_migration（委托 V3Migrator，与 v4 对齐）
-    # ================================================================
-
     def plan_migration(self, schema: SchemaRegistry, *, scope: str = "full") -> MigrationPlan:
         """从本地 definitions + V3Options 生成迁移计划（不查远端）。
 

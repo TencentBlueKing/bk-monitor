@@ -277,15 +277,14 @@ class V4PermissionProvider(PermissionProvider):
                 instance_ids = [r.id for r in resolved_resources]
                 # 通过回调服务补全展示名称
                 display_map: dict[str, str] = {}
-                if hasattr(self, "callback_service"):
-                    try:
-                        info = self.callback_service.dispatch_fetch_instance_info(rt_id, instance_ids, ["display_name"])
-                        display_map = {
-                            self.codec.decode_resource_id(rt_id, item["id"]): item.get("display_name", item["id"])
-                            for item in info
-                        }
-                    except Exception:
-                        display_map = {}
+                try:
+                    info = self.callback_service.dispatch_fetch_instance_info(rt_id, instance_ids, ["display_name"])
+                    display_map = {
+                        self.codec.decode_resource_id(rt_id, item["id"]): item.get("display_name", item["id"])
+                        for item in info
+                    }
+                except Exception:
+                    display_map = {}
                 # 未命中回调服务时回退到 resource.id
                 instances: list[list[dict]] = [
                     [

@@ -52,7 +52,16 @@ class IamEngineConfig(AppConfig):
         self._maybe_auto_migrate(fw)
 
     def _maybe_auto_migrate(self, fw) -> None:
-        """根据 MIGRATION.MODE 决定自动迁移行为。"""
+        """根据 MIGRATION.MODE 决定自动迁移行为。
+
+        支持的模式（与老版本 _migrate_iam 钩子的模式对齐）：
+          * "manual"    —— 完全手动，需要显式跑 iam_engine_migrate 命令
+          * "semi_auto" —— 挂 Django post_migrate 信号，跟随 `manage.py migrate` 触发；
+                           破坏性变更由 MIGRATION.allow_destructive 显式控制
+
+        破坏性变更（DELETE / 方言 id 变更重建）统一由 MIGRATION.allow_destructive
+        单一开关控制，与 CLI 的 --allow-destructive 语义完全对齐；默认 False。
+        """
         from django.conf import settings
 
         raw = getattr(settings, "IAM_FRAMEWORK", {})
@@ -62,15 +71,19 @@ class IamEngineConfig(AppConfig):
         if mode == "manual":
             return
 
-        if mode in ("auto", "auto_full"):
-            self._run_auto_migration(fw, migration_cfg)
-        elif mode == "semi_auto":
+        if mode == "semi_auto":
             from django.db.models.signals import post_migrate
 
             post_migrate.connect(
                 lambda **kw: self._run_auto_migration(fw, migration_cfg),
                 sender=self,
             )
+            return
+
+        logger.warning(
+            "iam_engine: unknown MIGRATION.mode=%r, treated as manual (supported modes: manual, semi_auto)",
+            mode,
+        )
 
     def _run_auto_migration(self, fw, migration_cfg: dict) -> None:
         # 进程内幂等：同一进程只跑一次自动迁移（防 runserver autoreload / 测试重复触发）
@@ -78,18 +91,12 @@ class IamEngineConfig(AppConfig):
             return
         self._migration_done = True
 
-        # 多副本互斥：DB advisory lock 保证同一时刻只有一个 Pod/Worker 执行
-        if not _acquire_migration_lock():
-            logger.info("iam_engine auto migration skipped — another process is already running it")
-            return
-
-        try:
-            self._do_auto_migration(fw, migration_cfg)
-        finally:
-            _release_migration_lock()
+        # semi_auto 通过 post_migrate 信号触发，跟随 `manage.py migrate` 部署脚本执行，
+        # 部署时天然只有一个 Pod 跑 migrate，无需多副本互斥锁。
+        self._do_auto_migration(fw, migration_cfg)
 
     def _do_auto_migration(self, fw, migration_cfg: dict) -> None:
-        allow_destructive = migration_cfg.get("allow_destructive", False) or migration_cfg.get("mode") == "auto_full"
+        allow_destructive = migration_cfg.get("allow_destructive", False)
 
         from ..migration.loader import MigrationLoader
         from ..migration.planner import MigrationPlanner
@@ -148,28 +155,3 @@ class IamEngineConfig(AppConfig):
                     "iam_engine auto migration failed for provider=%s",
                     provider.name,
                 )
-
-
-# ---------------------------------------------------------------------------
-# 多副本互斥：DB advisory lock
-# ---------------------------------------------------------------------------
-
-_ACQUIRE_LOCK = "SELECT GET_LOCK('iam_migrate_auto', 0)"
-_RELEASE_LOCK = "SELECT RELEASE_LOCK('iam_migrate_auto')"
-
-
-def _acquire_migration_lock() -> bool:
-    """尝试获取迁移互斥锁。返回 True 表示获取成功。"""
-    from django.db import connection
-
-    with connection.cursor() as cursor:
-        cursor.execute(_ACQUIRE_LOCK)
-        return cursor.fetchone()[0] == 1
-
-
-def _release_migration_lock() -> None:
-    """释放迁移互斥锁。"""
-    from django.db import connection
-
-    with connection.cursor() as cursor:
-        cursor.execute(_RELEASE_LOCK)

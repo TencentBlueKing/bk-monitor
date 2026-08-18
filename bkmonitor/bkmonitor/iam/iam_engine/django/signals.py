@@ -13,6 +13,7 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 # Django signals — 供 semi_auto 迁移模式使用
 #
-# semi_auto: Django post_migrate 信号触发，DELETE 只警告不执行。
+# semi_auto: Django post_migrate 信号触发；破坏性变更由 MIGRATION.allow_destructive
+# 显式控制（与 CLI 的 --allow-destructive 语义完全对齐），默认 False 时 DELETE 会被 skip。
 # 此模块为将来扩展预留；当前实现走 apps.py 内联。
 # ---------------------------------------------------------------------------

@@ -1379,8 +1379,11 @@ BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
 
 
 IAM_FRAMEWORK = {
+    # 操作定义
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
+    # 资源定义
     "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
+    # 角色定义
     "ROLES": "bkmonitor.iam.definitions.roles.Roles",
     "PROVIDERS": [
         # {
@@ -1430,7 +1433,14 @@ IAM_FRAMEWORK = {
         },
     ],
     "COMPOSITION": {"policy": "single"},
-    "MIGRATION": {"mode": "manual", "directory": "bkmonitor/iam/iam_migrations"},
+    "MIGRATION": {
+        # 迁移模式 manual ｜ semi_auto
+        "mode": "manual",
+        # 迁移文件存放目录
+        "directory": "bkmonitor/iam/iam_migrations",
+        # 破坏性变更（DELETE / id变更重建）全局开关，默认 False：
+        "allow_destructive": False,
+    },
 }
 
 # 聚合网关默认业务ID

@@ -50,7 +50,6 @@ from bkmonitor.iam.iam_engine.core.types import (
     to_action_id,
 )
 from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.resource import Business as BusinessResource
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
 from constants.common import DEFAULT_TENANT_ID
@@ -173,18 +172,18 @@ class Permission:
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
         if username and bk_tenant_id:
-            # 指定用户
+            # 显式指定用户
             self.username = username
             self.bk_tenant_id = bk_tenant_id
         else:
             request = request or get_request(peaceful=True)
-            # web请求
             if request:
+                # web 请求：从 request.user 取
                 self.username = request.user.username
                 self.bk_tenant_id = request.user.tenant_id
             else:
+                # 后台设置：本地 username + 默认租户
                 logger.warning("IAM Permission init with local username, use default bk_tenant_id")
-                # 后台设置
                 from bkmonitor.utils.user import get_local_username
 
                 self.username = get_local_username()
@@ -414,14 +413,14 @@ class Permission:
     # ================================================================
 
     def prepare_apply_for_saas(self, resources):
-        if not resources or resources[0].type != BusinessResource.id:
+        if not resources or resources[0].type != ResourceEnum.BUSINESS.id:
             return [], []
         bk_biz_id = resources[0].id
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         if not is_bk_saas_space(space_uid):
             return [], []
         actions = [get_action_by_id(a_id) for a_id in MINI_ACTION_IDS]
-        return actions, [BusinessResource.create_instance(bk_biz_id)]
+        return actions, [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
 
     # ================================================================
     # 空间列表过滤 — 走框架 filter_visible_resources（provider 中立）

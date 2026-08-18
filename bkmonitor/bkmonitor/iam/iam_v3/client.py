@@ -36,10 +36,15 @@ from ..iam_engine.provider.codec import NameCodec
 logger = logging.getLogger(__name__)
 
 # 动作语义兼容别名（Business ID）：
-# 键动作在后端不单独鉴权，可由值中任一等价的"空间级"管理动作放行。
-# 典型场景 new_dashboard（新建仪表盘）：后端创建仪表盘按仪表盘管理角色
-# （manage_dashboard / manage_datasource）放行，但前端会单独查询 new_dashboard 权限。
-# 这里让 new_dashboard 的鉴权结果 OR 合并等价管理动作的策略，使前端判定与后端一致。
+# 仅在策略查询（policy_query / policy_query_by_actions）层生效——把键动作的策略
+# 用值列表中动作的策略 OR 合并后返回；直接鉴权（is_allowed / batch_by_resource /
+# batch_by_action）走 IAM 平台，平台不做别名合并，会按原动作查。
+#
+# 典型场景 new_dashboard（新建仪表盘）：后端创建走 manage_dashboard / manage_datasource
+# 空间级角色放行，但前端"能否新建仪表盘"UI 查询 new_dashboard 的策略 AST；
+# 这里让 policy_query(new_dashboard) 回落到 manage_dashboard / manage_datasource
+# 的 AST 或运算，使 UI 判定与后端行为一致。
+#
 # 注意：仅允许别名到同为空间级资源的动作；不要别名到实例级动作。
 ACTION_COMPATIBLE_ALIASES: dict[str, list[str]] = {
     "new_dashboard": ["manage_dashboard", "manage_datasource"],

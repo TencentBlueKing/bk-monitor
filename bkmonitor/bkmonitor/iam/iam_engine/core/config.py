@@ -59,14 +59,18 @@ class MigrationConfig:
     """Schema 迁移配置。
 
     Attributes:
-        mode: 迁移模式
-            - "auto": AppConfig.ready() 时自动执行文件迁移 + 系统 diff（不含 DELETE）
-            - "auto_full": 同上但包含 DELETE（生产不建议）
-            - "semi_auto": Django post_migrate 信号触发；DELETE 只警告不执行
-            - "manual": 仅通过 CLI 触发（生产推荐）
+        mode: 迁移触发模式
+            - "manual":    仅 CLI 触发（生产推荐）；破坏性变更由
+                           `iam_engine_migrate --allow-destructive` 显式启用
+            - "semi_auto": 挂 Django post_migrate 信号，跟随 `manage.py migrate`
+                           部署脚本触发；破坏性变更由 `allow_destructive: True`
+                           配置项启用（与 CLI flag 语义完全对齐）
         directory: 系统级迁移文件目录（所有 Provider 共用）
-        allow_destructive: 是否允许破坏性变更
-        auto_makemigrations: auto 模式下是否自动生成迁移文件（默认 False，需 review）
+        allow_destructive: 全局破坏性开关。
+            semi_auto 模式下直接生效；manual 模式下作为 CLI --allow-destructive 的默认值
+            （命令行显式传入时优先）。默认 False，破坏性变更（DELETE / 方言 id 变更重建）
+            会被 skip 并告警。
+        auto_makemigrations: 保留字段（当前不使用）
     """
 
     mode: str = "manual"
