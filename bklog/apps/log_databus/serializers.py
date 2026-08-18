@@ -1157,6 +1157,11 @@ class CleanSyncSerializer(serializers.Serializer):
     polling = serializers.BooleanField(label=_("是否是轮询请求"), required=False, default=False)
 
 
+class CleanTemplateEtlFieldsSerializer(CollectorEtlFieldsSerializer):
+    # 补上前端使用的字段，方便数据回填
+    is_add_in = serializers.BooleanField(label=_("是否手动添加"), required=False, default=False)
+
+
 class CleanTemplateUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("清洗模板名"), required=True, max_length=128)
     clean_type = serializers.ChoiceField(
@@ -1170,7 +1175,7 @@ class CleanTemplateUpdateSerializer(serializers.Serializer):
         ),
     )
     etl_params = CollectorEtlParamsSerializer(label=_("清洗配置"), required=True)
-    etl_fields = CollectorEtlFieldsSerializer(label=_("字段配置"), many=True, required=True)
+    etl_fields = CleanTemplateEtlFieldsSerializer(label=_("字段配置"), many=True, required=True)
     description = serializers.CharField(label=_("模板描述"), required=False, allow_blank=True, max_length=500)
 
 
