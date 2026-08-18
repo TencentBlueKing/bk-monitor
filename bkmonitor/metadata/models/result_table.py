@@ -3112,6 +3112,7 @@ class ResultTableOption(OptionBase):
     OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
+    OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
 
     # 选项类型
     TYPE_BOOL = "bool"

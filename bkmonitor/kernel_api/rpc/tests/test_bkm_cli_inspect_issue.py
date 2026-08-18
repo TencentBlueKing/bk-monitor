@@ -60,35 +60,42 @@ class FakeIssueSearch:
         )
 
 
-def _wrap_hits(hits, total=None):
+def _wrap_hits(hits, total=None, total_relation="eq"):
     """构造可被 hits.total.value / iter(hits) 同时消费的对象。"""
 
     class HitsContainer(list):
         pass
 
     container = HitsContainer(hits)
-    container.total = SimpleNamespace(value=total) if total is not None else None
+    container.total = SimpleNamespace(value=total, relation=total_relation) if total is not None else None
     return container
 
 
 class StubSearch:
     """简化 ES 链式调用 stub，不用 SimpleNamespace 重复造迭代器。"""
 
-    def __init__(self, hits, total=None):
+    def __init__(self, hits, total=None, total_relation="eq", execute_error=None):
         self._hits = hits
         self._total = total
+        self._total_relation = total_relation
+        self._execute_error = execute_error
         self.filter_calls: list[tuple[str, dict]] = []
         self.sort_arg = None
         self.params_kwargs: dict = {}
         self.extra_kwargs: dict = {}
+        self.source_fields = None
         self.slice_arg = None
 
     def filter(self, lookup, **kwargs):
         self.filter_calls.append((lookup, kwargs))
         return self
 
-    def sort(self, arg):
-        self.sort_arg = arg
+    def sort(self, *args):
+        self.sort_arg = args[0] if len(args) == 1 else args
+        return self
+
+    def source(self, fields):
+        self.source_fields = fields
         return self
 
     def params(self, **kwargs):
@@ -104,7 +111,9 @@ class StubSearch:
         return self
 
     def execute(self):
-        return SimpleNamespace(hits=_wrap_hits(self._hits, self._total))
+        if self._execute_error is not None:
+            raise self._execute_error
+        return SimpleNamespace(hits=_wrap_hits(self._hits, self._total, self._total_relation))
 
 
 def test_inspect_issue_registered_as_bkm_cli_op():
@@ -115,6 +124,8 @@ def test_inspect_issue_registered_as_bkm_cli_op():
     assert op.risk_level == "low"
     assert detail is not None
     assert "readonly" in op.audit_tags
+    assert "list_issues" in op.params_schema["operation"]
+    assert "list_issues" in detail["params_schema"]["operation"]
     assert "list_llm_title_candidates" in op.params_schema["operation"]
     assert "list_llm_title_candidates" in detail["params_schema"]["operation"]
 
@@ -252,6 +263,236 @@ def test_inspect_issue_list_by_fingerprint_uses_fingerprint_term(monkeypatch):
     assert payload["fingerprint"] == "fp-abc"
     assert payload["count"] == 1
     assert stub.filter_calls[0] == ("term", {"fingerprint": "fp-abc"})
+
+
+# ---------- list_issues ----------
+
+
+def test_inspect_issue_list_issues_filters_paginates_and_batches_latest_alerts(monkeypatch):
+    issue_hits = [
+        SimpleNamespace(meta=SimpleNamespace(id="i-1"), id="i-1", bk_biz_id="2", status="unresolved"),
+        SimpleNamespace(meta=SimpleNamespace(id="i-2"), id="i-2", bk_biz_id="2", status="pending_review"),
+    ]
+    alert_hits = [
+        SimpleNamespace(
+            meta=SimpleNamespace(id="a-1"),
+            id="a-1",
+            issue_id="i-1",
+            strategy_id="s-1",
+            alert_name="CPU 告警",
+            status="ABNORMAL",
+            severity=1,
+            begin_time=1776380000,
+            end_time=None,
+            latest_time=1776381000,
+        )
+    ]
+    issue_stub = StubSearch(issue_hits, total=7)
+    alert_stub = StubSearch(alert_hits, total=1)
+    issue_search_kwargs = []
+    alert_search_kwargs = []
+    monkeypatch.setattr(
+        "bkmonitor.documents.issue.IssueDocument.search",
+        staticmethod(lambda **kwargs: issue_search_kwargs.append(kwargs) or issue_stub),
+    )
+    monkeypatch.setattr(
+        "bkmonitor.documents.alert.AlertDocument.search",
+        staticmethod(lambda **kwargs: alert_search_kwargs.append(kwargs) or alert_stub),
+    )
+    monkeypatch.setattr(
+        "fta_web.issue.handlers.issue.IssueQueryHandler.clean_document",
+        classmethod(lambda cls, doc: {"id": doc.id, "bk_biz_id": doc.bk_biz_id, "status": doc.status}),
+    )
+
+    payload = issue_module.inspect_issue(
+        {
+            "operation": "list_issues",
+            "bk_biz_id": "2",
+            "status": ["unresolved", "pending_review"],
+            "strategy_id": "s-1",
+            "priority": ["P0", "P1"],
+            "is_regression": False,
+            "assignee": ["alice", "bob"],
+            "assignee_mode": "any",
+            "start_time": 1776380000,
+            "end_time": 1776390000,
+            "offset": 2,
+            "limit": 2,
+        }
+    )
+
+    assert issue_stub.filter_calls == [
+        ("term", {"bk_biz_id": "2"}),
+        ("terms", {"status": ["unresolved", "pending_review"]}),
+        ("term", {"strategy_id": "s-1"}),
+        ("terms", {"priority": ["P0", "P1"]}),
+        ("term", {"is_regression": False}),
+        ("terms", {"assignee": ["alice", "bob"]}),
+        ("range", {"create_time": {"gte": 1776380000}}),
+        ("range", {"create_time": {"lte": 1776390000}}),
+    ]
+    assert issue_stub.sort_arg == (
+        {"last_alert_time": {"order": "desc"}},
+        {"create_time": {"order": "desc"}},
+        {"id": {"order": "desc"}},
+    )
+    assert issue_stub.params_kwargs == {"track_total_hits": True}
+    assert issue_stub.slice_arg == slice(2, 4, None)
+    assert issue_search_kwargs == [{"all_indices": True}]
+    assert alert_search_kwargs == [{"all_indices": True}]
+    assert alert_stub.filter_calls == [("terms", {"issue_id": ["i-1", "i-2"]})]
+    assert alert_stub.sort_arg == (
+        {"begin_time": {"order": "desc"}},
+        {"id": {"order": "desc"}},
+    )
+    assert alert_stub.extra_kwargs == {"collapse": {"field": "issue_id"}}
+    assert alert_stub.params_kwargs == {"size": 2}
+    assert alert_stub.source_fields == [
+        "id",
+        "issue_id",
+        "strategy_id",
+        "alert_name",
+        "status",
+        "severity",
+        "begin_time",
+        "end_time",
+        "latest_time",
+    ]
+
+    assert payload == {
+        "operation": "list_issues",
+        "bk_biz_id": 2,
+        "count": 2,
+        "total": 7,
+        "total_relation": "eq",
+        "offset": 2,
+        "next_offset": 4,
+        "truncated": True,
+        "complete": False,
+        "window_exhausted": False,
+        "issues": [
+            {
+                "id": "i-1",
+                "bk_biz_id": "2",
+                "status": "unresolved",
+                "latest_alert": {
+                    "id": "a-1",
+                    "issue_id": "i-1",
+                    "strategy_id": "s-1",
+                    "alert_name": "CPU 告警",
+                    "status": "ABNORMAL",
+                    "severity": 1,
+                    "begin_time": 1776380000,
+                    "end_time": None,
+                    "latest_time": 1776381000,
+                },
+            },
+            {
+                "id": "i-2",
+                "bk_biz_id": "2",
+                "status": "pending_review",
+                "latest_alert": None,
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ("assignee_mode", "expected_filter"),
+    [
+        ("assigned", ("exists", {"field": "assignee"})),
+        ("unassigned", ("bool", {"must_not": [{"exists": {"field": "assignee"}}]})),
+    ],
+)
+def test_inspect_issue_list_issues_assignee_mode_filter(monkeypatch, assignee_mode, expected_filter):
+    issue_stub = StubSearch([], total=0)
+    monkeypatch.setattr("bkmonitor.documents.issue.IssueDocument.search", staticmethod(lambda **kwargs: issue_stub))
+
+    payload = issue_module.inspect_issue(
+        {"operation": "list_issues", "bk_biz_id": 2, "assignee_mode": assignee_mode}
+    )
+
+    assert expected_filter in issue_stub.filter_calls
+    assert payload["complete"] is True
+    assert payload["next_offset"] is None
+
+
+def test_inspect_issue_list_issues_latest_alert_error_fails_closed(monkeypatch):
+    issue_stub = StubSearch([SimpleNamespace(meta=SimpleNamespace(id="i-1"), id="i-1")], total=1)
+    alert_stub = StubSearch([], execute_error=RuntimeError("alert unavailable"))
+    monkeypatch.setattr("bkmonitor.documents.issue.IssueDocument.search", staticmethod(lambda **kwargs: issue_stub))
+    monkeypatch.setattr("bkmonitor.documents.alert.AlertDocument.search", staticmethod(lambda **kwargs: alert_stub))
+    monkeypatch.setattr(
+        "fta_web.issue.handlers.issue.IssueQueryHandler.clean_document",
+        classmethod(lambda cls, doc: {"id": doc.id}),
+    )
+
+    with pytest.raises(CustomException, match="关联 Alert"):
+        issue_module.inspect_issue({"operation": "list_issues", "bk_biz_id": 2})
+
+
+@pytest.mark.parametrize("total_relation", ["gte", None])
+def test_inspect_issue_list_issues_requires_exact_total(monkeypatch, total_relation):
+    issue_stub = StubSearch([], total=3 if total_relation else None, total_relation=total_relation or "eq")
+    monkeypatch.setattr("bkmonitor.documents.issue.IssueDocument.search", staticmethod(lambda **kwargs: issue_stub))
+
+    with pytest.raises(CustomException, match="精确总数"):
+        issue_module.inspect_issue({"operation": "list_issues", "bk_biz_id": 2})
+
+
+def test_inspect_issue_list_issues_result_window_boundary(monkeypatch):
+    issue_hit = SimpleNamespace(meta=SimpleNamespace(id="i-last"), id="i-last")
+    issue_stub = StubSearch([issue_hit], total=10001)
+    alert_stub = StubSearch([], total=0)
+    monkeypatch.setattr("bkmonitor.documents.issue.IssueDocument.search", staticmethod(lambda **kwargs: issue_stub))
+    monkeypatch.setattr("bkmonitor.documents.alert.AlertDocument.search", staticmethod(lambda **kwargs: alert_stub))
+    monkeypatch.setattr(
+        "fta_web.issue.handlers.issue.IssueQueryHandler.clean_document",
+        classmethod(lambda cls, doc: {"id": doc.id}),
+    )
+
+    payload = issue_module.inspect_issue(
+        {"operation": "list_issues", "bk_biz_id": 2, "offset": 9999, "limit": 1}
+    )
+
+    assert payload["next_offset"] is None
+    assert payload["truncated"] is True
+    assert payload["complete"] is False
+    assert payload["window_exhausted"] is True
+
+    with pytest.raises(CustomException, match="结果窗口"):
+        issue_module.inspect_issue(
+            {"operation": "list_issues", "bk_biz_id": 2, "offset": 10000, "limit": 1}
+        )
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {},
+        {"bk_biz_id": True},
+        {"bk_biz_id": 0},
+        {"bk_biz_id": -1},
+        {"bk_biz_id": 2.5},
+        {"bk_biz_id": "٢"},
+        {"bk_biz_id": 2, "status": []},
+        {"bk_biz_id": 2, "status": [""]},
+        {"bk_biz_id": 2, "status": ["ABNORMAL"]},
+        {"bk_biz_id": 2, "priority": ["P3"]},
+        {"bk_biz_id": 2, "assignee": []},
+        {"bk_biz_id": 2, "strategy_id": None},
+        {"bk_biz_id": 2, "assignee_mode": "unassigned", "assignee": ["alice"]},
+        {"bk_biz_id": 2, "is_regression": "false"},
+        {"bk_biz_id": 2, "offset": "1"},
+        {"bk_biz_id": 2, "limit": "10"},
+        {"bk_biz_id": 2, "start_time": "1"},
+        {"bk_biz_id": 2, "end_time": 1.5},
+        {"bk_biz_id": 2, "start_time": 2, "end_time": 1},
+    ],
+)
+def test_inspect_issue_list_issues_rejects_invalid_inputs(params):
+    with pytest.raises(CustomException):
+        issue_module.inspect_issue({"operation": "list_issues", **params})
 
 
 # ---------- list_activities ----------

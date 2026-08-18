@@ -140,6 +140,59 @@ test('worker clears stale metrics when a later metric response is empty', () => 
   assert.equal(after.pagedRows[0].totalAlarmCount, 0);
 });
 
+test('host row merges same-name process badges and preserves abnormal status for tooltip', () => {
+  const row = createHostListRow(createHost({ bkCloudId: 0, bkHostId: 101, ip: '192.0.2.1' }), {
+    component: [
+      { display_name: 'redis', id: 'redis-primary', status: 0 },
+      { display_name: 'redis', id: 'redis-replica', status: 1 },
+      { display_name: 'nginx', id: 'nginx', status: 0 },
+    ],
+  });
+
+  assert.deepEqual(
+    row.component.map(item => ({ display_name: item.display_name, status: item.status })),
+    [
+      { display_name: 'redis', status: 1 },
+      { display_name: 'nginx', status: 0 },
+    ]
+  );
+  assert.equal(row.processNames, 'redis,nginx');
+  assert.equal(matchWhere(row, [{ key: 'display_name', method: 'eq', value: ['redis'] }]), true);
+
+  const tableSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list-table.tsx'),
+    'utf8'
+  );
+  assert.match(tableSource, /item\.status === -1[\s\S]*`host-table-process__tag--\$\{item\.status\}`/);
+  assert.match(tableSource, /handleTipsMouseenter\(e, item, 'Thread'\)/);
+});
+
+test('worker applies the same same-name process badge aggregation', () => {
+  const worker = createWorkerHarness();
+  worker.send({
+    baseList: [createHost({ bkCloudId: 0, bkHostId: 101, ip: '192.0.2.1' })],
+    type: 'INIT_BASE',
+  });
+  worker.send({
+    metricListMap: {
+      101: {
+        component: [
+          { display_name: 'redis', id: 'redis-primary', status: 0 },
+          { display_name: 'redis', id: 'redis-replica', status: 1 },
+        ],
+      },
+    },
+    type: 'MERGE_METRICS',
+  });
+
+  const result = worker.send({ params: defaultComputeParams, type: 'COMPUTE' });
+  assert.deepEqual(
+    Array.from(result.pagedRows[0].component, item => ({ display_name: item.display_name, status: item.status })),
+    [{ display_name: 'redis', status: 1 }]
+  );
+  assert.equal(result.pagedRows[0].processNames, 'redis');
+});
+
 test('numeric filters distinguish a real zero from a missing metric', () => {
   const missing = createHostListRow(createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' }));
   const zero = createHostListRow(createHost({ bkCloudId: 0, bkHostId: 102, ip: '10.0.0.2' }), { cpu_usage: 0 });
@@ -206,15 +259,18 @@ test('worker applies the same missing-versus-zero numeric semantics', () => {
 
 const deferred = () => {
   let resolve;
-  const promise = new Promise(resolvePromise => {
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 };
 
 const flushPromises = () => new Promise(resolve => setImmediate(resolve));
 
 const hostStore = {
+  refreshGeneration: vue.shallowRef(0),
   refreshImmediate: vue.shallowRef(0),
   refreshInterval: vue.shallowRef(-1),
   timeRange: vue.shallowRef([0, 1]),
@@ -223,6 +279,7 @@ const hostStore = {
 let getHostInfo;
 let getHostMetricInfo;
 let hostListWorker;
+let mountedCallbacks = [];
 
 Module._load = function mockHostListDependencies(request, parent, isMain) {
   const isHostList = parent?.filename.endsWith('/trace/pages/host/composables/use-host-list.ts');
@@ -230,7 +287,7 @@ Module._load = function mockHostListDependencies(request, parent, isMain) {
     return {
       ...vue,
       onBeforeUnmount: () => {},
-      onMounted: () => {},
+      onMounted: callback => mountedCallbacks.push(callback),
     };
   }
   if (request === '@vueuse/core') {
@@ -339,6 +396,7 @@ const createControllerWorker = () => {
 };
 
 const createHostListController = () => {
+  mountedCallbacks = [];
   const scope = vue.effectScope();
   let context;
   scope.run(() => {
@@ -351,7 +409,7 @@ const createHostListController = () => {
       where: vue.shallowRef([]),
     });
   });
-  return { context, scope };
+  return { context, mountedCallbacks: [...mountedCallbacks], scope };
 };
 
 test('a slower old base-list request cannot replace a newer refresh', async () => {
@@ -450,4 +508,210 @@ test('a pending across-page selection cannot restore rows cleared by a data refr
 
   assert.deepEqual([...context.selectedRowKeys.value], []);
   scope.stop();
+});
+
+test('the host list refreshes from the shared refresh generation', async () => {
+  hostStore.refreshGeneration.value = 0;
+  hostStore.refreshInterval.value = -1;
+  let requestCount = 0;
+  getHostInfo = async () => {
+    requestCount += 1;
+    return [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  };
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  hostStore.refreshGeneration.value += 1;
+  await vue.nextTick();
+  await flushPromises();
+
+  assert.equal(requestCount, 2);
+  scope.stop();
+});
+
+test('mounting with auto-refresh enabled loads once without creating a private timer', async () => {
+  hostStore.refreshInterval.value = 30_000;
+  let requestCount = 0;
+  getHostInfo = async () => {
+    requestCount += 1;
+    return [];
+  };
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const originalSetInterval = global.setInterval;
+  let intervalCount = 0;
+  global.setInterval = () => {
+    intervalCount += 1;
+    return 1;
+  };
+
+  try {
+    const { mountedCallbacks: callbacks, scope } = createHostListController();
+    assert.equal(callbacks.length, 1);
+    callbacks[0]();
+    await flushPromises();
+    assert.equal(requestCount, 1);
+    assert.equal(intervalCount, 0);
+    scope.stop();
+  } finally {
+    hostStore.refreshInterval.value = -1;
+    await vue.nextTick();
+    global.setInterval = originalSetInterval;
+  }
+});
+test('a base-list failure shows a retryable error while a real empty response stays empty', async () => {
+  const baseError = new Error('base list failed');
+  let metricRequestCount = 0;
+  getHostInfo = async () => {
+    throw baseError;
+  };
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    return {};
+  };
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+
+  await context.loadData();
+
+  assert.equal(context.loadError.value, true);
+  assert.equal(context.loading.value, false);
+  assert.equal(context.rawRowCount.value, 0);
+  assert.equal(context.metricLoadError.value, false);
+  assert.equal(metricRequestCount, 0);
+
+  getHostInfo = async () => [];
+  await context.loadData();
+
+  assert.equal(context.loadError.value, false);
+  assert.equal(context.rawRowCount.value, 0);
+  assert.equal(metricRequestCount, 0);
+  scope.stop();
+});
+
+test('a metric failure keeps base rows and retrying metrics does not reload the base list', async () => {
+  let baseRequestCount = 0;
+  let metricRequestCount = 0;
+  const base = createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' });
+  getHostInfo = async () => {
+    baseRequestCount += 1;
+    return [base];
+  };
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    throw new Error('metric list failed');
+  };
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+
+  await context.loadData();
+
+  assert.equal(context.loadError.value, false);
+  assert.equal(context.metricLoadError.value, true);
+  assert.equal(context.rawRowCount.value, 1);
+  assert.deepEqual(hostListWorker.calls.initBaseData, [[base]]);
+  assert.deepEqual(hostListWorker.calls.mergeMetrics, []);
+
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    return { 101: { cpu_usage: 25 } };
+  };
+  await context.loadMetricData();
+
+  assert.equal(context.metricLoadError.value, false);
+  assert.equal(baseRequestCount, 1);
+  assert.equal(metricRequestCount, 2);
+  assert.deepEqual(hostListWorker.calls.mergeMetrics, [{ 101: { cpu_usage: 25 } }]);
+  scope.stop();
+});
+
+test('an obsolete metric failure cannot replace the latest successful metric state', async () => {
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  const first = deferred();
+  const second = deferred();
+  let requestCount = 0;
+  getHostMetricInfo = () => (++requestCount === 1 ? first.promise : second.promise);
+  const oldRequest = context.loadMetricData();
+  const latestRequest = context.loadMetricData();
+  second.resolve({ 101: { cpu_usage: 50 } });
+  await latestRequest;
+  first.reject(new Error('obsolete metric failure'));
+  await oldRequest;
+
+  assert.equal(context.metricLoadError.value, false);
+  assert.deepEqual(hostListWorker.calls.mergeMetrics.at(-1), { 101: { cpu_usage: 50 } });
+  scope.stop();
+});
+
+test('a base refresh failure invalidates a metric request started from the previous base list', async () => {
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  const baseRefresh = deferred();
+  const staleMetricRefresh = deferred();
+  getHostInfo = () => baseRefresh.promise;
+  getHostMetricInfo = () => staleMetricRefresh.promise;
+  const metricMergeCount = hostListWorker.calls.mergeMetrics.length;
+
+  const baseRequest = context.loadData();
+  const metricRequest = context.loadMetricData();
+  baseRefresh.reject(new Error('base refresh failed'));
+  await baseRequest;
+  staleMetricRefresh.resolve({ 101: { cpu_usage: 75 } });
+  await metricRequest;
+
+  assert.equal(context.loadError.value, true);
+  assert.equal(hostListWorker.calls.mergeMetrics.length, metricMergeCount);
+  scope.stop();
+});
+
+test('host list views expose separate retry paths for base and metric failures', () => {
+  const hostListSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list.tsx'),
+    'utf8'
+  );
+  const tableSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list-table.tsx'),
+    'utf8'
+  );
+
+  assert.match(hostListSource, /<EmptyStatus[\s\S]*type='500'[\s\S]*onOperation=\{ctx\.loadData\}/);
+  assert.match(hostListSource, /metricLoadError=\{ctx\.metricLoadError\.value\}/);
+  assert.match(hostListSource, /onRetryMetric=\{ctx\.loadMetricData\}/);
+  assert.match(tableSource, /metricLoadError:[\s\S]*type: Boolean/);
+  assert.match(tableSource, /retryMetric:/);
+  assert.match(tableSource, /指标数据加载失败，当前仅展示主机基础信息/);
+  assert.match(tableSource, /HOST_METRIC_DATA_COLUMN_IDS\.has\(config\.id\)/);
+});
+
+test('metric failure only replaces columns supplied by the metric response', () => {
+  const tableSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-list/host-list-table.tsx'),
+    'utf8'
+  );
+  const metricColumnIdsSource = tableSource.match(/const HOST_METRIC_DATA_COLUMN_IDS = new Set\(\[([\s\S]*?)\]\);/);
+
+  assert.ok(metricColumnIdsSource);
+  const metricColumnIds = [...metricColumnIdsSource[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
+  assert.deepEqual(metricColumnIds, [
+    'status',
+    'alarm_count',
+    'cpu_usage',
+    'mem_usage',
+    'disk_in_use',
+    'io_util',
+    'psc_mem_usage',
+    'cpu_load',
+    'display_name',
+  ]);
 });

@@ -25,9 +25,11 @@ from kernel_api.rpc.functions.admin.common import (
     get_page_list_bk_tenant_id,
     get_scoped_map_value,
     normalize_include,
+    normalize_int_list_filter,
     normalize_ordering,
     normalize_optional_bool,
     normalize_pagination,
+    normalize_string_list_filter,
     paginate_queryset,
     require_bk_tenant_id,
     serialize_model,
@@ -309,28 +311,33 @@ def _get_kafka_topic(datasource: models.DataSource) -> models.KafkaTopicInfo | N
 def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.DataSource.objects.all(), bk_tenant_id)
 
-    if params.get("bk_data_id") not in (None, ""):
-        queryset = queryset.filter(bk_data_id=_normalize_bk_data_id(params.get("bk_data_id")))
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
+    if bk_data_ids:
+        queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     if params.get("data_name"):
         queryset = queryset.filter(data_name__contains=str(params["data_name"]).strip())
-    if params.get("etl_config"):
-        queryset = queryset.filter(etl_config=str(params["etl_config"]).strip())
-    for field in ["created_from", "source_label", "type_label", "space_uid"]:
-        if params.get(field) not in (None, ""):
-            queryset = queryset.filter(**{field: params[field]})
-    if params.get("transfer_cluster_id") not in (None, ""):
-        queryset = queryset.filter(transfer_cluster_id=str(params["transfer_cluster_id"]).strip())
-    if params.get("mq_cluster_id") not in (None, ""):
-        try:
-            queryset = queryset.filter(mq_cluster_id=int(params["mq_cluster_id"]))
-        except (TypeError, ValueError) as error:
-            raise CustomException(message="mq_cluster_id 必须是整数") from error
+    string_filters = [
+        ("etl_config", "etl_configs"),
+        ("created_from", "created_froms"),
+        ("source_label", "source_labels"),
+        ("type_label", "type_labels"),
+        ("space_uid", "space_uids"),
+        ("transfer_cluster_id", "transfer_cluster_ids"),
+    ]
+    for singular_field, plural_field in string_filters:
+        values = normalize_string_list_filter(params, singular_field, plural_field)
+        if values:
+            queryset = queryset.filter(**{f"{singular_field}__in": values})
+    mq_cluster_ids = normalize_int_list_filter(params, "mq_cluster_id", "mq_cluster_ids", positive=True)
+    if mq_cluster_ids:
+        queryset = queryset.filter(mq_cluster_id__in=mq_cluster_ids)
     for field in ["is_enable", "is_custom_source", "is_platform_data_id"]:
         field_value = normalize_optional_bool(params.get(field), field)
         if field_value is not None:
             queryset = queryset.filter(**{field: field_value})
-    if params.get("table_id"):
-        relation_queryset = models.DataSourceResultTable.objects.filter(table_id=str(params["table_id"]).strip())
+    table_ids = normalize_string_list_filter(params, "table_id", "table_ids")
+    if table_ids:
+        relation_queryset = models.DataSourceResultTable.objects.filter(table_id__in=table_ids)
         if bk_tenant_id:
             bk_data_ids = relation_queryset.filter(bk_tenant_id=bk_tenant_id).values_list("bk_data_id", flat=True)
             queryset = queryset.filter(bk_data_id__in=bk_data_ids)
@@ -351,23 +358,39 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str | None)
     params_schema={
         "bk_tenant_id": "可选，租户 ID；缺省或空表示全租户查询",
         "bk_data_id": "可选，数据源 ID",
+        "bk_data_ids": "可选，数据源 ID 数组，最多 100 个",
         "data_name": "可选，数据源名称包含匹配",
         "etl_config": "可选，清洗配置精确匹配",
+        "etl_configs": "可选，清洗配置数组，最多 100 个",
         "created_from": "可选，数据源来源",
+        "created_froms": "可选，数据源来源数组，最多 100 个",
         "source_label": "可选，数据源标签",
+        "source_labels": "可选，数据源标签数组，最多 100 个",
         "type_label": "可选，数据类型标签",
+        "type_labels": "可选，数据类型标签数组，最多 100 个",
         "is_enable": "可选，是否启用",
         "is_custom_source": "可选，是否自定义数据源",
         "is_platform_data_id": "可选，是否平台级 ID",
         "space_uid": "可选，所属空间 UID",
+        "space_uids": "可选，所属空间 UID 数组，最多 100 个",
         "mq_cluster_id": "可选，Kafka 集群 ID 精确匹配",
+        "mq_cluster_ids": "可选，Kafka 集群 ID 数组，最多 100 个",
         "transfer_cluster_id": "可选，传输集群 ID 精确匹配",
+        "transfer_cluster_ids": "可选，传输集群 ID 数组，最多 100 个",
         "table_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "table_ids": "可选，通过 DataSourceResultTable 关联过滤的结果表 ID 数组，最多 100 个",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ORDERING_FIELDS))}",
     },
-    example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20, "ordering": "-last_modify_time"},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "source_labels": ["bk_monitor", "custom"],
+        "page": 1,
+        "page_size": 20,
+        "ordering": "-last_modify_time",
+    },
 )
 def list_datasources(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)

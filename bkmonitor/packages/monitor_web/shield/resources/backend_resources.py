@@ -30,6 +30,7 @@ from bkmonitor.iam.permission import Permission
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.shield import format_dimension_conditions_display
 from bkmonitor.utils.time_tools import (
     DEFAULT_FORMAT,
     now,
@@ -309,27 +310,28 @@ class AddShieldResource(Resource, EventDimensionMixin):
         alert = AlertDocument.get(alert_id)
 
         dimension_keys = data.get("dimension_keys")
-        dimension_config = {}
-        shield_dimensions = []
-        for dimension in alert.dimensions:
-            dimension_data = dimension.to_dict()
-            # 若传递了dimension_keys，则只保留dimension_keys中指定的维度，用于前端动态删除维度信息
-            if dimension_keys is None or dimension_data["key"] in dimension_keys:
-                dimension_config[dimension_data["key"]] = dimension_data["value"]
-                shield_dimensions.append(dimension)
-        dimension_config.update(
-            {
-                "_alert_id": alert.id,
-                "strategy_id": alert.strategy_id,
-                "_severity": alert.severity,
-                "_alert_message": getattr(alert.event, "description", ""),
-                "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
-            }
-        )
+        dimension_conditions = data["dimension_config"].get("dimension_conditions") or []
+        dimension_config = {
+            "_alert_id": alert.id,
+            "strategy_id": alert.strategy_id,
+            "_severity": alert.severity,
+            "_alert_message": getattr(alert.event, "description", ""),
+        }
 
-        # 透传维度过滤条件（如 regex/nregex）
-        if data["dimension_config"].get("dimension_conditions"):
-            dimension_config["dimension_conditions"] = data["dimension_config"]["dimension_conditions"]
+        if dimension_conditions:
+            # 有 dimension_conditions 时匹配只认这些条件 + strategy_id，
+            # 不再把告警全量原始维度写成等值 key（否则会 AND 掉勾选/regex 范围）
+            dimension_config["dimension_conditions"] = dimension_conditions
+            dimension_config["_dimensions"] = format_dimension_conditions_display(dimension_conditions)
+        else:
+            shield_dimensions = []
+            for dimension in alert.dimensions:
+                dimension_data = dimension.to_dict()
+                # 若传递了dimension_keys，则只保留dimension_keys中指定的维度，用于前端动态删除维度信息
+                if dimension_keys is None or dimension_data["key"] in dimension_keys:
+                    dimension_config[dimension_data["key"]] = dimension_data["value"]
+                    shield_dimensions.append(dimension)
+            dimension_config["_dimensions"] = AlertDimensionFormatter.get_dimensions_str(shield_dimensions)
 
         # 更新alerts的屏蔽状态
         alert_document = AlertDocument(id=alert_id, is_shielded=True, update_time=int(time.time()))

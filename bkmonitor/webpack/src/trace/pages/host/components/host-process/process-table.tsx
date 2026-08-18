@@ -34,6 +34,7 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { useTableEllipsis } from '../../../../hooks/use-table-popover';
 import { PROCESS_LIST_COLUMNS, PROCESS_LIST_ELLIPSIS_CELL_CLASS } from '../../constants/process';
 import { useProcessColumnsRenderer } from './hooks/use-process-columns-renderer';
+import EmptyStatus from '@/components/empty-status/empty-status';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { ProcessItem } from '../../types/process';
@@ -65,7 +66,7 @@ export default defineComponent({
     },
     /** 表格空数据类型 */
     emptyType: {
-      type: String as PropType<'empty' | 'search-empty'>,
+      type: String as PropType<'500' | 'empty' | 'search-empty'>,
       default: 'empty',
     },
   },
@@ -74,6 +75,7 @@ export default defineComponent({
     columnsChange: (_cols: string[]) => true,
     rowClick: (_row: ProcessItem) => true,
     clearFilter: () => true,
+    retry: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -146,13 +148,19 @@ export default defineComponent({
         <PrimaryTable
           class={`process-table-body ${this.data.length === 0 ? 'process-table-body--empty' : ''} ${this.tableSkeletonConfig?.tableClass || ''}`}
           v-slots={{
-            empty: () => (
-              <ExploreTableEmpty
-                showOperation={this.emptyType === 'search-empty'}
-                type={this.emptyType}
-                onClearFilter={() => this.$emit('clearFilter')}
-              />
-            ),
+            empty: () =>
+              this.emptyType === '500' ? (
+                <EmptyStatus
+                  type='500'
+                  onOperation={() => this.$emit('retry')}
+                />
+              ) : (
+                <ExploreTableEmpty
+                  showOperation={this.emptyType === 'search-empty'}
+                  type={this.emptyType}
+                  onClearFilter={() => this.$emit('clearFilter')}
+                />
+              ),
           }}
           bkUiSettings={{
             fields: PROCESS_LIST_COLUMNS.map(column => ({

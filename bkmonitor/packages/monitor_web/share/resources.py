@@ -292,6 +292,7 @@ class GetShareTokenListResource(Resource):
 
     def perform_request(self, validated_request_data):
         token_type = get_token_type(validated_request_data["type"])
+        check_host_share_permission(token_type, validated_request_data["bk_biz_id"])
         token_list = []
         tokens = ApiAuthToken.origin_objects.filter(
             bk_tenant_id=get_request_tenant_id(),
@@ -336,6 +337,7 @@ class DeleteShareTokenResource(Resource):
 
     def perform_request(self, validated_request_data):
         token_type = get_token_type(validated_request_data["type"])
+        check_host_share_permission(token_type, validated_request_data["bk_biz_id"])
         username = get_global_user() or "unknown"
         if token_type.startswith("scene_"):
             token_types = [

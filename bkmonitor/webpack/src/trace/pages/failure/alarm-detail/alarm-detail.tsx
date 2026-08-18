@@ -66,7 +66,7 @@ import {
 } from '../../alarm-center/typings';
 import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
-import { replaceSpecialCondition, useIncidentInject } from '../utils';
+import { filterAlertGroupsByCurrentPrimary, replaceSpecialCondition, useIncidentInject } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
@@ -85,6 +85,9 @@ import '../../alarm-center/components/alarm-table/alarm-table.scss';
 import '../../alarm-center/components/alarm-table/components/common-table/common-table.scss';
 import './alarm-detail.scss';
 
+/** 切换「仅看最新排障告警」时本地过滤的 loading 展示时长 */
+const VIEW_NEWEST_ALARM_LOADING_MS = 200;
+
 export default defineComponent({
   props: {
     filterSearch: {
@@ -98,6 +101,11 @@ export default defineComponent({
     searchValidate: {
       type: Boolean,
       default: true,
+    },
+    /** 是否仅看最新排障记录中新增的告警（本地按 is_current_primary 过滤） */
+    isViewNewestAlarm: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['refresh'],
@@ -114,7 +122,15 @@ export default defineComponent({
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
     const incidentId = useIncidentInject();
     const tableLoading = shallowRef(false);
+    /** 接口全量缓存（不含「最新告警」开关过滤） */
+    const rawAlertData = shallowRef([]);
+    /** 按开关过滤后的告警列表（用于渲染） */
     const alertData = shallowRef([]);
+    /**
+     * 缓存「最新告警」过滤结果，避免每次切换 Checkbox 都对上百/上千 alerts 重新遍历。
+     * 注意：当 rawAlertData 重新请求/更新时，需要清空该缓存。
+     */
+    const newestFilteredAlertData = shallowRef<any[] | null>(null);
     const currentData = shallowRef({});
     const currentIds = shallowRef([]);
     const currentBizIds = shallowRef([]);
@@ -177,6 +193,23 @@ export default defineComponent({
     const collapseId = shallowRef('');
     const alertIdsData = shallowRef(props.alertIdsObject);
     const alarmDetailRef = shallowRef<HTMLElement | null>(null);
+
+    /**
+     * @description 基于缓存全量数据按当前开关写入展示列表
+     */
+    const applyNewestAlarmFilter = () => {
+      // 关闭过滤：复用原始引用，避免无意义的数组生成
+      if (!props.isViewNewestAlarm) {
+        alertData.value = rawAlertData.value;
+        return;
+      }
+
+      // 开启过滤：懒加载 + 缓存结果，rawAlertData 未变化时不重复计算
+      if (!newestFilteredAlertData.value) {
+        newestFilteredAlertData.value = filterAlertGroupsByCurrentPrimary(rawAlertData.value, true);
+      }
+      alertData.value = newestFilteredAlertData.value;
+    };
 
     // ==================== 排序状态 ====================
     /** 每个 collapse 表格独立的排序，key 为 collapse item id，格式：'-field' 降序 / 'field' 升序 */
@@ -596,12 +629,18 @@ export default defineComponent({
       incidentAlertList(params, { needMessage: false })
         .then(res => {
           tableLoading.value = false;
-          alertData.value = res;
+          // 缓存全量后按当前开关生成本地展示数据
+          rawAlertData.value = res || [];
+          // rawAlertData 变化后，清空过滤缓存，避免复用旧数据
+          newestFilteredAlertData.value = null;
+          applyNewestAlarmFilter();
           nextTick(() => recalcTableMaxHeight());
         })
         .catch(err => {
           tableLoading.value = false;
+          rawAlertData.value = [];
           alertData.value = [];
+          newestFilteredAlertData.value = null;
           exceptionData.value.isError = true;
           exceptionData.value.errorMsg = err.message || '';
         });
@@ -715,7 +754,11 @@ export default defineComponent({
       scenarioInstance.initialize?.();
     });
 
+    // 切换「仅看最新排障告警」时的可取消 loading 延时
+    let newestAlarmSwitchTimer: null | ReturnType<typeof setTimeout> = null;
     onUnmounted(() => {
+      // 清理可取消的 loading 延时，避免连点导致状态错乱/内存泄漏
+      if (newestAlarmSwitchTimer) clearTimeout(newestAlarmSwitchTimer);
       scenarioInstance.cleanup?.();
       hoverPopoverTools.hidePopover();
       clickPopoverTools.hidePopover();
@@ -747,6 +790,23 @@ export default defineComponent({
         }
       },
       { immediate: true }
+    );
+
+    // 切换「仅看最新排障告警」：复用 tableLoading，本地过滤，不重新请求
+    watch(
+      () => props.isViewNewestAlarm,
+      () => {
+        tableLoading.value = true;
+        nextTick(() => {
+          applyNewestAlarmFilter();
+          // 允许用户连点：只保留最后一次切换对应的延时回调
+          if (newestAlarmSwitchTimer) clearTimeout(newestAlarmSwitchTimer);
+          newestAlarmSwitchTimer = setTimeout(() => {
+            tableLoading.value = false;
+            nextTick(() => recalcTableMaxHeight());
+          }, VIEW_NEWEST_ALARM_LOADING_MS);
+        });
+      }
     );
 
     return {

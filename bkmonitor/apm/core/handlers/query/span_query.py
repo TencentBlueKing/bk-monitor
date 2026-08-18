@@ -18,13 +18,9 @@ to the current version of the project delivered to anyone in the future.
 import logging
 from typing import Any
 
-from django.conf import settings
-
 from apm import constants, types
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
-from apm.models.meta import TraceScopeIndexSet
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.apm import OtlpKey, TraceDataSourceConfig
 
 logger = logging.getLogger("apm")
@@ -59,36 +55,43 @@ class SpanQuery(BaseQuery):
         ]
         return self._query_list(queries, start_time, end_time, offset, limit)
 
-    def _query_by_trace_id(self, trace_id: str, limit: int = constants.DISCOVER_BATCH_SIZE) -> list[dict[str, Any]]:
+    def query_by_trace_id(
+        self,
+        trace_id: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = constants.DISCOVER_BATCH_SIZE,
+    ) -> list[dict[str, Any]]:
         queries: list[QueryConfigBuilder] = [
             q.order_by(OtlpKey.START_TIME).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
             for q in self.build_queries(time_field=OtlpKey.START_TIME)
         ]
-        return list(self._add_query(self.get_qs().limit(limit), queries))
+        # 跨业务目标无法收敛到同一空间，需要全局查询
+        bk_biz_ids: set[int] = {data_source.app.bk_biz_id for data_source in self.data_sources}
+        qs: UnifyQuerySet = self.get_qs(start_time, end_time, using_scope=len(bk_biz_ids) == 1).limit(limit)
+        return list(self._add_query(qs, queries))
 
-    def _build_cross_queries(self, trace_id: str, trace_scope_table: str) -> list[QueryConfigBuilder]:
-        return [
+    def _cross_query_by_trace_id(
+        self,
+        table: str,
+        trace_id: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        # 前缀模式不走 unify-query，时间范围由数据源自行拼装，只有时间字段非默认值才会把毫秒换算成微秒，
+        # 因此统一指定微秒精度的时间字段，否则毫秒范围过滤微秒字段将查不到数据。
+        qs: UnifyQuerySet = self.get_qs(start_time, end_time).is_es_batch().limit(constants.DISCOVER_BATCH_SIZE)
+        data_sources: list[QueryConfigBuilder] = [
             QueryConfigBuilder(self.USING)
-            .table(trace_scope_table)
+            .table(table)
+            .time_field(OtlpKey.START_TIME)
             .order_by(OtlpKey.START_TIME)
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
         ]
 
-    def _cross_query_by_trace_id(self, trace_id: str) -> list[dict[str, Any]]:
-        bk_tenant_id: str = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
-        trace_scope_table: str | None = TraceScopeIndexSet.get_table(self.bk_biz_id, bk_tenant_id)
-        if trace_scope_table is None:
-            logger.warning(
-                "[SpanQuery] trace_scope_table not found, fallback to application datasource: "
-                "bk_tenant_id=%s, bk_biz_id=%s",
-                bk_tenant_id,
-                self.bk_biz_id,
-            )
-            return self._query_by_trace_id(trace_id)
+        spans: list[dict[str, Any]] = list(self._add_query(qs, data_sources))
 
-        qs: UnifyQuerySet = self.get_qs().is_es_batch().limit(constants.DISCOVER_BATCH_SIZE)
-        spans: list[dict[str, Any]] = list(self._add_query(qs, self._build_cross_queries(trace_id, trace_scope_table)))
-
+        # 解决索引范围重叠导致的查询数据重复问题
         seen: set[str] = set()
         deduped_spans: list[dict[str, Any]] = []
         for span in spans:
@@ -98,10 +101,30 @@ class SpanQuery(BaseQuery):
                 deduped_spans.append(span)
         return deduped_spans
 
-    def query_by_trace_id(self, trace_id: str, use_trace_scope: bool = True) -> list[dict[str, Any]]:
-        if use_trace_scope and self.bk_biz_id in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
-            return self._cross_query_by_trace_id(trace_id)
-        return self._query_by_trace_id(trace_id)
+    def cross_query_by_trace_id(
+        self,
+        trace_id: str,
+        trace_scope_table: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """在 Trace 数据源域索引集中查询 Span"""
+        return self._cross_query_by_trace_id(trace_scope_table, trace_id, start_time, end_time)
+
+    def prefix_query_by_trace_id(
+        self,
+        trace_id: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """前缀模式检索 Span"""
+        prefix_table: str
+        if self.bk_biz_id > 0:
+            prefix_table = f"{self.bk_biz_id}_bkapm.trace_"
+        else:
+            prefix_table = f"space_{-self.bk_biz_id}_bkapm.trace_"
+
+        return self._cross_query_by_trace_id(f"PREFIX#{prefix_table}", trace_id, start_time, end_time)
 
     def query_by_span_id(self, span_id: str) -> dict[str, Any] | None:
         queries: list[QueryConfigBuilder] = [

@@ -553,6 +553,8 @@ export const useEcharts = ({
   };
 
   const loading = shallowRef(false);
+  /** 当前图表请求是否全部失败（部分成功仍保留可用结果） */
+  const loadError = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
   const options = shallowRef();
@@ -588,6 +590,8 @@ export const useEcharts = ({
   };
 
   const getEchartOptions = async () => {
+    const requestId = ++currentRequestId;
+    loadError.value = false;
     for (const cb of cancelTokens) {
       cb?.();
     }
@@ -603,7 +607,6 @@ export const useEcharts = ({
       unregisterObserver(viewportRequest.el.value);
     }
     cancelTokens = [];
-    const requestId = ++currentRequestId;
     const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
@@ -669,8 +672,7 @@ export const useEcharts = ({
                 };
               })
             : [];
-        })
-        .catch(() => []);
+        });
     };
 
     /** 把 Promise.allSettled 结果展开为 series 列表 */
@@ -694,8 +696,14 @@ export const useEcharts = ({
       syncTargets.map(target => queryTarget(target, time_shift))
     );
     const syncResList = await Promise.allSettled(syncPromiseList).finally(() => {
-      loading.value = false;
+      if (requestId === currentRequestId) {
+        loading.value = false;
+      }
     });
+    if (requestId !== currentRequestId) return options.value;
+    const hasSyncSuccess = syncResList.some(item => item.status === 'fulfilled');
+    const hasSyncFailure = syncResList.some(item => item.status === 'rejected');
+    loadError.value = !hasSyncSuccess && hasSyncFailure;
     const syncSeriesList = flattenSeries(syncResList);
     duration.value = Date.now() - startDate;
     series.value = syncSeriesList;
@@ -708,6 +716,9 @@ export const useEcharts = ({
       Promise.allSettled(lazyPromiseList).then(lazyResList => {
         // 期间已有新请求触发，丢弃过期数据
         if (requestId !== currentRequestId) return;
+        const hasLazySuccess = lazyResList.some(item => item.status === 'fulfilled');
+        const hasLazyFailure = lazyResList.some(item => item.status === 'rejected');
+        loadError.value = !(hasSyncSuccess || hasLazySuccess) && (hasSyncFailure || hasLazyFailure);
         const lazySeriesList = flattenSeries(lazyResList);
         if (!lazySeriesList.length) return;
         const merged = [...series.value, ...lazySeriesList];
@@ -759,6 +770,7 @@ export const useEcharts = ({
     }
   });
   return {
+    loadError,
     loading,
     options,
     metricList,

@@ -23,28 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-interface IRouterParams {
-  name: string;
-  params: Record<string, any>;
-  query: Record<string, any>;
-}
-
-function monitorLink(routeParams: IRouterParams) {
-  if (routeParams.name === 'retrieve') {
-    const params = {
-      ...window.mainComponent.$router.query,
-      ...window.mainComponent.$router.params,
-      ...routeParams,
-      name: window.__IS_MONITOR_TRACE__ ? 'trace-retrieval' : 'apm-others',
-      path: window.__IS_MONITOR_TRACE__ ? '/trace/home' : '/apm/service',
-    };
-    const url = window.mainComponent.$router.resolve(params).href;
-    return url;
-  }
-  const url = window.mainComponent.$router.resolve(routeParams).href;
-  const link = `${window.bk_log_search_url}${url}`;
-  return link;
-}
+import {
+  applyIndependentPageLayoutQuery,
+  buildMonitorLogRetrievalUrl,
+  isMonitorEmbedContext,
+} from '@/common/embed-layout-query';
 
 export function getConditionRouterParams(searchList, searchMode, isNewLink, append = {}) {
   const indexItem = window.mainComponent.$store.state.indexItem;
@@ -97,13 +80,25 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
   }
 
   Object.assign(filterQuery, newQueryObj, append ?? {});
-  const routeData = {
+  const storeState = window.mainComponent.$store.state;
+  const indexId = window.__IS_MONITOR_COMPONENT__
+    ? (query.indexId || params.indexId || storeState.indexId)
+    : (params.indexId || query.indexId || storeState.indexId);
+
+  if (isMonitorEmbedContext(query)) {
+    return buildMonitorLogRetrievalUrl({
+      bizId: storeState.bkBizId || query.bizId,
+      spaceUid: storeState.spaceUid || query.spaceUid,
+      indexId,
+      pid: filterQuery.pid ?? query.pid ?? storeState.indexItem?.pid,
+      query: filterQuery,
+    });
+  }
+
+  applyIndependentPageLayoutQuery(filterQuery, false);
+  return window.mainComponent.$router.resolve({
     name: 'retrieve',
     params,
     query: filterQuery,
-  };
-  if (window.__IS_MONITOR_COMPONENT__) {
-    return monitorLink(routeData);
-  }
-  return window.mainComponent.$router.resolve(routeData).href;
+  }).href;
 }

@@ -199,44 +199,44 @@ export const STATUS_LIST = {
 };
 
 export const EVENTS_TYPE_MAP = {
-  default: {
+  general: {
     iconType: '',
-    keypath: '（共 {0} 个{1}，展示 {2} 如下）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath: '（共 {0} 个事件，示例如下）',
+    keypath2: '（共 {0} 个事件，示例如下）',
   },
   k8s_warning_events: {
     iconType: 'bcs',
     keypath: '（共 {0} 个{1}，展示 {2} 如下）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
   deployment_events: {
     iconType: 'bkci',
     keypath: '（共 {0} 个{1}，展示 {2} 如下）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
   alert_system_events: {
     iconType: 'host',
     keypath: '（共 {0} 个{1}，展示 {2} 如下）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
   tmp_events: {
     iconType: 'tmp',
     keypath: '（共 {0} 个{1}，展示 {2} 如下）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
   incident_manage_events: {
     iconType: 'manage',
-    keypath: '（共 {0} 个{1}）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath: '（共 {0} 个{1}，展示 {2} 如下）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
   incident_ticket_events: {
     iconType: 'ticket',
-    keypath: '（共 {0} 个{1}）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath: '（共 {0} 个{1}，展示 {2} 如下）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
   tencent_cloud_notice_events: {
     iconType: 'tencent_cloud',
-    keypath: '（共 {0} 个{1}）',
-    keypath2: '（共 {0} 个{1}）',
+    keypath: '（共 {0} 个{1}，展示 {2} 如下）',
+    keypath2: '（共 {0} 个{1}，示例如下）',
   },
 };

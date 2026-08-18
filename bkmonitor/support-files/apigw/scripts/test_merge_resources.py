@@ -25,6 +25,7 @@ merge_resources_func = merge_resources.merge_resources
 _RESOURCES_DIR = _SCRIPT.parent.parent / "resources"
 _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
+_ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
 _LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
@@ -138,6 +139,30 @@ def test_log_collection_mcp_contract():
                 "appVerifiedRequired": False,
                 "resourcePermissionRequired": True,
             }
+
+
+def test_promql_query_config_apigw_contract():
+    """query_config 与 PromQL 互转接口必须保持外部应用态注册，并提供对应中文文档。"""
+    paths = _load_paths(_ALARM_STRATEGY_FILE)
+    expected = {
+        "/app/alarm_strategy/query_config_to_promql/": {
+            "operation_id": "query_config_to_promql",
+            "backend": "/api/v4/alarm_strategy_v3/query_config_to_promql/",
+        },
+        "/app/alarm_strategy/promql_to_query_config/": {
+            "operation_id": "promql_to_query_config",
+            "backend": "/api/v4/alarm_strategy_v3/promql_to_query_config/",
+        },
+    }
+
+    for path, expect in expected.items():
+        method_data = paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == expect["operation_id"]
+        assert gateway_resource["isPublic"] is True
+        assert gateway_resource["backend"]["method"] == "post"
+        assert gateway_resource["backend"]["path"] == expect["backend"]
+        assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 
 def test_result_table_storage_status_apigw_contract():
