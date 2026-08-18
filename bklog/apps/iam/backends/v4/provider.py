@@ -9,10 +9,11 @@ from django.conf import settings
 from apps.iam import metrics
 from apps.iam.backends.v4.apply import build_apply_data
 from apps.iam.backends.v4.client import V4Client
-from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
+from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently
 from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size, normalize_batch_max_workers
 from apps.iam.backends.v4.exceptions import V4ClientError
+from apps.iam.handlers.actions import ActionEnum
 from apps.iam.iam_engine.core.requests import (
     ActionDefinition,
     AuthRequest,
@@ -271,6 +272,8 @@ class V4PermissionProvider(PermissionProvider):
             permissions.append(permission)
             action_resources.append((action, matched_resources))
 
+        permissions = self._permissions_with_parent_space_context(permissions)
+
         try:
             apply_url = self.client.generate_perm_apply_url(permissions=permissions)
         except V4ClientError as error:
@@ -332,6 +335,50 @@ class V4PermissionProvider(PermissionProvider):
             resource
             for resource in resources
             if (resource.system, self.codec.encode_resource_type(to_definition_id(resource.type))) in allowed_resources
+        ]
+
+    def _permissions_with_parent_space_context(self, permissions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """具体子资源申请时补上父空间动作，让 IAM 角色配置自动选中当前空间。
+
+        ancestors 只描述子实例拓扑，不会填角色里并列的「空间」行；参考项目用额外父级
+        action 解决。子资源 id 保持原值，不做无限制申请。
+        """
+        space_type = self.codec.root_resource_type_id or BKLOG_ROOT_RESOURCE_TYPE_ID
+        view_business_id = self.codec.encode_action(ActionEnum.VIEW_BUSINESS.id)
+        present_space_ids: set[str] = set()
+        view_business_permission: dict[str, Any] | None = None
+        for permission in permissions:
+            if permission.get("action_id") == view_business_id:
+                view_business_permission = permission
+            for resource in permission.get("resources") or []:
+                if resource.get("type") == space_type and resource.get("id") not in (None, ""):
+                    present_space_ids.add(str(resource["id"]))
+
+        missing_space_ids: list[str] = []
+        seen = set(present_space_ids)
+        for permission in permissions:
+            for resource in permission.get("resources") or []:
+                if resource.get("type") == space_type:
+                    continue
+                for ancestor in resource.get("ancestors") or []:
+                    if ancestor.get("type") != space_type or ancestor.get("id") in (None, ""):
+                        continue
+                    space_id = str(ancestor["id"])
+                    if space_id in seen:
+                        continue
+                    seen.add(space_id)
+                    missing_space_ids.append(space_id)
+
+        if not missing_space_ids:
+            return permissions
+
+        extra_resources = [{"type": space_type, "id": space_id} for space_id in missing_space_ids]
+        if view_business_permission is not None:
+            view_business_permission.setdefault("resources", []).extend(extra_resources)
+            return permissions
+        return [
+            *permissions,
+            {"action_id": view_business_id, "resources": extra_resources},
         ]
 
     @staticmethod

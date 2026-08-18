@@ -231,6 +231,15 @@ def _fix_nested_path_to_string(results: list[dict]) -> None:
             item["_bk_iam_path_"] = f"/{ResourceEnum.BUSINESS.id},{encoded_biz_id}/"
 
 
+def _stringify_result_ids(results: list[dict]) -> None:
+    """IAM V4 要求实例 id 为 string；V3 search_instance 对采集/索引集会返回整型主键。"""
+    for item in results:
+        resource_id = item.get("id")
+        if resource_id is None:
+            continue
+        item["id"] = str(resource_id)
+
+
 def _with_decoded_parent_space(filter_obj):
     parent = getattr(filter_obj, "parent", None)
     if not isinstance(parent, dict) or parent.get("id") in (None, ""):
@@ -324,9 +333,11 @@ class _V4ChildResourceProvider:
         parent = getattr(decoded, "parent", None)
         if isinstance(parent, dict) and parent.get("id") not in (None, "") and keywords:
             # V3 list_instance 在有 parent 时会丢掉 search；改走已支持「上级 + keyword」的 search_instance
-            return super().search_instance(_with_keyword(decoded, keywords[0]), page, **options)
-        result = super().list_instance(decoded, page, **options)
-        _fix_nested_path_to_string(result.results)
+            result = super().search_instance(_with_keyword(decoded, keywords[0]), page, **options)
+        else:
+            result = super().list_instance(decoded, page, **options)
+            _fix_nested_path_to_string(result.results)
+        _stringify_result_ids(result.results)
         return result
 
     def fetch_instance_info(self, filter, **options):
@@ -338,7 +349,9 @@ class _V4ChildResourceProvider:
         return result
 
     def search_instance(self, filter, page, **options):
-        return super().search_instance(_with_decoded_parent_space(filter), page, **options)
+        result = super().search_instance(_with_decoded_parent_space(filter), page, **options)
+        _stringify_result_ids(result.results)
+        return result
 
     def list_instance_by_policy(self, filter, page, **options):
         return super().list_instance_by_policy(_with_decoded_policy_expression(filter), page, **options)

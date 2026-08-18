@@ -18,6 +18,7 @@ from apps.iam.views.resources_v4 import (
     _attach_space_paths,
     _fix_approver_field,
     _fix_nested_path_to_string,
+    _stringify_result_ids,
 )
 
 
@@ -70,6 +71,16 @@ class FixHelperTest(SimpleTestCase):
 
         self.assertEqual(results[0]["_bk_iam_path_"], f"/{ResourceEnum.BUSINESS.id},10/")
         self.assertNotIn("_bk_iam_path_", results[1])
+
+    def test_stringify_result_ids_converts_integer_ids(self):
+        results = [{"id": 17, "display_name": "c1"}, {"id": "18", "display_name": "c2"}, {"display_name": "c3"}]
+
+        _stringify_result_ids(results)
+
+        self.assertEqual(results[0]["id"], "17")
+        self.assertIsInstance(results[0]["id"], str)
+        self.assertEqual(results[1]["id"], "18")
+        self.assertNotIn("id", results[2])
 
     def test_fix_approver_field(self):
         results = [
@@ -246,15 +257,47 @@ class V4InheritedProviderFormatTest(SimpleTestCase):
             search={"collection": ["采集"]},
             resource_type_chain=[{"id": "space"}, {"id": "collection"}],
         )
+        searched = ListResult(results=[{"id": 17, "display_name": "采集项A"}], count=1)
 
-        with patch.object(CollectionResourceProvider, "search_instance", return_value=ListResult([], 0)) as search_mock:
+        with patch.object(CollectionResourceProvider, "search_instance", return_value=searched) as search_mock:
             with patch.object(CollectionResourceProvider, "list_instance") as list_mock:
-                provider.list_instance(filter_obj, _page(), bk_tenant_id="tenant-1")
+                result = provider.list_instance(filter_obj, _page(), bk_tenant_id="tenant-1")
 
         search_mock.assert_called_once()
         list_mock.assert_not_called()
         self.assertEqual(search_mock.call_args.args[0].keyword, "采集")
         self.assertEqual(search_mock.call_args.args[0].parent["id"], "-5423")
+        self.assertEqual(result.results[0]["id"], "17")
+        self.assertIsInstance(result.results[0]["id"], str)
+
+    def test_v4_collection_search_instance_stringifies_integer_id(self):
+        provider = V4CollectionResourceProvider()
+        searched = ListResult(results=[{"id": 28, "display_name": "采集项B"}], count=1)
+
+        with patch.object(CollectionResourceProvider, "search_instance", return_value=searched):
+            result = provider.search_instance(
+                _search_filter(parent={"type": "space", "id": "10"}, keyword="采集"),
+                _page(),
+                bk_tenant_id="tenant-1",
+            )
+
+        self.assertEqual(result.results[0]["id"], "28")
+        self.assertIsInstance(result.results[0]["id"], str)
+
+    def test_v4_indices_parent_and_keyword_stringifies_integer_id(self):
+        provider = V4IndicesResourceProvider()
+        filter_obj = _list_filter(
+            parent={"type": "space", "id": "10"},
+            search={"indices": ["test"]},
+            resource_type_chain=[{"id": "space"}, {"id": "indices"}],
+        )
+        searched = ListResult(results=[{"id": 9, "display_name": "索引集A"}], count=1)
+
+        with patch.object(IndicesResourceProvider, "search_instance", return_value=searched):
+            result = provider.list_instance(filter_obj, _page(), bk_tenant_id="tenant-1")
+
+        self.assertEqual(result.results[0]["id"], "9")
+        self.assertIsInstance(result.results[0]["id"], str)
 
     def test_v4_collection_policy_decodes_negative_space_id_in_path(self):
         provider = V4CollectionResourceProvider()
