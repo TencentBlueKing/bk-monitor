@@ -19,6 +19,7 @@ from django.http import HttpResponseForbidden
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.models import logger
+from bkmonitor.utils.user import get_admin_username
 from constants.common import DEFAULT_TENANT_ID
 
 
@@ -34,9 +35,11 @@ class ApiTokenAuthBackend(ModelBackend):
         try:
             user_model = get_user_model()
             user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})
-            # 如果用户没有租户id，则设置租户id
+            # 如果用户没有租户id，或者当前用户是指定租户的管理员，则更新租户id
             if not user.tenant_id or (
-                not settings.ENABLE_MULTI_TENANT_MODE and tenant_id and tenant_id != user.tenant_id
+                tenant_id
+                and user.tenant_id != tenant_id
+                and (not settings.ENABLE_MULTI_TENANT_MODE or username == get_admin_username(tenant_id))
             ):
                 user.tenant_id = tenant_id
                 user.save()
@@ -65,26 +68,26 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
         if not record.is_allowed_view(view):
             return HttpResponseForbidden("api is not allowed")
 
-        # TODO: 检查命名空间与租户id是否匹配
         if not record.is_allowed_namespace(f"biz#{request.biz_id}"):
             return HttpResponseForbidden(
                 f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
             )
 
-        # grafana、as_code场景权限模式：替换请求用户为令牌创建者
-        if record.type.lower() in ["as_code", "grafana"]:
-            username = "system" if record.type.lower() == "as_code" else "admin"
+        token_type = record.type.lower()
+        # grafana、as_code场景权限模式：使用当前租户的管理员用户
+        if token_type in ["as_code", "grafana"]:
+            username = get_admin_username(record.bk_tenant_id)
             user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
             auth.login(request, user)
             request.skip_check = True
-        elif record.type.lower() == "entity":
+        elif token_type == "entity":
             # 实体关系权限模式：替换请求用户为令牌创建者
-            username = record.create_user or "system"
+            username = record.create_user or get_admin_username(record.bk_tenant_id)
             user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
             auth.login(request, user)
             request.token = token
             request.skip_check = True
-        elif record.type.lower() == "user":
+        elif token_type == "user":
             # 用户权限模式：替换请求用户为令牌创建者
             username = record.create_user
             user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
