@@ -46,6 +46,7 @@ from .log_collection_status import *  # noqa
 from .subscribe import *  # noqa
 from .utils import *  # noqa
 from .ai_repo import *  # noqa
+from .log_collection_etl_preview import *  # noqa
 from .alert_v2 import *  # noqa
 from .log_collection_clean_config import *  # noqa
 from .issue import *  # noqa

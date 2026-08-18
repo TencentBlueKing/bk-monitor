@@ -256,5 +256,40 @@ def test_repository_resources_have_unique_operation_ids():
     check_unique_operation_ids(merged)
 
 
+def test_log_collection_etl_preview_mcp_contract():
+    """清洗预览 MCP 仅暴露无确认参数的只读预览 Tool。"""
+    etl_preview_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_etl_preview_mcp.yaml"
+    paths = _load_paths(etl_preview_mcp_file)
+
+    assert set(paths) == {"/mcp/preview_log_etl/"}
+    method_data = paths["/mcp/preview_log_etl/"]["post"]
+    assert method_data["operationId"] == "preview_log_etl"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["properties"]["etl_config"]["enum"] == [
+        "bk_log_text",
+        "bk_log_json",
+        "bk_log_regexp",
+        "bk_log_delimiter",
+    ]
+    assert schema["properties"]["data"]["maxLength"] == 10_000
+    assert schema["properties"]["etl_params"]["additionalProperties"] is False
+    assert "confirm" not in schema["properties"]
+
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+    assert gateway_resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_etl_preview/preview/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert gateway_resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
