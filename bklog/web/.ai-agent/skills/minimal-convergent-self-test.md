@@ -160,7 +160,7 @@ Hard rules:
 
 自测结束后（含用户拒绝 UI、或仅 unit）：
 
-1. 若任务过程中**有关联 TAPD 单**且 `tapd.enabled`：Read `.ai-agent/skills/tapd-submit-backfill.md` Phase B 起（Commit → PR → 询问 TAPD 回填）
+1. 若任务过程中**有关联 TAPD 单**且 `tapd.enabled`：Read `.ai-agent/skills/tapd-submit-backfill.md` Phase B 起（按 submit.cli 执行 Commit/PR → 询问 TAPD 回填）
 2. 若无 TAPD 关联：可询问常规 Commit/PR；**跳过 TAPD 回填及关联单号/新建单等条件询问**
 3. 若 `tapd.enabled !== true`：跳过 TAPD 回填询问
 

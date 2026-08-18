@@ -42,6 +42,7 @@ import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { initIframeBroadcast } from 'monitor-common/utils/iframe-bridge';
 
 import './common/global-login';
 import { userDisplayNameConfigure } from './common/user-display-name';
@@ -64,6 +65,10 @@ window.slimit = 500;
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 Vue.config.ignoredElements = ['custom-incident-detail'];
 setVue(Vue as VueInstance);
+// 被第三方 iframe 嵌入时向父页面广播路由变化；微前端子应用与主壳共享 history，只需在顶层注册一次
+if (!window.__POWERED_BY_BK_WEWEB__) {
+  initIframeBroadcast();
+}
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');

@@ -918,7 +918,10 @@ defineExpose({
             @text-to-query="handleUITextToQuery"
           >
             <template #custom-placeholder="{ isEmptyText }">
-              <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
+              <slot
+                name="custom-placeholder"
+                :is-empty-text="isEmptyText"
+              />
             </template>
           </UiInput>
           <SqlQuery
@@ -930,7 +933,10 @@ defineExpose({
             @text-to-query="handleTextToQuery"
           >
             <template #custom-placeholder="{ isEmptyText }">
-              <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
+              <slot
+                name="custom-placeholder"
+                :is-empty-text="isEmptyText"
+              />
             </template>
           </SqlQuery>
           <div ref="refPopTraget" class="hidden-focus-pointer" />

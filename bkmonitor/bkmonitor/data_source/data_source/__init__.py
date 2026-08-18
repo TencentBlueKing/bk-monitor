@@ -525,6 +525,7 @@ def _parse_function_params(
 class DataSource(metaclass=ABCMeta):
     data_source_label = ""
     data_type_label = ""
+    supports_unify_query_dimensions: bool = False
 
     bk_tenant_id: str | None
     metrics: list[dict]
@@ -1512,6 +1513,8 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
 
 
 class BaseBkMonitorLogDataSource(DataSource, ABC):
+    supports_unify_query_dimensions: bool = True
+
     RESERVED_FIELDS: list[str] = ["_after_key_"]
     INNER_DIMENSIONS: list[str] = []
     DISTINCT_METHODS: set[str] = {"AVG", "SUM", "COUNT"}
