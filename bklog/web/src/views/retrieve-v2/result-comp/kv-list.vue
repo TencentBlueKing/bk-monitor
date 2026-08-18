@@ -173,7 +173,11 @@
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
-    inject: ['handleRelatedTraceClick'],
+    inject: {
+      handleRelatedTraceClick: {
+        default: null,
+      },
+    },
     props: {
       data: {
         type: Object,
