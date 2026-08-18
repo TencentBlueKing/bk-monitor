@@ -352,3 +352,19 @@ Knowledge update: updated.
 - 约束：
   - Worker 侧模块禁止 import `vue` / `page-highlight.ts` / `hooks-helper.ts` 等带 vue 或 DOM 模块级副作用的文件；需要复用的纯逻辑先下沉到无框架依赖的模块。
   - Monitor 构建新增 externals 时无需再关心 Worker，包装 loader 会让其打进 Blob；但 Worker 内仍禁止动态 `import()`，避免产生需要 `importScripts` 的异步分片。
+
+## 2026-08-17 Monitor-only inject 必须给 default
+
+- 场景：日志平台检索页 `OperatorTools` 报 `Injection "handleRelatedTraceClick" not found`。
+- 根因：该回调只在 `retrieve-v3/monitor/monitor.tsx` provide；独立日志检索没有祖先 provide。调用本身已用 `__IS_MONITOR_APM__` 守卫。
+- 约束：Monitor 专用 inject（如 `handleRelatedTraceClick`）必须带 default，写法对齐 `handleChartDataZoom`。Options API 用 `inject: { key: { default: null } }`；Composition API 用 `inject(key, () => {})`。
+- 文件：`operator-tools.vue`、`kv-list.vue`、`log-rows.tsx`。
+
+## 2026-08-17 UI 过滤值双击编辑层必须限制在 tag 内
+
+- 场景：`ui-input-option.vue` 双击 value tag 进入编辑时，浅蓝 textarea 铺满整个条件弹层。
+- 根因：`.tag-item-input` 使用 `position: absolute` + `width/height: 100%`，但 `.tag-item` 未设定位包含块，包含块落到 Tippy popper。
+- 约束：tag 上的绝对定位编辑层必须把 `.tag-item` 设为 `position: relative`，并用 `inset: 0` 钉在 tag 盒内；不要让 `height: 100%` 相对弹层祖先计算。
+- 文件：`src/views/retrieve-v2/search-bar/ui-mode/ui-input-option.scss`、`fuzzy-match-mode.vue`。
+- 编辑层必须 `min-width: 0`，避免 textarea/input 默认最小宽度撑破只读 tag。
+- `fuzzy-match-tag` 双击编辑与常规 `tag-item` 同一交互：只读文本保留占位，编辑 input overlay 贴合 tag，背景 `#e1ecff`；不要再用 `min-width: 120px` 的新增输入框样式。

@@ -106,23 +106,22 @@ class CollectorViewSet(ModelViewSet):
     filter_fields_exclude = ["collector_config_overlay", "extra_labels"]
     model = CollectorConfig
     search_fields = ("collector_config_name", "table_id", "bk_biz_id")
-    ordering_fields = ("updated_at", "updated_by")
+    ordering_fields = ("updated_at", "updated_by", "collector_config_id")
 
     def get_permissions(self):
+        # 清洗配置写接口不接受 ESQUERY 白名单豁免
+        if self.action == "update_or_create_clean_config":
+            return [InstanceActionPermission([ActionEnum.MANAGE_COLLECTION], ResourceEnum.COLLECTION)]
+
         with ignored(Exception, log_exception=True):
             auth_info = Permission.get_auth_info(self.request)
             # ESQUERY白名单不需要鉴权
-            query_params = getattr(self.request, "query_params", {})
-            request_data = getattr(self.request, "data", {})
-            enforce_permission = str(
-                query_params.get("enforce_permission") or request_data.get("enforce_permission") or ""
-            ).lower() in {"1", "true", "yes"}
-            permission_required_actions = {"update_or_create_clean_config"}
-            if (
-                auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST
-                and not enforce_permission
-                and self.action not in permission_required_actions
-            ):
+            enforce_permission = str(self.request.query_params.get("enforce_permission", "")).lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+            if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST and not enforce_permission:
                 return []
 
         if self.action in ["list_scenarios", "batch_subscription_status", "search_object_attribute"]:

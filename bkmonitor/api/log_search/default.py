@@ -436,30 +436,6 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class UpdateLogCollectorCleanConfigResource(LogSearchAPIGWResource):
-    """更新或创建日志采集项清洗、存储与索引集配置。"""
-
-    action = "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"
-    method = "POST"
-
-    class RequestSerializer(serializers.Serializer):
-        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
-        table_id = serializers.CharField(required=True, label="结果表ID")
-        etl_config = serializers.CharField(required=True, label="清洗类型")
-        etl_params = serializers.DictField(required=True, label="清洗参数")
-        fields = serializers.ListField(child=serializers.DictField(), required=True, label="清洗字段")
-        storage_cluster_id = serializers.IntegerField(required=True, min_value=1, label="存储集群ID")
-        retention = serializers.IntegerField(required=True, min_value=1, label="保留天数")
-        allocation_min_days = serializers.IntegerField(required=True, min_value=0, label="冷热数据生效天数")
-        storage_replies = serializers.IntegerField(required=True, min_value=0, label="ES副本数量")
-        es_shards = serializers.IntegerField(required=True, min_value=1, label="ES分片数量")
-        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
-
-    def get_request_url(self, validated_request_data):
-        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
-        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
-
-
 class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
     """
     采集项索引列表
@@ -548,6 +524,30 @@ class StopCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class UpdateLogCollectorCleanConfigResource(LogSearchAPIGWResource):
+    """更新或创建日志采集项清洗、存储与索引集配置。"""
+
+    action = "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        etl_config = serializers.CharField(required=True, label="清洗类型")
+        etl_params = serializers.DictField(required=True, label="清洗参数")
+        fields = serializers.ListField(child=serializers.DictField(), required=True, label="清洗字段")
+        storage_cluster_id = serializers.IntegerField(required=True, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=True, min_value=1, label="保留天数")
+        allocation_min_days = serializers.IntegerField(required=True, min_value=0, label="冷热数据生效天数")
+        storage_replies = serializers.IntegerField(required=True, min_value=0, label="ES副本数量")
+        es_shards = serializers.IntegerField(required=True, min_value=1, label="ES分片数量")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
 class ListCollectorsResource(LogSearchAPIGWResource):
     """
     获取采集项列表(全量)
@@ -555,6 +555,37 @@ class ListCollectorsResource(LogSearchAPIGWResource):
 
     action = "/databus_list_collectors/"
     method = "GET"
+
+
+class PagedCollectorConfigsResource(LogSearchAPIGWResource):
+    """
+    分页获取采集项列表
+    """
+
+    action = "/databus_collectors/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
+        pagesize = serializers.IntegerField(
+            required=False, default=20, min_value=1, max_value=100, label="每页数量"
+        )
+        keyword = serializers.CharField(
+            required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
+        )
+        collector_scenario_id = serializers.CharField(required=False, label="采集场景")
+        is_active = serializers.BooleanField(required=False, label="是否启用")
+        ordering = serializers.ChoiceField(
+            required=False,
+            default="-updated_at,-collector_config_id",
+            choices=[
+                "updated_at,collector_config_id",
+                "-updated_at,-collector_config_id",
+            ],
+            label="排序方式",
+        )
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
 
 
 class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
