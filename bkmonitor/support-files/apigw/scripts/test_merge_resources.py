@@ -177,6 +177,7 @@ def test_promql_query_config_apigw_contract():
         assert gateway_resource["backend"]["path"] == expect["backend"]
         assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
+
 def test_result_table_storage_status_apigw_contract():
     """结果表存储状态接口必须保持内部应用态注册，并提供对应中文文档。"""
     method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_result_table_storage_status/"]["get"]
