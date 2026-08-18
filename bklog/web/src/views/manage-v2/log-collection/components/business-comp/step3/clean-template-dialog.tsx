@@ -59,7 +59,7 @@ export default defineComponent({
     /** 表格展示的字段列表 */
     const tableFields = computed<CleanTemplateField[]>(() => {
       if (!currentTemplate.value) return [];
-      return currentTemplate.value.etl_fields ?? [];
+      return currentTemplate.value.etl_fields?.filter(item => !item.is_delete) ?? [];
     });
 
     /** 格式化字段值用于显示 */

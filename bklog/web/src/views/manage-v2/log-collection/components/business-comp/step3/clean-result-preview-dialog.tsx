@@ -304,8 +304,6 @@ export default defineComponent({
       initialEditableFieldsSnapshot.value = serializeEditableFields(rows);
     };
 
-
-
     /**
      * 重新调试
      * 使用已保存模板预览接口，解析配置和字段匹配结果均来自后端。
@@ -595,18 +593,30 @@ export default defineComponent({
     /** 忽略冲突并返回包含预览字段修改的完整模板 */
     const handleConfirm = () => {
       if (!props.template || tableData.value.length === 0) return;
+
+      // 预览表格中已出现的字段名集合，用于合并模板隐藏字段时去重
+      const previewedFieldNames = new Set(tableData.value.map(item => item.field_name));
+
+      // 调试接口不返回模板中被隐藏（is_delete）的字段，需从模板中合并回结果，避免确认填入后丢失
+      const deletedFields = (props.template.etl_fields ?? []).filter(
+        item => item.is_delete && !previewedFieldNames.has(item.field_name),
+      );
+
       const templateData: CleanTemplateFormData = {
         ...props.template,
         etl_config: props.template.clean_type,
-        etl_fields: tableData.value.map(({
-          inferredType: _inferredType,
-          empty: _empty,
-          typeErr: _typeErr,
-          status: _status,
-          errorType: _errorType,
-          errorMessage: _errorMessage,
-          ...field
-        }) => field as TemplateFieldItem),
+        etl_fields: [
+          ...tableData.value.map(({
+            inferredType: _inferredType,
+            empty: _empty,
+            typeErr: _typeErr,
+            status: _status,
+            errorType: _errorType,
+            errorMessage: _errorMessage,
+            ...field
+          }) => field as TemplateFieldItem),
+          ...deletedFields,
+        ],
       };
       emit('confirm', templateData, logExampleText.value, hasTemplateConfigModified.value);
     };
@@ -650,7 +660,7 @@ export default defineComponent({
           const buildStatusErrorTips = () => {
             const reasons: string[] = [];
             if (row.empty) {
-              reasons.push(t('message 捕获组未命中 key=value 片段'));
+              reasons.push(t('未从样例中匹配到有效值'));
             }
             if (row.typeErr) {
               reasons.push(t('字段类型不匹配'));
@@ -736,7 +746,7 @@ export default defineComponent({
             {row.empty && (
               <i
                 class='bk-icon icon-exclamation-circle-shape value-empty-icon'
-                v-bk-tooltips={{ content: t('message 捕获组未命中 key=value 片段'), placement: 'top' }}
+                v-bk-tooltips={{ content: t('未从样例中匹配到有效值'), placement: 'top' }}
               />
             )}
           </div>

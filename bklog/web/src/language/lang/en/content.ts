@@ -1435,4 +1435,7 @@ export default {
   '删除模板后，原来关联的采集项，将实例化为手动配置的清洗规则。': 'After deleting the template, the previously associated data collection items will be instantiated as manually configured cleaning rules.',
   '模板名称：': 'Template Name:',
   '确定解除与模板的关联关系？': 'Are you sure you want to remove the association with the template?',
+  忽略冲突并继续填入: 'Ignore conflicts and continue filling in',
+  未从样例中匹配到有效值: 'No valid value was matched from the examples',
+  字段类型不匹配: 'Field type mismatch',
 };

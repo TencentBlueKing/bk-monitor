@@ -1546,6 +1546,15 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                   cleaningMode.value = type;
                   if (!val) {
                     formData.value.etl_params.retain_extra_json = false;
+                    // 关闭清洗：解绑已关联的清洗模板
+                    handleUnbindTemplate();
+                    // 关闭清洗：清空字段列表数据
+                    formData.value.etl_fields = [];
+                    // 关闭清洗：重置指定日志时间相关字段
+                    formData.value.log_reporting_time = true;
+                    formData.value.field_name = '';
+                    formData.value.time_format = '';
+                    formData.value.time_zone = '';
                   }
                 }}
               />
@@ -1553,7 +1562,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 <div class='bk-button-group clean-rule-mode-group'>
                   <bk-button
                     class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
-                    on-click={() => { cleanRuleMode.value = 'manual'; }}
+                    on-click={() => {
+                      cleanRuleMode.value = 'manual';
+                    }}
                   >
                     {t('手动配置清洗规则')}
                   </bk-button>

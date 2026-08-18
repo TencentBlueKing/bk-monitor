@@ -282,7 +282,7 @@ export default defineComponent({
                   </div>
                   <span class='template-item-count'>
                     <i class='bklog-icon bklog-feature-tezheng' />
-                    {(item.etl_fields ?? []).length}
+                    {(item.etl_fields ?? []).filter(field => !field.is_delete).length}
                   </span>
                 </div>
                 {item.description && (

@@ -1051,4 +1051,6 @@ export default {
   匹配度: 'Match Rate',
   正常字段: 'Standard field',
   开启: 'Turn on',
+  冲突: 'Conflict',
+  空值: 'Empty value',
 };
