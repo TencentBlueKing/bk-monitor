@@ -1667,12 +1667,23 @@ class Item(AbstractConfig):
         AlgorithmModel.objects.filter(item_id__in=useless_item_ids).delete()
         QueryConfigModel.objects.filter(item_id__in=useless_item_ids).delete()
 
+    @staticmethod
+    def truncate_name(name: str) -> str:
+        """截断到 ItemModel.name 字段长度。
+
+        编辑页会按表达式展开监控项名，多指标 PromQL 公式经常超过 varchar(256)。
+        创建路径原本就会截断，更新路径必须对齐，否则 MySQL 1406 会把整次保存打成 DataError。
+        """
+        max_length = ItemModel._meta.get_field("name").max_length
+        return (name or "")[:max_length]
+
     def _create(self):
         data = self.to_dict()
         data.pop("id", None)
         data.pop("query_configs", None)
         data.pop("algorithms", None)
-        data["name"] = data.get("name", "")[:256]
+        data["name"] = self.truncate_name(data.get("name", ""))
+        self.name = data["name"]
         item = ItemModel.objects.create(strategy_id=self.strategy_id, **data)
         self.id = item.id
         return item
@@ -1700,6 +1711,7 @@ class Item(AbstractConfig):
             query_config.save(self)
 
     def save(self):
+        self.name = self.truncate_name(self.name)
         try:
             if self.id > 0:
                 item: ItemModel = ItemModel.objects.get(id=self.id, strategy_id=self.strategy_id)
@@ -2787,10 +2799,13 @@ class Strategy(AbstractConfig):
 
         return create_or_update_datas
 
-    @transaction.atomic
     def save(self, rollback=False):
         """
         保存策略配置
+
+        策略本体写入放在独立 atomic 中。history 的创建/失败记录必须在事务外，
+        否则 MySQL DataError 会把连接标脏，except 里再 history.save() 会变成
+        TransactionManagementError，把原始异常盖掉。
         """
         self.inherit_dynamic_alert_level_mode()
 
@@ -2818,94 +2833,80 @@ class Strategy(AbstractConfig):
             # 重名检测
             if StrategyModel.objects.filter(bk_biz_id=self.bk_biz_id, name=self.name).exclude(id=self.id).exists():
                 history.message = _("策略名称({})不能重复").format(self.name)
-                history.save()
+                history.save(update_fields=["message"])
                 raise CreateStrategyError(history.message)
         else:
             history = None
 
-        old_strategy = None
         try:
-            if self.id > 0:
-                strategy = StrategyModel.objects.get(id=self.id, bk_biz_id=self.bk_biz_id)
+            with transaction.atomic():
+                if self.id > 0:
+                    strategy = StrategyModel.objects.get(id=self.id, bk_biz_id=self.bk_biz_id)
 
-                # 记录原始配置
-                old_strategy = Strategy.from_models([strategy])[0]
+                    strategy.name = self.name
+                    strategy.scenario = self.scenario
+                    strategy.source = self.source
+                    strategy.type = self.type
+                    strategy.is_enabled = self.is_enabled
+                    strategy.is_invalid = self.is_invalid
+                    strategy.invalid_type = self.invalid_type
+                    strategy.update_user = self._get_username()
+                    strategy.priority = self.priority
+                    strategy.priority_group_key = (
+                        self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
+                        if self.priority is not None
+                        else ""
+                    )
+                    strategy.save()
+                else:
+                    self._create()
 
-                strategy.name = self.name
-                strategy.scenario = self.scenario
-                strategy.source = self.source
-                strategy.type = self.type
-                strategy.is_enabled = self.is_enabled
-                strategy.is_invalid = self.is_invalid
-                strategy.invalid_type = self.invalid_type
-                strategy.update_user = self._get_username()
-                strategy.priority = self.priority
-                strategy.priority_group_key = (
-                    self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
-                    if self.priority is not None
-                    else ""
-                )
-                strategy.save()
-            else:
-                self._create()
+                # 复用当前存在的记录
+                model_configs = [
+                    (ItemModel, Item, self.items),
+                    (DetectModel, Detect, self.detects),
+                ]
+                for model, config_cls, configs in model_configs:
+                    objs = model.objects.filter(strategy_id=self.id).only("id")
+                    self.reuse_exists_records(model, objs, configs, config_cls)
 
-            # 复用当前存在的记录
-            model_configs = [
-                (ItemModel, Item, self.items),
-                (DetectModel, Detect, self.detects),
-            ]
-            for model, config_cls, configs in model_configs:
-                objs = model.objects.filter(strategy_id=self.id).only("id")
-                self.reuse_exists_records(model, objs, configs, config_cls)
+                # 保存子配置
+                for obj in chain(self.items, self.detects):
+                    obj.save()
 
-            # 保存子配置
-            for obj in chain(self.items, self.detects):
-                obj.save()
+                # 复用旧ID地保存actions和notice
+                self.save_actions()
+                self.save_notice()
 
-            # 复用旧ID地保存actions和notice
-            self.save_actions()
-            self.save_notice()
+                # 保存策略标签
+                self.save_labels()
 
-            # 保存策略标签
-            self.save_labels()
+                # 保存 issue_config（仅当请求体中携带该字段时执行）
+                if self._issue_config_in_request:
+                    self.save_issue_config()
 
-            # 保存 issue_config（仅当请求体中携带该字段时执行）
-            if self._issue_config_in_request:
-                self.save_issue_config()
+                if history:
+                    # strategy_id / 成功状态与配置同提交；失败回滚后 history 仍保持创建时的 strategy_id=0
+                    if history.strategy_id == 0:
+                        history.strategy_id = self.id
+                    history.status = True
+                    history.save(update_fields=["strategy_id", "status"])
 
-            if history and history.strategy_id == 0:
-                history.strategy_id = self.id
-                history.save()
+                if need_access_aiops:
+                    self.access_aiops(algorithm_name)
         except StrategyModel.DoesNotExist:
             if history:
                 history.message = _("策略({})不存在").format(self.id)
-                history.save()
+                history.save(update_fields=["message"])
             raise StrategyNotExist()
-        except Exception as e:
-            # 回滚失败直接报错
+        except Exception:
             if rollback:
-                raise e
-
-            # 清空或回滚配置
-            if history.operate == "create":
-                self.delete()
-            elif old_strategy:
-                try:
-                    old_strategy.save(rollback=True)
-                except Exception as rollback_exception:
-                    logger.error(f"策略({self.id})回滚失败")
-                    logger.exception(rollback_exception)
-
-            # 记录错误信息
-            history.message = traceback.format_exc()
-            history.save()
-            raise e
-
-        history.status = True
-        history.save()
-
-        if need_access_aiops:
-            self.access_aiops(algorithm_name)
+                raise
+            if history:
+                # 事务已结束，只回写错误信息，避免把内存里已赋值、库里已回滚的 strategy_id 提交出去
+                history.message = traceback.format_exc()
+                history.save(update_fields=["message"])
+            raise
 
     def check_aiops_access(self):
         """

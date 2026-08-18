@@ -28,7 +28,7 @@ _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
-_LOG_COLLECTION_ETL_PREVIEW_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_etl_preview_mcp.yaml"
+_LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -120,38 +120,25 @@ def test_alert_handling_mcp_contract():
             assert method_data["tags"] == ["alert_handling_mcp"]
 
 
-def test_log_collection_etl_preview_mcp_contract():
-    """清洗预览 MCP 仅暴露无确认参数的只读预览 Tool。"""
-    paths = _load_paths(_LOG_COLLECTION_ETL_PREVIEW_MCP_FILE)
+def test_log_collection_mcp_contract():
+    """日志采集 MCP 首期只暴露分页列表和详情查询。"""
+    paths = _load_paths(_LOG_COLLECTION_MCP_FILE)
 
-    assert set(paths) == {"/mcp/preview_log_etl/"}
-    method_data = paths["/mcp/preview_log_etl/"]["post"]
-    assert method_data["operationId"] == "preview_log_etl"
-    assert method_data["tags"] == ["log_collection_mcp"]
-    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
-    assert schema["properties"]["etl_config"]["enum"] == [
-        "bk_log_text",
-        "bk_log_json",
-        "bk_log_regexp",
-        "bk_log_delimiter",
-    ]
-    assert schema["properties"]["data"]["maxLength"] == 10_000
-    assert schema["properties"]["etl_params"]["additionalProperties"] is False
-    assert "confirm" not in schema["properties"]
-
-    gateway_resource = method_data["x-bk-apigateway-resource"]
-    assert gateway_resource["backend"] == {
-        "name": "default",
-        "method": "post",
-        "path": "/api/v4/log_collection_etl_preview/preview/",
-        "matchSubpath": False,
-        "timeout": 30,
+    assert set(paths) == {
+        "/mcp/list_log_collectors/",
+        "/mcp/get_log_collector/",
     }
-    assert gateway_resource["authConfig"] == {
-        "userVerifiedRequired": True,
-        "appVerifiedRequired": False,
-        "resourcePermissionRequired": True,
-    }
+    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector"}
+    for path_data in paths.values():
+        for method_data in path_data.values():
+            assert method_data["tags"] == ["log_collection_mcp"]
+            resource = method_data["x-bk-apigateway-resource"]
+            assert resource["backend"]["method"] == "get"
+            assert resource["authConfig"] == {
+                "userVerifiedRequired": True,
+                "appVerifiedRequired": False,
+                "resourcePermissionRequired": True,
+            }
 
 
 def test_promql_query_config_apigw_contract():
@@ -202,6 +189,41 @@ def test_repository_resources_have_unique_operation_ids():
                     # 带上来源文件，避免同一路径被 dict.update 覆盖后漏检 operationId 冲突。
                     merged[f"{file.relative_to(_RESOURCES_DIR)}::{path}"] = path_data
     check_unique_operation_ids(merged)
+
+
+def test_log_collection_etl_preview_mcp_contract():
+    """清洗预览 MCP 仅暴露无确认参数的只读预览 Tool。"""
+    etl_preview_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_etl_preview_mcp.yaml"
+    paths = _load_paths(etl_preview_mcp_file)
+
+    assert set(paths) == {"/mcp/preview_log_etl/"}
+    method_data = paths["/mcp/preview_log_etl/"]["post"]
+    assert method_data["operationId"] == "preview_log_etl"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["properties"]["etl_config"]["enum"] == [
+        "bk_log_text",
+        "bk_log_json",
+        "bk_log_regexp",
+        "bk_log_delimiter",
+    ]
+    assert schema["properties"]["data"]["maxLength"] == 10_000
+    assert schema["properties"]["etl_params"]["additionalProperties"] is False
+    assert "confirm" not in schema["properties"]
+
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+    assert gateway_resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_etl_preview/preview/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert gateway_resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
 
 
 if __name__ == "__main__":

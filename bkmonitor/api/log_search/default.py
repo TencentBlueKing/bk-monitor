@@ -516,6 +516,7 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         collector_config_id = serializers.IntegerField(required=True, label="采集器ID")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
 
     def get_request_url(self, validated_request_data):
         """
@@ -620,6 +621,37 @@ class ListCollectorsResource(LogSearchAPIGWResource):
 
     action = "/databus_list_collectors/"
     method = "GET"
+
+
+class PagedCollectorConfigsResource(LogSearchAPIGWResource):
+    """
+    分页获取采集项列表
+    """
+
+    action = "/databus_collectors/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
+        pagesize = serializers.IntegerField(
+            required=False, default=20, min_value=1, max_value=100, label="每页数量"
+        )
+        keyword = serializers.CharField(
+            required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
+        )
+        collector_scenario_id = serializers.CharField(required=False, label="采集场景")
+        is_active = serializers.BooleanField(required=False, label="是否启用")
+        ordering = serializers.ChoiceField(
+            required=False,
+            default="-updated_at,-collector_config_id",
+            choices=[
+                "updated_at,collector_config_id",
+                "-updated_at,-collector_config_id",
+            ],
+            label="排序方式",
+        )
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
 
 
 class LogEtlPreviewResource(LogSearchAPIGWResource):
