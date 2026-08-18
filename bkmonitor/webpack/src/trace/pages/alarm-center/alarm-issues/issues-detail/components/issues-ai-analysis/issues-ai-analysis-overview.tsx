@@ -100,7 +100,9 @@ export default defineComponent({
             >
               <span
                 class='btn'
-                onClick={handleToSetting}
+                onClick={() => {
+                  handleToSetting(props.detail.bk_biz_id);
+                }}
               >
                 {t('去配置')}
               </span>

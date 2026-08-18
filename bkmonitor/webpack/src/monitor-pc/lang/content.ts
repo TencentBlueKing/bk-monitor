@@ -521,4 +521,5 @@ export default {
   '由 {name} 分析 · {time}': 'Analyzed by {name} · {time}',
   '由 {name} 于 {time} 发起, 完成后将通过企业微信通知本次发起人':
     'Initiated by {name} on {time}, and will notify the initiator by WeChat Work after completion',
+  '将由 {name} 触发蓝盾 AI 分析流水线实例': 'The BK-DevOps AI analysis pipeline instance will be triggered by {name}',
 };

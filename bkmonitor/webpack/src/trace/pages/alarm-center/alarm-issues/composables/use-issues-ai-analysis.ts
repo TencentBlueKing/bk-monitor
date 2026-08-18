@@ -92,7 +92,11 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
   /**
    * 去配置
    */
-  const handleToSetting = () => {};
+  const handleToSetting = (bizId: number | string, blank = '') => {
+    const { origin, pathname } = window.location;
+    const url = `${origin}${pathname}?bizId=${bizId}#/ai-config?tab=source-code-analysis`;
+    window.open(url, blank);
+  };
 
   /**
    * 立即分析（第一次分析才调用这个接口）

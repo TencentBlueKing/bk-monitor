@@ -484,6 +484,9 @@ export default defineComponent({
             <IssuesAiAnalysis
               detail={props.detail}
               onAssigneeChange={handleAssigneeChange}
+              onBackToIssue={() => {
+                handleTabChange(IssueDetailTabEnum.LATEST);
+              }}
             />
           );
         default:

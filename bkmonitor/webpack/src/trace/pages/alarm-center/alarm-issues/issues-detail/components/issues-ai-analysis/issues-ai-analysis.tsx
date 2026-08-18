@@ -44,6 +44,7 @@ export default defineComponent({
   },
   emits: {
     assigneeChange: (_users: string[], _activities: IssueActivityItem[]) => true,
+    backToIssue: () => true,
   },
   setup() {
     const { t } = useI18n();
@@ -86,6 +87,9 @@ export default defineComponent({
               show={this.currentTab === 'source'}
               onAssigneeChange={(users, activities) => {
                 this.$emit('assigneeChange', users, activities);
+              }}
+              onBackToIssue={() => {
+                this.$emit('backToIssue');
               }}
             />
           </Tab.TabPanel>
