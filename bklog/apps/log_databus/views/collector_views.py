@@ -110,6 +110,10 @@ class CollectorViewSet(ModelViewSet):
     ordering_fields = ("updated_at", "updated_by", "collector_config_id")
 
     def get_permissions(self):
+        # 清洗配置写接口不接受 ESQUERY 白名单豁免
+        if self.action == "update_or_create_clean_config":
+            return [InstanceActionPermission([ActionEnum.MANAGE_COLLECTION], ResourceEnum.COLLECTION)]
+
         with ignored(Exception, log_exception=True):
             auth_info = Permission.get_auth_info(self.request)
             # ESQUERY白名单不需要鉴权

@@ -39,6 +39,7 @@ PUBLIC_RESOURCES = {
     ("POST", "/databus_collectors/{collector_config_id}/fast_update/"),
     ("POST", "/databus_collectors/{collector_config_id}/start/"),
     ("POST", "/databus_collectors/{collector_config_id}/stop/"),
+    ("POST", "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"),
     ("POST", "/esquery_search/"),
     ("POST", "/index_set/"),
     ("POST", "/pattern/{index_set_id}/search/"),

@@ -120,6 +120,37 @@ def test_alert_handling_mcp_contract():
             assert method_data["tags"] == ["alert_handling_mcp"]
 
 
+def test_log_collection_clean_config_mcp_contract():
+    """清洗修改必须保持单一高风险 Tool、完整存储参数和无模板边界。"""
+    clean_config_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_clean_config_mcp.yaml"
+    paths = _load_paths(clean_config_mcp_file)
+
+    assert set(paths) == {"/mcp/update_log_collector_clean_config/"}
+    method_data = paths["/mcp/update_log_collector_clean_config/"]["post"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert method_data["operationId"] == "update_log_collector_clean_config"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    assert method_data["x-bk-apigateway-resource"]["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_clean_config/update/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert {
+        "storage_cluster_id",
+        "retention",
+        "allocation_min_days",
+        "storage_replies",
+        "es_shards",
+        "confirm",
+    }.issubset(schema["required"])
+    assert schema["properties"]["confirm"]["enum"] == [True]
+    assert schema["additionalProperties"] is False
+    assert "template_id" not in schema["properties"]
+    assert "template_name" not in schema["properties"]
+
+
 def test_log_collection_mcp_contract():
     """日志采集 MCP 首期只暴露分页列表和详情查询。"""
     paths = _load_paths(_LOG_COLLECTION_MCP_FILE)

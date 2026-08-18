@@ -1,0 +1,135 @@
+paths:
+  /mcp/update_log_collector_clean_config/:
+    post:
+      operationId: update_log_collector_clean_config
+      description: Fully replace the cleaning, field, storage and index-set configuration of one log collector. This production write requires explicit confirm=true and MANAGE_COLLECTION permission. storage_cluster_id, retention, allocation_min_days, storage_replies and es_shards are mandatory so storage defaults cannot silently overwrite the current configuration. table_id must be copied from get_log_collector and cannot rename the result table. The response includes a write-after-read snapshot and arguments for get_log_collector polling because an existing result-table update may finish asynchronously. This tool does not support cleaning templates. 完整替换单个日志采集项的清洗、字段、存储和索引集配置；生产写操作必须显式传 confirm=true 并具备采集项管理权限；存储集群、保留期、冷热天数、副本和分片均为必填，避免默认值静默覆盖；table_id 必须来自 get_log_collector 且不能改名；返回写后回读快照及 get_log_collector 查询参数；不支持清洗模板。
+      tags: [log_collection_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - bk_biz_id
+                - collector_config_id
+                - table_id
+                - etl_config
+                - etl_params
+                - fields
+                - storage_cluster_id
+                - retention
+                - allocation_min_days
+                - storage_replies
+                - es_shards
+                - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务 ID。
+                collector_config_id:
+                  type: integer
+                  minimum: 1
+                  description: Log collector configuration ID. 日志采集项 ID。
+                table_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                  description: Existing result-table name from get_log_collector, without the business prefix; it cannot be renamed here. 来自 get_log_collector 的现有结果表英文名，不含业务前缀，不能在此改名。
+                etl_config:
+                  type: string
+                  enum: [bk_log_text, bk_log_json, bk_log_delimiter, bk_log_regexp]
+                  description: Cleaning type. 清洗类型。
+                etl_params:
+                  type: object
+                  additionalProperties: false
+                  description: Complete cleaning parameters. 清洗参数。
+                  properties:
+                    separator_regexp: {type: string, nullable: true}
+                    is_grok: {type: boolean}
+                    separator: {type: string, nullable: true}
+                    retain_original_text: {type: boolean}
+                    original_text_is_case_sensitive: {type: boolean}
+                    original_text_tokenize_on_chars: {type: string, nullable: true}
+                    retain_extra_json: {type: boolean}
+                    ext_json_config:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        expand_depth: {type: integer, nullable: true, enum: [1, 2, 3]}
+                    enable_retain_content: {type: boolean}
+                    record_parse_failure: {type: boolean}
+                    path_regexp: {type: string, nullable: true}
+                    metadata_fields:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [field_name, value, metadata_type]
+                        properties:
+                          field_name: {type: string}
+                          value: {type: string, nullable: true}
+                          metadata_type: {type: string, enum: [path]}
+                fields:
+                  type: array
+                  description: Complete cleaning field list; use an empty list for bk_log_text. 清洗字段完整列表，直接入库使用空数组。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [is_delete]
+                    properties:
+                      field_index: {type: integer, nullable: true}
+                      field_name: {type: string, nullable: true}
+                      alias_name: {type: string, nullable: true}
+                      field_type: {type: string, nullable: true}
+                      description: {type: string, nullable: true}
+                      is_analyzed: {type: boolean}
+                      is_dimension: {type: boolean}
+                      is_time: {type: boolean}
+                      is_delete: {type: boolean}
+                      is_built_in: {type: boolean}
+                      option: {type: object}
+                      is_case_sensitive: {type: boolean}
+                      tokenize_on_chars: {type: string, nullable: true}
+                      value: {}
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                  description: Storage cluster ID. 存储集群 ID。
+                retention:
+                  type: integer
+                  minimum: 1
+                  description: Retention days. 保留天数。
+                allocation_min_days:
+                  type: integer
+                  minimum: 0
+                  description: Days before warm allocation; zero disables hot-warm allocation. 冷热数据生效天数，0 表示关闭。
+                storage_replies:
+                  type: integer
+                  minimum: 0
+                  description: Elasticsearch replica count; zero is preserved. ES 副本数，允许显式传 0。
+                es_shards:
+                  type: integer
+                  minimum: 1
+                  description: Elasticsearch primary shard count. ES 主分片数。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Explicit user confirmation for this production write. 生产写操作的用户显式确认，必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_clean_config/update/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
