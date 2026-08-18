@@ -222,6 +222,83 @@ class TestGetAgentStatus:
     测试获取Agent状态
     """
 
+    def test_empty_hosts_skip_uq_and_nodeman_queries(self, mocker):
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        node_man = mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail")
+
+        assert resource.cc.get_agent_status(bk_biz_id=2, hosts=[]) == {}
+        unify_query.assert_not_called()
+        node_man.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("hosts", "ipv6_biz_ids", "expected_fields", "expected_connectors"),
+        [
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [],
+                [
+                    {
+                        "field_name": "bk_target_ip",
+                        "value": [HOSTS[0].bk_host_innerip, HOSTS[3].bk_host_innerip],
+                        "op": "contains",
+                    },
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[0].bk_cloud_id)], "op": "contains"},
+                    {"field_name": "bk_target_ip", "value": [HOSTS[1].bk_host_innerip], "op": "contains"},
+                    {"field_name": "bk_target_cloud_id", "value": [str(HOSTS[1].bk_cloud_id)], "op": "contains"},
+                ],
+                ["and", "or", "and"],
+            ),
+            (
+                [HOSTS[0], HOSTS[3], HOSTS[1]],
+                [2],
+                [{"field_name": "bk_host_id", "value": ["1", "2", "4"], "op": "contains"}],
+                [],
+            ),
+            ([HOSTS[2]], [], [], []),
+        ],
+    )
+    def test_agent_query_filters_are_compiled_for_requested_hosts(
+        self, mocker, settings, hosts, ipv6_biz_ids, expected_fields, expected_connectors
+    ):
+        settings.IPV6_SUPPORT_BIZ_LIST = ipv6_biz_ids
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.query_data.return_value = []
+        mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail", return_value=[])
+
+        resource.cc.get_agent_status(bk_biz_id=2, hosts=hosts)
+
+        data_source = unify_query.call_args.kwargs["data_sources"][0]
+        query_config = data_source.to_unify_query_config()[0]
+        assert query_config["conditions"] == {
+            "field_list": expected_fields,
+            "condition_list": expected_connectors,
+        }
+
+    def test_historical_query_uses_selected_end_and_skips_nodeman(self, mocker):
+        mocker.patch("monitor_web.cc.resources.cmdb.time.time", return_value=1_000)
+        query_data = mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", return_value=[])
+        node_man = mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail")
+
+        result = resource.cc.get_agent_status(bk_biz_id=2, hosts=HOSTS[:1], start_time=400, end_time=600)
+
+        assert result == {HOSTS[0].bk_host_id: AGENT_STATUS.NO_DATA}
+        assert query_data.call_args.kwargs == {"start_time": 420_000, "end_time": 600_000, "instant": True}
+        node_man.assert_not_called()
+
+    def test_recent_query_uses_current_end_and_queries_nodeman(self, mocker):
+        mocker.patch("monitor_web.cc.resources.cmdb.time.time", return_value=1_000)
+        query_data = mocker.patch("bkmonitor.data_source.UnifyQuery.query_data", return_value=[])
+        node_man = mocker.patch(
+            "monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail",
+            return_value=[{"host_id": HOSTS[0].bk_host_id, "alive": 1}],
+        )
+
+        result = resource.cc.get_agent_status(bk_biz_id=2, hosts=HOSTS[:1], start_time=600, end_time=800)
+
+        assert result == {HOSTS[0].bk_host_id: AGENT_STATUS.NO_DATA}
+        assert query_data.call_args.kwargs == {"start_time": 820_000, "end_time": 1_000_000, "instant": True}
+        node_man.assert_called_once()
+
     @mock.patch(
         "core.drf_resource.api.gse.get_agent_status",
         return_value={

@@ -799,6 +799,47 @@ class TestBuildBcsFederalInfo:
         assert out is not None
         assert out["sub_cluster_id"] == "BCS-K8S-99005"
 
+    def test_strategy_match_returns_all_federation_routes_for_same_sub_cluster(self):
+        r = self._make_resource()
+        rt = mock.MagicMock()
+        rt.table_id = "subset.cpu_fed"
+        fed_b = mock.MagicMock(
+            bk_tenant_id="system",
+            fed_cluster_id="BCS-K8S-99004",
+            host_cluster_id="BCS-K8S-99001",
+            sub_cluster_id="BCS-K8S-99005",
+            fed_namespaces=["ns-b"],
+            fed_builtin_metric_table_id="proxy-b.metric",
+            fed_builtin_event_table_id=None,
+        )
+        fed_a = mock.MagicMock(
+            bk_tenant_id="system",
+            fed_cluster_id="BCS-K8S-99003",
+            host_cluster_id="BCS-K8S-99001",
+            sub_cluster_id="BCS-K8S-99005",
+            fed_namespaces=["ns-a"],
+            fed_builtin_metric_table_id="proxy-a.metric",
+            fed_builtin_event_table_id=None,
+        )
+        ctx = {
+            "fed_by_table_id": {},
+            "fed_by_sub_cluster_id": {"BCS-K8S-99005": [fed_b, fed_a]},
+        }
+
+        out = r._build_bcs_federal_info(
+            rt,
+            "bcs_federal_subset_time_series",
+            "BCS-K8S-99005",
+            ctx,
+        )
+
+        assert out["fed_cluster_id"] == "BCS-K8S-99003"
+        assert [route["fed_cluster_id"] for route in out["federation_routes"]] == [
+            "BCS-K8S-99003",
+            "BCS-K8S-99004",
+        ]
+        assert [route["fed_namespaces"] for route in out["federation_routes"]] == [["ns-a"], ["ns-b"]]
+
     def test_strategy_match_no_sub_cluster(self):
         """策略匹配但 bcs_cluster_id 未提供 → 不填充."""
         r = self._make_resource()

@@ -525,6 +525,7 @@ def _parse_function_params(
 class DataSource(metaclass=ABCMeta):
     data_source_label = ""
     data_type_label = ""
+    supports_unify_query_dimensions: bool = False
 
     bk_tenant_id: str | None
     metrics: list[dict]
@@ -1512,6 +1513,8 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
 
 
 class BaseBkMonitorLogDataSource(DataSource, ABC):
+    supports_unify_query_dimensions: bool = True
+
     RESERVED_FIELDS: list[str] = ["_after_key_"]
     INNER_DIMENSIONS: list[str] = []
     DISTINCT_METHODS: set[str] = {"AVG", "SUM", "COUNT"}
@@ -2470,6 +2473,10 @@ class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
         return settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
 
     def switch_unify_query(self, bk_biz_id: int) -> bool:
+        # PREFIX# 开头的表名表示按索引前缀检索，无法被结果表路由解析，只能走 ES 查询。
+        if self.table.startswith("PREFIX#"):
+            return False
+
         for field_cond in self._get_conditions().get("field_list", []):
             # 如果存在 ES 检索的特殊操作符，则不使用 unify-query。
             # 背景：之前用户输入 events.a.b.c 时，SaaS 需要根据 mapping 判断是否为嵌套字段，增加 nested 检索关键字。
@@ -2504,6 +2511,11 @@ class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
                 field = self.FIELD_MAPPING.get(field, field)
                 if field in ["_meta"]:
                     # 排除无需返回的字段。
+                    continue
+
+                # 新版本 collector 会补充 app_name & bk_biz_id 作为 Span 元数据。
+                # 如果旧版本没有补充，增量应用会返回字段默认值，在此进行移除，避免干扰上层逻辑。
+                if field in ["bk_biz_id", "app_name"] and value in (None, "", "0", 0):
                     continue
 
                 # TODO(crayon) 目前 Nested 字段在 Doris 查询仅返回字符串，为保证功能可用，此处转为结构化数据，等待 unify-query 支持

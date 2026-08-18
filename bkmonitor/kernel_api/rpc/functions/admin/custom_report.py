@@ -21,9 +21,11 @@ from kernel_api.rpc.functions.admin.common import (
     filter_by_bk_tenant_id,
     get_bk_tenant_id,
     get_page_list_bk_tenant_id,
+    normalize_int_list_filter,
     normalize_optional_bool,
     normalize_pagination,
     normalize_positive_int,
+    normalize_string_list_filter,
     paginate_queryset,
     serialize_model,
     serialize_value,
@@ -66,27 +68,6 @@ def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> in
         return int(value)
     except (TypeError, ValueError) as error:
         raise CustomException(message=f"{field_name} 必须是整数") from error
-
-
-def _normalize_int_list(value: Any, field_name: str) -> list[int]:
-    if value in (None, ""):
-        return []
-    if isinstance(value, str):
-        raw_items = [item.strip() for item in value.split(",")]
-    elif isinstance(value, list | tuple | set):
-        raw_items = list(value)
-    else:
-        raw_items = [value]
-
-    results: list[int] = []
-    for item in raw_items:
-        if item in (None, ""):
-            continue
-        try:
-            results.append(int(item))
-        except (TypeError, ValueError) as error:
-            raise CustomException(message=f"{field_name} 必须是整数列表") from error
-    return sorted(set(results))
 
 
 def _serialize_datasource_summary(datasource: models.DataSource | None) -> dict[str, Any] | None:
@@ -280,6 +261,7 @@ def _serialize_event_group(group: models.EventGroup) -> dict[str, Any]:
         "table_id": group.table_id,
         "data_label": None,
         "created_from": None,
+        "status": getattr(group, "status", None),
         "is_enable": group.is_enable,
         "metric_count": 0,
         "field_count": len(getattr(group, "STORAGE_FIELD_LIST", []) or []),
@@ -316,13 +298,10 @@ def _serialize_log_datasource(datasource: models.DataSource) -> dict[str, Any]:
 
 def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.TimeSeriesGroup.objects.filter(is_delete=False), bk_tenant_id)
-    bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
-    if bk_biz_id is not None:
-        queryset = queryset.filter(bk_biz_id=bk_biz_id)
-    bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
-    if bk_data_id is not None:
-        queryset = queryset.filter(bk_data_id=bk_data_id)
-    bk_data_ids = _normalize_int_list(params.get("bk_data_ids"), "bk_data_ids")
+    bk_biz_ids = normalize_int_list_filter(params, "bk_biz_id", "bk_biz_ids")
+    if bk_biz_ids:
+        queryset = queryset.filter(bk_biz_id__in=bk_biz_ids)
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True, allow_legacy_csv=True)
     if bk_data_ids:
         queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     table_id = str(params.get("table_id") or "").strip()
@@ -336,13 +315,10 @@ def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str | None):
 
 def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.EventGroup.objects.filter(is_delete=False), bk_tenant_id)
-    bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
-    if bk_biz_id is not None:
-        queryset = queryset.filter(bk_biz_id=bk_biz_id)
-    bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
-    if bk_data_id is not None:
-        queryset = queryset.filter(bk_data_id=bk_data_id)
-    bk_data_ids = _normalize_int_list(params.get("bk_data_ids"), "bk_data_ids")
+    bk_biz_ids = normalize_int_list_filter(params, "bk_biz_id", "bk_biz_ids")
+    if bk_biz_ids:
+        queryset = queryset.filter(bk_biz_id__in=bk_biz_ids)
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True, allow_legacy_csv=True)
     if bk_data_ids:
         queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     table_id = str(params.get("table_id") or "").strip()
@@ -351,6 +327,9 @@ def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     group_name = str(params.get("group_name") or "").strip()
     if group_name:
         queryset = queryset.filter(event_group_name__icontains=group_name)
+    statuses = normalize_string_list_filter(params, "status", "statuses")
+    if statuses:
+        queryset = queryset.filter(status__in=statuses)
     return queryset
 
 
@@ -362,10 +341,10 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
         ),
         bk_tenant_id,
     )
-    bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
-    if bk_data_id is not None:
-        queryset = queryset.filter(bk_data_id=bk_data_id)
-    bk_data_ids = _normalize_int_list(params.get("bk_data_ids"), "bk_data_ids")
+    bk_biz_ids = normalize_int_list_filter(params, "bk_biz_id", "bk_biz_ids")
+    if bk_biz_ids:
+        queryset = queryset.filter(bk_biz_id__in=bk_biz_ids)
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True, allow_legacy_csv=True)
     if bk_data_ids:
         queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     group_name = str(params.get("group_name") or "").strip()
@@ -377,9 +356,9 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
             **tenant_filter_kwargs(bk_tenant_id), table_id__icontains=table_id
         ).values_list("bk_data_id", flat=True)
         queryset = queryset.filter(bk_data_id__in=bk_data_ids)
-    created_from = str(params.get("created_from") or "").strip()
-    if created_from:
-        queryset = queryset.filter(created_from=created_from)
+    created_froms = normalize_string_list_filter(params, "created_from", "created_froms")
+    if created_froms:
+        queryset = queryset.filter(created_from__in=created_froms)
     return queryset
 
 
@@ -391,15 +370,27 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "report_type": "可选，custom_metric / custom_event / custom_log",
         "bk_biz_id": "可选，业务 ID",
+        "bk_biz_ids": "可选，业务 ID 整数数组，最多 100 项；与 bk_biz_id 合并去重",
         "bk_data_id": "可选，DataId",
-        "bk_data_ids": "可选，DataId 列表，支持数组或逗号分隔字符串",
+        "bk_data_ids": "可选，DataId 正整数数组，最多 100 项；历史逗号分隔字符串继续兼容，与 bk_data_id 合并去重",
         "table_id": "可选，结果表 ID 包含匹配",
         "group_name": "可选，名称包含匹配",
         "created_from": "可选，创建来源",
+        "created_froms": "可选，日志上报创建来源数组，最多 100 项；与 created_from 合并去重",
+        "status": "可选，事件上报状态",
+        "statuses": "可选，事件上报状态数组，最多 100 项；与 status 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "report_type": "custom_metric", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "report_type": "custom_event",
+        "bk_data_ids": [50010, 50011],
+        "bk_biz_ids": [2, 3],
+        "statuses": ["normal", "sleep"],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_custom_reports(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)

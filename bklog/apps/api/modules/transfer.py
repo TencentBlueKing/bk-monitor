@@ -230,6 +230,15 @@ class _TransferApi:
             after_request=get_result_table_storage_after,
             bk_tenant_id=result_table_to_tenant_getter("result_table_list"),
         )
+        self.get_result_table_storage_status = DataAPI(
+            method="GET",
+            url=self._build_url("get_result_table_storage_status/", "metadata_get_result_table_storage_status/"),
+            module=self.MODULE,
+            description=_("批量查询结果表存储状态"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_ids"),
+            default_timeout=90,
+        )
         self.get_cluster_info = DataAPI(
             method="GET",
             url=self._build_url("get_cluster_info/", "metadata_get_cluster_info/"),
@@ -237,6 +246,15 @@ class _TransferApi:
             description=_("查询存储集群列表"),
             before_request=add_esb_info_before_request,
             after_request=get_cluster_info_after,
+        )
+        self.get_cluster_status = DataAPI(
+            method="GET",
+            url=self._build_url("get_cluster_status/", "metadata_get_cluster_status/"),
+            module=self.MODULE,
+            description=_("批量查询存储集群状态"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+            default_timeout=90,
         )
         self.create_cluster_info = DataAPI(
             method="POST",

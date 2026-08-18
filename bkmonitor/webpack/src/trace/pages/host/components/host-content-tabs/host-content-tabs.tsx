@@ -116,6 +116,26 @@ export default defineComponent({
       activeTab.value = value;
     };
 
+    const handleTabKeydown = (event: KeyboardEvent, index: number) => {
+      const lastIndex = tabList.value.length - 1;
+      const nextIndexMap: Partial<Record<KeyboardEvent['key'], number>> = {
+        ArrowLeft: index === 0 ? lastIndex : index - 1,
+        ArrowRight: index === lastIndex ? 0 : index + 1,
+        End: lastIndex,
+        Home: 0,
+      };
+      const nextIndex = nextIndexMap[event.key];
+      if (nextIndex === undefined) {
+        return;
+      }
+      event.preventDefault();
+      handleTabChange(tabList.value[nextIndex].value);
+      const tabElements = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLElement>(
+        '[role="tab"]'
+      );
+      tabElements?.[nextIndex]?.focus();
+    };
+
     /** 点击主机列表 IP 单元格时向上冒泡，由页面层处理拓扑树聚焦 */
     const handleSelectIpCell = row => {
       if (props.readonly) {
@@ -180,23 +200,40 @@ export default defineComponent({
 
     return () => (
       <div class='host-content-tabs'>
-        <div class='host-content-tabs__tabs'>
-          {tabList.value.map(tab => (
-            <div
-              key={tab.value}
-              class={['host-content-tabs__tab', { 'is-active': activeTab.value === tab.value }]}
-              onClick={() => handleTabChange(tab.value)}
-            >
-              <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
-              <span>{t(tab.label)}</span>
-            </div>
-          ))}
+        <div
+          class='host-content-tabs__tabs'
+          aria-label={t('主机观测视图')}
+          role='tablist'
+        >
+          {tabList.value.map((tab, index) => {
+            const isActive = activeTab.value === tab.value;
+            return (
+              <button
+                id={`host-content-tab-${tab.value}`}
+                key={tab.value}
+                class={['host-content-tabs__tab', { 'is-active': isActive }]}
+                aria-controls='host-content-panel'
+                aria-selected={isActive}
+                role='tab'
+                tabindex={isActive ? 0 : -1}
+                type='button'
+                onClick={() => handleTabChange(tab.value)}
+                onKeydown={(event: KeyboardEvent) => handleTabKeydown(event, index)}
+              >
+                <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
+                <span>{t(tab.label)}</span>
+              </button>
+            );
+          })}
         </div>
         <div
+          id='host-content-panel'
           class={{
             'is-host-list': activeTab.value === 'list',
             'host-content-tabs__content': true,
           }}
+          aria-labelledby={`host-content-tab-${activeTab.value}`}
+          role='tabpanel'
         >
           {props.selectedNode && renderContent()}
         </div>

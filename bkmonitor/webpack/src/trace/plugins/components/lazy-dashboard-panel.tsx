@@ -32,6 +32,7 @@ import {
   onMounted,
   provide,
   ref,
+  shallowRef,
   toRef,
   watch,
 } from 'vue';
@@ -43,6 +44,7 @@ import { useI18n } from 'vue-i18n';
 
 import ChartWrapper from './chart-wrapper';
 
+import type { DateValue } from '@blueking/date-picker';
 import type { SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
@@ -70,16 +72,27 @@ export default defineComponent({
     dashboardId: { type: String, default: '' },
     // 渲染命中逻辑：matchDisplay 判断是否需要展示某个 panel。
     matchFields: { default: () => {}, type: Object },
-    // 自定义高度
-    customHeightFn: { type: [Function, null], default: null },
-    // 是否显示告警视图图表
-    isAlarmView: { type: Boolean, default: false },
   },
   emits: ['linkTo', 'lintToDetail', 'backToOverview', 'successLoad'],
   setup(props, { emit }) {
     const { t } = useI18n();
     // 当前面板是否拆分给子组件，避免多层级 props 传递。
     provide('isSplitPanel', toRef(props, 'isSplitPanel'));
+
+    /**
+     * 作用域级别的 dataZoom 事件广播。
+     * 每个 LazyDashboardPanel 实例拥有独立的 ref，保证同 Collapse 组内图表联动、
+     * 跨 Collapse 组互不影响。
+     *
+     * 使用 { range, sourceId } 结构：
+     * - range: 框选后的时间范围
+     * - sourceId: 发起框选的图表实例 ID，用于避免自身重复处理
+     *
+     * FailureAlarmChart 通过 inject 获取，
+     * watch({ immediate: false }) 确保后续懒加载的图表不会收到历史 zoom 事件。
+     */
+    const panelZoomRange = shallowRef<{ range: DateValue; sourceId: string } | null>(null);
+    provide('lazyPanelZoomRange', panelZoomRange);
 
     // 视图实例集合
     const localPanels = ref<PanelModel[]>([]);
@@ -99,6 +112,10 @@ export default defineComponent({
 
     /** 曾进入过视口的 panel id 集合（只增不减，用于控制是否渲染 ChartWrapper） */
     const renderedPanelIds = ref<Set<string>>(new Set());
+
+    /** 当前在视口范围内的 panel id 集合（随滚动增减），用于 dataZoom 联动范围判定 */
+    const viewportPanelIds = ref<Set<string>>(new Set());
+    provide('viewportPanelIds', viewportPanelIds);
     let observer: IntersectionObserver | null = null;
     /** panel id → DOM 元素映射，用于 observe / unobserve */
     const itemRefs = new Map<string, HTMLElement>();
@@ -246,30 +263,33 @@ export default defineComponent({
     };
 
     /**
-     * 按需 patch：通过 MutationObserver 监听单个 panel DOM 变化，
-     * 在 echarts 实例创建（插入 canvas / 设置 _echarts_instance_ 属性）时自动 patch，
-     * patch 成功后立即停止监听。相比全局轮询，在 300+ 图表场景下性能更优。
+     * 持久化 MutationObserver：监听 panel DOM 内 echarts 实例的创建 / 重建。
+     *
+     * 背景：MonitorCharts 在数据重新加载时会 loading=true → VueEcharts 卸载 → loading=false → VueEcharts 重新挂载，
+     * 新 echarts 实例通过 vue-echarts 的 watchEffect 自动携带 group = dashboardId。
+     * 如果此时面板不在视口内，新实例不会被 disconnectPanelFromGroup 断开（因为 IntersectionObserver
+     * 的 isIntersecting=false 事件已经在 VueEcharts 卸载前触发过了），导致 tooltip 联动到视口外。
+     *
+     * 修复：observer 保持活跃（仅监听 _echarts_instance_ 属性变化，开销极小），
+     * 每次检测到新实例时，既 patch tooltip 位置裁剪，又检查视口状态 —— 不在视口内则立即断开 group。
      */
     const panelMutationObservers = new Map<string, MutationObserver>();
-    const MAX_PATCH_RETRIES = 15;
 
-    /** 启动 MutationObserver 监听 panel DOM，等待 echarts 实例创建后 patch */
     const startPanelPatchObserver = (panelId: string, panelEl: HTMLElement) => {
       if (panelMutationObservers.has(panelId)) return;
-      // echarts 可能已初始化完成，先尝试直接 patch
-      if (patchPanelInstances(panelEl) > 0) return;
+      // 先尝试直接 patch 已有实例（不 return，后续仍启动 observer 以检测重建）
+      patchPanelInstances(panelEl);
 
-      let retryCount = 0;
       const mo = new MutationObserver(() => {
-        retryCount++;
-        if (patchPanelInstances(panelEl) > 0 || retryCount >= MAX_PATCH_RETRIES) {
-          mo.disconnect();
-          panelMutationObservers.delete(panelId);
+        const count = patchPanelInstances(panelEl);
+        if (count > 0 && !viewportPanelIds.value.has(panelId)) {
+          // 新实例产生但面板不在视口 → 立即断开 group，防止 tooltip 联动到视口外
+          disconnectPanelFromGroup(panelId, panelEl);
         }
       });
 
+      // 仅监听 _echarts_instance_ 属性变化（echarts.init 设置），开销极低
       mo.observe(panelEl, {
-        childList: true,
         subtree: true,
         attributes: true,
         attributeFilter: ['_echarts_instance_'],
@@ -289,27 +309,40 @@ export default defineComponent({
       const root = getScrollRoot();
       observer = new IntersectionObserver(
         entries => {
-          let changed = false;
-          const next = new Set(renderedPanelIds.value);
+          let renderedChanged = false;
+          let viewportChanged = false;
+          const nextRendered = new Set(renderedPanelIds.value);
+          const nextViewport = new Set(viewportPanelIds.value);
           for (const entry of entries) {
             const panelId = (entry.target as HTMLElement).dataset.panelId;
             if (!panelId) continue;
             if (entry.isIntersecting) {
               reconnectPanelToGroup(panelId);
-              if (!next.has(panelId)) {
-                next.add(panelId);
-                changed = true;
+              if (!nextViewport.has(panelId)) {
+                nextViewport.add(panelId);
+                viewportChanged = true;
+              }
+              if (!nextRendered.has(panelId)) {
+                nextRendered.add(panelId);
+                renderedChanged = true;
                 const el = itemRefs.get(panelId);
                 if (el) startPanelPatchObserver(panelId, el);
               }
             } else {
-              if (next.has(panelId)) {
+              if (nextRendered.has(panelId)) {
                 nextTick(() => disconnectPanelFromGroup(panelId, entry.target as HTMLElement));
+              }
+              if (nextViewport.has(panelId)) {
+                nextViewport.delete(panelId);
+                viewportChanged = true;
               }
             }
           }
-          if (changed) {
-            renderedPanelIds.value = next;
+          if (renderedChanged) {
+            renderedPanelIds.value = nextRendered;
+          }
+          if (viewportChanged) {
+            viewportPanelIds.value = nextViewport;
           }
         },
         {
@@ -339,6 +372,11 @@ export default defineComponent({
       () => props.panels,
       () => {
         if (!props.panels) return;
+        // panels 刷新后 DOM 会重建：必须卸掉旧 MutationObserver / 视口与 disconnect 缓存，
+        // 否则同 panelId 会因 has(panelId) 短路导致新 DOM 挂不上 patch，并造成泄漏。
+        stopAllPatchObservers();
+        disconnectedMap.clear();
+        viewportPanelIds.value = new Set();
         handleInitPanelsGridPosition(props.panels);
         localPanels.value = handleInitLocalPanels(props.panels);
         renderedPanelIds.value = new Set();
@@ -565,7 +603,7 @@ export default defineComponent({
                 <div class='single-chart-wrap'>
                   <ChartWrapper
                     groupId={props.id}
-                    isAlarmView={props.isAlarmView}
+                    isNewAlarmView={true}
                     panel={singleChartPanel.value}
                   />
                 </div>
@@ -609,7 +647,7 @@ export default defineComponent({
                           <ChartWrapper
                             key={`${panel.id}__key__`}
                             groupId={props.id}
-                            isAlarmView={props.isAlarmView}
+                            isNewAlarmView={true}
                             panel={panel}
                             onChartCheck={v => handleChartCheck(v, panel)}
                             onCollapse={v => panel.type === 'row' && handleCollapse(v, panel)}

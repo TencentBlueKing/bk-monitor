@@ -30,3 +30,7 @@ description: 编码约定地图（命名/落点/边界）。
 
 - No mixed component paradigms in a single file（Options + Composition）
 - No business logic in View render
+- Monitor embed new-tab (`__IS_MONITOR_COMPONENT__` or `from=monitor`) must open `{top.origin}/?bizId=#/log-retrieval?...`，not bklog `/retrieve`
+- Independent bklog `window.open` URLs must not inherit layout query `from` / `hl`
+- `setQueryCondition` addition.`value` must be `string[]`；store 会把标量/`null`/`undefined` 收成数组。不要在 operator 映射里对未归一化的 `value[0]` 做 eager 读取
+- UI 检索栏保留 `custom-placeholder` slot；无自定义内容时宿主 `display: none`，不要用空 `li` 参与 `flex-wrap`；有自定义内容时保留 `paddingLeft`（`blueking_language` + `getAiSpanPaddingLeft`）给输入提示让位，不要删这段计算

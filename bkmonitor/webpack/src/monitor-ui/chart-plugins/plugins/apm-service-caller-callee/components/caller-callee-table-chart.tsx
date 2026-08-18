@@ -275,7 +275,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(100)
   async getPanelData() {
-    this.tableListData = [];
+    // 视口外会提前返回；先清空会导致表格/分页被卸掉且无法拉回
     if (!(await this.beforeGetPanelData())) {
       return;
     }

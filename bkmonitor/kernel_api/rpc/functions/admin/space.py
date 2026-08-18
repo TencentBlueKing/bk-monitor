@@ -22,10 +22,12 @@ from kernel_api.rpc.functions.admin.common import (
     build_response,
     filter_by_bk_tenant_id,
     get_page_list_bk_tenant_id,
+    normalize_int_list_filter,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
     normalize_positive_int,
+    normalize_string_list_filter,
     paginate_queryset,
     require_bk_tenant_id,
     serialize_model,
@@ -549,43 +551,74 @@ def _apply_space_search(queryset, raw_search: Any, raw_search_mode: Any):
     return queryset.filter(Q(space_id__icontains=search) | Q(space_name__icontains=search))
 
 
-def _normalize_space_bk_biz_id(value: Any) -> int | None:
-    if value in (None, ""):
-        return None
-
-    try:
-        return int(value)
-    except (TypeError, ValueError) as error:
-        raise CustomException(message="bk_biz_id 必须是整数") from error
-
-
-def _apply_space_bk_biz_id_filter(queryset, raw_bk_biz_id: Any):
-    bk_biz_id = _normalize_space_bk_biz_id(raw_bk_biz_id)
-    if bk_biz_id is None:
+def _apply_space_exact_search_values(queryset, params: dict[str, Any]):
+    search_values = normalize_string_list_filter(params, "search", "search_values")
+    if not search_values:
         return queryset
 
-    if bk_biz_id < 0:
-        return queryset.filter(id=abs(bk_biz_id)).exclude(space_type_id=SpaceTypes.BKCC.value)
+    query = Q()
+    for search in search_values:
+        space_uid_parts = _split_search_space_uid(search)
+        if space_uid_parts:
+            space_type_id, space_id = space_uid_parts
+            query |= Q(space_type_id=space_type_id, space_id=space_id)
+        else:
+            query |= Q(space_id=search) | Q(space_name=search)
+    return queryset.filter(query)
 
-    return queryset.filter(space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id))
+
+def _apply_space_bk_biz_id_filter(queryset, params: Any):
+    if not isinstance(params, dict):
+        try:
+            bk_biz_id = int(params)
+        except (TypeError, ValueError) as error:
+            raise CustomException(message="bk_biz_id 必须是整数") from error
+        if bk_biz_id < 0:
+            return queryset.filter(id=abs(bk_biz_id)).exclude(space_type_id=SpaceTypes.BKCC.value)
+        return queryset.filter(space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id))
+
+    bk_biz_ids = normalize_int_list_filter(params, "bk_biz_id", "bk_biz_ids")
+    if not bk_biz_ids:
+        return queryset
+    if "bk_biz_ids" not in params and len(bk_biz_ids) == 1:
+        bk_biz_id = bk_biz_ids[0]
+        if bk_biz_id < 0:
+            return queryset.filter(id=abs(bk_biz_id)).exclude(space_type_id=SpaceTypes.BKCC.value)
+        return queryset.filter(space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id))
+
+    query = Q()
+    for bk_biz_id in bk_biz_ids:
+        if bk_biz_id < 0:
+            query |= Q(id=abs(bk_biz_id)) & ~Q(space_type_id=SpaceTypes.BKCC.value)
+        else:
+            query |= Q(space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id))
+    return queryset.filter(query)
 
 
 def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.Space.objects.all(), bk_tenant_id)
-    queryset = _apply_space_search(queryset, params.get("search"), params.get("search_mode"))
-    queryset = _apply_space_bk_biz_id_filter(queryset, params.get("bk_biz_id"))
+    search_mode = str(params.get("search_mode") or "fuzzy").strip().lower()
+    if search_mode == "exact":
+        queryset = _apply_space_exact_search_values(queryset, params)
+    else:
+        if params.get("search_values") not in (None, [], ()):
+            raise CustomException(message="search_values 仅支持 exact 搜索模式")
+        queryset = _apply_space_search(queryset, params.get("search"), search_mode)
+    queryset = _apply_space_bk_biz_id_filter(queryset, params)
 
     if params.get("space_uid"):
         space_type_id, space_id = _split_space_uid(params["space_uid"])
         queryset = queryset.filter(space_type_id=space_type_id, space_id=space_id)
-    if params.get("space_type_id"):
-        queryset = queryset.filter(space_type_id=str(params["space_type_id"]).strip())
+    space_type_ids = normalize_string_list_filter(params, "space_type_id", "space_type_ids")
+    if space_type_ids:
+        queryset = queryset.filter(space_type_id__in=space_type_ids)
     if params.get("space_id"):
         queryset = queryset.filter(space_id__icontains=str(params["space_id"]).strip())
     if params.get("space_name"):
         queryset = queryset.filter(space_name__icontains=str(params["space_name"]).strip())
-    if params.get("status"):
-        queryset = queryset.filter(status=str(params["status"]).strip())
+    statuses = normalize_string_list_filter(params, "status", "statuses")
+    if statuses:
+        queryset = queryset.filter(status__in=statuses)
     for field in ["is_bcs_valid", "is_global"]:
         field_value = normalize_optional_bool(params.get(field), field)
         if field_value is not None:
@@ -602,19 +635,30 @@ def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
         "bk_tenant_id": "可选，租户 ID；缺省或空表示全租户查询",
         "search": "可选，统一搜索；匹配 space_uid / space_id / space_name，包含单个 __ 时按 space_uid 拆分",
         "search_mode": "可选，搜索模式 fuzzy / exact，默认 fuzzy",
+        "search_values": "可选，仅 exact 模式使用的精确搜索值数组，最多 100 项；与 search 合并去重",
         "space_uid": "可选，空间 UID，格式为 <space_type_id>__<space_id>",
         "bk_biz_id": "可选，精确匹配查询侧业务 ID 映射；bkcc 为正业务 ID，非 bkcc 为负 Space.id",
+        "bk_biz_ids": "可选，查询侧业务 ID 数组，最多 100 项；与 bk_biz_id 合并去重",
         "space_type_id": "可选，空间类型精确匹配",
+        "space_type_ids": "可选，空间类型数组，最多 100 项；与 space_type_id 合并去重",
         "space_id": "可选，空间 ID 模糊匹配",
         "space_name": "可选，空间名称模糊匹配",
         "status": "可选，空间状态，例如 normal / disabled",
+        "statuses": "可选，空间状态数组，最多 100 项；与 status 合并去重",
         "is_bcs_valid": "可选，BCS 是否可用",
         "is_global": "可选，是否跨业务管理可用",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ORDERING_FIELDS))}",
     },
-    example_params={"bk_tenant_id": "system", "search": "bkcc__2", "bk_biz_id": 2, "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "search_mode": "exact",
+        "search_values": ["bkcc__2", "共享空间"],
+        "bk_biz_ids": [2, -10],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_spaces(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)

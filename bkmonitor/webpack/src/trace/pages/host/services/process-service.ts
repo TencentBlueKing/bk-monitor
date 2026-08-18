@@ -37,5 +37,5 @@ export const getHostProcessList = async (
   params: HostProcessListParams,
   requestConfig?: { signal?: AbortSignal }
 ): Promise<ProcessItem[]> => {
-  return getHostProcessListApi<HostProcessListParams, ProcessItem[]>(params, requestConfig).catch(() => []);
+  return getHostProcessListApi<HostProcessListParams, ProcessItem[]>(params, requestConfig);
 };
