@@ -48,8 +48,8 @@ def is_file_path_legal(file_path):
     # 不能包含 '//', 特殊字符('.'在后面处理，创建任务时可以包含'.'
     if re.findall(r"//+", file_path):
         return False
-    # 不能有 '/.' 或者 './'
-    if re.findall(r"/\.", file_path) or re.findall(r"\./", file_path):
+    # 只拦截 '.' 和 '..' 这类相对路径段，隐藏目录(如 /a/.npc/)属于合法路径
+    if any(segment in {".", ".."} for segment in file_path.split("/")):
         return False
     # 正则匹配
     pattern = re.compile(rf"^[{settings.EXTRACT_FILE_PATTERN_CHARACTERS}]+$")
