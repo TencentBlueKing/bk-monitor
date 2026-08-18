@@ -605,16 +605,20 @@ class DataSource(models.Model):
             )
             raise ValueError(_("缺少数据源MQ集群信息，请联系管理员协助处理"))
 
+        bkbase_namespace: str | None = None
+        bkbase_biz_id: int | None = None
+        bkbase_data_name = ""
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
-            # 开启V4链路后，特定etl_config的data_id均从计算平台获取
+            # 开启V4链路后，特定 etl_config 的 data_id 先由 GSE 分配，再注册到计算平台
             if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
-                logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
-                is_base = False
+                logger.info(
+                    f"apply for data id from gse and register to bkbase,type_label->{type_label},etl_config->{etl_config}"
+                )
 
                 # 如果需要走V4链路，则需要确保Kafka集群已经注册到bkbase平台
                 if not mq_cluster.registered_to_bkbase:
@@ -622,26 +626,17 @@ class DataSource(models.Model):
                         f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register"
                     )
 
-                # 根据清洗类型判断是否是系统基础数据
-                if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:
-                    is_base = True
-
                 if etl_config in LOG_EVENT_ETL_CONFIGS:
-                    event_type = "log"
+                    bkbase_namespace = BKBASE_NAMESPACE_BK_LOG
                 else:
-                    event_type = "metric"
+                    bkbase_namespace = BKBASE_NAMESPACE_BK_MONITOR
+                if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:
+                    bkbase_data_name = data_name
 
                 # 如果没有指定业务ID，则使用默认业务ID
                 bk_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).label_biz_id
-                bk_data_id = cls.apply_for_data_id_from_bkdata(
-                    bk_tenant_id=bk_tenant_id,
-                    data_name=data_name,
-                    bk_biz_id=bk_biz_id,
-                    is_base=is_base,
-                    event_type=event_type,
-                    prefer_kafka_cluster_name=mq_cluster.cluster_name,
-                )
-                created_from = DataIdCreatedFromSystem.BKDATA.value
+                bkbase_biz_id = bk_biz_id
+                bk_data_id = cls.apply_for_data_id_from_gse(bk_tenant_id, operator)
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(bk_tenant_id, operator)
 
@@ -723,6 +718,13 @@ class DataSource(models.Model):
             logger.info(
                 f"data_id->[{data_source.bk_data_id}] now is relate to its mq config id->[{data_source.mq_config_id}]"
             )
+
+            if bkbase_namespace is not None and bkbase_biz_id is not None:
+                data_source.register_to_bkbase(
+                    bk_biz_id=bkbase_biz_id,
+                    namespace=bkbase_namespace,
+                    bkbase_data_name=bkbase_data_name,
+                )
 
             if space_uid:
                 # 校验 space_uid 格式
