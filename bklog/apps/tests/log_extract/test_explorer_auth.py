@@ -49,6 +49,28 @@ class TestFilterServerAccessFile(TestCase):
         self.assertTrue(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/logs/app/", "dirname"))
         self.assertFalse(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/other/", "dirname"))
 
+    def test_dir_with_other_regex_metacharacters(self):
+        """
+        测试目录鉴权，授权目录中的括号与星号按字面匹配而非正则语义
+        """
+        allowed_dir_file_list = [{"file_path": "/data/logs(1)/", "file_type": {".log"}, "operator": USER}]
+        self.assertTrue(
+            ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/logs(1)/app/", "dirname")
+        )
+        self.assertFalse(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/logs1/", "dirname"))
+
+        allowed_dir_file_list = [{"file_path": "/data/logs*/", "file_type": {".log"}, "operator": USER}]
+        self.assertTrue(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/logs*/app/", "dirname"))
+        self.assertFalse(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/log/", "dirname"))
+
+    def test_dir_with_unbalanced_bracket(self):
+        """
+        测试目录鉴权，未闭合方括号不再触发正则编译异常
+        """
+        allowed_dir_file_list = [{"file_path": "/data/[abc/", "file_type": {".log"}, "operator": USER}]
+        self.assertTrue(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/[abc/app/", "dirname"))
+        self.assertFalse(ExplorerHandler.filter_server_access_file(allowed_dir_file_list, "/data/other/", "dirname"))
+
     def test_file_branch_unaffected(self):
         """
         测试文件鉴权分支行为不变
