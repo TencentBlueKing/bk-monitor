@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { encodeEntityLinkPlaceholder } from '../../../components/markdown-editor/entity-link-placeholder';
+
 import type { IExtractedInfo } from '../types';
 
 /**
@@ -35,19 +37,11 @@ const isValidUrl = (url: string): boolean => {
 };
 
 /**
- * 仅转义会破坏 markdown 链接语法的字符：[ 和 ]
- * display_name 中的其他 markdown 格式（如 **bold**）不转义，保留渲染效果
- */
-const escapeLinkText = (text: string): string => {
-  return text.replace(/([[\]])/g, '\\$1');
-};
-
-/**
  * 替换文本中的 ${...} 实体占位符
  *
  * 匹配模式：\$\{...} 格式（如 ${K8sPod:bkm-user-589949c775-pqjmb}）
  * 替换规则：
- *   - 如果实体存在且有有效 jump_target → 替换为 [display_name](jump_target)（Markdown 链接）
+ *   - 如果实体存在且有有效 jump_target → 替换为 Markdown 安全占位符（渲染后再水合为 <a>）
  *   - 如果实体存在但无有效 jump_target → 替换为纯文本 display_name（保留 markdown 格式如 **bold**）
  *   - 如果实体不存在或 display_name 为空 → 保留原始占位符文本不变
  *   - 如果 extractedInfo 为 undefined → 保留原文（兼容旧 API 不返回此字段）
@@ -71,9 +65,9 @@ export const replaceEntityInText = (text: string, extractedInfo?: IExtractedInfo
 
     // 判断是否有有效跳转 URL
     if (isValidUrl(entity.jump_target)) {
-      // 有有效 URL：生成 Markdown 链接 [display_name](jump_target)
-      // 仅转义链接文本中的 [ ]，防止破坏 markdown 链接语法
-      return `[${escapeLinkText(entity.display_name)}](${entity.jump_target})`;
+      // 不使用 Markdown [text](url) / 原始 HTML：toast-ui Viewer 两者都不稳
+      // 使用占位符，由 entityLinkPlugin 在渲染后水合为真实链接
+      return encodeEntityLinkPlaceholder(entity.display_name, entity.jump_target);
     }
 
     // 无有效 URL：替换为纯文本 display_name
