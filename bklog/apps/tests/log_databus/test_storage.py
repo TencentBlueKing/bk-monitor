@@ -25,8 +25,10 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import (
+    ClusterTypeEnum,
     DORIS_CLUSTER_TYPE,
     REGISTERED_SYSTEM_DEFAULT,
+    STORAGE_CLUSTER_TYPE,
     VisibleEnum,
 )
 from apps.exceptions import ValidationError
@@ -34,8 +36,11 @@ from apps.log_databus.exceptions import (
     StorageNotExistException,
     StorageNotPermissionException,
 )
+from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import DorisVisibleConfigUpdateSerializer
+from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.models import Scenario
 
 BLUEKING_BK_BIZ_ID = 2
 OWNER_BIZ = 5
@@ -137,6 +142,71 @@ class TestFilterDorisCluster(TestCase):
         patcher_es.start()
         patcher_idx.start()
 
+    @staticmethod
+    def _get_cluster_groups(cluster_obj):
+        with patch(
+            "apps.log_databus.handlers.storage.FeatureToggleObject.switch", return_value=True
+        ), patch("apps.log_databus.handlers.storage.MultiExecuteFunc") as mock_multi_execute:
+            mock_multi_execute.return_value.run.return_value = {DORIS_CLUSTER_TYPE: [cluster_obj]}
+            return StorageHandler().get_cluster_groups(
+                TARGET_BIZ,
+                cluster_query_type=ClusterTypeEnum.DORIS.value,
+            )
+
+    def test_legacy_public_cluster_without_visible_config_remains_visible(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system=REGISTERED_SYSTEM_DEFAULT,
+            custom_option={},
+        )
+
+        result = self._get_cluster_groups(cluster_obj)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["storage_cluster_id"], 10)
+        self.assertTrue(result[0]["is_platform"])
+        self.assertEqual(
+            cluster_obj["cluster_config"]["custom_option"]["visible_config"],
+            {"visible_type": VisibleEnum.ALL_BIZ.value},
+        )
+
+    def test_public_cluster_with_explicit_all_biz_is_visible_to_other_biz(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system=REGISTERED_SYSTEM_DEFAULT,
+            custom_option={"visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value}},
+        )
+
+        result = self._get_cluster_groups(cluster_obj)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["storage_cluster_id"], 10)
+        self.assertTrue(result[0]["is_platform"])
+
+    def test_private_cluster_owned_by_current_biz_remains_visible(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system="bkdata",
+            custom_option={
+                "bk_biz_id": TARGET_BIZ,
+                "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+            },
+        )
+
+        result = self._get_cluster_groups(cluster_obj)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["bk_biz_id"], TARGET_BIZ)
+        self.assertFalse(result[0]["is_platform"])
+
+    def test_private_cluster_is_hidden_from_other_biz(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system="bkdata",
+            custom_option={
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+            },
+        )
+
+        self.assertEqual(self._get_cluster_groups(cluster_obj), [])
+
     def test_public_cluster_editable_only_for_blueking(self):
         cluster_obj = _doris_cluster_obj(
             registered_system=REGISTERED_SYSTEM_DEFAULT,
@@ -189,10 +259,10 @@ class TestUpdateVisibleConfig(TestCase):
     """StorageHandler.update_visible_config 仅更新 visible_config"""
 
     def _run_update(self, cluster_info, params):
-        with patch("apps.log_databus.handlers.storage.TransferApi") as mock_api, patch(
-            "apps.log_databus.handlers.storage.user_operation_record"
-        ) as mock_record, patch(
-            "apps.log_databus.handlers.storage.get_request_username", return_value="tester"
+        with (
+            patch("apps.log_databus.handlers.storage.TransferApi") as mock_api,
+            patch("apps.log_databus.handlers.storage.user_operation_record") as mock_record,
+            patch("apps.log_databus.handlers.storage.get_request_username", return_value="tester"),
         ):
             mock_api.get_cluster_info.return_value = cluster_info
             mock_api.modify_cluster_info.return_value = {"cluster_config": {}, "auth_info": {"password": ""}}
@@ -294,3 +364,707 @@ class TestDorisVisibleConfigSerializer(TestCase):
             data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "all_biz"}}
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class TestMetadataStorageStatus(TestCase):
+    @staticmethod
+    def _cluster_info(cluster_id, owner_biz=BLUEKING_BK_BIZ_ID, visible_type=VisibleEnum.CURRENT_BIZ.value):
+        return {
+            "cluster_type": STORAGE_CLUSTER_TYPE,
+            "auth_info": {},
+            "cluster_config": {
+                "cluster_id": cluster_id,
+                "registered_system": "other",
+                "custom_option": {
+                    "bk_biz_id": owner_biz,
+                    "visible_config": {"visible_type": visible_type},
+                },
+            },
+        }
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_adapts_metadata_fields_and_sorts(self, mock_get_storage_status):
+        table_id = "2_bklog.test"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": {
+                        "result_table": {"default_storage": STORAGE_CLUSTER_TYPE},
+                        "storage_configs": {
+                            "elasticsearch": {"storage_cluster_id": 7},
+                            "doris": {"storage_cluster_id": 8},
+                        },
+                        "cluster_results": {
+                            "7": {
+                                "runtime": {
+                                    "indices": {
+                                        "items": [
+                                            {
+                                                "index": "2_bklog_test_20260809_0",
+                                                "uuid": "old",
+                                                "health": "yellow",
+                                                "status": "open",
+                                                "docs_count": 10,
+                                                "docs_deleted": 1,
+                                                "store_size_bytes": 1024,
+                                                "primary_store_size_bytes": 512,
+                                                "primary_shards": 2,
+                                                "replica_factor": 1,
+                                            },
+                                            {
+                                                "index": "2_bklog_test_20260810_0",
+                                                "uuid": "new",
+                                                "health": "green",
+                                                "status": "open",
+                                                "docs_count": 20,
+                                                "docs_deleted": 2,
+                                                "store_size_bytes": 2048,
+                                                "primary_store_size_bytes": 1024,
+                                                "primary_shards": 3,
+                                                "replica_factor": 2,
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                    },
+                    "error": None,
+                }
+            ]
+        }
+
+        result = StorageHandler.get_result_table_indices(table_id)
+
+        self.assertEqual([item["uuid"] for item in result], ["new", "old"])
+        self.assertEqual(
+            result[0],
+            {
+                "index": "2_bklog_test_20260810_0",
+                "uuid": "new",
+                "health": "green",
+                "status": "open",
+                "pri": "3",
+                "rep": "2",
+                "docs.count": "20",
+                "docs.deleted": "2",
+                "store.size": "2048",
+                "pri.store.size": "1024",
+            },
+        )
+        mock_get_storage_status.assert_called_once_with({"table_ids": [table_id]})
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_skips_historical_es_when_doris_is_default(self, mock_get_storage_status):
+        table_id = "2_bklog.doris_default"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": {
+                        "result_table": {"default_storage": DORIS_CLUSTER_TYPE},
+                        "storage_configs": {
+                            STORAGE_CLUSTER_TYPE: {"storage_cluster_id": 7},
+                            DORIS_CLUSTER_TYPE: {"storage_cluster_id": 8},
+                        },
+                        "cluster_results": {
+                            "7": {
+                                "storage_type": STORAGE_CLUSTER_TYPE,
+                                "is_current_segment": False,
+                                "runtime": {
+                                    "indices": {
+                                        "items": [
+                                            {
+                                                "index": "2_bklog_doris_default_20260810_0",
+                                                "health": "green",
+                                                "docs_count": 20,
+                                            }
+                                        ]
+                                    }
+                                },
+                            },
+                            "8": {
+                                "storage_type": DORIS_CLUSTER_TYPE,
+                                "is_current_segment": True,
+                                "runtime": {
+                                    "table": {"name": "bklog_doris_default", "rows": 20},
+                                    "partitions": [{"name": "p20260810", "rows": 20}],
+                                },
+                            },
+                        },
+                    },
+                    "error": None,
+                }
+            ]
+        }
+
+        self.assertEqual(StorageHandler.get_result_table_indices(table_id), [])
+
+    def test_get_result_table_indices_skips_ambiguous_dual_storage_without_default(self):
+        item = {
+            "table_id": "2_bklog.ambiguous",
+            "data": {
+                "storage_configs": {
+                    STORAGE_CLUSTER_TYPE: {"storage_cluster_id": 7},
+                    DORIS_CLUSTER_TYPE: {"storage_cluster_id": 8},
+                },
+                "cluster_results": {
+                    "7": {
+                        "runtime": {
+                            "indices": {
+                                "items": [
+                                    {
+                                        "index": "2_bklog_ambiguous_20260810_0",
+                                        "health": "green",
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+            },
+            "error": None,
+        }
+
+        self.assertEqual(StorageHandler._get_result_table_indices_from_status(item), [])
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_returns_empty_for_item_error(self, mock_get_storage_status):
+        table_id = "2_bklog.test"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": None,
+                    "error": {"code": "RESULT_TABLE_NOT_FOUND", "message": "not found"},
+                }
+            ]
+        }
+
+        self.assertEqual(StorageHandler.get_result_table_indices(table_id), [])
+
+    @patch("apps.log_databus.handlers.storage.logger.error")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_tables_indices_logs_missing_items(self, mock_get_storage_status, mock_logger_error):
+        table_id = "2_bklog.missing"
+        mock_get_storage_status.return_value = {"items": []}
+
+        self.assertEqual(StorageHandler.get_result_tables_indices([table_id]), {table_id: []})
+        mock_logger_error.assert_called_once_with(
+            "[storage] result table storage statuses missing items, table_ids=%s",
+            [table_id],
+        )
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_marks_health_unknown_when_metadata_cat_fails(self, mock_get_storage_status):
+        table_id = "2_bklog.test"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": {
+                        "result_table": {"default_storage": STORAGE_CLUSTER_TYPE},
+                        "storage_configs": {STORAGE_CLUSTER_TYPE: {"storage_cluster_id": 7}},
+                        "cluster_results": {
+                            "7": {
+                                "runtime_skipped": False,
+                                "warnings": [
+                                    {
+                                        "code": "INDEX_CAT_UNAVAILABLE",
+                                        "message": "cat indices failed",
+                                    }
+                                ],
+                                "errors": [],
+                                "runtime": {
+                                    "indices": {
+                                        "items": [
+                                            {
+                                                "index": "2_bklog_test_20260810_0",
+                                                "docs_count": 20,
+                                            }
+                                        ]
+                                    }
+                                },
+                            }
+                        },
+                    },
+                    "error": None,
+                }
+            ]
+        }
+
+        result = StorageHandler.get_result_table_indices(table_id)
+
+        self.assertEqual(result[0]["health"], "--")
+        self.assertEqual(IndexSetHandler._get_health(result), "--")
+
+    def test_get_health_prioritizes_red_and_yellow_over_unknown(self):
+        cases = [
+            ([{"health": "green"}, {"health": "--"}], "--"),
+            ([{"health": "--"}, {"health": "yellow"}], "yellow"),
+            ([{"health": "yellow"}, {"health": "--"}, {"health": "red"}], "red"),
+            ([{"health": "green"}, {"health": "green"}], "green"),
+            ([{"health": None}], "--"),
+        ]
+
+        for source, expected in cases:
+            with self.subTest(source=source):
+                self.assertEqual(IndexSetHandler._get_health(source), expected)
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_tables_indices_batches_fifty_table_ids(self, mock_get_storage_status):
+        def get_storage_status(params):
+            return {
+                "items": [
+                    {
+                        "table_id": table_id,
+                        "data": {
+                            "storage_configs": {"elasticsearch": {"storage_cluster_id": 7}},
+                            "cluster_results": {"7": {"runtime": {"indices": {"items": []}}}},
+                        },
+                        "error": None,
+                    }
+                    for table_id in params["table_ids"]
+                ]
+            }
+
+        mock_get_storage_status.side_effect = get_storage_status
+        table_ids = [f"2_bklog.table_{index}" for index in range(51)]
+
+        result = StorageHandler.get_result_tables_indices(table_ids)
+
+        self.assertEqual(set(result), set(table_ids))
+        self.assertEqual(mock_get_storage_status.call_count, 2)
+        self.assertEqual(mock_get_storage_status.call_args_list[0].args[0]["table_ids"], table_ids[:50])
+        self.assertEqual(mock_get_storage_status.call_args_list[1].args[0]["table_ids"], table_ids[50:])
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_tables_indices_degrades_failed_batch_and_continues(self, mock_get_storage_status):
+        table_ids = [f"2_bklog.table_{index}" for index in range(51)]
+
+        def get_storage_status(params):
+            if len(params["table_ids"]) == 50:
+                raise RuntimeError("metadata unavailable")
+            table_id = params["table_ids"][0]
+            return {
+                "items": [
+                    {
+                        "table_id": table_id,
+                        "data": {
+                            "result_table": {"default_storage": STORAGE_CLUSTER_TYPE},
+                            "storage_configs": {STORAGE_CLUSTER_TYPE: {"storage_cluster_id": 7}},
+                            "cluster_results": {
+                                "7": {
+                                    "runtime": {
+                                        "indices": {
+                                            "items": [
+                                                {
+                                                    "index": "2_bklog_table_50_20260810_0",
+                                                    "health": "green",
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                        },
+                        "error": None,
+                    }
+                ]
+            }
+
+        mock_get_storage_status.side_effect = get_storage_status
+
+        result = StorageHandler.get_result_tables_indices(table_ids)
+
+        self.assertEqual(result[table_ids[0]], [])
+        self.assertEqual(len(result[table_ids[-1]]), 1)
+        self.assertEqual(mock_get_storage_status.call_count, 2)
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    def test_batch_connectivity_detect_adapts_status_and_batches_twenty_ids(self, mock_get_cluster_status):
+        def get_cluster_status(params, bk_tenant_id=None):
+            self.assertEqual(bk_tenant_id, "tenant-a")
+            return [
+                {
+                    "cluster_id": cluster_id,
+                    "cluster_type": "elasticsearch",
+                    "is_available": True,
+                    "nodes": {"total": 2, "available": 2},
+                    "capacity": {"total_bytes": 1000},
+                    "details": {
+                        "health_status": "yellow",
+                        "number_of_nodes": 3,
+                        "active_shards": 10,
+                        "initializing_shards": 1,
+                        "unassigned_shards": 2,
+                        "indices_store_bytes": 800,
+                    },
+                }
+                for cluster_id in params["cluster_ids"]
+            ]
+
+        mock_get_cluster_status.side_effect = get_cluster_status
+
+        with (
+            patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=list(range(1, 23))),
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler.batch_connectivity_detect(list(range(1, 23)), bk_biz_id=2)
+
+        self.assertEqual(mock_get_cluster_status.call_count, 2)
+        batches = sorted(
+            [item.args[0]["cluster_ids"] for item in mock_get_cluster_status.call_args_list],
+            key=lambda cluster_ids: cluster_ids[0],
+        )
+        self.assertEqual(batches, [list(range(1, 21)), [21, 22]])
+        self.assertTrue(all(item.args[0]["bk_biz_id"] == 2 for item in mock_get_cluster_status.call_args_list))
+        self.assertTrue(result[1]["status"])
+        self.assertEqual(
+            result[1]["cluster_stats"],
+            {
+                "node_count": 3,
+                "shards_total": 13,
+                "shards_pri": None,
+                "data_node_count": 2,
+                "indices_count": None,
+                "indices_docs_count": None,
+                "indices_store": 800,
+                "total_store": 1000,
+                "status": "yellow",
+            },
+        )
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    def test_batch_connectivity_detect_uses_metadata_doris_status(self, mock_get_cluster_status):
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 8,
+                "cluster_type": DORIS_CLUSTER_TYPE,
+                "is_available": False,
+                "nodes": {"total": 2, "available": 0},
+                "capacity": {
+                    "total_bytes": 1000,
+                    "available_bytes": 100,
+                    "used_bytes": 900,
+                    "used_percent": 90,
+                },
+                "details": {
+                    "data_used_bytes": 800,
+                    "tablet_count": 20,
+                    "max_disk_used_percent": 91,
+                },
+                "status": "unavailable",
+            }
+        ]
+
+        with (
+            patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=[8]),
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler.batch_connectivity_detect([8], bk_biz_id=2)
+
+        self.assertEqual(
+            result[8],
+            {
+                "status": False,
+                "cluster_stats": {
+                    "node_count": 2,
+                    "available_node_count": 0,
+                    "shards_total": None,
+                    "shards_pri": None,
+                    "data_node_count": 2,
+                    "indices_count": None,
+                    "indices_docs_count": None,
+                    "indices_store": 800,
+                    "total_store": 1000,
+                    "available_store": 100,
+                    "used_store": 900,
+                    "used_percent": 90,
+                    "tablet_count": 20,
+                    "max_disk_used_percent": 91,
+                    "status": "red",
+                    "storage_status": "unavailable",
+                },
+            },
+        )
+
+    @patch(
+        "apps.log_databus.handlers.storage.TransferApi.get_cluster_status",
+        side_effect=RuntimeError("metadata unavailable"),
+    )
+    def test_batch_connectivity_detect_degrades_when_metadata_request_fails(self, mock_get_cluster_status):
+        with (
+            patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=[7, 8]),
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=2)
+
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [7, 8], "bk_biz_id": 2},
+            bk_tenant_id="tenant-a",
+        )
+        self.assertEqual(
+            result,
+            {
+                7: {"status": False, "cluster_stats": None},
+                8: {"status": False, "cluster_stats": None},
+            },
+        )
+
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_batch_connectivity_detect_filters_invisible_clusters_before_status_query(
+        self,
+        _mock_get_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+    ):
+        mock_get_cluster_info.return_value = [
+            self._cluster_info(7),
+            self._cluster_info(8, owner_biz=OWNER_BIZ),
+        ]
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 7,
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+                "is_available": True,
+                "details": {"health_status": "green"},
+            }
+        ]
+        _mock_cache_get_many.side_effect = lambda keys: {
+            "connect_info_tenant-a_2_8": {
+                "cluster_id": 8,
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+                "is_available": True,
+                "details": {"health_status": "green", "number_of_nodes": 99},
+            }
+            for key in keys
+            if key == "connect_info_tenant-a_2_8"
+        }
+
+        result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=BLUEKING_BK_BIZ_ID)
+
+        mock_get_cluster_info.assert_called_once_with({}, bk_tenant_id="tenant-a")
+        self.assertEqual(
+            list(_mock_cache_get_many.call_args.args[0]),
+            ["connect_info_tenant-a_2_7"],
+        )
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [7], "bk_biz_id": BLUEKING_BK_BIZ_ID},
+            bk_tenant_id="tenant-a",
+        )
+        self.assertTrue(result[7]["status"])
+        self.assertEqual(result[8], {"status": False, "cluster_stats": None})
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch(
+        "apps.log_databus.handlers.storage.TransferApi.get_cluster_info",
+        side_effect=RuntimeError("metadata unavailable"),
+    )
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_batch_connectivity_detect_fails_closed_when_cluster_info_request_fails(
+        self,
+        _mock_get_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+    ):
+        result = StorageHandler.batch_connectivity_detect([7, 8], bk_biz_id=2)
+
+        mock_get_cluster_info.assert_called_once_with({}, bk_tenant_id="tenant-a")
+        mock_get_cluster_status.assert_not_called()
+        self.assertEqual(
+            result,
+            {
+                7: {"status": False, "cluster_stats": None},
+                8: {"status": False, "cluster_stats": None},
+            },
+        )
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id")
+    def test_batch_connectivity_detect_cache_isolated_by_tenant_biz_and_cluster(
+        self,
+        mock_get_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+    ):
+        mock_get_tenant_id.side_effect = lambda bk_biz_id: {
+            2: "tenant-a",
+            3: "tenant-b",
+            4: "tenant-a",
+        }[bk_biz_id]
+        mock_get_cluster_info.return_value = [self._cluster_info(7, visible_type=VisibleEnum.ALL_BIZ.value)]
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 7,
+                "cluster_type": STORAGE_CLUSTER_TYPE,
+                "is_available": True,
+                "details": {"health_status": "green"},
+            }
+        ]
+        cache_store = {}
+        cache_timeouts = []
+
+        def get_many(keys):
+            return {key: cache_store[key] for key in keys if key in cache_store}
+
+        def set_many(values, timeout):
+            cache_store.update(values)
+            cache_timeouts.append(timeout)
+
+        with (
+            patch("apps.log_databus.handlers.storage.cache.get_many", side_effect=get_many),
+            patch("apps.log_databus.handlers.storage.cache.set_many", side_effect=set_many),
+        ):
+            StorageHandler.batch_connectivity_detect([7, 7], bk_biz_id=2)
+            StorageHandler.batch_connectivity_detect([7], bk_biz_id=2)
+            StorageHandler.batch_connectivity_detect([7], bk_biz_id=4)
+            StorageHandler.batch_connectivity_detect([7], bk_biz_id=3)
+
+        self.assertEqual(mock_get_cluster_status.call_count, 3)
+        self.assertEqual(
+            set(cache_store),
+            {
+                "connect_info_tenant-a_2_7",
+                "connect_info_tenant-a_4_7",
+                "connect_info_tenant-b_3_7",
+            },
+        )
+        self.assertEqual(cache_timeouts, [300, 300, 300])
+
+    @patch("apps.log_databus.handlers.storage.MultiExecuteFunc")
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many", return_value={})
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_batch_connectivity_detect_schedules_batches_in_one_concurrent_executor(
+        self,
+        _mock_get_tenant_id,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+        mock_multi_execute_cls,
+    ):
+        cluster_ids = list(range(1, 42))
+        executor = mock_multi_execute_cls.return_value
+        executor.run.return_value = {
+            0: {cluster_id: StorageHandler._unavailable_cluster_status(cluster_id) for cluster_id in range(1, 21)},
+            20: {cluster_id: StorageHandler._unavailable_cluster_status(cluster_id) for cluster_id in range(21, 41)},
+            40: {41: StorageHandler._unavailable_cluster_status(41)},
+        }
+
+        with patch.object(StorageHandler, "_get_visible_cluster_ids", return_value=cluster_ids):
+            result = StorageHandler.batch_connectivity_detect(cluster_ids + [1], bk_biz_id=2)
+
+        mock_multi_execute_cls.assert_called_once_with(max_workers=5)
+        self.assertEqual([call[0] for call in executor.method_calls], ["append", "append", "append", "run"])
+        batches = [item.args[2]["cluster_ids"] for item in executor.append.call_args_list]
+        self.assertEqual(batches, [list(range(1, 21)), list(range(21, 41)), [41]])
+        self.assertEqual(len(result), 41)
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    def test_cluster_detail_uses_metadata_status_for_es_and_doris(self, mock_get_cluster_status):
+        mock_get_cluster_status.return_value = [
+            {
+                "cluster_id": 7,
+                "cluster_type": "elasticsearch",
+                "is_available": True,
+                "nodes": {"total": 2},
+                "capacity": {"total_bytes": 1000},
+                "details": {"health_status": "green", "number_of_nodes": 3},
+            },
+            {
+                "cluster_id": 8,
+                "cluster_type": DORIS_CLUSTER_TYPE,
+                "is_available": True,
+                "nodes": {"total": 2, "available": 2},
+                "capacity": {"total_bytes": 2000, "used_bytes": 500},
+                "details": {"data_used_bytes": 400, "tablet_count": 10},
+                "status": "available",
+            },
+        ]
+        clusters = [
+            {"cluster_type": "elasticsearch", "cluster_config": {"cluster_id": 7}},
+            {"cluster_type": DORIS_CLUSTER_TYPE, "cluster_config": {"cluster_id": 8}},
+        ]
+
+        with (
+            patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a"),
+            patch("apps.log_databus.handlers.storage.cache.get_many", return_value={}),
+            patch("apps.log_databus.handlers.storage.cache.set_many"),
+        ):
+            result = StorageHandler()._get_cluster_detail_info(clusters, bk_biz_id=2)
+
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [7, 8], "bk_biz_id": 2},
+            bk_tenant_id="tenant-a",
+        )
+        self.assertEqual(result[0]["cluster_stats"]["status"], "green")
+        self.assertEqual(result[1]["cluster_stats"]["status"], "green")
+        self.assertEqual(result[1]["cluster_stats"]["storage_status"], "available")
+        self.assertEqual(result[1]["cluster_stats"]["tablet_count"], 10)
+        self.assertEqual(result[1]["cluster_stats"]["indices_store"], 400)
+
+    @patch.object(StorageHandler, "get_result_tables_indices")
+    @patch.object(IndexSetHandler, "_get_data")
+    def test_log_index_set_indices_use_metadata_status(self, mock_get_data, mock_get_indices):
+        index_set = MagicMock(scenario_id=Scenario.LOG, storage_cluster_id=7)
+        index_set.get_indexes.return_value = [{"result_table_id": "2_bklog.test"}]
+        mock_get_data.return_value = index_set
+        mock_get_indices.return_value = {
+            "2_bklog.test": [
+                {
+                    "index": "2_bklog_test_20260810_0",
+                    "health": "green",
+                    "pri": 2,
+                    "rep": 1,
+                    "docs.count": 20,
+                    "docs.deleted": 2,
+                    "store.size": 2048,
+                    "pri.store.size": 1024,
+                }
+            ]
+        }
+
+        result = IndexSetHandler(1).indices()
+
+        mock_get_indices.assert_called_once_with(["2_bklog.test"])
+        self.assertEqual(result["list"][0]["stat"]["health"], "green")
+        self.assertEqual(result["list"][0]["stat"]["docs.count"], 20)
+        self.assertEqual(result["list"][0]["stat"]["store.size"], 2048)
+        self.assertEqual(result["list"][0]["stat"]["pri.store.size"], 1024)
+
+    @patch.object(StorageHandler, "get_result_tables_indices", return_value={"2_bklog.test": []})
+    @patch.object(IndexSetHandler, "_get_data")
+    def test_log_index_set_without_physical_indices_keeps_legacy_placeholder(self, mock_get_data, _mock_get_indices):
+        index_set = MagicMock(scenario_id=Scenario.LOG, storage_cluster_id=7)
+        index_set.get_indexes.return_value = [{"result_table_id": "2_bklog.test"}]
+        mock_get_data.return_value = index_set
+
+        result = IndexSetHandler(1).indices()
+
+        self.assertEqual(result["list"][0]["stat"]["health"], "--")
+        self.assertEqual(result["list"][0]["details"], "--")
+
+    @patch.object(StorageHandler, "get_result_table_indices", return_value=[{"index": "2_bklog_test_20260810_0"}])
+    def test_collector_indices_info_uses_metadata_storage_status(self, mock_get_indices):
+        handler = MagicMock()
+        handler.data.table_id = "2_bklog.test"
+        handler.data.storage_cluster_type = "elasticsearch"
+
+        result = CollectorHandler.indices_info(handler)
+
+        mock_get_indices.assert_called_once_with("2_bklog.test")
+        self.assertEqual(result, [{"index": "2_bklog_test_20260810_0"}])

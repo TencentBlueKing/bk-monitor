@@ -31,7 +31,7 @@ import {
   PROCESS_LIST_ELLIPSIS_CELL_CLASS,
   PROCESS_PORT_STATUS_MAP,
 } from '../../../constants/process';
-import { formatMemRss, formatPercent, formatUptime, getProcessBarColor } from '../../../utils/process';
+import { formatMemRss, formatPercent, formatProcessUptimeRange, getProcessBarColor } from '../../../utils/process';
 
 import type { ProcessItem } from '../../../types/process';
 
@@ -128,10 +128,10 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} CPU 列 JSX
    */
   const renderCpuCell = (row: ProcessItem) => {
-    if (!row.cpuUsage) {
+    const cpu = formatPercent(row.cpuUsage);
+    if (cpu.value === null) {
       return <span class='process-table-cpu__empty'>--</span>;
     }
-    const cpu = formatPercent(row.cpuUsage);
     return (
       <div class='process-table-cpu'>
         <div class='process-table-cpu__row'>
@@ -156,21 +156,22 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 内存列 JSX
    */
   const renderMemoryCell = (row: ProcessItem) => {
-    if (!row.memRss) {
+    const memRss = formatMemRss(row.memRss);
+    const mem = formatPercent(row.memUsage);
+    if (memRss === '--' && mem.value === null) {
       return <span class='process-table-memory__empty'>--</span>;
     }
-    const mem = formatPercent(row.memUsage);
     return (
       <div class='process-table-memory'>
         <div class='process-table-memory__row'>
-          <span class='process-table-memory__value'>{formatMemRss(row.memRss)}</span>
+          <span class='process-table-memory__value'>{memRss}</span>
           <span class='process-table-memory__percent'>{mem.text}</span>
         </div>
         <div class='process-table-memory__bar'>
           <div
             style={{
               width: `${mem.width}%`,
-              backgroundColor: getProcessBarColor(mem.value),
+              backgroundColor: getProcessBarColor(mem.value ?? 0),
             }}
             class='process-table-memory__bar-inner'
           />
@@ -185,21 +186,21 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 文件句柄列 JSX
    */
   const renderFileHandleCell = (row: ProcessItem) => {
-    if (!row.fdNum) {
+    const fd = formatPercent(row.fdUsageRate);
+    if (row.fdNum == null && fd.value === null) {
       return <span class='process-table-file-handle__empty'>--</span>;
     }
-    const fd = formatPercent(row.fdUsageRate);
     return (
       <div class='process-table-file-handle'>
         <div class='process-table-file-handle__row'>
-          <span class='process-table-file-handle__value'>{row.fdNum?.toLocaleString()}</span>
+          <span class='process-table-file-handle__value'>{row.fdNum?.toLocaleString() ?? '--'}</span>
           <span class='process-table-file-handle__percent'>{fd.text}</span>
         </div>
         <div class='process-table-file-handle__bar'>
           <div
             style={{
               width: `${fd.width}%`,
-              backgroundColor: getProcessBarColor(fd.value),
+              backgroundColor: getProcessBarColor(fd.value ?? 0),
             }}
             class='process-table-file-handle__bar-inner'
           />
@@ -214,7 +215,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
    * @returns {SlotReturnValue} 运行时长列 JSX
    */
   const renderUptimeCell = (row: ProcessItem) => (
-    <span class={['process-table-uptime', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>{formatUptime(row.uptime)}</span>
+    <span class={['process-table-uptime', PROCESS_LIST_ELLIPSIS_CELL_CLASS]}>{formatProcessUptimeRange(row)}</span>
   );
 
   /**

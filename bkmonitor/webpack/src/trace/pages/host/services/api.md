@@ -357,7 +357,11 @@ interface ProcessItem {
   portStatus: EProcessPortStatus;
   protocol: string;
   startCommand: string;
-  uptime: number;
+  // 兼容字段，等于 uptimeMax
+  uptime: number | null;
+  // 同名进程实例运行时长下界/上界，单位秒
+  uptimeMin?: number | null;
+  uptimeMax?: number | null;
   user: string;
 }
 
@@ -383,6 +387,8 @@ type GetHostProcessListResult = ProcessItem[];
     "memRss": 96468992,
     "memUsage": 23,
     "uptime": 23040,
+    "uptimeMin": 3600,
+    "uptimeMax": 23040,
     "startCommand": "agent run p/opt/datadog-agent/run/agent.pid"
   },
   {
@@ -399,6 +405,8 @@ type GetHostProcessListResult = ProcessItem[];
     "memRss": 134217728,
     "memUsage": 35,
     "uptime": 86400,
+    "uptimeMin": 86400,
+    "uptimeMax": 86400,
     "startCommand": "/usr/sbin/mysqld --defaults-file=/etc/my.cnf"
   }
 ]

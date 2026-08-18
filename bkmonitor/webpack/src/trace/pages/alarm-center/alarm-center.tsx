@@ -122,6 +122,7 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 import type { IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 import type { IssuesService } from './services/issues-services';
+import type { AlarmCenterPanelTabType } from './utils/constant';
 
 import './alarm-center.scss';
 
@@ -419,7 +420,7 @@ export default defineComponent({
     const defaultFavoriteId = shallowRef(null);
     /* 当前选择的收藏项 */
     const currentFavorite = shallowRef(null);
-    const alarmDetailDefaultTab = shallowRef('');
+    const alarmDetailDefaultTab = shallowRef<'' | AlarmCenterPanelTabType>('');
     // 当前选择的收藏项（检索条件栏使用）
     const retrievalSelectFavorite = computed(() => {
       if (currentFavorite.value) {
@@ -758,7 +759,7 @@ export default defineComponent({
      * @param {AlertTableItem} row - 告警记录行数据
      * @param {string} defaultTab - 默认选中的 Tab 页签名
      */
-    function handleShowAlertDetail(row: AlertTableItem, defaultTab?: string) {
+    function handleShowAlertDetail(row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) {
       alarmDetailDefaultTab.value = defaultTab || '';
       detailId.value = row.id;
       detailBizId.value = row.bk_biz_id;
@@ -778,8 +779,10 @@ export default defineComponent({
     /**
      * @description 展示 Issue 详情
      * @param {IssueItem} item - Issue 行数据
+     * @param {string} defaultTab - issues详情侧弹 - 告警详情区域内容 - 默认选中的 Tab 页签名
      */
-    const handleIssuesShowDetail = (item: IssueItem) => {
+    const handleIssuesShowDetail = (item: IssueItem, defaultTab?: AlarmCenterPanelTabType) => {
+      alarmDetailDefaultTab.value = defaultTab || '';
       detailId.value = item.id;
       detailBizId.value = item.bk_biz_id;
       handleDetailShowChange(true);
@@ -789,6 +792,7 @@ export default defineComponent({
       alarmDetailShow.value = show;
       if (show) return;
       detailId.value = '';
+      detailBizId.value = undefined;
       alarmDetailDefaultTab.value = '';
     }
 
@@ -1543,6 +1547,7 @@ export default defineComponent({
             [
               <IssuesDetailSideSlider
                 key='issues-detail'
+                defaultInnerTab={this.alarmDetailDefaultTab}
                 issueBizId={this.detailBizId}
                 issueId={this.detailId}
                 show={this.alarmDetailShow}

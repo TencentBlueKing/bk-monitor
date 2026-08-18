@@ -27,9 +27,11 @@
 import { type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
+import { useRoute } from 'vue-router';
 
 import { getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateCompares, handleCreateItemId } from '../utils/host-list-core';
+import { resolveHostRequestScope } from '../utils/share-scope';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
 import { useHostStore } from '@/store/modules/host';
@@ -44,12 +46,15 @@ const VIEW_OVERSCAN = 10;
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
  * 视图层（host-topo-tree）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
-export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
+export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) => {
+  const route = useRoute();
   const { metricAggregationState } = useHostStore();
   const topoTreeWorker = useHostTopoTreeWorker();
   const isAllExpand = shallowRef(false);
   /** 加载状态 */
   const loading = shallowRef(false);
+  /** 拓扑加载失败状态 */
+  const loadError = shallowRef(false);
   /** 原始树数据（接口/ mock 原样数据） */
   const rawTreeData = shallowRef<IHostTopoTreeNode[]>([]);
   const searchValue = shallowRef('');
@@ -75,9 +80,13 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   let loadedEnd = 0;
   /** 视图请求版本 */
   let viewRequestVersion = 0;
+  /** 拓扑加载请求版本 */
+  let loadRequestVersion = 0;
   /** 是否已初始化 */
   let initialized = false;
   let scrollEl: HTMLElement = null;
+
+  const shareScope = computed(() => resolveHostRequestScope(readonly, route.query, null));
 
   const updateFilter = useDebounceFn(async () => {
     if (!initialized) {
@@ -179,18 +188,29 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
 
   /** 加载拓扑树并在 Worker 中建立扁平索引、主机计数和可见节点计数。 */
   const loadTopoTree = async () => {
+    const version = ++loadRequestVersion;
     loading.value = true;
+    loadError.value = false;
     try {
-      const data = await getHostTopoTreeByBizId();
+      const data = await getHostTopoTreeByBizId(window.cc_biz_id, shareScope.value);
+      if (version !== loadRequestVersion) {
+        return;
+      }
       rawTreeData.value = data;
-      await handleSelectNodeOfNodeId();
+      await handleSelectNodeOfNodeId(version);
+    } catch {
+      if (version === loadRequestVersion) {
+        loadError.value = true;
+      }
     } finally {
-      loading.value = false;
+      if (version === loadRequestVersion) {
+        loading.value = false;
+      }
     }
   };
 
   /** 根据 nodeId 在已有拓扑树数据中定位并聚焦目标节点（展开路径 + 滚动到位） */
-  const handleSelectNodeOfNodeId = async () => {
+  const handleSelectNodeOfNodeId = async (loadVersion?: number) => {
     // 存在有子节点的根节点时，默认对第一个有子节点的根节点展开第一级子列表（Worker 消费 isOpen）
     if (nodeId.value) {
       // 存在 nodeId 时，展开从根到目标节点的完整路径，确保目标节点可见
@@ -221,6 +241,9 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
       }
     }
     const result = await topoTreeWorker.init(rawTreeData.value, hideEmptyNode.value, searchValue.value, nodeId.value);
+    if (loadVersion !== undefined && loadVersion !== loadRequestVersion) {
+      return;
+    }
     selectedNode.value = result.selectedNode;
     totalRows.value = result.total;
     let scrollTop = 0;
@@ -292,6 +315,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>) => {
   return {
     isAllExpand,
     loading,
+    loadError,
     searchValue,
     hideEmptyNode,
     selectedNode,

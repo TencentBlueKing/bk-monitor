@@ -91,12 +91,18 @@ class TableSpace(CheckStep):
             f"\tpublish rate: {messages_pubilsh_rate}/s"
         )
 
-        if messages > water_level:
-            return self._alert_queue_blocking(name, messages)
+        # ETA/countdown 任务会被 worker 提前领取并保持 unack，不能据此判定队列阻塞。
+        is_running_action_queue = name == "celery_running_action" or name.endswith("-celery_running_action")
+        warning_messages = messages_ready if is_running_action_queue else messages
+        if warning_messages > water_level:
+            message_type = "ready" if is_running_action_queue else "total"
+            return self._alert_queue_blocking(name, warning_messages, message_type)
 
-    def _alert_queue_blocking(self, queue_name, message_total):
+    def _alert_queue_blocking(self, queue_name, message_count, message_type="total"):
         return Blocking(
-            f"queue[{queue_name}] maybe blocking: message total: {message_total}", self.story, queue_name=queue_name
+            f"queue[{queue_name}] maybe blocking: message {message_type}: {message_count}",
+            self.story,
+            queue_name=queue_name,
         )
 
 

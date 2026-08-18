@@ -46,6 +46,11 @@ class DatabaseConnection(BaseDatabaseConnection):
             "bk_tenant_id": params.pop("bk_tenant_id", DEFAULT_TENANT_ID),
         }
 
+        # PREFIX# 标记仅用于查询链路内部路由，下发前还原成索引前缀并显式声明检索模式
+        if rt_id.startswith("PREFIX#"):
+            rt_id = rt_id.removeprefix("PREFIX#")
+            extra["is_index_prefix"] = True
+
         query_body: str = json.dumps(params)
         logger.info(f"ES QUERY: rt_id is {rt_id}, query body is {query_body}")
         with tracer.start_as_current_span("es_query") as span:

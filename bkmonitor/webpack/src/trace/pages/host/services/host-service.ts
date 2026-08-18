@@ -29,13 +29,14 @@ import { searchHostInfo, searchHostMetric } from 'monitor-api/modules/performanc
 
 import type { IHostTopoTree } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
+import type { HostScopeParams } from '../utils/share-scope';
 
 /**
  * @description: 获取基础主机列表, 这个 API 要更快，但是不包含指标数据, 用于主机列表第一屏渲染
  * @returns {Promise<IHostBaseInfo[]>} 基础主机列表
  */
-export const getHostInfoList = async () => {
-  const data: IHostBaseInfo[] = await searchHostInfo().catch(() => []);
+export const getHostInfoList = async (scope: HostScopeParams = {}) => {
+  const data: IHostBaseInfo[] = await searchHostInfo(scope);
   return data;
 };
 
@@ -43,14 +44,14 @@ export const getHostInfoList = async () => {
  * @description: 获取带指标数据的主机列表 , 这个 API 要慢一些，但是包含所有的 host 指标数据，用于主机列表补充渲染
  * @returns {Promise<IHostMetricInfo[]>} 带指标数据的主机列表
  */
-export const getHostMetricInfoList = async (params: {
-  bk_host_ids: number[];
-  end_time: number;
-  start_time: number;
-}) => {
-  return await searchHostMetric(params).catch(() => {
-    return {};
-  });
+export const getHostMetricInfoList = async (
+  params: HostScopeParams & {
+    bk_host_ids: number[];
+    end_time: number;
+    start_time: number;
+  }
+) => {
+  return await searchHostMetric(params);
 };
 
 /**
@@ -58,12 +59,16 @@ export const getHostMetricInfoList = async (params: {
  * @param bizId 业务ID
  * @returns {Promise<IHostTopoTree[]>} 主机拓扑树
  */
-export const getHostTopoTreeByBizId = async (bizId: number | string = window.cc_biz_id) => {
+export const getHostTopoTreeByBizId = async (
+  bizId: number | string = window.cc_biz_id,
+  scope: HostScopeParams = {}
+) => {
   const data: IHostTopoTree[] = await getTopoTree({
     bk_biz_id: bizId,
+    ...scope,
     condition_list: [],
     instance_type: 'host',
     remove_empty_nodes: false,
-  }).catch(() => []);
+  });
   return data;
 };

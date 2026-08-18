@@ -79,6 +79,8 @@ class DetectMixin:
                 # 使用白名单方式提取控制参数
                 # 只提取 EXTRA_CONFIG_KEYS 中定义的参数
                 extra_config = {k: algorithm_config[k] for k in EXTRA_CONFIG_KEYS if k in algorithm_config}
+                # level 是检测框架上下文，不属于用户算法配置；NewSeries 用它隔离各告警级别的活跃生命周期状态。
+                extra_config["algorithm_level"] = level
 
                 detector = detector_cls(algorithm_config, algorithm_unit, extra_config=extra_config)
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -8,6 +8,7 @@ import { debounce } from 'lodash-es';
 import CreateLuceneEditor from './codemirror-lucene';
 import SqlQueryOptions from './sql-query-options';
 import useFocusInput from '../utils/use-focus-input';
+import { hostHasRenderableContent } from '../utils/host-has-content';
 
 const props = defineProps({
   value: {
@@ -177,6 +178,15 @@ const isEmptySqlString = computed(() => {
   return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
 });
 
+const refCustomPlaceholder = ref(null);
+const isCustomPlaceholderEmpty = ref(true);
+
+const syncCustomPlaceholderEmpty = () => {
+  isCustomPlaceholderEmpty.value = !hostHasRenderableContent(refCustomPlaceholder.value);
+};
+
+const handleCustomPlaceholderClick = () => {};
+
 const debounceRetrieve = debounce((value) => {
   emit('retrieve', value ?? modelValue.value);
 });
@@ -296,9 +306,6 @@ const createEditorInstance = () => {
   });
 };
 
-const handleCustomPlaceholderClick = () => {
-};
-
 /**
  * @description 处理自然语言转查询语句
  * @param value {string}
@@ -312,7 +319,10 @@ const handleTextToQuery = (value) => {
 onMounted(() => {
   createEditorInstance();
   document.addEventListener('click', handleDocumentClick);
+  syncCustomPlaceholderEmpty();
 });
+
+onUpdated(syncCustomPlaceholderEmpty);
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
@@ -338,7 +348,9 @@ onBeforeUnmount(() => {
     >
       {{ placeholderText }}
       <span
+        ref="refCustomPlaceholder"
         class="custom-placeholder"
+        :class="{ 'is-slot-empty': isCustomPlaceholderEmpty }"
         @click.stop="handleCustomPlaceholderClick"
       >
         <slot
@@ -371,18 +383,23 @@ onBeforeUnmount(() => {
       position: absolute;
       top: 50%;
       left: 14px;
+      display: flex;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       font-size: 12px;
       line-height: 30px;
       color: #c4c6cc;
       pointer-events: none;
       transform: translateY(-50%);
-      display: flex;
 
       .custom-placeholder {
+        padding-left: 4px;
         pointer-events: all;
         cursor: pointer;
-        padding-left: 4px;
+
+        &.is-slot-empty {
+          display: none;
+          padding-left: 0;
+        }
       }
     }
 

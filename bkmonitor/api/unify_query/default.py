@@ -396,6 +396,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     class RequestSerializer(serializers.Serializer):
         space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
+        data_source = serializers.CharField(required=False, allow_blank=True)
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
         keys = serializers.ListField(required=False)
@@ -403,6 +404,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
         metric_name = serializers.CharField(required=False, allow_null=True)
         start_time = serializers.CharField(required=False)
         end_time = serializers.CharField(required=False)
+        bk_tenant_id = serializers.CharField(label="租户ID", required=False, allow_blank=True, allow_null=True)
 
 
 class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
@@ -545,3 +547,15 @@ class QueryMultiResource(UnifyQueryAPIResource):
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
+
+
+class QueryInfoFieldMapResource(UnifyQueryAPIResource):
+    method = "POST"
+    path = "/query/ts/info/field_map"
+
+    class RequestSerializer(serializers.Serializer):
+        data_source = serializers.CharField(default="bkmonitor")
+        table_id = serializers.CharField(allow_blank=True)
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        space_uid = serializers.CharField(allow_blank=True, allow_null=True, required=False)

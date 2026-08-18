@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,6 +14,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import functools
 from dataclasses import asdict, dataclass, field
 
@@ -84,14 +84,12 @@ class SpanInfer:
 
 
 class HttpVirtualSpan(SpanInfer):
-
     attributes_prefix = "http."
 
     CHARACTERISTIC_FIELDS = [Attributes.HTTP_HOST, Attributes.HTTP_URL, Attributes.NET_PEER_NAME]
 
     @classmethod
     def match(cls, span):
-
         if span[OtlpKey.KIND] == SpanKind.SPAN_KIND_CLIENT and cls.is_contain(span, Attributes.PEER_SERVICE):
             if cls.any_contain(span, cls.CHARACTERISTIC_FIELDS):
                 return True
@@ -114,7 +112,6 @@ class HttpVirtualSpan(SpanInfer):
 
 
 class RpcVirtualSpan(SpanInfer):
-
     attributes_prefix = "rpc."
 
     CHARACTERISTIC_FIELDS = [Attributes.RPC_SERVICE, Attributes.NET_PEER_NAME, Attributes.RPC_SYSTEM]
@@ -158,7 +155,6 @@ class GenericServiceVirtualSpan(SpanInfer):
 
 
 class MessagePubVirtualSpan(SpanInfer):
-
     attributes_prefix = "messaging."
 
     @classmethod
@@ -184,7 +180,6 @@ class MessagePubVirtualSpan(SpanInfer):
 
 
 class DatabaseVirtualSpan(SpanInfer):
-
     attributes_prefix = "db."
 
     CHARACTERISTIC_FIELDS = [Attributes.DB_SYSTEM, Attributes.DB_NAME, "db.type", "db.instance"]
@@ -230,7 +225,6 @@ class SpanInferContainer:
 class VirtualSpanHandler:
     @classmethod
     def generate(cls, spans):
-
         virtual_spans = []
 
         for span in spans:
@@ -238,6 +232,10 @@ class VirtualSpanHandler:
             if not match_processor:
                 continue
 
-            virtual_spans.append(asdict(match_processor.generate(span)))
+            virtual_span = asdict(match_processor.generate(span))
+            for context_field in ("bk_biz_id", "app_name"):
+                if span.get(context_field) not in (None, ""):
+                    virtual_span[context_field] = span[context_field]
+            virtual_spans.append(virtual_span)
 
         return virtual_spans

@@ -55,6 +55,8 @@ export const useProcessList = (options: {
   const { timeRangeTimestamp } = storeToRefs(useHostStore());
   const { keyword } = options;
   const loading = shallowRef(false);
+  /** 当前进程列表请求是否失败 */
+  const loadError = shallowRef(false);
   /** 原始进程数据（接口原样数据） */
   const rawList = shallowRef<ProcessItem[]>([]);
   /** 排序（`-key` 倒序 / `key` 正序） */
@@ -68,6 +70,9 @@ export const useProcessList = (options: {
     const host = options.host.value;
     if (!host) {
       rawList.value = [];
+      loadError.value = false;
+      loading.value = false;
+      abortController = null;
       return;
     }
 
@@ -76,21 +81,33 @@ export const useProcessList = (options: {
     const { signal } = controller;
 
     loading.value = true;
-    const data = await getHostProcessList(
-      {
-        bk_target_ip: host.ip,
-        bk_target_cloud_id: String(host.bk_cloud_id ?? ''),
-        start_time: timeRangeTimestamp.value.start_time,
-        end_time: timeRangeTimestamp.value.end_time,
-      },
-      { signal }
-    );
-    // 请求被取消（主机切换 / 组件卸载），丢弃本次结果
-    if (signal.aborted) return;
-    rawList.value = data;
-    loading.value = false;
-    /** 触发数据加载完成回调（如有），用于外部处理加载后逻辑 */
-    options?.loadDataEnd?.(data);
+    loadError.value = false;
+    try {
+      const data = await getHostProcessList(
+        {
+          bk_host_id: host.bk_host_id,
+          bk_target_ip: host.ip,
+          bk_target_cloud_id: String(host.bk_cloud_id ?? ''),
+          start_time: timeRangeTimestamp.value.start_time,
+          end_time: timeRangeTimestamp.value.end_time,
+        },
+        { signal }
+      );
+      // 请求被取消（主机切换 / 组件卸载）或已被后发请求替代，丢弃本次结果
+      if (signal.aborted || abortController !== controller) return;
+      rawList.value = data;
+      /** 触发数据加载完成回调（如有），用于外部处理加载后逻辑 */
+      options.loadDataEnd?.(data);
+    } catch {
+      if (signal.aborted || abortController !== controller) return;
+      rawList.value = [];
+      loadError.value = true;
+    } finally {
+      if (abortController === controller) {
+        loading.value = false;
+        abortController = null;
+      }
+    }
   };
 
   /** 关键字过滤：命中进程名 */
@@ -136,6 +153,7 @@ export const useProcessList = (options: {
   });
 
   return {
+    loadError,
     loading,
     sortInfo,
     displayList,

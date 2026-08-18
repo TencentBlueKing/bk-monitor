@@ -352,14 +352,21 @@ def routing_snapshot():
             _pop_routing_pin()
 
 
+@contextmanager
+def routed_client(proxy: RedisProxy, key):
+    """取得 key 当前路由节点的原生客户端，供 WATCH/MULTI 等不能经过 PipelineProxy 的原子事务使用。"""
+    with routing_snapshot():
+        strategy_id = proxy.strategy_id_from_key(key)
+        node = get_node_by_strategy_id(strategy_id)
+        yield proxy.get_client(node)
+
+
 def _router_cache_ttl() -> float:
     return float(getattr(settings, "STRATEGY_ROUTER_CACHE_TTL", STRATEGY_ROUTER_CACHE_TTL))
 
 
 def _router_cache_retry_backoff() -> float:
-    return float(
-        getattr(settings, "STRATEGY_ROUTER_CACHE_RETRY_BACKOFF", STRATEGY_ROUTER_CACHE_RETRY_BACKOFF)
-    )
+    return float(getattr(settings, "STRATEGY_ROUTER_CACHE_RETRY_BACKOFF", STRATEGY_ROUTER_CACHE_RETRY_BACKOFF))
 
 
 def _lookup_node_in_routers(strategy_id: int, routers):
@@ -413,11 +420,7 @@ def _refresh_strategy_router_cache(force: bool = False) -> None:
         return
 
     # TTL 已过但处于失败退避窗口：继续用旧快照，避免逐命令打库
-    if (
-        not force
-        and STRATEGY_ROUTER_CACHE is not None
-        and now < STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT
-    ):
+    if not force and STRATEGY_ROUTER_CACHE is not None and now < STRATEGY_ROUTER_CACHE_NEXT_RETRY_AT:
         return
 
     try:

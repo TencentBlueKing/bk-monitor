@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import operator
 from abc import ABC
 from collections import defaultdict
+from typing import Any
 
 import networkx
 from django.core.exceptions import ValidationError
@@ -177,6 +178,59 @@ class QueryField:
 
 
 class TraceHandler:
+    @staticmethod
+    def _is_span_in_context(span: dict[str, Any], bk_biz_id: int, app_name: str) -> bool:
+        span_bk_biz_id: Any = span.get("bk_biz_id")
+        span_app_name: str | None = span.get("app_name")
+        is_current_biz: bool = span_bk_biz_id in (None, "") or str(span_bk_biz_id) == str(bk_biz_id)
+        is_current_app: bool = not span_app_name or span_app_name == app_name
+        return is_current_biz and is_current_app
+
+    @classmethod
+    def sanitize_span_details(cls, trace_detail: dict[str, Any], bk_biz_id: int, app_name: str) -> None:
+        original_spans: list[dict[str, Any]] = trace_detail.get("original_data") or []
+        trace_tree: dict[str, Any] = trace_detail.get("trace_tree") or {}
+        trace_tree_spans: list[dict[str, Any]] = trace_tree.get("spans") or []
+        processes: dict[str, dict[str, Any]] = trace_tree.get("processes") or {}
+        current_process_ids: set[str] = {
+            span["processID"]
+            for span in trace_tree_spans
+            if cls._is_span_in_context(span, bk_biz_id, app_name) and span.get("processID")
+        }
+        for span in trace_tree_spans:
+            if cls._is_span_in_context(span, bk_biz_id, app_name):
+                continue
+
+            process_id: str | None = span.get("processID")
+            if process_id and process_id in processes:
+                process: dict[str, Any] = processes[process_id]
+                sanitized_process: dict[str, Any] = {"serviceName": process.get("serviceName", ""), "tags": []}
+                if process_id in current_process_ids:
+                    sanitized_process_id: str = f"{process_id}-sanitized"
+                    processes[sanitized_process_id] = sanitized_process
+                    span["processID"] = sanitized_process_id
+                else:
+                    processes[process_id] = sanitized_process
+
+            span["attributes"] = []
+            span["resource"] = []
+            span["events"] = []
+            span["logs"] = []
+            span["message"] = ""
+
+        for span in original_spans:
+            if cls._is_span_in_context(span, bk_biz_id, app_name):
+                continue
+
+            resource: dict[str, Any] = span.get(OtlpKey.RESOURCE) or {}
+            span[OtlpKey.ATTRIBUTES] = {}
+            span[OtlpKey.RESOURCE] = {
+                ResourceAttributes.SERVICE_NAME: resource.get(ResourceAttributes.SERVICE_NAME, "")
+            }
+            span[OtlpKey.EVENTS] = []
+            if span.get(OtlpKey.STATUS):
+                span[OtlpKey.STATUS]["message"] = ""
+
     @classmethod
     def handle_span(cls, app_name, span):
         if not span:
@@ -225,7 +279,7 @@ class TraceHandler:
     def build_new_resource(cls, resource: dict) -> dict:
         new_resource = {}
         for k, v in resource.items():
-            if isinstance(v, (list, set)):
+            if isinstance(v, list | set):
                 new_resource[k] = tuple(v)
             elif isinstance(v, dict):
                 new_resource[k] = cls.build_new_resource(v)
@@ -639,9 +693,9 @@ class TraceHandler:
             },
         }
 
-        return {
+        converted_span: dict[str, Any] = {
             "id": span[OtlpKey.SPAN_ID],
-            "app_name": app_name,
+            "app_name": span.get("app_name") or app_name,
             "traceID": span[OtlpKey.TRACE_ID],
             "spanID": span[OtlpKey.SPAN_ID],
             "duration": span["elapsed_time"],
@@ -677,6 +731,11 @@ class TraceHandler:
             ],
             "icon": cls._get_span_classify(span)[0],
         }
+        # bk_biz_id 是在某个 collector 版本后补充的，新创建结果表默认预设该字段，如果此时 collector 处在旧版本，
+        # bk_biz_id 将返回 0 或 "0"，会被前端误判为跨应用的 Span，故在此处统一做判断和归一化。
+        if span.get("bk_biz_id") not in (None, "", "0", 0):
+            converted_span["bk_biz_id"] = span["bk_biz_id"]
+        return converted_span
 
     @classmethod
     def _get_span_classify(cls, span):

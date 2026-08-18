@@ -54,7 +54,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     // 向下游图表（useEcharts）提供时间范围与刷新信号
-    const { timeRange, refreshImmediate, metricAggregationState } = storeToRefs(useHostStore());
+    const { timeRange, refreshGeneration, metricAggregationState } = storeToRefs(useHostStore());
     const timeShift = computed(() =>
       metricAggregationState.value.compareType === 'time' ? metricAggregationState.value.timeShift : []
     );
@@ -78,7 +78,7 @@ export default defineComponent({
     });
 
     provide('timeRange', timeRange);
-    provide('refreshImmediate', refreshImmediate);
+    provide('refreshImmediate', refreshGeneration);
     provide('viewOptions', aggregation.viewOptions);
     provide('timeOffset', timeShift);
 
@@ -102,7 +102,7 @@ export default defineComponent({
     const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
 
     onMounted(() => {
-      groupsCtrl.load();
+      void groupsCtrl.load();
     });
 
     return () => (
@@ -118,8 +118,11 @@ export default defineComponent({
         <DashboardPanel
           class='host-metric__charts'
           columns={aggregation.state.columns}
+          loadError={groupsCtrl.loadError.value}
+          loading={groupsCtrl.loading.value}
           rows={groupsCtrl.rows.value}
           scopedVars={scopedVars.value}
+          onRetry={groupsCtrl.load}
         />
         <GroupManageDialog
           isShow={groupsCtrl.settingShow.value}

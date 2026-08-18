@@ -90,6 +90,16 @@ class _BkDataDatabusApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             bk_tenant_id=biz_to_tenant_getter(),
         )
+        self.get_clean = DataAPI(
+            method="GET",
+            url=self._build_url("cleans/{processing_id}/", "cleans/{processing_id}/"),
+            module=self.MODULE,
+            url_keys=["processing_id"],
+            description="获取清洗配置详情",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
         self.databus_cleans_post = DataAPI(
             method="POST",
             url=self._build_url("cleans/", "cleans/"),
@@ -127,12 +137,52 @@ class _BkDataDatabusApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
         )
+        self.get_tasks = DataAPI(
+            method="GET",
+            url=self._build_url("tasks/{result_table_id}/", "tasks/{result_table_id}/"),
+            module=self.MODULE,
+            url_keys=["result_table_id"],
+            description="获取清洗分发任务",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
+        )
         self.delete_tasks = DataAPI(
             method="DELETE",
             url=self._build_url("tasks/{result_table_id}/", "tasks/{result_table_id}/"),
             module=self.MODULE,
             url_keys=["result_table_id"],
             description="停止清洗，分发任务",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
+        )
+        self.get_raw_data_tail = DataAPI(
+            method="GET",
+            url=self._build_url("rawdatas/{raw_data_id}/tail/", "rawdatas/{raw_data_id}/tail/"),
+            module=self.MODULE,
+            url_keys=["raw_data_id"],
+            description="获取源数据最新采样",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.get_result_table = DataAPI(
+            method="GET",
+            url=self._build_url("result_tables/{result_table_id}/", "result_tables/{result_table_id}/"),
+            module=self.MODULE,
+            url_keys=["result_table_id"],
+            description="获取结果表详情",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
+        )
+        self.get_result_table_tail = DataAPI(
+            method="GET",
+            url=self._build_url("result_tables/{result_table_id}/tail/", "result_tables/{result_table_id}/tail/"),
+            module=self.MODULE,
+            url_keys=["result_table_id"],
+            description="获取结果表最新采样",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
             bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),

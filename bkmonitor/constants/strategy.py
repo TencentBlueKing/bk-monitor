@@ -22,6 +22,14 @@ SYSTEM_PROC_PORT_DYNAMIC_DIMENSIONS = ["listen", "nonlisten", "not_accurate_list
 ORIGIN_RESULT_TABLE_ID = "origin_result_table_id"
 
 
+class NewSeriesAlertMode:
+    """新维度值检测的告警状态生命周期模式。"""
+
+    ONCE = "once"
+    CONTINUOUS = "continuous"
+    CHOICES = (ONCE, CONTINUOUS)
+
+
 class DataTarget:
     NONE_TARGET = "none_target"
     SERVICE_TARGET = "service_target"

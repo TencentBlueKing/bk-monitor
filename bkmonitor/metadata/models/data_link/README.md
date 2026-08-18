@@ -204,7 +204,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 配置模型属性 `component_status` -> `service.get_data_link_component_status`。
 - 配置模型属性 `component_config` -> `service.get_data_link_component_config`。
 - 状态查询会走 `get_bkbase_component_status_with_retry`（4 次指数退避）。
-- 定时刷新按 `(bk_tenant_id, namespace, kind)` 调用 `list_data_link` 批量获取全部组件状态；可信的非空响应中未出现的本地组件记为 `Terminated`。
+- 定时刷新按 `(bk_tenant_id, namespace, kind)` 调用 `list_data_link`，使用同一份响应发现并同步远端组件配置、刷新本地组件状态；新发现组件的 `data_link_name` 初始为空，可信的非空响应中未出现的本地组件记为 `Terminated`。
 - 空列表、接口异常或无法完整解析的响应不会覆盖本地状态；链路整体状态按 `data_link_name` 汇总为 `Ok`、`Terminated` 或 `Pending`。
 
 ### 6.4 基础采集链路特点
@@ -257,8 +257,11 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 所有组件配置通过 `utils.compose_config(tpl, render_params, ...)` 渲染 Jinja2 模板并转 JSON。
 - 若模板渲染后 JSON 解析失败，返回空字典并记录错误日志。
 
-### 8.2 DataId 命名（`compose_bkdata_data_id_name`）
+### 8.2 DataId 注册与引用
 
+- `DataSource.register_to_bkbase` 注册数据源时，先按当前 `bk_tenant_id + namespace + bk_data_id` 查找 `DataIdConfig`；未命中时允许按规则生成名称并完成注册；
+- DataLink 是 DataId 的调用方：复用既有 Databus 时沿用其 `data_id_name`；新建 Databus 时只能通过 `get_registered_bkdata_data_id_name` 引用已注册的 `DataIdConfig`，未命中则直接抛错，不能自行生成名称；
+- 新 DataId 的名称生成规则如下：
 - 先清洗特殊字符，再处理中文拼音；
 - 空格去除，`-` 转 `_`，连续下划线压缩；
 - 长度受限时会截断并追加 5 位 MD5 后缀；

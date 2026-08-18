@@ -74,6 +74,13 @@ ul.search-items {
           }
         }
       }
+
+      &.custom-placeholder-item.is-slot-empty {
+        display: none;
+        height: 0;
+        padding: 0;
+        margin: 0;
+      }
     }
 
     .tag-option-focus-input {

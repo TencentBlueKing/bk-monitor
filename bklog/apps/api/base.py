@@ -312,13 +312,17 @@ class DataAPI:
 
             # 统一处理返回内容，根据平台既定规则，断定成功与否
             if raise_exception and not response.is_success():
-                raise ApiResultError(
+                error = ApiResultError(
                     self.get_error_message(response.message), code=response.code, errors=response.errors
                 )
+                error.request_id = response.request_id
+                raise error
 
             return response.data
         except DataAPIException as e:
-            raise ApiRequestError(e.error_message, request_id)
+            error = ApiRequestError(e.error_message, request_id)
+            error.request_id = request_id
+            raise error
 
     def get_error_message(self, error_message):
         url_path = ""

@@ -17,3 +17,6 @@ FilterValue = Literal | list[Literal]
 Filter = dict[str, FilterValue]
 
 Page = dict[str, int | list[dict[str, Any]]]
+
+SpaceUid = str
+TableId = str

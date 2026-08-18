@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent, inject } from 'vue';
 import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import HostDetailView from '../../../../components/common-detail/host-detail-view';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
+import { HOST_DETAIL_STATE_KEY } from '../../composables/use-host-detail';
 
 import type { IDetailItem } from '../../../../components/common-detail/typing';
 
@@ -66,7 +67,10 @@ export default defineComponent({
   },
   setup() {
     const { t } = useI18n();
-    return { t };
+    const detailState = inject(HOST_DETAIL_STATE_KEY, null);
+    const detailError = computed(() => detailState?.error.value ?? false);
+    const handleRetry = () => detailState?.retry();
+    return { detailError, handleRetry, t };
   },
   render() {
     return (
@@ -90,6 +94,12 @@ export default defineComponent({
               </div>
             ))}
           </div>
+        ) : this.detailError ? (
+          <EmptyStatus
+            scene='part'
+            type='500'
+            onOperation={this.handleRetry}
+          />
         ) : this.data.length > 0 ? (
           <HostDetailView
             width={this.width}

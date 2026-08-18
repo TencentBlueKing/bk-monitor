@@ -46,6 +46,10 @@ export default defineComponent({
       type: Object as PropType<HostTopoTreeContext>,
       required: true,
     },
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     selectNode: (_payload: IHostTopoViewRow) => true,
@@ -98,6 +102,9 @@ export default defineComponent({
     });
 
     const handleNodeClick = (node: IHostTopoViewRow) => {
+      if (props.readonly) {
+        return;
+      }
       ctx.handleSelectNode(node);
       ctx.handleExpandNode(node);
       emit('selectNode', node);
@@ -111,6 +118,9 @@ export default defineComponent({
     const handleCompare = (event: MouseEvent, target: IHostTopoHostNode) => {
       // 阻止冒泡，避免触发节点选中
       event.stopPropagation();
+      if (props.readonly) {
+        return;
+      }
       const source = ctx.selectedNode.value;
       if (source && isHostNode(source)) {
         ctx.handleCompare({ source, target });
@@ -153,7 +163,10 @@ export default defineComponent({
     /** 渲染主机节点：IP + 别名 +（条件）对比按钮 */
     const renderHostNode = (node: IHostTopoHostNode) => {
       const showCompare =
-        ctx.selectedIsHost.value && ctx.selectedNode.value?.id !== node.id && ctx.compareType.value === 'target';
+        !props.readonly &&
+        ctx.selectedIsHost.value &&
+        ctx.selectedNode.value?.id !== node.id &&
+        ctx.compareType.value === 'target';
       const isCompareTarget = ctx.compareTargets.value.some(target => target.bk_host_id === node.bk_host_id);
       return (
         <div
@@ -278,6 +291,11 @@ export default defineComponent({
               </div>
             ))}
           </div>
+        ) : ctx.loadError.value ? (
+          <EmptyStatus
+            type='500'
+            onOperation={ctx.handleRefresh}
+          />
         ) : (
           <div class='host-topo-tree__body'>
             <div

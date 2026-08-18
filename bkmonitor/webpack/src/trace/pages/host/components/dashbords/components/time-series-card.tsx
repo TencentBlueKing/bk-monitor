@@ -40,10 +40,13 @@ import {
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { random } from 'monitor-common/utils';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
+import { useAppReadonlyInject } from '../../../../provider';
 import { resolveGraphPanel } from '../variables/resolve';
+import EmptyStatus from '@/components/empty-status/empty-status';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
@@ -95,6 +98,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const readonly = useAppReadonlyInject() ?? false;
     const instance = getCurrentInstance();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const chartRef = useTemplateRef<HTMLElement>('chart');
@@ -180,7 +184,7 @@ export default defineComponent({
       return props.downSampleRange;
     };
 
-    const { options, loading, metricList, targets, series, chartId } = useEcharts({
+    const { options, loadError, loading, metricList, targets, series, chartId, getEchartOptions } = useEcharts({
       panel: resolvedPanel,
       chartRef: chartMainRef,
       $api: instance.appContext.config.globalProperties.$api,
@@ -196,6 +200,11 @@ export default defineComponent({
       customOptions: props.customOptions,
       downSampleRangeComputed: props.downSampleRange ? downSampleRangeComputed : undefined,
     });
+
+    const handleRetry = async () => {
+      options.value = await getEchartOptions();
+      chartId.value = random(8);
+    };
 
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -228,9 +237,11 @@ export default defineComponent({
 
     return {
       t,
+      readonly,
       showRestore,
       instance,
       options,
+      loadError,
       loading,
       metricList,
       legendData,
@@ -245,6 +256,7 @@ export default defineComponent({
       handleDataZoom,
       handleMouseInChange,
       handleRestore,
+      handleRetry,
     };
   },
   render() {
@@ -281,10 +293,11 @@ export default defineComponent({
         class='time-series-card'
       >
         <ChartTitle
-          menuList={['more', 'explore', 'drill-down', 'relate-alert']}
+          menuList={this.readonly ? [] : ['more', 'explore', 'drill-down', 'relate-alert']}
           metrics={this.metricList}
-          showAddMetric={true}
-          showMore={true}
+          showAddMetric={!this.readonly}
+          showMetricAlarm={!this.readonly}
+          showMore={!this.readonly}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
           onAlarmClick={this.handleAlarmClick}
@@ -295,39 +308,42 @@ export default defineComponent({
         />
         {this.loading ? (
           <ChartSkeleton />
+        ) : this.loadError ? (
+          <EmptyStatus
+            type='500'
+            onOperation={this.handleRetry}
+          />
         ) : this.options ? (
-          <>
-            {this.isShowStatistics ? (
-              <ResizeLayout
-                ref='resizeLayout'
-                class='time-series-card__resize-layout'
-                border={false}
-                initialDivide={`${this.chartHeight}px`}
-                max={this.layoutDragMaxHeight}
-                min={100}
-                placement='top'
-                onResizing={this.handleResizing}
-              >
-                {{
-                  aside: renderChart,
-                  main: () => (
-                    <TableLegend
-                      legendData={this.legendData}
-                      onSelectLegend={this.handleSelectLegend}
-                    />
-                  ),
-                }}
-              </ResizeLayout>
-            ) : (
-              <>
-                {renderChart()}
-                <CommonLegend
-                  legendData={this.legendData}
-                  onSelectLegend={this.handleSelectLegend}
-                />
-              </>
-            )}
-          </>
+          this.isShowStatistics ? (
+            <ResizeLayout
+              ref='resizeLayout'
+              class='time-series-card__resize-layout'
+              border={false}
+              initialDivide={`${this.chartHeight}px`}
+              max={this.layoutDragMaxHeight}
+              min={100}
+              placement='top'
+              onResizing={this.handleResizing}
+            >
+              {{
+                aside: renderChart,
+                main: () => (
+                  <TableLegend
+                    legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
+                  />
+                ),
+              }}
+            </ResizeLayout>
+          ) : (
+            <>
+              {renderChart()}
+              <CommonLegend
+                legendData={this.legendData}
+                onSelectLegend={this.handleSelectLegend}
+              />
+            </>
+          )
         ) : (
           <div class='time-series-card__empty'>{this.t('暂无数据')}</div>
         )}

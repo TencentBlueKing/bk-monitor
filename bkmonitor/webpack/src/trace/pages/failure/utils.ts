@@ -40,6 +40,39 @@ export const replaceSpecialCondition = (qs: string) => {
 };
 
 /**
+ * @description 按「仅看最新排障记录告警」过滤分组内 alerts，并去掉空分组
+ * @param groups 告警分组列表（视图 / 明细接口回包结构一致）
+ * @param enabled 是否开启过滤
+ */
+export function filterAlertGroupsByCurrentPrimary<T extends { alerts?: Array<{ is_current_primary?: boolean }> }>(
+  groups: T[] = [],
+  enabled: boolean
+): T[] {
+  if (!enabled) return groups;
+
+  // 性能优化：避免 map/filter 产生中间数组，使用单次遍历按需构建结果
+  const result: T[] = [];
+  for (const group of groups) {
+    const alerts: Array<{ is_current_primary?: boolean }> = [];
+    const rawAlerts = group.alerts || [];
+    for (const alert of rawAlerts) {
+      if (alert?.is_current_primary) alerts.push(alert);
+    }
+
+    // 过滤掉空分组
+    if (alerts.length === 0) continue;
+
+    // 只复制必要层级（group 其余字段保持透传）
+    result.push({
+      ...group,
+      alerts: alerts as T['alerts'],
+    });
+  }
+
+  return result;
+}
+
+/**
  * @description 检查文本是否溢出（超过n行）
  * @param el 元素
  * @param n 行数，默认3行

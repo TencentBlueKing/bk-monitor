@@ -10,10 +10,13 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.data_source.utils import types
+from constants.otel_query import FieldTypeEnum
 
 
 class BaseQuery:
@@ -26,6 +29,11 @@ class BaseQuery:
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
+
+    # 字段别名映射
+    FIELD_ALIAS_MAP_LIST: list[dict[str, str]] = []
+    # 字段操作符映射
+    FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -156,7 +164,7 @@ class BaseQuery:
         :param end_time: 结束时间戳
         :return: 记录总数
         """
-        return self._query_field_aggregated_value(queries, start_time, end_time, "_index", "count")
+        return int(self._query_field_aggregated_value(queries, start_time, end_time, "_index", "count"))
 
     def _query_field_topk(
         self,
@@ -349,3 +357,88 @@ class BaseQuery:
                 continue
             distinct_values.add(record.get(field))
         return len(distinct_values)
+
+    @classmethod
+    def merge_field_metadata(cls, current: dict[str, Any], field_dict: dict[str, Any]) -> dict[str, Any]:
+        return {
+            **current,
+            "is_agg": bool(current["is_agg"] or field_dict["is_agg"]),
+            "is_analyzed": bool(current["is_analyzed"] or field_dict["is_analyzed"]),
+            "is_case_sensitive": bool(current["is_case_sensitive"] and field_dict["is_case_sensitive"]),
+        }
+
+    @classmethod
+    def _resolve_field_alias(cls, field_name: str) -> str:
+        for mapping in reversed(cls.FIELD_ALIAS_MAP_LIST):
+            if field_name in mapping:
+                return mapping[field_name]
+        return field_name
+
+    def _query_fields(
+        self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int, end_time: int
+    ) -> dict[str, dict[str, Any]]:
+        """并发查询多个结果表的字段信息，合并为字段名到字段详情的映射。
+
+        :param targets: 结果表 ID 与空间 UID 的元组列表
+        :param start_time: 开始时间戳（秒级）
+        :param end_time: 结束时间戳（秒级）
+        :return: 字段名到字段详情字典的映射
+        """
+        param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
+            (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
+        ]
+        field_map: dict[str, dict[str, Any]] = {}
+        for field_list in ThreadPool().map_ignore_exception(self._query_info_fields, param_list):
+            for field_dict in field_list:
+                field_name = field_dict.get("field_name", "")
+
+                current = field_map.get(field_name)
+                if current is None:
+                    field_map[field_name] = field_dict
+                elif current["field_type"] != field_dict["field_type"]:
+                    field_map[field_name] = self.merge_field_metadata(
+                        {**current, "field_type": FieldTypeEnum.CONFLICT.value},
+                        {**field_dict, "field_type": FieldTypeEnum.CONFLICT.value},
+                    )
+                else:
+                    field_map[field_name] = self.merge_field_metadata(current, field_dict)
+
+                _field_dict = field_map[field_name]
+                _field_dict["alias_name"] = self._resolve_field_alias(field_name)
+                _field_dict["supported_operations"] = self.FIELD_OPERATIONS.get(
+                    _field_dict["field_type"],
+                    [],
+                )
+                _field_dict["is_searchable"] = _field_dict["field_type"] not in {"object", "nested"}
+
+        return field_map
+
+    @classmethod
+    def _query_info_fields(cls, table_id: str, space_uid: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
+        """查询单个结果表的字段信息列表。
+
+        调用 unify_query.query_info_field_map 接口获取指定结果表在给定时间范围内的字段元数据。
+
+        :param table_id: 结果表 ID
+        :param start_time: 开始时间戳（秒级）
+        :param end_time: 结束时间戳（秒级）
+        :return: 字段信息列表，每项为包含以下键的字典：
+            - alias_name: 字段别名，为空表示未配置别名
+            - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_type: ES 字段类型，如 keyword（不分词字符串）、text（分词字符串）等
+            - origin_field: 原始顶层字段名，主要用于嵌套字段（如 attributes.http.url 的原始字段为
+              attributes）；普通字段与 field_name 相同
+            - is_agg: 是否支持聚合、分组、排序
+            - is_analyzed: 是否经过文本分析器分词，keyword 通常为 False，text 通常为 True
+            - is_case_sensitive: 是否区分大小写，True 表示 AppA 与 appa 视为不同值
+            - tokenize_on_chars: 分词使用的分隔字符列表，主要对 text 类型生效，keyword 通常为空
+        """
+        return api.unify_query.query_info_field_map(
+            {
+                "data_source": "bkapm",
+                "table_id": table_id,
+                "space_uid": space_uid,
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+        ).get("data", [])

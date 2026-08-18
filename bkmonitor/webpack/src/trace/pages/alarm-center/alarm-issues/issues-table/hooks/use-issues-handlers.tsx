@@ -29,6 +29,7 @@ import PriorityMenu from '../components/priority-menu/priority-menu';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType } from '../../typing';
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 
 export interface UseIssuesHandlersOptions {
   /** click popover 工具（基础设施依赖） */
@@ -42,7 +43,7 @@ export interface UseIssuesHandlersOptions {
   /** 优先级变更回调 */
   priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
-  showDetailEmit: (item: IssueItem) => void;
+  showDetailEmit: (item: IssueItem, defaultTab?: AlarmCenterPanelTabType) => void;
   /** 拆分按钮点击回调 */
   splitClickEmit: (row: IssueItem) => void;
 }
@@ -66,9 +67,10 @@ export const useIssuesHandlers = ({
   /**
    * @description 点击 Issue 名称展示详情抽屉
    * @param {IssueItem} row - 当前 Issue 行数据
+   * @param {AlarmCenterPanelTabType} defaultTab - issue详情侧弹 - 告警详情内容区域 - 默认显示的 tab
    */
-  const handleShowDetail = (row: IssueItem) => {
-    showDetailEmit(row);
+  const handleShowDetail = (row: IssueItem, defaultTab?: AlarmCenterPanelTabType) => {
+    showDetailEmit(row, defaultTab);
   };
 
   /**
