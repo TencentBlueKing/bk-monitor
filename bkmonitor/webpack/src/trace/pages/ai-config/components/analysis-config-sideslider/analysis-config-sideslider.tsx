@@ -27,12 +27,15 @@ import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue
 
 import { RenderAgentCard, RenderKnowledgebaseCard, RenderSkillCard } from '@blueking/ai-ui-sdk/components';
 import { ResourceCardType } from '@blueking/ai-ui-sdk/enums';
-import { Button, Message, Sideslider } from 'bkui-vue';
+import { Button, Input, Message, Sideslider, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useAiResources } from '../../composables/use-ai-resources';
+import { useMatchRuleFields } from '../../composables/use-match-rule-fields';
+import { useRuleBasicInfo } from '../../composables/use-rule-basic-info';
 import { useSourceAnalysisRuleDetail } from '../../composables/use-source-analysis-rule-detail';
 import { AiResourceEnum, SidesliderTypeEnum } from '../../constants';
+import MatchRule from '../match-rule/match-rule';
 import ResourceCollapseList from '../resource-collapse-list/resource-collapse-list';
 
 import type { ConfirmPayload, SidesliderType } from '../../typings';
@@ -75,6 +78,26 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const {
+      conditions,
+      priority,
+      isEnabled,
+      errors,
+      handleConditionsChange,
+      handlePriorityChange,
+      handleEnabledChange,
+      validate,
+    } = useRuleBasicInfo();
+    const { fields: matchRuleFields, fetchFields: fetchMatchRuleFields } = useMatchRuleFields();
+
+    watch(
+      () => props.show,
+      () => {
+        if (props.show) {
+          fetchMatchRuleFields();
+        }
+      }
+    );
     /** 提交 confirmLoading */
     const confirmLoading = shallowRef(false);
 
@@ -157,6 +180,7 @@ export default defineComponent({
      * resolve 时自动关闭弹窗，reject 时保留弹窗，两种情况均重置 loading。
      */
     const handleConfirm = () => {
+      if (!validate()) return;
       if (confirmLoading.value) return;
       if (!validateFields()) return;
 
@@ -195,7 +219,56 @@ export default defineComponent({
           <div class='main-section-header'>
             <div class='main-section-title'>{t('基础信息')}</div>
           </div>
-          <div class='main-section-content'>{/* 告警策略匹配规则、优先级、状态等详细内容待实现 */}</div>
+          <div class='main-section-content'>
+            <div class='form-item'>
+              <div class='form-item-label'>
+                <span>{t('告警策略匹配规则')}</span>
+                <span class='required-star'>*</span>
+              </div>
+              <div class='form-item-content'>
+                <MatchRule
+                  fields={matchRuleFields.value}
+                  value={conditions.value}
+                  onUpdate:value={handleConditionsChange}
+                />
+                {errors.value?.conditions && <div class='form-item-error'>{errors.value.conditions}</div>}
+              </div>
+            </div>
+            <div class='form-items mt-24'>
+              <div class='form-item'>
+                <div class='form-item-label'>
+                  <span>{t('优先级')}</span>
+                  <span class='required-star'>*</span>
+                  <span class='form-item-label-tip'>
+                    <span class='icon-monitor icon-hint' />
+                    {t('数值越高，优先级越高，最大值为10000')}
+                  </span>
+                </div>
+                <div class='form-item-content'>
+                  <Input
+                    style='width: 340px'
+                    modelValue={priority.value}
+                    type='number'
+                    onUpdate:modelValue={handlePriorityChange}
+                  />
+                  {errors.value?.priority && <div class='form-item-error'>{errors.value.priority}</div>}
+                </div>
+              </div>
+              <div class='form-item'>
+                <div class='form-item-label'>
+                  <span>{t('状态')}</span>
+                  <span class='required-star'>*</span>
+                </div>
+                <div class='form-item-content'>
+                  <Switcher
+                    class='mt-6'
+                    modelValue={isEnabled.value}
+                    onChange={handleEnabledChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       );
     };
@@ -361,6 +434,13 @@ export default defineComponent({
     );
 
     return {
+      conditions,
+      priority,
+      isEnabled,
+      errors,
+      handleConditionsChange,
+      handlePriorityChange,
+      handleEnabledChange,
       isEdit,
       renderBasicInfo,
       renderProcessParams,

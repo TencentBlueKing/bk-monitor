@@ -42,6 +42,49 @@
 
         .main-section-content {
           min-height: 80px;
+
+          .form-items {
+            display: flex;
+            gap: 32px;
+            align-items: flex-start;
+          }
+
+          .form-item {
+            .form-item-label {
+              display: flex;
+              align-items: center;
+              margin-bottom: 6px;
+              font-size: 12px;
+              font-weight: 400;
+              line-height: 20px;
+              color: #4d4f56;
+
+              .required-star {
+                margin: 0 6px;
+                font-size: 12px;
+                color: #ea3636;
+              }
+
+              .form-item-label-tip {
+                display: inline-flex;
+                gap: 2px;
+                align-items: center;
+                font-size: 12px;
+                color: #979ba5;
+              }
+            }
+
+            .form-item-content {
+              min-height: 32px;
+            }
+
+            .form-item-error {
+              margin-top: 4px;
+              font-size: 12px;
+              line-height: 16px;
+              color: #ea3636;
+            }
+          }
         }
 
         &.process-params-section {

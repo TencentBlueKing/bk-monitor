@@ -83,12 +83,6 @@
           // 表单项内容
           .content {
             position: relative;
-            display: flex;
-            align-items: center;
-
-            .bk-select {
-              flex: 1;
-            }
 
             // 初始化加载配置时的骨架屏占位
             .select-loading-skeleton {
@@ -101,15 +95,13 @@
             }
 
             // 必填校验错误提示
-            // .err-msg {
-            //   position: absolute;
-            //   bottom: -18px;
-            //   left: 0;
-            //   display: inline-block;
-            //   font-size: 12px;
-            //   line-height: 12px;
-            //   color: #ea3636;
-            // }
+            .err-msg {
+              margin-top: 4px;
+              font-size: 12px;
+              line-height: 16px;
+              color: #ea3636;
+            }
+
             &.has-err {
               .bk-select {
                 .bk-input {
