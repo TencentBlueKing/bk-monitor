@@ -202,7 +202,7 @@ export interface INormalWhere {
       };
 }
 export interface IOptionsInfo {
-  count: 0;
+  count: number;
   list: IValue[];
 }
 
@@ -465,6 +465,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
   },
+  // ui只读模式
+  uiModeReadonly: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -535,6 +540,11 @@ export const UI_SELECTOR_PROPS = {
   tagValueDisplayFormatter: {
     type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
+  },
+  // ui只读模式
+  readonly: {
+    type: Boolean,
+    default: false,
   },
 };
 export const UI_SELECTOR_EMITS = {
@@ -846,6 +856,10 @@ export const KV_TAG_PROPS = {
     default: false,
   },
   hasTagHidden: {
+    type: Boolean,
+    default: true,
+  },
+  hasTagDelete: {
     type: Boolean,
     default: true,
   },

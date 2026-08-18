@@ -198,6 +198,9 @@ export default defineComponent({
      * 5. 触发显示选择器的处理函数
      */
     function handleClickComponent(event?: MouseEvent) {
+      if (props.readonly) {
+        return;
+      }
       event?.stopPropagation();
       updateActive.value = -1;
       inputFocus.value = true;
@@ -294,6 +297,9 @@ export default defineComponent({
       handleChange();
     }
     function handleUpdateTag(event: MouseEvent, index: number) {
+      if (props.readonly) {
+        return;
+      }
       event.stopPropagation();
       updateActive.value = index;
       const customEvent = {
@@ -342,19 +348,22 @@ export default defineComponent({
         class='vue3_retrieval-filter__ui-selector-component'
         onClick={this.handleClickComponent}
       >
-        <div onClick={this.handleAdd}>
-          <div class='add-btn'>
-            <span class='icon-monitor icon-mc-add' />
-            <span class='add-text'>{this.t('添加条件')}</span>
+        {!this.readonly && (
+          <div onClick={this.handleAdd}>
+            <div class='add-btn'>
+              <span class='icon-monitor icon-mc-add' />
+              <span class='add-text'>{this.t('添加条件')}</span>
+            </div>
           </div>
-        </div>
+        )}
         {this.localValue.map((item, index) => {
           const fieldInfo = this.fields.find(field => field.name === item.key.id) || null;
           return (
             <KvTag
               key={`${index}_kv`}
               fieldInfo={fieldInfo}
-              hasTagHidden={this.hasTagHidden}
+              hasTagDelete={!this.readonly}
+              hasTagHidden={this.readonly ? false : this.hasTagHidden}
               tagValueDisplayFormatter={this.tagValueDisplayFormatter}
               value={item}
               onDelete={() => this.handleDeleteTag(index)}
@@ -369,7 +378,7 @@ export default defineComponent({
             </KvTag>
           );
         })}
-        {this.hasShortcutKey && (
+        {this.hasShortcutKey && !this.readonly && (
           <div class={['kv-placeholder', { 'is-en': isEn }]}>
             <AutoWidthInput
               height={40}

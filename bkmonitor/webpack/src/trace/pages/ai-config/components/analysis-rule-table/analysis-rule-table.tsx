@@ -32,11 +32,14 @@ import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import CommonTable from 'trace/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { useI18n } from 'vue-i18n';
 
+import { toWhereItems } from '../../composables/use-rule-basic-info';
 import { updateSourceAnalysisRule } from '../../services/source-analysis-rule';
+import MatchRule from '../match-rule/match-rule';
 import TagCell from './tag-cell';
 
 import type { SourceAnalysisRuleDto } from '../../typings';
 import type { FilterValue } from '@blueking/tdesign-ui/typings/packages/table';
+import type { IFilterField, TTagValueDisplayFormatter } from 'trace/components/retrieval-filter/typing';
 import type { BaseTableColumn } from 'trace/pages/trace-explore/components/trace-explore-table/typing';
 
 import './analysis-rule-table.scss';
@@ -58,6 +61,20 @@ export default defineComponent({
     searchValue: {
       type: String,
       default: '',
+    },
+    /** 匹配规则字段列表（由父组件共享） */
+    matchRuleFields: {
+      type: Array as PropType<IFilterField[]>,
+      default: () => [],
+    },
+    /** 已选条件 tag 的 value 显示格式化函数（由父组件共享） */
+    tagValueDisplayFormatter: {
+      type: Function as PropType<TTagValueDisplayFormatter>,
+      default: (val: boolean | number | string) => `${val}`,
+    },
+    matchRuleFieldsLoading: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
@@ -139,7 +156,24 @@ export default defineComponent({
         width: 440,
         minWidth: 440,
         sorter: false,
-        cellRenderer: _row => <div>匹配方式</div>,
+        cellRenderer: row =>
+          row.is_default ? (
+            <span class='match-rule-default'>
+              {t('所有策略')} <span class='green-tag'>{t('默认')}</span>
+            </span>
+          ) : props.matchRuleFieldsLoading ? (
+            <div
+              style='height: 40px'
+              class='skeleton-element'
+            />
+          ) : (
+            <MatchRule
+              fields={props.matchRuleFields}
+              readonly={true}
+              tagValueDisplayFormatter={props.tagValueDisplayFormatter}
+              value={toWhereItems(row.conditions)}
+            />
+          ),
         title: () => <span>{t('匹配方式')}</span>,
       },
       {

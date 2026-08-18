@@ -36,7 +36,6 @@ import { Button, Input, Message, Sideslider, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useAiResources } from '../../composables/use-ai-resources';
-import { useMatchRuleFields } from '../../composables/use-match-rule-fields';
 import { useResourceDialog } from '../../composables/use-resource-dialog';
 import { useRuleBasicInfo } from '../../composables/use-rule-basic-info';
 import { useSourceAnalysisRuleDetail } from '../../composables/use-source-analysis-rule-detail';
@@ -46,6 +45,12 @@ import ResourceCollapseList from '../resource-collapse-list/resource-collapse-li
 
 import type { ConfirmPayload, SidesliderType } from '../../typings';
 import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
+import type {
+  IFilterField,
+  IGetValueFnParams,
+  IOptionsInfo,
+  TTagValueDisplayFormatter,
+} from 'trace/components/retrieval-filter/typing';
 
 import './analysis-config-sideslider.scss';
 
@@ -78,6 +83,26 @@ export default defineComponent({
     ruleId: {
       type: Number,
     },
+    /** 匹配规则字段列表（由父组件共享） */
+    matchRuleFields: {
+      type: Array as PropType<IFilterField[]>,
+      default: () => [],
+    },
+    /** 匹配规则字段加载状态（由父组件共享） */
+    matchRuleFieldsLoading: {
+      type: Boolean,
+      default: false,
+    },
+    /** 匹配规则候选值获取函数（由父组件共享） */
+    getMatchRuleValueFn: {
+      type: Function as PropType<(params: IGetValueFnParams) => Promise<IOptionsInfo>>,
+      default: () => Promise.resolve({ count: 0, list: [] }),
+    },
+    /** 已选条件 tag 的 value 显示格式化函数（由父组件共享） */
+    tagValueDisplayFormatter: {
+      type: Function as PropType<TTagValueDisplayFormatter>,
+      default: (val: boolean | number | string) => `${val}`,
+    },
   },
   emits: {
     /** 抽屉显隐更新（v-model:show） */
@@ -92,26 +117,21 @@ export default defineComponent({
       priority,
       isEnabled,
       errors,
+      getFormData: getBasicInfoFormData,
+      setFormData: setBasicInfoFormData,
+      reset: resetBasicInfo,
       handleConditionsChange,
       handlePriorityChange,
       handleEnabledChange,
-      validate,
+      validate: validateBasicInfo,
     } = useRuleBasicInfo();
-    const { fields: matchRuleFields, fetchFields: fetchMatchRuleFields } = useMatchRuleFields();
 
-    watch(
-      () => props.show,
-      () => {
-        if (props.show) {
-          fetchMatchRuleFields();
-        }
-      }
-    );
     /** 提交 confirmLoading */
     const confirmLoading = shallowRef(false);
 
     const {
       detail,
+      loading: detailLoading,
       fetchDetail,
       initDetail,
       resetState,
@@ -163,37 +183,18 @@ export default defineComponent({
     };
 
     /**
-     * @description 提交前校验必填字段不为空
-     * @returns {boolean} 校验是否通过
-     */
-    const validateFields = (): boolean => {
-      const data = detail.value;
-      const rules: Array<{ message: string; valid: boolean }> = [
-        { valid: !!data, message: t('数据未就绪，请稍后重试') },
-        { valid: data?.priority != null, message: t('优先级不能为空') },
-        { valid: !!data?.conditions?.length, message: t('匹配条件不能为空') },
-      ];
-      const failed = rules.find(rule => !rule.valid);
-      if (failed) {
-        Message({ theme: 'error', message: failed.message });
-        return false;
-      }
-      return true;
-    };
-
-    /**
      * @description 确认提交
      * 准备好提交参数后，连同 Promise 一同抛出 confirm 事件；
      * 父组件执行新增/更新接口后通过 resolve/reject 回传结果，
      * resolve 时自动关闭弹窗，reject 时保留弹窗，两种情况均重置 loading。
      */
     const handleConfirm = () => {
-      if (!validate()) return;
+      if (!validateBasicInfo()) return;
       if (confirmLoading.value) return;
-      if (!validateFields()) return;
 
       // 准备提交参数：新增态取全量，编辑态取变更字段
-      const params = isEdit.value ? getChangedFields() : getCreateParams();
+      const baseInfoParams = getBasicInfoFormData();
+      const params = isEdit.value ? getChangedFields(baseInfoParams) : getCreateParams(baseInfoParams);
       if (!params) return;
       if (isEdit.value && !Object.keys(params).length) {
         Message({ theme: 'warning', message: t('数据未变更') });
@@ -218,6 +219,30 @@ export default defineComponent({
       emit('confirm', { params, promise, resolve: resolveFn, reject: rejectFn });
     };
 
+    watch(
+      () => props.show,
+      newVal => {
+        if (!newVal) {
+          handleCloseResourceDialog();
+          resetState();
+          resetBasicInfo();
+          return;
+        }
+        fetchResources();
+        if (isEdit.value && props.ruleId) {
+          fetchDetail(props.ruleId, detail => {
+            console.log(detail);
+            setBasicInfoFormData(detail);
+          });
+        } else {
+          initDetail(detail => {
+            setBasicInfoFormData(detail);
+          });
+        }
+      },
+      { immediate: true }
+    );
+
     /**
      * @description 渲染基础信息区域
      */
@@ -234,11 +259,21 @@ export default defineComponent({
                 <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
-                <MatchRule
-                  fields={matchRuleFields.value}
-                  value={conditions.value}
-                  onUpdate:value={handleConditionsChange}
-                />
+                {props.matchRuleFieldsLoading || detailLoading.value ? (
+                  <div
+                    style='height: 48px'
+                    class='skeleton-element'
+                  />
+                ) : (
+                  <MatchRule
+                    fields={props.matchRuleFields}
+                    getValueFn={props.getMatchRuleValueFn}
+                    readonly={!!detail.value?.is_default}
+                    tagValueDisplayFormatter={props.tagValueDisplayFormatter}
+                    value={conditions.value}
+                    onUpdate:value={handleConditionsChange}
+                  />
+                )}
                 {errors.value?.conditions && <div class='form-item-error'>{errors.value.conditions}</div>}
               </div>
             </div>
@@ -253,12 +288,20 @@ export default defineComponent({
                   </span>
                 </div>
                 <div class='form-item-content'>
-                  <Input
-                    style='width: 340px'
-                    modelValue={priority.value}
-                    type='number'
-                    onUpdate:modelValue={handlePriorityChange}
-                  />
+                  {detailLoading.value ? (
+                    <div
+                      style='width: 340px;height: 32px'
+                      class='skeleton-element'
+                    />
+                  ) : (
+                    <Input
+                      style='width: 340px'
+                      disabled={!!detail.value?.is_default}
+                      modelValue={priority.value}
+                      type='number'
+                      onUpdate:modelValue={handlePriorityChange}
+                    />
+                  )}
                   {errors.value?.priority && <div class='form-item-error'>{errors.value.priority}</div>}
                 </div>
               </div>
@@ -268,11 +311,19 @@ export default defineComponent({
                   <span class='required-star'>*</span>
                 </div>
                 <div class='form-item-content'>
-                  <Switcher
-                    class='mt-6'
-                    modelValue={isEnabled.value}
-                    onChange={handleEnabledChange}
-                  />
+                  {detailLoading.value ? (
+                    <div
+                      style='width: 38px;height: 20px'
+                      class='skeleton-element mt-6'
+                    />
+                  ) : (
+                    <Switcher
+                      class='mt-6'
+                      modelValue={isEnabled.value}
+                      theme='primary'
+                      onChange={handleEnabledChange}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -448,24 +499,6 @@ export default defineComponent({
         />
       );
     };
-
-    watch(
-      () => props.show,
-      newVal => {
-        if (!newVal) {
-          handleCloseResourceDialog();
-          resetState();
-          return;
-        }
-        fetchResources();
-        if (isEdit.value && props.ruleId) {
-          fetchDetail(props.ruleId);
-        } else {
-          initDetail();
-        }
-      },
-      { immediate: true }
-    );
 
     return {
       conditions,

@@ -2,7 +2,7 @@ import { shallowRef } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import type { TSourceAnalysisCondition, TSourceAnalysisRule } from '../typings';
+import type { SourceAnalysisCondition, SourceAnalysisRule } from '../typings';
 import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
 
 /*
@@ -41,7 +41,7 @@ const CONDITION_ERROR_KEY = 'conditions';
 const PRIORITY_ERROR_KEY = 'priority';
 
 /** 后端匹配条件转换为检索过滤器可识别的 where 结构 */
-const toWhereItems = (conditions: TSourceAnalysisCondition[]): IWhereItem[] =>
+export const toWhereItems = (conditions: SourceAnalysisCondition[]): IWhereItem[] =>
   (conditions ?? []).map(item => ({
     condition: item.condition,
     key: item.field,
@@ -50,7 +50,7 @@ const toWhereItems = (conditions: TSourceAnalysisCondition[]): IWhereItem[] =>
   }));
 
 /** 检索过滤器的 where 结构转换为后端匹配条件 */
-const toConditions = (where: IWhereItem[]): TSourceAnalysisCondition[] =>
+const toConditions = (where: IWhereItem[]): SourceAnalysisCondition[] =>
   (where ?? []).map(item => ({
     condition: item.condition,
     field: item.key,
@@ -75,7 +75,7 @@ export const useRuleBasicInfo = () => {
   const errors = shallowRef<Record<string, string>>({});
 
   /** 用规则数据回填表单 */
-  const setFormData = (rule: null | TSourceAnalysisRule) => {
+  const setFormData = (rule: null | SourceAnalysisRule) => {
     conditions.value = toWhereItems(rule?.conditions ?? []);
     priority.value = rule?.priority ?? 10;
     isEnabled.value = rule?.is_enabled ?? true;
