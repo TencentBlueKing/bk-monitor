@@ -92,20 +92,30 @@ class V4PermissionProvider(PermissionProvider):
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
-        # Client：配置全部注入，不直接读 Django settings
-        self._client = V4Client(
-            base_url=self._cfg.base_url,
-            system_id=self._cfg.system.id,
-            app_code=self._cfg.credentials.app_code,
-            app_secret=self._cfg.credentials.app_secret,
-            timeout=self._cfg.timeout,
-        )
+        # 按租户 ID 维护客户端池（多租户模式下鉴权按 subject 租户选择，与 V3 Provider 对齐）
+        self._clients: dict[str, V4Client] = {}
+        # 默认 client（系统级操作：health_check / 迁移 / 模型管理）
+        self._client = self._get_client("")
         # 导入 callback handler 模块，触发 @register_xxx 装饰器注册
         callback_module: str = options.get("callback_module", "")
         if callback_module:
             importlib.import_module(callback_module)
         # 回调服务：持有本 Provider 的 codec
         self.callback_service = CallbackService(self.codec)
+
+    def _get_client(self, tenant_id: str = "") -> V4Client:
+        """按租户 ID 获取或创建 V4Client（空租户使用配置的默认租户）。"""
+        tid = tenant_id or self._cfg.bk_tenant_id
+        if tid not in self._clients:
+            self._clients[tid] = V4Client(
+                base_url=self._cfg.base_url,
+                system_id=self._cfg.system.id,
+                app_code=self._cfg.credentials.app_code,
+                app_secret=self._cfg.credentials.app_secret,
+                timeout=self._cfg.timeout,
+                bk_tenant_id=tid,
+            )
+        return self._clients[tid]
 
     # ================================================================
     # 系统信息（供命令行/诊断使用）
@@ -141,7 +151,7 @@ class V4PermissionProvider(PermissionProvider):
         """
         v4_resource = self._to_v4_resource(request) if request.resource else None
         try:
-            return self._client.direct_auth(
+            return self._get_client(request.subject.tenant_id).direct_auth(
                 subject_id=request.subject.id,
                 action_id=request.action_id,
                 resource=v4_resource,
@@ -168,7 +178,7 @@ class V4PermissionProvider(PermissionProvider):
             resource_id 为 v4 方言格式。
         """
         v4_resources = [{"id": rid} for rid in request.resource_ids]
-        resp = self._client.direct_auth_by_resources(
+        resp = self._get_client(request.subject.tenant_id).direct_auth_by_resources(
             subject_id=request.subject.id,
             action_id=request.action_id,
             resources=v4_resources,
@@ -195,7 +205,7 @@ class V4PermissionProvider(PermissionProvider):
         v4_resource = None
         if request.resource:
             v4_resource = {"id": request.resource.id}
-        resp = self._client.direct_auth_by_actions(
+        resp = self._get_client(request.subject.tenant_id).direct_auth_by_actions(
             subject_id=request.subject.id,
             action_ids=list(request.action_ids),
             resource=v4_resource,
@@ -222,7 +232,7 @@ class V4PermissionProvider(PermissionProvider):
                 ancestors = [{"id": a.id, "type": a.type} for a in r.ancestors]
                 resources.append({"id": r.id, "type": r.type, "ancestors": ancestors})
             permissions.append({"action_id": aid, "resources": resources})
-        return self._client.generate_perm_apply_url(permissions)
+        return self._get_client(request.subject.tenant_id).generate_perm_apply_url(permissions)
 
     # ================================================================
     # 权限申请数据 —— 与 V3 gen_perms_apply_data 兼容
@@ -318,7 +328,7 @@ class V4PermissionProvider(PermissionProvider):
         tenant_id: str = "",
     ) -> None:
         """V4: 调 add_authorization API，默认角色 space_operator，默认 30 天过期。
-        tenant_id 当前忽略，待 V4 支持多租户后使用。"""
+        tenant_id 用于选择对应租户的客户端，实现多租户隔离。"""
         import time
 
         from ..iam_engine.core.types import to_resource_type_id
@@ -337,7 +347,7 @@ class V4PermissionProvider(PermissionProvider):
             "resources": [{"type": dialect_rt, "id": dialect_rid}],
             "expired_at": expired_at,
         }
-        self._client.add_authorization([authorization], operator=creator)
+        self._get_client(tenant_id).add_authorization([authorization], operator=creator)
 
     # ================================================================
     # 有权限的资源列表 —— IAM v4 独有能力
@@ -378,7 +388,7 @@ class V4PermissionProvider(PermissionProvider):
 
         dialect_action = self.codec.encode_action(action_id_biz)
 
-        raw = self._client.get_authorized_resources(
+        raw = self._get_client(subject.tenant_id).get_authorized_resources(
             subject_id=subject.id,
             action_id=dialect_action,
         )
@@ -545,7 +555,7 @@ class V4PermissionProvider(PermissionProvider):
                     "expired_at": expired_at,
                 }
             ]
-            self._client.add_authorization(payload, operator=operator)
+            self._get_client(subject.tenant_id).add_authorization(payload, operator=operator)
 
     # ================================================================
     # 内部工具

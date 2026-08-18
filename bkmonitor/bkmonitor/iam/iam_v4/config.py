@@ -102,20 +102,23 @@ class V4Options:
             app_code=cfg.credentials.app_code,
             app_secret=cfg.credentials.app_secret,
             timeout=cfg.timeout,
+            bk_tenant_id=cfg.bk_tenant_id,
         )
 
     Attributes:
-        base_url:    IAM v4 APIGW 基础地址，必填
-        credentials: 凭据（app_code / app_secret）
-        system:      系统信息（id / name / callback_url 等）
-        timeout:     HTTP 请求超时（秒），默认 30
-        chunk_size:  批量鉴权分片大小（v4 单次上限 20）
-        max_workers: 批量鉴权分片的并发工作线程数，1 表示串行
+        base_url:      IAM v4 APIGW 基础地址，必填
+        credentials:   凭据（app_code / app_secret）
+        system:        系统信息（id / name / callback_url 等）
+        bk_tenant_id:  租户 ID，传给客户端构造器（多租户请求头 X-Bk-Tenant-Id 使用）
+        timeout:       HTTP 请求超时（秒），默认 30
+        chunk_size:    批量鉴权分片大小（v4 单次上限 20）
+        max_workers:   批量鉴权分片的并发工作线程数，1 表示串行
     """
 
     base_url: str
     credentials: V4Credentials
     system: V4SystemInfo
+    bk_tenant_id: str = "system"
     timeout: int = 30
     chunk_size: int = 20
     max_workers: int = 1
@@ -134,6 +137,7 @@ class V4Options:
             "base_url",
             "credentials",
             "system",
+            "bk_tenant_id",
             "timeout",
             "chunk_size",
             "max_workers",
@@ -158,6 +162,7 @@ class V4Options:
             base_url=str(base_url),
             credentials=V4Credentials.from_dict(credentials_raw),
             system=V4SystemInfo.from_dict(system_raw),
+            bk_tenant_id=str(raw.get("bk_tenant_id", "system")),
             timeout=int(raw.get("timeout", 30)),
             chunk_size=int(raw.get("chunk_size", 20)),
             max_workers=int(raw.get("max_workers", 1)),

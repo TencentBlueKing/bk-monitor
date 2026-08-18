@@ -1390,6 +1390,7 @@ IAM_FRAMEWORK = {
         #         "callback_module": "bkmonitor.iam.adapters.v4.callbacks",
         #         "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
         #         "base_url": BK_IAM_V4_API_BASE_URL,
+        #         "bk_tenant_id": "system",
         #         "credentials": {
         #             "app_code": BK_IAM_APP_CODE,
         #             "app_secret": BK_IAM_APP_SECRET,

@@ -31,13 +31,24 @@ logger = logging.getLogger(__name__)
 class V4Client:
     """IAM v4 APIGW 客户端。"""
 
-    def __init__(self, base_url: str, system_id: str, app_code: str, app_secret: str, timeout: int = 30):
+    def __init__(
+        self,
+        base_url: str,
+        system_id: str,
+        app_code: str,
+        app_secret: str,
+        timeout: int = 30,
+        bk_tenant_id: str = "",
+    ):
         self._base_url = base_url.rstrip("/")
         self._system_id = system_id
         self._timeout = timeout
         self._auth_header = {
             "X-Bkapi-Authorization": json.dumps({"bk_app_code": app_code, "bk_app_secret": app_secret})
         }
+        # 多租户模式下添加租户 ID（与 IAM V3 SDK 的 X-Bk-Tenant-Id 约定保持一致）
+        if bk_tenant_id:
+            self._auth_header["X-Bk-Tenant-Id"] = bk_tenant_id
 
     # ============================================================
     # 鉴权
