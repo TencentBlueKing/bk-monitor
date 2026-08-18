@@ -111,7 +111,12 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
         skip_check: 调用方已解析好的 skip 值（如 Permission 实例的 self.skip_check）；
                     为 None 时按 request 级覆盖 settings 级自动解析。
     """
-    # token 临时分享权限豁免（与旧版 is_allowed 逻辑逐字一致）
+    # token 临时分享权限豁免
+    #
+    # 与旧版 Permission.is_allowed 的语义对齐（旧版此处存在生成器表达式恒真 bug，
+    # 使得任何携带 token 的请求对所有 action 直接放行；本次修复用 any(...) 显式求值，
+    # 恢复原始意图：view_business / ActionIdMap 场景命中 / api_paths 路径命中 才放行）。
+    # 同步用 ActionIdMap.get(record.type, []) 兜底，避免 entity/user 等未登记 token 类型触发 KeyError。
     if request is not None and getattr(request, "token", None):
         try:
             record = ApiAuthToken.objects.get(token=request.token, bk_tenant_id=request.user.tenant_id)
@@ -121,9 +126,8 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
         action_id = action_ref.id if hasattr(action_ref, "id") else action_ref
         if (
             action_id == ActionEnum.VIEW_BUSINESS.id
-            or (record and action_ref in ActionIdMap[record.type])
-            or path in request.path
-            for path in api_paths
+            or (record and action_ref in ActionIdMap.get(record.type, []))
+            or any(path in request.path for path in api_paths)
         ):
             return True
 
@@ -153,7 +157,7 @@ def check_iam_batch_preflight(request, actions) -> dict | None:
         result = {}
         for action in actions:
             action_id = action.id if hasattr(action, "id") else str(action)
-            result[action_id] = action_id == "view_business" or (record and action in ActionIdMap[record.type])
+            result[action_id] = action_id == "view_business" or (record and action in ActionIdMap.get(record.type, []))
         return result
 
     if _skip_check_enabled(request):
@@ -320,7 +324,7 @@ class Permission:
                 for resource in resources:
                     resource_id = resource[0].id
                     action_id = action.id if hasattr(action, "id") else action
-                    if action_id == "view_business" or (record and action in ActionIdMap[record.type]):
+                    if action_id == "view_business" or (record and action in ActionIdMap.get(record.type, [])):
                         result[resource_id][action_id] = True
                     else:
                         result[resource_id][action_id] = False
