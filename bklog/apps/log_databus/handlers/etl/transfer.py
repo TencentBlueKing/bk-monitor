@@ -68,6 +68,7 @@ class TransferEtlHandler(EtlHandler):
         if clean_template is None:
             return clean_template, etl_config, etl_params, fields
 
+        # 清洗模板历史数据没有数据校验，在这里补充
         etl_params_serializer = CollectorEtlParamsSerializer(data=copy.deepcopy(clean_template.etl_params or {}))
         etl_params_serializer.is_valid(raise_exception=True)
         etl_fields_serializer = CollectorEtlFieldsSerializer(
