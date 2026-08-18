@@ -210,7 +210,8 @@ class TsDependPreparationProcess(BasePreparationProcess):
                         )
                     )
 
-            as_completed(tasks)
+            for task in as_completed(tasks):
+                task.result()
 
     def prefetch_item_records(self, item: Item, prefetch_results: dict, start_time: int, end_time: int):
         """预加载查询结果
@@ -312,4 +313,5 @@ class TsDependPreparationProcess(BasePreparationProcess):
                     )
                 )
 
-        as_completed(tasks)
+        for task in as_completed(tasks):
+            task.result()

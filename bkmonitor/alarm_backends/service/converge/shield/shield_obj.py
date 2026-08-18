@@ -152,7 +152,15 @@ class ShieldObj:
 
         if self.config["category"] == ShieldCategory.ALERT:
             # 告警屏蔽（含移动端 EVENT 类型映射）支持维度过滤条件
+            has_dimension_conditions = bool(clean_dimension.get("dimension_conditions"))
             self._parse_dimension_conditions(clean_dimension)
+            # 存量快捷告警屏蔽曾把全量原始维度与 dimension_conditions 一并写入。
+            # 匹配时这些等值 key 会 AND 掉 conditions 的范围；部署后按 conditions 归一化。
+            # PC 批量快捷屏蔽无 conditions，不会进入此分支。
+            if self.config.get("is_quick") and has_dimension_conditions:
+                for key in list(clean_dimension.keys()):
+                    if key not in {"strategy_id", "level"}:
+                        clean_dimension.pop(key)
 
         # 解析动态分组配置
         if self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:

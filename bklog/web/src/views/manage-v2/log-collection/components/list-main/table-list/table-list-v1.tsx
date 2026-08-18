@@ -36,27 +36,27 @@ import {
   formatBytes,
   getOperatorCanClick,
   showMessage,
-  SETTING_FIELDS,
+  LEGACY_SETTING_FIELDS as SETTING_FIELDS,
   MENU_LIST,
   GLOBAL_CATEGORIES_ENUM,
   COLLECTOR_SCENARIO_ENUM,
   STATUS_ENUM_FILTER,
   IS_RELATED_SPACE_ENUM,
-} from '../../utils';
+} from '../../../utils';
 import { projectManages } from '@/common/util';
 import useResizeObserver from '@/hooks/use-resize-observe';
-import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import CollectIssuedSlider from '../../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
-import { useCollectList } from '../../hook/useCollectList';
-import TagMore from '../common-comp/tag-more';
-import type { IListItemData } from '../../type';
-import StopTypeDialog from './stop-type-dialog';
-import AddExistingCollectDialog from './add-existing-collect-dialog';
-import TableComponent from '../common-comp/table-component';
+import { useCollectList } from '../../../hook/useCollectList';
+import TagMore from '../../common-comp/tag-more';
+import type { IListItemData } from '../../../type';
+import StopTypeDialog from '../stop-type-dialog';
+import AddExistingCollectDialog from '../add-existing-collect-dialog';
+import TableComponent from '../../common-comp/table-component';
 import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import BklogPopover from '@/components/bklog-popover';
-import './table-list.scss';
+import './table-list-v1.scss';
 
 const CancelToken = axios.CancelToken;
 
@@ -170,7 +170,8 @@ const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
   collector_config_name: 'name',
   storage_usage: 'daily_usage',
   total_usage: 'total_usage',
-  table_id: 'bk_data_name',
+  table_id: 'table_id',
+  bk_data_name: 'bk_data_name',
   index_set_id: 'index_set_name',
   log_access_type: 'log_access_type',
   collector_scenario_id: 'collector_scenario_id',
@@ -183,7 +184,7 @@ const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
 } as const;
 
 export default defineComponent({
-  name: 'TableList',
+  name: 'TableListV1',
   props: {
     indexSet: {
       type: Object as PropType<IListItemData>,
@@ -948,7 +949,7 @@ export default defineComponent({
           width: 100,
         },
         {
-          title: (h) => {
+          title: (_h) => {
             const isActive = filterValue.value.tags.length > 0;
             return (
             <ClusterFilter

@@ -12,6 +12,7 @@ import logging
 
 from api.cmdb.define import Host, TopoNode
 from bkm_space.validate import validate_bk_biz_id
+from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -20,6 +21,7 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
+from core.errors.share import InvalidParamsError, ParamsPermissionDeniedError
 from monitor_web.constants import AGENT_STATUS
 
 logger = logging.getLogger(__name__)
@@ -296,13 +298,24 @@ class TopoNodeProcessStatusResource(Resource):
         return return_data
 
 
-class SearchHostInfoResource(Resource):
+class SearchHostInfoResource(ApiAuthResource):
     """
     主机信息查询
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bk_host_id = serializers.IntegerField(required=False, label="主机ID")
+        bk_obj_id = serializers.CharField(required=False, label="拓扑对象ID")
+        bk_inst_id = serializers.IntegerField(required=False, label="拓扑实例ID")
+
+        def validate(self, attrs):
+            if bool(attrs.get("bk_obj_id")) != (attrs.get("bk_inst_id") is not None):
+                raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
+            return attrs
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
 
     @staticmethod
     def get_module_info(bk_module_ids: list[int], topo_links: dict[str, list[TopoNode]]) -> list[dict]:
@@ -329,10 +342,25 @@ class SearchHostInfoResource(Resource):
         return modules
 
     def perform_request(self, params):
-        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=params["bk_biz_id"])
-        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(
-            bk_biz_id=params["bk_biz_id"]
-        ).convert_to_topo_link()
+        def get_hosts() -> list[Host]:
+            if params.get("bk_host_id") is not None:
+                return api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
+            if params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
+                return api.cmdb.get_host_by_topo_node(
+                    bk_biz_id=params["bk_biz_id"],
+                    topo_nodes={params["bk_obj_id"]: [params["bk_inst_id"]]},
+                )
+            return api.cmdb.get_host_by_topo_node(bk_biz_id=params["bk_biz_id"])
+
+        pool = ThreadPool(2)
+        hosts_future = pool.apply_async(get_hosts)
+        topo_future = pool.apply_async(api.cmdb.get_topo_tree, kwds={"bk_biz_id": params["bk_biz_id"]})
+        pool.close()
+        try:
+            hosts = hosts_future.get()
+            topo_links: dict[str, list[TopoNode]] = topo_future.get().convert_to_topo_link()
+        finally:
+            pool.join()
 
         result = []
         for host in hosts:
@@ -358,7 +386,7 @@ class SearchHostInfoResource(Resource):
         return result
 
 
-class SearchHostMetricResource(Resource):
+class SearchHostMetricResource(ApiAuthResource):
     """
     查询指定主机的agent及指标信息
     """
@@ -366,6 +394,9 @@ class SearchHostMetricResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_host_ids = serializers.ListField(label="主机ID", child=serializers.IntegerField())
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        bk_host_id = serializers.IntegerField(required=False, label="分享主机ID")
+        bk_obj_id = serializers.CharField(required=False, label="分享拓扑对象ID")
+        bk_inst_id = serializers.IntegerField(required=False, label="分享拓扑实例ID")
         # 时间范围（秒级 Unix 时间戳，可选）。传入时约束 TSDB 性能指标查询区间，
         # 不传则保持默认"最近三分钟"行为（向后兼容）
         start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
@@ -376,14 +407,50 @@ class SearchHostMetricResource(Resource):
             return validate_bk_biz_id(value)
 
     @staticmethod
+    def validate_scope_host_ids(params):
+        requested_host_ids = set(params["bk_host_ids"])
+        if params.get("bk_host_id") is not None:
+            allowed_host_ids = {params["bk_host_id"]}
+        elif params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
+            allowed_host_ids = {
+                host.bk_host_id
+                for host in api.cmdb.get_host_by_topo_node(
+                    bk_biz_id=params["bk_biz_id"],
+                    topo_nodes={params["bk_obj_id"]: [params["bk_inst_id"]]},
+                )
+            }
+        elif params.get("bk_obj_id") or params.get("bk_inst_id") is not None:
+            raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
+        else:
+            return
+
+        if not requested_host_ids.issubset(allowed_host_ids):
+            raise ParamsPermissionDeniedError(
+                {
+                    "key": "bk_host_ids",
+                    "error_params": sorted(requested_host_ids),
+                    "correct_params": sorted(allowed_host_ids),
+                }
+            )
+
+    @staticmethod
     def get_agent_status(
-        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+        fail_on_incomplete: bool = False,
     ):
         """
         获取Agent状态
         """
         agent_statuses = resource.cc.get_agent_status(
-            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+            fail_on_incomplete=fail_on_incomplete,
         )
         for bk_host_id, status in agent_statuses.items():
             if bk_host_id not in data:
@@ -392,13 +459,22 @@ class SearchHostMetricResource(Resource):
 
     @staticmethod
     def get_performance_data(
-        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
+        bk_biz_id: int,
+        hosts: list[Host],
+        data: dict[int, dict],
+        start_time: int = None,
+        end_time: int = None,
+        fail_on_incomplete: bool = False,
     ):
         """
         获取指标信息
         """
         result = resource.cc.get_host_performance_data(
-            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+            bk_biz_id=bk_biz_id,
+            hosts=hosts,
+            start_time=start_time,
+            end_time=end_time,
+            fail_on_incomplete=fail_on_incomplete,
         )
         for bk_host_id, metrics in result.items():
             if bk_host_id not in data:
@@ -412,6 +488,7 @@ class SearchHostMetricResource(Resource):
         data: dict[int, dict],
         start_time: int = None,
         end_time: int = None,
+        fail_on_incomplete: bool = False,
     ):
         """
         获取进程信息
@@ -425,6 +502,7 @@ class SearchHostMetricResource(Resource):
             hosts=hosts,
             start_time=start_time,
             end_time=end_time,
+            fail_on_incomplete=fail_on_incomplete,
         )
         for bk_host_id in result:
             if bk_host_id not in data:
@@ -450,21 +528,19 @@ class SearchHostMetricResource(Resource):
         """
         获取告警信息
         """
-        try:
-            result = resource.cc.get_host_alarm_count(
-                bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+        result = resource.cc.get_host_alarm_count(
+            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
+        )
+        for bk_host_id in result:
+            if bk_host_id not in data:
+                continue
+            data[bk_host_id]["alarm_count"] = sorted(
+                [{"level": level, "count": count} for level, count in result[bk_host_id].items()],
+                key=lambda x: x["level"],
             )
-            for bk_host_id in result:
-                if bk_host_id not in data:
-                    continue
-                data[bk_host_id]["alarm_count"] = sorted(
-                    [{"level": level, "count": count} for level, count in result[bk_host_id].items()],
-                    key=lambda x: x["level"],
-                )
-        except Exception:  # NOCC:broad-except(设计如此:)
-            logger.exception("get_alarm_count failed, bk_biz_id=%s", bk_biz_id)
 
     def perform_request(self, params):
+        self.validate_scope_host_ids(params)
         bk_biz_id = params["bk_biz_id"]
         data = {
             bk_host_id: {
@@ -484,22 +560,22 @@ class SearchHostMetricResource(Resource):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=params["bk_host_ids"])
 
         pool = ThreadPool()
-        pool.apply_async(
-            self.get_agent_status,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
-        pool.apply_async(
-            self.get_performance_data,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
-        pool.apply_async(
-            self.get_process_status,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
-        pool.apply_async(
-            self.get_alarm_count,
-            args=(bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time")),
-        )
+        task_args = (bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time"))
+        futures = {
+            "agent_status": pool.apply_async(self.get_agent_status, args=(*task_args, True)),
+            "performance_data": pool.apply_async(self.get_performance_data, args=(*task_args, True)),
+            "process_status": pool.apply_async(self.get_process_status, args=(*task_args, True)),
+            "alarm_count": pool.apply_async(self.get_alarm_count, args=task_args),
+        }
         pool.close()
+        failed_sections = []
+        for section, future in futures.items():
+            try:
+                future.get()
+            except Exception:
+                logger.exception("get host metric section %s failed, bk_biz_id=%s", section, bk_biz_id)
+                failed_sections.append(section)
         pool.join()
+        if failed_sections:
+            raise CustomException("get host metric data failed", data={"failed_sections": failed_sections})
         return data

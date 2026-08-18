@@ -25,7 +25,7 @@
  */
 import { type ComputedRef, type PropType, computed, defineComponent, onBeforeMount, onMounted, ref, watch } from 'vue';
 
-import { Popover } from 'bkui-vue';
+import { bkTooltips, Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 import { deduplicateByField } from 'monitor-ui/chart-plugins/utils';
 import { useI18n } from 'vue-i18n';
@@ -47,6 +47,9 @@ import './chart-title.scss';
 
 export default defineComponent({
   name: 'ChartTitle',
+  directives: {
+    bkTooltips,
+  },
   props: {
     title: String,
     subtitle: String,
@@ -65,6 +68,10 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    showMetricAlarm: {
+      type: Boolean,
+      default: true,
+    },
     details: {
       type: Object,
       default: () => ({}),
@@ -79,6 +86,11 @@ export default defineComponent({
     },
     /** 是否展示告警操作 */
     isShowAlarm: {
+      type: Boolean,
+      default: false,
+    },
+    /** 是否为最新排障记录中新增的告警（仅故障视图传入） */
+    isCurrentPrimary: {
       type: Boolean,
       default: false,
     },
@@ -117,11 +129,11 @@ export default defineComponent({
         placements: ['top'],
       };
     });
-    const showMetricAlarm = computed(() => props.metrics?.length === 1);
+    const shouldShowMetricAlarm = computed(() => props.showMetricAlarm && props.metrics?.length === 1);
     const metricTitleData: ComputedRef<IExtendMetricData> = computed<IExtendMetricData>(() => props.metrics[0]);
 
     const metricTitleTooltips = () => {
-      return showMetricAlarm.value
+      return shouldShowMetricAlarm.value
         ? createMetricTitleTooltips(metricTitleData.value)
         : deduplicateByField(props.metrics, 'metric_id')
             .map(metric => createMetricTitleTooltips(metric))
@@ -130,8 +142,8 @@ export default defineComponent({
 
     watch(
       () => props.metrics,
-      async (v, o) => {
-        if (props.metrics?.length !== 1) return;
+      async (_, o) => {
+        if (!props.showMetricAlarm || props.metrics?.length !== 1) return;
         const id = props.metrics[0].metric_id || `${props.metrics[0].result_table_id}.${props.metrics[0].metric_field}`;
         const oldId = o?.length ? o[0].metric_id || `${o[0].result_table_id}.${o[0].metric_field}` : '';
         if (id === oldId) return;
@@ -257,7 +269,7 @@ export default defineComponent({
       alarmStatus,
       isShowChildren,
       alarmTips,
-      showMetricAlarm,
+      shouldShowMetricAlarm,
       metricTitleData,
       isToolsShow,
       isAlertListShown,
@@ -290,7 +302,7 @@ export default defineComponent({
           onClick={this.handleShowMenu}
         >
           <div class='main-title'>
-            {this.showMetricAlarm ? (
+            {this.shouldShowMetricAlarm ? (
               <Popover
                 key={this.alarmTips.content}
                 content={this.alarmTips.content}
@@ -301,6 +313,17 @@ export default defineComponent({
                 />
               </Popover>
             ) : undefined}
+            {/* 最新排障记录主告警标识，仅 failure-view 场景通过 isCurrentPrimary 开启 */}
+            {this.isCurrentPrimary && (
+              <i
+                class='icon-monitor icon-a-NewTraining new-badge'
+                v-bk-tooltips={{
+                  content: this.t('最新排障记录中新增的告警'),
+                  delay: 200,
+                  placement: 'top-start',
+                }}
+              />
+            )}
             <div
               style={this.isShowAlarmStyle}
               class={['title-name', { 'has-more': this.isToolsShow }]}
@@ -308,7 +331,7 @@ export default defineComponent({
             >
               {this.$slots.title ? this.$slots.title() : this.title}
             </div>
-            {this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
+            {this.shouldShowMetricAlarm && this.metricTitleData?.collect_interval ? (
               <Popover content={this.t('数据步长')}>
                 <span class='title-interval'>{this.metricTitleData.collect_interval}m</span>
               </Popover>
@@ -333,7 +356,7 @@ export default defineComponent({
             ) : undefined}
             <span class='title-center' />
             <div class='custom-tools-wrapper'>{this.$slots?.customTools?.()}</div>
-            {this.showMetricAlarm && this.metricTitleData ? (
+            {this.shouldShowMetricAlarm && this.metricTitleData ? (
               <Popover content={this.t('添加策略')}>
                 <i
                   style={{

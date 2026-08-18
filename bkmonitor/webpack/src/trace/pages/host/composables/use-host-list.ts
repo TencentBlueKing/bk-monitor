@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, type ShallowRef, computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
+import { type Ref, type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { copyText } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
+import { useRoute } from 'vue-router';
 
 import { type SelectTypeEnum, SelectType } from '../../../components/across-page-selection/across-page-selection';
 import { EMode } from '../../../components/retrieval-filter/typing';
@@ -40,6 +41,7 @@ import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
 import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
 import { getHostInfoList, getHostMetricInfoList } from '../services/host-service';
+import { resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListWorker } from './use-host-list-worker';
 import { useHostUrlParams } from './use-host-url-params';
 
@@ -61,6 +63,7 @@ interface IUseHostListOptions {
   activeCategory: ShallowRef<'' | EHostQuickCategory>;
   filterExpanded: ShallowRef<boolean>;
   keyword: ShallowRef<string>;
+  readonly: boolean;
   /** 当前选中的拓扑节点（页面层注入），用于联动过滤主机列表 */
   selectedNode: Ref<IHostTopoTreeNode | null>;
   where: ShallowRef<IWhereItem[]>;
@@ -75,16 +78,21 @@ const EMPTY_CATEGORY_STATS: IHostQuickCardStats = { alarm: 0, cpu: 0, disk: 0, m
  * 全量数据的行转换、过滤、排序、分页切片在 Web Worker 中执行，避免超大数据阻塞主线程。
  */
 export const useHostList = (options: IUseHostListOptions) => {
+  const route = useRoute();
   const { selectedNode, where, filterExpanded, activeCategory, keyword } = options;
   const { setUrlParams } = useHostUrlParams();
   const hostListWorker = useHostListWorker();
-  const { timeRange, timezone, refreshImmediate, refreshInterval } = storeToRefs(useHostStore());
+  const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(useHostStore());
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
+  /** 基础数据加载失败（整表错误态） */
+  const loadError = shallowRef(false);
   /** 指标数据加载中（指标列展示骨架） */
   const metricLoading = shallowRef(false);
+  /** 指标数据加载失败（保留基础行，仅指标列展示错误态） */
+  const metricLoadError = shallowRef(false);
   /** 全量主机行数（主线程不持有全量行对象） */
   const rawRowCount = shallowRef(0);
   /** retrieval-filter 语句模式 */
@@ -122,22 +130,25 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原 */
   const filterOptionsMap = shallowRef<Record<string, unknown>>({});
 
-  let intervalTimer: null | ReturnType<typeof setTimeout> = null;
   let baseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
+  let dataRequestGeneration = 0;
+  let metricRequestGeneration = 0;
+  let selectionRequestGeneration = 0;
+
+  const getRequestScope = () => resolveHostRequestScope(options.readonly, route.query, selectedNode.value);
 
   watch([timeRange, timezone], () => {
     setUrlParams();
     loadMetricData();
   });
 
-  watch(refreshImmediate, () => {
+  watch(refreshGeneration, () => {
     setUrlParams();
     loadData();
   });
 
   watch(refreshInterval, () => {
     setUrlParams();
-    handleIntervalQuery();
   });
 
   watch(
@@ -153,6 +164,7 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   // 切换拓扑节点：回到第一页并清空跨节点的勾选（含全选模式）
   watch(selectedNode, () => {
+    selectionRequestGeneration += 1;
     resetPage();
     selectAllMode.value = HostSelectAllModeEnum.NONE;
     selectedRowKeys.value = new Set();
@@ -165,8 +177,12 @@ export const useHostList = (options: IUseHostListOptions) => {
   watch(
     [activeCategory, where, keyword],
     async () => {
+      const requestGeneration = ++selectionRequestGeneration;
       if (selectAllMode.value === HostSelectAllModeEnum.ACROSS) {
         const { rowKeys } = await hostListWorker.getFilteredRowKeys(getComputeParams());
+        if (requestGeneration !== selectionRequestGeneration || selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
+          return;
+        }
         const allKeys = new Set(rowKeys.map(String));
         selectedRowKeys.value = new Set([...allKeys].filter(k => !excludedRowKeys.value.has(k)));
         return;
@@ -239,39 +255,95 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 加载数据：基础数据先渲染，指标数据后补充 */
   const loadData = async () => {
+    const requestGeneration = ++dataRequestGeneration;
+    metricRequestGeneration += 1;
+    let requestBaseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
     loading.value = true;
     metricLoading.value = true;
+    loadError.value = false;
+    metricLoadError.value = false;
     // 手动/定时刷新时重置选择（对标旧版 handleResetCheck）
     selectAllMode.value = HostSelectAllModeEnum.NONE;
     selectedRowKeys.value = new Set();
     excludedRowKeys.value = new Set();
     try {
-      baseList = await getHostInfoList();
-      const initResult = await hostListWorker.initBaseData(baseList);
+      requestBaseList = await getHostInfoList(getRequestScope());
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
+      baseList = requestBaseList;
+      const initResult = await hostListWorker.initBaseData(requestBaseList);
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
       rawRowCount.value = initResult.rawRowCount;
       await loadStickyConfig();
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
       refreshList(true);
       // 拉取 filterOptionsMap 供集群模块字段展示名称映射
       const filterOptionsMapResult = (await hostListWorker.getFilterOptionsMap()) as Record<
         string,
         Record<string, unknown>
       >;
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
       filterOptionsMap.value = filterOptionsMapResult.filterOptionsMap;
+    } catch {
+      if (requestGeneration !== dataRequestGeneration) {
+        return;
+      }
+      baseList = [];
+      rawRowCount.value = 0;
+      categoryStats.value = { ...EMPTY_CATEGORY_STATS };
+      total.value = 0;
+      pagedRows.value = [];
+      filterOptionsMap.value = {};
+      metricRequestGeneration += 1;
+      loadError.value = true;
+      metricLoading.value = false;
+      return;
     } finally {
-      loading.value = false;
+      if (requestGeneration === dataRequestGeneration) {
+        loading.value = false;
+      }
     }
+    if (!requestBaseList.length) {
+      if (requestGeneration === dataRequestGeneration) {
+        metricRequestGeneration += 1;
+        metricLoading.value = false;
+      }
+      return;
+    }
+    const metricGeneration = ++metricRequestGeneration;
     try {
-      const bk_host_ids = baseList.map(row => row.bk_host_id);
+      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
+        ...getRequestScope(),
         bk_host_ids,
         start_time,
         end_time,
       });
+      if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
+        return;
+      }
       await hostListWorker.mergeMetrics(metricListMap);
+      if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
+        return;
+      }
       refreshList(true);
+    } catch {
+      if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
+        return;
+      }
+      metricLoadError.value = true;
     } finally {
-      metricLoading.value = false;
+      if (metricGeneration === metricRequestGeneration) {
+        metricLoading.value = false;
+      }
     }
   };
 
@@ -280,18 +352,36 @@ export const useHostList = (options: IUseHostListOptions) => {
       return;
     }
 
+    const requestGeneration = ++metricRequestGeneration;
+    metricLoading.value = true;
+    metricLoadError.value = false;
     try {
-      metricLoading.value = true;
-      const bk_host_ids = baseList.map(row => row.bk_host_id);
+      const requestBaseList = baseList;
+      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
       const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
       const metricListMap = await getHostMetricInfoList({
+        ...getRequestScope(),
         bk_host_ids,
         start_time,
         end_time,
       });
+      if (requestGeneration !== metricRequestGeneration) {
+        return;
+      }
       await hostListWorker.mergeMetrics(metricListMap);
+      if (requestGeneration !== metricRequestGeneration) {
+        return;
+      }
+      refreshList(true);
+    } catch {
+      if (requestGeneration !== metricRequestGeneration) {
+        return;
+      }
+      metricLoadError.value = true;
     } finally {
-      metricLoading.value = false;
+      if (requestGeneration === metricRequestGeneration) {
+        metricLoading.value = false;
+      }
     }
   };
 
@@ -348,9 +438,13 @@ export const useHostList = (options: IUseHostListOptions) => {
     /** 持久化到全局统一页码配置，与其他模块保持一致 */
     commonPageSizeSet(value);
     resetPage();
+    const requestGeneration = ++selectionRequestGeneration;
     // 跨页全选模式下保持全量选中并排除用户手动取消的行
     if (selectAllMode.value === HostSelectAllModeEnum.ACROSS) {
       const { rowKeys } = await hostListWorker.getFilteredRowKeys(getComputeParams());
+      if (requestGeneration !== selectionRequestGeneration || selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
+        return;
+      }
       const allKeys = rowKeys.map(String);
       selectedRowKeys.value = new Set(allKeys.filter(k => !excludedRowKeys.value.has(k)));
       return;
@@ -367,10 +461,14 @@ export const useHostList = (options: IUseHostListOptions) => {
    * - UN_SELECTED：清空
    */
   const handleHeaderSelect = async (type: SelectTypeEnum) => {
+    const requestGeneration = ++selectionRequestGeneration;
     if (type === SelectType.ALL_SELECTED) {
       selectAllMode.value = HostSelectAllModeEnum.ACROSS;
       excludedRowKeys.value = new Set();
       const { rowKeys } = await hostListWorker.getFilteredRowKeys(getComputeParams());
+      if (requestGeneration !== selectionRequestGeneration || selectAllMode.value !== HostSelectAllModeEnum.ACROSS) {
+        return;
+      }
       selectedRowKeys.value = new Set(rowKeys.map(String));
       return;
     }
@@ -469,32 +567,16 @@ export const useHostList = (options: IUseHostListOptions) => {
     Message({ message: window.i18n.t('复制成功 {num} 个IP', { num: ipList.length }), theme: 'success' });
   };
 
-  const handleIntervalQuery = () => {
-    clearTimeout(intervalTimer);
-    if (refreshInterval.value < 0) {
-      return;
-    }
-
-    intervalTimer = setInterval(() => {
-      loadData();
-    }, refreshInterval.value);
-  };
-
   onMounted(() => {
     loadData();
-    handleIntervalQuery();
-  });
-
-  onBeforeUnmount(() => {
-    if (intervalTimer) {
-      clearTimeout(intervalTimer);
-    }
   });
 
   return {
     // 状态
     loading,
+    loadError,
     metricLoading,
+    metricLoadError,
     rawRowCount,
     keyword,
     where,
@@ -517,6 +599,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     // 方法
     getValueFn,
     loadData,
+    loadMetricData,
     handleKeywordChange,
     handleWhereChange,
     handleQueryStringChange,

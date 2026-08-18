@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 from collections.abc import Sequence, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from typing import Any
 
 from django.utils.functional import classproperty
@@ -32,15 +32,40 @@ class APMAppTarget:
 
 
 @dataclass(frozen=True)
+class LevelTarget:
+    """数据源层级目标，承载同一查询层级下的结果表。"""
+
+    name: str
+    table_ids: list[str]
+
+
+@dataclass(frozen=True)
 class TraceDatasourceTarget:
-    """Trace 数据源查询目标，表示一条`table_id -> APM 应用`的绑定关系"""
+    """Trace 数据源查询目标，承载原始表、应用、过期时间和层级结果表。"""
 
     table_id: str
     app: APMAppTarget
+    retention: int | None = None
+    levels: list[LevelTarget] = dataclass_field(default_factory=list)
 
     @classmethod
-    def build(cls, bk_biz_id: int, app_name: str, table_id: str) -> "TraceDatasourceTarget":
-        return cls(table_id=table_id, app=APMAppTarget(bk_biz_id=bk_biz_id, app_name=app_name))
+    def build(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        table_id: str,
+        retention: int | None = None,
+        levels: list[LevelTarget] | None = None,
+    ) -> "TraceDatasourceTarget":
+        return cls(
+            table_id=table_id,
+            app=APMAppTarget(bk_biz_id=bk_biz_id, app_name=app_name),
+            retention=retention,
+            levels=levels or [],
+        )
+
+    def get_level_table_ids(self, level_name: str) -> list[str]:
+        return [table_id for level in self.levels if level.name == level_name for table_id in level.table_ids]
 
 
 class TraceQueryGuard:

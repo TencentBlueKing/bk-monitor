@@ -37,7 +37,7 @@ from apm_web.handlers.trace_handler.query import (
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
-from apm_web.trace.constants import EnabledStatisticsDimension, OperatorEnum
+from apm_web.trace.constants import EnabledStatisticsDimension
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
@@ -53,6 +53,7 @@ from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
+from constants.otel_query import OperatorEnum
 from constants.apm import (
     CallSide,
     OperatorGroupRelation,
@@ -482,6 +483,11 @@ class TraceDetailResource(Resource):
         service_topo_data = trace_data_to_service_topo(handled_data["original_data"])
         handled_data.update(service_topo_data)
         handled_data.update(data.get("options"))
+        TraceHandler.sanitize_span_details(
+            handled_data,
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+        )
         return handled_data
 
 
@@ -567,6 +573,7 @@ class TraceDiagramResource(Resource):
         )
 
         diagrammer = get_diagrammer(validated_request_data["diagram_type"], {})
+        response_handled_data: dict[str, Any] = handled_data
         # 当有对比 trace_id 时，需要对比两个 trace 的差异
         if validated_request_data.get("diff_trace_id"):
             if validated_request_data.get("diff_trace_id") == validated_request_data["trace_id"]:
@@ -590,19 +597,22 @@ class TraceDiagramResource(Resource):
             diagram = diagrammer.diff(
                 handled_data["original_data"], other_handled_data["original_data"], **validated_request_data
             )
-            result = {
-                "diagram_data": diagram,
-                "original_data": other_handled_data["original_data"],
-                "trace_tree": other_handled_data["trace_tree"],
-            }
+            response_handled_data = other_handled_data
         else:
             diagram = diagrammer.draw(handled_data["original_data"])
-            result = {
-                "diagram_data": diagram,
-                "original_data": handled_data["original_data"],
-                "trace_tree": handled_data["trace_tree"],
-                "trace_info": handled_data["trace_info"],
-            }
+
+        TraceHandler.sanitize_span_details(
+            response_handled_data,
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+        )
+        result: dict[str, Any] = {
+            "diagram_data": diagram,
+            "original_data": response_handled_data["original_data"],
+            "trace_tree": response_handled_data["trace_tree"],
+        }
+        if not validated_request_data.get("diff_trace_id"):
+            result["trace_info"] = response_handled_data["trace_info"]
 
         return result
 

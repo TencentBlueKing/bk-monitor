@@ -243,6 +243,50 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /search/index_set/{index_set_id}/aggs/terms/:
+    post:
+      operationId: index_set_terms
+      description: 日志系统-索引集字段值聚合
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/index_set/{index_set_id}/aggs/terms/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search/index_set/generate_querystring/:
+    post:
+      operationId: generate_querystring
+      description: 日志系统-生成 QueryString
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/index_set/generate_querystring/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /search_index_set/operators/:
     get:
       operationId: search_operators

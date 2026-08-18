@@ -59,60 +59,77 @@
 
   .header-info {
     flex: 1;
-    padding-left: 8px;
+    min-width: 0;
+    padding: 0 16px 0 8px;
+    overflow: hidden;
     font-size: 12px;
 
     .info-id {
-      display: block;
-      width: 100%;
       margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
       color: #979ba5;
+      white-space: nowrap;
     }
 
     .info-name {
-      display: inline-block;
+      display: flex;
+      align-items: center;
       width: 100%;
+      min-width: 0;
       height: 26px;
       margin-top: 2px;
+      overflow: hidden;
       font-size: 14px;
       line-height: 26px;
       color: #313238;
 
       .info-name-title {
-        display: inline-block;
+        flex-shrink: 1;
         max-width: 30%;
+        margin-right: 8px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        vertical-align: middle;
       }
 
-      .bk-tag {
-        margin-right: 4px;
-      }
-    }
+      /* 标签 + 编辑：不拉伸，空白留在编辑右侧，避免 +N 和编辑隔太远 */
+      .info-name-extra {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        min-width: 0;
+        overflow: hidden;
 
-    .mr8 {
-      margin-right: 8px;
-    }
+        .failure-header-collapse-labels {
+          flex: 0 1 auto;
+          min-width: 0;
+          margin-right: 8px;
+        }
 
-    .info-edit {
-      font-size: 12px;
-      color: #3a84ff;
-      cursor: pointer;
+        .info-edit {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          font-size: 12px;
+          color: #3a84ff;
+          cursor: pointer;
 
-      .info-edit-icon {
-        font-size: 24px;
-        vertical-align: bottom;
+          .info-edit-icon {
+            font-size: 24px;
+          }
+        }
       }
     }
   }
 
   .header-status {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
     width: 235px;
+    min-width: 235px;
     height: 52px;
     padding: 6px 16px;
     font-size: 12px;
@@ -149,6 +166,7 @@
   }
 
   .header-btn-group {
+    flex-shrink: 0;
     height: 100%;
 
     .header-btn {

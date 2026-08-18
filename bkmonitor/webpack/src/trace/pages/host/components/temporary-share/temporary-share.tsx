@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, inject, ref as deepRef, shallowRef } from 'vue';
+import { type PropType, computed, ref as deepRef, defineComponent, shallowRef } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { bkTooltips, Button, Dialog, Message, Switcher } from 'bkui-vue';
@@ -34,6 +34,7 @@ import { copyText } from 'monitor-common/utils/utils';
 import { type TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
+import { useAppReadonlyInject } from '../../../provider';
 import HistoryShareManage from './history-share-manage';
 import TimeRangeComp from '@/components/time-range/time-range';
 import { type TimeRangeType, TimeRange } from '@/components/time-range/utils';
@@ -47,7 +48,7 @@ import './temporary-share.scss';
 interface IQuerySettingItem {
   canChange: boolean;
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   timeRange: TimeRangeType;
   timezone: string;
 }
@@ -105,7 +106,7 @@ export default defineComponent({
     const { t } = useI18n();
     const store = useAppStore();
     const route = useRoute();
-    const readonly = inject('readonly', false);
+    const readonly = useAppReadonlyInject() ?? false;
 
     const show = shallowRef(false);
     const token = shallowRef('');
@@ -333,7 +334,7 @@ export default defineComponent({
       updateShareTokenFn();
     };
 
-    const commonItem = (title: TranslateResult | string, child: any) => (
+    const commonItem = (title: string | TranslateResult, child: any) => (
       <div class='share-item'>
         <span class='share-item-title'>{title}</span>
         <div class='share-item-content'>{child}</div>

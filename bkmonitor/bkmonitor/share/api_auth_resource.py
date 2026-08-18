@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from django.db import models
@@ -29,6 +30,9 @@ class ApiAuthResource(Resource):
 
     def perform_request(self, validated_request_data):
         pass
+
+    def get_api_auth_request_data(self, request_data, validated_request_data):
+        return request_data
 
     def validate_request_data(self, request_data):
         """
@@ -61,5 +65,7 @@ class ApiAuthResource(Resource):
             validated_request_data = request_serializer.validated_data
 
         # api携带token模式进行参数校验
-        check_api_permission(get_request(peaceful=True), request_data)
+        check_api_permission(
+            get_request(peaceful=True), self.get_api_auth_request_data(request_data, validated_request_data)
+        )
         return validated_request_data

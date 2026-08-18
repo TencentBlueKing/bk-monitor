@@ -321,9 +321,8 @@ export default defineComponent({
                           'is-selected': currentParticipleState.value === option.id,
                         }}
                         data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
-                        disabled={!cacheData.value.is_analyzed && option.id === 'custom'}
+                        disabled={!cacheData.value.is_analyzed}
                         size='small'
-                        // disabled={() => getCustomizeDisabled(row)}
                         on-click={() => handleChangeParticipleState(option.id)}
                       >
                         {option.name}
@@ -333,18 +332,18 @@ export default defineComponent({
                   {currentParticipleState.value === 'custom' && (
                     <bk-input
                       class='custom-input'
+                      disabled={!cacheData.value.is_analyzed}
                       value={cacheData.value.tokenize_on_chars}
                       on-change={value => {
                         cacheData.value.tokenize_on_chars = value;
                       }}
-                    // disabled={getCustomizeDisabled(props.row)}
                     />
                   )}
                 </div>
                 <div class='menu-item'>
                   <span class='menu-item-label'>{t('大小写敏感')}</span>
                   <bk-switcher
-                    // disabled={getCustomizeDisabled(props.row)}
+                    disabled={!cacheData.value.is_analyzed}
                     theme='primary'
                     value={cacheData.value.is_case_sensitive}
                     on-change={value => {

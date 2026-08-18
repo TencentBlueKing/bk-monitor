@@ -84,6 +84,7 @@ export type SpanData = {
   app_name: string;
   attributes?: Array<SpanAttributesItem>;
   bgColor?: string;
+  bk_biz_id?: number | string;
   color?: string;
   cross_relation: CrossRelation;
   duration: number;

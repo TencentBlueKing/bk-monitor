@@ -23,7 +23,8 @@ from opentelemetry.trace import StatusCode
 
 from apm import constants, types
 from apm.core.discover.precalculation.processor import PrecalculateProcessor
-from apm.core.handlers.query.base import BaseQuery, QueryConfigBuilder, UnifyQuerySet
+from apm.core.handlers.query.base import BaseQuery
+from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 
@@ -43,46 +44,38 @@ class OriginTraceQuery(BaseQuery):
         exclude_fields: list[str] | None = None,
         query_string: str | None = None,
         sort: list[str] | None = None,
-    ):
-        page_data: dict[str, int | list[str]] = {"total": 0}
-        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = self.q.filter(self._build_filters(filters))
-        if query_string:
-            q = q.query_string(query_string)
+    ) -> list[dict[str, Any]]:
+        queries: list[QueryConfigBuilder] = [
+            q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID) for q in self.build_queries(filters, query_string)
+        ]
 
-        def _fill_data():
-            _trace_ids: list[str] = []
-            _q: QueryConfigBuilder = q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID)
-            for _info in queryset.add_query(_q).offset(offset).limit(limit):
-                _trace_id: str | list[str] = _info[OtlpKey.TRACE_ID]
-                if isinstance(_trace_id, list):
-                    _trace_id = _trace_id[0]
-                _trace_ids.append(_trace_id)
-            page_data["data"] = _trace_ids
-
-        _fill_data()
+        trace_ids: list[str] = []
+        trace_records: list[dict[str, Any]] = self._query_list(queries, start_time, end_time, offset, limit)
+        for trace_record in trace_records:
+            trace_id: str | list[str] = trace_record[OtlpKey.TRACE_ID]
+            if isinstance(trace_id, list):
+                trace_id = trace_id[0]
+            trace_ids.append(trace_id)
 
         pool = ThreadPool()
         processor = PrecalculateProcessor(None, self.bk_biz_id, self.app_name)
-        params_list = [(processor, trace_id) for trace_id in page_data["data"]]
+        params_list = [(processor, trace_id) for trace_id in trace_ids]
         results = pool.map_ignore_exception(self._query_trace_info, params_list)
-        res = []
+        res: list[dict[str, Any]] = []
         for result in results:
             if not result:
                 continue
             res.append(result)
 
-        return res, page_data["total"]
+        return res
 
     def _query_trace_info(self, processor, trace_id: str) -> dict[str, Any]:
-        q: QueryConfigBuilder = (
-            self.q.time_field(OtlpKey.START_TIME)
-            .order_by(OtlpKey.START_TIME)
-            .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
-        )
-        span_infos: list[dict[str, Any]] = list(
-            self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE)
-        )
+        queries: list[QueryConfigBuilder] = [
+            q.order_by(OtlpKey.START_TIME).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
+            for q in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        queryset: UnifyQuerySet = self.get_qs().limit(constants.DISCOVER_BATCH_SIZE)
+        span_infos: list[dict[str, Any]] = list(self._add_query(queryset, queries))
 
         trace_info = processor.get_trace_info(trace_id, span_infos)
         trace_info.pop("collections", None)

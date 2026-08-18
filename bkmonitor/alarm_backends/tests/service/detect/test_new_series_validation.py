@@ -151,6 +151,22 @@ def test_new_series_threshold_defaults_to_zero_and_accepts_negative_integer():
     assert serializer.validated_data["threshold"] == -2
 
 
+def test_new_series_alert_mode_defaults_to_once_and_accepts_continuous():
+    serializer = NewSeriesSerializer(data={"detect_range": 3600})
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["alert_mode"] == "once"
+
+    serializer = NewSeriesSerializer(data={"detect_range": 3600, "alert_mode": "continuous"})
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["alert_mode"] == "continuous"
+
+
+def test_new_series_alert_mode_rejects_unknown_value():
+    serializer = NewSeriesSerializer(data={"detect_range": 3600, "alert_mode": "notify_every_time"})
+    with pytest.raises(ValidationError):
+        serializer.is_valid(raise_exception=True)
+
+
 @pytest.mark.parametrize("threshold", [True, 1.5, "1.5"])
 def test_new_series_threshold_rejects_non_integer(threshold):
     serializer = NewSeriesSerializer(data={"detect_range": 3600, "threshold": threshold})

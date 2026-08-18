@@ -1,0 +1,140 @@
+.failure-view-alarm-chart {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: #63656e;
+  background: #fff;
+
+  /* 对齐 FailureChart 标题区样式 */
+  .echart-header {
+    display: flex;
+    align-items: center;
+    min-width: 100%;
+    padding: 4px 8px 0;
+    font-weight: 700;
+    color: #63656e;
+
+    .chart-title-wrap {
+      z-index: 1;
+      width: 100%;
+      position: relative;
+    }
+
+    :deep(.chart-title-wrap) {
+      cursor: pointer;
+
+      .chart-title {
+        padding: 0;
+      }
+    }
+
+    .root-head,
+    .sub-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 96%;
+
+      .txt {
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      .root {
+        display: inline-block;
+        width: 24px;
+        min-width: 24px;
+        height: 14px;
+        margin-left: 4px;
+        font-size: 9px;
+        line-height: 14px;
+        color: #fff;
+        text-align: center;
+        border-radius: 7px;
+
+        &.is-root-cause {
+          background: #ff9c01;
+        }
+
+        &.is-root {
+          background: #f55555;
+        }
+      }
+    }
+
+    .sub-head {
+      max-width: 100%;
+      font-weight: normal;
+      color: #979ba5;
+
+      .txt {
+        font-size: 12px;
+      }
+    }
+
+    .tag-head {
+      height: 18px;
+      margin-top: 5px;
+      overflow: hidden;
+
+      .bk-tag {
+        height: 20px;
+        max-width: 160px;
+        padding: 0 5px;
+        margin-right: 5px;
+        font-size: 10px;
+        font-weight: normal;
+        line-height: 20px;
+        color: #63656e;
+      }
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+
+    .alarm-charts {
+      height: 100%;
+      padding-bottom: 12px;
+      border-radius: 0;
+    }
+
+    .monitor-charts {
+      height: 100%;
+    }
+
+    .echart-container {
+      min-height: 100px;
+    }
+  }
+
+  /* 复位放在 ChartTitle 工具区，避免上探标题区抢层级 */
+  .failure-view-title-restore {
+    position: absolute;
+    bottom: 3px;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 20px;
+    margin-right: 4px;
+    font-size: 12px;
+    font-weight: normal;
+    color: #63656e;
+    cursor: pointer;
+    background-color: #fff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    &:hover {
+      border-color: #979ba5;
+    }
+  }
+}

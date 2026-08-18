@@ -29,6 +29,7 @@ import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue
 import { Checkbox, Input, Popover, Select, Tag } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { useAppReadonlyInject } from '../../../provider';
 import {
   COLUMN_ICON_MAP,
   COLUMN_VALUES,
@@ -72,6 +73,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const readonly = useAppReadonlyInject() ?? false;
 
     const localTargetValue = shallowRef<string[]>([]);
     const localTimeShiftValue = shallowRef<string[]>([]);
@@ -331,13 +333,15 @@ export default defineComponent({
               ),
             }}
           </Popover>
-          <div
-            class='metric-toolbar__setting'
-            v-bk-tooltips={{ content: t('视图分组管理'), delay: 300 }}
-            onClick={() => emit('openSetting')}
-          >
-            <i class='icon-monitor icon-shezhi1' />
-          </div>
+          {!readonly && (
+            <div
+              class='metric-toolbar__setting'
+              v-bk-tooltips={{ content: t('视图分组管理'), delay: 300 }}
+              onClick={() => emit('openSetting')}
+            >
+              <i class='icon-monitor icon-shezhi1' />
+            </div>
+          )}
         </div>
       </div>
     );

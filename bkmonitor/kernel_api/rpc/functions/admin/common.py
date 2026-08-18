@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import re
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from typing import Any
@@ -24,6 +25,8 @@ SAFETY_LEVEL_WRITE = "write"
 SAFETY_LEVEL_DESTRUCTIVE = "destructive"
 PAGE_LIST_TENANT_SCHEMA = "可选，租户 ID；缺省或空表示全租户查询"
 REQUIRED_TENANT_SCHEMA = "必填，租户 ID"
+MAX_LIST_FILTER_VALUES = 100
+MAX_LIST_FILTER_STRING_LENGTH = 255
 
 
 def normalize_bk_tenant_id(value: Any) -> str | None:
@@ -144,6 +147,87 @@ def normalize_optional_bool(value: Any, field_name: str) -> bool | None:
         if normalized_value in {"false", "0", "no", "n"}:
             return False
     raise CustomException(message=f"{field_name} 必须是布尔值")
+
+
+def normalize_int_list_filter(
+    params: dict[str, Any],
+    singular_field: str,
+    plural_field: str,
+    *,
+    positive: bool = False,
+    allow_legacy_csv: bool = False,
+) -> list[int]:
+    raw_values: list[Any] = []
+    singular_value = params.get(singular_field)
+    if singular_value not in (None, ""):
+        raw_values.append(singular_value)
+
+    if plural_field in params:
+        plural_value = params.get(plural_field)
+        if isinstance(plural_value, str) and allow_legacy_csv:
+            raw_values.extend(item.strip() for item in plural_value.split(","))
+        elif isinstance(plural_value, list):
+            raw_values.extend(plural_value)
+        else:
+            raise CustomException(message=f"{plural_field} 必须是数组")
+
+    values: list[int] = []
+    seen: set[int] = set()
+    for raw_value in raw_values:
+        if raw_value in (None, "") or isinstance(raw_value, bool):
+            raise CustomException(message=f"{plural_field} 必须是整数数组")
+        if isinstance(raw_value, int):
+            value = raw_value
+        elif isinstance(raw_value, str) and re.fullmatch(r"-?\d+", raw_value.strip()):
+            value = int(raw_value)
+        else:
+            raise CustomException(message=f"{plural_field} 必须是整数数组")
+        if positive and value <= 0:
+            raise CustomException(message=f"{plural_field} 必须全部为正整数")
+        if value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+
+    if len(values) > MAX_LIST_FILTER_VALUES:
+        raise CustomException(message=f"{plural_field} 最多支持 {MAX_LIST_FILTER_VALUES} 个值")
+    return values
+
+
+def normalize_string_list_filter(
+    params: dict[str, Any],
+    singular_field: str,
+    plural_field: str,
+) -> list[str]:
+    raw_values: list[Any] = []
+    singular_value = params.get(singular_field)
+    if singular_value not in (None, ""):
+        raw_values.append(singular_value)
+
+    if plural_field in params:
+        plural_value = params.get(plural_field)
+        if not isinstance(plural_value, list):
+            raise CustomException(message=f"{plural_field} 必须是数组")
+        raw_values.extend(plural_value)
+
+    values: list[str] = []
+    seen: set[str] = set()
+    for raw_value in raw_values:
+        if not isinstance(raw_value, str):
+            raise CustomException(message=f"{plural_field} 必须是字符串数组")
+        value = raw_value.strip()
+        if not value:
+            raise CustomException(message=f"{plural_field} 不能包含空值")
+        if len(value) > MAX_LIST_FILTER_STRING_LENGTH:
+            raise CustomException(message=f"{plural_field} 单项长度不能超过 {MAX_LIST_FILTER_STRING_LENGTH}")
+        if value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+
+    if len(values) > MAX_LIST_FILTER_VALUES:
+        raise CustomException(message=f"{plural_field} 最多支持 {MAX_LIST_FILTER_VALUES} 个值")
+    return values
 
 
 def normalize_include(value: Any, allowed_values: set[str], *, default: Iterable[str] = ()) -> set[str]:
