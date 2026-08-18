@@ -1396,6 +1396,12 @@ METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     labelnames=("version", "biz_id", "strategy", "status"),
 )
 
+METADATA_DATA_LINK_REFRESH_TOTAL = Counter(
+    name="bkmonitor_metadata_data_link_refresh_total",
+    documentation="监控元数据数据链路组件刷新结果统计",
+    labelnames=("operation",),
+)
+
 API_REQUESTS_TOTAL = Counter(
     name="bkmonitor_api_requests_total",
     documentation="三方APi调用统计",

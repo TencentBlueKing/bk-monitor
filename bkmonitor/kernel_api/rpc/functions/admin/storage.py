@@ -25,8 +25,10 @@ from kernel_api.rpc.functions.admin.common import (
     get_page_list_bk_tenant_id,
     get_scoped_map_value,
     instance_tenant_resource_key,
+    normalize_int_list_filter,
     normalize_ordering,
     normalize_pagination,
+    normalize_string_list_filter,
     paginate_queryset,
     serialize_model,
     serialize_value,
@@ -189,13 +191,14 @@ def _table_ids_by_data_filters(
     params: dict[str, Any], bk_tenant_id: str | None
 ) -> set[str] | set[tuple[str | None, str]] | None:
     filters: dict[str, Any] = {}
-    if params.get("data_label") not in (None, ""):
-        filters["data_label"] = str(params["data_label"]).strip()
+    data_labels = normalize_string_list_filter(params, "data_label", "data_labels")
+    if data_labels:
+        filters["data_label__in"] = data_labels
     relation_pairs: set[tuple[str | None, str]] | None = None
-    if params.get("bk_data_id") not in (None, ""):
-        bk_data_id = _parse_int_param(params, "bk_data_id")
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
+    if bk_data_ids:
         relation_queryset = filter_by_bk_tenant_id(
-            models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id), bk_tenant_id
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_ids), bk_tenant_id
         )
         relation_pairs = {
             (relation.bk_tenant_id, relation.table_id)
@@ -285,9 +288,9 @@ def _base_storage_queryset(
             queryset = filter_by_tenant_resource_pairs(queryset, table_field, table_ids)
         else:
             queryset = queryset.filter(**{f"{table_field}__in": table_ids})
-    storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
-    if storage_cluster_id is not None:
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
     return queryset
 
 
@@ -430,13 +433,22 @@ def _paginate_list_response(
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 DorisStorage.table_id / origin_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，Doris 集群 ID",
+        "storage_cluster_ids": "可选，Doris 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -572,13 +584,24 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 result_table_id / vm_result_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，VM 接入存储集群 ID",
+        "storage_cluster_ids": "可选，VM 存储集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "vm_cluster_id": "可选，AccessVMRecord.vm_cluster_id，对应 VM ClusterInfo.cluster_id",
+        "vm_cluster_ids": "可选，VM ClusterInfo.cluster_id 正整数数组，最多 100 项；与 vm_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "2_bkmonitor_time_series.__default__"},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "vm_cluster_ids": [10, 11],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -599,12 +622,12 @@ def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
             queryset = filter_by_tenant_resource_pairs(queryset, "result_table_id", table_ids)
         else:
             queryset = queryset.filter(result_table_id__in=table_ids)
-    storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
-    if storage_cluster_id is not None:
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
-    vm_cluster_id = _parse_int_param(params, "vm_cluster_id")
-    if vm_cluster_id is not None:
-        queryset = queryset.filter(vm_cluster_id=vm_cluster_id)
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
+    vm_cluster_ids = normalize_int_list_filter(params, "vm_cluster_id", "vm_cluster_ids", positive=True)
+    if vm_cluster_ids:
+        queryset = queryset.filter(vm_cluster_id__in=vm_cluster_ids)
     return _paginate_list_response(
         params=params,
         queryset=queryset,
@@ -656,13 +679,22 @@ def get_vm_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，KafkaStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，Kafka 集群 ID",
+        "storage_cluster_ids": "可选，Kafka 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "system.cpu"},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_kafka_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -718,13 +750,22 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，SurrealDBStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，SurrealDB 集群 ID",
+        "storage_cluster_ids": "可选，SurrealDB 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id / table_type",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "system.graph", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_surrealdb_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -780,14 +821,25 @@ def get_surrealdb_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 monitor_table_id / bkbase_table_id / data_link_name",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，存储集群 ID",
+        "storage_cluster_ids": "可选，存储集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "status": "可选，BkBaseResultTable.status",
+        "statuses": "可选，BkBaseResultTable.status 数组，最多 100 项；与 status 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id / status / create_time / last_modify_time",
     },
-    example_params={"bk_tenant_id": "system", "status": "Ok", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "statuses": ["Ok", "Failed"],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_bkbase_result_tables(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -811,11 +863,12 @@ def list_bkbase_result_tables(params: dict[str, Any]) -> dict[str, Any]:
             queryset = filter_by_tenant_resource_pairs(queryset, "monitor_table_id", table_ids)
         else:
             queryset = queryset.filter(monitor_table_id__in=table_ids)
-    storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
-    if storage_cluster_id is not None:
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
-    if params.get("status") not in (None, ""):
-        queryset = queryset.filter(status=str(params["status"]).strip())
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
+    statuses = normalize_string_list_filter(params, "status", "statuses")
+    if statuses:
+        queryset = queryset.filter(status__in=statuses)
     ordering = params.get("ordering")
     if ordering in ("table_id", "-table_id"):
         params = {**params, "ordering": str(ordering).replace("table_id", "monitor_table_id")}

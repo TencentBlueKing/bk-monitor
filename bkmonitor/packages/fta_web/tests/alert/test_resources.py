@@ -278,7 +278,12 @@ class TestAlertRelatedInfoResource:
         )
         module = SimpleNamespace(bk_module_id=22, bk_module_name="module-a", bk_set_id=0)
         monkeypatch.setattr(alert_resources.api.cmdb, "get_host_by_ip", self.fail_on_call("get_host_by_ip"))
-        monkeypatch.setattr(alert_resources.api.cmdb, "get_host_by_id", lambda **kwargs: [host])
+        host_calls = []
+        monkeypatch.setattr(
+            alert_resources.api.cmdb,
+            "get_host_by_id",
+            lambda **kwargs: host_calls.append(kwargs) or [host],
+        )
         monkeypatch.setattr(
             alert_resources.api.cmdb,
             "get_service_instance_by_id",
@@ -289,6 +294,19 @@ class TestAlertRelatedInfoResource:
 
         result = AlertRelatedInfoResource.get_cmdb_related_info([alert])
 
+        assert host_calls == [
+            {
+                "bk_biz_id": 2,
+                "bk_host_ids": [11],
+                "fields": [
+                    "bk_host_id",
+                    "bk_host_innerip",
+                    "bk_host_innerip_v6",
+                    "bk_cloud_id",
+                    "bk_host_name",
+                ],
+            }
+        ]
         assert result["host-alert"]["hostname"] == "host-a"
         assert result["host-alert"]["topo_info"] == "模块(module-a)"
 

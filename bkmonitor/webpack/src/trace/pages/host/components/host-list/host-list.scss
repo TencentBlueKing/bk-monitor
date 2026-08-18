@@ -1,9 +1,9 @@
 .host-list {
   display: flex;
-  flex-direction: column;
   flex: 1;
-  min-height: 0;
+  flex-direction: column;
   height: 100%;
+  min-height: 0;
 
   &__filter-bar {
     display: flex;
@@ -19,6 +19,12 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+}
+
+.host-list-error {
+  display: flex;
+  flex: 1;
+  align-items: center;
 }
 
 /** loading 时页面级骨架屏 */
@@ -53,8 +59,8 @@
     &-text {
       display: flex;
       flex-direction: column;
-      justify-content: center;
       gap: 4px;
+      justify-content: center;
     }
 
     &-name {

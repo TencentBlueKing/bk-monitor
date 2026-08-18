@@ -662,7 +662,7 @@
             additionList.push({
               field: el,
               operator: 'is',
-              value: row.group[index],
+              value: [row.group?.[index] ?? ''],
               isLink,
             });
           });
@@ -670,7 +670,7 @@
         additionList.push({
           field: `__dist_${this.requestData.pattern_level}`,
           operator: 'is',
-          value: row.signature.toString(),
+          value: [row.signature?.toString() ?? ''],
           isLink,
         });
 

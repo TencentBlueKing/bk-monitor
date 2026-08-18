@@ -15,6 +15,7 @@ from typing import Any
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.models.metric_list_cache import MetricListCache
 from core.drf_resource.exceptions import CustomException
+from django.core import signing
 from django.db.models import Q
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -24,6 +25,8 @@ from metadata.models.space.space import Space, SpaceResource
 
 DEFAULT_LIMIT = 50
 FEDERAL_NAMESPACE_LIMIT = 200
+FEDERAL_MAX_PAGE_SIZE = 50
+FEDERAL_CURSOR_SALT = "bkm-cli.inspect-bcs-metadata.federal-cursor"
 
 
 def inspect_bcs_metadata(params: dict[str, Any]) -> dict[str, Any]:
@@ -35,6 +38,9 @@ def inspect_bcs_metadata(params: dict[str, Any]) -> dict[str, Any]:
     space_uid = str(params.get("space_uid") or "").strip()
     bk_tenant_id = str(params.get("bk_tenant_id") or "").strip()
     include_metric_cache = bool(params.get("include_metric_cache", False))
+    federal_cursor = params.get("federal_cursor")
+    federal_cursor_id = _decode_federal_cursor(federal_cursor, cluster_id, bk_tenant_id)
+    federal_page_size = _federal_page_size(params.get("federal_page_size"))
 
     bcs_cluster_info = _query_bcs_cluster_info(cluster_id, bk_biz_id, bk_tenant_id)
     spaces = _query_spaces(bk_biz_id, space_uid, bk_tenant_id)
@@ -42,17 +48,28 @@ def inspect_bcs_metadata(params: dict[str, Any]) -> dict[str, Any]:
     bcs_clusters = _query_bcs_clusters(cluster_id, bk_biz_id, space_uid, bk_tenant_id)
     metric_cache = _query_metric_cache(bk_biz_id, bk_tenant_id) if include_metric_cache else []
 
-    # 联邦关系表没有租户字段，必须先用同租户的目标集群建立授权锚点。BKCC 空间可直接用
-    # BCSClusterInfo.bk_biz_id 证明归属；项目空间则还需 SpaceResource 或 BCSCluster 关系。
+    # 先用同租户的目标集群建立授权锚点，再在联邦关系查询中重复施加租户条件。
+    # BKCC 空间可直接用 BCSClusterInfo.bk_biz_id 证明归属；项目空间则还需
+    # SpaceResource 或 BCSCluster 关系。
     federal_scope_allowed = bool(
         bk_tenant_id
         and bcs_cluster_info
         and _space_scope_matches_cluster(space_uid, bcs_cluster_info, space_resources, bcs_clusters)
     )
     federal_cluster_info = (
-        _query_federal_cluster_info(cluster_id)
+        _query_federal_cluster_info(
+            cluster_id,
+            bk_tenant_id,
+            cursor=federal_cursor,
+            cursor_id=federal_cursor_id,
+            page_size=federal_page_size,
+        )
         if federal_scope_allowed
-        else _empty_federal_cluster_info("not_found_in_scope")
+        else _empty_federal_cluster_info(
+            "not_found_in_scope",
+            cursor=federal_cursor,
+            page_size=federal_page_size,
+        )
     )
 
     return {
@@ -158,21 +175,42 @@ def _query_metric_cache(bk_biz_id: int | None, bk_tenant_id: str) -> list[dict[s
     ]
 
 
-def _query_federal_cluster_info(cluster_id: str) -> dict[str, Any]:
+def _query_federal_cluster_info(
+    cluster_id: str,
+    bk_tenant_id: str,
+    *,
+    cursor: str | None,
+    cursor_id: int | None,
+    page_size: int,
+) -> dict[str, Any]:
     queryset = BcsFederalClusterInfo.objects.filter(
         Q(fed_cluster_id=cluster_id) | Q(host_cluster_id=cluster_id) | Q(sub_cluster_id=cluster_id)
-    ).order_by("fed_cluster_id", "host_cluster_id", "sub_cluster_id", "is_deleted")
+    ).filter(bk_tenant_id=bk_tenant_id)
     total_count = queryset.count()
-    rows = queryset[:DEFAULT_LIMIT]
-    if not rows:
-        return _empty_federal_cluster_info("not_federal")
+    if total_count == 0:
+        return _empty_federal_cluster_info("not_federal", cursor=cursor, page_size=page_size)
 
-    items = [_serialize_federal_cluster_info(row) for row in rows]
+    page_queryset = queryset.order_by("id")
+    if cursor_id is not None:
+        page_queryset = page_queryset.filter(id__gt=cursor_id)
+    rows = list(page_queryset[: page_size + 1])
+    truncated = len(rows) > page_size
+    page_rows = rows[:page_size]
+
+    items = [_serialize_federal_cluster_info(row) for row in page_rows]
+    next_cursor = None
+    if truncated:
+        last_row = page_rows[-1]
+        last_id = int(getattr(last_row, "pk", None) or getattr(last_row, "id"))
+        next_cursor = _encode_federal_cursor(last_id, cluster_id, bk_tenant_id)
     return {
         "status": "found",
         "total_count": total_count,
         "returned_count": len(items),
-        "truncated": total_count > len(items),
+        "truncated": truncated,
+        "cursor": cursor,
+        "page_size": page_size,
+        "next_cursor": next_cursor,
         "items": items,
     }
 
@@ -202,12 +240,20 @@ def _serialize_federal_cluster_info(instance: Any) -> dict[str, Any]:
     }
 
 
-def _empty_federal_cluster_info(status: str) -> dict[str, Any]:
+def _empty_federal_cluster_info(
+    status: str,
+    *,
+    cursor: str | None = None,
+    page_size: int = DEFAULT_LIMIT,
+) -> dict[str, Any]:
     return {
         "status": status,
         "total_count": 0,
         "returned_count": 0,
         "truncated": False,
+        "cursor": cursor,
+        "page_size": page_size,
+        "next_cursor": None,
         "items": [],
     }
 
@@ -256,6 +302,67 @@ def _optional_int(value: Any, field_name: str) -> int | None:
         raise CustomException(message=f"{field_name} 必须是整数: {value}") from error
 
 
+def _optional_positive_int(value: Any, field_name: str) -> int | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise CustomException(message=f"{field_name} 必须是整数: {value}")
+    try:
+        normalized = int(value)
+    except ValueError as error:
+        raise CustomException(message=f"{field_name} 必须是整数: {value}") from error
+    if normalized is not None and normalized < 1:
+        raise CustomException(message=f"{field_name} 必须大于等于 1")
+    return normalized
+
+
+def _federal_page_size(value: Any) -> int:
+    page_size = _optional_positive_int(value, "federal_page_size") or DEFAULT_LIMIT
+    if page_size > FEDERAL_MAX_PAGE_SIZE:
+        raise CustomException(message=f"federal_page_size 超过硬上限 {FEDERAL_MAX_PAGE_SIZE}: {page_size}")
+    return page_size
+
+
+def _encode_federal_cursor(last_id: int, cluster_id: str, bk_tenant_id: str) -> str:
+    return signing.dumps(
+        {
+            "version": 1,
+            "last_id": last_id,
+            "cluster_id": cluster_id,
+            "bk_tenant_id": bk_tenant_id,
+        },
+        salt=FEDERAL_CURSOR_SALT,
+    )
+
+
+def _decode_federal_cursor(value: Any, cluster_id: str, bk_tenant_id: str) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise CustomException(message="federal_cursor 无效、已被篡改或与当前租户/集群范围不匹配，请从第一页重新读取")
+
+    try:
+        payload = signing.loads(value, salt=FEDERAL_CURSOR_SALT)
+    except (signing.BadSignature, TypeError, ValueError):
+        raise CustomException(
+            message="federal_cursor 无效、已被篡改或与当前租户/集群范围不匹配，请从第一页重新读取"
+        ) from None
+
+    last_id = payload.get("last_id") if isinstance(payload, dict) else None
+    valid = (
+        isinstance(payload, dict)
+        and payload.get("version") == 1
+        and isinstance(last_id, int)
+        and not isinstance(last_id, bool)
+        and last_id > 0
+        and payload.get("cluster_id") == cluster_id
+        and payload.get("bk_tenant_id") == bk_tenant_id
+    )
+    if not valid:
+        raise CustomException(message="federal_cursor 无效、已被篡改或与当前租户/集群范围不匹配，请从第一页重新读取")
+    return last_id
+
+
 def _serialize(instance: Any, fields: list[str]) -> dict[str, Any]:
     return {field_name: getattr(instance, field_name, None) for field_name in fields}
 
@@ -270,12 +377,15 @@ KernelRPCRegistry.register_function(
         "bk_biz_id": "integer",
         "space_uid": "string",
         "include_metric_cache": "boolean",
+        "federal_cursor": "string",
+        "federal_page_size": "integer",
     },
     example_params={
         "cluster_id": "BCS-K8S-00001",
         "bk_biz_id": 1001,
         "space_uid": "bkcc__1001",
         "include_metric_cache": True,
+        "federal_page_size": 50,
     },
 )
 
@@ -296,11 +406,14 @@ BkmCliOpRegistry.register(
         "bk_biz_id": "integer",
         "space_uid": "string",
         "include_metric_cache": "boolean",
+        "federal_cursor": "string",
+        "federal_page_size": "integer",
     },
     example_params={
         "cluster_id": "BCS-K8S-00001",
         "bk_biz_id": 1001,
         "space_uid": "bkcc__1001",
         "include_metric_cache": True,
+        "federal_page_size": 50,
     },
 )

@@ -30,10 +30,5 @@ export const getStrategyAndEventCountApi = async (params: {
   scene_id: 'host';
   target?: unknown;
 }): Promise<{ event_counts: number; strategy_counts: number }> => {
-  return await getStrategyAndEventCount(params).catch(() => {
-    return {
-      strategy_counts: 0,
-      event_counts: 0,
-    };
-  });
+  return await getStrategyAndEventCount(params);
 };

@@ -167,11 +167,16 @@ class StorageViewSet(APIViewSet):
         @apiSuccess {String} auth_info.username 用户
         @apiSuccess {String} auth_info.password 密码
         @apiSuccess {Bool} is_editable 是否可编辑（为false时不可编辑）
-        @apiSuccess {Object} cluster_stats 集群状态 连接出错该对象不存在
+        @apiSuccess {Object} cluster_stats 集群状态，探测失败时为空
         @apiSuccess {String} cluster_stats.status 集群状况 green yellow red
-        @apiSuccess {Int} cluster_stats.indices_count 集群索引数量
-        @apiSuccess {Int} cluster_stats.indices_doc_count 集群文档数量
+        @apiSuccess {Int} [cluster_stats.indices_count] ES 集群索引数量
+        @apiSuccess {Int} [cluster_stats.indices_docs_count] ES 集群文档数量
         @apiSuccess {Int} cluster_stats.indices_store 集群存储大小 单位Byte
+        @apiSuccess {Int} cluster_stats.node_count 节点总数
+        @apiSuccess {Int} [cluster_stats.available_node_count] Doris 可用节点数
+        @apiSuccess {Int} [cluster_stats.tablet_count] Doris Tablet 数量
+        @apiSuccess {Float} [cluster_stats.max_disk_used_percent] Doris 最大磁盘使用率
+        @apiSuccess {String} [cluster_stats.storage_status] Doris 原始状态 available/degraded/unavailable
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
@@ -671,15 +676,19 @@ class StorageViewSet(APIViewSet):
         @apiGroup 09_StorageCluster
         @apiDescription 批量连通性测试
         @apiParam {Array(Dict)} cluster_list 集群ID列表
-        @apiParam {Int} cluster_list.status 连接状态
-        @apiParam {Int} cluster_list.status_stats 集群状态
-        @apiParam {Int} cluster_list.status_stats.node_count 集群状态
-        @apiParam {Int} cluster_list.status_stats.indices_count 集群索引数量
-        @apiParam {Int} cluster_list.status_stats.indices_docs_count 集群索引文档数量
-        @apiParam {Int} cluster_list.status_stats.status 集群状态
-        @apiParam {Int} cluster_list.status_stats.shards_pri 集群主切片数量
-        @apiParam {Int} cluster_list.status_stats.shared_total 集群切片数量
-        @apiParam {Int} cluster_list.status_stats.total_store 全部存储
+        @apiSuccess {Bool} status 连接状态
+        @apiSuccess {Object} cluster_stats 集群状态
+        @apiSuccess {Int} cluster_stats.node_count 节点总数
+        @apiSuccess {Int} [cluster_stats.indices_count] ES 集群索引数量
+        @apiSuccess {Int} [cluster_stats.indices_docs_count] ES 集群索引文档数量
+        @apiSuccess {String} cluster_stats.status 集群状态 green yellow red
+        @apiSuccess {Int} [cluster_stats.shards_pri] ES 集群主分片数量
+        @apiSuccess {Int} [cluster_stats.shards_total] ES 集群分片数量
+        @apiSuccess {Int} cluster_stats.total_store 全部存储
+        @apiSuccess {Int} [cluster_stats.available_node_count] Doris 可用节点数
+        @apiSuccess {Int} [cluster_stats.tablet_count] Doris Tablet 数量
+        @apiSuccess {Float} [cluster_stats.max_disk_used_percent] Doris 最大磁盘使用率
+        @apiSuccess {String} [cluster_stats.storage_status] Doris 原始状态 available/degraded/unavailable
         @apiParamExample {Json} 请求参数
         {
             "cluster_list": [3,8]

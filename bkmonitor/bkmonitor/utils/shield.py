@@ -33,6 +33,29 @@ CYCLE_WEEKLY = _("周")
 CYCLE_MONTHLY = _("月")
 LESS_THAN_AN_HOUR_TEMPLATE = _("<1小时/{}")
 HOURS_TEMPLATE = _("{}小时/{}")
+_CONDITION_METHOD_DISPLAY = {"eq": "=", "gte": "≥", "gt": ">", "lt": "<", "lte": "≤", "neq": "!="}
+
+
+def format_dimension_conditions_display(dimension_conditions):
+    """将 dimension_conditions 格式化为屏蔽列表/详情展示文案。"""
+    parts = []
+    for index, condition in enumerate(dimension_conditions or []):
+        method = condition.get("method", "eq")
+        raw_value = condition.get("value", [])
+        if isinstance(raw_value, (list, tuple)):
+            value = ",".join(str(item) for item in raw_value)
+        else:
+            value = str(raw_value)
+        condition_content = "{name} {method} {value}".format(
+            name=condition.get("name") or condition.get("key"),
+            method=_CONDITION_METHOD_DISPLAY.get(method) or method,
+            value=value,
+        )
+        if index == 0:
+            parts.append(condition_content)
+        else:
+            parts.append("{} {}".format(condition.get("condition", "and"), condition_content))
+    return " ".join(parts)
 
 
 class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
@@ -46,11 +69,18 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         scope_type = shield["scope_type"]
 
         if category in [ShieldCategory.EVENT, ShieldCategory.ALERT]:
-            content = dimension_config["_dimensions"]
+            conditions = dimension_config.get("dimension_conditions") or []
+            # 快捷告警屏蔽若带了 dimension_conditions，展示与匹配都只认这些条件，
+            # 避免存量 _dimensions 仍渲染被丢弃的实例维（如 pod/ip）
+            content = (
+                format_dimension_conditions_display(conditions)
+                if conditions
+                else dimension_config.get("_dimensions", "")
+            )
             strategy_ids = self.get_strategy_ids(shield)
             strategy_name = ""
             if strategy_ids:
-                strategy_name = strategy_id_to_name.get(strategy_ids[0], "")
+                strategy_name = (strategy_id_to_name or {}).get(strategy_ids[0], "")
             pre_fix = STRATEGY_NAME_TEMPLATE.format(strategy_name.strip()) + " " + _("维度") + ": "
             if pre_fix:
                 content = pre_fix + content
@@ -58,19 +88,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
         content = ""
         if category == ShieldCategory.DIMENSION:
-            method_dict = {"eq": "=", "gte": "≥", "gt": ">", "lt": "<", "lte": "≤", "neq": "!="}
-            for index, condition in enumerate(dimension_config.get("dimension_conditions", [])):
-                method = condition.get("method", "eq")
-                condition_content = "{name} {method} {value}".format(
-                    name=condition.get("name") or condition.get("key"),
-                    method=method_dict.get(method) or method,
-                    value=",".join(condition.get("value", [])),
-                )
-                if index == 0:
-                    content += condition_content
-                    continue
-                content += " {} {}".format(condition.get("condition", "and"), condition_content)
-            return content
+            return format_dimension_conditions_display(dimension_config.get("dimension_conditions", []))
 
         if category == ShieldCategory.STRATEGY:
             strategy_ids = self.get_strategy_ids(shield)

@@ -10,8 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.gzip import gzip_page
-from rest_framework import permissions
-
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
@@ -25,9 +23,20 @@ from monitor_web.scene_view.resources.host import (
 
 
 class SceneViewViewSet(ResourceViewSet):
+    HOST_READ_ACTIONS = {
+        "get_host_process_port_status",
+        "get_host_or_topo_node_detail",
+        "get_host_process_uptime",
+        "get_host_process_list",
+        "get_host_views_panels",
+        "get_host_metric_group_panel_order",
+        "get_process_views_panels",
+        "get_process_metric_group_panel_order",
+    }
+
     def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+        if self.action in self.HOST_READ_ACTIONS:
+            return [BusinessActionPermission([ActionEnum.VIEW_HOST])]
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [
