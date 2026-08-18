@@ -67,6 +67,8 @@ export interface SourceAnalysisConfig {
   is_configured: boolean;
   /** 是否已配置蓝盾项目和代码库 */
   is_repository_configured: boolean;
+  /* 下一次执行参数 */
+  next_execution_context: null | SourceAnalysisNextExecutionContext;
   /** 不可用原因代码 */
   unavailable_reason: null | SourceAnalysisUnavailableReason;
   /** 不可用原因中文名 */
@@ -145,6 +147,24 @@ export interface SourceAnalysisLatest {
   updated_at: number;
 }
 
+/** 用户下一次可发起执行的参数预览 */
+export interface SourceAnalysisNextExecutionContext {
+  /** Agent ID */
+  agent_id: string;
+  /** 蓝盾项目 ID */
+  bkci_project_id: string;
+  /** 知识库 ID 列表，本期通常为空数组 */
+  knowledge_base_ids: string[];
+  /** 蓝盾流水线实际使用的代码库别名 */
+  repository_alias: string;
+  /** Skill ID 列表 */
+  skill_ids: string[];
+  /** 参数来源：matched_rule_preview 或 execution_snapshot */
+  source: SourceAnalysisSource;
+  /** 下一次操作类型：initial、retry、reanalyze */
+  trigger_type: SourceAnalysisTriggerType;
+}
+
 /** 快览中的源码分析模块 */
 export interface SourceAnalysisOverview extends SourceAnalysisConfig {
   /** 最新执行记录（从未执行时为 null） */
@@ -201,6 +221,9 @@ export interface SourceAnalysisRetryParams extends AIAnalysisBaseParams {
   /** 目标失败记录的分析 ID */
   analysis_id: string;
 }
+
+/** 参数来源 */
+export type SourceAnalysisSource = 'execution_snapshot' | 'matched_rule_preview';
 
 /** 源码分析阶段（终态为 null） */
 export type SourceAnalysisStage = 'analyzing' | 'archiving' | 'source_preparing' | 'validating' | 'waiting';

@@ -31,6 +31,7 @@ import { Success } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
+import MarkdownViewer from '../../../../../../components/markdown-editor/viewer';
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
 import { assignIssues } from '../../../services/issues-operations';
 import AnalysisSummaryCard from './analysis-summary-card';
@@ -53,6 +54,7 @@ export default defineComponent({
   },
   emits: {
     assigneeChange: (_users: string[], _activities: IssueActivityItem[]) => true,
+    backToIssue: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -64,6 +66,7 @@ export default defineComponent({
       getSourceAnalysisData,
       handleReanalyzeSourceAnalysis,
       handleStartAnalysis,
+      handleToSetting,
     } = useIssuesAiAnalysis();
 
     const assigneeChangeLoading = shallowRef(false);
@@ -124,8 +127,12 @@ export default defineComponent({
         );
 
       if (!sourceAnalysisData.value) return;
+
+      const { is_repository_configured, is_configured, unavailable_reason_display, latest, next_execution_context } =
+        sourceAnalysisData.value as SourceAnalysisView;
+
       /** 没有配置仓库 */
-      if (!sourceAnalysisData.value.is_repository_configured) {
+      if (!is_repository_configured) {
         return (
           <div class='config-guide'>
             <div class='guide-icon'>
@@ -136,28 +143,45 @@ export default defineComponent({
               {t('源码关联分析需要先知道告警对应的蓝盾项目和代码仓库，才能拉取构建记录、提交历史与 Blame 信息。')}
             </div>
             <div class='guide-btns'>
-              <Button theme='primary'>{t('去配置 AI 设置')}</Button>
-              <Button>{t('已配置，立即分析')}</Button>
+              <Button
+                theme='primary'
+                onClick={() => {
+                  handleToSetting(props.detail.bk_biz_id);
+                }}
+              >
+                {t('去配置 AI 设置')}
+              </Button>
+              <Button
+                loading={loading.retryAnalysis}
+                onClick={() => {
+                  handleStartAnalysis({
+                    bk_biz_id: props.detail.bk_biz_id,
+                    issue_id: props.detail.id,
+                  });
+                }}
+              >
+                {t('已配置，立即分析')}
+              </Button>
             </div>
           </div>
         );
       }
 
       /** 配置了仓库，但是不支持分析 */
-      if (!sourceAnalysisData.value.is_configured) {
+      if (!is_configured) {
         return (
           <div class='config-guide'>
             <div class='guide-icon'>
               <i class='icon-monitor icon-copy-link' />
             </div>
             <div class='guide-title'>{t('源码仓库已关联')}</div>
-            <div class='guide-desc'>{sourceAnalysisData.value.unavailable_reason_display}</div>
+            <div class='guide-desc'>{unavailable_reason_display}</div>
           </div>
         );
       }
 
       /** 没有进行分析 */
-      if (!sourceAnalysisData.value.latest) {
+      if (!latest && next_execution_context.trigger_type === 'initial') {
         return (
           <div class='config-guide'>
             <div class='guide-icon'>
@@ -172,24 +196,26 @@ export default defineComponent({
                 />
                 <span>{t('已就绪')}</span>
                 <div class='divider' />
-                <div>将由 bkfara 触发蓝盾 AI 分析流水线实例</div>
+                <div>
+                  {t('将由 {name} 触发蓝盾 AI 分析流水线实例', { name: next_execution_context.repository_alias })}
+                </div>
               </div>
               <ul class='relation-info'>
                 <li class='relation-item'>
                   <span class='relation-label'>{t('关联项目')}：</span>
-                  <span class='relation-value'>IEG-登录服务</span>
+                  <span class='relation-value'>{next_execution_context.bkci_project_id || t('无')}</span>
                 </li>
                 <li class='relation-item'>
                   <span class='relation-label'>{t('绑定智能体')}：</span>
-                  <span class='relation-value'>我是智能体名称</span>
+                  <span class='relation-value'>{next_execution_context.agent_id || t('无')}</span>
                 </li>
                 <li class='relation-item'>
                   <span class='relation-label'>{t('绑定知识库')}：</span>
-                  <span class='relation-value'>日志深度归因知识库</span>
+                  <span class='relation-value'>{next_execution_context.knowledge_base_ids.join('、') || t('无')}</span>
                 </li>
                 <li class='relation-item'>
                   <span class='relation-label'>{t('绑定 skill')}：</span>
-                  <span class='relation-value'>告警分析 skill</span>
+                  <span class='relation-value'>{next_execution_context.skill_ids.join('、') || t('无')}</span>
                 </li>
               </ul>
             </div>
@@ -206,7 +232,13 @@ export default defineComponent({
               >
                 {t('立即分析')}
               </Button>
-              <Button>{t('修改配置')}</Button>
+              <Button
+                onClick={() => {
+                  handleToSetting(props.detail.bk_biz_id);
+                }}
+              >
+                {t('修改配置')}
+              </Button>
             </div>
           </div>
         );
@@ -225,10 +257,8 @@ export default defineComponent({
               class='guide-desc'
             >
               {t('由 {name} 于 {time} 发起, 完成后将通过企业微信通知本次发起人', {
-                name: (sourceAnalysisData.value as SourceAnalysisView).latest.triggered_by,
-                time: dayjs
-                  .tz((sourceAnalysisData.value as SourceAnalysisView).latest.triggered_at * 1000, window.timezone)
-                  .format('YYYY-MM-DD HH:mm:ssZZ'),
+                name: latest.triggered_by,
+                time: dayjs.tz(latest.triggered_at * 1000, window.timezone).format('YYYY-MM-DD HH:mm:ssZZ'),
               })}
             </div>
             <Alert
@@ -244,14 +274,20 @@ export default defineComponent({
               >
                 {t('分析中···')}
               </Button>
-              <Button>{t('返回 Issue')}</Button>
+              <Button
+                onClick={() => {
+                  emit('backToIssue');
+                }}
+              >
+                {t('返回 Issue')}
+              </Button>
             </div>
           </div>
         );
       }
 
       /** 分析失败 */
-      if (sourceAnalysisData.value.latest.status === 'failed') {
+      if (latest?.status === 'failed') {
         return (
           <div class='config-guide'>
             <div class='guide-icon failed'>
@@ -268,10 +304,10 @@ export default defineComponent({
               class='guide-alert failed'
               showIcon={false}
               theme='danger'
-              title={sourceAnalysisData.value.latest.failure.message}
+              title={latest.failure.message}
             />
             <div class='guide-btns'>
-              {sourceAnalysisData.value.latest.failure.retryable && (
+              {latest.failure.retryable && (
                 <Button
                   loading={loading.retryAnalysis}
                   theme='primary'
@@ -279,14 +315,20 @@ export default defineComponent({
                     handleReanalyzeSourceAnalysis({
                       bk_biz_id: props.detail.bk_biz_id,
                       issue_id: props.detail.id,
-                      analysis_id: sourceAnalysisData.value.latest.analysis_id,
+                      analysis_id: latest.analysis_id,
                     });
                   }}
                 >
                   {t('重新分析')}
                 </Button>
               )}
-              <Button>{t('查看配置')}</Button>
+              <Button
+                onClick={() => {
+                  handleToSetting(props.detail.bk_biz_id);
+                }}
+              >
+                {t('查看配置')}
+              </Button>
             </div>
           </div>
         );
@@ -304,6 +346,12 @@ export default defineComponent({
                 issue_id: props.detail.id,
               });
             }}
+          />
+
+          <MarkdownViewer
+            height='420px'
+            class='view-markdown-wrapper'
+            value={latest.result.content}
           />
         </div>
       );
