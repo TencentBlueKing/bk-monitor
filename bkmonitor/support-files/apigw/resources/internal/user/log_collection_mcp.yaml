@@ -1,0 +1,88 @@
+paths:
+  /mcp/list_log_collectors/:
+    get:
+      operationId: list_log_collectors
+      description: List log collection configurations in a business with stable pagination. Use this before get_log_collector to discover collector_config_id values. Results normalize Linux, Windows, and container environments, collection scenarios, enabled status, and index-set metadata. 分页查询业务下的日志采集项；应先调用本工具获取 collector_config_id，再调用 get_log_collector 查看详情。返回统一的 Linux、Windows、容器环境、采集场景、启停状态和索引集信息。
+      tags: [log_collection_mcp]
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema: {type: integer}
+        description: Business ID. 业务ID。
+      - in: query
+        name: page
+        required: false
+        schema: {type: integer, minimum: 1, default: 1}
+        description: Page number, starting from 1. 页码，从 1 开始。
+      - in: query
+        name: page_size
+        required: false
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        description: Number of collectors per page. 每页采集项数量。
+      - in: query
+        name: keyword
+        required: false
+        schema: {type: string, default: ''}
+        description: Fuzzy search keyword for collector name, result table, or business ID. 按采集项名称、结果表或业务 ID 模糊搜索。
+      - in: query
+        name: collector_scenario_id
+        required: false
+        schema:
+          type: string
+          enum: [row, section, wineventlog, custom, redis_slowlog, syslog, kafka, client]
+        description: Collector scenario filter. 采集场景过滤条件。
+      - in: query
+        name: enabled
+        required: false
+        schema: {type: boolean}
+        description: Filter by enabled or disabled status. 按启用或停用状态过滤。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/list_collectors/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/get_log_collector/:
+    get:
+      operationId: get_log_collector
+      description: Get one log collection configuration by collector_config_id. Call list_log_collectors first. The tool validates that the collector belongs to bk_biz_id and returns normalized target, collection, cleaning, storage, and index-set configuration without exposing unrelated raw fields. 按 collector_config_id 查询日志采集项详情；请先调用 list_log_collectors。工具会校验采集项归属业务，并返回统一的目标、采集、清洗、存储和索引集配置。
+      tags: [log_collection_mcp]
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema: {type: integer}
+        description: Business ID. 业务ID。
+      - in: query
+        name: collector_config_id
+        required: true
+        schema: {type: integer, minimum: 1}
+        description: Collector configuration ID returned by list_log_collectors. 由 list_log_collectors 返回的采集项 ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/get_collector/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
