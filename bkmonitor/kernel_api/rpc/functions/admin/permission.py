@@ -220,10 +220,85 @@ def _resolve_apm_app_parent(instance_ids: set[str]) -> dict[str, str]:
 
 def _resolve_grafana_dashboard_parent(instance_ids: set[str]) -> dict[str, str]:
     """GrafanaDashboard → space 父资源解析。
-    dashboard id 格式: "{org_id}|{uid}" → 通过 org_id 找对应 space。
-    暂返回空（Grafana dashboard 的 space 归属需要额外查询）。
+
+    IAM 平台回传的 instance_id 可能有 3 种格式（与 GrafanaDashboardProvider 一致）：
+      * "{org_id}|{uid}"                 —— Dashboard 常规格式
+      * "{uid}"                          —— Dashboard 兼容格式（无 org 前缀）
+      * "folder:{org_id}|{folder_id}"    —— Folder 授权
+
+    对上述三种，均映射到 org 所属 space（即 org.name == bk_biz_id，蓝鲸监控约定）。
+    返回 {instance_id: bk_biz_id}。
     """
-    return {}
+    if not instance_ids:
+        return {}
+    try:
+        from bk_dataview.models import Dashboard, Org
+    except ImportError:
+        return {}
+
+    FOLDER_PREFIX = "folder:"
+    org_ids: set[int] = set()
+    dashboard_uids: set[str] = set()
+    # 分类记录每个 instance_id 需要的中间键
+    per_instance_org: dict[str, int] = {}
+    per_instance_uid: dict[str, str] = {}
+
+    for iid in instance_ids:
+        iid_s = str(iid)
+        if iid_s.startswith(FOLDER_PREFIX):
+            body = iid_s[len(FOLDER_PREFIX) :]
+            if "|" in body:
+                org_str, _folder = body.split("|", 1)
+                try:
+                    per_instance_org[iid_s] = int(org_str)
+                    org_ids.add(int(org_str))
+                except ValueError:
+                    continue
+        elif "|" in iid_s:
+            org_str, uid = iid_s.split("|", 1)
+            try:
+                per_instance_org[iid_s] = int(org_str)
+                org_ids.add(int(org_str))
+            except ValueError:
+                # 头段不是数字 → 按纯 uid 处理
+                per_instance_uid[iid_s] = iid_s
+                dashboard_uids.add(iid_s)
+        else:
+            # 纯 uid 场景：需先查 Dashboard 表定位 org_id
+            per_instance_uid[iid_s] = iid_s
+            dashboard_uids.add(iid_s)
+
+    # 补齐"纯 uid → org_id"
+    if dashboard_uids:
+        try:
+            uid_to_org = dict(
+                Dashboard.objects.filter(uid__in=dashboard_uids, is_folder=False).values_list("uid", "org_id")
+            )
+        except Exception as e:
+            logger.warning("Query Dashboard.org_id by uid failed: %s", e)
+            uid_to_org = {}
+        for iid_s, uid in per_instance_uid.items():
+            org_id = uid_to_org.get(uid)
+            if org_id is not None:
+                per_instance_org[iid_s] = int(org_id)
+                org_ids.add(int(org_id))
+
+    if not org_ids:
+        return {}
+
+    # org_id → org.name（即 bk_biz_id）
+    try:
+        org_id_to_name = dict(Org.objects.filter(id__in=org_ids).values_list("id", "name"))
+    except Exception as e:
+        logger.warning("Query Org.name by id failed: %s", e)
+        return {}
+
+    result: dict[str, str] = {}
+    for iid_s, org_id in per_instance_org.items():
+        name = org_id_to_name.get(org_id)
+        if name:
+            result[iid_s] = str(name)
+    return result
 
 
 def _resolve_rum_app_parent(instance_ids: set[str]) -> dict[str, str]:
@@ -309,8 +384,66 @@ def _get_apm_app_display_names(ids: set[str]) -> dict[str, str]:
 
 
 def _get_grafana_dashboard_display_names(ids: set[str]) -> dict[str, str]:
-    """Grafana dashboard 展示名。"""
-    return {}
+    """Grafana dashboard 展示名。
+
+    与 _resolve_grafana_dashboard_parent 对齐支持 3 种 id 格式：
+      * "folder:{org_id}|{folder_id}"    → "[目录] {title}"
+      * "{org_id}|{uid}" / "{uid}"       → "{title}"
+
+    与 GrafanaDashboardProvider.fetch_instance_info 的展示名风格保持一致。
+    """
+    if not ids:
+        return {}
+    try:
+        from bk_dataview.models import Dashboard
+    except ImportError:
+        return {}
+
+    FOLDER_PREFIX = "folder:"
+    folder_id_to_iids: dict[int, list[str]] = defaultdict(list)
+    uid_to_iids: dict[str, list[str]] = defaultdict(list)
+
+    for iid in ids:
+        iid_s = str(iid)
+        if iid_s.startswith(FOLDER_PREFIX):
+            body = iid_s[len(FOLDER_PREFIX) :]
+            if "|" in body:
+                _org_str, folder_str = body.split("|", 1)
+                try:
+                    folder_id_to_iids[int(folder_str)].append(iid_s)
+                except ValueError:
+                    continue
+        elif "|" in iid_s:
+            _org_str, uid = iid_s.split("|", 1)
+            uid_to_iids[uid].append(iid_s)
+        else:
+            uid_to_iids[iid_s].append(iid_s)
+
+    result: dict[str, str] = {}
+
+    if folder_id_to_iids:
+        try:
+            folders = Dashboard.objects.filter(id__in=list(folder_id_to_iids.keys()), is_folder=True).values(
+                "id", "title"
+            )
+            for row in folders:
+                for iid_s in folder_id_to_iids.get(row["id"], []):
+                    result[iid_s] = f"[目录] {row['title']}"
+        except Exception as e:
+            logger.warning("Query Grafana folder titles failed: %s", e)
+
+    if uid_to_iids:
+        try:
+            dashboards = Dashboard.objects.filter(uid__in=list(uid_to_iids.keys()), is_folder=False).values(
+                "uid", "title"
+            )
+            for row in dashboards:
+                for iid_s in uid_to_iids.get(row["uid"], []):
+                    result[iid_s] = row["title"]
+        except Exception as e:
+            logger.warning("Query Grafana dashboard titles failed: %s", e)
+
+    return result
 
 
 def _get_rum_app_display_names(ids: set[str]) -> dict[str, str]:
@@ -645,31 +778,22 @@ def action_categories(params: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-@KernelRPCRegistry.register(
-    FUNC_QUERY_USER_PERMISSIONS,
-    summary="查询指定用户的全部 IAM 权限",
-    description=(
-        "查询指定用户的所有 IAM 操作权限（操作→空间映射）。"
-        "通过框架 query_policies_by_actions 批量获取策略表达式，本地递归解析。"
-    ),
-    params_schema={
-        "username": "必填，要查询的用户名",
-        "bk_tenant_id": "必填，租户 ID",
-    },
-    example_params={"username": "admin", "bk_tenant_id": "system"},
-)
 def _query_policies_with_fallback(
     fw,
     subject: FwSubject,
     action_ids: list[str],
     warnings: list[dict],
+    failed_action_ids: set[str],
 ) -> dict[str, list]:
     """批量优先 + 逐条降级查询策略表达式。
 
     批量查询（query_policies_by_actions）失败时降级为逐个 action 查询：
       * 单条查询失败 → policies[aid] = [None]（上层标记 error），并在 warnings 中记录
-        失败的 action_id 与错误详情
+        失败的 action_id 与错误详情；同时将 aid 加入 failed_action_ids
       * 单条查询成功 → policies[aid] = 表达式列表（可能为空，表示无权限策略）
+
+    上层调用方需通过 failed_action_ids 判定"查询失败" vs "无权限"（policies 缺 key 或
+    值为空列表都表示无权限，不是查询失败）。
     """
     try:
         return fw.query_policies_by_actions(subject, action_ids)
@@ -690,6 +814,7 @@ def _query_policies_with_fallback(
         except Exception as e:
             logger.warning("IAM query failed for action %s: %s", aid, e)
             policies[aid] = [None]
+            failed_action_ids.add(aid)
             warnings.append(
                 {
                     "code": "IAM_QUERY_FAILED",
@@ -700,6 +825,19 @@ def _query_policies_with_fallback(
     return policies
 
 
+@KernelRPCRegistry.register(
+    FUNC_QUERY_USER_PERMISSIONS,
+    summary="查询指定用户的全部 IAM 权限",
+    description=(
+        "查询指定用户的所有 IAM 操作权限（操作→空间映射）。"
+        "通过框架 query_policies_by_actions 批量获取策略表达式，本地递归解析。"
+    ),
+    params_schema={
+        "username": "必填，要查询的用户名",
+        "bk_tenant_id": "必填，租户 ID",
+    },
+    example_params={"username": "admin", "bk_tenant_id": "system"},
+)
 def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
     username = _normalize_username(params.get("username"))
     bk_tenant_id = require_bk_tenant_id(params)
@@ -717,7 +855,8 @@ def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
 
     # 通过框架查询策略表达式：批量优先，失败时降级为逐个 action 查询
     warnings: list[dict] = []
-    policies = _query_policies_with_fallback(fw, subject, action_ids, warnings)
+    failed_action_ids: set[str] = set()
+    policies = _query_policies_with_fallback(fw, subject, action_ids, warnings, failed_action_ids)
 
     # 一次遍历同时构造 actions_result 与累计 summary
     actions_result: list[dict[str, Any]] = []
@@ -727,10 +866,22 @@ def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
     for action in all_actions_list:
         # fw.query_policies_by_actions 返回 dict[action_id → list[PolicyExpression]]
         # V3Provider 的表达式在 list[0]
-        expr_list = policies.get(action.id, [None])
-        expr = expr_list[0] if expr_list else None
-
-        grant_type, permissions, note = _parse_action_permissions(action, expr)
+        # 语义区分：
+        #   * aid in failed_action_ids           → 查询失败 (grant_type=error)
+        #   * aid not in policies / expr_list 空 → 无权限   (grant_type=none)
+        #   * expr_list[0] is None（v3 none）    → 无权限   (grant_type=none)
+        if action.id in failed_action_ids:
+            expr = None
+            grant_type, permissions, note = "error", [], "IAM 查询失败"
+        else:
+            expr_list = policies.get(action.id, [])
+            expr = expr_list[0] if expr_list else None
+            # expr 为 None 时视为无权限（不是查询失败）：v3 provider 在无策略时会返回
+            # PolicyExpression.none() 而不是 None，此处兜底给 "none" 而非 "error"
+            if expr is None:
+                grant_type, permissions, note = "none", [], None
+            else:
+                grant_type, permissions, note = _parse_action_permissions(action, expr)
 
         if grant_type != "error":
             try:

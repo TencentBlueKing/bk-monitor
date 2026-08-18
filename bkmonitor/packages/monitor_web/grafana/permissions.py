@@ -168,7 +168,9 @@ class DashboardPermission(BasePermission):
                 role = GrafanaRole.Editor
             elif permission.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_DASHBOARD):
                 role = GrafanaRole.Viewer
-        except AuthAPIError:
+        except (AuthAPIError, ProviderError):
+            # AuthAPIError：兼容旧版 SDK；新框架下 v3/v4 provider 已在内部兜底并转抛
+            # ProviderError（含 ProviderUnavailable），故此处两者都需要接住。
             pass
 
         return role
