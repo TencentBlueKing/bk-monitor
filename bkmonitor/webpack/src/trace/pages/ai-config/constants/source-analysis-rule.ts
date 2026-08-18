@@ -23,7 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { CreateSourceAnalysisRuleParams } from '../typings';
+import { Module } from '@blueking/ai-ui-sdk/enums';
+
+import { AiResourceEnum } from './enum';
+
+import type { CreateSourceAnalysisRuleParams, IModuleConfig } from '../typings';
 
 /** 参与变更对比的可编辑字段 key 列表（与 CreateSourceAnalysisRuleParams 保持一致） */
 export const EDITABLE_KEYS: (keyof CreateSourceAnalysisRuleParams)[] = [
@@ -34,3 +38,21 @@ export const EDITABLE_KEYS: (keyof CreateSourceAnalysisRuleParams)[] = [
   'priority',
   'skill_ids',
 ];
+
+/** 资源选择弹窗标题 i18n key 映射 */
+export const RESOURCE_DIALOG_TITLE_MAP: Partial<Record<Module, string>> = {
+  [Module.Agent]: window.i18n.t('关联智能体'),
+  [Module.Skill]: window.i18n.t('关联 Skill'),
+  [Module.Knowledgebase]: window.i18n.t('关联知识库'),
+};
+
+/**
+ * @description 模块映射配置
+ * 将资源模块（Module）与「对应 dialogConfirm 回调数据字段、规则资源类型、是否单值」统一收敛到一处，
+ * 确认时 hook 内部据此完成 id 提取，宿主只需负责写回。
+ */
+export const MODULE_CONFIG: Partial<Record<Module, IModuleConfig>> = {
+  [Module.Agent]: { field: 'agents', resource: AiResourceEnum.AGENT, single: true },
+  [Module.Skill]: { field: 'skills', resource: AiResourceEnum.SKILL, single: false },
+  [Module.Knowledgebase]: { field: 'knowledgebases', resource: AiResourceEnum.KNOWLEDGE_BASE, single: false },
+};

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import type { AiResourceType } from './enum';
+
 /** 侧弹窗 confirm 事件抛出数据 */
 export type ConfirmPayload = {
   /** 提交参数：新增态为全量参数，编辑态为变更字段 */
@@ -41,6 +43,20 @@ export type CreateSourceAnalysisRuleParams = Pick<
   SourceAnalysisRuleDto,
   'agent_id' | 'conditions' | 'is_enabled' | 'knowledge_base_ids' | 'priority' | 'skill_ids'
 >;
+
+/**
+ * @description 资源弹窗模块映射配置
+ * 将资源模块（Module）与「对应 dialogConfirm 回调数据字段、规则资源类型、是否单值」统一收敛到一处，
+ * 确认时 hook 内部据此完成 id 提取，宿主只需负责写回。
+ */
+export interface IModuleConfig {
+  /** 对应 dialogConfirm 回调数据中的字段名 */
+  field: 'agents' | 'knowledgebases' | 'skills';
+  /** 对应规则中的资源类型（写回时使用） */
+  resource: AiResourceType;
+  /** 是否单值：智能体为单值（string），Skill / 知识库为多值（string[]） */
+  single: boolean;
+}
 
 /** 策略关联分析流程规则匹配条件 */
 export type SourceAnalysisCondition = {
