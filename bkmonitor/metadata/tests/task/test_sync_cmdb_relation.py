@@ -34,6 +34,7 @@ mock_redis_hgetall_return_value = {
 @pytest.fixture
 def create_and_delete_records(mocker):
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link", return_value=None)
     models.Label.objects.update_or_create(
         label_id="bk_monitor",
         defaults={"label_name": "蓝鲸监控", "label_type": models.Label.LABEL_TYPE_SOURCE},
@@ -104,7 +105,7 @@ def test_sync_relation_redis_data(create_and_delete_records):
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0) as mock_hset_to_redis,
-        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
         patch("time.time", return_value=1733198214),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True) as mock_refresh_consul,
@@ -182,7 +183,7 @@ def test_sync_relation_redis_data_skips_graph_dual_write_when_whitelist_empty(cr
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0),
-        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
         patch("time.time", return_value=1733198214),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
@@ -211,7 +212,7 @@ def test_sync_relation_redis_data_configures_graph_v4_for_whitelist(create_and_d
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0),
-        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
         patch("time.time", return_value=1733198214),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
@@ -338,7 +339,7 @@ def test_sync_relation_redis_data_configures_each_graph_v4_whitelist_biz(create_
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0),
-        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
         patch("time.time", return_value=1733198214),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
@@ -404,7 +405,7 @@ def test_sync_relation_graph_v4_dependency_failure_does_not_block_relation_sync(
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis") as mock_hset_to_redis,
-        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
         patch("metadata.models.TimeSeriesGroup.create_time_series_group", return_value=created_group),
@@ -500,7 +501,7 @@ def test_sync_relation_redis_data_new_rt_uses_created_group_token(create_and_del
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=redis_data),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0) as mock_hset_to_redis,
-        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True) as mock_refresh_consul,
         patch("metadata.models.TimeSeriesGroup.create_time_series_group", return_value=created_group),
