@@ -47,6 +47,7 @@ from ..core.types import (
     Subject,
     VisibleResult,
 )
+from ..core.exceptions import ProviderNotFound
 from ..provider.base import PermissionProvider
 
 if TYPE_CHECKING:
@@ -106,6 +107,23 @@ class IAMFramework:
             v3_expr = fw.providers["v3"].query_policy(subject, action_id)
         """
         return self._providers
+
+    def get_provider(self, name: str) -> PermissionProvider:
+        """按名称获取 Provider（框架导航入口）。
+
+        Args:
+            name: Provider 名称（如 "v3" / "v4"）。
+
+        Returns:
+            已装配的 Provider 实例。
+
+        Raises:
+            ProviderNotFound: 名称不存在。
+        """
+        try:
+            return self._providers[name]
+        except KeyError:
+            raise ProviderNotFound(f"Provider {name!r} not found. Available: {sorted(self._providers)}") from None
 
     @property
     def router(self) -> ProviderRouter:

@@ -533,7 +533,11 @@ class V4Migrator:
             elif change.kind == EntityKind.ROLE:
                 d_entity_id = self._codec.encode_role(change.entity_id)
                 if change.change_type == ChangeType.CREATE:
-                    self._client.batch_create_roles([change.after])
+                    # 迁移文件链路（makemigrations 快照）的 after.actions 是业务命名
+                    # （action_id/resource_type），需归一化为 v4 方言（id/resource_type_id）
+                    after = dict(change.after or {})
+                    after["actions"] = self._role_action_items(after.get("actions"))
+                    self._client.batch_create_roles([after])
                 elif change.change_type == ChangeType.UPDATE:
                     self._client.update_role(
                         d_entity_id,
@@ -542,20 +546,22 @@ class V4Migrator:
                             "description": (change.after or {}).get("description", ""),
                         },
                     )
-                    before_actions = (change.before or {}).get("actions", []) or []
-                    after_actions = (change.after or {}).get("actions", []) or []
-
-                    def _key(a: dict) -> tuple:
-                        return (a.get("id", ""), a.get("resource_type_id", ""))
-
-                    before_map = {_key(a): a for a in before_actions}
-                    after_map = {_key(a): a for a in after_actions}
+                    before_map = {
+                        self._role_action_key(a): a
+                        for a in self._role_action_items((change.before or {}).get("actions"))
+                    }
+                    after_map = {
+                        self._role_action_key(a): a
+                        for a in self._role_action_items((change.after or {}).get("actions"))
+                    }
                     to_remove = [before_map[k] for k in before_map.keys() - after_map.keys()]
                     to_add = [after_map[k] for k in after_map.keys() - before_map.keys()]
-                    if to_remove:
-                        self._client.batch_delete_role_actions(d_entity_id, to_remove)
+                    # 先加后删：v4 平台对"有授权的维度"校验删除后至少保留一个 action，
+                    # 先增补新绑定再删除旧绑定可满足该约束（先删后加会短暂清零被拒）
                     if to_add:
                         self._client.batch_create_role_actions(d_entity_id, to_add)
+                    if to_remove:
+                        self._client.batch_delete_role_actions(d_entity_id, to_remove)
                 elif change.change_type == ChangeType.DELETE:
                     self._client.delete_role(d_entity_id)
         except Exception as e:
@@ -568,6 +574,32 @@ class V4Migrator:
     # ================================================================
 
     @staticmethod
+    def _role_action_items(actions) -> list[dict]:
+        """role actions 归一化为 v4 方言格式（id/resource_type_id）。
+
+        兼容两种来源：
+          * 迁移文件/快照链路：{"action_id": ..., "resource_type": ...}
+          * plan_migration（_diff_roles）：{"id": ..., "resource_type_id": ...}
+
+        平台 roleCreateRequest.Actions 严格校验 ID 字段，业务命名（action_id）
+        映射不到 ID 会被拒绝（400 INVALID_ARGUMENT），因此必须归一化。
+        """
+        items: list[dict] = []
+        for a in actions or []:
+            if not isinstance(a, dict):
+                continue
+            aid = a.get("id") or a.get("action_id") or ""
+            rtid = a.get("resource_type_id") or a.get("resource_type") or ""
+            if aid:
+                items.append({"id": aid, "resource_type_id": rtid})
+        return items
+
+    @staticmethod
+    def _role_action_key(a: dict) -> tuple:
+        """role action 去重/比较键（方言命名）。"""
+        return (a.get("id", ""), a.get("resource_type_id", ""))
+
+    @staticmethod
     def _ancestor_depth(change: Change) -> int:
         ancestors = (change.after or {}).get("ancestors", []) or (change.before or {}).get("ancestors", [])
         if isinstance(ancestors, str):
@@ -578,19 +610,24 @@ class V4Migrator:
     def _topology_sort(cls, changes: list[Change]) -> list[Change]:
         """按拓扑顺序排序 changes。
 
-        总体两阶段：DELETE 全部先执行 → CREATE/UPDATE 后执行（先删后建）。
-        与 v3 provider 执行策略一致：平台对同名实体重建（id 变更）有约束，
-        必须先删旧再建新；同时保证依赖方向不被破坏——
-        DELETE 阶段内：Role → Action → RT(子→父) → System（引用者先删）
-        CREATE/UPDATE 阶段内：System → RT(父→子) → Action → Role（被引用者先建）
+        总体两阶段：CREATE/UPDATE 全部先执行 → DELETE 后执行（先建后删）。
+        与 v3 不同：v4 平台对"框架 id 变更"（删旧建新）的约束是——
+          * action name 唯一针对"当前值"（新 id 用不同名即无冲突，无需先删旧）；
+          * 被 role 引用的 action 禁止删除 → role 变更（含 UPDATE 改绑）必须
+            先于 action DELETE 执行；
+          * role 有授权的维度删除 action 后至少保留一个 → role actions 变更
+            由 _apply_change 按"先加后删"执行。
+        因此 v4 采用"先建后删"：CREATE/UPDATE 阶段（System → RT(父→子) →
+        Action → Role）先建/改绑，DELETE 阶段（Role → Action → RT(子→父) →
+        System）引用者先删。
         """
 
         def key(c: Change) -> tuple:
             kind_order = cls._KIND_ORDER.get(c.kind, 99)
             depth = cls._ancestor_depth(c)
             if c.change_type == ChangeType.DELETE:
-                return (0, -kind_order, -depth, c.entity_id)
-            return (1, kind_order, depth, c.entity_id)
+                return (1, -kind_order, -depth, c.entity_id)
+            return (0, kind_order, depth, c.entity_id)
 
         return sorted(changes, key=key)
 

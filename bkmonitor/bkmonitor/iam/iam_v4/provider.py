@@ -19,6 +19,7 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 import importlib
+import logging
 from typing import TYPE_CHECKING, Any
 
 from ..iam_engine.callback.service import CallbackService
@@ -46,6 +47,8 @@ if TYPE_CHECKING:
     from ..iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleDef
     from ..iam_engine.schema.diff import MigrationPlan, MigrationReport
     from ..iam_engine.schema.registry import SchemaRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class V4PermissionProvider(PermissionProvider):
@@ -131,13 +134,21 @@ class V4PermissionProvider(PermissionProvider):
 
         Returns:
             True 表示允许；False 表示业务语义拒绝，非系统错误。
+
+        容错：平台对不存在的实体（如 action 已删除）的鉴权查询返回 400
+        "action not found" 等错误 → 视为拒绝（与 v3 的 AuthAPIError 兜底语义对齐），
+        避免实体删除/未同步期间鉴权抛异常。
         """
         v4_resource = self._to_v4_resource(request) if request.resource else None
-        return self._client.direct_auth(
-            subject_id=request.subject.id,
-            action_id=request.action_id,
-            resource=v4_resource,
-        )
+        try:
+            return self._client.direct_auth(
+                subject_id=request.subject.id,
+                action_id=request.action_id,
+                resource=v4_resource,
+            )
+        except Exception:
+            logger.exception("[iam_v4:is_allowed] error for action=%s", request.action_id)
+            return False
 
     # ================================================================
     # 方言层：同 action、多 resource 单页

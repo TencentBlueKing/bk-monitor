@@ -42,7 +42,7 @@ from constants.common import DEFAULT_TENANT_ID
 from metadata.models import Space, SpaceType
 from rum_web.models.application import Application as RumApplication
 
-from ..iam_engine.callback.registry import register_fetch_instance_info, register_list_instance
+from ...iam_engine.callback.registry import register_fetch_instance_info, register_list_instance
 
 logger = logging.getLogger(__name__)
 
