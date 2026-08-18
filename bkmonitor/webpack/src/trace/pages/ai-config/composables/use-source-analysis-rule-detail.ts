@@ -58,7 +58,7 @@ export const useSourceAnalysisRuleDetail = () => {
     is_default: false,
     is_enabled: false,
     knowledge_base_ids: [],
-    priority: undefined,
+    priority: 10,
     repository_alias: '',
     skill_ids: [],
     updated_at: 0,
@@ -68,8 +68,11 @@ export const useSourceAnalysisRuleDetail = () => {
   /**
    * @description 初始化新增态详情，供新增场景使用
    */
-  const initDetail = () => {
+  const initDetail = (callback: (detail: SourceAnalysisRuleDto) => void) => {
     detail.value = createDefaultDetail();
+    callback({
+      ...detail.value,
+    });
     rawData = null;
   };
 
@@ -85,13 +88,14 @@ export const useSourceAnalysisRuleDetail = () => {
    * @description 查询规则详情
    * @param {number} id - 规则 id
    */
-  const fetchDetail = async (id: number) => {
+  const fetchDetail = async (id: number, callback: (detail: SourceAnalysisRuleDto) => void) => {
     loading.value = true;
     try {
       const data = await getSourceAnalysisRule(id);
       // detail 持深拷贝副本以便自由编辑，rawData 直接持有接口原始数据作为 diff 基准
       detail.value = JSON.parse(JSON.stringify(data));
       rawData = data;
+      callback(data);
     } finally {
       loading.value = false;
     }
@@ -148,14 +152,18 @@ export const useSourceAnalysisRuleDetail = () => {
    * 新增态（无 rawData）时，所有可编辑字段均视为变更，返回全量可编辑字段。
    * @returns {Partial<CreateSourceAnalysisRuleParams>} 仅包含发生变化的字段
    */
-  const getChangedFields = (): Partial<CreateSourceAnalysisRuleParams> => {
+  const getChangedFields = (otherParams: Record<string, any>): Partial<CreateSourceAnalysisRuleParams> => {
     const current = detail.value;
     if (!current) return {};
+    const currentValue = {
+      ...current,
+      ...otherParams,
+    };
     const base = (rawData ?? {}) as Partial<SourceAnalysisRuleDto>;
     const result: Partial<CreateSourceAnalysisRuleParams> = {};
     for (const key of EDITABLE_KEYS) {
       const prev = base[key];
-      const next = current[key];
+      const next = currentValue[key];
       // 数组/对象按内容比较，原始值等价于 === 比较
       if (JSON.stringify(prev) !== JSON.stringify(next)) {
         Object.assign(result, { [key]: next });
@@ -168,11 +176,15 @@ export const useSourceAnalysisRuleDetail = () => {
    * @description 从 detail 中提取新增态所需的全量参数
    * @returns {CreateSourceAnalysisRuleParams | null} 新增参数，detail 为空时返回 null
    */
-  const getCreateParams = (): CreateSourceAnalysisRuleParams | null => {
+  const getCreateParams = (otherParams: Record<string, any>): CreateSourceAnalysisRuleParams | null => {
     if (!detail.value) return null;
     const params = {};
+    const detailValue = {
+      ...detail.value,
+      ...otherParams,
+    };
     for (const key of EDITABLE_KEYS) {
-      Object.assign(params, { [key]: detail.value[key] });
+      Object.assign(params, { [key]: detailValue[key] });
     }
     return params as CreateSourceAnalysisRuleParams;
   };

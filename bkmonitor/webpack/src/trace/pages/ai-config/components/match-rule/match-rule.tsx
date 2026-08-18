@@ -24,23 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
 import RetrievalFilter from 'trace/components/retrieval-filter/retrieval-filter';
-
-import type { IFilterField, IWhereItem } from 'trace/components/retrieval-filter/typing';
+import { type IWhereItem, RETRIEVAL_FILTER_PROPS } from 'trace/components/retrieval-filter/typing';
 
 import './match-rule.scss';
+
 export default defineComponent({
   name: 'MatchRule',
   props: {
-    value: {
-      type: Array as PropType<IWhereItem[]>,
-      default: () => [],
-    },
-    fields: {
-      type: Array as PropType<IFilterField[]>,
-      default: () => [],
+    value: RETRIEVAL_FILTER_PROPS.where,
+    fields: RETRIEVAL_FILTER_PROPS.fields,
+    getValueFn: RETRIEVAL_FILTER_PROPS.getValueFn,
+    tagValueDisplayFormatter: RETRIEVAL_FILTER_PROPS.tagValueDisplayFormatter,
+    readonly: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
@@ -57,10 +57,14 @@ export default defineComponent({
   render() {
     return (
       <RetrievalFilter
-        class='ai-config-match-rule-component'
+        class={['ai-config-match-rule-component', { 'is-readonly': this.readonly }]}
         fields={this.fields}
-        isShowClear={true}
+        getValueFn={this.getValueFn}
+        isShowClear={!this.readonly}
+        isShowSearchBtn={false}
         isSingleMode={true}
+        tagValueDisplayFormatter={this.tagValueDisplayFormatter}
+        uiModeReadonly={this.readonly}
         where={this.value}
         zIndex={3000}
         onWhereChange={this.handleWhereChange}

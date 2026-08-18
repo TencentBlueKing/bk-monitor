@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, shallowRef, watch } from 'vue';
+import { defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Button, InfoBox, Input, Message, Select } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
@@ -33,6 +33,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useBkciProjectsSelect } from '../../composables/use-bkci-projects-select';
 import { useBkciRepositoriesSelect } from '../../composables/use-bkci-repositories-select';
+import { useMatchRuleFields } from '../../composables/use-match-rule-fields';
 import { SidesliderTypeEnum } from '../../constants';
 import { getSourceAnalysisConfigData, setSaveSourceAnalysisConfig } from '../../services/ai-config';
 import {
@@ -92,6 +93,16 @@ export default defineComponent({
     const configLoading = shallowRef(false);
     /** 规则列表加载中 */
     const rulesLoading = shallowRef(false);
+    const saveLoading = shallowRef(false);
+
+    /** 匹配规则字段与候选值（与侧弹窗共享） */
+    const {
+      fields: matchRuleFields,
+      fetchAllData: fetchMatchRuleFields,
+      getValueFn: getMatchRuleValueFn,
+      loading: matchRuleFieldsLoading,
+      tagValueDisplayFormatter: getMatchRuleTagValueDisplayFormatter,
+    } = useMatchRuleFields();
 
     /**
      * @description 统一控制侧弹窗显隐，并在关闭时重置操作类型与规则 id
@@ -146,11 +157,18 @@ export default defineComponent({
     const handleSaveConfig = async () => {
       projectErrMsg.value = bkciProjectId.value ? '' : t('必填项');
       repositoryErrMsg.value = repositoryAlias.value ? '' : t('必填项');
-      if (!bkciProjectId.value || !repositoryAlias.value) return;
-      await setSaveSourceAnalysisConfig({
+      if (!bkciProjectId.value || !repositoryAlias.value || saveLoading.value) return;
+      saveLoading.value = true;
+      const success = await setSaveSourceAnalysisConfig({
         bkci_project_id: bkciProjectId.value,
         repository_alias: repositoryAlias.value,
-      });
+      })
+        .then(() => true)
+        .catch(() => false);
+      saveLoading.value = false;
+      if (success) {
+        Message({ theme: 'success', message: t('保存成功') });
+      }
     };
 
     /**
@@ -162,12 +180,8 @@ export default defineComponent({
         const data = await getSourceAnalysisConfigData().catch(() => null);
         if (data?.bkci_project_id) {
           bkciProjectId.value = data.bkci_project_id;
-          // 已配置蓝盾项目，加载其下的源码仓库列表，保证选中值能正常展示
-          repositoriesSelect.fetchData();
         }
         repositoryAlias.value = data?.repository_alias || '';
-        // 加载蓝盾项目列表，保证已选项目能匹配到对应名称
-        projectsSelect.fetchData();
       } finally {
         configLoading.value = false;
       }
@@ -185,7 +199,6 @@ export default defineComponent({
         rulesLoading.value = false;
       }
     };
-    handleFetchRules();
 
     /**
      * @description 清空规则搜索关键字
@@ -246,16 +259,15 @@ export default defineComponent({
       });
     };
 
-    /** 蓝盾项目切换/清空时，同步清空已选的源码仓库 */
-    watch(
-      () => bkciProjectId.value,
-      () => {
-        repositoryAlias.value = '';
-      }
-    );
+    const handleChangeBkciProjectId = val => {
+      bkciProjectId.value = val;
+      repositoryAlias.value = '';
+    };
 
     onMounted(() => {
       handleInitConfig();
+      handleFetchRules();
+      fetchMatchRuleFields();
     });
 
     return {
@@ -291,6 +303,12 @@ export default defineComponent({
       handleClearSearch,
       handleTableUpdateRule,
       handleDeleteRule,
+      matchRuleFields,
+      getMatchRuleValueFn,
+      matchRuleFieldsLoading,
+      getMatchRuleTagValueDisplayFormatter,
+      saveLoading,
+      handleChangeBkciProjectId,
     };
   },
   render() {
@@ -374,9 +392,7 @@ export default defineComponent({
                         onScroll-end={this.handleProjectsScrollEnd}
                         onSearch-change={this.handleProjectsSearch}
                         onToggle={this.handleProjectsToggle}
-                        onUpdate:modelValue={val => {
-                          this.bkciProjectId = val;
-                        }}
+                        onUpdate:modelValue={val => this.handleChangeBkciProjectId(val)}
                       >
                         {/* 首次加载/搜索时显示骨架屏占位，避免下拉面板空白闪烁 */}
                         {this.projectsLoading ? (
@@ -509,7 +525,10 @@ export default defineComponent({
                 <AnalysisRuleTable
                   data={this.sourceAnalysisRules}
                   loading={this.rulesLoading}
+                  matchRuleFields={this.matchRuleFields}
+                  matchRuleFieldsLoading={this.matchRuleFieldsLoading}
                   searchValue={this.searchValue}
+                  tagValueDisplayFormatter={this.getMatchRuleTagValueDisplayFormatter}
                   onClearSearch={this.handleClearSearch}
                   onDeleteRule={this.handleDeleteRule}
                   onEditRule={(rule: SourceAnalysisRuleDto) =>
@@ -518,9 +537,13 @@ export default defineComponent({
                   onUpdateRule={this.handleTableUpdateRule}
                 />
                 <AnalysisConfigSideslider
+                  getMatchRuleValueFn={this.getMatchRuleValueFn}
+                  matchRuleFields={this.matchRuleFields}
+                  matchRuleFieldsLoading={this.matchRuleFieldsLoading}
                   processName='IEG - 登陆服务'
                   ruleId={this.editRuleId}
                   show={this.showBindModal}
+                  tagValueDisplayFormatter={this.getMatchRuleTagValueDisplayFormatter}
                   type={this.sidesliderType}
                   onConfirm={this.handleBindConfirm}
                   onUpdate:show={this.handleRuleSliderChange}
@@ -531,6 +554,7 @@ export default defineComponent({
           '2'
         )}
         <Button
+          loading={this.saveLoading}
           theme='primary'
           onClick={this.handleSaveConfig}
         >

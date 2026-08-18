@@ -1,3 +1,18 @@
+/* stylelint-disable declaration-no-important */
+
+/* stylelint-disable selector-class-pattern */
 .ai-config-match-rule-component {
   position: relative;
+  border: 1px solid #dcdee5;
+  border-radius: 4px;
+  box-shadow: none !important;
+
+  &.is-readonly {
+    padding: 0 !important;
+    border: none !important;
+
+    .vue3_retrieval-filter__ui-selector-component {
+      padding: 0;
+    }
+  }
 }
