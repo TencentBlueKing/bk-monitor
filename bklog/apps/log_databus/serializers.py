@@ -1169,8 +1169,8 @@ class CleanTemplateUpdateSerializer(serializers.Serializer):
             EtlConfig.BK_LOG_REGEXP,
         ),
     )
-    etl_params = serializers.DictField(label=_("清洗配置"), required=True)
-    etl_fields = serializers.ListField(child=serializers.DictField(), label=_("字段配置"), required=True)
+    etl_params = CollectorEtlParamsSerializer(label=_("清洗配置"), required=True)
+    etl_fields = CollectorEtlFieldsSerializer(label=_("字段配置"), many=True, required=True)
     description = serializers.CharField(label=_("模板描述"), required=False, allow_blank=True, max_length=500)
 
 
