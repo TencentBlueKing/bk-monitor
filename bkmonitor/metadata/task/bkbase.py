@@ -106,13 +106,9 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
 
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
-        table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
         bk_tenant_id: str = ds.bk_tenant_id
     except models.DataSource.DoesNotExist:
         logger.error("sync_bkbase_v4_metadata: DataSource->[%s] does not exist", bk_data_id)
-        return
-    except models.DataSourceResultTable.DoesNotExist:
-        logger.error("sync_bkbase_v4_metadata: DataSourceResultTable for bk_data_id->[%s] does not exist", bk_data_id)
         return
 
     if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
