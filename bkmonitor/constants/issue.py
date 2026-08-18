@@ -144,7 +144,6 @@ class SourceAnalysisFailureStage:
     AI_ANALYSIS = "ai_analysis"
     RESULT_VALIDATE = "result_validate"
     RESULT_ARCHIVE = "result_archive"
-    RESULT_FETCH = "result_fetch"
     RESULT_PERSIST = "result_persist"
 
     CHOICES = (
@@ -154,7 +153,6 @@ class SourceAnalysisFailureStage:
         (AI_ANALYSIS, _("AI 分析")),
         (RESULT_VALIDATE, _("校验分析结果")),
         (RESULT_ARCHIVE, _("归档分析结果")),
-        (RESULT_FETCH, _("读取分析结果")),
         (RESULT_PERSIST, _("持久化分析结果")),
     )
 
@@ -166,7 +164,11 @@ class SourceAnalysisFailureMessage:
     的默认语言固化到执行记录中。``gettext_noop`` 只负责标记待翻译文案。
     """
 
-    BKFARA_CREATE_MISSING_TASK_ID = gettext_noop("BKFara 创建任务响应缺少 task_id")
+    BKFARA_ENSURE_MISSING_PROVISION_ID = gettext_noop("BKFara 初始化场景响应缺少 provision_id")
+    BKFARA_PROVISION_ID_CONFLICT = gettext_noop("相同场景初始化请求返回了不同的 provision_id")
+    BKFARA_SCENE_STATE_INVALID = gettext_noop("BKFara 场景初始化状态响应非法")
+    BKFARA_SCENE_FAILED = gettext_noop("BKFara 场景初始化失败")
+    BKFARA_TRIGGER_MISSING_TASK_ID = gettext_noop("BKFara 触发分析响应缺少 analysis_task_id")
     BKFARA_TASK_ID_CONFLICT = gettext_noop("相同 analysis_id 返回了不同的 BKFara task_id")
     BKFARA_TASK_STATE_INVALID = gettext_noop("BKFara 任务状态响应非法")
     BKFARA_TASK_FAILED = gettext_noop("BKFara 源码分析任务执行失败")
@@ -178,7 +180,11 @@ class SourceAnalysisFailureMessage:
 
     LOCALIZED_MESSAGES = frozenset(
         {
-            BKFARA_CREATE_MISSING_TASK_ID,
+            BKFARA_ENSURE_MISSING_PROVISION_ID,
+            BKFARA_PROVISION_ID_CONFLICT,
+            BKFARA_SCENE_STATE_INVALID,
+            BKFARA_SCENE_FAILED,
+            BKFARA_TRIGGER_MISSING_TASK_ID,
             BKFARA_TASK_ID_CONFLICT,
             BKFARA_TASK_STATE_INVALID,
             BKFARA_TASK_FAILED,

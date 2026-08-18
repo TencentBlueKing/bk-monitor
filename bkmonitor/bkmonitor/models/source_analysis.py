@@ -39,6 +39,13 @@ class IssueSourceAnalysisConfig(AbstractRecordModel):
     bk_biz_id = models.IntegerField(unique=True, verbose_name="业务 ID")
     bkci_project_id = models.CharField(max_length=128, verbose_name="蓝盾项目 ID")
     repository_alias = models.CharField(max_length=255, verbose_name="蓝盾代码库别名")
+    bkfara_provision_id = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="BKFara 场景初始化 ID",
+    )
 
 
 class IssueSourceAnalysisRule(AbstractRecordModel):
@@ -99,7 +106,7 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     """单次源码分析的执行记录、状态机与输入快照。
 
     Issue 本体存放在 ES，这里只按字符串关联 issue_id，与 IssueMergeRelation、IssueTapdRelation 保持一致。
-    执行链路以 analysis_id -> bkfara_task_id 标识，analysis_id 同时是 BKM 到 BKFara 的任务幂等键。
+    执行链路以 analysis_id -> bkfara_task_id 标识；analysis_id 稳定派生 BKFara 要求的 UUID 幂等键。
 
     status、stage、trigger_type、failure_stage、result_type 的取值分别由 constants.issue 下的同名常量类定义。
     这些字段刻意不声明 choices：状态流转统一走条件更新，choices 在此不产生任何校验，
@@ -193,10 +200,17 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     agent_id = models.CharField(max_length=64, verbose_name="智能体 ID 快照")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID 快照")
     knowledge_base_ids = JsonField(default=list, blank=True, verbose_name="知识库 ID 快照")
+    bkfara_provision_id = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="BKFara 场景初始化 ID 快照",
+    )
 
-    # 拿到 task_id 后不得重复创建 BKFara 任务，只能查询并恢复
+    # 拿到 analysis_task_id 后不得重复触发 BKFara，只能查询并恢复
     bkfara_task_id = models.CharField(
-        max_length=128, null=True, blank=True, default=None, verbose_name="BKFara 任务 ID"
+        max_length=128, null=True, blank=True, default=None, verbose_name="BKFara 分析任务 ID"
     )
     failure_stage = models.CharField(
         max_length=32,

@@ -9,12 +9,16 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import ast
+import json
+import uuid
 
 from django.conf import settings
 
 from rest_framework import serializers
 
 from core.drf_resource.contrib.api import APIResource
+from core.errors.api import BKAPIError
 
 
 class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
@@ -174,84 +178,133 @@ class GetTaskStatusResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
 
-class BkFaraSourceAnalysisBaseResource(IncidentBaseResource):
-    """复用 BKFara 网关配置，但保留源码分析协议中的 bk_biz_id。"""
+class UUIDStringField(serializers.CharField):
+    """校验 UUID，同时保留字符串类型供 requests JSON 序列化。"""
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        try:
+            return str(uuid.UUID(value))
+        except (AttributeError, TypeError, ValueError) as error:
+            raise serializers.ValidationError("Must be a valid UUID.") from error
+
+
+class SourceAnalysisInputsSerializer(serializers.Serializer):
+    repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
+    agent_id = serializers.CharField(label="智能体 ID", max_length=64)
+    skill_ids = serializers.ListField(
+        label="Skill ID",
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        max_length=50,
+    )
+    knowledge_base_ids = serializers.ListField(
+        label="知识库 ID",
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        max_length=50,
+    )
+    issue_context = serializers.DictField(label="Issue 上下文", required=False)
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = set(data) - set(self.fields)
+            if unknown_fields:
+                raise serializers.ValidationError({field: "Unexpected field." for field in sorted(unknown_fields)})
+        return super().to_internal_value(data)
+
+
+class BkFaraSourceAnalysisBaseResource(APIResource):
+    """BKFara Issue 源码分析四接口的公共网关与错误协议适配。"""
+
+    module_name = "bkfara"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    @property
+    def base_url(self):
+        return settings.BKFARA_APIGW_BASE_URL
+
+    @staticmethod
+    def _normalize_error_data(error_data):
+        """把标准错误 envelope 归一为 data.error，兼容 HTTP 4xx 被序列化为 bytes 文本。"""
+
+        if not isinstance(error_data, dict):
+            return error_data
+        if isinstance(error_data.get("error"), dict):
+            return error_data["error"]
+
+        message = error_data.get("message")
+        if not isinstance(message, str):
+            return error_data
+        try:
+            raw_body = ast.literal_eval(message)
+            if isinstance(raw_body, bytes):
+                raw_body = raw_body.decode()
+            response_data = json.loads(raw_body)
+        except (SyntaxError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            return error_data
+        if isinstance(response_data, dict) and isinstance(response_data.get("error"), dict):
+            return response_data["error"]
+        return error_data
 
     def perform_request(self, validated_request_data):
-        return APIResource.perform_request(self, validated_request_data)
+        try:
+            return super().perform_request(validated_request_data)
+        except BKAPIError as error:
+            error.data = self._normalize_error_data(error.data)
+            raise
 
 
-class EnsureSourceAnalysisFlowResource(BkFaraSourceAnalysisBaseResource):
-    """幂等初始化或对齐业务源码分析流程。"""
+class EnsureSourceAnalysisSceneResource(BkFaraSourceAnalysisBaseResource):
+    """幂等初始化或对齐业务源码分析场景。"""
 
-    # TODO: BKFara 发布源码分析初始化资源后补充实际路径。
-    action = ""
+    action = "/incident/issue_analysis/ensure_scene/"
     method = "POST"
-    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
-        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+        devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
 
 
-class CreateSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
-    """按 analysis_id 幂等创建 BKFara 源码分析任务（临时 mock 协议）。"""
+class GetSourceAnalysisSceneStatusResource(BkFaraSourceAnalysisBaseResource):
+    """查询源码分析场景的异步初始化状态。"""
 
-    # TODO: BKFara 发布正式接口后替换路径，并按真实协议调整本文件中的字段适配。
-    action = ""
-    method = "POST"
-    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务 ID")
-        analysis_id = serializers.CharField(label="分析记录 ID", max_length=64)
-
-
-class ExecuteSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
-    """启动已创建的源码分析任务（临时 mock 协议）。"""
-
-    # 同一 task_id 的重复执行必须幂等，避免请求超时后的恢复产生重复流水线。
-    action = ""
-    method = "POST"
-    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+    action = "/incident/issue_analysis/get_scene_status/"
+    method = "GET"
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务 ID")
-        task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
-        analysis_id = serializers.CharField(label="分析记录 ID", max_length=64)
+        provision_id = serializers.CharField(label="场景初始化 ID", max_length=128)
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+
+
+class TriggerSourceAnalysisResource(BkFaraSourceAnalysisBaseResource):
+    """按 client_request_id 幂等触发一次源码分析。"""
+
+    action = "/incident/issue_analysis/trigger/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
         issue_id = serializers.CharField(label="Issue ID", max_length=64)
-        alert_id = serializers.CharField(label="告警 ID", max_length=64)
-        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
-        repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
-        agent_id = serializers.CharField(label="智能体 ID", max_length=64)
-        skill_ids = serializers.ListField(label="Skill ID", child=serializers.CharField(), required=False)
-        knowledge_base_ids = serializers.ListField(label="知识库 ID", child=serializers.CharField(), required=False)
-        trigger_user = serializers.CharField(label="触发用户", max_length=64)
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+        devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
+        inputs = SourceAnalysisInputsSerializer(label="分析输入")
 
 
 class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
-    """查询源码分析任务状态（临时 mock 协议）。"""
+    """查询源码分析任务状态及终态结果。"""
 
-    action = ""
+    action = "/incident/issue_analysis/get_task/"
     method = "GET"
-    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务 ID")
-        task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
-
-
-class GetSourceAnalysisResultResource(BkFaraSourceAnalysisBaseResource):
-    """读取源码分析成功结果（临时 mock 协议）。"""
-
-    # TODO: BKFara 发布正式接口后补充路径，并在本 Resource 内适配为 BKM 结果 envelope。
-    action = ""
-    method = "GET"
-    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务 ID")
-        task_id = serializers.CharField(label="BKFara 任务 ID", max_length=128)
+        analysis_task_id = serializers.CharField(label="BKFara 分析任务 ID", max_length=128)
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
 
 
 class GetIncidentDiagnosisResource(IncidentBaseResource):
