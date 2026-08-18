@@ -120,6 +120,8 @@ class EtlConfigs(Enum):
 
     # 日志清洗类型
     BK_FLAT_BATCH = "bk_flat_batch"
+    # 原始格式由 ResultTable 上的 Clean 规则定义
+    BK_CUSTOM_FORMAT = "bk_custom_format"
 
     _choices_labels = (
         (BK_SYSTEM_BASEREPORT, "bk_system_basereport"),
@@ -133,6 +135,7 @@ class EtlConfigs(Enum):
         (BK_EXPORTER, "bk_exporter"),
         (BK_STANDARD, "bk_standard"),
         (BK_FLAT_BATCH, "bk_flat_batch"),
+        (BK_CUSTOM_FORMAT, "bk_custom_format"),
         (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
         (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
         (BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG, "bk_multi_tenancy_system_proc_perf"),
@@ -152,6 +155,7 @@ ENABLE_V4_DATALINK_ETL_CONFIGS = [
     EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
     EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
     EtlConfigs.BK_STANDARD_V2_EVENT.value,
+    EtlConfigs.BK_CUSTOM_FORMAT.value,
 ]
 
 # 若启用插件接入V4数据链路，则将BK_EXPORTER和BK_STANDARD也加入到V4数据链路
@@ -172,6 +176,7 @@ LOG_EVENT_ETL_CONFIGS = [
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
     EtlConfigs.BK_FLAT_BATCH.value,
     EtlConfigs.BK_STANDARD_V2_EVENT.value,
+    EtlConfigs.BK_CUSTOM_FORMAT.value,
 ]
 
 # bkcc 存在全业务的空间，空间 ID 为 "0"

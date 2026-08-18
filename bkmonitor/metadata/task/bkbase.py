@@ -799,6 +799,9 @@ def _get_bkbase_components_config(
             if not extra_config["bkbase_table_id"]:
                 extra_config["bkbase_table_id"] = f"{spec['bizId']}_{name}"
             extra_config["data_type"] = spec["dataType"]
+        case DataLinkKind.CHANNELBINDING.value:
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["channel_name"] = spec["channel"]["name"]
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
@@ -817,7 +820,17 @@ def _get_bkbase_components_config(
             extra_config["vertices"] = spec.get("vertices", [])
             extra_config["relations"] = spec.get("relations", [])
         case DataLinkKind.DATABUS.value:
-            extra_config["data_id_name"] = spec["sources"][0]["name"]
+            source = spec["sources"][0]
+            extra_config["data_id_name"] = source["name"]
+            extra_config["source_kind"] = source["kind"]
+            extra_config["source_name"] = source["name"]
+            extra_config["role"] = (
+                "vm_shipper"
+                if source["kind"] == DataLinkKind.RESULTTABLE.value
+                else "clean"
+                if any(transform.get("kind") == "Clean" for transform in spec.get("transforms", []))
+                else "main"
+            )
             extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["consumer_group"] = spec.get("consumerGroup", "")
         case DataLinkKind.BASEREPORTSINK.value:
@@ -1588,8 +1601,11 @@ def _refresh_bkbase_result_table_statuses(
         else:
             status = DataLinkResourceStatus.PENDING.value
 
-        if bkbase_record.status != status:
+        should_clear_message = status == DataLinkResourceStatus.OK.value and bool(bkbase_record.status_message)
+        if bkbase_record.status != status or should_clear_message:
             bkbase_record.status = status
+            if should_clear_message:
+                bkbase_record.status_message = ""
             bkbase_record.last_modify_time = now
             changed_records.append(bkbase_record)
 
@@ -1603,7 +1619,7 @@ def _refresh_bkbase_result_table_statuses(
     if changed_records:
         BkBaseResultTable.objects.bulk_update(
             changed_records,
-            ["status", "last_modify_time"],
+            ["status", "status_message", "last_modify_time"],
             batch_size=1000,
         )
     return len(changed_records)
