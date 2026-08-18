@@ -9,13 +9,16 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# V3ResourceResolver — V3 资源实例补全器（DB 查询版）
+# MonitorResourceResolver — 监控平台资源实例补全器（DB 查询版）
 #
-# 吸收原 resource.py V3InstanceResolver 的 DB 查询逻辑：
+# 纯业务逻辑（与 provider 方言 v3/v4 无关，两者共用）：
 #   - Business: space_uid → bk_biz_id 转换 + SpaceApi 查询名称
 #   - ApmApplication: Application 表查询 app_name / bk_biz_id → ancestor_chain
 #   - GrafanaDashboard: Dashboard + Org 表查询 → ancestor_chain
 #   - RumApplication: rum_web.models.Application 查询 → ancestor_chain
+#
+# 由框架基类从 IAM_FRAMEWORK.PROVIDERS[*].options.resolver_class 加载，
+# 在 is_allowed / batch_by_* / get_apply_data 等鉴权路径统一调用。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -29,21 +32,21 @@ from bk_dataview.models import Dashboard
 from bkm_space.utils import api as space_api
 from bkm_space.utils import bk_biz_id_to_space_uid
 
-from ...iam_engine.core.types import ResourceInstance, to_resource_type_id
-from ...iam_engine.provider.resolver import ResourceResolver
-from ...definitions.resource_types import ResourceTypes
+from ..iam_engine.core.types import ResourceInstance, to_resource_type_id
+from ..iam_engine.provider.resolver import ResourceResolver
+from ..definitions.resource_types import ResourceTypes
 from bkmonitor.utils.cache import lru_cache_with_ttl
 
 logger = logging.getLogger(__name__)
 
 
-class V3ResourceResolver(ResourceResolver):
-    """V3 资源实例补全器。
+class MonitorResourceResolver(ResourceResolver):
+    """监控平台资源实例补全器（v3/v4 通用）。
 
     根据 type + id 查询 DB，补全 name / ancestor_chain。
     配置方式：
         IAM_FRAMEWORK.PROVIDERS[*].options.resolver_class =
-            "bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver"
+            "bkmonitor.iam.adapters.resolver.MonitorResourceResolver"
     """
 
     def resolve(self, resource: ResourceInstance) -> ResourceInstance:

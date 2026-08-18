@@ -319,7 +319,7 @@ def build_v3_options(**overrides) -> dict:
     """构造 V3Provider options（默认指向本地假地址，测试中 client 会被替换）。"""
     options = {
         "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
-        "resolver_class": "bkmonitor.iam.adapters.v3.resolver.V3ResourceResolver",
+        "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
         "base_url": "https://iam.invalid/",
         "bk_tenant_id": "system",
         "credentials": {"app_code": "test_app", "app_secret": "test_secret"},
