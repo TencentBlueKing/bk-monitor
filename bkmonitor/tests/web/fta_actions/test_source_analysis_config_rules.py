@@ -140,7 +140,11 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
             SourceAnalysisBaseResource.validate_resources(rule)
 
-    def test_missing_bkfara_endpoint_fails_closed(self):
+    @patch(
+        "fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene",
+        side_effect=ValueError("BKFara APIGW is not configured"),
+    )
+    def test_bkfara_initialization_error_fails_closed(self, _ensure_scene):
         with self.assertRaises(SourceAnalysisFlowInitializationFailedError):
             SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
 
@@ -328,7 +332,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
     @patch.object(SourceAnalysisBaseResource, "validate_resources")
-    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized")
+    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized", return_value="provision-1")
     def test_enabled_rule_validates_resources_and_initializes_flow(self, ensure_initialized, validate_resources):
         self.create_config()
         data = validate(
@@ -346,6 +350,10 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         validate_resources.assert_called_once()
         ensure_initialized.assert_called_once_with(2, "project-a")
+        self.assertEqual(
+            IssueSourceAnalysisConfig.objects.get(bk_biz_id=2).bkfara_provision_id,
+            "provision-1",
+        )
         self.assertTrue(result["is_enabled"])
         self.assertEqual((result["bkci_project_id"], result["repository_alias"]), ("project-a", "repo-a"))
 

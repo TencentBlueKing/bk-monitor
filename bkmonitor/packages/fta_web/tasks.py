@@ -27,7 +27,6 @@ from monitor_web.strategies.user_groups import create_default_notice_group
 logger = logging.getLogger("celery")
 
 DEFAULT_SOPS_ACTION_PLUGIN_ID = "4"
-SOURCE_ANALYSIS_POLL_INTERVAL = 10
 
 
 def get_sops_action_plugin_id():
@@ -443,11 +442,11 @@ def run_source_analysis_execution(analysis_id: str):
     # Resource 需要复用本任务作为前端触发后的调度入口，延迟导入以解除 tasks <-> resources 循环依赖。
     from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
 
-    should_poll = SourceAnalysisExecutionBaseResource.advance_bkfara_task(analysis_id)
-    if should_poll:
+    next_poll_after_seconds = SourceAnalysisExecutionBaseResource.advance_bkfara_task(analysis_id)
+    if next_poll_after_seconds is not None:
         run_source_analysis_execution.apply_async(
             args=(analysis_id,),
-            countdown=SOURCE_ANALYSIS_POLL_INTERVAL,
+            countdown=next_poll_after_seconds,
         )
 
 

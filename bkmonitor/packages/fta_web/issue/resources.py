@@ -18,6 +18,7 @@ import json
 import re
 from threading import BoundedSemaphore
 import time
+import uuid
 
 from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
@@ -112,6 +113,13 @@ logger = logging.getLogger("root")
 
 def _sanitize_for_log(value) -> str:
     return str(value).replace("\r", "").replace("\n", "")
+
+
+def build_bkfara_client_request_id(purpose: str, *parts) -> str:
+    """从本地稳定标识派生 BKFara UUID 幂等键，网络重试时不会生成新请求。"""
+
+    identity = ":".join(map(str, ("bkmonitor", "source-analysis", purpose, *parts)))
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, identity))
 
 
 class SourceAnalysisBaseResource(Resource):
@@ -291,19 +299,33 @@ class SourceAnalysisBaseResource(Resource):
         return rule
 
     @classmethod
-    def ensure_flow_initialized(cls, bk_biz_id: int, bkci_project_id: str) -> None:
-        """调用 BKFara 幂等初始化；路径未发布或调用失败时让当前事务回滚。"""
+    def ensure_flow_initialized(cls, bk_biz_id: int, bkci_project_id: str) -> str:
+        """调用 BKFara 幂等初始化并返回后续查询所需的 provision_id。"""
 
-        if not api.bk_incident.ensure_source_analysis_flow.action:
-            raise SourceAnalysisFlowInitializationFailedError()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         try:
-            api.bk_incident.ensure_source_analysis_flow(
+            scene_state = api.bk_incident.ensure_source_analysis_scene(
                 bk_biz_id=bk_biz_id,
-                bkci_project_id=bkci_project_id,
+                bk_tenant_id=bk_tenant_id,
+                devops_project_id=bkci_project_id,
+                client_request_id=build_bkfara_client_request_id(
+                    "ensure-scene",
+                    bk_tenant_id,
+                    bk_biz_id,
+                    bkci_project_id,
+                ),
             )
-        except (BKAPIError, TypeError, ValueError) as error:
+        except Exception as error:  # NOCC:broad-except(BKFara 网关与网络异常统一映射为配置保存失败)
             logger.warning("Source analysis flow initialization failed: %s", type(error).__name__)
             raise SourceAnalysisFlowInitializationFailedError() from error
+
+        provision_id = str(scene_state.get("provision_id") or "") if isinstance(scene_state, dict) else ""
+        status = scene_state.get("status") if isinstance(scene_state, dict) else None
+        terminal = scene_state.get("terminal") if isinstance(scene_state, dict) else None
+        if not provision_id or status not in {"pending", "provisioning", "ready"} or not isinstance(terminal, bool):
+            logger.warning("Invalid BKFara source analysis scene response: bk_biz_id=%s", bk_biz_id)
+            raise SourceAnalysisFlowInitializationFailedError()
+        return provision_id
 
 
 class SourceAnalysisExecutionBaseResource(Resource):
@@ -317,13 +339,17 @@ class SourceAnalysisExecutionBaseResource(Resource):
     RECOVERY_STALE_SECONDS = 60
     RECOVERY_BATCH_SIZE = 200
 
-    BKFARA_CREATED = "created"
-    BKFARA_RUNNING = "running"
-    BKFARA_SUCCESS = "success"
-    BKFARA_FAILED = "failed"
-    BKFARA_STATUSES = {BKFARA_CREATED, BKFARA_RUNNING, BKFARA_SUCCESS, BKFARA_FAILED}
+    DEFAULT_POLL_INTERVAL = 10
+    BKFARA_SCENE_ACTIVE_STATUSES = {"pending", "provisioning"}
+    BKFARA_TASK_ACTIVE_STATUSES = {"queued", "running"}
+    BKFARA_TASK_PHASE_STAGES = {
+        "bkflow_starting": SourceAnalysisStage.SOURCE_PREPARING,
+        "devops_queued": SourceAnalysisStage.SOURCE_PREPARING,
+        "start_unknown": SourceAnalysisStage.SOURCE_PREPARING,
+        "devops_running": SourceAnalysisStage.ANALYZING,
+        "result_collecting": SourceAnalysisStage.ANALYZING,
+    }
 
-    SOURCE_ANALYSIS_STAGES = {value for value, _label in SourceAnalysisStage.CHOICES}
     SOURCE_ANALYSIS_FAILURE_STAGES = {value for value, _label in SourceAnalysisFailureStage.CHOICES}
 
     NO_MATCHED_RULE = "no_matched_rule"
@@ -756,6 +782,19 @@ class SourceAnalysisExecutionBaseResource(Resource):
         rule, _unavailable_reason = cls.get_rule_availability(bk_biz_id, alert)
         return rule
 
+    @staticmethod
+    def get_scene_provision_id(bk_biz_id: int, bkci_project_id: str) -> str | None:
+        """仅复用与执行快照项目一致的场景初始化记录。"""
+
+        return (
+            IssueSourceAnalysisConfig.objects.filter(
+                bk_biz_id=bk_biz_id,
+                bkci_project_id=bkci_project_id,
+            )
+            .values_list("bkfara_provision_id", flat=True)
+            .first()
+        )
+
     @classmethod
     def create_initial_execution(
         cls, bk_biz_id: int, issue_id: str, operator: str
@@ -795,6 +834,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=rule.agent_id,
                     skill_ids=list(rule.skill_ids),
                     knowledge_base_ids=list(rule.knowledge_base_ids),
+                    bkfara_provision_id=cls.get_scene_provision_id(bk_biz_id, rule.bkci_project_id),
                     create_user=operator,
                     update_user=operator,
                 )
@@ -875,6 +915,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=target.agent_id,
                     skill_ids=list(target.skill_ids),
                     knowledge_base_ids=list(target.knowledge_base_ids),
+                    bkfara_provision_id=target.bkfara_provision_id,
                     create_user=operator,
                     update_user=operator,
                 )
@@ -935,6 +976,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=rule.agent_id,
                     skill_ids=list(rule.skill_ids),
                     knowledge_base_ids=list(rule.knowledge_base_ids),
+                    bkfara_provision_id=cls.get_scene_provision_id(bk_biz_id, rule.bkci_project_id),
                     create_user=operator,
                     update_user=operator,
                 )
@@ -945,23 +987,56 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 return active_execution, False
             raise
 
-    @staticmethod
-    def build_execute_task_params(execution: IssueSourceAnalysisExecution) -> dict:
-        """从不可变执行快照构造 BKFara 执行参数，避免规则变更污染已发起任务。"""
+    @classmethod
+    def build_ensure_scene_params(cls, execution: IssueSourceAnalysisExecution) -> dict:
+        """从执行快照构造场景初始化参数，兼容历史记录缺少 provision_id 的恢复路径。"""
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
         return {
             "bk_biz_id": execution.bk_biz_id,
-            "task_id": execution.bkfara_task_id,
-            "analysis_id": execution.analysis_id,
-            "issue_id": execution.issue_id,
-            "alert_id": execution.alert_id,
-            "bkci_project_id": execution.bkci_project_id,
-            "repository_alias": execution.repository_alias,
-            "agent_id": execution.agent_id,
-            "skill_ids": list(execution.skill_ids),
-            "knowledge_base_ids": list(execution.knowledge_base_ids),
-            "trigger_user": execution.create_user or execution.update_user,
+            "bk_tenant_id": bk_tenant_id,
+            "devops_project_id": execution.bkci_project_id,
+            "client_request_id": build_bkfara_client_request_id(
+                "ensure-scene",
+                bk_tenant_id,
+                execution.bk_biz_id,
+                execution.bkci_project_id,
+            ),
         }
+
+    @classmethod
+    def build_trigger_params(cls, execution: IssueSourceAnalysisExecution) -> dict:
+        """从不可变执行快照构造正式 trigger.inputs，规则变更不会污染已发起任务。"""
+
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
+        return {
+            "issue_id": execution.issue_id,
+            "bk_biz_id": execution.bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
+            "devops_project_id": execution.bkci_project_id,
+            "client_request_id": build_bkfara_client_request_id("trigger", execution.analysis_id),
+            "inputs": {
+                "repository_alias": execution.repository_alias,
+                "agent_id": execution.agent_id,
+                "skill_ids": list(execution.skill_ids),
+                "knowledge_base_ids": list(execution.knowledge_base_ids),
+                "issue_context": {"alert_ids": [execution.alert_id]},
+            },
+        }
+
+    @classmethod
+    def build_get_task_params(cls, execution: IssueSourceAnalysisExecution) -> dict:
+        return {
+            "analysis_task_id": execution.bkfara_task_id,
+            "bk_tenant_id": bk_biz_id_to_bk_tenant_id(execution.bk_biz_id),
+        }
+
+    @classmethod
+    def get_poll_interval(cls, response_data: dict) -> int:
+        interval = response_data.get("next_poll_after_seconds")
+        if isinstance(interval, int) and not isinstance(interval, bool) and interval > 0:
+            return interval
+        return cls.DEFAULT_POLL_INTERVAL
 
     @classmethod
     def get_recoverable_analysis_ids(cls) -> list[str]:
@@ -978,16 +1053,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
         )
 
     @classmethod
-    def advance_bkfara_task(cls, analysis_id: str) -> bool:
-        """把一条活动记录向前推进一次；返回是否需要短周期继续轮询。
-
-        任务已存在时先查询再决定是否执行，禁止在恢复路径盲目重建任务。创建和执行的
-        exactly-once 语义分别依赖 BKFara 对 analysis_id 与 task_id 的幂等保证。
-        """
+    def advance_bkfara_task(cls, analysis_id: str) -> int | None:
+        """把活动记录向前推进一次；返回服务端建议的下次轮询秒数，终态返回 None。"""
 
         execution = IssueSourceAnalysisExecution.objects.filter(analysis_id=analysis_id).first()
         if execution is None or execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
-            return False
+            return None
 
         # update_time 同时作为版本号。记录在读取后已被推进或已进入终态时，条件更新失败，
         # 当前 Worker 立即停止，避免继续使用过期快照调用 BKFara。
@@ -998,43 +1069,141 @@ class SourceAnalysisExecutionBaseResource(Resource):
             update_time=execution.update_time,
         ).update(update_time=lease_time)
         if not claimed:
-            return False
+            return None
         execution.update_time = lease_time
 
         if not execution.bkfara_task_id:
-            return cls._create_and_execute_bkfara_task(execution)
+            scene_ready, poll_interval = cls._advance_bkfara_scene(execution)
+            if not scene_ready:
+                return poll_interval
+            return cls._trigger_bkfara_task(execution)
 
+        task_params = cls.build_get_task_params(execution)
         try:
-            task_state = api.bk_incident.get_source_analysis_task(
-                bk_biz_id=execution.bk_biz_id,
-                task_id=execution.bkfara_task_id,
-            )
+            task_state = api.bk_incident.get_source_analysis_task(**task_params)
         except Exception as error:
             return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_EXECUTE, error)
-        if isinstance(task_state, dict) and task_state.get("status") == cls.BKFARA_CREATED:
-            return cls._execute_bkfara_task(execution)
         return cls._apply_bkfara_task_state(execution, task_state)
 
     @classmethod
-    def _create_and_execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
+    def _advance_bkfara_scene(cls, execution: IssueSourceAnalysisExecution) -> tuple[bool, int | None]:
+        if execution.bkfara_provision_id:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
+            try:
+                scene_state = api.bk_incident.get_source_analysis_scene_status(
+                    provision_id=execution.bkfara_provision_id,
+                    bk_tenant_id=bk_tenant_id,
+                )
+            except Exception as error:
+                return False, cls._handle_upstream_error(
+                    execution,
+                    SourceAnalysisFailureStage.TASK_CREATE,
+                    error,
+                )
+            return cls._apply_bkfara_scene_state(execution, scene_state)
+
+        ensure_params = cls.build_ensure_scene_params(execution)
         try:
-            result = api.bk_incident.create_source_analysis_task(
-                bk_biz_id=execution.bk_biz_id,
-                analysis_id=execution.analysis_id,
-            )
+            scene_state = api.bk_incident.ensure_source_analysis_scene(**ensure_params)
         except Exception as error:
+            return False, cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_CREATE, error)
+
+        provision_id = str(scene_state.get("provision_id") or "") if isinstance(scene_state, dict) else ""
+        if not provision_id:
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_ENSURE_MISSING_PROVISION_ID,
+                failure_retryable=False,
+            )
+            return False, None
+
+        IssueSourceAnalysisExecution.objects.filter(
+            pk=execution.pk,
+            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
+            bkfara_provision_id__isnull=True,
+        ).update(bkfara_provision_id=provision_id, update_time=timezone.now())
+        execution.refresh_from_db()
+        if execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
+            return False, None
+        if execution.bkfara_provision_id != provision_id:
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="BKFARA_PROVISION_ID_CONFLICT",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_PROVISION_ID_CONFLICT,
+                failure_retryable=False,
+            )
+            return False, None
+        return cls._apply_bkfara_scene_state(execution, scene_state)
+
+    @classmethod
+    def _apply_bkfara_scene_state(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        scene_state: dict,
+    ) -> tuple[bool, int | None]:
+        if not isinstance(scene_state, dict) or not isinstance(scene_state.get("terminal"), bool):
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_SCENE_STATE_INVALID,
+                failure_retryable=False,
+            )
+            return False, None
+
+        status = scene_state.get("status")
+        terminal = scene_state["terminal"]
+        if not terminal and status in cls.BKFARA_SCENE_ACTIVE_STATUSES:
+            return False, cls.get_poll_interval(scene_state)
+        if terminal and status == "ready":
+            return True, None
+        if not terminal or status != "failed":
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_SCENE_STATE_INVALID,
+                failure_retryable=False,
+            )
+            return False, None
+
+        error = scene_state.get("error") or {}
+        if not isinstance(error, dict):
+            error = {}
+        cls._mark_failed(
+            execution,
+            failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+            failure_code=str(error.get("code") or "BKFARA_SCENE_FAILED"),
+            failure_message=str(error.get("message") or SourceAnalysisFailureMessage.BKFARA_SCENE_FAILED),
+            # 本期“失败重试”只创建新的分析 attempt；终态 provision_id 没有重建协议，
+            # 继续复用只会重复得到同一场景失败，因此不能向前端开放任务重试。
+            failure_retryable=False,
+            failure_request_id=error.get("request_id"),
+        )
+        return False, None
+
+    @classmethod
+    def _trigger_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> int | None:
+        trigger_params = cls.build_trigger_params(execution)
+        try:
+            task_state = api.bk_incident.trigger_source_analysis(**trigger_params)
+        except Exception as error:
+            # 请求结果未知时，下一次会使用相同 client_request_id 重试 trigger。
             return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_CREATE, error)
 
-        task_id = str(result.get("task_id") or "") if isinstance(result, dict) else ""
+        task_id = str(task_state.get("analysis_task_id") or "") if isinstance(task_state, dict) else ""
         if not task_id:
             cls._mark_failed(
                 execution,
                 failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
                 failure_code="BKFARA_INVALID_RESPONSE",
-                failure_message=SourceAnalysisFailureMessage.BKFARA_CREATE_MISSING_TASK_ID,
+                failure_message=SourceAnalysisFailureMessage.BKFARA_TRIGGER_MISSING_TASK_ID,
                 failure_retryable=False,
             )
-            return False
+            return None
 
         IssueSourceAnalysisExecution.objects.filter(
             pk=execution.pk,
@@ -1043,7 +1212,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         ).update(bkfara_task_id=task_id, update_time=timezone.now())
         execution.refresh_from_db()
         if execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
-            return False
+            return None
         if execution.bkfara_task_id != task_id:
             cls._mark_failed(
                 execution,
@@ -1052,39 +1221,9 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_ID_CONFLICT,
                 failure_retryable=False,
             )
-            return False
+            return None
 
-        # task_id 已经写入数据库，后续任何异常都只能查询/恢复这一个任务。
-        return cls._execute_bkfara_task(execution)
-
-    @classmethod
-    def _execute_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> bool:
-        if not cls._mark_running(execution, SourceAnalysisStage.SOURCE_PREPARING):
-            return False
-        try:
-            task_state = api.bk_incident.execute_source_analysis_task(**cls.build_execute_task_params(execution))
-        except Exception as execute_error:
-            error_data = getattr(execute_error, "data", None)
-            if isinstance(error_data, dict) and error_data.get("retryable") is False:
-                return cls._handle_upstream_error(
-                    execution,
-                    SourceAnalysisFailureStage.TASK_EXECUTE,
-                    execute_error,
-                )
-            # 执行请求可能已被 BKFara 接收。先查状态，避免因客户端超时重复启动流水线。
-            try:
-                task_state = api.bk_incident.get_source_analysis_task(
-                    bk_biz_id=execution.bk_biz_id,
-                    task_id=execution.bkfara_task_id,
-                )
-            except Exception:
-                return cls._handle_upstream_error(
-                    execution,
-                    SourceAnalysisFailureStage.TASK_EXECUTE,
-                    execute_error,
-                )
-            return cls._apply_bkfara_task_state(execution, task_state)
-
+        # analysis_task_id 已写库；从此只查询该任务，不再调用 trigger。
         return cls._apply_bkfara_task_state(execution, task_state)
 
     @classmethod
@@ -1092,8 +1231,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
         cls,
         execution: IssueSourceAnalysisExecution,
         task_state: dict,
-    ) -> bool:
-        if not isinstance(task_state, dict) or task_state.get("status") not in cls.BKFARA_STATUSES:
+    ) -> int | None:
+        if not isinstance(task_state, dict) or not isinstance(task_state.get("terminal"), bool):
             logger.warning(
                 "Invalid BKFara source analysis task state: analysis_id=%s",
                 execution.analysis_id,
@@ -1105,25 +1244,36 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_STATE_INVALID,
                 failure_retryable=False,
             )
-            return False
+            return None
 
-        status = task_state["status"]
-        if status == cls.BKFARA_CREATED:
-            return True
-        if status == cls.BKFARA_RUNNING:
-            stage = task_state.get("stage")
-            if stage not in cls.SOURCE_ANALYSIS_STAGES:
-                stage = SourceAnalysisStage.ANALYZING
-            return cls._mark_running(execution, stage)
-        if status == cls.BKFARA_SUCCESS:
+        status = task_state.get("status")
+        terminal = task_state["terminal"]
+        if not terminal and status in cls.BKFARA_TASK_ACTIVE_STATUSES:
+            stage = cls.BKFARA_TASK_PHASE_STAGES.get(task_state.get("phase"))
+            if stage is None:
+                stage = SourceAnalysisStage.SOURCE_PREPARING if status == "queued" else SourceAnalysisStage.ANALYZING
+            if not cls._mark_running(execution, stage):
+                return None
+            return cls.get_poll_interval(task_state)
+        if terminal and status == "succeeded":
             if not cls._mark_running(execution, SourceAnalysisStage.VALIDATING):
-                return False
-            return cls._fetch_validate_and_persist_result(execution)
+                return None
+            return cls._validate_and_persist_result(execution, task_state.get("result"))
+        if not terminal or status != "failed":
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
+                failure_code="BKFARA_INVALID_RESPONSE",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_TASK_STATE_INVALID,
+                failure_retryable=False,
+            )
+            return None
 
-        failure = task_state.get("failure") or {}
+        failure = task_state.get("error") or {}
         if not isinstance(failure, dict):
             failure = {}
-        failure_stage = failure.get("stage")
+        details = failure.get("details") if isinstance(failure.get("details"), dict) else {}
+        failure_stage = details.get("stage")
         if failure_stage not in cls.SOURCE_ANALYSIS_FAILURE_STAGES:
             failure_stage = SourceAnalysisFailureStage.TASK_EXECUTE
         cls._mark_failed(
@@ -1134,19 +1284,11 @@ class SourceAnalysisExecutionBaseResource(Resource):
             failure_retryable=bool(failure.get("retryable", False)),
             failure_request_id=failure.get("request_id"),
         )
-        return False
+        return None
 
     @classmethod
-    def _fetch_validate_and_persist_result(cls, execution: IssueSourceAnalysisExecution) -> bool:
-        """成功任务只持久化通过 v1.0.0 Schema 与业务语义校验的结果。"""
-
-        try:
-            raw_result = api.bk_incident.get_source_analysis_result(
-                bk_biz_id=execution.bk_biz_id,
-                task_id=execution.bkfara_task_id,
-            )
-        except Exception as error:
-            return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.RESULT_FETCH, error)
+    def _validate_and_persist_result(cls, execution: IssueSourceAnalysisExecution, raw_result) -> None:
+        """get_task 成功终态只持久化通过 v1.0.0 Schema 与业务语义校验的结果。"""
 
         try:
             result = SourceAnalysisResultValidator.validate(raw_result)
@@ -1164,7 +1306,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 failure_message=error.safe_message,
                 failure_retryable=True,
             )
-            return False
+            return None
 
         try:
             execution.mark_success(
@@ -1174,7 +1316,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
         except SourceAnalysisInvalidStatusTransitionError:
             execution.refresh_from_db()
-        return False
+        return None
 
     @classmethod
     def _handle_upstream_error(
@@ -1182,17 +1324,19 @@ class SourceAnalysisExecutionBaseResource(Resource):
         execution: IssueSourceAnalysisExecution,
         failure_stage: str,
         error: Exception,
-    ) -> bool:
+    ) -> int | None:
         """未知网络错误默认保留活动态；仅显式 retryable=false 的业务错误进入失败终态。"""
 
         error_data = getattr(error, "data", None)
+        if isinstance(error_data, dict) and isinstance(error_data.get("error"), dict):
+            error_data = error_data["error"]
         if not isinstance(error_data, dict) or error_data.get("retryable") is not False:
             logger.warning(
                 "BKFara source analysis request failed and will retry: analysis_id=%s, error=%s",
                 execution.analysis_id,
                 type(error).__name__,
             )
-            return True
+            return cls.DEFAULT_POLL_INTERVAL
 
         cls._mark_failed(
             execution,
@@ -1202,7 +1346,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             failure_retryable=False,
             failure_request_id=error_data.get("request_id"),
         )
-        return False
+        return None
 
     @staticmethod
     def _mark_running(execution: IssueSourceAnalysisExecution, stage: str) -> bool:
@@ -1565,14 +1709,18 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
             previous_config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
             project_changed = previous_config is None or previous_config.bkci_project_id != bkci_project_id
             operator = get_global_user() or "unknown"
+            config_defaults = {
+                "bkci_project_id": bkci_project_id,
+                "repository_alias": repository_alias,
+                "update_user": operator,
+            }
+            if project_changed:
+                # provision_id 只属于原项目；新项目初始化成功后再写入新的 ID。
+                config_defaults["bkfara_provision_id"] = None
             # update_or_create 在首次并发保存时会处理唯一键竞争，避免其中一个请求直接返回 500。
             config, _config_created = IssueSourceAnalysisConfig.objects.update_or_create(
                 bk_biz_id=bk_biz_id,
-                defaults={
-                    "bkci_project_id": bkci_project_id,
-                    "repository_alias": repository_alias,
-                    "update_user": operator,
-                },
+                defaults=config_defaults,
             )
 
             rules = list(IssueSourceAnalysisRule.objects.select_for_update().filter(bk_biz_id=bk_biz_id))
@@ -1603,8 +1751,11 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
                 rule.bkci_project_id = bkci_project_id
                 rule.repository_alias = repository_alias
 
-            if project_changed and any(rule.is_enabled and self.is_rule_complete(rule) for rule in rules):
-                self.ensure_flow_initialized(bk_biz_id, bkci_project_id)
+            if (project_changed or not config.bkfara_provision_id) and any(
+                rule.is_enabled and self.is_rule_complete(rule) for rule in rules
+            ):
+                config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, bkci_project_id)
+                config.save(update_fields=["bkfara_provision_id", "update_time"])
 
         return self.serialize_config(config, bk_biz_id)
 
@@ -1643,7 +1794,8 @@ class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
                     self.validate_rule_local(rule, config)
                 rule.save()
                 if rule.is_enabled:
-                    self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
+                    config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
+                    config.save(update_fields=["bkfara_provision_id", "update_time"])
         except IntegrityError as error:
             raise SourceAnalysisRulePriorityConflictError() from error
         return self.serialize_rule(rule)
@@ -1696,7 +1848,8 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
                     self.validate_rule_local(rule, config)
                 rule.save()
                 if rule.is_enabled:
-                    self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
+                    config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
+                    config.save(update_fields=["bkfara_provision_id", "update_time"])
         except IntegrityError as error:
             raise SourceAnalysisRulePriorityConflictError() from error
         return self.serialize_rule(rule)
