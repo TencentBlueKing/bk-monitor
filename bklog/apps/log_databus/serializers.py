@@ -622,6 +622,7 @@ class BatchSubscriptionStatusSerializer(serializers.Serializer):
 
 class TaskStatusSerializer(serializers.Serializer):
     task_id_list = serializers.CharField(label=_("部署任务ID"), allow_blank=True, default="")
+    read_only = serializers.BooleanField(label=_("是否仅查询状态"), required=False, default=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -632,6 +633,12 @@ class TaskStatusSerializer(serializers.Serializer):
         if not validate_param_value(attrs["task_id_list"]):
             raise ValidationError(_("task_id_list不符合格式，部署任务ID（多个ID用半角,分隔）"))
         return attrs
+
+
+class SubscriptionStatusSerializer(serializers.Serializer):
+    include_plugin_status = serializers.BooleanField(
+        label=_("是否查询插件版本信息"), required=False, default=True
+    )
 
 
 class TaskDetailSerializer(serializers.Serializer):

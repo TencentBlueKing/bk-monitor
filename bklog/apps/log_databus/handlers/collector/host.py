@@ -673,15 +673,16 @@ class HostCollectorHandler(CollectorHandler):
                     return "{}-{}".format(step_obj["node_name"], sub_step_obj["node_name"])
         return ""
 
-    def format_task_instance_status(self, instance_data):
+    def format_task_instance_status(self, instance_data, latest_task_id=None):
         """
         格式化任务状态数据
         :param  [list] instance_data: 任务状态data数据
+        :param latest_task_id: 本次查询关注的最新任务ID
         :return: [list]
         """
         instance_list = list()
         host_list = list()
-        latest_id = self.data.task_id_list[-1]
+        latest_id = str(latest_task_id) if latest_task_id is not None else ""
         if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
             for node in self.data.target_nodes:
                 if "bk_host_id" in node:
@@ -699,6 +700,7 @@ class HostCollectorHandler(CollectorHandler):
             # 静态节点：排除订阅任务历史IP（不是最新订阅且不在当前节点范围的ip）
             if (
                 self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value
+                and latest_id
                 and str(instance_obj["task_id"]) != latest_id
                 and ((bk_host_innerip, bk_cloud_id) not in host_list and bk_host_id not in host_list)
             ):
@@ -721,6 +723,19 @@ class HostCollectorHandler(CollectorHandler):
                 }
             )
         return instance_list
+
+    @staticmethod
+    def keep_latest_task_status_per_instance(instance_data):
+        """按任务 ID 为每个实例保留最新一次结果，避免请求顺序影响重试聚合。"""
+        latest_by_instance = {}
+        for index, instance_obj in enumerate(instance_data):
+            instance_key = instance_obj.get("instance_id") or f"__row_{index}"
+            task_id = str(instance_obj.get("task_id") or "")
+            task_index = int(task_id) if task_id.isdigit() else -1
+            previous = latest_by_instance.get(instance_key)
+            if previous is None or task_index >= previous[0]:
+                latest_by_instance[instance_key] = (task_index, instance_obj)
+        return [item for _, item in latest_by_instance.values()]
 
     def _get_collect_node(self):
         """
@@ -990,7 +1005,7 @@ class HostCollectorHandler(CollectorHandler):
 
         return content_data
 
-    def get_task_status(self, id_list):
+    def get_task_status(self, id_list, read_only=False):
         """
         查询物理机采集任务状态
         :param  [list] id_list:
@@ -1027,23 +1042,36 @@ class HostCollectorHandler(CollectorHandler):
         if self.data.is_custom_scenario:
             return {"task_ready": True, "contents": []}
 
+        task_ids = (
+            [str(task_id) for task_id in (id_list or self.data.task_id_list or [])]
+            if read_only
+            else []
+        )
         if not self.data.subscription_id:
+            if read_only:
+                return {"task_ready": False, "contents": []}
             self._update_or_create_subscription(
                 collector_scenario=CollectorScenario.get_instance(
                     collector_scenario_id=self.data.collector_scenario_id
                 ),
                 params=self.data.params,
             )
+        if read_only and not task_ids:
+            return {"task_ready": False, "contents": []}
+
+        request_params = {
+            "subscription_id": self.data.subscription_id,
+            "need_detail": False,
+            "need_aggregate_all_tasks": not read_only,
+            "need_out_of_scope_snapshots": False,
+            "bk_biz_id": self.data.bk_biz_id,
+        }
+        if read_only:
+            request_params["task_id_list"] = task_ids
 
         try:
             status_result = NodeApi.get_subscription_task_status.bulk_request(
-                params={
-                    "subscription_id": self.data.subscription_id,
-                    "need_detail": False,
-                    "need_aggregate_all_tasks": True,
-                    "need_out_of_scope_snapshots": False,
-                    "bk_biz_id": self.data.bk_biz_id,
-                },
+                params=request_params,
                 get_data=lambda x: x["list"],
                 get_count=lambda x: x["total"],
             )
@@ -1051,7 +1079,16 @@ class HostCollectorHandler(CollectorHandler):
             logger.exception("get task status failed, subscription_id: %s", self.data.subscription_id)
             status_result = []
 
-        instance_status = self.format_task_instance_status(status_result)
+        if read_only:
+            task_id_set = set(task_ids)
+            status_result = [item for item in status_result if str(item.get("task_id")) in task_id_set]
+            status_result = self.keep_latest_task_status_per_instance(status_result)
+            latest_task_id = max(task_ids, key=int)
+        else:
+            latest_task_id = str(self.data.task_id_list[-1]) if self.data.task_id_list else None
+        instance_status = self.format_task_instance_status(
+            status_result, latest_task_id=latest_task_id
+        )
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
 
@@ -1080,6 +1117,12 @@ class HostCollectorHandler(CollectorHandler):
             elif instance_obj["status"] == CollectStatus.SUCCESS:
                 status = CollectStatus.SUCCESS
                 status_name = RunStatus.SUCCESS
+            elif instance_obj["status"] == CollectStatus.TERMINATED:
+                status = CollectStatus.TERMINATED
+                status_name = RunStatus.TERMINATED
+            elif instance_obj["status"] == CollectStatus.UNKNOWN:
+                status = CollectStatus.UNKNOWN
+                status_name = RunStatus.UNKNOWN
             else:
                 status = CollectStatus.FAILED
                 status_name = RunStatus.FAILED
@@ -1107,12 +1150,12 @@ class HostCollectorHandler(CollectorHandler):
 
         return instance_list
 
-    def get_subscription_status(self):
+    def get_subscription_status(self, include_plugin_status=True):
         """
         查看订阅的插件运行状态
         :return:
         """
-        if not self.data.subscription_id and not self.data.target_nodes:
+        if not self.data.subscription_id:
             return {
                 "contents": [
                     {
@@ -1139,16 +1182,15 @@ class HostCollectorHandler(CollectorHandler):
             get_count=lambda x: x["total"],
         )
 
-        bk_host_ids = []
-        for item in instance_data:
-            bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
-
-        plugin_data = NodeApi.plugin_search.batch_request(
-            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
-            chunk_values=bk_host_ids,
-            chunk_key="bk_host_id",
-            bk_tenant_id=Space.get_tenant_id(bk_biz_id=self.data.bk_biz_id),
-        )
+        plugin_data = []
+        if include_plugin_status:
+            bk_host_ids = [item["instance_info"]["host"]["bk_host_id"] for item in instance_data]
+            plugin_data = NodeApi.plugin_search.batch_request(
+                params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+                chunk_values=bk_host_ids,
+                chunk_key="bk_host_id",
+                bk_tenant_id=Space.get_tenant_id(bk_biz_id=self.data.bk_biz_id),
+            )
 
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
         return {"contents": self._get_status_content(instance_status, is_task=False)}

@@ -141,6 +141,40 @@ def test_log_collection_mcp_contract():
             }
 
 
+def test_log_collection_status_mcp_contract():
+    """采集状态 MCP 仅开放单采集项查询，并保持只读后端契约。"""
+    status_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_status_mcp.yaml"
+    paths = _load_paths(status_mcp_file)
+
+    assert set(paths) == {"/mcp/get_log_collector_status/"}
+    method_data = paths["/mcp/get_log_collector_status/"]["post"]
+    assert method_data["operationId"] == "get_log_collector_status"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["collector_config_id"]["minimum"] == 1
+    task_ids_schema = schema["properties"]["task_ids"]
+    assert task_ids_schema["minItems"] == 1
+    assert task_ids_schema["maxItems"] == 100
+    assert task_ids_schema["items"]["oneOf"] == [
+        {"type": "string", "maxLength": 20, "pattern": "^[1-9][0-9]{0,19}$"},
+        {"type": "integer", "minimum": 1, "maximum": 99999999999999999999},
+    ]
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_status/get_status/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
 def test_promql_query_config_apigw_contract():
     """query_config 与 PromQL 互转接口必须保持外部应用态注册，并提供对应中文文档。"""
     paths = _load_paths(_ALARM_STRATEGY_FILE)

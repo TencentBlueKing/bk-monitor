@@ -436,6 +436,37 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class LogCollectorTaskStatusResource(LogSearchAPIGWResource):
+    """获取单个日志采集项的任务执行状态。"""
+
+    action = "/databus_collectors/{collector_config_id}/task_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        task_id_list = serializers.CharField(required=False, default="", allow_blank=True, label="任务ID列表")
+        read_only = serializers.BooleanField(required=False, default=True, label="是否仅查询状态")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class LogCollectorSubscriptionStatusResource(LogSearchAPIGWResource):
+    """获取单个日志采集项的订阅运行状态。"""
+
+    action = "/databus_collectors/{collector_config_id}/subscription_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        include_plugin_status = serializers.BooleanField(required=False, default=True, label="是否查询插件版本信息")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
 class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
     """
     采集项索引列表

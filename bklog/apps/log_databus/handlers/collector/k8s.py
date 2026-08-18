@@ -157,7 +157,7 @@ class K8sCollectorHandler(CollectorHandler):
             self.create_container_release(container_config)
         return [config.id for config in container_configs]
 
-    def get_task_status(self, id_list):
+    def get_task_status(self, id_list, read_only=False):
         """
         查询容器采集任务状态
         """
@@ -185,7 +185,7 @@ class K8sCollectorHandler(CollectorHandler):
             ]
         }
 
-    def get_subscription_status(self):
+    def get_subscription_status(self, include_plugin_status=True):
         """
         查看订阅的插件运行状态
         :return:
@@ -1715,7 +1715,8 @@ class K8sCollectorHandler(CollectorHandler):
 
         name = self._generate_bklog_config_name(container_config.id)
         container_config.status = ContainerCollectStatus.PENDING.value
-        container_config.save()
+        container_config.status_detail = _("等待配置删除")
+        container_config.save(update_fields=["status", "status_detail"])
 
         delete_container_release.delay(
             bcs_cluster_id=self.data.bcs_cluster_id,
