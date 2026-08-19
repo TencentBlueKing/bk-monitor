@@ -2000,6 +2000,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} [storage_replies] 副本数量
         @apiParam {String} category_id 数据分类 GlobalsConfig.category读取
         @apiParam {String} description 备注说明
+        @apiParam {List} [owners] 授权用户列表，为其授予采集项与索引集的新建关联权限
         @apiParamExample {json} 请求样例:
         {
             "bk_biz_id": 2,
@@ -2013,7 +2014,8 @@ class CollectorViewSet(ModelViewSet):
             "retention": 1,
             "es_shards": 1,
             "storage_replies": 1,
-            "allocation_min_days":  1
+            "allocation_min_days":  1,
+            "owners": ["admin", "user1"]
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -2051,6 +2053,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} allocation_min_days 冷热数据时间
         @apiParam {Int} es_shards es分片数量
         @apiParam {Int} [storage_replies] 副本数量
+        @apiParam {List} [owners] 授权用户列表，为其授予采集项与索引集的新建关联权限，仅新增不回收
         @apiParamExample {json} 请求样例:
         {
             "collector_config_name": "xxxxx",
@@ -2060,7 +2063,8 @@ class CollectorViewSet(ModelViewSet):
             "retention": 1,
             "storage_replies": 1,
             "es_shards":  1,
-            "allocation_min_days":  1
+            "allocation_min_days":  1,
+            "owners": ["admin", "user1"]
         }
         @apiSuccessExample {json} 成功返回:
         {
