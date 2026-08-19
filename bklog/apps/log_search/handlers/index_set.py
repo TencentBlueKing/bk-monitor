@@ -1173,8 +1173,21 @@ class IndexSetHandler(APIModel):
         return "--"
 
     @staticmethod
-    def _get_sum(key: str, src: list) -> int:
-        return sum([int(item.get(key, 0)) for item in src])
+    def _get_sum(key: str, src: list):
+        # Doris 物理存储行对无等价指标返回 "--"，这类占位值不参与求和；
+        # 整列都无可聚合值时继续返回 "--"，避免把「没有该指标」展示成 0
+        values = []
+        for item in src:
+            value = item.get(key)
+            if value in (None, "", "--"):
+                continue
+            try:
+                values.append(int(value))
+            except (TypeError, ValueError):
+                continue
+        if not values:
+            return "--"
+        return sum(values)
 
     def _get_data(self):
         try:
