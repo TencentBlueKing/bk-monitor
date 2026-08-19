@@ -101,7 +101,13 @@ export const useHostList = (options: IUseHostListOptions) => {
   const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(useHostStore());
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
   const progressiveMetricService = options.progressiveMetricService ?? hostMetricSnapshotService;
-  const progressiveEnabled = !!window.enable_host_metric_progressive;
+  const progressiveFeatureEnabled = !!window.enable_host_metric_progressive;
+  const configuredProgressiveMinHostCount = Number(window.host_metric_progressive_min_host_count);
+  const progressiveMinHostCount =
+    Number.isInteger(configuredProgressiveMinHostCount) && configuredProgressiveMinHostCount > 0
+      ? configuredProgressiveMinHostCount
+      : 2000;
+  const progressiveEnabled = shallowRef(false);
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
@@ -112,8 +118,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** 指标数据加载失败（保留基础行，仅指标列展示错误态） */
   const metricLoadError = shallowRef(false);
   /** 渐进指标状态；旧链路始终视为 READY，保持现有交互 */
-  const metricProgressiveState = shallowRef<HostMetricProgressiveState>(progressiveEnabled ? 'RUNNING' : 'READY');
-  const metricSemanticsReady = computed(() => !progressiveEnabled || metricProgressiveState.value === 'READY');
+  const metricProgressiveState = shallowRef<HostMetricProgressiveState>('READY');
+  const metricSemanticsReady = computed(() => !progressiveEnabled.value || metricProgressiveState.value === 'READY');
   /** 全量主机行数（主线程不持有全量行对象） */
   const rawRowCount = shallowRef(0);
   /** retrieval-filter 语句模式 */
@@ -194,7 +200,7 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   watch([timeRange, timezone], () => {
     setUrlParams();
-    progressiveEnabled ? loadData() : loadMetricData();
+    progressiveEnabled.value ? loadData() : loadMetricData();
   });
 
   watch(refreshGeneration, () => {
@@ -277,7 +283,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     categoryStats.value = data.categoryStats;
     total.value = data.total;
     pagedRows.value = data.pagedRows;
-    if (progressiveEnabled && metricProgressiveState.value !== 'READY') {
+    if (progressiveEnabled.value && metricProgressiveState.value !== 'READY') {
       void loadPageMetricData(data.pagedRows, dataRequestGeneration);
     }
   });
@@ -491,7 +497,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     baseReady: Promise<Awaited<ReturnType<typeof getHostInfoList>> | null>
   ) => {
     const time = currentCanonicalTime;
-    if (!progressiveEnabled || disposed || time?.epoch !== epoch) {
+    if (!progressiveEnabled.value || disposed || time?.epoch !== epoch) {
       return;
     }
     const attempt = ++snapshotAttemptGeneration;
@@ -510,7 +516,7 @@ export const useHostList = (options: IUseHostListOptions) => {
   };
 
   const loadPageMetricData = async (rows: IHostListRow[], epoch: number) => {
-    if (!progressiveEnabled || epoch !== dataRequestGeneration || metricProgressiveState.value === 'READY') {
+    if (!progressiveEnabled.value || epoch !== dataRequestGeneration || metricProgressiveState.value === 'READY') {
       return;
     }
     const canonicalTime = currentCanonicalTime;
@@ -586,12 +592,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     loadedPageHostIds.clear();
     pendingPageHostIds.clear();
     currentPageRequestKey = '';
-    if (progressiveEnabled) {
-      metricProgressiveState.value = 'RUNNING';
-      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
-      currentCanonicalTime = { endTime, epoch: requestGeneration, startTime };
-      startProgressiveSnapshot(requestGeneration, baseReady);
-    }
+    progressiveEnabled.value = false;
+    metricProgressiveState.value = 'READY';
+    currentCanonicalTime = undefined;
     // 手动/定时刷新时重置选择（对标旧版 handleResetCheck）
     selectAllMode.value = HostSelectAllModeEnum.NONE;
     selectedRowKeys.value = new Set();
@@ -603,9 +606,17 @@ export const useHostList = (options: IUseHostListOptions) => {
         return;
       }
       baseList = requestBaseList;
+      const uniqueHostCount = new Set(requestBaseList.map(row => row.bk_host_id)).size;
+      progressiveEnabled.value = progressiveFeatureEnabled && uniqueHostCount >= progressiveMinHostCount;
+      if (progressiveEnabled.value) {
+        metricProgressiveState.value = 'RUNNING';
+        const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+        currentCanonicalTime = { endTime, epoch: requestGeneration, startTime };
+        startProgressiveSnapshot(requestGeneration, baseReady);
+      }
       const initResult = await hostListWorker.initBaseData(
         requestBaseList,
-        progressiveEnabled ? requestGeneration : undefined
+        progressiveEnabled.value ? requestGeneration : undefined
       );
       if (requestGeneration !== dataRequestGeneration) {
         resolveBaseReady(null);
@@ -654,7 +665,7 @@ export const useHostList = (options: IUseHostListOptions) => {
       }
       return;
     }
-    if (progressiveEnabled) {
+    if (progressiveEnabled.value) {
       return;
     }
     const metricGeneration = ++metricRequestGeneration;
@@ -698,7 +709,7 @@ export const useHostList = (options: IUseHostListOptions) => {
       return;
     }
 
-    if (progressiveEnabled) {
+    if (progressiveEnabled.value) {
       await loadPageMetricData(pagedRows.value, dataRequestGeneration);
       return;
     }

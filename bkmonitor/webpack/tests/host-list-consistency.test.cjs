@@ -428,9 +428,14 @@ const createControllerWorker = () => {
   };
 };
 
-const createHostListController = ({ progressive = false, progressiveMetricService } = {}) => {
+const createHostListController = ({
+  progressive = false,
+  progressiveMetricService,
+  progressiveMinHostCount = progressive ? 1 : 2000,
+} = {}) => {
   mountedCallbacks = [];
   global.window.enable_host_metric_progressive = progressive;
+  global.window.host_metric_progressive_min_host_count = progressiveMinHostCount;
   const scope = vue.effectScope();
   let context;
   scope.run(() => {
@@ -462,6 +467,82 @@ const createSnapshotResult = overrides => ({
   ...overrides,
 });
 
+test('progressive mode keeps the legacy full metric request below the 2000-host boundary', async () => {
+  const hosts = Array.from({ length: 1999 }, (_, index) =>
+    createHost({ bkCloudId: 0, bkHostId: index + 1, ip: `10.0.${Math.floor(index / 255)}.${index % 255}` })
+  );
+  const metricRequests = [];
+  let snapshotCreateCount = 0;
+  getHostInfo = async () => hosts;
+  getHostMetricInfo = async params => {
+    metricRequests.push(params);
+    return {};
+  };
+  hostListWorker = createControllerWorker();
+  const progressiveMetricService = {
+    create: async () => {
+      snapshotCreateCount += 1;
+      return createSnapshotResult();
+    },
+    hashHostIds: async hostIds => hostIds.map(String).sort().join(','),
+    poll: () => new Promise(() => {}),
+  };
+  const { context, scope } = createHostListController({
+    progressive: true,
+    progressiveMetricService,
+    progressiveMinHostCount: 2000,
+  });
+
+  await context.loadData();
+
+  assert.equal(snapshotCreateCount, 0);
+  assert.equal(metricRequests.length, 1);
+  assert.equal(metricRequests[0].query_mode, undefined);
+  assert.equal(metricRequests[0].bk_host_ids.length, 1999);
+  assert.equal(context.metricProgressiveState.value, 'READY');
+  assert.equal(hostListWorker.calls.initBaseEpochs[0], undefined);
+  scope.stop();
+});
+
+test('progressive mode starts at 2000 hosts and does not create a snapshot before the base count is known', async () => {
+  const baseRequest = deferred();
+  const hosts = Array.from({ length: 2000 }, (_, index) =>
+    createHost({ bkCloudId: 0, bkHostId: index + 1, ip: `10.1.${Math.floor(index / 255)}.${index % 255}` })
+  );
+  const metricRequests = [];
+  let snapshotCreateCount = 0;
+  getHostInfo = () => baseRequest.promise;
+  getHostMetricInfo = async params => {
+    metricRequests.push(params);
+    return {};
+  };
+  hostListWorker = createControllerWorker();
+  const progressiveMetricService = {
+    create: () => {
+      snapshotCreateCount += 1;
+      return new Promise(() => {});
+    },
+    hashHostIds: async hostIds => hostIds.map(String).sort().join(','),
+    poll: () => new Promise(() => {}),
+  };
+  const { context, scope } = createHostListController({
+    progressive: true,
+    progressiveMetricService,
+    progressiveMinHostCount: 2000,
+  });
+
+  const loading = context.loadData();
+  assert.equal(snapshotCreateCount, 0);
+  baseRequest.resolve(hosts);
+  await loading;
+
+  assert.equal(snapshotCreateCount, 1);
+  assert.equal(metricRequests.length, 0);
+  assert.equal(context.metricProgressiveState.value, 'RUNNING');
+  assert.equal(hostListWorker.calls.initBaseEpochs[0], 1);
+  scope.stop();
+});
+
 test('progressive mode starts the snapshot with the base list and requests only the visible page while running', async () => {
   const baseRequest = deferred();
   const snapshotCreateRequest = deferred();
@@ -488,9 +569,10 @@ test('progressive mode starts the snapshot with the base list and requests only 
   const { context, scope } = createHostListController({ progressive: true, progressiveMetricService });
 
   const loading = context.loadData();
-  assert.equal(context.metricProgressiveState.value, 'RUNNING');
+  assert.equal(context.metricProgressiveState.value, 'READY');
   baseRequest.resolve(hosts);
   await loading;
+  assert.equal(context.metricProgressiveState.value, 'RUNNING');
   hostListWorker.emitComputeDone([hosts[0]]);
   await flushPromises();
 
@@ -1020,7 +1102,7 @@ test('production progressive mode uses the default snapshot adapter without comp
     hashHostIds: async () => '',
     poll: () => new Promise(() => {}),
   };
-  getHostInfo = async () => [];
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
   getHostMetricInfo = async () => ({});
   hostListWorker = createControllerWorker();
   const { context, scope } = createHostListController({ progressive: true });
@@ -1032,16 +1114,18 @@ test('production progressive mode uses the default snapshot adapter without comp
   createRequest.resolve(createSnapshotResult());
 });
 
-test('metric quick cards and metric sorting are inert until the full snapshot is ready', () => {
+test('metric quick cards and metric sorting are inert until the full snapshot is ready', async () => {
   const progressiveMetricService = {
     create: () => new Promise(() => {}),
     hashHostIds: async () => '',
     poll: () => new Promise(() => {}),
   };
-  getHostInfo = async () => [];
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
   getHostMetricInfo = async () => ({});
   hostListWorker = createControllerWorker();
   const { context, scope } = createHostListController({ progressive: true, progressiveMetricService });
+
+  await context.loadData();
 
   context.handleCategoryClick('cpu');
   context.handleSortChange('-cpu_usage');

@@ -64,6 +64,7 @@ declare global {
     enable_multi_tenant_mode?: boolean;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
     graph_watermark: boolean;
+    host_metric_progressive_min_host_count?: number;
     i18n: typeof i18n.global;
     // 以下为日志全局变量配置
     mainComponent: any;
