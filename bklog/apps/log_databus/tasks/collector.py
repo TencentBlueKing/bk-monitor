@@ -39,6 +39,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID
 from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
+    DORIS_CLUSTER_TYPE,
     REGISTERED_SYSTEM_DEFAULT,
     RETRY_TIMES,
     STORAGE_CLUSTER_TYPE,
@@ -49,6 +50,7 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
+from apps.log_databus.handlers.storage import METADATA_CLUSTER_STATUS_BATCH_SIZE
 from apps.log_databus.models import (
     BcsStorageClusterConfig,
     CollectorConfig,
@@ -130,9 +132,15 @@ def sync_storage_capacity():
     每小时同步业务各集群已用容量
     :return:
     """
-    # 1、获取所有集群
-    params = {"cluster_type": STORAGE_CLUSTER_TYPE}
-    cluster_obj = TransferApi.get_cluster_info(params)
+    # 1、获取所有集群，doris 与 ES 的容量指标取数方式不同，分别获取后合并处理
+    es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE})
+    # doris 指标依赖 metadata，取不到时降级为不同步 doris，不影响 ES 集群
+    try:
+        doris_clusters = TransferApi.get_cluster_info({"cluster_type": DORIS_CLUSTER_TYPE})
+        doris_cluster_stats = get_doris_cluster_stats(doris_clusters)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[sync_storage_capacity] sync doris cluster capacity failed: {e}")
+        doris_clusters, doris_cluster_stats = [], {}
 
     # 2、构建集群业务映射
     from apps.log_search.models import LogIndexSet
@@ -144,22 +152,35 @@ def sync_storage_capacity():
     # 批量收集所有需要创建或更新的 StorageUsed 对象
     storage_used_objects = []
 
-    for _cluster in cluster_obj:
+    for _cluster in es_clusters + doris_clusters:
         try:
-            usage, total = get_storage_usage_and_all(_cluster["cluster_config"]["cluster_id"])
-
-            index_count = count_storage_indices(_cluster["cluster_config"]["cluster_id"])
+            cluster_id = _cluster["cluster_config"]["cluster_id"]
+            is_doris = _cluster.get("cluster_type") == DORIS_CLUSTER_TYPE
+            if is_doris:
+                cluster_stats = doris_cluster_stats.get(cluster_id)
+                if not cluster_stats:
+                    continue
+                usage = cluster_stats["storage_usage"]
+                total = cluster_stats["storage_total"]
+                index_count = cluster_stats["index_count"]
+            else:
+                usage, total = get_storage_usage_and_all(cluster_id)
+                index_count = count_storage_indices(cluster_id)
 
             # 按集群归纳的 StorageUsed 对象
             cluster_storage_obj = StorageUsed(
                 bk_biz_id=0,
-                storage_cluster_id=_cluster["cluster_config"]["cluster_id"],
+                storage_cluster_id=cluster_id,
                 storage_total=total,
                 storage_usage=usage,
                 index_count=index_count,
-                biz_count=len(cluster_biz_cnt_map.get(_cluster["cluster_config"]["cluster_id"], {}).keys()),
+                biz_count=len(cluster_biz_cnt_map.get(cluster_id, {}).keys()),
             )
             storage_used_objects.append(cluster_storage_obj)
+
+            # doris 按业务的用量依赖 ES 索引名解析业务，metadata 侧暂无等价接口，只记录集群级指标
+            if is_doris:
+                continue
 
             # 2-1公共集群：所有业务都需要查询
             if _cluster["cluster_config"].get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
@@ -223,6 +244,64 @@ def count_storage_indices(cluster_id):
         return 0
 
     return len(indices) if indices else 0
+
+
+def get_cluster_owner_biz_id(cluster_config):
+    """
+    获取集群归属业务：公共集群归属蓝鲸业务，其余集群取 custom_option 中登记的业务
+    :return: 业务 ID，取不到时返回 None
+    """
+    if cluster_config.get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
+        return settings.BLUEKING_BK_BIZ_ID
+    try:
+        return int((cluster_config.get("custom_option") or {}).get("bk_biz_id"))
+    except (TypeError, ValueError):
+        return None
+
+
+def get_doris_cluster_stats(clusters):
+    """
+    获取 doris 集群的容量与分片指标
+    doris 没有 ES 的 _cat/allocation、_cat/indices 路由，容量与分片数改从 metadata 集群状态接口获取
+    :param clusters: get_cluster_info 返回的 doris 集群列表
+    :return: {cluster_id: {"storage_usage": 使用率百分比, "storage_total": 总容量字节数, "index_count": tablet 数}}
+    """
+    # metadata 集群状态接口按业务鉴权并据此解析租户，因此按集群归属业务分组批量查询
+    biz_cluster_ids_map = defaultdict(list)
+    for _cluster in clusters:
+        cluster_config = _cluster["cluster_config"]
+        bk_biz_id = get_cluster_owner_biz_id(cluster_config)
+        if not bk_biz_id:
+            logger.warning(
+                f"[sync_storage_capacity] doris cluster({cluster_config['cluster_id']}) has no owner biz, skipped"
+            )
+            continue
+        biz_cluster_ids_map[bk_biz_id].append(cluster_config["cluster_id"])
+
+    cluster_stats = {}
+    for bk_biz_id, cluster_ids in biz_cluster_ids_map.items():
+        for start in range(0, len(cluster_ids), METADATA_CLUSTER_STATUS_BATCH_SIZE):
+            batch_cluster_ids = cluster_ids[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
+            try:
+                statuses = TransferApi.get_cluster_status({"cluster_ids": batch_cluster_ids, "bk_biz_id": bk_biz_id})
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(f"[sync_storage_capacity] get doris cluster status failed: {e}")
+                continue
+            for status in statuses:
+                cluster_id = status.get("cluster_id")
+                if not cluster_id:
+                    continue
+                capacity = status.get("capacity") or {}
+                details = status.get("details") or {}
+                total = int(capacity.get("total_bytes") or 0)
+                used = int(capacity.get("used_bytes") or 0)
+                cluster_stats[cluster_id] = {
+                    "storage_usage": int((used / total) * 100) if total else 0,
+                    "storage_total": total,
+                    # doris 无 ES 索引概念，「索引数」按产品口径展示存储层 tablet 数
+                    "index_count": int(details.get("tablet_count") or 0),
+                }
+    return cluster_stats
 
 
 def _get_cluster_connection_info(cluster):
