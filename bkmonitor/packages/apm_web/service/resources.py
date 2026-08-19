@@ -525,6 +525,66 @@ class ServiceConfigResource(Resource):
         return list(unique_relations.values())
 
     @classmethod
+    def _get_event_relation_for_update(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        table: str,
+    ) -> dict[str, Any]:
+        # 当前表暂无作用域唯一约束：若存在历史重复记录，这里固定读取最小 ID，sync_relations 则由 QuerySet 的遍历顺序决定最终更新对象。
+        # 唯一约束与重复数据治理需另行收敛。
+        return (
+            EventServiceRelation.get_relation_qs(
+                bk_biz_id,
+                app_name,
+                [service_name],
+                table=table,
+            )
+            .select_for_update()
+            .order_by("id")
+            .values("relations", "options")
+            .first()
+            or {}
+        )
+
+    @classmethod
+    def _prepare_event_relations(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        relations: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        prepared_relations: list[dict[str, Any]] = [dict(relation) for relation in relations]
+        for relation in prepared_relations:
+            if (
+                relation.get("table") != EventCategory.K8S_EVENT.value
+                or relation.get("relations")
+                or (relation.get("options") or {}).get("is_auto") is not True
+            ):
+                continue
+
+            # SaaS 自动关联模式固定提交空 relations，不能用该空值覆盖外部平台已绑定的 Workload。
+            existing_relation: dict[str, Any] = cls._get_event_relation_for_update(
+                bk_biz_id,
+                app_name,
+                service_name,
+                EventCategory.K8S_EVENT.value,
+            )
+            existing_relations: list[dict[str, Any]] = existing_relation.get("relations") or []
+            if not existing_relations:
+                continue
+
+            options: dict[str, Any] = dict(existing_relation.get("options") or {})
+            options.update(relation.get("options") or {})
+            options["is_auto"] = False
+            relation["relations"] = existing_relations
+            relation["options"] = options
+
+        return prepared_relations
+
+    @classmethod
     def _prepare_incremental_event_relations(
         cls,
         bk_biz_id: int,
@@ -534,20 +594,17 @@ class ServiceConfigResource(Resource):
         unique_fields: tuple[str, ...],
         new_relations: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        existing_relation: dict[str, Any] = (
-            EventServiceRelation.get_relation_qs(
-                bk_biz_id,
-                app_name,
-                [service_name],
-                table=table,
-            )
-            .order_by("id")
-            .values("relations", "options")
-            .first()
-            or {}
+        existing_relation: dict[str, Any] = cls._get_event_relation_for_update(
+            bk_biz_id,
+            app_name,
+            service_name,
+            table,
         )
         existing_relations: list[dict[str, Any]] = existing_relation.get("relations") or []
-        options: dict[str, Any] = existing_relation.get("options") or {}
+        options: dict[str, Any] = dict(existing_relation.get("options") or {})
+        if table == EventCategory.K8S_EVENT.value:
+            # 外部注册的 Workload 必须落到手动关联模式，否则配置页不渲染 relations，下次保存会被空列表覆盖。
+            options["is_auto"] = False
 
         deduped_relations: dict[tuple[Any, ...], dict[str, Any]] = {}
         # 存量排在新增数据之前，身份相同时由 setdefault 保留原配置。
@@ -584,6 +641,13 @@ class ServiceConfigResource(Resource):
                 service_name,
                 table,
                 unique_fields,
+                relation_data,
+            )
+        elif relation_type == "event_relation":
+            prepare_datas = cls._prepare_event_relations(
+                bk_biz_id,
+                app_name,
+                service_name,
                 relation_data,
             )
         else:

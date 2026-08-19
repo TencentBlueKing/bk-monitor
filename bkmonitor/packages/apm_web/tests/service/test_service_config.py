@@ -154,14 +154,59 @@ def test_incremental_serializer_rejects_incomplete_relations(field: str, relatio
     assert field in serializer.errors
 
 
-def test_service_config_requires_manage_permission() -> None:
+def test_service_config_uses_view_permission() -> None:
     view = ServiceViewSet()
     view.action = "service_config"
 
     permissions = view.get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.MANAGE_APM_APPLICATION]
+    assert permissions[0].actions == [ActionEnum.VIEW_APM_APPLICATION]
+
+
+@pytest.mark.parametrize(
+    ("request_data", "error_field"),
+    [
+        ({**BASE_REQUEST, "app_name": "a" * 51}, "app_name"),
+        ({**BASE_REQUEST, "service_name": "s" * 513}, "service_name"),
+        (
+            {
+                **BASE_REQUEST,
+                "incremental_k8s_relations": [{**NEW_K8S_RELATION, "bcs_cluster_id": "c" * 65}],
+            },
+            "incremental_k8s_relations",
+        ),
+        (
+            {**BASE_REQUEST, "incremental_k8s_relations": [{**NEW_K8S_RELATION, "namespace": "n" * 64}]},
+            "incremental_k8s_relations",
+        ),
+        (
+            {**BASE_REQUEST, "incremental_k8s_relations": [{**NEW_K8S_RELATION, "kind": "k" * 65}]},
+            "incremental_k8s_relations",
+        ),
+        (
+            {**BASE_REQUEST, "incremental_k8s_relations": [{**NEW_K8S_RELATION, "name": "n" * 254}]},
+            "incremental_k8s_relations",
+        ),
+        (
+            {**BASE_REQUEST, "incremental_cicd_relations": [{**NEW_CICD_RELATION, "project_id": "p" * 129}]},
+            "incremental_cicd_relations",
+        ),
+        (
+            {**BASE_REQUEST, "incremental_cicd_relations": [{**NEW_CICD_RELATION, "pipeline_id": "p" * 129}]},
+            "incremental_cicd_relations",
+        ),
+        (
+            {**BASE_REQUEST, "incremental_cicd_relations": [{**NEW_CICD_RELATION, "pipeline_name": "p" * 256}]},
+            "incremental_cicd_relations",
+        ),
+    ],
+)
+def test_service_config_serializer_rejects_overlong_fields(request_data: dict[str, Any], error_field: str) -> None:
+    serializer = ServiceConfigSerializer(data=request_data)
+
+    assert not serializer.is_valid()
+    assert error_field in serializer.errors
 
 
 def test_incremental_relations_create_event_records(
@@ -178,7 +223,7 @@ def test_incremental_relations_create_event_records(
 
     relations = {relation.table: relation for relation in EventServiceRelation.objects.all()}
     assert relations[EventCategory.K8S_EVENT.value].relations == [NEW_K8S_RELATION]
-    assert relations[EventCategory.K8S_EVENT.value].options == {}
+    assert relations[EventCategory.K8S_EVENT.value].options == {"is_auto": False}
     assert relations[EventCategory.CICD_EVENT.value].relations == [NEW_CICD_RELATION]
     assert relations[EventCategory.CICD_EVENT.value].options == {}
 
@@ -212,7 +257,7 @@ def test_incremental_relations_append_deduplicate_and_preserve_existing_configs(
         **BASE_REQUEST,
         table=EventCategory.K8S_EVENT.value,
         relations=[EXISTING_K8S_RELATION],
-        options={"is_auto": False},
+        options={"is_auto": True},
     )
     cicd_relation = EventServiceRelation.objects.create(
         **BASE_REQUEST,
@@ -283,6 +328,32 @@ def test_incremental_relations_append_deduplicate_and_preserve_existing_configs(
         ApmMetaConfig.get_service_config_value(BK_BIZ_ID, APP_NAME, SERVICE_NAME, "labels").config_value
         == '["critical"]'
     )
+
+
+def test_incremental_k8s_relation_survives_follow_up_full_save(
+    application: Application,
+    disable_config_delivery: None,
+) -> None:
+    resource = ServiceConfigResource()
+    resource.request({**BASE_REQUEST, "incremental_k8s_relations": [NEW_K8S_RELATION]})
+    k8s_relation = EventServiceRelation.objects.get(table=EventCategory.K8S_EVENT.value)
+
+    resource.request(
+        {
+            **BASE_REQUEST,
+            "event_relation": [
+                {
+                    "table": EventCategory.K8S_EVENT.value,
+                    "relations": [],
+                    "options": {"is_auto": True},
+                }
+            ],
+        }
+    )
+
+    k8s_relation.refresh_from_db()
+    assert k8s_relation.relations == [NEW_K8S_RELATION]
+    assert k8s_relation.options == {"is_auto": False}
 
 
 def test_empty_incremental_relations_do_not_change_existing_record(

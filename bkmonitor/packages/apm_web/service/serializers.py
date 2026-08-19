@@ -78,22 +78,22 @@ class ServiceApdexConfigSerializer(serializers.Serializer):
 
 
 class IncrementalK8sRelationSerializer(serializers.Serializer):
-    bcs_cluster_id = serializers.CharField()
-    namespace = serializers.CharField()
-    kind = serializers.CharField()
-    name = serializers.CharField()
+    bcs_cluster_id = serializers.CharField(label=_("BCS 集群 ID"), max_length=64)
+    namespace = serializers.CharField(label=_("命名空间"), max_length=63)
+    kind = serializers.CharField(label=_("Workload 类型"), max_length=64)
+    name = serializers.CharField(label=_("Workload 名称"), max_length=253)
 
 
 class IncrementalCICDRelationSerializer(serializers.Serializer):
-    project_id = serializers.CharField()
-    pipeline_id = serializers.CharField()
-    pipeline_name = serializers.CharField()
+    project_id = serializers.CharField(label=_("项目 ID"), max_length=128)
+    pipeline_id = serializers.CharField(label=_("流水线 ID"), max_length=128)
+    pipeline_name = serializers.CharField(label=_("流水线名称"), max_length=255)
 
 
 class ServiceConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-    app_name = serializers.CharField(label=_("应用名"))
-    service_name = serializers.CharField(label=_("服务名"))
+    app_name = serializers.CharField(label=_("应用名"), max_length=50)
+    service_name = serializers.CharField(label=_("服务名"), max_length=512)
 
     app_relation = AppServiceRelationSerializer(allow_null=True, default=None)
     cmdb_relation = CMDBServiceRelationSerializer(allow_null=True, default=None)
