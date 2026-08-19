@@ -48,11 +48,6 @@ class Migration(migrations.Migration):
             name="role",
             field=models.CharField(blank=True, default="main", max_length=32, verbose_name="Databus角色"),
         ),
-        migrations.AddField(
-            model_name="bkbaseresulttable",
-            name="status_message",
-            field=models.TextField(blank=True, null=True, verbose_name="状态详情"),
-        ),
         migrations.AlterField(
             model_name="bkbaseresulttable",
             name="bkbase_data_name",

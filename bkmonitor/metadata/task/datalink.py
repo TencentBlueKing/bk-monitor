@@ -196,7 +196,7 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
             cleanup_absent_components=True,
         )
         datalink.sync_metadata(table_id=table_id, storage_cluster_id=storage_cluster_id)
-    except Exception as error:
+    except Exception:
         BkBaseResultTable.objects.update_or_create(
             bk_tenant_id=bk_tenant_id,
             data_link_name=data_link_name,
@@ -206,7 +206,6 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
                 "storage_type": option.target_storage_type,
                 "storage_cluster_id": storage_cluster_id,
                 "status": DataLinkResourceStatus.FAILED.value,
-                "status_message": str(error),
             },
         )
         raise

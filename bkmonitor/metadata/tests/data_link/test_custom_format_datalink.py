@@ -419,7 +419,6 @@ def test_custom_format_apply_failure_records_component_error(mocker, custom_form
         data_link_name=compose_custom_format_data_link_name("system", data_source.bk_data_id, result_table.table_id)
     )
     assert record.status == DataLinkResourceStatus.FAILED.value
-    assert record.status_message == "ElasticSearchBinding apply failed"
 
 
 def test_custom_format_missing_storage_keeps_failed_expected_state(custom_format_records):
@@ -464,7 +463,6 @@ def test_custom_format_missing_storage_keeps_failed_expected_state(custom_format
     assert models.DataLink.objects.filter(data_link_name=data_link_name).exists()
     record = models.BkBaseResultTable.objects.get(data_link_name=data_link_name)
     assert record.status == DataLinkResourceStatus.FAILED.value
-    assert record.status_message == f"自定义格式 ResultTable({result_table.table_id}) 缺少 ESStorage"
 
 
 def test_custom_format_debug_returns_rule_and_contract_errors(mocker, custom_format_records):

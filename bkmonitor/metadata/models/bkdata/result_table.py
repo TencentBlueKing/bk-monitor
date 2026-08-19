@@ -55,7 +55,6 @@ class BkBaseResultTable(models.Model):
     status = models.CharField(
         verbose_name="状态", max_length=64, choices=STATUS_CHOICES, default=DataLinkResourceStatus.INITIALIZING.value
     )
-    status_message = models.TextField(verbose_name="状态详情", null=True, blank=True)
 
     # 计算平台结果表ID，只有在实际创建后才进行赋值
     bkbase_table_id = models.CharField(verbose_name="计算平台结果表ID", max_length=128, null=True, blank=True)

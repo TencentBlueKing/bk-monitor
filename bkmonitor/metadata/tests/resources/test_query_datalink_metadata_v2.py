@@ -554,7 +554,6 @@ class TestBuildV4DatabusBlock:
         ds = mock.MagicMock(created_from="bkdata")
         br = mock.MagicMock()
         br.status = "Ok"
-        br.status_message = ""
         br.bkbase_table_id = "2_bkm_foo"
         br.bkbase_rt_name = "bkm_foo"
         br.data_link_name = "bkm_foo_link"
@@ -596,7 +595,6 @@ class TestBuildV4DatabusBlock:
         assert set(out.keys()) == {
             "databus_name",
             "bkbase_status",
-            "bkbase_status_message",
             "bkbase_table_id",
             "bkbase_rt_name",
             "bkbase_components",

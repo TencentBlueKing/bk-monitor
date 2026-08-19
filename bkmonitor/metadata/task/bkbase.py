@@ -1597,11 +1597,8 @@ def _refresh_bkbase_result_table_statuses(
         else:
             status = DataLinkResourceStatus.PENDING.value
 
-        should_clear_message = status == DataLinkResourceStatus.OK.value and bool(bkbase_record.status_message)
-        if bkbase_record.status != status or should_clear_message:
+        if bkbase_record.status != status:
             bkbase_record.status = status
-            if should_clear_message:
-                bkbase_record.status_message = ""
             bkbase_record.last_modify_time = now
             changed_records.append(bkbase_record)
 
@@ -1615,7 +1612,7 @@ def _refresh_bkbase_result_table_statuses(
     if changed_records:
         BkBaseResultTable.objects.bulk_update(
             changed_records,
-            ["status", "status_message", "last_modify_time"],
+            ["status", "last_modify_time"],
             batch_size=1000,
         )
     return len(changed_records)

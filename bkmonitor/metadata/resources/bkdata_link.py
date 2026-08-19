@@ -1279,7 +1279,6 @@ class QueryDataLinkMetadataResource(Resource):
         out = {
             "databus_name": None,
             "bkbase_status": None,
-            "bkbase_status_message": None,
             "bkbase_table_id": None,
             "bkbase_rt_name": None,
             "bkbase_components": None,
@@ -1291,7 +1290,6 @@ class QueryDataLinkMetadataResource(Resource):
             return out
 
         out["bkbase_status"] = br.status or None
-        out["bkbase_status_message"] = br.status_message or None
         out["bkbase_table_id"] = br.bkbase_table_id or None
         out["bkbase_rt_name"] = br.bkbase_rt_name or None
 
