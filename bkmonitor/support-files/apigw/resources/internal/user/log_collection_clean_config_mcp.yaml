@@ -125,7 +125,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/log_collection_clean_config/update/
+          path: /api/v4/log_collection_clean_config/update_clean_config/
           matchSubpath: false
           timeout: 30
         pluginConfigs: []

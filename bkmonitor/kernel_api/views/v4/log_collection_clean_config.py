@@ -29,5 +29,5 @@ class LogCollectionCleanConfigViewSet(ResourceViewSet):
         return [CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
 
     resource_routes = [
-        ResourceRoute("POST", UpdateLogCollectorCleanConfigResource, endpoint="update"),
+        ResourceRoute("POST", UpdateLogCollectorCleanConfigResource, endpoint="update_clean_config"),
     ]
