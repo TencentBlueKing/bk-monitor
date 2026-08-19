@@ -472,6 +472,7 @@ class SearchHostMetricResource(ApiAuthResource):
         end_time: int = None,
         fail_on_incomplete: bool = False,
         target_filter: dict | None = None,
+        incomplete_callback=None,
     ):
         """
         获取Agent状态
@@ -483,6 +484,7 @@ class SearchHostMetricResource(ApiAuthResource):
             end_time=end_time,
             fail_on_incomplete=fail_on_incomplete,
             target_filter=target_filter,
+            incomplete_callback=incomplete_callback,
         )
         for bk_host_id, status in agent_statuses.items():
             if bk_host_id not in data:
@@ -498,6 +500,7 @@ class SearchHostMetricResource(ApiAuthResource):
         end_time: int = None,
         fail_on_incomplete: bool = False,
         target_filter: dict | None = None,
+        incomplete_callback=None,
     ):
         """
         获取指标信息
@@ -509,6 +512,7 @@ class SearchHostMetricResource(ApiAuthResource):
             end_time=end_time,
             fail_on_incomplete=fail_on_incomplete,
             target_filter=target_filter,
+            incomplete_callback=incomplete_callback,
         )
         for bk_host_id, metrics in result.items():
             if bk_host_id not in data:
@@ -525,6 +529,7 @@ class SearchHostMetricResource(ApiAuthResource):
         fail_on_incomplete: bool = False,
         filter_by_hosts: bool = False,
         target_filter: dict | None = None,
+        incomplete_callback=None,
     ):
         """
         获取进程信息
@@ -541,6 +546,7 @@ class SearchHostMetricResource(ApiAuthResource):
             fail_on_incomplete=fail_on_incomplete,
             filter_by_hosts=filter_by_hosts,
             target_filter=target_filter,
+            incomplete_callback=incomplete_callback,
         )
         for bk_host_id in result:
             if bk_host_id not in data:
@@ -589,18 +595,34 @@ class SearchHostMetricResource(ApiAuthResource):
     def perform_request(self, params):
         self.validate_scope_host_ids(params)
         bk_biz_id = params["bk_biz_id"]
+        is_page_query = params.get("query_mode") == self.PAGE_QUERY_MODE
+        defaults = {
+            "status": AGENT_STATUS.UNKNOWN,
+            "cpu_load": None,
+            "cpu_usage": None,
+            "disk_in_use": None,
+            "io_util": None,
+            "mem_usage": None,
+            "psc_mem_usage": None,
+            "component": [],
+            "alarm_count": [],
+        }
         data = {
-            bk_host_id: {
-                "status": AGENT_STATUS.UNKNOWN,
-                "cpu_load": None,
-                "cpu_usage": None,
-                "disk_in_use": None,
-                "io_util": None,
-                "mem_usage": None,
-                "psc_mem_usage": None,
-                "component": [],
-                "alarm_count": [],
-            }
+            bk_host_id: (
+                {}
+                if is_page_query
+                else {
+                    "status": AGENT_STATUS.UNKNOWN,
+                    "cpu_load": None,
+                    "cpu_usage": None,
+                    "disk_in_use": None,
+                    "io_util": None,
+                    "mem_usage": None,
+                    "psc_mem_usage": None,
+                    "component": [],
+                    "alarm_count": [],
+                }
+            )
             for bk_host_id in params["bk_host_ids"]
         }
 
@@ -608,12 +630,26 @@ class SearchHostMetricResource(ApiAuthResource):
 
         pool = ThreadPool()
         task_args = (bk_biz_id, hosts, data, params.get("start_time"), params.get("end_time"))
+        section_states = {section: {"state": "RUNNING"} for section in SNAPSHOT_SECTIONS}
+
+        def mark_partial(section):
+            section_states[section] = {"state": "PARTIAL"}
+
         futures = {
-            "agent_status": pool.apply_async(self.get_agent_status, args=(*task_args, True)),
-            "performance_data": pool.apply_async(self.get_performance_data, args=(*task_args, True)),
+            "agent_status": pool.apply_async(
+                self.get_agent_status,
+                args=(*task_args, not is_page_query),
+                kwds={"incomplete_callback": (lambda: mark_partial("agent_status")) if is_page_query else None},
+            ),
+            "performance_data": pool.apply_async(
+                self.get_performance_data,
+                args=(*task_args, not is_page_query),
+                kwds={"incomplete_callback": (lambda: mark_partial("performance_data")) if is_page_query else None},
+            ),
             "process_status": pool.apply_async(
                 self.get_process_status,
-                args=(*task_args, True, params.get("query_mode") == self.PAGE_QUERY_MODE),
+                args=(*task_args, not is_page_query, is_page_query),
+                kwds={"incomplete_callback": (lambda: mark_partial("process_status")) if is_page_query else None},
             ),
             "alarm_count": pool.apply_async(self.get_alarm_count, args=task_args),
         }
@@ -625,9 +661,36 @@ class SearchHostMetricResource(ApiAuthResource):
             except Exception:
                 logger.exception("get host metric section %s failed, bk_biz_id=%s", section, bk_biz_id)
                 failed_sections.append(section)
+                section_states[section] = {"state": "FAILED"}
+                continue
+            if section_states[section]["state"] == "RUNNING":
+                section_states[section] = {"state": "READY"}
+            if is_page_query and section_states[section]["state"] == "READY":
+                section_defaults = {
+                    "agent_status": {"status": defaults["status"]},
+                    "performance_data": {
+                        key: defaults[key]
+                        for key in defaults
+                        if key.endswith("usage") or key in {"cpu_load", "disk_in_use", "io_util"}
+                    },
+                    "process_status": {"component": []},
+                    "alarm_count": {"alarm_count": []},
+                }[section]
+                for host_data in data.values():
+                    for field, value in section_defaults.items():
+                        host_data.setdefault(field, value)
         pool.join()
-        if failed_sections:
+        if failed_sections and not is_page_query:
             raise CustomException("get host metric data failed", data={"failed_sections": failed_sections})
+        if is_page_query:
+            return {
+                "data": data,
+                "failed_sections": sorted(failed_sections),
+                "partial_sections": sorted(
+                    section for section, state in section_states.items() if state["state"] == "PARTIAL"
+                ),
+                "sections": section_states,
+            }
         return data
 
 

@@ -132,6 +132,7 @@ test('snapshot adapter maps create manifest and sends an explicit scoped synchro
     failedSections: [],
     hostCount: 2,
     hostIdsHash: 'hash-1',
+    partialSections: [],
     retryAfterMs: 2000,
     revision: 3,
     sections: [],

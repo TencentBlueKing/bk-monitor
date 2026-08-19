@@ -35,49 +35,48 @@ def _build_snapshot_section(
     if username is not None:
         set_local_username(username)
     host_ids = {host.bk_host_id for host in hosts}
+    is_partial = False
+
+    def mark_partial():
+        nonlocal is_partial
+        is_partial = True
+
     target_filter = {} if scope["type"] == "business" else None
     if section == "agent_status":
-        data = {host_id: {"status": AGENT_STATUS.UNKNOWN} for host_id in host_ids}
+        data = {host_id: {} for host_id in host_ids}
         SearchHostMetricResource.get_agent_status(
             bk_biz_id,
             hosts,
             data,
             start_time,
             end_time,
-            fail_on_incomplete=True,
+            fail_on_incomplete=False,
             target_filter=target_filter,
+            incomplete_callback=mark_partial,
         )
     elif section == "performance_data":
-        data = {
-            host_id: {
-                "cpu_load": None,
-                "cpu_usage": None,
-                "disk_in_use": None,
-                "io_util": None,
-                "mem_usage": None,
-                "psc_mem_usage": None,
-            }
-            for host_id in host_ids
-        }
+        data = {host_id: {} for host_id in host_ids}
         SearchHostMetricResource.get_performance_data(
             bk_biz_id,
             hosts,
             data,
             start_time,
             end_time,
-            fail_on_incomplete=True,
+            fail_on_incomplete=False,
             target_filter=target_filter,
+            incomplete_callback=mark_partial,
         )
     elif section == "process_status":
-        data = {host_id: {"component": []} for host_id in host_ids}
+        data = {host_id: {} for host_id in host_ids}
         SearchHostMetricResource.get_process_status(
             bk_biz_id,
             hosts,
             data,
             start_time,
             end_time,
-            fail_on_incomplete=True,
+            fail_on_incomplete=False,
             target_filter=target_filter,
+            incomplete_callback=mark_partial,
         )
     elif section == "alarm_count":
         data = {host_id: {"alarm_count": []} for host_id in host_ids}
@@ -91,7 +90,24 @@ def _build_snapshot_section(
         )
     else:
         raise ValueError(f"unknown host metric snapshot section: {section}")
-    return data
+    if not is_partial:
+        defaults = {
+            "agent_status": {"status": AGENT_STATUS.UNKNOWN},
+            "performance_data": {
+                "cpu_load": None,
+                "cpu_usage": None,
+                "disk_in_use": None,
+                "io_util": None,
+                "mem_usage": None,
+                "psc_mem_usage": None,
+            },
+            "process_status": {"component": []},
+            "alarm_count": {"alarm_count": []},
+        }[section]
+        for host_data in data.values():
+            for field, value in defaults.items():
+                host_data.setdefault(field, value)
+    return {"data": data, "state": SnapshotState.PARTIAL if is_partial else SnapshotState.READY}
 
 
 @shared_task(ignore_result=True, queue="celery_resource", soft_time_limit=55, time_limit=60)
@@ -136,6 +152,7 @@ def build_host_metric_snapshot(snapshot_id: str):
         )
 
         failed_sections = []
+        partial_sections = []
         with ThreadPoolExecutor(max_workers=len(SNAPSHOT_SECTIONS)) as executor:
             futures = {
                 executor.submit(
@@ -154,7 +171,7 @@ def build_host_metric_snapshot(snapshot_id: str):
             for future in as_completed(futures):
                 section = futures.pop(future)
                 try:
-                    data = future.result()
+                    section_result = future.result()
                 except Exception:
                     logger.exception(
                         "build host metric snapshot section failed, bk_biz_id=%s, section=%s",
@@ -163,6 +180,14 @@ def build_host_metric_snapshot(snapshot_id: str):
                     )
                     failed_sections.append(section)
                     continue
+                if isinstance(section_result, dict) and "data" in section_result and "state" in section_result:
+                    data = section_result["data"]
+                    section_state = section_result["state"]
+                else:
+                    data = section_result
+                    section_state = SnapshotState.READY
+                if section_state == SnapshotState.PARTIAL:
+                    partial_sections.append(section)
                 current = store.get_current(manifest["fingerprint"])
                 if not current or current["snapshot_id"] != snapshot_id:
                     return
@@ -173,10 +198,14 @@ def build_host_metric_snapshot(snapshot_id: str):
                     store.expire(snapshot_id)
                     return
                 store.write_section(snapshot_id, section, data)
-                store.mark_section_ready(snapshot_id, section)
+                store.mark_section_ready(snapshot_id, section, state=section_state)
 
-        if failed_sections:
-            store.fail(snapshot_id, "section_failed", failed_sections=sorted(failed_sections))
+        if failed_sections or partial_sections:
+            store.mark_degraded(
+                snapshot_id,
+                failed_sections=sorted(failed_sections),
+                partial_sections=sorted(partial_sections),
+            )
             return
         store.mark_ready(snapshot_id, expected_sections=set(SNAPSHOT_SECTIONS))
     except SnapshotUnavailable:

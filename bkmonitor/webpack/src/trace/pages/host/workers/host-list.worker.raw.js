@@ -87,16 +87,21 @@ const mergeHostComponents = (components = []) => {
 };
 
 const createHostListRow = (row, metric = {}) => {
-  const modules = row.module || [];
+  const merged = Object.assign({}, row || {}, metric || {});
+  const modules = merged.module || [];
   const bkClusters = extractClusters(modules);
-  const components = mergeHostComponents(metric.component);
-  const rowId = String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`);
-  const totalAlarmCount = (metric.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
-  return Object.assign({}, row || {}, metric || {}, {
+  const components = mergeHostComponents(merged.component);
+  const rowId = String(
+    merged.bk_host_id != null ? merged.bk_host_id : `${merged.bk_host_innerip}|${merged.bk_cloud_id}`
+  );
+  const totalAlarmCount = Array.isArray(merged.alarm_count)
+    ? merged.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
+    : undefined;
+  return Object.assign({}, merged, {
     id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
-    component: components,
+    ...(Object.hasOwn(merged, 'component') ? { component: components } : {}),
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
     processNames: components.map(c => c.display_name).join(','),
     rowId,
@@ -129,7 +134,7 @@ const matchQuickCategory = (row, category) => {
   }
 };
 
-const matchKeyword = (row, keyword, includeMetricFields = true) => {
+const matchKeyword = (row, keyword) => {
   const kw = keyword.trim().toLowerCase();
   if (!kw) {
     return true;
@@ -146,9 +151,7 @@ const matchKeyword = (row, keyword, includeMetricFields = true) => {
     row.clusterNames,
     row.moduleNames,
   ];
-  if (includeMetricFields) {
-    fields.push(row.processNames);
-  }
+  fields.push(row.processNames);
   return fields.some(field => !!field && String(field).toLowerCase().includes(kw));
 };
 
@@ -203,6 +206,12 @@ const matchWhereItem = (row, item) => {
       default:
         return origin === target;
     }
+  }
+  if (item.key === 'status' && row.status === undefined) {
+    return false;
+  }
+  if (item.key === 'display_name' && !Object.hasOwn(row, 'component')) {
+    return false;
   }
   // 集群模块字段：行数据 module.topo_link 为拓扑路径数组，候选项值为 JSON 编码的路径数组，需解析后逐条包含匹配
   if (['cluster_module'].includes(item.key)) {
@@ -269,13 +278,18 @@ const matchWhere = (row, where) => {
 
 const computeCategoryStats = rows => {
   const stats = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
+  const coverage = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
   for (const row of rows) {
+    if (row.totalAlarmCount !== undefined) coverage.alarm += 1;
+    if (Object.hasOwn(row, 'cpu_usage')) coverage.cpu += 1;
+    if (Object.hasOwn(row, 'mem_usage')) coverage.mem += 1;
+    if (Object.hasOwn(row, 'disk_in_use')) coverage.disk += 1;
     if (row.totalAlarmCount > 0) stats.alarm += 1;
     if ((row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.cpu += 1;
     if ((row.mem_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.mem += 1;
     if ((row.disk_in_use || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.disk += 1;
   }
-  return stats;
+  return { coverage, stats };
 };
 
 const sortRows = (rows, sort, stickyValue) => {
@@ -330,8 +344,10 @@ const buildFilterOptionsMap = rows => {
     if (row.bk_host_name) setMap.bk_host_name.set(row.bk_host_name, row.bk_host_name);
     if (row.bk_os_name) setMap.bk_os_name.set(row.bk_os_name, row.bk_os_name);
     if (row.bk_cloud_name) setMap.bk_cloud_name.set(row.bk_cloud_name, row.bk_cloud_name);
-    const statusConfig = HOST_STATUS_MAP[row.status] || HOST_STATUS_MAP[String(row.status)];
-    setMap.status.set(String(row.status), statusConfig?.name || String(row.status));
+    if (row.status !== undefined) {
+      const statusConfig = HOST_STATUS_MAP[row.status] || HOST_STATUS_MAP[String(row.status)];
+      setMap.status.set(String(row.status), statusConfig?.name || String(row.status));
+    }
     for (const cluster of row.bkClusters) {
       setMap.bk_cluster.set(cluster.id, cluster.name);
     }
@@ -394,10 +410,9 @@ const buildFilterOptionsMap = rows => {
 
 let baseRows = [];
 let committedRows = [];
-let pageMetricMap = new Map();
 let filterOptionsMap = new Map();
 let currentEpoch = 0;
-let metricsReady = false;
+let metricsComplete = false;
 
 const optionsMapToRecord = map => {
   const record = {};
@@ -413,7 +428,7 @@ const filterByConditions = (rows, params) =>
     row =>
       matchQuickCategory(row, params.activeCategory) &&
       matchWhere(row, params.where) &&
-      matchKeyword(row, params.keyword, metricsReady)
+      matchKeyword(row, params.keyword)
   );
 
 /** 拓扑 + 条件过滤后的全量行（不含分页） */
@@ -424,24 +439,33 @@ const getFilteredRows = params => {
 
 const runCompute = params => {
   const nodeScopedRows = committedRows.filter(row => matchTopoNode(row, params.selectedNode));
-  const categoryStats = computeCategoryStats(nodeScopedRows);
+  const categoryResult = computeCategoryStats(nodeScopedRows);
   const filteredRows = filterByConditions(nodeScopedRows, params);
   const sortedRows = sortRows(filteredRows, params.sortInfo, params.stickyValue);
   const total = sortedRows.length;
   const start = (params.page - 1) * params.pageSize;
   const slicedRows = sortedRows.slice(start, start + params.pageSize);
-  const pagedRows = metricsReady
-    ? slicedRows
-    : slicedRows.map(row => createHostListRow(row, pageMetricMap.get(String(row.bk_host_id))));
-  return { categoryStats, pagedRows, total };
+  return {
+    categoryCoverage: categoryResult.coverage,
+    categoryPopulation: nodeScopedRows.length,
+    categoryStats: categoryResult.stats,
+    pagedRows: slicedRows,
+    total,
+  };
 };
 
 const isCurrentEpoch = message => Number(message.epoch) === currentEpoch;
 
 const replaceCommittedMetrics = metricListMap => {
   committedRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
-  pageMetricMap = new Map();
-  metricsReady = true;
+  filterOptionsMap = buildFilterOptionsMap(committedRows);
+};
+
+const patchCommittedMetrics = metricListMap => {
+  committedRows = committedRows.map(row => {
+    const metric = metricListMap[row.bk_host_id];
+    return metric ? createHostListRow(row, metric) : row;
+  });
   filterOptionsMap = buildFilterOptionsMap(committedRows);
 };
 
@@ -464,9 +488,8 @@ self.onmessage = event => {
       currentEpoch = nextEpoch;
       baseRows = message.baseList;
       committedRows = baseRows.map(row => createHostListRow(row));
-      pageMetricMap = new Map();
-      metricsReady = false;
       filterOptionsMap = buildFilterOptionsMap(committedRows);
+      metricsComplete = false;
       self.postMessage({
         applied: true,
         epoch: currentEpoch,
@@ -479,6 +502,7 @@ self.onmessage = event => {
     }
     case 'MERGE_METRICS': {
       replaceCommittedMetrics(message.metricListMap);
+      metricsComplete = true;
       self.postMessage({
         applied: true,
         epoch: currentEpoch,
@@ -492,9 +516,8 @@ self.onmessage = event => {
       const applied = isCurrentEpoch(message);
       if (applied) {
         committedRows = baseRows.map(row => createHostListRow(row));
-        pageMetricMap = new Map();
-        metricsReady = false;
         filterOptionsMap = buildFilterOptionsMap(committedRows);
+        metricsComplete = false;
       }
       self.postMessage({
         applied,
@@ -506,17 +529,12 @@ self.onmessage = event => {
       break;
     }
     case 'PATCH_METRICS': {
-      const applied = isCurrentEpoch(message);
-      if (applied && !metricsReady) {
-        for (const hostId of message.hostIds || []) {
-          pageMetricMap.delete(String(hostId));
-        }
-        for (const [hostId, metric] of Object.entries(message.metricListMap || {})) {
-          pageMetricMap.set(hostId, metric);
-        }
+      const applied = isCurrentEpoch(message) && !metricsComplete;
+      if (applied) {
+        patchCommittedMetrics(message.metricListMap || {});
       }
       self.postMessage({
-        applied: applied && !metricsReady,
+        applied,
         epoch: currentEpoch,
         requestId: message.requestId,
         type: 'PATCH_METRICS_DONE',
@@ -527,6 +545,7 @@ self.onmessage = event => {
       const applied = isCurrentEpoch(message);
       if (applied) {
         replaceCommittedMetrics(message.metricListMap);
+        metricsComplete = true;
       }
       self.postMessage({
         applied,
@@ -540,6 +559,8 @@ self.onmessage = event => {
     case 'COMPUTE': {
       const result = runCompute(message.params);
       self.postMessage({
+        categoryCoverage: result.categoryCoverage,
+        categoryPopulation: result.categoryPopulation,
         categoryStats: result.categoryStats,
         pagedRows: result.pagedRows,
         total: result.total,

@@ -39,13 +39,13 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import useUserConfig from '../../../hooks/useUserConfig';
 import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
+import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
 import {
-  HOST_FILTER_FIELDS,
-  HOST_LIST_COLUMNS,
-  HOST_LIST_DEFAULT_PAGE_SIZE,
-  HOST_PROGRESSIVE_METRIC_FIELD_IDS,
-} from '../constants/host-list';
-import { getHostInfoList, getHostMetricInfoList, hostMetricSnapshotService } from '../services/host-service';
+  getHostInfoList,
+  getHostMetricInfoList,
+  getHostPageMetricInfoList,
+  hostMetricSnapshotService,
+} from '../services/host-service';
 import { HOST_METRIC_SNAPSHOT_SECTIONS } from '../types/host-metric-progressive';
 import { resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListWorker } from './use-host-list-worker';
@@ -117,9 +117,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   const metricLoading = shallowRef(false);
   /** 指标数据加载失败（保留基础行，仅指标列展示错误态） */
   const metricLoadError = shallowRef(false);
-  /** 渐进指标状态；旧链路始终视为 READY，保持现有交互 */
+  /** 渐进指标完整性状态；不作为排序、筛选或快捷卡的功能开关 */
   const metricProgressiveState = shallowRef<HostMetricProgressiveState>('READY');
-  const metricSemanticsReady = computed(() => !progressiveEnabled.value || metricProgressiveState.value === 'READY');
   /** 全量主机行数（主线程不持有全量行对象） */
   const rawRowCount = shallowRef(0);
   /** retrieval-filter 语句模式 */
@@ -129,11 +128,7 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 排序（tdesign 字符串格式：`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
-  const availableSortInfo = computed(() =>
-    metricSemanticsReady.value || !HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(sortInfo.value.replace(/^-/, ''))
-      ? sortInfo.value
-      : ''
-  );
+  const availableSortInfo = computed(() => sortInfo.value);
   /** 当前页码 */
   const page = shallowRef(1);
   /** 每页条数（初始值取全局统一页码配置，未配置时回退到默认 50） */
@@ -151,17 +146,15 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 快捷过滤卡片统计（Worker 计算结果） */
   const categoryStats = shallowRef<IHostQuickCardStats>({ ...EMPTY_CATEGORY_STATS });
+  const categoryCoverage = shallowRef<IHostQuickCardStats>({ ...EMPTY_CATEGORY_STATS });
+  const categoryPopulation = shallowRef(0);
   /** 过滤排序后的总条数 */
   const total = shallowRef(0);
   /** 当前页数据（Worker 仅回传一页，避免主线程持有全量） */
   const pagedRows = shallowRef<IHostListRow[]>([]);
 
-  /** 快照 READY 前只开放基础主机字段，避免局部页指标产生全局假结果 */
-  const availableFilterFields = computed(() =>
-    metricSemanticsReady.value
-      ? HOST_FILTER_FIELDS
-      : HOST_FILTER_FIELDS.filter(field => !HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(field.name))
-  );
+  /** 指标未完整时仍开放筛选；未获取的字段保持未知且不命中条件。 */
+  const availableFilterFields = computed(() => HOST_FILTER_FIELDS);
 
   /** 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原 */
   const filterOptionsMap = shallowRef<Record<string, unknown>>({});
@@ -258,16 +251,14 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 获取计算参数 */
   const getComputeParams = () => ({
-    activeCategory: metricSemanticsReady.value ? activeCategory.value : '',
+    activeCategory: activeCategory.value,
     keyword: keyword.value,
     page: page.value,
     pageSize: pageSize.value,
     selectedNode: selectedNode.value,
     sortInfo: availableSortInfo.value,
     stickyValue: stickyValue.value,
-    where: metricSemanticsReady.value
-      ? where.value
-      : where.value.filter(item => !HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(item.key)),
+    where: where.value,
   });
 
   const refreshList = (immediate = false) => {
@@ -280,6 +271,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   };
 
   hostListWorker.setComputeHandler(data => {
+    categoryCoverage.value = data.categoryCoverage;
+    categoryPopulation.value = data.categoryPopulation;
     categoryStats.value = data.categoryStats;
     total.value = data.total;
     pagedRows.value = data.pagedRows;
@@ -322,12 +315,15 @@ export const useHostList = (options: IUseHostListOptions) => {
   const waitForSnapshotPoll = (delay: number) =>
     delay > 0 ? new Promise(resolve => setTimeout(resolve, delay)) : Promise.resolve();
 
-  const mergeSnapshotSections = (sections: Map<string, IHostMetricSnapshotSection>) => {
+  const mergeSnapshotSections = (sections: Map<string, IHostMetricSnapshotSection>, requireAll = false) => {
     const metricListMap: Record<string, Partial<IHostMetricInfo>> = {};
     for (const sectionName of HOST_METRIC_SNAPSHOT_SECTIONS) {
       const section = sections.get(sectionName);
       if (!section) {
-        return null;
+        if (requireAll) {
+          return null;
+        }
+        continue;
       }
       for (const [hostId, data] of Object.entries(section.data)) {
         metricListMap[hostId] = { ...metricListMap[hostId], ...data };
@@ -349,7 +345,7 @@ export const useHostList = (options: IUseHostListOptions) => {
   };
 
   const isTerminalSnapshotState = (status: HostMetricProgressiveState) =>
-    status === 'EXPIRED' || status === 'FAILED' || status === 'UNAVAILABLE';
+    status === 'DEGRADED' || status === 'EXPIRED' || status === 'FAILED' || status === 'UNAVAILABLE';
 
   const isCurrentSnapshotAttempt = (epoch: number, attempt: number) =>
     !disposed && epoch === dataRequestGeneration && attempt === snapshotAttemptGeneration;
@@ -367,7 +363,11 @@ export const useHostList = (options: IUseHostListOptions) => {
     epoch: number,
     attempt: number,
     query: IHostMetricSnapshotQuery,
-    onCanonicalTime: (query: IHostMetricSnapshotQuery) => void
+    onCanonicalTime: (query: IHostMetricSnapshotQuery) => void,
+    onSections: (
+      metricListMap: Record<string, Partial<IHostMetricInfo>>,
+      result: IHostMetricSnapshotResult
+    ) => Promise<void>
   ) => {
     const createResult = await progressiveMetricService.create(query);
     if (!isCurrentSnapshotAttempt(epoch, attempt)) {
@@ -384,11 +384,12 @@ export const useHostList = (options: IUseHostListOptions) => {
     let hasPolled = false;
     const sections = new Map<string, IHostMetricSnapshotSection>();
     while (isCurrentSnapshotAttempt(epoch, attempt)) {
-      if (isTerminalSnapshotState(result.status)) {
+      const shouldPollDegradedData = result.status === 'DEGRADED' && !hasPolled && Boolean(result.snapshotId);
+      if (isTerminalSnapshotState(result.status) && !shouldPollDegradedData) {
         return { query: canonicalQuery, result };
       }
       if (result.status === 'READY') {
-        const metricListMap = mergeSnapshotSections(sections);
+        const metricListMap = mergeSnapshotSections(sections, true);
         if (metricListMap) {
           return {
             query: canonicalQuery,
@@ -407,7 +408,9 @@ export const useHostList = (options: IUseHostListOptions) => {
           result: { ...result, status: 'UNAVAILABLE' as const },
         };
       }
-      await waitForSnapshotPoll(result.status === 'READY' ? 0 : (result.retryAfterMs ?? 1000));
+      await waitForSnapshotPoll(
+        result.status === 'READY' || shouldPollDegradedData ? 0 : (result.retryAfterMs ?? 1000)
+      );
       if (!isCurrentSnapshotAttempt(epoch, attempt)) {
         return null;
       }
@@ -422,6 +425,9 @@ export const useHostList = (options: IUseHostListOptions) => {
       }
       sinceRevision = result.revision;
       mergeSnapshotResultSections(sections, result);
+      if (result.sections.length) {
+        await onSections(mergeSnapshotSections(sections), result);
+      }
     }
     return null;
   };
@@ -437,15 +443,55 @@ export const useHostList = (options: IUseHostListOptions) => {
     try {
       while (isCurrentSnapshotAttempt(epoch, attempt)) {
         metricProgressiveState.value = 'RUNNING';
-        const snapshotPromise = collectMetricSnapshot(epoch, attempt, retryQuery, canonicalQuery => {
-          retryQuery = canonicalQuery;
-          updateCanonicalTime({ endTime: canonicalQuery.endTime, startTime: canonicalQuery.startTime });
-        });
+        const snapshotPromise = collectMetricSnapshot(
+          epoch,
+          attempt,
+          retryQuery,
+          canonicalQuery => {
+            retryQuery = canonicalQuery;
+            updateCanonicalTime({ endTime: canonicalQuery.endTime, startTime: canonicalQuery.startTime });
+          },
+          async (metricListMap, sectionResult) => {
+            const requestBaseList = await baseReady;
+            if (!isCurrentSnapshotAttempt(epoch, attempt) || !requestBaseList) {
+              return;
+            }
+            const hostIds = [...new Set(requestBaseList.map(row => row.bk_host_id))];
+            const hostIdsHash = await progressiveMetricService.hashHostIds(hostIds);
+            if (
+              !isCurrentSnapshotAttempt(epoch, attempt) ||
+              sectionResult.hostCount !== hostIds.length ||
+              sectionResult.hostIdsHash !== hostIdsHash
+            ) {
+              return;
+            }
+            const result = await hostListWorker.patchMetrics(
+              epoch,
+              Object.keys(metricListMap).map(Number),
+              metricListMap
+            );
+            if (!result.applied || !isCurrentSnapshotAttempt(epoch, attempt)) {
+              return;
+            }
+            metricLoading.value = false;
+            metricLoadError.value =
+              (sectionResult.failedSections?.length ?? 0) > 0 || (sectionResult.partialSections?.length ?? 0) > 0;
+            refreshList(true);
+          }
+        );
         const [requestBaseList, snapshot] = await Promise.all([baseReady, snapshotPromise]);
         if (!isCurrentSnapshotAttempt(epoch, attempt) || !requestBaseList || !snapshot) {
           return;
         }
         retryQuery = snapshot.query;
+        if (snapshot.result.status === 'DEGRADED') {
+          snapshotHostSetMismatch = false;
+          metricProgressiveState.value = 'DEGRADED';
+          metricLoading.value = false;
+          metricLoadError.value = true;
+          refreshList(true);
+          return;
+        }
         if (isTerminalSnapshotState(snapshot.result.status)) {
           snapshotHostSetMismatch = false;
           metricProgressiveState.value = snapshot.result.status;
@@ -515,8 +561,10 @@ export const useHostList = (options: IUseHostListOptions) => {
     );
   };
 
+  const isMetricSnapshotReady = () => metricProgressiveState.value === 'READY';
+
   const loadPageMetricData = async (rows: IHostListRow[], epoch: number) => {
-    if (!progressiveEnabled.value || epoch !== dataRequestGeneration || metricProgressiveState.value === 'READY') {
+    if (!progressiveEnabled.value || epoch !== dataRequestGeneration || isMetricSnapshotReady()) {
       return;
     }
     const canonicalTime = currentCanonicalTime;
@@ -537,23 +585,26 @@ export const useHostList = (options: IUseHostListOptions) => {
     metricLoading.value = true;
     metricLoadError.value = false;
     try {
-      const metricListMap = await getHostMetricInfoList({
+      const pageMetricResult = await getHostPageMetricInfoList({
         ...getRequestScope(),
         bk_host_ids: missingHostIds,
         end_time: canonicalTime.endTime,
         query_mode: 'page',
         start_time: canonicalTime.startTime,
       });
-      if (epoch !== dataRequestGeneration || metricProgressiveState.value === 'READY') {
+      if (epoch !== dataRequestGeneration || isMetricSnapshotReady()) {
         return;
       }
-      const result = await hostListWorker.patchMetrics(epoch, missingHostIds, metricListMap);
+      const result = await hostListWorker.patchMetrics(epoch, missingHostIds, pageMetricResult.data);
       if (!result.applied || epoch !== dataRequestGeneration) {
         return;
       }
+      const incomplete =
+        (pageMetricResult.failedSections?.length ?? 0) > 0 || (pageMetricResult.partialSections?.length ?? 0) > 0;
       for (const hostId of missingHostIds) {
         loadedPageHostIds.add(hostId);
       }
+      metricLoadError.value = incomplete;
       refreshList(true);
     } catch {
       if (epoch === dataRequestGeneration && requestKey === currentPageRequestKey) {
@@ -645,6 +696,8 @@ export const useHostList = (options: IUseHostListOptions) => {
       baseList = [];
       rawRowCount.value = 0;
       categoryStats.value = { ...EMPTY_CATEGORY_STATS };
+      categoryCoverage.value = { ...EMPTY_CATEGORY_STATS };
+      categoryPopulation.value = 0;
       total.value = 0;
       pagedRows.value = [];
       filterOptionsMap.value = {};
@@ -710,6 +763,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     }
 
     if (progressiveEnabled.value) {
+      for (const row of pagedRows.value) {
+        loadedPageHostIds.delete(row.bk_host_id);
+      }
       await loadPageMetricData(pagedRows.value, dataRequestGeneration);
       return;
     }
@@ -784,17 +840,11 @@ export const useHostList = (options: IUseHostListOptions) => {
     filterExpanded.value = !filterExpanded.value;
   };
   const handleCategoryClick = (key: EHostQuickCategory) => {
-    if (!metricSemanticsReady.value) {
-      return;
-    }
     activeCategory.value = activeCategory.value === key ? '' : key;
     resetPage();
   };
   const handleSortChange = (sort: string | string[]) => {
     const nextSort = Array.isArray(sort) ? sort[0] || '' : sort;
-    if (!metricSemanticsReady.value && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(nextSort.replace(/^-/, ''))) {
-      return;
-    }
     sortInfo.value = nextSort;
     // 排序后 page / none 模式清空选择（对齐旧版 current 模式行为）
     // across 模式保持选择（跨页全选语义不受排序影响）
@@ -958,7 +1008,6 @@ export const useHostList = (options: IUseHostListOptions) => {
     metricLoading,
     metricLoadError,
     metricProgressiveState,
-    metricSemanticsReady,
     availableSortInfo,
     rawRowCount,
     keyword,
@@ -974,6 +1023,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     visibleColumns,
     // 派生
     categoryStats,
+    categoryCoverage,
+    categoryPopulation,
     pagedRows,
     total,
     availableFilterFields,

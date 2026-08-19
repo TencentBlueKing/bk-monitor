@@ -122,7 +122,7 @@ test('worker keeps same-ip hosts in different clouds independently selectable an
   );
 });
 
-test('worker clears stale metrics when a later metric response is empty', () => {
+test('worker clears stale metrics to unknown instead of treating missing data as zero', () => {
   const worker = createWorkerHarness();
   worker.send({
     baseList: [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })],
@@ -141,7 +141,7 @@ test('worker clears stale metrics when a later metric response is empty', () => 
   worker.send({ metricListMap: {}, type: 'MERGE_METRICS' });
   const after = worker.send({ params: defaultComputeParams, type: 'COMPUTE' });
   assert.equal(after.pagedRows[0].cpu_usage, undefined);
-  assert.equal(after.pagedRows[0].totalAlarmCount, 0);
+  assert.equal(after.pagedRows[0].totalAlarmCount, undefined);
 });
 
 test('host row merges same-name process badges and preserves abnormal status for tooltip', () => {
@@ -357,6 +357,16 @@ Module._load = function mockHostListDependencies(request, parent, isMain) {
     return {
       getHostInfoList: (...args) => getHostInfo(...args),
       getHostMetricInfoList: (...args) => getHostMetricInfo(...args),
+      getHostPageMetricInfoList: async (...args) => {
+        const response = await getHostMetricInfo(...args);
+        return response?.data
+          ? {
+              data: response.data,
+              failedSections: response.failed_sections || [],
+              partialSections: response.partial_sections || [],
+            }
+          : { data: response, failedSections: [], partialSections: [] };
+      },
       hostMetricSnapshotService: {
         create: (...args) => defaultProgressiveMetricService.create(...args),
         hashHostIds: (...args) => defaultProgressiveMetricService.hashHostIds(...args),
@@ -461,6 +471,7 @@ const createSnapshotResult = overrides => ({
   hostIdsHash: '',
   retryAfterMs: 0,
   revision: 0,
+  partialSections: [],
   sections: [],
   snapshotId: 'snapshot-1',
   status: 'RUNNING',
@@ -712,7 +723,47 @@ test('a failed current-page request exposes the error without immediate retry sp
   scope.stop();
 });
 
-test('snapshot sections remain isolated until all four sections and the host hash are ready', async () => {
+test('a partial page response stays usable without retry spinning and supports manual completion', async () => {
+  const host = createHost({ bkCloudId: 0, bkHostId: 1, ip: '10.0.0.1' });
+  let metricRequestCount = 0;
+  getHostInfo = async () => [host];
+  getHostMetricInfo = async () => {
+    metricRequestCount += 1;
+    if (metricRequestCount === 1) {
+      return {
+        data: { 1: { cpu_usage: 75 } },
+        failed_sections: [],
+        partial_sections: ['performance_data'],
+      };
+    }
+    return { data: { 1: { cpu_usage: 80 } }, failed_sections: [], partial_sections: [] };
+  };
+  hostListWorker = createControllerWorker();
+  const progressiveMetricService = {
+    create: () => new Promise(() => {}),
+    hashHostIds: async () => '',
+    poll: () => new Promise(() => {}),
+  };
+  const { context, scope } = createHostListController({ progressive: true, progressiveMetricService });
+
+  await context.loadData();
+  hostListWorker.emitComputeDone([host]);
+  await flushPromises();
+  hostListWorker.emitComputeDone([host]);
+  await flushPromises();
+
+  assert.equal(metricRequestCount, 1);
+  assert.equal(context.metricLoadError.value, true);
+  assert.deepEqual(hostListWorker.calls.patchMetrics.at(-1).metricListMap, { 1: { cpu_usage: 75 } });
+
+  await context.loadMetricData();
+  assert.equal(metricRequestCount, 2);
+  assert.equal(context.metricLoadError.value, false);
+  assert.deepEqual(hostListWorker.calls.patchMetrics.at(-1).metricListMap, { 1: { cpu_usage: 80 } });
+  scope.stop();
+});
+
+test('snapshot sections are usable as they arrive and READY replaces them atomically', async () => {
   const hosts = [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
   getHostInfo = async () => hosts;
   getHostMetricInfo = async () => ({});
@@ -747,6 +798,14 @@ test('snapshot sections remain isolated until all four sections and the host has
 
   await context.loadData();
   await flushPromises();
+  assert.deepEqual(hostListWorker.calls.patchMetrics, [
+    { epoch: 1, hostIds: [101], metricListMap: { 101: { status: 0 } } },
+    {
+      epoch: 1,
+      hostIds: [101],
+      metricListMap: { 101: { alarm_count: [], component: [], cpu_usage: 88, status: 0 } },
+    },
+  ]);
   assert.deepEqual(hostListWorker.calls.replaceMetrics, [
     {
       epoch: 1,
@@ -863,6 +922,51 @@ test('a reused READY manifest ignores create data and polls from revision zero b
   scope.stop();
 });
 
+test('a reused DEGRADED manifest polls from revision zero and keeps its available sections', async () => {
+  const host = createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' });
+  const pollRequests = [];
+  getHostInfo = async () => [host];
+  getHostMetricInfo = async () => ({});
+  hostListWorker = createControllerWorker();
+  const progressiveMetricService = {
+    create: async () =>
+      createSnapshotResult({
+        failedSections: ['process_status'],
+        hostCount: 1,
+        hostIdsHash: '101',
+        revision: 9,
+        sections: [{ data: { 101: { cpu_usage: 1 } }, name: 'performance_data' }],
+        status: 'DEGRADED',
+      }),
+    hashHostIds: async () => '101',
+    poll: async params => {
+      pollRequests.push(params);
+      return createSnapshotResult({
+        failedSections: ['process_status'],
+        hostCount: 1,
+        hostIdsHash: '101',
+        partialSections: ['performance_data'],
+        revision: 9,
+        sections: [{ data: { 101: { cpu_usage: 88 } }, name: 'performance_data' }],
+        status: 'DEGRADED',
+      });
+    },
+  };
+  const { context, scope } = createHostListController({ progressive: true, progressiveMetricService });
+
+  await context.loadData();
+  await flushPromises();
+
+  assert.equal(pollRequests.length, 1);
+  assert.equal(pollRequests[0].sinceRevision, 0);
+  assert.equal(context.metricProgressiveState.value, 'DEGRADED');
+  assert.equal(context.metricLoading.value, false);
+  assert.equal(context.metricLoadError.value, true);
+  assert.deepEqual(hostListWorker.calls.patchMetrics.at(-1).metricListMap, { 101: { cpu_usage: 88 } });
+  assert.deepEqual(hostListWorker.calls.replaceMetrics, []);
+  scope.stop();
+});
+
 test('a page response arriving after snapshot replacement cannot patch READY metrics', async () => {
   const snapshotCreate = deferred();
   const pageMetric = deferred();
@@ -901,12 +1005,13 @@ test('a page response arriving after snapshot replacement cannot patch READY met
   );
   await flushPromises();
   assert.equal(context.metricProgressiveState.value, 'READY');
+  const patchCountAfterSnapshot = hostListWorker.calls.patchMetrics.length;
 
   pageMetric.resolve({ 101: { cpu_usage: 25 } });
   await flushPromises();
 
   assert.equal(hostListWorker.calls.replaceMetrics.length, 1);
-  assert.deepEqual(hostListWorker.calls.patchMetrics, []);
+  assert.equal(hostListWorker.calls.patchMetrics.length, patchCountAfterSnapshot);
   scope.stop();
 });
 
@@ -1114,7 +1219,7 @@ test('production progressive mode uses the default snapshot adapter without comp
   createRequest.resolve(createSnapshotResult());
 });
 
-test('metric quick cards and metric sorting are inert until the full snapshot is ready', async () => {
+test('metric quick cards and sorting remain available with partially loaded metrics', async () => {
   const progressiveMetricService = {
     create: () => new Promise(() => {}),
     hashHostIds: async () => '',
@@ -1129,8 +1234,8 @@ test('metric quick cards and metric sorting are inert until the full snapshot is
 
   context.handleCategoryClick('cpu');
   context.handleSortChange('-cpu_usage');
-  assert.equal(context.activeCategory.value, '');
-  assert.equal(context.sortInfo.value, '');
+  assert.equal(context.activeCategory.value, 'cpu');
+  assert.equal(context.sortInfo.value, '-cpu_usage');
 
   context.handleSortChange('bk_host_innerip');
   assert.equal(context.sortInfo.value, 'bk_host_innerip');
@@ -1385,12 +1490,13 @@ test('the host list refreshes from the shared refresh generation', async () => {
   hostListWorker = createControllerWorker();
   const { context, scope } = createHostListController();
   await context.loadData();
+  const requestCountBeforeRefresh = requestCount;
 
   hostStore.refreshGeneration.value += 1;
   await vue.nextTick();
   await flushPromises();
 
-  assert.equal(requestCount, 2);
+  assert.equal(requestCount, requestCountBeforeRefresh + 1);
   scope.stop();
 });
 
@@ -1557,16 +1663,14 @@ test('host list views expose separate retry paths for base and metric failures',
   assert.match(hostListSource, /onRetryMetric=\{ctx\.loadMetricData\}/);
   assert.match(tableSource, /metricLoadError:[\s\S]*type: Boolean/);
   assert.match(tableSource, /retryMetric:/);
-  assert.match(tableSource, /指标数据加载失败，当前仅展示主机基础信息/);
+  assert.match(tableSource, /部分指标数据加载失败，已获取数据仍可使用/);
   assert.match(tableSource, /HOST_METRIC_DATA_COLUMN_IDS\.has\(config\.id\)/);
   assert.match(hostListSource, /fields=\{ctx\.availableFilterFields\.value\}/);
-  assert.match(hostListSource, /disabled=\{!ctx\.metricSemanticsReady\.value\}/);
-  assert.match(hostListSource, /metricSemanticsReady=\{ctx\.metricSemanticsReady\.value\}/);
   assert.match(hostListSource, /sort=\{ctx\.availableSortInfo\.value\}/);
-  assert.match(tableSource, /HOST_PROGRESSIVE_METRIC_FIELD_IDS\.has\(config\.id\)/);
-  assert.match(cardsSource, /!props\.disabled && emit\('cardClick', card\.key\)/);
-  assert.match(cardsSource, /title=\{props\.disabled \? t\('全量指标准备中'\) : ''\}/);
-  assert.match(hostListSource, /全量指标暂不可用，当前按页加载指标/);
+  assert.match(cardsSource, /onClick=\{\(\) => emit\('cardClick', card\.key\)\}/);
+  assert.doesNotMatch(hostListSource, /metricSemanticsReady/);
+  assert.doesNotMatch(tableSource, /metricSemanticsReady/);
+  assert.match(hostListSource, /部分指标未获取，当前数据仍可排序、筛选和统计/);
   assert.match(hostListSource, /onClick=\{ctx\.retryMetricSnapshot\}/);
 });
 

@@ -80,6 +80,8 @@ return 0
 class SnapshotState:
     RUNNING = "RUNNING"
     READY = "READY"
+    DEGRADED = "DEGRADED"
+    PARTIAL = "PARTIAL"
     FAILED = "FAILED"
     EXPIRED = "EXPIRED"
     UNAVAILABLE = "UNAVAILABLE"
@@ -406,13 +408,15 @@ class HostMetricSnapshotStore:
         encoded = zlib.compress(json.dumps(data, separators=(",", ":"), sort_keys=True).encode())
         self._set(self.section_key(snapshot_id, section), encoded, SECTION_TTL)
 
-    def mark_section_ready(self, snapshot_id: str, section: str) -> dict | None:
+    def mark_section_ready(self, snapshot_id: str, section: str, *, state: str = SnapshotState.READY) -> dict | None:
         manifest = self.get_manifest(snapshot_id)
         if not manifest:
             return None
         revision = int(manifest.get("revision", 0)) + 1
         sections = dict(manifest.get("sections", {}))
-        sections[section] = {"revision": revision, "state": SnapshotState.READY}
+        if state not in {SnapshotState.READY, SnapshotState.PARTIAL}:
+            raise ValueError("invalid available section state")
+        sections[section] = {"revision": revision, "state": state}
         return self.update_manifest(snapshot_id, revision=revision, sections=sections)
 
     def mark_ready(self, snapshot_id: str, *, expected_sections: set[str]) -> dict | None:
@@ -435,6 +439,53 @@ class HostMetricSnapshotStore:
         if not manifest or manifest["state"] != SnapshotState.RUNNING:
             return manifest
         manifest["state"] = SnapshotState.READY
+        self._set(self.manifest_key(snapshot_id), manifest, READY_TTL)
+        self._touch_pointer(manifest, READY_TTL)
+        return manifest
+
+    def mark_degraded(
+        self,
+        snapshot_id: str,
+        *,
+        failed_sections: list[str],
+        partial_sections: list[str] | None = None,
+    ) -> dict | None:
+        """结束不完整快照，同时保留已经成功发布的分区。"""
+        manifest = self.get_manifest(snapshot_id)
+        if not manifest:
+            return None
+        ready_sections = {
+            section
+            for section, section_state in manifest.get("sections", {}).items()
+            if section_state.get("state") in {SnapshotState.READY, SnapshotState.PARTIAL}
+        }
+        if not ready_sections:
+            self.fail(snapshot_id, "section_failed", failed_sections=sorted(set(failed_sections)))
+            return self.get_manifest(snapshot_id)
+        terminal_claim = self._claim_terminal(manifest) if manifest["state"] == SnapshotState.RUNNING else 0
+        if manifest["state"] == SnapshotState.RUNNING and terminal_claim != 1:
+            if terminal_claim == -1:
+                return self._force_expired_if_running(snapshot_id)
+            return self.get_manifest(snapshot_id)
+        manifest = self.get_manifest(snapshot_id)
+        if not manifest or manifest["state"] not in {
+            SnapshotState.RUNNING,
+            SnapshotState.READY,
+            SnapshotState.DEGRADED,
+        }:
+            return manifest
+        sections = dict(manifest.get("sections", {}))
+        for section in failed_sections:
+            sections[section] = {"state": SnapshotState.FAILED}
+        manifest.update(
+            {
+                "error_code": "section_failed",
+                "failed_sections": sorted(set(manifest.get("failed_sections", [])) | set(failed_sections)),
+                "partial_sections": sorted(set(manifest.get("partial_sections", [])) | set(partial_sections or [])),
+                "sections": sections,
+                "state": SnapshotState.DEGRADED,
+            }
+        )
         self._set(self.manifest_key(snapshot_id), manifest, READY_TTL)
         self._touch_pointer(manifest, READY_TTL)
         return manifest
@@ -532,19 +583,21 @@ class HostMetricSnapshotStore:
         response["data"] = {}
         response["expired"] = manifest["state"] == SnapshotState.EXPIRED
         response["failed_sections"] = manifest.get("failed_sections", [])
+        response["partial_sections"] = manifest.get("partial_sections", [])
         if manifest["state"] == SnapshotState.RUNNING:
             response["retry_after"] = 1
-        elif manifest["state"] in {SnapshotState.FAILED, SnapshotState.EXPIRED}:
+        elif manifest["state"] in {SnapshotState.DEGRADED, SnapshotState.FAILED, SnapshotState.EXPIRED}:
             response["retry_after"] = 5
         else:
             response["retry_after"] = 0
-        if manifest["state"] not in {SnapshotState.RUNNING, SnapshotState.READY}:
+        if manifest["state"] not in {SnapshotState.RUNNING, SnapshotState.READY, SnapshotState.DEGRADED}:
             return response
         if not include_data:
             return response
 
+        broken_sections = []
         for section, section_state in manifest.get("sections", {}).items():
-            if section_state.get("state") != SnapshotState.READY:
+            if section_state.get("state") not in {SnapshotState.READY, SnapshotState.PARTIAL}:
                 continue
             if int(section_state.get("revision", 0)) <= since_revision:
                 continue
@@ -553,22 +606,37 @@ class HostMetricSnapshotStore:
             except SnapshotUnavailable:
                 raise
             except Exception:
-                self.fail(snapshot_id, "section_corrupt", failed_sections=[section], allow_ready=True)
-                response.update(
-                    data={},
-                    failed_sections=[section],
-                    retry_after=5,
-                    state=SnapshotState.FAILED,
-                )
-                return response
+                broken_sections.append(section)
+                continue
             if data is None:
-                self.fail(snapshot_id, "section_missing", failed_sections=[section], allow_ready=True)
+                broken_sections.append(section)
+                continue
+            response["data"][section] = data
+        if broken_sections:
+            available_sections = {
+                section
+                for section, section_state in manifest.get("sections", {}).items()
+                if section_state.get("state") in {SnapshotState.READY, SnapshotState.PARTIAL}
+            }
+            if response["data"] or available_sections.difference(broken_sections):
+                manifest = self.mark_degraded(snapshot_id, failed_sections=broken_sections)
+                response.update(
+                    failed_sections=manifest.get("failed_sections", broken_sections),
+                    retry_after=5,
+                    sections=manifest.get("sections", {}),
+                    state=SnapshotState.DEGRADED,
+                )
+            else:
+                error_code = "section_corrupt"
+                for section in broken_sections:
+                    if self._get(self.section_key(snapshot_id, section)) is None:
+                        error_code = "section_missing"
+                        break
+                self.fail(snapshot_id, error_code, failed_sections=broken_sections, allow_ready=True)
                 response.update(
                     data={},
-                    failed_sections=[section],
+                    failed_sections=broken_sections,
                     retry_after=5,
                     state=SnapshotState.FAILED,
                 )
-                return response
-            response["data"][section] = data
         return response

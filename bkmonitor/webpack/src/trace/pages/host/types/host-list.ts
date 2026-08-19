@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IHostMetricInfo } from './host';
+import type { IHostBaseInfo, IHostMetricInfo } from './host';
 
 /** 快捷过滤卡片分类 key */
 export type EHostQuickCategory = 'alarm' | 'cpu' | 'disk' | 'mem';
@@ -39,11 +39,13 @@ export interface IHostCluster {
  * 主机列表表格行：在接口的指标数据上扩展前端派生字段，
  * 派生字段用于排序、模糊搜索、快捷过滤与唯一标识，避免渲染时重复计算。
  */
-export interface IHostListRow extends IHostMetricInfo {
+export type IHostListRow = {
   /** 集群列表（用于「集群名」过滤/展示） */
   bkClusters: IHostCluster[];
   /** 集群名拼接串（模糊搜索用） */
   clusterNames: string;
+  /** 表格行唯一 id */
+  id: string;
   /** 模块名拼接串（模糊搜索用） */
   moduleNames: string;
   /** 进程名拼接串（模糊搜索用） */
@@ -51,8 +53,9 @@ export interface IHostListRow extends IHostMetricInfo {
   /** 行唯一 id：优先 bk_host_id，回退 ip|cloud */
   rowId: string;
   /** 未恢复告警总数 */
-  totalAlarmCount: number;
-}
+  totalAlarmCount?: number;
+} & IHostBaseInfo &
+  Partial<Omit<IHostMetricInfo, keyof IHostBaseInfo>>;
 
 /** 快捷过滤卡片配置 */
 export interface IHostQuickCard {

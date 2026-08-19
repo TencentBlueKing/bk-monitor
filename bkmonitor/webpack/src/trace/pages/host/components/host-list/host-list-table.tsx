@@ -55,7 +55,6 @@ import {
   HOST_LIST_ELLIPSIS_CELL_CLASS,
   HOST_LIST_PAGE_SIZE_LIST,
   HOST_METRIC_HEADER_ICON_MAP,
-  HOST_PROGRESSIVE_METRIC_FIELD_IDS,
   HOST_STATUS_MAP,
   HOST_STATUS_TIPS_MAP,
   PROCESS_STATUS_TIPS_MAP,
@@ -92,6 +91,11 @@ const HOST_METRIC_DATA_COLUMN_IDS = new Set([
   'cpu_load',
   'display_name',
 ]);
+const getMetricDataField = (columnId: string) => {
+  if (columnId === 'alarm_count') return 'alarm_count';
+  if (columnId === 'display_name') return 'component';
+  return columnId;
+};
 
 /** 指标进度条颜色阈值 */
 const getProgressColor = (value: number) => {
@@ -171,11 +175,6 @@ export default defineComponent({
     metricLoadError: {
       type: Boolean,
       default: false,
-    },
-    /** 全量快照未就绪时禁用所有依赖指标的全局排序。 */
-    metricSemanticsReady: {
-      type: Boolean,
-      default: true,
     },
     /** 置顶配置 */
     markValue: {
@@ -370,9 +369,6 @@ export default defineComponent({
       if (!props.sort) return [];
       const descending = props.sort.startsWith('-');
       const sortBy = descending ? props.sort.slice(1) : props.sort;
-      if (!props.metricSemanticsReady && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(sortBy)) {
-        return [];
-      }
       return [{ sortBy, descending }];
     });
 
@@ -513,17 +509,14 @@ export default defineComponent({
           onMouseenter={props.readonly ? undefined : e => hasAlarm && handleUnresolveEnter(row, e)}
           onMouseleave={props.readonly ? undefined : () => hasAlarm && handleUnresolveLeave()}
         >
-          {row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--'}
+          {row.totalAlarmCount !== undefined && row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--'}
         </span>
       );
     };
 
     const renderMetricCell = (row: IHostListRow, key: string) => {
-      if (props.metricLoading) {
-        return <div class='host-table-skeleton' />;
-      }
-      const value = Number(row[key as keyof IHostListRow] ?? 0);
-      if (!(value > 0)) {
+      const value = Number(row[key as keyof IHostListRow]);
+      if (!Number.isFinite(value) || value < 0) {
         return <span class='host-table-metric__empty'>--</span>;
       }
       return (
@@ -580,10 +573,7 @@ export default defineComponent({
     const renderMetricHeader = (column: IHostColumnConfig) => {
       const iconClass = HOST_METRIC_HEADER_ICON_MAP[column.id];
       return (
-        <div
-          class='host-table-metric-header'
-          title={!props.metricSemanticsReady ? (t('全量指标准备中') as string) : ''}
-        >
+        <div class='host-table-metric-header'>
           {iconClass && <i class={['icon-monitor', iconClass, 'host-table-metric-header__agg']} />}
           <span class={['host-table-metric-header__title', HOST_LIST_ELLIPSIS_CELL_CLASS]}>{t(column.name)}</span>
         </div>
@@ -614,15 +604,7 @@ export default defineComponent({
 
     /** 构建某一列的 tdesign 配置 */
     const buildColumn = (config: IHostColumnConfig) => {
-      const metricSemanticsDisabled = !props.metricSemanticsReady && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(config.id);
-      let title = () => (
-        <span
-          class={HOST_LIST_ELLIPSIS_CELL_CLASS}
-          title={metricSemanticsDisabled ? (t('全量指标准备中') as string) : ''}
-        >
-          {t(config.name)}
-        </span>
-      );
+      let title = () => <span class={HOST_LIST_ELLIPSIS_CELL_CLASS}>{t(config.name)}</span>;
       if (config.type === 'checkbox') {
         title = () => renderCheckboxHeader();
       } else if (config.type === 'metric') {
@@ -633,18 +615,20 @@ export default defineComponent({
         title,
         minWidth: config.minWidth,
         width: config.width,
-        sorter: config.sortable && !metricSemanticsDisabled,
+        sorter: config.sortable,
         ellipsis: false,
         fixed: config.fixed,
       };
       base.cell = (_: unknown, { row }: { row: IHostListRow }) => {
         if (HOST_METRIC_DATA_COLUMN_IDS.has(config.id)) {
-          if (props.metricLoading) {
+          const hasMetricData = Object.hasOwn(row, getMetricDataField(config.id));
+          if (!hasMetricData && props.metricLoading) {
             return <div class='host-table-skeleton' />;
           }
-          if (props.metricLoadError) {
+          if (!hasMetricData && props.metricLoadError) {
             return <span class='host-table-metric-error'>{t('加载失败')}</span>;
           }
+          if (!hasMetricData) return '--';
         }
         switch (config.type) {
           case 'ip':
@@ -682,9 +666,6 @@ export default defineComponent({
 
     const handleSortChange = (sortEvent: TableSort) => {
       const target = Array.isArray(sortEvent) ? sortEvent[0] : sortEvent;
-      if (!props.metricSemanticsReady && target?.sortBy && HOST_PROGRESSIVE_METRIC_FIELD_IDS.has(target.sortBy)) {
-        return;
-      }
       emit('sortChange', target?.sortBy ? `${target.descending ? '-' : ''}${target.sortBy}` : '');
     };
 
@@ -695,7 +676,7 @@ export default defineComponent({
       >
         {props.metricLoadError && (
           <div class='host-list-table__metric-error'>
-            <span>{t('指标数据加载失败，当前仅展示主机基础信息')}</span>
+            <span>{t('部分指标数据加载失败，已获取数据仍可使用')}</span>
             <Button
               class='host-list-table__metric-error-action'
               text={true}

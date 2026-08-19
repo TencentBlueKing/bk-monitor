@@ -79,6 +79,8 @@ type WorkerResponse =
     }
   | { applied: boolean; epoch: number; requestId: number; type: 'PATCH_METRICS_DONE' }
   | {
+      categoryCoverage: IHostQuickCardStats;
+      categoryPopulation: number;
       categoryStats: IHostQuickCardStats;
       pagedRows: IHostListRow[];
       requestId: number;

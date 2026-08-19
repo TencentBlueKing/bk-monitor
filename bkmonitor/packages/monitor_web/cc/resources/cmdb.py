@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Callable
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
@@ -70,6 +71,7 @@ def get_agent_status(
     end_time: int = None,
     fail_on_incomplete: bool = False,
     target_filter: dict | None = None,
+    incomplete_callback: Callable[[], None] | None = None,
 ) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
@@ -80,6 +82,7 @@ def get_agent_status(
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
     :param target_filter: UQ 目标过滤条件。None 沿用按 hosts 构造的默认条件；{} 仅供服务端可信的全业务查询。
+    :param incomplete_callback: UQ 或 NodeMan 返回不完整时回调；启用后仅返回能够确认的状态。
     :return {bk_host_id: AGENT_STATUS}
     """
     if not hosts:
@@ -112,8 +115,11 @@ def get_agent_status(
     query_start = query_end - 180000
     # 使用 instant 查询取窗口聚合的单点，避免拉回区间序列
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-    if fail_on_incomplete and query.is_partial:
-        raise RuntimeError("unify query returned partial data for agent status")
+    if query.is_partial:
+        if incomplete_callback:
+            incomplete_callback()
+        elif fail_on_incomplete:
+            raise RuntimeError("unify query returned partial data for agent status")
 
     # 统计已经存在数据的主机并设置状态为正常
     ip_to_host_id: dict[tuple, int] = {
@@ -135,6 +141,11 @@ def get_agent_status(
 
         if bk_host_id:
             status[bk_host_id] = AGENT_STATUS.ON
+
+    # UQ 已明确声明结果不完整时，无法用“结果中不存在”推导无数据或未安装 Agent。
+    # 保留已查到的 ON，其他主机保持未知，由调用方展示为未获取。
+    if query.is_partial and incomplete_callback:
+        return status
 
     if is_historical:
         # 历史查询：node_man 只提供实时 Agent 存活状态，对历史时间段无意义；
@@ -172,17 +183,21 @@ def get_agent_status(
             logger.error("get_agent_status error: %s", e)
             node_man_failed = True
 
-    if fail_on_incomplete and node_man_failed:
-        raise RuntimeError("node manager returned incomplete agent status")
+    if node_man_failed:
+        if incomplete_callback:
+            incomplete_callback()
+        elif fail_on_incomplete:
+            raise RuntimeError("node manager returned incomplete agent status")
 
     for info in result:
         host_id = info["host_id"]
         if info["alive"] == 1:
             status[host_id] = AGENT_STATUS.NO_DATA
 
-    for host in hosts:
-        if host.bk_host_id not in status:
-            status[host.bk_host_id] = AGENT_STATUS.NOT_EXIST
+    if not node_man_failed or incomplete_callback is None:
+        for host in hosts:
+            if host.bk_host_id not in status:
+                status[host.bk_host_id] = AGENT_STATUS.NOT_EXIST
 
     return status
 
@@ -215,6 +230,7 @@ def get_process_info(
     fail_on_incomplete: bool = False,
     filter_by_hosts: bool = False,
     target_filter: dict | None = None,
+    incomplete_callback: Callable[[], None] | None = None,
 ) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
@@ -269,6 +285,7 @@ def get_process_info(
         end_time,
         fail_on_incomplete=fail_on_incomplete,
         target_filter=target_filter,
+        incomplete_callback=incomplete_callback,
     )
 
     bk_host_ids = {host.bk_host_id for host in hosts}
@@ -312,6 +329,7 @@ def get_process_status(
     end_time: int = None,
     fail_on_incomplete: bool = False,
     target_filter: dict | None = None,
+    incomplete_callback: Callable[[], None] | None = None,
 ) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
@@ -334,6 +352,7 @@ def get_process_status(
         end_time,
         fail_on_incomplete=fail_on_incomplete,
         target_filter=target_filter,
+        incomplete_callback=incomplete_callback,
     ):
         result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
@@ -349,6 +368,7 @@ def _query_proc_metrics(
     end_time: int = None,
     fail_on_incomplete: bool = False,
     target_filter: dict | None = None,
+    incomplete_callback: Callable[[], None] | None = None,
 ):
     """
     查询 system.proc / system.proc_port 指标的公共生成器。
@@ -387,8 +407,11 @@ def _query_proc_metrics(
     # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
     query_start = query_end - 180000
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-    if fail_on_incomplete and query.is_partial:
-        raise RuntimeError(f"unify query returned partial data for {table}.{field}")
+    if query.is_partial:
+        if incomplete_callback:
+            incomplete_callback()
+        elif fail_on_incomplete:
+            raise RuntimeError(f"unify query returned partial data for {table}.{field}")
     for record in records:
         if record.get("_result_") is None:
             continue
@@ -593,6 +616,7 @@ def get_host_performance_data(
     end_time: int = None,
     fail_on_incomplete: bool = False,
     target_filter: dict | None = None,
+    incomplete_callback: Callable[[], None] | None = None,
 ) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
@@ -610,17 +634,15 @@ def get_host_performance_data(
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
 
-    data = {
-        host.bk_host_id: {
-            "cpu_load": None,
-            "cpu_usage": None,
-            "disk_in_use": None,
-            "io_util": None,
-            "mem_usage": None,
-            "psc_mem_usage": None,
-        }
-        for host in hosts
+    default_metrics = {
+        "cpu_load": None,
+        "cpu_usage": None,
+        "disk_in_use": None,
+        "io_util": None,
+        "mem_usage": None,
+        "psc_mem_usage": None,
     }
+    data = {host.bk_host_id: ({**default_metrics} if incomplete_callback is None else {}) for host in hosts}
 
     # 与主机图表保持相同的目标维度：IPv4 使用 IP+云区域，IPv6 使用主机 ID。
     # IPv4 身份不完整时保留全量查询，避免过滤掉只能通过 bk_host_id 回填的兼容数据。
@@ -646,7 +668,8 @@ def get_host_performance_data(
         # instant 查询仅返回 end_time 单点，路由窗口收紧为 180 秒，避免大范围分片扫描
         query_start = query_end - 180000
         records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-        if fail_on_incomplete and query.is_partial:
+        is_partial = query.is_partial
+        if is_partial and fail_on_incomplete and not incomplete_callback:
             raise RuntimeError(f"unify query returned partial data for metric {metric['field']}")
         for record in records:
             if record["_result_"] is None:
@@ -661,7 +684,7 @@ def get_host_performance_data(
 
             if bk_host_id in bk_host_ids:
                 local[bk_host_id] = round(record["_result_"] * metric.get("ratio", 1), 2)
-        return local
+        return local, is_partial
 
     metrics = [
         {"field": "cpu_load", "result_table_id": "system.load", "metric_field": "load5"},
@@ -683,11 +706,19 @@ def get_host_performance_data(
     try:
         for metric, future in zip(metrics, futures):
             try:
-                metric_data = future.get()
+                metric_data, is_partial = future.get()
             except Exception as e:
                 if fail_on_incomplete:
                     raise
+                if incomplete_callback:
+                    incomplete_callback()
                 logger.warning("get_host_performance_data metric %s failed, skip: %s", metric["field"], e)
+                continue
+            if is_partial and incomplete_callback:
+                incomplete_callback()
+            if incomplete_callback and not is_partial:
+                for host_id in bk_host_ids:
+                    data[host_id][metric["field"]] = metric_data.get(host_id)
                 continue
             for host_id, value in metric_data.items():
                 data[host_id][metric["field"]] = value

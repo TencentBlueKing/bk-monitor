@@ -53,16 +53,16 @@ const defaultComputeParams = {
   where: [],
 };
 
-test('page metric cache does not mutate object properties from worker messages', () => {
+test('page metric patches use committed rows without dynamic object property caches', () => {
   const source = fs.readFileSync(
     path.resolve(__dirname, '../src/trace/pages/host/workers/host-list.worker.raw.js'),
     'utf8'
   );
-  assert.match(source, /let pageMetricMap = new Map\(\)/);
+  assert.match(source, /const patchCommittedMetrics = metricListMap =>/);
   assert.doesNotMatch(source, /delete pageMetricMap\[/);
 });
 
-test('page metrics overlay the visible page without changing global sort or statistics', () => {
+test('page metrics immediately participate in sort, filters, statistics and keyword search', () => {
   const worker = createWorkerHarness();
   worker.send({
     baseList: [createHost(101, '10.0.0.1'), createHost(102, '10.0.0.2')],
@@ -71,7 +71,13 @@ test('page metrics overlay the visible page without changing global sort or stat
   });
   worker.send({
     epoch: 1,
-    metricListMap: { 102: { alarm_count: [], component: [], cpu_usage: 99 } },
+    metricListMap: {
+      102: {
+        alarm_count: [{ count: 2, level: 1 }],
+        component: [{ display_name: 'redis', status: 0 }],
+        cpu_usage: 99,
+      },
+    },
     type: 'PATCH_METRICS',
   });
 
@@ -79,18 +85,76 @@ test('page metrics overlay the visible page without changing global sort or stat
     params: { ...defaultComputeParams, pageSize: 1, sortInfo: '-cpu_usage' },
     type: 'COMPUTE',
   });
-  assert.equal(firstPage.pagedRows[0].bk_host_id, 101);
-  assert.equal(firstPage.categoryStats.cpu, 0);
+  assert.equal(firstPage.pagedRows[0].bk_host_id, 102);
+  assert.equal(firstPage.categoryStats.cpu, 1);
+  assert.equal(firstPage.categoryStats.alarm, 1);
 
-  const secondPage = worker.send({
-    params: { ...defaultComputeParams, page: 2, pageSize: 1 },
+  const filtered = worker.send({
+    params: {
+      ...defaultComputeParams,
+      where: [{ key: 'cpu_usage', method: 'gte', value: ['80'] }],
+    },
     type: 'COMPUTE',
   });
-  assert.equal(secondPage.pagedRows[0].bk_host_id, 102);
-  assert.equal(secondPage.pagedRows[0].cpu_usage, 99);
+  assert.equal(filtered.total, 1);
+  assert.equal(filtered.pagedRows[0].bk_host_id, 102);
+
+  const processMatch = worker.send({
+    params: { ...defaultComputeParams, keyword: 'redis' },
+    type: 'COMPUTE',
+  });
+  assert.equal(processMatch.total, 1);
+  assert.equal(processMatch.pagedRows[0].bk_host_id, 102);
 });
 
-test('running snapshot keeps base keyword search including IPv6 but excludes page-only process fields', () => {
+test('filters use known partial values without classifying unqueried hosts', () => {
+  const worker = createWorkerHarness();
+  worker.send({
+    baseList: [createHost(101, '10.0.0.1'), createHost(102, '10.0.0.2'), createHost(103, '10.0.0.3')],
+    epoch: 2,
+    type: 'INIT_BASE',
+  });
+  worker.send({
+    epoch: 2,
+    metricListMap: {
+      102: { component: [], status: 2 },
+      103: { component: [{ display_name: 'redis', status: 0 }], status: 0 },
+    },
+    type: 'PATCH_METRICS',
+  });
+
+  const notRedis = worker.send({
+    params: {
+      ...defaultComputeParams,
+      where: [{ key: 'display_name', method: 'ne', value: ['redis'] }],
+    },
+    type: 'COMPUTE',
+  });
+  assert.deepEqual(
+    Array.from(notRedis.pagedRows, row => row.bk_host_id),
+    [102]
+  );
+
+  const notNormal = worker.send({
+    params: {
+      ...defaultComputeParams,
+      where: [{ key: 'status', method: 'ne', value: ['0'] }],
+    },
+    type: 'COMPUTE',
+  });
+  assert.deepEqual(
+    Array.from(notNormal.pagedRows, row => row.bk_host_id),
+    [102]
+  );
+
+  const statusOptions = worker.send({ field: 'status', type: 'GET_FILTER_OPTIONS' });
+  assert.deepEqual(
+    Array.from(statusOptions.result.list, item => item.id),
+    ['2', '0']
+  );
+});
+
+test('running snapshot keeps base and already loaded process keyword search available', () => {
   const worker = createWorkerHarness();
   worker.send({
     baseList: [
@@ -123,7 +187,7 @@ test('running snapshot keeps base keyword search including IPv6 but excludes pag
     type: 'COMPUTE',
   });
   assert.equal(baseMatch.total, 1);
-  assert.equal(processMatch.total, 0);
+  assert.equal(processMatch.total, 1);
   assert.equal(ipv6Match.total, 1);
 
   worker.send({ epoch: 4, metricListMap: pageMetric, type: 'REPLACE_METRICS' });
@@ -139,7 +203,7 @@ test('running snapshot keeps base keyword search including IPv6 but excludes pag
   assert.equal(readyIpv6Match.total, 1);
 });
 
-test('snapshot replacement atomically enables global metric semantics and clears page overlays', () => {
+test('snapshot replacement atomically replaces page values with the complete snapshot', () => {
   const worker = createWorkerHarness();
   worker.send({
     baseList: [createHost(101, '10.0.0.1'), createHost(102, '10.0.0.2')],
@@ -169,6 +233,14 @@ test('snapshot replacement atomically enables global metric semantics and clears
     type: 'COMPUTE',
   });
   assert.equal(host101.pagedRows[0].cpu_usage, 1);
+
+  const latePage = worker.send({ epoch: 7, metricListMap: { 101: { cpu_usage: 100 } }, type: 'PATCH_METRICS' });
+  assert.equal(latePage.applied, false);
+  const afterLatePage = worker.send({
+    params: { ...defaultComputeParams, pageSize: 1 },
+    type: 'COMPUTE',
+  });
+  assert.equal(afterLatePage.pagedRows[0].cpu_usage, 1);
 });
 
 test('worker rejects page and snapshot results from an obsolete dataset epoch', () => {

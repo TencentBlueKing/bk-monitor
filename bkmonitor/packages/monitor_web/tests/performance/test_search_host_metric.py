@@ -88,6 +88,46 @@ def test_search_host_metric_surfaces_thread_failure(mocker, failed_section):
     assert exc_info.value.data == {"failed_sections": [failed_section]}
 
 
+def test_page_query_returns_usable_sections_when_other_sections_are_partial_or_failed(mocker):
+    host_id = HOSTS[0].bk_host_id
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_by_id", return_value=HOSTS[:1])
+
+    def agent_status(_bk_biz_id, _hosts, data, *_args, incomplete_callback=None, **_kwargs):
+        data[host_id]["status"] = 0
+        incomplete_callback()
+
+    def performance_data(_bk_biz_id, _hosts, data, *_args, **_kwargs):
+        data[host_id]["cpu_usage"] = 81
+
+    mocker.patch.object(SearchHostMetricResource, "get_agent_status", side_effect=agent_status)
+    mocker.patch.object(SearchHostMetricResource, "get_performance_data", side_effect=performance_data)
+    mocker.patch.object(SearchHostMetricResource, "get_process_status", side_effect=RuntimeError("process failed"))
+    mocker.patch.object(SearchHostMetricResource, "get_alarm_count")
+
+    response = SearchHostMetricResource().perform_request(
+        {"bk_biz_id": 2, "bk_host_ids": [host_id], "query_mode": "page"}
+    )
+
+    assert response["data"][host_id] == {
+        "alarm_count": [],
+        "cpu_load": None,
+        "cpu_usage": 81,
+        "disk_in_use": None,
+        "io_util": None,
+        "mem_usage": None,
+        "psc_mem_usage": None,
+        "status": 0,
+    }
+    assert response["sections"] == {
+        "agent_status": {"state": "PARTIAL"},
+        "performance_data": {"state": "READY"},
+        "process_status": {"state": "FAILED"},
+        "alarm_count": {"state": "READY"},
+    }
+    assert response["failed_sections"] == ["process_status"]
+    assert response["partial_sections"] == ["agent_status"]
+
+
 def test_search_host_metric_does_not_degrade_alarm_failure_to_empty(mocker):
     mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_by_id", return_value=HOSTS[:1])
     mocker.patch.object(SearchHostMetricResource, "get_agent_status")

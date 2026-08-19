@@ -50,6 +50,7 @@ interface IHostMetricSnapshotResponse {
   failed_sections?: HostMetricSnapshotSectionName[];
   host_count?: number;
   host_ids_hash?: string;
+  partial_sections?: HostMetricSnapshotSectionName[];
   retry_after?: number;
   revision?: number;
   snapshot_id?: string;
@@ -86,6 +87,7 @@ const toSnapshotResult = (
       : fallbackQuery.startTime,
   expired: !!response.expired,
   failedSections: response.failed_sections || [],
+  partialSections: response.partial_sections || [],
   hostCount: response.host_count || 0,
   hostIdsHash: response.host_ids_hash || '',
   retryAfterMs: response.retry_after === undefined ? undefined : response.retry_after * 1000,
@@ -151,6 +153,32 @@ export const getHostMetricInfoList = async (
   }
 ) => {
   return await searchHostMetric(params);
+};
+
+export interface IHostPageMetricResult {
+  data: Record<string, Partial<IHostMetricInfo>>;
+  failedSections: HostMetricSnapshotSectionName[];
+  partialSections: HostMetricSnapshotSectionName[];
+}
+
+/** 页级查询允许分区独立降级，成功分区立即返回，失败分区不清空已有数据。 */
+export const getHostPageMetricInfoList = async (
+  params: HostScopeParams & {
+    bk_host_ids: number[];
+    end_time: number;
+    query_mode: 'page';
+    start_time: number;
+  }
+): Promise<IHostPageMetricResult> => {
+  const response = await searchHostMetric(params);
+  if (response?.data) {
+    return {
+      data: response.data,
+      failedSections: response.failed_sections || [],
+      partialSections: response.partial_sections || [],
+    };
+  }
+  return { data: response || {}, failedSections: [], partialSections: [] };
 };
 
 /**

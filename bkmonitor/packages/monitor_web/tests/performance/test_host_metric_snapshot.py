@@ -1236,7 +1236,7 @@ def test_snapshot_task_does_not_compute_after_capacity_lease_is_lost(mocker):
     build_section.assert_not_called()
 
 
-def test_snapshot_task_fails_when_any_section_fails(mocker):
+def test_snapshot_task_degrades_and_keeps_successful_sections_when_one_section_fails(mocker):
     tasks = import_module("monitor_web.performance.tasks")
     cache = FakeCache()
     store = snapshot.HostMetricSnapshotStore(cache=cache)
@@ -1262,8 +1262,76 @@ def test_snapshot_task_fails_when_any_section_fails(mocker):
     tasks.build_host_metric_snapshot.run(manifest["snapshot_id"])
 
     response = store.build_response(manifest["snapshot_id"], now=200)
-    assert response["state"] == snapshot.SnapshotState.FAILED
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
     assert response["failed_sections"] == ["performance_data"]
+    assert set(response["data"]) == {"agent_status", "alarm_count", "process_status"}
+    assert response["data"]["agent_status"] == {1: {"section": "agent_status"}}
+
+
+def test_snapshot_task_degrades_and_keeps_partial_section_records(mocker):
+    tasks = import_module("monitor_web.performance.tasks")
+    store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
+    manifest, _ = store.create_or_get(
+        "sha256:fingerprint",
+        {
+            **make_payload(snapshot.build_host_ids_hash([host.bk_host_id for host in HOSTS[:2]])),
+            "bk_tenant_id": "system",
+            "username": "admin",
+        },
+    )
+    mocker.patch.object(tasks, "HostMetricSnapshotStore", return_value=store)
+    mocker.patch.object(tasks, "resolve_host_metric_snapshot_scope", return_value=({"type": "business"}, HOSTS[:2]))
+    mocker.patch.object(tasks.time, "time", return_value=200)
+
+    def build(section, *_):
+        if section == "performance_data":
+            return {
+                "data": {HOSTS[0].bk_host_id: {"cpu_usage": 81}},
+                "state": snapshot.SnapshotState.PARTIAL,
+            }
+        return {HOSTS[0].bk_host_id: {"section": section}}
+
+    mocker.patch.object(tasks, "_build_snapshot_section", side_effect=build)
+
+    tasks.build_host_metric_snapshot.run(manifest["snapshot_id"])
+
+    response = store.build_response(manifest["snapshot_id"], now=200)
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
+    assert response["failed_sections"] == []
+    assert response["partial_sections"] == ["performance_data"]
+    assert response["data"]["performance_data"] == {HOSTS[0].bk_host_id: {"cpu_usage": 81}}
+
+
+def test_missing_section_blob_degrades_only_that_section_and_keeps_other_data(monkeypatch):
+    monkeypatch.setattr(snapshot, "uuid4", lambda: type("UUID", (), {"hex": "a" * 32})())
+    store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
+    manifest, _ = store.create_or_get("sha256:fingerprint", make_payload())
+    store.write_section(manifest["snapshot_id"], "agent_status", {1: {"status": 0}})
+    store.mark_section_ready(manifest["snapshot_id"], "agent_status")
+    store.mark_section_ready(manifest["snapshot_id"], "performance_data")
+    store.mark_ready(manifest["snapshot_id"], expected_sections={"agent_status", "performance_data"})
+
+    response = store.build_response(manifest["snapshot_id"])
+
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
+    assert response["failed_sections"] == ["performance_data"]
+    assert response["data"] == {"agent_status": {1: {"status": 0}}}
+
+
+def test_missing_new_section_keeps_already_consumed_section_usable(monkeypatch):
+    monkeypatch.setattr(snapshot, "uuid4", lambda: type("UUID", (), {"hex": "b" * 32})())
+    store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
+    manifest, _ = store.create_or_get("sha256:fingerprint", make_payload())
+    store.write_section(manifest["snapshot_id"], "agent_status", {1: {"status": 0}})
+    store.mark_section_ready(manifest["snapshot_id"], "agent_status")
+    store.mark_section_ready(manifest["snapshot_id"], "performance_data")
+    store.mark_ready(manifest["snapshot_id"], expected_sections={"agent_status", "performance_data"})
+
+    response = store.build_response(manifest["snapshot_id"], since_revision=1)
+
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
+    assert response["failed_sections"] == ["performance_data"]
+    assert response["data"] == {}
 
 
 def test_snapshot_task_publishes_ready_empty_sections_for_legitimate_empty_scope(mocker):
@@ -1324,9 +1392,13 @@ def test_snapshot_task_fails_when_scope_resolution_raises(mocker):
 
 def test_full_business_snapshot_section_uses_explicit_empty_target_filter(mocker):
     tasks = import_module("monitor_web.performance.tasks")
-    get_agent_status = mocker.patch.object(tasks.SearchHostMetricResource, "get_agent_status")
+    get_agent_status = mocker.patch.object(
+        tasks.SearchHostMetricResource,
+        "get_agent_status",
+        side_effect=lambda *_args, incomplete_callback, **_kwargs: incomplete_callback(),
+    )
 
-    tasks._build_snapshot_section(
+    result = tasks._build_snapshot_section(
         "agent_status",
         2,
         HOSTS[:1],
@@ -1336,7 +1408,8 @@ def test_full_business_snapshot_section_uses_explicit_empty_target_filter(mocker
     )
 
     assert get_agent_status.call_args.kwargs["target_filter"] == {}
-    assert get_agent_status.call_args.kwargs["fail_on_incomplete"] is True
+    assert get_agent_status.call_args.kwargs["fail_on_incomplete"] is False
+    assert result == {"data": {HOSTS[0].bk_host_id: {}}, "state": snapshot.SnapshotState.PARTIAL}
 
 
 def test_full_business_snapshot_alarm_section_omits_linear_host_ip_terms(mocker):

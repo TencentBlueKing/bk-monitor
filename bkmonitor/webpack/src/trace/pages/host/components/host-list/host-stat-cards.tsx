@@ -46,15 +46,18 @@ export default defineComponent({
       type: Object as PropType<IHostQuickCardStats>,
       required: true,
     },
+    coverage: {
+      type: Object as PropType<IHostQuickCardStats>,
+      required: true,
+    },
+    population: {
+      type: Number,
+      required: true,
+    },
     /** 当前激活的分类（空为未激活） */
     activeKey: {
       type: String as PropType<'' | EHostQuickCategory>,
       default: '',
-    },
-    /** 全量指标未就绪时禁止快捷全局过滤。 */
-    disabled: {
-      type: Boolean,
-      default: false,
     },
   },
   emits: {
@@ -84,12 +87,8 @@ export default defineComponent({
         {HOST_QUICK_CARD_LIST.map(card => (
           <div
             key={card.key}
-            class={[
-              'host-stat-cards__item',
-              { 'is-active': props.activeKey === card.key, 'is-disabled': props.disabled },
-            ]}
-            title={props.disabled ? t('全量指标准备中') : ''}
-            onClick={() => !props.disabled && emit('cardClick', card.key)}
+            class={['host-stat-cards__item', { 'is-active': props.activeKey === card.key }]}
+            onClick={() => emit('cardClick', card.key)}
           >
             <div class='host-stat-cards-active' />
             <img
@@ -100,6 +99,14 @@ export default defineComponent({
             <div class='host-stat-cards__desc'>
               <span class='host-stat-cards__name'>{t(card.name)}</span>
               <span class='host-stat-cards__num'>{props.stats[card.key] ?? 0}</span>
+              {props.coverage[card.key] < props.population && (
+                <span class='host-stat-cards__coverage'>
+                  {t('已获取 {loaded}/{total}', {
+                    loaded: props.coverage[card.key],
+                    total: props.population,
+                  })}
+                </span>
+              )}
             </div>
           </div>
         ))}

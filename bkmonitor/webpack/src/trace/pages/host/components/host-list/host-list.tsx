@@ -113,8 +113,9 @@ export default defineComponent({
           class='host-list-content'
         >
           <HostStatCards
-            activeKey={ctx.metricSemanticsReady.value ? ctx.activeCategory.value : ''}
-            disabled={!ctx.metricSemanticsReady.value}
+            activeKey={ctx.activeCategory.value}
+            coverage={ctx.categoryCoverage.value}
+            population={ctx.categoryPopulation.value}
             stats={ctx.categoryStats.value}
             onCardClick={(key: EHostQuickCategory) => ctx.handleCategoryClick(key)}
           />
@@ -143,14 +144,16 @@ export default defineComponent({
               />
             )}
           </div>
-          {!ctx.metricSemanticsReady.value && (
+          {ctx.metricProgressiveState.value !== 'READY' && (
             <div class='host-list__metric-progress'>
               <span>
-                {['EXPIRED', 'FAILED', 'UNAVAILABLE'].includes(ctx.metricProgressiveState.value)
-                  ? window.i18n.t('全量指标暂不可用，当前按页加载指标')
-                  : window.i18n.t('全量指标准备中，当前按页加载指标')}
+                {ctx.metricProgressiveState.value === 'DEGRADED'
+                  ? window.i18n.t('部分指标未获取，当前数据仍可排序、筛选和统计')
+                  : ['EXPIRED', 'FAILED', 'UNAVAILABLE'].includes(ctx.metricProgressiveState.value)
+                    ? window.i18n.t('全量指标暂不可用，继续使用已获取数据并按页补充')
+                    : window.i18n.t('全量指标准备中，已获取数据可立即使用')}
               </span>
-              {['EXPIRED', 'FAILED', 'UNAVAILABLE'].includes(ctx.metricProgressiveState.value) && (
+              {['DEGRADED', 'EXPIRED', 'FAILED', 'UNAVAILABLE'].includes(ctx.metricProgressiveState.value) && (
                 <Button
                   text={true}
                   theme='primary'
@@ -167,7 +170,6 @@ export default defineComponent({
             markValue={ctx.stickyValue.value}
             metricLoadError={ctx.metricLoadError.value}
             metricLoading={ctx.metricLoading.value}
-            metricSemanticsReady={ctx.metricSemanticsReady.value}
             page={ctx.page.value}
             pageSize={ctx.pageSize.value}
             readonly={props.readonly}

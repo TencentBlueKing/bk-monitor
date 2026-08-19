@@ -16,7 +16,7 @@ export const HOST_METRIC_SNAPSHOT_SECTIONS = [
   'alarm_count',
 ] as const;
 
-export type HostMetricProgressiveState = 'EXPIRED' | 'FAILED' | 'READY' | 'RUNNING' | 'UNAVAILABLE';
+export type HostMetricProgressiveState = 'DEGRADED' | 'EXPIRED' | 'FAILED' | 'READY' | 'RUNNING' | 'UNAVAILABLE';
 export type HostMetricSnapshotSectionName = (typeof HOST_METRIC_SNAPSHOT_SECTIONS)[number];
 
 export interface IHostMetricSnapshotPollQuery extends IHostMetricSnapshotQuery {
@@ -40,6 +40,7 @@ export interface IHostMetricSnapshotResult {
   failedSections: HostMetricSnapshotSectionName[];
   hostCount: number;
   hostIdsHash: string;
+  partialSections: HostMetricSnapshotSectionName[];
   retryAfterMs?: number;
   revision: number;
   sections: IHostMetricSnapshotSection[];

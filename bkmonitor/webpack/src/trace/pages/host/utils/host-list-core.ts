@@ -96,20 +96,27 @@ const mergeHostComponents = (components: IHostMetricInfo['component'] = []) => {
   return [...componentMap.values()];
 };
 
-export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo): IHostListRow => {
-  const metricWithDefault = (metric ?? {}) as IHostMetricInfo;
-  const modules = row.module || [];
+export const createHostListRow = (
+  row: IHostBaseInfo,
+  metric?: Partial<Omit<IHostMetricInfo, keyof IHostBaseInfo>>
+): IHostListRow => {
+  const merged: IHostBaseInfo & Partial<Omit<IHostMetricInfo, keyof IHostBaseInfo>> = {
+    ...row,
+    ...(metric ?? {}),
+  };
+  const modules = merged.module || [];
   const bkClusters = extractClusters(modules);
-  const components = mergeHostComponents(metricWithDefault.component);
-  const rowId = String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`);
-  const totalAlarmCount = (metricWithDefault.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
+  const components = mergeHostComponents(merged.component);
+  const rowId = String(merged.bk_host_id ?? `${merged.bk_host_innerip}|${merged.bk_cloud_id}`);
+  const totalAlarmCount = Array.isArray(merged.alarm_count)
+    ? merged.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
+    : undefined;
   return {
-    ...(row ?? {}),
-    ...(metricWithDefault ?? {}),
+    ...merged,
     id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
-    component: components,
+    ...(Object.hasOwn(merged, 'component') ? { component: components } : {}),
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
     processNames: components.map(c => c.display_name).join(','),
     rowId,
@@ -118,11 +125,14 @@ export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo):
 };
 
 export const matchTopoNode = (row: IHostListRow, node: IHostTopoTreeNode | null): boolean => {
-  if (!node || node.bk_obj_id === 'biz') {
+  if (!node) {
     return true;
   }
   if (isHostNode(node)) {
     return String(row.bk_host_id) === String(node.bk_host_id);
+  }
+  if (node.bk_obj_id === 'biz') {
+    return true;
   }
   return (row.module || []).some(module => (module.topo_link || []).includes(node.id));
 };
@@ -130,7 +140,7 @@ export const matchTopoNode = (row: IHostListRow, node: IHostTopoTreeNode | null)
 export const matchQuickCategory = (row: IHostListRow, category: '' | EHostQuickCategory): boolean => {
   switch (category) {
     case 'alarm':
-      return row.totalAlarmCount > 0;
+      return (row.totalAlarmCount ?? 0) > 0;
     case 'cpu':
       return (row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD;
     case 'mem':
@@ -214,6 +224,12 @@ const matchWhereItem = (row: IHostListRow, item: IWhereItem): boolean => {
         return origin === target;
     }
   }
+  if (item.key === 'status' && row.status === undefined) {
+    return false;
+  }
+  if (item.key === 'display_name' && !Object.hasOwn(row, 'component')) {
+    return false;
+  }
   const rowValues = getRowFieldValues(row, item.key).map(v => String(v));
   const matchValues = values.map(v => String(v));
   switch (method) {
@@ -249,13 +265,18 @@ export const matchWhere = (row: IHostListRow, where: IWhereItem[]): boolean => {
 
 export const computeCategoryStats = (rows: IHostListRow[]) => {
   const stats = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
+  const coverage = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
   for (const row of rows) {
-    if (row.totalAlarmCount > 0) stats.alarm += 1;
+    if (row.totalAlarmCount !== undefined) coverage.alarm += 1;
+    if (Object.hasOwn(row, 'cpu_usage')) coverage.cpu += 1;
+    if (Object.hasOwn(row, 'mem_usage')) coverage.mem += 1;
+    if (Object.hasOwn(row, 'disk_in_use')) coverage.disk += 1;
+    if ((row.totalAlarmCount ?? 0) > 0) stats.alarm += 1;
     if ((row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.cpu += 1;
     if ((row.mem_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.mem += 1;
     if ((row.disk_in_use || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.disk += 1;
   }
-  return stats;
+  return { coverage, stats };
 };
 
 export const sortRows = (rows: IHostListRow[], sort: string, stickyValue?: Record<string, number>): IHostListRow[] => {
@@ -304,7 +325,9 @@ export const buildFilterOptionsMap = (rows: IHostListRow[]): Map<string, IValue[
     if (row.bk_host_name) setMap.bk_host_name.set(row.bk_host_name, row.bk_host_name);
     if (row.bk_os_name) setMap.bk_os_name.set(row.bk_os_name, row.bk_os_name);
     if (row.bk_cloud_name) setMap.bk_cloud_name.set(row.bk_cloud_name, row.bk_cloud_name);
-    setMap.status.set(String(row.status), HOST_STATUS_MAP[row.status]?.name || String(row.status));
+    if (row.status !== undefined) {
+      setMap.status.set(String(row.status), HOST_STATUS_MAP[row.status]?.name || String(row.status));
+    }
     for (const cluster of row.bkClusters) {
       setMap.bk_cluster.set(cluster.id, cluster.name);
     }

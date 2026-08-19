@@ -299,6 +299,28 @@ class TestGetAgentStatus:
         assert query_data.call_args.kwargs == {"start_time": 820_000, "end_time": 1_000_000, "instant": True}
         node_man.assert_called_once()
 
+    def test_partial_query_keeps_confirmed_status_and_does_not_infer_missing_hosts(self, mocker):
+        unify_query = mocker.patch("monitor_web.cc.resources.cmdb.UnifyQuery")
+        unify_query.return_value.is_partial = True
+        unify_query.return_value.query_data.return_value = [
+            {
+                "_result_": 1,
+                "bk_host_id": str(HOSTS[0].bk_host_id),
+            }
+        ]
+        node_man = mocker.patch("monitor_web.cc.resources.cmdb.api.node_man.ipchooser_host_detail")
+        incomplete_callback = mocker.Mock()
+
+        result = resource.cc.get_agent_status(
+            bk_biz_id=2,
+            hosts=HOSTS[:2],
+            incomplete_callback=incomplete_callback,
+        )
+
+        assert result == {HOSTS[0].bk_host_id: AGENT_STATUS.ON}
+        incomplete_callback.assert_called_once_with()
+        node_man.assert_not_called()
+
     @mock.patch(
         "core.drf_resource.api.gse.get_agent_status",
         return_value={
