@@ -550,7 +550,6 @@ class LogDataSource(ApmDataSourceConfigBase):
                     # 展示名保留用户输入的原始 app_name（含大小写）
                     collector_config_name=app_name,
                     allocation_min_days=0,
-                    owners=owners,
                     **storage_params,
                 )
             except BKAPIError as e:

@@ -86,7 +86,7 @@ class ApmApplication(AbstractRecordModel):
         self.is_enabled_profiling = True
         self.save(update_fields=["is_enabled", "is_enabled_profiling"])
 
-    def start_log(self, owners=None):
+    def start_log(self):
         """开启 Log 数据源"""
         log_datasource = LogDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
         if not log_datasource:
@@ -100,22 +100,11 @@ class ApmApplication(AbstractRecordModel):
                     bk_biz_id=self.bk_biz_id,
                     app_name=self.app_name,
                     option=True,
-                    owners=owners,
                     **datasource_options,
                 )
             except Exception as e:  # noqa
                 self.send_datasource_apply_alert(TelemetryDataType.LOG.value)
                 raise e
-        elif owners and getattr(log_datasource, "collector_config_id", None):
-            from core.drf_resource import api
-            from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-
-            api.log_search.update_custom_report(
-                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id),
-                collector_config_id=log_datasource.collector_config_id,
-                collector_config_name=self.app_name,
-                owners=owners,
-            )
 
         LogDataSource.start(self.bk_biz_id, self.app_name)
         self.is_enabled = True

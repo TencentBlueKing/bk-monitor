@@ -194,13 +194,6 @@ class ApplyDatasourceResource(Resource):
             child=serializers.ChoiceField(choices=TelemetryDataType.choices()),
             required=False,
         )
-        owners = serializers.ListField(
-            label="负责人列表",
-            child=serializers.CharField(),
-            required=False,
-            default=list,
-            allow_empty=True,
-        )
 
     def perform_request(self, validated_request_data):
         try:
@@ -223,23 +216,13 @@ class ApplyDatasourceResource(Resource):
         return application.apply_datasource(
             trace_storage_config=validated_request_data.get("trace_datasource_option"),
             log_storage_config=validated_request_data.get("log_datasource_option"),
-            options={
-                "shared_datasource_types": shared_datasource_types,
-                "owners": validated_request_data.get("owners") or [],
-            },
+            options={"shared_datasource_types": shared_datasource_types},
         )
 
 
 class OperateApplicationSerializer(serializers.Serializer):
     application_id = serializers.IntegerField(label="应用id")
     type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
-    owners = serializers.ListField(
-        label="负责人列表",
-        child=serializers.CharField(),
-        required=False,
-        default=list,
-        allow_empty=True,
-    )
 
 
 class StartApplicationResource(Resource):
@@ -261,7 +244,7 @@ class StartApplicationResource(Resource):
             return application.start_metric()
 
         if validated_request_data["type"] == TelemetryDataType.LOG.value:
-            return application.start_log(owners=validated_request_data.get("owners") or [])
+            return application.start_log()
 
         raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 

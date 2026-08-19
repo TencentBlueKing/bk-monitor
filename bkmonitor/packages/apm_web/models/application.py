@@ -766,7 +766,29 @@ class Application(AbstractRecordModel):
                     f"application->({self.application_id}) grant owner({user}) "
                     f"view_business(bk_biz_id={self.bk_biz_id}) failed, reason: {e}"
                 )
+
+        self._grant_log_owners(to_grant)
         return normalized_new
+
+    def _grant_log_owners(self, owners):
+        """应用已有日志数据源时，把新增负责人传给日志平台做采集项/索引集授权。"""
+        if not owners:
+            return
+        try:
+            detail = api.apm_api.detail_application(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+            collector_config_id = (detail.get("log_config") or {}).get("collector_config_id")
+            if not collector_config_id:
+                return
+            api.log_search.update_custom_report(
+                bk_tenant_id=self.bk_tenant_id,
+                collector_config_id=collector_config_id,
+                collector_config_name=self.app_name,
+                owners=owners,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}"
+            )
 
     @property
     def is_create_finished(self):
@@ -816,13 +838,7 @@ class Application(AbstractRecordModel):
         application = cls.objects.filter(application_id=application_id).first()
         if not application:
             raise ValueError(_("应用不存在"))
-        api.apm_api.apply_datasource(
-            {
-                "application_id": application.application_id,
-                "owners": cls._normalize_owners(application.owners),
-                **datasource_option,
-            }
-        )
+        api.apm_api.apply_datasource({"application_id": application.application_id, **datasource_option})
         detail = api.apm_api.detail_application(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
         application.trace_result_table_id = detail["trace_config"]["result_table_id"]
         application.metric_result_table_id = detail["metric_config"]["result_table_id"]

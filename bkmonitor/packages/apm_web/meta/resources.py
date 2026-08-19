@@ -570,13 +570,9 @@ class StartResource(Resource):
         else:
             raise ValueError(_("不支持的data_source: {}").format(validated_data["type"]))
 
-        start_params = {
-            "application_id": validated_data["application_id"],
-            "type": validated_data["type"],
-        }
-        if validated_data["type"] == TelemetryDataType.LOG.value:
-            start_params["owners"] = Application._normalize_owners(application.owners)
-        res = api.apm_api.start_application(**start_params)
+        res = api.apm_api.start_application(
+            application_id=validated_data["application_id"], type=validated_data["type"]
+        )
 
         application.is_enabled = True
         application.save()
