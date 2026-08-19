@@ -34,6 +34,8 @@ class BaseQuery:
     FIELD_ALIAS_MAP_LIST: list[dict[str, str]] = []
     # 字段操作符映射
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
+    # 字段单位映射
+    FIELD_UNITS: dict[str, str] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -392,6 +394,7 @@ class BaseQuery:
             - is_case_sensitive: 是否区分大小写
             - supported_operations: 该字段类型支持的操作符列表
             - is_searchable: 是否可搜索（object/nested 类型为 False）
+            - is_list: 是否可展示在列表表头中（object/nested 类型为 False）
         """
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
             (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
@@ -413,13 +416,18 @@ class BaseQuery:
                     field_map[field_name] = self.merge_field_metadata(current, field_dict)
 
                 _field_dict = field_map[field_name]
+
                 _field_dict["alias_name"] = self._resolve_field_alias(field_name)
                 _field_dict["supported_operations"] = self.FIELD_OPERATIONS.get(
                     _field_dict["field_type"],
                     [],
                 )
-                _field_dict["is_searchable"] = _field_dict["field_type"] not in {"object", "nested"}
-
+                _field_dict["is_list"] = _field_dict["is_searchable"] = _field_dict["field_type"] not in {
+                    "object",
+                    "nested",
+                }
+                if field_name in self.FIELD_UNITS:
+                    _field_dict["unit"] = self.FIELD_UNITS[field_name]
         return field_map
 
     @classmethod

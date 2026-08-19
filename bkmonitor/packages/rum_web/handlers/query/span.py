@@ -28,6 +28,9 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_SORT = ["-end_time"]
     FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
+    FIELD_UNITS = {
+        "elapsed_time": "us",
+    }
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources

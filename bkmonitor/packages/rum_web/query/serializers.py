@@ -16,6 +16,8 @@ from constants.apm import OperatorGroupRelation
 
 
 class FilterSerializer(serializers.Serializer):
+    """存储查询侧过滤条件，value 收敛为字符串列表，对齐 UnifyQuery condition 协议"""
+
     class OptionsSerializer(serializers.Serializer):
         is_wildcard = serializers.BooleanField(label=_("是否使用通配符"), default=False)
         group_relation = serializers.ChoiceField(
@@ -30,30 +32,49 @@ class FilterSerializer(serializers.Serializer):
     )
 
 
+class QueryStringFilterSerializer(FilterSerializer):
+    """查询串渲染侧过滤条件，value 保留数值与布尔原类型"""
+
+    value = serializers.ListSerializer(label=_("查询值"), child=serializers.JSONField(), allow_empty=True)
+
+
 class BaseRumRequestSerializer(serializers.Serializer):
-    """RUM 查询接口公共请求字段"""
+    """应用上下文：bk_biz_id、app_name、mode"""
 
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
     app_name = serializers.CharField(label=_("应用名称"))
     mode = serializers.ChoiceField(
         label=_("查询层级模式"), choices=RumQueryMode.choices(), default=RumQueryMode.SPAN.value
     )
-    extra_config = serializers.DictField(label=_("扩展配置"), default={})
 
 
-class BaseTimeRangeSerializer(BaseRumRequestSerializer):
-    """带时间范围的公共请求字段"""
+class RumGenerateQueryStringRequestSerializer(BaseRumRequestSerializer):
+    """将过滤条件转换为查询字符串"""
+
+    filters = serializers.ListField(label=_("查询条件"), child=QueryStringFilterSerializer(), default=[])
+
+
+class BaseRumTimeRangeSerializer(BaseRumRequestSerializer):
+    """时间范围：start_time、end_time"""
 
     start_time = serializers.IntegerField(label=_("开始时间"))
     end_time = serializers.IntegerField(label=_("结束时间"))
 
 
-class BaseSearchSerializer(BaseTimeRangeSerializer):
+class RumViewConfigRequestSerializer(BaseRumTimeRangeSerializer):
+    """获取页面视图配置"""
+
+    pass
+
+
+class BaseRumSearchSerializer(BaseRumTimeRangeSerializer):
+    """检索条件：filters、query_string"""
+
     filters = serializers.ListField(label=_("过滤条件"), child=serializers.DictField(), default=[])
     query_string = serializers.CharField(label=_("查询字符串"), default="", allow_blank=True)
 
 
-class RumRecordsRequestSerializer(BaseSearchSerializer):
+class RumRecordsRequestSerializer(BaseRumSearchSerializer):
     """分页查询记录列表"""
 
     offset = serializers.IntegerField(label=_("偏移量"), default=0, min_value=0)
@@ -61,23 +82,8 @@ class RumRecordsRequestSerializer(BaseSearchSerializer):
     sort = serializers.ListField(label=_("排序条件"), child=serializers.CharField(), default=[])
 
 
-class RumViewConfigRequestSerializer(BaseTimeRangeSerializer):
-    """获取页面视图配置"""
-
-    mode = None
-
-
-class RumFieldsOptionValuesRequestSerializer(BaseSearchSerializer):
+class RumFieldsOptionValuesRequestSerializer(BaseRumSearchSerializer):
     """批量查询字段可选枚举值"""
 
     fields = serializers.ListField(label=_("查询字段列表"), child=serializers.CharField())
-    limit = serializers.IntegerField(label=_("查询条数"), default=10, min_value=1)
-
-
-class RumGenerateQueryStringRequestSerializer(serializers.Serializer):
-    """将过滤条件转换为查询字符串"""
-
-    class QueryStringFilterSerializer(FilterSerializer):
-        value = serializers.ListSerializer(label=_("查询值"), child=serializers.JSONField(), allow_empty=True)
-
-    filters = serializers.ListField(label=_("查询条件"), child=QueryStringFilterSerializer(), default=[])
+    limit = serializers.IntegerField(label=_("枚举值数量"), default=10, min_value=1)

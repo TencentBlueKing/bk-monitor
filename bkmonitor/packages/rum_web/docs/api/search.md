@@ -42,7 +42,6 @@ POST /rum/search/list_records/
 | sort         | Array[String] | 否  | 排序条件，字段名前加 `-` 表示降序，默认 `[]`                                         |
 | filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
-| extra_config | Object        | 否  | 扩展配置，默认 `{}`                                                        |
 
 ```json
 {
@@ -76,18 +75,20 @@ POST /rum/search/list_records/
 ```json
 {
   "total": 100,
-  "data": [
-    {
-      "span_id": "29926da51cae17cf",
-      "trace_id": "206fa04fb665bf8ef1fba9255b59c3e1",
-      "span_name": "browser.resource",
-      "start_time": 1783338028554800,
-      "end_time": 1783338029588300,
-      "elapsed_time": 1033500,
-      "attributes.span_type": "resource",
-      "status.code": 0
-    }
-  ]
+  "data": {
+    "list": [
+      {
+        "span_id": "29926da51cae17cf",
+        "trace_id": "206fa04fb665bf8ef1fba9255b59c3e1",
+        "span_name": "browser.resource",
+        "start_time": 1783338028554800,
+        "end_time": 1783338029588300,
+        "elapsed_time": 1033500,
+        "attributes.span_type": "resource",
+        "status.code": 0
+      }
+    ]
+  }
 }
 ```
 
@@ -97,18 +98,19 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 #### 2.2.1 Request
 
-| 参数名称         | 类型      | 必填 | 描述               |
-|--------------|---------|----|------------------|
-| bk_biz_id    | Integer | 是  | 业务 ID            |
-| app_name     | String  | 是  | 应用名称             |
-| start_time   | Integer | 是  | 开始时间（Unix 秒级时间戳） |
-| end_time     | Integer | 是  | 结束时间（Unix 秒级时间戳） |
-| extra_config | Object  | 否  | 扩展配置，默认 `{}`     |
+| 参数名称       | 类型      | 必填 | 描述                                                                  |
+|------------|---------|----|---------------------------------------------------------------------|
+| bk_biz_id  | Integer | 是  | 业务 ID                                                               |
+| app_name   | String  | 是  | 应用名称                                                                |
+| mode       | String  | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time | Integer | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time   | Integer | 是  | 结束时间（Unix 秒级时间戳）                                                    |
 
 ```json
 {
   "bk_biz_id": 2,
   "app_name": "rum-demo",
+  "mode": "span",
   "start_time": 1785999805,
   "end_time": 1786003405
 }
@@ -116,18 +118,28 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 #### 2.2.2 Response
 
-- fields
+顶层结构：
 
-| 参数名称                 | 类型               | 描述                       |
-|----------------------|------------------|--------------------------|
-| name                 | String           | 名称                       |
-| alias                | String           | 别名                       |
-| type                 | String           | 类型                       |
-| is_searched          | Boolean          | 是否支持搜索                   |
-| is_dimensions        | Boolean          | 是否支持维度统计                 |
-| can_displayed        | Boolean          | 是否支持展示                   |
-| supported_operations | Array[Operation] | 支持的操作符                   |
-| group_name           | String           | 分组名称，和 groups.name 是关联关系 |
+| 参数名称           | 类型            | 描述                    |
+|----------------|---------------|-----------------------|
+| default_sort   | Array[String] | 默认排序条件，字段名前加 `-` 表示降序 |
+| fields         | Array[Field]  | 顶层字段列表（不属于任何分组）       |
+| groups         | Array[Group]  | 分组列表，每个分组包含若干字段       |
+| display_fields | Array[String] | 列表页默认展示的字段名列表         |
+
+- Field
+
+| 参数名称                 | 类型                 | 描述                                  |
+|----------------------|--------------------|-------------------------------------|
+| name                 | String             | 字段名                                 |
+| alias                | String             | 别名                                  |
+| type                 | String             | 字段类型（如 `keyword`、`long`、`double` 等） |
+| unit                 | String             | 单位（可选，如 `us`、`ms`）                  |
+| is_searchable        | Boolean            | 是否支持搜索                              |
+| is_agg               | Boolean            | 是否支持聚合统计                            |
+| is_list              | Boolean            | 是否支持在列表中展示                          |
+| supported_operations | Array[Operation]   | 支持的操作符列表                            |
+| option_values        | Array[OptionValue] | 预设枚举值列表（可选，有预设值时返回）                 |
 
 - Operation
 
@@ -137,37 +149,108 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | label       | String | 标签  |
 | placeholder | String | 占位符 |
 
-- groups
+- OptionValue
 
-| 参数名称 | 类型     | 描述   |
-|------|--------|------|
-| name | String | 分组名称 |
+| 参数名称  | 类型     | 描述   |
+|-------|--------|------|
+| value | String | 枚举值  |
+| alias | String | 枚举别名 |
+
+- Group
+
+| 参数名称   | 类型           | 描述        |
+|--------|--------------|-----------|
+| name   | String       | 分组标识      |
+| alias  | String       | 分组别名      |
+| fields | Array[Field] | 该分组下的字段列表 |
 
 ```json
 {
   "span_config": {
+    "default_sort": [
+      "-end_time"
+    ],
     "fields": [
       {
-        "name": "trace_id",
-        "alias": "Trace ID",
+        "name": "span_name",
+        "alias": "Span 名称",
         "type": "keyword",
-        "is_searched": true,
-        "is_dimensions": false,
-        "can_displayed": true,
-        "supported_operations": [
+        "is_searchable": true,
+        "is_agg": true,
+        "is_list": true,
+        "supported_operations": []
+      },
+      {
+        "name": "elapsed_time",
+        "alias": "耗时",
+        "type": "long",
+        "unit": "us",
+        "is_searchable": true,
+        "is_agg": true,
+        "is_list": true,
+        "supported_operations": []
+      },
+      {
+        "name": "attributes.span_type",
+        "alias": "Span 类型",
+        "type": "keyword",
+        "is_searchable": true,
+        "is_agg": true,
+        "is_list": true,
+        "supported_operations": [],
+        "option_values": [
           {
-            "operator": "equal",
-            "label": "=",
-            "placeholder": "请选择或直接输入，Enter分隔"
+            "value": "view",
+            "alias": "视图"
+          },
+          {
+            "value": "resource",
+            "alias": "资源加载"
           }
-        ],
-        "group_name": "OT 标识"
+        ]
       }
     ],
     "groups": [
       {
-        "name": "OT 标识"
+        "name": "DEVICE_BROWSER",
+        "alias": "终端 & 浏览器",
+        "fields": [
+          {
+            "name": "resource.user_agent.name",
+            "alias": "代理名称",
+            "type": "keyword",
+            "is_searchable": true,
+            "is_agg": true,
+            "is_list": true,
+            "supported_operations": []
+          }
+        ]
+      },
+      {
+        "name": "WEB_VITALS",
+        "alias": "网页指标（Web Vitals）",
+        "fields": [
+          {
+            "name": "LCP",
+            "alias": "最大内容绘制",
+            "type": "double",
+            "unit": "ms",
+            "is_searchable": true,
+            "is_agg": true,
+            "is_list": false,
+            "supported_operations": []
+          }
+        ]
       }
+    ],
+    "display_fields": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "user.id"
     ]
   },
   "view_config": {},
@@ -192,7 +275,6 @@ POST /rum/search/get_fields_option_values/
 | limit        | Integer       | 否  | 每个字段返回的枚举值数量，默认 10，最小 1                                             |
 | filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
-| extra_config | Object        | 否  | 扩展配置，默认 `{}`                                                        |
 
 ```json
 {

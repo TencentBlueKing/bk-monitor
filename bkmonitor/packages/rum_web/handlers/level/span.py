@@ -8,16 +8,17 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 from typing import Any
-
-from django.utils.translation import gettext_lazy as _
-
 
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
+from constants.apm import OperatorGroupRelation
+from constants.otel_query import OperatorEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RUM_LEVEL_FIELD_GROUP_MAP
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -26,7 +27,16 @@ class SpanLevelHandler(BaseRumLevelHandler):
     以 SpanQuery 作为主查询，实现 BaseRumLevelHandler 的全部接口能力。
     """
 
-    RUM_FIELD_GROUP_MAP = RUM_LEVEL_FIELD_GROUP_MAP.get("span", {})
+    DEFAULT_SORT = ["-end_time"]
+    DISPLAY_FIELDS = [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "user.id",
+    ]
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
@@ -42,11 +52,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_string: str = "",
         sort: list[str] | None = None,
         extra_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        return {
-            "total": self.query.query_total(start_time, end_time, filters, query_string),
-            "data": self.query.query_list(start_time, end_time, offset, limit, filters, query_string, sort),
-        }
+    ) -> list[dict[str, Any]]:
+        return self.query.query_list(start_time, end_time, offset, limit, filters, query_string, sort)
 
     def view_config(
         self,
@@ -54,22 +61,50 @@ class SpanLevelHandler(BaseRumLevelHandler):
         end_time: int,
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        configs: list[dict[str, Any]] = []
-
-        for field_name, field_dict in self.query.query_fields(start_time, end_time).items():
-            configs.append(
+        all_fields: dict[str, Any] = self.query.query_fields(start_time, end_time)
+        config_dict = {
+            "default_sort": copy.deepcopy(self.query.DEFAULT_SORT),
+            "fields": [
                 {
                     "name": field_name,
                     "alias": field_dict.get("alias_name"),
                     "type": field_dict.get("field_type"),
-                    "is_searched": field_dict.get("is_searchable", False),
-                    "is_dimensions": field_dict.get("is_agg", False),
-                    "can_displayed": True,
+                    "is_searchable": field_dict.get("is_searchable", False),
+                    "is_agg": field_dict.get("is_agg", False),
+                    "is_list": field_dict.get("is_list", True),
                     "supported_operations": field_dict.get("supported_operations", []),
-                    "group_name": self.RUM_FIELD_GROUP_MAP.get(field_name, _("其他")),
+                }
+                for field_name, field_dict in all_fields.items()
+            ],
+            "groups": [],
+            "display_fields": copy.deepcopy(self.DISPLAY_FIELDS),
+        }
+
+        field_map: dict[str, dict[str, Any]] = {}
+        for field_name, field_dict in all_fields.items():
+            _field_dict = {
+                "name": field_name,
+                "alias": field_dict["alias_name"],
+                "type": field_dict["field_type"],
+                "is_searchable": field_dict["is_searchable"],
+                "is_agg": field_dict["is_agg"],
+                "is_list": field_dict["is_list"],
+                "supported_operations": field_dict["supported_operations"],
+            }
+            if "unit" in field_dict:
+                _field_dict["unit"] = field_dict["unit"]
+            field_map[field_name] = _field_dict
+            config_dict["fields"].append(_field_dict)
+        # 构建分组关系
+        for group in RUM_SEARCH_PAGE_GROUPS.get("span", []):
+            config_dict["groups"].append(
+                {
+                    "name": group["name"],
+                    "alias": group["alias"],
+                    "fields": [field_map[field_name] for field_name in group["field_names"] if field_name in field_map],
                 }
             )
-        return {"fields": configs, "groups": RUM_SEARCH_PAGE_GROUPS.get("span", [])}
+        return config_dict
 
     def get_fields_option_values(
         self,
@@ -135,3 +170,19 @@ class SpanLevelHandler(BaseRumLevelHandler):
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         raise NotImplementedError
+
+    def generate_query_string(
+        self,
+        filters: list[types.Filter],
+        extra_config: dict[str, Any] | None = None,
+    ) -> str:
+        generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
+        for f in filters:
+            generator.add_filter(
+                f["key"],
+                f["operator"],
+                f["value"],
+                f.get("options", {}).get("is_wildcard", False),
+                f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
+            )
+        return generator.to_query_string()

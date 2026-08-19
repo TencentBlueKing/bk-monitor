@@ -10,10 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-from constants.otel_query import OperatorEnum
+from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
-from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator, flatten_es_dict_data
-from constants.apm import OperatorGroupRelation
 from core.drf_resource import Resource
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
 from rum_web.models.application import Application
@@ -26,7 +24,7 @@ from rum_web.query.serializers import (
 from rum_web.constants import RumQueryMode
 
 
-def _get_authorized_application(bk_biz_id: int, app_name: str) -> Application:
+def _get_application(bk_biz_id: int, app_name: str) -> Application:
     """获取已鉴权的 RUM 应用实例"""
     try:
         return Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
@@ -52,20 +50,22 @@ class RumRecordsResource(Resource):
     RequestSerializer = RumRecordsRequestSerializer
 
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_authorized_application(data["bk_biz_id"], data["app_name"])
+        application = _get_application(data["bk_biz_id"], data["app_name"])
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
-        response_dict = handler.list_records(
-            start_time=data["start_time"],
-            end_time=data["end_time"],
-            offset=data["offset"],
-            limit=data["limit"],
-            filters=data["filters"],
-            query_string=data["query_string"],
-            sort=data["sort"],
-            extra_config=data["extra_config"],
-        )
-        response_dict["data"] = [flatten_es_dict_data(data) for data in response_dict["data"]]
-        return response_dict
+        return {
+            "list": [
+                flatten_dict_data(data)
+                for data in handler.list_records(
+                    start_time=data["start_time"],
+                    end_time=data["end_time"],
+                    offset=data["offset"],
+                    limit=data["limit"],
+                    filters=data["filters"],
+                    query_string=data["query_string"],
+                    sort=data["sort"],
+                )
+            ]
+        }
 
 
 class RumViewConfigResource(Resource):
@@ -74,17 +74,12 @@ class RumViewConfigResource(Resource):
     RequestSerializer = RumViewConfigRequestSerializer
 
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_authorized_application(data["bk_biz_id"], data["app_name"])
-        span_handler = RumLevelHandlerFactory.create(RumQueryMode.SPAN.value, _build_data_sources([application]))
-        return {
-            "span_config": span_handler.view_config(
-                start_time=data["start_time"],
-                end_time=data["end_time"],
-                extra_config=data["extra_config"],
-            ),
-            "view_config": {},
-            "session_config": {},
-        }
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(RumQueryMode.SPAN.value, _build_data_sources([application]))
+        return handler.view_config(
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+        )
 
 
 class RumFieldsOptionValuesResource(Resource):
@@ -93,7 +88,7 @@ class RumFieldsOptionValuesResource(Resource):
     RequestSerializer = RumFieldsOptionValuesRequestSerializer
 
     def perform_request(self, data: dict[str, Any]) -> dict[str, list[str]]:
-        application = _get_authorized_application(data["bk_biz_id"], data["app_name"])
+        application = _get_application(data["bk_biz_id"], data["app_name"])
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return handler.get_fields_option_values(
             start_time=data["start_time"],
@@ -102,7 +97,6 @@ class RumFieldsOptionValuesResource(Resource):
             limit=data["limit"],
             filters=data["filters"],
             query_string=data["query_string"],
-            extra_config=data["extra_config"],
         )
 
 
@@ -112,13 +106,6 @@ class RumGenerateQueryStringResource(Resource):
     RequestSerializer = RumGenerateQueryStringRequestSerializer
 
     def perform_request(self, data: dict[str, Any]) -> str:
-        generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
-        for f in data["filters"]:
-            generator.add_filter(
-                f["key"],
-                f["operator"],
-                f["value"],
-                f.get("options", {}).get("is_wildcard", False),
-                f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
-            )
-        return generator.to_query_string()
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        return handler.generate_query_string(data["filters"])

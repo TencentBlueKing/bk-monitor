@@ -30,7 +30,7 @@ class BaseRumLevelHandler(ABC):
         start_time: int,
         end_time: int,
         extra_config: dict[str, Any] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """获取页面视图配置"""
         ...
 
@@ -113,7 +113,7 @@ class BaseRumLevelHandler(ABC):
         query_string: str = "",
         sort: list[str] | None = None,
         extra_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> list[dict[str, Any]]:
         """分页查询记录列表"""
         ...
 
@@ -124,4 +124,13 @@ class BaseRumLevelHandler(ABC):
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """查询单条记录详情"""
+        ...
+
+    @abstractmethod
+    def generate_query_string(
+        self,
+        filters: list[types.Filter],
+        extra_config: dict[str, Any] | None = None,
+    ) -> str:
+        """将过滤条件列表转换为 Elasticsearch query string"""
         ...

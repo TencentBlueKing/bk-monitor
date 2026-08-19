@@ -157,14 +157,102 @@ class RumQueryMode(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
-# RUM 检索页分组
-RUM_SEARCH_PAGE_GROUPS = {
-    "span": [{"name": "OT 标识"}, {"name": "Span 核心"}, {"name": "关联上下文"}],
+# RUM 检索页分组配置（新协议：每个分组含 name、alias、fields 列表）
+# fields 列表中每项为字段名，view_config 构建时会从 query_fields 结果中填充完整字段信息
+RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
+    "span": [
+        {
+            "name": "COMMON",
+            "alias": _("公共字段"),
+            "field_names": [
+                "kind",
+                "span_name",
+                "attributes.span_type",
+                "elapsed_time",
+                "status.code",
+                "status.message",
+            ],
+        },
+        {
+            "name": "APP_VERSION",
+            "alias": _("应用 & 版本"),
+            "field_names": [
+                "resource.service.name",
+                "resource.service.version",
+                "resource.deployment.environment.name",
+                "resource.telemetry.sdk.version",
+                "resource.telemetry.sdk.language",
+                "resource.telemetry.sdk.name",
+            ],
+        },
+        {
+            "name": "DEVICE_BROWSER",
+            "alias": _("终端 & 浏览器"),
+            "field_names": [
+                "resource.device.type",
+                "resource.user_agent.name",
+                "resource.user_agent.version",
+                "resource.user_agent.os.name",
+            ],
+        },
+        {
+            "name": "NETWORK_GEO",
+            "alias": _("网络 & 地域"),
+            "field_names": [
+                "attributes.network.connection.type",
+                "attributes.network.effective_type",
+            ],
+        },
+        {
+            "name": "USER",
+            "alias": _("用户"),
+            "field_names": [
+                "attributes.user.id",
+            ],
+        },
+        {
+            "name": "RESOURCE",
+            "alias": _("资源加载"),
+            "field_names": [
+                "attributes.resource.type",
+                "attributes.url.template",
+                "attributes.http.request.method",
+                "attributes.http.response.status_code",
+                "attributes.resource.size",
+                "attributes.resource.protocol",
+            ],
+        },
+        {
+            "name": "VIEW",
+            "alias": _("视图"),
+            "field_names": [
+                "attributes.view.referrer",
+                "attributes.view.url_template",
+            ],
+        },
+        {
+            "name": "INTERACTION",
+            "alias": _("用户交互"),
+            "field_names": [
+                "attributes.action.type",
+                "attributes.action.target.name",
+            ],
+        },
+        {
+            "name": "WEB_VITALS",
+            "alias": _("网页指标（Web Vitals）"),
+            "field_names": [
+                "attributes.vital.cls.",
+                "attributes.vital.inp.",
+                "attributes.vital.lcp.",
+                "attributes.vital.fcp.",
+                "attributes.vital.ttfb.",
+            ],
+        },
+    ],
     "view": [],
     "session": [],
 }
 
-# RUM 字段和分组的映射
-RUM_LEVEL_FIELD_GROUP_MAP = {"span": {"trace_id": _("OT 标识")}, "view": {}, "session": {}}
 # RUM 字段别名
 RUM_FIELD_ALIAS = {}

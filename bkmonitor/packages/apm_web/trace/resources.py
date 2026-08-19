@@ -51,7 +51,8 @@ from apm_web.trace.serializers import (
 )
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator, flatten_es_dict_data
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
+from bkmonitor.data_source.format import flatten_dict_data
 from constants.otel_query import OperatorEnum
 from constants.apm import (
     CallSide,
@@ -987,7 +988,7 @@ class ListFlattenSpanResource(BaseTraceFaultTolerantResource):
 
     def perform_request(self, data):
         response = ListSpanResource().get_span_list_api_data(data)
-        response["data"] = [flatten_es_dict_data(data_dict) for data_dict in response["data"]]
+        response["data"] = [flatten_dict_data(data_dict) for data_dict in response["data"]]
         return response
 
 
@@ -1000,7 +1001,7 @@ class ListFlattenTraceResource(BaseTraceFaultTolerantResource):
         response = ListTraceResource().get_trace_list_api_data(data)
         data_list = []
         for trace_data_dict in response["data"]:
-            data_list.append(flatten_es_dict_data(trace_data_dict))
+            data_list.append(flatten_dict_data(trace_data_dict))
         response["data"] = data_list
         return response
 

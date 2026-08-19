@@ -26,14 +26,20 @@ class SearchViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        return [
-            InstanceActionForDataPermission(
-                self.INSTANCE_ID,
-                [ActionEnum.VIEW_RUM_APPLICATION],
-                ResourceEnum.RUM_APPLICATION,
-                get_instance_id=Application.get_application_id_by_app_name,
-            )
-        ]
+        if self.action in [
+            "list_records",
+            "view_config",
+            "get_fields_option_values",
+        ]:
+            return [
+                InstanceActionForDataPermission(
+                    self.INSTANCE_ID,
+                    [ActionEnum.VIEW_RUM_APPLICATION],
+                    ResourceEnum.RUM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
+        return []
 
     resource_routes = [
         ResourceRoute("POST", RumRecordsResource, endpoint="list_records"),
