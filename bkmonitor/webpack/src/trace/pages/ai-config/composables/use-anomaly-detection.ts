@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { shallowRef } from 'vue';
+import { computed, shallowRef } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -60,8 +60,14 @@ export const useAnomalyDetection = () => {
   const sceneList = shallowRef<ISceneFormItem[]>([]);
   /** 表单校验错误信息 */
   const errors = shallowRef<Record<string, string>>({});
+  /**
+   * 表单初始值快照（初始化加载完成后设定），用于判断当前表单是否被编辑过
+   * key 为 kpi 单指标，value 为按 SceneType 排序后的场景快照
+   */
+  const initialKpiPlanId = shallowRef<null | string>(null);
+  const initialSceneList = shallowRef<ISceneFormItem[]>(null);
 
-  /** 用接口数据回填表单 */
+  /** 用接口数据回填表单，并记录初始快照（用于判断是否编辑过） */
   const setFormData = (setting: IAiSetting | null) => {
     rawAiSetting = setting;
     kpiPlanId.value = setting?.kpi_anomaly_detection?.default_plan_id || '';
@@ -69,6 +75,8 @@ export const useAnomalyDetection = () => {
       type,
       planId: setting?.multivariate_anomaly_detection?.[type]?.default_plan_id || '',
     }));
+    initialKpiPlanId.value = `${kpiPlanId.value}`;
+    initialSceneList.value = JSON.parse(JSON.stringify(sceneList.value));
   };
 
   /** 拉取各算法下的可选方案 */
@@ -126,8 +134,9 @@ export const useAnomalyDetection = () => {
   };
 
   const save = async () => {
-    if (!validate()) return;
+    if (!validate()) return false;
     saving.value = true;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const params = {
       ...rawAiSetting,
       kpi_anomaly_detection: {
@@ -150,14 +159,22 @@ export const useAnomalyDetection = () => {
     } as IAiSetting;
     const success = await updateAiSetting(params);
     saving.value = false;
-    if (!success) return;
+    if (!success) return false;
     Message({
       theme: 'success',
       message: t('保存成功！'),
     });
     // 保存成功后重新拉取，确保展示的是后端最终生效的配置
     await fetchAiSettingData();
+    return true;
   };
+
+  /** 当前表单相对初始快照是否被修改过：用于离开页面提示 */
+  const isEdited = computed(() => {
+    if (initialKpiPlanId.value === null || initialSceneList.value === null) return false;
+    if (`${kpiPlanId.value}` !== `${initialKpiPlanId.value}`) return true;
+    return JSON.stringify(sceneList.value) !== JSON.stringify(initialSceneList.value);
+  });
 
   return {
     loading,
@@ -167,6 +184,7 @@ export const useAnomalyDetection = () => {
     kpiPlanId,
     sceneList,
     errors,
+    isEdited,
     fetchData,
     handleKpiPlanChange,
     handleScenePlanChange,

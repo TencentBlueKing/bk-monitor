@@ -49,6 +49,7 @@ import type {
   IFilterField,
   IGetValueFnParams,
   IOptionsInfo,
+  IWhereItem,
   TTagValueDisplayFormatter,
 } from 'trace/components/retrieval-filter/typing';
 
@@ -103,6 +104,11 @@ export default defineComponent({
       type: Function as PropType<TTagValueDisplayFormatter>,
       default: (val: boolean | number | string) => `${val}`,
     },
+    /** 拉取策略维度候选值（由父组件共享，hook 提供，无 loading） */
+    fetchStrategyDimensions: {
+      type: Function as PropType<(strategyIds: (number | string)[]) => void>,
+      default: () => {},
+    },
   },
   emits: {
     /** 抽屉显隐更新（v-model:show） */
@@ -125,6 +131,24 @@ export default defineComponent({
       handleEnabledChange,
       validate: validateBasicInfo,
     } = useRuleBasicInfo();
+
+    /**
+     * @description 匹配规则条件变化
+     * 更新表单状态，并提取所选告警策略 id 列表：
+     * 抛出 strategy-change 事件，同时调用父组件共享的 fetchStrategyDimensions 拉取策略维度候选值。
+     */
+    const handleMatchRuleConditionsChange = (where: IWhereItem[]) => {
+      handleConditionsChange(where);
+      const strategyIds: (number | string)[] = [];
+      for (const item of where || []) {
+        if (item.key === 'alert.strategy_id') {
+          for (const value of item.value) {
+            strategyIds.push(value as number | string);
+          }
+        }
+      }
+      props.fetchStrategyDimensions?.(strategyIds);
+    };
 
     /** 提交 confirmLoading */
     const confirmLoading = shallowRef(false);
@@ -271,7 +295,7 @@ export default defineComponent({
                     readonly={!!detail.value?.is_default}
                     tagValueDisplayFormatter={props.tagValueDisplayFormatter}
                     value={conditions.value}
-                    onUpdate:value={handleConditionsChange}
+                    onUpdate:value={handleMatchRuleConditionsChange}
                   />
                 )}
                 {errors.value?.conditions && <div class='form-item-error'>{errors.value.conditions}</div>}
@@ -505,7 +529,7 @@ export default defineComponent({
       priority,
       isEnabled,
       errors,
-      handleConditionsChange,
+      handleMatchRuleConditionsChange,
       handlePriorityChange,
       handleEnabledChange,
       isEdit,

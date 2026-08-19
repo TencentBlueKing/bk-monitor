@@ -51,3 +51,15 @@
     box-shadow: 0 2px 4px 0 #1919290d;
   }
 }
+
+/* 离开页面确认弹窗的三个按钮排布：水平排列，固定间距 */
+.ai-config-leave-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+
+  .ai-config-leave-save-btn {
+    margin: 0 4px;
+  }
+}

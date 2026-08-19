@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Button, InfoBox, Input, Message, Select } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
@@ -62,12 +62,18 @@ export default defineComponent({
   directives: {
     OverflowTips,
   },
-  setup() {
+  setup(_props) {
     const { t } = useI18n();
     /** 蓝盾项目 id */
     const bkciProjectId = shallowRef('');
     /** 源码仓库别名 */
     const repositoryAlias = shallowRef('');
+    /**
+     * 初始化完成后保存的初始快照，用于判断用户是否已修改
+     * 仅需关注 bkciProjectId 与 repositoryAlias 两个表单字段
+     */
+    const initialBkciProjectId = shallowRef<null | string>(null);
+    const initialRepositoryAlias = shallowRef<null | string>(null);
     /** 蓝盾项目下拉选择 */
     const projectsSelect = useBkciProjectsSelect();
     /** 源码仓库下拉选择（依赖蓝盾项目） */
@@ -99,6 +105,7 @@ export default defineComponent({
     const {
       fields: matchRuleFields,
       fetchAllData: fetchMatchRuleFields,
+      fetchStrategyDimensions: fetchMatchRuleStrategyDimensions,
       getValueFn: getMatchRuleValueFn,
       loading: matchRuleFieldsLoading,
       tagValueDisplayFormatter: getMatchRuleTagValueDisplayFormatter,
@@ -157,7 +164,7 @@ export default defineComponent({
     const handleSaveConfig = async () => {
       projectErrMsg.value = bkciProjectId.value ? '' : t('必填项');
       repositoryErrMsg.value = repositoryAlias.value ? '' : t('必填项');
-      if (!bkciProjectId.value || !repositoryAlias.value || saveLoading.value) return;
+      if (!bkciProjectId.value || !repositoryAlias.value || saveLoading.value) return false;
       saveLoading.value = true;
       const success = await setSaveSourceAnalysisConfig({
         bkci_project_id: bkciProjectId.value,
@@ -168,7 +175,11 @@ export default defineComponent({
       saveLoading.value = false;
       if (success) {
         Message({ theme: 'success', message: t('保存成功') });
+        // 保存成功后更新初始快照，使 isEdited 归位为未编辑状态
+        initialBkciProjectId.value = `${bkciProjectId.value}`;
+        initialRepositoryAlias.value = `${repositoryAlias.value}`;
       }
+      return success;
     };
 
     /**
@@ -178,10 +189,11 @@ export default defineComponent({
       configLoading.value = true;
       try {
         const data = await getSourceAnalysisConfigData().catch(() => null);
-        if (data?.bkci_project_id) {
-          bkciProjectId.value = data.bkci_project_id;
-        }
+        bkciProjectId.value = data?.bkci_project_id || '';
         repositoryAlias.value = data?.repository_alias || '';
+        // 初始化加载完成后记录初始快照，作为是否编辑过的基线
+        initialBkciProjectId.value = `${bkciProjectId.value}`;
+        initialRepositoryAlias.value = `${repositoryAlias.value}`;
       } finally {
         configLoading.value = false;
       }
@@ -230,6 +242,18 @@ export default defineComponent({
       }
       repositoriesSelect.handleToggle(val);
     };
+
+    /**
+     * 当前表单是否相对初始快照被修改：仅判断 bkciProjectId / repositoryAlias
+     * 初始快照在 handleInitConfig 完成后写入，初始化前视作未编辑
+     */
+    const isEdited = computed(() => {
+      if (initialBkciProjectId.value === null || initialRepositoryAlias.value === null) return false;
+      return (
+        `${bkciProjectId.value}` !== `${initialBkciProjectId.value}` ||
+        `${repositoryAlias.value}` !== `${initialRepositoryAlias.value}`
+      );
+    });
 
     /** 规则局部更新（启停等）：将更新后的规则回写到列表对应项 */
     const handleTableUpdateRule = (rule: SourceAnalysisRuleDto) => {
@@ -307,8 +331,11 @@ export default defineComponent({
       getMatchRuleValueFn,
       matchRuleFieldsLoading,
       getMatchRuleTagValueDisplayFormatter,
+      fetchMatchRuleStrategyDimensions,
       saveLoading,
       handleChangeBkciProjectId,
+      save: handleSaveConfig,
+      isEdited,
     };
   },
   render() {
@@ -364,7 +391,7 @@ export default defineComponent({
       <div class='ai-config-source-code-analysis'>
         {cardItem(
           {
-            icon: () => <span class='icon-monitor icon-APM' />,
+            icon: () => <span class='icon-monitor icon-storehouse' />,
             title: this.t('源码仓库关联'),
             description: this.t('关联后，告警中心的 AI 分析可基于蓝盾构建与 Git 变更进行'),
             content: () => (
@@ -515,6 +542,7 @@ export default defineComponent({
                   <Input
                     style='width: 342px;'
                     modelValue={this.searchValue}
+                    placeholder={this.t('搜索')}
                     type='search'
                     onUpdate:modelValue={val => {
                       this.searchValue = val;
@@ -537,6 +565,7 @@ export default defineComponent({
                   onUpdateRule={this.handleTableUpdateRule}
                 />
                 <AnalysisConfigSideslider
+                  fetchStrategyDimensions={this.fetchMatchRuleStrategyDimensions}
                   getMatchRuleValueFn={this.getMatchRuleValueFn}
                   matchRuleFields={this.matchRuleFields}
                   matchRuleFieldsLoading={this.matchRuleFieldsLoading}

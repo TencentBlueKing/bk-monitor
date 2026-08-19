@@ -29,8 +29,9 @@ import { shallowRef } from 'vue';
 import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import { getAssignConditionKeys, searchObjectAttribute } from 'monitor-api/modules/assign';
 import { listEventPlugin } from 'monitor-api/modules/event_plugin';
+import { getVariableValue } from 'monitor-api/modules/grafana';
 import { groupsIpChooserDynamicGroup, listUsersUser } from 'monitor-api/modules/model';
-import { getMetricListV2, getScenarioList, plainStrategyList } from 'monitor-api/modules/strategies';
+import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 import {
   type IFilterField,
   type IGetValueFnParams,
@@ -112,6 +113,11 @@ export const useMatchRuleFields = () => {
   const valueMap = shallowRef<Map<string, IValue[]>>(new Map());
   /** 总数据加载状态（fields 与候选值） */
   const loading = shallowRef(false);
+  /**
+   * 策略维度候选值缓存
+   * key 为 `alert.strategy_id=<id>`，命中后直接复用，避免重复请求
+   */
+  const strategySpecialOptions = new Map<string, Map<string, IValue[]>>();
 
   /**
    * 拉取并构造 fields
@@ -354,6 +360,72 @@ export const useMatchRuleFields = () => {
   };
 
   /**
+   * 拉取所选策略的维度候选值并合并进 valueMap
+   * 参考 monitor-pc alarm-dispatch 的 setDimensionsInfo / setDimensionsOfStrategy：
+   * 通过策略 id 获取策略的查询配置，再对每个聚合维度拉取维度候选值。
+   * 此场景用于条件变更时的动态补充，无需 loading。
+   * @param strategyIds 已选策略 id 列表
+   */
+  const fetchStrategyDimensions = (strategyIds: (number | string)[]) => {
+    const strategyIdKey = 'alert.strategy_id';
+    for (const strategyId of Array.from(new Set(strategyIds))
+      .map(id => Number(id))
+      .filter(id => !Number.isNaN(id))) {
+      // 命中缓存则直接复用，避免重复请求
+      const specialKey = `${strategyIdKey}=${strategyId}`;
+      if (strategySpecialOptions.has(specialKey)) continue;
+
+      getStrategyV2({ id: strategyId })
+        .then(strategyInfo => {
+          if (!strategyInfo) return;
+          const queryConfigs = strategyInfo?.items?.[0]?.query_configs || [];
+          const valuesMap = new Map<string, IValue[]>();
+          const promiseList: Promise<unknown>[] = [];
+          const dimensionKeySet = new Set<string>();
+          for (const queryConfig of queryConfigs) {
+            for (const dimensionKey of queryConfig?.agg_dimension || []) {
+              if (dimensionKeySet.has(dimensionKey)) continue;
+              dimensionKeySet.add(dimensionKey);
+              const params = {
+                params: {
+                  data_source_label: queryConfig.data_source_label,
+                  data_type_label: queryConfig.data_type_label,
+                  field: dimensionKey,
+                  metric_field: queryConfig.metric_field || queryConfig.metric_id?.split('.')?.pop() || '',
+                  result_table_id: queryConfig.result_table_id,
+                  where: [],
+                },
+                type: 'dimension',
+              };
+              promiseList.push(
+                getVariableValue(params, { needMessage: false })
+                  .then((data: any[]) => {
+                    valuesMap.set(
+                      dimensionKey,
+                      (data || []).map(d => ({ id: d.value, name: d.label }))
+                    );
+                  })
+                  .catch(() => {
+                    valuesMap.set(dimensionKey, []);
+                  })
+              );
+            }
+          }
+          return Promise.all(promiseList).then(() => {
+            strategySpecialOptions.set(specialKey, valuesMap);
+            // 合并到 valueMap，供检索过滤器 getValueFn 查询候选值
+            const nextMap = new Map(valueMap.value);
+            for (const [tempKey, tempValue] of valuesMap) {
+              nextMap.set(tempKey, tempValue);
+            }
+            valueMap.value = nextMap;
+          });
+        })
+        .catch(() => {});
+    }
+  };
+
+  /**
    * 拉取全部数据：fields 与候选值并行加载
    * @param timeRange 可选时间窗 [start, end]，默认最近 7 天
    */
@@ -410,6 +482,7 @@ export const useMatchRuleFields = () => {
     valueMap,
     loading,
     fetchAllData,
+    fetchStrategyDimensions,
     getValueFn,
     tagValueDisplayFormatter,
   };
