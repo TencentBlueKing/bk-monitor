@@ -928,6 +928,18 @@ class TestCleanTemplatePreview(CleanTemplateTestCase):
         self.assertEqual([item["error_type"] for item in result["fields"]], ["EMPTY_VALUE", "EMPTY_VALUE"])
         self.assertTrue(all(item["error_message"] for item in result["fields"]))
 
+    def test_preview_propagates_unexpected_etl_preview_errors(self):
+        # 非预期异常（如数据平台 API 故障）不应被当作样例解析失败吞掉，
+        # 保持原样抛出，由框架记录并返回 500。
+        template = self.create_template(clean_type="bk_log_json", etl_fields=[])
+
+        with patch(
+            "apps.log_databus.handlers.etl.EtlHandler.etl_preview",
+            side_effect=ApiResultError("数据平台不可用"),
+        ):
+            with self.assertRaises(ApiResultError):
+                CleanTemplateHandler(template["clean_template_id"]).preview(data="not-json")
+
     def test_numeric_field_type_boundaries(self):
         normal_cases = (
             (-(2**31), "int"),
