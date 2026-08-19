@@ -831,14 +831,21 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         },
         data: pathExample.value,
       };
+      let requestUrl = 'collect/getEtlPreview';
       const urlParams = {};
       isPathDebugLoading.value = true;
-      urlParams.collector_config_id = curCollect.value.collector_config_id;
+      if (props.isTempField) {
+        // 模板场景无 collector_config_id，走模板预览接口
+        requestUrl = 'clean/getEtlPreview';
+        data.bk_biz_id = bkBizId.value;
+      } else {
+        urlParams.collector_config_id = curCollect.value.collector_config_id;
+      }
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
       $http
-        .request('collect/getEtlPreview', updateData)
+        .request(requestUrl, updateData)
         .then(res => {
           const fields = res.data?.fields || [];
           formData.value.etl_params?.metadata_fields.push(...fields);
@@ -1213,6 +1220,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         templateEtlParams.path_regexp = null;
         templateEtlParams.metadata_fields = [];
       }
+      // 与采集接入链路保持一致：record_parse_failure 与 enable_retain_content 同值
+      templateEtlParams.record_parse_failure = templateEtlParams.enable_retain_content;
       const data = {
         name: templateName.value,
         description: templateDescription.value,
@@ -1251,8 +1260,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         if (props.isTempField) {
           emit('change-submit', true);
         }
-      } catch {
-        showMessage(t('保存失败'), 'error');
       } finally {
         loading.value = false;
       }
@@ -2669,6 +2676,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           ext-cls='clean-template-save-as-dialog'
           header-position={'left'}
           mask-close={false}
+          auto-close={false}
+          loading={loading.value}
           title={t('另存为模板')}
           value={templateDialogVisible.value}
           on-confirm={handleTempConfirm}
