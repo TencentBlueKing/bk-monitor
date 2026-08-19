@@ -94,6 +94,12 @@ type EtlConfigInput = {
   etl_fields?: EtlField[];
 };
 
+type TemplateConfigSnapshot = {
+  clean_type: string;
+  etl_params: EtlParams;
+  etl_fields: EtlField[];
+};
+
 export default defineComponent({
   name: 'StepClean',
   props: {
@@ -155,6 +161,8 @@ export default defineComponent({
      * 初始表单数据快照，用于对比是否有变更
      */
     const initialFormData = ref(null);
+    /** 模板核心配置快照，仅用于判断保存模板时是否需要同步提醒 */
+    const initialTemplateConfigSnapshot = ref<TemplateConfigSnapshot | null>(null);
 
     const templateDialogVisible = ref(false);
     const templateSaveConfirmVisible = ref(false);
@@ -579,6 +587,39 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       initialCleanTemplateId.value = getSubmitCleanTemplateId();
     };
 
+    /** 构造模板实际提交的清洗参数，保证变更判断与提交口径一致 */
+    const buildTemplateEtlParams = (): EtlParams => {
+      const etlParams = structuredClone(formData.value.etl_params);
+      if (!enableMetaData.value) {
+        etlParams.path_regexp = null;
+        etlParams.metadata_fields = [];
+      }
+      // 与采集接入链路保持一致：record_parse_failure 与 enable_retain_content 同值
+      etlParams.record_parse_failure = etlParams.enable_retain_content;
+      return etlParams;
+    };
+
+    /** 剔除字段顶层的调试值，避免刷新样例导致模板核心配置被误判为变更 */
+    const omitEtlFieldValues = (fields: EtlField[]): EtlField[] => (
+      fields.map(({ value: _value, ...field }) => field)
+    );
+
+    /** 提取会影响清洗结果的模板核心配置 */
+    const getTemplateConfigSnapshot = (): TemplateConfigSnapshot => ({
+      clean_type: cleaningMode.value,
+      etl_params: buildTemplateEtlParams(),
+      etl_fields: omitEtlFieldValues(formData.value.etl_fields),
+    });
+
+    const saveInitialTemplateConfigSnapshot = () => {
+      initialTemplateConfigSnapshot.value = getTemplateConfigSnapshot();
+    };
+
+    const hasTemplateCoreConfigChanged = () => (
+      initialTemplateConfigSnapshot.value === null
+      || !deepEqual(getTemplateConfigSnapshot(), initialTemplateConfigSnapshot.value)
+    );
+
     /**
      * 判断配置是否有变更
      */
@@ -667,6 +708,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         .then(res => {
           if (res.data) {
             setTempDetail(res.data);
+            saveInitialTemplateConfigSnapshot();
           }
         })
         .finally(() => {
@@ -831,14 +873,21 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         },
         data: pathExample.value,
       };
+      let requestUrl = 'collect/getEtlPreview';
       const urlParams = {};
       isPathDebugLoading.value = true;
-      urlParams.collector_config_id = curCollect.value.collector_config_id;
+      if (props.isTempField) {
+        // 模板场景无 collector_config_id，走模板预览接口
+        requestUrl = 'clean/getEtlPreview';
+        data.bk_biz_id = bkBizId.value;
+      } else {
+        urlParams.collector_config_id = curCollect.value.collector_config_id;
+      }
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
       $http
-        .request('collect/getEtlPreview', updateData)
+        .request(requestUrl, updateData)
         .then(res => {
           const fields = res.data?.fields || [];
           formData.value.etl_params?.metadata_fields.push(...fields);
@@ -1207,12 +1256,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       }
       loading.value = true;
 
-      const { etl_params: etlParams, etl_fields } = formData.value;
-      const templateEtlParams = structuredClone(etlParams);
-      if (!enableMetaData.value) {
-        templateEtlParams.path_regexp = null;
-        templateEtlParams.metadata_fields = [];
-      }
+      const { etl_fields } = formData.value;
+      const templateEtlParams = buildTemplateEtlParams();
       const data = {
         name: templateName.value,
         description: templateDescription.value,
@@ -1251,8 +1296,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         if (props.isTempField) {
           emit('change-submit', true);
         }
-      } catch {
-        showMessage(t('保存失败'), 'error');
       } finally {
         loading.value = false;
       }
@@ -1266,7 +1309,11 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       handleSubmitValidate(() => {
         if (isEditTemp.value) {
           loading.value = false;
-          templateSaveConfirmVisible.value = true;
+          if (hasTemplateCoreConfigChanged() && templateCollectorCount.value > 0) {
+            templateSaveConfirmVisible.value = true;
+          } else {
+            handleTempConfirm();
+          }
           return;
         }
         handleTempConfirm();
@@ -2669,6 +2716,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           ext-cls='clean-template-save-as-dialog'
           header-position={'left'}
           mask-close={false}
+          auto-close={false}
+          loading={loading.value}
           title={t('另存为模板')}
           value={templateDialogVisible.value}
           on-confirm={handleTempConfirm}
