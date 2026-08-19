@@ -167,11 +167,11 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-alarm-center':
-        specifier: 0.0.13
-        version: 0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.14
+        version: 0.0.14(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/monitor-trace-explore':
-        specifier: 0.0.36
-        version: 0.0.36(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.38
+        version: 0.0.38(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -404,8 +404,8 @@ importers:
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
       '@blueking/date-picker':
-        specifier: 3.0.6
-        version: 3.0.6(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.20)(vue@2.7.16)
+        specifier: 4.0.0-beta.7
+        version: 4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.20)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -658,8 +658,8 @@ importers:
         specifier: 0.1.8
         version: 0.1.8(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       '@blueking/date-picker':
-        specifier: 3.0.6
-        version: 3.0.6(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))
+        specifier: 4.0.0-beta.7
+        version: 4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -1612,8 +1612,8 @@ packages:
   '@blueking/bkui-library@0.0.0-beta.6':
     resolution: {integrity: sha512-1M6pNDIOQYWzOu3uVRxo0h67d+huTbBQYDjj8+QF4Ka3HSe/mLgSrIkaZhhUVlJJl5zP8HK+UwXpkWcjL8zIsw==}
 
-  '@blueking/date-picker@3.0.6':
-    resolution: {integrity: sha512-1YkI0yE10JamoFssvQ0RIEGOLeEZ9sYfCYvx/71VYOUkZaToNHbBKU2sbb1a4ftCMsIHVPM9wZ24ISYUwhIN4Q==}
+  '@blueking/date-picker@4.0.0-beta.7':
+    resolution: {integrity: sha512-J9eqUEXwe8a6niuTxA0k8C0ErLq340bPj1A4h0Ypb180IIwz+FYKOa00dN1JlKEKW3gHZF1xslctCWgDEy8c2Q==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^2.0.1
@@ -1650,8 +1650,8 @@ packages:
     peerDependencies:
       vue: ^3
 
-  '@blueking/monitor-alarm-center@0.0.13':
-    resolution: {integrity: sha512-kEFElyeArues/UWaWLNiIakoKehos4e2irduVQdgpo+lvvg4+oPVrUfYdCEKc+T8QvkFWVlxRhP78ggIYiZncQ==}
+  '@blueking/monitor-alarm-center@0.0.14':
+    resolution: {integrity: sha512-vCH+Iu9S6lOhvsByPotMpSxcRQo6jaTRVeQgNiB93io28vtr1mUUz+i2/KavvTdgDB9Tb93LW4k2emj+P46YHw==}
 
   '@blueking/monitor-apm-log@2.3.31':
     resolution: {integrity: sha512-q976G4evUr8SRnuCi7Zu9JJlXpwz11JVjQBKVjZ0mPqojNKVwBF44ts+OIHt6SU4OidYYFvzPV43yhvNZT2jDQ==}
@@ -1662,8 +1662,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.36':
-    resolution: {integrity: sha512-mHgTmjYUOn7WBwP4zh0Mag0++LrQW72fXCFACe3jYLtuT8+xM8MhTjcxxJOvaNhNi3OJQVGkZl/hXsUZjWjcaA==}
+  '@blueking/monitor-trace-explore@0.0.38':
+    resolution: {integrity: sha512-YVvxLrjaTlurs+7/BpmhVkBB5lWbpa2rk4fTcmbvlHM77wxyQqJ3FkEFWpEPx2tQcqWPUmYHTkCEcZ4T+HZdNA==}
 
   '@blueking/monitor-trace-log@2.0.27':
     resolution: {integrity: sha512-t+iJHtGwG9LJiDz1BryLmVbfQcXgFdp2iWzguQJcPIwTkYlrXvRtA5L8Nebloya0UrdIFeODTiMGbkikEMVfMg==}
@@ -3983,12 +3983,6 @@ packages:
 
   bkui-vue@2.0.2-beta.63:
     resolution: {integrity: sha512-mnAxKA8DzHxD7vEx3J2iSXUEQyCMxaS4cpwbAmwoUdJbQ2cHw6Z5f5mhrvwwjnOuDN68XQpZ7QGO0+h8OEcgtQ==}
-    peerDependencies:
-      highlight.js: ~11.5.0
-      vue: ^3.2.0
-
-  bkui-vue@2.0.2-beta.68:
-    resolution: {integrity: sha512-uxd/o+O4axEbcT4b7rrMziCzndR+Rq5C3CZWwtFzpgM9WlkJ6xKBgZcv8aSvwMlxAzXWueB5qG8l6xIMsFaTUw==}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0
@@ -10754,18 +10748,20 @@ snapshots:
     dependencies:
       '@vue/runtime-dom': 3.5.30
 
-  '@blueking/date-picker@3.0.6(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.20)(vue@2.7.16)':
+  '@blueking/date-picker@4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.20)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
       dayjs: 1.11.20
       vue: 2.7.16
+      vue-tippy: 6.7.1(vue@2.7.16)
 
-  '@blueking/date-picker@3.0.6(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/date-picker@4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       dayjs: 1.11.20
       vue: 3.5.30(typescript@5.9.3)
+      vue-tippy: 6.7.1(vue@3.5.30(typescript@5.9.3))
 
   '@blueking/fork-resize-detector@0.0.2': {}
 
@@ -10817,11 +10813,11 @@ snapshots:
       tippy.js: 6.3.7
       vue: 2.7.16
 
-  '@blueking/monitor-alarm-center@0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-alarm-center@0.0.14(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
       '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)
-      bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
+      bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       dayjs: 1.11.20
       monaco-editor: 0.44.0
       vue: 3.5.30(typescript@5.9.3)
@@ -10839,7 +10835,7 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.36(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-trace-explore@0.0.38(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
@@ -13516,20 +13512,6 @@ snapshots:
       vue-types: 4.1.1(vue@2.7.16)
 
   bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)):
-    dependencies:
-      '@floating-ui/dom': 1.5.4
-      '@popperjs/core': 2.11.8
-      date-fns: 2.30.0
-      dompurify: 3.4.2
-      highlight.js: 11.11.1
-      js-calendar: 1.2.3
-      json-formatter-js: 2.3.4
-      lodash: 4.18.1
-      tinycolor2: 1.6.0
-      vue: 3.5.30(typescript@5.9.3)
-      vue-types: 4.1.1(vue@3.5.30(typescript@5.9.3))
-
-  bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)):
     dependencies:
       '@floating-ui/dom': 1.5.4
       '@popperjs/core': 2.11.8
@@ -19398,6 +19380,11 @@ snapshots:
       loader-utils: 1.4.2
 
   vue-template-es2015-compiler@1.9.1: {}
+
+  vue-tippy@6.7.1(vue@2.7.16):
+    dependencies:
+      tippy.js: 6.3.7
+      vue: 2.7.16
 
   vue-tippy@6.7.1(vue@3.5.30(typescript@5.9.3)):
     dependencies:
