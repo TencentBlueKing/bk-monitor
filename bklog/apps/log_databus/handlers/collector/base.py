@@ -655,7 +655,7 @@ class CollectorHandler:
             etl_handler.update_or_create(**etl_params)
             self._sync_scene_tags_to_index_set(etl_params["labels"])
 
-        self._authorization_owners(self.data, owners)
+        failed_owners = self._authorization_owners(self.data, owners)
 
         custom_config.after_hook(self.data)
 
@@ -669,6 +669,9 @@ class CollectorHandler:
             "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
         }
         user_operation_record.delay(operation_record)
+
+        if owners:
+            return {"owners_failed": failed_owners}
 
     @abc.abstractmethod
     def _pre_destroy(self):
@@ -1133,36 +1136,53 @@ class CollectorHandler:
             )
 
     @staticmethod
-    def _authorization_owners(collector_config: CollectorConfig, owners: list = None):
+    def _authorization_owners(collector_config: CollectorConfig, owners: list = None) -> list:
         """
         将采集项及其索引集的新建关联权限授予指定用户，仅新增授权，不回收历史权限
+
+        :return: 授权失败的用户名列表
         """
         if not owners:
-            return
+            return []
 
         try:
             permission = Permission()
-            permission.grant_creator_action_batch(
-                resource=ResourceEnum.COLLECTION.create_simple_instance(
+            resources = [
+                ResourceEnum.COLLECTION.create_simple_instance(
                     collector_config.collector_config_id, attribute={"name": collector_config.collector_config_name}
-                ),
-                creators=owners,
-            )
+                )
+            ]
 
             # 按采集项反查索引集，避免内存中的 collector_config.index_set_id 尚未刷新
             index_set = LogIndexSet.objects.filter(collector_config_id=collector_config.collector_config_id).first()
             if index_set:
-                permission.grant_creator_action_batch(
-                    resource=ResourceEnum.INDICES.create_simple_instance(
+                resources.append(
+                    ResourceEnum.INDICES.create_simple_instance(
                         index_set.index_set_id, attribute={"name": index_set.index_set_name}
-                    ),
-                    creators=owners,
+                    )
                 )
+
+            failed_owners = set()
+            for resource in resources:
+                grant_results = permission.grant_creator_action_batch(resource=resource, creators=owners)
+                failed_owners.update(
+                    creator for creator, result in grant_results.items() if not Permission.is_grant_succeed(result)
+                )
+
+            if failed_owners:
+                logger.warning(
+                    "collector_config->(%s) grant creator action failed for owners %s, bk_tenant_id=%s",
+                    collector_config.collector_config_id,
+                    sorted(failed_owners),
+                    permission.bk_tenant_id,
+                )
+            return sorted(failed_owners)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
                 f"collector_config->({collector_config.collector_config_id}) grant creator action to owners "
                 f"{owners} failed, reason: {e}"
             )
+            return sorted(set(owners))
 
     def _itsm_start_judge(self):
         if self.data.is_custom_scenario:
@@ -1498,13 +1518,16 @@ class CollectorHandler:
                     collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
                 )
                 # 幂等创建同样要保证 owners 拿到权限
-                self._authorization_owners(existing, owners)
-                return {
+                failed_owners = self._authorization_owners(existing, owners)
+                ret = {
                     "collector_config_id": existing.collector_config_id,
                     "index_set_id": existing.index_set_id,
                     "bk_data_id": existing.bk_data_id,
                     "created": False,
                 }
+                if owners:
+                    ret["owners_failed"] = failed_owners
+                return ret
             logger.error(f"collector_config_name_en {collector_config_name_en} already exists")
             raise CollectorConfigNameENDuplicateException(
                 CollectorConfigNameENDuplicateException.MESSAGE.format(
@@ -1613,7 +1636,7 @@ class CollectorHandler:
             self._sync_scene_tags_to_index_set(params["labels"])
 
         # 索引集ID在清洗创建后才最终确定，因此在此处再对 owners 授权
-        self._authorization_owners(self.data, owners)
+        failed_owners = self._authorization_owners(self.data, owners)
 
         custom_config.after_hook(self.data)
 
@@ -1623,6 +1646,8 @@ class CollectorHandler:
             "bk_data_id": self.data.bk_data_id,
             "created": True,
         }
+        if owners:
+            ret["owners_failed"] = failed_owners
 
         # create custom Log Group
         if custom_type == CustomTypeEnum.OTLP_LOG.value:

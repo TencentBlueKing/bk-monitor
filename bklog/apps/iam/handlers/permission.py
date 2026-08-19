@@ -518,6 +518,9 @@ class Permission:
 
         try:
             grant_result = self.iam_client.grant_resource_creator_actions(application)
+            # IAM SDK 以 (ok, message) 元组返回，接口级失败不抛异常，不显式判定的话失败会被静默吞掉
+            if not self.is_grant_succeed(grant_result):
+                raise AuthAPIError(grant_result[1] if isinstance(grant_result, tuple) else str(grant_result))
             logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
@@ -526,6 +529,15 @@ class Permission:
                 raise e
 
         return grant_result
+
+    @staticmethod
+    def is_grant_succeed(grant_result) -> bool:
+        """
+        判定 grant_creator_action / grant_creator_action_batch 的单条返回值是否授权成功
+        """
+        if isinstance(grant_result, tuple):
+            return bool(grant_result[0])
+        return bool(grant_result)
 
     def grant_creator_action_batch(self, resource: Resource, creators: list = None, raise_exception=False):
         """
