@@ -1,8 +1,19 @@
 
 .clean-template-collector-table {
   .collector-name {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
     color: #3a84ff;
     cursor: pointer;
+
+    .collector-name-text {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .related-index-sets {
@@ -41,6 +52,17 @@
     display: inline-flex;
     gap: 8px;
     align-items: center;
+    max-width: 100%;
+
+    .sync-status-text {
+      display: -webkit-box;
+      min-width: 0;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      word-break: break-all;
+    }
 
     &::before {
       box-sizing: border-box;

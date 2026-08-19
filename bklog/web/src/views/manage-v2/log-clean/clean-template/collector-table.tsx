@@ -197,7 +197,10 @@ export default defineComponent({
                 class='collector-name'
                 on-click={() => handleCollectionClick(row)}
               >
-                {row.collector_config_name || '--'}<i class='bklog-icon bklog-jump jump-icon' />
+                <span class='collector-name-text' v-bk-overflow-tips>
+                  {row.collector_config_name || '--'}
+                </span>
+                <i class='bklog-icon bklog-jump jump-icon' />
               </span>
             ),
           }}
@@ -226,7 +229,9 @@ export default defineComponent({
                   row.sync_result_status && 'sync-status',
                   row.sync_result_status && (row.sync_result_status === 'FAILED' ? 'is-failed' : 'is-success'),
                 ]}>
-                  {getSyncStatusText(row)}
+                  <span class='sync-status-text' v-bk-overflow-tips>
+                    {getSyncStatusText(row)}
+                  </span>
                 </span>
               ),
             }}
