@@ -324,7 +324,6 @@ class StorageHandler:
                 "biz_count": used.biz_count,
             }
 
-        non_es_cluster_ids = []
         for cluster_obj in cluster_groups:
             cluster_type = cluster_obj.get("cluster_type")
 
@@ -343,18 +342,11 @@ class StorageHandler:
             if not is_append or not after_filter_cluster_obj:
                 continue
 
-            cluster_id = after_filter_cluster_obj["cluster_config"].get("cluster_id")
-            after_filter_cluster_obj.update(get_storage_info(cluster_id))
-            if cluster_type != STORAGE_CLUSTER_TYPE and cluster_id is not None:
-                non_es_cluster_ids.append(cluster_id)
+            after_filter_cluster_obj.update(
+                get_storage_info(after_filter_cluster_obj["cluster_config"].get("cluster_id"))
+            )
 
             cluster_data.append(after_filter_cluster_obj)
-
-        non_es_usage = cls._get_non_es_cluster_usage(non_es_cluster_ids, bk_biz_id)
-        for cluster in cluster_data:
-            usage = non_es_usage.get(cluster["cluster_config"].get("cluster_id"))
-            if usage:
-                cluster.update(usage)
 
         return [
             cluster
@@ -362,44 +354,6 @@ class StorageHandler:
             if (not enable_archive)
             or (enable_archive and cluster["cluster_config"]["custom_option"].get("enable_archive", False))
         ]
-
-    @classmethod
-    def _get_non_es_cluster_usage(cls, cluster_ids, bk_biz_id):
-        """
-        非 ES 集群的容量取自 Metadata 集群状态。
-        StorageUsed 由 sync_storage_info 写入，该任务只遍历 cluster_type=elasticsearch 且直连
-        ES 的 _cat/allocation，Doris 等集群永远没有记录，列表页会展示 0B 总量和 100% 空闲的假值。
-        """
-        if not cluster_ids:
-            return {}
-
-        # 这些集群在调用方已经过可见性过滤，直接取状态即可，无需再走 batch_connectivity_detect 里的
-        # get_cluster_info 可见性查询，避免集群列表页多打一次全量集群接口
-        try:
-            bk_biz_id = int(bk_biz_id)
-            bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
-            statuses = cls._get_cluster_statuses(cluster_ids, bk_biz_id, bk_tenant_id)
-        except Exception:  # pylint: disable=broad-except
-            logger.exception(
-                "[storage] get non-es cluster usage failed, cluster_ids=%s, bk_biz_id=%s",
-                cluster_ids,
-                bk_biz_id,
-            )
-            return {}
-
-        usage = {}
-        for cluster_id, status in (statuses or {}).items():
-            cluster_stats = (cls._build_cluster_status(status) or {}).get("cluster_stats") or {}
-            total_store = cluster_stats.get("total_store")
-            if not total_store:
-                continue
-            used_percent = cluster_stats.get("used_percent")
-            usage[cluster_id] = {
-                "storage_total": int(total_store),
-                # 与 StorageUsed.storage_usage 保持同一口径：0-100 的百分比整数
-                "storage_usage": int(round(used_percent)) if used_percent is not None else 0,
-            }
-        return usage
 
     @classmethod
     def filter_es_cluster(cls, bk_biz_id, is_default, post_visible, cluster_obj, es_config):
