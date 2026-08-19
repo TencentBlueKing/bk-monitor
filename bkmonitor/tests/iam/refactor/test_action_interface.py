@@ -287,3 +287,49 @@ class TestActionIdMappingConsistency:
         for name, (old_v3_id, old_type, _old_name) in OLD_ACTION_SNAPSHOT.items():
             member = getattr(ActionEnum, name)
             assert codec.is_read_action(member.id) == (old_type == "view"), name
+
+
+class TestProviderVisibility:
+    """v4 平台纯净性：v3 兼容遗留的已废弃 space 级仪表盘操作不在 v4 注册。
+
+    definitions 通过 extensions["exclude_providers"] 声明可见性，
+    V4Migrator 的 plan/diff 据此过滤；roles 不再绑定这两个 action。
+    """
+
+    def _plan_v4_full(self, real_schema):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
+        from bkmonitor.iam.iam_engine.schema.diff import EntityKind
+        from bkmonitor.iam.iam_v4.config import V4SystemInfo
+        from bkmonitor.iam.iam_v4.migrator import V4Migrator
+
+        system = V4SystemInfo(id="bk_monitor_v4", name="监控平台V4")
+        migrator = V4Migrator(client=MagicMock(), schema=real_schema, system_def=system, codec=MonitorV4Codec())
+        plan = migrator.plan_migration(scope="full")
+        return plan, EntityKind
+
+    def test_deprecated_dashboard_actions_excluded_from_v4(self, real_schema):
+        plan, EntityKind = self._plan_v4_full(real_schema)
+        action_ids = {c.entity_id for c in plan.changes if c.kind == EntityKind.ACTION}
+        assert "view_dashboard" not in action_ids
+        assert "manage_dashboard" not in action_ids
+        # 51 = 53 - 2 个已废弃；v4 实例级语义仍由 single_dashboard 承担
+        assert len(action_ids) == 51
+        assert "view_single_dashboard" in action_ids
+        assert "edit_single_dashboard" in action_ids
+
+    def test_deprecated_dashboard_actions_still_visible_to_v3(self, real_schema):
+        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+
+        assert is_visible_to(Actions.VIEW_DASHBOARD, "v3") is True
+        assert is_visible_to(Actions.MANAGE_DASHBOARD, "v3") is True
+        assert is_visible_to(Actions.VIEW_DASHBOARD, "v4") is False
+        assert is_visible_to(Actions.MANAGE_DASHBOARD, "v4") is False
+
+    def test_roles_no_longer_bind_deprecated_dashboard_actions(self, real_schema):
+        assert real_schema.roles_containing_action("view_dashboard") == []
+        assert real_schema.roles_containing_action("manage_dashboard") == []
+        # v4 的仪表盘语义由 grafana_dashboard 实例级的 single_dashboard 操作承担
+        assert real_schema.roles_containing_action("view_single_dashboard")
+        assert real_schema.roles_containing_action("edit_single_dashboard")

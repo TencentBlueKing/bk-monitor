@@ -203,7 +203,9 @@ class Actions:
                 "version": 1,
                 "name_en": "View Dashboard",
                 "related_actions": ["view_business_v2"],
-            }
+            },
+            # v3 兼容遗留的 space 级仪表盘操作，v4 平台不注册（v4 语义由 view_single_dashboard 承担）
+            "exclude_providers": ("v4",),
         },
     )
     VIEW_INCIDENT = ActionDef(
@@ -487,7 +489,9 @@ class Actions:
                 "version": 1,
                 "name_en": "Manage Dashboard",
                 "related_actions": ["view_business_v2", "view_dashboard_v2"],
-            }
+            },
+            # v3 兼容遗留的 space 级仪表盘操作，v4 平台不注册（v4 语义由 edit_single_dashboard 承担）
+            "exclude_providers": ("v4",),
         },
     )
     MANAGE_DATASOURCE = ActionDef(
