@@ -495,6 +495,7 @@ class LogDataSource(ApmDataSourceConfigBase):
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
+        owners = [str(user).strip() for user in (options.get("owners") or []) if str(user).strip()]
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
         if not obj:
@@ -527,6 +528,7 @@ class LogDataSource(ApmDataSourceConfigBase):
                         # 兼容集群不支持冷热配置
                         "allocation_min_days": 0,
                         "description": f"APM({app_name})",
+                        "owners": owners,
                         **storage_params,
                     }
                 )
