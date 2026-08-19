@@ -126,7 +126,7 @@ def build_host_metric_snapshot(snapshot_id: str):
             store.expire(snapshot_id)
             return
         if time.time() > manifest["deadline_at"]:
-            store.expire(snapshot_id)
+            store.mark_deadline(snapshot_id)
             return
 
         set_local_tenant_id(manifest["bk_tenant_id"])
@@ -195,7 +195,7 @@ def build_host_metric_snapshot(snapshot_id: str):
                     store.expire(snapshot_id)
                     return
                 if time.time() > manifest["deadline_at"]:
-                    store.expire(snapshot_id)
+                    store.mark_deadline(snapshot_id)
                     return
                 store.write_section(snapshot_id, section, data)
                 store.mark_section_ready(snapshot_id, section, state=section_state)

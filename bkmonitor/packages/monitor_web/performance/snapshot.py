@@ -336,26 +336,28 @@ class HostMetricSnapshotStore:
         if current_snapshot_id:
             current = self.get_manifest(current_snapshot_id)
             if current:
-                return current, False
-
-            repair_lock_key = self.repair_lock_key(fingerprint)
-            try:
-                has_repair_lock = self.cache.add(repair_lock_key, True, timeout=5)
-            except Exception as error:
-                raise SnapshotUnavailable("shared Redis singleflight repair failed") from error
-            if has_repair_lock:
+                if current["state"] not in {SnapshotState.FAILED, SnapshotState.EXPIRED}:
+                    return current, False
+                self._delete_pointer(fingerprint, current_snapshot_id)
+            else:
+                repair_lock_key = self.repair_lock_key(fingerprint)
                 try:
-                    if self._get_pointer(fingerprint) == current_snapshot_id and not self.get_manifest(
-                        current_snapshot_id
-                    ):
-                        self._delete_pointer(fingerprint, current_snapshot_id)
+                    has_repair_lock = self.cache.add(repair_lock_key, True, timeout=5)
                 except Exception as error:
-                    raise SnapshotUnavailable("shared Redis stale pointer repair failed") from error
-                finally:
+                    raise SnapshotUnavailable("shared Redis singleflight repair failed") from error
+                if has_repair_lock:
                     try:
-                        self.cache.delete(repair_lock_key)
-                    except Exception:
-                        pass
+                        if self._get_pointer(fingerprint) == current_snapshot_id and not self.get_manifest(
+                            current_snapshot_id
+                        ):
+                            self._delete_pointer(fingerprint, current_snapshot_id)
+                    except Exception as error:
+                        raise SnapshotUnavailable("shared Redis stale pointer repair failed") from error
+                    finally:
+                        try:
+                            self.cache.delete(repair_lock_key)
+                        except Exception:
+                            pass
 
         snapshot_id = uuid4().hex
         manifest = {
@@ -433,7 +435,7 @@ class HostMetricSnapshotStore:
         terminal_claim = self._claim_terminal(manifest) if manifest["state"] == SnapshotState.RUNNING else 0
         if terminal_claim != 1:
             if terminal_claim == -1:
-                return self._force_expired_if_running(snapshot_id)
+                return self.mark_deadline(snapshot_id, terminal_claimed=True)
             return self.get_manifest(snapshot_id)
         manifest = self.get_manifest(snapshot_id)
         if not manifest or manifest["state"] != SnapshotState.RUNNING:
@@ -465,7 +467,7 @@ class HostMetricSnapshotStore:
         terminal_claim = self._claim_terminal(manifest) if manifest["state"] == SnapshotState.RUNNING else 0
         if manifest["state"] == SnapshotState.RUNNING and terminal_claim != 1:
             if terminal_claim == -1:
-                return self._force_expired_if_running(snapshot_id)
+                return self.mark_deadline(snapshot_id, terminal_claimed=True)
             return self.get_manifest(snapshot_id)
         manifest = self.get_manifest(snapshot_id)
         if not manifest or manifest["state"] not in {
@@ -482,6 +484,49 @@ class HostMetricSnapshotStore:
                 "error_code": "section_failed",
                 "failed_sections": sorted(set(manifest.get("failed_sections", [])) | set(failed_sections)),
                 "partial_sections": sorted(set(manifest.get("partial_sections", [])) | set(partial_sections or [])),
+                "sections": sections,
+                "state": SnapshotState.DEGRADED,
+            }
+        )
+        self._set(self.manifest_key(snapshot_id), manifest, READY_TTL)
+        self._touch_pointer(manifest, READY_TTL)
+        return manifest
+
+    def mark_deadline(self, snapshot_id: str, *, terminal_claimed: bool = False) -> dict | None:
+        """结束超时快照；有已发布分区时保留数据并降级，否则过期。"""
+        manifest = self.get_manifest(snapshot_id)
+        if not manifest or manifest["state"] != SnapshotState.RUNNING:
+            return manifest
+        if not terminal_claimed:
+            terminal_claim = self._claim_terminal(manifest)
+            if terminal_claim == 0:
+                return self.get_manifest(snapshot_id)
+        manifest = self.get_manifest(snapshot_id)
+        if not manifest or manifest["state"] != SnapshotState.RUNNING:
+            return manifest
+
+        sections = dict(manifest.get("sections", {}))
+        available_sections = {
+            section
+            for section, section_state in sections.items()
+            if section_state.get("state") in {SnapshotState.READY, SnapshotState.PARTIAL}
+        }
+        if not available_sections:
+            return self._force_expired_if_running(snapshot_id)
+
+        failed_sections = sorted(set(SNAPSHOT_SECTIONS) - available_sections)
+        partial_sections = sorted(
+            section
+            for section, section_state in sections.items()
+            if section_state.get("state") == SnapshotState.PARTIAL
+        )
+        for section in failed_sections:
+            sections[section] = {"state": SnapshotState.FAILED}
+        manifest.update(
+            {
+                "error_code": "deadline_exceeded",
+                "failed_sections": failed_sections,
+                "partial_sections": partial_sections,
                 "sections": sections,
                 "state": SnapshotState.DEGRADED,
             }
@@ -512,9 +557,9 @@ class HostMetricSnapshotStore:
             terminal_claim = self._claim_terminal(manifest)
             if terminal_claim != 1:
                 if terminal_claim == -1:
-                    self._force_expired_if_running(snapshot_id)
+                    self.mark_deadline(snapshot_id, terminal_claimed=True)
                 return
-        elif manifest["state"] != SnapshotState.READY or not allow_ready:
+        elif manifest["state"] not in {SnapshotState.READY, SnapshotState.DEGRADED} or not allow_ready:
             return
         manifest.update(
             {
@@ -536,7 +581,7 @@ class HostMetricSnapshotStore:
                 if terminal_claim == -1:
                     self._force_expired_if_running(snapshot_id)
                 return
-        elif manifest["state"] != SnapshotState.READY or not allow_ready:
+        elif manifest["state"] not in {SnapshotState.READY, SnapshotState.DEGRADED} or not allow_ready:
             return
         manifest["state"] = SnapshotState.EXPIRED
         self._set(self.manifest_key(snapshot_id), manifest, FAILED_TTL)
@@ -563,7 +608,7 @@ class HostMetricSnapshotStore:
 
         now = int(time.time()) if now is None else int(now)
         if manifest["state"] == SnapshotState.RUNNING and now > int(manifest["deadline_at"]):
-            self.expire(snapshot_id)
+            self.mark_deadline(snapshot_id)
             manifest = self.get_manifest(snapshot_id)
 
         response = {

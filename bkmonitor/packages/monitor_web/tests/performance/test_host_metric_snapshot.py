@@ -725,7 +725,41 @@ def test_running_snapshot_past_deadline_is_expired(monkeypatch):
     assert response["retry_after"] == 5
 
 
-def test_expired_snapshot_can_be_rebuilt_after_short_pointer_ttl(monkeypatch):
+def test_running_snapshot_past_deadline_keeps_published_sections_as_degraded(monkeypatch):
+    monkeypatch.setattr(snapshot, "uuid4", lambda: type("UUID", (), {"hex": "a" * 32})())
+    store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
+    manifest, _ = store.create_or_get("sha256:fingerprint", {**make_payload(), "deadline_at": 260})
+    snapshot_id = manifest["snapshot_id"]
+    store.write_section(snapshot_id, "agent_status", {1: {"status": 0}})
+    store.mark_section_ready(snapshot_id, "agent_status")
+
+    response = store.build_response(snapshot_id, now=261)
+
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
+    assert response["expired"] is False
+    assert response["data"] == {"agent_status": {1: {"status": 0}}}
+    assert response["failed_sections"] == sorted(set(snapshot.SNAPSHOT_SECTIONS) - {"agent_status"})
+    assert store.get_manifest(snapshot_id)["state"] == snapshot.SnapshotState.DEGRADED
+
+
+def test_ready_transition_past_deadline_keeps_all_published_sections_as_degraded(monkeypatch):
+    monkeypatch.setattr(snapshot, "uuid4", lambda: type("UUID", (), {"hex": "a" * 32})())
+    monkeypatch.setattr(snapshot.time, "time", lambda: 300)
+    store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
+    manifest, _ = store.create_or_get("sha256:fingerprint", {**make_payload(), "deadline_at": 299})
+    snapshot_id = manifest["snapshot_id"]
+    store.write_section(snapshot_id, "agent_status", {1: {"status": 0}})
+    store.mark_section_ready(snapshot_id, "agent_status")
+
+    store.mark_ready(snapshot_id, expected_sections={"agent_status"})
+
+    response = store.build_response(snapshot_id, now=300)
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
+    assert response["data"] == {"agent_status": {1: {"status": 0}}}
+    assert response["failed_sections"] == sorted(set(snapshot.SNAPSHOT_SECTIONS) - {"agent_status"})
+
+
+def test_expired_snapshot_can_be_rebuilt_immediately(monkeypatch):
     ids = iter(("a" * 32, "b" * 32))
     monkeypatch.setattr(snapshot, "uuid4", lambda: type("UUID", (), {"hex": next(ids)})())
     cache = FakeCache()
@@ -736,12 +770,11 @@ def test_expired_snapshot_can_be_rebuilt_after_short_pointer_ttl(monkeypatch):
     assert response["retry_after"] == 5
     assert cache.timeouts[store.pointer_key("sha256:fingerprint")] == snapshot.FAILED_TTL
 
-    cache.delete(store.pointer_key("sha256:fingerprint"))
-    cache.delete(store.manifest_key(old["snapshot_id"]))
     rebuilt, created = store.create_or_get("sha256:fingerprint", make_payload())
 
     assert created is True
     assert rebuilt["snapshot_id"] == "b" * 32
+    assert store.get_manifest(old["snapshot_id"])["state"] == snapshot.SnapshotState.EXPIRED
 
 
 def test_snapshot_serializers_require_exact_time_and_reject_unknown_fields():
@@ -1144,6 +1177,48 @@ def test_snapshot_data_bearing_poll_expires_when_resolved_host_set_changes(mocke
     get_hosts.assert_called_once_with(bk_biz_id=2)
 
 
+def test_degraded_snapshot_host_set_change_is_persisted_and_rebuilt(mocker):
+    resources = import_module("monitor_web.performance.resources")
+    cache = FakeCache()
+    store = snapshot.HostMetricSnapshotStore(cache=cache)
+    mocker.patch.object(resources, "HostMetricSnapshotStore", return_value=store)
+    mocker.patch.object(resources, "get_request_tenant_id", return_value="system")
+    mocker.patch.object(resources, "get_request", return_value=None)
+    mocker.patch.object(resources.time, "time", return_value=201)
+    get_hosts = mocker.patch.object(resources.api.cmdb, "get_host_by_topo_node", return_value=HOSTS[:2])
+    delay = mocker.patch("monitor_web.performance.tasks.build_host_metric_snapshot.delay")
+    params = {"bk_biz_id": 2, "start_time": 100, "end_time": 200}
+    created = resources.CreateHostMetricSnapshotResource().perform_request(params)
+    snapshot_id = created["snapshot_id"]
+    store.update_manifest(
+        snapshot_id,
+        host_count=2,
+        host_ids_hash=snapshot.build_host_ids_hash(host.bk_host_id for host in HOSTS[:2]),
+    )
+    store.write_section(snapshot_id, "agent_status", {HOSTS[0].bk_host_id: {"status": 1}})
+    store.mark_section_ready(snapshot_id, "agent_status")
+    store.mark_degraded(snapshot_id, failed_sections=["performance_data"])
+    get_hosts.return_value = HOSTS[:1]
+
+    result = resources.GetHostMetricSnapshotResource().perform_request(
+        {
+            **params,
+            "snapshot_id": snapshot_id,
+            "start_time": created["canonical_start_time"],
+            "end_time": created["canonical_end_time"],
+            "since_revision": 0,
+        }
+    )
+    rebuilt = resources.CreateHostMetricSnapshotResource().perform_request(params)
+
+    assert result["state"] == snapshot.SnapshotState.EXPIRED
+    assert result["data"] == {}
+    assert store.get_manifest(snapshot_id)["state"] == snapshot.SnapshotState.EXPIRED
+    assert rebuilt["snapshot_id"] != snapshot_id
+    assert rebuilt["state"] == snapshot.SnapshotState.RUNNING
+    assert delay.call_count == 2
+
+
 def test_snapshot_poll_revalidates_hash_when_section_completes_during_manifest_read(mocker):
     resources = import_module("monitor_web.performance.resources")
     cache = FakeCache()
@@ -1268,6 +1343,43 @@ def test_snapshot_task_degrades_and_keeps_successful_sections_when_one_section_f
     assert response["data"]["agent_status"] == {1: {"section": "agent_status"}}
 
 
+def test_snapshot_task_deadline_keeps_sections_published_before_timeout(mocker):
+    tasks = import_module("monitor_web.performance.tasks")
+    store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
+    manifest, _ = store.create_or_get(
+        "sha256:fingerprint",
+        {
+            **make_payload(snapshot.build_host_ids_hash([host.bk_host_id for host in HOSTS[:2]])),
+            "bk_tenant_id": "system",
+            "deadline_at": 260,
+            "username": "admin",
+        },
+    )
+    mocker.patch.object(tasks, "HostMetricSnapshotStore", return_value=store)
+    mocker.patch.object(tasks, "resolve_host_metric_snapshot_scope", return_value=({"type": "business"}, HOSTS[:2]))
+    now = [200]
+    mocker.patch.object(tasks.time, "time", side_effect=lambda: now[0])
+    mocker.patch.object(tasks, "as_completed", side_effect=lambda futures: list(futures))
+    mocker.patch.object(tasks, "_build_snapshot_section", side_effect=lambda section, *_: {1: {"section": section}})
+    original_mark_section_ready = store.mark_section_ready
+    published_sections = []
+
+    def publish_then_cross_deadline(snapshot_id, section, **kwargs):
+        result = original_mark_section_ready(snapshot_id, section, **kwargs)
+        published_sections.append(section)
+        now[0] = 261
+        return result
+
+    mocker.patch.object(store, "mark_section_ready", side_effect=publish_then_cross_deadline)
+
+    tasks.build_host_metric_snapshot.run(manifest["snapshot_id"])
+
+    response = store.build_response(manifest["snapshot_id"], now=261)
+    assert response["state"] == snapshot.SnapshotState.DEGRADED
+    assert set(response["data"]) == {published_sections[0]}
+    assert response["failed_sections"] == sorted(set(snapshot.SNAPSHOT_SECTIONS) - {published_sections[0]})
+
+
 def test_snapshot_task_degrades_and_keeps_partial_section_records(mocker):
     tasks = import_module("monitor_web.performance.tasks")
     store = snapshot.HostMetricSnapshotStore(cache=FakeCache())
@@ -1332,6 +1444,29 @@ def test_missing_new_section_keeps_already_consumed_section_usable(monkeypatch):
     assert response["state"] == snapshot.SnapshotState.DEGRADED
     assert response["failed_sections"] == ["performance_data"]
     assert response["data"] == {}
+
+
+def test_degraded_snapshot_with_no_remaining_blob_persists_failed_state(monkeypatch):
+    ids = iter(("a" * 32, "b" * 32))
+    monkeypatch.setattr(snapshot, "uuid4", lambda: type("UUID", (), {"hex": next(ids)})())
+    cache = FakeCache()
+    store = snapshot.HostMetricSnapshotStore(cache=cache)
+    manifest, _ = store.create_or_get("sha256:fingerprint", make_payload())
+    snapshot_id = manifest["snapshot_id"]
+    store.write_section(snapshot_id, "agent_status", {1: {"status": 0}})
+    store.mark_section_ready(snapshot_id, "agent_status")
+    store.mark_degraded(snapshot_id, failed_sections=["performance_data"])
+    cache.delete(store.section_key(snapshot_id, "agent_status"))
+
+    response = store.build_response(snapshot_id)
+
+    assert response["state"] == snapshot.SnapshotState.FAILED
+    assert response["data"] == {}
+    assert store.get_manifest(snapshot_id)["state"] == snapshot.SnapshotState.FAILED
+    assert store.get_manifest(snapshot_id)["error_code"] == "section_missing"
+    rebuilt, created = store.create_or_get("sha256:fingerprint", make_payload())
+    assert created is True
+    assert rebuilt["snapshot_id"] == "b" * 32
 
 
 def test_snapshot_task_publishes_ready_empty_sections_for_legitimate_empty_scope(mocker):
