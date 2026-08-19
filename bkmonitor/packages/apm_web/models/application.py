@@ -767,7 +767,8 @@ class Application(AbstractRecordModel):
                     f"view_business(bk_biz_id={self.bk_biz_id}) failed, reason: {e}"
                 )
 
-        self._grant_log_owners(to_grant)
+        if self.is_enabled_log:
+            self._grant_log_owners(to_grant)
         return normalized_new
 
     def _grant_log_owners(self, owners):
