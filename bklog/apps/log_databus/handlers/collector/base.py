@@ -314,6 +314,7 @@ class CollectorHandler:
                         result_table_config=result["result_table_config"],
                         result_table_storage=result["result_table_storage"][self.data.table_id],
                         fields_dict=self.get_fields_dict(self.data.collector_config_id),
+                        storage_cluster_type=self.storage_cluster_type,
                     )
                 )
                 # 补充es集群端口号 、es集群域名
@@ -914,6 +915,8 @@ class CollectorHandler:
             cluster_infos.setdefault(
                 table_id, {"cluster_config": {"cluster_id": -1, "cluster_name": ""}, "storage_config": {"retention": 0}}
             )
+            # 回传实际使用的存储类型，供调用方读取按存储类型分化的字段（如过期天数）
+            cluster_infos[table_id]["cluster_type"] = table_id_to_cluster_type_map.get(table_id, STORAGE_CLUSTER_TYPE)
 
         return cluster_infos
 
@@ -957,7 +960,9 @@ class CollectorHandler:
             _data["storage_display_name"] = (
                 cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
             )
-            _data["retention"] = cluster_info["storage_config"].get("retention", 0)
+            # doris 结果表的过期天数存放在 expire_days，ES 存放在 retention，对外统一暴露 retention
+            retention_field = "expire_days" if cluster_info.get("cluster_type") == DORIS_CLUSTER_TYPE else "retention"
+            _data["retention"] = cluster_info["storage_config"].get(retention_field, 0)
             # table_id
             if _data.get("table_id"):
                 table_id_prefix, table_id = _data["table_id"].split(".")

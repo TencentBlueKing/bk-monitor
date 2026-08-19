@@ -332,11 +332,19 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         return data_link_config
 
     @classmethod
-    def parse_result_table_config(cls, result_table_config, result_table_storage=None, fields_dict=None):
+    def parse_result_table_config(
+        cls,
+        result_table_config,
+        result_table_storage=None,
+        fields_dict=None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+    ):
         if not result_table_config["option"].get("separator_field_list"):
             logger.exception("delimiter configuration parsed exception, table_id->%s", result_table_config["table_id"])
 
-        collector_config = super().parse_result_table_config(result_table_config, result_table_storage, fields_dict)
+        collector_config = super().parse_result_table_config(
+            result_table_config, result_table_storage, fields_dict, storage_cluster_type
+        )
         collector_fields = array_group(
             [field for field in collector_config["fields"] if not field["is_built_in"]], "field_name", 1
         )

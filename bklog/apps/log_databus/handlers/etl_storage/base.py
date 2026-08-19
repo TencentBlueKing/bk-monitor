@@ -1450,12 +1450,19 @@ class EtlStorage:
         return True
 
     @classmethod
-    def parse_result_table_config(cls, result_table_config, result_table_storage=None, fields_dict=None):
+    def parse_result_table_config(
+        cls,
+        result_table_config,
+        result_table_storage=None,
+        fields_dict=None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+    ):
         """
         根据meta配置返回前端格式
         :param result_table_config metadata_get_result_table
         :param result_table_storage metadata_get_result_table_storage
         :param 从mappings拉取的的字段信息
+        :param storage_cluster_type 结果表实际使用的存储类型，决定过期天数从哪个字段读取
         """
         fields_dict = fields_dict or {}
 
@@ -1465,7 +1472,9 @@ class EtlStorage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
             collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
-            collector_config["retention"] = result_table_storage["storage_config"].get("retention")
+            # doris 结果表的过期天数存放在 expire_days，ES 存放在 retention，对外统一暴露 retention
+            retention_field = "expire_days" if storage_cluster_type == DORIS_CLUSTER_TYPE else "retention"
+            collector_config["retention"] = result_table_storage["storage_config"].get(retention_field)
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 
         # 字段

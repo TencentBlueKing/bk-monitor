@@ -22,11 +22,14 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 
 from apps.exceptions import ApiResultError
-from apps.log_databus.constants import LogPluginInfo
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE, LogPluginInfo
+from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.collector.host import HostCollectorHandler
+from apps.log_databus.models import CollectorConfig
 
 BK_DATA_ID = 1
 BK_DATA_NAME = "2_log_test_collector"
@@ -315,3 +318,132 @@ class TestCollectorHandler(TestCase):
             )[0],
             ["127.0.0.1"],
         )
+
+
+class TestCollectorClusterInfo(TestCase):
+    """
+    列表补充集群信息时的过期天数映射：ES 存 retention，doris 存 expire_days，对外统一暴露 retention
+    """
+
+    ES_TABLE_ID = "2_bklog.retention_es"
+    DORIS_TABLE_ID = "2_bklog.retention_doris"
+    MISSING_TABLE_ID = "2_bklog.retention_missing"
+
+    @staticmethod
+    def _make_row(table_id, storage_cluster_type=STORAGE_CLUSTER_TYPE):
+        return {
+            "table_id": table_id,
+            "storage_cluster_type": storage_cluster_type,
+            "category_id": "application",
+            "custom_type": "log",
+            "created_at": "2026-08-19 10:00:00",
+            "updated_at": "2026-08-19 10:00:00",
+        }
+
+    @staticmethod
+    def _make_cluster_info(cluster_type, storage_config):
+        return {
+            "cluster_config": {"cluster_id": 1, "cluster_name": "test", "display_name": "test"},
+            "storage_config": storage_config,
+            "cluster_type": cluster_type,
+        }
+
+    # add_cluster_info 内部取时区后做 arrow 转换，独立运行时 get_local_param 返回 None 会抛 TypeError，
+    # 不能依赖其它用例残留的线程本地时区
+    @patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai")
+    @patch.object(CollectorHandler, "bulk_cluster_infos")
+    def test_add_cluster_info_maps_storage_expiration_to_retention(self, mock_bulk_cluster_infos, *args, **kwargs):
+        mock_bulk_cluster_infos.return_value = {
+            self.ES_TABLE_ID: self._make_cluster_info(STORAGE_CLUSTER_TYPE, {"retention": 7}),
+            self.DORIS_TABLE_ID: self._make_cluster_info(DORIS_CLUSTER_TYPE, {"expire_days": 30}),
+        }
+
+        data = CollectorHandler.add_cluster_info(
+            [
+                self._make_row(self.ES_TABLE_ID),
+                self._make_row(self.DORIS_TABLE_ID, DORIS_CLUSTER_TYPE),
+            ]
+        )
+
+        self.assertEqual(data[0]["retention"], 7)
+        self.assertEqual(data[1]["retention"], 30)
+
+    @patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai")
+    @patch.object(CollectorHandler, "bulk_cluster_infos")
+    def test_add_cluster_info_doris_ignores_es_retention_field(self, mock_bulk_cluster_infos, *args, **kwargs):
+        """doris 结果表即便同时带了 ES 的 retention，也应以 expire_days 为准"""
+        mock_bulk_cluster_infos.return_value = {
+            self.DORIS_TABLE_ID: self._make_cluster_info(
+                DORIS_CLUSTER_TYPE, {"expire_days": 30, "retention": 0}
+            ),
+        }
+
+        data = CollectorHandler.add_cluster_info([self._make_row(self.DORIS_TABLE_ID, DORIS_CLUSTER_TYPE)])
+
+        self.assertEqual(data[0]["retention"], 30)
+
+    @patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai")
+    @patch.object(CollectorHandler, "bulk_cluster_infos")
+    def test_add_cluster_info_missing_cluster_info_falls_back_to_zero(self, mock_bulk_cluster_infos, *args, **kwargs):
+        """Metadata 未返回集群信息时保持原有兜底行为"""
+        mock_bulk_cluster_infos.return_value = {}
+
+        data = CollectorHandler.add_cluster_info([self._make_row(self.MISSING_TABLE_ID, DORIS_CLUSTER_TYPE)])
+
+        self.assertEqual(data[0]["retention"], 0)
+        self.assertEqual(data[0]["storage_cluster_id"], -1)
+
+
+@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+class TestBulkClusterInfos(TestCase):
+    """bulk_cluster_infos 需要把实际使用的存储类型回传给调用方"""
+
+    ES_TABLE_ID = "2_bklog.bulk_es"
+    DORIS_TABLE_ID = "2_bklog.bulk_doris"
+    UNKNOWN_TABLE_ID = "2_bklog.bulk_unknown"
+
+    def setUp(self):
+        cache.clear()
+        for table_id, storage_cluster_type in (
+            (self.ES_TABLE_ID, STORAGE_CLUSTER_TYPE),
+            (self.DORIS_TABLE_ID, DORIS_CLUSTER_TYPE),
+        ):
+            CollectorConfig.objects.create(
+                collector_config_name=table_id,
+                collector_config_name_en=table_id.replace(".", "_"),
+                collector_scenario_id="row",
+                category_id="application",
+                bk_biz_id=706,
+                table_id=table_id,
+                storage_cluster_type=storage_cluster_type,
+            )
+
+    @patch("apps.api.TransferApi.get_result_table_storage")
+    def test_returns_cluster_type_per_result_table(self, mock_get_result_table_storage):
+        def _get_result_table_storage(params):
+            return {
+                table_id: {"cluster_config": {"cluster_id": 1, "cluster_name": "c"}, "storage_config": {}}
+                for table_id in params["result_table_list"].split(",")
+            }
+
+        mock_get_result_table_storage.side_effect = _get_result_table_storage
+
+        cluster_infos = CollectorHandler.bulk_cluster_infos(
+            result_table_list=[self.ES_TABLE_ID, self.DORIS_TABLE_ID]
+        )
+
+        self.assertEqual(cluster_infos[self.ES_TABLE_ID]["cluster_type"], STORAGE_CLUSTER_TYPE)
+        self.assertEqual(cluster_infos[self.DORIS_TABLE_ID]["cluster_type"], DORIS_CLUSTER_TYPE)
+
+    @patch("apps.api.TransferApi.get_result_table_storage")
+    def test_missing_result_table_still_gets_cluster_type(self, mock_get_result_table_storage):
+        """Metadata 查询失败走兜底时，兜底条目同样需要带上存储类型"""
+        mock_get_result_table_storage.side_effect = Exception("metadata unavailable")
+
+        cluster_infos = CollectorHandler.bulk_cluster_infos(
+            result_table_list=[self.DORIS_TABLE_ID, self.UNKNOWN_TABLE_ID]
+        )
+
+        self.assertEqual(cluster_infos[self.DORIS_TABLE_ID]["cluster_type"], DORIS_CLUSTER_TYPE)
+        # 未登记的结果表默认按 ES 处理，与 _get_table_id_to_cluster_type_map 保持一致
+        self.assertEqual(cluster_infos[self.UNKNOWN_TABLE_ID]["cluster_type"], STORAGE_CLUSTER_TYPE)

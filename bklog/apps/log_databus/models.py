@@ -238,6 +238,7 @@ class CollectorConfig(CollectorBase):
         etl_config = etl_storage.parse_result_table_config(
             result_table_config=result["result_table_config"],
             result_table_storage=result["result_table_storage"][self.table_id],
+            storage_cluster_type=self.storage_cluster_type,
         )
         etl_config["fields"] = map_if(etl_config["fields"], if_func=lambda x: not x["is_built_in"])
         return etl_config

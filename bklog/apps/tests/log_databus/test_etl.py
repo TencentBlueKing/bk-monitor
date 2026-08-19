@@ -27,9 +27,11 @@ from django.test import TestCase
 
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import (
+    DORIS_CLUSTER_TYPE,
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
+    STORAGE_CLUSTER_TYPE,
 )
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -1402,3 +1404,55 @@ class TestEtl(TestCase):
         expected_fields = ["level", "message", "user", "context"]
         for expected_field in expected_fields:
             self.assertIn(expected_field, field_names)
+
+
+class TestParseResultTableRetention(TestCase):
+    """
+    详情/编辑页解析 Metadata 结果表配置时的过期天数映射：
+    ES 存 retention，doris 存 expire_days，对外统一暴露 retention
+    """
+
+    RESULT_TABLE_CONFIG = {
+        "option": {},
+        "field_list": [
+            {
+                "field_name": "dtEventTimeStamp",
+                "alias_name": "utctime",
+                "field_type": "string",
+                "is_built_in": True,
+                "option": {"es_type": "date", "time_zone": 0, "time_format": "yyyy-MM-dd HH:mm:ss"},
+            },
+        ],
+    }
+
+    @staticmethod
+    def _make_result_table_storage(storage_config):
+        return {
+            "cluster_config": {"cluster_id": 1, "cluster_name": "test", "display_name": "test"},
+            "storage_config": storage_config,
+        }
+
+    def _parse(self, storage_config, storage_cluster_type):
+        etl_storage = EtlStorage.get_instance(etl_config=ETL_CONFIG_JSON)
+        return etl_storage.parse_result_table_config(
+            result_table_config=copy.deepcopy(self.RESULT_TABLE_CONFIG),
+            result_table_storage=self._make_result_table_storage(storage_config),
+            storage_cluster_type=storage_cluster_type,
+        )
+
+    def test_es_reads_retention(self):
+        collector_config = self._parse({"retention": 7}, STORAGE_CLUSTER_TYPE)
+        self.assertEqual(collector_config["retention"], 7)
+
+    def test_doris_reads_expire_days(self):
+        collector_config = self._parse({"expire_days": 30}, DORIS_CLUSTER_TYPE)
+        self.assertEqual(collector_config["retention"], 30)
+
+    def test_default_storage_cluster_type_keeps_es_behaviour(self):
+        """未显式传存储类型的调用方（如仅解析清洗配置）行为保持不变"""
+        etl_storage = EtlStorage.get_instance(etl_config=ETL_CONFIG_JSON)
+        collector_config = etl_storage.parse_result_table_config(
+            result_table_config=copy.deepcopy(self.RESULT_TABLE_CONFIG),
+            result_table_storage=self._make_result_table_storage({"retention": 14}),
+        )
+        self.assertEqual(collector_config["retention"], 14)
