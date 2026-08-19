@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 
 from typing import Any
 
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE
+
 # Metadata 各存储的过期天数字段名：ESStorage.consul_config 用 retention，
 # DorisStorage.consul_config 用 expire_days。日志平台对外统一暴露 retention。
 RETENTION_FIELD_ALIASES = ("retention", "expire_days")
@@ -38,3 +40,17 @@ def get_storage_retention(storage_config: dict[str, Any] | None, default: Any = 
         if value is not None and value != 0:
             return value
     return default
+
+
+def build_storage_retention_config(storage_cluster_type: str, retention: Any) -> dict[str, Any]:
+    """
+    生成下发给 metadata 的过期天数配置片段，与 get_storage_retention 反向对称。
+
+    metadata 侧两种存储只认各自的字段名：DorisStorage 的 create_table 签名与 UPGRADE_FIELD_CONFIG
+    都只有 expire_days，传 retention 会在创建时落进 **kwargs、在更新时被 update_storage 跳过，
+    两条路径均静默失效，Doris 表因此固定为模型默认的 30 天。
+    doris 分支仍保留 retention：metadata 会忽略它，但结果表配置的其他消费方仍按该键读取。
+    """
+    if storage_cluster_type == DORIS_CLUSTER_TYPE:
+        return {"retention": retention, "expire_days": retention}
+    return {"retention": retention}

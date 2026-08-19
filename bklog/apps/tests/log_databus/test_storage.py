@@ -40,7 +40,7 @@ from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import DorisVisibleConfigUpdateSerializer
-from apps.log_databus.utils.storage_config import get_storage_retention
+from apps.log_databus.utils.storage_config import build_storage_retention_config, get_storage_retention
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import Scenario
 
@@ -1308,6 +1308,23 @@ class TestStorageRetentionCompat(TestCase):
     def test_get_storage_retention_skips_placeholder_retention_for_doris(self):
         # doris 结果表即便同时带上 ES 语义的 retention 占位值，也应以 expire_days 为准
         self.assertEqual(get_storage_retention({"retention": 0, "expire_days": 30}), 30)
+
+    def test_build_storage_retention_config_for_es(self):
+        self.assertEqual(build_storage_retention_config(STORAGE_CLUSTER_TYPE, 14), {"retention": 14})
+
+    def test_build_storage_retention_config_for_doris(self):
+        # DorisStorage 的 create_table 与 UPGRADE_FIELD_CONFIG 都只认 expire_days，必须补上该键
+        self.assertEqual(
+            build_storage_retention_config(DORIS_CLUSTER_TYPE, 14),
+            {"retention": 14, "expire_days": 14},
+        )
+
+    def test_build_storage_retention_config_round_trips_with_getter(self):
+        # 写入与读取两个方向应互为逆运算，避免再次出现字段名口径漂移
+        for cluster_type in (STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE):
+            with self.subTest(cluster_type=cluster_type):
+                config = build_storage_retention_config(cluster_type, 14)
+                self.assertEqual(get_storage_retention(config), 14)
 
     def test_parse_result_table_config_maps_doris_expire_days_to_retention(self):
         collector_config = EtlStorage.parse_result_table_config(
