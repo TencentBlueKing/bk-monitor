@@ -20,8 +20,7 @@ from kernel_api.rpc.functions.admin.permission import (
     _parse_action_permissions,
     _parse_expression_entries,
     _parse_iam_path,
-    _resolve_display_names,
-    _resolve_parent_paths,
+    _enrich_permissions,
     action_categories,
     query_user_permissions,
 )
@@ -295,13 +294,11 @@ class TestParseActionPermissions:
 
 
 # ============================================================================
-# _resolve_parent_paths
+# _enrich_permissions（两阶段补全：父路径 + 展示名，经 catalog 批量查询）
 # ============================================================================
 
-_MOCK_PARENT_SPACE_ID = "61"
 
-
-class TestResolveParentPaths:
+class TestEnrichPermissions:
     def _make_schema_mock(self, rt_map: dict[str, ResourceTypeDef]) -> MagicMock:
         """Build a SchemaRegistry mock with given resource types."""
         schema = MagicMock()
@@ -309,9 +306,20 @@ class TestResolveParentPaths:
         schema.has_resource_type.side_effect = lambda rt: rt in rt_map
         return schema
 
-    @patch("kernel_api.rpc.functions.admin.permission._batch_get_parent")
-    def test_prepend_parent_space(self, mock_batch_parent):
-        mock_batch_parent.return_value = {"390": _MOCK_PARENT_SPACE_ID}
+    @staticmethod
+    def _actions(permissions: list[dict]) -> list[dict]:
+        return [{"permissions": permissions}]
+
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    def test_prepend_parent_chain(self, mock_fetch):
+        """实例级 entry 按 catalog 返回的父链前置补齐空间节点。"""
+
+        def fake_fetch(rt_id, ids, requires, bk_tenant_id="system"):
+            if requires == ["_bk_iam_path_"]:
+                return [{"id": i, "_bk_iam_path_": f"/space,61/{rt_id},{i}/"} for i in ids]
+            return []
+
+        mock_fetch.side_effect = fake_fetch
 
         schema = self._make_schema_mock(
             {
@@ -320,109 +328,117 @@ class TestResolveParentPaths:
             }
         )
 
-        permissions = [{"path": [{"type": "apm_application", "id": "390"}]}]
-        _resolve_parent_paths(permissions, schema)
+        actions = self._actions([{"path": [{"type": "apm_application", "id": "390"}]}])
+        failed = _enrich_permissions(actions, schema)
 
-        assert permissions[0]["path"] == [
-            {"type": "space", "id": _MOCK_PARENT_SPACE_ID},
-            {"type": "apm_application", "id": "390"},
+        assert failed == 0
+        assert actions[0]["permissions"][0]["path"] == [
+            {"type": "space", "id": "61", "display_name": ""},
+            {"type": "apm_application", "id": "390", "display_name": ""},
         ]
 
-    def test_skip_space_first(self):
-        """Paths already starting with space are not modified."""
-        schema = self._make_schema_mock(
-            {
-                "space": ResourceTypeDef(id="space", name="空间"),
-            }
-        )
-        permissions = [{"path": [{"type": "space", "id": "2"}]}]
-        _resolve_parent_paths(permissions, schema)
-        assert permissions[0]["path"] == [{"type": "space", "id": "2"}]
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    def test_skip_space_first(self, mock_fetch):
+        """顶级资源开头的 path 不做父链查询（仅展示名阶段）。"""
+        schema = self._make_schema_mock({"space": ResourceTypeDef(id="space", name="空间")})
+        actions = self._actions([{"path": [{"type": "space", "id": "2"}]}])
+        _enrich_permissions(actions, schema)
+        assert actions[0]["permissions"][0]["path"] == [{"type": "space", "id": "2", "display_name": ""}]
+        assert all(call.kwargs.get("requires") != ["_bk_iam_path_"] for call in mock_fetch.call_args_list)
 
     def test_skip_empty_path(self):
         schema = MagicMock()
-        permissions = [{"path": []}]
-        _resolve_parent_paths(permissions, schema)
-        assert permissions[0]["path"] == []
+        actions = self._actions([{"path": []}])
+        _enrich_permissions(actions, schema)
+        assert actions[0]["permissions"][0]["path"] == []
 
-    def test_unknown_resource_type(self):
-        """Unknown resource type — silently skipped."""
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
+    def test_unknown_resource_type(self, mock_fetch):
+        """Unknown resource type — silently skipped（展示名回填空串）。"""
         schema = self._make_schema_mock({})
-        permissions = [{"path": [{"type": "unknown_rt", "id": "x"}]}]
-        _resolve_parent_paths(permissions, schema)
-        assert permissions[0]["path"] == [{"type": "unknown_rt", "id": "x"}]
+        actions = self._actions([{"path": [{"type": "unknown_rt", "id": "x"}]}])
+        _enrich_permissions(actions, schema)
+        assert actions[0]["permissions"][0]["path"] == [{"type": "unknown_rt", "id": "x", "display_name": ""}]
 
-    @patch("kernel_api.rpc.functions.admin.permission._batch_get_parent")
-    def test_parent_not_found(self, mock_batch_parent):
-        mock_batch_parent.return_value = {}
-
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
+    def test_parent_not_found(self, mock_fetch):
+        """父链查不到 → 保持原样，不补父节点。"""
         schema = self._make_schema_mock(
             {
                 "grafana_dashboard": ResourceTypeDef(id="grafana_dashboard", name="仪表盘", ancestor="space"),
                 "space": ResourceTypeDef(id="space", name="空间"),
             }
         )
-
-        permissions = [{"path": [{"type": "grafana_dashboard", "id": "14|missing"}]}]
-        _resolve_parent_paths(permissions, schema)
-        assert len(permissions[0]["path"]) == 1
-
-
-# ============================================================================
-# _resolve_display_names
-# ============================================================================
-
-
-class TestResolveDisplayNames:
-    @patch.dict("kernel_api.rpc.functions.admin.permission._DISPLAY_NAME_RESOLVERS", clear=True)
-    def test_fills_display_names(self):
-        from kernel_api.rpc.functions.admin.permission import _DISPLAY_NAME_RESOLVERS
-
-        mock_fn = MagicMock(return_value={"2": "测试业务"})
-        _DISPLAY_NAME_RESOLVERS["space"] = mock_fn
-
-        permissions = [{"path": [{"type": "space", "id": "2"}]}]
-        _resolve_display_names(permissions)
-        assert permissions[0]["path"][0]["display_name"] == "测试业务"
-
-    @patch.dict("kernel_api.rpc.functions.admin.permission._DISPLAY_NAME_RESOLVERS", clear=True)
-    def test_missing_resolver(self):
-        """No resolver registered → empty display_name."""
-        permissions = [{"path": [{"type": "unknown_rt", "id": "2"}]}]
-        _resolve_display_names(permissions)
-        assert permissions[0]["path"][0]["display_name"] == ""
-
-    @patch.dict("kernel_api.rpc.functions.admin.permission._DISPLAY_NAME_RESOLVERS", clear=True)
-    def test_empty_display_name(self):
-        from kernel_api.rpc.functions.admin.permission import _DISPLAY_NAME_RESOLVERS
-
-        mock_fn = MagicMock(return_value={})
-        _DISPLAY_NAME_RESOLVERS["space"] = mock_fn
-
-        permissions = [{"path": [{"type": "space", "id": "2"}]}]
-        _resolve_display_names(permissions)
-        assert permissions[0]["path"][0]["display_name"] == ""
-
-    @patch.dict("kernel_api.rpc.functions.admin.permission._DISPLAY_NAME_RESOLVERS", clear=True)
-    def test_multiple_types(self):
-        from kernel_api.rpc.functions.admin.permission import _DISPLAY_NAME_RESOLVERS
-
-        _DISPLAY_NAME_RESOLVERS["space"] = MagicMock(return_value={"2": "业务"})
-        _DISPLAY_NAME_RESOLVERS["apm_application"] = MagicMock(return_value={"390": "my_app"})
-
-        permissions = [
-            {
-                "path": [
-                    {"type": "space", "id": "2"},
-                    {"type": "apm_application", "id": "390"},
-                ]
-            }
+        actions = self._actions([{"path": [{"type": "grafana_dashboard", "id": "14|missing"}]}])
+        _enrich_permissions(actions, schema)
+        assert actions[0]["permissions"][0]["path"] == [
+            {"type": "grafana_dashboard", "id": "14|missing", "display_name": ""}
         ]
-        _resolve_display_names(permissions)
 
-        path = permissions[0]["path"]
-        assert path[0]["display_name"] == "业务"
-        assert path[1]["display_name"] == "my_app"
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    def test_fills_display_names(self, mock_fetch):
+        """展示名按 rt 批量回填；apm/rum 取 name（app_name）口径。"""
+
+        def fake_fetch(rt_id, ids, requires, bk_tenant_id="system"):
+            if requires == ["_bk_iam_path_"]:
+                return []
+            if rt_id == "space":
+                return [{"id": i, "display_name": f"业务-{i}"} for i in ids]
+            return [{"id": i, "display_name": f"alias-{i}", "name": f"app-{i}"} for i in ids]
+
+        mock_fetch.side_effect = fake_fetch
+
+        schema = self._make_schema_mock(
+            {
+                "apm_application": ResourceTypeDef(id="apm_application", name="APM应用", ancestor="space"),
+                "space": ResourceTypeDef(id="space", name="空间"),
+            }
+        )
+        actions = self._actions(
+            [
+                {
+                    "path": [
+                        {"type": "space", "id": "2"},
+                        {"type": "apm_application", "id": "390"},
+                    ]
+                }
+            ]
+        )
+        _enrich_permissions(actions, schema)
+
+        path = actions[0]["permissions"][0]["path"]
+        assert path[0]["display_name"] == "业务-2"
+        assert path[1]["display_name"] == "app-390"
+
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
+    def test_catalog_queried_once_per_rt(self, mock_fetch):
+        """两阶段补全：每个 rt 最多 2 次 catalog 查询（父链 + 展示名），与 entry 数量无关。"""
+        schema = self._make_schema_mock(
+            {
+                "apm_application": ResourceTypeDef(id="apm_application", name="APM应用", ancestor="space"),
+                "space": ResourceTypeDef(id="space", name="空间"),
+            }
+        )
+        permissions = [{"path": [{"type": "apm_application", "id": str(390 + i)}]} for i in range(10)]
+        _enrich_permissions(self._actions(permissions), schema)
+
+        apm_calls = [c for c in mock_fetch.call_args_list if c.args[0] == "apm_application"]
+        assert len(apm_calls) == 2
+
+    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    def test_catalog_failure_counts_resolve_failed(self, mock_fetch):
+        """catalog 查询失败 → 记 resolve_failed，权限数据本身保留且不补 display_name。"""
+        mock_fetch.side_effect = RuntimeError("db down")
+        schema = self._make_schema_mock(
+            {
+                "apm_application": ResourceTypeDef(id="apm_application", name="APM应用", ancestor="space"),
+                "space": ResourceTypeDef(id="space", name="空间"),
+            }
+        )
+        actions = self._actions([{"path": [{"type": "apm_application", "id": "390"}]}])
+        failed = _enrich_permissions(actions, schema)
+        assert failed > 0
+        assert actions[0]["permissions"][0]["path"] == [{"type": "apm_application", "id": "390"}]
 
 
 # ============================================================================
@@ -615,65 +631,61 @@ class TestQueryUserPermissions:
         with pytest.raises(CustomException, match="username"):
             query_user_permissions({"bk_tenant_id": "system"})
 
-    @patch("kernel_api.rpc.functions.admin.permission._resolve_display_names")
-    @patch("kernel_api.rpc.functions.admin.permission._resolve_parent_paths")
-    @patch("kernel_api.rpc.functions.admin.permission.get_framework")
-    def test_batch_query_success(self, mock_get_fw, mock_resolve_parents, mock_resolve_names):
-        """验证 query_user_permissions 通过框架查询策略的完整流程。"""
+    @patch("kernel_api.rpc.functions.admin.permission._v3._enrich_permissions", return_value=0)
+    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    def test_batch_query_success(self, mock_get_fw, mock_enrich):
+        """验证 query_user_permissions 通过 v3 provider 查询策略的完整流程。"""
         from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
 
         real_schema = real_get_fw().schema
 
-        # 构造 PolicyExpression → action_id 映射（Business ID）
+        # 构造 PolicyExpression → action_id 映射（Business ID，单 provider 单表达式）
         policies = {
             # all space
-            "view_business": [_expr_any()],
+            "view_business": _expr_any(),
             # partial space
-            "explore_metric": [_expr_in("space.id", ["2", "-3", "3"])],
+            "explore_metric": _expr_in("space.id", ["2", "-3", "3"]),
             # none space
-            "view_plugin": [_expr_none()],
+            "view_plugin": _expr_none(),
             # none instance
-            "view_apm_application": [_expr_none()],
+            "view_apm_application": _expr_none(),
             # partial instance with nested OR
-            "manage_apm_application": [
+            "manage_apm_application": PolicyExpression.or_(
+                _expr_in("apm_application.id", ["390", "405"]),
                 PolicyExpression.or_(
-                    _expr_in("apm_application.id", ["390", "405"]),
-                    PolicyExpression.or_(
-                        _expr_starts_with("apm_application._bk_iam_path_", "/space,61/"),
-                        _expr_starts_with("apm_application._bk_iam_path_", "/space,60/"),
-                    ),
-                )
-            ],
+                    _expr_starts_with("apm_application._bk_iam_path_", "/space,61/"),
+                    _expr_starts_with("apm_application._bk_iam_path_", "/space,60/"),
+                ),
+            ),
             # all global
-            "manage_global_setting": [_expr_any()],
-            # none global（expr=None → 无权限，非查询失败）
-            "view_self_state": [None],
+            "manage_global_setting": _expr_any(),
+            # none global（None → 无权限，非查询失败）
+            "view_self_state": None,
             # V1+V2 merge — both any
-            "manage_public_plugin": [
-                PolicyExpression.or_(_expr_any(), _expr_any()),
-            ],
+            "manage_public_plugin": PolicyExpression.or_(_expr_any(), _expr_any()),
             # partial grafana
-            "view_single_dashboard": [
+            "view_single_dashboard": PolicyExpression.or_(
+                _expr_in("grafana_dashboard.id", ["14|f0ImroNIz", "14|nKviroNIz"]),
                 PolicyExpression.or_(
-                    _expr_in("grafana_dashboard.id", ["14|f0ImroNIz", "14|nKviroNIz"]),
-                    PolicyExpression.or_(
-                        _expr_starts_with("grafana_dashboard._bk_iam_path_", "/space,2/"),
-                        _expr_starts_with("grafana_dashboard._bk_iam_path_", "/space,-6/"),
-                    ),
-                )
-            ],
+                    _expr_starts_with("grafana_dashboard._bk_iam_path_", "/space,2/"),
+                    _expr_starts_with("grafana_dashboard._bk_iam_path_", "/space,-6/"),
+                ),
+            ),
         }
-        # 补齐所有 action（不在 policies 中的 action 返回 [None]）
+        # 补齐所有 action（不在 policies 中的 action 返回 None）
         all_ids = {a.id for a in real_schema.all_actions()}
         for aid in all_ids:
-            if aid not in policies:
-                policies[aid] = [None]
+            policies.setdefault(aid, None)
+
+        real_v3 = real_get_fw().providers["v3"]
+        mock_v3 = MagicMock()
+        # 复用真实 codec，使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
+        mock_v3.codec = real_v3.codec
+        mock_v3.query_policy_by_actions.return_value = policies
 
         mock_fw = MagicMock()
         mock_fw.schema = real_schema
-        # 复用真实 provider（含真实 codec），使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
-        mock_fw.providers = real_get_fw().providers
-        mock_fw.query_policies_by_actions.return_value = policies
+        mock_fw.get_provider.return_value = mock_v3
         mock_get_fw.return_value = mock_fw
 
         result = query_user_permissions({"username": "testuser", "bk_tenant_id": "system"})
@@ -681,7 +693,7 @@ class TestQueryUserPermissions:
         assert data["username"] == "testuser"
 
         # 对外 action_id 为 V3 方言 ID（如 view_business_v2），用真实 codec 编码断言
-        codec = real_get_fw().providers["v3"].codec
+        codec = real_v3.codec
 
         # all → permissions = [{"path": []}]
         biz_action = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("view_business"))
@@ -718,20 +730,22 @@ class TestQueryUserPermissions:
 
         assert data["summary"]["total_actions"] > 0
 
-    @patch("kernel_api.rpc.functions.admin.permission._resolve_display_names")
-    @patch("kernel_api.rpc.functions.admin.permission._resolve_parent_paths")
-    @patch("kernel_api.rpc.functions.admin.permission.get_framework")
-    def test_framework_query_failure_fallback(self, mock_get_fw, mock_resolve_parents, mock_resolve_names):
+    @patch("kernel_api.rpc.functions.admin.permission._v3._enrich_permissions", return_value=0)
+    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    def test_framework_query_failure_fallback(self, mock_get_fw, mock_enrich):
         """批量查询失败时降级为逐条查询；逐条也失败时全部 error 且 warning 含 action_id。"""
         from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
 
         real_schema = real_get_fw().schema
         all_ids = {a.id for a in real_schema.all_actions()}
 
+        mock_v3 = MagicMock()
+        mock_v3.query_policy_by_actions.side_effect = RuntimeError("connection failed")
+        mock_v3.query_policy.side_effect = RuntimeError("per-action connection failed")
+
         mock_fw = MagicMock()
         mock_fw.schema = real_schema
-        mock_fw.query_policies_by_actions.side_effect = RuntimeError("connection failed")
-        mock_fw.query_policies.side_effect = RuntimeError("per-action connection failed")
+        mock_fw.get_provider.return_value = mock_v3
         mock_get_fw.return_value = mock_fw
 
         result = query_user_permissions({"username": "testuser", "bk_tenant_id": "system"})
@@ -748,10 +762,9 @@ class TestQueryUserPermissions:
         for action in result["data"]["actions"]:
             assert action["grant_type"] == "error"
 
-    @patch("kernel_api.rpc.functions.admin.permission._resolve_display_names")
-    @patch("kernel_api.rpc.functions.admin.permission._resolve_parent_paths")
-    @patch("kernel_api.rpc.functions.admin.permission.get_framework")
-    def test_batch_failure_fallback_partial_success(self, mock_get_fw, mock_resolve_parents, mock_resolve_names):
+    @patch("kernel_api.rpc.functions.admin.permission._v3._enrich_permissions", return_value=0)
+    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    def test_batch_failure_fallback_partial_success(self, mock_get_fw, mock_enrich):
         """批量失败 + 逐条部分成功：成功的 action 正常解析，失败的标 error。"""
         from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
 
@@ -759,14 +772,19 @@ class TestQueryUserPermissions:
 
         def fake_query_policies(subject, aid):
             if aid == "view_business":
-                return [PolicyExpression.any()]
+                return PolicyExpression.any()
             raise RuntimeError(f"query failed for {aid}")
+
+        real_v3 = real_get_fw().providers["v3"]
+        mock_v3 = MagicMock()
+        # 复用真实 codec，使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
+        mock_v3.codec = real_v3.codec
+        mock_v3.query_policy_by_actions.side_effect = RuntimeError("batch connection failed")
+        mock_v3.query_policy.side_effect = fake_query_policies
 
         mock_fw = MagicMock()
         mock_fw.schema = real_schema
-        mock_fw.providers = real_get_fw().providers
-        mock_fw.query_policies_by_actions.side_effect = RuntimeError("batch connection failed")
-        mock_fw.query_policies.side_effect = fake_query_policies
+        mock_fw.get_provider.return_value = mock_v3
         mock_get_fw.return_value = mock_fw
 
         result = query_user_permissions({"username": "testuser", "bk_tenant_id": "system"})
@@ -789,6 +807,18 @@ class TestQueryUserPermissions:
         failed_biz_ids = {w["details"]["action_id"] for w in failed_warnings}
         assert "view_business" not in failed_biz_ids
         assert all("query failed for" in str(w["details"]["error"]) for w in failed_warnings)
+
+    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    def test_v3_provider_missing_raises(self, mock_get_fw):
+        """v3 provider 未配置 → 显式报错，不再静默返回全 none。"""
+        from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
+
+        mock_fw = MagicMock()
+        mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v3' not found")
+        mock_get_fw.return_value = mock_fw
+
+        with pytest.raises(CustomException, match="未配置 v3 provider"):
+            query_user_permissions({"username": "testuser", "bk_tenant_id": "system"})
 
 
 # ==============================================================================
@@ -851,9 +881,9 @@ class TestRealFrameworkQuery:
         assert summary["total_actions"] == len(actions)
 
         # ---- 将 query_user_permissions 的完整返回值落盘，供人工核对数据结构 ----
-        # import json
-        # import os as _os
-        #
-        # diag_path = _os.path.join(_os.path.dirname(__file__), "_iam_diag.json")
-        # with open(diag_path, "w") as f:
-        #     json.dump(result, f, ensure_ascii=False, indent=2)
+        import json
+        import os as _os
+
+        diag_path = _os.path.join(_os.path.dirname(__file__), "new_version_v3.json")
+        with open(diag_path, "w") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)

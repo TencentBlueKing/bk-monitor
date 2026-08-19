@@ -171,20 +171,34 @@ class TestMonitorResourceResolver:
         assert r.ancestor_chain == ()
 
     def test_resolve_grafana(self):
+        """grafana 实例补全经 catalog 查询（三种 ID 格式的解析逻辑在 catalog 侧）。"""
         resolver = self._resolver()
-        dashboard = MagicMock()
-        dashboard.uid = "uid-1"
-        dashboard.title = "大盘"
-        dashboard.org_id = 1
-        with (
-            patch("bkmonitor.iam.adapters.resolver.Dashboard.objects.filter") as m_filter,
-            patch("bkmonitor.iam.adapters.resolver.get_org_by_id", return_value={"name": "3"}),
+        with patch(
+            "bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info",
+            return_value=[{"id": "1|uid-1", "display_name": "[仪表盘] General/大盘", "_bk_iam_path_": "/space,3/"}],
         ):
-            m_filter.return_value.only.return_value.first.return_value = dashboard
-            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="uid-1"))
-        assert r.name == "大盘"
+            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-1"))
+        assert r.name == "[仪表盘] General/大盘"
         assert r.ancestor_chain[0].type == "space"
         assert r.ancestor_chain[0].id == "3"
+
+    def test_resolve_grafana_folder_format(self):
+        resolver = self._resolver()
+        with patch(
+            "bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info",
+            return_value=[{"id": "folder:1|7", "display_name": "[目录] 运维大盘", "_bk_iam_path_": "/space,3/"}],
+        ):
+            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="folder:1|7"))
+        assert r.name == "[目录] 运维大盘"
+        assert r.ancestor_chain[0].type == "space"
+        assert r.ancestor_chain[0].id == "3"
+
+    def test_resolve_grafana_missing(self):
+        resolver = self._resolver()
+        with patch("bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info", return_value=[]):
+            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-missing"))
+        assert r.name == ""
+        assert r.ancestor_chain == ()
 
     def test_resolve_rum(self):
         resolver = self._resolver()
