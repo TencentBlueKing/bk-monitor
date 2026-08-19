@@ -68,9 +68,7 @@ class MetadataStorageStatusApiTest(SimpleTestCase):
         api = Transfer.get_cluster_status
 
         self.assertEqual(api.method, "GET")
-        self.assertTrue(
-            api.url.endswith(("/app/metadata/get_cluster_status/", "/metadata_get_cluster_status/"))
-        )
+        self.assertTrue(api.url.endswith(("/app/metadata/get_cluster_status/", "/metadata_get_cluster_status/")))
         self.assertTrue(callable(api.bk_tenant_id))
         self.assertEqual(api.bk_tenant_id({"bk_biz_id": 2}), "tenant-a")
         mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)

@@ -831,7 +831,7 @@ class IndexSetHandler(APIModel):
                             "docs.count": self._get_sum("docs.count", indices_info),
                             "docs.deleted": self._get_sum("docs.deleted", indices_info),
                             "store.size": self._get_sum("store.size", indices_info),
-                            "pri.store.size": self._get_sum("store.size", indices_info),
+                            "pri.store.size": self._get_sum("pri.store.size", indices_info),
                         },
                         "details": indices_info,
                     }

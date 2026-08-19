@@ -25,7 +25,7 @@
  */
 import { type ComputedRef, type PropType, computed, defineComponent, onBeforeMount, onMounted, ref, watch } from 'vue';
 
-import { Popover } from 'bkui-vue';
+import { bkTooltips, Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 import { deduplicateByField } from 'monitor-ui/chart-plugins/utils';
 import { useI18n } from 'vue-i18n';
@@ -47,6 +47,9 @@ import './chart-title.scss';
 
 export default defineComponent({
   name: 'ChartTitle',
+  directives: {
+    bkTooltips,
+  },
   props: {
     title: String,
     subtitle: String,
@@ -83,6 +86,11 @@ export default defineComponent({
     },
     /** 是否展示告警操作 */
     isShowAlarm: {
+      type: Boolean,
+      default: false,
+    },
+    /** 是否为最新排障记录中新增的告警（仅故障视图传入） */
+    isCurrentPrimary: {
       type: Boolean,
       default: false,
     },
@@ -305,6 +313,17 @@ export default defineComponent({
                 />
               </Popover>
             ) : undefined}
+            {/* 最新排障记录主告警标识，仅 failure-view 场景通过 isCurrentPrimary 开启 */}
+            {this.isCurrentPrimary && (
+              <i
+                class='icon-monitor icon-a-NewTraining new-badge'
+                v-bk-tooltips={{
+                  content: this.t('最新排障记录中新增的告警'),
+                  delay: 200,
+                  placement: 'top-start',
+                }}
+              />
+            )}
             <div
               style={this.isShowAlarmStyle}
               class={['title-name', { 'has-more': this.isToolsShow }]}

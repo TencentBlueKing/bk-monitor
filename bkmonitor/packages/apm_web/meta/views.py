@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from apm_web.decorators import user_visit_record
 from apm_web.meta.resources import (
     ApplicationInfoByAppNameResource,
@@ -157,6 +157,8 @@ class ApplicationViewSet(ResourceViewSet):
                     id_field=lambda d: d["application_id"],
                     data_field=lambda d: d["data"],
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+                    sort_allowed_first=True,
+                    sort_action=ActionEnum.VIEW_APM_APPLICATION,
                 )
             ],
         ),

@@ -23,7 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { monitorLink } from '../../retrieve-v2/monitor/utils';
+import {
+  applyIndependentPageLayoutQuery,
+  buildMonitorLogRetrievalUrl,
+  isMonitorEmbedContext,
+} from '@/common/embed-layout-query';
+
 export function getConditionRouterParams(searchList, searchMode, isNewLink, append = {}) {
   const indexItem = window.mainComponent.$store.state.indexItem;
   const getIPChooserStr = ipChooser => {
@@ -71,13 +76,25 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
   }
 
   Object.assign(filterQuery, newQueryObj, append ?? {});
-  const routeData = {
+  const storeState = window.mainComponent.$store.state;
+  const indexId = window.__IS_MONITOR_COMPONENT__
+    ? (query.indexId || params.indexId || storeState.indexId)
+    : (params.indexId || query.indexId || storeState.indexId);
+
+  if (isMonitorEmbedContext(query)) {
+    return buildMonitorLogRetrievalUrl({
+      bizId: storeState.bkBizId || query.bizId,
+      spaceUid: storeState.spaceUid || query.spaceUid,
+      indexId,
+      pid: filterQuery.pid ?? query.pid ?? storeState.indexItem?.pid,
+      query: filterQuery,
+    });
+  }
+
+  applyIndependentPageLayoutQuery(filterQuery, false);
+  return window.mainComponent.$router.resolve({
     name: 'retrieve',
     params,
     query: filterQuery,
-  };
-  if (window.__IS_MONITOR_COMPONENT__) {
-    return monitorLink(routeData);
-  }
-  return window.mainComponent.$router.resolve(routeData).href;
+  }).href;
 }

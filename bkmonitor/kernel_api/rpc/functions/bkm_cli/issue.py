@@ -16,6 +16,7 @@ detail / list_by_strategy / list_by_fingerprint 复用 fta_web 的字段清洗�
 - list_activities      : IssueActivityDocument.search().filter("term", issue_id=...)
 - list_conflicts       : 扫描三类合并/拆分状态不一致（运维对账兜底；含 cascade follow resync）
 - list_llm_title_candidates: 分页发现可安全补偿 LLM 标题的活跃 Issue（严格只读）
+- list_issues          : 按业务范围分页枚举 Issue，并批量补充最新关联 Alert 安全摘要
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ OPERATION_LIST_BY_FINGERPRINT = "list_by_fingerprint"
 OPERATION_LIST_ACTIVITIES = "list_activities"
 OPERATION_LIST_CONFLICTS = "list_conflicts"
 OPERATION_LIST_LLM_TITLE_CANDIDATES = "list_llm_title_candidates"
+OPERATION_LIST_ISSUES = "list_issues"
 ALLOWED_OPERATIONS = {
     OPERATION_DETAIL,
     OPERATION_LIST_BY_STRATEGY,
@@ -42,10 +44,26 @@ ALLOWED_OPERATIONS = {
     OPERATION_LIST_ACTIVITIES,
     OPERATION_LIST_CONFLICTS,
     OPERATION_LIST_LLM_TITLE_CANDIDATES,
+    OPERATION_LIST_ISSUES,
 }
 
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 500
+MAX_RESULT_WINDOW = 10000
+ISSUE_STATUSES = {"pending_review", "unresolved", "resolved", "archived"}
+ISSUE_PRIORITIES = {"P0", "P1", "P2"}
+ASSIGNEE_MODES = {"any", "assigned", "unassigned"}
+LATEST_ALERT_SOURCE_FIELDS = [
+    "id",
+    "issue_id",
+    "strategy_id",
+    "alert_name",
+    "status",
+    "severity",
+    "begin_time",
+    "end_time",
+    "latest_time",
+]
 
 
 def inspect_issue(params: dict[str, Any]) -> dict[str, Any]:
@@ -65,6 +83,8 @@ def inspect_issue(params: dict[str, Any]) -> dict[str, Any]:
         result = _list_issue_activities(params)
     elif operation == OPERATION_LIST_CONFLICTS:
         result = _list_merge_conflicts(params)
+    elif operation == OPERATION_LIST_ISSUES:
+        result = _list_all_issues(params)
     else:
         result = _list_llm_title_candidates(params)
 
@@ -210,6 +230,113 @@ def _list_issues_by_fingerprint(params: dict[str, Any]) -> dict[str, Any]:
         operation=OPERATION_LIST_BY_FINGERPRINT,
         meta={"fingerprint": fingerprint},
     )
+
+
+def _list_all_issues(params: dict[str, Any]) -> dict[str, Any]:
+    """按业务范围分页枚举 Issue，并以单次查询补充本页最新 Alert。"""
+    from bkmonitor.documents.issue import IssueDocument
+    from fta_web.issue.handlers.issue import IssueQueryHandler
+
+    query = _validate_list_issues_params(params)
+    search = IssueDocument.search(all_indices=True).filter("term", bk_biz_id=str(query["bk_biz_id"]))
+    if query["status"] is not None:
+        search = search.filter("terms", status=query["status"])
+    if query["strategy_id"] is not None:
+        search = search.filter("term", strategy_id=query["strategy_id"])
+    if query["priority"] is not None:
+        search = search.filter("terms", priority=query["priority"])
+    if query["is_regression"] is not None:
+        search = search.filter("term", is_regression=query["is_regression"])
+    if query["assignee"] is not None:
+        search = search.filter("terms", assignee=query["assignee"])
+    elif query["assignee_mode"] == "assigned":
+        search = search.filter("exists", field="assignee")
+    elif query["assignee_mode"] == "unassigned":
+        search = search.filter("bool", must_not=[{"exists": {"field": "assignee"}}])
+    if query["start_time"] is not None:
+        search = search.filter("range", create_time={"gte": query["start_time"]})
+    if query["end_time"] is not None:
+        search = search.filter("range", create_time={"lte": query["end_time"]})
+
+    search = search.sort(
+        {"last_alert_time": {"order": "desc"}},
+        {"create_time": {"order": "desc"}},
+        {"id": {"order": "desc"}},
+    ).params(track_total_hits=True)
+    try:
+        response = search[query["offset"] : query["offset"] + query["limit"]].execute()
+    except Exception as error:
+        raise CustomException(message="查询 Issue 列表失败，未返回结果") from error
+
+    total = _extract_exact_total(response)
+    issue_hits = list(response.hits)
+    issue_ids = [str(hit.meta.id) for hit in issue_hits]
+    latest_alerts = _latest_alert_summaries(issue_ids)
+    issues = []
+    for hit in issue_hits:
+        issue = IssueQueryHandler.clean_document(hit)
+        issue_id = str(hit.meta.id)
+        issue["latest_alert"] = latest_alerts.get(issue_id)
+        issues.append(issue)
+
+    count = len(issues)
+    page_end = query["offset"] + count
+    has_more = page_end < total
+    window_exhausted = has_more and page_end >= MAX_RESULT_WINDOW
+
+    return {
+        "operation": OPERATION_LIST_ISSUES,
+        "bk_biz_id": query["bk_biz_id"],
+        "count": count,
+        "total": total,
+        "total_relation": "eq",
+        "offset": query["offset"],
+        "next_offset": page_end if has_more and not window_exhausted else None,
+        "truncated": has_more,
+        "complete": not has_more,
+        "window_exhausted": window_exhausted,
+        "issues": issues,
+    }
+
+
+def _latest_alert_summaries(issue_ids: list[str]) -> dict[str, dict[str, Any]]:
+    """批量读取每个 Issue 的最新 Alert 固定安全投影；查询失败时不返回部分结果。"""
+    if not issue_ids:
+        return {}
+
+    from bkmonitor.documents.alert import AlertDocument
+
+    try:
+        hits = (
+            AlertDocument.search(all_indices=True)
+            .filter("terms", issue_id=issue_ids)
+            .source(LATEST_ALERT_SOURCE_FIELDS)
+            .sort(
+                {"begin_time": {"order": "desc"}},
+                {"id": {"order": "desc"}},
+            )
+            .extra(collapse={"field": "issue_id"})
+            .params(size=len(issue_ids))
+            .execute()
+            .hits
+        )
+    except Exception as error:
+        raise CustomException(message="查询 Issue 关联 Alert 失败，未返回 Issue 列表") from error
+
+    summaries: dict[str, dict[str, Any]] = {}
+    for hit in hits:
+        issue_id = str(getattr(hit, "issue_id", "") or "")
+        if not issue_id:
+            continue
+        summaries[issue_id] = {
+            field: (
+                str(hit.meta.id)
+                if field == "id" and not getattr(hit, "id", None)
+                else getattr(hit, field, None)
+            )
+            for field in LATEST_ALERT_SOURCE_FIELDS
+        }
+    return summaries
 
 
 def _list_issues(
@@ -693,6 +820,101 @@ def _dt_from_ts(ts: int):
 # ---------- helpers ----------
 
 
+def _validate_list_issues_params(params: dict[str, Any]) -> dict[str, Any]:
+    bk_biz_id = _strict_positive_int_or_digit_string(params.get("bk_biz_id"), "bk_biz_id")
+    status = _strict_string_list(params, "status", allowed=ISSUE_STATUSES)
+    priority = _strict_string_list(params, "priority", allowed=ISSUE_PRIORITIES)
+    assignee = _strict_string_list(params, "assignee")
+
+    strategy_id = params.get("strategy_id")
+    if "strategy_id" in params:
+        if not isinstance(strategy_id, str) or not strategy_id.strip():
+            raise CustomException(message="strategy_id 必须是非空字符串")
+        strategy_id = strategy_id.strip()
+
+    is_regression = params.get("is_regression")
+    if "is_regression" in params and not isinstance(is_regression, bool):
+        raise CustomException(message="is_regression 必须是布尔值")
+
+    assignee_mode = params.get("assignee_mode", "any")
+    if not isinstance(assignee_mode, str) or assignee_mode not in ASSIGNEE_MODES:
+        raise CustomException(message=f"assignee_mode 必须是以下枚举之一: {sorted(ASSIGNEE_MODES)}")
+    if assignee is not None and assignee_mode != "any":
+        raise CustomException(message="指定 assignee 时 assignee_mode 只能是 any")
+
+    start_time = _strict_optional_int(params, "start_time")
+    end_time = _strict_optional_int(params, "end_time")
+    if start_time is not None and end_time is not None and start_time > end_time:
+        raise CustomException(message="start_time 不能大于 end_time")
+
+    offset = _strict_optional_int(params, "offset", default=0)
+    limit = _strict_optional_int(params, "limit", default=DEFAULT_LIMIT)
+    if offset < 0:
+        raise CustomException(message=f"offset 不能小于 0: {offset}")
+    if limit <= 0 or limit > MAX_LIMIT:
+        raise CustomException(message=f"limit 必须在 [1, {MAX_LIMIT}]，当前: {limit}")
+    if offset + limit > MAX_RESULT_WINDOW:
+        raise CustomException(
+            message=f"offset + limit 不能超过 ES 结果窗口 {MAX_RESULT_WINDOW}；请缩小过滤范围"
+        )
+
+    return {
+        "bk_biz_id": bk_biz_id,
+        "status": status,
+        "strategy_id": strategy_id,
+        "priority": priority,
+        "is_regression": is_regression,
+        "assignee": assignee,
+        "assignee_mode": assignee_mode,
+        "start_time": start_time,
+        "end_time": end_time,
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+def _strict_positive_int_or_digit_string(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise CustomException(message=f"{field_name} 必须是正整数")
+    if isinstance(value, int):
+        normalized = value
+    elif isinstance(value, str) and value.isascii() and value.isdigit():
+        normalized = int(value)
+    else:
+        raise CustomException(message=f"{field_name} 必须是正整数或十进制数字字符串")
+    if normalized <= 0:
+        raise CustomException(message=f"{field_name} 必须大于 0")
+    return normalized
+
+
+def _strict_string_list(
+    params: dict[str, Any], field_name: str, *, allowed: set[str] | None = None
+) -> list[str] | None:
+    if field_name not in params:
+        return None
+    value = params[field_name]
+    values = [value] if isinstance(value, str) else value
+    if not isinstance(values, list) or not values:
+        raise CustomException(message=f"{field_name} 必须是非空字符串或非空字符串数组")
+    if any(not isinstance(item, str) or not item.strip() for item in values):
+        raise CustomException(message=f"{field_name} 数组元素必须是非空字符串")
+    normalized = [item.strip() for item in values]
+    if allowed is not None:
+        unknown = sorted(set(normalized) - allowed)
+        if unknown:
+            raise CustomException(message=f"{field_name} 包含未知枚举: {unknown}; 允许: {sorted(allowed)}")
+    return normalized
+
+
+def _strict_optional_int(params: dict[str, Any], field_name: str, *, default: int | None = None) -> int | None:
+    if field_name not in params:
+        return default
+    value = params[field_name]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise CustomException(message=f"{field_name} 必须是整数")
+    return value
+
+
 def _normalize_limit(value: Any) -> int:
     if value in (None, ""):
         return DEFAULT_LIMIT
@@ -757,6 +979,21 @@ def _extract_total(response: Any) -> int | None:
     return getattr(total, "value", None)
 
 
+def _extract_exact_total(response: Any) -> int:
+    """读取精确 ES total；缺失或 relation!=eq 时失败关闭。"""
+    try:
+        total = response.hits.total
+    except AttributeError as error:
+        raise CustomException(message="Issue 查询未返回精确总数") from error
+    if isinstance(total, int):
+        return total
+    value = getattr(total, "value", None)
+    relation = getattr(total, "relation", None)
+    if isinstance(value, bool) or not isinstance(value, int) or relation != "eq":
+        raise CustomException(message="Issue 查询未返回精确总数（要求 total_relation=eq）")
+    return value
+
+
 # ---------- registration ----------
 
 KernelRPCRegistry.register_function(
@@ -765,7 +1002,8 @@ KernelRPCRegistry.register_function(
     description=(
         "bkm-cli inspect-issue 后端：detail / list_by_strategy / list_by_fingerprint 复用 fta_web "
         "IssueQueryHandler.clean_document，list_llm_title_candidates 复用 Issue 标题公共规则并读取关联 "
-        "AlertDocument；detail 注入 merge_status，list_conflicts 扫描合并/拆分状态不一致，"
+        "AlertDocument；list_issues 按业务分页枚举 Issue 并批量补充最新 Alert 安全摘要；"
+        "detail 注入 merge_status，list_conflicts 扫描合并/拆分状态不一致，"
         "候选发现失败关闭并返回 candidate_reason；"
         "仅只读，不暴露任何写动作。"
     ),
@@ -773,27 +1011,31 @@ KernelRPCRegistry.register_function(
     params_schema={
         "operation": (
             "detail | list_by_strategy | list_by_fingerprint | list_activities | list_conflicts | "
-            "list_llm_title_candidates"
+            "list_llm_title_candidates | list_issues"
         ),
         "issue_id": "detail / list_activities 必填",
         "bk_biz_id": (
-            "list_by_strategy / list_by_fingerprint / list_conflicts / list_llm_title_candidates 必填；"
-            "detail / list_activities 可选（提供时校验业务归属）"
+            "list_by_strategy / list_by_fingerprint / list_conflicts / list_llm_title_candidates / list_issues 必填；"
+            "detail / list_activities 可选（提供时校验业务归属）；list_issues 仅接受正整数或十进制数字字符串"
         ),
-        "strategy_id": "list_by_strategy 必填",
+        "strategy_id": "list_by_strategy 必填；list_issues 可选精确过滤",
         "fingerprint": "list_by_fingerprint 必填",
         "status": "可选状态过滤；string 或 list（pending_review / unresolved / resolved / archived）",
+        "priority": "list_issues 可选；string 或 list（P0 / P1 / P2）",
+        "is_regression": "list_issues 可选；boolean",
+        "assignee": "list_issues 可选；非空 string 或 string[]，数组按 OR 匹配",
+        "assignee_mode": "list_issues 可选；any / assigned / unassigned，默认 any",
         "start_time": "可选；create_time 下限（unix 秒）",
         "end_time": "可选；create_time 上限（unix 秒）",
         "since_days": f"list_conflicts 可选；默认 {_DEFAULT_CONFLICT_LOOKBACK_DAYS}，最大 {_MAX_CONFLICT_LOOKBACK_DAYS}",
         "limit": f"默认 {DEFAULT_LIMIT}，最大 {MAX_LIMIT}",
-        "offset": "list_llm_title_candidates 可选；默认 0，不能小于 0",
+        "offset": f"list_llm_title_candidates / list_issues 可选；默认 0；list_issues 与 limit 之和最大 {MAX_RESULT_WINDOW}",
     },
     example_params={
-        "operation": "list_by_strategy",
+        "operation": "list_issues",
         "bk_biz_id": 2,
-        "strategy_id": "10313",
         "status": ["pending_review"],
+        "assignee_mode": "unassigned",
         "limit": 50,
     },
 )
@@ -805,7 +1047,7 @@ BkmCliOpRegistry.register(
     description=(
         "通过 monitor-api 服务桥读取 Issue 模块的 ES + SQL 数据：单 Issue 详情（含 merge_status）、"
         "按 strategy_id / fingerprint 列出活跃或历史 Issue、Issue activity 时序、合并/拆分状态不一致对账、"
-        "LLM 标题安全补偿候选发现。"
+        "LLM 标题安全补偿候选发现，以及按业务分页枚举 Issue 并批量读取最新 Alert 摘要。"
         "配合 read-cache-key 的 4 个 ISSUE_* keys 提供 issue fingerprint + merge 改造后的取证入口。"
     ),
     capability_level="inspect",
@@ -815,24 +1057,28 @@ BkmCliOpRegistry.register(
     params_schema={
         "operation": (
             "string (detail | list_by_strategy | list_by_fingerprint | list_activities | list_conflicts | "
-            "list_llm_title_candidates)"
+            "list_llm_title_candidates | list_issues)"
         ),
+        "bk_biz_id": "positive integer | decimal digit string (list_issues); integer-compatible for legacy operations",
         "issue_id": "string",
-        "bk_biz_id": "integer",
         "strategy_id": "string",
         "fingerprint": "string",
         "status": "string | string[]",
+        "priority": "string | string[] (list_issues: P0 | P1 | P2)",
+        "is_regression": "boolean (list_issues only)",
+        "assignee": "string | string[] (list_issues only)",
+        "assignee_mode": "string (list_issues: any | assigned | unassigned)",
         "start_time": "integer (unix seconds)",
         "end_time": "integer (unix seconds)",
         "since_days": "integer (list_conflicts only, default 7, max 90)",
         "limit": "integer",
-        "offset": "integer (list_llm_title_candidates only, default 0)",
+        "offset": f"integer (list_llm_title_candidates / list_issues, default 0; list_issues result window {MAX_RESULT_WINDOW})",
     },
     example_params={
-        "operation": "list_by_strategy",
+        "operation": "list_issues",
         "bk_biz_id": 2,
-        "strategy_id": "10313",
         "status": ["pending_review"],
+        "assignee_mode": "unassigned",
         "limit": 50,
     },
 )

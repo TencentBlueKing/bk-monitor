@@ -28,10 +28,12 @@ from kernel_api.rpc.functions.admin.common import (
     get_scoped_map_value,
     instance_tenant_resource_key,
     normalize_include,
+    normalize_int_list_filter,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
     normalize_positive_int,
+    normalize_string_list_filter,
     paginate_queryset,
     SAFETY_LEVEL_WRITE,
     serialize_model,
@@ -216,9 +218,10 @@ def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str | None)
             | Q(origin_table_id__contains=table_id)
         )
 
-    if params.get("data_label") not in (None, ""):
+    data_labels = normalize_string_list_filter(params, "data_label", "data_labels")
+    if data_labels:
         result_tables = filter_by_bk_tenant_id(
-            models.ResultTable.objects.filter(data_label=str(params["data_label"]).strip()), bk_tenant_id
+            models.ResultTable.objects.filter(data_label__in=data_labels), bk_tenant_id
         ).only("bk_tenant_id", "table_id")
         if bk_tenant_id is None:
             queryset = filter_by_tenant_resource_pairs(
@@ -229,6 +232,20 @@ def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str | None)
         else:
             queryset = queryset.filter(table_id__in=[result_table.table_id for result_table in result_tables])
 
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
+    if bk_data_ids:
+        relations = filter_by_bk_tenant_id(
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_ids), bk_tenant_id
+        ).only("bk_tenant_id", "table_id")
+        if bk_tenant_id is None:
+            queryset = filter_by_tenant_resource_pairs(
+                queryset,
+                "table_id",
+                ((relation.bk_tenant_id, relation.table_id) for relation in relations),
+            )
+        else:
+            queryset = queryset.filter(table_id__in=[relation.table_id for relation in relations])
+
     table_kind = str(params.get("table_kind") or "").strip()
     if table_kind == TABLE_KIND_PHYSICAL:
         queryset = queryset.filter(Q(origin_table_id__isnull=True) | Q(origin_table_id=""))
@@ -237,12 +254,9 @@ def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str | None)
     elif table_kind:
         raise CustomException(message="table_kind 仅支持 physical 或 virtual")
 
-    if params.get("storage_cluster_id") not in (None, ""):
-        try:
-            storage_cluster_id = int(params["storage_cluster_id"])
-        except (TypeError, ValueError) as error:
-            raise CustomException(message="storage_cluster_id 必须是整数") from error
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
 
     if params.get("source_type") not in (None, ""):
         queryset = queryset.filter(source_type=str(params["source_type"]).strip())
@@ -403,15 +417,26 @@ def _is_index_allowed(es_storage: Any, index: str, warnings: list[dict[str, Any]
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，同时匹配 ESStorage.table_id 和 origin_table_id，支持精确、前缀或受控包含匹配",
         "data_label": "可选，精确匹配 ResultTable.data_label 后按 table_id 查询 ESStorage",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
+        "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "table_kind": "可选，physical / virtual",
         "storage_cluster_id": "可选，ES 集群 ID",
+        "storage_cluster_ids": "可选，ES 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "source_type": "可选，数据源类型",
         "need_create_index": "可选，是否需要创建物理索引",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ES_STORAGE_ORDERING_FIELDS))}",
     },
-    example_params={"bk_tenant_id": "system", "table_kind": "virtual", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "table_kind": "virtual",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_es_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)

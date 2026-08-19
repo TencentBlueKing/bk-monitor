@@ -559,6 +559,7 @@ class StorageHandler:
             # 默认集群权重: 推荐集群 > 其他
             cluster_obj["priority"] = 1 if cluster_obj["cluster_config"].get("is_default_cluster") else 2
 
+            # 兼容 visible_config 上线前注册的历史公共集群
             if not cluster_obj["cluster_config"]["custom_option"].get("visible_config"):
                 cluster_obj["cluster_config"]["custom_option"]["visible_config"] = {
                     "visible_type": VisibleEnum.ALL_BIZ.value
@@ -759,8 +760,7 @@ class StorageHandler:
         cluster_ids = [
             cluster.get("cluster_config", {}).get("cluster_id")
             for cluster in cluster_info
-            if cluster.get("cluster_type", STORAGE_CLUSTER_TYPE) == STORAGE_CLUSTER_TYPE
-            and cluster.get("cluster_config", {}).get("cluster_id") is not None
+            if cluster.get("cluster_config", {}).get("cluster_id") is not None
         ]
         try:
             bk_tenant_id = Space.get_tenant_id(bk_biz_id=int(bk_biz_id))
@@ -1240,10 +1240,7 @@ class StorageHandler:
         :return:
         """
         cluster_list = list(dict.fromkeys(cluster_list))
-        result = {
-            cluster_id: {"status": False, "cluster_stats": None}
-            for cluster_id in cluster_list
-        }
+        result = {cluster_id: {"status": False, "cluster_stats": None} for cluster_id in cluster_list}
         bk_biz_id = int(bk_biz_id)
         try:
             bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
@@ -1253,9 +1250,7 @@ class StorageHandler:
 
         visible_cluster_ids = cls._get_visible_cluster_ids(cluster_list, bk_biz_id, bk_tenant_id)
         statuses = cls._get_cluster_statuses(visible_cluster_ids, bk_biz_id, bk_tenant_id)
-        result.update(
-            {cluster_id: cls._build_cluster_status(status) for cluster_id, status in statuses.items()}
-        )
+        result.update({cluster_id: cls._build_cluster_status(status) for cluster_id, status in statuses.items()})
         return result
 
     @classmethod
@@ -1388,20 +1383,47 @@ class StorageHandler:
 
     @staticmethod
     def _build_cluster_status(status):
-        if status.get("cluster_type") != STORAGE_CLUSTER_TYPE:
-            return {"status": bool(status.get("is_available")), "cluster_stats": None}
-
         details = status.get("details") or {}
         nodes = status.get("nodes") or {}
         capacity = status.get("capacity") or {}
+        if status.get("cluster_type") == DORIS_CLUSTER_TYPE:
+            is_available = bool(status.get("is_available"))
+            storage_status = status.get("status")
+            health_status = "yellow" if storage_status == "degraded" else ("green" if is_available else "red")
+            return {
+                "status": is_available,
+                "cluster_stats": {
+                    "node_count": nodes.get("total"),
+                    "available_node_count": nodes.get("available"),
+                    "shards_total": None,
+                    "shards_pri": None,
+                    "data_node_count": nodes.get("total"),
+                    "indices_count": None,
+                    "indices_docs_count": None,
+                    "indices_store": details.get("data_used_bytes"),
+                    "total_store": capacity.get("total_bytes"),
+                    "available_store": capacity.get("available_bytes"),
+                    "used_store": capacity.get("used_bytes"),
+                    "used_percent": capacity.get("used_percent"),
+                    "tablet_count": details.get("tablet_count"),
+                    "max_disk_used_percent": details.get("max_disk_used_percent"),
+                    "status": health_status,
+                    "storage_status": storage_status,
+                },
+            }
+        if status.get("cluster_type") != STORAGE_CLUSTER_TYPE:
+            return {"status": bool(status.get("is_available")), "cluster_stats": None}
+
         shard_values = [
             details.get("active_shards"),
             details.get("initializing_shards"),
             details.get("unassigned_shards"),
         ]
-        shards_total = sum(value for value in shard_values if value is not None) if any(
-            value is not None for value in shard_values
-        ) else None
+        shards_total = (
+            sum(value for value in shard_values if value is not None)
+            if any(value is not None for value in shard_values)
+            else None
+        )
         return {
             "status": bool(status.get("is_available")),
             "cluster_stats": {
@@ -1427,12 +1449,27 @@ class StorageHandler:
         result = {table_id: [] for table_id in table_ids}
         for start in range(0, len(table_ids), METADATA_RESULT_TABLE_STATUS_BATCH_SIZE):
             batch_table_ids = table_ids[start : start + METADATA_RESULT_TABLE_STATUS_BATCH_SIZE]
-            storage_status = TransferApi.get_result_table_storage_status({"table_ids": batch_table_ids})
+            try:
+                storage_status = TransferApi.get_result_table_storage_status({"table_ids": batch_table_ids})
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    "[storage] get result table storage statuses failed, table_ids=%s",
+                    batch_table_ids,
+                )
+                continue
+            returned_table_ids = set()
             for item in storage_status.get("items", []):
                 table_id = item.get("table_id")
                 if table_id not in result:
                     continue
+                returned_table_ids.add(table_id)
                 result[table_id] = cls._get_result_table_indices_from_status(item)
+            missing_table_ids = [table_id for table_id in batch_table_ids if table_id not in returned_table_ids]
+            if missing_table_ids:
+                logger.error(
+                    "[storage] result table storage statuses missing items, table_ids=%s",
+                    missing_table_ids,
+                )
         return result
 
     @classmethod
@@ -1446,7 +1483,25 @@ class StorageHandler:
             return []
 
         data = item.get("data") or {}
-        es_storage = (data.get("storage_configs") or {}).get(STORAGE_CLUSTER_TYPE) or {}
+        storage_configs = data.get("storage_configs") or {}
+        default_storage = (data.get("result_table") or {}).get("default_storage")
+        configured_storage_types = {
+            storage_type for storage_type, storage_config in storage_configs.items() if storage_config
+        }
+        if default_storage is None:
+            if configured_storage_types != {STORAGE_CLUSTER_TYPE}:
+                logger.warning(
+                    "[storage] skip result table indices without unambiguous default storage, "
+                    "table_id=%s, configured_storage_types=%s",
+                    item.get("table_id"),
+                    sorted(configured_storage_types),
+                )
+                return []
+            default_storage = STORAGE_CLUSTER_TYPE
+        if default_storage != STORAGE_CLUSTER_TYPE:
+            return []
+
+        es_storage = storage_configs.get(STORAGE_CLUSTER_TYPE) or {}
         cluster_id = es_storage.get("storage_cluster_id")
         cluster_results = data.get("cluster_results") or {}
         cluster_status = cluster_results.get(str(cluster_id)) or cluster_results.get(cluster_id) or {}

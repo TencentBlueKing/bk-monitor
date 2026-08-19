@@ -71,24 +71,27 @@ class SpanQuery(BaseQuery):
         qs: UnifyQuerySet = self.get_qs(start_time, end_time, using_scope=len(bk_biz_ids) == 1).limit(limit)
         return list(self._add_query(qs, queries))
 
-    def cross_query_by_trace_id(
+    def _cross_query_by_trace_id(
         self,
+        table: str,
         trace_id: str,
-        trace_scope_table: str,
         start_time: int | None = None,
         end_time: int | None = None,
     ) -> list[dict[str, Any]]:
-        """在 Trace 数据源域索引集中查询 Span，索引集成员可能重叠，需要按 SpanId 去重"""
+        # 前缀模式不走 unify-query，时间范围由数据源自行拼装，只有时间字段非默认值才会把毫秒换算成微秒，
+        # 因此统一指定微秒精度的时间字段，否则毫秒范围过滤微秒字段将查不到数据。
         qs: UnifyQuerySet = self.get_qs(start_time, end_time).is_es_batch().limit(constants.DISCOVER_BATCH_SIZE)
         data_sources: list[QueryConfigBuilder] = [
             QueryConfigBuilder(self.USING)
-            .table(trace_scope_table)
+            .table(table)
+            .time_field(OtlpKey.START_TIME)
             .order_by(OtlpKey.START_TIME)
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
         ]
+
         spans: list[dict[str, Any]] = list(self._add_query(qs, data_sources))
 
-        # 解决索引前缀相同导致的查询数据重复问题。
+        # 解决索引范围重叠导致的查询数据重复问题
         seen: set[str] = set()
         deduped_spans: list[dict[str, Any]] = []
         for span in spans:
@@ -97,6 +100,31 @@ class SpanQuery(BaseQuery):
                 seen.add(span_id)
                 deduped_spans.append(span)
         return deduped_spans
+
+    def cross_query_by_trace_id(
+        self,
+        trace_id: str,
+        trace_scope_table: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """在 Trace 数据源域索引集中查询 Span"""
+        return self._cross_query_by_trace_id(trace_scope_table, trace_id, start_time, end_time)
+
+    def prefix_query_by_trace_id(
+        self,
+        trace_id: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """前缀模式检索 Span"""
+        prefix_table: str
+        if self.bk_biz_id > 0:
+            prefix_table = f"{self.bk_biz_id}_bkapm.trace_"
+        else:
+            prefix_table = f"space_{-self.bk_biz_id}_bkapm.trace_"
+
+        return self._cross_query_by_trace_id(f"PREFIX#{prefix_table}", trace_id, start_time, end_time)
 
     def query_by_span_id(self, span_id: str) -> dict[str, Any] | None:
         queries: list[QueryConfigBuilder] = [

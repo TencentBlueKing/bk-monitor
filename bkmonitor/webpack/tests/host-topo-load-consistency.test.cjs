@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const Module = require('node:module');
 const path = require('node:path');
 const test = require('node:test');
@@ -14,11 +15,35 @@ require('ts-node/register/transpile-only');
 global.window = { cc_biz_id: 2 };
 
 const deferred = () => {
+  let reject;
   let resolve;
-  const promise = new Promise(resolvePromise => {
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
+};
+
+const loadHostService = getTopoTree => {
+  const originalLoad = Module._load;
+
+  Module._load = function loadWithHostServiceStubs(request, parent, isMain) {
+    if (request === 'monitor-api/modules/commons') {
+      return { getTopoTree };
+    }
+    if (request === 'monitor-api/modules/performance') {
+      return { searchHostInfo: () => [], searchHostMetric: () => ({}) };
+    }
+    return originalLoad(request, parent, isMain);
+  };
+
+  try {
+    const modulePath = require.resolve('../src/trace/pages/host/services/host-service.ts');
+    delete require.cache[modulePath];
+    return require(modulePath);
+  } finally {
+    Module._load = originalLoad;
+  }
 };
 
 const createHostTopoContext = ({ getHostTopoTreeByBizId, init }) => {
@@ -140,4 +165,63 @@ test('新请求完成后旧 Worker 初始化结果不得覆盖新状态', async 
   await firstLoad;
 
   assert.equal(context.selectedNode.value.id, 'newer');
+});
+
+test('拓扑服务请求失败时必须向页面层传播异常', async () => {
+  const requestError = new Error('topology request failed');
+  const { getHostTopoTreeByBizId } = loadHostService(() => Promise.reject(requestError));
+
+  await assert.rejects(() => getHostTopoTreeByBizId(), requestError);
+});
+
+test('最新拓扑请求失败时展示错误态且重试成功后恢复', async () => {
+  const firstRequest = deferred();
+  const secondRequest = deferred();
+  const requests = [firstRequest, secondRequest];
+  const context = createHostTopoContext({
+    getHostTopoTreeByBizId: () => requests.shift().promise,
+    init: async treeData => createInitResult(treeData),
+  });
+  const firstLoad = context.loadTopoTree();
+
+  firstRequest.reject(new Error('topology request failed'));
+  await firstLoad;
+  assert.equal(context.loadError.value, true);
+  assert.equal(context.loading.value, false);
+
+  const secondLoad = context.loadTopoTree();
+  secondRequest.resolve([{ children: [], id: 'recovered' }]);
+  await secondLoad;
+  assert.equal(context.loadError.value, false);
+  assert.equal(context.selectedNode.value.id, 'recovered');
+});
+
+test('旧拓扑请求失败不得覆盖后发成功状态', async () => {
+  const firstRequest = deferred();
+  const secondRequest = deferred();
+  const requests = [firstRequest, secondRequest];
+  const context = createHostTopoContext({
+    getHostTopoTreeByBizId: () => requests.shift().promise,
+    init: async treeData => createInitResult(treeData),
+  });
+  const firstLoad = context.loadTopoTree();
+  const secondLoad = context.loadTopoTree();
+
+  secondRequest.resolve([{ children: [], id: 'newer' }]);
+  await secondLoad;
+  firstRequest.reject(new Error('stale topology request failed'));
+  await firstLoad;
+
+  assert.equal(context.loadError.value, false);
+  assert.equal(context.selectedNode.value.id, 'newer');
+});
+
+test('拓扑错误态提供 500 提示和刷新操作', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/trace/pages/host/components/host-topo-tree/host-topo-tree.tsx'),
+    'utf8'
+  );
+
+  assert.match(source, /ctx\.loadError\.value[\s\S]*<EmptyStatus[\s\S]*type='500'/);
+  assert.match(source, /<EmptyStatus[\s\S]*onOperation=\{ctx\.handleRefresh\}/);
 });

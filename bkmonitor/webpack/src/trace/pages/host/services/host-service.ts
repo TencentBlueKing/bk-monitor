@@ -36,7 +36,7 @@ import type { HostScopeParams } from '../utils/share-scope';
  * @returns {Promise<IHostBaseInfo[]>} 基础主机列表
  */
 export const getHostInfoList = async (scope: HostScopeParams = {}) => {
-  const data: IHostBaseInfo[] = await searchHostInfo(scope).catch(() => []);
+  const data: IHostBaseInfo[] = await searchHostInfo(scope);
   return data;
 };
 
@@ -51,9 +51,7 @@ export const getHostMetricInfoList = async (
     start_time: number;
   }
 ) => {
-  return await searchHostMetric(params).catch(() => {
-    return {};
-  });
+  return await searchHostMetric(params);
 };
 
 /**
@@ -71,6 +69,6 @@ export const getHostTopoTreeByBizId = async (
     condition_list: [],
     instance_type: 'host',
     remove_empty_nodes: false,
-  }).catch(() => []);
+  });
   return data;
 };

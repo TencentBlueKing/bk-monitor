@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -32,19 +33,35 @@ class _FakeDimension:
         return self._data
 
 
-def _fake_alert():
+def _fake_alert(dimensions=None):
     alert = MagicMock()
     alert.id = "12345"
     alert.strategy_id = STRATEGY_ID
     alert.severity = 1
     alert.event.description = "demo"
-    alert.dimensions = [
-        _FakeDimension("tags.bcs_cluster_id", CLUSTER_ID),
-        _FakeDimension("tags.namespace", NAMESPACE),
-        _FakeDimension("tags.pod", POD_A),
-        _FakeDimension("ip", "10.0.0.1"),
-    ]
+    if dimensions is None:
+        dimensions = [
+            _FakeDimension("tags.bcs_cluster_id", CLUSTER_ID),
+            _FakeDimension("tags.namespace", NAMESPACE),
+            _FakeDimension("tags.pod", POD_A),
+            _FakeDimension("ip", "10.0.0.1"),
+        ]
+    alert.dimensions = dimensions
     return alert
+
+
+def _event_params(**overrides):
+    params = {
+        "type": "event",
+        "event_id": 12345,
+        "bk_biz_id": 2,
+        "end_time": datetime.now(),
+        "description": "",
+        "dimension_keys": None,
+        "dimension_conditions": None,
+    }
+    params.update(overrides)
+    return params
 
 
 class TestHandleAlertWritePath:
@@ -92,30 +109,34 @@ class TestHandleAlertWritePath:
 
 
 class TestWeixinQuickShield:
-    def test_event_empty_selection_rejected(self):
-        with pytest.raises(ValidationError):
-            QuickShield().perform_request(
-                {
-                    "type": "event",
-                    "event_id": 12345,
-                    "bk_biz_id": 2,
-                    "end_time": datetime.now(),
-                    "description": "",
-                    "dimension_keys": None,
-                    "dimension_conditions": None,
-                }
-            )
+    def test_event_empty_selection_rejected_when_alert_has_dimensions(self):
+        with patch("weixin.event.resources.AlertDocument") as alert_document:
+            alert_document.get.return_value = _fake_alert()
+            with pytest.raises(ValidationError):
+                QuickShield().perform_request(_event_params())
 
-    def test_event_empty_lists_rejected(self):
-        with pytest.raises(ValidationError):
-            QuickShield().perform_request(
-                {
-                    "type": "event",
-                    "event_id": 12345,
-                    "bk_biz_id": 2,
-                    "end_time": datetime.now(),
-                    "description": "",
-                    "dimension_keys": [],
-                    "dimension_conditions": [],
-                }
-            )
+    def test_event_empty_lists_rejected_when_alert_has_dimensions(self):
+        with patch("weixin.event.resources.AlertDocument") as alert_document:
+            alert_document.get.return_value = _fake_alert()
+            with pytest.raises(ValidationError):
+                QuickShield().perform_request(_event_params(dimension_keys=[], dimension_conditions=[]))
+
+    def test_event_empty_alert_dimensions_allows_none(self):
+        with (
+            patch("weixin.event.resources.AlertDocument") as alert_document,
+            patch("weixin.event.resources.resource.shield.add_shield") as add_shield,
+        ):
+            alert_document.get.return_value = _fake_alert(dimensions=[])
+            add_shield.return_value = {"id": 1}
+            QuickShield().perform_request(_event_params())
+        add_shield.assert_called_once()
+
+    def test_event_empty_alert_dimensions_allows_empty_lists(self):
+        with (
+            patch("weixin.event.resources.AlertDocument") as alert_document,
+            patch("weixin.event.resources.resource.shield.add_shield") as add_shield,
+        ):
+            alert_document.get.return_value = _fake_alert(dimensions=[])
+            add_shield.return_value = {"id": 1}
+            QuickShield().perform_request(_event_params(dimension_keys=[], dimension_conditions=[]))
+        add_shield.assert_called_once()
