@@ -481,6 +481,7 @@ class Application(AbstractRecordModel):
             "enabled_metric": enabled_metric,
             "enabled_log": enabled_log,
             "es_storage_config": storage_options,
+            "owners": cls._normalize_owners(owners),
         }
 
         application_info = api.apm_api.create_application(create_params)
@@ -815,7 +816,13 @@ class Application(AbstractRecordModel):
         application = cls.objects.filter(application_id=application_id).first()
         if not application:
             raise ValueError(_("应用不存在"))
-        api.apm_api.apply_datasource({"application_id": application.application_id, **datasource_option})
+        api.apm_api.apply_datasource(
+            {
+                "application_id": application.application_id,
+                "owners": cls._normalize_owners(application.owners),
+                **datasource_option,
+            }
+        )
         detail = api.apm_api.detail_application(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
         application.trace_result_table_id = detail["trace_config"]["result_table_id"]
         application.metric_result_table_id = detail["metric_config"]["result_table_id"]

@@ -130,6 +130,13 @@ class CreateApplicationResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            default=list,
+            allow_empty=True,
+        )
         # 共享数据源类型
         shared_datasource_types = serializers.ListField(
             label="共享数据源类型列表",
@@ -169,6 +176,7 @@ class CreateApplicationResource(Resource):
                 "is_enabled_metric": validated_data.get("enabled_metric", False),
                 "is_enabled_log": validated_data.get("enabled_log", False),
                 "shared_datasource_types": shared_datasource_types,
+                "owners": validated_data.get("owners") or [],
             },
         )
 
@@ -185,6 +193,13 @@ class ApplyDatasourceResource(Resource):
             label="共享数据源类型列表",
             child=serializers.ChoiceField(choices=TelemetryDataType.choices()),
             required=False,
+        )
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            default=list,
+            allow_empty=True,
         )
 
     def perform_request(self, validated_request_data):
@@ -208,13 +223,23 @@ class ApplyDatasourceResource(Resource):
         return application.apply_datasource(
             trace_storage_config=validated_request_data.get("trace_datasource_option"),
             log_storage_config=validated_request_data.get("log_datasource_option"),
-            options={"shared_datasource_types": shared_datasource_types},
+            options={
+                "shared_datasource_types": shared_datasource_types,
+                "owners": validated_request_data.get("owners") or [],
+            },
         )
 
 
 class OperateApplicationSerializer(serializers.Serializer):
     application_id = serializers.IntegerField(label="应用id")
     type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
+    owners = serializers.ListField(
+        label="负责人列表",
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        allow_empty=True,
+    )
 
 
 class StartApplicationResource(Resource):
@@ -236,7 +261,7 @@ class StartApplicationResource(Resource):
             return application.start_metric()
 
         if validated_request_data["type"] == TelemetryDataType.LOG.value:
-            return application.start_log()
+            return application.start_log(owners=validated_request_data.get("owners") or [])
 
         raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
