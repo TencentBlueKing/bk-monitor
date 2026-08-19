@@ -203,6 +203,8 @@ export default defineComponent({
     const normalFieldCount = ref(0);
     /** 是否已有数据（首次调试后展示统计卡片等） */
     const hasLoaded = ref(false);
+    /** 当前表格数据来源：'debug' 调试结果 | 'template' 模板回填（无调试样例）| 'template-error' 模板回填（调试接口报错） */
+    const previewMode = ref<'debug' | 'template' | 'template-error'>('debug');
     /** tippy 实例列表（分词弹窗） */
     let tippyInstances: Instance[] = [];
     let menuInitTimer: ReturnType<typeof setTimeout> | null = null;
@@ -245,14 +247,19 @@ export default defineComponent({
           // 自动触发一次调试（如果模板存在 + 样例非空）
           if (props.template && logExampleText.value) {
             handleDebug();
+          } else if (props.template) {
+            // 没有调试样例时，使用模板字段数据回填表格（不显示解析状态列与统计卡片）
+            previewMode.value = 'template';
+            buildTableFromTemplate(false);
           } else {
-            // 没有调试样例时不初始化表格，显示暂无数据
+            // 无模板时不初始化表格，显示暂无数据
             tableData.value = [];
             initialEditableFieldsSnapshot.value = '[]';
           }
         } else {
           // 关闭时清空数据
           hasLoaded.value = false;
+          previewMode.value = 'debug';
           tableData.value = [];
           initialEditableFieldsSnapshot.value = '[]';
         }
@@ -324,11 +331,15 @@ export default defineComponent({
           data,
         })
         .then((res: any) => {
+          previewMode.value = 'debug';
           buildTableFromDebug(res?.data);
           hasLoaded.value = true;
         })
         .catch((err: unknown) => {
           console.warn('清洗结果预览调试失败', err);
+          // 调试接口报错时，使用模板字段数据回填表格，解析状态全部标记为空值异常
+          previewMode.value = 'template-error';
+          buildTableFromTemplate(true);
         })
         .finally(() => {
           isDebugLoading.value = false;
@@ -367,6 +378,38 @@ export default defineComponent({
       successRate.value = Number(previewData?.match_rate ?? 0);
       errorFieldCount.value = Number(previewData?.abnormal_count ?? 0);
       normalFieldCount.value = Number(previewData?.normal_count ?? 0);
+    };
+
+    /**
+     * 无调试结果时，使用模板字段数据构建表格
+     * withError 为 true（调试接口报错）时，解析状态全部标记为空值异常并按全部异常展示统计；
+     * 为 false（无调试样例）时，无冲突标记、不展示统计卡片。
+     */
+    const buildTableFromTemplate = (withError: boolean) => {
+      if (!props.template) return;
+      const list: PreviewFieldRow[] = (props.template.etl_fields ?? [])
+        .filter(item => !item.is_delete)
+        .map(item => ({
+          ...structuredClone(item),
+          inferredType: null,
+          value: null,
+          empty: withError,
+          typeErr: false,
+          status: withError ? 'error' : 'success',
+          errorType: withError ? 'EMPTY_VALUE' : null,
+          errorMessage: '',
+        }));
+      tableData.value = list;
+      updateEditableFieldsSnapshot(list);
+      if (withError) {
+        // 调试报错时按全部字段异常展示统计
+        successRate.value = 0;
+        errorFieldCount.value = list.length;
+        normalFieldCount.value = 0;
+        hasLoaded.value = true;
+      } else {
+        hasLoaded.value = false;
+      }
     };
 
     /** 编辑字段名 */
@@ -887,13 +930,21 @@ export default defineComponent({
             loading={isDebugLoading.value}
             data={tableData.value}
             bordered={true}
-            columns={columns.value}
+            columns={previewMode.value === 'template'
+              ? columns.value.filter(col => col.colKey !== 'status')
+              : columns.value}
             maxHeight={300}
-            skeletonConfig={{
-              columns: 6,
-              rows: 2,
-              widths: ['5%', '10%', '18%', '15%', '15%', '37%'],
-            }}
+            skeletonConfig={previewMode.value === 'template'
+              ? {
+                columns: 5,
+                rows: 2,
+                widths: ['5%', '18%', '15%', '15%', '47%'],
+              }
+              : {
+                columns: 6,
+                rows: 2,
+                widths: ['5%', '10%', '18%', '15%', '15%', '37%'],
+              }}
           />
         </div>
       </bk-dialog>
