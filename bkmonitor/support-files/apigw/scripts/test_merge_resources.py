@@ -133,7 +133,7 @@ def test_log_collection_clean_config_mcp_contract():
     assert method_data["x-bk-apigateway-resource"]["backend"] == {
         "name": "default",
         "method": "post",
-        "path": "/api/v4/log_collection_clean_config/update/",
+        "path": "/api/v4/log_collection_clean_config/update_clean_config/",
         "matchSubpath": False,
         "timeout": 30,
     }
