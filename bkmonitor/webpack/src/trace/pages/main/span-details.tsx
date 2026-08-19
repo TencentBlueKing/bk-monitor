@@ -858,11 +858,10 @@ export default defineComponent({
       window.open(url, '_blank');
     };
 
-    /* 复制kv部分文本 */
+    /* 复制kv行展示的原始值，检索条件由同行的检索按钮负责 */
     const handleCopy = (content: ITagContent) => {
-      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/"/g, '\\"') ?? ''}"`; // value转义双引号
       copyText(
-        queryStr,
+        content.content ?? '',
         (msg: string) => {
           Message({
             message: msg,

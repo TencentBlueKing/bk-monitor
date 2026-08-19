@@ -9,13 +9,103 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import re
 
 import six
 from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
+from constants.log_collection import (
+    ETL_CONFIG_DELIMITER,
+    ETL_CONFIG_JSON,
+    ETL_CONFIG_REGEXP,
+    ETL_CONFIG_TEXT,
+    ETL_PREVIEW_MAX_EXPRESSION_LENGTH,
+    ETL_PREVIEW_MAX_FIELDS,
+    ETL_PREVIEW_MAX_SAMPLE_LENGTH,
+    ETL_PREVIEW_MAX_SEPARATOR_LENGTH,
+    SUPPORTED_ETL_PREVIEW_CONFIGS,
+)
 from core.drf_resource import APIResource
+
+
+class EtlPreviewParamsSerializer(serializers.Serializer):
+    """MCP 清洗预览允许透传给 BKLOG 的最小参数集。"""
+
+    separator = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=ETL_PREVIEW_MAX_SEPARATOR_LENGTH,
+    )
+    separator_regexp = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=ETL_PREVIEW_MAX_EXPRESSION_LENGTH,
+    )
+    is_grok = serializers.BooleanField(required=False)
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    f"Unsupported etl_params fields: {', '.join(unknown_fields)}."
+                )
+        return super().to_internal_value(data)
+
+
+class EtlPreviewRequestSerializer(serializers.Serializer):
+    """通用 ETL Preview 请求；APIResource 与 Kernel Resource 共用。"""
+
+    bk_biz_id = serializers.IntegerField(required=True)
+    etl_config = serializers.ChoiceField(choices=SUPPORTED_ETL_PREVIEW_CONFIGS)
+    etl_params = EtlPreviewParamsSerializer(required=False, default=dict)
+    data = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=ETL_PREVIEW_MAX_SAMPLE_LENGTH,
+    )
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(f"Unsupported request fields: {', '.join(unknown_fields)}.")
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        etl_config = attrs["etl_config"]
+        etl_params = attrs["etl_params"]
+        provided_params = set(etl_params)
+        allowed_params = {
+            ETL_CONFIG_TEXT: set(),
+            ETL_CONFIG_JSON: set(),
+            ETL_CONFIG_DELIMITER: {"separator"},
+            ETL_CONFIG_REGEXP: {"separator_regexp", "is_grok"},
+        }[etl_config]
+        unsupported_params = sorted(provided_params - allowed_params)
+        if unsupported_params:
+            raise serializers.ValidationError(
+                {"etl_params": f"{etl_config} does not accept: {', '.join(unsupported_params)}."}
+            )
+        if etl_config == ETL_CONFIG_DELIMITER and "separator" not in etl_params:
+            raise serializers.ValidationError({"etl_params": "separator is required for bk_log_delimiter."})
+        if etl_config == ETL_CONFIG_REGEXP and "separator_regexp" not in etl_params:
+            raise serializers.ValidationError({"etl_params": "separator_regexp is required for bk_log_regexp."})
+        if etl_config == ETL_CONFIG_REGEXP and not etl_params.get("is_grok"):
+            try:
+                pattern = re.compile(etl_params["separator_regexp"])
+            except re.error as error:
+                raise serializers.ValidationError({"etl_params": f"Invalid regular expression: {error}."})
+            if len(pattern.groupindex) > ETL_PREVIEW_MAX_FIELDS:
+                raise serializers.ValidationError(
+                    {"etl_params": f"Regular expression supports at most {ETL_PREVIEW_MAX_FIELDS} named fields."}
+                )
+        return attrs
 
 
 class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -436,6 +526,37 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class LogCollectorTaskStatusResource(LogSearchAPIGWResource):
+    """获取单个日志采集项的任务执行状态。"""
+
+    action = "/databus_collectors/{collector_config_id}/task_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        task_id_list = serializers.CharField(required=False, default="", allow_blank=True, label="任务ID列表")
+        read_only = serializers.BooleanField(required=False, default=True, label="是否仅查询状态")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class LogCollectorSubscriptionStatusResource(LogSearchAPIGWResource):
+    """获取单个日志采集项的订阅运行状态。"""
+
+    action = "/databus_collectors/{collector_config_id}/subscription_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        include_plugin_status = serializers.BooleanField(required=False, default=True, label="是否查询插件版本信息")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
 class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
     """
     采集项索引列表
@@ -451,6 +572,53 @@ class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
         """
         获取最终请求的url，也可以由子类进行重写
         """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class LogCollectorUpdateContextResource(LogSearchAPIGWResource):
+    """获取采集项 Fast Update 最小上下文。"""
+
+    action = "/databus_collectors/{collector_config_id}/update_context/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+    def get_request_url(self, validated_request_data):
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class FastUpdateLogCollectorResource(LogSearchAPIGWResource):
+    """快速更新单个日志采集项。"""
+
+    action = "/databus_collectors/{collector_config_id}/fast_update/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        update_clean_config = serializers.BooleanField(required=False, default=True, label="是否同步更新清洗配置")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+        collector_config_name = serializers.CharField(required=False, max_length=50, label="采集项名称")
+        description = serializers.CharField(
+            required=False, allow_blank=True, allow_null=True, max_length=100, label="描述"
+        )
+        target_object_type = serializers.CharField(required=False, label="目标类型")
+        target_node_type = serializers.CharField(required=False, label="节点类型")
+        target_nodes = serializers.ListField(child=serializers.DictField(), required=False, label="目标节点")
+        params = serializers.DictField(required=False, label="采集参数")
+        data_encoding = serializers.CharField(required=False, label="日志字符集")
+        collector_scenario_id = serializers.CharField(required=False, label="日志类型")
+        configs = serializers.ListField(child=serializers.DictField(), required=False, label="容器日志配置")
+        add_pod_label = serializers.BooleanField(required=False, label="是否添加 Pod 标签")
+        add_pod_annotation = serializers.BooleanField(required=False, label="是否添加 Pod 注解")
+        extra_labels = serializers.ListField(child=serializers.DictField(), required=False, label="额外标签")
+        yaml_config_enabled = serializers.BooleanField(required=False, label="是否使用 YAML 配置")
+        yaml_config = serializers.CharField(required=False, allow_blank=True, label="YAML 配置内容")
+
+    def get_request_url(self, validated_request_data):
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
@@ -492,6 +660,63 @@ class UpdateCustomReportResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
+class FastCreateLogCollectorResource(LogSearchAPIGWResource):
+    """快速创建 Linux、Windows 或容器日志采集项。"""
+
+    action = "/databus_collectors/fast_create/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        environment = serializers.ChoiceField(
+            required=True,
+            choices=["linux", "windows", "container"],
+            label="采集环境",
+        )
+        collector_config_name = serializers.CharField(required=True, max_length=50, label="采集项名称")
+        collector_config_name_en = serializers.CharField(
+            required=True,
+            min_length=5,
+            max_length=50,
+            label="采集项英文名",
+        )
+        collector_scenario_id = serializers.CharField(required=True, label="日志类型")
+        category_id = serializers.CharField(required=False, label="分类ID")
+        description = serializers.CharField(
+            required=False,
+            allow_blank=True,
+            allow_null=True,
+            max_length=100,
+            label="描述",
+        )
+        target_object_type = serializers.CharField(required=False, label="主机目标类型")
+        target_node_type = serializers.CharField(required=False, label="主机节点类型")
+        target_nodes = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            label="主机目标节点",
+        )
+        params = serializers.DictField(required=False, label="主机采集参数")
+        data_encoding = serializers.CharField(required=False, label="日志字符集")
+        bcs_cluster_id = serializers.CharField(required=False, label="BCS集群ID")
+        configs = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            allow_empty=False,
+            label="容器日志配置",
+        )
+        add_pod_label = serializers.BooleanField(required=False, label="是否添加Pod标签")
+        add_pod_annotation = serializers.BooleanField(required=False, label="是否添加Pod注解")
+        extra_labels = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            label="额外标签",
+        )
+        yaml_config_enabled = serializers.BooleanField(required=False, label="是否使用YAML配置")
+        yaml_config = serializers.CharField(required=False, allow_blank=True, label="YAML配置内容")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+
 class StartCollectorsResource(LogSearchAPIGWResource):
     """
     开启自定义上报
@@ -520,6 +745,30 @@ class StopCollectorsResource(LogSearchAPIGWResource):
         """
         获取最终请求的url，也可以由子类进行重写
         """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class UpdateLogCollectorCleanConfigResource(LogSearchAPIGWResource):
+    """更新或创建日志采集项清洗、存储与索引集配置。"""
+
+    action = "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集项ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        etl_config = serializers.CharField(required=True, label="清洗类型")
+        etl_params = serializers.DictField(required=True, label="清洗参数")
+        fields = serializers.ListField(child=serializers.DictField(), required=True, label="清洗字段")
+        storage_cluster_id = serializers.IntegerField(required=True, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=True, min_value=1, label="保留天数")
+        allocation_min_days = serializers.IntegerField(required=True, min_value=0, label="冷热数据生效天数")
+        storage_replies = serializers.IntegerField(required=True, min_value=0, label="ES副本数量")
+        es_shards = serializers.IntegerField(required=True, min_value=1, label="ES分片数量")
+        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+    def get_request_url(self, validated_request_data):
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
@@ -562,6 +811,14 @@ class PagedCollectorConfigsResource(LogSearchAPIGWResource):
             label="排序方式",
         )
         enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
+
+
+class LogEtlPreviewResource(LogSearchAPIGWResource):
+    """调用 BKLOG 无持久化副作用的通用 ETL Preview。"""
+
+    action = "/databus/clean_template/etl_preview/"
+    method = "POST"
+    RequestSerializer = EtlPreviewRequestSerializer
 
 
 class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):

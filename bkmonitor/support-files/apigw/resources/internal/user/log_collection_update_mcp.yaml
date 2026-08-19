@@ -1,0 +1,294 @@
+paths:
+  /mcp/fast_update_log_collector/:
+    post:
+      operationId: fast_update_log_collector
+      description: Update collection-only fields of one Linux, Windows, or container log collector. This tool never updates cleaning rules, fields, storage settings, index-set membership, or environment. Renaming a collector may synchronize its index-set display name. For container collectors, configs is the complete replacement list. Use returned task_ids with get_log_collector_status. 仅更新日志采集配置，不修改清洗、字段、存储配置、索引集归属或环境；重命名采集项时可能同步索引集展示名称；容器 configs 为完整替换列表。
+      tags: [log_collection_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bk_biz_id, collector_config_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                collector_config_id: {type: integer, minimum: 1, description: Log collector configuration ID. 日志采集项ID。}
+                collector_config_name: {type: string, maxLength: 50, description: Collector display name. 采集项名称。}
+                description: {type: string, maxLength: 100, nullable: true, description: Collector description. 描述。}
+                target_object_type: {type: string, description: Host collector target object type. 主机采集目标类型。}
+                target_node_type: {type: string, description: Host collector target node type. 主机采集节点类型。}
+                target_nodes:
+                  type: array
+                  description: Complete host target list. 主机采集目标列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      id: {type: integer}
+                      bk_inst_id: {}
+                      bk_obj_id: {type: string}
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                      bk_supplier_id: {type: string}
+                      bk_biz_id: {type: integer}
+                params:
+                  type: object
+                  additionalProperties: false
+                  description: Host collection paths and matching parameters. 主机采集路径与匹配参数。
+                  properties:
+                    paths: {type: array, items: {type: string}}
+                    exclude_files: {type: array, items: {type: string}}
+                    conditions:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        type: {type: string}
+                        match_type: {type: string}
+                        match_content: {type: string, nullable: true}
+                        separator: {type: string, nullable: true}
+                        separator_filters:
+                          type: array
+                          items:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                              fieldindex: {type: string}
+                              word: {type: string}
+                              op: {type: string}
+                              logic_op: {type: string}
+                    multiline_pattern: {type: string}
+                    multiline_max_lines: {type: integer, maximum: 5000}
+                    multiline_timeout: {type: integer, maximum: 10}
+                    tail_files: {type: boolean}
+                    ignore_older: {type: integer}
+                    max_bytes: {type: integer}
+                    scan_frequency: {type: integer, minimum: 1}
+                    close_inactive: {type: integer, minimum: 1}
+                    harvester_limit: {type: integer, minimum: 1}
+                    clean_inactive: {type: integer, minimum: 1}
+                    winlog_name: {type: array, items: {type: string}}
+                    winlog_level: {type: array, items: {type: string}}
+                    winlog_event_id: {type: array, items: {type: string}}
+                    winlog_source: {type: array, items: {type: string}}
+                    winlog_content: {type: array, items: {type: string}}
+                    winlog_match_op: {type: string}
+                    redis_hosts: {type: array, items: {type: string}}
+                    redis_password: {type: string}
+                    redis_password_file: {type: string}
+                    extra_labels:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [key, value]
+                        properties:
+                          key: {type: string}
+                          operator: {type: string}
+                          value: {type: string}
+                    extra_template_labels:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [key, value]
+                        properties:
+                          key: {type: string}
+                          value: {}
+                    syslog_protocol: {type: string}
+                    syslog_port: {type: integer}
+                    syslog_monitor_host: {type: string}
+                    syslog_conditions:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          syslog_field: {type: string}
+                          syslog_content: {type: string}
+                          syslog_op: {type: string}
+                          syslog_logic_op: {type: string}
+                    kafka_hosts: {type: array, items: {type: string}}
+                    kafka_username: {type: string}
+                    kafka_password: {type: string}
+                    kafka_ssl_params: {type: object}
+                    kafka_topics: {type: array, items: {type: string}}
+                    kafka_group_id: {type: string}
+                    kafka_initial_offset: {type: string}
+                data_encoding: {type: string, description: Host log character encoding. 主机日志字符集。}
+                collector_scenario_id: {type: string, description: Container log scenario. 容器日志类型。}
+                configs:
+                  type: array
+                  minItems: 1
+                  description: Complete replacement list of container log configs. 容器日志配置完整替换列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [params, collector_type]
+                    properties:
+                      namespaces: {type: array, items: {type: string}}
+                      namespaces_exclude: {type: array, items: {type: string}}
+                      container:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          workload_type: {type: string}
+                          workload_name: {type: string}
+                          container_name: {type: string}
+                          container_name_exclude: {type: string}
+                      label_selector:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          match_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                          match_expressions:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                      annotation_selector:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          match_annotations:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                      paths: {type: array, items: {type: string}}
+                      data_encoding: {type: string}
+                      params:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          paths: {type: array, items: {type: string}}
+                          exclude_files: {type: array, items: {type: string}}
+                          conditions:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                              type: {type: string}
+                              match_type: {type: string}
+                              match_content: {type: string, nullable: true}
+                              separator: {type: string, nullable: true}
+                              separator_filters:
+                                type: array
+                                items:
+                                  type: object
+                                  additionalProperties: false
+                                  properties:
+                                    fieldindex: {type: string}
+                                    word: {type: string}
+                                    op: {type: string}
+                                    logic_op: {type: string}
+                          multiline_pattern: {type: string}
+                          multiline_max_lines: {type: integer, maximum: 5000}
+                          multiline_timeout: {type: integer, maximum: 10}
+                          tail_files: {type: boolean}
+                          ignore_older: {type: integer}
+                          max_bytes: {type: integer}
+                          scan_frequency: {type: integer, minimum: 1}
+                          close_inactive: {type: integer, minimum: 1}
+                          harvester_limit: {type: integer, minimum: 1}
+                          clean_inactive: {type: integer, minimum: 1}
+                          winlog_name: {type: array, items: {type: string}}
+                          winlog_level: {type: array, items: {type: string}}
+                          winlog_event_id: {type: array, items: {type: string}}
+                          winlog_source: {type: array, items: {type: string}}
+                          winlog_content: {type: array, items: {type: string}}
+                          winlog_match_op: {type: string}
+                          redis_hosts: {type: array, items: {type: string}}
+                          redis_password: {type: string}
+                          redis_password_file: {type: string}
+                          extra_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                          extra_template_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                value: {}
+                          syslog_protocol: {type: string}
+                          syslog_port: {type: integer}
+                          syslog_monitor_host: {type: string}
+                          syslog_conditions:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                syslog_field: {type: string}
+                                syslog_content: {type: string}
+                                syslog_op: {type: string}
+                                syslog_logic_op: {type: string}
+                          kafka_hosts: {type: array, items: {type: string}}
+                          kafka_username: {type: string}
+                          kafka_password: {type: string}
+                          kafka_ssl_params: {type: object}
+                          kafka_topics: {type: array, items: {type: string}}
+                          kafka_group_id: {type: string}
+                          kafka_initial_offset: {type: string}
+                      collector_type: {type: string}
+                add_pod_label: {type: boolean, description: Include Pod labels. 是否添加 Pod 标签。}
+                add_pod_annotation: {type: boolean, description: Include Pod annotations. 是否添加 Pod 注解。}
+                extra_labels:
+                  type: array
+                  description: Additional labels. 额外标签。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key, value]
+                    properties:
+                      key: {type: string}
+                      operator: {type: string}
+                      value: {type: string}
+                yaml_config_enabled: {type: boolean, description: Enable YAML configuration mode. 是否使用 YAML 配置模式。}
+                yaml_config: {type: string, description: Base64-encoded YAML configuration. Base64 编码的 YAML 配置。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/fast_update/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

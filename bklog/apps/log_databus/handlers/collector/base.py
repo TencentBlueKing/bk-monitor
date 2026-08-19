@@ -551,6 +551,7 @@ class CollectorHandler:
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        owners=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -654,6 +655,8 @@ class CollectorHandler:
             etl_handler.update_or_create(**etl_params)
             self._sync_scene_tags_to_index_set(etl_params["labels"])
 
+        self._authorization_owners(self.data, owners)
+
         custom_config.after_hook(self.data)
 
         # add user_operation_record
@@ -724,7 +727,7 @@ class CollectorHandler:
         return True
 
     @abc.abstractmethod
-    def get_task_status(self, id_list):
+    def get_task_status(self, id_list, read_only=False):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -732,7 +735,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_subscription_status(self):
+    def get_subscription_status(self, include_plugin_status=True):
         raise NotImplementedError
 
     @staticmethod
@@ -1129,6 +1132,38 @@ class CollectorHandler:
                 f"collector_config->({collector_config.collector_config_id}) grant creator action failed, reason: {e}"
             )
 
+    @staticmethod
+    def _authorization_owners(collector_config: CollectorConfig, owners: list = None):
+        """
+        将采集项及其索引集的新建关联权限授予指定用户，仅新增授权，不回收历史权限
+        """
+        if not owners:
+            return
+
+        try:
+            permission = Permission()
+            permission.grant_creator_action_batch(
+                resource=ResourceEnum.COLLECTION.create_simple_instance(
+                    collector_config.collector_config_id, attribute={"name": collector_config.collector_config_name}
+                ),
+                creators=owners,
+            )
+
+            # 按采集项反查索引集，避免内存中的 collector_config.index_set_id 尚未刷新
+            index_set = LogIndexSet.objects.filter(collector_config_id=collector_config.collector_config_id).first()
+            if index_set:
+                permission.grant_creator_action_batch(
+                    resource=ResourceEnum.INDICES.create_simple_instance(
+                        index_set.index_set_id, attribute={"name": index_set.index_set_name}
+                    ),
+                    creators=owners,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                f"collector_config->({collector_config.collector_config_id}) grant creator action to owners "
+                f"{owners} failed, reason: {e}"
+            )
+
     def _itsm_start_judge(self):
         if self.data.is_custom_scenario:
             return
@@ -1439,6 +1474,7 @@ class CollectorHandler:
         platform_index_visibility=None,
         platform_index_filter=None,
         ignore_exists=False,
+        owners=None,
     ):
         data_link_id = self.get_data_link_id(bk_biz_id=bk_biz_id, data_link_id=int(data_link_id or 0))
         collector_config_params = {
@@ -1461,6 +1497,8 @@ class CollectorHandler:
                 existing = CollectorConfig.objects.get(
                     collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
                 )
+                # 幂等创建同样要保证 owners 拿到权限
+                self._authorization_owners(existing, owners)
                 return {
                     "collector_config_id": existing.collector_config_id,
                     "index_set_id": existing.index_set_id,
@@ -1573,6 +1611,9 @@ class CollectorHandler:
             self.data.index_set_id = etl_handler.update_or_create(**params)["index_set_id"]
             self.data.save(update_fields=["index_set_id"])
             self._sync_scene_tags_to_index_set(params["labels"])
+
+        # 索引集ID在清洗创建后才最终确定，因此在此处再对 owners 授权
+        self._authorization_owners(self.data, owners)
 
         custom_config.after_hook(self.data)
 
