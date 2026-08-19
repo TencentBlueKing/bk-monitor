@@ -26,7 +26,7 @@ class FilterSerializer(serializers.Serializer):
 
     key = serializers.CharField(label=_("查询键"))
     operator = serializers.CharField(label=_("操作符"))
-    options = OptionsSerializer(label=_("操作符选项"), default={})
+    options = OptionsSerializer(label=_("操作符选项"), default=dict)
     value = serializers.ListSerializer(
         label=_("查询值"), child=serializers.CharField(allow_blank=True), allow_empty=True
     )
@@ -48,12 +48,6 @@ class BaseRumRequestSerializer(serializers.Serializer):
     )
 
 
-class RumGenerateQueryStringRequestSerializer(BaseRumRequestSerializer):
-    """将过滤条件转换为查询字符串"""
-
-    filters = serializers.ListField(label=_("查询条件"), child=QueryStringFilterSerializer(), default=[])
-
-
 class BaseRumTimeRangeSerializer(BaseRumRequestSerializer):
     """时间范围：start_time、end_time"""
 
@@ -70,7 +64,7 @@ class RumViewConfigRequestSerializer(BaseRumTimeRangeSerializer):
 class BaseRumSearchSerializer(BaseRumTimeRangeSerializer):
     """检索条件：filters、query_string"""
 
-    filters = serializers.ListField(label=_("过滤条件"), child=serializers.DictField(), default=[])
+    filters = serializers.ListField(label=_("过滤条件"), child=FilterSerializer(), default=list)
     query_string = serializers.CharField(label=_("查询字符串"), default="", allow_blank=True)
 
 
@@ -79,11 +73,17 @@ class RumRecordsRequestSerializer(BaseRumSearchSerializer):
 
     offset = serializers.IntegerField(label=_("偏移量"), default=0, min_value=0)
     limit = serializers.IntegerField(label=_("每页数量"), default=10, min_value=1)
-    sort = serializers.ListField(label=_("排序条件"), child=serializers.CharField(), default=[])
+    sort = serializers.ListField(label=_("排序条件"), child=serializers.CharField(), default=list)
 
 
 class RumFieldsOptionValuesRequestSerializer(BaseRumSearchSerializer):
     """批量查询字段可选枚举值"""
 
     fields = serializers.ListField(label=_("查询字段列表"), child=serializers.CharField())
-    limit = serializers.IntegerField(label=_("枚举值数量"), default=10, min_value=1)
+    limit = serializers.IntegerField(label=_("查询条数"), default=10, min_value=1)
+
+
+class RumGenerateQueryStringRequestSerializer(BaseRumRequestSerializer):
+    """将过滤条件转换为查询字符串"""
+
+    filters = serializers.ListField(label=_("查询条件"), child=QueryStringFilterSerializer(), default=list)

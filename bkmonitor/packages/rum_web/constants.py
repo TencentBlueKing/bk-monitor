@@ -242,11 +242,11 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
             "name": "WEB_VITALS",
             "alias": _("网页指标（Web Vitals）"),
             "field_names": [
-                "attributes.vital.cls.",
-                "attributes.vital.inp.",
-                "attributes.vital.lcp.",
-                "attributes.vital.fcp.",
-                "attributes.vital.ttfb.",
+                "CLS",
+                "INP",
+                "LCP",
+                "FCP",
+                "TTFB",
             ],
         },
     ],
@@ -256,3 +256,111 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
 
 # RUM 字段别名
 RUM_FIELD_ALIAS = {}
+
+
+class RumSpanType(CachedEnum):
+    """RUM Span 数据类型"""
+
+    SESSION = "session"
+    VIEW = "view"
+    RESOURCE = "resource"
+    ERROR = "error"
+    VITAL = "vital"
+    LONG_TASK = "long_task"
+    ACTION = "action"
+    WEBSOCKET = "websocket"
+    CUSTOM = "custom"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.SESSION: _("会话"),
+                self.VIEW: _("视图"),
+                self.RESOURCE: _("资源"),
+                self.ERROR: _("错误"),
+                self.VITAL: _("网页指标"),
+                self.LONG_TASK: _("长任务"),
+                self.ACTION: _("用户交互"),
+                self.WEBSOCKET: "WebSocket",
+                self.CUSTOM: _("自定义事件"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RumSpanKind(CachedEnum):
+    """RUM Span 类型"""
+
+    UNSPECIFIED = 0
+    INTERNAL = 1
+    SERVER = 2
+    CLIENT = 3
+    PRODUCER = 4
+    CONSUMER = 5
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.UNSPECIFIED: _("未定义"),
+                self.INTERNAL: _("内部调用"),
+                self.SERVER: _("同步被调"),
+                self.CLIENT: _("同步主调"),
+                self.PRODUCER: _("异步主调"),
+                self.CONSUMER: _("异步被调"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RumSpanStatusCode(CachedEnum):
+    """RUM Span 状态码"""
+
+    UNSET = 0
+    OK = 1
+    ERROR = 2
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.UNSET: _("未设置"),
+                self.OK: _("正常"),
+                self.ERROR: _("异常"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RumDeviceType(CachedEnum):
+    """RUM 设备类型"""
+
+    DESKTOP = "desktop"
+    MOBILE = "mobile"
+    TABLET = "tablet"
+    OTHER = "other"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.DESKTOP: _("桌面设备"),
+                self.MOBILE: _("移动设备"),
+                self.TABLET: _("平板设备"),
+                self.OTHER: _("其他设备"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]

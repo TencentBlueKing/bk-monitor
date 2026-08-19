@@ -10,6 +10,9 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _
+from rest_framework.serializers import ValidationError
+
 from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from core.drf_resource import Resource
@@ -29,7 +32,7 @@ def _get_application(bk_biz_id: int, app_name: str) -> Application:
     try:
         return Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     except Application.DoesNotExist:
-        raise ValueError(f"RUM 应用不存在: bk_biz_id={bk_biz_id}, app_name={app_name!r}")
+        raise ValidationError(_("RUM 应用不存在: bk_biz_id={}, app_name={}").format(bk_biz_id, app_name))
 
 
 def _build_data_sources(applications: list[Application]) -> list[TraceDatasourceTarget]:

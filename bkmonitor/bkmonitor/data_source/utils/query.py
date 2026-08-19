@@ -36,6 +36,8 @@ class BaseQuery:
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
     # 字段单位映射
     FIELD_UNITS: dict[str, str] = {}
+    # 枚举字段选项值映射
+    ENUM_FIELD_OPTION_VALUES: dict[str, list[dict[str, Any]]] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -231,9 +233,16 @@ class BaseQuery:
             .instant()
             .limit(min(query_limit, self.QUERY_MAX_LIMIT))
         )
-        option_values: dict[str, list[str]] = {field: [] for field in fields}
+        option_values: dict[str, list[str]] = {
+            field: [d["value"] for d in self.ENUM_FIELD_OPTION_VALUES.get(field, [])] for field in fields
+        }
         ThreadPool().map_ignore_exception(
-            self._collect_option_values, [(queries, qs, field, option_values) for field in fields]
+            self._collect_option_values,
+            [
+                (queries, qs, field_name, option_values)
+                for field_name, value_list in option_values.items()
+                if not value_list
+            ],
         )
         return {field: values[:limit] for field, values in option_values.items()}
 
@@ -428,6 +437,8 @@ class BaseQuery:
                 }
                 if field_name in self.FIELD_UNITS:
                     _field_dict["unit"] = self.FIELD_UNITS[field_name]
+                if field_name in self.ENUM_FIELD_OPTION_VALUES:
+                    _field_dict["option_values"] = self.ENUM_FIELD_OPTION_VALUES[field_name]
         return field_map
 
     @classmethod

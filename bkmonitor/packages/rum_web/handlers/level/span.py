@@ -93,6 +93,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
             }
             if "unit" in field_dict:
                 _field_dict["unit"] = field_dict["unit"]
+            if "option_values" in field_dict:
+                _field_dict["option_values"] = field_dict["option_values"]
             field_map[field_name] = _field_dict
             config_dict["fields"].append(_field_dict)
         # 构建分组关系
