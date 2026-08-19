@@ -468,6 +468,7 @@ CSRF_USE_SESSIONS = True
 
 # 设置最大请求大小
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("BKAPP_FILE_UPLOAD_MAX_MEMORY_SIZE", 10 * 1024 * 1024))
 
 # 设置pyinstrument的profiler开关
 PYINSTRUMENT_URL_ARGUMENT = "bk-monitor-profile"
