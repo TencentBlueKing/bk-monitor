@@ -1384,3 +1384,114 @@ class TestStorageRetentionCompat(TestCase):
 
         self.assertEqual(result[0]["retention"], 0)
         self.assertEqual(result[0]["storage_cluster_id"], -1)
+
+
+class TestNonEsClusterUsage(TestCase):
+    """StorageUsed 只覆盖 ES 集群，Doris 等集群的容量需要从 metadata 集群状态补齐"""
+
+    @staticmethod
+    def _cluster_group(cluster_id, cluster_type):
+        return {
+            "cluster_type": cluster_type,
+            "cluster_config": {"cluster_id": cluster_id, "cluster_name": f"cluster-{cluster_id}"},
+        }
+
+    @staticmethod
+    def _doris_status(cluster_id, total_bytes, used_percent):
+        return {
+            "cluster_id": cluster_id,
+            "cluster_type": DORIS_CLUSTER_TYPE,
+            "is_available": True,
+            "status": "healthy",
+            "nodes": {"total": 2, "available": 2},
+            "capacity": {"total_bytes": total_bytes, "used_percent": used_percent},
+            "details": {},
+        }
+
+    @staticmethod
+    def _patch_tenant():
+        return patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+
+    def test_non_es_cluster_usage_maps_capacity_to_storage_total_and_usage(self):
+        with (
+            self._patch_tenant(),
+            patch.object(StorageHandler, "_get_cluster_statuses", return_value={8: self._doris_status(8, 1000, 90)}),
+        ):
+            usage = StorageHandler._get_non_es_cluster_usage([8], bk_biz_id=2)
+
+        self.assertEqual(usage, {8: {"storage_total": 1000, "storage_usage": 90}})
+
+    def test_non_es_cluster_usage_rounds_percent_to_int(self):
+        # 前端按 100 - storage_usage 展示空闲率，metadata 给的是两位小数
+        with (
+            self._patch_tenant(),
+            patch.object(StorageHandler, "_get_cluster_statuses", return_value={8: self._doris_status(8, 1000, 12.66)}),
+        ):
+            usage = StorageHandler._get_non_es_cluster_usage([8], bk_biz_id=2)
+
+        self.assertEqual(usage[8]["storage_usage"], 13)
+
+    def test_non_es_cluster_usage_skips_cluster_without_capacity(self):
+        with (
+            self._patch_tenant(),
+            patch.object(
+                StorageHandler,
+                "_get_cluster_statuses",
+                return_value={8: self._doris_status(8, None, None), 9: self._doris_status(9, 0, 0)},
+            ),
+        ):
+            usage = StorageHandler._get_non_es_cluster_usage([8, 9], bk_biz_id=2)
+
+        self.assertEqual(usage, {})
+
+    def test_non_es_cluster_usage_defaults_percent_to_zero(self):
+        with (
+            self._patch_tenant(),
+            patch.object(StorageHandler, "_get_cluster_statuses", return_value={8: self._doris_status(8, 1000, None)}),
+        ):
+            usage = StorageHandler._get_non_es_cluster_usage([8], bk_biz_id=2)
+
+        self.assertEqual(usage, {8: {"storage_total": 1000, "storage_usage": 0}})
+
+    def test_non_es_cluster_usage_returns_empty_without_request(self):
+        with patch.object(StorageHandler, "_get_cluster_statuses") as mock_statuses:
+            self.assertEqual(StorageHandler._get_non_es_cluster_usage([], bk_biz_id=2), {})
+
+        mock_statuses.assert_not_called()
+
+    def test_non_es_cluster_usage_degrades_when_metadata_fails(self):
+        with (
+            self._patch_tenant(),
+            patch.object(StorageHandler, "_get_cluster_statuses", side_effect=Exception("boom")),
+        ):
+            self.assertEqual(StorageHandler._get_non_es_cluster_usage([8], bk_biz_id=2), {})
+
+    def test_filter_cluster_groups_overrides_doris_usage_but_keeps_es_from_storage_used(self):
+        es_cluster = self._cluster_group(7, STORAGE_CLUSTER_TYPE)
+        doris_cluster = self._cluster_group(8, DORIS_CLUSTER_TYPE)
+
+        with (
+            patch.object(StorageHandler, "filter_es_cluster", return_value=(True, es_cluster)),
+            patch.object(StorageHandler, "filter_doris_cluster", return_value=(True, doris_cluster)),
+            patch("apps.log_databus.handlers.storage.get_es_config", return_value={}),
+            patch("apps.log_databus.handlers.storage.StorageUsed.objects") as mock_objects,
+            self._patch_tenant(),
+            patch.object(
+                StorageHandler, "_get_cluster_statuses", return_value={8: self._doris_status(8, 2048, 25)}
+            ) as mock_statuses,
+        ):
+            mock_objects.filter.return_value.first.return_value = None
+            result = StorageHandler.filter_cluster_groups(
+                [self._cluster_group(7, STORAGE_CLUSTER_TYPE), self._cluster_group(8, DORIS_CLUSTER_TYPE)],
+                bk_biz_id=2,
+            )
+
+        # 只为非 ES 集群查一次状态，ES 集群不参与
+        mock_statuses.assert_called_once_with([8], 2, "tenant-a")
+
+        by_cluster = {item["cluster_config"]["cluster_id"]: item for item in result}
+        self.assertEqual(by_cluster[8]["storage_total"], 2048)
+        self.assertEqual(by_cluster[8]["storage_usage"], 25)
+        # ES 集群仍然沿用 StorageUsed 的口径，不受影响
+        self.assertEqual(by_cluster[7]["storage_total"], 0)
+        self.assertEqual(by_cluster[7]["storage_usage"], 0)
