@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
+from apps.exceptions import ApiResultError
 from apps.iam import ActionEnum
 from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.drf import ViewBusinessPermission
@@ -37,12 +38,15 @@ from apps.log_databus.constants import (
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
     CleanTemplateRepeatException,
+    EtlPreviewException,
 )
 from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
+from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
 from apps.log_databus.models import CleanStash, CleanTemplate, CollectorConfig, ContainerCollectorConfig
 from apps.log_databus.serializers import (
+    CleanTemplateSerializer,
     CleanStashSerializer,
     CollectorEtlStorageSerializer,
     FastCollectorUpdateSerializer,
@@ -122,6 +126,98 @@ class CleanTemplateAssociationSerializerTestCase(SimpleTestCase):
                 self.assertEqual("clean_template_id" in serializer.validated_data, field_present)
                 if field_present:
                     self.assertEqual(serializer.validated_data["clean_template_id"], expected)
+
+
+class CleanTemplateSerializerTestCase(SimpleTestCase):
+    """模板保存路径切换到 CollectorEtlFieldsSerializer 后的 serializer 层测试。"""
+
+    FRONTEND_ETL_FIELDS = [
+        {
+            "field_name": "message",
+            "alias_name": "",
+            "description": "",
+            "field_type": "string",
+            "is_case_sensitive": False,
+            "is_analyzed": True,
+            "is_built_in": False,
+            "is_delete": False,
+            "is_dimension": False,
+            "is_time": False,
+            "value": "",
+            "option": {"time_format": "", "time_zone": ""},
+            "tokenize_on_chars": "",
+        }
+    ]
+
+    FRONTEND_ETL_PARAMS = {
+        "separator_regexp": "",
+        "separator": "",
+        "retain_original_text": True,
+        "original_text_is_case_sensitive": False,
+        "original_text_tokenize_on_chars": "",
+        "retain_extra_json": False,
+        "enable_retain_content": True,
+        "path_regexp": "",
+        "metadata_fields": [],
+    }
+
+    def base_data(self, **overrides):
+        data = {
+            "name": "模板",
+            "description": "模板描述",
+            "clean_type": "bk_log_json",
+            "etl_params": copy.deepcopy(self.FRONTEND_ETL_PARAMS),
+            "etl_fields": copy.deepcopy(self.FRONTEND_ETL_FIELDS),
+        }
+        data.update(overrides)
+        return data
+
+    def test_frontend_payload_passes_validation(self):
+        # 现网前端「另存为模板」payload（rowTemplate 全量默认键，未传 record_parse_failure）
+        # 应能通过校验
+        serializer = CleanTemplateSerializer(data={**self.base_data(), "bk_biz_id": 706})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_missing_is_delete_field_raises(self):
+        serializer = CleanTemplateSerializer(
+            data={
+                **self.base_data(etl_fields=[{"field_name": "message", "field_type": "string", "is_analyzed": False}]),
+                "bk_biz_id": 706,
+            }
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("is_delete", serializer.errors["etl_fields"][0])
+
+    def test_is_add_in_default_injected_and_round_trip(self):
+        serializer = CleanTemplateSerializer(data={**self.base_data(), "bk_biz_id": 706})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertFalse(serializer.data["etl_fields"][0]["is_add_in"])
+
+        data = self.base_data(etl_fields=[{**self.FRONTEND_ETL_FIELDS[0], "is_add_in": True}])
+        serializer = CleanTemplateSerializer(data={**data, "bk_biz_id": 706})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertTrue(serializer.data["etl_fields"][0]["is_add_in"])
+
+    def test_missing_etl_params_keys_get_defaults(self):
+        # 用户未配置的 etl_params 键会被注入默认值并持久化到模板
+        serializer = CleanTemplateSerializer(data={**self.base_data(etl_params={}), "bk_biz_id": 706})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        etl_params = serializer.data["etl_params"]
+        self.assertTrue(etl_params["record_parse_failure"])
+        self.assertTrue(etl_params["enable_retain_content"])
+        self.assertTrue(etl_params["retain_original_text"])
+        self.assertFalse(etl_params["retain_extra_json"])
+
+    def test_is_dimension_aligned_with_is_analyzed(self):
+        # 非内置字段保存时 is_dimension 与 is_analyzed 对齐（与采集项路径一致），
+        # 前端 rowTemplate 默认 false 会被改写为 not is_analyzed
+        cases = ((False, True), (True, False))
+        for is_analyzed, expected in cases:
+            with self.subTest(is_analyzed=is_analyzed):
+                field = {**self.FRONTEND_ETL_FIELDS[0], "is_analyzed": is_analyzed, "is_dimension": False}
+                serializer = CleanTemplateSerializer(data={**self.base_data(etl_fields=[field]), "bk_biz_id": 706})
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertEqual(serializer.data["etl_fields"][0]["is_dimension"], expected)
 
 
 class CleanTemplateTestCase(TestCase):
@@ -812,6 +908,26 @@ class TestCleanTemplatePreview(CleanTemplateTestCase):
         )
         mock_etl_preview.assert_called_once()
 
+    def test_preview_marks_all_fields_abnormal_when_etl_preview_fails(self):
+        fields = [
+            {"field_name": "msg", "field_type": "string", "is_delete": False},
+            {"field_name": "count", "field_type": "int", "is_delete": False},
+            {"field_name": "ignored", "field_type": "string", "is_delete": True},
+        ]
+        template = self.create_template(clean_type="bk_log_json", etl_fields=fields)
+
+        with patch(
+            "apps.log_databus.handlers.etl.EtlHandler.etl_preview",
+            side_effect=EtlPreviewException(),
+        ):
+            result = CleanTemplateHandler(template["clean_template_id"]).preview(data="not-json")
+
+        self.assertEqual(result["normal_count"], 0)
+        self.assertEqual(result["abnormal_count"], 2)
+        self.assertEqual(result["match_rate"], 0.0)
+        self.assertEqual([item["error_type"] for item in result["fields"]], ["EMPTY_VALUE", "EMPTY_VALUE"])
+        self.assertTrue(all(item["error_message"] for item in result["fields"]))
+
     def test_numeric_field_type_boundaries(self):
         normal_cases = (
             (-(2**31), "int"),
@@ -897,7 +1013,7 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         clean_stash.refresh_from_db()
         self.assertIsNone(clean_stash.clean_template_id)
 
-    def test_prepare_clean_template_config_fills_missing_is_dimension(self):
+    def test_prepare_clean_template_config_normalizes_legacy_fields(self):
         template = self.create_template(
             etl_fields=[
                 {"field_name": "analyzed", "is_analyzed": True},
@@ -910,7 +1026,75 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
             template["clean_template_id"], "bk_log_text", {}, []
         )
 
-        self.assertEqual([field["is_dimension"] for field in fields], [False, True])
+        by_name = {field["field_name"]: field for field in fields}
+        self.assertEqual(
+            sorted(by_name["analyzed"]),
+            ["field_name", "field_type", "is_analyzed", "is_built_in", "is_delete", "is_dimension", "is_time"],
+        )
+        self.assertEqual(by_name["analyzed"]["field_type"], "string")
+        self.assertFalse(by_name["analyzed"]["is_delete"])
+        self.assertFalse(by_name["analyzed"]["is_time"])
+        self.assertFalse(by_name["analyzed"]["is_built_in"])
+        self.assertFalse(by_name["analyzed"]["is_dimension"])
+        self.assertTrue(by_name["not_analyzed"]["is_dimension"])
+
+    def test_update_or_create_legacy_template_fields_no_key_error(self):
+        # 历史模板字段整体不完整，走真实 EtlStorage 链路（get_result_table_fields 会硬下标
+        # is_delete/is_analyzed/is_time/is_dimension/field_type），验证统一规范化后不再 KeyError。
+        template = self.create_template(
+            clean_type="bk_log_json",
+            etl_params={"retain_original_text": True},
+            etl_fields=[
+                {"field_name": "level", "is_analyzed": False},
+                {"field_name": "message", "is_analyzed": True},
+            ],
+        )
+        collector = self.create_collector()
+
+        storage_handler = MagicMock()
+        storage_handler.get_cluster_info_by_id.return_value = {
+            "cluster_type": "elasticsearch",
+            "cluster_config": {"version": "7.x", "custom_option": {}},
+        }
+        with (
+            patch("apps.log_databus.handlers.etl.transfer.StorageHandler", return_value=storage_handler),
+            patch.object(TransferEtlHandler, "check_es_storage_capacity"),
+            patch(
+                "apps.log_databus.handlers.etl.transfer.EtlStorage.get_instance",
+                return_value=BkLogJsonEtlStorage(),
+            ),
+            patch.object(
+                TransferEtlHandler,
+                "_update_or_create_index_set",
+                return_value={"index_set_id": 1, "scenario_id": "log"},
+            ),
+            patch("apps.log_databus.handlers.etl.transfer.CollectorHandler.create_clean_stash"),
+            patch("apps.log_databus.handlers.etl.transfer.user_operation_record.delay"),
+            patch("apps.api.TransferApi.get_result_table", side_effect=ApiResultError("")),
+            patch(
+                "apps.api.TransferApi.create_result_table",
+                return_value={"table_id": "biz_706_clean_table"},
+            ) as create_rt,
+        ):
+            TransferEtlHandler(collector.collector_config_id).update_or_create(
+                table_id="clean_table",
+                etl_config="bk_log_json",
+                storage_cluster_id=1,
+                retention=7,
+                allocation_min_days=0,
+                storage_replies=1,
+                clean_template_id=template["clean_template_id"],
+            )
+
+        field_list = create_rt.call_args.args[0]["field_list"]
+        user_fields = [field for field in field_list if field["field_name"] in {"level", "message"}]
+        self.assertEqual(len(user_fields), 2)
+        by_name = {field["field_name"]: field for field in user_fields}
+        self.assertEqual(by_name["level"]["field_type"], "string")
+        self.assertEqual(by_name["message"]["field_type"], "string")
+        # is_dimension 会落到 es_doc_values / tag：非分词字段为维度，分词字段为指标
+        self.assertEqual(by_name["level"]["tag"], "dimension")
+        self.assertEqual(by_name["message"]["tag"], "metric")
 
     def test_update_or_create_handles_clean_template_id_tristate(self):
         template = self.create_template(clean_type="bk_log_json", etl_params={"retain_original_text": True})
@@ -973,13 +1157,16 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
                     TransferEtlHandler(collector.collector_config_id).update_or_create(**params)
 
                     update_params = etl_storage.update_or_create_result_table.call_args.kwargs
+                    expected_fields = copy.deepcopy(CREATE_PARAMS["etl_fields"])
+                    for field in expected_fields:
+                        field.setdefault("is_built_in", False)
                     self.assertEqual(
                         update_params["etl_params"],
                         {"retain_original_text": True} if expected_id else request_config["etl_params"],
                     )
                     self.assertEqual(
                         update_params["fields"],
-                        CREATE_PARAMS["etl_fields"] if expected_id else request_config["fields"],
+                        expected_fields if expected_id else request_config["fields"],
                     )
                     collector.refresh_from_db()
                     self.assertEqual(collector.clean_template_id, expected_id)

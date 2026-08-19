@@ -507,13 +507,22 @@ class CleanTemplateHandler:
         # etl_preview 会补充/消费部分参数，不能修改模板中持久化的配置。
         from apps.log_databus.handlers.etl import EtlHandler
 
-        preview = EtlHandler.etl_preview(
-            etl_config=self.data.clean_type,
-            etl_params=copy.deepcopy(self.data.etl_params or {}),
-            data=data,
-            bk_biz_id=self.data.bk_biz_id,
-        )
-        fields = self._build_preview_fields(preview.get("fields", []))
+        try:
+            preview = EtlHandler.etl_preview(
+                etl_config=self.data.clean_type,
+                etl_params=copy.deepcopy(self.data.etl_params or {}),
+                data=data,
+                bk_biz_id=self.data.bk_biz_id,
+            )
+            parsed_fields = preview.get("fields", [])
+            parse_error = ""
+        except Exception as error:  # pylint: disable=broad-except
+            # 样例与清洗类型不匹配（如 JSON 清洗传入非 JSON 样例）时，不直接报错，
+            # 而是将模板全部字段标记为异常，便于前端展示解析结果。
+            parsed_fields = []
+            parse_error = getattr(error, "message", None) or str(error)
+
+        fields = self._build_preview_fields(parsed_fields, parse_error=parse_error)
         normal_count = sum(not field["error_type"] for field in fields)
         total_count = len(fields)
         return {
@@ -523,7 +532,7 @@ class CleanTemplateHandler:
             "abnormal_count": total_count - normal_count,
         }
 
-    def _build_preview_fields(self, parsed_fields) -> list:
+    def _build_preview_fields(self, parsed_fields, parse_error: str = "") -> list:
         if not isinstance(parsed_fields, list):
             parsed_fields = []
 
@@ -535,6 +544,19 @@ class CleanTemplateHandler:
                 continue
 
             item = copy.deepcopy(field)
+            if parse_error:
+                # 样例整体解析失败，模板字段全部标记为空值异常
+                item.update(
+                    {
+                        "value": "",
+                        "inferred_field_type": None,
+                        "error_type": "EMPTY_VALUE",
+                        "error_message": parse_error,
+                    }
+                )
+                result.append(item)
+                continue
+
             if self.data.clean_type == EtlConfig.BK_LOG_DELIMITER:
                 parsed_field = by_index.get(field.get("field_index"))
             else:
