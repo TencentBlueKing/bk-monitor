@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -19,6 +18,7 @@ from apm_web.meta.resources import ListApplicationResource
 from apm_web.meta.views import ApplicationViewSet
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.iam.drf import sort_result_list_allowed_first
 
 
 ACTIONS = [ActionEnum.MANAGE_APM_APPLICATION, ActionEnum.VIEW_APM_APPLICATION]
@@ -189,3 +189,98 @@ def test_list_application_resources_are_equivalent_for_share_token():
     for actions in new_result.values():
         assert actions[ActionEnum.VIEW_APM_APPLICATION.id] is True
         assert actions[ActionEnum.MANAGE_APM_APPLICATION.id] is False
+
+
+def _build_application(application_id: int, app_name: str) -> Application:
+    return Application(
+        application_id=application_id,
+        bk_biz_id=2,
+        app_name=app_name,
+        app_alias=app_name,
+        description="",
+        trace_result_table_id="trace",
+        metric_result_table_id="metric",
+    )
+
+
+def test_sort_result_list_allowed_first_keeps_relative_order():
+    result_list = [
+        {"id": "A", "permission": {ActionEnum.VIEW_APM_APPLICATION.id: False}},
+        {"id": "B", "permission": {ActionEnum.VIEW_APM_APPLICATION.id: True}},
+        {"id": "C", "permission": {ActionEnum.VIEW_APM_APPLICATION.id: False}},
+        {"id": "D", "permission": {ActionEnum.VIEW_APM_APPLICATION.id: True}},
+    ]
+
+    sort_result_list_allowed_first(
+        result_list,
+        ACTIONS,
+        ActionEnum.VIEW_APM_APPLICATION,
+    )
+
+    assert [item["id"] for item in result_list] == ["B", "D", "A", "C"]
+
+
+def test_sort_result_list_allowed_first_uses_view_action_by_default():
+    result_list = [
+        {
+            "id": "A",
+            "permission": {
+                ActionEnum.VIEW_APM_APPLICATION.id: False,
+                ActionEnum.MANAGE_APM_APPLICATION.id: True,
+            },
+        },
+        {
+            "id": "B",
+            "permission": {
+                ActionEnum.VIEW_APM_APPLICATION.id: True,
+                ActionEnum.MANAGE_APM_APPLICATION.id: False,
+            },
+        },
+    ]
+
+    sort_result_list_allowed_first(result_list, ACTIONS)
+
+    assert [item["id"] for item in result_list] == ["B", "A"]
+
+
+def test_list_application_permission_sorts_allowed_apps_first():
+    applications = list(
+        ListApplicationResource.ApplicationSerializer(
+            [
+                _build_application(1001, "alpha"),
+                _build_application(1002, "beta"),
+                _build_application(1003, "gamma"),
+                _build_application(1004, "delta"),
+            ],
+            many=True,
+        ).data
+    )
+    response_data = {"columns": [], "total": len(applications), "data": applications}
+    decorated_view = decorate_response(response_data)
+    permission_result = {
+        "1001": {
+            ActionEnum.VIEW_APM_APPLICATION.id: False,
+            ActionEnum.MANAGE_APM_APPLICATION.id: False,
+        },
+        "1002": {
+            ActionEnum.VIEW_APM_APPLICATION.id: True,
+            ActionEnum.MANAGE_APM_APPLICATION.id: False,
+        },
+        "1003": {
+            ActionEnum.VIEW_APM_APPLICATION.id: False,
+            ActionEnum.MANAGE_APM_APPLICATION.id: True,
+        },
+        "1004": {
+            ActionEnum.VIEW_APM_APPLICATION.id: True,
+            ActionEnum.MANAGE_APM_APPLICATION.id: True,
+        },
+    }
+
+    with (
+        mock.patch.object(Permission, "__init__", return_value=None),
+        mock.patch.object(Permission, "batch_is_allowed", return_value=permission_result),
+    ):
+        response = decorated_view()
+
+    assert [item["application_id"] for item in response.data["data"]] == [1002, 1004, 1001, 1003]
+    assert response.data["total"] == 4
