@@ -30,13 +30,13 @@ class BaseQuery:
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
 
-    # 字段别名映射
+    # 字段别名映射，[{field_name: alias}]
     FIELD_ALIAS_MAP_LIST: list[dict[str, str]] = []
-    # 字段操作符映射
+    # 字段操作符映射，{field_type: operations}
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
-    # 字段单位映射
+    # 字段单位映射，｛field_name, unit｝
     FIELD_UNITS: dict[str, str] = {}
-    # 枚举字段选项值映射
+    # 枚举字段选项值映射，{field_name:[{"value": "", "alias": ""}]}
     ENUM_FIELD_OPTION_VALUES: dict[str, list[dict[str, Any]]] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
@@ -404,6 +404,8 @@ class BaseQuery:
             - supported_operations: 该字段类型支持的操作符列表
             - is_searchable: 是否可搜索（object/nested 类型为 False）
             - is_list: 是否可展示在列表表头中（object/nested 类型为 False）
+            - unit: 字段单位
+            - option_values: 字段可选值列表[{"value": "", "alias": ""}]
         """
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
             (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
