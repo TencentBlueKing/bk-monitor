@@ -314,6 +314,8 @@ class EtlStorage:
         if not format_config:
             # 如果找不到映射，使用默认配置
             zone = time_zone if time_zone is not None else 0
+            if storage_cluster_type == DORIS_CLUSTER_TYPE:
+                return {"format": "%Y-%m-%d %H:%M:%S", "zone": zone}
             return {
                 "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": zone},
                 "interval_format": None,
@@ -658,8 +660,6 @@ class EtlStorage:
             nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(
                 v3_time_format, time_zone=nanos_time_field.get("time_zone"), storage_cluster_type=storage_cluster_type
             )
-            # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
-            nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
             # 用户自定义时间字段（纳秒级）解析失败时，同样按序回退到采集器utctime
             time_fallback = self._build_utctime_fallback()
@@ -688,6 +688,9 @@ class EtlStorage:
             }
 
             if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                # to 是 in_place_time_parsing 专有键，纳秒输出需与 ES mapping 的
+                # strict_date_optional_time_nanos 保持一致；doris 的 time_format 无此语义
+                nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
                 nanos_time_rules["operator"]["time_format"] = None
                 nanos_time_rules["operator"]["in_place_time_parsing"] = nanos_v4_time_parsing
             elif storage_cluster_type == DORIS_CLUSTER_TYPE:
