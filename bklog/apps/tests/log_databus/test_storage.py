@@ -1266,6 +1266,30 @@ class TestMetadataStorageStatus(TestCase):
 class TestStorageRetentionCompat(TestCase):
     """Doris 的过期天数在 metadata 里叫 expire_days，日志平台对外统一暴露 retention"""
 
+    RESULT_TABLE_CONFIG = {
+        "option": {},
+        "field_list": [
+            {
+                "field_name": "dtEventTimeStamp",
+                "alias_name": "",
+                "field_type": "timestamp",
+                "is_built_in": True,
+                "is_dimension": True,
+                "option": {"es_type": "date", "time_zone": 0, "time_format": "epoch_millis"},
+            }
+        ],
+    }
+
+    @staticmethod
+    def _make_row(table_id):
+        return {
+            "table_id": table_id,
+            "category_id": "os",
+            "custom_type": "log",
+            "created_at": "2026-08-13 10:00:00",
+            "updated_at": "2026-08-13 10:00:00",
+        }
+
     def test_get_storage_retention_prefers_es_retention(self):
         self.assertEqual(get_storage_retention({"retention": 14, "expire_days": 30}), 14)
 
@@ -1277,24 +1301,17 @@ class TestStorageRetentionCompat(TestCase):
         self.assertEqual(get_storage_retention(None, default=0), 0)
         self.assertEqual(get_storage_retention({"bkbase_table_id": "x"}, default=0), 0)
 
-    def test_get_storage_retention_keeps_explicit_zero(self):
-        self.assertEqual(get_storage_retention({"retention": 0}, default=7), 0)
+    def test_get_storage_retention_treats_zero_as_unset(self):
+        # bulk_cluster_infos 查不到结果表时兜底为 retention=0，该值不代表用户配置了 0 天
+        self.assertEqual(get_storage_retention({"retention": 0}, default=7), 7)
+
+    def test_get_storage_retention_skips_placeholder_retention_for_doris(self):
+        # doris 结果表即便同时带上 ES 语义的 retention 占位值，也应以 expire_days 为准
+        self.assertEqual(get_storage_retention({"retention": 0, "expire_days": 30}), 30)
 
     def test_parse_result_table_config_maps_doris_expire_days_to_retention(self):
         collector_config = EtlStorage.parse_result_table_config(
-            result_table_config={
-                "option": {},
-                "field_list": [
-                    {
-                        "field_name": "dtEventTimeStamp",
-                        "alias_name": "",
-                        "field_type": "timestamp",
-                        "is_built_in": True,
-                        "is_dimension": True,
-                        "option": {"es_type": "date", "time_zone": 0, "time_format": "epoch_millis"},
-                    }
-                ],
-            },
+            result_table_config=copy.deepcopy(self.RESULT_TABLE_CONFIG),
             result_table_storage={
                 "cluster_config": {"cluster_id": 43, "cluster_name": "doris", "display_name": "doris"},
                 "storage_config": {"expire_days": 30, "bkbase_table_id": "bklog_doris_only"},
@@ -1311,15 +1328,7 @@ class TestStorageRetentionCompat(TestCase):
                 "storage_config": {"expire_days": 30},
             }
         }
-        data = [
-            {
-                "table_id": "2_bklog.doris_only",
-                "category_id": "os",
-                "custom_type": "log",
-                "created_at": "2026-08-13 10:00:00",
-                "updated_at": "2026-08-13 10:00:00",
-            }
-        ]
+        data = [self._make_row("2_bklog.doris_only")]
 
         with (
             patch.object(CollectorHandler, "bulk_cluster_infos", return_value=cluster_infos),
@@ -1328,3 +1337,50 @@ class TestStorageRetentionCompat(TestCase):
             result = CollectorHandler.add_cluster_info(data)
 
         self.assertEqual(result[0]["retention"], 30)
+
+    def test_parse_result_table_config_keeps_es_retention(self):
+        collector_config = EtlStorage.parse_result_table_config(
+            result_table_config=copy.deepcopy(self.RESULT_TABLE_CONFIG),
+            result_table_storage={
+                "cluster_config": {"cluster_id": 1, "cluster_name": "es", "display_name": "es"},
+                "storage_config": {"retention": 7},
+            },
+        )
+
+        self.assertEqual(collector_config["retention"], 7)
+
+    def test_add_cluster_info_es_and_doris_expose_retention_uniformly(self):
+        cluster_infos = {
+            "2_bklog.retention_es": {
+                "cluster_config": {"cluster_id": 1, "cluster_name": "es"},
+                "storage_config": {"retention": 7},
+            },
+            "2_bklog.retention_doris": {
+                "cluster_config": {"cluster_id": 43, "cluster_name": "doris"},
+                # doris 结果表同时带 ES 语义的 retention 占位值时，仍应取 expire_days
+                "storage_config": {"retention": 0, "expire_days": 30},
+            },
+        }
+        data = [self._make_row("2_bklog.retention_es"), self._make_row("2_bklog.retention_doris")]
+
+        with (
+            patch.object(CollectorHandler, "bulk_cluster_infos", return_value=cluster_infos),
+            patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai"),
+        ):
+            result = CollectorHandler.add_cluster_info(data)
+
+        self.assertEqual(result[0]["retention"], 7)
+        self.assertEqual(result[1]["retention"], 30)
+
+    def test_add_cluster_info_falls_back_to_zero_when_metadata_missing(self):
+        # metadata 未返回集群信息时保持原有兜底行为
+        data = [self._make_row("2_bklog.retention_missing")]
+
+        with (
+            patch.object(CollectorHandler, "bulk_cluster_infos", return_value={}),
+            patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai"),
+        ):
+            result = CollectorHandler.add_cluster_info(data)
+
+        self.assertEqual(result[0]["retention"], 0)
+        self.assertEqual(result[0]["storage_cluster_id"], -1)

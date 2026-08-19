@@ -33,6 +33,8 @@ def get_storage_retention(storage_config: dict[str, Any] | None, default: Any = 
         return default
     for field in RETENTION_FIELD_ALIASES:
         value = storage_config.get(field)
-        if value is not None:
+        # 0 天在本模块语义上等同「未设置」（bulk_cluster_infos 查不到结果表时即兜底为 retention=0），
+        # 故 doris 结果表同时带上 retention=0 与 expire_days 时，仍应取 expire_days
+        if value is not None and value != 0:
             return value
     return default
