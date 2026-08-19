@@ -785,7 +785,7 @@ export default defineComponent({
           <div class='value-cell'>
             {row.empty
               ? <span class='value-empty'>{t('空值')}</span>
-              : <span class='value-text'>{formatDisplayValue(row.value)}</span>}
+              : <span class='value-text' title={formatDisplayValue(row.value)}>{formatDisplayValue(row.value)}</span>}
             {row.empty && (
               <i
                 class='bk-icon icon-exclamation-circle-shape value-empty-icon'
