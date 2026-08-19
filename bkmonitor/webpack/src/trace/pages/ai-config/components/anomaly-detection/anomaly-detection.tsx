@@ -40,7 +40,7 @@ import './anomaly-detection.scss';
  */
 export default defineComponent({
   name: 'AnomalyDetection',
-  setup() {
+  setup(_props) {
     const { t } = useI18n();
     const {
       loading,
@@ -50,6 +50,7 @@ export default defineComponent({
       kpiPlanId,
       sceneList,
       errors,
+      isEdited,
       fetchData,
       handleKpiPlanChange,
       handleScenePlanChange,
@@ -58,41 +59,57 @@ export default defineComponent({
 
     onMounted(fetchData);
 
-    return () => (
+    return {
+      t,
+      isEdited,
+      save,
+      loading,
+      saving,
+      singleSchemeList,
+      sceneSchemeList,
+      kpiPlanId,
+      sceneList,
+      errors,
+      handleKpiPlanChange,
+      handleScenePlanChange,
+    };
+  },
+  render() {
+    return (
       <div class='anomaly-detection'>
         <ConfigCard
-          description={t('为单指标异常检测，配置默认的方案')}
+          description={this.t('为单指标异常检测，配置默认的方案')}
           icon='icon-zhibiaojiansuo'
-          title={t('单指标异常检测')}
+          title={this.t('单指标异常检测')}
         >
           <div class='config-form-block'>
             <SchemeSelect
-              errorMsg={errors.value[KPI_ERROR_KEY]}
-              list={singleSchemeList.value}
-              loading={loading.value}
-              modelValue={kpiPlanId.value}
-              onChange={handleKpiPlanChange}
+              errorMsg={this.errors[KPI_ERROR_KEY]}
+              list={this.singleSchemeList}
+              loading={this.loading}
+              modelValue={this.kpiPlanId}
+              onChange={this.handleKpiPlanChange}
             />
           </div>
         </ConfigCard>
 
         <ConfigCard
-          description={t('针对不同场景分别配置智能检测方案')}
+          description={this.t('针对不同场景分别配置智能检测方案')}
           icon='icon-mc-intelligent-detection'
-          title={t('场景智能异常检测')}
+          title={this.t('场景智能异常检测')}
         >
-          {sceneList.value.map(scene => (
+          {this.sceneList.map(scene => (
             <div
               key={scene.type}
               class='config-form-block'
             >
-              <span class='block-title'>{t(SCENE_NAME_MAP[scene.type])}</span>
+              <span class='block-title'>{this.t(SCENE_NAME_MAP[scene.type])}</span>
               <SchemeSelect
-                errorMsg={errors.value[getSceneErrorKey(scene.type)]}
-                list={sceneSchemeList.value}
-                loading={loading.value}
+                errorMsg={this.errors[getSceneErrorKey(scene.type)]}
+                list={this.sceneSchemeList}
+                loading={this.loading}
                 modelValue={scene.planId}
-                onChange={planId => handleScenePlanChange(scene.type, planId)}
+                onChange={planId => this.handleScenePlanChange(scene.type, planId)}
               />
             </div>
           ))}
@@ -100,11 +117,11 @@ export default defineComponent({
 
         <Button
           class='save-button'
-          loading={saving.value}
+          loading={this.saving}
           theme='primary'
-          onClick={save}
+          onClick={this.save}
         >
-          {t('保存配置')}
+          {this.t('保存配置')}
         </Button>
       </div>
     );

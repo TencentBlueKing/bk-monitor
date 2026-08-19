@@ -4,9 +4,9 @@
 @font-face {
   font-family: icon-monitor; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1785306931482') format('woff2'),
-    url('monitor-icons.woff?t=1785306931482') format('woff'),
-    url('monitor-icons.ttf?t=1785306931482') format('truetype');
+    url('monitor-icons.woff2?t=1787124724391') format('woff2'),
+    url('monitor-icons.woff?t=1787124724391') format('woff'),
+    url('monitor-icons.ttf?t=1787124724391') format('truetype');
 }
 
 .icon-monitor {
@@ -17,8 +17,20 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-yichangjiance::before {
+  content: "\e86f";
+}
+
+.icon-storehouse::before {
+  content: "\e870";
+}
+
+.icon-a-NewTraining::before {
+  content: "\e86e";
+}
+
 .icon-jincheng1::before {
-  content: '\e86d';
+  content: "\e86d";
 }
 
 .icon-Unlock::before {
