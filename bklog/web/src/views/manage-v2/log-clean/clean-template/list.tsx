@@ -637,13 +637,13 @@ export default defineComponent({
       {
         title: t('模板名称 / 描述'),
         colKey: 'name',
-        minWidth: 360,
+        minWidth: 200,
         cell: (_h, { row }: { row: CleanTemplateItem }) => renderName(row),
       },
       {
         title: t('清洗方式'),
         colKey: 'clean_type',
-        width: 240,
+        width: 170,
         filter: getColumnsFilter(formatFilters.value),
         cell: (_h, { row }: { row: CleanTemplateItem }) => (
           <span class={['clean-type-tag', CLEAN_TYPE_CLASS_MAP[row.clean_type]]}>{getFormatName(row)}</span>
@@ -652,7 +652,7 @@ export default defineComponent({
       {
         title: t('字段数量'),
         colKey: 'field_count',
-        width: 240,
+        width: 160,
         sorter: true,
         sortType: 'all',
         cell: (_h, { row }: { row: CleanTemplateItem }) => (
@@ -668,7 +668,7 @@ export default defineComponent({
       {
         title: t('关联采集项'),
         colKey: 'active_collector_count',
-        width: 240,
+        width: 160,
         sorter: true,
         sortType: 'all',
         cell: (_h, { row }: { row: CleanTemplateItem }) => (
@@ -684,21 +684,21 @@ export default defineComponent({
       {
         title: t('创建'),
         colKey: 'created_by',
-        width: 200,
+        width: 190,
         filter: getColumnsFilter(createdByFilters.value),
         cell: (_h, { row }: { row: CleanTemplateItem }) => renderOperatorTime(row.created_by, row.created_at),
       },
       {
         title: t('最近更新'),
         colKey: 'updated_by',
-        width: 240,
+        width: 190,
         filter: getColumnsFilter(updatedByFilters.value),
         cell: (_h, { row }: { row: CleanTemplateItem }) => renderOperatorTime(row.updated_by, row.updated_at),
       },
       {
         title: t('操作'),
         colKey: 'operation',
-        width: 200,
+        width: 180,
         cell: (_h, { row }: { row: CleanTemplateItem }) => (
           <div class='template-operations'>
             <bk-button

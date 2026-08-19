@@ -210,7 +210,6 @@ export default defineComponent({
                     label={t('字段名')}
                     prop='field_name'
                     min-width={80}
-                    show-overflow-tooltip
                     scopedSlots={fieldNameSlot}
                   />
                   <bk-table-column
@@ -228,7 +227,6 @@ export default defineComponent({
                     label={t('示例值')}
                     prop='value'
                     min-width={100}
-                    show-overflow-tooltip
                     scopedSlots={valueSlot}
                   />
                 </bk-table>
