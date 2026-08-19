@@ -185,6 +185,35 @@ class InstanceActionForDataPermission(InstanceActionPermission):
         return super(InstanceActionPermission, self).has_permission(request, view)
 
 
+def _resolve_sort_action(actions: list[ActionMeta], sort_action: ActionMeta | None = None) -> ActionMeta | None:
+    """解析用于「有权限前置」排序的动作。"""
+    if sort_action is not None:
+        return sort_action
+    for action in actions:
+        if action.is_read_action():
+            return action
+    return actions[-1] if actions else None
+
+
+def sort_result_list_allowed_first(
+    result_list: list[dict],
+    actions: list[ActionMeta],
+    sort_action: ActionMeta | None = None,
+) -> None:
+    """将有权限的记录稳定排到列表前面，保持同组内原有相对顺序。
+
+    :param result_list: 已写入 permission 字段的结果列表，原地排序
+    :param actions: 本次批量鉴权的动作列表
+    :param sort_action: 用于判断「有权限」的动作；未指定时优先使用查看类动作
+    """
+    action: ActionMeta | None = _resolve_sort_action(actions, sort_action)
+    if action is None:
+        return
+
+    action_id: str = action.id
+    result_list.sort(key=lambda item: not bool((item.get("permission") or {}).get(action_id, False)))
+
+
 def insert_permission_field(
     actions: list[ActionMeta],
     resource_meta: ResourceMeta,
@@ -194,6 +223,8 @@ def insert_permission_field(
     many: bool = True,
     instance_create_func: Callable[[dict], Resource] | None = None,
     batch_create: bool = False,
+    sort_allowed_first: bool = False,
+    sort_action: ActionMeta | None = None,
 ):
     """
     数据返回后，插入权限相关字段
@@ -205,6 +236,8 @@ def insert_permission_field(
     :param always_allowed: 满足一定条件进行权限豁免
     :param many: 是否为列表数据
     :param batch_create: 是否批量创建资源实例
+    :param sort_allowed_first: 是否将有权限记录稳定排到列表前面
+    :param sort_action: 排序依据的动作；未指定时优先使用查看类动作
     """
 
     def wrapper(view_func):
@@ -250,6 +283,9 @@ def insert_permission_field(
                     # 权限豁免
                     for action_id in item["permission"]:
                         item["permission"][action_id] = True
+
+            if sort_allowed_first and many:
+                sort_result_list_allowed_first(result_list, actions, sort_action)
 
             return response
 
