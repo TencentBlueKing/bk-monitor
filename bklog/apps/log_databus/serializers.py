@@ -1623,6 +1623,12 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer, ParentInd
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
     is_display = serializers.BooleanField(label=_("是否展示"), default=True, required=False)
+    owners = serializers.ListField(
+        label=_("授权用户列表"),
+        required=False,
+        default=list,
+        child=serializers.CharField(max_length=64),
+    )
 
     def validate(self, attrs: dict) -> dict:
         # 先进行校验
