@@ -67,11 +67,21 @@ class TransferEtlHandler(EtlHandler):
         if clean_template is None:
             return clean_template, etl_config, etl_params, fields
 
+        # 兼容历史模板字段整体不完整：统一补齐缺省键
+        etl_fields = copy.deepcopy(clean_template.etl_fields or [])
+        for field in etl_fields:
+            field.setdefault("is_delete", False)
+            field.setdefault("is_analyzed", False)
+            field.setdefault("is_time", False)
+            field.setdefault("is_built_in", False)
+            field.setdefault("field_type", "string")
+            field.setdefault("is_dimension", not field.get("is_analyzed", False))
+
         return (
             clean_template,
             clean_template.clean_type,
             copy.deepcopy(clean_template.etl_params or {}),
-            copy.deepcopy(clean_template.etl_fields or []),
+            etl_fields,
         )
 
     def _update_clean_template(self, clean_template):
