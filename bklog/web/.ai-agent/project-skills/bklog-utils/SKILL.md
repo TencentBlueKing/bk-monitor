@@ -8,6 +8,8 @@ description: Utils 地图（落点/边界/改动半径）。
 ## Map
 
 Core: `src/common/util.js`
+Embed layout query: `src/common/embed-layout-query.js`（独立新开页剔除 `from`/`hl`）
+Search-bar placeholder padding: `src/views/retrieve-v2/search-bar/utils/get-ai-span-padding.js`（`blueking_language` → custom-placeholder `margin-left`）
 Message: `src/common/bkmagic.js`
 Bus: `src/common/bus.js`
 Field: `src/common/field-resolver.ts`

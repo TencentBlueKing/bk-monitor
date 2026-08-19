@@ -1,6 +1,6 @@
 ## 功能描述
 
-快速修改一个采集项，覆盖普通主机日志、Windows 日志与普通容器日志。
+快速修改一个采集项，覆盖普通主机日志、Windows 日志与普通容器日志。接口不支持切换采集环境。
 
 后端路径：`POST /api/v1/databus/collectors/{collector_config_id}/fast_update/`，`Content-Type: application/json`。
 
@@ -37,6 +37,7 @@
 | allocation_min_days   | int    | 否   | 冷热数据生效时间，默认 0                                   |
 | storage_replies       | int    | 否   | 副本数                                                     |
 | es_shards             | int    | 否   | ES 分片数                                                  |
+| update_clean_config   | bool   | 否   | 是否同步更新清洗与存储配置，默认 True                      |
 
 ### 参数列表（容器场景）
 
@@ -61,6 +62,7 @@
 | etl_params               | dict       | 否   | 清洗参数                                   |
 | fields                   | list       | 否   | 字段配置                                   |
 | alias_settings           | list       | 否   | 别名配置，详见 Alias Settings              |
+| update_clean_config      | bool       | 否   | 是否同步更新清洗与存储配置，默认 True       |
 
 #### TargetNodes
 
@@ -147,7 +149,9 @@
   "code": 0,
   "message": "",
   "data": {
-    "collector_config_id": 1
+    "collector_config_id": 1,
+    "subscription_id": 1001,
+    "task_id_list": ["2001"]
   }
 }
 ```

@@ -5,6 +5,7 @@ import string
 
 import jieba_fast
 
+from apps.log_clustering.constants import CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 
 NUMBER_REGEX_LST = ["NUMBER", "PERIOD", "IP", "CAPACITY"]
@@ -18,6 +19,18 @@ RISK_REASON_INSUFFICIENT_LITERAL_TOKENS = "insufficient_literal_tokens"
 RISK_REASON_INSUFFICIENT_RIGHT_ANCHOR = "insufficient_right_anchor"
 RISK_REASON_TRUNCATED_TAIL = "truncated_tail"
 RISK_REASON_AMBIGUOUS_DUPLICATE_PLACEHOLDER = "ambiguous_duplicate_placeholder"
+
+
+def is_remark_group_inherit_allowed(feature_config, bk_biz_id) -> bool:
+    """业务是否允许 Pattern 备注跨维度继承展示，黑名单业务只按精确分组组合匹配。"""
+
+    if not isinstance(feature_config, dict):
+        return True
+
+    biz_id_black_list = feature_config.get(CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST, [])
+    if not isinstance(biz_id_black_list, list | tuple | set):
+        return True
+    return str(bk_biz_id) not in {str(black_biz_id) for black_biz_id in biz_id_black_list}
 
 
 def format_pattern(pattern):

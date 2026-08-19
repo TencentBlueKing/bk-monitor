@@ -740,11 +740,18 @@ class Application(AbstractRecordModel):
         if not to_grant:
             return normalized_new
 
-        permission = Permission()
         app_resource = ResourceEnum.APM_APPLICATION.create_simple_instance(
             self.application_id, {"bk_biz_id": self.bk_biz_id}
         )
         biz_resource = ResourceEnum.BUSINESS.create_simple_instance(self.bk_biz_id)
+        try:
+            # API/后台无 request 时 Permission() 会因缺少 username 直接失败；
+            # 授权对象是 creator，这里用应用创建者初始化即可。
+            permission = Permission(username=self.create_user, bk_tenant_id=self.bk_tenant_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"application->({self.application_id}) init permission failed, reason: {e}")
+            return normalized_new
+
         for user in to_grant:
             try:
                 permission.grant_creator_action(app_resource, creator=user)

@@ -304,7 +304,7 @@ export default defineComponent({
 
     // —— 分页与渲染列表 ——
     /** 前端本地分页页码（从 1 开始） */
-    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick');
+    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick', () => {});
 
     const pageIndex = ref(1);
     /** 前端本地分页每页条数 */

@@ -419,29 +419,26 @@ defineExpose({
         :key="`${item}-${index}`"
         class="fuzzy-match-tag"
       >
-        <template v-if="editIndex === index">
-          <input
-            v-model="editValue"
-            class="fuzzy-match-tag-edit"
-            :data-fuzzy-edit-index="index"
-            @blur="commitEditTag"
-            @click.stop
-            @dblclick.stop
-            @mousedown.stop
-            @keydown.enter="handleEditEnter"
-          >
-        </template>
-        <template v-else>
-          <span
-            class="fuzzy-match-tag-text"
-            :title="item"
-            @dblclick.stop="handleEditTagDBClick(index)"
-          >{{ item }}</span>
-          <span
-            class="fuzzy-match-tag-del bk-icon icon-close"
-            @click.stop="handleDeleteTag(index)"
-          />
-        </template>
+        <input
+          v-if="editIndex === index"
+          v-model="editValue"
+          class="fuzzy-match-tag-edit"
+          :data-fuzzy-edit-index="index"
+          @blur="commitEditTag"
+          @click.stop
+          @dblclick.stop
+          @mousedown.stop
+          @keydown.enter="handleEditEnter"
+        >
+        <span
+          class="fuzzy-match-tag-text"
+          :title="item"
+          @dblclick.stop="handleEditTagDBClick(index)"
+        >{{ item }}</span>
+        <span
+          class="fuzzy-match-tag-del bk-icon icon-close"
+          @click.stop="handleDeleteTag(index)"
+        />
       </span>
       <input
         ref="refTagInput"
@@ -615,6 +612,8 @@ defineExpose({
   padding: 6px;
   margin-bottom: 12px;
   overflow: auto;
+  font-size: 12px;
+  line-height: 20px;
   cursor: text;
   background: #fff;
   border: 1px solid #c4c6cc;
@@ -626,12 +625,14 @@ defineExpose({
 }
 
 .fuzzy-match-tag {
+  position: relative;
   display: inline-flex;
   align-items: center;
   max-width: 100%;
   height: 24px;
-  padding: 0 6px;
-  line-height: 22px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 20px;
   color: #63656e;
   background: #f0f1f5;
   border: 1px solid #dcdee5;
@@ -640,14 +641,18 @@ defineExpose({
 
 .fuzzy-match-tag-text {
   max-width: 260px;
+  padding: 0 6px;
   overflow: hidden;
+  font-size: 12px;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .fuzzy-match-tag-del {
-  margin-left: 4px;
+  margin-right: 4px;
+  margin-left: 2px;
   font-size: 14px;
   color: #979ba5;
   cursor: pointer;
@@ -657,8 +662,31 @@ defineExpose({
   }
 }
 
-.fuzzy-match-tag-edit,
+.fuzzy-match-tag-edit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  color: inherit;
+  background-color: #e1ecff;
+  border: 0;
+  outline: 0;
+}
+
 .fuzzy-match-input {
+  flex: 1;
   min-width: 120px;
   height: 22px;
   padding: 0;
@@ -667,10 +695,6 @@ defineExpose({
   background: transparent;
   border: 0;
   outline: 0;
-}
-
-.fuzzy-match-input {
-  flex: 1;
 }
 
 .fuzzy-match-relation {

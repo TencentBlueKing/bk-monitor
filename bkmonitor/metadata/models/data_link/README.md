@@ -204,7 +204,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 配置模型属性 `component_status` -> `service.get_data_link_component_status`。
 - 配置模型属性 `component_config` -> `service.get_data_link_component_config`。
 - 状态查询会走 `get_bkbase_component_status_with_retry`（4 次指数退避）。
-- 定时刷新按 `(bk_tenant_id, namespace, kind)` 调用 `list_data_link` 批量获取全部组件状态；可信的非空响应中未出现的本地组件记为 `Terminated`。
+- 定时刷新按 `(bk_tenant_id, namespace, kind)` 调用 `list_data_link`，使用同一份响应发现并同步远端组件配置、刷新本地组件状态；新发现组件的 `data_link_name` 初始为空，可信的非空响应中未出现的本地组件记为 `Terminated`。
 - 空列表、接口异常或无法完整解析的响应不会覆盖本地状态；链路整体状态按 `data_link_name` 汇总为 `Ok`、`Terminated` 或 `Pending`。
 
 ### 6.4 基础采集链路特点

@@ -30,13 +30,17 @@ PUBLIC_RESOURCES = {
     ("GET", "/clustering_config/{index_set_id}/config/"),
     ("GET", "/databus_collectors/"),
     ("GET", "/databus_collectors/{collector_config_id}/"),
+    ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
+    ("GET", "/databus_collectors/{collector_config_id}/task_status/"),
     ("GET", "/index_set/{index_set_id}/"),
+    ("GET", "/databus_collectors/{collector_config_id}/update_context/"),
     ("GET", "/search_index_set/"),
     ("GET", "/search_index_set/{index_set_id}/fields/"),
     ("POST", "/databus_collectors/fast_create/"),
     ("POST", "/databus_collectors/{collector_config_id}/fast_update/"),
     ("POST", "/databus_collectors/{collector_config_id}/start/"),
     ("POST", "/databus_collectors/{collector_config_id}/stop/"),
+    ("POST", "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"),
     ("POST", "/esquery_search/"),
     ("POST", "/index_set/"),
     ("POST", "/pattern/{index_set_id}/search/"),
@@ -116,7 +120,12 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             self.assertEqual(resolved.func.actions[method], action)
 
     def test_public_search_helper_docs_use_apigw_auth_keys(self):
-        for operation_id in ("index_set_terms", "generate_querystring"):
+        for operation_id in (
+            "index_set_terms",
+            "generate_querystring",
+            "list_databus_collectors",
+            "retrieve_databus_collector",
+        ):
             content = (self.zh_docs_dir / f"{operation_id}.md").read_text(encoding="utf-8")
 
             self.assertIn("| bk_app_code", content, operation_id)

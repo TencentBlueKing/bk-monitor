@@ -225,7 +225,8 @@ class QueryProxy:
     def _query_cross_trace_detail(self, trace_id: str) -> list[dict[str, Any]]:
         """跨应用查询 Trace 详情
 
-        预计算按近 1 天、数据过期时间两个范围查询，索引集按数据过期时间查询，三者竞速取最先返回且有数据的结果。
+        预计算按近 1 天、数据过期时间两个范围查询，索引集、ES 索引直查按数据过期时间查询，
+        四者竞速取最先返回且有数据的结果。
         """
         retention: int = self.span_query.retention
         paths: list[tuple[Callable[[str, int], list[dict[str, Any]]], int]] = [
@@ -233,6 +234,7 @@ class QueryProxy:
             for precalc_retention in sorted({min(self.RECENT_RETENTION, retention), retention})
         ]
         paths.append((self._query_cross_trace_detail_by_index_set, retention))
+        paths.append((self._query_cross_trace_detail_by_prefix, retention))
 
         start_at: float = time.time()
         pool: ThreadPool = ThreadPool(len(paths))
@@ -286,6 +288,11 @@ class QueryProxy:
             return self.span_query.query_by_trace_id(trace_id, start_time)
 
         return self.span_query.cross_query_by_trace_id(trace_id, trace_scope_table, start_time)
+
+    def _query_cross_trace_detail_by_prefix(self, trace_id: str, retention: int) -> list[dict[str, Any]]:
+        """基于 ES 索引前缀查询 Trace 详情"""
+        start_time: int = self._get_retention_start_time(retention)
+        return self.span_query.prefix_query_by_trace_id(trace_id, start_time)
 
     def _query_cross_trace_detail_by_precalc(self, trace_id: str, retention: int) -> list[dict[str, Any]]:
         """基于预计算的应用分布查询 Trace 详情"""

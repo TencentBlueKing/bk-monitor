@@ -401,29 +401,16 @@ def mock_settings(monkeypatch):
 
 @pytest.fixture
 def mock_funcs(monkeypatch):
-    def get_data_id(data_name, *args, **kwargs):
-        if data_name == f"bcs_{BCS_CLUSTER_ID}_k8s_metric":
-            return 100
-        elif data_name == f"bcs_{BCS_CLUSTER_ID}_k8s_event":
-            return 200
-        elif data_name == f"bcs_{BCS_CLUSTER_ID}_custom_metric":
-            return 300
-        raise ValueError("获取数据源失败")
-
     with (
         patch("bkmonitor.utils.tenant.get_tenant_datalink_biz_id") as mock_get_tenant_datalink_biz_id,
-        patch(
-            "metadata.models.data_source.DataSource.apply_for_data_id_from_bkdata"
-        ) as mock_apply_for_data_id_from_bkdata,
         patch("metadata.models.data_source.DataSource.apply_for_data_id_from_gse") as mock_apply_for_data_id_from_gse,
+        patch.object(api.bkdata, "apply_data_link"),
         patch("metadata.task.tasks.refresh_custom_report_config") as mock_refresh_custom_report_config,
     ):
         # mock 获取业务ID
         mock_get_tenant_datalink_biz_id.return_value = 2
         # mock 获取数据源
-        mock_apply_for_data_id_from_gse.side_effect = [400, 500, 600]
-
-        mock_apply_for_data_id_from_bkdata.side_effect = get_data_id
+        mock_apply_for_data_id_from_gse.side_effect = [100, 200, 300, 400, 500, 600]
         mock_refresh_custom_report_config.return_value = MagicMock()
 
         # mock 同步数据库
