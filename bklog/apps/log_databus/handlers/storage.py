@@ -516,6 +516,18 @@ class StorageHandler:
 
         return True, cluster_obj
 
+    @staticmethod
+    def _fill_doris_setup_config(custom_option: dict, es_config: dict) -> None:
+        """
+        doris 集群管理员未配置存储上限时回落到公共集群缺省时长。
+        前端取不到 retention_days_max 时会回退到写死的 7 天，因此该字段必须有值。
+        doris 无副本/分片概念，故不填充 number_of_replicas_* / es_shards_*。
+        """
+        setup_config = custom_option.get("setup_config") or {}
+        setup_config.setdefault("retention_days_max", es_config["ES_PUBLIC_STORAGE_DURATION"])
+        setup_config.setdefault("retention_days_default", es_config["ES_PUBLIC_STORAGE_DURATION"])
+        custom_option["setup_config"] = setup_config
+
     @classmethod
     def filter_doris_cluster(cls, bk_biz_id, is_default, post_visible, cluster_obj):
         from apps.log_search.handlers.index_set import IndexSetHandler
@@ -583,6 +595,8 @@ class StorageHandler:
                 ]
 
             default_custom_option.update(cluster_obj["cluster_config"]["custom_option"])
+            # 必须在 update 之后填充：metadata 侧存的 setup_config 会整体覆盖该键，若其为空字典则缺省值被冲掉
+            cls._fill_doris_setup_config(default_custom_option, es_config)
             default_custom_option["source_name"] = EsSourceType.get_choice_label(default_custom_option["source_type"])
             cluster_obj["cluster_config"]["custom_option"] = default_custom_option
 
@@ -651,6 +665,8 @@ class StorageHandler:
             ]
 
         default_custom_option.update(cluster_obj["cluster_config"]["custom_option"])
+        # 必须在 update 之后填充：metadata 侧存的 setup_config 会整体覆盖该键，若其为空字典则缺省值被冲掉
+        cls._fill_doris_setup_config(default_custom_option, es_config)
         default_custom_option["source_name"] = EsSourceType.get_choice_label(default_custom_option["source_type"])
         cluster_obj["cluster_config"]["custom_option"] = default_custom_option
 
@@ -1040,6 +1056,12 @@ class StorageHandler:
         # 只覆盖 visible_config，保留其余 custom_option 字段
         new_custom_option = copy.deepcopy(raw_custom_option)
         new_custom_option["visible_config"] = params["visible_config"]
+
+        # 存储设置为可选项，仅在传入时按键合并，避免未传时清掉管理员已配置的上限
+        if params.get("setup_config"):
+            setup_config = new_custom_option.get("setup_config") or {}
+            setup_config.update(params["setup_config"])
+            new_custom_option["setup_config"] = setup_config
 
         # 不传 auth_info：metadata ModifyClusterInfoResource（#11701）在 auth_info 缺省时保留原凭据；
         # 传空账号会把 bkbase 同步的真实 Doris 凭据永久覆盖为空。
