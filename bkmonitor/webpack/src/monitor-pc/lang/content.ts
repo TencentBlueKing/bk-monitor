@@ -396,6 +396,7 @@ export default {
     'Pushing again associated services is equivalent to "synchronization" operation.',
   当前已关联其他模版: 'Current associated other templates',
   下发将被覆盖: 'Pushing will override the existing association',
+  覆盖同类模板策略: 'Overwrite similar template strategies',
   查看策略: 'View strategy',
   前5分钟: 'Last 5 minutes',
   昨天同期: 'Same period yesterday',
