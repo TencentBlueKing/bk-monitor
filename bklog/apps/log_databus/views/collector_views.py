@@ -1685,16 +1685,18 @@ class CollectorViewSet(ModelViewSet):
         """
         @api {post} /databus/collectors/$collector_config_id/indices_info 采集项-物理索引
         @apiName indices_info
-        @apiDescription 采集项物理索引信息
+        @apiDescription 采集项物理存储信息。行结构与存储类型无关：ES 返回物理索引，
+        Doris 返回物理表分区（无分区时返回一条物理表记录），调用方无需区分 storage_type。
         @apiGroup 10_Collector
-        @apiSuccess {String} health 索引健康状态 red green yellow
-        @apiSuccess {String} status 索引状态
-        @apiSuccess {String} pri 主分片数量
-        @apiSuccess {String} rep 副本数量
-        @apiSuccess {String} docs.count 文档数量
-        @apiSuccess {String} docs.deleted 删除文档数量
+        @apiSuccess {String} index 物理存储单元名称，ES 为索引名，Doris 为分区名或物理表名
+        @apiSuccess {String} health 健康状态 red green yellow --
+        @apiSuccess {String} status 状态 open unavailable unknown
+        @apiSuccess {String} pri 主分片数量，Doris 无等价字段返回 --
+        @apiSuccess {String} rep 副本数量，Doris 无等价字段返回 --
+        @apiSuccess {String} docs.count 文档数量，Doris 为分区行数
+        @apiSuccess {String} docs.deleted 删除文档数量，Doris 无等价字段返回 --
         @apiSuccess {String} store.size 储存大小 Byte
-        @apiSuccess {String} pri.store.size 主分片储存大小 Byte
+        @apiSuccess {String} pri.store.size 主分片储存大小 Byte，Doris 无等价字段返回 --
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,

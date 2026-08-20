@@ -50,6 +50,7 @@ from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config, is_version_less_than
+from apps.log_databus.utils.storage_config import build_storage_retention_config, get_storage_retention
 from apps.log_search.constants import (
     DEFAULT_TIME_FIELD,
     FieldBuiltInEnum,
@@ -1212,7 +1213,7 @@ class EtlStorage:
             "default_storage_config": {
                 "cluster_id": storage_cluster_id,
                 "storage_cluster_id": storage_cluster_id,
-                "retention": retention,
+                **build_storage_retention_config(storage_cluster_type, retention),
                 "date_format": date_format,
                 "slice_size": slice_size,
                 "slice_gap": slice_gap,
@@ -1468,7 +1469,7 @@ class EtlStorage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
             collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
-            collector_config["retention"] = result_table_storage["storage_config"].get("retention")
+            collector_config["retention"] = get_storage_retention(result_table_storage["storage_config"])
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 
         # 字段
@@ -1810,7 +1811,7 @@ class EtlStorage:
             "default_storage_config": {
                 "cluster_id": storage_cluster_id,
                 "storage_cluster_id": storage_cluster_id,
-                "retention": retention,
+                **build_storage_retention_config(storage_cluster_type, retention),
                 "date_format": date_format,
                 "slice_size": slice_size,
                 "slice_gap": slice_gap,

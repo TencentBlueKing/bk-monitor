@@ -86,6 +86,8 @@ CACHE_EXPIRE_TIME = 300
 METADATA_CLUSTER_STATUS_BATCH_SIZE = 20
 METADATA_CLUSTER_STATUS_MAX_WORKERS = 5
 METADATA_RESULT_TABLE_STATUS_BATCH_SIZE = 50
+# Doris 无等价指标的物理存储行字段，沿用前端既有占位样式，不能落成 0
+DORIS_STORAGE_ROW_PLACEHOLDER = "--"
 
 
 class StorageHandler:
@@ -1511,7 +1513,8 @@ class StorageHandler:
             storage_type for storage_type, storage_config in storage_configs.items() if storage_config
         }
         if default_storage is None:
-            if configured_storage_types != {STORAGE_CLUSTER_TYPE}:
+            # 只有「唯一配置存储」这一无歧义场景才回退推导，双存储并存时宁可返回空也不猜
+            if len(configured_storage_types) != 1:
                 logger.warning(
                     "[storage] skip result table indices without unambiguous default storage, "
                     "table_id=%s, configured_storage_types=%s",
@@ -1519,14 +1522,21 @@ class StorageHandler:
                     sorted(configured_storage_types),
                 )
                 return []
-            default_storage = STORAGE_CLUSTER_TYPE
-        if default_storage != STORAGE_CLUSTER_TYPE:
+            default_storage = next(iter(configured_storage_types))
+        if default_storage not in (STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE):
             return []
 
-        es_storage = storage_configs.get(STORAGE_CLUSTER_TYPE) or {}
-        cluster_id = es_storage.get("storage_cluster_id")
+        storage_config = storage_configs.get(default_storage) or {}
+        cluster_id = storage_config.get("storage_cluster_id")
         cluster_results = data.get("cluster_results") or {}
         cluster_status = cluster_results.get(str(cluster_id)) or cluster_results.get(cluster_id) or {}
+
+        if default_storage == DORIS_CLUSTER_TYPE:
+            return cls._build_doris_storage_rows(cluster_status)
+        return cls._build_es_storage_rows(cluster_status)
+
+    @classmethod
+    def _build_es_storage_rows(cls, cluster_status):
         runtime = cluster_status.get("runtime") or {}
         indices = (runtime.get("indices") or {}).get("items") or []
         health_unavailable = (
@@ -1558,6 +1568,108 @@ class StorageHandler:
             "store.size": str(index.get("store_size_bytes") or 0),
             "pri.store.size": str(index.get("primary_store_size_bytes") or 0),
         }
+
+    @classmethod
+    def _build_doris_storage_rows(cls, cluster_status):
+        """把 Doris 物理表 / 分区适配成与 ES 物理索引一致的行结构，前端不感知存储类型"""
+        runtime = cluster_status.get("runtime") or {}
+        health, status = cls._get_doris_storage_health(cluster_status)
+        physical_table_name = cls._get_doris_physical_table_name(runtime)
+
+        partitions = runtime.get("partitions") or []
+        if partitions:
+            rows = [
+                (
+                    cls._doris_row_sort_key(partition),
+                    cls._build_doris_storage_row(
+                        name=partition.get("name"),
+                        physical_table_name=physical_table_name,
+                        rows_count=partition.get("rows"),
+                        data_length_bytes=partition.get("data_length_bytes"),
+                        index_length_bytes=partition.get("index_length_bytes"),
+                        health=health,
+                        status=status,
+                    ),
+                )
+                for partition in partitions
+            ]
+            return [row for _, row in sorted(rows, key=operator.itemgetter(0), reverse=True)]
+
+        # 无分区表不返回空列表，用物理表兜底一行，避免前端把「无分区」误判为「接口无数据」
+        table = runtime.get("table") or {}
+        if not table:
+            return []
+        return [
+            cls._build_doris_storage_row(
+                name=physical_table_name,
+                physical_table_name=physical_table_name,
+                rows_count=table.get("rows"),
+                data_length_bytes=table.get("data_length_bytes"),
+                index_length_bytes=table.get("index_length_bytes"),
+                health=health,
+                status=status,
+            )
+        ]
+
+    @staticmethod
+    def _build_doris_storage_row(
+        name, physical_table_name, rows_count, data_length_bytes, index_length_bytes, health, status
+    ):
+        store_size = StorageHandler._to_int(data_length_bytes) + StorageHandler._to_int(index_length_bytes)
+        return {
+            "index": name,
+            "uuid": f"doris:{physical_table_name}:{name}" if physical_table_name and name else None,
+            "health": health,
+            "status": status,
+            # Doris 没有分片概念，也不统计删除文档数，用现有占位值保持前端渲染不变
+            "pri": DORIS_STORAGE_ROW_PLACEHOLDER,
+            "rep": DORIS_STORAGE_ROW_PLACEHOLDER,
+            "docs.count": str(StorageHandler._to_int(rows_count)),
+            "docs.deleted": DORIS_STORAGE_ROW_PLACEHOLDER,
+            "store.size": str(store_size),
+            "pri.store.size": DORIS_STORAGE_ROW_PLACEHOLDER,
+        }
+
+    @staticmethod
+    def _doris_row_sort_key(partition):
+        update_time = partition.get("update_time")
+        # 缺少更新时间的分区统一排在有时间的分区之后
+        return bool(update_time), str(update_time or ""), str(partition.get("name") or "")
+
+    @staticmethod
+    def _get_doris_physical_table_name(runtime):
+        binding = runtime.get("binding") or {}
+        physical_table_name = binding.get("physical_table_name")
+        if physical_table_name:
+            return physical_table_name
+        table = runtime.get("table") or {}
+        schema, name = table.get("schema"), table.get("name")
+        if schema and name:
+            return f"{schema}.{name}"
+        return name or None
+
+    @staticmethod
+    def _get_doris_storage_health(cluster_status):
+        """Doris 健康状态由连通性与 runtime 告警推导，对外沿用 ES 的 green/yellow/red/-- 口径"""
+        if cluster_status.get("runtime_skipped"):
+            return "--", "unknown"
+        connectivity = cluster_status.get("connectivity")
+        if connectivity is not None and not connectivity.get("is_connected", False):
+            return "red", "unavailable"
+        if cluster_status.get("errors"):
+            return "red", "unavailable"
+        if connectivity is None:
+            return "--", "unknown"
+        if cluster_status.get("warnings"):
+            return "yellow", "open"
+        return "green", "open"
+
+    @staticmethod
+    def _to_int(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
 
     def _send_detective(
         self,
