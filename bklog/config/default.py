@@ -1027,6 +1027,12 @@ ESQUERY_WHITE_LIST = [
     "bk_apigateway",
 ] + ESQUERY_EXTRA_WHITE_LIST
 
+# Admin Resource 的写入和破坏性操作只允许日志平台自身或显式配置的管理应用调用。
+# 查询白名单覆盖多个上下游应用，不能直接作为管理操作的授权边界。
+ADMIN_RESOURCE_WRITE_APP_WHITE_LIST = [
+    app.strip() for app in os.getenv("BKAPP_ADMIN_RESOURCE_WRITE_APP_WHITE_LIST", APP_CODE).split(",") if app.strip()
+]
+
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
 BKREPO_USERNAME = os.getenv("BKREPO_USERNAME") or os.getenv("BKAPP_BKREPO_USERNAME")

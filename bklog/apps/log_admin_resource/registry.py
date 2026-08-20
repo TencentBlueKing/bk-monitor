@@ -15,7 +15,12 @@ from apps.log_admin_resource.handlers.clustering_config import (
     get_clustering_config_detail,
     list_clustering_configs,
 )
-from apps.log_admin_resource.handlers.clustering_pipeline import get_clustering_access_pipeline
+from apps.log_admin_resource.handlers.clustering_pipeline import (
+    force_fail_clustering_pipeline_node,
+    get_clustering_access_pipeline,
+    retry_clustering_pipeline_node,
+    skip_clustering_pipeline_node,
+)
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail, list_index_sets
 from apps.log_admin_resource.handlers.storage_cluster import list_storage_clusters
 
@@ -116,6 +121,51 @@ def _bkdata_id_schema(key, include_sample_limit=False):
         "required": ["bk_biz_id", key],
         "additionalProperties": False,
     }
+
+
+def _pipeline_action_params_schema(action):
+    properties = {
+        "config_id": {"type": "integer", "minimum": 1},
+        "task_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "node_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 500},
+    }
+    required = ["config_id", "task_id", "node_id", "expected_version", "reason"]
+    if action == "skip":
+        properties["acknowledge_external_effects"] = {"type": "boolean", "const": True}
+        required.append("acknowledge_external_effects")
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
+
+
+def _pipeline_action_response_schema(action):
+    return _object_schema(
+        "action",
+        "config_id",
+        "task_id",
+        "node_id",
+        "reason",
+        "result",
+        "message",
+        "before",
+        "pipeline",
+        properties={
+            "action": {"type": "string", "const": action},
+            "config_id": {"type": "integer"},
+            "task_id": {"type": "string"},
+            "node_id": {"type": "string"},
+            "reason": {"type": "string"},
+            "result": {"type": "boolean", "const": True},
+            "message": {"type": "string"},
+            "before": {"type": "object"},
+            "pipeline": {"type": "object"},
+        },
+    )
 
 
 FUNCTIONS = {
@@ -279,6 +329,61 @@ FUNCTIONS = {
         ),
         "examples": [{"params": {"config_id": 1}}, {"params": {"config_id": 1, "task_id": "pipeline-id"}}],
     },
+    "bklog.clustering_config.pipeline.retry": {
+        "func_name": "bklog.clustering_config.pipeline.retry",
+        "description": "Retry the current failed node of a clustering access pipeline after strict state checks.",
+        "safety_level": "write",
+        "params_schema": _pipeline_action_params_schema("retry"),
+        "response_schema": _pipeline_action_response_schema("retry"),
+        "examples": [
+            {
+                "params": {
+                    "config_id": 1,
+                    "task_id": "pipeline-id",
+                    "node_id": "node-id",
+                    "expected_version": "status-version",
+                    "reason": "已修复节点依赖，重试当前步骤",
+                }
+            }
+        ],
+    },
+    "bklog.clustering_config.pipeline.skip": {
+        "func_name": "bklog.clustering_config.pipeline.skip",
+        "description": "Skip the current failed node only after the caller confirms its external effects are complete.",
+        "safety_level": "destructive",
+        "params_schema": _pipeline_action_params_schema("skip"),
+        "response_schema": _pipeline_action_response_schema("skip"),
+        "examples": [
+            {
+                "params": {
+                    "config_id": 1,
+                    "task_id": "pipeline-id",
+                    "node_id": "node-id",
+                    "expected_version": "status-version",
+                    "reason": "外部副作用已人工完成，跳过原节点",
+                    "acknowledge_external_effects": True,
+                }
+            }
+        ],
+    },
+    "bklog.clustering_config.pipeline.force_fail": {
+        "func_name": "bklog.clustering_config.pipeline.force_fail",
+        "description": "Force the current running node to failed state after strict current-node and version checks.",
+        "safety_level": "destructive",
+        "params_schema": _pipeline_action_params_schema("force_fail"),
+        "response_schema": _pipeline_action_response_schema("force_fail"),
+        "examples": [
+            {
+                "params": {
+                    "config_id": 1,
+                    "task_id": "pipeline-id",
+                    "node_id": "node-id",
+                    "expected_version": "status-version",
+                    "reason": "节点长时间未刷新，先强制失败后人工判断重试或跳过",
+                }
+            }
+        ],
+    },
     "bklog.bkdata.raw.snapshot": {
         "func_name": "bklog.bkdata.raw.snapshot",
         "description": "Inspect RawData deployment and latest full raw samples.",
@@ -402,6 +507,9 @@ HANDLERS = {
     "bklog.clustering_config.list": list_clustering_configs,
     "bklog.clustering_config.detail": get_clustering_config_detail,
     "bklog.clustering_config.access_pipeline": get_clustering_access_pipeline,
+    "bklog.clustering_config.pipeline.retry": retry_clustering_pipeline_node,
+    "bklog.clustering_config.pipeline.skip": skip_clustering_pipeline_node,
+    "bklog.clustering_config.pipeline.force_fail": force_fail_clustering_pipeline_node,
     "bklog.bkdata.raw.snapshot": get_bkdata_raw_snapshot,
     "bklog.bkdata.clean.snapshot": get_bkdata_clean_snapshot,
     "bklog.bkdata.flow.snapshot": get_bkdata_flow_snapshot,
@@ -411,11 +519,21 @@ HANDLERS = {
 
 class AdminResourceRegistry:
     @classmethod
+    def get_definition(cls, func_name):
+        if not isinstance(func_name, str):
+            return None
+        return FUNCTIONS.get(func_name)
+
+    @classmethod
     def call(cls, func_name, params):
+        if not isinstance(func_name, str) or not func_name:
+            raise ValidationError("func_name must be a non-empty string")
+        if not isinstance(params, dict):
+            raise ValidationError("params must be an object")
         if func_name == "__meta__":
             return cls.meta(params)
         if func_name in HANDLERS:
-            return HANDLERS[func_name](params or {})
+            return HANDLERS[func_name](params)
         raise ValidationError(f"unknown func_name: {func_name}")
 
     @classmethod
