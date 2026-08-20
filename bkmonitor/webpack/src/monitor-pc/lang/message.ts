@@ -565,4 +565,14 @@ export default {
   '已拆分为独立 Issue': 'Split into independent Issue',
   issue合并成功: 'Issue merged successfully',
   取消授权成功: 'Authorization cancelled successfully',
+
+  源码分析失败: 'Source code analysis failed',
+  '蓝盾流水线执行失败，未生成本次分析结果':
+    'BK-DevOps pipeline execution failed, no analysis results generated for this time',
+  尚未关联蓝盾项目及源码仓库: 'No BK-DevOps project and source code repository have been associated yet',
+  '源码关联分析需要先知道告警对应的蓝盾项目和代码仓库，才能拉取构建记录、提交历史与 Blame 信息。':
+    'Source code analysis requires that you know the BK-DevOps project and code repository that correspond to the alarm before you can pull build records, commit history, and blame information.',
+  '已配置，立即分析': 'Configured, analyze immediately',
+  源码仓库已关联: 'Source code repository has been associated',
+  源码分析进行中: 'Source code analysis in progress',
 };

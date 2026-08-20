@@ -79,7 +79,7 @@ export default defineComponent({
           onUpdate:active={this.handleTabChange}
         >
           <Tab.TabPanel
-            v-slots={{ label: () => this.renderTabLabel('icon-code', this.t('源码 AI 分析')) }}
+            v-slots={{ label: () => this.renderTabLabel('icon-code', this.t('源码关联分析')) }}
             name='source'
           >
             <SourceCodeAnalysis

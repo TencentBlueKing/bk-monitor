@@ -548,4 +548,6 @@ export default {
   '数据未就绪，请稍后重试': 'Data is not ready, please try again later',
   优先级不能为空: 'Priority cannot be empty',
   匹配条件不能为空: 'Matching conditions cannot be empty',
+
+  '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
 };
