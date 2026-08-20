@@ -1969,6 +1969,7 @@ class BaseIndexSetHandler:
                     "table_id": f"bklog_index_set_{effective_index_set_id}_{bkbase_table_id}.__doris__",
                     "source_type": "bkdata",
                     "need_create_index": False,
+                    "query_alias_settings": [],
                 }
                 # 首次创建路由时不带 cluster_id 会落到默认 Doris 集群，查询会打到错误的集群；
                 # 集群解析不出来时也不能把这张表从下发列表里摘掉，否则 metadata 会清空它的 data_label，
@@ -2000,6 +2001,7 @@ class BaseIndexSetHandler:
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
+                "query_alias_settings": [],
                 "options": [
                     {
                         "name": "time_field",
@@ -2026,6 +2028,7 @@ class BaseIndexSetHandler:
                 cluster_info = StorageHandler(cluster_id=obj.storage_cluster_id).get_cluster_info_by_id()
                 table_info["storage_type"] = cluster_info["cluster_type"]
 
+            # 始终显式下发别名配置，空数组用于清除 metadata 中已不存在的历史别名。
             if rt_alias_mappings is None:
                 if effective_alias_settings:
                     table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings)
