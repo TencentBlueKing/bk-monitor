@@ -8,22 +8,115 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from types import SimpleNamespace
-from unittest import TestCase, mock
-
-from django.conf import settings
-
-from alarm_backends.core.alert.adapter import MonitorEventAdapter
-
-STRATEGY = {
+DETECT_STRATEGY = {
     "bk_biz_id": 2,
-    "version": "v2",
     "items": [
         {
             "query_configs": [
                 {
                     "metric_field": "idle",
-                    "agg_dimension": ["ip", "bk_cloud_id", "device_name"],
+                    "agg_dimension": ["ip", "bk_cloud_id"],
+                    "id": 2,
+                    "agg_method": "AVG",
+                    "agg_condition": [],
+                    "agg_interval": 60,
+                    "result_table_id": "system.cpu_detail",
+                    "unit": "%",
+                    "data_type_label": "time_series",
+                    "metric_id": "bk_monitor.system.cpu_detail.idle",
+                    "data_source_label": "bk_monitor",
+                }
+            ],
+            "algorithms": [
+                {
+                    "config": [[{"threshold": 51.0, "method": "gte"}]],
+                    "level": 3,
+                    "type": "Threshold",
+                    "id": 2,
+                },
+                {
+                    "config": [[{"threshold": 100, "method": "lte"}]],
+                    "level": 3,
+                    "type": "Threshold",
+                    "id": 3,
+                },
+            ],
+            "no_data_config": {"is_enabled": False, "continuous": 5},
+            "id": 2,
+            "name": "\u7a7a\u95f2\u7387",
+            "target": [
+                [{"field": "ip", "method": "eq", "value": [{"ip": "127.0.0.1", "bk_cloud_id": 0, "bk_supplier_id": 0}]}]
+            ],
+        }
+    ],
+    "scenario": "os",
+    "actions": [
+        {
+            "notice_template": {"action_id": 2, "anomaly_template": "aa", "recovery_template": ""},
+            "id": 2,
+            "notice_group_list": [
+                {
+                    "notice_receiver": ["user#test"],
+                    "name": "test",
+                    "notice_way": {"1": ["weixin"], "3": ["weixin"], "2": ["weixin"]},
+                    "notice_group_id": 1,
+                    "message": "",
+                    "notice_group_name": "test",
+                    "id": 1,
+                }
+            ],
+            "type": "notice",
+            "config": {
+                "alarm_end_time": "23:59:59",
+                "send_recovery_alarm": False,
+                "alarm_start_time": "00:00:00",
+                "alarm_interval": 120,
+            },
+        }
+    ],
+    "detects": [
+        {
+            "level": 3,
+            "expression": "",
+            "connector": "and",
+            "trigger_config": {"count": 1, "check_window": 5},
+            "recovery_config": {"check_window": 5},
+        }
+    ],
+    "update_time": 1569246480,
+    "source_type": "BKMONITOR",
+    "id": 1,
+    "name": "test",
+}
+
+
+DETECT_RECORDS = [
+    {
+        "record_id": "342a08e0f85f169a7e099c18db3708ed.1569246480",
+        "value": 99,
+        "values": {"timestamp": 1569246480, "load5": 99},
+        "dimensions": {"ip": "127.0.0.1"},
+        "time": 1569246480,
+    },
+    {
+        "record_id": "2a1850513fa6018c435f9b6359b3fa7d.1569246481",
+        "value": 50.1,
+        "values": {"timestamp": 1569246481, "load5": 50.1},
+        "dimensions": {"ip": "10.0.0.1"},
+        # 数据点时间戳错开，避免检测记录断言不准确
+        "time": 1569246481,
+    },
+]
+
+
+TRIGGER_STRATEGY = {
+    "bk_biz_id": 2,
+    "items": [
+        {
+            "query_configs": [
+                {
+                    "metric_field": "idle",
+                    "agg_dimension": ["ip", "bk_cloud_id"],
                     "id": 2,
                     "agg_method": "AVG",
                     "agg_condition": [],
@@ -52,37 +145,37 @@ STRATEGY = {
                 {"config": [{"threshold": 0.1, "method": "gte"}], "level": 3, "type": "Threshold", "id": 3},
             ],
             "no_data_config": {"is_enabled": False, "continuous": 5},
-            "id": 2,
+            "id": 1,
             "name": "\u7a7a\u95f2\u7387",
         }
     ],
-    "scenario": "os",
     "detects": [
         {
             "expression": "",
+            "connector": "and",
             "level": 1,
-            "connector": "and",
-            "recovery_config": {"check_window": 5},
             "trigger_config": {"count": 3, "check_window": 5},
+            "recovery_config": {"check_window": 5},
         },
         {
             "expression": "",
+            "connector": "and",
             "level": 2,
-            "connector": "and",
-            "recovery_config": {"check_window": 5},
             "trigger_config": {"count": 2, "check_window": 5},
+            "recovery_config": {"check_window": 5},
         },
         {
             "expression": "",
-            "level": 3,
             "connector": "and",
-            "recovery_config": {"check_window": 5},
+            "level": 3,
             "trigger_config": {"count": 1, "check_window": 5},
+            "recovery_config": {"check_window": 5},
         },
     ],
+    "scenario": "os",
     "actions": [
         {
-            "notice_template": {"action_id": 2, "anomaly_template": "aa", "recovery_template": ""},
+            "notice_template": {"anomaly_template": "aa", "recovery_template": ""},
             "id": 2,
             "notice_group_list": [
                 {
@@ -109,12 +202,13 @@ STRATEGY = {
     "name": "test",
 }
 
-ANOMALY_EVENT = {
+
+TRIGGER_POINT = {
     "data": {
         "record_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480",
         "value": 1.38,
         "values": {"timestamp": 1569246480, "load5": 1.38},
-        "dimensions": {"ip": "10.0.0.1", "bk_cloud_id": "2", "device_name": "cpu0"},
+        "dimensions": {"ip": "10.0.0.1"},
         "time": 1569246480,
     },
     "anomaly": {
@@ -135,43 +229,4 @@ ANOMALY_EVENT = {
         },
     },
     "strategy_snapshot_key": "xxx",
-    "trigger": {
-        "level": "2",
-        "anomaly_ids": [
-            "55a76cf628e46c04a052f4e19bdb9dbf.1569246240.1.1.2",
-            "55a76cf628e46c04a052f4e19bdb9dbf.1569246360.1.1.2",
-            "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.2",
-        ],
-    },
 }
-
-
-class TestAdapter(TestCase):
-    def test_output_topic_uses_current_cluster_suffix(self):
-        with (
-            mock.patch.object(settings, "MONITOR_EVENT_KAFKA_TOPIC", "monitor-event"),
-            mock.patch(
-                "alarm_backends.core.alert.adapter.get_cluster",
-                return_value=SimpleNamespace(is_default=lambda: False, name="nondefault"),
-            ),
-        ):
-            self.assertEqual("monitor-event_nondefault", MonitorEventAdapter.get_output_topic())
-
-    def test_adapt(self):
-        adapter = MonitorEventAdapter(record=ANOMALY_EVENT, strategy=STRATEGY)
-        event = adapter.adapt()
-        self.assertEqual(1569246480, event["time"])
-        self.assertEqual(1, event["strategy_id"])
-        self.assertEqual("test", event["alert_name"])
-        self.assertEqual("异常测试", event["description"])
-        self.assertEqual(2, event["severity"])
-        self.assertEqual("ABNORMAL", event["status"])
-        self.assertEqual("HOST", event["target_type"])
-        self.assertEqual("10.0.0.1|2", event["target"])
-        self.assertEqual(["tags.device_name"], event["dedupe_keys"])
-
-        event = adapter.adapt(time=1569246660, status="RECOVERED", description="event recovered")
-        self.assertEqual(1569246660, event["time"])
-        self.assertEqual("event recovered", event["description"])
-        self.assertEqual("RECOVERED", event["status"])
-        self.assertEqual(["bk_monitor.system.cpu_detail.idle"], event["metric"])
