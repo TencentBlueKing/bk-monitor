@@ -145,3 +145,41 @@ class TestQueryTemplateWrapper:
     def test_render(self, template: dict[str, Any], expect: dict[str, Any], context: dict[str, Any]):
         w: core.QueryTemplateWrapper = core.QueryTemplateWrapper.from_dict(template)
         assert canonicalize(w.render(context)) == canonicalize(expect)
+
+
+class TestRenderPromqlConditions:
+    def test_and_conditions_append_matchers(self):
+        promql: str = 'up{job="a",${CONDITIONS}}'
+        where: list[dict[str, Any]] = [
+            {"key": "namespace", "value": ["prod"], "method": "eq"},
+            {"key": "pod_name", "value": ["^web-.*$"], "method": "req", "condition": "and"},
+        ]
+        assert core.render_promql_conditions(promql, "${CONDITIONS}", where) == (
+            'up{job="a",namespace="prod",pod_name=~"^web-.*$"}'
+        )
+
+    def test_or_conditions_union_selectors(self):
+        promql: str = 'up{job="a",${CONDITIONS}}'
+        where: list[dict[str, Any]] = [
+            {"key": "namespace", "value": ["ns-a"], "method": "eq"},
+            {"key": "namespace", "value": ["ns-b"], "method": "eq", "condition": "or"},
+        ]
+        assert core.render_promql_conditions(promql, "${CONDITIONS}", where) == (
+            '(up{job="a",namespace="ns-a"} or up{job="a",namespace="ns-b"})'
+        )
+
+    def test_or_conditions_keep_correlated_groups(self):
+        promql: str = 'up{job="a",${CONDITIONS}}'
+        where: list[dict[str, Any]] = [
+            {"key": "namespace", "value": ["ns-a"], "method": "eq"},
+            {"key": "pod_name", "value": ["^pod-a$"], "method": "req", "condition": "and"},
+            {"key": "namespace", "value": ["ns-b"], "method": "eq", "condition": "or"},
+            {"key": "pod_name", "value": ["^pod-b$"], "method": "req", "condition": "and"},
+        ]
+        assert core.render_promql_conditions(promql, "${CONDITIONS}", where) == (
+            '(up{job="a",namespace="ns-a",pod_name=~"^pod-a$"} or up{job="a",namespace="ns-b",pod_name=~"^pod-b$"})'
+        )
+
+    def test_empty_where_removes_placeholder_only(self):
+        promql: str = 'up{job="a",${CONDITIONS}} + down{job="b"}'
+        assert core.render_promql_conditions(promql, "${CONDITIONS}", []) == ('up{job="a"} + down{job="b"}')

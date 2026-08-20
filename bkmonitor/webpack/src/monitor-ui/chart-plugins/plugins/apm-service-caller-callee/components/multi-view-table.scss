@@ -1,7 +1,7 @@
 /* stylelint-disable declaration-no-important */
 .multi-view-table-main {
   width: 100%;
-  height: 100%;
+  height: auto;
 
   .mt-8 {
     margin-top: 18px;
@@ -16,8 +16,8 @@
     position: relative;
     display: flex;
     width: 100%;
-    height: 90%;
-    min-height: 80%;
+    height: auto;
+    min-height: 0;
 
     .view-empty-block {
       position: absolute;

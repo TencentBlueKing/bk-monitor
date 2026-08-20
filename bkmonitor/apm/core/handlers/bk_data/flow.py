@@ -22,7 +22,7 @@ from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models import ApmApplication, BkdataFlowConfig
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_tenant_default_biz_id
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -70,18 +70,21 @@ class ApmFlow:
     _FLOW = None
     _FLOW_TYPE = None
 
+    @staticmethod
+    def _resolve_bkdata_biz_id(bk_tenant_id: str, bk_biz_id: int) -> int:
+        if bk_biz_id > 0:
+            return bk_biz_id
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return get_tenant_default_biz_id(bk_tenant_id)
+        return settings.BK_DATA_BK_BIZ_ID
+
     def __init__(self, bk_biz_id, app_name, data_id, config):
         self.data_id = data_id
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
         self.config = config
         self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-
-        if self.bk_biz_id > 0:
-            self.bkdata_bk_biz_id = self.bk_biz_id
-        else:
-            # 如果为空间业务 数据源接入创建在公共业务中
-            self.bkdata_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+        self.bkdata_bk_biz_id = self._resolve_bkdata_biz_id(self.bk_tenant_id, self.bk_biz_id)
 
         self.flow = BkdataFlowConfig.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
         if not self.flow:

@@ -756,3 +756,19 @@ class Permission:
             resource_type=resource_type,
             result=result,
         ).inc()
+
+    def grant_creator_action_batch(self, resource: Resource, creators: list = None, raise_exception=False):
+        """
+        为多个用户新建实例关联权限授权
+        :param resource: 资源实例
+        :param creators: 资源创建者列表
+        :param raise_exception: 是否抛出异常
+        :return: {creator: grant_result}
+        """
+        # 权限中心单次授权仅接受一个 creator，去重后逐个授权
+        unique_creators = list(dict.fromkeys(creator for creator in (creators or []) if creator))
+
+        return {
+            creator: self.grant_creator_action(resource=resource, creator=creator, raise_exception=raise_exception)
+            for creator in unique_creators
+        }

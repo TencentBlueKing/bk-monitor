@@ -101,4 +101,6 @@ class AlarmStrategyV3ViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.strategies.bulk_switch_strategy, endpoint="switch_by_labels"),
         ResourceRoute("GET", QosCheckResource, endpoint="qos_check"),
         ResourceRoute("GET", GetDevopsStrategyListResource, endpoint="get_devops_strategy_list"),
+        ResourceRoute("POST", resource.strategies.query_config_to_promql, endpoint="query_config_to_promql"),
+        ResourceRoute("POST", resource.strategies.promql_to_query_config, endpoint="promql_to_query_config"),
     ]

@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { onExternalParams } from 'monitor-common/utils/iframe-bridge';
 import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
@@ -80,6 +81,8 @@ export default class Service extends tsc<object> {
   subName = '';
   appList = [];
   serviceList = [];
+  /** 取消订阅父页面参数联动 */
+  unsubscribeExternalParams: () => void = null;
   // menu list
   menuList: IMenuItem[] = [
     {
@@ -170,6 +173,38 @@ export default class Service extends tsc<object> {
     next();
   }
 
+  mounted() {
+    this.unsubscribeExternalParams = onExternalParams(this.handleExternalParams);
+  }
+
+  beforeDestroy() {
+    this.unsubscribeExternalParams?.();
+  }
+
+  /** 父页面下发应用参数时联动，与当前应用一致则忽略 */
+  handleExternalParams(params: Record<string, string>) {
+    const appName = params['filter-app_name'];
+    if (!appName || appName === this.appName) return;
+    this.applyAppName(appName);
+  }
+
+  /** 切换应用后当前服务在新应用下未必存在，统一跳回应用页，与导航栏选择行为保持一致 */
+  applyAppName(appName: string) {
+    const { to, from, dashboardId } = this.$route.query;
+    this.appName = appName;
+    const query = {
+      'filter-app_name': appName,
+      dashboardId: dashboardId || this.dashboardId,
+      to,
+      from,
+    };
+    const targetRoute = this.$router.resolve({ name: 'application', query });
+    /** 防止出现跳转当前地址导致报错 */
+    if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      this.$router.push({ name: 'application', query });
+    }
+  }
+
   /** 更新当前路由的信息 */
   async handleUpdateAppName(id, name = '') {
     await this.$nextTick();
@@ -217,19 +252,7 @@ export default class Service extends tsc<object> {
     const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
     // 选择应用
     if (navId === 'application') {
-      const { id } = this.routeList[1];
-      this.appName = item.id;
-      const targetRoute = this.$router.resolve({
-        name: id,
-        query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
-      });
-      /** 防止出现跳转当前地址导致报错 */
-      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-        this.$router.push({
-          name: id,
-          query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
-        });
-      }
+      this.applyAppName(item.id);
     } else {
       this.serviceName = item.id;
       // const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;

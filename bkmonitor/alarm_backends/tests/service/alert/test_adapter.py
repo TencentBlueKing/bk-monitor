@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from unittest import TestCase
+
+from types import SimpleNamespace
+from unittest import TestCase, mock
+
+from django.conf import settings
 
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 
@@ -144,6 +147,16 @@ ANOMALY_EVENT = {
 
 
 class TestAdapter(TestCase):
+    def test_output_topic_uses_current_cluster_suffix(self):
+        with (
+            mock.patch.object(settings, "MONITOR_EVENT_KAFKA_TOPIC", "monitor-event"),
+            mock.patch(
+                "alarm_backends.core.alert.adapter.get_cluster",
+                return_value=SimpleNamespace(is_default=lambda: False, name="nondefault"),
+            ),
+        ):
+            self.assertEqual("monitor-event_nondefault", MonitorEventAdapter.get_output_topic())
+
     def test_adapt(self):
         adapter = MonitorEventAdapter(record=ANOMALY_EVENT, strategy=STRATEGY)
         event = adapter.adapt()

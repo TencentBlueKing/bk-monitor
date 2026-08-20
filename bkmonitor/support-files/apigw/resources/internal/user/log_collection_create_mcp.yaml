@@ -1,0 +1,308 @@
+paths:
+  /mcp/fast_create_log_collector/:
+    post:
+      operationId: fast_create_log_collector
+      description: >-
+        Create one Linux, Windows, or container log collector through BKLOG Fast Create.
+        Linux/Windows require target_object_type, target_node_type, target_nodes and params;
+        Windows additionally requires collector_scenario_id=wineventlog and params.winlog_name.
+        Container requires bcs_cluster_id and configs. Storage cluster, retention, shards,
+        replicas, data link, parent index set and caller identity are deliberately not
+        configurable: BKLOG keeps its existing defaults and the current verified user is
+        forwarded automatically. This production write requires confirm=true. Returns
+        collector_config_id, bk_data_id, subscription_id, task_id_list and index_set_id;
+        use the detail and status tools to read the created collector and deployment status.
+        通过 BKLOG Fast Create 创建 Linux、Windows 或容器日志采集项。存储、数据链路、父索引集和
+        调用身份不可覆盖，沿用 BKLOG 默认选择并自动透传当前认证用户。生产写操作必须显式传
+        confirm=true，返回采集项、数据源、订阅、任务和索引集标识。
+      tags: [log_collection_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - environment
+              - collector_config_name
+              - collector_config_name_en
+              - collector_scenario_id
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                environment:
+                  type: string
+                  enum: [linux, windows, container]
+                  description: Collector environment. Linux/Windows use the Host Handler; container uses the K8s Handler. 采集环境。
+                collector_config_name:
+                  type: string
+                  maxLength: 50
+                  description: Collector display name. 采集项名称。
+                collector_config_name_en:
+                  type: string
+                  minLength: 5
+                  maxLength: 50
+                  pattern: ^[A-Za-z0-9_]+$
+                  description: Stable English collector identifier. 采集项英文标识。
+                collector_scenario_id:
+                  type: string
+                  enum: [row, section, wineventlog]
+                  description: Use row/section for Linux or container and wineventlog for Windows. 日志类型。
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Optional BKLOG category; omitted values use the existing default. 可选数据分类。
+                description:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+                  description: Collector description; Host/Windows limit is 64 characters. 采集项描述。
+                target_object_type:
+                  type: string
+                  description: Required for Linux/Windows, such as HOST or SERVICE. Linux/Windows 必填目标类型。
+                target_node_type:
+                  type: string
+                  description: Required for Linux/Windows, such as INSTANCE or TOPO. Linux/Windows 必填节点类型。
+                target_nodes:
+                  type: array
+                  description: Required Linux/Windows target list. Linux/Windows 必填目标列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      id: {type: integer}
+                      bk_inst_id: {}
+                      bk_obj_id: {type: string}
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                      bk_supplier_id: {type: string}
+                      bk_biz_id: {type: integer}
+                params:
+                  type: object
+                  additionalProperties: false
+                  description: Required Host collection parameters. Linux uses paths/multiline fields; Windows uses winlog fields. Linux/Windows 必填采集参数。
+                  properties:
+                    paths: {type: array, items: {type: string}}
+                    exclude_files: {type: array, items: {type: string}}
+                    conditions:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        type: {type: string}
+                        match_type: {type: string}
+                        match_content: {type: string, nullable: true}
+                        separator: {type: string, nullable: true}
+                        separator_filters:
+                          type: array
+                          items:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                              fieldindex: {type: string}
+                              word: {type: string}
+                              op: {type: string}
+                              logic_op: {type: string}
+                    multiline_pattern: {type: string}
+                    multiline_max_lines: {type: integer, maximum: 5000}
+                    multiline_timeout: {type: integer, maximum: 10}
+                    tail_files: {type: boolean}
+                    ignore_older: {type: integer}
+                    max_bytes: {type: integer}
+                    scan_frequency: {type: integer, minimum: 1}
+                    close_inactive: {type: integer, minimum: 1}
+                    harvester_limit: {type: integer, minimum: 1}
+                    clean_inactive: {type: integer, minimum: 1}
+                    winlog_name: {type: array, items: {type: string}}
+                    winlog_level: {type: array, items: {type: string}}
+                    winlog_event_id: {type: array, items: {type: string}}
+                    winlog_source: {type: array, items: {type: string}}
+                    winlog_content: {type: array, items: {type: string}}
+                    winlog_match_op: {type: string}
+                    extra_labels:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [key, value]
+                        properties:
+                          key: {type: string}
+                          operator: {type: string}
+                          value: {type: string}
+                    extra_template_labels:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [key, value]
+                        properties:
+                          key: {type: string}
+                          value: {}
+                data_encoding:
+                  type: string
+                  description: Optional Host character encoding; omitted values use the Fast Create default. 主机日志字符集。
+                bcs_cluster_id:
+                  type: string
+                  description: Required BCS cluster ID for container collectors. 容器采集必填 BCS 集群ID。
+                configs:
+                  type: array
+                  minItems: 1
+                  description: Required container log configurations. 容器采集必填配置。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [params, collector_type]
+                    properties:
+                      namespaces: {type: array, items: {type: string}}
+                      namespaces_exclude: {type: array, items: {type: string}}
+                      container:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          workload_type: {type: string}
+                          workload_name: {type: string}
+                          container_name: {type: string}
+                          container_name_exclude: {type: string}
+                      label_selector:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          match_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                          match_expressions:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                      annotation_selector:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          match_annotations:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                      paths: {type: array, items: {type: string}}
+                      data_encoding: {type: string}
+                      params:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          paths: {type: array, items: {type: string}}
+                          exclude_files: {type: array, items: {type: string}}
+                          conditions:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                              type: {type: string}
+                              match_type: {type: string}
+                              match_content: {type: string, nullable: true}
+                              separator: {type: string, nullable: true}
+                              separator_filters:
+                                type: array
+                                items:
+                                  type: object
+                                  additionalProperties: false
+                                  properties:
+                                    fieldindex: {type: string}
+                                    word: {type: string}
+                                    op: {type: string}
+                                    logic_op: {type: string}
+                          multiline_pattern: {type: string}
+                          multiline_max_lines: {type: integer, maximum: 5000}
+                          multiline_timeout: {type: integer, maximum: 10}
+                          tail_files: {type: boolean}
+                          ignore_older: {type: integer}
+                          max_bytes: {type: integer}
+                          scan_frequency: {type: integer, minimum: 1}
+                          close_inactive: {type: integer, minimum: 1}
+                          harvester_limit: {type: integer, minimum: 1}
+                          clean_inactive: {type: integer, minimum: 1}
+                          extra_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                operator: {type: string}
+                                value: {type: string}
+                          extra_template_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required: [key, value]
+                              properties:
+                                key: {type: string}
+                                value: {}
+                      collector_type:
+                        type: string
+                        enum: [container_log_config, node_log_config, std_log_config]
+                add_pod_label:
+                  type: boolean
+                  description: Include Pod labels for container collection. 是否自动添加 Pod 标签。
+                add_pod_annotation:
+                  type: boolean
+                  description: Include Pod annotations for container collection. 是否自动添加 Pod 注解。
+                extra_labels:
+                  type: array
+                  description: Container collector extra labels. 容器采集额外标签。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key, value]
+                    properties:
+                      key: {type: string}
+                      operator: {type: string}
+                      value: {type: string}
+                yaml_config_enabled:
+                  type: boolean
+                  description: Enable container YAML configuration mode. 是否启用容器 YAML 模式。
+                yaml_config:
+                  type: string
+                  description: Base64-encoded container YAML configuration. Base64 编码的容器 YAML。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Explicit user confirmation for this production write. 生产写操作的用户显式确认，必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/fast_create/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

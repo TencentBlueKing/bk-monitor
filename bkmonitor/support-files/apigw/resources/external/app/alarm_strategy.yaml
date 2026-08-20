@@ -197,3 +197,39 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: search alarm strategy (migrated)
+  /app/alarm_strategy/query_config_to_promql/:
+    post:
+      operationId: query_config_to_promql
+      description: 查询配置转换为 PromQL
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alarm_strategy_v3/query_config_to_promql/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: convert query config to PromQL
+  /app/alarm_strategy/promql_to_query_config/:
+    post:
+      operationId: promql_to_query_config
+      description: PromQL 转换为查询配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alarm_strategy_v3/promql_to_query_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: convert PromQL to query config

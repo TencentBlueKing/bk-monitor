@@ -22,6 +22,7 @@ from bkmonitor.models import (
     NoticeTemplate,
     QueryConfigModel,
     StrategyActionConfigRelation,
+    StrategyHistoryModel,
     StrategyModel,
 )
 
@@ -43,6 +44,7 @@ def _clean_all_model():
     AlgorithmModel.objects.all().delete()
     NoticeTemplate.objects.all().delete()
     StrategyActionConfigRelation.objects.all().delete()
+    StrategyHistoryModel.objects.all().delete()
 
 
 @pytest.fixture()

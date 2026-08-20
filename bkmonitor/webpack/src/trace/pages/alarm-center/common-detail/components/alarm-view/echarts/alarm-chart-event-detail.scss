@@ -1,6 +1,10 @@
 .alarm-chart-event-detail {
   position: fixed;
-  z-index: 9999;
+  /*
+   * 层级说明：
+   * - 取 2500：高于普通内容 / chart-wrapper(~1000) / Modal 基准(2000)，且低于 Popper(8000)
+   */
+  z-index: 2500;
   display: flex;
   flex-direction: column;
   width: 720px;

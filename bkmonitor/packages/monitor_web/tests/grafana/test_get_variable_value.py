@@ -27,6 +27,46 @@ class TestGetVariableValue:
 
     resource_name = "resource.grafana.get_variable_value"
 
+    def test_query_dimension_uses_unify_query_as_single_entry(self, mocker):
+        params = {
+            "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+            "data_type_label": DataTypeLabel.LOG,
+            "field": "path",
+            "metric_field": "_index",
+            "result_table_id": "test_log",
+            "where": [],
+            "index_set_id": "999",
+            "query_string": "log:error",
+            "start_time": 100,
+            "end_time": 200,
+            "interval": 60,
+        }
+        data_source = SimpleNamespace(bk_tenant_id="system")
+        data_source_class = mocker.Mock(return_value=data_source)
+        mocker.patch("monitor_web.grafana.resources.time_series.load_data_source", return_value=data_source_class)
+        mocker.patch("monitor_web.grafana.resources.time_series.get_request_tenant_id", return_value="system")
+        query = mocker.Mock()
+        query.query_dimensions.return_value = ["/var/log/messages"]
+        unify_query = mocker.patch("monitor_web.grafana.resources.time_series.UnifyQuery", return_value=query)
+
+        result = GetVariableValue().query_dimension(bk_biz_id=2, params=params)
+
+        assert result == [{"label": "/var/log/messages", "value": "/var/log/messages"}]
+        unify_query.assert_called_once_with(
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            data_sources=[data_source],
+            expression="",
+        )
+        query.query_dimensions.assert_called_once_with(
+            dimension_field=["path"],
+            limit=2000,
+            start_time=100_000,
+            end_time=260_000,
+            slimit=2000,
+            interval=60,
+        )
+
     def test_dimensions_with_bkmonitor_timeseries(self, mocker):
         """监控时序数据，维度查询"""
         params = {
@@ -129,6 +169,7 @@ class TestGetVariableValue:
             "timed_out": False,
         }
         mocker.patch("api.metadata.default.GetEsDataResource.perform_request", return_value=get_es_data_return)
+        mocker.patch("bkmonitor.data_source.unify_query.query.UnifyQuery.use_unify_query", return_value=False)
         data = GetVariableValue().request(params)
         data.sort(key=lambda x: x["value"])
         assert data == [
@@ -273,6 +314,7 @@ class TestGetVariableValue:
             "timed_out": False,
         }
         mocker.patch("api.metadata.default.GetEsDataResource.perform_request", return_value=get_es_data_return)
+        mocker.patch("bkmonitor.data_source.unify_query.query.UnifyQuery.use_unify_query", return_value=False)
         data = GetVariableValue().request(params)
         assert data == [
             {"label": "bk-monitoring", "value": "bk-monitoring"},
@@ -288,9 +330,9 @@ class TestGetVariableValue:
                 "data_type_label": "log",
                 "field": "path",
                 "metric_field": "_index",
-                "result_table_id": "2_bklog.dillon_test",
+                "result_table_id": "test_log",
                 "where": [],
-                "index_set_id": "104",
+                "index_set_id": "999",
             },
         }
         es_query_search_return = {
@@ -327,7 +369,7 @@ class TestGetVariableValue:
                 "hits": [
                     {
                         "_id": "6a425a1ca64f1f4e526f147fd1a39aba",
-                        "_index": "v2_2_bklog_dillon_test_20210831_0",
+                        "_index": "v2_test_log_20210831_0",
                         "_score": 0.0,
                         "_source": {
                             "cloudId": 0,
@@ -353,6 +395,7 @@ class TestGetVariableValue:
         mocker.patch(
             "api.log_search.default.ESQuerySearchResource.perform_request", return_value=es_query_search_return
         )
+        mocker.patch("bkmonitor.data_source.unify_query.query.UnifyQuery.use_unify_query", return_value=False)
         data = GetVariableValue().request(params)
         assert data == [{"label": "/var/log/messages", "value": "/var/log/messages"}]
 
@@ -488,6 +531,7 @@ class TestGetVariableValue:
         mocker.patch(
             "api.log_search.default.ESQuerySearchResource.perform_request", return_value=es_query_search_return
         )
+        mocker.patch("bkmonitor.data_source.unify_query.query.UnifyQuery.use_unify_query", return_value=False)
         data = GetVariableValue().request(params)
         assert {item["value"] for item in data} == {"influxdb-query-select", "handle-ts-query", "influxdb-client-query"}
         assert sorted(data, key=lambda x: x["value"]) == sorted(

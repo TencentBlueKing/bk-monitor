@@ -261,6 +261,9 @@ class GetEsDataResource(MetaDataAPIGWResource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
         use_full_index_names = serializers.BooleanField(required=False, label="是否使用索引全名进行检索", default=False)
+        is_index_prefix = serializers.BooleanField(
+            required=False, label="table_id 是否为索引前缀（跨集群检索同前缀索引）", default=False
+        )
 
 
 class ModifyDataIdResource(MetaDataAPIGWResource):

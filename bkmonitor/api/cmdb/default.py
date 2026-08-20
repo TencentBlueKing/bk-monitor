@@ -418,16 +418,27 @@ class GetHostById(Resource):
         fields = serializers.ListField(label="查询字段", allow_empty=True, default=Host.Fields)
 
     def perform_request(self, params):
+        bk_host_ids = list(dict.fromkeys(params["bk_host_ids"]))
+        if not bk_host_ids:
+            return []
+
         # 按主机ID查询
         request_params = {
             "bk_biz_id": params["bk_biz_id"],
             "host_property_filter": {
                 "condition": "AND",
-                "rules": [{"field": "bk_host_id", "operator": "in", "value": params["bk_host_ids"]}],
+                "rules": [{"field": "bk_host_id", "operator": "in", "value": bk_host_ids}],
             },
             "fields": params["fields"],
         }
-        records = batch_request(client.list_biz_hosts_topo, request_params)
+        if len(bk_host_ids) <= 500:
+            # 精确 ID 查询最多返回与 ID 数量相同的记录，无需额外发起计数请求。
+            result = client.list_biz_hosts_topo({**request_params, "page": {"start": 0, "limit": 500}})
+            records = result["info"] if result else []
+            if result and result["count"] is not None and result["count"] > len(records):
+                records = batch_request(client.list_biz_hosts_topo, request_params)
+        else:
+            records = batch_request(client.list_biz_hosts_topo, request_params)
 
         # 获取云区域信息
         clouds = api.cmdb.search_cloud_area()

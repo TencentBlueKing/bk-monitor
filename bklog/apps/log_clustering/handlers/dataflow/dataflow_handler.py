@@ -111,6 +111,7 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
     UpdateOnlineTaskCls,
 )
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import DEFAULT_TIME_FIELD, TimeFieldUnitEnum, TimeFieldTypeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -1715,9 +1716,20 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _build_clustered_doris_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        # 不带 cluster_id 时 metadata 会把存储建到默认 Doris 集群上，查询会打到错误的集群
+        cluster_id = DorisClusterHandler.get_cluster_id(
+            bkbase_table_id=clustering_config.clustered_rt,
+            # flow 刚创建时 BkBase 侧可能还查不到存储，此时按下发 flow 时使用的集群名兜底
+            fallback_cluster_name=clustering_config.doris_storage or "",
+        )
+        if not cluster_id:
+            raise DorisStorageNotExistException(
+                DorisStorageNotExistException.MESSAGE.format(index_set_id=index_set.index_set_id)
+            )
         return {
             **cls._build_clustered_route_base_params(index_set, clustering_config),
             "storage_type": StorageTypeEnum.DORIS.value,
+            "cluster_id": cluster_id,
             "bkbase_table_id": clustering_config.clustered_rt,
             "table_id": (
                 f"bklog_index_set_{index_set.index_set_id}_{clustering_config.clustered_rt.replace('.', '_')}.__doris__"
@@ -1787,8 +1799,9 @@ class DataFlowHandler(BaseAiopsHandler):
             )
             return False
 
-        bulk_route_params = cls._build_clustered_bulk_route_params(index_set, clustering_config)
         try:
+            # 构建路由参数需要查询存储集群，失败时同样不能下发路由，否则会落到默认 Doris 集群
+            bulk_route_params = cls._build_clustered_bulk_route_params(index_set, clustering_config)
             TransferApi.bulk_create_or_update_log_router(bulk_route_params)
             return True
         except Exception as error:

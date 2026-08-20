@@ -376,6 +376,7 @@
       border-radius: 2px;
 
       &.tag-item {
+        position: relative;
         color: #63656e;
         cursor: pointer;
         background: #f0f1f5;
@@ -428,13 +429,26 @@
       .tag-item-input {
         position: absolute;
         top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        box-sizing: border-box;
         width: 100%;
+        min-width: 0;
         max-width: 100%;
         height: 100%;
         padding: 0 8px;
+        overflow: hidden;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 20px;
+        color: inherit;
         resize: none;
         background-color: #e1ecff;
         border: none;
+        outline: none;
 
         &::-webkit-scrollbar {
           width: 12px; /* Width of the scrollbar */
