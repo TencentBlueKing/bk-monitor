@@ -21,6 +21,7 @@ from alarm_backends.core.alarm_engine.contract import (
     build_trigger_strategy_ir_from_legacy_config,
 )
 from alarm_backends.core.alarm_engine.encoder import decode_json_document
+from alarm_backends.core.alarm_engine.publisher import _trigger_input_envelope
 from alarm_backends.core.alarm_engine.reference import (
     build_reference_trigger_decision_batch,
     build_reference_trigger_decision_candidate,
@@ -36,7 +37,14 @@ def legacy_bytes(strategy):
 
 
 GOLDEN_FILE = Path(__file__).parent / "testdata" / "python-v1" / "trigger_decision_v1.json"
-GOLDEN_SHA256 = "982bfd06f5cf3d98fc2f7c965fafd854346601b1a47d74e86e4c7195a1f93f21"
+CHECKSUM_FILE = GOLDEN_FILE.parent / "SHA256SUMS"
+
+
+def read_checksums(path: Path) -> dict[str, str]:
+    return {
+        name: digest
+        for digest, name in (line.split("  ", 1) for line in path.read_text(encoding="ascii").splitlines() if line)
+    }
 
 
 def build_reference(*, point, strategy, event_record, raw=None, tenant_id="default"):
@@ -66,7 +74,9 @@ def triggered_event(point):
     }
 
 
-def detect_input_id(*, point, strategy, raw):
+def detect_outcome(*, point, strategy, raw):
+    """Rebuild the authoritative Detect projection a Trigger reference must match."""
+
     strategy_ir = build_trigger_strategy_ir_from_legacy_config(
         tenant_id="default",
         purpose="DETECT",
@@ -78,13 +88,18 @@ def detect_input_id(*, point, strategy, raw):
         {"level": level, "result": "ANOMALOUS", "anomaly": copy.deepcopy(point["anomaly"][str(level)])}
         for level in strategy_ir["required_levels"]
     ]
-    return build_detection_outcome(
+    outcome = build_detection_outcome(
         strategy_ir=strategy_ir,
         batch_id="authoritative-detect-batch",
         data_raw=point["data"],
         evaluations=evaluations,
         outcome="ANOMALOUS",
-    )["input_id"]
+    )
+    return strategy_ir, outcome
+
+
+def detect_input_id(*, point, strategy, raw):
+    return detect_outcome(point=point, strategy=strategy, raw=raw)[1]["input_id"]
 
 
 def test_reference_rebuilds_same_input_id_from_exact_snapshot_for_no_trigger():
@@ -114,23 +129,108 @@ def test_reference_projects_real_checker_trigger_shape():
     assert batch["decisions"][0]["anomaly_timestamps"] == [source_time]
 
 
-def test_python_reference_decision_golden_is_current():
-    point = copy.deepcopy(TRIGGER_POINT)
-    strategy = copy.deepcopy(TRIGGER_STRATEGY)
-    strategy["update_time"] = 1569246480
-    expected = {
-        "schema_version": "trigger-decision-batch/1.0",
-        "fixtures": [
-            {
-                "name": "python-trigger-reference",
-                "batch": build_reference(point=point, strategy=strategy, event_record=triggered_event(point)),
-            }
-        ],
-    }
+def build_decision_golden_fixtures() -> list[dict]:
+    """Project every Python reference terminal state with its authoritative TriggerInput.
 
+    Each fixture carries the exact TriggerInput wire the decision was derived from, so the
+    Go consumer can cross-check the terminal against the authoritative DetectionOutcome
+    instead of only validating the decision in isolation.
+    """
+
+    point = copy.deepcopy(TRIGGER_POINT)
+    trigger_strategy = copy.deepcopy(TRIGGER_STRATEGY)
+    trigger_strategy["update_time"] = 1569246480
+    trigger_raw = legacy_bytes(trigger_strategy)
+    trigger_strategy_ir, anomalous = detect_outcome(point=point, strategy=trigger_strategy, raw=trigger_raw)
+    anomalous_input = _trigger_input_envelope(trigger_strategy_ir, [anomalous])
+
+    detect_strategy = copy.deepcopy(DETECT_STRATEGY)
+    detect_raw = legacy_bytes(detect_strategy)
+    detect_strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+        tenant_id="default",
+        purpose="DETECT",
+        strategy=detect_strategy,
+        item_id=2,
+        legacy_json=detect_raw,
+    )
+
+    def detect_terminal(record, *, outcome, error_code=None, evaluations):
+        return build_detection_outcome(
+            strategy_ir=detect_strategy_ir,
+            batch_id="authoritative-detect-batch",
+            data_raw=copy.deepcopy(record),
+            evaluations=evaluations,
+            outcome=outcome,
+            error_code=error_code,
+        )
+
+    normal = detect_terminal(
+        DETECT_RECORDS[1],
+        outcome="NORMAL",
+        evaluations=[{"level": level, "result": "NORMAL"} for level in detect_strategy_ir["required_levels"]],
+    )
+    algorithm_error = detect_terminal(DETECT_RECORDS[0], outcome="ERROR", error_code="ALGORITHM_ERROR", evaluations=[])
+    unsupported = detect_terminal(
+        DETECT_RECORDS[0], outcome="UNSUPPORTED", error_code="UNSUPPORTED_STRATEGY", evaluations=[]
+    )
+
+    fixtures = [
+        {
+            "name": "python-trigger-reference",
+            "trigger_input": anomalous_input,
+            "batch": build_reference(
+                point=point, strategy=trigger_strategy, raw=trigger_raw, event_record=triggered_event(point)
+            ),
+        },
+        {
+            "name": "python-trigger-condition-not-met",
+            "trigger_input": anomalous_input,
+            "batch": build_reference(point=point, strategy=trigger_strategy, raw=trigger_raw, event_record=None),
+        },
+    ]
+    for name, source in (
+        ("python-input-normal", normal),
+        ("python-error-terminal", algorithm_error),
+        ("python-unsupported-terminal", unsupported),
+    ):
+        fixtures.append(
+            {
+                "name": name,
+                "trigger_input": _trigger_input_envelope(detect_strategy_ir, [source]),
+                "batch": build_terminal_reference_decision_batches(
+                    strategy_ir=detect_strategy_ir,
+                    detection_outcomes=[source],
+                )[0],
+            }
+        )
+    return fixtures
+
+
+def test_python_reference_decision_golden_covers_every_terminal_state():
+    expected = {"schema_version": "trigger-decision-batch/1.0", "fixtures": build_decision_golden_fixtures()}
     payload = GOLDEN_FILE.read_bytes()
-    assert hashlib.sha256(payload).hexdigest() == GOLDEN_SHA256
+
+    assert hashlib.sha256(payload).hexdigest() == read_checksums(CHECKSUM_FILE)[GOLDEN_FILE.name]
     assert decode_json_document(payload) == expected
+    terminals = [
+        (fixture["batch"]["decisions"][0]["outcome"], fixture["batch"]["decisions"][0]["reason_code"])
+        for fixture in expected["fixtures"]
+    ]
+    assert terminals == [
+        ("TRIGGER", "TRIGGER_CONDITION_MET"),
+        ("NO_TRIGGER", "TRIGGER_CONDITION_NOT_MET"),
+        ("NO_TRIGGER", "INPUT_NORMAL"),
+        ("ERROR", "ALGORITHM_ERROR"),
+        ("UNSUPPORTED", "UNSUPPORTED_STRATEGY"),
+    ]
+
+
+def test_python_reference_decision_golden_binds_each_terminal_to_its_authoritative_input():
+    for fixture in build_decision_golden_fixtures():
+        sources = {outcome["input_id"] for outcome in fixture["trigger_input"]["detection_outcomes"]}
+        decisions = {decision["input_id"] for decision in fixture["batch"]["decisions"]}
+
+        assert decisions <= sources, fixture["name"]
 
 
 def test_reference_uses_exact_snapshot_bytes_and_fails_closed_on_identity_drift():

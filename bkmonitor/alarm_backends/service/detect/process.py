@@ -195,6 +195,12 @@ class DetectProcess(BaseAbnormalPushProcessor):
         from alarm_backends.core.alarm_engine.reference_publisher import (
             get_cached_kafka_reference_decision_publisher,
         )
+        from alarm_backends.core.alarm_engine.telemetry import (
+            STAGE_DETECTION,
+            STAGE_REFERENCE,
+            observe_shadow_publish,
+            record_shadow_published_records,
+        )
 
         config_json = json.dumps(
             shadow_kafka_config(settings.ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG),
@@ -209,7 +215,10 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
         published = 0
         for batch in batches:
-            published += publisher.publish_batch(batch)
+            with observe_shadow_publish(STAGE_DETECTION):
+                acknowledged = publisher.publish_batch(batch)
+            record_shadow_published_records(STAGE_DETECTION, acknowledged)
+            published += acknowledged
             if not reference_enabled:
                 continue
             try:
@@ -245,8 +254,11 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     reference_initialization_failed = True
                     continue
             try:
-                for reference_batch in reference_batches:
-                    reference_publisher.publish_batch(reference_batch)
+                acknowledged_references = 0
+                with observe_shadow_publish(STAGE_REFERENCE):
+                    for reference_batch in reference_batches:
+                        acknowledged_references += reference_publisher.publish_batch(reference_batch)
+                record_shadow_published_records(STAGE_REFERENCE, acknowledged_references)
             except Exception:
                 logger.exception("[alarm engine shadow] failed to publish terminal reference decision")
         return published

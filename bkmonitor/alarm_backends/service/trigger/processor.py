@@ -125,6 +125,11 @@ class TriggerProcessor:
         from alarm_backends.core.alarm_engine.reference_publisher import (
             get_cached_kafka_reference_decision_publisher,
         )
+        from alarm_backends.core.alarm_engine.telemetry import (
+            STAGE_REFERENCE,
+            observe_shadow_publish,
+            record_shadow_published_records,
+        )
 
         publisher = None
         published = 0
@@ -178,7 +183,10 @@ class TriggerProcessor:
                     logger.exception("[alarm engine shadow] failed to initialize Trigger reference publisher")
                     break
             try:
-                published += publisher.publish_batches(chain((first_batch,), batches))
+                with observe_shadow_publish(STAGE_REFERENCE):
+                    acknowledged = publisher.publish_batches(chain((first_batch,), batches))
+                record_shadow_published_records(STAGE_REFERENCE, acknowledged)
+                published += acknowledged
             except Exception:
                 logger.exception(
                     "[alarm engine shadow] failed to publish Trigger reference for strategy(%s) item(%s)",
