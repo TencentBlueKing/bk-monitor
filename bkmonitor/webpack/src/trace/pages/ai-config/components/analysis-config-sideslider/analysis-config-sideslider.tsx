@@ -36,15 +36,15 @@ import { Button, Input, Message, Sideslider, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useAiResources } from '../../composables/use-ai-resources';
-import { useResourceDialog } from '../../composables/use-resource-dialog';
+import { type IResourceDialogConfirmData, useResourceDialog } from '../../composables/use-resource-dialog';
 import { useRuleBasicInfo } from '../../composables/use-rule-basic-info';
 import { useSourceAnalysisRuleDetail } from '../../composables/use-source-analysis-rule-detail';
-import { AiResourceEnum, RESOURCE_DIALOG_TITLE_MAP, SidesliderTypeEnum } from '../../constants';
+import { AiResourceEnum, MODULE_CONFIG, RESOURCE_DIALOG_TITLE_MAP, SidesliderTypeEnum } from '../../constants';
 import MatchRule from '../match-rule/match-rule';
 import ResourceCollapseList from '../resource-collapse-list/resource-collapse-list';
 
-import type { ConfirmPayload, SidesliderType } from '../../typings';
-import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
+import type { AiResourceType, ConfirmPayload, SidesliderType, SourceAnalysisRuleDto } from '../../typings';
+import type { IAgent, IKnowledgebase } from '@blueking/ai-ui-sdk/types';
 import type {
   IFilterField,
   IGetValueFnParams,
@@ -117,6 +117,12 @@ export default defineComponent({
     confirm: (_payload: ConfirmPayload) => true,
   },
   setup(props, { emit }) {
+    // TODO: 接入真实空间 / 用户 / 接口前缀配置
+    const dialogEnv = {
+      spaceId: '',
+      memberUrl: '',
+      spaces: [],
+    };
     const { t } = useI18n();
     const {
       conditions,
@@ -161,49 +167,49 @@ export default defineComponent({
       resetState,
       getCreateParams,
       getChangedFields,
-      handleAddResource,
-      handleClearResources,
-      handleRemoveResource,
+      setResourceIds,
+      clearResourceIds,
+      removeResourceId,
     } = useSourceAnalysisRuleDetail();
 
-    const { agents, skills, knowledgebases, fetchResources } = useAiResources();
+    const { agents, skills, knowledgebases, getResourceByType, fetchAllResources, resetAllResources } =
+      useAiResources();
 
-    const {
-      dialogIsShow,
-      dialogModule,
-      dialogMultiple,
-      handleOpenResourceDialog,
-      handleCloseResourceDialog,
-      handleDialogConfirm,
-    } = useResourceDialog({
-      addResource: handleAddResource,
-    });
+    const { dialogIsShow, dialogModule, dialogMultiple, handleOpenResourceDialog, handleCloseResourceDialog } =
+      useResourceDialog();
 
     /** 是否编辑态 */
     const isEdit = computed(() => props.type === SidesliderTypeEnum.EDIT);
-    /** 根据当前规则中的资源 id 在全量资源池中匹配完整数据 */
-    const selectedAgent = computed<IAgent[]>(() => {
-      const rule = detail.value;
-      if (!rule?.agent_id) return [];
-      const agent = agents.value.find(item => String(item.id) === rule.agent_id);
-      return agent ? [agent] : [];
-    });
-    const selectedSkills = computed<ISkill[]>(() => {
-      const rule = detail.value;
-      if (!rule?.skill_ids?.length) return [];
-      return skills.value.filter(item => rule.skill_ids.includes(String(item.id)));
-    });
-    const selectedKnowledgebases = computed<IKnowledgebase[]>(() => {
-      const rule = detail.value;
-      if (!rule?.knowledge_base_ids?.length) return [];
-      return knowledgebases.value.filter(item => rule.knowledge_base_ids.includes(String(item.id)));
-    });
 
-    // TODO: 接入真实空间 / 用户 / 接口前缀配置
-    const dialogEnv = {
-      spaceId: '',
-      memberUrl: '',
-      spaces: [],
+    /**
+     * @description 弹窗确认：按当前模块从确认数据中提取资源值，写回规则并同步已选资源详情后关闭弹窗
+     * @param {IResourceDialogConfirmData} data 弹窗回传的已选资源
+     */
+    const handleDialogConfirm = (data: IResourceDialogConfirmData) => {
+      const config = MODULE_CONFIG[dialogModule.value];
+      if (config) {
+        const items = data[config.field];
+        const value = config.single ? (items[0] ? String(items[0].id) : '') : items.map(item => String(item.id));
+        setResourceIds(config.resource, value as SourceAnalysisRuleDto[AiResourceType]);
+        getResourceByType(config.resource).setResources(items);
+      }
+      handleCloseResourceDialog();
+    };
+
+    /**
+     * @description 删除资源：同步移除规则中的资源 ID 与已选资源详情
+     */
+    const handleRemoveResource = (resourceType: AiResourceType, resourceId: string) => {
+      removeResourceId(resourceType, resourceId);
+      getResourceByType(resourceType).removeResource(resourceId);
+    };
+
+    /**
+     * @description 清空资源：同步清空规则中的资源 ID 与已选资源详情
+     */
+    const handleClearResources = (resourceType: AiResourceType) => {
+      clearResourceIds(resourceType);
+      getResourceByType(resourceType).clearResources();
     };
 
     /**
@@ -250,15 +256,16 @@ export default defineComponent({
           handleCloseResourceDialog();
           resetState();
           resetBasicInfo();
+          resetAllResources();
           return;
         }
-        fetchResources();
         if (isEdit.value && props.ruleId) {
           fetchDetail(props.ruleId, detail => {
-            console.log(detail);
             setBasicInfoFormData(detail);
+            fetchAllResources(detail);
           });
         } else {
+          resetAllResources();
           initDetail(detail => {
             setBasicInfoFormData(detail);
           });
@@ -362,7 +369,7 @@ export default defineComponent({
     const renderAgentPanel = () => {
       return (
         <ResourceCollapseList
-          count={detail.value?.agent_id ? 1 : 0}
+          count={agents.value.length}
           emptyText={t('暂无关联智能体')}
           headerTip={t('可绑定本空间有使用权限的智能体')}
           title={t('智能体')}
@@ -371,9 +378,10 @@ export default defineComponent({
             handleClearResources(AiResourceEnum.AGENT);
           }}
         >
-          {selectedAgent.value.map(agent => (
+          {agents.value.map(agent => (
             <RenderAgentCard
               key={agent.id}
+              class='agent-card'
               agent={agent}
               apiPrefix={AI_UI_SDK_API_PREFIX}
               isShowOperation={true}
@@ -394,7 +402,7 @@ export default defineComponent({
     const renderSkillPanel = () => {
       return (
         <ResourceCollapseList
-          count={selectedSkills.value.length}
+          count={skills.value.length}
           emptyText={t('暂无关联Skill')}
           headerTip={t('可绑定本空间有使用权限的 Skill')}
           title={t('Skill')}
@@ -403,9 +411,10 @@ export default defineComponent({
             handleClearResources(AiResourceEnum.SKILL);
           }}
         >
-          {selectedSkills.value.map(item => (
+          {skills.value.map(item => (
             <RenderSkillCard
               key={item.id}
+              class='skill-card'
               apiPrefix={AI_UI_SDK_API_PREFIX}
               isShowOperation={true}
               showDeleteTips={false}
@@ -424,7 +433,7 @@ export default defineComponent({
     const renderKnowledgeBasePanel = () => {
       return (
         <ResourceCollapseList
-          count={selectedKnowledgebases.value.length}
+          count={knowledgebases.value.length}
           emptyText={t('暂无关联知识库')}
           headerTip={t('可绑定本空间有使用权限的知识库')}
           title={t('知识库')}
@@ -433,9 +442,10 @@ export default defineComponent({
             handleClearResources(AiResourceEnum.KNOWLEDGE_BASE);
           }}
         >
-          {selectedKnowledgebases.value.map(item => (
+          {knowledgebases.value.map(item => (
             <RenderKnowledgebaseCard
               key={item.id}
+              class='knowledgebase-card'
               apiPrefix={AI_UI_SDK_API_PREFIX}
               isShowOperation={true}
               knowledgebase={item}
@@ -504,14 +514,14 @@ export default defineComponent({
     const renderResourceDialog = () => {
       return (
         <RenderResourceDialog
-          agents={selectedAgent.value}
+          agents={agents.value}
           apiPrefix={AI_UI_SDK_API_PREFIX}
           isShow={dialogIsShow.value}
-          knowledgebases={selectedKnowledgebases.value}
+          knowledgebases={knowledgebases.value}
           memberUrl={dialogEnv.memberUrl}
           module={dialogModule.value}
           multiple={dialogMultiple.value}
-          skills={selectedSkills.value}
+          skills={skills.value}
           spaceId={dialogEnv.spaceId}
           spaces={dialogEnv.spaces}
           title={RESOURCE_DIALOG_TITLE_MAP[dialogModule.value]}

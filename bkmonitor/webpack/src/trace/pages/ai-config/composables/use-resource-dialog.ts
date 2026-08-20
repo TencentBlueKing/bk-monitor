@@ -27,9 +27,6 @@ import { computed, shallowRef } from 'vue';
 
 import { Module } from '@blueking/ai-ui-sdk/enums';
 
-import { MODULE_CONFIG } from '../constants';
-
-import type { AiResourceType, SourceAnalysisRuleDto } from '../typings';
 import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
 
 /** 弹窗确认事件数据 */
@@ -42,15 +39,12 @@ export interface IResourceDialogConfirmData {
   skills: ISkill[];
 }
 
-export interface IUseResourceDialogOptions {
-  addResource: <T extends AiResourceType>(resourceType: T, resourceValue: SourceAnalysisRuleDto[T]) => void;
-}
-
 /**
  * @description 资源选择弹窗状态管理
- * 封装 RenderResourceDialog 的显隐、模块切换、确认回写等逻辑，宿主只需提供确认回调即可。
+ * 仅封装 RenderResourceDialog 的显隐、模块切换、单多选等弹窗自身状态；
+ * 确认后的资源值提取与业务回写由宿主组件处理（监听 confirm 事件）。
  */
-export const useResourceDialog = ({ addResource }: IUseResourceDialogOptions) => {
+export const useResourceDialog = () => {
   /** 弹窗是否可见 */
   const dialogIsShow = shallowRef(false);
   /** 当前资源模块 */
@@ -74,20 +68,6 @@ export const useResourceDialog = ({ addResource }: IUseResourceDialogOptions) =>
     dialogIsShow.value = false;
   };
 
-  /**
-   * @description 弹窗确认：按当前模块从确认数据中提取资源值，写回规则后关闭弹窗
-   * @param {IResourceDialogConfirmData} data 弹窗回传的已选资源
-   */
-  const handleDialogConfirm = (data: IResourceDialogConfirmData) => {
-    const config = MODULE_CONFIG[dialogModule.value];
-    if (config) {
-      const items = data[config.field];
-      const value = config.single ? (items[0] ? String(items[0].id) : '') : items.map(item => String(item.id));
-      addResource(config.resource, value as SourceAnalysisRuleDto[AiResourceType]);
-    }
-    handleCloseResourceDialog();
-  };
-
   return {
     /** 弹窗是否可见 */
     dialogIsShow,
@@ -99,7 +79,5 @@ export const useResourceDialog = ({ addResource }: IUseResourceDialogOptions) =>
     handleOpenResourceDialog,
     /** 关闭弹窗 */
     handleCloseResourceDialog,
-    /** 弹窗确认：提取资源值并写回规则 */
-    handleDialogConfirm,
   };
 };
