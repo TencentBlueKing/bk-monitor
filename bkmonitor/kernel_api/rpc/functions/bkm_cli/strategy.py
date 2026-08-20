@@ -34,6 +34,11 @@ DEFAULT_PAGE_SIZE = 500
 MAX_PAGE_SIZE = 2000
 # ``.strategy_group`` 的保留字段，不是策略 ID
 GROUP_RESERVED_FIELDS = ("interval_list", "strategy_source", "bk_biz_id")
+# CHECK_RESULT 清理任务的周期（``0 */2 * * *``，见 config/role/worker.py 的 crontab 配置）。
+# 热路径 zadd 不裁剪，只有这个周期任务按 point_required 收口，因此它决定成员数的超发幅度。
+CHECK_RESULT_CLEAN_INTERVAL_SECONDS = 7200
+# get_strategy_by_ids 的 MGET 分块大小（core/cache/strategy.py::get_strategy_by_ids）
+STRATEGY_MGET_CHUNK_SIZE = 1000
 
 
 def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
@@ -96,6 +101,7 @@ def _list_enabled(params: dict[str, Any]) -> dict[str, Any]:
     intervals, filter_echo = _resolve_strategy_id_filter(params)
     page, page_size = _resolve_pagination(params)
     include_item_ids = bool(params.get("include_item_ids", True))
+    include_detect_profile = bool(params.get("include_detect_profile", False))
 
     raw_ids = StrategyCacheManager.get_strategy_ids()
     population: list[int] = sorted({int(raw_id) for raw_id in raw_ids if _is_int_like(raw_id)})
@@ -107,10 +113,17 @@ def _list_enabled(params: dict[str, Any]) -> dict[str, Any]:
 
     total_pages = (len(matched) + page_size - 1) // page_size if matched else 0
     start = (page - 1) * page_size
+    page_ids = matched[start : start + page_size]
     strategies = [
         _serialize_enabled_strategy(strategy_id, group_index.get(strategy_id), include_item_ids=include_item_ids)
-        for strategy_id in matched[start : start + page_size]
+        for strategy_id in page_ids
     ]
+
+    detect_profiles: dict[int, dict[str, Any]] = {}
+    if include_detect_profile:
+        detect_profiles = _build_detect_profiles(page_ids)
+        for entry in strategies:
+            entry["detect_profile"] = detect_profiles.get(entry["strategy_id"])
 
     return {
         "operation": OPERATION_LIST_ENABLED,
@@ -129,6 +142,18 @@ def _list_enabled(params: dict[str, Any]) -> dict[str, Any]:
             "total_pages": total_pages,
             "has_more": start + len(strategies) < len(matched),
         },
+        "redis_commands": {
+            "base": 2,
+            "detect_profile_mget_chunks": _mget_chunks(len(page_ids)) if include_detect_profile else 0,
+            "note": (
+                "固定一次 GET .strategy_ids + 一次 HGETALL .strategy_group，与页码无关；"
+                f"启用 include_detect_profile 时另加每 {STRATEGY_MGET_CHUNK_SIZE} 个策略一次 MGET"
+            ),
+        },
+        "detect_profile_coverage": {
+            "requested": len(page_ids) if include_detect_profile else 0,
+            "resolved": len(detect_profiles),
+        },
         "group_coverage": {
             "source": "cache:.strategy_group",
             "in_group": in_group,
@@ -140,6 +165,59 @@ def _list_enabled(params: dict[str, Any]) -> dict[str, Any]:
         },
         "strategies": strategies,
     }
+
+
+def _mget_chunks(count: int) -> int:
+    return (count + STRATEGY_MGET_CHUNK_SIZE - 1) // STRATEGY_MGET_CHUNK_SIZE
+
+
+def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]:
+    """算出每个策略的 CHECK_RESULT 成员数配置推导峰值。
+
+    只对当前页取配置，走 ``get_strategy_by_ids`` 的分块 MGET（每 ``STRATEGY_MGET_CHUNK_SIZE``
+    个策略一条命令），因此命令数由页大小决定而非策略总数，不构成 N+1。
+
+    ``point_required`` 与 ``interval`` 都直接调生产函数（``detect_result_point_required`` 与
+    ``core.control.strategy.Strategy.get_interval``）而不重算：这两个值是清理任务和 TTL 的
+    实际依据，一旦本处与生产口径漂移，成本排序就会系统性错位。
+    """
+    if not strategy_ids:
+        return {}
+
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+    from alarm_backends.core.control.item import detect_result_point_required
+    from alarm_backends.core.control.strategy import Strategy as ControlStrategy
+
+    profiles: dict[int, dict[str, Any]] = {}
+    for config in StrategyCacheManager.get_strategy_by_ids(list(strategy_ids)) or []:
+        if not isinstance(config, dict) or not _is_int_like(config.get("id")):
+            continue
+        strategy_id = int(config["id"])
+        try:
+            point_required = int(detect_result_point_required(config))
+            interval = int(ControlStrategy(strategy_id, default_config=config).get_interval())
+        except Exception as error:
+            # 单个策略配置异常不影响同页其余策略，把原因带出来便于定位
+            profiles[strategy_id] = {"error": str(error)}
+            continue
+        if interval <= 0:
+            profiles[strategy_id] = {"error": f"非法周期: {interval}"}
+            continue
+
+        # 热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，
+        # 因此峰值是"保留基线 + 一个清理周期内的新增"，而不是两者取大。
+        # 取大的写法会给出低于实测值的上界（实测 261 > max(30, 7200/30)=240），已被取证否证。
+        growth = -(-CHECK_RESULT_CLEAN_INTERVAL_SECONDS // interval)
+        peak = point_required + growth
+        profiles[strategy_id] = {
+            "point_required": point_required,
+            "interval": interval,
+            "clean_interval_seconds": CHECK_RESULT_CLEAN_INTERVAL_SECONDS,
+            "growth_per_clean_cycle": growth,
+            "check_result_peak_per_series": peak,
+            "overshoot_ratio": round(peak / point_required, 2) if point_required else None,
+        }
+    return profiles
 
 
 def _resolve_strategy_id_filter(params: dict[str, Any]) -> tuple[list[tuple[int, int | None]] | None, dict[str, Any]]:
@@ -530,6 +608,10 @@ _LIST_ENABLED_PARAMS_SCHEMA = {
     "page": "operation=list_enabled 可选，页码，从 1 开始，默认 1",
     "page_size": f"operation=list_enabled 可选，默认 {DEFAULT_PAGE_SIZE}，上限 {MAX_PAGE_SIZE}",
     "include_item_ids": "operation=list_enabled 可选，是否返回 item_ids 明细，默认 true",
+    "include_detect_profile": (
+        "operation=list_enabled 可选，是否附带当前页各策略的 point_required / interval / "
+        "CHECK_RESULT 成员数配置推导峰值，默认 false（启用会额外产生分块 MGET）"
+    ),
 }
 
 KernelRPCRegistry.register_function(
