@@ -69,6 +69,16 @@ const ServiceTargetFieldMap = {
   SET_TEMPLATE: 'service_set_template',
   DYNAMIC_GROUP: 'dynamic_group',
 };
+
+/** Only SERVICE is service-instance topology. null / NONE / HOST all persist as host targets. */
+function resolveTargetObjectType(objectType?: string): TargetObjectType {
+  return objectType === 'SERVICE' ? 'SERVICE' : 'HOST';
+}
+
+function resolveTargetField(objectType: TargetObjectType, nodeType: INodeType): string {
+  return objectType === 'SERVICE' ? ServiceTargetFieldMap[nodeType] : HostTargetFieldMap[nodeType];
+}
+
 @Component
 export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6Events> {
   // 是否显示弹窗
@@ -116,8 +126,8 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
         await this.getStrategyConfigTargets();
       } else {
         // 新增策略
-        this.ipNodeType = this.nodeType;
-        this.ipObjectType = this.objectType;
+        this.ipNodeType = this.nodeType || 'TOPO';
+        this.ipObjectType = resolveTargetObjectType(this.objectType);
       }
       if (this.checkedNodes?.length) {
         this.ipCheckValue = transformMonitorToValue(this.checkedNodes, this.ipNodeType) as IIpV6Value;
@@ -142,14 +152,14 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
     const [strategyId] = this.strategyIds;
     const data = await getTargetDetail({ strategy_ids: [strategyId] }).catch(() => []);
     if (typeof strategyId !== 'undefined') {
-      const { target_detail, node_type, instance_type } = data[strategyId];
+      const { target_detail, node_type, instance_type } = data[strategyId] || {};
       // 单策略增删目标
       if (this.strategyIds.length === 1) {
         this.ipCheckValue = transformMonitorToValue(target_detail, node_type) as any;
         this.originValue = deepClone(this.ipCheckValue);
       }
-      this.ipNodeType = node_type;
-      this.ipObjectType = instance_type;
+      this.ipNodeType = node_type || 'TOPO';
+      this.ipObjectType = resolveTargetObjectType(instance_type);
     }
     this.loading = false;
   }
@@ -157,8 +167,8 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
     this.ipCheckValue = v;
     if (this.hasStrategy) {
       const data = transformValueToMonitor(v, this.ipNodeType);
-      const nodeType = !data.length ? this.nodeType : this.ipNodeType;
-      console.info(nodeType, this.ipObjectType, '==============');
+      const nodeType = !data.length ? this.nodeType || this.ipNodeType : this.ipNodeType;
+      const objectType = resolveTargetObjectType(this.ipObjectType);
       const success = await bulkEditStrategy({
         id_list: this.strategyIds,
         edit_data: {
@@ -166,8 +176,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
             ? [
                 [
                   {
-                    field:
-                      this.ipObjectType === 'HOST' ? HostTargetFieldMap[nodeType] : ServiceTargetFieldMap[nodeType],
+                    field: resolveTargetField(objectType, nodeType),
                     method: 'eq',
                     value: data,
                   },
@@ -181,7 +190,11 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       success && this.$bkMessage({ theme: 'success', message: this.$t('修改成功') });
       this.$emit('save', success);
     } else {
-      this.$emit('change', { value: v, nodeType: this.ipNodeType, objectType: this.ipObjectType });
+      this.$emit('change', {
+        value: v,
+        nodeType: this.ipNodeType,
+        objectType: resolveTargetObjectType(this.ipObjectType),
+      });
     }
   }
   render() {
