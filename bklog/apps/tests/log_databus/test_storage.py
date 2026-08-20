@@ -255,6 +255,122 @@ class TestFilterDorisCluster(TestCase):
 
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
+class TestFilterDorisClusterSetupConfig(TestCase):
+    """
+    doris 集群必须下发 setup_config.retention_days_max，
+    否则前端取不到上限会回退到写死的 7 天（最大自定义天数为 7）
+    """
+
+    def setUp(self):
+        patcher_es = patch("apps.log_databus.handlers.storage.get_es_config", return_value=ES_CONFIG)
+        patcher_idx = patch(
+            "apps.log_search.handlers.index_set.IndexSetHandler.get_index_set_for_storage",
+            return_value=_fake_index_sets(),
+        )
+        self.addCleanup(patcher_es.stop)
+        self.addCleanup(patcher_idx.stop)
+        patcher_es.start()
+        patcher_idx.start()
+
+    @staticmethod
+    def _filter(bk_biz_id, cluster_obj):
+        _, obj = StorageHandler.filter_doris_cluster(
+            bk_biz_id, is_default=True, post_visible=True, cluster_obj=copy.deepcopy(cluster_obj)
+        )
+        return obj["cluster_config"]["custom_option"]["setup_config"]
+
+    def test_public_cluster_without_setup_config_falls_back_to_es_public_duration(self):
+        setup_config = self._filter(
+            BLUEKING_BK_BIZ_ID,
+            _doris_cluster_obj(
+                registered_system=REGISTERED_SYSTEM_DEFAULT,
+                custom_option={"visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value}},
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+        self.assertEqual(setup_config["retention_days_default"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_private_cluster_without_setup_config_falls_back_to_es_public_duration(self):
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_empty_setup_config_from_metadata_still_gets_defaults(self):
+        """metadata 侧存了空字典时，缺省值不能被 custom_option 的整体覆盖冲掉"""
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "setup_config": {},
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_admin_configured_setup_config_is_not_overwritten(self):
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "setup_config": {"retention_days_max": 90, "retention_days_default": 30},
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], 90)
+        self.assertEqual(setup_config["retention_days_default"], 30)
+
+    def test_partially_configured_setup_config_only_fills_missing_keys(self):
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "setup_config": {"retention_days_max": 90},
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], 90)
+        self.assertEqual(setup_config["retention_days_default"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_does_not_inject_es_only_fields(self):
+        """doris 无副本/分片概念，不应照搬 ES 的 setup_config 字段"""
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        es_only_fields = (
+            "number_of_replicas_max",
+            "number_of_replicas_default",
+            "es_shards_default",
+            "es_shards_max",
+        )
+        for es_only_field in es_only_fields:
+            self.assertNotIn(es_only_field, setup_config)
+
+
+@override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
 class TestUpdateVisibleConfig(TestCase):
     """StorageHandler.update_visible_config 仅更新 visible_config"""
 
@@ -341,6 +457,63 @@ class TestUpdateVisibleConfig(TestCase):
         with self.assertRaises(StorageNotPermissionException):
             self._run_update(cluster_info, params)
 
+    @staticmethod
+    def _private_cluster_info(custom_option_extra=None):
+        custom_option = {
+            "bk_biz_id": OWNER_BIZ,
+            "admin": ["admin"],
+            "source_type": "other",
+            "description": "keep me",
+            "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+        }
+        custom_option.update(custom_option_extra or {})
+        return [{"cluster_config": {"registered_system": "other", "custom_option": custom_option}}]
+
+    def test_setup_config_is_written_when_provided(self):
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+            "setup_config": {"retention_days_max": 30, "retention_days_default": 14},
+        }
+        mock_api, _, _ = self._run_update(self._private_cluster_info(), params)
+
+        custom_option = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]
+        self.assertEqual(custom_option["setup_config"], params["setup_config"])
+        # 其余字段仍然保留
+        self.assertEqual(custom_option["description"], "keep me")
+
+    def test_setup_config_merges_by_key(self):
+        """只传部分键时，已有的其它键需保留"""
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+            "setup_config": {"retention_days_max": 60, "retention_days_default": 30},
+        }
+        cluster_info = self._private_cluster_info(
+            {"setup_config": {"retention_days_max": 7, "retention_days_default": 7, "legacy_key": "keep"}}
+        )
+        mock_api, _, _ = self._run_update(cluster_info, params)
+
+        setup_config = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]["setup_config"]
+        self.assertEqual(setup_config["retention_days_max"], 60)
+        self.assertEqual(setup_config["retention_days_default"], 30)
+        self.assertEqual(setup_config["legacy_key"], "keep")
+
+    def test_existing_setup_config_kept_when_not_provided(self):
+        """未传 setup_config 时不能清掉管理员已配置的上限"""
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+        }
+        cluster_info = self._private_cluster_info({"setup_config": {"retention_days_max": 90}})
+        mock_api, _, _ = self._run_update(cluster_info, params)
+
+        custom_option = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]
+        self.assertEqual(custom_option["setup_config"], {"retention_days_max": 90})
+
 
 class TestDorisVisibleConfigSerializer(TestCase):
     """DorisVisibleConfigUpdateSerializer 校验"""
@@ -364,6 +537,48 @@ class TestDorisVisibleConfigSerializer(TestCase):
             data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "all_biz"}}
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_setup_config_is_optional(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "all_biz"}}
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertNotIn("setup_config", serializer.validated_data)
+
+    def test_valid_setup_config(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={
+                "cluster_id": 10,
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": "all_biz"},
+                "setup_config": {"retention_days_max": 30, "retention_days_default": 14},
+            }
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["setup_config"]["retention_days_max"], 30)
+
+    def test_setup_config_default_must_not_exceed_max(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={
+                "cluster_id": 10,
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": "all_biz"},
+                "setup_config": {"retention_days_max": 7, "retention_days_default": 30},
+            }
+        )
+        with self.assertRaises(ValidationError):
+            serializer.is_valid()
+
+    def test_setup_config_rejects_non_positive_days(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={
+                "cluster_id": 10,
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": "all_biz"},
+                "setup_config": {"retention_days_max": 0, "retention_days_default": 0},
+            }
+        )
+        self.assertFalse(serializer.is_valid())
 
 
 class TestMetadataStorageStatus(TestCase):
