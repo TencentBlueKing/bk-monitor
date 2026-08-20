@@ -8,7 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.query.span import SpanQuery
+from django.urls import include, re_path
 
+from core.drf_resource.routers import ResourceRouter
+from rum_web.query import views
 
-__all__ = ["SpanQuery"]
+router = ResourceRouter()
+router.register_module(views)
+
+urlpatterns = [
+    re_path(r"^", include(router.urls)),
+]
