@@ -824,6 +824,20 @@ CONFIG_MAXMEMORY = Gauge(
     labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
+# 聚合类型的紧凑编码阈值：成员数越过该阈值后 zset/hash 由 listpack 转为 skiplist/hashtable，
+# 单成员内存开销显著上升且转换不可逆。估算检测态内存成本时必须知道实际阈值，不能假定默认值。
+CONFIG_ZSET_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_zset_max_listpack_entries",
+    documentation="The value of the zset-max-listpack-entries configuration directive (-1 if unavailable)",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+CONFIG_HASH_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_hash_max_listpack_entries",
+    documentation="The value of the hash-max-listpack-entries configuration directive (-1 if unavailable)",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
 CONNECTIONS_RECEIVED_TOTAL = Gauge(
     name="redis_connections_received_total",
     documentation="Total number of connections accepted by the server",
