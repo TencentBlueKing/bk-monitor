@@ -458,12 +458,12 @@ class V4ClientTest(SimpleTestCase):
                 resource_type="space",
             )
 
-    def test_list_authorized_resource_rejects_mixed_wildcard(self):
-        with self.assertRaisesRegex(V4ResponseError, "mix wildcard"):
-            self.client._extract_authorized_resource_scope(
-                [{"type": "space", "ids": ["*", "2"]}],
-                resource_type="space",
-            )
+    def test_list_authorized_resource_mixed_wildcard_collapses_to_wildcard(self):
+        result = self.client._extract_authorized_resource_scope(
+            [{"type": "space", "ids": ["*", "2", "neg_637836"]}],
+            resource_type="space",
+        )
+        self.assertEqual(result, {"type": "space", "ids": ["*"]})
 
     def test_list_authorized_resource_rejects_non_list_payload(self):
         with self.assertRaisesRegex(V4ResponseError, "must be a list"):
