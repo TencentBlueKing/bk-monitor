@@ -312,4 +312,9 @@ export default {
   知识库: 'Knowledge Base',
   Skill: 'Skill',
   智能体: 'Agent',
+
+  'AI 分析': 'AI Analysis',
+  源码关联分析: 'Source Code Association Analysis',
+  'AI 分析快览': 'AI Analysis Overview',
+  '确认指派 Issue 给 {name}': 'Confirm to assign Issue to {name}',
 };

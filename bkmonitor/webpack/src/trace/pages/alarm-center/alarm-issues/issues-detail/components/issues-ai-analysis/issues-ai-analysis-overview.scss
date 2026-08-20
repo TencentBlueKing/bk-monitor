@@ -1,4 +1,15 @@
 .issues-detail-issues-ai-analysis-overview {
+  .issues-detail-issues-ai-analysis-overview-header {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+
+    .ai-analysis-icon {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
   .basic-card-content {
     margin-top: 12px;
   }

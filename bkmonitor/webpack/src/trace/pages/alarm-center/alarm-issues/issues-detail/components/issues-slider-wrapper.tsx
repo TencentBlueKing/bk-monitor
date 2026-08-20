@@ -56,6 +56,7 @@ import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-fi
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import useRequestAbort from '@/hooks/useRequestAbort';
+import aiAnalysisIcon from '@/static/img/issues/ai-analysis.svg';
 
 import type { ImpactScopeEvent, ImpactScopeResource, IssueActivityItem, IssueDetail } from '../../typing';
 import type {
@@ -562,7 +563,22 @@ export default defineComponent({
             {TAB_LIST.map(item => (
               <Tab.TabPanel
                 key={item.name}
-                label={item.name === IssueDetailTabEnum.LIST ? `${item.label} (${this.alertCount})` : item.label}
+                v-slots={{
+                  label: () => (
+                    <div class='issues-alarm-tab-label'>
+                      {item.name === IssueDetailTabEnum.AI_ANALYSIS && (
+                        <img
+                          class='ai-analysis-tab-icon'
+                          alt=''
+                          src={aiAnalysisIcon}
+                        />
+                      )}
+                      <span>
+                        {item.name === IssueDetailTabEnum.LIST ? `${item.label} (${this.alertCount})` : item.label}
+                      </span>
+                    </div>
+                  ),
+                }}
                 name={item.name}
               />
             ))}

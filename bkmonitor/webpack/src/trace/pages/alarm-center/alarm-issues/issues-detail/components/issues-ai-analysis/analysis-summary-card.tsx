@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent } from 'vue';
 
-import { Button, Progress } from 'bkui-vue';
+import { Button, PopConfirm, Progress } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
@@ -111,16 +111,38 @@ export default defineComponent({
           </div>
 
           {result.result_card.responsibility.bk_username && (
-            <Button
-              loading={this.loading.assigneeChange}
-              size='small'
-              theme='primary'
-              onClick={() => {
+            <PopConfirm
+              width='320'
+              v-slots={{
+                content: () => (
+                  <div class='popover-content'>
+                    <div class='assignee-info'>
+                      <span class='assignee-label'>{this.t('指派对象')}：</span>
+                      <span class='assignee-name'>{result.result_card.responsibility.bk_username}</span>
+                    </div>
+                    <div class='assignee-desc'>{this.t('指派后，该成员将成为此 Issue 的负责人并收到通知。')}</div>
+                  </div>
+                ),
+                default: () => (
+                  <Button
+                    loading={this.loading.assigneeChange}
+                    size='small'
+                    theme='primary'
+                  >
+                    {this.t('重新分派')}
+                  </Button>
+                ),
+              }}
+              popover-options={{
+                extCls: 'analysis-summary-card-assignee-popover',
+              }}
+              confirmText={this.t('确认指派')}
+              title={this.t('确认指派 Issue 给 {name}', { name: result.result_card.responsibility.bk_username })}
+              trigger='click'
+              onConfirm={() => {
                 this.$emit('assigneeChange');
               }}
-            >
-              {this.t('重新分派')}
-            </Button>
+            />
           )}
         </div>
       </div>

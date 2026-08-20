@@ -31,6 +31,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
 import BasicCard from '../basic-card/basic-card';
+import aiAnalysisIcon from '@/static/img/issues/ai-analysis.svg';
 
 import type { IssueDetail } from '../../../typing';
 
@@ -261,7 +262,18 @@ export default defineComponent({
     return (
       <BasicCard
         class='issues-detail-issues-ai-analysis-overview'
-        title={this.t('AI 分析快览')}
+        v-slots={{
+          header: () => (
+            <div class='issues-detail-issues-ai-analysis-overview-header'>
+              <img
+                class='ai-analysis-icon'
+                alt=''
+                src={aiAnalysisIcon}
+              />
+              <span>{this.t('AI 分析快览')}</span>
+            </div>
+          ),
+        }}
       >
         {this.loading && this.renderSkeleton()}
 

@@ -561,4 +561,16 @@ export default {
   // AI设置
   刷新状态: 'Refresh Status',
   立即添加: 'Add Now',
+
+  查看完整报告: 'View Full Report',
+  重新分析: 'Reanalyze',
+  查看配置: 'View Configuration',
+  去配置: 'Go to Configuration',
+  '去配置 AI 设置': 'Go to AI Settings',
+  '已配置，立即分析': 'Configured, Analyze Now',
+  立即分析: 'Analyze Now',
+  修改配置: 'Modify Configuration',
+  分析中···: 'Analyzing...',
+  '返回 Issue': 'Return to Issue',
+  重新分派: 'Reassign',
 };

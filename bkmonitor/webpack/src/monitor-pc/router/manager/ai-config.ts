@@ -43,4 +43,9 @@ export default [
       },
     },
   },
+  {
+    path: '/ai-config',
+    name: 'ai-config',
+    redirect: '/trace/ai-config',
+  },
 ] as RouteConfig[];

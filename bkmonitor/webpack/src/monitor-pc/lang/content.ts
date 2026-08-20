@@ -517,4 +517,8 @@ export default {
   '由 {name} 于 {time} 发起, 完成后将通过企业微信通知本次发起人':
     'Initiated by {name} on {time}, and will notify the initiator by WeChat Work after completion',
   '将由 {name} 触发蓝盾 AI 分析流水线实例': 'The BK-DevOps AI analysis pipeline instance will be triggered by {name}',
+  高置信度: 'High confidence',
+  证据不足: 'Insufficient evidence',
+  '指派后，该成员将成为此 Issue 的负责人并收到通知。':
+    'After assignment, the member will become the owner of this Issue and receive a notification.',
 };

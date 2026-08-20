@@ -55,3 +55,29 @@
     }
   }
 }
+
+.analysis-summary-card-assignee-popover.bk-popover.bk-pop2-content {
+  .bk-pop-confirm-title {
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .popover-content {
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+
+    .assignee-info {
+      margin-bottom: 6px;
+
+      .assignee-label {
+        color: #4d4f56;
+      }
+    }
+
+    .assignee-desc {
+      margin-bottom: 16px;
+    }
+  }
+}

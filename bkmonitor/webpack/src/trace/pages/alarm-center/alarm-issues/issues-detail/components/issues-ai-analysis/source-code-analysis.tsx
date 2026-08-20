@@ -35,6 +35,7 @@ import MarkdownViewer from '../../../../../../components/markdown-editor/viewer'
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
 import { assignIssues } from '../../../services/issues-operations';
 import AnalysisSummaryCard from './analysis-summary-card';
+import aiAnalysisIcon from '@/static/img/issues/ai-analysis.svg';
 
 import type { IssueActivityItem, IssueDetail, SourceAnalysisView } from '../../../typing';
 
@@ -249,7 +250,11 @@ export default defineComponent({
         return (
           <div class='config-guide'>
             <div class='guide-icon'>
-              <i class='icon-monitor icon-copy-link' />
+              <img
+                class='ai-analysis-icon'
+                alt=''
+                src={aiAnalysisIcon}
+              />
             </div>
             <div class='guide-title'>{t('源码分析进行中')}</div>
             <div

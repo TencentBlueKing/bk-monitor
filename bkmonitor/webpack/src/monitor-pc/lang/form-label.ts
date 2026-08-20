@@ -2031,4 +2031,10 @@ export default {
   节点: 'Node',
   ID: 'ID',
   启动命令: 'Start command',
+
+  已就绪: 'Ready',
+  绑定智能体: 'Bind smart body',
+  '绑定 skill': 'Bind skill',
+  绑定知识库: 'Bind knowledge base',
+  指派对象: 'Assignee',
 };
