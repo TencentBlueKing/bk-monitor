@@ -34,6 +34,7 @@ from ...log_search.models import ProjectInfo, Space
 
 CREATE_CLEAN_STASH_PARAMS = {
     "name": "test",
+    "clean_template_id": 1,
     "clean_type": "bk_log_text",
     "etl_params": {
         "retain_original_text": True,
@@ -153,6 +154,7 @@ class TestClean(TestCase):
     def test_create_clean_stash(self, *args, **kwargs):
         collector_config_id, create_stash_result = self._create_clean_stash()
         self.assertEqual(create_stash_result["clean_type"], CREATE_CLEAN_STASH_PARAMS["clean_type"])
+        self.assertEqual(create_stash_result["clean_template_id"], CREATE_CLEAN_STASH_PARAMS["clean_template_id"])
         self.assertEqual(create_stash_result["etl_params"], CREATE_CLEAN_STASH_PARAMS["etl_params"])
         self.assertEqual(create_stash_result["etl_fields"], CREATE_CLEAN_STASH_PARAMS["etl_fields"])
         self.assertEqual(create_stash_result["bk_biz_id"], CREATE_CLEAN_STASH_PARAMS["bk_biz_id"])
@@ -162,6 +164,7 @@ class TestClean(TestCase):
         collector_config_id, _ = self._create_clean_stash()
         get_stash_result = CollectorHandler(collector_config_id=collector_config_id).get_clean_stash()
         self.assertEqual(get_stash_result["clean_type"], CREATE_CLEAN_STASH_PARAMS["clean_type"])
+        self.assertEqual(get_stash_result["clean_template_id"], CREATE_CLEAN_STASH_PARAMS["clean_template_id"])
         self.assertEqual(get_stash_result["etl_params"], CREATE_CLEAN_STASH_PARAMS["etl_params"])
         self.assertEqual(get_stash_result["etl_fields"], CREATE_CLEAN_STASH_PARAMS["etl_fields"])
         self.assertEqual(get_stash_result["bk_biz_id"], CREATE_CLEAN_STASH_PARAMS["bk_biz_id"])

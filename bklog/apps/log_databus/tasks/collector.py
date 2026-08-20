@@ -515,7 +515,7 @@ def update_collector_storage_config(storage_cluster_id):
 
 
 @high_priority_task(ignore_result=True)
-def modify_result_table(params):
+def modify_result_table(params, raise_exception=False):
     """
     更新结果表
     """
@@ -531,6 +531,8 @@ def modify_result_table(params):
             params["table_id"],
             e,
         )
+        if raise_exception:
+            raise
         return
 
     try:

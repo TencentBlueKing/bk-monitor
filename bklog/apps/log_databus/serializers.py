@@ -941,6 +941,10 @@ class CollectorEtlSerializer(serializers.Serializer):
     data = serializers.CharField(label=_("日志内容"), required=True)
 
 
+class CleanTemplatePreviewSerializer(serializers.Serializer):
+    data = serializers.CharField(label=_("日志内容"), required=True, trim_whitespace=False)
+
+
 class CollectorRegexDebugSerializer(serializers.Serializer):
     log_sample = serializers.CharField(label=_("日志样例"), required=True)
     multiline_pattern = serializers.CharField(label=_("行首正则表达式"), required=True)
@@ -1046,6 +1050,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformI
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
     total_shards_per_node = serializers.IntegerField(label=_("每个节点的分片总数"), required=False, allow_null=True)
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1159,21 +1164,29 @@ class CleanSyncSerializer(serializers.Serializer):
     polling = serializers.BooleanField(label=_("是否是轮询请求"), required=False, default=False)
 
 
-class CleanTemplateSerializer(serializers.Serializer):
-    name = serializers.CharField(label=_("清洗模板名"), required=True)
-    clean_type = serializers.CharField(label=_("清洗类型"), required=True)
+class CleanTemplateUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(label=_("清洗模板名"), required=True, max_length=128)
+    clean_type = serializers.ChoiceField(
+        label=_("清洗类型"),
+        required=True,
+        choices=(
+            EtlConfig.BK_LOG_TEXT,
+            EtlConfig.BK_LOG_JSON,
+            EtlConfig.BK_LOG_DELIMITER,
+            EtlConfig.BK_LOG_REGEXP,
+        ),
+    )
     etl_params = serializers.DictField(label=_("清洗配置"), required=True)
     etl_fields = serializers.ListField(child=serializers.DictField(), label=_("字段配置"), required=True)
-    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
-    visible_type = serializers.CharField(label=_("可见类型"), required=False)
-    visible_bk_biz_id = serializers.ListField(label=_("可见业务ID"), required=False)
+    description = serializers.CharField(label=_("模板描述"), required=False, allow_blank=True, max_length=500)
 
 
-class CleanTemplateDestroySerializer(serializers.Serializer):
+class CleanTemplateSerializer(CleanTemplateUpdateSerializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
 
 
 class CleanStashSerializer(serializers.Serializer):
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
     clean_type = serializers.CharField(label=_("清洗类型"), required=True)
     etl_params = serializers.DictField(label=_("清洗配置"), required=True)
     etl_fields = serializers.ListField(child=serializers.DictField(), label=_("字段配置"), required=True)
@@ -1181,6 +1194,11 @@ class CleanStashSerializer(serializers.Serializer):
 
 
 class CleanTemplateListSerializer(DataModelSerializer):
+    field_count = serializers.IntegerField(label=_("字段数"), read_only=True)
+    active_collector_count = serializers.IntegerField(label=_("生效采集项数"), read_only=True)
+    pending_sync_collector_count = serializers.IntegerField(label=_("待同步采集项数"), read_only=True)
+    related_index_set_count = serializers.IntegerField(label=_("关联索引集数"), read_only=True)
+
     class Meta:
         model = CleanTemplate
         fields = "__all__"
@@ -1188,8 +1206,16 @@ class CleanTemplateListSerializer(DataModelSerializer):
 
 class CleanTemplateListFilterSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
-    keyword = serializers.CharField(label=_("检索关键词"), required=False)
-    clean_type = serializers.CharField(label=_("模板类型"), required=False)
+    keyword = serializers.CharField(label=_("检索关键词"), required=False, allow_blank=True)
+    clean_type = serializers.CharField(label=_("模板类型"), required=False, allow_blank=True)
+    created_by = serializers.CharField(label=_("创建人"), required=False, allow_blank=True)
+    updated_by = serializers.CharField(label=_("更新人"), required=False, allow_blank=True)
+    ordering = serializers.ChoiceField(
+        label=_("排序"),
+        required=False,
+        allow_blank=True,
+        choices=("field_count", "-field_count", "active_collector_count", "-active_collector_count"),
+    )
     page = serializers.IntegerField(label=_("页码"), default=1)
     pagesize = serializers.IntegerField(label=_("页面大小"), default=10)
 
@@ -1198,6 +1224,10 @@ class CleanTemplateListFilterSerializer(serializers.Serializer):
         if attrs["page"] < 0 or attrs["pagesize"] < 0:
             raise ValidationError(_("分页参数不能为负数"))
         return attrs
+
+
+class CleanTemplateOperatorListSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
 
 
 class StorageRepositorySerlalizer(serializers.Serializer):
@@ -1837,6 +1867,7 @@ class FastContainerCollectorUpdateSerializer(
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False)
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate_yaml_config(self, value):
         try:
@@ -1880,6 +1911,7 @@ class FastCollectorUpdateSerializer(
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    clean_template_id = serializers.IntegerField(label=_("清洗模板ID"), required=False, allow_null=True, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
