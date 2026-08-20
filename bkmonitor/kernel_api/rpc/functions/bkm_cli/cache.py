@@ -247,6 +247,9 @@ def _read_string(key_obj, key_params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_READ_HASH_SCAN_MAX_ROUNDS = 5
+
+
 def _read_hash(key_obj, key_params: dict[str, Any], field: str | None, limit: int) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
@@ -258,15 +261,28 @@ def _read_hash(key_obj, key_params: dict[str, Any], field: str | None, limit: in
             "field": field,
             "value": _try_json(value),
         }
-    raw_map: dict = client.hgetall(resolved_key)
-    items = {_safe_decode(k): _try_json(_safe_decode(v)) for k, v in raw_map.items()}
-    total = len(items)
-    truncated_items = dict(list(items.items())[:limit])
+    # 计数走 HLEN、取样走 HSCAN 游标，与 zset/list/set 分支保持一致的有界读取。
+    # 不用 HGETALL：检测态 hash（如 LAST_CHECKPOINTS_CACHE_KEY）单键 field 数可达万级，
+    # 全量拉取会长时间占用 Redis 单线程，而本接口只需要总数和少量样本。
+    total: int = client.hlen(resolved_key)
+    items: dict[str, Any] = {}
+    cursor = 0
+    # listpack 编码的小 hash 会忽略 count 一次返回全部，此时首轮即 cursor=0 退出；
+    # hashtable 编码下 count 仅为每轮提示，故设固定轮数上限兜底，保证命令数有界。
+    for _ in range(_READ_HASH_SCAN_MAX_ROUNDS):
+        cursor, chunk = client.hscan(resolved_key, cursor=cursor, count=limit)
+        for raw_field, raw_value in (chunk or {}).items():
+            if len(items) >= limit:
+                break
+            items[_safe_decode(raw_field)] = _try_json(_safe_decode(raw_value))
+        if cursor == 0 or len(items) >= limit:
+            break
     return {
         "exists": total > 0,
         "total_fields": total,
-        "truncated": total > limit,
-        "items": truncated_items,
+        "returned_count": len(items),
+        "truncated": total > len(items),
+        "items": items,
     }
 
 
@@ -651,7 +667,7 @@ KernelRPCRegistry.register_function(
         "key_name": f"白名单键常量名，可选值: {sorted(ALLOWED_KEY_SPECS)}",
         "params": "键模板变量，因 key_name 而异",
         "limit": f"最大返回条数，默认 {DEFAULT_LIMIT}，上限 {MAX_LIMIT}",
-        "field": "Hash 类型指定字段（省略则 hgetall）",
+        "field": "Hash 类型指定字段（省略则返回 HLEN 总数 + HSCAN 取样，不做全量拉取）",
         "score_range": "ZSet 类型分值区间 {min, max}",
     },
     example_params={
