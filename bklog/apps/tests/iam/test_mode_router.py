@@ -158,6 +158,7 @@ class ModeRouterTest(SimpleTestCase):
         self.v3.name = "v3"
         self.v4 = Mock(name="v4-provider")
         self.v4.name = "v4"
+        self.pair_executor = Mock(side_effect=lambda left, right: (left(), right()))
 
     def test_v3_mode_only_calls_v3_provider(self):
         self.v3.is_allowed.return_value = AuthResult.allow("v3")
@@ -195,41 +196,26 @@ class ModeRouterTest(SimpleTestCase):
         self.v3.is_allowed.assert_called_once_with(self.request)
         self.v4.is_allowed.assert_called_once_with(self.request)
 
-    def test_union_mode_calls_providers_concurrently(self):
-        import threading
-        import time
-
-        started = threading.Event()
-        release = threading.Event()
-
-        def v3_is_allowed(_request):
-            started.set()
-            release.wait(timeout=1)
-            return AuthResult.deny("v3")
-
-        def v4_is_allowed(_request):
-            if not started.wait(timeout=1):
-                return AuthResult.deny("v4")
-            release.set()
-            return AuthResult.allow("v4")
-
-        self.v3.is_allowed.side_effect = v3_is_allowed
-        self.v4.is_allowed.side_effect = v4_is_allowed
+    def test_union_mode_delegates_provider_calls_to_pair_executor(self):
+        self.v3.is_allowed.return_value = AuthResult.deny("v3")
+        self.v4.is_allowed.return_value = AuthResult.allow("v4")
         router = self._make_router(AuthMode.UNION)
 
-        started_at = time.monotonic()
         decision = router.is_allowed(self.request)
-        elapsed = time.monotonic() - started_at
 
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.hit_provider_names, ("v4",))
-        self.assertLess(elapsed, 0.5)
+        self.pair_executor.assert_called_once()
 
     def test_invalid_mode_rejects_auth(self):
         mode_provider = Mock(
             get_mode=Mock(side_effect=InvalidAuthModeError("bad", "invalid IAM permission mode configured: bad"))
         )
-        router = ModeRouter(mode_provider=mode_provider, bundles=self._bundles())
+        router = ModeRouter(
+            mode_provider=mode_provider,
+            bundles=self._bundles(),
+            pair_executor=self.pair_executor,
+        )
 
         decision = router.is_allowed(self.request)
 
@@ -249,7 +235,11 @@ class ModeRouterTest(SimpleTestCase):
         mode_provider = Mock(
             get_mode=Mock(side_effect=InvalidAuthModeError("bad", "invalid IAM permission mode configured: bad"))
         )
-        router = ModeRouter(mode_provider=mode_provider, bundles=self._bundles())
+        router = ModeRouter(
+            mode_provider=mode_provider,
+            bundles=self._bundles(),
+            pair_executor=self.pair_executor,
+        )
 
         result = router.batch_is_allowed(request)
 
@@ -260,6 +250,7 @@ class ModeRouterTest(SimpleTestCase):
         router = ModeRouter(
             mode_provider=Mock(get_mode=Mock(return_value=AuthMode.V4)),
             bundles={AuthMode.V3: ProviderBundle(auth=self.v3)},
+            pair_executor=self.pair_executor,
         )
 
         decision = router.is_allowed(self.request)
@@ -274,6 +265,7 @@ class ModeRouterTest(SimpleTestCase):
                 AuthMode.V3: ProviderBundle(auth=self.v3),
                 AuthMode.V4: ProviderBundle(auth=None),
             },
+            pair_executor=self.pair_executor,
         )
 
         decision = router.is_allowed(self.request)
@@ -321,6 +313,7 @@ class ModeRouterTest(SimpleTestCase):
                 AuthMode.V3: ProviderBundle(auth=self.v3),
                 AuthMode.V4: ProviderBundle(auth=None),
             },
+            pair_executor=self.pair_executor,
         )
 
         result = router.batch_is_allowed(request)
@@ -364,7 +357,11 @@ class ModeRouterTest(SimpleTestCase):
                 BatchAuthResultItem("view_collection_v2", "2", AuthResult.allow("v4")),
             )
         )
-        router = ModeRouter(mode_provider=mode_provider, bundles=self._bundles())
+        router = ModeRouter(
+            mode_provider=mode_provider,
+            bundles=self._bundles(),
+            pair_executor=self.pair_executor,
+        )
 
         result = router.batch_is_allowed(request)
 
@@ -385,6 +382,7 @@ class ModeRouterTest(SimpleTestCase):
         return ModeRouter(
             mode_provider=Mock(get_mode=Mock(return_value=mode)),
             bundles=self._bundles(),
+            pair_executor=self.pair_executor,
         )
 
     def _bundles(self) -> dict[AuthMode, ProviderBundle]:

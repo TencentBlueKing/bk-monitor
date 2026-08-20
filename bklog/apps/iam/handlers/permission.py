@@ -121,6 +121,7 @@ class Permission:
             self._mode_router = ModeRouter(
                 mode_provider=get_mode_provider(),
                 bundles=self.provider_bundles,
+                pair_executor=run_pair_concurrently,
             )
         return self._mode_router
 
