@@ -21,12 +21,23 @@ class FakeRedisClient:
 
     def __init__(self):
         self._data: dict = {}
+        self.hscan_calls: list = []
 
     def get(self, key):
         return self._data.get(key)
 
-    def hgetall(self, key):
-        return self._data.get(key, {})
+    def hlen(self, key):
+        return len(self._data.get(key) or {})
+
+    def hscan(self, key, cursor=0, count=10):
+        """模拟 HSCAN 游标语义：每轮最多返回 count 个 field，返回 0 表示遍历结束。"""
+        self.hscan_calls.append((key, cursor, count))
+        pairs = list((self._data.get(key) or {}).items())
+        chunk = pairs[cursor : cursor + count]
+        next_cursor = cursor + count
+        if next_cursor >= len(pairs):
+            next_cursor = 0
+        return next_cursor, dict(chunk)
 
     def hget(self, key, field):
         bucket = self._data.get(key) or {}
@@ -175,6 +186,83 @@ def test_read_cache_key_hash_hgetall(mocker):
     assert result["exists"] is True
     assert result["total_fields"] == 2
     assert "dim1" in result["items"]
+
+
+def test_read_cache_key_hash_large_returns_total_without_full_read(mocker):
+    """大 hash 只返回总数与有界样本，且命令数不随 field 数增长。"""
+    fake = FakeRedisClient()
+    fake._data["test.priority.PGK:big"] = {f"dim{i}".encode(): b"1:1776376740.0" for i in range(20000)}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.priority.{priority_group_key}"),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_PRIORITY_KEY",
+            "params": {"priority_group_key": "PGK:big"},
+            "limit": 10,
+        }
+    )
+
+    assert result["total_fields"] == 20000
+    assert result["returned_count"] == 10
+    assert len(result["items"]) == 10
+    assert result["truncated"] is True
+    # 20000 个 field 只用一轮 HSCAN 就取够样本，不做全量遍历
+    assert len(fake.hscan_calls) == 1
+
+
+def test_read_cache_key_hash_scan_rounds_are_bounded(mocker):
+    """HSCAN 轮轮空返回时按固定轮数上限退出，不会一直扫到游标归零。"""
+
+    class SparseScanClient(FakeRedisClient):
+        """模拟 hashtable 编码下 HSCAN 每轮命中为空但游标未归零的情形。"""
+
+        def hscan(self, key, cursor=0, count=10):
+            self.hscan_calls.append((key, cursor, count))
+            return cursor + 1, {}
+
+    fake = SparseScanClient()
+    fake._data["test.priority.PGK:sparse"] = {f"dim{i}".encode(): b"1:1776376740.0" for i in range(100)}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.priority.{priority_group_key}"),
+    )
+    mocker.patch("kernel_api.rpc.functions.bkm_cli.cache._READ_HASH_SCAN_MAX_ROUNDS", 3)
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_PRIORITY_KEY",
+            "params": {"priority_group_key": "PGK:sparse"},
+            "limit": 10,
+        }
+    )
+
+    # 总数仍由 HLEN 给出，样本取不到时如实返回空并标记 truncated
+    assert result["total_fields"] == 100
+    assert result["returned_count"] == 0
+    assert result["truncated"] is True
+    assert len(fake.hscan_calls) == 3
+
+
+def test_read_cache_key_hash_missing_key(mocker):
+    fake = FakeRedisClient()
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.priority.{priority_group_key}"),
+    )
+
+    result = read_cache_key({"key_name": "ACCESS_PRIORITY_KEY", "params": {"priority_group_key": "absent"}})
+
+    assert result["exists"] is False
+    assert result["total_fields"] == 0
+    assert result["returned_count"] == 0
+    assert result["truncated"] is False
+    assert result["items"] == {}
 
 
 def test_read_cache_key_hash_specific_field(mocker):
