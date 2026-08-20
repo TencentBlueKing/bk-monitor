@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from django.conf import settings
 
+from apps.iam import metrics
 from apps.iam.backends.v4.apply import build_apply_data
 from apps.iam.backends.v4.client import V4Client
-from apps.iam.backends.v4.codec import BklogNameCodec, V4ResourceCodec
+from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCodec, V4ResourceCodec
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently
 from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size, normalize_batch_max_workers
 from apps.iam.backends.v4.exceptions import V4ClientError
@@ -20,7 +22,7 @@ from apps.iam.iam_engine.core.requests import (
     ResourceTypeDefinition,
     to_definition_id,
 )
-from apps.iam.iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem, AuthorizedResourceScope
+from apps.iam.iam_engine.core.types import AuthResult, AuthorizedResourceScope, BatchAuthResult, BatchAuthResultItem
 from apps.iam.iam_engine.provider.base import PermissionProvider
 
 
@@ -64,6 +66,7 @@ class V4PermissionProvider(PermissionProvider):
     def is_allowed(self, request: AuthRequest) -> AuthResult:
         subject = self._build_subject(request)
         action_id = self.codec.encode_action(to_definition_id(request.action_id))
+        start_at = time.time()
         try:
             if request.resources:
                 resource = self.codec.encode_resource_for_auth(request.resources[0])
@@ -71,12 +74,14 @@ class V4PermissionProvider(PermissionProvider):
             else:
                 allowed = self.client.direct_auth(subject=subject, action_id=action_id)
         except V4ClientError as error:
+            metrics.observe_provider_latency(self.name, metrics.AUTH_API_IS_ALLOWED, start_at, ok=False)
             return AuthResult.error(
                 provider_name=self.name,
                 reason=error.reason,
                 error_type=error.error_type,
             )
 
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_IS_ALLOWED, start_at, ok=True)
         if allowed:
             return AuthResult.allow(provider_name=self.name)
         return AuthResult.deny(provider_name=self.name)
@@ -87,6 +92,7 @@ class V4PermissionProvider(PermissionProvider):
         action_refs = list(request.action_ids)
         # 多 Action 已在外层并发，内层分片改为串行，避免线程池成倍嵌套。
         chunk_max_workers = self.batch_max_workers if len(action_refs) == 1 else 1
+        start_at = time.time()
         per_action_items = map_chunks_concurrently(
             action_refs,
             lambda action_ref: self._batch_auth_one_action(
@@ -99,6 +105,8 @@ class V4PermissionProvider(PermissionProvider):
             max_workers=self.batch_max_workers,
         )
         items = [item for action_items in per_action_items for item in action_items]
+        # 多 Action 与分片都在本方法内并发展开，这里记录的是一次批量鉴权的整体开销。
+        metrics.observe_batch_latency(self.name, start_at, items)
         return BatchAuthResult(items=tuple(items))
 
     def _batch_auth_one_action(
@@ -219,6 +227,7 @@ class V4PermissionProvider(PermissionProvider):
                 reason="IAM V4 authorized-resources requires a non-empty subject id",
                 error_type="InvalidSubject",
             )
+        start_at = time.time()
         try:
             payload = self.client.list_authorized_resource(
                 subject=request_subject,
@@ -226,6 +235,7 @@ class V4PermissionProvider(PermissionProvider):
                 resource_type=encoded_resource_type,
             )
         except V4ClientError as error:
+            metrics.observe_provider_latency(self.name, metrics.AUTH_API_SPACE_SCOPE, start_at, ok=False)
             return AuthorizedResourceScope.error(
                 encoded_resource_type,
                 provider_name=self.name,
@@ -233,6 +243,7 @@ class V4PermissionProvider(PermissionProvider):
                 error_type=error.error_type,
             )
 
+        metrics.observe_provider_latency(self.name, metrics.AUTH_API_SPACE_SCOPE, start_at, ok=True)
         ids = payload.get("ids") or []
         if ids == [WILDCARD_RESOURCE_ID]:
             return AuthorizedResourceScope.wildcard(encoded_resource_type, provider_name=self.name)
@@ -259,6 +270,8 @@ class V4PermissionProvider(PermissionProvider):
             )
             permissions.append(permission)
             action_resources.append((action, matched_resources))
+
+        permissions = self._permissions_with_parent_space_context(permissions)
 
         try:
             apply_url = self.client.generate_perm_apply_url(permissions=permissions)
@@ -321,6 +334,52 @@ class V4PermissionProvider(PermissionProvider):
             resource
             for resource in resources
             if (resource.system, self.codec.encode_resource_type(to_definition_id(resource.type))) in allowed_resources
+        ]
+
+    def _permissions_with_parent_space_context(self, permissions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """具体子资源申请时补上父空间动作，让 IAM 角色配置自动选中当前空间。
+
+        ancestors 只描述子实例拓扑，不会填角色里并列的「空间」行；参考项目用额外父级
+        action 解决。子资源 id 保持原值，不做无限制申请。
+        """
+        space_type = self.codec.root_resource_type_id or BKLOG_ROOT_RESOURCE_TYPE_ID
+        if not self.codec.root_view_action_id:
+            return permissions
+        view_business_id = self.codec.encode_action(self.codec.root_view_action_id)
+        present_space_ids: set[str] = set()
+        view_business_permission: dict[str, Any] | None = None
+        for permission in permissions:
+            if permission.get("action_id") == view_business_id:
+                view_business_permission = permission
+            for resource in permission.get("resources") or []:
+                if resource.get("type") == space_type and resource.get("id") not in (None, ""):
+                    present_space_ids.add(str(resource["id"]))
+
+        missing_space_ids: list[str] = []
+        seen = set(present_space_ids)
+        for permission in permissions:
+            for resource in permission.get("resources") or []:
+                if resource.get("type") == space_type:
+                    continue
+                for ancestor in resource.get("ancestors") or []:
+                    if ancestor.get("type") != space_type or ancestor.get("id") in (None, ""):
+                        continue
+                    space_id = str(ancestor["id"])
+                    if space_id in seen:
+                        continue
+                    seen.add(space_id)
+                    missing_space_ids.append(space_id)
+
+        if not missing_space_ids:
+            return permissions
+
+        extra_resources = [{"type": space_type, "id": space_id} for space_id in missing_space_ids]
+        if view_business_permission is not None:
+            view_business_permission.setdefault("resources", []).extend(extra_resources)
+            return permissions
+        return [
+            *permissions,
+            {"action_id": view_business_id, "resources": extra_resources},
         ]
 
     @staticmethod

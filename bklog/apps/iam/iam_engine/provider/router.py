@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Protocol, TypeVar
 
-from apps.iam.backends.v4.concurrency import run_pair_concurrently
 from apps.iam.iam_engine.core.config import AuthMode
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
@@ -18,6 +17,7 @@ from apps.iam.iam_engine.core.types import (
 from apps.iam.iam_engine.provider.base import PermissionProvider
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
+from apps.iam.iam_engine.provider.execution import PairExecutor
 
 T = TypeVar("T")
 
@@ -31,9 +31,12 @@ class ModeRouter:
         self,
         mode_provider: ModeProvider,
         bundles: Mapping[AuthMode, ProviderBundle],
+        *,
+        pair_executor: PairExecutor,
     ) -> None:
         self.mode_provider = mode_provider
         self.bundles = dict(bundles)
+        self.pair_executor = pair_executor
 
     def is_allowed(self, request: AuthRequest) -> AuthDecision:
         try:
@@ -86,8 +89,8 @@ class ModeRouter:
             return AuthMode.V3, AuthMode.V4
         return (mode,)
 
-    @staticmethod
     def _map_providers(
+        self,
         provider_modes: tuple[AuthMode, ...],
         call: Callable[[AuthMode], T],
     ) -> tuple[T, ...]:
@@ -95,7 +98,7 @@ class ModeRouter:
         if len(provider_modes) == 1:
             return (call(provider_modes[0]),)
         left_mode, right_mode = provider_modes
-        left, right = run_pair_concurrently(
+        left, right = self.pair_executor(
             lambda: call(left_mode),
             lambda: call(right_mode),
         )

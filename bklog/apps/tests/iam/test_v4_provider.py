@@ -41,6 +41,9 @@ class BklogNameCodecTest(SimpleTestCase):
     def test_root_resource_type_matches_bklog_model(self):
         self.assertEqual(BKLOG_ROOT_RESOURCE_TYPE_ID, ResourceEnum.BUSINESS.id)
 
+    def test_root_view_action_matches_bklog_model(self):
+        self.assertEqual(self.codec.root_view_action_id, ActionEnum.VIEW_BUSINESS.id)
+
     def test_normalize_iam_path_adds_path_delimiters(self):
         self.assertEqual(self.codec.normalize_iam_path("space,215"), "/space,215/")
 
@@ -480,6 +483,193 @@ class V4PermissionProviderTest(SimpleTestCase):
                         }
                     ],
                 },
+            ],
+        )
+
+    def test_apply_data_merges_missing_parent_space_into_existing_permission(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+        resources = [
+            ResourceInstance(
+                system=ResourceEnum.BUSINESS.system_id,
+                type="space",
+                id="10",
+            ),
+            ResourceInstance(
+                system=ResourceEnum.INDICES.system_id,
+                type="indices",
+                id="20",
+                attributes={"_bk_iam_path_": "/space,20/"},
+            ),
+        ]
+
+        self.provider.get_apply_data([ActionEnum.VIEW_BUSINESS, ActionEnum.SEARCH_LOG], resources)
+
+        permissions = self.client.generate_perm_apply_url.call_args.kwargs["permissions"]
+        self.assertEqual(
+            permissions,
+            [
+                {
+                    "action_id": "view_business",
+                    "resources": [{"type": "space", "id": "10"}, {"type": "space", "id": "20"}],
+                },
+                {
+                    "action_id": "search_log",
+                    "resources": [
+                        {
+                            "type": "indices",
+                            "id": "20",
+                            "ancestors": [{"type": "space", "id": "20"}],
+                        }
+                    ],
+                },
+            ],
+        )
+
+    def test_apply_data_adds_parent_space_context_for_child_resource(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+        resources = [
+            ResourceInstance(
+                system=ResourceEnum.INDICES.system_id,
+                type="indices",
+                id="20",
+                name="索引集A",
+                attributes={"_bk_iam_path_": "/space,10/"},
+            )
+        ]
+
+        apply_data, _ = self.provider.get_apply_data([ActionEnum.SEARCH_LOG], resources)
+
+        permissions = self.client.generate_perm_apply_url.call_args.kwargs["permissions"]
+        self.assertEqual(
+            permissions,
+            [
+                {
+                    "action_id": "search_log",
+                    "resources": [
+                        {
+                            "type": "indices",
+                            "id": "20",
+                            "ancestors": [{"type": "space", "id": "10"}],
+                        }
+                    ],
+                },
+                {"action_id": "view_business", "resources": [{"type": "space", "id": "10"}]},
+            ],
+        )
+        self.assertEqual([action["id"] for action in apply_data["actions"]], ["search_log"])
+        self.assertEqual(
+            apply_data["actions"][0]["related_resource_types"][0]["instances"][0][0]["id"],
+            "20",
+        )
+
+    def test_apply_data_adds_parent_space_context_for_collection_and_encodes_negative_id(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+        resources = [
+            ResourceInstance(
+                system=ResourceEnum.COLLECTION.system_id,
+                type="collection",
+                id="17",
+                attributes={"_bk_iam_path_": "/space,-5423/"},
+            )
+        ]
+
+        self.provider.get_apply_data([ActionEnum.VIEW_COLLECTION], resources)
+
+        permissions = self.client.generate_perm_apply_url.call_args.kwargs["permissions"]
+        self.assertEqual(
+            permissions,
+            [
+                {
+                    "action_id": "view_collection",
+                    "resources": [
+                        {
+                            "type": "collection",
+                            "id": "17",
+                            "ancestors": [{"type": "space", "id": "neg_5423"}],
+                        }
+                    ],
+                },
+                {"action_id": "view_business", "resources": [{"type": "space", "id": "neg_5423"}]},
+            ],
+        )
+
+    def test_apply_data_skips_parent_space_context_when_child_has_no_ancestors(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+
+        self.provider.get_apply_data(
+            [ActionEnum.VIEW_COLLECTION],
+            [ResourceInstance(system=ResourceEnum.COLLECTION.system_id, type="collection", id="1")],
+        )
+
+        self.assertEqual(
+            self.client.generate_perm_apply_url.call_args.kwargs["permissions"],
+            [{"action_id": "view_collection", "resources": [{"type": "collection", "id": "1"}]}],
+        )
+
+    def test_apply_data_skips_parent_space_context_for_unrelated_ancestor_type(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+
+        self.provider.get_apply_data(
+            [ActionEnum.SEARCH_LOG],
+            [
+                ResourceInstance(
+                    system=ResourceEnum.INDICES.system_id,
+                    type="indices",
+                    id="20",
+                    attributes={"_bk_iam_path_": "/biz,10/"},
+                )
+            ],
+        )
+
+        self.assertEqual(
+            self.client.generate_perm_apply_url.call_args.kwargs["permissions"],
+            [
+                {
+                    "action_id": "search_log",
+                    "resources": [
+                        {
+                            "type": "indices",
+                            "id": "20",
+                            "ancestors": [{"type": "biz", "id": "10"}],
+                        }
+                    ],
+                }
+            ],
+        )
+
+    def test_apply_data_with_generic_codec_does_not_add_bklog_parent_action(self):
+        self.client.generate_perm_apply_url.return_value = "https://bkiam.example/apply"
+        provider = V4PermissionProvider(
+            self.client,
+            codec=V4ResourceCodec(),
+            action_resolver=get_action_by_id,
+        )
+
+        provider.get_apply_data(
+            [ActionEnum.VIEW_COLLECTION],
+            [
+                ResourceInstance(
+                    system=ResourceEnum.COLLECTION.system_id,
+                    type="collection",
+                    id="1",
+                    attributes={"_bk_iam_path_": "/space,10/"},
+                )
+            ],
+        )
+
+        self.assertEqual(
+            self.client.generate_perm_apply_url.call_args.kwargs["permissions"],
+            [
+                {
+                    "action_id": "view_collection_v2",
+                    "resources": [
+                        {
+                            "type": "collection",
+                            "id": "1",
+                            "ancestors": [{"type": "space", "id": "10"}],
+                        }
+                    ],
+                }
             ],
         )
 
