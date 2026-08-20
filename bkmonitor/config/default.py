@@ -1331,6 +1331,13 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
 # BKFara 源码分析使用独立 APIGW；联调环境由 BKFara 提供具体地址。
 BKFARA_APIGW_BASE_URL = os.getenv("BKAPP_BKFARA_APIGW_BASE_URL") or os.getenv("BKFARA_APIGW_BASE_URL", "")
+# 临时联调开关：上游就绪并完成前后端联调后，应连同 api/source_analysis_mock.py 及调用钩子整体删除。
+# 测试部署在平台侧也可能标记为 production，因此只以显式开关为准；未配置时默认关闭。
+ISSUE_SOURCE_ANALYSIS_UPSTREAM_MOCK_ENABLED = (
+    os.getenv("BKAPP_ISSUE_SOURCE_ANALYSIS_UPSTREAM_MOCK_ENABLED", "false").lower() == "true"
+)
+# Mock 至少保持一个前端轮询周期的活动态；测试环境可按需要缩短或延长。
+ISSUE_SOURCE_ANALYSIS_MOCK_DURATION_SECONDS = int(os.getenv("BKAPP_ISSUE_SOURCE_ANALYSIS_MOCK_DURATION_SECONDS", "8"))
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知

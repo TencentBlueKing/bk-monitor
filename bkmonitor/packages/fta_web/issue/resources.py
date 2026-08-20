@@ -65,6 +65,7 @@ from constants.issue import (
     SourceAnalysisStatus,
     SourceAnalysisTriggerType,
 )
+from api.source_analysis_mock import SourceAnalysisUpstreamMock
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -241,9 +242,12 @@ class SourceAnalysisBaseResource(Resource):
         会向 AIDEV 发起分页请求，耗时不可控，调用方必须在数据库事务外执行。
         """
 
-        # AIDEV 暂无用户态知识库列表；非空知识库 ID 不能被证明属于当前用户，必须拒绝保存为启用规则。
+        # 正式链路在 AIDEV 提供用户态知识库列表前仍拒绝非空 ID；Mock 只放行固定联调数据。
         if rule.knowledge_base_ids:
-            raise SourceAnalysisResourceNotFoundError()
+            if not SourceAnalysisUpstreamMock.is_enabled():
+                raise SourceAnalysisResourceNotFoundError()
+            if not set(rule.knowledge_base_ids).issubset(SourceAnalysisUpstreamMock.visible_knowledge_base_ids()):
+                raise SourceAnalysisResourceNotFoundError()
 
         try:
             visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id") if rule.agent_id else set()
@@ -1675,6 +1679,8 @@ class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOption
     """预留当前用户有权限的 AIDEV 知识库选项接口。"""
 
     def perform_request(self, validated_request_data: dict) -> dict:
+        if SourceAnalysisUpstreamMock.is_enabled():
+            return SourceAnalysisUpstreamMock.list_knowledge_base_options(validated_request_data)
         # AIDEV 暂未提供用户态知识库列表接口；保留前端协议，支持后再接入真实数据。
         return {"total": 0, "list": []}
 

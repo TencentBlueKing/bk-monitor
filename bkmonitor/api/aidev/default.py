@@ -19,6 +19,7 @@ from django.utils.translation import gettext as _
 from requests.exceptions import RequestException
 from rest_framework import serializers
 
+from api.source_analysis_mock import SourceAnalysisUpstreamMock
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
 
@@ -69,6 +70,10 @@ class AidevPrivateAPIGWResource(APIResource):
         return headers
 
     def perform_request(self, validated_request_data):
+        if SourceAnalysisUpstreamMock.is_enabled():
+            # 临时联调钩子：Mock 仅接管源码分析使用的 Agent / Skill 列表。
+            if SourceAnalysisUpstreamMock.supports_aidev_action(self.action):
+                return SourceAnalysisUpstreamMock.list_aidev_resources(self.action, validated_request_data)
         try:
             return super().perform_request(validated_request_data)
         except RequestException as error:
