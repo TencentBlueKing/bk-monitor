@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import importlib
+import json
 import ntpath
 import os
 import sys
@@ -1898,6 +1899,8 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+# 自定义格式 VM 链路使用的 inner KafkaChannel，key 为 "<tenant>:<namespace>"。
+BKBASE_INNER_KAFKA_CHANNEL_MAP = json.loads(os.getenv("BKBASE_INNER_KAFKA_CHANNEL_MAP", "{}"))
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # IAM多租户配置
