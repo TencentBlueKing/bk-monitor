@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -495,3 +496,392 @@ def test_inspect_strategy_config_detail_without_bk_biz_id(monkeypatch):
     assert result["result"]["strategy_id"] == 51
     assert result["result"]["bk_biz_id"] == 100900  # returned from the model
     assert result["result"]["strategy"]["id"] == 51
+
+
+class FakeRouteQuerySet:
+    """记录 filter/order_by/values 调用链，供路由区间折算断言使用。"""
+
+    def __init__(self, rows):
+        self.rows = rows
+        self.filter_kwargs = None
+        self.order_by_args = None
+        self.values_args = None
+
+    def filter(self, **kwargs):
+        self.filter_kwargs = kwargs
+        return self
+
+    def order_by(self, *args):
+        self.order_by_args = args
+        return self
+
+    def values(self, *args):
+        self.values_args = args
+        return list(self.rows)
+
+
+def _patch_cache_router(monkeypatch, rows):
+    import bkmonitor.models as models_module
+    from alarm_backends.core import cluster as cluster_module
+
+    queryset = FakeRouteQuerySet(rows)
+    monkeypatch.setattr(models_module.CacheRouter, "objects", queryset, raising=False)
+    monkeypatch.setattr(cluster_module, "get_cluster", lambda: SimpleNamespace(name="default"))
+    return queryset
+
+
+def _patch_strategy_cache(monkeypatch, strategy_ids, groups, configs=None):
+    """替换策略缓存读取，并统计读取次数以固化"读取次数与分页无关"。"""
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    calls = {"ids": 0, "groups": 0, "configs": 0}
+    configs = configs or []
+
+    def fake_ids(cls):
+        calls["ids"] += 1
+        return list(strategy_ids)
+
+    def fake_groups(cls):
+        calls["groups"] += 1
+        return dict(groups)
+
+    def fake_configs(cls, wanted_ids):
+        calls["configs"] += 1
+        wanted = set(wanted_ids)
+        return [config for config in configs if config.get("id") in wanted]
+
+    monkeypatch.setattr(StrategyCacheManager, "get_strategy_ids", classmethod(fake_ids))
+    monkeypatch.setattr(StrategyCacheManager, "get_all_groups", classmethod(fake_groups))
+    monkeypatch.setattr(StrategyCacheManager, "get_strategy_by_ids", classmethod(fake_configs))
+    return calls
+
+
+def _detect_config(strategy_id, interval, *, trigger_window=5, recovery_window=5):
+    """构造能让生产 detect_result_point_required / get_interval 正常求值的最小策略配置。"""
+    return {
+        "id": strategy_id,
+        "items": [{"id": strategy_id * 10, "query_configs": [{"agg_interval": interval}], "algorithms": []}],
+        "detects": [
+            {
+                "level": 1,
+                "trigger_config": {"check_window": trigger_window, "count": 1},
+                "recovery_config": {"check_window": recovery_window},
+            }
+        ],
+    }
+
+
+def _group(strategy_items, *, bk_biz_id=7, interval_list=(60,)):
+    payload = {str(key): list(value) for key, value in strategy_items.items()}
+    payload["bk_biz_id"] = bk_biz_id
+    payload["interval_list"] = list(interval_list)
+    payload["strategy_source"] = [["bk_monitor", "time_series"]]
+    return json.dumps(payload)
+
+
+def _call_list_enabled(params):
+    return BkmCliOpCallResource().perform_request(
+        {"op_id": "inspect-strategy-config", "params": {"operation": "list_enabled", **params}}
+    )["result"]
+
+
+def test_list_enabled_aggregates_items_across_groups(monkeypatch):
+    """同一策略跨多个共享组时，item_ids / group keys / interval_list 需并集聚合。"""
+    calls = _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[3, 1, 2],
+        groups={
+            "md5-a": _group({1: [10, 11], 2: [20]}, interval_list=(60,)),
+            "md5-b": _group({1: [12]}, interval_list=(300,)),
+        },
+    )
+
+    result = _call_list_enabled({})
+
+    assert result["population"]["total"] == 3
+    assert result["filter"]["mode"] == "all"
+    assert result["filter"]["matched"] == 3
+    assert result["group_coverage"]["in_group"] == 2
+    assert result["group_coverage"]["not_in_group"] == 1
+    assert result["group_coverage"]["malformed_groups"] == 0
+    # 升序返回，缺失组的策略也在列，只是标记 in_strategy_group=False
+    assert [item["strategy_id"] for item in result["strategies"]] == [1, 2, 3]
+    first = result["strategies"][0]
+    assert first["item_ids"] == [10, 11, 12]
+    assert first["item_count"] == 3
+    assert first["strategy_group_keys"] == ["md5-a", "md5-b"]
+    assert first["interval_list"] == [60, 300]
+    assert first["bk_biz_id"] == 7
+    assert result["strategies"][2] == {"strategy_id": 3, "in_strategy_group": False}
+    # 关键非回归：只读一次 ID 列表 + 一次策略组，不逐策略读 .strategy_{id}
+    assert calls == {"ids": 1, "groups": 1, "configs": 0}
+
+
+def test_list_enabled_ignores_group_reserved_fields(monkeypatch):
+    """bk_biz_id / interval_list / strategy_source 是保留字段，不能被当成策略 ID。"""
+    _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1],
+        groups={"md5-a": _group({1: [10]})},
+    )
+
+    result = _call_list_enabled({})
+
+    assert [item["strategy_id"] for item in result["strategies"]] == [1]
+    assert result["group_coverage"]["in_group"] == 1
+
+
+def test_list_enabled_counts_malformed_group_without_failing(monkeypatch):
+    """单个组 JSON 损坏只计数，不能让整次枚举失败。"""
+    _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1, 2],
+        groups={"md5-a": _group({1: [10]}), "md5-broken": "{not-json", "md5-list": "[1,2]"},
+    )
+
+    result = _call_list_enabled({})
+
+    assert result["group_coverage"]["malformed_groups"] == 2
+    assert result["group_coverage"]["in_group"] == 1
+    assert [item["strategy_id"] for item in result["strategies"]] == [1, 2]
+
+
+def test_list_enabled_node_filter_matches_cache_router_score_range(monkeypatch):
+    """按节点过滤的区间口径必须与 list-cache-routing 的 score_range 一致。
+
+    路由 ``score=100 -> node1`` 覆盖 ``[1, 99]``，``score=200 -> node2`` 覆盖
+    ``[100, 199]``，``score=300 -> node1`` 覆盖 ``[200, 299]``；``score=-1`` 是保留
+    记录，不参与区间划分。node1 因此有两段不相邻区间。
+    """
+    queryset = _patch_cache_router(
+        monkeypatch,
+        [
+            {"node_id": 1, "strategy_score": 100},
+            {"node_id": 2, "strategy_score": 200},
+            {"node_id": 1, "strategy_score": 300},
+        ],
+    )
+    _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1, 99, 100, 199, 200, 299],
+        groups={"md5-a": _group({1: [10], 200: [30]})},
+    )
+
+    result = _call_list_enabled({"node_id": 1})
+
+    assert queryset.filter_kwargs == {"cluster_name": "default", "strategy_score__gt": 0}
+    assert result["filter"]["mode"] == "node_id"
+    assert result["filter"]["intervals"] == [{"min": 1, "max": 99}, {"min": 200, "max": 299}]
+    assert [item["strategy_id"] for item in result["strategies"]] == [1, 99, 200, 299]
+    assert result["filter"]["matched"] == 4
+
+
+def test_list_enabled_node_filter_rejects_node_without_range(monkeypatch):
+    """节点只挂在保留记录上时没有覆盖区间，应显式报错而不是返回空列表。"""
+    _patch_cache_router(monkeypatch, [{"node_id": 2, "strategy_score": 100}])
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={})
+
+    with pytest.raises(CustomException):
+        _call_list_enabled({"node_id": 1})
+
+
+def test_list_enabled_node_filter_rejects_empty_routing_table(monkeypatch):
+    _patch_cache_router(monkeypatch, [])
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={})
+
+    with pytest.raises(CustomException):
+        _call_list_enabled({"node_id": 1})
+
+
+def test_list_enabled_rejects_conflicting_filters(monkeypatch):
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={})
+
+    with pytest.raises(CustomException):
+        _call_list_enabled({"node_id": 1, "strategy_id_min": 10})
+
+
+def test_list_enabled_explicit_range_is_inclusive_and_open_ended(monkeypatch):
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1, 5, 10, 20], groups={})
+
+    bounded = _call_list_enabled({"strategy_id_min": 5, "strategy_id_max": 10})
+    assert [item["strategy_id"] for item in bounded["strategies"]] == [5, 10]
+    assert bounded["filter"]["intervals"] == [{"min": 5, "max": 10}]
+
+    # 省略上界表示无上界，而不是退化成只取下界那一条
+    open_ended = _call_list_enabled({"strategy_id_min": 10})
+    assert [item["strategy_id"] for item in open_ended["strategies"]] == [10, 20]
+    assert open_ended["filter"]["intervals"] == [{"min": 10, "max": None}]
+
+
+def test_list_enabled_rejects_inverted_range(monkeypatch):
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={})
+
+    with pytest.raises(CustomException):
+        _call_list_enabled({"strategy_id_min": 10, "strategy_id_max": 5})
+
+
+def test_list_enabled_paginates_without_extra_redis_reads(monkeypatch):
+    calls = _patch_strategy_cache(monkeypatch, strategy_ids=list(range(1, 6)), groups={})
+
+    page_one = _call_list_enabled({"page_size": 2})
+    assert [item["strategy_id"] for item in page_one["strategies"]] == [1, 2]
+    assert page_one["page"] == {
+        "number": 1,
+        "size": 2,
+        "returned": 2,
+        "total_pages": 3,
+        "has_more": True,
+    }
+
+    page_three = _call_list_enabled({"page": 3, "page_size": 2})
+    assert [item["strategy_id"] for item in page_three["strategies"]] == [5]
+    assert page_three["page"]["has_more"] is False
+
+    beyond = _call_list_enabled({"page": 9, "page_size": 2})
+    assert beyond["strategies"] == []
+    assert beyond["page"]["has_more"] is False
+
+    # 每次调用固定两次读取，与页码、页大小无关
+    assert calls == {"ids": 3, "groups": 3, "configs": 0}
+
+
+def test_list_enabled_caps_page_size(monkeypatch):
+    from kernel_api.rpc.functions.bkm_cli import strategy
+
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={})
+
+    result = _call_list_enabled({"page_size": strategy.MAX_PAGE_SIZE + 1000})
+
+    assert result["page"]["size"] == strategy.MAX_PAGE_SIZE
+
+
+@pytest.mark.parametrize("bad_pagination", [{"page": 0}, {"page": -1}, {"page_size": 0}, {"page_size": -1}])
+def test_list_enabled_rejects_non_positive_pagination(monkeypatch, bad_pagination):
+    """0 必须被拒绝而不是当成缺省值，否则会掩盖调用方按 0 基分页的差一错误。"""
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={})
+
+    with pytest.raises(CustomException):
+        _call_list_enabled(bad_pagination)
+
+
+def test_list_enabled_can_omit_item_ids(monkeypatch):
+    _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1],
+        groups={"md5-a": _group({1: [10, 11]})},
+    )
+
+    result = _call_list_enabled({"include_item_ids": False})
+
+    entry = result["strategies"][0]
+    assert "item_ids" not in entry
+    assert entry["item_count"] == 2
+
+
+def test_list_enabled_detect_profile_is_off_by_default(monkeypatch):
+    calls = _patch_strategy_cache(
+        monkeypatch, strategy_ids=[1], groups={}, configs=[_detect_config(1, 60)]
+    )
+
+    result = _call_list_enabled({})
+
+    assert "detect_profile" not in result["strategies"][0]
+    assert result["redis_commands"]["base"] == 2
+    assert result["redis_commands"]["detect_profile_mget_chunks"] == 0
+    assert result["detect_profile_coverage"] == {"requested": 0, "resolved": 0}
+    assert calls["configs"] == 0
+
+
+def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
+    """峰值上界必须是 point_required + 一个清理周期内的新增，不是两者取大。
+
+    热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，所以峰值出现在
+    紧接清理前，等于"保留基线 + 周期内新增"。取大写法给出的上界会低于实测峰值
+    （策略 8361 实测 261，而 max(30, 7200/30)=240），上界被实测突破即不成立。
+    """
+    calls = _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1, 2, 3],
+        groups={},
+        configs=[_detect_config(1, 30), _detect_config(2, 60), _detect_config(3, 300)],
+    )
+
+    result = _call_list_enabled({"include_detect_profile": True})
+    profiles = {item["strategy_id"]: item["detect_profile"] for item in result["strategies"]}
+
+    assert profiles[1]["point_required"] == 30
+    assert profiles[1]["interval"] == 30
+    assert profiles[1]["clean_interval_seconds"] == 7200
+    assert profiles[1]["growth_per_clean_cycle"] == 240
+    assert profiles[1]["check_result_peak_per_series"] == 270
+    assert profiles[1]["overshoot_ratio"] == 9.0
+    assert profiles[2]["check_result_peak_per_series"] == 150
+    # 长周期下差异最刺眼：取大写法给 30，实际上界 54
+    assert profiles[3]["check_result_peak_per_series"] == 54
+    assert result["detect_profile_coverage"] == {"requested": 3, "resolved": 3}
+    assert result["redis_commands"]["detect_profile_mget_chunks"] == 1
+    assert calls["configs"] == 1
+
+
+def test_list_enabled_detect_profile_upper_bound_covers_measured_peak(monkeypatch):
+    """回归锚点：bkop 策略 8361 实测峰值 261，配置推导上界不得低于它。"""
+    _patch_strategy_cache(monkeypatch, strategy_ids=[8361], groups={}, configs=[_detect_config(8361, 30)])
+
+    profile = _call_list_enabled({"include_detect_profile": True})["strategies"][0]["detect_profile"]
+
+    assert profile["check_result_peak_per_series"] >= 261
+
+
+def test_list_enabled_detect_profile_uses_production_point_required(monkeypatch):
+    """point_required 取自生产函数：窗口放大后 P 应随之变大，而不是恒等于下限 30。"""
+    _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1],
+        groups={},
+        configs=[_detect_config(1, 60, trigger_window=20, recovery_window=20)],
+    )
+
+    profile = _call_list_enabled({"include_detect_profile": True})["strategies"][0]["detect_profile"]
+
+    assert profile["point_required"] == 80
+    assert profile["check_result_peak_per_series"] == 200
+
+
+def test_list_enabled_detect_profile_reports_missing_and_broken_config(monkeypatch):
+    """配置缺失记 None、单条求值失败记 error，都不影响同页其余策略。"""
+    _patch_strategy_cache(
+        monkeypatch,
+        strategy_ids=[1, 2, 3],
+        groups={},
+        # 策略 2 缺 detects，生产函数会抛错；策略 3 完全没有缓存配置
+        configs=[_detect_config(1, 60), {"id": 2, "items": [{"query_configs": [{"agg_interval": 60}]}]}],
+    )
+
+    result = _call_list_enabled({"include_detect_profile": True})
+    profiles = {item["strategy_id"]: item["detect_profile"] for item in result["strategies"]}
+
+    assert profiles[1]["check_result_peak_per_series"] == 150
+    assert "error" in profiles[2]
+    assert profiles[3] is None
+    assert result["detect_profile_coverage"] == {"requested": 3, "resolved": 2}
+
+
+def test_list_enabled_detect_profile_mget_chunks_follow_page_size(monkeypatch):
+    """分块数由页大小决定而非策略总数，保证不退化成 N+1。"""
+    _patch_strategy_cache(monkeypatch, strategy_ids=list(range(1, 2501)), groups={}, configs=[])
+
+    result = _call_list_enabled({"include_detect_profile": True, "page_size": 2000})
+
+    assert result["page"]["returned"] == 2000
+    assert result["redis_commands"]["detect_profile_mget_chunks"] == 2
+
+
+def test_list_enabled_tolerates_dirty_population_entries(monkeypatch):
+    """缓存里混入非整数 ID 时跳过，不影响其余枚举。"""
+    _patch_strategy_cache(monkeypatch, strategy_ids=[1, "2", None, "abc", True, 1], groups={})
+
+    result = _call_list_enabled({})
+
+    # 去重 + 跳过 None/"abc"/布尔
+    assert [item["strategy_id"] for item in result["strategies"]] == [1, 2]
+    assert result["population"]["total"] == 2
