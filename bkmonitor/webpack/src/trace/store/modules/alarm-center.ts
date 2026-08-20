@@ -101,7 +101,9 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     const params = {
       start_time: start,
       end_time: end,
-      [REFRESH_EFFECT_KEY]: refreshId.value,
+      // timezone 本身不入参，但绝对时间的 unix 转换依赖 window.timezone；
+      // 拼进副作用 key，使时区切换与 timeRange / refreshId 一样触发重算。
+      [REFRESH_EFFECT_KEY]: `${refreshId.value}_${timezone.value}`,
     };
     // 用于主动触发 依赖副作用 更新
     delete params[REFRESH_EFFECT_KEY];
