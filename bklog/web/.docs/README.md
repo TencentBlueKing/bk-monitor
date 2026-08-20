@@ -1,12 +1,21 @@
 # bklog/web 前端架构与路由数据流说明
 
-> 说明：本文基于 `bklog/web/src` 当前代码（Vue2 + TS/TSX + 部分 Composition API 用法）静态分析整理，聚焦“架构设计、路由模块组件调用、数据流执行、主要 API 请求”。
+> 说明：本文基于 `bklog/web/src` 当前代码（Vue2 + TS/TSX + 部分 Composition API 用法）静态分析整理。日志检索已完成 V3 查询链路改造，主查询采用 WebWorker + NDJSON/JSON 解析 + IndexedDB 行缓存；详见 [`日志检索V3架构与数据链路.md`](./日志检索V3架构与数据链路.md)。
+
+本文仍保留应用启动、路由、管理模块等全局说明；其中旧版检索段落和图表仅作兼容背景，涉及 V3 主查询时以专门设计文档为准。
+
+## 当前文档入口
+
+- [`架构图.md`](./架构图.md)：当前总体架构与日志检索分层概览。
+- [`日志检索V3架构与数据链路.md`](./日志检索V3架构与数据链路.md)：日志检索 V3 的初始化、Worker、流式解析、IndexedDB、分页和竞态设计。
+- [`diagrams/`](./diagrams/)：可单独渲染的 Mermaid 图表；其中 D/F/G/I/K 已按当前检索实现更新。
 
 ---
 
 ### 1. 代码入口与整体架构
 
 - **前端位置**：`bklog/web`
+- **静态壳**：`bklog/web/index.html`（`#app` + `bootstrap-loading` 首屏占位；`App.mounted` 后由 `main.js` 淡出移除）
 - **应用入口**：`bklog/web/src/main.js`
 - **根组件壳**：`bklog/web/src/app.tsx`
 - **路由入口**：`bklog/web/src/router/index.js`（运行时动态生成 routes）
@@ -25,7 +34,11 @@
 
 ### 2. 启动时序（从加载到可用）
 
-以 `src/main.js` 为主线，启动流程关键节点如下：
+以 `index.html` → `src/main.js` 为主线，启动流程关键节点如下：
+
+- **(0) 静态壳首屏**
+  - 浏览器先渲染 `index.html`：展示 `.bklog-bootstrap-loading`，预留 `#app`
+  - 阶段文案循环：`Init resources` / `Load runtime` / `Prepare search`（壳层早于 i18n，保持英文）
 
 - **(1) 初始化全局能力**
   - 注册全局组件：`JsonFormatWrapper`、`LogButton`、`LogIcon`
@@ -37,18 +50,19 @@
     - **默认空间**：`space/getMySpaceList`（必要时先 `indexSet/getSpaceByIndexId` 兜底）
     - **用户信息**：`userInfo/getUsername`
     - **全局配置**：`collect/globals`（同时会动态更新内置隐藏字段配置）
-    - **用户引导**：`meta/getUserGuide`
-  - preload 结果会通过 `store.commit` 写入 `spaceUid/bkBizId/userMeta/globalsData/userGuideData` 等
+  - preload 结果会通过 `store.commit` 写入 `spaceUid/bkBizId/userMeta/globalsData` 等
+  - **用户引导** `meta/getUserGuide` 与完整空间列表改为 mount 后 idle 补齐，不阻塞首屏
 
-- **(3) 生成 router + 拉菜单 + mount Vue**
+- **(3) 生成 router + mount Vue + 淡出占位**
   - `getRouter(spaceUid, bkBizId, externalMenu)` 创建路由实例（`src/router/index.js`）
-  - `store.dispatch('requestMenuList', spaceUid)` 拉取菜单（`meta/menu`），并映射 navId（如 search→retrieve、manage_xxx→manage-xxx）
+  - 若尚无 `topMenu`，先写入 `DEFAULT_MENU_LISTS`；真实菜单 `meta/menu` 在 idle 回调中刷新
   - mount：
     - `new Vue({ el:'#app', router, store, i18n, template:'<App/>' })`
+    - `App.mounted` → `fadeOutBootstrapLoading()` 移除首屏占位
     - 若没有 `space` 且当前不是 `share`，会跳转 `/un-authorized`（带上 spaceUid/bkBizId/indexId 等 query）
 
 - **(4) development 环境额外步骤**
-  - `http.request('meta/getEnvConstant')` 拉取环境常量并写入 `window.*`（如 `FEATURE_TOGGLE`、白名单等）
+  - `http.request('meta/getEnvConstant')` 拉取环境常量并写入 `window.*`（如 `FEATURE_TOGGLE`、白名单等），再进入 mount
 
 ---
 

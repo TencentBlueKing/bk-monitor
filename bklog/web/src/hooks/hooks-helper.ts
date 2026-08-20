@@ -25,11 +25,6 @@
  */
 import { isElement, debounce } from 'lodash-es';
 
-import {
-  mapGlobalRangesToSegments,
-  parseResultMarkedText,
-} from '@/views/retrieve-core/page-highlight';
-
 import type { Ref } from 'vue';
 
 function deepQueryShadowSelector(selector) {
@@ -77,76 +72,40 @@ export const getTargetElement = (
   return (target as Ref<HTMLElement>)?.value;
 };
 
+type LayoutReadTask = () => (() => void) | void;
+
+const layoutReadQueue: LayoutReadTask[] = [];
+let layoutReadHandle = 0;
+
 /**
- *
- * @param str
- * @param delimiterPattern
- * @param wordsplit 是否分词
- * @returns
+ * 批量执行 DOM 测量：先跑完所有读、再统一执行写。
+ * 单元格分词是逐个渲染的，若每个单元格各自 requestAnimationFrame 去读
+ * offsetHeight / scrollHeight，一屏就会产生几百次强制同步布局。
  */
-export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit = true) => {
-  if (!str) {
-    return [];
-  }
+const flushLayoutReads = () => {
+  layoutReadHandle = 0;
+  const tasks = layoutReadQueue.splice(0, layoutReadQueue.length);
+  const writes: Array<() => void> = [];
 
-  // 先剥离 <mark> 再分词，避免高亮标签破坏 token 边界；高亮范围再映射回各 token。
-  const { plainText, markRanges } = parseResultMarkedText(str);
-  if (!plainText) {
-    return [];
-  }
-
-  const tokens: Record<string, any>[] = [];
-  let processedLength = 0;
-  const CHUNK_SIZE = 200;
-
-  if (wordsplit) {
-    const MAX_TOKENS = 500;
-    // 转义特殊字符，并构建用于分割的正则表达式
-    const regexPattern = delimiterPattern
-      .split('')
-      .map(delimiter => `\\${delimiter}`)
-      .join('|');
-
-    const DELIMITER_REGEX = new RegExp(`(${regexPattern})`);
-    const segmentSplitList = plainText.split(DELIMITER_REGEX).filter(Boolean);
-    const normalTokens = segmentSplitList.slice(0, MAX_TOKENS);
-
-    for (const t of normalTokens) {
-      processedLength += t.length;
-      tokens.push({
-        text: t,
-        isMark: false,
-        isCursorText: !DELIMITER_REGEX.test(t),
-      });
+  for (const task of tasks) {
+    const write = task();
+    if (write) {
+      writes.push(write);
     }
   }
 
-  if (processedLength < plainText.length) {
-    const remaining = plainText.slice(processedLength);
-    const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
-    for (let i = 0; i < chunkCount; i++) {
-      tokens.push({
-        text: remaining.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-        isMark: false,
-        isCursorText: false,
-        isBlobWord: false,
-      });
-    }
+  for (const write of writes) {
+    write();
+  }
+};
+
+const scheduleLayoutRead = (task: LayoutReadTask) => {
+  layoutReadQueue.push(task);
+  if (layoutReadHandle) {
+    return;
   }
 
-  if (!markRanges.length) {
-    return tokens.map(token => ({ ...token, resultRanges: [] }));
-  }
-
-  const perTokenRanges = mapGlobalRangesToSegments(tokens, markRanges, false);
-  return tokens.map((token, index) => {
-    const resultRanges = perTokenRanges[index] ?? [];
-    return {
-      ...token,
-      isMark: resultRanges.length > 0,
-      resultRanges,
-    };
-  });
+  layoutReadHandle = requestAnimationFrame(flushLayoutReads);
 };
 
 /**
@@ -181,19 +140,25 @@ export const setScrollLoadCell = (
    * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
    */
   const appendLastTag = () => {
-    if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
-      const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
-      if (scrollHeight > offsetHeight) {
-        const child = document.createElement('span');
-        child.classList.add('last-placeholder');
-        contentElement?.append?.(child);
-      }
+    if (contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
+      return undefined;
     }
+
+    const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
+    if (scrollHeight <= offsetHeight) {
+      return undefined;
+    }
+
+    return () => {
+      const child = document.createElement('span');
+      child.classList.add('last-placeholder');
+      contentElement?.append?.(child);
+    };
   };
 
   const appendPageItems = (size?) => {
     if (startIndex > wordList.length) {
-      requestAnimationFrame(appendLastTag);
+      scheduleLayoutRead(appendLastTag);
       startIndex = wordList.length;
       return false;
     }
@@ -247,21 +212,44 @@ export const setScrollLoadCell = (
    * 动态渲染列表，根据内容高度自动判定是否添加滚动监听事件
    */
   const setListItem = (size?, next?) => {
-    if (appendPageItems(size)) {
-      requestAnimationFrame(() => {
-        if (rootElement) {
-          const { offsetHeight, scrollHeight } = rootElement;
-          if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
-            setListItem(undefined, next);
-          } else {
+    if (!appendPageItems(size)) {
+      return;
+    }
+
+    // 首批即渲染完全部分词（绝大多数单元格）：没有后续内容要追加，
+    // 唯一还需要的测量合并进共享批量读，避免每个单元格独占 2-3 次 rAF 与强制同步布局。
+    if (startIndex >= wordList.length) {
+      scheduleLayoutRead(() => {
+        const appendPlaceholder = appendLastTag();
+        const isOverflow = rootElement ? rootElement.offsetHeight * 1.2 <= rootElement.scrollHeight : false;
+
+        return () => {
+          appendPlaceholder?.();
+          // 与原逻辑一致：内容溢出才触发后置处理并挂滚动续渲
+          if (isOverflow) {
             next?.();
             if (!scrollEvtAdded) {
               addScrollEvent(next);
             }
           }
-        }
+        };
       });
+      return;
     }
+
+    requestAnimationFrame(() => {
+      if (rootElement) {
+        const { offsetHeight, scrollHeight } = rootElement;
+        if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
+          setListItem(undefined, next);
+        } else {
+          next?.();
+          if (!scrollEvtAdded) {
+            addScrollEvent(next);
+          }
+        }
+      }
+    });
   };
 
   const reset = list => {

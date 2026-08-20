@@ -52,6 +52,7 @@ import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 // defaultCycleOptionMin,
 // defaultCycleOptionSec
 import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
+import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 import { CONDITION } from 'monitor-pc/constant/constant';
 import SimpleSelectInput from 'monitor-pc/pages/alarm-shield/components/simple-select-input';
 import SelectMenu from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/select-menu';
@@ -101,6 +102,7 @@ type IFormData = IApdexConfig &
   IApplicationSamplerConfig & {
     app_alias: string;
     description: string;
+    owners: string[];
   } & {
     plugin_config: {
       bk_biz_id: number | string;
@@ -153,6 +155,7 @@ export default class BasicInfo extends tsc<IProps> {
   formData: IFormData = {
     app_alias: '', // 别名
     description: '', // 描述
+    owners: [], // 负责人
     apdex_default: 0,
     apdex_http: 0,
     apdex_db: 0,
@@ -188,6 +191,13 @@ export default class BasicInfo extends tsc<IProps> {
         validator: val => !/(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(val),
         message: window.i18n.tc('不能输入emoji表情'),
         trigger: 'blur',
+      },
+    ],
+    owners: [
+      {
+        required: true,
+        message: window.i18n.tc('必填项'),
+        trigger: 'change',
       },
     ],
     sampler_percentage: [
@@ -496,6 +506,7 @@ export default class BasicInfo extends tsc<IProps> {
       const {
         app_alias: appAlias,
         description,
+        owners,
         plugin_config,
         application_log_relation_configs: logRelationList = [],
         application_sampler_config,
@@ -528,6 +539,7 @@ export default class BasicInfo extends tsc<IProps> {
       Object.assign(this.formData, apdexConfig, samplerConfig, {
         app_alias: appAlias,
         description,
+        owners: owners || [],
         plugin_config,
       });
     }
@@ -629,6 +641,7 @@ export default class BasicInfo extends tsc<IProps> {
     const {
       app_alias: appAlias,
       description,
+      owners,
       sampler_type: samplerType,
       sampler_percentage: samplerPercentage,
 
@@ -655,6 +668,7 @@ export default class BasicInfo extends tsc<IProps> {
       is_enabled: this.appInfo.is_enabled,
       app_alias: appAlias,
       description,
+      owners: owners,
       application_sampler_config: {
         sampler_type: samplerType,
       },
@@ -703,7 +717,9 @@ export default class BasicInfo extends tsc<IProps> {
       cardFormListValidationPromise.push((this.$refs[s] as any).validate());
     });
 
-    const promiseList = ['editInfoForm', 'editApdexForm', 'editSamplerForm', 'logRelationListRef'].map(item => this[item]?.validate());
+    const promiseList = ['editInfoForm', 'editApdexForm', 'editSamplerForm', 'logRelationListRef'].map(item =>
+      this[item]?.validate()
+    );
     await Promise.all(promiseList.concat(cardFormListValidationPromise))
       .then(async () => {
         if (!this.localInstanceList.length) {
@@ -1198,14 +1214,16 @@ export default class BasicInfo extends tsc<IProps> {
   /** 数据关联 */
   renderDataRelation() {
     return (
-      <div class={['data-relation-container', {'data-relation-edit': this.isEditing}]}>
+      <div class={['data-relation-container', { 'data-relation-edit': this.isEditing }]}>
         <div class='log-relation-container'>
-          <span class='relation-sub'>此处关联日志会应用到所有服务，如需单独修改某些服务的关联日志，请前往对应的服务配置修改</span>
+          <span class='relation-sub'>
+            此处关联日志会应用到所有服务，如需单独修改某些服务的关联日志，请前往对应的服务配置修改
+          </span>
           <div class='form-content log-relation-form'>
             <div class='log-relation-label'>关联日志</div>
             {this.isEditing ? (
               <bk-form>
-                <LogRelationList 
+                <LogRelationList
                   ref='logRelationListRef'
                   bizSelectList={this.bizSelectList}
                   indexSetListMap={this.indexSetListMap}
@@ -1217,43 +1235,38 @@ export default class BasicInfo extends tsc<IProps> {
                 />
               </bk-form>
             ) : (
-              <div
-                class='log-relation-content'
-              >
-                {/* s */}
-                  <div class='log-relation-info'>
+              <div class='log-relation-content'>
+                <div class='log-relation-info'>
                   {this.appInfo?.application_log_relation_configs?.length
-                      ? this.appInfo?.application_log_relation_configs.map((item, index) => (
-                          <div
-                            class='info-log-row'
-                            key={index}
-                          >
-                            {item?.log_type === 'bk_log' ? (
-                              <section>
-                                <bk-tag class='relation-info-tag'>
-                                  <span>{`${item.log_type_alias} : ${item.related_bk_biz_name}`}</span>
-                                </bk-tag>
-                                <bk-tag class='relation-info-tag'>
-                                  <span>{`${this.$t('索引集')}:${item.value_list.map(v => v.value_alias).join(',')}`}</span>
-                                </bk-tag>
-                              </section>
-                            ) : (
+                    ? this.appInfo?.application_log_relation_configs.map((item, index) => (
+                        <div
+                          key={index}
+                          class='info-log-row'
+                        >
+                          {item?.log_type === 'bk_log' ? (
+                            <section>
                               <bk-tag class='relation-info-tag'>
-                                <span>{`${item.log_type_alias} : ${item.value_alias}`}</span>
+                                <span>{`${item.log_type_alias} : ${item.related_bk_biz_name}`}</span>
                               </bk-tag>
-                            )} 
-                          </div>
-                        ))
-                      : '--'
-                    }
-                  </div>
-                {/* e */}
+                              <bk-tag class='relation-info-tag'>
+                                <span>{`${this.$t('索引集')}:${item.value_list.map(v => v.value_alias).join(',')}`}</span>
+                              </bk-tag>
+                            </section>
+                          ) : (
+                            <bk-tag class='relation-info-tag'>
+                              <span>{`${item.log_type_alias} : ${item.value_alias}`}</span>
+                            </bk-tag>
+                          )}
+                        </div>
+                      ))
+                    : '--'}
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   /** 渲染基础信息 */
@@ -1305,6 +1318,21 @@ export default class BasicInfo extends tsc<IProps> {
                   />
                 </bk-form-item>
                 <bk-form-item
+                  desc={this.$t('负责人拥有该应用的所有权限。')}
+                  error-display-type='normal'
+                  label={this.$t('负责人')}
+                  property='owners'
+                  required
+                >
+                  <UserSelector
+                    class='owners-user-selector'
+                    userIds={this.formData.owners}
+                    onChange={(val: string[]) => {
+                      this.formData.owners = val;
+                    }}
+                  />
+                </bk-form-item>
+                <bk-form-item
                   label={this.$t('描述')}
                   property='description'
                 >
@@ -1339,7 +1367,7 @@ export default class BasicInfo extends tsc<IProps> {
                 />
               </div>,
               <div
-                key='base-info-create_user'
+                key='base-info-owners'
                 class='item-row'
               >
                 <EditableFormItem
@@ -1364,7 +1392,7 @@ export default class BasicInfo extends tsc<IProps> {
                 />
               </div>,
               <div
-                key='base-info-create_time'
+                key='base-info-description'
                 class='item-row'
               >
                 <EditableFormItem
@@ -1375,12 +1403,42 @@ export default class BasicInfo extends tsc<IProps> {
                 />
                 <EditableFormItem
                   authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
                   formType='password'
                   label='Token'
                   showEditable={false}
                   updateValue={() => this.handleUpdateValue()}
                   value={this.secureKey}
                 />
+              </div>,
+              <div
+                key='base-info-owners'
+                class='item-row owners-row'
+              >
+                <EditableFormItem
+                  formType='custom'
+                  label={this.$t('负责人')}
+                  showEditable={false}
+                  tooltips={this.$t('负责人拥有该应用的所有权限。')}
+                  value={this.appInfo.owners}
+                >
+                  <template slot='custom'>
+                    <span
+                      class='text-content'
+                      v-bk-overflow-tips
+                    >
+                      {this.appInfo.owners?.length
+                        ? this.appInfo.owners.map((uid: string, index) => [
+                            index !== 0 && <span>,</span>,
+                            <bk-user-display-name
+                              key={uid}
+                              user-id={uid}
+                            />,
+                          ])
+                        : '--'}
+                    </span>
+                  </template>
+                </EditableFormItem>
               </div>,
             ]}
       </div>
@@ -1468,7 +1526,12 @@ export default class BasicInfo extends tsc<IProps> {
       <div class='conf-content base-info-wrap'>
         <PanelItem title={this.$t('基础信息')}>{this.renderBaseInfo()}</PanelItem>
         <PanelItem title={this.$t('数据上报')}>{this.renderDataReporting()}</PanelItem>
-        <PanelItem class='tips-panel-item' title={this.$t('数据关联')}>{this.renderDataRelation()}</PanelItem>
+        <PanelItem
+          class='tips-panel-item'
+          title={this.$t('数据关联')}
+        >
+          {this.renderDataRelation()}
+        </PanelItem>
         {this.isShowLog2TracesFormItem && (
           <PanelItem
             flexDirection='column'
@@ -1520,7 +1583,7 @@ export default class BasicInfo extends tsc<IProps> {
                         property='plugin_config.paths'
                         required
                       >
-                        {this.formData.plugin_config.paths.map((path, index) => (
+                        {this.formData.plugin_config.paths.map((_path, index) => (
                           <div key={`log_path_${index}`}>
                             <div
                               style={{
@@ -2045,11 +2108,12 @@ export default class BasicInfo extends tsc<IProps> {
                         disabled: this.instanceOptionList.length !== this.localInstanceList.length,
                         allowHTML: false,
                       }}
-                      onClick={() =>
-                        this.instanceOptionList.length === this.localInstanceList.length
-                          ? false
-                          : (this.showInstanceSelector = true)
-                      }
+                      onClick={() => {
+                        if (this.instanceOptionList.length === this.localInstanceList.length) {
+                          return;
+                        }
+                        this.showInstanceSelector = true;
+                      }}
                     >
                       <span class='icon-monitor icon-plus-line' />
                     </div>

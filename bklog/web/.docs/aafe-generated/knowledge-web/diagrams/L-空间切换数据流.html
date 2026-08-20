@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · L-空间切换数据流 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · L-空间切换数据流</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · L-空间切换数据流</div><h2>L-空间切换数据流</h2><p><code>.docs/diagrams/L-空间切换数据流.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeyAncHJpbWFyeUNvbG9yJzogJyNlZGU3ZjYnLCAncHJpbWFyeVRleHRDb2xvcic6ICcjNTEyZGE4JywgJ3ByaW1hcnlCb3JkZXJDb2xvcic6ICcjNjczYWI3JywgJ2xpbmVDb2xvcic6ICcjOTU3NWNkJ319fSUlXG5mbG93Y2hhcnQgVERcbiAgICBTVEFSVChb55So5oi35YiH5o2i56m66Ze0XSkgLS0-IFVQREFURV9VUkxb5pu05pawIFVSTCBxdWVyeTxici8-c3BhY2VVaWQgJiBiaXpJZF1cbiAgICBVUERBVEVfVVJMIC0tPiBTVE9SRV9DT01NSVRbc3RvcmUuY29tbWl0PGJyLz51cGRhdGVTcGFjZV1cbiAgICBcbiAgICBTVE9SRV9DT01NSVQgLS0-IFdBVENIX1RSSUdHRVJ76Kem5Y-RIHdhdGNofVxuICAgIFxuICAgIFdBVENIX1RSSUdHRVIgLS0-IFJFU0VUX0lOREVYW-mHjee9rue0ouW8lembhueKtuaAgTxici8-aW5kZXhJZCA9IG51bGxdXG4gICAgUkVTRVRfSU5ERVggLS0-IFJFU0VUX1VOSU9OW1wi6YeN572u6IGU5ZCI57Si5byV54q25oCBPGJyLz51bmlvbkxpc3QgPSAjOTE7IzkzO1wiXVxuICAgIFxuICAgIFJFU0VUX1VOSU9OIC0tPiBQQVJBTExFTF9GRVRDSHvlubbooYzor7fmsYJ9XG4gICAgXG4gICAgUEFSQUxMRUxfRkVUQ0ggLS0-IEZFVENIX01FTlVbZGlzcGF0Y2g8YnIvPnJlcXVlc3RNZW51TGlzdF1cbiAgICBQQVJBTExFTF9GRVRDSCAtLT4gRkVUQ0hfSU5ERVhbZGlzcGF0Y2g8YnIvPmdldEluZGV4U2V0TGlzdF1cbiAgICBQQVJBTExFTF9GRVRDSCAtLT4gRkVUQ0hfRkFWW2Rpc3BhdGNoPGJyLz5yZXF1ZXN0RmF2b3JpdGVMaXN0XVxuICAgIFxuICAgIEZFVENIX01FTlUgLS0-IENIRUNLX0RFRkFVTFR75pyJ6buY6K6k57Si5byVP31cbiAgICBGRVRDSF9JTkRFWCAtLT4gQ0hFQ0tfREVGQVVMVFxuICAgIEZFVENIX0ZBViAtLT4gVVBEQVRFX0ZBVlvmm7TmlrDmlLbol4_lpLnliJfooahdXG4gICAgXG4gICAgQ0hFQ0tfREVGQVVMVCAtLT585pivfCBTRVRfREVGQVVMVFvorr7nva7pu5jorqTntKLlvJU8YnIvPumHjeaWsOaJp-ihjOajgOe0ol1cbiAgICBDSEVDS19ERUZBVUxUIC0tPnzlkKZ8IFNIT1dfRU1QVFlb5pi-56S656m654q25oCBPGJyLz7lvJXlr7zliJvlu7rntKLlvJXpm4ZdXG4gICAgXG4gICAgU0VUX0RFRkFVTFQgLS0-IENPTVBMRVRFKFvnqbrpl7TliIfmjaLlrozmiJBdKVxuICAgIFNIT1dfRU1QVFkgLS0-IENPTVBMRVRFXG4gICAgVVBEQVRFX0ZBViAtLT4gQ09NUExFVEVcbiJ9">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: { &#39;primaryColor&#39;: &#39;#ede7f6&#39;, &#39;primaryTextColor&#39;: &#39;#512da8&#39;, &#39;primaryBorderColor&#39;: &#39;#673ab7&#39;, &#39;lineColor&#39;: &#39;#9575cd&#39;}}}%%
+flowchart TD
+    START([用户切换空间]) --&gt; UPDATE_URL[更新 URL query&lt;br/&gt;spaceUid &amp; bizId]
+    UPDATE_URL --&gt; STORE_COMMIT[store.commit&lt;br/&gt;updateSpace]
+    
+    STORE_COMMIT --&gt; WATCH_TRIGGER{触发 watch}
+    
+    WATCH_TRIGGER --&gt; RESET_INDEX[重置索引集状态&lt;br/&gt;indexId = null]
+    RESET_INDEX --&gt; RESET_UNION[&quot;重置联合索引状态&lt;br/&gt;unionList = #91;#93;&quot;]
+    
+    RESET_UNION --&gt; PARALLEL_FETCH{并行请求}
+    
+    PARALLEL_FETCH --&gt; FETCH_MENU[dispatch&lt;br/&gt;requestMenuList]
+    PARALLEL_FETCH --&gt; FETCH_INDEX[dispatch&lt;br/&gt;getIndexSetList]
+    PARALLEL_FETCH --&gt; FETCH_FAV[dispatch&lt;br/&gt;requestFavoriteList]
+    
+    FETCH_MENU --&gt; CHECK_DEFAULT{有默认索引?}
+    FETCH_INDEX --&gt; CHECK_DEFAULT
+    FETCH_FAV --&gt; UPDATE_FAV[更新收藏夹列表]
+    
+    CHECK_DEFAULT --&gt;|是| SET_DEFAULT[设置默认索引&lt;br/&gt;重新执行检索]
+    CHECK_DEFAULT --&gt;|否| SHOW_EMPTY[显示空状态&lt;br/&gt;引导创建索引集]
+    
+    SET_DEFAULT --&gt; COMPLETE([空间切换完成])
+    SHOW_EMPTY --&gt; COMPLETE
+    UPDATE_FAV --&gt; COMPLETE
+</pre></main></div></body></html>

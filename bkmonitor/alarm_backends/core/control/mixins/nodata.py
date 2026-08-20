@@ -304,6 +304,8 @@ class CheckMixin:
                 continue
             processed.add(dimensions_md5)
 
+            if redis_pipeline is None:
+                redis_pipeline = CheckResult.begin_pipeline_batch()
             check_result = CheckResult(
                 strategy_id=self.strategy.id,
                 item_id=self.id,
@@ -311,8 +313,6 @@ class CheckMixin:
                 level=self.no_data_level,
                 service_type="nodata",
             )
-            if redis_pipeline is None:
-                redis_pipeline = check_result.CHECK_RESULT
 
             is_anomaly = dimensions_md5 not in data_dimensions_md5
             if is_anomaly:

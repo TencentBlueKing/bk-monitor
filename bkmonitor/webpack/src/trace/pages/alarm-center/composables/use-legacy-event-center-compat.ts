@@ -35,6 +35,16 @@ import { useRoute } from 'vue-router';
 import { EMode } from '../../../components/retrieval-filter/typing';
 import { AlarmType, AlertAllActionEnum, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings/constants';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { useAuthorityStore } from '@/store/modules/authority';
+
+const SPACE_APPLY_ACTION_IDS = [
+  'view_business_v2',
+  'manage_event_v2',
+  'manage_downtime_v2',
+  'view_event_v2',
+  'view_host_v2',
+  'view_rule_v2',
+];
 
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
@@ -220,20 +230,26 @@ export function useLegacyEventCenterCompat() {
       .filter(id => ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(+id))
       .filter(id => !window.space_list?.some(item => +item.id === +id));
     if (!ids.length) return;
+    // 当前 cc_biz_id 可能就是无权限业务，需用有权限业务作为请求上下文，否则 checkAllowed 会 403
+    const requestBizId = window.space_list?.find(item => !item.is_demo)?.bk_biz_id;
+    const resources = ids.map(id => ({ id: Number(id), type: 'space' }));
     const applyObj = await checkAllowed({
-      action_ids: [
-        'view_business_v2',
-        'manage_event_v2',
-        'manage_downtime_v2',
-        'view_event_v2',
-        'view_host_v2',
-        'view_rule_v2',
-      ],
-      resources: ids.map(id => ({ id, type: 'space' })),
+      action_ids: SPACE_APPLY_ACTION_IDS,
+      resources,
+      ...(requestBizId != null ? { bk_biz_id: +requestBizId } : {}),
     }).catch(() => null);
-    if (applyObj?.apply_url) {
-      window.open(applyObj.apply_url, random(10));
+    const applyUrl = applyObj?.apply_url || applyObj?.applyUrl;
+    if (applyUrl) {
+      window.open(applyUrl, random(10));
+      return;
     }
+    // 兜底：打开权限申请弹窗
+    const authorityStore = useAuthorityStore();
+    await authorityStore.getIntanceAuthDetail(
+      SPACE_APPLY_ACTION_IDS,
+      resources,
+      requestBizId != null ? +requestBizId : undefined
+    );
   }
 
   return {

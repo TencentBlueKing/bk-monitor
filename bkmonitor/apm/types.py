@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Union
+# TODO: 从 bkmonitor.data_source.utils.types 中导入类型，后续采用独立变更废弃
 
-Literal = Union[int, str, float]
-
-FilterValue = Union[Literal, List[Literal]]
-
-Filter = Dict[str, FilterValue]
-
-Page = Dict[str, Union[int, List[Dict[str, Any]]]]
+from bkmonitor.data_source.utils.types import Literal, FilterValue, Filter, Page  # noqa

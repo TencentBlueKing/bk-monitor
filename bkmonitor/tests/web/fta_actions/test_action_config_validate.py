@@ -8,11 +8,34 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.test import TestCase, override_settings, Client
+import pytest
+from django.test import Client, TestCase, override_settings
 
 from bkmonitor.action import serializers
 from bkmonitor.action.serializers import ConvergeConfigSlz, HttpCallBackConfigSlz
 from bkmonitor.models import ActionConfig, StrategyActionConfigRelation
+
+
+@pytest.mark.parametrize(("timeout", "expected_valid"), [(7200, True), (7201, False)])
+def test_execute_config_timeout_limit(timeout, expected_valid):
+    serializer = serializers.ExecuteConfigSlz(data={"template_detail": {}, "timeout": timeout})
+
+    assert serializer.is_valid() is expected_valid
+
+
+def test_webhook_failed_retry_timeout_keeps_independent_limit():
+    serializer = HttpCallBackConfigSlz(
+        data={
+            "url": "https://example.com/callback",
+            "failed_retry": {
+                "timeout": 7201,
+                "max_retry_times": 1,
+                "retry_interval": 1,
+            },
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
 
 
 class TestActionConfigValidate(TestCase):

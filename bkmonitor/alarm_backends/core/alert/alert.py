@@ -94,6 +94,10 @@ class Alert:
         self.init_severity()
 
     def init_severity(self):
+        # 告警分派设置的级别优先于算法动态级别，缓存重载时不能被覆盖
+        if self.severity_source == AssignMode.BY_RULE:
+            return
+
         # 智能监控如果有动态告警级别配置，则从extra_info里获取实际事件级别
         try:
             # 尝试取数据中的extra_info
@@ -253,7 +257,10 @@ class Alert:
         return True
 
     def update_qos_status(self, is_blocked):
+        if self.is_blocked == is_blocked:
+            return
         self.data["is_blocked"] = is_blocked
+        self._refresh_db = True
 
     def is_valid_handle(self, execute_times=0, action_relation_id=None):
         if execute_times == 0 and action_relation_id is None:
@@ -697,12 +704,26 @@ class Alert:
         alert_doc = AlertDocument(**data)
         return alert_doc
 
-    def set_end_status(self, status, op_type, description="", end_time=None, **kwargs):
+    def set_end_status(
+        self,
+        status,
+        op_type,
+        description="",
+        end_time=None,
+        preserve_new_series_lifecycle=False,
+        **kwargs,
+    ):
         """
         将告警设置为终止状态
         """
         if not self.is_abnormal():
             return
+
+        if not preserve_new_series_lifecycle:
+            # 所有终态统一先收口 NewSeries 生命周期；收口失败时保留异常态，由原任务重试。
+            from alarm_backends.service.alert.manager.checker.utils import terminate_new_series_lifecycle_state
+
+            terminate_new_series_lifecycle_state(self)
 
         end_time = end_time or int(time.time())
         self.data["status"] = status
@@ -971,7 +992,7 @@ class Alert:
         qos_threshold = settings.QOS_ALERT_THRESHOLD
         if qos_threshold == 0:
             # 如果当前设置阈值为0表示没有QOS，直接返回
-            return {"is_blocked": self.is_blocked, "message": message}
+            return {"is_blocked": False, "message": message}
 
         qos_counter = ALERT_BUILD_QOS_COUNTER
         qos_threshold = {"threshold": qos_threshold, "window": settings.QOS_ALERT_WINDOW}

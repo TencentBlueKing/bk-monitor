@@ -74,6 +74,22 @@ def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:
     return space.bk_tenant_id
 
 
+def is_biz_in_tenant(bk_biz_id: int | str, bk_tenant_id: str | None) -> bool:
+    """
+    判断业务是否归属于指定租户。
+
+    单租户模式下不改变原有鉴权行为；多租户模式下，无法找到业务时按不归属处理。
+    """
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return True
+
+    try:
+        normalized_biz_id = int(bk_biz_id)
+        return bk_biz_id_to_bk_tenant_id(normalized_biz_id) == bk_tenant_id
+    except (TypeError, ValueError):
+        return False
+
+
 @lru_cache(maxsize=1024)
 def get_tenant_default_biz_id(bk_tenant_id: str) -> int:
     """

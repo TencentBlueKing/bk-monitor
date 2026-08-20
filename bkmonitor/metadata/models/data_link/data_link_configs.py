@@ -367,6 +367,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         {% endif %}
                         "name": "{{storage_cluster_name}}"
                     },
+                    "doc_type": "{{doc_type}}",
                     "write_alias": {
                         "TimeBased": {
                             "format": "{{write_alias_format}}",
@@ -386,6 +387,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "storage_cluster_name": storage_cluster_name,
+            "doc_type": self.table_id,
             "unique_field_list": json.dumps(unique_field_list),
             "write_alias_format": write_alias_format,
             "timezone": self.timezone,

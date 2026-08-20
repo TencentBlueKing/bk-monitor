@@ -16,83 +16,97 @@ to the current version of the project delivered to anyone in the future.
 """
 
 import logging
+import time
+from collections.abc import Callable
 from dataclasses import asdict
 from typing import Any
 
+from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.query.base import FakeQuery, FilterOperator
+from apm.core.handlers.query.base import FakeQuery, FilterOperator, BaseQuery
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.trace_query import TraceQuery
-from apm.models import ApmApplication, ApmDataSourceConfigBase
+from apm.models import ApmApplication, TraceDataSource, TraceScopeIndexSet
 from apm_ebpf.models import DeepflowWorkload
+from bkmonitor.data_source.utils.apm import LevelTarget, TraceDatasourceTarget
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.utils.cache import lru_cache_with_ttl
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
 logger = logging.getLogger("apm")
 
 
+@lru_cache_with_ttl(ttl=5 * 60)
+def _get_app_meta(bk_biz_id: int, app_name: str) -> dict[str, Any]:
+    trace_datasource = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+    if not trace_datasource:
+        raise ValueError(f"应用 {bk_biz_id}:{app_name} 未配置 Trace 数据源")
+
+    return {
+        "bk_biz_id": bk_biz_id,
+        "app_name": app_name,
+        "table_id": trace_datasource.result_table_id,
+        "retention": trace_datasource.retention,
+    }
+
+
 class QueryProxy:
-    def __init__(self, bk_biz_id, app_name):
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
-        self.application = ApmApplication.get_application(self.bk_biz_id, self.app_name)
-        self.query_mode = {
-            QueryMode.TRACE: self.trace_query,
-            QueryMode.ORIGIN_TRACE: self.origin_trace_query,
-            QueryMode.SPAN: self.span_query,
-        }
+    # 大部分 Trace 详情查询发生在数据写入后不久，先查近 1 天可大幅收敛索引扫描范围
+    RECENT_RETENTION: int = 1
+
+    def __init__(self, bk_biz_id: int, app_name: str):
+        self.bk_biz_id: int = bk_biz_id
+        self.app_name: str = app_name
+        self._query_cache: dict[str, BaseQuery] = {}
+
+    def _build_data_sources(
+        self, trace_level_table_ids: list[str] | None = None, bk_biz_id: int | None = None, app_name: str | None = None
+    ) -> list[TraceDatasourceTarget]:
+        levels: list[LevelTarget] = []
+        if trace_level_table_ids:
+            levels.append(LevelTarget(name=TraceQuery.LEVEL_NAME, table_ids=trace_level_table_ids))
+
+        target_bk_biz_id: int = self.bk_biz_id
+        target_app_name: str = self.app_name
+        if bk_biz_id is not None and app_name is not None:
+            target_bk_biz_id, target_app_name = bk_biz_id, app_name
+        return [TraceDatasourceTarget.build(**_get_app_meta(target_bk_biz_id, target_app_name), levels=levels)]
 
     def _get_trace_query(self, result_table_id: str) -> TraceQuery:
-        return TraceQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.retention,
-            overwrite_datasource_configs={
-                ApmDataSourceConfigBase.TRACE_DATASOURCE: {"get_table_id_func": lambda *args, **kwargs: result_table_id}
-            },
-        )
+        return TraceQuery(self._build_data_sources(trace_level_table_ids=[result_table_id]))
+
+    def _get_query(self, query_mode: str) -> BaseQuery:
+        if query_mode in self._query_cache:
+            return self._query_cache[query_mode]
+
+        getters: dict[str, Any] = {
+            QueryMode.TRACE: lambda: self.trace_query,
+            QueryMode.ORIGIN_TRACE: lambda: self.origin_trace_query,
+            QueryMode.SPAN: lambda: self.span_query,
+        }
+        q: BaseQuery = getters[query_mode]()
+        self._query_cache[query_mode] = q
+        return q
 
     @cached_property
-    def span_query(self):
-        return SpanQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.retention,
-            overwrite_datasource_configs={
-                ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.trace_datasource.result_table_id
-                },
-                ApmDataSourceConfigBase.METRIC_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.metric_datasource.result_table_id
-                },
-            },
-        )
+    def span_query(self) -> SpanQuery:
+        return SpanQuery(self._build_data_sources())
 
     @cached_property
-    def origin_trace_query(self):
-        return OriginTraceQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.retention,
-            overwrite_datasource_configs={
-                ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.trace_datasource.result_table_id
-                },
-                ApmDataSourceConfigBase.METRIC_DATASOURCE: {
-                    "get_table_id_func": lambda *args, **kwargs: self.application.metric_datasource.result_table_id
-                },
-            },
-        )
+    def origin_trace_query(self) -> OriginTraceQuery:
+        return OriginTraceQuery(self._build_data_sources())
 
     @cached_property
-    def trace_query(self):
+    def trace_query(self) -> TraceQuery | FakeQuery:
         precalculate = PrecalculateStorage(self.bk_biz_id, self.app_name, need_client=False)
         if not precalculate.is_valid:
             logger.info(f"[QueryProxy] {self.bk_biz_id} - {self.app_name} use fake trace query")
@@ -107,7 +121,9 @@ class QueryProxy:
         return isinstance(self.trace_query, TraceQuery)
 
     @classmethod
-    def is_trace_or_span_id_query(cls, filters: list[types.Filter], query_string: str) -> bool:
+    def is_trace_or_span_id_query(
+        cls, filters: list[types.Filter] | None = None, query_string: str | None = ""
+    ) -> bool:
         """判断是否是 TraceId 或 SpanId 精确查询（含 links 嵌套字段）"""
         if not filters and not query_string:
             return False
@@ -147,15 +163,21 @@ class QueryProxy:
             # 如果是 TraceId 或 SpanId 精确查询，重置查询范围，默认使用应用数据过期时间。
             start_time, end_time = None, None
 
-        data, size = self.query_mode[query_mode].query_list(
+        data: list[dict[str, Any]] = self._get_query(query_mode).query_list(
             start_time, end_time, offset, limit, filters, exclude_fields, query_string, sort
         )
-        return asdict(TraceInfoList(total=size, data=data))
+        return asdict(TraceInfoList(total=0, data=data))
 
     def query_trace_detail(self, trace_id, displays, bk_biz_id=None, query_trace_relation_app: bool = False):
         """Trace详情"""
         # query otel data
-        spans = self.span_query.query_by_trace_id(trace_id)
+        if self.bk_biz_id in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
+            # 跨应用检索已覆盖该 Trace 关联的所有应用，无需再按关联应用补充查询
+            spans = self._query_cross_trace_detail(trace_id)
+            query_trace_relation_app = False
+        else:
+            spans = self.span_query.query_by_trace_id(trace_id)
+
         options = {"ebpf_enabled": DeepflowWorkload.is_exist_ebpf(bk_biz_id)}
         # query ebpf data
         if TraceWaterFallDisplayKey.SOURCE_CATEGORY_EBPF in displays:
@@ -164,10 +186,10 @@ class QueryProxy:
                 spans += ebpf_spans
 
         relation_mapping = {}
-        if not self.is_trace_query_valid:
+        if not query_trace_relation_app:
             return spans, relation_mapping, options
 
-        if not query_trace_relation_app:
+        if not self.is_trace_query_valid:
             return spans, relation_mapping, options
 
         trace_relation = self._get_trace_relation(trace_id)
@@ -176,19 +198,12 @@ class QueryProxy:
                 bk_biz_id=trace_relation["bk_biz_id"], app_name=trace_relation["app_name"]
             ).first()
             if relation_app:
-                # 跨应用 Span 查询：需透传 relation_app 的真实 result_table_id，
-                # 确保共享 Trace 结果表场景下 TraceQueryGuard 能拿到与 relation_app 绑定的 table_id 和 应用上下文。
-                span_query = SpanQuery(
-                    relation_app.bk_biz_id,
-                    relation_app.app_name,
-                    relation_app.trace_datasource.retention,
-                    overwrite_datasource_configs={
-                        ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                            "get_table_id_func": lambda *args, **kwargs: relation_app.trace_datasource.result_table_id,
-                        },
-                    },
-                )
-                relation_spans = span_query.query_by_trace_id(trace_id)
+                relation_spans = SpanQuery(
+                    self._build_data_sources(
+                        bk_biz_id=relation_app.bk_biz_id,
+                        app_name=relation_app.app_name,
+                    )
+                ).query_by_trace_id(trace_id)
                 client = Permission()
                 permission = client.is_allowed(
                     ActionEnum.VIEW_APM_APPLICATION,
@@ -207,7 +222,137 @@ class QueryProxy:
                 }
         return spans, relation_mapping, options
 
-    def query_span_detail(self, span_id):
+    def _query_cross_trace_detail(self, trace_id: str) -> list[dict[str, Any]]:
+        """跨应用查询 Trace 详情
+
+        预计算按近 1 天、数据过期时间两个范围查询，索引集、ES 索引直查按数据过期时间查询，
+        四者竞速取最先返回且有数据的结果。
+        """
+        retention: int = self.span_query.retention
+        paths: list[tuple[Callable[[str, int], list[dict[str, Any]]], int]] = [
+            (self._query_cross_trace_detail_by_precalc, precalc_retention)
+            for precalc_retention in sorted({min(self.RECENT_RETENTION, retention), retention})
+        ]
+        paths.append((self._query_cross_trace_detail_by_index_set, retention))
+        paths.append((self._query_cross_trace_detail_by_prefix, retention))
+
+        start_at: float = time.time()
+        pool: ThreadPool = ThreadPool(len(paths))
+        try:
+            for path_desc, spans in pool.imap_unordered(
+                lambda args: self._call_trace_detail_path(trace_id, *args), paths
+            ):
+                if spans:
+                    logger.info(
+                        "[QueryProxy] cross trace detail hit: path -> %s, trace -> %s, spans -> %s, cost -> %.3fs",
+                        path_desc,
+                        trace_id,
+                        len(spans),
+                        time.time() - start_at,
+                    )
+                    return spans
+            return []
+        finally:
+            # 已有路径返回数据，不再等待其他路径
+            pool.terminate()
+
+    @classmethod
+    def _call_trace_detail_path(
+        cls, trace_id: str, path: Callable[[str, int], list[dict[str, Any]]], retention: int
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """执行单条查询路径，单条路径失败不影响其他路径"""
+        path_desc: str = f"{path.__name__}(retention={retention}d)"
+        try:
+            return path_desc, path(trace_id, retention)
+        except Exception:  # noqa
+            logger.exception("[QueryProxy] failed to query trace detail: path -> %s, trace -> %s", path_desc, trace_id)
+            return path_desc, []
+
+    @classmethod
+    def _get_retention_start_time(cls, retention: int) -> int:
+        """按数据过期时间计算查询开始时间（秒）"""
+        return int(time.time()) - retention * 24 * 60 * 60
+
+    def _query_cross_trace_detail_by_index_set(self, trace_id: str, retention: int) -> list[dict[str, Any]]:
+        """基于 Trace 数据源域索引集查询 Trace 详情"""
+        bk_tenant_id: str = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        trace_scope_table: str | None = TraceScopeIndexSet.get_table(self.bk_biz_id, bk_tenant_id)
+        start_time: int = self._get_retention_start_time(retention)
+        if trace_scope_table is None:
+            logger.warning(
+                "[QueryProxy] trace_scope_table not found, fallback to application datasource: "
+                "bk_tenant_id=%s, bk_biz_id=%s",
+                bk_tenant_id,
+                self.bk_biz_id,
+            )
+            return self.span_query.query_by_trace_id(trace_id, start_time)
+
+        return self.span_query.cross_query_by_trace_id(trace_id, trace_scope_table, start_time)
+
+    def _query_cross_trace_detail_by_prefix(self, trace_id: str, retention: int) -> list[dict[str, Any]]:
+        """基于 ES 索引前缀查询 Trace 详情"""
+        start_time: int = self._get_retention_start_time(retention)
+        return self.span_query.prefix_query_by_trace_id(trace_id, start_time)
+
+    def _query_cross_trace_detail_by_precalc(self, trace_id: str, retention: int) -> list[dict[str, Any]]:
+        """基于预计算的应用分布查询 Trace 详情"""
+        result_table_ids: list[str] = PrecalculateStorage.fetch_result_table_ids(self.bk_biz_id)
+        if not result_table_ids:
+            return []
+
+        trace_infos: list[dict[str, Any]] = TraceQuery.query_by_trace_ids(
+            result_table_ids,
+            [trace_id],
+            retention,
+            select_fields=["biz_id", "app_name", "min_start_time", "max_end_time"],
+            # 一个 Trace 可能分布在多个应用，需要返回全部分布记录
+            limit=100,
+        )
+        if not trace_infos:
+            return []
+
+        # 预计算时间字段精度为微秒，Span 查询时间范围精度为秒，结束时间向上取整避免丢失边界 Span
+        start_time: int = min(trace_info["min_start_time"] for trace_info in trace_infos) // 10**6
+        end_time: int = max(trace_info["max_end_time"] for trace_info in trace_infos) // 10**6 + 1
+        if end_time > int(time.time()) - 30 * 60:
+            # 预计算写入存在延迟，近 30min 的 Trace 应用分布可能不完整，交由其他路径查询
+            return []
+
+        data_sources: list[TraceDatasourceTarget] = self._build_precalc_data_sources(trace_infos)
+        if not data_sources:
+            return []
+
+        # 做一次扩窗，避免预计算存在误差。
+        start_time, end_time = start_time - 3600, end_time + 3600
+
+        return SpanQuery(data_sources).query_by_trace_id(trace_id, start_time, end_time)
+
+    def _build_precalc_data_sources(self, trace_infos: list[dict[str, Any]]) -> list[TraceDatasourceTarget]:
+        """按预计算的应用分布构造多 Target 数据源，当前应用置首，查询沿用当前应用的数据过期时间"""
+        apps: list[tuple[int, str]] = [(self.bk_biz_id, self.app_name)]
+        for trace_info in trace_infos:
+            try:
+                # 预计算 Schema 中业务字段为 biz_id，查询返回可能为 bk_biz_id，两者都做兼容
+                app: tuple[int, str] = (
+                    int(trace_info.get("biz_id") or trace_info["bk_biz_id"]),
+                    trace_info["app_name"],
+                )
+            except (KeyError, TypeError, ValueError):
+                logger.warning("[QueryProxy] invalid precalculate trace info: %s", trace_info)
+                continue
+
+            if app not in apps:
+                apps.append(app)
+
+        data_sources: list[TraceDatasourceTarget] = []
+        for bk_biz_id, app_name in apps:
+            try:
+                data_sources.append(TraceDatasourceTarget.build(**_get_app_meta(bk_biz_id, app_name)))
+            except ValueError:
+                logger.warning("[QueryProxy] skipped application without trace datasource: %s:%s", bk_biz_id, app_name)
+        return data_sources
+
+    def query_span_detail(self, span_id: str) -> dict[str, Any] | None:
         return self.span_query.query_by_span_id(span_id)
 
     def query_option_values(
@@ -222,7 +367,7 @@ class QueryProxy:
         query_string,
     ):
         """获取候选值"""
-        return self.query_mode[query_mode].query_option_values(
+        return self._get_query(query_mode).query_option_values(
             datasource_type, start_time, end_time, fields, limit, filters, query_string
         )
 
@@ -238,8 +383,7 @@ class QueryProxy:
             logger.warning(f"[QueryProxy] {self.bk_biz_id}:{self.app_name} trace: {trace_id} not in pre_recalculation!")
 
         for result_table_id in PrecalculateStorage.fetch_result_table_ids(self.bk_biz_id):
-            trace_query = self._get_trace_query(result_table_id)
-            relation = trace_query.query_relation_by_trace_id(trace_id, start_time, end_time)
+            relation = self._get_trace_query(result_table_id).query_relation_by_trace_id(trace_id, start_time, end_time)
             if relation:
                 logger.info(f"[QueryProxy] find relation on {trace_id}({relation['bk_biz_id']}:{relation['app_name']})")
                 return relation
@@ -263,10 +407,10 @@ class QueryProxy:
 
     def query_simple_info(self, start_time, end_time, offset, limit):
         trace_id__info_map: dict[str, dict[str, Any]] = {}
-        trace_infos, total = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
+        trace_infos: list[dict[str, Any]] = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
-        return trace_id__info_map, total
+        return trace_id__info_map, 0
 
     def query_field_topk(
         self,
@@ -279,7 +423,7 @@ class QueryProxy:
         query_string: str,
     ):
         topk_values = []
-        for topk_item in self.query_mode[query_mode].query_field_topk(
+        for topk_item in self._get_query(query_mode).query_field_topk(
             start_time, end_time, field, limit, filters, query_string
         ):
             try:
@@ -301,7 +445,7 @@ class QueryProxy:
         filters: list[types.Filter],
         query_string: str,
     ):
-        return self.query_mode[query_mode].query_field_aggregated_value(
+        return self._get_query(query_mode).query_field_aggregated_value(
             start_time, end_time, field, method, filters, query_string
         )
 
@@ -314,4 +458,4 @@ class QueryProxy:
         filters: list[types.Filter],
         query_string: str,
     ):
-        return self.query_mode[query_mode].query_graph_config(start_time, end_time, field, filters, query_string)
+        return self._get_query(query_mode).query_graph_config(start_time, end_time, field, filters, query_string)

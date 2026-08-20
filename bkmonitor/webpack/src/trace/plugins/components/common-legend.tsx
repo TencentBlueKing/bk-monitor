@@ -86,7 +86,7 @@ export default defineComponent({
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
                 class='legend-name'
               >
-                {legend.alias || legend.name}
+                {legend.name || legend.alias}
               </div>
             </div>
           );

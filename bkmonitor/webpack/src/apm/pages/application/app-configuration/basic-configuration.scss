@@ -10,6 +10,10 @@
       padding-bottom: 24px;
     }
 
+    .editable-form-item {
+      height: 20px;
+    }
+
     .item-content {
       .item-row {
         &:last-child {
@@ -17,11 +21,21 @@
             margin-bottom: 0px;
           }
         }
-      }
-    }
 
-    .editable-form-item {
-      height: 20px;
+        &.owners-row {
+          .value-content {
+            width: 100%;
+          }
+
+          .text-content {
+            display: inline-block;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
     }
 
     .form-content-row-m12 {
@@ -100,6 +114,14 @@
             }
           }
         }
+      }
+    }
+
+    .owners-user-selector.monitor-user-selector-v2 {
+      width: 470px;
+
+      .bk-user-selector {
+        height: unset;
       }
     }
 

@@ -2,7 +2,8 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
-import db, { type RetrieveRowEntity } from '../core/db';
+import db, { type RetrieveRowEntity, type RetrieveRowStoreName } from '../core/db';
+import type { Table } from 'dexie';
 import { estimateValueBytes } from '../services/retrieve-row-projection.service';
 import { normalizeStorageValue } from '../utils/normalize-storage-value';
 import {
@@ -36,7 +37,7 @@ const collectMarkedFields = (
 
   if (!isPlainObject(value)) return output;
 
-  Object.keys(value).forEach(key => {
+  Object.keys(value).forEach((key) => {
     if (key === highlightField) return;
     const fieldName = prefix ? `${prefix}.${key}` : key;
     collectMarkedFields(value[key], fieldName, output, highlightField);
@@ -53,7 +54,7 @@ const collectHighlightFields = (
   const highlight = rawRow[highlightField];
   if (!isPlainObject(highlight)) return output;
 
-  Object.keys(highlight).forEach(fieldName => {
+  Object.keys(highlight).forEach((fieldName) => {
     const value = Array.isArray(highlight[fieldName]) ? highlight[fieldName][0] : highlight[fieldName];
     if (hasMark(value)) {
       output[fieldName] = value;
@@ -92,7 +93,8 @@ const setOverlayValue = (row: Record<string, any>, fieldName: string, value: any
   return row;
 };
 
-const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36).slice(2, 10)}`;
+const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36)
+  .slice(2, 10)}`;
 
 const hasOwnField = (row: Record<string, any> | undefined, fieldName: string) => !!row && Object.hasOwn(row, fieldName);
 
@@ -186,6 +188,8 @@ interface CopyRowsOptions {
 
 interface StreamWriterOptions extends WriteRowsOptions {
   writeMode?: 'append' | 'replace';
+  /** 每批 flush 落盘后回调，用于主线程逐步渲染 */
+  onFlush?: (_payload: { rowCount: number; rowKeys: string[] }) => void;
 }
 
 export class RetrieveRowStreamWriter {
@@ -198,13 +202,21 @@ export class RetrieveRowStreamWriter {
   private readonly ttl: number;
   private readonly now = Date.now();
   private readonly expireAt: number;
+  private readonly repository: RetrieveRowRepository;
+  private readonly queryKey: string;
+  private readonly startSeq: number;
+  private readonly options: StreamWriterOptions;
 
   constructor(
-    private readonly repository: RetrieveRowRepository,
-    private readonly queryKey: string,
-    private readonly startSeq: number,
-    private readonly options: StreamWriterOptions = {},
+    repository: RetrieveRowRepository,
+    queryKey: string,
+    startSeq: number,
+    options: StreamWriterOptions = {},
   ) {
+    this.repository = repository;
+    this.queryKey = queryKey;
+    this.startSeq = startSeq;
+    this.options = options;
     this.maxBatchRows = options.batchRows ?? DEFAULT_BATCH_ROWS;
     this.maxBatchBytes = options.batchBytes ?? DEFAULT_BATCH_BYTES;
     this.ttl = options.ttl ?? DEFAULT_TTL;
@@ -214,7 +226,8 @@ export class RetrieveRowStreamWriter {
   async init() {
     if (this.initialized) return;
     if ((this.options.writeMode ?? 'replace') === 'replace' && this.startSeq === 0) {
-      await db.retrieveRows.where('queryKey').equals(this.queryKey).delete();
+      await this.repository.table.where('queryKey').equals(this.queryKey)
+        .delete();
     }
     this.initialized = true;
   }
@@ -245,9 +258,13 @@ export class RetrieveRowStreamWriter {
 
   private async flush() {
     if (!this.batch.length) return;
-    await db.retrieveRows.bulkPut(this.batch);
+    await this.repository.table.bulkPut(this.batch);
     this.batch = [];
     this.batchBytes = 0;
+    this.options.onFlush?.({
+      rowCount: this.keys.length,
+      rowKeys: this.getPartialRowKeys(),
+    });
     await nextIdle();
   }
 
@@ -256,11 +273,7 @@ export class RetrieveRowStreamWriter {
     const normalizedRenderSource = normalizeStorageValue(renderRow);
     const highlightField = resolveHighlightField(normalizedOriginRow);
     const normalizedRenderRow = normalizeRenderRowHighlightField(normalizedRenderSource, highlightField);
-    const renderOverlay = this.repository.createRenderOverlay(
-      normalizedOriginRow,
-      normalizedRenderRow,
-      highlightField,
-    );
+    const renderOverlay = this.repository.createRenderOverlay(normalizedOriginRow, normalizedRenderRow, highlightField);
 
     return {
       key: `${this.queryKey}:${seq}`,
@@ -283,10 +296,19 @@ export class RetrieveRowStreamWriter {
 }
 
 export class RetrieveRowRepository {
+  readonly table: Table<RetrieveRowEntity, string>;
+  readonly storeName: RetrieveRowStoreName;
+
+  constructor(storeName: RetrieveRowStoreName = 'retrieveRows') {
+    this.storeName = storeName;
+    this.table = db.getRowTable(storeName);
+  }
+
   async replaceRows(queryKey: string, rows: Record<string, any>[], startSeq = 0, options: WriteRowsOptions = {}) {
     const ttl = options.ttl ?? DEFAULT_TTL;
     if (startSeq === 0) {
-      await db.retrieveRows.where('queryKey').equals(queryKey).delete();
+      await this.table.where('queryKey').equals(queryKey)
+        .delete();
     }
 
     return this.writeRows(queryKey, rows, startSeq, ttl, options);
@@ -302,30 +324,30 @@ export class RetrieveRowRepository {
 
   async getRowsByKeys(keys: string[]) {
     if (!keys.length) return [];
-    const rows = await db.retrieveRows.bulkGet(keys);
+    const rows = await this.table.bulkGet(keys);
     return rows.map(item => item?.row);
   }
 
   async getCopyRowsByKeys(keys: string[], options: CopyRowsOptions = {}) {
     if (!keys.length) return [];
-    const rows = await db.retrieveRows.bulkGet(keys);
+    const rows = await this.table.bulkGet(keys);
     return rows.map(item => sanitizeCopyRow(item?.row, item?.copyExcludedFields, options.includeFields ?? []));
   }
 
   async getEntitiesByKeys(keys: string[]) {
     if (!keys.length) return [];
-    return db.retrieveRows.bulkGet(keys);
+    return this.table.bulkGet(keys);
   }
 
   async getRenderRowsByKeys(keys: string[]) {
     if (!keys.length) return [];
-    const entities = await db.retrieveRows.bulkGet(keys);
+    const entities = await this.table.bulkGet(keys);
     return entities.map(entity => this.resolveRenderRow(entity));
   }
 
   async getRenderMetasByKeys(keys: string[]) {
     if (!keys.length) return [];
-    const entities = await db.retrieveRows.bulkGet(keys);
+    const entities = await this.table.bulkGet(keys);
     return entities.map(entity => entity?.renderMeta);
   }
 
@@ -339,28 +361,31 @@ export class RetrieveRowRepository {
   }
 
   async clearQuery(queryKey: string) {
-    await db.retrieveRows.where('queryKey').equals(queryKey).delete();
+    await this.table.where('queryKey').equals(queryKey)
+      .delete();
   }
 
   async gc(now = Date.now(), options: { excludeQueryKeys?: string[] } = {}) {
     const excludeQueryKeySet = new Set(options.excludeQueryKeys?.filter(Boolean) ?? []);
     if (!excludeQueryKeySet.size) {
-      await db.retrieveRows.where('expireAt').below(now).delete();
+      await this.table.where('expireAt').below(now)
+        .delete();
       return;
     }
 
-    await db.transaction('rw', db.retrieveRows, async () => {
-      const expiredRows = await db.retrieveRows.where('expireAt').below(now).toArray();
+    await db.transaction('rw', this.table, async () => {
+      const expiredRows = await this.table.where('expireAt').below(now)
+        .toArray();
       const deleteKeys = expiredRows.filter(row => !excludeQueryKeySet.has(row.queryKey)).map(row => row.key);
       if (deleteKeys.length) {
-        await db.retrieveRows.bulkDelete(deleteKeys);
+        await this.table.bulkDelete(deleteKeys);
       }
     });
   }
 
   async getEntitiesByQuery(queryKey: string, offset = 0, limit?: number) {
     if (!queryKey) return [];
-    const collection = db.retrieveRows
+    const collection = this.table
       .where('[queryKey+seq]')
       .between([queryKey, offset], [queryKey, Number.MAX_SAFE_INTEGER]);
 
@@ -388,7 +413,7 @@ export class RetrieveRowRepository {
 
     const flush = async () => {
       if (!batch.length) return;
-      await db.retrieveRows.bulkPut(batch);
+      await this.table.bulkPut(batch);
       batch = [];
       batchBytes = 0;
       await nextIdle();
@@ -448,7 +473,7 @@ export class RetrieveRowRepository {
       ...collectHighlightFields(rawRow, highlightField),
       ...collectHighlightFields(renderRow, highlightField),
     };
-    Object.keys(markedFields).forEach(fieldName => {
+    Object.keys(markedFields).forEach((fieldName) => {
       const renderValue = markedFields[fieldName];
       if (!hasMark(renderValue)) return;
       fields[fieldName] = { renderValue };
@@ -485,4 +510,8 @@ export class RetrieveRowRepository {
   }
 }
 
-export const retrieveRowRepository = new RetrieveRowRepository();
+export const retrieveRowRepository = new RetrieveRowRepository('retrieveRows');
+/** 上下文/实时「原始日志检索结果」本地 Stream 专用仓储 */
+export const relatedLogSearchRowRepository = new RetrieveRowRepository('relatedLogSearchRows');
+
+export const getRetrieveRowRepository = (storeName: RetrieveRowStoreName = 'retrieveRows') => (storeName === 'relatedLogSearchRows' ? relatedLogSearchRowRepository : retrieveRowRepository);

@@ -230,7 +230,9 @@ NEW_SERIES_PROCESS_TIME = Histogram(
 
 NEW_SERIES_PROCESS_COUNT = Counter(
     name="bkmonitor_new_series_process_count",
-    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/invalid_value/failure)",
+    documentation=(
+        "NewSeries 处理计数(type: seen_write/trim/over_limit/invalid_value/active_failure/active_over_limit/active_trim/claimed_trim/failure)"
+    ),
     labelnames=("strategy_id", "type"),
 )
 
@@ -257,6 +259,12 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     name="bkmonitor_trigger_process_push_data_count",
     documentation="trigger 模块数据推送条数",
     labelnames=("strategy_id",),
+)
+
+STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(
+    name="bkmonitor_strategy_router_cache_refresh_fail",
+    documentation="告警后台 CacheRouter 进程路由缓存刷新失败次数（stale-while-error 保旧快照）",
+    labelnames=("cluster",),
 )
 
 # nodata
@@ -380,6 +388,93 @@ AIOPS_PRE_DETECT_LATENCY = Gauge(
     name="bkmonitor_aiops_pre_detect_latency",
     documentation="AIOPS SDK策略预检测耗时",
     labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
+)
+
+AIOPS_SAS_REQUEST_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_request_latency",
+    documentation="SAS 异常等级评分任务侧等待耗时，包含线程池调度时间",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_REQUEST_COUNT = Counter(
+    name="bkmonitor_aiops_sas_request_count_total",
+    documentation="SAS 异常等级评分请求统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_REQUEST_POINT_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_request_point_count",
+    documentation="单次 SAS 异常等级评分请求包含的异常点数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_CLIENT_REQUEST_COUNT = Counter(
+    name="bkmonitor_aiops_sas_client_request_count_total",
+    documentation="SAS 客户端实际调用统计，batch_timeout 表示调用未在批次预算内完成",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_CLIENT_REQUEST_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_client_request_latency",
+    documentation="SAS 客户端实际调用耗时，不包含线程池调度时间；batch_timeout 记录批次截止时已观测耗时",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_BATCH_COUNT = Counter(
+    name="bkmonitor_aiops_sas_batch_count_total",
+    documentation="SAS 动态告警等级处理批次统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_BATCH_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_batch_latency",
+    documentation="SAS 动态告警等级处理批次耗时",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_BATCH_POINT_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_batch_point_count",
+    documentation="单个 SAS 动态告警等级处理批次包含的异常点数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_BATCH_REQUEST_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_batch_request_count",
+    documentation="单个 SAS 动态告警等级处理批次发起的请求数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT = Counter(
+    name="bkmonitor_aiops_dynamic_alert_level_point_count_total",
+    documentation="智能异常检测动态告警等级功能覆盖点数",
+    labelnames=("mode", "stage"),
+)
+
+AIOPS_SAS_RESULT_COUNT = Counter(
+    name="bkmonitor_aiops_sas_result_count_total",
+    documentation="SAS 异常等级评分结果统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_FALLBACK_COUNT = Counter(
+    name="bkmonitor_aiops_sas_fallback_count_total",
+    documentation="SAS 异常等级评分回退统计",
+    labelnames=("reason",),
+)
+
+AIOPS_SAS_ALERT_LEVEL_COUNT = Counter(
+    name="bkmonitor_aiops_sas_alert_level_count_total",
+    documentation="SAS 动态告警等级分布",
+    labelnames=("source", "alert_level"),
+)
+
+AIOPS_SAS_ALERT_LEVEL_PROJECTION_COUNT = Counter(
+    name="bkmonitor_aiops_sas_alert_level_projection_count_total",
+    documentation="SAS 原始告警等级到允许输出等级的投影统计",
+    labelnames=("raw_alert_level", "alert_level"),
 )
 
 TRIGGER_PROCESS_LATENCY = Histogram(
@@ -1299,6 +1394,12 @@ METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
     labelnames=("version", "biz_id", "strategy", "status"),
+)
+
+METADATA_DATA_LINK_REFRESH_TOTAL = Counter(
+    name="bkmonitor_metadata_data_link_refresh_total",
+    documentation="监控元数据数据链路组件刷新结果统计",
+    labelnames=("operation",),
 )
 
 API_REQUESTS_TOTAL = Counter(

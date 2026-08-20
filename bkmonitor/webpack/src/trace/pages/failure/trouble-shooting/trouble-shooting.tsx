@@ -28,6 +28,7 @@ import {
   computed,
   defineComponent,
   inject,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -35,12 +36,14 @@ import {
   watch,
 } from 'vue';
 
-import { bkTooltips, Dropdown, Exception, Loading, Sideslider } from 'bkui-vue';
+import { bkTooltips, Collapse, Dropdown, Exception, Loading, Sideslider } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
+import VueJsonPretty from 'vue-json-pretty';
 import { useRoute } from 'vue-router';
 
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
+import { EVENTS_TYPE_MAP } from '../constant';
 import { checkOverflow } from '../utils';
 import { replaceEntityInText } from './entity-replace';
 import { createShootingModule } from './shooting-module';
@@ -113,6 +116,18 @@ export default defineComponent({
     const showSideSlider = shallowRef(false);
     // 当前选中的card
     const curSliderId = shallowRef('');
+    // 是否展示 JSON 详情侧滑
+    const showJsonSideslider = shallowRef(false);
+    // 当前查看的完整 JSON 数据
+    const currentJsonData = shallowRef<any>(null);
+    // 当前查看的完整 JSON 数据索引
+    const currentJsonDataIndex = shallowRef<number>(null);
+    // JSON 查看器渲染标记，用于强制重新渲染重置折叠状态
+    const jsonViewerRendered = shallowRef(true);
+    // 是否展示全部子事件侧滑
+    const showAllEventsSideslider = shallowRef(false);
+    // 当前查看全部子事件的父级事件数据
+    const currentAllEventsItem = shallowRef<IEventsAnalysis | null>(null);
     const MODULE_LIST = [
       {
         name: t('处置建议'),
@@ -272,23 +287,23 @@ export default defineComponent({
         .then(res => {
           if (key === 'events_analysis') {
             eventsData.value = Object.keys(res.contents).length
-              ? Object.entries(res.contents)
+              ? (Object.entries(res.contents)
                   .map(([key, value]) => {
                     const fields = res.display?.fields[key] || {};
                     const title = res.display?.labels_mapping[key]?.label || '';
-                    return Object.keys(fields).length > 0 && !!title
-                      ? {
-                          type: key,
-                          title,
-                          top: res.display?.labels_mapping[key]?.top || 0,
-                          unit: res.display?.labels_mapping[key]?.unit || '',
-                          total: res.display?.statistics[key]?.total || 0,
-                          contents: (value as IEventsContentsData[]).slice(0, 3), // 只展示前3条
-                          fields,
-                        }
-                      : null;
+                    return {
+                      type: key,
+                      title,
+                      top: res.display?.labels_mapping[key]?.top || 0,
+                      unit: res.display?.labels_mapping[key]?.unit || '',
+                      total: res.display?.statistics[key]?.total || 0,
+                      contents: (value as any as IEventsContentsData[]).slice(0, 3), // 只展示前3条
+                      allContents: value,
+                      fields,
+                      isGeneral: !(key in EVENTS_TYPE_MAP),
+                    };
                   })
-                  .filter(Boolean)
+                  .filter(Boolean) as IEventsAnalysis[])
               : [];
 
             // 事件分析模块第二层Collapse默认展开第一条
@@ -360,6 +375,56 @@ export default defineComponent({
       showSideSlider.value = true;
     };
 
+    // 查看完整 JSON 数据
+    const onViewFullJson = (data: any, dataIndex: number) => {
+      currentJsonData.value = data;
+      currentJsonDataIndex.value = dataIndex;
+      // 先销毁再重建 JSON 查看器，以重置折叠状态
+      jsonViewerRendered.value = false;
+      nextTick(() => {
+        jsonViewerRendered.value = true;
+        showJsonSideslider.value = true;
+      });
+    };
+
+    // 查看全部子事件
+    const onViewAllEvents = (item: IEventsAnalysis) => {
+      currentAllEventsItem.value = item;
+      showAllEventsSideslider.value = true;
+    };
+
+    /**
+     * 多层 Sideslider 遮罩策略：
+     * bkui-vue Modal 使用全局 mask 栈，打开新层会把上一层 mask 的 opacity 置 0；
+     * 同一 mask 再次作为顶层打开时不会恢复为 1，表现为遮罩丢失。
+     * 因此只让「当前最底层」侧滑持有遮罩，上层侧滑不再参与组件库 mask 栈。
+     */
+    const allEventsSliderShowMask = computed(() => !showSideSlider.value);
+    const jsonSliderShowMask = computed(() => !showSideSlider.value && !showAllEventsSideslider.value);
+
+    /**
+     * 下层侧滑的 beforeClose：遮罩点击 / ESC 会落到下层 mask 上，
+     * 此时应先关闭更上层，而不是把底层一起关掉。
+     */
+    const beforeCloseModuleSlider = () => {
+      if (showJsonSideslider.value) {
+        showJsonSideslider.value = false;
+        return false;
+      }
+      if (showAllEventsSideslider.value) {
+        showAllEventsSideslider.value = false;
+        return false;
+      }
+      return true;
+    };
+    const beforeCloseAllEventsSlider = () => {
+      if (showJsonSideslider.value) {
+        showJsonSideslider.value = false;
+        return false;
+      }
+      return true;
+    };
+
     return {
       t,
       bkzIds,
@@ -378,6 +443,14 @@ export default defineComponent({
       toggleSlider,
       curSliderId,
       showSideSlider,
+      showJsonSideslider,
+      currentJsonData,
+      currentJsonDataIndex,
+      jsonViewerRendered,
+      onViewFullJson,
+      showAllEventsSideslider,
+      currentAllEventsItem,
+      onViewAllEvents,
       popoverState,
       sliderPopoverState,
       activeIndex,
@@ -387,6 +460,10 @@ export default defineComponent({
       handlePopoverClose: mainPopoverHandlers.handlePopoverClose,
       handleSliderMouseEnter: sliderPopoverHandlers.handleMouseEnter,
       handleSliderPopoverClose: sliderPopoverHandlers.handlePopoverClose,
+      allEventsSliderShowMask,
+      jsonSliderShowMask,
+      beforeCloseModuleSlider,
+      beforeCloseAllEventsSlider,
     };
   },
   render() {
@@ -404,6 +481,8 @@ export default defineComponent({
       handlePopoverClose: type === 'main' ? this.handlePopoverClose : this.handleSliderPopoverClose,
       goAlertList: this.goAlertList,
       goDetail: this.goDetail,
+      onViewAllEvents: this.onViewAllEvents,
+      onViewFullJson: this.onViewFullJson,
     });
 
     // 缓存主内容区和侧边栏的shooting modules
@@ -550,12 +629,15 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* 侧边栏 */}
+        {/* 独立查看模块侧滑：始终持有遮罩（它只会作为最底层打开） */}
         <Sideslider
           width={640}
           extCls={'trouble-shooting-slider'}
+          beforeClose={this.beforeCloseModuleSlider}
           isShow={this.showSideSlider}
           quickClose={true}
+          showMask={true}
+          zIndex={2500}
           onClosed={() => {
             this.showSideSlider = false;
           }}
@@ -579,6 +661,96 @@ export default defineComponent({
                           <div class='failure-item-content'>{contentSlot(item, sliderShootingModule)}</div>
                         </div>
                       ))}
+              </div>
+            ),
+          }}
+        </Sideslider>
+
+        {/* 全部子事件侧滑：仅在从主内容打开时展示遮罩，叠加在独立查看之上时复用下层遮罩 */}
+        <Sideslider
+          width={640}
+          extCls={'trouble-shooting-slider all-events-slider'}
+          beforeClose={this.beforeCloseAllEventsSlider}
+          isShow={this.showAllEventsSideslider}
+          quickClose={true}
+          showMask={this.allEventsSliderShowMask}
+          zIndex={2600}
+          onClosed={() => {
+            this.showAllEventsSideslider = false;
+          }}
+        >
+          {{
+            header: () => (
+              <div class='all-events-slider-header'>
+                <span class='mr-2'>{this.currentAllEventsItem.title}</span>
+                <span>
+                  <i18n-t keypath='（共 {0} 个{1}）'>
+                    <span>{this.currentAllEventsItem.total}</span>
+                    <span>{this.currentAllEventsItem.unit}</span>
+                  </i18n-t>
+                </span>
+              </div>
+            ),
+            default: () => {
+              const item = this.currentAllEventsItem;
+              if (!item) return null;
+              // 确保当前项的展开状态已初始化（复用主内容区的逻辑）
+              const itemIndex = item.$index ?? 0;
+              if (this.activeIndex.eventChild[itemIndex] === undefined) {
+                this.activeIndex.eventChild[itemIndex] = (item.allContents || []).map((_, i) => i);
+              }
+              return (
+                <div class='all-events-slider-content'>
+                  <Collapse
+                    class='event-collapse inner-collapse'
+                    v-model={this.activeIndex.eventChild[itemIndex]}
+                    v-slots={{
+                      default: subContent => sliderShootingModule.eventTitle(item, subContent),
+                      content: subContent => sliderShootingModule.eventChildContent(item, subContent),
+                    }}
+                    header-icon='right-shape'
+                    list={item.allContents || []}
+                  />
+                </div>
+              );
+            },
+          }}
+        </Sideslider>
+
+        {/* JSON 完整数据侧滑：叠加打开时不创建新遮罩，避免组件库 mask 栈把 opacity 置 0 */}
+        <Sideslider
+          width={640}
+          extCls={'trouble-shooting-slider json-viewer-slider'}
+          isShow={this.showJsonSideslider}
+          quickClose={true}
+          showMask={this.jsonSliderShowMask}
+          zIndex={2700}
+          onClosed={() => {
+            this.showJsonSideslider = false;
+          }}
+        >
+          {{
+            header: () => (
+              <div class='json-viewer-slider-header'>
+                <span class='title-left'>{this.t('查看完整事件')}</span>
+                <span class='divider'>|</span>
+                <span class='title-right'> {`${this.t('示例事件')} ${this.currentJsonDataIndex + 1}`}</span>
+              </div>
+            ),
+            default: () => (
+              <div class='json-viewer-slider-content'>
+                {this.jsonViewerRendered && (
+                  <VueJsonPretty
+                    collapsedOnClickBrackets={false}
+                    data={this.currentJsonData || {}}
+                    deep={5}
+                    showIcon={true}
+                    showKeyValueSpace={true}
+                    showLine={false}
+                    showLineNumber={true}
+                    theme='dark'
+                  />
+                )}
               </div>
             ),
           }}

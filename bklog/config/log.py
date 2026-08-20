@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -43,7 +42,7 @@ def get_logging_config_dict(settings_module):
         logging_format = {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
             "fmt": (
-                "%(levelname)s %(asctime)s %(pathname)s %(lineno)d " "%(funcName)s %(process)d %(thread)d %(message)s"
+                "%(levelname)s %(asctime)s %(pathname)s %(lineno)d %(funcName)s %(process)d %(thread)d %(message)s"
             ),
         }
     if not os.path.exists(log_dir):
@@ -66,28 +65,28 @@ def get_logging_config_dict(settings_module):
             "root": {
                 "class": log_class,
                 "formatter": "verbose",
-                "filename": os.path.join(log_dir, "%s-django.log" % log_name_prefix),
+                "filename": os.path.join(log_dir, f"{log_name_prefix}-django.log"),
                 "maxBytes": 1024 * 1024 * 10,
                 "backupCount": 5,
             },
             "component": {
                 "class": log_class,
                 "formatter": "verbose",
-                "filename": os.path.join(log_dir, "%s-component.log" % log_name_prefix),
+                "filename": os.path.join(log_dir, f"{log_name_prefix}-component.log"),
                 "maxBytes": 1024 * 1024 * 10,
                 "backupCount": 5,
             },
             "mysql": {
                 "class": log_class,
                 "formatter": "verbose",
-                "filename": os.path.join(log_dir, "%s-mysql.log" % log_name_prefix),
+                "filename": os.path.join(log_dir, f"{log_name_prefix}-mysql.log"),
                 "maxBytes": 1024 * 1024 * 10,
                 "backupCount": 5,
             },
             "celery": {
                 "class": log_class,
                 "formatter": "verbose",
-                "filename": os.path.join(log_dir, "%s-celery.log" % log_name_prefix),
+                "filename": os.path.join(log_dir, f"{log_name_prefix}-celery.log"),
                 "maxBytes": 1024 * 1024 * 10,
                 "backupCount": 5,
             },
@@ -129,6 +128,8 @@ def get_logging_config_dict(settings_module):
             "app": {"handlers": ["root"], "level": log_level, "propagate": True},
             "bk_dataview": {"handlers": ["root"], "level": log_level, "propagate": True},
             "bk_monitor": {"handlers": ["root"], "level": log_level, "propagate": True},
+            # 审计事件，bk_audit 的 exporter 会关闭 propagate，必须显式挂 handler
+            "bk_audit": {"handlers": ["root"], "level": log_level, "propagate": True},
         },
     }
 

@@ -301,9 +301,8 @@ class BkLogJsonEtlStorage(EtlStorage):
             ]
         )
 
-        # 4. 从iter_item提取日志原文（保留原文 或 保留清洗失败日志时均需要）
-        # enable_retain_content: 当原始数据不符合JSON格式时，不丢弃数据，直接强制写入log字段
-        if etl_params.get("retain_original_text") or etl_params.get("enable_retain_content"):
+        # 4. 从iter_item提取日志原文（仅在保留原文时需要，保留清洗失败日志已收敛为其子开关）
+        if etl_params.get("retain_original_text"):
             rules.append(
                 {
                     "input_id": "iter_item",
@@ -322,8 +321,8 @@ class BkLogJsonEtlStorage(EtlStorage):
         rules.extend(self._build_flat_built_in_fields_v4(built_in_config))
 
         # 5. JSON解析（解析iter_string中的JSON）
-        # enable_retain_content=True时使用"null"策略，解析失败不丢弃数据，将字段置空
-        json_de_error_strategy = "null" if etl_params.get("enable_retain_content") else "drop"
+        # 保留清洗失败日志时使用"null"策略，解析失败不丢弃数据，将字段置空；否则直接丢弃
+        json_de_error_strategy = "null" if self.is_retain_content_enabled(etl_params) else "drop"
         rules.append(
             {
                 "input_id": "iter_string",

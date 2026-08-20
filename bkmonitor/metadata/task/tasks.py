@@ -43,26 +43,17 @@ from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
     BKBASE_NAMESPACE_BK_MONITOR,
-    DataLinkKind,
-    DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.space.space import Space
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_bkbase_data_link,
-    create_fed_bkbase_data_link,
-    get_vm_cluster_id_name,
-    report_metadata_data_link_status_info,
 )
-from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
-from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
-from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
 logger = logging.getLogger("metadata")
 
@@ -559,8 +550,8 @@ def _manage_es_storage(es_storage: models.ESStorage):
 # TODO: 多租户改造
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def push_and_publish_space_router(
-    space_type: str | None = None,
-    space_id: str | None = None,
+    space_type: str,
+    space_id: str,
     table_id_list: list | None = None,
 ):
     """推送并发布空间路由功能"""
@@ -570,102 +561,38 @@ def push_and_publish_space_router(
         space_id,
         json.dumps(table_id_list),
     )
-    from metadata.models.space.constants import (
-        SPACE_TO_RESULT_TABLE_CHANNEL,
-        SpaceTypes,
-    )
-    from metadata.models.space.ds_rt import get_space_table_id_data_id
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-    target_space = None
-    if space_type and space_id:
-        try:
-            target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
-        except models.Space.DoesNotExist:
-            logger.warning(
-                "push_and_publish_space_router: space not found, space_type->[%s], space_id->[%s], skip",
-                space_type,
-                space_id,
-            )
-            return
-
-    # 指定空间时只获取该空间的结果表；未指定空间时由后续逻辑按租户全量刷新。
-    if not table_id_list and target_space:
-        table_id_list = list(
-            get_space_table_id_data_id(
-                space_type,
-                space_id,
-                bk_tenant_id=target_space.bk_tenant_id,
-            ).keys()
+    try:
+        target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+    except models.Space.DoesNotExist:
+        logger.warning(
+            "push_and_publish_space_router: space not found, space_type->[%s], space_id->[%s], skip",
+            space_type,
+            space_id,
         )
-    elif table_id_list is None:
-        table_id_list = []
+        return
 
     space_client = SpaceTableIDRedis()
-    # 更新空间下的结果表相关数据
-    if target_space:
-        # 更新相关数据到 redis
-        space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
-    else:
-        # NOTE: 现阶段仅针对 bkcc 类型做处理
-        spaces = list(models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value))
-        # 使用线程处理
-        bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list, is_publish=False), spaces)
+    space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
 
-        # 通知到使用方
-        push_redis_keys = []
-        for space in spaces:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
-            else:
-                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
-        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
+    # table_id_list 未传或为空时，不刷新结果表详情 / data_label 路由
+    # （push_table_id_detail 在 table_id_list 为空时会走租户全量刷新，需显式指定才执行）
+    if not table_id_list:
+        logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
+        return
 
-    # 更新结果表详情和 data_label 路由。没有明确空间时，按 ResultTable 的租户拆分，避免同名 RT 串租户。
-    table_ids_by_tenant: dict[str, set[str]] = {}
-    if target_space:
-        table_ids_by_tenant[target_space.bk_tenant_id] = set(table_id_list)
-    elif table_id_list:
-        # 兼容只有 Storage、没有 ResultTable 的早期路由。
-        tenant_aware_models = [
-            (models.ResultTable, "table_id"),
-            (models.ESStorage, "table_id"),
-            (models.DorisStorage, "table_id"),
-            (models.InfluxDBStorage, "table_id"),
-            (models.AccessVMRecord, "result_table_id"),
-        ]
-        for model, table_id_field in tenant_aware_models:
-            rows = model.objects.filter(**{f"{table_id_field}__in": table_id_list}).values_list(
-                "bk_tenant_id",
-                table_id_field,
-            )
-            for bk_tenant_id, table_id in rows:
-                table_ids_by_tenant.setdefault(bk_tenant_id, set()).add(table_id)
-    else:
-        tenant_ids = set(models.Space.objects.values_list("bk_tenant_id", flat=True)) | set(
-            models.ResultTable.objects.values_list("bk_tenant_id", flat=True)
-        )
-        tenant_ids.update(models.ESStorage.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.DorisStorage.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.InfluxDBStorage.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.AccessVMRecord.objects.values_list("bk_tenant_id", flat=True))
-        tenant_ids.update(models.RecordRule.objects.values_list("bk_tenant_id", flat=True))
-        if not tenant_ids:
-            tenant_ids.add(DEFAULT_TENANT_ID)
-        table_ids_by_tenant = {bk_tenant_id: set() for bk_tenant_id in tenant_ids}
-
-    for bk_tenant_id, tenant_table_ids in table_ids_by_tenant.items():
-        sorted_table_ids = sorted(tenant_table_ids)
-        space_client.push_data_label_table_ids(
-            bk_tenant_id=bk_tenant_id,
-            table_id_list=sorted_table_ids,
-            is_publish=True,
-        )
-        space_client.push_table_id_detail(
-            bk_tenant_id=bk_tenant_id,
-            table_id_list=sorted_table_ids,
-            is_publish=True,
-        )
+    sorted_table_ids = sorted(set(table_id_list))
+    space_client.push_data_label_table_ids(
+        bk_tenant_id=target_space.bk_tenant_id,
+        table_id_list=sorted_table_ids,
+        is_publish=True,
+    )
+    space_client.push_table_id_detail(
+        bk_tenant_id=target_space.bk_tenant_id,
+        table_id_list=sorted_table_ids,
+        is_publish=True,
+    )
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 
@@ -845,383 +772,23 @@ def _check_and_delete_ds_consul_config(data_source: DataSource):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def bulk_refresh_data_link_status(bkbase_rt_records):
-    """
-    并发刷新链路状态
-    """
-    # 统计&上报 任务状态指标
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="bulk_refresh_data_link_status", status=TASK_STARTED, process_target=None
-    ).inc()
-
-    start_time = time.time()  # 记录开始时间
-    logger.info(
-        "bulk_refresh_data_link_status: start to refresh data_link status, bkbase_rt_records: %s", bkbase_rt_records
-    )
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        executor.map(_refresh_data_link_status, bkbase_rt_records)
-    cost_time = time.time() - start_time  # 总耗时
-    logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
-
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="bulk_refresh_data_link_status", status=TASK_FINISHED_SUCCESS, process_target=None
-    ).inc()
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
-        task_name="bulk_refresh_data_link_status", process_target=None
-    ).observe(cost_time)
-    metrics.report_all()
-
-
-def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
-    """
-    刷新链路状态（各组件状态+整体状态）
-    @param bkbase_rt_record: BkBaseResultTable 计算平台结果表
-    """
-    # 统计&上报 任务状态指标
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="_refresh_data_link_status", status=TASK_STARTED, process_target=bkbase_rt_record.data_link_name
-    ).inc()
-
-    # 1. 获取基本信息
-    start_time = time.time()  # 记录开始时间
-    bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
-    data_link_name = bkbase_rt_record.data_link_name
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],bkbase_data_id_name->[%s]",
-        data_link_name,
-        bkbase_data_id_name,
-    )
-    data_link_ins = models.DataLink.objects.get(data_link_name=data_link_name)
-    data_link_strategy = data_link_ins.data_link_strategy
-    bk_tenant_id = bkbase_rt_record.bk_tenant_id
-    namespace = data_link_ins.namespace
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s] namespace->[%s]",
-        data_link_name,
-        data_link_strategy,
-        namespace,
-    )
-
-    # 2. 刷新数据源状态
-    # 优先按 bkbase_data_id_name 精确命中；考虑到复用场景 / 存量脏数据里 BkBaseResultTable.bkbase_data_name
-    # 可能记录的是旧生成名，这里再补一道按 DataLink.bk_data_id 的 fallback，最大程度兜住历史数据。
-    data_id_config = None
-    try:
-        data_id_config = models.DataIdConfig.objects.get(
-            bk_tenant_id=bk_tenant_id, namespace=namespace, name=bkbase_data_id_name
-        )
-    except models.DataIdConfig.DoesNotExist:
-        fallback_bk_data_id = data_link_ins.bk_data_id
-        if fallback_bk_data_id:
-            data_id_config = (
-                models.DataIdConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id,
-                    namespace=namespace,
-                    bk_data_id=fallback_bk_data_id,
-                )
-                .order_by("-id")
-                .first()
-            )
-        if data_id_config is None:
-            logger.warning(
-                "_refresh_data_link_status: data_link_name->[%s],data_id_config name->[%s] and bk_data_id->[%s] "
-                "both miss, skip data source status refresh",
-                data_link_name,
-                bkbase_data_id_name,
-                fallback_bk_data_id,
-            )
-
-    if data_id_config is not None:
-        try:
-            with transaction.atomic():
-                data_id_status = get_data_link_component_status(
-                    bk_tenant_id=bk_tenant_id,
-                    kind=data_id_config.kind,
-                    namespace=data_id_config.namespace,
-                    component_name=data_id_config.name,
-                )
-                if data_id_config.status != data_id_status:
-                    logger.info(
-                        "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
-                        "with exist record,will change to->[%s]",
-                        data_link_name,
-                        data_id_config.status,
-                        data_id_status,
-                    )
-                    data_id_config.status = data_id_status
-                    data_id_config.data_link_name = data_link_name
-                    data_id_config.save()
-                report_metadata_data_link_status_info(
-                    data_link_name=data_link_name,
-                    biz_id=data_id_config.bk_biz_id,
-                    kind=data_id_config.kind,
-                    status=data_id_config.status,
-                )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "_refresh_data_link_status: data_link_name->[%s],refresh data_id_config->[%s] error->[%s]",
-                data_link_name,
-                data_id_config.name,
-                e,
-            )
-
-    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
-    if hasattr(data_link_ins, "get_related_component_classes"):
-        components = data_link_ins.get_related_component_classes()
-    else:
-        components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
-    all_components_ok = True
-    refreshed_component_keys: set[tuple[str, str, str]] = set()
-
-    # 4. 遍历链路关联的所有类型资源；
-    # 历史写法按 ``name=bkbase_rt_name`` 查，默认 RT/Binding/DataBus 三者同名。组件复用之后三者可能
-    # 各自复用 legacy name、互不相同，此处改为按 (bk_tenant_id, namespace, data_link_name) 过滤该 kind
-    # 下属于本链路的所有实例并逐条刷新。非复用链路同样兼容：三者同名时按 data_link_name 过滤一样命中。
-    for component in components:
-        component_queryset = component.objects.filter(
-            bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name
-        )
-        component_instances = list(component_queryset)
-        if not component_instances:
-            logger.warning(
-                "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
-                data_link_name,
-                component.kind,
-            )
-            all_components_ok = False
-            continue
-
-        for component_ins in component_instances:
-            try:
-                with transaction.atomic():
-                    component_key = (component_ins.kind, component_ins.namespace, component_ins.name)
-                    if component_key in refreshed_component_keys:
-                        continue
-                    refreshed_component_keys.add(component_key)
-
-                    component_status = get_data_link_component_status(
-                        bk_tenant_id=bk_tenant_id,
-                        kind=component_ins.kind,
-                        namespace=component_ins.namespace,
-                        component_name=component_ins.name,
-                    )
-                    logger.info(
-                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
-                        data_link_name,
-                        component_ins.name,
-                        component_ins.kind,
-                        component_status,
-                    )
-                    if component_status != DataLinkResourceStatus.OK.value:
-                        all_components_ok = False
-                    # 和DB中数据不一致时，才进行更新操作
-                    if component_ins.status != component_status:
-                        component_ins.status = component_status
-                        component_ins.save()
-                        logger.info(
-                            "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
-                            "status updated to->[%s]",
-                            data_link_name,
-                            component_ins.name,
-                            component_ins.kind,
-                            component_status,
-                        )
-
-                report_metadata_data_link_status_info(
-                    data_link_name=data_link_name,
-                    biz_id=component_ins.bk_biz_id,
-                    kind=component_ins.kind,
-                    status=component_ins.status,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
-                    "refresh failed,error->[%s]",
-                    data_link_name,
-                    component_ins.name,
-                    component_ins.kind,
-                    e,
-                )
-
-    # 5. 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
-    if all_components_ok:
-        bkbase_rt_record.status = DataLinkResourceStatus.OK.value
-    else:
-        bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
-    with transaction.atomic():
-        bkbase_rt_record.save()
-
-    if data_id_config is not None:
-        report_metadata_data_link_status_info(
-            data_link_name=data_link_name,
-            biz_id=data_id_config.bk_biz_id,
-            kind=DataLinkKind.RESULTTABLE.value,
-            status=bkbase_rt_record.status,
-        )
-
-    cost_time = time.time() - start_time
-
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
-        data_link_name,
-        all_components_ok,
-        bkbase_rt_record.status,
-    )
-
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="_refresh_data_link_status",
-        status=TASK_FINISHED_SUCCESS,
-        process_target=bkbase_rt_record.data_link_name,
-    ).inc()
-
-    # 6. 上报指标
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
-        task_name="_refresh_data_link_status", process_target=bkbase_rt_record.data_link_name
-    ).observe(cost_time)
-    metrics.report_all()
-
-    logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] refresh status finished,cost time->[%s]",
-        data_link_name,
-        cost_time,
-    )
-
-
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_create_fed_data_link(sub_clusters):
-    from metadata.models import DataSource, DataSourceResultTable
+    """兼容旧队列任务名，实际创建逻辑统一转发到联邦 reconciliation service。"""
+    from metadata.service.federation_data_link import ensure_federal_subset_data_link
 
     logger.info("bulk_create_fed_data_link: start to bulk create fed datalinks for->[%s]", sub_clusters)
-    for sub_cluster_id in sub_clusters:
+    for sub_cluster_id in sorted(set(sub_clusters)):
         # 打印日志记录更新的子集群ID
         logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
         try:
             sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
-            ds = DataSource.objects.get(bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID)
-            table_id = DataSourceResultTable.objects.get(
-                bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID
-            ).table_id
-            vm_cluster = get_vm_cluster_id_name(
+            ensure_federal_subset_data_link(
                 bk_tenant_id=sub_cluster.bk_tenant_id,
-                space_type=SpaceTypes.BKCC.value,
-                space_id=str(sub_cluster.bk_biz_id),
-            )
-
-            logger.info(
-                "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
-                sub_cluster_id,
-                sub_cluster.K8sMetricDataID,
-                table_id,
-            )
-
-            create_fed_bkbase_data_link(
-                bk_biz_id=sub_cluster.bk_biz_id,
-                monitor_table_id=table_id,
-                data_source=ds,
-                storage_cluster_name=vm_cluster.get("cluster_name"),
-                bcs_cluster_id=sub_cluster.cluster_id,
+                sub_cluster_id=sub_cluster_id,
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
+            logger.exception("update_fed_bkbase data_link failed, sub_cluster_id->[%s],error->[%s]", sub_cluster_id, e)
             continue
-
-
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
-    """
-    同步计算平台元数据信息至Metadata
-    Redis中的数据格式
-    redis_key
-        kafka: {}
-        vm: {rt1:{},rt2:{},rt3:{}}
-        es: {rt1:[],rt2:[],rt3:[]}
-    @param key: 计算平台对应的DataBusKey
-    @param skip_types: 跳过同步的类型,默认跳过es类型
-    """
-    logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
-    start_time = time.time()
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="sync_bkbase_v4_metadata", status=TASK_STARTED, process_target=None
-    ).inc()
-
-    # 默认跳过es类型
-    if skip_types is None:
-        skip_types = []
-
-    bkbase_redis = bkbase_redis_client()
-    if not bkbase_redis:
-        logger.warning("sync_bkbase_v4_metadata: bkbase redis config is not set.")
-        return
-
-    bk_base_data_id = key.split(":")[-1]  # 提取 bk_base_data_id
-
-    try:
-        vm_record = models.AccessVMRecord.objects.filter(bk_base_data_id=bk_base_data_id)
-        if vm_record.exists():  # 若接入VM记录存在,说明是指标链路,常规流程,通过table_id获取监控平台DataId
-            table_id = vm_record.first().result_table_id
-            # 兼容 DataId--RT 一对多的边缘场景
-            bk_data_id = models.DataSourceResultTable.objects.filter(table_id=table_id).first().bk_data_id
-        else:  # 否则,说明是日志链路,日志链路中,无论是纯V4还是V3->V4,DataId是一样的
-            bk_data_id = bk_base_data_id
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error("sync_bkbase_v4_metadata: failed to get bk_data_id and table_id for key->[%s],error->[%s]", key, e)
-        return
-
-    bkbase_redis_data = bkbase_redis.hgetall(key)
-    bkbase_metadata_dict = {
-        key.decode("utf-8"): json.loads(value.decode("utf-8")) for key, value in bkbase_redis_data.items()
-    }
-    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata_dict)
-
-    try:
-        ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
-        table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
-        bk_tenant_id: str = ds.bk_tenant_id
-    except models.DataSource.DoesNotExist:
-        logger.error("sync_bkbase_v4_metadata: DataSource->[%s] does not exist", bk_data_id)
-        return
-    except models.DataSourceResultTable.DoesNotExist:
-        logger.error("sync_bkbase_v4_metadata: DataSourceResultTable for bk_data_id->[%s] does not exist", bk_data_id)
-        return
-
-    if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
-        logger.error("sync_bkbase_v4_metadata: bk_data_id->[%s] does not belong to bkbase v4", bk_data_id)
-        return
-
-    # 处理 Kafka 信息
-    kafka_info = bkbase_metadata_dict.get("kafka")
-    if kafka_info and "kafka" not in skip_types:
-        with transaction.atomic():  # 单独事务
-            logger.info(
-                "sync_bkbase_v4_metadata: got kafka_info->[%s],bk_data_id->[%s],try to sync kafka info",
-                kafka_info,
-                bk_data_id,
-            )
-            sync_kafka_metadata(bk_tenant_id=bk_tenant_id, kafka_info=kafka_info, ds=ds, bk_data_id=bk_data_id)
-            logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
-
-    # 处理 VM 信息
-    vm_info = bkbase_metadata_dict.get("vm")
-    if vm_info and "vm" not in skip_types:
-        with transaction.atomic():  # 单独事务
-            logger.info(
-                "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
-            )
-            sync_vm_metadata(bk_tenant_id=bk_tenant_id, vm_info=vm_info)
-            logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
-
-    cost_time = time.time() - start_time
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="sync_bkbase_v4_metadata", status=TASK_FINISHED_SUCCESS, process_target=None
-    ).inc()
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkbase_metadata_all", process_target=None).observe(
-        cost_time
-    )
-    logger.info(
-        "sync_bkbase_v4_metadata: sync bkbase metadata for bk_data_id->[%s] successfully,cost->[%s]",
-        bk_data_id,
-        cost_time,
-    )
 
 
 def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, int | str]]:
@@ -1721,8 +1288,8 @@ def _create_biz_standard_time_series_datalink_for_bkcc(
     # 链路申请（DataLink 创建 + apply_data_link + sync_metadata + AccessVMRecord 写入）统一复用
     # create_bkbase_data_link，保证与常规 VM 链路使用同一套计算平台命名（含 40 字符截断/hash）、
     # AccessVMRecord 生成与状态处理逻辑，避免内置链路自行拼接 vm_result_table_id 产生漂移。
-    # 注意：create_bkbase_data_link 会以 compose_bkdata_data_id_name(data_name) 作为 DataLink 名称，
-    # 与 check_bkcc_space_builtin_datalink 的幂等判断需保持一致。
+    # 注意：create_bkbase_data_link 只允许使用 DataIdConfig 中按 bk_data_id 登记的名称，
+    # 缺失时会直接中止；与 check_bkcc_space_builtin_datalink 的依赖检查需保持一致。
     try:
         create_bkbase_data_link(
             bk_biz_id=bk_biz_id,
@@ -2753,12 +2320,8 @@ def create_single_tenant_system_datalink(
         prefix=BASEREPORT_SOURCE_SYSTEM,
     )
 
-    # 刷新查询路由表数据
+    # 刷新结果表详情路由数据
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
-    SpaceTableIDRedis().push_multi_space_table_ids(
-        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
-        is_publish=True,
-    )
 
 
 def create_single_tenant_system_proc_datalink(
@@ -2858,11 +2421,7 @@ def create_single_tenant_system_proc_datalink(
             prefix="",
         )
 
-    # 刷新查询路由表数据
+    # 刷新结果表详情路由数据
     SpaceTableIDRedis().push_table_id_detail(
         bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=list(data_id_to_table_id.values()), is_publish=True
-    )
-    SpaceTableIDRedis().push_multi_space_table_ids(
-        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
-        is_publish=True,
     )

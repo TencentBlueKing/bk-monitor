@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -14,6 +13,7 @@ from datetime import datetime, timedelta
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
@@ -29,11 +29,12 @@ from fta_web.alert.resources import (
     AlertPermissionResource,
     AlertRelatedInfoResource,
 )
+from monitor_web.shield.serializers import DimensionConditionSlz
 
 logger = logging.getLogger(__name__)
 
 
-class EventTargetMixin(object):
+class EventTargetMixin:
     @classmethod
     def get_target_display(cls, alert, topo_links=None):
         """
@@ -274,7 +275,7 @@ class GetEventGraphView(AlertPermissionResource):
 
         compare_series_name = ""
         if time_compare:
-            query_params["function"].update({"time_compare": ["{}h".format(time_compare)]})
+            query_params["function"].update({"time_compare": [f"{time_compare}h"]})
             compare_series_name = hms_string(timedelta(hours=time_compare).total_seconds())
         result = resource.alert.alert_graph_query(**query_params)
 
@@ -299,7 +300,7 @@ class GetEventGraphView(AlertPermissionResource):
                         continue
                     # 记录该点的时间
                     current_time = point[1]
-                    current = "{:g}".format(point[0])
+                    current = f"{point[0]:g}"
                     break
                 else:
                     current_time = 0
@@ -307,14 +308,14 @@ class GetEventGraphView(AlertPermissionResource):
                 # 查找对应时间的点
                 for point in datapoints:
                     if point[1] == current_time and point[0] is not None:
-                        current = "{:g}".format(point[0])
+                        current = f"{point[0]:g}"
 
             series["statistics"] = {
-                "min": "{:g}".format(min(points)) if points else "",
-                "max": "{:g}".format(max(points)) if points else "",
-                "avg": "{:g}".format(sum(points) / len(points)) if points else "",
+                "min": f"{min(points):g}" if points else "",
+                "max": f"{max(points):g}" if points else "",
+                "avg": f"{sum(points) / len(points):g}" if points else "",
                 "current": current,
-                "total": "{:g}".format(sum(points)),
+                "total": f"{sum(points):g}",
             }
 
         return result["series"]
@@ -341,7 +342,7 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
         for alert in alerts:
             event = alert.event_document
 
-            key = "{}|{}".format(alert.strategy_id, alert.severity)
+            key = f"{alert.strategy_id}|{alert.severity}"
             # 如果不存在分组则初始化
             if key not in result:
                 result[key] = {
@@ -379,23 +380,59 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
     def group_by_target(self, alerts):
         """
         按监控目标分组展示
+
+        :return: 分组列表，每组包含目标维度信息及该目标下的事件列表
+        :rtype: list[dict]
+
+        返回示例::
+
+            [
+                {
+                    "strategy_id": 123,
+                    "level": 2,
+                    "name": "127.0.0.2",
+                    "events": [
+                        {
+                            "event_id": "a1b2c3d4",
+                            "target": "127.0.0.2",
+                            "duration": "10m 30s",
+                            "dimension_message": "ip=127.0.0.2",
+                        }
+                    ],
+                }
+            ]
         """
         result = {}
+        topo_links = None
 
         for alert in alerts:
             if not alert.event_document.target:
                 continue
 
-            # 如果不存在分组则初始化
-            key = self.get_target_display(alert)
-            if key not in result:
-                result[key] = {"target": key, "events": []}
+            # 缓存 topo_links，避免 TOPO 类型目标重复请求 CMDB
+            if alert.event_document.target_type == EventTargetType.TOPO and not topo_links:
+                topo_tree = api.cmdb.get_topo_tree(bk_biz_id=alert.event_document.bk_biz_id)
+                topo_links = topo_tree.convert_to_topo_link()
 
-            result[key]["events"].append(
+            target_display = self.get_target_display(alert, topo_links) or "--"
+
+            # 如果不存在分组则初始化
+            if target_display not in result:
+                result[target_display] = {
+                    "strategy_id": alert.strategy_id,
+                    "level": alert.severity,
+                    "name": target_display,
+                    "events": [],
+                }
+            # 取组内最高级别（severity 数值越小级别越高）
+            elif alert.severity < result[target_display]["level"]:
+                result[target_display]["level"] = alert.severity
+
+            result[target_display]["events"].append(
                 {
                     "event_id": alert.id,
-                    "level": alert.severity,
-                    "strategy_name": alert.event_document.alert_name,
+                    "target": target_display,
+                    "duration": hms_string(alert.duration or 0),
                     "dimension_message": AlertDimensionFormatter.get_dimensions_str(alert.dimensions),
                 }
             )
@@ -481,6 +518,7 @@ class QuickShield(AlertPermissionResource):
         end_time = serializers.DateTimeField(label="屏蔽结束时间", input_formats=["%Y-%m-%d %H:%M:%S"])
         description = serializers.CharField(label="屏蔽描述", allow_blank=True, default="")
         dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
+        dimension_conditions = serializers.ListField(label="维度条件", default=None, child=DimensionConditionSlz())
 
     @staticmethod
     def handle_scope(alert):
@@ -548,8 +586,25 @@ class QuickShield(AlertPermissionResource):
             shield_params["dimension_keys"] = params["dimension_keys"]
 
         shield_params.update(method_map[params["type"]](alert))
+
+        # 合并维度过滤条件（如 regex/nregex），与屏蔽类型无关
+        # 注意：所有 handle_* 方法均返回含 dimension_config 的 dict，此处 setdefault 为防御性兜底
+        if params.get("dimension_conditions"):
+            shield_params.setdefault("dimension_config", {})
+            shield_params["dimension_config"]["dimension_conditions"] = params["dimension_conditions"]
+
         return shield_params
 
     def perform_request(self, params):
         alert = AlertDocument.get(id=params["event_id"])
+        # 有维度却空选择时，handle_alert 拷贝不到任何实例维，匹配只剩 strategy_id，
+        # 范围比「当前实例」更大，必须拒绝。告警本身无维度时当前实例与该策略是同一集合，
+        # 空选择就是全量维度，与 PC 快捷默认（不传 keys）一致，放行。
+        if (
+            params["type"] == "event"
+            and alert.dimensions
+            and not params.get("dimension_keys")
+            and not params.get("dimension_conditions")
+        ):
+            raise ValidationError(_("请选择屏蔽维度"))
         return resource.shield.add_shield(self.handle(params, alert))

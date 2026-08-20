@@ -17,6 +17,7 @@ from bkmonitor.data_source import q_to_conditions
 
 from bkmonitor.query_template.builtin import K8SQueryTemplateName
 
+from apm_web.strategy.query_template import LocalQueryTemplateName
 from constants.apm import CachedEnum, K8SMetricTag
 
 from django.utils.translation import gettext as _
@@ -30,6 +31,7 @@ from ... import constants
 class K8SStrategyTemplateCode(CachedEnum):
     K8S_CPU_USAGE = "k8s_cpu_usage"
     K8S_MEMORY_USAGE = "k8s_memory_usage"
+    K8S_MEMORY_USAGE_CONTAINER_RATIO = "k8s_memory_usage_container_ratio"
     K8S_ABNORMAL_RESTART = "k8s_abnormal_restart"
     K8S_OOM_KILLED = "k8s_oom_killed"
 
@@ -39,6 +41,7 @@ class K8SStrategyTemplateCode(CachedEnum):
             {
                 self.K8S_CPU_USAGE: _("CPU 使用率过高告警"),
                 self.K8S_MEMORY_USAGE: _("内存使用率过高告警"),
+                self.K8S_MEMORY_USAGE_CONTAINER_RATIO: _("内存使用率容器占比告警"),
                 self.K8S_ABNORMAL_RESTART: _("异常重启告警"),
                 self.K8S_OOM_KILLED: _("OOM Killed 退出告警"),
             }.get(self, self.value)
@@ -71,6 +74,27 @@ K8S_MEMORY_USAGE_STRATEGY_TEMPLATE = {
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": K8SQueryTemplateName.MEMORY_LIMIT_USAGE.value},
     "context": {"CONDITIONS": []},
+}
+
+K8S_MEMORY_USAGE_CONTAINER_RATIO_STRATEGY_TEMPLATE = {
+    "name": K8SStrategyTemplateCode.K8S_MEMORY_USAGE_CONTAINER_RATIO.label,
+    "code": K8SStrategyTemplateCode.K8S_MEMORY_USAGE_CONTAINER_RATIO.value,
+    "category": constants.StrategyTemplateCategory.DEFAULT.value,
+    "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
+    "detect": utils.detect_config(5, 1, 1),
+    "algorithms": [
+        utils.warning_threshold_algorithm_config(method="gte", threshold=50, suffix="%"),
+        utils.fatal_threshold_algorithm_config(method="gte", threshold=80, suffix="%"),
+    ],
+    "query_template": {
+        "bk_biz_id": GLOBAL_BIZ_ID,
+        "name": LocalQueryTemplateName.K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO.value,
+    },
+    "context": {
+        "CONDITIONS": [],
+        "MEMORY_USAGE_THRESHOLD": "90",
+        "GROUP_BY": [K8SMetricTag.BCS_CLUSTER_ID.value, K8SMetricTag.NAMESPACE.value],
+    },
 }
 
 K8S_ABNORMAL_RESTART_STRATEGY_TEMPLATE = {
@@ -109,6 +133,7 @@ class K8SStrategyTemplateSet(base.StrategyTemplateSet):
     ENABLED_CODES: list[str] = [
         K8SStrategyTemplateCode.K8S_CPU_USAGE.value,
         K8SStrategyTemplateCode.K8S_MEMORY_USAGE.value,
+        K8SStrategyTemplateCode.K8S_MEMORY_USAGE_CONTAINER_RATIO.value,
         K8SStrategyTemplateCode.K8S_ABNORMAL_RESTART.value,
         K8SStrategyTemplateCode.K8S_OOM_KILLED.value,
     ]
@@ -116,6 +141,7 @@ class K8SStrategyTemplateSet(base.StrategyTemplateSet):
     STRATEGY_TEMPLATES: list[dict[str, Any]] = [
         K8S_CPU_USAGE_STRATEGY_TEMPLATE,
         K8S_MEMORY_USAGE_STRATEGY_TEMPLATE,
+        K8S_MEMORY_USAGE_CONTAINER_RATIO_STRATEGY_TEMPLATE,
         K8S_ABNORMAL_RESTART_STRATEGY_TEMPLATE,
         K8S_OOM_KILLED_STRATEGY_TEMPLATE,
     ]

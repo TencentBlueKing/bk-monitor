@@ -49,13 +49,13 @@ from kernel_api.rpc.functions.admin.common import build_response
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
 from kernel_api.rpc.functions.admin import es_storage as admin_es_storage
+from kernel_api.rpc.functions.admin import result_table as admin_result_table
 from kernel_api.rpc.functions.admin.datalink import (
     get_component_detail,
     get_datalink_component_config,
     list_components,
 )
 from kernel_api.rpc.functions.admin.es_storage import (
-    _build_runtime_index_item,
     _contains_index_wildcard,
     _is_virtual_es_storage,
     _serialize_es_storage_config,
@@ -66,7 +66,7 @@ from kernel_api.rpc.functions.admin.query_route import (
     _normalize_string_list,
     _resolve_space_identity,
 )
-from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin.result_table import _build_result_table_storages, _serialize_result_table_detail
 from kernel_api.rpc.functions.admin.render_image_task import _serialize_render_image_task
 from kernel_api.rpc.functions.admin import space as admin_space
 from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
@@ -86,6 +86,7 @@ from kernel_api.rpc.functions.admin.storage_cluster_history import (
 )
 from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
+from metadata.service.es_storage import _build_runtime_index_item
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.plugin import (
     CollectorPluginConfig,
@@ -153,6 +154,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bcs_cluster.bk_collector_config_detail",
         "admin.bcs_cluster.bkmonitor_operator_release_list",
         "admin.bcs_cluster.bkmonitor_operator_release_detail",
+        "admin.bcs_federal_cluster.list",
+        "admin.bcs_federal_cluster.detail",
+        "admin.bcs_federal_cluster.sub_cluster_list",
+        "admin.bcs_federal_cluster.sub_cluster_namespace_list",
         "admin.datasource.kafka_sample",
         "admin.es_storage.list",
         "admin.es_storage.detail",
@@ -169,6 +174,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.vm_storage.detail",
         "admin.kafka_storage.list",
         "admin.kafka_storage.detail",
+        "admin.surrealdb_storage.list",
+        "admin.surrealdb_storage.detail",
         "admin.bkbase_result_table.list",
         "admin.bkbase_result_table.detail",
         "admin.custom_report.list",
@@ -212,6 +219,83 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.render_image_task.detail",
         "admin.token.resolve",
     } <= func_names
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_surrealdb_storage_list_and_detail_are_tenant_scoped():
+    table_id = "admin_surrealdb.metric"
+    tenant_id = "admin_surrealdb_tenant"
+    other_tenant_id = "admin_surrealdb_other_tenant"
+    cluster = admin_storage.models.ClusterInfo.objects.create(
+        bk_tenant_id=tenant_id,
+        cluster_id=61001,
+        cluster_name="admin-surrealdb",
+        display_name="Admin SurrealDB",
+        cluster_type=admin_storage.models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="surrealdb.invalid",
+        port=8000,
+        description="test",
+        is_default_cluster=False,
+    )
+    admin_storage.models.ResultTable.objects.create(
+        table_id=table_id,
+        bk_tenant_id=tenant_id,
+        table_name_zh="Admin SurrealDB test",
+        is_custom_table=False,
+        schema_type=admin_storage.models.ResultTable.SCHEMA_TYPE_FIXED,
+        default_storage=admin_storage.models.ClusterInfo.TYPE_SURREALDB,
+        creator="system",
+        last_modify_user="system",
+    )
+    admin_storage.models.SurrealDBStorage.objects.create(
+        table_id=table_id,
+        bk_tenant_id=tenant_id,
+        table_type=admin_storage.models.SurrealDBStorage.TEMPORARY_TABLE_TYPE,
+        vertices=[{"name": "host", "id_fields": ["bk_host_id"]}],
+        relations=[{"name": "host_with_system", "from": "host", "to": "system"}],
+        storage_cluster_id=cluster.cluster_id,
+    )
+    admin_storage.models.SurrealDBStorage.objects.create(
+        table_id=table_id,
+        bk_tenant_id=other_tenant_id,
+        storage_cluster_id=61002,
+    )
+
+    list_result = admin_storage.list_surrealdb_storages(
+        {"bk_tenant_id": tenant_id, "table_id": table_id, "page": 1, "page_size": 20}
+    )
+    detail_result = admin_storage.get_surrealdb_storage_detail({"bk_tenant_id": tenant_id, "table_id": table_id})
+
+    assert list_result["data"]["total"] == 1
+    assert list_result["data"]["items"] == [
+        {
+            "surrealdb_storage": {
+                "table_id": table_id,
+                "bk_tenant_id": tenant_id,
+                "table_type": "temporary",
+                "vertices": [{"name": "host", "id_fields": ["bk_host_id"]}],
+                "relations": [{"name": "host_with_system", "from": "host", "to": "system"}],
+                "storage_cluster_id": 61001,
+            },
+            "result_table": {
+                "table_id": table_id,
+                "bk_tenant_id": tenant_id,
+                "table_name_zh": "Admin SurrealDB test",
+                "bk_biz_id": 0,
+                "data_label": "",
+                "default_storage": "surrealdb",
+                "is_enable": True,
+                "is_deleted": False,
+            },
+            "storage_cluster": {
+                "cluster_id": 61001,
+                "cluster_name": "admin-surrealdb",
+                "display_name": "Admin SurrealDB",
+                "cluster_type": "surrealdb",
+            },
+        }
+    ]
+    assert detail_result["data"] == list_result["data"]["items"][0]
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None
@@ -1294,6 +1378,67 @@ def test_result_table_detail_serializer_does_not_return_fields():
 
     assert item["table_id"] == "system.cpu"
     assert "fields" not in item
+
+
+def test_result_table_detail_storages_include_tenant_scoped_doris_storage():
+    es_storage = SimpleNamespace(
+        id=1,
+        table_id="2_bklog.demo",
+        origin_table_id=None,
+        bk_tenant_id="system",
+        storage_cluster_id=3,
+        date_format="%Y%m%d",
+        slice_size=500,
+        slice_gap=120,
+        retention=30,
+        warm_phase_days=0,
+        time_zone=8,
+        source_type="log",
+        need_create_index=True,
+        archive_index_days=0,
+    )
+    doris_storage = SimpleNamespace(
+        id=2,
+        table_id="2_bklog.demo",
+        bk_tenant_id="system",
+        bkbase_table_id="591_2_bklog_demo",
+        origin_table_id=None,
+        source_type="log",
+        index_set="2_bklog_demo",
+        table_type="primary_table",
+        expire_days=30,
+        storage_cluster_id=4,
+    )
+    es_queryset = _FakeQuerySet([es_storage])
+    doris_queryset = _FakeQuerySet([doris_storage])
+
+    with (
+        patch.object(admin_result_table.models.ESStorage.objects, "filter", return_value=es_queryset) as es_filter,
+        patch.object(
+            admin_result_table.models.DorisStorage.objects, "filter", return_value=doris_queryset
+        ) as doris_filter,
+    ):
+        storages = _build_result_table_storages("system", "2_bklog.demo")
+
+    es_filter.assert_called_once_with(bk_tenant_id="system", table_id="2_bklog.demo")
+    doris_filter.assert_called_once_with(bk_tenant_id="system", table_id="2_bklog.demo")
+    assert es_queryset.ordering == [("id",)]
+    assert doris_queryset.ordering == [("id",)]
+    assert storages["es"][0]["storage_cluster_id"] == 3
+    assert storages["doris"] == [
+        {
+            "table_id": "2_bklog.demo",
+            "bk_tenant_id": "system",
+            "bkbase_table_id": "591_2_bklog_demo",
+            "origin_table_id": None,
+            "source_type": "log",
+            "index_set": "2_bklog_demo",
+            "table_type": "primary_table",
+            "expire_days": 30,
+            "storage_cluster_id": 4,
+            "table_kind": "physical",
+        }
+    ]
 
 
 def test_datalink_component_list_accepts_cluster_config_kind():
@@ -2733,6 +2878,7 @@ def test_es_storage_runtime_overview_uses_selected_runtime_cluster_without_mutat
         origin_table_id=None,
         storage_cluster_id=3,
         index_set="system_cpu",
+        need_create_index=True,
         search_format_v2=lambda: "v2_system_cpu_*",
         search_format_v1=lambda: "system_cpu_*",
     )
@@ -2802,15 +2948,16 @@ def test_es_storage_sample_uses_selected_runtime_cluster():
     assert storage.storage_cluster_id == 3
 
 
-def test_es_storage_runtime_index_item_keeps_stats_values_and_counts_shards():
+def test_es_storage_runtime_index_item_prefers_cat_docs_before_total_stats_and_counts_shards():
     item = _build_runtime_index_item(
         index_name="v2_system_cpu_20260521_0",
         stats={"total": {"docs": {"count": 0}, "store": {"size_in_bytes": 0}}},
         cat_meta={"health": "green", "status": "open", "pri": "2", "rep": "1", "docs.count": "99"},
     )
 
-    assert item["docs_count"] == 0
-    assert item["store_size"] == 0
+    assert item["docs_count"] == 99
+    assert item["store_size_bytes"] == 0
+    assert "stats" not in item
     assert item["primary_shards"] == 2
     assert item["replica_shards"] == 2
     assert item["replica_factor"] == 1

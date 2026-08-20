@@ -33,6 +33,7 @@ from apps.constants import (
     ViewSetActionEnum,
 )
 from apps.iam import ActionEnum
+from apps.log_audit.external import ExternalAuditRecorder, resolve_exception_status_code
 from apps.log_commons.models import (
     AuthorizerSettings,
     ExternalPermission,
@@ -208,6 +209,20 @@ class RequestProcessor:
                     return True
         return False
 
+    @classmethod
+    def get_action_id(cls, view_set: str, view_action: str) -> str:
+        """
+        获取接口声明的action_id
+
+        默认允许的接口不走权限校验，拿不到授权命中的action_id，审计需要以此兜底
+        """
+        for _d in ViewSetActionEnum.get_keys():
+            if _d.view_set != view_set:
+                continue
+            if not _d.view_action or _d.view_action == view_action:
+                return _d.action_id
+        return ExternalPermissionActionEnum.LOG_COMMON.value
+
 
 @login_exempt
 def external(request):
@@ -320,6 +335,9 @@ def dispatch_external_proxy(request):
     # 这里是字符串
     json_data_str: str = params.get("data", "")
     authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
+    audit_recorder = ExternalAuditRecorder(request)
+    audit_recorder.space_uid = space_uid
+    audit_recorder.authorizer = authorizer or ""
     try:
         parsed = urlsplit(url)
         if method.lower() == "get":
@@ -346,6 +364,10 @@ def dispatch_external_proxy(request):
         action_id = ""
         external_user_info = RequestProcessor.get_request_user_info(request)
         external_user = external_user_info.get("username", "")
+        audit_recorder.external_user = external_user
+        audit_recorder.view_set = view_set
+        audit_recorder.view_action = view_action
+        audit_recorder.action_id = RequestProcessor.get_action_id(view_set=view_set, view_action=view_action)
         allow_resources_result = {"allowed": False, "resources": []}
         # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
         if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
@@ -361,24 +383,20 @@ def dispatch_external_proxy(request):
                 external_user_allowed_action_id_list.append(ExternalPermissionActionEnum.LOG_SEARCH.value)
             # 判断接口是否在管理范围内
             if not external_user_allowed_action_id_list:
-                return JsonResponse(
-                    {
-                        "result": False,
-                        "message": f"dispatch_plugin_query: external_user:{external_user} has no permission.",
-                    },
-                    status=403,
-                )
+                message = f"dispatch_plugin_query: external_user:{external_user} has no permission."
+                audit_recorder.set_result(403, message)
+                return JsonResponse({"result": False, "message": message}, status=403)
             is_allowed = False
             for _action_id in external_user_allowed_action_id_list:
                 if ExternalPermission.is_action_valid(view_set=view_set, view_action=view_action, action_id=_action_id):
                     is_allowed = True
                     action_id = _action_id
+                    audit_recorder.action_id = action_id
                     break
             if not is_allowed:
-                return JsonResponse(
-                    {"result": False, "message": f"external_user:{external_user} has not enough permission."},
-                    status=403,
-                )
+                message = f"external_user:{external_user} has not enough permission."
+                audit_recorder.set_result(403, message)
+                return JsonResponse({"result": False, "message": message}, status=403)
             allow_resources_result = ExternalPermission.get_resources(
                 space_uid=space_uid, action_id=action_id, authorized_user=external_user
             )
@@ -387,14 +405,11 @@ def dispatch_external_proxy(request):
                 resource = RequestProcessor.get_resource(
                     action_id=action_id, kwargs=kwargs, json_data_str=json_data_str
                 )
+                audit_recorder.resource = resource
                 if resource and resource not in allow_resources:
-                    return JsonResponse(
-                        {
-                            "result": False,
-                            "message": f"external_user:{external_user} cannot access resource(ID:{resource}).",
-                        },
-                        status=403,
-                    )
+                    message = f"external_user:{external_user} cannot access resource(ID:{resource})."
+                    audit_recorder.set_result(403, message)
+                    return JsonResponse({"result": False, "message": message}, status=403)
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
         if authorizer:
@@ -419,6 +434,10 @@ def dispatch_external_proxy(request):
 
         # call view_func
         response = view_func(fake_request, **kwargs)
+        # 视图内部的鉴权失败不会命中上面的分支，按响应码补记审计结果
+        status_code = getattr(response, "status_code", 0)
+        if status_code >= 400:
+            audit_recorder.set_result(status_code, f"view_func response status: {status_code}")
         return RequestProcessor.filter_response_resource(
             external_user=external_user,
             response=response,
@@ -435,8 +454,13 @@ def dispatch_external_proxy(request):
         )
 
     except Exception as e:
+        audit_recorder.set_result(resolve_exception_status_code(e), str(e))
         logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
+
+    finally:
+        # 转发入口有多个鉴权提前返回分支，统一在这里上报，避免漏埋拒绝事件
+        audit_recorder.push()
 
 
 @login_exempt

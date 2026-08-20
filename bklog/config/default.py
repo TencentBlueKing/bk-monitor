@@ -365,6 +365,8 @@ if IS_K8S_DEPLOY_MODE:
                 "propagate": True,
             },
             "bk_monitor": {"handlers": ["stdout"], "level": LOG_LEVEL, "propagate": True},
+            # 审计事件，bk_audit 的 exporter 会关闭 propagate，必须显式挂 handler
+            "bk_audit": {"handlers": ["stdout"], "level": LOG_LEVEL, "propagate": True},
         },
     }
     #
@@ -1347,6 +1349,9 @@ except ValueError:
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
 TGPA_TRANSCEIVER_TOOL_URL = os.getenv("BKAPP_TGPA_TRANSCEIVER_TOOL_URL", "")
 TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
+
+# 异步下载最大并发任务数
+MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
 
 """
 以下为框架代码 请勿修改

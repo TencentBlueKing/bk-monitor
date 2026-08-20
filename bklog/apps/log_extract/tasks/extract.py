@@ -102,7 +102,9 @@ class LogExtractUtils:
     ):
         self.task_id = task_id
         self.bk_biz_id = bk_biz_id
+        # 源主机账号由源主机操作系统决定；中转机固定为 Linux，必须使用独立账号。
         self.account = account
+        self.transit_server_account = constants.ACCOUNT["linux"]
         self.username = username
         self.operator = operator
         self.file_path = file_path
@@ -316,7 +318,7 @@ class LogExtractUtils:
             target_server=[transit_server],
             bk_biz_id=bk_biz_id,
             operator=operator,
-            account=self.account,
+            account=self.transit_server_account,
             task_name=f"[BKLOG] File Distribution By {self.username}",
         )
 
@@ -365,7 +367,7 @@ class LogExtractUtils:
         extract_link: ExtractLink = task.get_link()
         bk_biz_id = extract_link.op_bk_biz_id
         operator = extract_link.operator
-        account = self.account
+        account = self.transit_server_account
         transit_server, *_ = self.distribution_ip
         transit_server_file_path, *_ = self.transit_server_file_path
         cos_pack_file_name = get_packed_file_name(task_id)

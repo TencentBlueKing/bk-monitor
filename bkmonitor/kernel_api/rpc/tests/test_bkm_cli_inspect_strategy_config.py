@@ -73,6 +73,41 @@ def test_inspect_strategy_config_registered_as_bkm_cli_op():
     assert function_detail is not None
 
 
+def test_inspect_strategy_config_reads_current_shared_group_members(monkeypatch):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    monkeypatch.setattr(
+        StrategyCacheManager,
+        "get_strategy_group_detail",
+        classmethod(
+            lambda cls, group_key: {
+                "2": [20],
+                "1": [10, 11],
+                "bk_biz_id": 7,
+                "interval_list": [60],
+            }
+        ),
+    )
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "inspect-strategy-config",
+            "params": {"operation": "shared_group", "strategy_group_key": "group-a"},
+        }
+    )
+
+    assert result["result"] == {
+        "operation": "shared_group",
+        "strategy_group_key": "group-a",
+        "found": True,
+        "bk_biz_id": 7,
+        "members": [
+            {"strategy_id": 1, "item_ids": [10, 11]},
+            {"strategy_id": 2, "item_ids": [20]},
+        ],
+    }
+
+
 def test_inspect_strategy_config_detail_uses_strategy_aggregation(monkeypatch):
     from kernel_api.rpc.functions.bkm_cli import strategy
 

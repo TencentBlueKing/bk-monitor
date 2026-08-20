@@ -21,6 +21,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import ElasticsearchStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
+from constants.apm import normalize_app_name
 
 
 class EmptyRealTimeNode(RealTimeNode):
@@ -49,7 +50,7 @@ class EmptyRealTimeNode(RealTimeNode):
 
     @property
     def table_name(self):
-        return f"tail_{self.app_name.replace('-', '_')}_output"
+        return f"tail_{normalize_app_name(self.app_name)}_output"
 
     @property
     def _sql(self):

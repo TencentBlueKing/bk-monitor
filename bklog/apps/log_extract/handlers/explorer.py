@@ -925,11 +925,9 @@ class ExplorerHandler:
                     if file_pattern.match(file_name):
                         return True
         else:
-            # 匹配可访问的目录
+            # 匹配可访问的目录，直接做前缀匹配，避免目录中的 '.' 等字符被当作正则元字符通配
             for allowed_dir_file in allowed_dir_file_list:
-                # pattern样例：'^/data/'
-                dir_pattern = re.compile(r"^{}".format(allowed_dir_file["file_path"]))
-                if dir_pattern.match(request_file):
+                if request_file.startswith(allowed_dir_file["file_path"]):
                     return True
         return False
 

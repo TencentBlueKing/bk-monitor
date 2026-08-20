@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import abc
 import copy
 import json
+import re
 from typing import Any
 
 
@@ -144,13 +145,16 @@ class GroupByVariableRender(BaseVariableRender):
             value: list[str] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
+            group_by_promql: str = ", ".join(value)
             for query_config in self._query_instance.query_configs:
                 group_by: list[str] = query_config.get("group_by") or []
-                if val_tmpl not in group_by:
-                    continue
+                if val_tmpl in group_by:
+                    # 移除变量并填充变量值。
+                    query_config["group_by"] = list(set(group_by + value) - {val_tmpl})
 
-                # 移除变量并填充变量值。
-                query_config["group_by"] = list(set(group_by + value) - {val_tmpl})
+                promql: str = query_config.get("promql") or ""
+                if val_tmpl in promql:
+                    query_config["promql"] = promql.replace(val_tmpl, group_by_promql)
 
         return self._query_instance
 
@@ -194,15 +198,17 @@ class ConditionsVariableRender(BaseVariableRender):
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
                 where: list[dict[str, Any] | str] = query_config.get(self._VARIABLE_FIELD) or []
-                if val_tmpl not in where:
-                    continue
+                if val_tmpl in where:
+                    query_config[self._VARIABLE_FIELD] = []
+                    for cond in where:
+                        if cond == val_tmpl:
+                            query_config[self._VARIABLE_FIELD].extend(value)
+                            continue
+                        query_config[self._VARIABLE_FIELD].append(cond)
 
-                query_config[self._VARIABLE_FIELD] = []
-                for cond in where:
-                    if cond == val_tmpl:
-                        query_config[self._VARIABLE_FIELD].extend(value)
-                        continue
-                    query_config[self._VARIABLE_FIELD].append(cond)
+                promql: str = query_config.get("promql") or ""
+                if val_tmpl in promql:
+                    query_config["promql"] = render_promql_conditions(promql, val_tmpl, value)
 
         return self._query_instance
 
@@ -253,6 +259,116 @@ class ExpressionFunctionsVariableRender(BaseVariableRender):
             self._query_instance.functions = result_functions
 
         return self._query_instance
+
+
+_PROMQL_VECTOR_RE = re.compile(r"([A-Za-z_:][A-Za-z0-9_:]*)\{([^{}]*)\}")
+_PROMQL_CONDITION_OPERATORS: dict[str, str] = {
+    "eq": "=",
+    "neq": "!=",
+    "req": "=~",
+    "reg": "=~",
+    "regex": "=~",
+    "nreq": "!~",
+    "nreg": "!~",
+    "nregex": "!~",
+    "include": "=~",
+    "exclude": "!~",
+}
+
+
+def _escape_promql_label_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _escape_promql_regex_literal(value: str) -> str:
+    return re.sub(r"([\\.^$|?*+(){}\[\]])", r"\\\1", value)
+
+
+def _condition_to_promql_matcher(cond: dict[str, Any]) -> str | None:
+    key: str = str(cond.get("key") or "")
+    method: str = str(cond.get("method") or "eq").lower()
+    raw_values: Any = cond.get("value")
+    if not key or raw_values is None:
+        return None
+
+    values: list[str]
+    if isinstance(raw_values, list):
+        values = [str(v) for v in raw_values if v is not None]
+    else:
+        values = [str(raw_values)]
+    if not values:
+        return None
+
+    operator: str | None = _PROMQL_CONDITION_OPERATORS.get(method)
+    if operator is None:
+        return None
+
+    if method in {"eq", "neq"} and len(values) == 1:
+        return f'{key}{operator}"{_escape_promql_label_value(values[0])}"'
+
+    if method in {"eq", "neq"}:
+        operator = "=~" if method == "eq" else "!~"
+        pattern: str = "^(?:" + "|".join(_escape_promql_regex_literal(value) for value in values) + ")$"
+    elif method in {"include", "exclude"}:
+        pattern = "(?:" + "|".join(f".*{_escape_promql_regex_literal(value)}.*" for value in values) + ")"
+    elif len(values) == 1:
+        pattern = values[0]
+    else:
+        pattern = "(?:" + "|".join(values) + ")"
+    return f'{key}{operator}"{_escape_promql_label_value(pattern)}"'
+
+
+def _split_condition_groups(where: list[Any]) -> list[list[dict[str, Any]]]:
+    groups: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    for cond in where:
+        if not isinstance(cond, dict):
+            continue
+        if str(cond.get("condition") or "and").lower() == "or" and current:
+            groups.append(current)
+            current = [cond]
+            continue
+        current.append(cond)
+    if current:
+        groups.append(current)
+    return groups
+
+
+def render_promql_conditions(promql: str, placeholder: str, where: list[Any]) -> str:
+    """仅在显式占位符处渲染 PromQL 条件，OR 条件按向量并集展开。"""
+    masked_placeholder: str = "__BK_QUERY_TEMPLATE_CONDITIONS__"
+    masked_promql: str = promql.replace(placeholder, masked_placeholder)
+    matcher_groups: list[list[str]] = []
+    for group in _split_condition_groups(where):
+        matchers: list[str] = []
+        for cond in group:
+            matcher: str | None = _condition_to_promql_matcher(cond)
+            if matcher:
+                matchers.append(matcher)
+        if matchers:
+            matcher_groups.append(matchers)
+
+    def replace_vector(match: re.Match[str]) -> str:
+        metric: str = match.group(1)
+        inner: str = match.group(2).strip()
+        if masked_placeholder not in inner:
+            return match.group(0)
+
+        base_matchers: str = inner.replace(masked_placeholder, "").strip(" ,")
+        if not matcher_groups:
+            return f"{metric}{{{base_matchers}}}"
+
+        variants: list[str] = []
+        for matchers in matcher_groups:
+            rendered_matchers: str = ",".join(matchers)
+            selector_matchers: str = ",".join(filter(None, [base_matchers, rendered_matchers]))
+            selector: str = f"{{{selector_matchers}}}"
+            variants.append(f"{metric}{selector}")
+        if len(variants) == 1:
+            return variants[0]
+        return "(" + " or ".join(variants) + ")"
+
+    return _PROMQL_VECTOR_RE.sub(replace_vector, masked_promql)
 
 
 class QueryTemplateWrapper(BaseQuery):

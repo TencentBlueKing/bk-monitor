@@ -1,5 +1,6 @@
 import datetime
 from typing import Any, TypeAlias
+from collections import defaultdict
 from collections.abc import Iterable
 from threading import Lock
 
@@ -190,7 +191,9 @@ class StrategyTemplateHandler:
             try:
                 # 服务检测过程中不抛异常，尽可能将模板下发到符合条件的服务上。
                 dispatch_num: int = len(
-                    dispatch.StrategyDispatcher(strategy_template, qtw).dispatch(entity_set, raise_exception=False)
+                    dispatch.StrategyDispatcher(strategy_template, qtw).dispatch(
+                        entity_set, raise_exception=False, overwrite_same_origin=False
+                    )
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(
@@ -231,6 +234,56 @@ class StrategyTemplateHandler:
         )
 
     @classmethod
+    def _same_origin_root_id(cls, strategy_template: StrategyTemplate) -> int:
+        if strategy_template.root_id == constants.DEFAULT_ROOT_ID:
+            return strategy_template.id
+        return strategy_template.root_id
+
+    @classmethod
+    def _select_same_origin_templates(cls, strategy_templates: list[StrategyTemplate]) -> list[StrategyTemplate]:
+        """覆盖同类时，同一同源组只下发根模板；根模板停用则任选一个。"""
+        if len(strategy_templates) <= 1:
+            return strategy_templates
+
+        groups: dict[int, list[StrategyTemplate]] = defaultdict(list)
+        for obj in strategy_templates:
+            groups[cls._same_origin_root_id(obj)].append(obj)
+        if all(len(members) == 1 for members in groups.values()):
+            return strategy_templates
+
+        selected_roots: dict[int, StrategyTemplate] = {}
+        missing_root_ids: list[int] = []
+        for root_id, members in groups.items():
+            if len(members) == 1:
+                continue
+            root_obj: StrategyTemplate | None = next((obj for obj in members if obj.id == root_id), None)
+            if root_obj is not None:
+                selected_roots[root_id] = root_obj
+            else:
+                missing_root_ids.append(root_id)
+
+        if missing_root_ids:
+            for obj in StrategyTemplate.objects.filter(
+                bk_biz_id=strategy_templates[0].bk_biz_id,
+                app_name=strategy_templates[0].app_name,
+                id__in=missing_root_ids,
+                is_enabled=True,
+            ):
+                selected_roots[obj.id] = obj
+
+        selected: list[StrategyTemplate] = []
+        seen: set[int] = set()
+        for obj in strategy_templates:
+            root_id: int = cls._same_origin_root_id(obj)
+            members: list[StrategyTemplate] = groups[root_id]
+            chosen: StrategyTemplate = members[0] if len(members) == 1 else selected_roots.get(root_id, members[0])
+            if chosen.id in seen:
+                continue
+            selected.append(chosen)
+            seen.add(chosen.id)
+        return selected
+
+    @classmethod
     def apply(
         cls,
         bk_biz_id: int,
@@ -240,9 +293,19 @@ class StrategyTemplateHandler:
         extra_configs_map: dict[StrategyTemplateId, list[dispatch.DispatchExtraConfig]] | None = None,
         global_config: dispatch.DispatchGlobalConfig | None = None,
         raise_exception: bool = True,
+        overwrite_same_origin: bool = True,
     ):
         extra_configs_map = extra_configs_map or {}
+        if overwrite_same_origin:
+            strategy_templates = cls._select_same_origin_templates(strategy_templates)
+            kept_ids: set[int] = {obj.pk for obj in strategy_templates}
+            extra_configs_map = {
+                template_id: extra_configs
+                for template_id, extra_configs in extra_configs_map.items()
+                if template_id in kept_ids
+            }
         entity_set: dispatch.EntitySet = dispatch.EntitySet(bk_biz_id, app_name, service_names)
+        keep_strategy_template_ids: list[int] = [obj.pk for obj in strategy_templates]
 
         def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
             try:
@@ -250,7 +313,12 @@ class StrategyTemplateHandler:
                     _obj, cls.get_query_template_or_none(_obj, query_template_map)
                 )
                 _service_strategy_id_map: dict[str, int] = _dispatcher.dispatch(
-                    entity_set, global_config, extra_configs_map.get(_obj.pk, []), raise_exception
+                    entity_set,
+                    global_config,
+                    extra_configs_map.get(_obj.pk, []),
+                    raise_exception,
+                    overwrite_same_origin=overwrite_same_origin,
+                    keep_strategy_template_ids=keep_strategy_template_ids,
                 )
             except Exception as e:  # pylint: disable=broad-except
                 # 由于异常会中断其他线程的下发，这里捕获所有异常，最后统一抛出，避免中断带来的不一致问题。

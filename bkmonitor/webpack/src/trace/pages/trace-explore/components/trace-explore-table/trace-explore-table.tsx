@@ -56,9 +56,10 @@ import {
 import { useExploreColumnConfig } from './hooks/use-explore-column-config';
 import { useExploreDataCache } from './hooks/use-explore-data-cache';
 import { useTableCell } from './hooks/use-table-cell';
-import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
+import { useTableHeaderDescription } from './hooks/use-table-popover';
 import { type ActiveConditionMenuTarget, type ExploreTableColumn, ExploreTableLoadingEnum } from './typing';
-import { isEllipsisActiveSingleLine } from './utils/dom-helper';
+import { useTableEllipsis, useTablePopover } from '../../../../hooks/use-table-popover';
+import { isEllipsisActiveSingleLine } from '../../../../utils/dom-helper';
 
 import type { ISpanListItem, ITraceListItem } from '../../../../typings';
 import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../../typing';

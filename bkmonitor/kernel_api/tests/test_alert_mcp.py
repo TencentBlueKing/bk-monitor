@@ -19,6 +19,13 @@ from rest_framework.exceptions import ValidationError
 from kernel_api.resource import alert
 
 
+@pytest.mark.parametrize(("timeout", "expected_valid"), [(7200, True), (7201, False)])
+def test_action_execute_config_timeout_limit(timeout, expected_valid):
+    serializer = alert.ActionExecuteConfigSerializer(data={"template_detail": {}, "timeout": timeout})
+
+    assert serializer.is_valid() is expected_valid
+
+
 def test_business_scoped_serializer_preserves_backend_fields():
     serializer = alert.BusinessScopedSerializer(
         data={"bk_biz_id": "2", "conditions": [{"key": "strategy_status", "value": ["ON"]}]}

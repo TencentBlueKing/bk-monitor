@@ -26,7 +26,6 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
 import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
@@ -37,7 +36,7 @@ import {
   partialUpdateAssignGroup,
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
+import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
@@ -213,6 +212,11 @@ export default class AlarmDispatch extends tsc<object> {
     return this.renderGroups;
   }
 
+  get getSpaceTimezone() {
+    const spaceTimezone = window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.time_zone || '';
+    return spaceTimezone;
+  }
+
   created() {
     this.getRouteParams();
     this.getAlarmDispatchGroupData();
@@ -266,7 +270,7 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
-            updateTime: dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ssZZ'),
+            updateTime: detailOfFormatWithTimezone(item.update_time, this.getSpaceTimezone),
             updateUser: item.update_user,
           })
       ) || [];
@@ -712,7 +716,7 @@ export default class AlarmDispatch extends tsc<object> {
                             <bk-user-display-name user-id={item.updateUser} />
                           </span>
                           <span class='separator' />
-                          <span class='update-time'>{formatWithTimezone(item.updateTime)}</span>
+                          <span class='update-time'>{item.updateTime}</span>
                         </div>
                         <div
                           class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}

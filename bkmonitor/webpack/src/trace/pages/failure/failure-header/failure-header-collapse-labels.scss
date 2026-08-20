@@ -1,0 +1,63 @@
+.failure-header-collapse-labels {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 22px;
+  overflow: hidden;
+  vertical-align: middle;
+  column-gap: 4px;
+
+  .header-collapse-label-item {
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  .visible-labels {
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    column-gap: 4px;
+  }
+
+  .header-collapse-plus {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 22px;
+    color: #63656e;
+    cursor: default;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    &:hover{
+      background: #dcdee5;
+    }
+  }
+
+  /* 测量层移出可视区域，避免被 overflow:hidden 裁剪导致宽度量不准 */
+  .measure-labels,
+  .measure-plus {
+    position: absolute;
+    top: -9999px;
+    left: 0;
+    z-index: -1;
+    display: inline-flex;
+    align-items: center;
+    pointer-events: none;
+    visibility: hidden;
+    white-space: nowrap;
+    column-gap: 4px;
+  }
+}
+
+.failure-header-collapse-labels-tip {
+  max-width: 360px;
+  font-size: 12px;
+  line-height: 20px;
+  word-break: break-all;
+}
