@@ -1,3 +1,241 @@
+// 提取 Collapse 内容区样式为 mixin，供主内容区和侧滑区复用
+@mixin collapse-content-styles {
+  font-size: 12px;
+
+  // Collapse公共样式
+  .bk-collapse-item {
+    background: #fff;
+    border-radius: 2px;
+    margin-bottom: 16px;
+
+    .bk-collapse-header {
+      height: 32px;
+      line-height: 32px;
+      background: #e1e4eb;
+      border-radius: 2px;
+      padding: 0;
+
+      .bk-collapse-title {
+        display: flex;
+        margin-left: 21px;
+        font-size: 12px;
+        color: #313238;
+      }
+
+      .bk-collapse-icon {
+        top: 9px;
+        left: 5px;
+
+        svg {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .bk-collapse-content {
+      padding: 0;
+      margin-left: 10px;
+      border-left: 1px solid #e1e4eb;
+    }
+  }
+
+  // 表格内容公共样式
+  .table-content {
+    display: block;
+    width: 100%;
+
+    &-item {
+      display: flex;
+      width: 100%;
+      line-height: 24px;
+      padding: 0 20px;
+      justify-content: center;
+
+      &:nth-child(2n) {
+        background: #fafbfd;
+      }
+
+      .item-label {
+        display: inline-block;
+        width: 90px;
+        color: #757880;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .item-value {
+        flex: 1;
+        color: #313238;
+        width: calc(100% - 130px);
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .item-value-link {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+
+  // 内嵌Collapse公共样式
+  .inner-collapse {
+    margin-top: 8px;
+    margin-left: 10px;
+
+    .bk-collapse-item {
+      border: 1px solid #ebeef5 !important;
+      margin-bottom: 8px !important;
+
+      &:last-child {
+        margin-bottom: 0 !important;
+      }
+
+      .bk-collapse-header {
+        height: 26px !important;
+        line-height: 26px !important;
+        background: #ebeef5 !important;
+
+        .bk-collapse-icon {
+          top: 6px !important;
+          left: 3px !important;
+        }
+      }
+
+      .bk-collapse-content {
+        margin-left: 0 !important;
+        border-left: 0 !important;
+      }
+    }
+  }
+}
+
+// 事件分析模块样式
+@mixin event-collapse-styles {
+  // 事件分析模块非内嵌Collapse
+  .event-collapse:not(.inner-collapse) {
+    .bk-collapse-header {
+      background: #c1cde6;
+    }
+  }
+
+  .event-collapse {
+    .event-title {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+
+      .event-icon {
+        display: inline-flex;
+        flex: 0 0 16px;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        margin-right: 4px;
+        background-position: center;
+        background-size: contain;
+      }
+
+      .general-icon-wrapper {
+        background: #2b3c56;
+        border-radius: 50%;
+
+        .general-icon {
+          color: #ffffff;
+          font-size: 12px;
+        }
+      }
+
+      .sub-event-title_general {
+        width: 100%;
+        display: inline-flex;
+        justify-content: space-between;
+
+        i {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}
+
+// 通用事件的示例事件内容样式
+@mixin general-event-content-styles {
+  .general-event-content {
+    padding-bottom: 6px;
+
+    // 禁用图标、括号点击的折叠/展开行为
+    .vjs-carets,
+    .vjs-tree-brackets {
+      pointer-events: none;
+    }
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: solid;
+      }
+
+      .vjs-key {
+        color: #9d694c;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #1f6d89;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
+    }
+
+    // 查看完整操作按钮
+    .view-full-action {
+      color: #3a84ff;
+      cursor: pointer;
+      font-size: 12px;
+      font-family:
+        -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+    }
+
+    // 伪造的"查看完整"行：隐藏冒号和空的value
+    .vjs-tree-node:has(.view-full-action) {
+      .vjs-colon,
+      .vjs-value:empty {
+        display: none;
+      }
+    }
+  }
+}
+
 .failure-trouble-shooting {
   height: 100%;
 }
@@ -190,119 +428,8 @@
 
       .failure-item-content {
         color: #4d4f56;
-        font-size: 12px;
         overflow: auto;
-
-        // Collapse公共样式
-        .bk-collapse-item {
-          background: #fff;
-          border-radius: 2px;
-          margin-bottom: 16px;
-
-          .bk-collapse-header {
-            height: 32px;
-            line-height: 32px;
-            background: #e1e4eb;
-            border-radius: 2px;
-            padding: 0;
-
-            .bk-collapse-title {
-              display: flex;
-              margin-left: 21px;
-              font-size: 12px;
-              color: #313238;
-            }
-
-            .bk-collapse-icon {
-              top: 9px;
-              left: 5px;
-
-              svg {
-                font-size: 12px;
-              }
-            }
-          }
-
-          .bk-collapse-content {
-            padding: 0;
-            margin-left: 10px;
-            border-left: 1px solid #e1e4eb;
-          }
-        }
-
-        // 表格内容公共样式
-        .table-content {
-          display: block;
-          width: 100%;
-
-          &-item {
-            display: flex;
-            width: 100%;
-            line-height: 24px;
-            padding: 0 20px;
-            justify-content: center;
-
-            &:nth-child(2n) {
-              background: #fafbfd;
-            }
-
-            .item-label {
-              display: inline-block;
-              width: 90px;
-              color: #757880;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-
-            .item-value {
-              flex: 1;
-              color: #313238;
-              width: calc(100% - 130px);
-              word-break: break-word;
-              display: -webkit-box;
-              -webkit-line-clamp: 3;
-              -webkit-box-orient: vertical;
-              overflow: hidden;
-            }
-
-            .item-value-link {
-              color: #3a84ff;
-              cursor: pointer;
-            }
-          }
-        }
-
-        // 内嵌Collapse公共样式
-        .inner-collapse {
-          margin-top: 8px;
-          margin-left: 10px;
-
-          .bk-collapse-item {
-            border: 1px solid #ebeef5 !important;
-            margin-bottom: 8px !important;
-
-            &:last-child {
-              margin-bottom: 0 !important;
-            }
-
-            .bk-collapse-header {
-              height: 26px !important;
-              line-height: 26px !important;
-              background: #ebeef5 !important;
-
-              .bk-collapse-icon {
-                top: 6px !important;
-                left: 3px !important;
-              }
-            }
-
-            .bk-collapse-content {
-              margin-left: 0 !important;
-              border-left: 0 !important;
-            }
-          }
-        }
+        @include collapse-content-styles;
       }
 
       .dimensional-collapse {
@@ -341,24 +468,8 @@
         }
       }
 
-      .event-collapse {
-        .event-title {
-          display: flex;
-          align-items: center;
-
-          .event-icon {
-            display: inline-flex;
-            flex: 0 0 16px;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            margin-right: 4px;
-            background-position: center;
-            background-size: contain;
-          }
-        }
-      }
+      @include event-collapse-styles;
+      @include general-event-content-styles;
 
       .log-collapse {
         margin-left: 0 !important;
@@ -502,6 +613,11 @@
   .mb-8 {
     margin-bottom: 8px;
   }
+
+  .cursor-link {
+    cursor: pointer;
+    color: #3a84ff;
+  }
 }
 
 .overflow-popover {
@@ -579,5 +695,95 @@
   .failure-item-wrapper {
     padding: 0 !important;
     margin: 0;
+  }
+}
+
+.json-viewer-slider {
+  .bk-modal-header .bk-sideslider-header {
+    border-bottom: none;
+  }
+
+  .bk-modal-content {
+    height: 100%;
+    background: #1e1e1e;
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-tree-brackets {
+        color: #fed501;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: solid;
+        border-left-color: #3f3f3f;
+      }
+
+      .vjs-key {
+        color: #83d4f4;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #d78d73;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
+    }
+  }
+
+  &-header {
+    display: flex;
+    align-items: center;
+
+    .title-left {
+      font-size: 16px;
+      color: #313238;
+    }
+
+    .divider {
+      margin: 0 8px;
+      color: #dcdee5;
+    }
+
+    .title-right {
+      color: #979ba5;
+      font-size: 14px;
+    }
+  }
+
+  &-content {
+    padding: 0 30px;
+  }
+}
+
+// 全部事件侧滑
+.all-events-slider {
+  &-content {
+    padding: 16px 24px;
+    @include collapse-content-styles;
+    @include event-collapse-styles;
+    @include general-event-content-styles;
   }
 }

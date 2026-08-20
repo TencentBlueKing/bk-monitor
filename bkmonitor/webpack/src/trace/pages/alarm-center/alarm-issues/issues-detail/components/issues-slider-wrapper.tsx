@@ -64,6 +64,7 @@ import type {
   IssuePriorityType,
   IssueStatusType,
 } from '../../typing/constants';
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 
 import './issues-slider-wrapper.scss';
 
@@ -103,6 +104,11 @@ export default defineComponent({
       type: String as PropType<EMode>,
       default: EMode.ui,
     },
+    /** 告警详情页签（视图/日志/调用链等）默认选中项 */
+    defaultInnerTab: {
+      type: String as PropType<'' | AlarmCenterPanelTabType>,
+      default: '',
+    },
   },
   emits: {
     conditionChange: (_v: IWhereItem[]) => true,
@@ -121,6 +127,10 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
+
+    /** 告警详情页签（视图/日志/调用链等）默认选中项（Sideslider 使用 v-if，每次打开为新实例） */
+    const controllableDefaultInnerTab = shallowRef<'' | AlarmCenterPanelTabType>(props.defaultInnerTab);
+
     const latestAlertId = shallowRef('');
     const earliestAlertId = shallowRef('');
     const latestAlertIdLoading = shallowRef(false);
@@ -339,6 +349,7 @@ export default defineComponent({
     });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
+      controllableDefaultInnerTab.value = '';
       currentTab.value = tab;
     };
 
@@ -439,6 +450,7 @@ export default defineComponent({
               }}
               alarmId={latestAlertId.value || ''}
               bizId={props.detail.bk_biz_id}
+              defaultTab={controllableDefaultInnerTab.value}
             />
           ) : (
             emptyRender()

@@ -5,6 +5,20 @@
   flex-direction: column;
   min-height: 0;
 
+  &__metric-error {
+    display: flex;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    color: #63656e;
+    background: #fff4e2;
+
+    &-action {
+      margin-left: 8px;
+    }
+  }
+
   /** 主机列表溢出省略单元格（配合 useTableEllipsis 事件委托，溢出时弹 tooltip，避免微前端下错位） */
   .host-list-ellipsis-cell {
     display: block;
@@ -93,6 +107,10 @@
   .t-table th {
     height: 36px;
   }
+}
+
+.host-table-metric-error {
+  color: #ff9c01;
 }
 
 /** 主机蓝链 */

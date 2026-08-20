@@ -230,7 +230,9 @@ NEW_SERIES_PROCESS_TIME = Histogram(
 
 NEW_SERIES_PROCESS_COUNT = Counter(
     name="bkmonitor_new_series_process_count",
-    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/invalid_value/failure)",
+    documentation=(
+        "NewSeries 处理计数(type: seen_write/trim/over_limit/invalid_value/active_failure/active_over_limit/active_trim/claimed_trim/failure)"
+    ),
     labelnames=("strategy_id", "type"),
 )
 
@@ -257,6 +259,28 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     name="bkmonitor_trigger_process_push_data_count",
     documentation="trigger 模块数据推送条数",
     labelnames=("strategy_id",),
+)
+
+# Alarm Engine Trigger-only Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
+# 因此发布结果、耗时和已确认条数本身就是能力闭环的一部分。
+# stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
+ALARM_ENGINE_SHADOW_PUBLISH_COUNT = Counter(
+    name="bkmonitor_alarm_engine_shadow_publish_count",
+    documentation="Alarm Engine Shadow 发布次数(stage: detection/reference; status: success/failed)",
+    labelnames=("stage", "status"),
+)
+
+ALARM_ENGINE_SHADOW_PUBLISH_RECORD_COUNT = Counter(
+    name="bkmonitor_alarm_engine_shadow_publish_record_count",
+    documentation="Alarm Engine Shadow 已获 broker 确认的记录条数(stage: detection/reference)",
+    labelnames=("stage",),
+)
+
+ALARM_ENGINE_SHADOW_PUBLISH_TIME = Histogram(
+    name="bkmonitor_alarm_engine_shadow_publish_time",
+    documentation="Alarm Engine Shadow 发布耗时，含等待 broker 确认；首期该等待发生在模块处理锁内",
+    labelnames=("stage", "status"),
+    buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, INF),
 )
 
 STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(
@@ -386,6 +410,93 @@ AIOPS_PRE_DETECT_LATENCY = Gauge(
     name="bkmonitor_aiops_pre_detect_latency",
     documentation="AIOPS SDK策略预检测耗时",
     labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
+)
+
+AIOPS_SAS_REQUEST_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_request_latency",
+    documentation="SAS 异常等级评分任务侧等待耗时，包含线程池调度时间",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_REQUEST_COUNT = Counter(
+    name="bkmonitor_aiops_sas_request_count_total",
+    documentation="SAS 异常等级评分请求统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_REQUEST_POINT_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_request_point_count",
+    documentation="单次 SAS 异常等级评分请求包含的异常点数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_CLIENT_REQUEST_COUNT = Counter(
+    name="bkmonitor_aiops_sas_client_request_count_total",
+    documentation="SAS 客户端实际调用统计，batch_timeout 表示调用未在批次预算内完成",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_CLIENT_REQUEST_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_client_request_latency",
+    documentation="SAS 客户端实际调用耗时，不包含线程池调度时间；batch_timeout 记录批次截止时已观测耗时",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_BATCH_COUNT = Counter(
+    name="bkmonitor_aiops_sas_batch_count_total",
+    documentation="SAS 动态告警等级处理批次统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_BATCH_LATENCY = Histogram(
+    name="bkmonitor_aiops_sas_batch_latency",
+    documentation="SAS 动态告警等级处理批次耗时",
+    labelnames=("status",),
+    buckets=(0.5, 1, 2, 3, 5, 8, 10, 15, 20, 30, 45, 60, INF),
+)
+
+AIOPS_SAS_BATCH_POINT_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_batch_point_count",
+    documentation="单个 SAS 动态告警等级处理批次包含的异常点数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_SAS_BATCH_REQUEST_COUNT = Histogram(
+    name="bkmonitor_aiops_sas_batch_request_count",
+    documentation="单个 SAS 动态告警等级处理批次发起的请求数量",
+    buckets=(1, 2, 5, 10, 20, 50, 100, 200, 500, INF),
+)
+
+AIOPS_DYNAMIC_ALERT_LEVEL_POINT_COUNT = Counter(
+    name="bkmonitor_aiops_dynamic_alert_level_point_count_total",
+    documentation="智能异常检测动态告警等级功能覆盖点数",
+    labelnames=("mode", "stage"),
+)
+
+AIOPS_SAS_RESULT_COUNT = Counter(
+    name="bkmonitor_aiops_sas_result_count_total",
+    documentation="SAS 异常等级评分结果统计",
+    labelnames=("status",),
+)
+
+AIOPS_SAS_FALLBACK_COUNT = Counter(
+    name="bkmonitor_aiops_sas_fallback_count_total",
+    documentation="SAS 异常等级评分回退统计",
+    labelnames=("reason",),
+)
+
+AIOPS_SAS_ALERT_LEVEL_COUNT = Counter(
+    name="bkmonitor_aiops_sas_alert_level_count_total",
+    documentation="SAS 动态告警等级分布",
+    labelnames=("source", "alert_level"),
+)
+
+AIOPS_SAS_ALERT_LEVEL_PROJECTION_COUNT = Counter(
+    name="bkmonitor_aiops_sas_alert_level_projection_count_total",
+    documentation="SAS 原始告警等级到允许输出等级的投影统计",
+    labelnames=("raw_alert_level", "alert_level"),
 )
 
 TRIGGER_PROCESS_LATENCY = Histogram(
@@ -732,6 +843,20 @@ CONFIG_MAXCLIENTS = Gauge(
 CONFIG_MAXMEMORY = Gauge(
     name="redis_config_maxmemory",
     documentation="The value of the maxmemory configuration directive",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+# 聚合类型的紧凑编码阈值：成员数越过该阈值后 zset/hash 由 listpack 转为 skiplist/hashtable，
+# 单成员内存开销显著上升且转换不可逆。估算检测态内存成本时必须知道实际阈值，不能假定默认值。
+CONFIG_ZSET_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_zset_max_listpack_entries",
+    documentation="The value of the zset-max-listpack-entries configuration directive (-1 if unavailable)",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+CONFIG_HASH_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_hash_max_listpack_entries",
+    documentation="The value of the hash-max-listpack-entries configuration directive (-1 if unavailable)",
     labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
@@ -1305,6 +1430,12 @@ METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
     labelnames=("version", "biz_id", "strategy", "status"),
+)
+
+METADATA_DATA_LINK_REFRESH_TOTAL = Counter(
+    name="bkmonitor_metadata_data_link_refresh_total",
+    documentation="监控元数据数据链路组件刷新结果统计",
+    labelnames=("operation",),
 )
 
 API_REQUESTS_TOTAL = Counter(

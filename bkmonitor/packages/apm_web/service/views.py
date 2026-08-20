@@ -36,8 +36,8 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 class ServiceViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
-    def get_permissions(self):
-        if self.action in ["app_query_by_index_set"]:
+    def get_permissions(self) -> list[InstanceActionForDataPermission]:
+        if self.action == "app_query_by_index_set":
             return []
 
         return [

@@ -43,7 +43,9 @@ import {
   handleSetThresholdArea,
   handleSetThresholdLine,
   mergeOverlappingArrays,
+  processLineSymbols,
 } from './utils';
+import { resolveVariables } from '@/pages/host/components/dashbords/variables/resolve';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
@@ -177,7 +179,6 @@ export const createSeries = (series: SeriesItem[], customSeries?: CustomOptions[
       type: data.type,
       stack: data.stack,
       unit: data.unit,
-      // @ts-expect-error
       connectNulls: false,
       sampling: 'none',
       showAllSymbol: 'auto',
@@ -227,6 +228,9 @@ export const createSeries = (series: SeriesItem[], customSeries?: CustomOptions[
       xAxisDataMap.set(reuseAxisIndex, [...xData]);
     }
   }
+  // 用补了 null 后的 data 判断孤立点并设置最终 symbol 大小
+  processLineSymbols(seriesData);
+
   return {
     xData: Array.from(xAllData).sort(),
     seriesData: customSeries?.(seriesData) ?? seriesData,
@@ -353,10 +357,11 @@ export const createYAxis = (yData: EchartSeriesItem[], type?: string) => {
   });
 };
 export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOptions['options']) => {
+  const hasShowSymbol = series.some(item => item.showSymbol);
   const options = {
     useUTC: false,
-    animation: false,
-    animationThreshold: 2000,
+    animation: hasShowSymbol,
+    animationThreshold: hasShowSymbol ? 1 : 2000,
     animationDurationUpdate: 0,
     animationDuration: 20,
     animationDelay: 300,
@@ -459,6 +464,7 @@ export const useEcharts = ({
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
+  const timeOffset = inject('timeOffset', []);
   const refreshImmediate = inject('refreshImmediate');
   const { applyPeakMarkPoint, watchHighlightPeak } = useChartViewOption();
   let cancelTokens = [];
@@ -499,7 +505,56 @@ export const useEcharts = ({
     }
   };
 
+  // 转换time_shift显示
+  const handleTransformTimeShift = (val: string) => {
+    const timeMatch = val.match(/(-?\d+)(\w+)/);
+    const hasMatch = timeMatch && timeMatch.length > 2;
+    return hasMatch
+      ? dayjs
+          .tz()
+          .add(-timeMatch[1], timeMatch[2] as dayjs.ManipulateType)
+          .fromNow()
+          .replace(/\s*/g, '')
+      : val.replace('current', window.i18n.t('当前'));
+  };
+  /** 处理时间对比时线条名字 */
+  const handleTimeOffset = (timeOffset: string) => {
+    const match = timeOffset.match(/(current|(\d+)([hdwM]))/);
+    if (match) {
+      const [target, , num, type] = match;
+      const map: Record<string, string> = {
+        d: window.i18n.t('{n} 天前', { n: num }),
+        w: window.i18n.t('{n} 周前', { n: num }),
+        M: window.i18n.t('{n} 月前', { n: num }),
+        current: window.i18n.t('当前'),
+      };
+      return map[type || target];
+    }
+    return timeOffset;
+  };
+  // 设置series 名称
+  const handleSeriesName = (
+    item: DataQuery,
+    set: { dimensions?: any; dimensions_translation?: any; time_offset?: any }
+  ) => {
+    const { dimensions = {}, dimensions_translation: dimensionsTranslation = {} } = set;
+    if (!item.alias) {
+      return set.time_offset
+        ? handleTimeOffset(set.time_offset)
+        : Object.values({
+            ...dimensions,
+            ...dimensionsTranslation,
+          }).join('|');
+    }
+
+    const aliasFix = Object.values(dimensions).join('|');
+    if (!aliasFix.length) return item.alias;
+    return `${item.alias}-${aliasFix}`;
+  };
+
   const loading = shallowRef(false);
+  /** 当前图表请求是否全部失败（部分成功仍保留可用结果） */
+  const loadError = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
   const options = shallowRef();
@@ -535,6 +590,8 @@ export const useEcharts = ({
   };
 
   const getEchartOptions = async () => {
+    const requestId = ++currentRequestId;
+    loadError.value = false;
     for (const cb of cancelTokens) {
       cb?.();
     }
@@ -550,7 +607,6 @@ export const useEcharts = ({
       unregisterObserver(viewportRequest.el.value);
     }
     cancelTokens = [];
-    const requestId = ++currentRequestId;
     const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
@@ -558,11 +614,12 @@ export const useEcharts = ({
     const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange) || DEFAULT_TIME_RANGE);
 
     /** 单个 target 请求 + 数据格式化 */
-    const queryTarget = (target: DataQuery) => {
+    const queryTarget = (target: DataQuery, time_shift: string) => {
+      const data = resolveVariables(target.data, { time_shift: time_shift });
       const resultParams = {
         start_time: startTime,
         end_time: endTime,
-        ...target.data,
+        ...data,
         ...(toValue(params) ?? {}),
       };
 
@@ -602,16 +659,20 @@ export const useEcharts = ({
           }
           targets.value.push(targetCopy);
           return series?.length
-            ? series.map(item => ({
-                ...item,
-                alias: target.alias || item.alias,
-                type: target.chart_type || toValue(panel).options?.time_series?.type || item.type || 'line',
-                stack: target.data?.stack || item.stack,
-                unit: item.unit || (toValue(panel)?.options as { unit?: string })?.unit,
-              }))
+            ? series.map(item => {
+                return {
+                  ...item,
+                  name: `${toValue(timeOffset).length ? `${handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                    handleSeriesName(target, item) || item.target || ''
+                  }`,
+                  alias: target.alias || item.alias,
+                  type: target.chart_type || toValue(panel).options?.time_series?.type || item.type || 'line',
+                  stack: target.data?.stack || item.stack,
+                  unit: item.unit || (toValue(panel)?.options as { unit?: string })?.unit,
+                };
+              })
             : [];
-        })
-        .catch(() => []);
+        });
     };
 
     /** 把 Promise.allSettled 结果展开为 series 列表 */
@@ -625,23 +686,39 @@ export const useEcharts = ({
       return list;
     };
 
+    const timeShiftList = ['', ...toValue(timeOffset)];
+
     const allTargets = toValue(panel)?.targets ?? [];
     const syncTargets = allTargets.filter(t => !t.lazyRender);
     const lazyTargets = allTargets.filter(t => t.lazyRender);
-
-    // 阶段一：先等同步 target，得到首屏渲染数据
-    const syncResList = await Promise.allSettled(syncTargets.map(queryTarget)).finally(() => {
-      loading.value = false;
+    // 阶段一：先等同步 target，得到首屏渲染数据（对每个 time_shift 迭代请求）
+    const syncPromiseList = timeShiftList.flatMap(time_shift =>
+      syncTargets.map(target => queryTarget(target, time_shift))
+    );
+    const syncResList = await Promise.allSettled(syncPromiseList).finally(() => {
+      if (requestId === currentRequestId) {
+        loading.value = false;
+      }
     });
+    if (requestId !== currentRequestId) return options.value;
+    const hasSyncSuccess = syncResList.some(item => item.status === 'fulfilled');
+    const hasSyncFailure = syncResList.some(item => item.status === 'rejected');
+    loadError.value = !hasSyncSuccess && hasSyncFailure;
     const syncSeriesList = flattenSeries(syncResList);
     duration.value = Date.now() - startDate;
     series.value = syncSeriesList;
 
     // 阶段二：lazyRender target 后台请求，到达后合并并刷新图表
     if (lazyTargets.length) {
-      Promise.allSettled(lazyTargets.map(queryTarget)).then(lazyResList => {
+      const lazyPromiseList = timeShiftList.flatMap(time_shift =>
+        lazyTargets.map(target => queryTarget(target, time_shift))
+      );
+      Promise.allSettled(lazyPromiseList).then(lazyResList => {
         // 期间已有新请求触发，丢弃过期数据
         if (requestId !== currentRequestId) return;
+        const hasLazySuccess = lazyResList.some(item => item.status === 'fulfilled');
+        const hasLazyFailure = lazyResList.some(item => item.status === 'rejected');
+        loadError.value = !(hasSyncSuccess || hasLazySuccess) && (hasSyncFailure || hasLazyFailure);
         const lazySeriesList = flattenSeries(lazyResList);
         if (!lazySeriesList.length) return;
         const merged = [...series.value, ...lazySeriesList];
@@ -656,7 +733,13 @@ export const useEcharts = ({
     return buildOptions(syncSeriesList);
   };
   watch(
-    [() => toValue(timeRange), () => toValue(refreshImmediate), () => toValue(panel), () => toValue(params)],
+    [
+      () => toValue(timeRange),
+      () => toValue(refreshImmediate),
+      () => toValue(panel),
+      () => toValue(params),
+      () => toValue(timeOffset),
+    ],
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();
@@ -687,6 +770,7 @@ export const useEcharts = ({
     }
   });
   return {
+    loadError,
     loading,
     options,
     metricList,

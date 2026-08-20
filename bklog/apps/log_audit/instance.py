@@ -140,24 +140,23 @@ def push_event(request):
 InstanceFilter = (
     # 检索-SearchViewSet
     (re.compile(r"/api/v1/search/index_set/\?space_uid=\w+"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/search"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/fields"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/context"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/tail_f"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/export"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/async_export"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/export_history"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/history"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/search"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/fields"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/context"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/tail_f"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/export"), LogSearchInstance),  # 前缀已覆盖 export_history
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/async_export"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/history"), LogSearchInstance),
     (re.compile(r"/api/v1/search/index_set/option/history"), LogSearchInstance),
     (re.compile(r"/api/v1/search/index_set/config/"), LogSearchInstance),
     (re.compile(r"/api/v1/search/index_set/create_config"), LogSearchInstance),
     (re.compile(r"/api/v1/search/index_set/update_config"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/retrieve_config"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/retrieve_config"), LogSearchInstance),
     (re.compile(r"/api/v1/search/index_set/list_config/"), LogSearchInstance),
     (re.compile(r"/api/v1/search/index_set/delete_config"), LogSearchInstance),
     # 聚合-AggsViewSet
-    (re.compile(r"/api/v1/search/index_set/\d+/aggs/terms"), LogSearchInstance),
-    (re.compile(r"/api/v1/search/index_set/\d+/aggs/date_histogram"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/aggs/terms"), LogSearchInstance),
+    (re.compile(r"/api/v1/search/index_set/(?P<uid>\d+)/aggs/date_histogram"), LogSearchInstance),
     # 收藏-FavoriteViewSet
     (re.compile(r"/api/v1/search/favorite/\d+"), LogSearchInstance),  # retrieve 和 destory合并
     (re.compile(r"/api/v1/search/favorite/\?space_uid=\w+"), LogSearchInstance),  # list
@@ -169,7 +168,6 @@ InstanceFilter = (
     (re.compile(r"/api/v1/search/favorite/generate_query"), LogSearchInstance),
     (re.compile(r"/api/v1/search/favorite/inspect"), LogSearchInstance),
     # 收藏组-FavoriteGroupViewSet
-    (re.compile(r"/api/v1/search/favorite/\?space_uid=\w+"), LogSearchInstance),
     (re.compile(r"/api/v1/search/favorite_group/$"), LogSearchInstance),
     (re.compile(r"/api/v1/search/favorite_group/\d+"), LogSearchInstance),
     # IP选择器
@@ -203,19 +201,14 @@ InstanceFilter = (
     (re.compile(r"/api/v1/log_extract/explorer/query_hosts"), LogExtractInstance),
     (re.compile(r"/api/v1/log_extract/explorer/query_host_id_infos"), LogExtractInstance),
     # # 日志提取-TaskViewSet
-    (re.compile(r"/api/v1/log_extract/tasks"), LogSearchInstance),
-    (re.compile(r"/api/v1/log_extract/tasks/download"), LogSearchInstance),
-    (re.compile(r"/api/v1/log_extract/tasks/recreate"), LogSearchInstance),
-    (re.compile(r"/api/v1/log_extract/tasks/polling"), LogSearchInstance),
-    (re.compile(r"/api/v1/log_extract/tasks/\d+"), LogSearchInstance),
-    (re.compile(r"/api/v1/log_extract/tasks/link_list"), LogSearchInstance),
-    (re.compile(r"/api/v1/log_extract/tasks/download"), LogSearchInstance),
+    # 带任务 ID 的规则须排在宽泛前缀之前，否则 uid 永远捕获不到
+    (re.compile(r"/api/v1/log_extract/tasks/(?P<uid>\d+)"), LogExtractInstance),
+    (re.compile(r"/api/v1/log_extract/tasks"), LogExtractInstance),
     # META-MetaViewSet
     (re.compile(r"/api/v1/meta/mine"), LogSearchInstance),
     (re.compile(r"/api/v1/meta/spaces/mine"), LogSearchInstance),
     (re.compile(r"/api/v1/meta/projects"), LogSearchInstance),
     (re.compile(r"/api/v1/meta/index_html_environment"), LogSearchInstance),
-    (re.compile(r"/api/v1/meta/projects/mine"), LogSearchInstance),
     (re.compile(r"/api/v1/meta/msg_type"), LogSearchInstance),
     (re.compile(r"/api/v1/meta/scenario"), LogSearchInstance),
     (re.compile(r"/api/v1/meta/globals"), LogSearchInstance),

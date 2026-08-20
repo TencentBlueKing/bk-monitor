@@ -421,7 +421,8 @@ host_set_template
 {
   "detect_range": 3600,
   "threshold": 0,
-  "max_series": 100000
+  "max_series": 100000,
+  "alert_mode": "once"
 }
 ```
 
@@ -431,6 +432,7 @@ host_set_template
 | threshold | int | 否 | 0 | 仅当数据值严格大于该阈值时参与首次出现判断；允许负整数 |
 | max_series | int | 否 | 100000 | 单个监控项、维度签名和阈值分组保留的最大已见维度值数量，必须大于 0 |
 | effective_delay | int | 否 | detect_range | 建议不传；后端会将其归一为 `detect_range` |
+| alert_mode | string | 否 | once | `once` 表示仅首次出现时告警；`continuous` 表示维度持续有效出现时保持告警 |
 
 保存限制：
 
@@ -438,6 +440,8 @@ host_set_template
 - 支持任意数据源的 `time_series`，以及日志平台的 `bk_log_search` / `log` 日志关键字查询；不支持事件数据。
 - NewSeries 必须独占告警级别。策略内其它算法不能使用 NewSeries 已占用的 `level`。
 - `trigger_config.count` 使用 `1`；后端也会将 NewSeries 对应告警级别的触发次数强制为 `1`。
+- `alert_mode` 只控制告警状态生命周期，不控制通知次数；通知频率仍由通知与收敛配置决定。
+- `continuous` 复用 `detect_range` 作为观察窗口。同一维度再次满足阈值时只续期窗口，不重复产生异常事件；完整窗口内没有再次有效出现时，按 `recovery_config.status_setter` 恢复或关闭。
 
 #### NewSeries 创建示例
 
@@ -491,7 +495,8 @@ host_set_template
           "config": {
             "detect_range": 3600,
             "threshold": 0,
-            "max_series": 100000
+            "max_series": 100000,
+            "alert_mode": "continuous"
           }
         }
       ]
@@ -700,7 +705,6 @@ data返回保存的策略结构，与请求参数一致（示例数据中省略�
   "data": {}
 }
 ```
-
 
 
 

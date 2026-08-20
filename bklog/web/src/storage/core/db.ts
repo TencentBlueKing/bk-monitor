@@ -103,8 +103,13 @@ export interface RetrieveFieldAliasConfigEntity {
   expireAt: number;
 }
 
+/** 主检索结果表 vs 上下文/实时「原始日志检索结果」本地检索表 */
+export type RetrieveRowStoreName = 'retrieveRows' | 'relatedLogSearchRows';
+
 class BkLogStorageDB extends Dexie {
   retrieveRows!: Table<RetrieveRowEntity, string>;
+  /** 上下文/实时 Tab 下半本地检索专用，与主检索 retrieveRows 物理隔离 */
+  relatedLogSearchRows!: Table<RetrieveRowEntity, string>;
   keyValues!: Table<KeyValueEntity, string>;
   apiCaches!: Table<ApiCacheEntity, string>;
   performanceRecords!: Table<PerformanceRecordEntity, number>;
@@ -154,6 +159,22 @@ class BkLogStorageDB extends Dexie {
       retrieveFieldAliasConfigs: 'key, scope, updatedAt, expireAt',
       activeRetrieveQueries: 'ownerId, queryKey, updatedAt, expireAt',
     });
+
+    this.version(5).stores({
+      retrieveRows: 'key, queryKey, [queryKey+seq], seq, expireAt',
+      relatedLogSearchRows: 'key, queryKey, [queryKey+seq], seq, expireAt',
+      keyValues: 'key, expireAt, updatedAt',
+      apiCaches: 'key, expireAt, updatedAt',
+      performanceRecords: '++id, sessionId, type, timestamp, routeFullPath',
+      retrieveFieldMetas: 'key, scope, updatedAt, expireAt',
+      retrieveFieldWidths: 'key, scope, [scope+fieldName], fieldName, updatedAt, expireAt',
+      retrieveFieldAliasConfigs: 'key, scope, updatedAt, expireAt',
+      activeRetrieveQueries: 'ownerId, queryKey, updatedAt, expireAt',
+    });
+  }
+
+  getRowTable(storeName: RetrieveRowStoreName = 'retrieveRows') {
+    return storeName === 'relatedLogSearchRows' ? this.relatedLogSearchRows : this.retrieveRows;
   }
 }
 

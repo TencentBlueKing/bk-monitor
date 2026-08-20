@@ -1371,6 +1371,14 @@ AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 PUSH_MONITOR_EVENT_TO_FTA = True
 # 监控推送事件数据给自愈的 kafka topic
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
+# Alarm Engine Trigger-only Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
+ALARM_ENGINE_DETECTION_SHADOW_ENABLED = False
+ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS = ()
+ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG = {}
+ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS = ()
+ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED = False
+ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
+ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数
@@ -1930,6 +1938,8 @@ SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_
 AIOPS_SERVER_TF_URL = os.getenv("BKAPP_AIOPS_SERVER_TF_URL", "http://bk-aiops-serving-tf:8000")
 # 智能异常检测远程访问地址
 AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-serving-kpi:8000")
+# 异常等级评分远程访问地址，由部署环境显式配置
+AIOPS_SERVER_SAS_URL = os.getenv("BKAPP_AIOPS_SERVER_SAS_URL", "")
 # 离群检测远程访问地址
 AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
 # SDK执行预测逻辑接口
@@ -1938,6 +1948,25 @@ AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/api/aiops/default/")
 AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/api/aiops/init_depend/")
 # SDK执行分组预测逻辑接口
 AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/api/aiops/group_predict/")
+# 异常等级评分接口
+AIOPS_SAS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_SAS_PREDICT_SDK", "/aiops/serving/default/")
+AIOPS_SAS_TIMEOUT = max(1, int(os.getenv("BKAPP_AIOPS_SAS_TIMEOUT", 15)))
+# SAS 是 KPI 检测后的增量阶段，批次总预算不超过单请求超时，避免拖长 detect 主链路
+AIOPS_SAS_BATCH_TIMEOUT = max(
+    1, min(int(os.getenv("BKAPP_AIOPS_SAS_BATCH_TIMEOUT", AIOPS_SAS_TIMEOUT)), AIOPS_SAS_TIMEOUT)
+)
+
+
+def _parse_aiops_sas_threshold(name, default):
+    try:
+        return float(os.getenv(name, default))
+    except (TypeError, ValueError):
+        # 保留进程可用性，由检测链路将非法阈值按 SAS 不可用回退为预警
+        return None
+
+
+AIOPS_SAS_FATAL_THRESHOLD = _parse_aiops_sas_threshold("BKAPP_AIOPS_SAS_FATAL_THRESHOLD", 0.8)
+AIOPS_SAS_WARNING_THRESHOLD = _parse_aiops_sas_threshold("BKAPP_AIOPS_SAS_WARNING_THRESHOLD", 0.5)
 # bkfara apigew地址
 BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
 BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")

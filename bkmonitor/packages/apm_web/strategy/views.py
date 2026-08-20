@@ -262,6 +262,7 @@ class StrategyTemplateViewSet(GenericViewSet):
             strategy_templates=strategy_templates,
             extra_configs_map=extra_configs_map,
             global_config=global_config,
+            overwrite_same_origin=self.query_data["overwrite_same_origin"],
         )
         return Response({"app_name": self.query_data["app_name"], "list": apply_data})
 
@@ -319,10 +320,12 @@ class StrategyTemplateViewSet(GenericViewSet):
         for result in results:
             if result.get("same_origin_strategy_template"):
                 strategy_template_ids.add(result["same_origin_strategy_template"]["id"])
+            for same_origin_template in result.get("same_origin_strategy_templates") or []:
+                strategy_template_ids.add(same_origin_template["id"])
 
-        def _set_name(_result: dict[str, Any], _field: str, _id_info_map: dict[int, dict[str, Any]]) -> None:
+        def _set_name(_item: dict[str, Any], _id_info_map: dict[int, dict[str, Any]]) -> None:
             try:
-                _result[_field]["name"] = _id_info_map[_result[_field]["id"]]["name"]
+                _item["name"] = _id_info_map[_item["id"]]["name"]
             except (KeyError, TypeError):
                 pass
 
@@ -331,7 +334,10 @@ class StrategyTemplateViewSet(GenericViewSet):
             for strategy_template in self.get_queryset().filter(id__in=strategy_template_ids).values("id", "name")
         }
         for result in results:
-            _set_name(result, "same_origin_strategy_template", id_strategy_template_map)
+            if result.get("same_origin_strategy_template"):
+                _set_name(result["same_origin_strategy_template"], id_strategy_template_map)
+            for same_origin_template in result.get("same_origin_strategy_templates") or []:
+                _set_name(same_origin_template, id_strategy_template_map)
 
         return Response({"list": results})
 
@@ -400,12 +406,9 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         editable_fields: list[str] = serializers.StrategyTemplateBatchPartialUpdateRequestSerializer.EDITABLE_FIELDS
         strategy_template_objs: list[StrategyTemplate] = list(
-            self.get_queryset()
-            .filter(id__in=self.query_data["ids"])
-            .only(*editable_fields, "id", "root_id", "auto_applied_at")
+            self.get_queryset().filter(id__in=self.query_data["ids"]).only(*editable_fields, "id", "auto_applied_at")
         )
         model_serializer = serializers.StrategyTemplateModelSerializer
-        model_serializer.validate_auto_apply(strategy_template_objs, edit_data)
         for obj in strategy_template_objs:
             model_serializer.set_auto_apply(edit_data, obj, edit_data["update_time"])
 
@@ -425,7 +428,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_template_obj: StrategyTemplate = get_object_or_404(
             self.get_queryset(), id=self.query_data["strategy_template_id"]
         )
-        applied_instance_obj: StrategyInstance | None = StrategyInstance.filter_same_origin_instances(
+        same_origin_qs: QuerySet[StrategyInstance] = StrategyInstance.filter_same_origin_instances(
             StrategyInstance.objects.filter(
                 bk_biz_id=self.query_data["bk_biz_id"],
                 app_name=self.query_data["app_name"],
@@ -433,7 +436,16 @@ class StrategyTemplateViewSet(GenericViewSet):
             ),
             strategy_template_id=strategy_template_obj.pk,
             root_strategy_template_id=strategy_template_obj.root_id,
-        ).first()
+        )
+        applied_strategy_template_id: int | None = self.query_data.get("applied_strategy_template_id")
+        if applied_strategy_template_id:
+            applied_instance_obj: StrategyInstance | None = same_origin_qs.filter(
+                strategy_template_id=applied_strategy_template_id
+            ).first()
+        else:
+            applied_instance_obj = same_origin_qs.filter(strategy_template_id=strategy_template_obj.pk).first()
+            if applied_instance_obj is None:
+                applied_instance_obj = same_origin_qs.first()
         if not applied_instance_obj:
             return Response({})
 

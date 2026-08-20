@@ -26,6 +26,14 @@
           margin-bottom: 4px;
         }
       }
+
+      .overwrite-checkbox {
+        display: flex;
+        align-items: center;
+        margin: 12px 0;
+        font-size: 12px;
+        color: #4d4f56;
+      }
     }
 
     .template-preview {

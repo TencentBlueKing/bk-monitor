@@ -87,6 +87,7 @@ export default {
   新建配置: 'New',
   返回列表: 'Back',
   设为降序: 'Desc',
+  展开更多: 'Show More',
   保存模板: 'Save as Template',
   申请权限: 'Apply',
   开始采集: 'Start',

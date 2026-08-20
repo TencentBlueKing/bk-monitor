@@ -50,6 +50,7 @@ import PanelLog from './components/panel-log';
 import PanelProcess from './components/panel-process';
 import PanelTrace from './components/panel-trace';
 
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 import type { IAuthority } from '@/typings/authority';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui/.';
 
@@ -62,11 +63,16 @@ export default defineComponent({
       type: Object as PropType<TdPrimaryTableProps['headerAffixedTop']>,
       default: () => null,
     },
+    /** 默认tab */
+    defaultTab: {
+      type: String as PropType<'' | AlarmCenterPanelTabType>,
+      default: '',
+    },
   },
   setup(props) {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, bizId, alarmId, timeRange, defaultTab } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
@@ -182,7 +188,7 @@ export default defineComponent({
     };
 
     watch(
-      () => defaultTab.value,
+      () => props.defaultTab,
       newVal => {
         handleCurrentPanelChange(newVal || alarmDetail.value?.alarmTabList?.[0]?.name);
       },

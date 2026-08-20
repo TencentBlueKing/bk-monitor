@@ -8,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from bkmonitor.models import ApiAuthToken
+
+from bkmonitor.models import REGISTERED_SCENE_AUTH_TYPES, ApiAuthToken
 from bkmonitor.share.handler import (
     ApmApiAuthChecker,
     CollectApiAuthChecker,
@@ -48,5 +49,10 @@ def check_api_permission(request, request_data):
     except ApiAuthToken.DoesNotExist:
         raise TokenValidatedError
     else:
+        if record.type.startswith("scene_") and record.type not in REGISTERED_SCENE_AUTH_TYPES:
+            raise TokenValidatedError
         checker_prefix = record.type.split("scene_", 1)[-1]
-        checker_mapping[checker_prefix](record).check(request_data)
+        checker = checker_mapping.get(checker_prefix)
+        if not checker:
+            raise TokenValidatedError
+        checker(record).check(request_data)

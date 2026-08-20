@@ -46,6 +46,13 @@ const HOST_STATUS_MAP = {
   2: { name: '无Agent' },
   3: { name: '无数据上报' },
 };
+const PROCESS_STATUS_PRIORITY = {
+  0: 1,
+  3: 1,
+  '-1': 2,
+  2: 3,
+  1: 4,
+};
 
 const isHostNode = node => node.bk_host_id !== undefined;
 
@@ -64,17 +71,40 @@ const extractClusters = modules => {
   return [...map.values()];
 };
 
+const mergeHostComponents = components => {
+  if (!components) {
+    return components;
+  }
+  const componentMap = new Map();
+  for (const component of components) {
+    const current = componentMap.get(component.display_name);
+    if (!current) {
+      componentMap.set(component.display_name, { ...component });
+      continue;
+    }
+    if ((PROCESS_STATUS_PRIORITY[component.status] || 0) > (PROCESS_STATUS_PRIORITY[current.status] || 0)) {
+      current.status = component.status;
+    }
+  }
+  return [...componentMap.values()];
+};
+
 const createHostListRow = (row, metric = {}) => {
   const modules = row.module || [];
   const bkClusters = extractClusters(modules);
-  const totalAlarmCount = (metric.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
+  const components = mergeHostComponents(metric.component);
+  const rowId = String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`);
+  const totalAlarmCount = Array.isArray(metric.alarm_count)
+    ? metric.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
+    : null;
   return Object.assign({}, row || {}, metric || {}, {
-    id: `${row.bk_host_innerip}`, // 使用内网 IP 作为唯一标识
+    id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
+    component: components,
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
-    processNames: (metric.component || []).map(c => c.display_name).join(','),
-    rowId: String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`),
+    processNames: components?.map(c => c.display_name).join(',') || '',
+    rowId,
     totalAlarmCount,
   });
 };
@@ -92,7 +122,7 @@ const matchTopoNode = (row, node) => {
 const matchQuickCategory = (row, category) => {
   switch (category) {
     case 'alarm':
-      return row.totalAlarmCount > 0;
+      return (row.totalAlarmCount ?? 0) > 0;
     case 'cpu':
       return (row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD;
     case 'mem':
@@ -139,6 +169,15 @@ const getRowFieldValues = (row, key) => {
   }
 };
 
+const getNumericValue = (row, key) => {
+  const value = key === 'alarm_count' ? row.totalAlarmCount : row[key];
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? null : numericValue;
+};
+
 const matchWhereItem = (row, item) => {
   const values = item.value || [];
   if (!values.length) {
@@ -146,10 +185,13 @@ const matchWhereItem = (row, item) => {
   }
   const method = item.method || 'eq';
   if (HOST_NUMBER_FILTER_FIELDS.has(item.key)) {
-    const origin = item.key === 'alarm_count' ? row.totalAlarmCount : Number(row[item.key] != null ? row[item.key] : 0);
+    const origin = getNumericValue(row, item.key);
     const target = Number(values[0]);
     if (Number.isNaN(target)) {
       return true;
+    }
+    if (origin === null) {
+      return false;
     }
     switch (method) {
       case 'gt':
@@ -230,7 +272,7 @@ const matchWhere = (row, where) => {
 const computeCategoryStats = rows => {
   const stats = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
   for (const row of rows) {
-    if (row.totalAlarmCount > 0) stats.alarm += 1;
+    if ((row.totalAlarmCount ?? 0) > 0) stats.alarm += 1;
     if ((row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.cpu += 1;
     if ((row.mem_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.mem += 1;
     if ((row.disk_in_use || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.disk += 1;
@@ -244,7 +286,7 @@ const sortRows = (rows, sort, stickyValue) => {
   }
   const descending = sort?.startsWith('-');
   const key = descending ? sort.slice(1) : sort;
-  const getValue = row => (key === 'alarm_count' ? row.totalAlarmCount : Number(row[key] != null ? row[key] : 0));
+  const getValue = row => getNumericValue(row, key);
   return [...rows].sort((a, b) => {
     if (stickyValue) {
       const aSticky = stickyValue[a.rowId] ? 1 : 0;
@@ -254,7 +296,15 @@ const sortRows = (rows, sort, stickyValue) => {
       }
     }
     if (sort) {
-      return descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
+      const aValue = getValue(a);
+      const bValue = getValue(b);
+      if (aValue === null || bValue === null) {
+        if (aValue === bValue) {
+          return 0;
+        }
+        return aValue === null ? 1 : -1;
+      }
+      return descending ? bValue - aValue : aValue - bValue;
     }
     return 0;
   });
@@ -344,6 +394,7 @@ const buildFilterOptionsMap = rows => {
   return result;
 };
 
+let baseRows = [];
 let rawRows = [];
 let filterOptionsMap = new Map();
 
@@ -385,7 +436,8 @@ self.onmessage = event => {
   const message = event.data;
   switch (message.type) {
     case 'INIT_BASE': {
-      rawRows = message.baseList.map(row => createHostListRow(row));
+      baseRows = message.baseList;
+      rawRows = baseRows.map(row => createHostListRow(row));
       filterOptionsMap = buildFilterOptionsMap(rawRows);
       self.postMessage({
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),
@@ -397,7 +449,7 @@ self.onmessage = event => {
     }
     case 'MERGE_METRICS': {
       const metricListMap = message.metricListMap;
-      rawRows = rawRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
+      rawRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
       filterOptionsMap = buildFilterOptionsMap(rawRows);
       self.postMessage({
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),
@@ -433,7 +485,7 @@ self.onmessage = event => {
     }
     case 'GET_SELECTED_IPS': {
       const keySet = new Set(message.rowKeys.map(String));
-      // 表格 rowKey 为 id（内网 IP），同时兼容历史 rowId
+      // 表格 rowKey 为 id，同时兼容 rowId
       const ips = rawRows
         .filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)))
         .map(row => row.bk_host_innerip)
@@ -442,6 +494,17 @@ self.onmessage = event => {
         ips,
         requestId: message.requestId,
         type: 'GET_SELECTED_IPS_DONE',
+      });
+      break;
+    }
+    case 'GET_SELECTED_ROWS': {
+      const keySet = new Set(message.rowKeys.map(String));
+      // 表格 rowKey 为 id，同时兼容 rowId
+      const rows = rawRows.filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)));
+      self.postMessage({
+        rows,
+        requestId: message.requestId,
+        type: 'GET_SELECTED_ROWS_DONE',
       });
       break;
     }

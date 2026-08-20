@@ -4,7 +4,8 @@
  */
 import JSONBigNumber from 'json-bignumber';
 
-import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
+import type { RetrieveRowStoreName } from '../core/db';
+import { getRetrieveRowRepository } from '../repositories/retrieve-row.repository';
 import { cloneSearchMeta } from '../utils/clone-search-value';
 import { isSearchJsonEnvelope, parseNDJSONByteStream, shouldUseNDJSONStream } from '../utils/ndjson-stream';
 import {
@@ -23,11 +24,15 @@ interface SearchStreamMessage {
   method?: string;
   pageInstanceId?: string;
   queryKey?: string;
+  /** 落盘表：主检索 retrieveRows / 上下文本地 relatedLogSearchRows */
+  rowStore?: RetrieveRowStoreName;
   startSeq?: number;
   type: 'cancel' | 'ping' | 'search-stream';
   url?: string;
   writeMode?: 'append' | 'replace';
 }
+
+const resolveRowRepository = (message: SearchStreamMessage) => getRetrieveRowRepository(message.rowStore || 'retrieveRows');
 
 interface ActiveSearchTask {
   abortController: AbortController;
@@ -56,12 +61,7 @@ const postProgress = (id: string, stage: string, extra: Record<string, any> = {}
   postMessageSafe({ id, ok: true, progress: true, stage, ...extra });
 };
 
-const postFailure = (
-  id: string,
-  error: any,
-  stage: RetrieveSearchIngestStage,
-  context: Record<string, any> = {},
-) => {
+const postFailure = (id: string, error: any, stage: RetrieveSearchIngestStage, context: Record<string, any> = {}) => {
   const errorCategory = categorizeIngestError(error);
   const message = error?.message || String(error);
   // logRetrieveSearchIngest('error', `worker search failed at ${stage}: ${message}`, {
@@ -109,17 +109,20 @@ const ingestJsonEnvelopeRows = async (
   const renderRows = data.list;
   const originRows = data.origin_log_list;
   if (!Array.isArray(renderRows) || !Array.isArray(originRows)) {
-    throw Object.assign(new Error('Invalid search response: list and origin_log_list are required'), { stage: 'parse' });
+    throw Object.assign(new Error('Invalid search response: list and origin_log_list are required'), {
+      stage: 'parse',
+    });
   }
 
   const writeStartedAt = Date.now();
-  const rowKeys = message.writeMode === 'append'
-    ? await retrieveRowRepository.appendRows(message.queryKey!, originRows, message.startSeq || 0, {
+  const rowRepository = resolveRowRepository(message);
+  const rowKeys =    message.writeMode === 'append'
+    ? await rowRepository.appendRows(message.queryKey!, originRows, message.startSeq || 0, {
       fieldMetadata: message.fieldMetadata || {},
       fieldNames: message.fieldNames || [],
       renderRows,
     })
-    : await retrieveRowRepository.replaceRows(message.queryKey!, originRows, message.startSeq || 0, {
+    : await rowRepository.replaceRows(message.queryKey!, originRows, message.startSeq || 0, {
       fieldMetadata: message.fieldMetadata || {},
       fieldNames: message.fieldNames || [],
       renderRows,
@@ -153,15 +156,29 @@ const ingestNDJSONStream = async (
     throw Object.assign(new Error('Search stream response body is empty'), { stage: 'fetch' });
   }
 
-  const writer = retrieveRowRepository.createStreamWriter(message.queryKey!, message.startSeq || 0, {
+  let metaPayload: Record<string, any> | null = null;
+  let rowCount = 0;
+  let lastProgressRowCount = 0;
+  const streamStartedAt = Date.now();
+
+  const postRowProgress = (keys: string[], count: number) => {
+    if (count <= lastProgressRowCount) return;
+    lastProgressRowCount = count;
+    postProgress(message.id, 'row', {
+      queryKey: message.queryKey,
+      rowCount: count,
+      rowKeys: keys,
+    });
+  };
+
+  const writer = resolveRowRepository(message).createStreamWriter(message.queryKey!, message.startSeq || 0, {
     fieldMetadata: message.fieldMetadata || {},
     fieldNames: message.fieldNames || [],
     writeMode: message.writeMode || 'replace',
+    onFlush: ({ rowCount: flushedCount, rowKeys }) => {
+      postRowProgress(rowKeys, flushedCount);
+    },
   });
-
-  let metaPayload: Record<string, any> | null = null;
-  let rowCount = 0;
-  const streamStartedAt = Date.now();
 
   for await (const event of parseNDJSONByteStream(response.body)) {
     if (!event || typeof event !== 'object') continue;
@@ -200,13 +217,9 @@ const ingestNDJSONStream = async (
       }
       await writer.appendRow(pageIndex, originRow, renderRow);
       rowCount += 1;
-      // 首行尽快反馈用于列宽布局；完整行列表在 done 后一次性提交，避免流式过程中反复重排表格。
+      // 首行尽快反馈用于列宽布局；后续批次由 onFlush 推进逐步渲染。
       if (rowCount === 1) {
-        postProgress(message.id, 'row', {
-          queryKey: message.queryKey,
-          rowCount,
-          rowKeys: writer.getPartialRowKeys(),
-        });
+        postRowProgress(writer.getPartialRowKeys(), rowCount);
       }
       continue;
     }
@@ -260,7 +273,7 @@ const runSearchStream = async (message: SearchStreamMessage) => {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(message.headers || {}),
+        ...message.headers,
         Traceparent: createTraceparent(),
       },
       method: message.method || 'POST',

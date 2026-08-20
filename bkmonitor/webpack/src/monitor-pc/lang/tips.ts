@@ -168,8 +168,8 @@ export default {
     'Abnormal event acquisition source\n1. events.attributes.exception_stacktrace field\n2. status.message field',
   '已折叠 {count} 个相同"Service + Span name + status"的 Span':
     "Collapsed {count} Spans with the same 'Service+Span name+status'",
-  '处理套餐中使用了电话语音通知，拨打的顺序是按通知对象顺序依次拨打，用户组内无法保证顺序':
-    'Telephone voice notifications were used in the processing of the package, and the order of calls is based on the order of the notification objects. The order cannot be guaranteed within the user group',
+  '处理套餐中使用了电话语音通知，拨打的顺序是按通知对象顺序依次拨打':
+    'Telephone voice notifications were used in the processing of the package, and the order of calls is based on the order of the notification objects',
   '不监控，就是不进行告警策略判断。可在{0}进行设置。':
     'Not monitoring means not judging the alarm strategy. Can be set in {0}.',
   '目前仅支持{0}切换PromQL': 'Currently, only {0} is supported to switch PromQL',

@@ -8,8 +8,8 @@
 
 | 参数名称    | 参数类型 | 必须 | 参数说明     |
 | ----------- | -------- | ---- | ------------ |
-| app_code    | string   | 是   | 蓝鲸应用ID   |
-| app_secret  | string   | 是   | 蓝鲸应用秘钥 |
+| bk_app_code   | string | 是   | 蓝鲸应用ID   |
+| bk_app_secret | string | 是   | 蓝鲸应用秘钥 |
 | bk_username | string   | 是   | 用户名称     |
 
 鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。
@@ -19,6 +19,12 @@
 | 字段                | 类型 | 必选 | 描述      |
 | ------------------- | ---- | ---- | --------- |
 | collector_config_id | int  | 是   | 采集项 ID |
+
+### 查询参数
+
+| 字段 | 类型 | 必选 | 描述 |
+| --- | --- | --- | --- |
+| enforce_permission | bool | 否 | 白名单应用是否仍强制按当前用户校验采集项实例权限，默认 `false` |
 
 ## 调用示例
 

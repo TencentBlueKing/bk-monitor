@@ -28,6 +28,7 @@ import {
   type PropType,
   computed,
   defineComponent,
+  inject,
   nextTick,
   onMounted,
   onUnmounted,
@@ -35,6 +36,7 @@ import {
   shallowRef,
   toRef,
   useTemplateRef,
+  watch,
 } from 'vue';
 
 import dayjs from 'dayjs';
@@ -56,6 +58,9 @@ import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/t
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
 import './alarm-charts.scss';
+
+/** 告警视图可通过 provide 覆盖，默认仍使用公共 MonitorCharts */
+const FAILURE_VIEW_MONITOR_CHARTS_KEY = 'FailureViewMonitorCharts';
 
 /** 异常点颜色 */
 const ANOMALY_COLOR = '#E71818';
@@ -126,9 +131,39 @@ export default defineComponent({
     defaultTimeRange: {
       type: Array as unknown as PropType<DateValue>,
     },
+    /** 是否展示内置图表标题，故障视图外置标题时可关闭 */
+    showTitle: {
+      type: Boolean,
+      default: true,
+    },
+    /** echarts 联动组标识，传入后所有同 groupId 的图表会 tooltip / dataZoom 联动 */
+    groupId: {
+      type: String,
+      default: '',
+    },
+    /** 联动组内任意图表 hover 时，是否在所有同组图表上展示 tooltip（默认 false） */
+    hoverAllTooltips: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * 来自同组其他图表的联动 zoom 范围。
+     * 当此值变化时，内部直接调用 syncDataZoomChange 触发数据刷新（showRestore=true），
+     * 不会向外再次 emit dataZoomChange，避免事件循环。
+     */
+    linkedZoomRange: {
+      type: Array as unknown as PropType<DateValue | null>,
+      default: null,
+    },
   },
-  setup(props) {
+  emits: ['dataZoomChange', 'restore'],
+  setup(props, { emit }) {
     const { t } = useI18n();
+    /**
+     * 告警视图可 provide 覆盖为 FailureViewMonitorCharts；
+     * 未注入时默认公共 MonitorCharts，侧滑等场景行为不变。
+     */
+    const MonitorChartsComp = inject(FAILURE_VIEW_MONITOR_CHARTS_KEY, MonitorCharts);
     /** 事件气泡详情组件 */
     const alertEventChartDetailRef =
       useTemplateRef<InstanceType<typeof AlarmChartEventDetail>>('alertEventChartDetailRef');
@@ -143,9 +178,43 @@ export default defineComponent({
     /** 缓存 markPoint 悬停前的 cursor 样式 */
     let cachedCursor = '';
 
-    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(
-      toRef(props, 'defaultTimeRange')
+    const {
+      timeRange,
+      showRestore,
+      handleDataZoomChange: syncDataZoomChange,
+      handleRestore: syncRestore,
+    } = useChartOperation(toRef(props, 'defaultTimeRange'));
+
+    /**
+     * 监听来自同组其他图表的联动 zoom。
+     * 直接调用 syncDataZoomChange 更新 timeRange + showRestore，
+     * 不再 emit dataZoomChange，防止事件循环。
+     * immediate: false 确保懒加载图表挂载时不会收到历史 zoom。
+     */
+    watch(
+      () => props.linkedZoomRange,
+      val => {
+        if (!val || (val as any[]).length !== 2) return;
+        syncDataZoomChange(val as any[]);
+      }
     );
+
+    /**
+     * @description 框选缩放，同步内部状态并向外透传
+     * @param value 时间范围
+     */
+    const handleDataZoomChange = (value: any[]) => {
+      syncDataZoomChange(value);
+      emit('dataZoomChange', value);
+    };
+
+    /**
+     * @description 复位时间范围，同步内部状态并向外透传
+     */
+    const handleRestore = () => {
+      syncRestore();
+      emit('restore');
+    };
     provide('refreshImmediate', refreshImmediate);
     provide('timeRange', timeRange);
 
@@ -174,6 +243,8 @@ export default defineComponent({
         subTitle: graphPanel.subTitle || '',
         gridPos: { x: 16, y: 16, w: 8, h: 4 },
         id: 'alarm-trend-chart',
+        /** 传给 MonitorCharts → VueEcharts.group，同组图表自动 tooltip 联动 */
+        dashboardId: props.groupId || undefined,
         type: 'graph',
         options: {},
         targets: [
@@ -799,12 +870,14 @@ export default defineComponent({
       handleMenuClick,
       handleChartMouseover,
       handleChartMouseout,
+      MonitorChartsComp,
     };
   },
   render() {
+    const MonitorChartsComp = this.MonitorChartsComp;
     return (
       <div class='alarm-charts'>
-        <MonitorCharts
+        <MonitorChartsComp
           customLegendOptions={{
             legendData: this.customLegendData,
             legendClick: this.handleSelectLegend,
@@ -815,10 +888,12 @@ export default defineComponent({
             series: this.formatterSeries,
           }}
           customMenuClick={['explore']}
+          hoverAllTooltips={this.$props.hoverAllTooltips}
           menuList={this.menuList}
           panel={this.monitorChartPanel}
           showAddMetric={false}
           showRestore={this.showRestore}
+          showTitle={this.showTitle}
           onClick={this.handleScatterClick}
           onDataZoomChange={this.handleDataZoomChange}
           onMenuClick={this.handleMenuClick}

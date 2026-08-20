@@ -54,6 +54,13 @@ const HOST_STATUS_MAP: Record<number, { name: string }> = {
   2: { name: '无Agent' },
   3: { name: '无数据上报' },
 };
+const PROCESS_STATUS_PRIORITY: Record<number, number> = {
+  0: 1,
+  3: 1,
+  [-1]: 2,
+  2: 3,
+  1: 4,
+};
 
 const isHostNode = (node: IHostTopoTreeNode): node is IHostTopoTreeNode & { bk_host_id: number } =>
   (node as { bk_host_id?: number }).bk_host_id !== undefined;
@@ -74,19 +81,43 @@ const extractClusters = (modules: IHostModule[]): IHostCluster[] => {
   return [...map.values()];
 };
 
+const mergeHostComponents = (components: IHostMetricInfo['component'] | undefined) => {
+  if (!components) {
+    return components;
+  }
+  const componentMap = new Map<string, NonNullable<IHostMetricInfo['component']>[number]>();
+  for (const component of components) {
+    const current = componentMap.get(component.display_name);
+    if (!current) {
+      componentMap.set(component.display_name, { ...component });
+      continue;
+    }
+    if ((PROCESS_STATUS_PRIORITY[component.status] ?? 0) > (PROCESS_STATUS_PRIORITY[current.status] ?? 0)) {
+      current.status = component.status;
+    }
+  }
+  return [...componentMap.values()];
+};
+
 export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo): IHostListRow => {
   const metricWithDefault = (metric ?? {}) as IHostMetricInfo;
   const modules = row.module || [];
   const bkClusters = extractClusters(modules);
-  const totalAlarmCount = (metricWithDefault.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
+  const components = mergeHostComponents(metricWithDefault.component);
+  const rowId = String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`);
+  const totalAlarmCount = Array.isArray(metricWithDefault.alarm_count)
+    ? metricWithDefault.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
+    : null;
   return {
     ...(row ?? {}),
     ...(metricWithDefault ?? {}),
+    id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
+    component: components,
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
-    processNames: (metricWithDefault.component || []).map(c => c.display_name).join(','),
-    rowId: String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`),
+    processNames: components?.map(c => c.display_name).join(',') || '',
+    rowId,
     totalAlarmCount,
   };
 };
@@ -104,7 +135,7 @@ export const matchTopoNode = (row: IHostListRow, node: IHostTopoTreeNode | null)
 export const matchQuickCategory = (row: IHostListRow, category: '' | EHostQuickCategory): boolean => {
   switch (category) {
     case 'alarm':
-      return row.totalAlarmCount > 0;
+      return (row.totalAlarmCount ?? 0) > 0;
     case 'cpu':
       return (row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD;
     case 'mem':
@@ -151,6 +182,15 @@ const getRowFieldValues = (row: IHostListRow, key: string): (number | string)[] 
   }
 };
 
+const getNumericValue = (row: IHostListRow, key: string): null | number => {
+  const value = key === 'alarm_count' ? row.totalAlarmCount : row[key as keyof IHostListRow];
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? null : numericValue;
+};
+
 const matchWhereItem = (row: IHostListRow, item: IWhereItem): boolean => {
   const values = item.value || [];
   if (!values.length) {
@@ -158,10 +198,13 @@ const matchWhereItem = (row: IHostListRow, item: IWhereItem): boolean => {
   }
   const method = item.method || 'eq';
   if (HOST_NUMBER_FILTER_FIELDS.has(item.key)) {
-    const origin = item.key === 'alarm_count' ? row.totalAlarmCount : Number(row[item.key as keyof IHostListRow] ?? 0);
+    const origin = getNumericValue(row, item.key);
     const target = Number(values[0]);
     if (Number.isNaN(target)) {
       return true;
+    }
+    if (origin === null) {
+      return false;
     }
     switch (method) {
       case 'gt':
@@ -212,7 +255,7 @@ export const matchWhere = (row: IHostListRow, where: IWhereItem[]): boolean => {
 export const computeCategoryStats = (rows: IHostListRow[]) => {
   const stats = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
   for (const row of rows) {
-    if (row.totalAlarmCount > 0) stats.alarm += 1;
+    if ((row.totalAlarmCount ?? 0) > 0) stats.alarm += 1;
     if ((row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.cpu += 1;
     if ((row.mem_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.mem += 1;
     if ((row.disk_in_use || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.disk += 1;
@@ -226,7 +269,7 @@ export const sortRows = (rows: IHostListRow[], sort: string, stickyValue?: Recor
   }
   const descending = sort?.startsWith('-');
   const key = (descending ? sort.slice(1) : sort) as keyof IHostListRow;
-  const getValue = (row: IHostListRow) => (key === 'alarm_count' ? row.totalAlarmCount : Number(row[key] ?? 0));
+  const getValue = (row: IHostListRow) => getNumericValue(row, key);
   return [...rows].sort((a, b) => {
     if (stickyValue) {
       const aSticky = stickyValue[a.rowId] ? 1 : 0;
@@ -236,7 +279,15 @@ export const sortRows = (rows: IHostListRow[], sort: string, stickyValue?: Recor
       }
     }
     if (sort) {
-      return descending ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
+      const aValue = getValue(a);
+      const bValue = getValue(b);
+      if (aValue === null || bValue === null) {
+        if (aValue === bValue) {
+          return 0;
+        }
+        return aValue === null ? 1 : -1;
+      }
+      return descending ? bValue - aValue : aValue - bValue;
     }
     return 0;
   });

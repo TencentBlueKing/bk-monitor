@@ -157,6 +157,16 @@ export class IncidentAlertScenario extends AlertScenario {
 
     return (
       <div class='explore-col lever-rect-col'>
+        {row.is_current_primary && (
+          <i
+            class='icon-monitor icon-a-NewTraining new-badge'
+            v-bk-tooltips={{
+              content: window.i18n.t('最新排障记录中新增的告警'),
+              delay: 200,
+              placement: 'top-start',
+            }}
+          />
+        )}
         <i
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'

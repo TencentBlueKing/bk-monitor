@@ -304,7 +304,7 @@ export default defineComponent({
 
     // —— 分页与渲染列表 ——
     /** 前端本地分页页码（从 1 开始） */
-    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick');
+    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick', () => {});
 
     const pageIndex = ref(1);
     /** 前端本地分页每页条数 */
@@ -692,6 +692,7 @@ export default defineComponent({
               class='bklog-column-wrapper'
               fields={field}
               jsonValue={getRowFieldValue(row, field)}
+              lazyPaint={true}
               limitRow={limitRow.value}
               renderMeta={getRowRenderMeta(row)}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
@@ -1595,14 +1596,31 @@ export default defineComponent({
       });
     };
 
-    /** 同步表头 transform 与内容区 scrollLeft，实现自定义横向滚动 */
+    /**
+     * 同步表头 transform 与内容区 scrollLeft，实现自定义横向滚动。
+     * 这是每帧都会走的热路径：写样式前先比对当前内联值，
+     * 避免表头宽度这种滚动期间不会变的属性每帧触发样式重算。
+     */
     const setRowboxTransform = () => {
-      if (refResultRowBox.value && refRootElement.value) {
-        refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
-        if (refTableHead.value) {
-          refTableHead.value.style.setProperty('width', `${scrollWidth.value}px`);
-          refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
-        }
+      if (!refResultRowBox.value || !refRootElement.value) {
+        return;
+      }
+
+      refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
+
+      const headElement = refTableHead.value;
+      if (!headElement) {
+        return;
+      }
+
+      const nextWidth = `${scrollWidth.value}px`;
+      if (headElement.style.width !== nextWidth) {
+        headElement.style.width = nextWidth;
+      }
+
+      const nextTransform = `translateX(-${scrollXOffsetLeft}px)`;
+      if (headElement.style.transform !== nextTransform) {
+        headElement.style.transform = nextTransform;
       }
     };
 
@@ -1689,6 +1707,36 @@ export default defineComponent({
     };
 
     let isAnimating = false;
+    let pendingScrollXDelta = 0;
+
+    /**
+     * 横向滚动统一入口：按帧合并 wheel 增量。
+     * 触控板 wheel 事件频率远高于 60Hz，逐个事件写 DOM 会在一帧内反复触发样式计算；
+     * 增量累加而不是丢弃，保证快速滑动时的位移不丢失。
+     */
+    const scheduleScrollXDelta = (delta: number) => {
+      pendingScrollXDelta += delta;
+      if (isAnimating) {
+        return;
+      }
+
+      isAnimating = true;
+      requestAnimationFrame(() => {
+        isAnimating = false;
+        const totalDelta = pendingScrollXDelta;
+        pendingScrollXDelta = 0;
+
+        const maxOffset = Math.max(0, scrollWidth.value - offsetWidth.value);
+        const nextOffset = Math.max(0, Math.min(maxOffset, scrollXOffsetLeft + totalDelta));
+        if (nextOffset === scrollXOffsetLeft) {
+          return;
+        }
+
+        scrollXOffsetLeft = nextOffset;
+        setRowboxTransform();
+        refScrollXBar.value?.scrollLeft(nextOffset);
+      });
+    };
 
     useWheel({
       target: refRootElement,
@@ -1701,21 +1749,13 @@ export default defineComponent({
           });
         }
 
-        const maxOffset = scrollWidth.value - offsetWidth.value;
-
         if (event.shiftKey) {
           if (hasScrollX.value && refScrollXBar.value) {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
-
-            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
-            const scrollStep = event.deltaY || event.deltaX;
-            const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
-
-            refScrollXBar.value.scrollLeft(newScrollLeft);
-            scrollXOffsetLeft = newScrollLeft;
-            setRowboxTransform();
+            // 基准位置直接用本地偏移量，不再回读滚动条 scrollLeft，避免读写交替触发强制同步布局
+            scheduleScrollXDelta(event.deltaY || event.deltaX);
           }
           return;
         }
@@ -1724,18 +1764,7 @@ export default defineComponent({
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          if (!isAnimating) {
-            isAnimating = true;
-            requestAnimationFrame(() => {
-              isAnimating = false;
-              const nextOffset = Math.max(0, Math.min(maxOffset, scrollXOffsetLeft + event.deltaX));
-              if (nextOffset !== scrollXOffsetLeft) {
-                scrollXOffsetLeft = nextOffset;
-                setRowboxTransform();
-                refScrollXBar.value?.scrollLeft(nextOffset);
-              }
-            });
-          }
+          scheduleScrollXDelta(event.deltaX);
         }
       },
     });
@@ -2162,7 +2191,13 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft || 0;
+      const nextOffset = (event.target as HTMLElement)?.scrollLeft || 0;
+      // 程序化写入滚动条位置会回抛 scroll 事件，位置一致时跳过，避免每帧重复同步一次
+      if (nextOffset === scrollXOffsetLeft) {
+        return;
+      }
+
+      scrollXOffsetLeft = nextOffset;
       setRowboxTransform();
     };
 

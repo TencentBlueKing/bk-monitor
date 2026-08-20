@@ -54,7 +54,7 @@ class HostListViewSet(PermissionMixin, ResourceViewSet):
     resource_routes = [ResourceRoute("GET", resource.performance.host_performance, content_encoding="gzip")]
 
 
-class SearchHostInfoViewSet(ResourceViewSet):
+class SearchHostInfoViewSet(PermissionMixin, ResourceViewSet):
     """
     查询主机基本信息
     """
@@ -64,11 +64,11 @@ class SearchHostInfoViewSet(ResourceViewSet):
     ]
 
 
-class SearchHostMetricViewSet(ResourceViewSet):
+class SearchHostMetricViewSet(PermissionMixin, ResourceViewSet):
     """
     查询主机指标
     """
 
     resource_routes = [
-        ResourceRoute("POST", resource.performance.search_host_metric),
+        ResourceRoute("POST", resource.performance.search_host_metric, content_encoding="gzip"),
     ]

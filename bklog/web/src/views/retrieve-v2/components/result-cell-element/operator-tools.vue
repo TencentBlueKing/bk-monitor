@@ -174,7 +174,11 @@
       handleClick: Function,
     },
     emits: ['handleAi'],
-    inject: ['handleRelatedTraceClick'],
+    inject: {
+      handleRelatedTraceClick: {
+        default: null,
+      },
+    },
     data() {
       return {
         showAllHandle: false,

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { MergeResult } from '../types';
+import type { EchartSeriesItem, MergeResult } from '../types';
 
 /**
  * @description 尝试合并两个有序数组，判断它们是否只存在首尾差异（中间重叠部分完全一致）
@@ -57,4 +57,49 @@ export const mergeOverlappingArrays = (arr1: number[], arr2: number[]): MergeRes
     tail1: merged.length - offset1 - arr1.length,
     tail2: merged.length - offset2 - arr2.length,
   };
+};
+
+/**
+ * @description 判断一个 data 点是否为 null（无效点）
+ * 支持两种格式：{ value: null } 或 { value: [timestamp, null] }
+ */
+const isNullPoint = (point: { value?: any }): boolean => {
+  if (!point) return true;
+  if (point.value == null) return true;
+  if (Array.isArray(point.value) && point.value.length >= 2 && point.value[1] == null) return true;
+  return false;
+};
+
+/**
+ * @description 遍历折线 series，用补 null 后的 data 识别孤立点并直接设置最终 symbol 样式
+ * 孤立点 symbolSize=6（可见），普通点 symbolSize=1（几乎不可见）
+ * @param seriesData - EchartSeriesItem 数组，会被副作用修改
+ */
+export const processLineSymbols = (seriesData: EchartSeriesItem[]) => {
+  for (const item of seriesData) {
+    if (item.type !== 'line') continue;
+    const data = item.data as Array<{ [key: string]: unknown; value?: unknown }>;
+    let hasIsolated = false;
+    for (let i = 0; i < data.length; i++) {
+      if (isNullPoint(data[i])) continue;
+      const pre = data[i - 1];
+      const next = data[i + 1];
+      const isIsolated = isNullPoint(pre) && isNullPoint(next);
+      if (isIsolated) hasIsolated = true;
+      data[i] = {
+        ...data[i],
+        symbolSize: isIsolated ? 6 : 1,
+        itemStyle: {
+          borderWidth: isIsolated ? 6 : 1,
+          enabled: true,
+          shadowBlur: 0,
+          opacity: 1,
+        },
+      };
+    }
+    if (hasIsolated) {
+      item.showSymbol = true;
+      item.showAllSymbol = true;
+    }
+  }
 };

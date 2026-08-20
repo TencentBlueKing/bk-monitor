@@ -962,6 +962,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         "INC": {"method": "SUM", "function": {"id": "increase", "params": [{"id": "window", "value": "1m"}]}}
     }
 
+    def get_api_auth_request_data(self, request_data, validated_request_data):
+        # 主机目标会在 serializer 中按业务 IP 模式规范化，鉴权必须校验实际执行参数。
+        return validated_request_data
+
     def get_unit(self, metrics: list[dict], params: dict) -> str:
         """
         获取单位信息

@@ -23,19 +23,24 @@ from pathlib import Path
 
 import yaml
 from django.test import SimpleTestCase
+from django.urls import resolve
 
 
 PUBLIC_RESOURCES = {
     ("GET", "/clustering_config/{index_set_id}/config/"),
     ("GET", "/databus_collectors/"),
     ("GET", "/databus_collectors/{collector_config_id}/"),
+    ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
+    ("GET", "/databus_collectors/{collector_config_id}/task_status/"),
     ("GET", "/index_set/{index_set_id}/"),
+    ("GET", "/databus_collectors/{collector_config_id}/update_context/"),
     ("GET", "/search_index_set/"),
     ("GET", "/search_index_set/{index_set_id}/fields/"),
     ("POST", "/databus_collectors/fast_create/"),
     ("POST", "/databus_collectors/{collector_config_id}/fast_update/"),
     ("POST", "/databus_collectors/{collector_config_id}/start/"),
     ("POST", "/databus_collectors/{collector_config_id}/stop/"),
+    ("POST", "/databus_collectors/{collector_config_id}/update_or_create_clean_config/"),
     ("POST", "/esquery_search/"),
     ("POST", "/index_set/"),
     ("POST", "/pattern/{index_set_id}/search/"),
@@ -43,6 +48,8 @@ PUBLIC_RESOURCES = {
     ("POST", "/query/ts/"),
     ("POST", "/query/ts/raw/"),
     ("POST", "/query/ts/reference/"),
+    ("POST", "/search/index_set/{index_set_id}/aggs/terms/"),
+    ("POST", "/search/index_set/generate_querystring/"),
     ("PUT", "/index_set/{index_set_id}/"),
     ("PUT", "/pattern/{index_set_id}/update_remark/"),
     ("DELETE", "/databus_collectors/{collector_config_id}/"),
@@ -89,6 +96,42 @@ class ApiGatewayResourcesTests(SimpleTestCase):
                 },
                 f"{method} {path}",
             )
+
+    def test_public_search_helper_resources_map_to_existing_actions(self):
+        expected_backends = {
+            "/search/index_set/{index_set_id}/aggs/terms/": (
+                "post",
+                "/api/v1/search/index_set/{index_set_id}/aggs/terms/",
+                "terms",
+            ),
+            "/search/index_set/generate_querystring/": (
+                "post",
+                "/api/v1/search/index_set/generate_querystring/",
+                "generate_querystring",
+            ),
+        }
+
+        for path, (method, backend_path, action) in expected_backends.items():
+            resource = self.resources["paths"][path][method]["x-bk-apigateway-resource"]
+            self.assertEqual(resource["backend"]["method"], method)
+            self.assertEqual(resource["backend"]["path"], backend_path)
+
+            resolved = resolve(backend_path.format(index_set_id=1))
+            self.assertEqual(resolved.func.actions[method], action)
+
+    def test_public_search_helper_docs_use_apigw_auth_keys(self):
+        for operation_id in (
+            "index_set_terms",
+            "generate_querystring",
+            "list_databus_collectors",
+            "retrieve_databus_collector",
+        ):
+            content = (self.zh_docs_dir / f"{operation_id}.md").read_text(encoding="utf-8")
+
+            self.assertIn("| bk_app_code", content, operation_id)
+            self.assertIn("| bk_app_secret", content, operation_id)
+            self.assertNotIn("| app_code", content, operation_id)
+            self.assertNotIn("| app_secret", content, operation_id)
 
     def test_delete_resources_keep_private_compatibility_paths(self):
         paths = self.resources["paths"]

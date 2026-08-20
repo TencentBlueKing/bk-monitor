@@ -34,6 +34,7 @@ export enum EFormItemValueType {
 }
 
 export interface IFormDataItem {
+  autoEnabled?: boolean;
   behavior?: IBehavior;
   boundType?: BoundType; // 告警阈值类型
   clearable?: boolean;
@@ -157,6 +158,7 @@ export class FormItem {
         return localValue;
     }
   } // 提交字段
+  autoEnabled?: boolean;
   behavior?: IBehavior; // 值
   boundType?: BoundType; // 默认值
   clearable?: boolean; // 表单组件类型
@@ -199,6 +201,7 @@ export class FormItem {
    */
   constructor(data: IFormDataItem) {
     if (data) {
+      this.autoEnabled = data.autoEnabled ?? false;
       this.label = data.label ?? '';
       this.field = data.field ?? '';
       this.value = data.value ?? '';
@@ -228,6 +231,12 @@ export class FormItem {
     }
   }
 }
+
+/** 同步智能等级表单项的自动等级可用性。 */
+export const syncAiLevelAutoEnabled = (formItems: FormItem[], autoEnabled: boolean) => {
+  const levelItem = formItems.find(item => item.type === 'ai-level');
+  if (levelItem) levelItem.autoEnabled = autoEnabled;
+};
 
 /** 获取模型描述信息 */
 export const handleCreateModelOptionsDetail = (item: any, interval: number) => ({

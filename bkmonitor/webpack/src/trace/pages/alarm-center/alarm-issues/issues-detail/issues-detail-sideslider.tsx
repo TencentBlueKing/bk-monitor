@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onUnmounted, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, onUnmounted, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { convertDurationArray } from 'monitor-common/utils';
@@ -44,6 +44,7 @@ import { useIssuesDetailStore } from '@/store/modules/issues-detail';
 import type { CommonCondition } from '../../typings';
 import type { ImpactScopeEvent, ImpactScopeResource } from '../typing';
 import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } from '../typing/constants';
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 
 import './issues-detail-sideslider.scss';
 
@@ -67,6 +68,11 @@ export default defineComponent({
     showStepBtn: {
       type: Boolean,
       default: true,
+    },
+    /** 告警详情页签（视图/日志/调用链等）默认选中项 */
+    defaultInnerTab: {
+      type: String as PropType<'' | AlarmCenterPanelTabType>,
+      default: '',
     },
   },
   emits: ['update:show', 'next', 'previous', 'createTapd'],
@@ -306,6 +312,7 @@ export default defineComponent({
               {this.detail && (
                 <IssuesSliderWrapper
                   conditions={this.conditions}
+                  defaultInnerTab={this.defaultInnerTab}
                   detail={this.detail}
                   filterMode={this.filterMode}
                   queryString={this.queryString}

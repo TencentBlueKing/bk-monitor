@@ -455,7 +455,11 @@ export default () => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_PENDING);
 
           resolveAdditionKeyword().then(async () => {
-            if (isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])) {
+            const isExternal = store.state.isExternal;
+            if (
+              !isExternal
+              && isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
+            ) {
               if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
                 // 场景化检索：请求场景配置，从URL获取筛选参数
                 const sceneCleared = await requestSceneConfigs();
@@ -466,6 +470,9 @@ export default () => {
               } else {
                 requestSceneConfigs();
               }
+            } else if (isExternal && store.state.indexItem.retrieve_type === RetrieveType.Scene) {
+              // PO 环境下隐藏场景化检索，若 URL 携带 retrieve_type=scene 则回退到常规检索
+              clearSceneRetrieveToNormal(store.getters['retrieve/sceneConfigList']);
             }
 
             store

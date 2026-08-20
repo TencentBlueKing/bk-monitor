@@ -30,11 +30,19 @@ export interface IAlertStrategiesItem {
   strategies?: IStrategiesItem[];
 }
 
+export interface ISameOriginStrategyTemplate {
+  id: number | string;
+  name?: string;
+  strategy?: { id: number | string; name: string };
+}
+
 export interface IRelationService {
   has_been_applied?: boolean;
   has_diff?: boolean;
   key?: string;
-  same_origin_strategy_template?: { id: number | string; name: string };
+  same_origin_strategy_template?: ISameOriginStrategyTemplate;
+  same_origin_strategy_templates?: ISameOriginStrategyTemplate[];
+  selectedSameOriginId?: number | string;
   service_name?: string;
   strategy?: { id: number | string; name: string };
   strategy_template_id?: number | string;

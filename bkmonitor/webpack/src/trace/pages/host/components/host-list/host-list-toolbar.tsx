@@ -26,8 +26,10 @@
 
 import { defineComponent } from 'vue';
 
-import { Button, Input } from 'bkui-vue';
+import { Button, Dropdown, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
+
+import { type TCopyIpField } from '../../types/host-list';
 
 import './host-list-toolbar.scss';
 
@@ -53,12 +55,36 @@ export default defineComponent({
   emits: {
     keywordChange: (_v: string) => true,
     search: () => true,
-    copyIp: () => true,
+    /** 复制 IP，参数为用户选择的 IP 字段 */
+    copyIp: (_field: TCopyIpField) => true,
     compare: () => true,
     toggleFilter: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    /** 复制 IP 下拉菜单：内网/外网 × IPv4/IPv6 四种可选字段 */
+    const copyMenuList: {
+      field: TCopyIpField;
+      label: string;
+    }[] = [
+      {
+        field: 'bk_host_innerip',
+        label: t('内网IPv4'),
+      },
+      {
+        field: 'bk_host_innerip_v6',
+        label: t('内网IPv6'),
+      },
+      {
+        field: 'bk_host_outerip',
+        label: t('外网IPv4'),
+      },
+      {
+        field: 'bk_host_outerip_v6',
+        label: t('外网IPv6'),
+      },
+    ];
 
     return () => (
       <div class='host-list-toolbar'>
@@ -70,12 +96,29 @@ export default defineComponent({
           >
             {t('指标对比')}
           </Button> */}
-          <Button
+          <Dropdown
+            popoverOptions={{
+              extCls: 'host-list-toolbar__buttons_dropdown',
+            }}
             disabled={!props.hasSelection}
-            onClick={() => emit('copyIp')}
           >
-            {t('复制 IP')}
-          </Button>
+            {{
+              default: () => <Button disabled={!props.hasSelection}>{t('复制 IP')}</Button>,
+              content: () => (
+                <Dropdown.DropdownMenu>
+                  {copyMenuList.map(item => (
+                    <Dropdown.DropdownItem
+                      key={item.field}
+                      extCls='host-list-toolbar__copy-item'
+                      onClick={() => emit('copyIp', item.field)}
+                    >
+                      <span>{item.label}</span>
+                    </Dropdown.DropdownItem>
+                  ))}
+                </Dropdown.DropdownMenu>
+              ),
+            }}
+          </Dropdown>
         </div>
         <div class='host-list-toolbar__search'>
           <Input

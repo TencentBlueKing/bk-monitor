@@ -17,6 +17,17 @@ Post-implementation (unchanged): `.ai-agent/rules/task-completion-impact.mdc` �
 
 Record: `requirement_source`, `requirement_summary`, `tapd_entry_id`（若有）
 
+### Phase 0.5 — GTM branch association（仅 `submit.cli=gtm`）
+
+若 `.aafe.config.json` → `submit.cli=gtm` 且本任务有 TAPD 单：
+
+1. `git branch --show-current`：是否匹配 `feat|bug/<slug>/#<fullId>`
+2. **已匹配** → 记录 `tapd_entry_id` / 短 ID（fullId 最后 9 位），继续 Phase 1
+3. **未匹配** → 按 `.ai-agent/skills/tapd-submit-backfill.md`「GTM Task Start」执行：  
+   `gtm create issue` → 关联已有单据 → 短 ID（TAPD URL 最后 9 位）→ 目标分支 `master` → 按 TAPD 标题生成英文短名建开发分支
+
+`submit.cli=git` 或无 TAPD 单时跳过本小节。
+
 ---
 
 ## Phase 1 — Analyze & clarify (mandatory)
