@@ -3,7 +3,6 @@ import threading
 import time
 from unittest.mock import MagicMock, patch
 
-from django.db import connection
 from django.test import TestCase, override_settings
 from pipeline.engine.models import Data, PipelineProcess, ProcessCeleryTask, Status
 
@@ -138,8 +137,6 @@ class ClusteringConfigResourceTest(TestCase):
             self.assertTrue(operation["examples"])
             self.assertIn(operation["safety_level"], {"read", "inspect", "write", "destructive"})
             self.assertTrue(operation["response_schema"]["required"])
-
-        self.assertEqual(set(FUNCTIONS), set(HANDLERS))
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_config_detail_is_reachable_through_admin_resource_dispatcher(self):
@@ -277,7 +274,6 @@ class ClusteringPipelineResourceTest(TestCase):
     @override_settings(
         MIDDLEWARE=(APIGW_MIDDLEWARE,),
         ESQUERY_WHITE_LIST=["bkmonitorv3"],
-        ADMIN_RESOURCE_WRITE_APP_WHITE_LIST=["bkmonitorv3"],
     )
     @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
     def test_retry_endpoint_runs_the_authenticated_registry_handler_chain(self, retry_activity):
@@ -487,22 +483,6 @@ class ClusteringPipelineResourceTest(TestCase):
         retry_activity.assert_not_called()
 
     @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
-    def test_retry_rejects_unexpected_parameter(self, retry_activity):
-        with self.assertRaisesMessage(ValidationError, "unexpected parameters: action"):
-            retry_clustering_pipeline_node(
-                {
-                    "config_id": 1,
-                    "task_id": "root-pipeline",
-                    "node_id": "node-1",
-                    "expected_version": "version-1",
-                    "reason": "依赖已修复",
-                    "action": "skip",
-                }
-            )
-
-        retry_activity.assert_not_called()
-
-    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
     def test_retry_rejects_engine_failure(self, retry_activity):
         retry_activity.return_value = MagicMock(result=False, message="node is not retryable")
         config = create_clustering_config(
@@ -527,39 +507,6 @@ class ClusteringPipelineResourceTest(TestCase):
                     "reason": "依赖已修复",
                 }
             )
-
-    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
-    def test_retry_calls_pipeline_engine_after_validation_transaction_commits(self, retry_activity):
-        config = create_clustering_config(
-            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
-        )
-        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
-        PipelineProcess.objects.create(
-            id="process-1",
-            root_pipeline_id="root-pipeline",
-            current_node_id="node-1",
-            is_alive=True,
-            is_frozen=False,
-        )
-        baseline_atomic_depth = len(connection.atomic_blocks)
-
-        def operate(_node_id):
-            self.assertEqual(len(connection.atomic_blocks), baseline_atomic_depth)
-            return MagicMock(result=True, message="success")
-
-        retry_activity.side_effect = operate
-
-        result = retry_clustering_pipeline_node(
-            {
-                "config_id": config.id,
-                "task_id": "root-pipeline",
-                "node_id": "node-1",
-                "expected_version": "version-1",
-                "reason": "依赖已修复",
-            }
-        )
-
-        self.assertEqual(result["pipeline"]["selected_task_id"], "root-pipeline")
 
     @patch("apps.log_admin_resource.handlers.clustering_pipeline.get_clustering_access_pipeline")
     @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")

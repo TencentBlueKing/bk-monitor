@@ -1,6 +1,5 @@
 import time
 
-from django.db import transaction
 from django.utils import timezone
 from pipeline.engine import states
 from pipeline.engine.models import Data, PipelineProcess, ProcessCeleryTask, Status
@@ -24,7 +23,6 @@ PIPELINE_ACTIONS = {
     "force_fail": {"expected_state": states.RUNNING, "method_name": "forced_fail"},
 }
 
-PIPELINE_ACTION_COMMON_PARAMS = {"config_id", "task_id", "node_id", "expected_version", "reason"}
 PIPELINE_ACTION_STRING_LIMITS = {
     "task_id": 256,
     "node_id": 256,
@@ -158,56 +156,53 @@ def _operate_clustering_pipeline_node(params, action):
     if not isinstance(params, dict):
         raise ValidationError("params must be an object")
     reject_identity_params(params)
-    _validate_pipeline_action_params(params, action)
     task_id = _require_string(params, "task_id")
     node_id = _require_string(params, "node_id")
     expected_version = _require_string(params, "expected_version")
     reason = _require_string(params, "reason")
 
-    with transaction.atomic():
-        config = _get_clustering_config(params.get("config_id"), for_update=True)
-        task_ids = {
-            str(record.get("task_id"))
-            for record in config.task_records or []
-            if isinstance(record, dict) and record.get("task_id")
-        }
-        if task_id not in task_ids:
-            raise ValidationError("task_id does not belong to the clustering configuration")
+    config = _get_clustering_config(params.get("config_id"))
+    task_ids = {
+        str(record.get("task_id"))
+        for record in config.task_records or []
+        if isinstance(record, dict) and record.get("task_id")
+    }
+    if task_id not in task_ids:
+        raise ValidationError("task_id does not belong to the clustering configuration")
 
-        try:
-            status = Status.objects.select_for_update().get(id=node_id)
-        except Status.DoesNotExist:
-            raise ValidationError("pipeline node status does not exist")
+    try:
+        status = Status.objects.get(id=node_id)
+    except Status.DoesNotExist:
+        raise ValidationError("pipeline node status does not exist")
 
-        try:
-            process = PipelineProcess.objects.select_for_update().get(root_pipeline_id=task_id, parent_id="")
-        except PipelineProcess.DoesNotExist:
-            raise ValidationError("pipeline process does not exist")
-        except PipelineProcess.MultipleObjectsReturned:
-            raise ValidationError("multiple root pipeline processes exist; operation is blocked")
-        if not process.is_alive:
-            raise ValidationError("pipeline process is no longer alive")
-        if process.is_frozen:
-            raise ValidationError("pipeline process is frozen")
-        if process.current_node_id != node_id:
-            raise ValidationError(
-                f"node_id is no longer the current pipeline node: expected {node_id}, actual {process.current_node_id}"
-            )
-        action_config = PIPELINE_ACTIONS[action]
-        expected_state = action_config["expected_state"]
-        if status.state != expected_state:
-            raise ValidationError(f"pipeline node state changed: expected {expected_state}, actual {status.state}")
-        if status.version != expected_version:
-            raise ValidationError("pipeline node version changed; refresh the pipeline before operating again")
-        if action == "skip" and params.get("acknowledge_external_effects") is not True:
-            raise ValidationError("skip requires acknowledge_external_effects=true")
+    try:
+        process = PipelineProcess.objects.get(root_pipeline_id=task_id, parent_id="")
+    except PipelineProcess.DoesNotExist:
+        raise ValidationError("pipeline process does not exist")
+    except PipelineProcess.MultipleObjectsReturned:
+        raise ValidationError("multiple root pipeline processes exist; operation is blocked")
+    if not process.is_alive:
+        raise ValidationError("pipeline process is no longer alive")
+    if process.is_frozen:
+        raise ValidationError("pipeline process is frozen")
+    if process.current_node_id != node_id:
+        raise ValidationError(
+            f"node_id is no longer the current pipeline node: expected {node_id}, actual {process.current_node_id}"
+        )
+    action_config = PIPELINE_ACTIONS[action]
+    expected_state = action_config["expected_state"]
+    if status.state != expected_state:
+        raise ValidationError(f"pipeline node state changed: expected {expected_state}, actual {status.state}")
+    if status.version != expected_version:
+        raise ValidationError("pipeline node version changed; refresh the pipeline before operating again")
+    if action == "skip" and params.get("acknowledge_external_effects") is not True:
+        raise ValidationError("skip requires acknowledge_external_effects=true")
 
-        before = {"status": _serialize_status(status), "process": _serialize_process(process)}
-        config_id = config.id
-        task_records = _serialize_task_records(config.task_records or [])
+    before = {"status": _serialize_status(status), "process": _serialize_process(process)}
+    config_id = config.id
+    task_records = _serialize_task_records(config.task_records or [])
 
-    # Pipeline 的官方操作会在内部完成状态原子迁移并立即投递 Celery 任务；必须在上面的锁定校验事务
-    # 提交后调用，避免 worker 先于状态提交读取到旧数据。并发重复调用仍会由引擎的状态迁移拒绝。
+    # Pipeline 引擎负责最终的原子状态迁移；这里的版本和当前节点检查用于给管理端返回明确错误。
     action_method = getattr(task_service, action_config["method_name"])
     if action == "force_fail":
         action_result = action_method(node_id, ex_data=f"Admin forced failure: {reason}")
@@ -239,7 +234,7 @@ def _operate_clustering_pipeline_node(params, action):
     }
 
 
-def _get_clustering_config(config_id, for_update=False):
+def _get_clustering_config(config_id):
     if config_id in (None, ""):
         raise ValidationError("config_id is required")
     if isinstance(config_id, bool) or not isinstance(config_id, int):
@@ -247,21 +242,9 @@ def _get_clustering_config(config_id, for_update=False):
     if config_id < 1:
         raise ValidationError("config_id must be positive")
     try:
-        queryset = ClusteringConfig.objects.select_for_update() if for_update else ClusteringConfig.objects
-        return queryset.get(id=config_id)
+        return ClusteringConfig.objects.get(id=config_id)
     except ClusteringConfig.DoesNotExist:
         raise ValidationError(f"config_id does not exist: {config_id}")
-
-
-def _validate_pipeline_action_params(params, action):
-    if action not in PIPELINE_ACTIONS:
-        raise ValidationError(f"unsupported pipeline action: {action}")
-    allowed = set(PIPELINE_ACTION_COMMON_PARAMS)
-    if action == "skip":
-        allowed.add("acknowledge_external_effects")
-    unexpected = sorted(set(params) - allowed)
-    if unexpected:
-        raise ValidationError("unexpected parameters: {}".format(", ".join(unexpected)))
 
 
 def _require_string(params, key):

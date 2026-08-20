@@ -519,21 +519,11 @@ HANDLERS = {
 
 class AdminResourceRegistry:
     @classmethod
-    def get_definition(cls, func_name):
-        if not isinstance(func_name, str):
-            return None
-        return FUNCTIONS.get(func_name)
-
-    @classmethod
     def call(cls, func_name, params):
-        if not isinstance(func_name, str) or not func_name:
-            raise ValidationError("func_name must be a non-empty string")
-        if not isinstance(params, dict):
-            raise ValidationError("params must be an object")
         if func_name == "__meta__":
             return cls.meta(params)
         if func_name in HANDLERS:
-            return HANDLERS[func_name](params)
+            return HANDLERS[func_name](params or {})
         raise ValidationError(f"unknown func_name: {func_name}")
 
     @classmethod

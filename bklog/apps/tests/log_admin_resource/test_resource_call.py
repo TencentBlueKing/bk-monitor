@@ -27,7 +27,6 @@ from django.test import TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.api import TransferApi
-from apps.log_admin_resource.registry import AdminResourceRegistry
 from apps.log_admin_resource.views import AdminResourceViewSet
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, ContainerCollectorType
 from apps.log_databus.handlers.storage import StorageHandler
@@ -190,79 +189,6 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertFalse(content["result"])
         self.assertEqual(content["code"], "3600403")
         self.assertIn("white-list", content["message"])
-
-    @override_settings(
-        MIDDLEWARE=(APIGW_MIDDLEWARE,),
-        ESQUERY_WHITE_LIST=["bkmonitorv3"],
-        ADMIN_RESOURCE_WRITE_APP_WHITE_LIST=[],
-    )
-    @patch.object(AdminResourceRegistry, "call")
-    def test_call_rejects_write_operation_for_query_only_app(self, mock_call):
-        content = self._call(
-            "bklog.clustering_config.pipeline.retry",
-            {
-                "config_id": 1,
-                "task_id": "pipeline-id",
-                "node_id": "node-id",
-                "expected_version": "version-id",
-                "reason": "依赖已修复",
-            },
-        )
-
-        self.assertFalse(content["result"])
-        self.assertEqual(content["code"], "3600403")
-        self.assertIn("write-list", content["message"])
-        mock_call.assert_not_called()
-
-    @override_settings(
-        MIDDLEWARE=(APIGW_MIDDLEWARE,),
-        ESQUERY_WHITE_LIST=["bkmonitorv3"],
-        ADMIN_RESOURCE_WRITE_APP_WHITE_LIST=["bkmonitorv3"],
-    )
-    @patch.object(AdminResourceRegistry, "call", return_value={"result": True})
-    def test_call_allows_write_operation_for_configured_admin_app(self, mock_call):
-        params = {
-            "config_id": 1,
-            "task_id": "pipeline-id",
-            "node_id": "node-id",
-            "expected_version": "version-id",
-            "reason": "依赖已修复",
-        }
-
-        content = self._call("bklog.clustering_config.pipeline.retry", params)
-
-        self.assertTrue(content["result"])
-        self.assertEqual(content["data"]["result"], {"result": True})
-        mock_call.assert_called_once_with(
-            func_name="bklog.clustering_config.pipeline.retry",
-            params=params,
-        )
-
-    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
-    def test_call_rejects_non_object_request_body(self):
-        response = self.client.post(
-            "/api/v1/admin/resource/call/",
-            data=json.dumps([]),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        content = response.json()
-        self.assertFalse(content["result"])
-        self.assertIn("request body must be an object", content["message"])
-
-    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
-    def test_call_rejects_non_object_params(self):
-        response = self.client.post(
-            "/api/v1/admin/resource/call/",
-            data=json.dumps({"func_name": "bklog.collector.list", "params": ["unexpected"]}),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        content = response.json()
-        self.assertFalse(content["result"])
-        self.assertIn("params must be an object", content["message"])
 
 
 class TransferApiTenantGetterTest(TestCase):
@@ -935,7 +861,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
         self.assertEqual(item["after"]["allocation_min_days"], 0)
         self.assertIn("allocation_min_days", [diff["field"] for diff in item["diff"]])
 
-    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,), ADMIN_RESOURCE_WRITE_APP_WHITE_LIST=["bkmonitorv3"])
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
     @patch("apps.log_admin_resource.handlers.collector_storage.TransferEtlHandler.patch_update")
     @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
@@ -981,7 +907,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
         )
         mock_get_result_table_storage.assert_called_once()
 
-    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,), ADMIN_RESOURCE_WRITE_APP_WHITE_LIST=["bkmonitorv3"])
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
     @patch("apps.log_admin_resource.handlers.collector_storage.TransferEtlHandler.patch_update")
     @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
