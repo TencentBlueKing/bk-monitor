@@ -53,6 +53,8 @@ def async_clean_expired_detect_result(strategy_range=None):
         CleanResult.clean_expired_detect_result(strategy_range=strategy_range)
     except Exception as e:
         logger.exception("clean_expired_detect_result(%s-%s) Error: %s", *strategy_range, e)
+        if settings.ENABLE_CHECK_RESULT_CLEAN_HSCAN:
+            raise
         time.sleep(60)
         CleanResult.clean_expired_detect_result(strategy_range=strategy_range)
     logger.info("clean_expired_detect_result(%s-%s) done", *strategy_range)
