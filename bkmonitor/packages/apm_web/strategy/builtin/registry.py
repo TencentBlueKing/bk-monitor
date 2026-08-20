@@ -41,7 +41,12 @@ class BuiltinStrategyTemplateRegistry:
     # 如果更新了内置策略模板，需要更新该版本号。
     # 1.0.0 - 初始版本
     # 1.1.0 - 支持 [调用分析] 调用流量及 go_goroutines 同环比告警模板
-    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.1.0"
+    # 1.2.0 - 支持自定义分位耗时、内存使用率超限容器占比告警模板
+    # 1.2.1 - 容器占比查询默认维度改为 limit 指标也有的标签，避免 a/b 对不齐
+    # 1.3.0 - 启用被调平均耗时告警模板
+    # 1.3.1 - 下线暂无场景的主调自定义分位耗时告警模板
+    # 1.3.2 - 内存高负载 Pod 占比改用本地 PromQL 查询模板
+    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.3.2"
 
     _BUILTIN_STRATEGY_TEMPLATES: list[type[templates.StrategyTemplateSet]] = templates.BUILTIN_STRATEGY_TEMPLATE
 

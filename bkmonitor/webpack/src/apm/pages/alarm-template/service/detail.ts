@@ -111,6 +111,7 @@ export const getCheckStrategyTemplate = async (params: {
 
 export const getCompareStrategyTemplate = async (params: {
   app_name: string;
+  applied_strategy_template_id?: number;
   service_name?: string;
   strategy_template_id: number;
 }) => {

@@ -12,12 +12,11 @@ from functools import cached_property
 from typing import Any
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.query_template.constants import VariableType, Namespace
-from constants.apm import CachedEnum
+from bkmonitor.query_template.builtin import QueryTemplateSet, utils
+from bkmonitor.query_template.constants import Namespace, VariableType
+from constants.apm import CachedEnum, K8SMetricTag
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.query_template import GLOBAL_BIZ_ID
-from bkmonitor.query_template.builtin import utils
-from bkmonitor.query_template.builtin import QueryTemplateSet
 
 from django.utils.translation import gettext_lazy as _
 
@@ -30,6 +29,7 @@ class LocalQueryTemplateName(CachedEnum):
     RPC_PANIC_LOG = "apm_rpc_panic_log"
     TRACE_SPAN_TOTAL = "apm_trace_span_total"
     LOG_TOTAL = "apm_log_total"
+    K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO = "k8s_memory_limit_usage_container_ratio"
 
     @cached_property
     def label(self) -> str:
@@ -38,6 +38,7 @@ class LocalQueryTemplateName(CachedEnum):
                 self.RPC_PANIC_LOG: _("服务 Panic 日志数"),
                 self.TRACE_SPAN_TOTAL: _("调用链 Span 数"),
                 self.LOG_TOTAL: _("日志数"),
+                self.K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO: _("[容器] 内存高负载 Pod 占比（%）"),
             }.get(self, self.value)
         )
 
@@ -158,6 +159,88 @@ LOG_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
     ],
 }
 
+_MEMORY_USAGE_METRIC: str = "container_memory_working_set_bytes"
+_MEMORY_LIMIT_METRIC: str = "kube_pod_container_resource_limits_memory_bytes"
+_POD_DIMENSIONS: str = ", ".join(
+    [
+        K8SMetricTag.BCS_CLUSTER_ID.value,
+        K8SMetricTag.NAMESPACE.value,
+        K8SMetricTag.POD_NAME.value,
+    ]
+)
+_CONTAINER_SELECTOR: str = 'container_name!="POD",${CONDITIONS}'
+_POD_MEMORY_USAGE_PROMQL: str = f"sum by ({_POD_DIMENSIONS}) ({_MEMORY_USAGE_METRIC}{{{_CONTAINER_SELECTOR}}})"
+_POD_MEMORY_LIMIT_PROMQL: str = f"sum by ({_POD_DIMENSIONS}) ({_MEMORY_LIMIT_METRIC}{{{_CONTAINER_SELECTOR}}})"
+_POD_MEMORY_USAGE_RATIO_PROMQL: str = f"({_POD_MEMORY_USAGE_PROMQL} / {_POD_MEMORY_LIMIT_PROMQL}) * 100"
+_MEMORY_HIGH_LOAD_POD_RATIO_PROMQL: str = (
+    f"sum by (${{GROUP_BY}}) (({_POD_MEMORY_USAGE_RATIO_PROMQL}) > bool ${{MEMORY_USAGE_THRESHOLD}}) "
+    f"/ count by (${{GROUP_BY}}) ({_POD_MEMORY_LIMIT_PROMQL}) * 100"
+)
+_MEMORY_RELATED_METRICS: list[dict[str, str]] = [
+    {"metric_field": metric, "metric_id": f"{DataSourceLabel.BK_MONITOR_COLLECTOR}..{metric}"}
+    for metric in [_MEMORY_USAGE_METRIC, _MEMORY_LIMIT_METRIC]
+]
+
+K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO_QUERY_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": LocalQueryTemplateName.K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO.value,
+    "alias": LocalQueryTemplateName.K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO.label,
+    "description": str(
+        _(
+            "内存高负载 Pod 占比表示 memory limit 使用率超过「内存使用率阈值」的 Pod 数，"
+            "占已配置 memory limit 的 Pod 总数的百分比。"
+        )
+    ),
+    "expression": "a",
+    "query_configs": [
+        {
+            "table": "",
+            "data_source_label": DataSourceLabel.PROMETHEUS,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "interval": 60,
+            "promql": _MEMORY_HIGH_LOAD_POD_RATIO_PROMQL,
+            "group_by": ["${GROUP_BY}"],
+        }
+    ],
+    "variables": [
+        {
+            "name": "GROUP_BY",
+            "alias": "监控维度",
+            "type": VariableType.GROUP_BY.value,
+            "config": {
+                "default": [K8SMetricTag.BCS_CLUSTER_ID.value, K8SMetricTag.NAMESPACE.value],
+                "options": [K8SMetricTag.BCS_CLUSTER_ID.value, K8SMetricTag.NAMESPACE.value],
+                "related_metrics": _MEMORY_RELATED_METRICS,
+            },
+            "description": "统计高负载 Pod 占比时使用的聚合维度。",
+        },
+        {
+            "name": "CONDITIONS",
+            "alias": "维度过滤",
+            "type": VariableType.CONDITIONS.value,
+            "config": {
+                "default": [],
+                "options": [
+                    K8SMetricTag.BCS_CLUSTER_ID.value,
+                    K8SMetricTag.NAMESPACE.value,
+                    K8SMetricTag.POD_NAME.value,
+                    K8SMetricTag.CONTAINER_NAME.value,
+                ],
+                "related_metrics": _MEMORY_RELATED_METRICS,
+            },
+            "description": "限定参与高负载 Pod 占比计算的容器范围。",
+        },
+        {
+            "name": "MEMORY_USAGE_THRESHOLD",
+            "alias": "[整数] 内存使用率阈值（%）",
+            "type": VariableType.CONSTANTS.value,
+            "config": {"default": "90"},
+            "description": "Pod 内存 limit 使用率超过该值时计为高负载。",
+        },
+    ],
+    "unit": "percent",
+}
+
 
 class LocalQueryTemplateSet(QueryTemplateSet):
     NAMESPACE: str = Namespace.DEFAULT
@@ -166,4 +249,5 @@ class LocalQueryTemplateSet(QueryTemplateSet):
         RPC_PANIC_LOG_QUERY_TEMPLATE,
         TRACE_SPAN_TOTAL_QUERY_TEMPLATE,
         LOG_TOTAL_QUERY_TEMPLATE,
+        K8S_MEMORY_LIMIT_USAGE_CONTAINER_RATIO_QUERY_TEMPLATE,
     ]
