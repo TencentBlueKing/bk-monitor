@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from bkmonitor.models.strategy import StrategyModel
@@ -21,7 +22,18 @@ from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 OPERATION_DETAIL = "detail"
 OPERATION_LIST_BY_PRIORITY_GROUP = "list_by_priority_group"
 OPERATION_SHARED_GROUP = "shared_group"
-ALLOWED_OPERATIONS = {OPERATION_DETAIL, OPERATION_LIST_BY_PRIORITY_GROUP, OPERATION_SHARED_GROUP}
+OPERATION_LIST_ENABLED = "list_enabled"
+ALLOWED_OPERATIONS = {
+    OPERATION_DETAIL,
+    OPERATION_LIST_BY_PRIORITY_GROUP,
+    OPERATION_SHARED_GROUP,
+    OPERATION_LIST_ENABLED,
+}
+
+DEFAULT_PAGE_SIZE = 500
+MAX_PAGE_SIZE = 2000
+# ``.strategy_group`` 的保留字段，不是策略 ID
+GROUP_RESERVED_FIELDS = ("interval_list", "strategy_source", "bk_biz_id")
 
 
 def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
@@ -33,6 +45,8 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
         return _inspect_strategy_detail(params)
     if operation == OPERATION_SHARED_GROUP:
         return _inspect_shared_group(params)
+    if operation == OPERATION_LIST_ENABLED:
+        return _list_enabled(params)
     return _list_by_priority_group(params)
 
 
@@ -66,6 +80,230 @@ def _inspect_shared_group(params: dict[str, Any]) -> dict[str, Any]:
         "bk_biz_id": detail.get("bk_biz_id"),
         "members": sorted(members, key=lambda item: item["strategy_id"]),
     }
+
+
+def _list_enabled(params: dict[str, Any]) -> dict[str, Any]:
+    """批量枚举启用策略并附带监控项映射，用于策略级 Redis 成本核算。
+
+    Redis 读取次数与返回条数、分页页码无关：人口取一次 ``GET .strategy_ids``，策略到
+    监控项的映射取一次 ``HGETALL .strategy_group``。刻意不走逐策略读 ``.strategy_{id}``
+    ——按当前规模那是数千次往返，正是本操作要替代的模式。``HGETALL`` 与 access 主循环
+    （``service/access/handler.py``）和 manage-double-check-strategy 的既有读法一致，
+    不引入新的读取风险等级。
+    """
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    intervals, filter_echo = _resolve_strategy_id_filter(params)
+    page, page_size = _resolve_pagination(params)
+    include_item_ids = bool(params.get("include_item_ids", True))
+
+    raw_ids = StrategyCacheManager.get_strategy_ids()
+    population: list[int] = sorted({int(raw_id) for raw_id in raw_ids if _is_int_like(raw_id)})
+
+    matched = [strategy_id for strategy_id in population if _in_intervals(strategy_id, intervals)]
+
+    group_index, malformed_groups = _build_group_index(StrategyCacheManager.get_all_groups())
+    in_group = sum(1 for strategy_id in matched if strategy_id in group_index)
+
+    total_pages = (len(matched) + page_size - 1) // page_size if matched else 0
+    start = (page - 1) * page_size
+    strategies = [
+        _serialize_enabled_strategy(strategy_id, group_index.get(strategy_id), include_item_ids=include_item_ids)
+        for strategy_id in matched[start : start + page_size]
+    ]
+
+    return {
+        "operation": OPERATION_LIST_ENABLED,
+        "population": {
+            "source": "cache:.strategy_ids",
+            "total": len(population),
+            # 该缓存按增量并集刷新（core/cache/strategy.py::refresh_strategy_ids），
+            # 停用但未删除的策略可能残留，因此与 DB 计数只应同量级比对，不可做等值断言。
+            "drift_note": "增量并集刷新，可能残留已停用策略；与 DB 计数只做同量级比对",
+        },
+        "filter": dict(filter_echo, matched=len(matched)),
+        "page": {
+            "number": page,
+            "size": page_size,
+            "returned": len(strategies),
+            "total_pages": total_pages,
+            "has_more": start + len(strategies) < len(matched),
+        },
+        "group_coverage": {
+            "source": "cache:.strategy_group",
+            "in_group": in_group,
+            "not_in_group": len(matched) - in_group,
+            "malformed_groups": malformed_groups,
+            # 只收录 query_md5 非空的监控项（core/cache/strategy.py::handle_strategy），
+            # 事件类等策略天然不在其中，缺失不代表数据异常。
+            "miss_note": "仅时序/日志与自定义、自愈事件类监控项进入策略组，其余策略缺失属预期",
+        },
+        "strategies": strategies,
+    }
+
+
+def _resolve_strategy_id_filter(params: dict[str, Any]) -> tuple[list[tuple[int, int | None]] | None, dict[str, Any]]:
+    """解析策略 ID 过滤区间，返回 (闭区间列表, 回显)。``None`` 表示不过滤。"""
+    node_id = _optional_int(params, "node_id")
+    strategy_id_min = _optional_int(params, "strategy_id_min")
+    strategy_id_max = _optional_int(params, "strategy_id_max")
+
+    if node_id is not None and (strategy_id_min is not None or strategy_id_max is not None):
+        raise CustomException(message="node_id 与 strategy_id_min/strategy_id_max 不能同时指定")
+
+    if node_id is not None:
+        intervals = _node_routing_intervals(node_id)
+        return intervals, {
+            "mode": "node_id",
+            "node_id": node_id,
+            "intervals": [{"min": low, "max": high} for low, high in intervals],
+        }
+
+    if strategy_id_min is None and strategy_id_max is None:
+        return None, {"mode": "all"}
+
+    low = strategy_id_min if strategy_id_min is not None else 0
+    if strategy_id_max is not None and strategy_id_max < low:
+        raise CustomException(message=f"strategy_id_max 不能小于 strategy_id_min: {strategy_id_max} < {low}")
+    return [(low, strategy_id_max)], {
+        "mode": "strategy_id_range",
+        "intervals": [{"min": low, "max": strategy_id_max}],
+    }
+
+
+def _node_routing_intervals(node_id: int) -> list[tuple[int, int]]:
+    """把 CacheRouter 路由表折算成指定节点承载的策略 ID 闭区间列表。
+
+    路由判定是"第一个 ``strategy_score > strategy_id`` 的记录胜出"
+    （``core/storage/redis_cluster.py::_lookup_node_in_routers``），因此按 score 升序
+    排列后某记录实际覆盖 ``[上一条 score, 本条 score - 1]``。这个差一位的半开语义容易被
+    调用方算错，故在服务端折算并把区间回显出来。
+    区间口径与 list-cache-routing 的 ``score_range`` 严格一致：只取正数 score，下界从 1
+    起（``strategy_id=0`` 被强制路由到 default_node，不属于正数路由段），``score <= 0``
+    的保留记录不参与区间划分。同一节点可占多个不相邻区间，故返回列表。
+    """
+    from alarm_backends.core.cluster import get_cluster
+    from bkmonitor.models import CacheRouter
+
+    routes = list(
+        CacheRouter.objects.filter(cluster_name=get_cluster().name, strategy_score__gt=0)
+        .order_by("strategy_score")
+        .values("node_id", "strategy_score")
+    )
+    if not routes:
+        raise CustomException(message="当前集群没有正数 CacheRouter 路由记录，无法按节点过滤")
+
+    intervals: list[tuple[int, int]] = []
+    floor = 1
+    for route in routes:
+        ceil = route["strategy_score"] - 1
+        if route["node_id"] == node_id and ceil >= floor:
+            intervals.append((floor, ceil))
+        floor = route["strategy_score"]
+
+    if not intervals:
+        raise CustomException(message=f"节点 {node_id} 在当前集群正数路由表中没有覆盖区间")
+    return intervals
+
+
+def _in_intervals(strategy_id: int, intervals: list[tuple[int, int | None]] | None) -> bool:
+    if intervals is None:
+        return True
+    return any(low <= strategy_id and (high is None or strategy_id <= high) for low, high in intervals)
+
+
+def _build_group_index(raw_groups: Any) -> tuple[dict[int, dict[str, Any]], int]:
+    """把 ``.strategy_group`` 快照转成 ``strategy_id -> 聚合信息`` 索引。
+
+    单个组的 JSON 解析失败只计数不抛错：本操作枚举全量组，一条脏数据不应让整次枚举
+    失败；把坏组数量回显出来，比静默丢弃或整体报错都更利于定位。
+    """
+    if not isinstance(raw_groups, dict):
+        raise CustomException(message="共享查询组缓存结构异常")
+
+    index: dict[int, dict[str, Any]] = {}
+    malformed = 0
+    for raw_group_key, raw_detail in raw_groups.items():
+        try:
+            detail = json.loads(raw_detail)
+        except (TypeError, ValueError):
+            malformed += 1
+            continue
+        if not isinstance(detail, dict):
+            malformed += 1
+            continue
+
+        group_key = str(raw_group_key)
+        bk_biz_id = detail.get("bk_biz_id")
+        interval_list = [interval for interval in (detail.get("interval_list") or []) if _is_int_like(interval)]
+
+        for raw_strategy_id, raw_item_ids in detail.items():
+            if raw_strategy_id in GROUP_RESERVED_FIELDS or not _is_int_like(raw_strategy_id):
+                continue
+            if not isinstance(raw_item_ids, list):
+                continue
+            entry = index.setdefault(
+                int(raw_strategy_id),
+                {"item_ids": set(), "strategy_group_keys": set(), "interval_list": set(), "bk_biz_id": bk_biz_id},
+            )
+            entry["strategy_group_keys"].add(group_key)
+            entry["interval_list"].update(int(interval) for interval in interval_list)
+            entry["item_ids"].update(
+                item_id for item_id in raw_item_ids if isinstance(item_id, int) and not isinstance(item_id, bool)
+            )
+            if entry["bk_biz_id"] is None:
+                entry["bk_biz_id"] = bk_biz_id
+    return index, malformed
+
+
+def _serialize_enabled_strategy(
+    strategy_id: int, entry: dict[str, Any] | None, *, include_item_ids: bool
+) -> dict[str, Any]:
+    if entry is None:
+        return {"strategy_id": strategy_id, "in_strategy_group": False}
+    serialized: dict[str, Any] = {
+        "strategy_id": strategy_id,
+        "in_strategy_group": True,
+        "bk_biz_id": entry["bk_biz_id"],
+        "item_count": len(entry["item_ids"]),
+        "strategy_group_keys": sorted(entry["strategy_group_keys"]),
+        "interval_list": sorted(entry["interval_list"]),
+    }
+    if include_item_ids:
+        serialized["item_ids"] = sorted(entry["item_ids"])
+    return serialized
+
+
+def _resolve_pagination(params: dict[str, Any]) -> tuple[int, int]:
+    """解析分页参数。
+
+    不用 ``value or default`` 兜底：那会把 0 静默当成缺省值，掩盖调用方按 0 基分页的
+    差一错误——调用方拿到第 1 页却以为自己拿的是第 0 页，且没有任何提示。
+    """
+    page = _optional_int(params, "page")
+    if page is None:
+        page = 1
+    elif page < 1:
+        raise CustomException(message=f"page 必须大于 0: {page}")
+
+    page_size = _optional_int(params, "page_size")
+    if page_size is None:
+        page_size = DEFAULT_PAGE_SIZE
+    elif page_size < 1:
+        raise CustomException(message=f"page_size 必须大于 0: {page_size}")
+    return page, min(page_size, MAX_PAGE_SIZE)
+
+
+def _is_int_like(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    try:
+        int(value)
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _inspect_strategy_detail(params: dict[str, Any]) -> dict[str, Any]:
@@ -285,13 +523,25 @@ def _optional_int(params: dict[str, Any], field_name: str) -> int | None:
         raise CustomException(message=f"{field_name} 必须是整数: {value}") from error
 
 
+_LIST_ENABLED_PARAMS_SCHEMA = {
+    "node_id": "operation=list_enabled 可选，按 CacheRouter 区间过滤该节点承载的策略；与 strategy_id_min/max 互斥",
+    "strategy_id_min": "operation=list_enabled 可选，闭区间下界",
+    "strategy_id_max": "operation=list_enabled 可选，闭区间上界，省略表示无上界",
+    "page": "operation=list_enabled 可选，页码，从 1 开始，默认 1",
+    "page_size": f"operation=list_enabled 可选，默认 {DEFAULT_PAGE_SIZE}，上限 {MAX_PAGE_SIZE}",
+    "include_item_ids": "operation=list_enabled 可选，是否返回 item_ids 明细，默认 true",
+}
+
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.inspect_strategy_config",
     summary="读取策略聚合配置",
-    description="bkm-cli inspect-strategy-config 后端函数，读取策略详情、优先级分组摘要或当前 access 共享查询组成员。",
+    description=(
+        "bkm-cli inspect-strategy-config 后端函数，读取策略详情、优先级分组摘要、"
+        "当前 access 共享查询组成员，或批量枚举启用策略与监控项映射。"
+    ),
     handler=inspect_strategy_config,
     params_schema={
-        "operation": "detail | list_by_priority_group | shared_group",
+        "operation": "detail | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
         "strategy_id": "operation=detail 必填",
         "priority_group_key": "operation=list_by_priority_group 必填",
@@ -300,6 +550,7 @@ KernelRPCRegistry.register_function(
         "include_raw_model_ids": "boolean",
         "include_disabled": "boolean",
         "include_invalid": "boolean",
+        **_LIST_ENABLED_PARAMS_SCHEMA,
     },
     example_params={
         "operation": "detail",
@@ -313,13 +564,16 @@ BkmCliOpRegistry.register(
     op_id="inspect-strategy-config",
     func_name="bkm_cli.inspect_strategy_config",
     summary="读取策略聚合配置",
-    description="通过 monitor-api 服务桥读取策略完整配置、同 priority_group_key 策略摘要或当前 access 共享查询组成员。",
+    description=(
+        "通过 monitor-api 服务桥读取策略完整配置、同 priority_group_key 策略摘要、"
+        "当前 access 共享查询组成员，或批量枚举启用策略与监控项映射（用于策略级缓存成本核算）。"
+    ),
     capability_level="inspect",
     risk_level="low",
     requires_confirmation=False,
     audit_tags=["db", "strategy", "inspect"],
     params_schema={
-        "operation": "detail | list_by_priority_group | shared_group",
+        "operation": "detail | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
         "strategy_id": "integer",
         "priority_group_key": "string",
@@ -328,6 +582,7 @@ BkmCliOpRegistry.register(
         "include_raw_model_ids": "boolean",
         "include_disabled": "boolean",
         "include_invalid": "boolean",
+        **_LIST_ENABLED_PARAMS_SCHEMA,
     },
     example_params={
         "operation": "detail",
