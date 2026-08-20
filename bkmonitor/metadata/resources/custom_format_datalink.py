@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource, api
-from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
+from metadata.models import ClusterInfo, DataSource, DataSourceResultTable, ResultTable, ResultTableOption
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.utils import generate_result_table_field_list
 from metadata.models.result_table import CustomFormatV4DataLinkOption
@@ -66,7 +66,7 @@ class DebugCustomFormatDataLinkResource(Resource):
             DataLink._validate_custom_format_contract(
                 generate_result_table_field_list(table_id=table_id, bk_tenant_id=bk_tenant_id),
                 clean_rules,
-                require_vm_contract=option.target_storage_type == "victoria_metrics",
+                require_vm_contract=option.target_storage_type == ClusterInfo.TYPE_VM,
             )
         except ValueError as error:
             contract_errors.append(str(error))
