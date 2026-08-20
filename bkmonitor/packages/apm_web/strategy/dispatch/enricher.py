@@ -331,6 +331,10 @@ class K8SEnricher(BaseEnricher):
     SYSTEM: str = StrategyTemplateSystem.K8S.value
 
     _TAG_ENUMS: list[type[apm_constants.CachedEnum]] = [apm_constants.K8SMetricTag]
+    _WORKLOAD_FILTER_FIELDS: set[str] = {
+        apm_constants.K8SMetricTag.BCS_CLUSTER_ID.value,
+        apm_constants.K8SMetricTag.NAMESPACE.value,
+    }
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         # 目标信息用于更好地与观测场景实体联动。
@@ -344,39 +348,98 @@ class K8SEnricher(BaseEnricher):
         )
 
     @classmethod
+    def _filter_workloads_by_conditions(
+        cls, workloads: list[dict[str, Any]], conditions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        # 仅优化简单的集群、Namespace 等值过滤；存在 OR 时维持原逻辑。
+        if any(str(condition.get("condition") or "and").lower() == "or" for condition in conditions):
+            return workloads
+
+        filters: dict[str, set[Any]] = {}
+        for condition in conditions:
+            field: str = condition.get("key", "")
+            if field not in cls._WORKLOAD_FILTER_FIELDS or condition.get("method", "eq") != "eq":
+                continue
+
+            values: Any = condition.get("value", [])
+            values = values if isinstance(values, list) else [values]
+            filters[field] = filters.get(field, set(values)) & set(values)
+
+        if not filters:
+            return workloads
+
+        filtered: list[dict[str, Any]] = [
+            workload
+            for workload in workloads
+            if all(workload.get(field) in values for field, values in filters.items())
+        ]
+
+        # 全部被排除时保留原条件，让后续 AND 合并自然得到无数据，避免退化为 Namespace 全量查询。
+        return filtered or workloads
+
+    @staticmethod
+    def _pod_name_pattern(workload: dict[str, Any]) -> str | None:
+        name: str | None = workload.get("name")
+        kind: str | None = workload.get("kind")
+        if not (kind and name):
+            return None
+
+        kind_pattern_map: dict[str, str] = {
+            "Job": f"^{name}-[a-z0-9]{{5,10}}$",
+            "Deployment": f"^{name}(-[a-z0-9]{{5,10}}){{1,2}}$",
+            "DaemonSet": f"^{name}-[a-z0-9]{{5}}$",
+            "StatefulSet": f"^{name}-[0-9]+$",
+        }
+        for workload_kind, pod_pattern in kind_pattern_map.items():
+            # 采取模糊匹配是因为存在类似 xxxDeployment 的 CRD。
+            if kind in workload_kind:
+                return pod_pattern
+        return None
+
+    @classmethod
     def _filter_by_workloads(cls, workloads: list[dict[str, Any]]) -> Q:
-        q: Q = Q()
+        # 同集群、Namespace 的 workload 合并为一个 Pod 正则，减少 OR 分支和查询长度。
+        scope_patterns: dict[tuple[str, str | None], list[str] | None] = {}
         for workload in workloads:
-            name: str | None = workload.get("name")
-            kind: str | None = workload.get("kind")
-            namespace: str | None = workload.get("namespace")
             bcs_cluster_id: str | None = workload.get("bcs_cluster_id")
             if not bcs_cluster_id:
-                # 无效关联信息：没有关联集群
                 continue
 
-            base_cond: dict[str, str] = {"bcs_cluster_id": bcs_cluster_id, "namespace": namespace}
-            if not (kind and name):
-                # 关联一个具体的 Namespace
-                q |= Q(**base_cond)
+            scope: tuple[str, str | None] = (bcs_cluster_id, workload.get("namespace"))
+            if scope in scope_patterns and scope_patterns[scope] is None:
                 continue
 
-            # 关联 Workload
-            kind_pod_reg_map: dict[str, Any] = {
-                "Job": f"^{name}-[a-z0-9]{{5,10}}$",
-                "Deployment": f"^{name}(-[a-z0-9]{{5,10}}){{1,2}}$",
-                "DaemonSet": f"^{name}-[a-z0-9]{{5}}$",
-                "StatefulSet": f"^{name}-[0-9]+$",
+            if not (workload.get("kind") and workload.get("name")):
+                # 关联到 Namespace 时，不再需要同范围内更细的 workload 条件。
+                scope_patterns[scope] = None
+                continue
+
+            workload_pod_pattern: str | None = cls._pod_name_pattern(workload)
+            if workload_pod_pattern is None:
+                # 无法映射 Pod 名称的 workload 不参与过滤，保持与原有行为一致。
+                continue
+
+            if scope not in scope_patterns:
+                scope_patterns[scope] = []
+            patterns: list[str] | None = scope_patterns[scope]
+            if patterns is not None and workload_pod_pattern not in patterns:
+                patterns.append(workload_pod_pattern)
+
+        q: Q = Q()
+        for (bcs_cluster_id, namespace), pod_patterns in scope_patterns.items():
+            base_condition: dict[str, str | None] = {
+                "bcs_cluster_id": bcs_cluster_id,
+                "namespace": namespace,
             }
-            for workload_kind, pod_reg in kind_pod_reg_map.items():
-                # 为什么采取模糊匹配？因为有类似 xxxDeployment 的 CRD 存在。
-                if kind not in workload_kind:
-                    continue
+            if not pod_patterns:
+                q |= Q(**base_condition)
+                continue
 
-                # 为什么按 pod_name 构造查询条件而不是 workload？
-                # 大部分容器指标没有 workload 维度，pod_name 是通用维度。
-                q |= Q(**base_cond, pod_name__req=pod_reg)
-                break
+            combined_pod_pattern: str = pod_patterns[0]
+            if len(pod_patterns) > 1:
+                combined_pod_pattern = "(?:" + "|".join(pod_patterns) + ")"
+            # 大部分容器指标没有 workload 维度，pod_name 是通用维度。
+            q |= Q(**base_condition, pod_name__req=combined_pod_pattern)
         return q
 
     def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
@@ -388,7 +451,9 @@ class K8SEnricher(BaseEnricher):
         )
 
     def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
-        self.upsert_conditions(dispatch_config, self._filter_by_workloads(self._entity_set.get_workloads(service_name)))
+        workloads: list[dict[str, Any]] = self._entity_set.get_workloads(service_name)
+        workloads = self._filter_workloads_by_conditions(workloads, dispatch_config.context.get("CONDITIONS", []))
+        self.upsert_conditions(dispatch_config, self._filter_by_workloads(workloads))
         self.upsert_message_template(dispatch_config)
 
 

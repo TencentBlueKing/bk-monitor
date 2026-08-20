@@ -95,9 +95,12 @@ class QuickAddStrategy extends Mixins(
 
   templateListLoading = false;
 
+  overwriteSameOrigin = false;
+
   @Watch('show')
   handleWatchShowChange(v: boolean) {
     if (v) {
+      this.overwriteSameOrigin = false;
       this.getAlarmGroupList();
       this.getFunctions();
       this.getTemplateList();
@@ -290,6 +293,7 @@ class QuickAddStrategy extends Mixins(
       }, []),
       global_config: this.globalParams || undefined,
       is_reuse_instance_config: true,
+      overwrite_same_origin: this.overwriteSameOrigin,
     };
     const res = await applyStrategyTemplate(params)
       .then(() => {
@@ -538,6 +542,15 @@ class QuickAddStrategy extends Mixins(
                 onGoStrategy={this.handleGoStrategy}
               />
             )}
+            <bk-checkbox
+              class='overwrite-checkbox'
+              value={this.overwriteSameOrigin}
+              onChange={v => {
+                this.overwriteSameOrigin = v;
+              }}
+            >
+              {this.$t('覆盖同类模板策略')}
+            </bk-checkbox>
             <JudgmentConditions
               userList={this.alarmGroupList}
               onChange={this.handleJudgmentConditionsChange}
