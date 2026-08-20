@@ -858,14 +858,30 @@ class StorageUpdateSerializer(serializers.Serializer):
         return attrs
 
 
+class DorisSetupConfigSerializer(serializers.Serializer):
+    """
+    Doris 集群存储设置序列化（doris 无副本/分片概念，仅过期天数上限与缺省值）
+    """
+
+    retention_days_max = serializers.IntegerField(label=_("最大保留天数"), min_value=1)
+    retention_days_default = serializers.IntegerField(label=_("默认保留天数"), min_value=1)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs["retention_days_default"] > attrs["retention_days_max"]:
+            raise ValidationError(_("默认保留天数不能大于最大保留天数"))
+        return attrs
+
+
 class DorisVisibleConfigUpdateSerializer(serializers.Serializer):
     """
-    Doris 集群可见范围更新序列化（仅编辑可见范围，不涉及域名/账号/连通性）
+    Doris 集群可见范围更新序列化（仅编辑可见范围与存储设置，不涉及域名/账号/连通性）
     """
 
     cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     visible_config = VisibleSerializer(label=_("可见范围配置"))
+    setup_config = DorisSetupConfigSerializer(label=_("存储设置"), required=False)
 
 
 class TokenizeOnCharsSerializer(serializers.Serializer):
