@@ -15,22 +15,33 @@ specific language governing permissions and limitations under the License.
 # v3 / v4 查询接口共用。action 元数据中的 "type" 字段为 v3 平台语义（view / manage），
 # 通过 _build_action_info(include_v3_type=...) 参数化，v3 接口与 action_categories
 # 兼容历史契约传 True，v4 接口不消费该字段。
+#
+# 后端口径（backend 参数）不在此处硬编码任何版本分支：
+#   - 可见性：按 provider.name 走 is_visible_to（only/exclude_providers）；
+#   - id 口径：actions[].id 经 provider.codec.encode_action 编码（v3 输出方言 ID、
+#     v4 输出业务 ID 都是各自 codec 的职责，本模块不关心）。
 # ---------------------------------------------------------------------------
 
 import logging
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
 from bkmonitor.iam.iam_engine.django.facade import get_framework
 from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     SAFETY_LEVEL_READ,
     build_response,
     get_bk_tenant_id,
 )
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger("kernel_api")
 
@@ -166,10 +177,18 @@ def _get_v3_type(action: ActionDef) -> str:
 # ============================================================================
 
 
-def _build_action_info(action: ActionDef, include_v3_type: bool = True) -> dict[str, Any]:
-    """Build the standard action info dict（v3 type 字段按需包含）。"""
+def _build_action_info(
+    action: ActionDef,
+    include_v3_type: bool = True,
+    codec=None,
+) -> dict[str, Any]:
+    """Build the standard action info dict（v3 type 字段按需包含）。
+
+    指定 codec 时 actions[].id 按该 provider 的方言编码（v3 → 方言 ID，
+    v4 → 业务 ID），保证与对应后端的权限查询接口 action_id 口径一致。
+    """
     info = {
-        "id": action.id,
+        "id": codec.encode_action(action.id) if codec is not None else action.id,
         "name": action.name,
         "resource_type": action.resource_type or None,
         "description": action.description,
@@ -179,12 +198,21 @@ def _build_action_info(action: ActionDef, include_v3_type: bool = True) -> dict[
     return info
 
 
-def _build_business_groups(schema: SchemaRegistry) -> list[dict[str, Any]]:
-    """将 schema 中的操作按业务场景扁平分组。"""
+def _visible_actions(schema: SchemaRegistry, provider=None) -> list[ActionDef]:
+    """schema 全量 action；指定 provider 时按其 name 做可见性过滤（only/exclude_providers）。"""
+    actions = schema.all_actions()
+    if provider is not None:
+        return [a for a in actions if is_visible_to(a, provider.name)]
+    return actions
+
+
+def _build_business_groups(schema: SchemaRegistry, provider=None) -> list[dict[str, Any]]:
+    """将 schema 中的操作按业务场景扁平分组（可选按 provider 可见性 + id 口径）。"""
+    codec = provider.codec if provider is not None else None
     groups_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
-    for action in sorted(schema.all_actions(), key=lambda a: a.id):
-        info = _build_action_info(action)
+    for action in sorted(_visible_actions(schema, provider), key=lambda a: a.id):
+        info = _build_action_info(action, codec=codec)
         category = _get_action_category(action.id)
         groups_data[category].append(info)
 
@@ -214,13 +242,19 @@ def _build_business_groups(schema: SchemaRegistry) -> list[dict[str, Any]]:
     return result
 
 
-def _build_action_groups(schema: SchemaRegistry) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
-    """Group actions by resource_type, returning (groups, action_index)."""
+def _build_action_groups(
+    schema: SchemaRegistry, provider=None
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Group actions by resource_type, returning (groups, action_index).
+
+    指定 provider 时按 provider 可见性过滤 action 并按 codec 编码 id（action_index 同源）。
+    """
+    codec = provider.codec if provider is not None else None
     groups_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
-    for action in sorted(schema.all_actions(), key=lambda a: a.id):
+    for action in sorted(_visible_actions(schema, provider), key=lambda a: a.id):
         key = action.resource_type or "global"
-        groups_data[key].append(_build_action_info(action))
+        groups_data[key].append(_build_action_info(action, codec=codec))
 
     # 排序：顶级资源 → 全局 → 其它非顶级资源
     top_level_keys = sorted(
@@ -259,12 +293,12 @@ def _build_action_groups(schema: SchemaRegistry) -> tuple[list[dict[str, Any]], 
             )
 
     action_index = {
-        a.id: {
+        (codec.encode_action(a.id) if codec is not None else a.id): {
             "name": a.name,
             "type": _get_v3_type(a),
             "resource_type": a.resource_type or None,
         }
-        for a in schema.all_actions()
+        for a in _visible_actions(schema, provider)
     }
 
     return groups, action_index
@@ -286,6 +320,10 @@ def _build_action_groups(schema: SchemaRegistry) -> tuple[list[dict[str, Any]], 
     ),
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
+        "backend": (
+            "可选，后端 provider 名（如 v3 / v4）：按该 provider 可见性过滤，"
+            "action id 按其 codec 编码；缺省返回全量业务 ID"
+        ),
     },
     example_params={"bk_tenant_id": "system"},
 )
@@ -295,10 +333,22 @@ def action_categories(params: dict[str, Any]) -> dict[str, Any]:
     fw = get_framework()
     schema = fw.schema
 
-    groups, action_index = _build_action_groups(schema)
-    business_groups = _build_business_groups(schema)
+    # backend → 对应 provider：可见性过滤与 id 口径全部由 provider 提供
+    # （codec 编码方言 ID），本模块不硬编码任何版本分支。
+    backend = params.get("backend") or "v3"
+    provider = None
+    if backend:
+        try:
+            provider = fw.get_provider(backend)
+        except ProviderNotFound:
+            raise CustomException(
+                message=f"backend 指定的 provider '{backend}' 未装配，无法生成该后端口径的元数据"
+            ) from None
 
-    # 构建资源类型元数据列表
+    groups, action_index = _build_action_groups(schema, provider)
+    business_groups = _build_business_groups(schema, provider)
+
+    # 构建资源类型元数据列表（可选按 provider 可见性过滤）
     resource_types = [
         {
             "id": rt.id,
@@ -307,6 +357,7 @@ def action_categories(params: dict[str, Any]) -> dict[str, Any]:
             "parent_resource_type": rt.ancestor or None,
         }
         for rt in schema.all_resource_types()
+        if provider is None or is_visible_to(rt, provider.name)
     ]
 
     return build_response(

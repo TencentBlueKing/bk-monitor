@@ -412,7 +412,7 @@ class TestEnrichPermissions:
 
     @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
     def test_catalog_queried_once_per_rt(self, mock_fetch):
-        """两阶段补全：每个 rt 最多 2 次 catalog 查询（父链 + 展示名），与 entry 数量无关。"""
+        """两阶段补全：每个 rt 最多 2 次 catalog 查询（父链 + 展示名），与 entry 数无关。"""
         schema = self._make_schema_mock(
             {
                 "apm_application": ResourceTypeDef(id="apm_application", name="APM应用", ancestor="space"),
@@ -605,6 +605,60 @@ class TestActionCategories:
         assert any(a["id"] == "view_dashboard" for a in analysis_group["actions"])
         assert any(a["id"] == "view_incident" for a in analysis_group["actions"])
 
+    @staticmethod
+    def _mock_backend_fw(provider_name: str, codec):
+        """构造 mock 框架：schema 用真实注册表，backend 解析返回 mock provider。"""
+        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+
+        provider = MagicMock()
+        provider.name = provider_name
+        provider.codec = codec
+        mock_fw = MagicMock()
+        mock_fw.schema = real_get_fw().schema
+        mock_fw.get_provider.return_value = provider
+        return mock_fw
+
+    @patch("kernel_api.rpc.functions.admin.permission._shared.get_framework")
+    def test_backend_v4_filters_hidden_actions(self, mock_get_fw):
+        """backend=v4：exclude_providers=("v4",) 的过时 action 不出现在元数据中。"""
+        from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
+
+        mock_get_fw.return_value = self._mock_backend_fw("v4", MonitorV4Codec())
+        result = action_categories({"bk_tenant_id": "system", "backend": "v4"})
+        data = result["data"]
+        ids = {a["id"] for g in data["groups"] for a in g["actions"]}
+        assert "view_dashboard" not in ids
+        assert "manage_dashboard" not in ids
+        assert "view_single_dashboard" in ids
+        assert "view_dashboard" not in data["action_index"]
+        assert "view_single_dashboard" in data["action_index"]
+
+    @patch("kernel_api.rpc.functions.admin.permission._shared.get_framework")
+    def test_backend_v3_returns_dialect_ids(self, mock_get_fw):
+        """backend=v3：过时 action 仍可见，id 经 v3 codec 输出方言 ID（与权限查询口径一致）。"""
+        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+
+        mock_get_fw.return_value = self._mock_backend_fw("v3", MonitorV3Codec())
+        result = action_categories({"bk_tenant_id": "system", "backend": "v3"})
+        ids = {a["id"] for g in result["data"]["groups"] for a in g["actions"]}
+        assert "view_dashboard_v2" in ids
+        assert "view_business_v2" in ids
+        # 业务 ID 不再出现在 v3 口径的元数据中
+        assert "view_business" not in ids
+        assert "view_business_v2" in result["data"]["action_index"]
+
+    @patch("kernel_api.rpc.functions.admin.permission._shared.get_framework")
+    def test_backend_unknown_provider(self, mock_get_fw):
+        """backend 对应 provider 未装配 → 明确报错（不再硬编码版本清单）。"""
+        from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
+
+        mock_fw = MagicMock()
+        mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v5' not found")
+        mock_get_fw.return_value = mock_fw
+
+        with pytest.raises(CustomException, match="未装配"):
+            action_categories({"bk_tenant_id": "system", "backend": "v5"})
+
     def test_business_groups_uncategorized_fallback(self):
         """验证未匹配硬编码分组的操作归入'其他'组并不丢失。"""
         from bkmonitor.iam.iam_engine.django.facade import get_framework
@@ -677,10 +731,12 @@ class TestQueryUserPermissions:
         for aid in all_ids:
             policies.setdefault(aid, None)
 
-        real_v3 = real_get_fw().providers["v3"]
+        # 直接构造真实 v3 codec（与框架装配状态无关），
+        # 使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
+        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+
         mock_v3 = MagicMock()
-        # 复用真实 codec，使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
-        mock_v3.codec = real_v3.codec
+        mock_v3.codec = MonitorV3Codec()
         mock_v3.query_policy_by_actions.return_value = policies
 
         mock_fw = MagicMock()
@@ -693,7 +749,7 @@ class TestQueryUserPermissions:
         assert data["username"] == "testuser"
 
         # 对外 action_id 为 V3 方言 ID（如 view_business_v2），用真实 codec 编码断言
-        codec = real_v3.codec
+        codec = MonitorV3Codec()
 
         # all → permissions = [{"path": []}]
         biz_action = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("view_business"))
@@ -775,10 +831,12 @@ class TestQueryUserPermissions:
                 return PolicyExpression.any()
             raise RuntimeError(f"query failed for {aid}")
 
-        real_v3 = real_get_fw().providers["v3"]
+        # 直接构造真实 v3 codec（与框架装配状态无关），
+        # 使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
+        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+
         mock_v3 = MagicMock()
-        # 复用真实 codec，使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
-        mock_v3.codec = real_v3.codec
+        mock_v3.codec = MonitorV3Codec()
         mock_v3.query_policy_by_actions.side_effect = RuntimeError("batch connection failed")
         mock_v3.query_policy.side_effect = fake_query_policies
 
@@ -789,7 +847,7 @@ class TestQueryUserPermissions:
 
         result = query_user_permissions({"username": "testuser", "bk_tenant_id": "system"})
         data = result["data"]
-        codec = real_get_fw().providers["v3"].codec
+        codec = MonitorV3Codec()
 
         # 成功的 action 正常解析（action_id 为方言 ID）
         biz_action = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("view_business"))
@@ -833,6 +891,7 @@ class TestQueryUserPermissions:
 class TestRealFrameworkQuery:
     """连接真实 IAM v3 服务器，调用 query_user_permissions 获取实际权限数据。"""
 
+    @pytest.mark.django_db(databases=["default", "monitor_api", "bk_dataview"])
     def test_query_real_user_permissions(self):
         """
         调用 query_user_permissions 查询真实用户的 IAM 权限。
@@ -882,8 +941,8 @@ class TestRealFrameworkQuery:
 
         # ---- 将 query_user_permissions 的完整返回值落盘，供人工核对数据结构 ----
         import json
-        import os as _os
 
-        diag_path = _os.path.join(_os.path.dirname(__file__), "new_version_v3.json")
+        # diag_path = _os.path.join(_os.path.dirname(__file__), "new_version_v3.json")
+        diag_path = r"/Users/xuchaoshan/code-project/bk-monitor-admin/public/v3_permission.json"
         with open(diag_path, "w") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)

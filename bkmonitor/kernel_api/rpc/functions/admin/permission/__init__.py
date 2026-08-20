@@ -45,15 +45,29 @@ from ._v3 import (
     _to_dialect_action_id,
     query_user_permissions,
 )
+from ._v4 import (
+    FUNC_QUERY_USER_PERMISSIONS_V4,
+    FUNC_QUERY_USER_SUB_RESOURCES_V4,
+    OPERATION_QUERY_USER_PERMISSIONS_V4,
+    OPERATION_QUERY_USER_SUB_RESOURCES_V4,
+    query_user_permissions_v4,
+    query_user_sub_resources_v4,
+)
 
 __all__ = [
     # 公开 API
     "action_categories",
     "query_user_permissions",
+    "query_user_permissions_v4",
+    "query_user_sub_resources_v4",
     "FUNC_ACTION_CATEGORIES",
     "OPERATION_ACTION_CATEGORIES",
     "FUNC_QUERY_USER_PERMISSIONS",
     "OPERATION_QUERY_USER_PERMISSIONS",
+    "FUNC_QUERY_USER_PERMISSIONS_V4",
+    "OPERATION_QUERY_USER_PERMISSIONS_V4",
+    "FUNC_QUERY_USER_SUB_RESOURCES_V4",
+    "OPERATION_QUERY_USER_SUB_RESOURCES_V4",
     # 内部 re-export（供 provider / 测试按旧路径引用，不可删除）
     "_build_action_groups",
     "_build_action_info",
