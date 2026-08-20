@@ -6,6 +6,7 @@ from apps.log_databus.models import (
     ContainerCollectorConfig,
     DataLinkConfig,
 )
+from apps.log_databus.utils.storage_config import get_storage_retention
 from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
@@ -428,7 +429,7 @@ def _serialize_result_table_storage(result_table_storage):
     index_settings = storage_config.get("index_settings") or {}
     return {
         "storage_cluster_id": cluster_config.get("cluster_id"),
-        "retention": storage_config.get("retention"),
+        "retention": get_storage_retention(storage_config),
         "allocation_min_days": storage_config.get("warm_phase_days"),
         "storage_shards_nums": index_settings.get("number_of_shards"),
         "storage_shards_size": _first_not_none(
