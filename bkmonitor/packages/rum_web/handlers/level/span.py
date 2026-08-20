@@ -26,7 +26,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
     以 SpanQuery 作为主查询，实现 BaseRumLevelHandler 的全部接口能力。
     """
 
-    DEFAULT_SORT = ["-end_time"]
     DISPLAY_FIELDS = [
         "span_name",
         "attributes.span_type",

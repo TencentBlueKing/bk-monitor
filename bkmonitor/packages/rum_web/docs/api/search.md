@@ -54,7 +54,7 @@ POST /rum/search/list_records/
       "key": "attributes.span_type",
       "operator": "equal",
       "value": [
-        "http"
+        "resource"
       ]
     }
   ],
@@ -294,7 +294,6 @@ POST /rum/search/get_fields_option_values/
 ```json
 {
   "attributes.span_type": [
-    "http",
     "resource",
     "document",
     "route",
@@ -342,7 +341,6 @@ POST /rum/search/generate_query_string/
       "key": "attributes.span_type",
       "operator": "equal",
       "value": [
-        "http",
         "resource"
       ],
       "options": {

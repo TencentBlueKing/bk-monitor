@@ -56,8 +56,8 @@ class RumRecordsResource(Resource):
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return {
             "list": [
-                flatten_dict_data(data)
-                for data in handler.list_records(
+                flatten_dict_data(_data)
+                for _data in handler.list_records(
                     start_time=data["start_time"],
                     end_time=data["end_time"],
                     offset=data["offset"],
