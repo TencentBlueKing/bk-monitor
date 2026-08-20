@@ -360,3 +360,321 @@ POST /rum/search/generate_query_string/
 "attributes.span_type: (\"http\" OR \"resource\")"
 ```
 
+### 2.5 fields_topk - 字段 Top-K
+
+POST /rum/search/fields_topk/
+
+#### 2.5.1 Request
+
+| 参数名称         | 类型            | 必填 | 描述                                                                  |
+|--------------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
+| app_name     | String        | 是  | 应用名称                                                                |
+| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| fields       | Array[String] | 是  | 查询字段名称                                                              |
+| limit        | Integer       | 否  | 返回数量限制，默认 5，最小 1                                                    |
+| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "query_string": "",
+  "filters": [],
+  "start_time": 1785999805,
+  "end_time": 1786003405,
+  "fields": [
+    "kind"
+  ],
+  "limit": 5
+}
+```
+
+#### 2.5.2 Response
+
+返回字段 Top-K 统计列表，每个元素对应一个查询字段。
+
+| 参数名称           | 类型              | 描述        |
+|----------------|-----------------|-----------|
+| field          | String          | 字段名称      |
+| distinct_count | Integer         | 该字段的去重值数量 |
+| list           | Array[TopKItem] | Top-K 值列表 |
+
+- TopKItem
+
+| 参数名称        | 类型      | 描述              |
+|-------------|---------|-----------------|
+| value       | String  | 字段值             |
+| count       | Integer | 该值出现的次数         |
+| proportions | Float   | 该值占总数的百分比（不含 %） |
+
+```json
+[
+  {
+    "field": "kind",
+    "distinct_count": 5,
+    "list": [
+      {
+        "value": "1",
+        "count": 4127148,
+        "proportions": 88.504
+      },
+      {
+        "value": "3",
+        "count": 294804,
+        "proportions": 6.321
+      },
+      {
+        "value": "2",
+        "count": 241082,
+        "proportions": 5.169
+      },
+      {
+        "value": "5",
+        "count": 94,
+        "proportions": 0.002
+      },
+      {
+        "value": "4",
+        "count": 93,
+        "proportions": 0.001
+      }
+    ]
+  }
+]
+```
+
+### 2.6 field_statistics_info - 字段统计信息
+
+POST /rum/search/field_statistics_info/
+
+#### 2.6.1 Request
+
+| 参数名称         | 类型            | 必填 | 描述                                                                  |
+|--------------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
+| app_name     | String        | 是  | 应用名称                                                                |
+| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| field        | Field         | 是  | 字段描述对象，见下表                                                          |
+| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+
+- Field
+
+| 参数名称       | 类型     | 必填 | 描述   |
+|------------|--------|----|------|
+| field_name | String | 是  | 字段名称 |
+| field_type | String | 是  | 字段类型 |
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "query_string": "",
+  "filters": [],
+  "start_time": 1785999917,
+  "end_time": 1786003517,
+  "field": {
+    "field_name": "span_name",
+    "field_type": "keyword"
+  }
+}
+```
+
+#### 2.6.2 Response
+
+| 参数名称           | 类型      | 描述                                       |
+|----------------|---------|------------------------------------------|
+| total_count    | Integer | 查询时间范围内的记录总数                             |
+| field_count    | Integer | 该字段有值的记录数                                |
+| distinct_count | Integer | 该字段的去重值数量                                |
+| field_percent  | Float   | 字段覆盖率（`field_count / total_count × 100`） |
+| value_analysis | Object  | 数值类字段的统计分析，字符串类字段不返回此字段                  |
+
+- value_analysis（仅数值类字段返回）
+
+| 参数名称   | 类型    | 描述  |
+|--------|-------|-----|
+| avg    | Float | 平均值 |
+| min    | Float | 最小值 |
+| max    | Float | 最大值 |
+| median | Float | 中位数 |
+
+- 字符串类
+
+```json
+{
+  "distinct_count": 544,
+  "field_count": 4647434,
+  "total_count": 4647434,
+  "field_percent": 100
+}
+```
+
+- 数值类
+
+```json
+{
+  "total_count": 1284935,
+  "field_count": 1284935,
+  "distinct_count": 4,
+  "field_percent": 100,
+  "value_analysis": {
+    "avg": 1.097,
+    "min": 1,
+    "max": 4,
+    "median": 1
+  }
+}
+```
+
+### 2.7 field_statistics_graph - 字段统计图表
+
+POST /rum/search/field_statistics_graph/
+
+#### 2.7.1 Request
+
+| 参数名称         | 类型            | 必填 | 描述                                                                  |
+|--------------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
+| app_name     | String        | 是  | 应用名称                                                                |
+| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| field        | Field         | 是  | 字段描述对象，见下表                                                          |
+| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+
+- Field（`field_type=keyword` 时 `values` 传 topk5 的值；`field_type` 为数字类型时 `values` 至少需要 4 个值，传 topk 接口返回的
+  `list[*].value`）
+
+| 参数名称       | 类型                    | 必填 | 描述                                                                       |
+|------------|-----------------------|----|--------------------------------------------------------------------------|
+| field_name | String                | 是  | 字段名称                                                                     |
+| field_type | String                | 是  | 字段类型，枚举值：`keyword` / `numeric`                                           |
+| values     | Array[Integer/String] | 否  | 数值类：min_value, max_value, distinct_count, interval_num<br/>字符类：传 topk 的值 |
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "query_string": "",
+  "filters": [],
+  "start_time": 1785999917,
+  "end_time": 1786003517,
+  "field": {
+    "field_name": "span_name",
+    "field_type": "keyword",
+    "values": [
+      "build-metadata-query",
+      "check-must-query-feature-flag",
+      "query-ts-to-query-metric",
+      "http-api-metadata",
+      "jwt-auth"
+    ]
+  }
+}
+```
+
+#### 2.7.2 Response
+
+| 参数名称   | 类型            | 描述     |
+|--------|---------------|--------|
+| series | Array[Series] | 图表数据序列 |
+
+- Series
+
+| 参数名称                   | 类型           | 描述                        |
+|------------------------|--------------|---------------------------|
+| dimensions             | Object       | 维度键值对，key 为字段名，value 为维度值 |
+| target                 | String       | 查询目标描述字符串                 |
+| metric_field           | String       | 指标字段名                     |
+| datapoints             | Array[Array] | 数据点列表，每个元素为 `[值, 毫秒时间戳]`  |
+| alias                  | String       | 别名                        |
+| stat                   | Object       | 统计信息                      |
+| type                   | String       | 图表类型（如 `bar`）             |
+| dimensions_translation | Object       | 维度翻译映射                    |
+| unit                   | String       | 单位                        |
+
+```json
+{
+  "series": [
+    {
+      "dimensions": {
+        "span_name": "build-metadata-query"
+      },
+      "target": "count(span_name){span_name=build-metadata-query}",
+      "metric_field": "_result_",
+      "datapoints": [
+        [
+          3498,
+          1785999840000
+        ]
+      ],
+      "alias": "_result_",
+      "stat": {},
+      "type": "bar",
+      "dimensions_translation": {},
+      "unit": ""
+    }
+  ],
+  "metrics": []
+}
+```
+
+### 2.8 download_topk - 下载 Top-K 数据为 CSV
+
+POST /rum/search/download_topk/
+
+#### 2.8.1 Request
+
+与 [field_topk](#25-field_topk---字段-top-k) 接口参数完全一致。
+
+| 参数名称         | 类型            | 必填 | 描述                                                                  |
+|--------------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
+| app_name     | String        | 是  | 应用名称                                                                |
+| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| fields       | Array[String] | 是  | 查询字段名称                                                              |
+| limit        | Integer       | 否  | 返回数量限制，默认 5，最小 1                                                    |
+| filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
+| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "query_string": "",
+  "filters": [],
+  "start_time": 1785999805,
+  "end_time": 1786003405,
+  "fields": [
+    "kind"
+  ],
+  "limit": 5
+}
+```
+
+#### 2.8.2 Response
+
+返回 CSV 格式的二进制文件内容（`bytes`），响应头 `Content-Type: text/csv`，文件名格式为
+`topk_{bk_biz_id}_{app_name}_{field}.csv`。
+
+CSV 列结构（无表头行）：
+
+| 列序号   | 描述                 |
+|-------|--------------------|
+| 第 1 列 | 字段值（value）         |
+| 第 2 列 | 出现次数（count）        |
+| 第 3 列 | 占比百分比（如 `88.504%`） |
