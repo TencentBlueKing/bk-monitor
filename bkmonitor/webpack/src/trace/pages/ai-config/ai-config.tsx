@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, useTemplateRef } from 'vue';
+import { defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
 
 import { Button, InfoBox, Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -141,6 +141,13 @@ export default defineComponent({
       });
     };
 
+    onMounted(async () => {
+      window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => {
+        const child = getActiveChild();
+        if (!child?.isEdited) return true;
+        return showLeaveConfirm();
+      });
+    });
     /**
      * 离开页面钩子：若当前 Tab 组件表单被编辑过，弹出确认提示让用户决定下一步
      */
