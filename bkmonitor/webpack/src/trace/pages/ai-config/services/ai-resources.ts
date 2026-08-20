@@ -24,32 +24,38 @@
  * IN THE SOFTWARE.
  */
 
-import { mockAgentList, mockKnowledgebaseList, mockSkillList } from '../mock/ai-resources';
+// TODO: 当前为 mock 实现，真实接口上线后将 import 来源替换为真实 API 模块即可
+import {
+  getAgentsByIds as getAgentsByIdsApi,
+  getKnowledgebasesByIds as getKnowledgebasesByIdsApi,
+  getSkillsByIds as getSkillsByIdsApi,
+} from '../mock/ai-resources';
 
 import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
 
-/* ---------- 侧弹资源池占位接口（后续替换为真实接口） ---------- */
+/* ---------- 侧栏资源选择弹窗：资源详情批量查询接口 ---------- */
 
 /**
- * @description 查询智能体列表（占位接口）
- * @returns {Promise<IAgent[]>} 智能体列表
+ * @description 批量查询智能体详情
+ * @description 真实接口：`POST {apiPrefix}/agent/v1/agent/batch/`
+ * @param {number[]} [agentIds] 智能体 ID 列表
+ * @returns {Promise<IAgent[]>} 智能体详情列表
  */
-export const listAgents = async (): Promise<IAgent[]> => {
-  return await Promise.resolve([...mockAgentList]);
-};
+export const getAgentsByIds = (agentIds?: number[]): Promise<IAgent[]> => getAgentsByIdsApi(agentIds);
 
 /**
- * @description 查询 Skill 列表（占位接口）
- * @returns {Promise<ISkill[]>} Skill 列表
+ * @description 批量查询 Skill 详情
+ * @description 真实接口：`POST {apiPrefix}/skill/v1/skill/batch/`
+ * @param {number[]} [skillIds] Skill ID 列表
+ * @returns {Promise<ISkill[]>} Skill 详情列表
  */
-export const listSkills = async (): Promise<ISkill[]> => {
-  return await Promise.resolve([...mockSkillList]);
-};
+export const getSkillsByIds = (skillIds?: number[]): Promise<ISkill[]> => getSkillsByIdsApi(skillIds);
 
 /**
- * @description 查询知识库列表（占位接口）
- * @returns {Promise<IKnowledgebase[]>} 知识库列表
+ * @description 批量查询知识库详情
+ * @description 真实接口：`POST {apiPrefix}/knowledgebase/v1/knowledgebase/batch/`
+ * @param {number[]} [knowledgebaseIds] 知识库 ID 列表
+ * @returns {Promise<IKnowledgebase[]>} 知识库详情列表
  */
-export const listKnowledgebases = async (): Promise<IKnowledgebase[]> => {
-  return await Promise.resolve([...mockKnowledgebaseList]);
-};
+export const getKnowledgebasesByIds = (knowledgebaseIds?: number[]): Promise<IKnowledgebase[]> =>
+  getKnowledgebasesByIdsApi(knowledgebaseIds);

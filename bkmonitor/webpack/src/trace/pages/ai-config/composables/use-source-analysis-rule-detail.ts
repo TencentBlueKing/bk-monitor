@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { shallowRef } from 'vue';
+import { onScopeDispose, shallowRef } from 'vue';
 
 import { AiResourceEnum, EDITABLE_KEYS } from '../constants';
 import { getSourceAnalysisRule } from '../services/source-analysis-rule';
@@ -41,6 +41,8 @@ export const useSourceAnalysisRuleDetail = () => {
   let rawData: null | SourceAnalysisRuleDto = null;
   /** 加载中 */
   const loading = shallowRef(false);
+  /** 当前请求的 AbortController，用于取消未完成的请求 */
+  let abortController: AbortController | null = null;
 
   /**
    * @description 创建新增态默认详情
@@ -77,9 +79,11 @@ export const useSourceAnalysisRuleDetail = () => {
   };
 
   /**
-   * @description 重置详情状态，关闭弹窗时调用以清理残留数据
+   * @description 重置详情状态，关闭弹窗时调用以清理残留数据；同时终止未完成的查询请求
    */
   const resetState = () => {
+    // 取消未完成的查询，避免关闭弹窗后过期响应回写状态
+    abortController?.abort();
     detail.value = null;
     rawData = null;
   };
@@ -89,16 +93,22 @@ export const useSourceAnalysisRuleDetail = () => {
    * @param {number} id - 规则 id
    */
   const fetchDetail = async (id: number, callback: (detail: SourceAnalysisRuleDto) => void) => {
+    // 取消上一次未完成的请求，避免快速连续触发时竞态
+    abortController?.abort();
+    const controller = new AbortController();
+    abortController = controller;
+    const { signal } = controller;
+
     loading.value = true;
-    try {
-      const data = await getSourceAnalysisRule(id);
-      // detail 持深拷贝副本以便自由编辑，rawData 直接持有接口原始数据作为 diff 基准
-      detail.value = JSON.parse(JSON.stringify(data));
-      rawData = data;
-      callback(data);
-    } finally {
-      loading.value = false;
-    }
+    const data = await getSourceAnalysisRule(id);
+    // 请求被取消（新请求发起 / 弹窗关闭 / 组件卸载），丢弃本次结果；loading 交由最新请求收尾，避免闪烁
+    if (signal.aborted) return;
+    loading.value = false;
+    if (!data) return;
+    // detail 持深拷贝副本以便自由编辑，rawData 直接持有接口原始数据作为 diff 基准
+    rawData = JSON.parse(JSON.stringify(data));
+    detail.value = data;
+    callback(data);
   };
 
   /**
@@ -112,21 +122,21 @@ export const useSourceAnalysisRuleDetail = () => {
   };
 
   /**
-   * @description 添加资源
+   * @description 写入资源 ID（智能体为单个 id，Skill / 知识库为 id 数组，整体覆盖）
    * @param {AiResourceType} resource_type - 资源类型
-   * @param {SourceAnalysisRuleDto[AiResourceType]} resource - 资源数据
+   * @param {SourceAnalysisRuleDto[AiResourceType]} resource_ids - 资源 ID 值
    */
-  const handleAddResource = (resource_type: AiResourceType, resource: SourceAnalysisRuleDto[AiResourceType]) => {
+  const setResourceIds = (resource_type: AiResourceType, resource_ids: SourceAnalysisRuleDto[AiResourceType]) => {
     if (!detail.value) return;
-    detail.value = { ...detail.value, [resource_type]: resource };
+    detail.value = { ...detail.value, [resource_type]: resource_ids };
   };
 
   /**
-   * @description 删除资源
+   * @description 移除指定资源 ID
    * @param {AiResourceType} resource_type - 资源类型
    * @param {string} resource_id - 资源 id
    */
-  const handleRemoveResource = (resource_type: AiResourceType, resource_id: string) => {
+  const removeResourceId = (resource_type: AiResourceType, resource_id: string) => {
     if (!detail.value) return;
     const nextDetail = { ...detail.value };
     if (resource_type === AiResourceEnum.AGENT) {
@@ -138,10 +148,10 @@ export const useSourceAnalysisRuleDetail = () => {
   };
 
   /**
-   * @description 清除资源
+   * @description 清空指定类型的资源 ID
    * @param {AiResourceType} resource_type - 资源类型
    */
-  const handleClearResources = (resource_type: AiResourceType) => {
+  const clearResourceIds = (resource_type: AiResourceType) => {
     if (!detail.value) return;
     detail.value = { ...detail.value, [resource_type]: getResourceDefaultValue(resource_type) };
   };
@@ -189,6 +199,12 @@ export const useSourceAnalysisRuleDetail = () => {
     return params as CreateSourceAnalysisRuleParams;
   };
 
+  // 组件卸载（effect scope 释放）时终止未完成的请求
+  onScopeDispose(() => {
+    abortController?.abort();
+    abortController = null;
+  });
+
   return {
     /** 规则详情（编辑态） */
     detail,
@@ -204,11 +220,11 @@ export const useSourceAnalysisRuleDetail = () => {
     getCreateParams,
     /** 获取需要变更的字段（供更新/新增规则时使用） */
     getChangedFields,
-    /** 清除资源 */
-    handleClearResources,
-    /** 添加资源 */
-    handleAddResource,
-    /** 删除资源 */
-    handleRemoveResource,
+    /** 清空指定类型的资源 ID */
+    clearResourceIds,
+    /** 写入资源 ID（整体覆盖） */
+    setResourceIds,
+    /** 移除指定资源 ID */
+    removeResourceId,
   };
 };

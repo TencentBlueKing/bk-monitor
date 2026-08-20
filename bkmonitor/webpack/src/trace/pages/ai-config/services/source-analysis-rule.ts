@@ -24,14 +24,22 @@
  * IN THE SOFTWARE.
  */
 
+// TODO: 当前为 mock 实现，真实接口上线后将 import 来源替换为 'monitor-api/modules/issue' 即可
 import {
   createSourceAnalysisRule as createSourceAnalysisRuleApi,
   deleteSourceAnalysisRule as deleteSourceAnalysisRuleApi,
   getSourceAnalysisRule as getSourceAnalysisRuleApi,
   listSourceAnalysisRules as listSourceAnalysisRulesApi,
   updateSourceAnalysisRule as updateSourceAnalysisRuleApi,
-} from 'monitor-api/modules/issue';
+} from '../mock/source-analysis-rule';
 
+// import {
+//   createSourceAnalysisRule as createSourceAnalysisRuleApi,
+//   deleteSourceAnalysisRule as deleteSourceAnalysisRuleApi,
+//   getSourceAnalysisRule as getSourceAnalysisRuleApi,
+//   listSourceAnalysisRules as listSourceAnalysisRulesApi,
+//   updateSourceAnalysisRule as updateSourceAnalysisRuleApi,
+// } from 'monitor-api/modules/issue';
 import type { CreateSourceAnalysisRuleParams, SourceAnalysisRuleDto } from '../typings';
 
 /**

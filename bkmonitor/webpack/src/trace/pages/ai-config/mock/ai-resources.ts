@@ -107,6 +107,24 @@ export const mockSkillList: ISkill[] = [
     updatedBy: 'admin',
     updatedAt: '2026-08-01T00:00:00Z',
     permission: {},
+    envs: [
+      {
+        key: 'BKM_URL',
+        description: '监控地址',
+        required: false,
+        default: '',
+        secret: false,
+        value: '111',
+      },
+      {
+        key: 'USERNAME',
+        description: '请求用户身份',
+        required: true,
+        default: '',
+        secret: true,
+        value: '********',
+      },
+    ],
   },
   {
     id: 2,
@@ -126,6 +144,43 @@ export const mockSkillList: ISkill[] = [
     updatedBy: 'admin',
     updatedAt: '2026-08-01T00:00:00Z',
     permission: {},
+  },
+  {
+    id: 3,
+    skillName: '数据查询 Skill',
+    skillCode: 'data-query-skill',
+    description: '数据查询 Skill，提供蓝鲸数据平台数据获取能力',
+    icon: '',
+    url: '',
+    fileName: 'data-query-skill.zip',
+    fileSize: 3072,
+    fileType: 'zip',
+    tagNames: [],
+    generateType: EnumCharacter.User,
+    isPublic: false,
+    createdBy: 'admin',
+    createdAt: '2026-08-01T00:00:00Z',
+    updatedBy: 'admin',
+    updatedAt: '2026-08-01T00:00:00Z',
+    permission: {},
+    envs: [
+      {
+        key: 'BKM_URL',
+        description: '蓝鲸监控地址',
+        required: false,
+        default: '',
+        secret: false,
+        value: '111',
+      },
+      {
+        key: 'USERNAME',
+        description: '请求用户身份',
+        required: true,
+        default: '',
+        secret: true,
+        value: '********',
+      },
+    ],
   },
 ];
 
@@ -173,11 +228,11 @@ export const mockKnowledgebaseList: IKnowledgebase[] = [
     anchorPath: '/monitor-ops-kb',
     parentAnchorPath: '/',
     filePath: '/monitor-ops-kb',
-    fileName: '监控运维知识库',
+    fileName: '运维知识库',
     fileType: 'folder',
     pipelineCodes: {},
     updateFrequency: 7,
-    name: '监控运维知识库',
+    name: '运维知识库',
     type: KnowledgebaseType.Default,
     status: ResourceStatus.Ready,
     approvers: ['admin'],
@@ -187,7 +242,7 @@ export const mockKnowledgebaseList: IKnowledgebase[] = [
     pathType: KnowledgePathType.Folder,
     createdType: KnowledgeType.Manual,
     number: 0,
-    description: '监控平台运维操作手册',
+    description: '运维操作手册',
     folderNumber: 0,
     url: '',
     updatedBy: 'admin',
@@ -201,3 +256,45 @@ export const mockKnowledgebaseList: IKnowledgebase[] = [
     children: [],
   },
 ];
+
+/* ---------- 资源详情批量查询 mock 函数（与真实接口同签名，services 替换 import 来源即可切换） ---------- */
+
+/** 模拟网络延迟（ms） */
+const MOCK_LATENCY = 300;
+
+/** mock 成功响应：延迟后 resolve */
+const mockResolve = <T>(data: T): Promise<T> =>
+  new Promise(resolve => {
+    setTimeout(() => resolve(data), MOCK_LATENCY);
+  });
+
+/**
+ * @description 批量查询智能体详情（mock）：按 id 过滤，未传 id 时返回全部
+ * @description 真实接口：`POST {apiPrefix}/agent/v1/agent/batch/`
+ * @param {number[]} [agentIds] 智能体 ID 列表
+ * @returns {Promise<IAgent[]>} 智能体详情列表
+ */
+export const getAgentsByIds = (agentIds?: number[]): Promise<IAgent[]> =>
+  mockResolve(agentIds ? mockAgentList.filter(item => agentIds.includes(item.id)) : [...mockAgentList]);
+
+/**
+ * @description 批量查询 Skill 详情（mock）：按 id 过滤，未传 id 时返回全部
+ * @description 真实接口：`POST {apiPrefix}/skill/v1/skill/batch/`
+ * @param {number[]} [skillIds] Skill ID 列表
+ * @returns {Promise<ISkill[]>} Skill 详情列表
+ */
+export const getSkillsByIds = (skillIds?: number[]): Promise<ISkill[]> =>
+  mockResolve(skillIds ? mockSkillList.filter(item => skillIds.includes(item.id)) : [...mockSkillList]);
+
+/**
+ * @description 批量查询知识库详情（mock）：按 id 过滤，未传 id 时返回全部
+ * @description 真实接口：`POST {apiPrefix}/knowledgebase/v1/knowledgebase/batch/`
+ * @param {number[]} [knowledgebaseIds] 知识库 ID 列表
+ * @returns {Promise<IKnowledgebase[]>} 知识库详情列表
+ */
+export const getKnowledgebasesByIds = (knowledgebaseIds?: number[]): Promise<IKnowledgebase[]> =>
+  mockResolve(
+    knowledgebaseIds
+      ? mockKnowledgebaseList.filter(item => knowledgebaseIds.includes(item.id))
+      : [...mockKnowledgebaseList]
+  );

@@ -652,8 +652,8 @@ importers:
         specifier: ^4.8.25
         version: 4.8.25
       '@blueking/ai-ui-sdk':
-        specifier: 0.4.1-beta.19
-        version: 0.4.1-beta.19(@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3)))(@blueking/xss-filter@0.0.10)(@toast-ui/editor-plugin-code-syntax-highlight@3.1.0)(@toast-ui/editor@3.2.2)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(katex@0.16.45)(prismjs@1.30.0)(tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)))(tippy.js@6.3.7)(vue-router@4.5.1(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+        specifier: 0.4.3-beta.11
+        version: 0.4.3-beta.11(@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3)))(@blueking/xss-filter@0.0.10)(@toast-ui/editor-plugin-code-syntax-highlight@3.1.0)(@toast-ui/editor@3.2.2)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(katex@0.16.45)(prismjs@1.30.0)(tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)))(tippy.js@6.3.7)(vue-router@4.5.1(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.3
         version: 1.0.3-beta.3
@@ -1581,8 +1581,8 @@ packages:
       vue-router: ^4.5.1
       x-mavon-editor: 0.0.20
 
-  '@blueking/ai-ui-sdk@0.4.1-beta.19':
-    resolution: {integrity: sha512-3vyXI1NMpXgFQo4FsVtit+Hf6qDgZ7/Y9M+kzkKmah31F3/tzyHBLGpaObCUZp2sPbBJOOq8C2pTbIOlnavZHg==}
+  '@blueking/ai-ui-sdk@0.4.3-beta.11':
+    resolution: {integrity: sha512-lfWGnG81TBgXTGb/XgxPp9gpKxRrHsqD9pLaKw7hreHbZTqOaZZ66O8uTwpl3zAMrfL/lHgpEirKkJTHBxntWQ==}
     peerDependencies:
       '@blueking/ediatable': ^0.0.1-beta.31
       '@blueking/xss-filter': ^0.0.10
@@ -10603,7 +10603,7 @@ snapshots:
       vue-router: 3.6.5(vue@2.7.16)
       x-mavon-editor: 0.0.20
 
-  '@blueking/ai-ui-sdk@0.4.1-beta.19(@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3)))(@blueking/xss-filter@0.0.10)(@toast-ui/editor-plugin-code-syntax-highlight@3.1.0)(@toast-ui/editor@3.2.2)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(katex@0.16.45)(prismjs@1.30.0)(tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)))(tippy.js@6.3.7)(vue-router@4.5.1(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/ai-ui-sdk@0.4.3-beta.11(@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3)))(@blueking/xss-filter@0.0.10)(@toast-ui/editor-plugin-code-syntax-highlight@3.1.0)(@toast-ui/editor@3.2.2)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(katex@0.16.45)(prismjs@1.30.0)(tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)))(tippy.js@6.3.7)(vue-router@4.5.1(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@blueking/ediatable': 0.0.1-beta.33(vue@3.5.30(typescript@5.9.3))
       '@blueking/xss-filter': 0.0.10

@@ -32,14 +32,24 @@
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
-| `isShowOperation` | `boolean` | 是否展示右上角操作区；项目内统一传 `true` |
+| `isShowOperation` | `boolean` | 是否展示右上角操作区；`false` 时只展示卡片基础信息，不渲染删除/快捷指令/环境变量配置/查看等任何右上角图标；项目内统一传 `true` |
 | `showDeleteTips` | `boolean` | 删除时是否使用 `bk-pop-confirm` 二次确认；项目内统一传 `false` |
-| `disabled` | `boolean` | 是否禁用，影响部分图标/卡片的可用态 |
+| `disabled` | `boolean` | 是否禁用，影响部分图标的可用态 |
 | `spaceId` | `string` | 当前空间 ID；内部请求会自动作为 `x-space-id` 请求头 |
 | `spaces` | `ISpace[]` | 空间列表，用于显示空间名称 |
 | `defaultIcon` | `string` | 默认图标 URL |
 
 > 注：`checked` / `multiple` / `isShowCheckbox` / `isClickToView` / `showGenerateType` 等属性在 `Info` 模式下也会透传给底层 `RenderBase`，但在当前项目只读展示/删除场景中不会使用，通常保持默认即可。
+
+### 1.4 Info 模式下卡片的整体渲染范围
+
+底层 `RenderBase` 在 `Info` 模式下只渲染**卡片头部信息 + 右上角操作区**，不会渲染底部操作区。因此：
+
+- `footer-icons` 插槽（引用量等）不会渲染；
+- `pre-actions` 插槽不会渲染；
+- `actions` 插槽不会渲染。
+
+也就是说，`Info` 模式下不会出现任何底部按钮（如“归档 / 恢复 / 编辑 / 安装 / 分享 / 下载 / 去查看 / 去使用”等）。
 
 ---
 
@@ -48,48 +58,12 @@
 组件内部所有请求都基于同一个 `apiPrefix` 拼接，最终 URL 格式统一为：
 
 ```text
-{apiPrefix}/{模块}/{版本}/{资源路径}/
+{apiPrefix}/{module}/{version}/{resource}/
 ```
 
 例如 `apiPrefix = ''` 时，Agent 删除接口就是 `/agent/v1/agent/{id}/`；如果 `apiPrefix = '/api/ai'` 则变成 `/api/ai/agent/v1/agent/{id}/`。
 
-> 下面只列出 **Info 模式下卡片组件自身内部会真实发起请求** 的接口。
-
-### 2.1 Agent 卡片内部会调用的接口
-
-| 触发条件 | 完整路径 | 方法 | 说明 |
-|---------|---------|------|------|
-| 点击归档确认 | `{apiPrefix}/agent/v1/agent/{agentId}/` | DELETE | 归档智能体，成功后 emit `success-delete` |
-| 点击恢复确认 | `{apiPrefix}/agent/v1/agent/{agentId}/restore/` | POST | 恢复智能体，成功后 emit `success-restore` |
-| 点击快捷指令图标 | `{apiPrefix}/agent/v1/agent/{originAgentId}/get_related_commands/` | GET | 获取来源智能体可关联到当前卡片的指令 |
-| 点击引用量 | `{apiPrefix}/agent/v1/agent/{agentId}/referring_agents/` | GET | 获取引用该智能体的智能体列表 |
-| 点击“关联至智能体”弹窗：拉取有权限空间 | `{apiPrefix}/meta/v1/space/authorized_spaces/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”弹窗：拉取可关联 Agent | `{apiPrefix}/agent/v1/agent/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”弹窗：保存关联 | `{apiPrefix}/agent/v1/agent/{targetAgentId}/` | PUT | 由 `render-relate-agent` 发起 |
-
-### 2.2 Knowledgebase 卡片内部会调用的接口
-
-`RenderKnowledgebaseCard` 在 `info` 模式下自身不直接调用 HTTP hook，下列请求由其内部通用子组件发起：
-
-| 触发条件 | 完整路径 | 方法 | 实际调用组件 |
-|---------|---------|------|------------|
-| 点击“关联至智能体”弹窗：拉取有权限空间 | `{apiPrefix}/meta/v1/space/authorized_spaces/` | GET | `render-relate-agent` |
-| 点击“关联至智能体”弹窗：拉取可关联 Agent | `{apiPrefix}/agent/v1/agent/` | GET | `render-relate-agent` |
-| 点击“关联至智能体”弹窗：保存关联 | `{apiPrefix}/agent/v1/agent/{targetAgentId}/` | PUT | `render-relate-agent` |
-
-### 2.3 Skill 卡片内部会调用的接口
-
-| 触发条件 | 完整路径 | 方法 | 说明 |
-|---------|---------|------|------|
-| 点击归档确认 | `{apiPrefix}/skill/v1/skill/{skillId}/` | DELETE | 归档 Skill，成功后 emit `success-delete` |
-| 点击恢复确认 | `{apiPrefix}/skill/v1/skill/{skillId}/restore/` | POST | 恢复 Skill，成功后 emit `success-restore` |
-| 点击下载 | `{apiPrefix}/skill/v1/skill/{skillId}/download/` | GET | 下载 Skill，成功后 `window.open(res.url)`，emit `success-download` |
-| 点击引用量 | `{apiPrefix}/skill/v1/skill/{skillId}/referring_agents/` | GET | 获取引用该 Skill 的智能体列表 |
-| 点击“关联至智能体”弹窗：拉取有权限空间 | `{apiPrefix}/meta/v1/space/authorized_spaces/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”弹窗：拉取可关联 Agent | `{apiPrefix}/agent/v1/agent/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”弹窗：保存关联 | `{apiPrefix}/agent/v1/agent/{targetAgentId}/` | PUT | 由 `render-relate-agent` 发起 |
-
-所有请求都会自动带上请求头：`x-space-id: {spaceId}`。
+所有内部请求都会自动带上请求头：`x-space-id: {spaceId}`。
 
 ---
 
@@ -310,43 +284,38 @@ interface IResourcePermission {
 
 | 事件 | 参数 | 触发时机 |
 |------|------|---------|
-| `delete` | `(agent: IAgent)` | 点击删除图标 / 归档确认时 |
+| `delete` | `(agent: IAgent)` | 点击右上角删除图标时 |
 | `choose` | `(agent: IAgent)` | 选择卡片/勾选时 |
-| `edit` | `(agent: IAgent)` | 点击“编辑”（外部通过插槽触发） |
-| `success-delete` | `()` | 归档接口调用成功后 |
-| `success-restore` | `()` | 恢复接口调用成功后 |
+| `edit` | `(agent: IAgent)` | 点击自定义编辑图标时（需通过 `prefix-info-tool` 插槽触发） |
 | `update:commands` | `(commands: IAgentCommand[])` | `prefix-info-tool` 中指令变更确认后 |
-| `navigate` | `(route: ISdkNavigateAction)` | 点击引用/关联等需要外部路由跳转时 |
+| `navigate` | `(route: ISdkNavigateAction)` | 卡片内部需要外部路由跳转时（Info 模式下暂无内部触发点） |
 
-### 4.4 Info 模式操作按钮状态
+### 4.4 Info 模式右上角操作按钮
 
-右上角操作区仅在 `isShowOperation=true` 时显示。
+右上角操作区仅在 `isShowOperation=true` 时显示。`isShowOperation=false` 时，卡片仅展示名称、图标、状态标签等基础信息，右上角不渲染任何操作图标。
+
+右上角区域由 `prefix-info-tool` 插槽内容与删除图标组成：
 
 | 数据状态 | 展示图标 | 行为 |
 |---------|---------|------|
-| 默认 | `prefix-info-tool` 快捷指令入口、删除图标 | 点击快捷指令打开指令弹窗；点击删除触发 `delete` 事件 |
-| `status === deleted` 或 `disabled === true` | `prefix-info-tool` 禁用态、删除图标 | 无法打开指令弹窗 |
+| 默认 | 快捷指令入口（`ai-ui-sdk-kuaijiezhiling`）、删除图标（`ai-ui-sdk-delete`） | 点击快捷指令打开指令弹窗；点击删除触发 `delete` 事件 |
+| `status === deleted` 或 `disabled === true` | 快捷指令入口禁用态、删除图标 | 无法打开指令弹窗；删除图标仍展示，点击触发 `delete` |
 | `showDeleteTips=true` | 删除图标带 PopConfirm | 二次确认后触发 `delete` |
 | `showDeleteTips=false`（当前项目） | 删除图标无二次确认 | 直接触发 `delete` |
 
 ### 4.5 卡片内部自动请求的接口
 
-| 触发条件 | 接口 | 方法 | 说明 |
-|---------|------|------|------|
-| 点击归档确认 | `{apiPrefix}/agent/v1/agent/{agentId}/` | DELETE | 归档智能体，成功后 emit `success-delete` |
-| 点击恢复确认 | `{apiPrefix}/agent/v1/agent/{agentId}/restore/` | POST | 恢复智能体，成功后 emit `success-restore` |
-| 点击快捷指令图标 | `{apiPrefix}/agent/v1/agent/{originAgentId}/get_related_commands/` | GET | 获取来源智能体可关联指令 |
-| 点击引用量 | `{apiPrefix}/agent/v1/agent/{agentId}/referring_agents/` | GET | 获取引用该智能体的智能体列表 |
-| 点击“关联至智能体”：拉取有权限空间 | `{apiPrefix}/meta/v1/space/authorized_spaces/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”：拉取可关联 Agent | `{apiPrefix}/agent/v1/agent/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”：保存关联 | `{apiPrefix}/agent/v1/agent/{targetAgentId}/` | PUT | 由 `render-relate-agent` 发起 |
+| 触发条件 | 完整路径 | 方法 | 说明 |
+|---------|---------|------|------|
+| 点击快捷指令图标 | `{apiPrefix}/agent/v1/agent/{originAgentId}/get_related_commands/` | GET | 获取来源智能体可关联到当前卡片的指令 |
+
+> `Info` 模式下不会渲染底部操作区，因此不会触发“归档 / 恢复 / 编辑 / 去使用 / 去配置调试 / 分享 / 关联至智能体 / 使用文档 / 下载源码”等接口，也不会展示引用量。
 
 ### 4.6 插槽
 
 | 插槽名 | 说明 |
 |--------|------|
 | `prefix-info-tool` | 覆盖默认快捷指令入口；当前项目用于追加自定义编辑图标 |
-| `pre-actions` | 底部操作区前置内容；`Info` 模式下底部操作区不会展示，因此该插槽在 `Info` 模式下无效 |
 
 ---
 
@@ -364,38 +333,26 @@ interface IResourcePermission {
 
 | 事件 | 参数 | 触发时机 |
 |------|------|---------|
-| `delete` | `(knowledgebase: IKnowledgebase)` | 点击删除图标 |
+| `delete` | `(knowledgebase: IKnowledgebase)` | 点击右上角删除图标时 |
 | `choose` | `(knowledgebase: IKnowledgebase)` | 选择时 |
 | `view` | `(knowledgebase: IKnowledgebase)` | 点击可查看图标时 |
-| `navigate` | `(route: ISdkNavigateAction)` | 点击引用/查看等需要跳转时 |
+| `navigate` | `(route: ISdkNavigateAction)` | 点击可查看图标需要跳转时 |
 
-### 5.3 Info 模式操作按钮状态
+### 5.3 Info 模式右上角操作按钮
 
-右上角操作区仅在 `isShowOperation=true` 时显示。
+右上角操作区仅在 `isShowOperation=true` 时显示。`isShowOperation=false` 时，卡片仅展示名称、图标、状态标签等基础信息，右上角不渲染任何操作图标。
 
 | 数据状态 | 展示图标 | 行为 |
 |---------|---------|------|
-| 默认 | 可查看图标、删除图标 | 查看触发 `navigate`；删除触发 `delete` |
-| `isShowOperation=false` | 不显示任何操作 | 卡片纯展示 |
+| 默认 | 可查看图标（`ai-ui-sdk-kejian`）、删除图标（`ai-ui-sdk-delete`） | 查看触发 `navigate` 事件；删除触发 `delete` 事件 |
 | `showDeleteTips=true` | 删除带 PopConfirm | 二次确认后触发 `delete` |
 | `showDeleteTips=false`（当前项目） | 删除无二次确认 | 直接触发 `delete` |
 
 ### 5.4 卡片内部自动请求的接口
 
-`RenderKnowledgebaseCard` 在 `info` 模式下自身不直接调用 HTTP hook，下列请求由内部通用子组件发起。
+`RenderKnowledgebaseCard` 在 `Info` 模式下自身不直接调用 HTTP hook。
 
-| 触发条件 | 接口 | 方法 | 实际调用组件 |
-|---------|------|------|------------|
-| 点击可查看图标 | 无 | — | 触发 `navigate` 事件，由宿主处理 |
-| 点击“关联至智能体”：拉取有权限空间 | `{apiPrefix}/meta/v1/space/authorized_spaces/` | GET | `render-relate-agent` |
-| 点击“关联至智能体”：拉取可关联 Agent | `{apiPrefix}/agent/v1/agent/` | GET | `render-relate-agent` |
-| 点击“关联至智能体”：保存关联 | `{apiPrefix}/agent/v1/agent/{targetAgentId}/` | PUT | `render-relate-agent` |
-
-### 5.5 插槽
-
-| 插槽名 | 说明 |
-|--------|------|
-| `pre-actions` | 底部操作区前置内容；SDK 源码中 `Info` 模式不渲染底部操作区，但当前项目仍通过该插槽传入自定义编辑图标，实际是否渲染取决于 SDK 版本/内部实现 |
+> `Info` 模式下不会渲染底部操作区，因此不会触发“去查看 / 移除权限 / 关联至智能体 / 查看审批进度”等接口。
 
 ---
 
@@ -413,41 +370,34 @@ interface IResourcePermission {
 
 | 事件 | 参数 | 触发时机 |
 |------|------|---------|
-| `edit` | `(skill: ISkill)` | 点击编辑（外部通过插槽触发） |
-| `view` | `(skill: ISkill)` | 点击查看 |
+| `edit` | `(skill: ISkill)` | 点击自定义编辑图标时（需外部通过插槽/自定义实现触发） |
+| `view` | `(skill: ISkill)` | 点击查看时 |
 | `choose` | `(skill: ISkill)` | 选择时 |
-| `delete` | `()` | 点击删除图标 / 归档确认时 |
-| `success-delete` | `()` | 归档接口成功后 |
-| `success-restore` | `()` | 恢复接口成功后 |
-| `success-download` | `(downloadCount: number)` | 下载接口成功后 |
-| `show-scanner` | `(content: string)` | 点击安全扫描标签 |
+| `delete` | `()` | 点击右上角删除图标时 |
 | `update:skill` | `(skill: ISkill)` | 环境变量配置确认后 |
-| `navigate` | `(route: ISdkNavigateAction)` | 点击分享/关联等需要外部跳转时 |
+| `show-scanner` | `(content: string)` | 点击安全扫描标签（元信息展示，非操作按钮） |
+| `navigate` | `(route: ISdkNavigateAction)` | 卡片内部需要外部路由跳转时（Info 模式下暂无内部触发点） |
 
-### 6.3 Info 模式操作按钮状态
+### 6.3 Info 模式右上角操作按钮
 
-右上角操作区仅在 `isShowOperation=true` 时显示。
+右上角操作区仅在 `isShowOperation=true` 时显示。`isShowOperation=false` 时，卡片仅展示名称、图标、版本/扫描标签等基础信息，右上角不渲染任何操作图标。
+
+右上角区域由 `prefix-info-tool`（环境变量配置图标）与删除图标组成：
 
 | 数据状态 | 展示图标 | 行为 |
 |---------|---------|------|
 | `envs` 存在 | 环境变量配置图标、删除图标 | 点击配置图标打开环境变量弹窗 |
 | `envs` 不存在 | 删除图标 | 无配置入口 |
-| 必填 env 未填 | 环境变量图标变红，卡片边框变橙 | tooltip 提示具体必填变量名 |
-| 必填 env 已填 | 环境变量图标绿色 | tooltip 提示“配置环境变量” |
+| 必填 env 未填 | 环境变量图标变红（`ai-ui-sdk-miyao`），卡片边框变橙 | tooltip 提示具体必填变量名 |
+| 必填 env 已填 | 环境变量图标绿色（`ai-ui-sdk-miyaoyiyanzheng`） | tooltip 提示“配置环境变量” |
 | `showDeleteTips=true` | 删除带 PopConfirm | 二次确认后触发 `delete` |
 | `showDeleteTips=false`（当前项目） | 删除无二次确认 | 直接触发 `delete` |
 
 ### 6.4 卡片内部自动请求的接口
 
-| 触发条件 | 接口 | 方法 | 说明 |
-|---------|------|------|------|
-| 点击归档确认 | `{apiPrefix}/skill/v1/skill/{skillId}/` | DELETE | 归档 Skill，成功后 emit `success-delete` |
-| 点击恢复确认 | `{apiPrefix}/skill/v1/skill/{skillId}/restore/` | POST | 恢复 Skill，成功后 emit `success-restore` |
-| 点击下载 | `{apiPrefix}/skill/v1/skill/{skillId}/download/` | GET | 下载 Skill，成功后 `window.open(res.url)`，emit `success-download` |
-| 点击引用量 | `{apiPrefix}/skill/v1/skill/{skillId}/referring_agents/` | GET | 获取引用该 Skill 的智能体列表 |
-| 点击“关联至智能体”：拉取有权限空间 | `{apiPrefix}/meta/v1/space/authorized_spaces/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”：拉取可关联 Agent | `{apiPrefix}/agent/v1/agent/` | GET | 由 `render-relate-agent` 发起 |
-| 点击“关联至智能体”：保存关联 | `{apiPrefix}/agent/v1/agent/{targetAgentId}/` | PUT | 由 `render-relate-agent` 发起 |
+`RenderSkillCard` 在 `Info` 模式下自身不直接调用 HTTP hook。
+
+> `Info` 模式下不会渲染底部操作区，因此不会触发“编辑 / 安装 / 分享 / 下载 / 归档 / 恢复 / 关联至智能体”等接口，也不会展示引用量。
 
 ### 6.5 环境变量校验
 
@@ -467,7 +417,7 @@ interface IResourcePermission {
 
 | 插槽名 | 说明 |
 |--------|------|
-| `pre-actions` | 底部操作区前置内容；SDK 源码中 `Info` 模式不渲染底部操作区，但当前项目仍通过该插槽传入自定义编辑图标，实际是否渲染取决于 SDK 版本/内部实现 |
+| `pre-actions` | 底部操作区前置内容；`Info` 模式下底部操作区不会展示，因此该插槽在 `Info` 模式下无效 |
 
 ---
 
@@ -491,7 +441,7 @@ import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
   {{ 'prefix-info-tool': () => <EditLine onClick={() => handleEdit(item)} /> }}
 </RenderAgentCard>
 
-// 知识库：通过 pre-actions 插槽追加编辑图标（当前项目示例）
+// 知识库
 <RenderKnowledgebaseCard
   key={item.id}
   apiPrefix=''
@@ -500,11 +450,9 @@ import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
   showDeleteTips={false}
   type={ResourceCardType.Info}
   onDelete={() => handleKnowledgebaseDelete(item)}
->
-  {{ 'pre-actions': () => <EditLine onClick={() => handleKnowledgebaseEdit(item)} /> }}
-</RenderKnowledgebaseCard>
+/>
 
-// Skill：通过 pre-actions 插槽追加编辑图标
+// Skill
 <RenderSkillCard
   key={item.id}
   apiPrefix=''
@@ -513,14 +461,12 @@ import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
   skill={item}
   type={ResourceCardType.Info}
   onDelete={() => handleSkillDelete(item)}
->
-  {{ 'pre-actions': () => <EditLine onClick={() => handleSkillEdit(item)} /> }}
-</RenderSkillCard>
+/>
 ```
 
 > 说明：
 > - `RenderAgentCard` 提供 `prefix-info-tool` 插槽，可直接在卡片右上角追加自定义图标。
-> - `RenderKnowledgebaseCard` 与 `RenderSkillCard` 的 `pre-actions` 插槽按 SDK 源码仅在带底部操作区的模式下渲染，但当前项目示例中仍通过该插槽传入编辑图标。建议以实际 SDK 版本/项目表现为准。
+> - `RenderKnowledgebaseCard` / `RenderSkillCard` 在 `Info` 模式下没有可直接渲染的自定义操作插槽，如需追加编辑等操作，建议在卡片外部包裹容器实现。
 
 ---
 
@@ -531,7 +477,7 @@ import type { IAgent, IKnowledgebase, ISkill } from '@blueking/ai-ui-sdk/types';
 ```mermaid
 flowchart TD
     A[传入 agent / type=Info / apiPrefix] --> B{isShowOperation=true?}
-    B -->|否| C[仅展示名称/图标/版本等基础信息]
+    B -->|否| C[仅展示名称/图标/状态标签等基础信息]
     B -->|是| D[渲染 prefix-info-tool + 删除图标]
     D --> E{status === deleted<br/>或 disabled=true?}
     E -->|是| F[prefix-info-tool 禁用态]
@@ -551,7 +497,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[传入 knowledgebase / type=Info / apiPrefix] --> B{isShowOperation=true?}
-    B -->|否| C[仅展示名称/图标/版本等基础信息]
+    B -->|否| C[仅展示名称/图标/状态标签等基础信息]
     B -->|是| D[渲染可查看图标 + 删除图标]
     D --> E{点击可查看图标?}
     E -->|是| F[emit navigate 事件]
@@ -588,11 +534,8 @@ flowchart TD
 ## 九、注意事项
 
 1. 当前项目三个卡片均使用 `ResourceCardType.Info`，因此 `full` / `choose` / `application` / `record` / `market` 等其他模式不在本文档范围内。
-2. `Info` 模式下的操作按钮全部集中在卡片右上角，**没有底部操作区**，因此按 SDK 源码 `pre-actions` 插槽在 `Info` 模式下不会生效，但当前项目示例中仍对 `RenderKnowledgebaseCard` / `RenderSkillCard` 传入 `pre-actions` 插槽，建议以实际 SDK 版本/项目表现为准。
+2. `Info` 模式下的操作按钮全部集中在卡片右上角，**没有底部操作区**，因此 `pre-actions` / `actions` / `footer-icons` 插槽在 `Info` 模式下不会渲染。
 3. `showDeleteTips` 控制删除是否需要二次确认，当前项目统一传 `false`，点击删除图标直接触发 `delete` 事件。
-4. `RenderAgentCard` 如需自定义右上角操作，使用 `prefix-info-tool` 插槽；`RenderKnowledgebaseCard` / `RenderSkillCard` 在 SDK 源码中没有为 `Info` 模式提供可直接渲染的自定义插槽，如需追加编辑等操作，建议以实际 SDK 版本为准或在卡片外部包裹容器实现。
-5. “关联至智能体”弹窗实际由 `render-relate-agent` 组件完成 HTTP 请求，卡片本身不直接调用。
-6. 所有内部请求都会自动带上 `x-space-id` 请求头，不需要宿主手动传。
-7. 接口列表仅包含 `Info` 模式下卡片自身（及其直接子组件）会触发的请求；列表查询、详情获取、安装指南、构建日志等由外部或弹窗组件负责的接口未列入。
-8. `RenderAgentCard` / `RenderSkillCard` 的引用量图标只在 `status !== deleted` 时展示，点击后打开“引用的实例”侧滑窗，并通过 `navigate` 事件通知宿主跳转详情。
-9. `RenderSkillCard` 的安全扫描标签、下载量、版本号等元信息展示与 `Info` 模式无关，只要数据存在就会渲染；其中版本号只在 `full` / `application` / `market` 模式下展示，`Info` 模式下不展示版本号。
+4. `RenderAgentCard` 如需自定义右上角操作，使用 `prefix-info-tool` 插槽；`RenderKnowledgebaseCard` / `RenderSkillCard` 在 `Info` 模式下没有可直接渲染的自定义操作插槽，如需追加编辑等操作，建议在卡片外部包裹容器实现。
+5. 所有内部请求都会自动带上 `x-space-id` 请求头，不需要宿主手动传。
+6. 接口列表仅包含 `Info` 模式下卡片自身（及其直接子组件）会触发的请求；列表查询、详情获取、安装指南、构建日志等由外部或弹窗组件负责的接口未列入。
