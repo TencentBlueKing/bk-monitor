@@ -70,6 +70,7 @@ export default {
   获取服务分类失败: 'Get service classification  failed',
   获取通知设置失败: 'Get notification settings failed',
   获取更多数据失败: 'Get more data failed',
+  获取监控目标失败: 'Failed to get monitoring targets',
   屏蔽详情获取失败: 'Get muted details failed',
   获取节点拓扑树失败: 'Get node topology tree failed',
   数据对象分类请求失败: 'Data object classification request failed',
