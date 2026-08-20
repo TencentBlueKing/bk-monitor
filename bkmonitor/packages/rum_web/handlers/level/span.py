@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import copy
 from typing import Any
 
 from bkmonitor.data_source.utils import types
@@ -35,8 +34,66 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "elapsed_time",
         "status.code",
         "attributes.view.url_template",
-        "user.id",
+        "attributes.user.id",
     ]
+    VIRTUAL_FIELDS = {
+        "CLS": {
+            "field_name": "CLS",
+            "field_alias": "累积布局偏移",
+            "field_type": "double",
+            "field_unit": "ms",
+            "origin_field": "CLS",
+            "is_searchable": True,
+            "is_agg": True,
+            "is_list": False,
+            "supported_operations": [],
+        },
+        "INP": {
+            "field_name": "INP",
+            "field_alias": "交互到下一次绘制",
+            "field_type": "double",
+            "field_unit": "ms",
+            "origin_field": "INP",
+            "is_searchable": True,
+            "is_agg": True,
+            "is_list": False,
+            "supported_operations": [],
+        },
+        "LCP": {
+            "field_name": "LCP",
+            "field_alias": "最大内容绘制",
+            "field_type": "double",
+            "field_unit": "ms",
+            "origin_field": "LCP",
+            "is_searchable": True,
+            "is_agg": True,
+            "is_list": False,
+            "supported_operations": [],
+        },
+        "FCP": {
+            "field_name": "FCP",
+            "field_alias": "首次内容绘制",
+            "field_type": "double",
+            "field_unit": "ms",
+            "origin_field": "FCP",
+            "is_searchable": True,
+            "is_agg": True,
+            "is_list": False,
+            "supported_operations": [],
+        },
+        "TTFB": {
+            "field_name": "TTFB",
+            "field_alias": "首字节耗时",
+            "field_type": "double",
+            "field_unit": "ms",
+            "origin_field": "TTFB",
+            "is_searchable": True,
+            "is_agg": True,
+            "is_list": False,
+            "supported_operations": [],
+        },
+    }
+    VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
@@ -61,52 +118,29 @@ class SpanLevelHandler(BaseRumLevelHandler):
         end_time: int,
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        all_fields: dict[str, Any] = self.query.query_fields(start_time, end_time)
-        config_dict = {
-            "default_sort": copy.deepcopy(self.query.DEFAULT_SORT),
-            "fields": [
-                {
-                    "name": field_name,
-                    "alias": field_dict.get("alias_name"),
-                    "type": field_dict.get("field_type"),
-                    "is_searchable": field_dict.get("is_searchable", False),
-                    "is_agg": field_dict.get("is_agg", False),
-                    "is_list": field_dict.get("is_list", True),
-                    "supported_operations": field_dict.get("supported_operations", []),
-                }
-                for field_name, field_dict in all_fields.items()
-            ],
-            "groups": [],
-            "display_fields": copy.deepcopy(self.DISPLAY_FIELDS),
-        }
+        field_map: dict[str, Any] = self.query.query_fields(start_time, end_time)
 
-        field_map: dict[str, dict[str, Any]] = {}
-        for field_name, field_dict in all_fields.items():
-            _field_dict = {
-                "name": field_name,
-                "alias": field_dict["alias_name"],
-                "type": field_dict["field_type"],
-                "is_searchable": field_dict["is_searchable"],
-                "is_agg": field_dict["is_agg"],
-                "is_list": field_dict["is_list"],
-                "supported_operations": field_dict["supported_operations"],
-            }
-            if "unit" in field_dict:
-                _field_dict["unit"] = field_dict["unit"]
-            if "option_values" in field_dict:
-                _field_dict["option_values"] = field_dict["option_values"]
-            field_map[field_name] = _field_dict
-            config_dict["fields"].append(_field_dict)
-        # 构建分组关系
-        for group in RUM_SEARCH_PAGE_GROUPS.get("span", []):
-            config_dict["groups"].append(
+        # 丢弃查询层私有键，其余字段直接透传给接口层
+        for field_name, field_dict in field_map.items():
+            for key in self.VIEW_CONFIG_IGNORE_KEYS:
+                field_dict.pop(key, None)
+        # mapping 没有的虚拟字段，先补进 field_map，WEB_VITALS 才组得起来
+        for name, meta in self.VIRTUAL_FIELDS.items():
+            field_map.setdefault(name, meta)
+
+        return {
+            "default_sort": list(self.query.DEFAULT_SORT),
+            "fields": list(field_map.values()),
+            "groups": [
                 {
                     "name": group["name"],
                     "alias": group["alias"],
-                    "fields": [field_map[field_name] for field_name in group["field_names"] if field_name in field_map],
+                    "fields": [field_map[name] for name in group["field_names"] if name in field_map],
                 }
-            )
-        return config_dict
+                for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
+            ],
+            "display_fields": list(self.DISPLAY_FIELDS),
+        }
 
     def get_fields_option_values(
         self,

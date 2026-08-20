@@ -74,21 +74,18 @@ POST /rum/search/list_records/
 
 ```json
 {
-  "total": 100,
-  "data": {
-    "list": [
-      {
-        "span_id": "29926da51cae17cf",
-        "trace_id": "206fa04fb665bf8ef1fba9255b59c3e1",
-        "span_name": "browser.resource",
-        "start_time": 1783338028554800,
-        "end_time": 1783338029588300,
-        "elapsed_time": 1033500,
-        "attributes.span_type": "resource",
-        "status.code": 0
-      }
-    ]
-  }
+  "list": [
+    {
+      "span_id": "29926da51cae17cf",
+      "trace_id": "206fa04fb665bf8ef1fba9255b59c3e1",
+      "span_name": "browser.resource",
+      "start_time": 1783338028554800,
+      "end_time": 1783338029588300,
+      "elapsed_time": 1033500,
+      "attributes.span_type": "resource",
+      "status.code": 0
+    }
+  ]
 }
 ```
 
@@ -131,10 +128,10 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 | 参数名称                 | 类型                 | 描述                                  |
 |----------------------|--------------------|-------------------------------------|
-| name                 | String             | 字段名                                 |
-| alias                | String             | 别名                                  |
-| type                 | String             | 字段类型（如 `keyword`、`long`、`double` 等） |
-| unit                 | String             | 单位（可选，如 `us`、`ms`）                  |
+| field_name           | String             | 字段名                                 |
+| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同          |
+| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等） |
+| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                |
 | is_searchable        | Boolean            | 是否支持搜索                              |
 | is_agg               | Boolean            | 是否支持聚合统计                            |
 | is_list              | Boolean            | 是否支持在列表中展示                          |
@@ -166,95 +163,91 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 ```json
 {
-  "span_config": {
-    "default_sort": [
-      "-end_time"
-    ],
-    "fields": [
-      {
-        "name": "span_name",
-        "alias": "Span 名称",
-        "type": "keyword",
-        "is_searchable": true,
-        "is_agg": true,
-        "is_list": true,
-        "supported_operations": []
-      },
-      {
-        "name": "elapsed_time",
-        "alias": "耗时",
-        "type": "long",
-        "unit": "us",
-        "is_searchable": true,
-        "is_agg": true,
-        "is_list": true,
-        "supported_operations": []
-      },
-      {
-        "name": "attributes.span_type",
-        "alias": "Span 类型",
-        "type": "keyword",
-        "is_searchable": true,
-        "is_agg": true,
-        "is_list": true,
-        "supported_operations": [],
-        "option_values": [
-          {
-            "value": "view",
-            "alias": "视图"
-          },
-          {
-            "value": "resource",
-            "alias": "资源加载"
-          }
-        ]
-      }
-    ],
-    "groups": [
-      {
-        "name": "DEVICE_BROWSER",
-        "alias": "终端 & 浏览器",
-        "fields": [
-          {
-            "name": "resource.user_agent.name",
-            "alias": "代理名称",
-            "type": "keyword",
-            "is_searchable": true,
-            "is_agg": true,
-            "is_list": true,
-            "supported_operations": []
-          }
-        ]
-      },
-      {
-        "name": "WEB_VITALS",
-        "alias": "网页指标（Web Vitals）",
-        "fields": [
-          {
-            "name": "LCP",
-            "alias": "最大内容绘制",
-            "type": "double",
-            "unit": "ms",
-            "is_searchable": true,
-            "is_agg": true,
-            "is_list": false,
-            "supported_operations": []
-          }
-        ]
-      }
-    ],
-    "display_fields": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "user.id"
-    ]
-  },
-  "view_config": {},
-  "session_config": {}
+  "default_sort": [
+    "-end_time"
+  ],
+  "fields": [
+    {
+      "field_name": "span_name",
+      "field_alias": "Span 名称",
+      "field_type": "keyword",
+      "is_searchable": true,
+      "is_agg": true,
+      "is_list": true,
+      "supported_operations": []
+    },
+    {
+      "field_name": "elapsed_time",
+      "field_alias": "耗时",
+      "field_type": "long",
+      "field_unit": "us",
+      "is_searchable": true,
+      "is_agg": true,
+      "is_list": true,
+      "supported_operations": []
+    },
+    {
+      "field_name": "attributes.span_type",
+      "field_alias": "Span 类型",
+      "field_type": "keyword",
+      "is_searchable": true,
+      "is_agg": true,
+      "is_list": true,
+      "supported_operations": [],
+      "option_values": [
+        {
+          "value": "view",
+          "alias": "视图"
+        },
+        {
+          "value": "resource",
+          "alias": "资源加载"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "DEVICE_BROWSER",
+      "alias": "终端 & 浏览器",
+      "fields": [
+        {
+          "field_name": "resource.user_agent.name",
+          "field_alias": "代理名称",
+          "field_type": "keyword",
+          "is_searchable": true,
+          "is_agg": true,
+          "is_list": true,
+          "supported_operations": []
+        }
+      ]
+    },
+    {
+      "name": "WEB_VITALS",
+      "alias": "网页指标（Web Vitals）",
+      "fields": [
+        {
+          "field_name": "LCP",
+          "field_alias": "最大内容绘制",
+          "field_type": "double",
+          "field_unit": "ms",
+          "is_searchable": true,
+          "is_agg": true,
+          "is_list": false,
+          "supported_operations": []
+        }
+      ]
+    }
+  ],
+  "display_fields": [
+    "span_name",
+    "attributes.span_type",
+    "end_time",
+    "elapsed_time",
+    "status.code",
+    "attributes.view.url_template",
+    "user.id"
+  ]
 }
 ```
 
@@ -328,9 +321,12 @@ POST /rum/search/generate_query_string/
 
 #### 2.4.1 Request
 
-| 参数名称    | 类型            | 必填 | 描述             |
-|---------|---------------|----|----------------|
-| filters | Array[Filter] | 否  | 查询条件列表，默认 `[]` |
+| 参数名称      | 类型            | 必填 | 描述                                                                  |
+|-----------|---------------|----|---------------------------------------------------------------------|
+| bk_biz_id | Integer       | 是  | 业务 ID                                                               |
+| app_name  | String        | 是  | 应用名称                                                                |
+| mode      | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| filters   | Array[Filter] | 否  | 查询条件列表，默认 `[]`                                                      |
 
 - Filter
 
@@ -338,6 +334,9 @@ POST /rum/search/generate_query_string/
 
 ```json
 {
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
   "filters": [
     {
       "key": "attributes.span_type",

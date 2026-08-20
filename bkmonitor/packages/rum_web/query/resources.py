@@ -24,7 +24,6 @@ from rum_web.query.serializers import (
     RumRecordsRequestSerializer,
     RumViewConfigRequestSerializer,
 )
-from rum_web.constants import RumQueryMode
 
 
 def _get_application(bk_biz_id: int, app_name: str) -> Application:
@@ -78,7 +77,7 @@ class RumViewConfigResource(Resource):
 
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
         application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(RumQueryMode.SPAN.value, _build_data_sources([application]))
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return handler.view_config(
             start_time=data["start_time"],
             end_time=data["end_time"],

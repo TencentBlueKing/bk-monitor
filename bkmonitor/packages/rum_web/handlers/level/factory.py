@@ -8,17 +8,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import gettext_lazy as _
+from rest_framework.exceptions import ValidationError
+
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+
 from rum_web.constants import RumQueryMode
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.level.span import SpanLevelHandler
 
 
-class UnsupportedRumQueryMode(ValueError):
-    """不支持的 RUM 查询模式"""
+class UnsupportedRumQueryMode(ValidationError):
+    """未注册的 RUM 查询模式"""
 
     def __init__(self, mode: str):
-        super().__init__(f"不支持的 RUM 查询模式: {mode}")
+        super().__init__(_("不支持的 RUM 查询模式: {}").format(mode))
 
 
 class RumLevelHandlerFactory:

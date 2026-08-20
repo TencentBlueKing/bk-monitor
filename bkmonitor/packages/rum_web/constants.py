@@ -231,7 +231,7 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
             ],
         },
         {
-            "name": "INTERACTION",
+            "name": "ACTION",
             "alias": _("用户交互"),
             "field_names": [
                 "attributes.action.type",
