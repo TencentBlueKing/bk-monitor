@@ -70,7 +70,7 @@ POST /rum/search/list_records/
 
 #### 2.1.2 Response
 
-返回包含 `total` 和 `data` 字段的分页结构。
+返回包含 `list` 字段的分页结构。
 
 ```json
 {
@@ -246,7 +246,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     "elapsed_time",
     "status.code",
     "attributes.view.url_template",
-    "user.id"
+    "attributes.user.id"
   ]
 }
 ```

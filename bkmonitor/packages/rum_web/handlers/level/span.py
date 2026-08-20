@@ -41,7 +41,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
             "field_name": "CLS",
             "field_alias": "累积布局偏移",
             "field_type": "double",
-            "field_unit": "ms",
             "origin_field": "CLS",
             "is_searchable": True,
             "is_agg": True,
