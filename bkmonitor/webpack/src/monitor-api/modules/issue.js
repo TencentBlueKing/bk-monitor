@@ -12,7 +12,7 @@ export const createSourceAnalysisRule = request('POST', 'fta/issue/source_analys
 export const getSourceAnalysisRule = request('GET', 'fta/issue/source_analysis_rules/{pk}/');
 export const updateSourceAnalysisRule = request('PATCH', 'fta/issue/source_analysis_rules/{pk}/');
 export const deleteSourceAnalysisRule = request('DELETE', 'fta/issue/source_analysis_rules/{pk}/');
-export const searchIssue = request('POST', 'fta/issue/issue/search/');
+export const issueSearch = request('POST', 'fta/issue/issue/search/');
 export const issueTrend = request('POST', 'fta/issue/issue/trend/');
 export const issueTopN = request('POST', 'fta/issue/issue/top_n/');
 export const issueDetail = request('GET', 'fta/issue/issue/detail/');
@@ -63,7 +63,7 @@ export default {
   getSourceAnalysisRule,
   updateSourceAnalysisRule,
   deleteSourceAnalysisRule,
-  searchIssue,
+  issueSearch,
   issueTrend,
   issueTopN,
   issueDetail,
