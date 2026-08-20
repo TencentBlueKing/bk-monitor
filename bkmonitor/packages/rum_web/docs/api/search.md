@@ -117,26 +117,27 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 顶层结构：
 
-| 参数名称           | 类型            | 描述                    |
-|----------------|---------------|-----------------------|
-| default_sort   | Array[String] | 默认排序条件，字段名前加 `-` 表示降序 |
-| fields         | Array[Field]  | 顶层字段列表（不属于任何分组）       |
-| groups         | Array[Group]  | 分组列表，每个分组包含若干字段       |
-| display_fields | Array[String] | 列表页默认展示的字段名列表         |
+| 参数名称           | 类型            | 描述                                          |
+|----------------|---------------|---------------------------------------------|
+| default_sort   | Array[String] | 默认排序条件，字段名前加 `-` 表示降序                        |
+| fields         | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                         |
+| groups         | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段 |
+| display_fields | Array[String] | 列表页默认展示的字段名列表                               |
 
 - Field
 
-| 参数名称                 | 类型                 | 描述                                  |
-|----------------------|--------------------|-------------------------------------|
-| field_name           | String             | 字段名                                 |
-| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同          |
-| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等） |
-| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                |
-| is_searchable        | Boolean            | 是否支持搜索                              |
-| is_agg               | Boolean            | 是否支持聚合统计                            |
-| is_list              | Boolean            | 是否支持在列表中展示                          |
-| supported_operations | Array[Operation]   | 支持的操作符列表                            |
-| option_values        | Array[OptionValue] | 预设枚举值列表（可选，有预设值时返回）                 |
+| 参数名称                 | 类型                 | 描述                                                    |
+|----------------------|--------------------|-------------------------------------------------------|
+| field_name           | String             | 字段名                                                   |
+| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同                            |
+| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等）                   |
+| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                                  |
+| is_real              | Boolean            | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）        |
+| is_searchable        | Boolean            | 是否支持搜索                                                |
+| is_agg               | Boolean            | 是否支持聚合统计                                              |
+| is_list              | Boolean            | 是否支持在列表中展示                                            |
+| supported_operations | Array[Operation]   | 支持的操作符列表                                              |
+| option_values        | Array[OptionValue] | 预设枚举值列表（可选，有预设值时返回；有别名时 UI 展示格式为 `alias(value)`） |
 
 - Operation
 
@@ -148,18 +149,18 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - OptionValue
 
-| 参数名称  | 类型     | 描述   |
-|-------|--------|------|
-| value | String | 枚举值  |
-| alias | String | 枚举别名 |
+| 参数名称  | 类型     | 描述                                   |
+|-------|--------|--------------------------------------|
+| value | String | 枚举值                                  |
+| alias | String | 枚举别名，有别名时 UI 展示格式为 `alias(value)` |
 
 - Group
 
-| 参数名称   | 类型           | 描述        |
-|--------|--------------|-----------|
-| name   | String       | 分组标识      |
-| alias  | String       | 分组别名      |
-| fields | Array[Field] | 该分组下的字段列表 |
+| 参数名称        | 类型            | 描述                    |
+|-------------|---------------|-----------------------|
+| name        | String        | 分组标识                  |
+| alias       | String        | 分组别名                  |
+| field_names | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields` |
 
 ```json
 {
@@ -171,6 +172,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_name": "span_name",
       "field_alias": "Span 名称",
       "field_type": "keyword",
+      "is_real": true,
       "is_searchable": true,
       "is_agg": true,
       "is_list": true,
@@ -181,6 +183,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_alias": "耗时",
       "field_type": "long",
       "field_unit": "us",
+      "is_real": true,
       "is_searchable": true,
       "is_agg": true,
       "is_list": true,
@@ -190,6 +193,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_name": "attributes.span_type",
       "field_alias": "Span 类型",
       "field_type": "keyword",
+      "is_real": true,
       "is_searchable": true,
       "is_agg": true,
       "is_list": true,
@@ -204,38 +208,42 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
           "alias": "资源加载"
         }
       ]
+    },
+    {
+      "field_name": "resource.user_agent.name",
+      "field_alias": "代理名称",
+      "field_type": "keyword",
+      "is_real": true,
+      "is_searchable": true,
+      "is_agg": true,
+      "is_list": true,
+      "supported_operations": []
+    },
+    {
+      "field_name": "LCP",
+      "field_alias": "最大内容绘制",
+      "field_type": "double",
+      "field_unit": "ms",
+      "is_real": false,
+      "is_searchable": true,
+      "is_agg": true,
+      "is_list": false,
+      "supported_operations": []
     }
   ],
   "groups": [
     {
       "name": "DEVICE_BROWSER",
       "alias": "终端 & 浏览器",
-      "fields": [
-        {
-          "field_name": "resource.user_agent.name",
-          "field_alias": "代理名称",
-          "field_type": "keyword",
-          "is_searchable": true,
-          "is_agg": true,
-          "is_list": true,
-          "supported_operations": []
-        }
+      "field_names": [
+        "resource.user_agent.name"
       ]
     },
     {
       "name": "WEB_VITALS",
       "alias": "网页指标（Web Vitals）",
-      "fields": [
-        {
-          "field_name": "LCP",
-          "field_alias": "最大内容绘制",
-          "field_type": "double",
-          "field_unit": "ms",
-          "is_searchable": true,
-          "is_agg": true,
-          "is_list": false,
-          "supported_operations": []
-        }
+      "field_names": [
+        "LCP"
       ]
     }
   ],
@@ -279,9 +287,7 @@ POST /rum/search/get_fields_option_values/
   "start_time": 1785999805,
   "end_time": 1786003405,
   "fields": [
-    "attributes.span_type",
-    "kind",
-    "status.code"
+    "attributes.span_type"
   ],
   "limit": 10
 }
@@ -298,18 +304,6 @@ POST /rum/search/get_fields_option_values/
     "document",
     "route",
     "action"
-  ],
-  "kind": [
-    "1",
-    "3",
-    "2",
-    "5",
-    "4"
-  ],
-  "status.code": [
-    "0",
-    "1",
-    "2"
   ]
 }
 ```
@@ -317,6 +311,12 @@ POST /rum/search/get_fields_option_values/
 ### 2.4 generate_query_string - 过滤条件转查询字符串
 
 POST /rum/search/generate_query_string/
+
+**使用场景**：
+
+- UI 模式切换到语句模式时，将当前已选的过滤条件（`filters`）转换为等价的查询字符串（`query_string`），方便用户在语句模式下继续编辑。
+
+- UI 模式复制按钮
 
 #### 2.4.1 Request
 
