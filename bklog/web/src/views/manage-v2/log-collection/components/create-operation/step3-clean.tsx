@@ -1832,6 +1832,37 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       !props.isTempField ? cardConfig.value.slice(0, -1) : cardConfig.value,
     );
     /**
+     * 按当前「指定日志时间」选项同步 etl_fields 的 is_time / option 状态
+     * - 日志上报时间：清除所有字段的 is_time 与 option 中的时间信息
+     * - 指定字段为日志时间：仅指定字段保留 is_time 与时间配置
+     */
+    const syncLogTimeFields = () => {
+      if (!formData.value.log_reporting_time) {
+        const list = formData.value.etl_fields.map(item => {
+          const isTime = item.field_name === formData.value.field_name;
+          return {
+            ...item,
+            is_time: isTime,
+            option: {
+              time_zone: isTime ? formData.value.time_zone : '',
+              time_format: isTime ? formData.value.time_format : '',
+            },
+          };
+        });
+        formData.value.etl_fields = list;
+      } else {
+        // 日志上报时间：清除所有字段的 is_time 和 option 中的时间信息
+        formData.value.etl_fields = formData.value.etl_fields.map(item => ({
+          ...item,
+          is_time: false,
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+        }));
+      }
+    };
+    /**
      * 提交前的相关检验
      * @param callback
      * @returns
@@ -1857,29 +1888,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           loading.value = false;
           return;
         }
-        const list = formData.value.etl_fields.map(item => {
-          const isTime = item.field_name === formData.value.field_name;
-          return {
-            ...item,
-            is_time: isTime,
-            option: {
-              time_zone: isTime ? formData.value.time_zone : '',
-              time_format: isTime ? formData.value.time_format : '',
-            },
-          };
-        });
-        formData.value.etl_fields = list;
-      } else {
-        // 日志上报时间：清除所有字段的 is_time 和 option 中的时间信息
-        formData.value.etl_fields = formData.value.etl_fields.map(item => ({
-          ...item,
-          is_time: false,
-          option: {
-            time_zone: '',
-            time_format: '',
-          },
-        }));
       }
+      syncLogTimeFields();
       const { etl_fields } = formData.value;
 
       if (isClean.value && etl_fields.length === 0) {
@@ -1916,6 +1926,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           callback?.(false);
           return;
         }
+
+        // 提交前按当前时间选项重新同步 is_time，确保切换「日志上报时间」后提交数据生效
+        syncLogTimeFields();
 
         const { etl_params, etl_fields } = formData.value;
         // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
