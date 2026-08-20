@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from unittest.mock import patch
 
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 
@@ -39,6 +39,16 @@ def build_cluster_info(cluster_id: int, cluster_name: str, display_name: str = "
     }
 
 
+@override_settings(
+    # 用例依赖缓存真实生效（DummyCache 无法验证集群列表只请求一次），
+    # 独立 LOCATION 保证 setUp 的 cache.clear() 不会波及其他用例
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "doris-cluster-handler-test",
+        }
+    }
+)
 class TestDorisClusterHandler(TestCase):
     """Doris 路由必须带上结果表实际所在的存储集群，否则 metadata 会落到默认集群上"""
 
