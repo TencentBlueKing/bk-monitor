@@ -27,6 +27,7 @@ from fta_web.alert.serializers import AlertIDField
 from kernel_api.resource.alert import (
     CreateAlarmShieldResource,
     CreateAlarmStrategyResource,
+    DeleteAlarmAssignGroupResource,
     DisableAlarmShieldResource,
     GetAlarmShieldResource,
     GetAlarmStrategyResource,
@@ -41,7 +42,9 @@ from kernel_api.resource.alert import (
     ListAlertTopNResource,
     ListAlertTracesResource,
     ListStrategySnapshotResource,
+    SaveAlarmAssignGroupResource,
     SearchActionConfigsResource,
+    SearchAlarmAssignGroupsResource,
     SearchAlarmShieldsResource,
     SearchAlarmStrategiesResource,
     SearchNoticeGroupsResource,
@@ -107,6 +110,10 @@ class SearchAlertViewSet(ResourceViewSet):
         ResourceRoute("GET", SearchActionConfigsResource, endpoint="search_action_configs"),
         ResourceRoute("GET", GetMCPActionConfigResource, endpoint="get_action_config"),
         ResourceRoute("POST", UpdateMCPActionConfigResource, endpoint="update_action_config"),
+        # 告警分派组管理 MCP
+        ResourceRoute("POST", SearchAlarmAssignGroupsResource, endpoint="search_assign_groups"),
+        ResourceRoute("POST", SaveAlarmAssignGroupResource, endpoint="save_assign_group"),
+        ResourceRoute("POST", DeleteAlarmAssignGroupResource, endpoint="delete_assign_group"),
     ]
 
 
