@@ -117,26 +117,26 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 顶层结构：
 
-| 参数名称           | 类型            | 描述                                          |
-|----------------|---------------|---------------------------------------------|
-| default_sort   | Array[String] | 默认排序条件，字段名前加 `-` 表示降序                        |
-| fields         | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                         |
+| 参数名称           | 类型            | 描述                                         |
+|----------------|---------------|--------------------------------------------|
+| default_sort   | Array[String] | 默认排序条件，字段名前加 `-` 表示降序                      |
+| fields         | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                       |
 | groups         | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段 |
-| display_fields | Array[String] | 列表页默认展示的字段名列表                               |
+| display_fields | Array[String] | 列表页默认展示的字段名列表                              |
 
 - Field
 
-| 参数名称                 | 类型                 | 描述                                                    |
-|----------------------|--------------------|-------------------------------------------------------|
-| field_name           | String             | 字段名                                                   |
-| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同                            |
-| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等）                   |
-| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                                  |
-| is_real              | Boolean            | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）        |
-| is_searchable        | Boolean            | 是否支持搜索                                                |
-| is_agg               | Boolean            | 是否支持聚合统计                                              |
-| is_list              | Boolean            | 是否支持在列表中展示                                            |
-| supported_operations | Array[Operation]   | 支持的操作符列表                                              |
+| 参数名称                 | 类型                 | 描述                                               |
+|----------------------|--------------------|--------------------------------------------------|
+| field_name           | String             | 字段名                                              |
+| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同                       |
+| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等）              |
+| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                             |
+| is_real              | Boolean            | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）   |
+| is_searchable        | Boolean            | 是否支持搜索                                           |
+| is_agg               | Boolean            | 是否支持聚合统计                                         |
+| is_list              | Boolean            | 是否支持在列表中展示                                       |
+| supported_operations | Array[Operation]   | 支持的操作符列表                                         |
 | option_values        | Array[OptionValue] | 预设枚举值列表（可选，有预设值时返回；有别名时 UI 展示格式为 `alias(value)`） |
 
 - Operation
@@ -149,17 +149,17 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - OptionValue
 
-| 参数名称  | 类型     | 描述                                   |
-|-------|--------|--------------------------------------|
-| value | String | 枚举值                                  |
+| 参数名称  | 类型     | 描述                                |
+|-------|--------|-----------------------------------|
+| value | String | 枚举值                               |
 | alias | String | 枚举别名，有别名时 UI 展示格式为 `alias(value)` |
 
 - Group
 
-| 参数名称        | 类型            | 描述                    |
-|-------------|---------------|-----------------------|
-| name        | String        | 分组标识                  |
-| alias       | String        | 分组别名                  |
+| 参数名称        | 类型            | 描述                          |
+|-------------|---------------|-----------------------------|
+| name        | String        | 分组标识                        |
+| alias       | String        | 分组别名                        |
 | field_names | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields` |
 
 ```json
@@ -674,7 +674,90 @@ POST /rum/search/download_topk/
 CSV 列结构（无表头行）：
 
 | 列序号   | 描述                 |
-|-------|--------------------|
+|-------|--------------------| 
 | 第 1 列 | 字段值（value）         |
 | 第 2 列 | 出现次数（count）        |
 | 第 3 列 | 占比百分比（如 `88.504%`） |
+
+---
+
+### 2.9 list_application - 应用列表
+
+POST /rum/meta/application/list_application/
+
+#### 2.9.1 Request
+
+| 参数名称        | 类型      | 必填 | 描述                                            |
+|-------------|---------|----|-----------------------------------------------|
+| bk_biz_id   | Integer | 是  | 业务 ID                                         |
+| keyword     | String  | 否  | 关键词搜索，匹配 `app_name`、`app_alias`、`description` |
+| filter_dict | Object  | 否  | 精确过滤字典                                        |
+| sort        | String  | 否  | 排序条件，字段名前加 `-` 表示降序                           |
+
+```json
+{
+  "bk_biz_id": 2
+}
+```
+
+#### 2.9.2 Response
+
+返回分页结构，`data` 字段包含应用列表。列表按数据状态排序：有数据（`normal`）的应用优先，其次按 `app_name` 字母序升序。
+
+- Application
+
+| 参数名称                   | 类型      | 描述                                                                       |
+|------------------------|---------|--------------------------------------------------------------------------|
+| application_id         | Integer | 应用 ID                                                                    |
+| bk_biz_id              | Integer | 业务 ID                                                                    |
+| app_name               | String  | 应用名称                                                                     |
+| app_alias              | String  | 应用别名                                                                     |
+| description            | String  | 应用描述                                                                     |
+| client_type            | String  | 前端类型（如 `web`）                                                            |
+| is_enabled             | Boolean | 是否启用                                                                     |
+| data_status            | String  | 数据状态，枚举值：`normal`（有数据）/ `no_data`（无数据）/ `disabled`（已停用）                  |
+| span_result_table_id   | String  | 原始日志结果表 ID                                                               |
+| metric_result_table_id | String  | 聚合指标结果表 ID                                                               |
+| is_create_finished     | Boolean | 应用是否创建完成（`span_result_table_id` 与 `metric_result_table_id` 均非空时为 `true`） |
+| create_time            | String  | 创建时间                                                                     |
+| update_time            | String  | 更新时间                                                                     |
+| create_user            | String  | 创建人                                                                      |
+| update_user            | String  | 更新人                                                                      |
+| permission             | Object  | 当前用户权限，见 Permission                                                      |
+
+- Permission
+
+| 参数名称                      | 类型      | 描述         |
+|---------------------------|---------|------------|
+| manage_rum_application_v2 | Boolean | 是否有管理应用权限  |
+| view_rum_application_v2   | Boolean | 是否有查看应用权限  |
+
+```json
+{
+  "total": 2,
+  "columns": [],
+  "data": [
+    {
+      "application_id": 46,
+      "bk_biz_id": 2,
+      "app_name": "aegisv2-demo",
+      "app_alias": "aegisv2-demo",
+      "description": "aegisv2-demo",
+      "client_type": "web",
+      "is_enabled": true,
+      "data_status": "no_data",
+      "span_result_table_id": "2_bkrum.rum_aegisv2_demo",
+      "metric_result_table_id": "2_bkrum_metric_aegisv2_demo.__default__",
+      "is_create_finished": true,
+      "create_time": "2026-06-23 16:47:47+0800",
+      "update_time": "2026-07-21 15:02:11+0800",
+      "create_user": "admin",
+      "update_user": "admin",
+      "permission": {
+        "manage_rum_application_v2": true,
+        "view_rum_application_v2": true
+      }
+    }
+  ]
+}
+```
