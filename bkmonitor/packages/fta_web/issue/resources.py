@@ -2243,7 +2243,7 @@ class IssueTopNResource(Resource):
         return result
 
 
-class SearchIssueResource(Resource):
+class IssueSearchResource(Resource):
     """查询 Issue 列表"""
 
     class RequestSerializer(IssueSearchSerializer):

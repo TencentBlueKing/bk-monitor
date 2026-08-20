@@ -229,7 +229,7 @@ class IssueViewSet(ResourceViewSet):
 
     resource_routes = [
         # Issue 列表查询
-        ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        ResourceRoute("POST", resource.issue.issue_search, endpoint="issue/search"),
         ResourceRoute("POST", resource.issue.issue_trend, endpoint="issue/trend"),
         # Issue TopN 统计
         ResourceRoute("POST", resource.issue.issue_top_n, endpoint="issue/top_n"),
