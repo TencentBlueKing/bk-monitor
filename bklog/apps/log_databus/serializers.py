@@ -873,10 +873,10 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
 
 class CollectorMetadataSerializer(serializers.Serializer):
     field_name = serializers.CharField(label=_("字段名"), required=True)
-    value = serializers.CharField(label=_("字段的值"), required=True, allow_null=True, allow_blank=True)
+    value = serializers.CharField(label=_("字段的值"), required=False, allow_null=True, allow_blank=True)
     metadata_type = serializers.ChoiceField(
         label=_("元数据类型"),
-        required=True,
+        required=False,
         choices=MetadataTypeEnum.get_choices(),
     )
 
@@ -1157,6 +1157,11 @@ class CleanSyncSerializer(serializers.Serializer):
     polling = serializers.BooleanField(label=_("是否是轮询请求"), required=False, default=False)
 
 
+class CleanTemplateEtlFieldsSerializer(CollectorEtlFieldsSerializer):
+    # 补上前端使用的字段，方便数据回填
+    is_add_in = serializers.BooleanField(label=_("是否手动添加"), required=False, default=False)
+
+
 class CleanTemplateUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("清洗模板名"), required=True, max_length=128)
     clean_type = serializers.ChoiceField(
@@ -1169,8 +1174,8 @@ class CleanTemplateUpdateSerializer(serializers.Serializer):
             EtlConfig.BK_LOG_REGEXP,
         ),
     )
-    etl_params = serializers.DictField(label=_("清洗配置"), required=True)
-    etl_fields = serializers.ListField(child=serializers.DictField(), label=_("字段配置"), required=True)
+    etl_params = CollectorEtlParamsSerializer(label=_("清洗配置"), required=True)
+    etl_fields = CleanTemplateEtlFieldsSerializer(label=_("字段配置"), many=True, required=True)
     description = serializers.CharField(label=_("模板描述"), required=False, allow_blank=True, max_length=500)
 
 
