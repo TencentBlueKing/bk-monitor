@@ -116,7 +116,9 @@ class DetectProcess(BaseAbnormalPushProcessor):
         NewSeries.bootstrap_empty_batch(item)
 
     def prepare_alarm_engine_detection_batches(self):
-        if not settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED:
+        from alarm_backends.core.alarm_engine.config import shadow_flag
+
+        if not shadow_flag(settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED):
             return []
 
         from alarm_backends.core.alarm_engine.reference import parse_alarm_engine_shadow_strategy_ids
@@ -187,6 +189,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
         if not batches:
             return 0
 
+        from alarm_backends.core.alarm_engine.config import shadow_flag, shadow_kafka_config, shadow_topics
         from alarm_backends.core.alarm_engine.publisher import get_cached_kafka_detection_publisher
         from alarm_backends.core.alarm_engine.reference import build_terminal_reference_decision_batches
         from alarm_backends.core.alarm_engine.reference_publisher import (
@@ -194,15 +197,15 @@ class DetectProcess(BaseAbnormalPushProcessor):
         )
 
         config_json = json.dumps(
-            settings.ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG,
+            shadow_kafka_config(settings.ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG),
             sort_keys=True,
             separators=(",", ":"),
         )
-        allowed_topics = tuple(sorted(set(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS)))
+        allowed_topics = shadow_topics(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS)
         publisher = get_cached_kafka_detection_publisher(config_json, allowed_topics)
         reference_publisher = None
         reference_initialization_failed = False
-        reference_enabled = settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED
+        reference_enabled = shadow_flag(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED)
 
         published = 0
         for batch in batches:
@@ -224,12 +227,12 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     from alarm_backends.core.alert.adapter import MonitorEventAdapter
 
                     reference_config_json = json.dumps(
-                        settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG,
+                        shadow_kafka_config(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
                         sort_keys=True,
                         separators=(",", ":"),
                     )
-                    reference_allowed_topics = tuple(
-                        sorted(set(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS))
+                    reference_allowed_topics = shadow_topics(
+                        settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS
                     )
                     forbidden_topics = tuple(sorted(set(allowed_topics) | {MonitorEventAdapter.get_output_topic()}))
                     reference_publisher = get_cached_kafka_reference_decision_publisher(

@@ -81,9 +81,11 @@ class TriggerProcessor:
             return legacy_json
 
     def is_alarm_engine_reference_selected(self):
-        if not settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED:
+        from alarm_backends.core.alarm_engine.config import shadow_flag
+
+        if not shadow_flag(settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED):
             return False
-        if not settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED:
+        if not shadow_flag(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED):
             return False
         try:
             if self.strategy_id in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
@@ -118,6 +120,7 @@ class TriggerProcessor:
         if not self.reference_candidates:
             return 0
 
+        from alarm_backends.core.alarm_engine.config import shadow_kafka_config, shadow_topics
         from alarm_backends.core.alarm_engine.reference import build_reference_trigger_decision_candidate
         from alarm_backends.core.alarm_engine.reference_publisher import (
             get_cached_kafka_reference_decision_publisher,
@@ -155,14 +158,14 @@ class TriggerProcessor:
             if publisher is None:
                 try:
                     config_json = json.dumps(
-                        settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG,
+                        shadow_kafka_config(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
                         sort_keys=True,
                         separators=(",", ":"),
                     )
-                    allowed_topics = tuple(sorted(set(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)))
+                    allowed_topics = shadow_topics(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
                     forbidden_topics = tuple(
                         sorted(
-                            set(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS)
+                            set(shadow_topics(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS))
                             | {MonitorEventAdapter.get_output_topic()}
                         )
                     )
