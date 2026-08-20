@@ -28,6 +28,21 @@ logger = logging.getLogger("core.detect_result")
 
 class CleanResult:
     @staticmethod
+    def scan_last_checkpoint_page(client, last_checkpoints_cache_key, *, cursor, count, max_fields):
+        """Read one bounded HSCAN page without interpreting the opaque cursor."""
+        next_cursor, page = client.hscan(last_checkpoints_cache_key, cursor=cursor, count=count)
+        raw_fields = tuple(page)
+        if len(raw_fields) > max_fields:
+            raise ValueError(f"HSCAN page with {len(raw_fields)} fields exceeds hard limit {max_fields}")
+        return next_cursor, tuple(dict.fromkeys(raw_fields))
+
+    @staticmethod
+    def chunk_fields(fields, *, command_limit):
+        """Split a scanned page into bounded command groups."""
+        for start in range(0, len(fields), command_limit):
+            yield tuple(fields[start : start + command_limit])
+
+    @staticmethod
     def clean_expired_detect_result(strategy_range=None):
         """
         清理检测结果及最近拉取结果的缓存

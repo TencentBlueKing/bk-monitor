@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,136 +8,71 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock, patch
 
-import arrow
-from django.test import TestCase
+import pytest
 
-from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
 from alarm_backends.core.cache import key
-from alarm_backends.core.detect_result import CheckResult
-from alarm_backends.tests.core.detect_result.mock import *  # noqa
-from alarm_backends.tests.core.detect_result.mock_settings import *  # noqa
-from bkmonitor.models import CacheNode
-
-STRATEGIES = [
-    {
-        "id": 1,
-        "name": "test_strategy1",
-        "items": [
-            {
-                "id": 11,
-                "name": "test_item11",
-                "algorithms": [
-                    {"id": 111, "level": "1", "dimensions_md5": "dummy_dimensions_md5_111"},
-                    {"id": 112, "level": "2", "dimensions_md5": "dummy_dimensions_md5_112"},
-                ],
-                "no_data_config": {"is_enabled": False, "continuous": 5},
-            },
-            {
-                "id": 12,
-                "name": "test_item12",
-                "algorithms": [
-                    {"id": 121, "algorithm_id": 121, "level": "1", "dimensions_md5": "dummy_dimensions_md5_121"},
-                    {"id": 122, "algorithm_id": 122, "level": "2", "dimensions_md5": "dummy_dimensions_md5_122"},
-                ],
-                "no_data_config": {"is_enabled": True, "continuous": 5},
-            },
-        ],
-    },
-    {
-        "id": 2,
-        "name": "test_strategy2",
-        "items": [
-            {
-                "id": 21,
-                "name": "test_item21",
-                "algorithms": [
-                    {"id": 211, "level": "1", "dimensions_md5": "dummy_dimensions_md5_211"},
-                    {"id": 212, "level": "2", "dimensions_md5": "dummy_dimensions_md5_212"},
-                ],
-                "no_data_config": {"is_enabled": False, "continuous": 5},
-            },
-            {
-                "id": 22,
-                "name": "test_item22",
-                "algorithms": [
-                    {"id": 221, "level": "1", "dimensions_md5": "dummy_dimensions_md5_221"},
-                    {"id": 222, "level": "2", "dimensions_md5": "dummy_dimensions_md5_222"},
-                ],
-                "no_data_config": {"is_enabled": True, "continuous": 5},
-            },
-        ],
-    },
-]
+from alarm_backends.core.detect_result.clean import CleanResult
 
 
-class TestCleanResult(TestCase):
-    databases = {"monitor_api", "default"}
+def test_clean_expired_detect_result_executes_existing_cleanup_commands():
+    client = MagicMock()
+    pipeline = client.pipeline.return_value
+    client.hkeys.return_value = ["checkpoint.dimension-md5.1"]
+    pipeline.execute.side_effect = [[], [1], []]
+    strategy = {"id": 1, "items": [{"id": 11}]}
 
-    def setUp(self):
-        CacheNode.refresh_from_settings()
-        redis_pipeline = CheckResult.begin_pipeline_batch()
+    with (
+        patch.object(key.LAST_CHECKPOINTS_CACHE_KEY, "_cache", client),
+        patch.object(key.CHECK_RESULT_CACHE_KEY, "get_key", return_value="check-result-key"),
+        patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[1]),
+        patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+        patch("alarm_backends.core.detect_result.clean.detect_result_point_required", return_value=2),
+    ):
+        CleanResult.clean_expired_detect_result()
 
-        self.strategy_cache_patcher = patch(
-            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategies",
-            MagicMock(return_value=STRATEGIES),
-        )
-        self.strategy_cache_patcher.start()
+    client.hkeys.assert_called_once()
+    pipeline.zremrangebyrank.assert_called_once_with("check-result-key", 0, -2)
+    pipeline.zcard.assert_called_once_with("check-result-key")
+    pipeline.hdel.assert_not_called()
 
-        self.strategies = STRATEGIES
-        self.now_timestamp = arrow.utcnow().timestamp
-        self.three_hours_ago = arrow.utcnow().replace(hours=-3).timestamp
-        self.two_hours_ago = arrow.utcnow().replace(hours=-2).timestamp
-        check_result_data = {
-            "{}|{}".format(self.three_hours_ago, "ANOMALY"): self.three_hours_ago,
-            "{}|{}".format(self.now_timestamp, "ANOMALY"): self.now_timestamp,
-        }
-        timestamps = [self.now_timestamp, self.three_hours_ago]
-        for strategy in self.strategies:
-            for item in strategy["items"]:
-                last_checkpoints = {}
-                level_list = set()
-                for index, algorithm in enumerate(item["algorithms"]):
-                    level_list.add(algorithm["level"])
-                    cr = CheckResult(
-                        strategy_id=strategy["id"],
-                        item_id=item["id"],
-                        dimensions_md5=algorithm["dimensions_md5"],
-                        level=algorithm["level"],
-                    )
-                    # clean old data
-                    key.CHECK_RESULT_CACHE_KEY.client.zremrangebyscore(cr.check_result_cache_key, 0, float("inf"))
-                    cr.add_check_result_cache(**check_result_data)
-                    cr.update_key_to_dimension(dimensions={})
-                    last_checkpoints[(algorithm["dimensions_md5"], algorithm["level"])] = timestamps[index]
-                for level in level_list:
-                    last_checkpoints[(LATEST_POINT_WITH_ALL_KEY, level)] = self.now_timestamp
 
-                for check_point_key_tuple, point_timestamp in list(last_checkpoints.items()):
-                    _dimensions_md5, level = check_point_key_tuple
-                    CheckResult.update_last_checkpoint_by_d_md5(
-                        strategy["id"], item["id"], _dimensions_md5, point_timestamp, level
-                    )
-                CheckResult.expire_last_checkpoint_cache(strategy_id=strategy["id"], item_id=item["id"])
+def test_scan_last_checkpoint_page_returns_cursor_and_deduplicated_fields():
+    client = MagicMock()
+    client.hscan.return_value = (17, ["field-1", "field-1", "field-2"])
 
-        redis_pipeline.execute()
-
-    def tearDown(self):
-        self.strategy_cache_patcher.stop()
-
-    @patch(ALARM_BACKENDS_CLEAN_STRATEGY_CACHE_MANAGER_REFRESH, MagicMock(return_value=True))
-    @patch(
-        "alarm_backends.core.detect_result.clean.detect_result_point_required", MagicMock(return_value={"1.11.1": 1})
+    next_cursor, fields = CleanResult.scan_last_checkpoint_page(
+        client,
+        "last-checkpoints-key",
+        cursor=0,
+        count=256,
+        max_fields=2048,
     )
-    def test_clean_expired_detect_result(self):
-        check_result_cache_key = key.CHECK_RESULT_CACHE_KEY.get_key(
-            strategy_id=self.strategies[0]["id"],
-            item_id=self.strategies[0]["items"][0]["id"],
-            dimensions_md5=self.strategies[0]["items"][0]["algorithms"][0]["dimensions_md5"],
-            level=self.strategies[0]["items"][0]["algorithms"][0]["level"],
+
+    assert next_cursor == 17
+    assert fields == ("field-1", "field-2")
+    client.hscan.assert_called_once_with("last-checkpoints-key", cursor=0, count=256)
+
+
+def test_scan_last_checkpoint_page_rejects_actual_page_over_hard_limit():
+    client = MagicMock()
+    client.hscan.return_value = (0, ["field-1", "field-1", "field-2"])
+
+    with pytest.raises(ValueError, match="3 fields exceeds hard limit 2"):
+        CleanResult.scan_last_checkpoint_page(
+            client,
+            "last-checkpoints-key",
+            cursor=9,
+            count=1,
+            max_fields=2,
         )
-        all_members = key.CHECK_RESULT_CACHE_KEY.client.zrangebyscore(check_result_cache_key, 0, float("inf"))
-        self.assertEqual(
-            all_members,
-            ["{}|{}".format(self.three_hours_ago, "ANOMALY"), "{}|{}".format(self.now_timestamp, "ANOMALY")],
-        )
+
+
+def test_chunk_fields_never_exceeds_command_limit():
+    chunks = list(CleanResult.chunk_fields(["a", "b", "c", "d", "e"], command_limit=2))
+
+    assert chunks == [("a", "b"), ("c", "d"), ("e",)]
