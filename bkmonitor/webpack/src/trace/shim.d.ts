@@ -49,6 +49,7 @@ declare global {
     bk_docs_site_url: string;
     bk_incident_saas_host: string;
     bk_log_search_url: string;
+    bk_nodeman_host: string;
     bk_url: string;
     bkchat_manage_url: string;
     bklogsearch_host: string;
@@ -56,6 +57,7 @@ declare global {
     csrf_cookie_name: string;
     dayjs?: Dayjs;
     enable_apm_profiling: boolean;
+    enable_cmdb_level?: boolean;
     enable_create_chat_group?: boolean;
     // 多租户用户中心是否开启
     enable_multi_tenant_mode?: boolean;

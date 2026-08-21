@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
-from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 
@@ -167,30 +166,18 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
     global_config = GlobalConfigSerializer(label=_("批量修改的配置"), default={})
 
     is_reuse_instance_config = serializers.BooleanField(label=_("是否复用已有策略配置"), default=False)
+    overwrite_same_origin = serializers.BooleanField(label=_("是否覆盖同类模板策略"), default=False)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         # 校验 strategy_template_ids 是否有效
-        strategy_templates: list[dict[str, Any]] = list(
-            StrategyTemplate.objects.filter(
-                bk_biz_id=attrs["bk_biz_id"],
-                app_name=attrs["app_name"],
-                id__in=attrs["strategy_template_ids"],
-                is_enabled=True,
-            ).values("id", "root_id")
-        )
-        if len(strategy_templates) != len(set(attrs["strategy_template_ids"])):
+        strategy_template_count: int = StrategyTemplate.objects.filter(
+            bk_biz_id=attrs["bk_biz_id"],
+            app_name=attrs["app_name"],
+            id__in=attrs["strategy_template_ids"],
+            is_enabled=True,
+        ).count()
+        if strategy_template_count != len(set(attrs["strategy_template_ids"])):
             raise serializers.ValidationError(_("数据异常，部分策略模板不存在或已禁用"))
-        # 不允许存在同源的模板
-        root_template_ids: set[int] = set()
-        for strategy_template in strategy_templates:
-            root_template_id = (
-                strategy_template["id"]
-                if strategy_template["root_id"] == constants.DEFAULT_ROOT_ID
-                else strategy_template["root_id"]
-            )
-            if root_template_id in root_template_ids:
-                raise serializers.ValidationError(_("下发模板时，不允许存在同源的模板"))
-            root_template_ids.add(root_template_id)
         return super().validate(attrs)
 
 
@@ -322,6 +309,7 @@ class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplat
 
 class StrategyTemplateCompareRequestSerializer(BaseServiceStrategyTemplateRequestSerializer):
     strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
+    applied_strategy_template_id = serializers.IntegerField(label=_("已关联的策略模板 ID"), required=False, min_value=1)
 
 
 class StrategyTemplateAlertsRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -427,50 +415,6 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     @staticmethod
-    def validate_auto_apply(strategy_template_objs: list[StrategyTemplate] | None, data: dict[str, Any]):
-        """限制同源模板间只能有一个自动下发模板
-
-        :param strategy_template_objs: 要更新的策略模板对象列表，为None表示创建新模板
-        :param data: 数据字典
-        """
-        if not data.get("is_auto_apply"):
-            return
-
-        base_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
-            bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]
-        )
-        if strategy_template_objs is None:
-            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.filter_same_origin_templates(
-                qs=base_qs, ids=[], root_ids=[data["root_id"]]
-            )
-        else:
-            tmpl_ids: list[int] = []
-            root_ids: list[int] = []
-            root_tmpl_id_tmpl_names: dict[int, list[str]] = defaultdict(list)
-            for tmpl_obj in strategy_template_objs:
-                tmpl_ids.append(tmpl_obj.pk)
-                root_ids.append(tmpl_obj.root_id)
-                # 获取根模板的 ID
-                root_tmpl_id = tmpl_obj.root_id if tmpl_obj.root_id != constants.DEFAULT_ROOT_ID else tmpl_obj.pk
-                root_tmpl_id_tmpl_names[root_tmpl_id].append(tmpl_obj.name)
-
-            same_origin_tmpl_names_str: list[str] = []
-            for tmpl_names in root_tmpl_id_tmpl_names.values():
-                if len(tmpl_names) > 1:
-                    same_origin_tmpl_names_str.append("[" + "、".join(tmpl_names) + "]")
-            if same_origin_tmpl_names_str:
-                raise serializers.ValidationError(
-                    _("同类别的模板不能同时启用「自动下发」：{}").format(", ".join(same_origin_tmpl_names_str))
-                )
-
-            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.filter_same_origin_templates(
-                qs=base_qs, ids=tmpl_ids, root_ids=root_ids
-            ).exclude(id__in=tmpl_ids)
-
-        if other_same_origin_qs.filter(is_auto_apply=True).exists():
-            raise serializers.ValidationError(_("同类别的模板间只允许设置一个自动下发"))
-
-    @staticmethod
     def _validate_name(qs: QuerySet[StrategyTemplate], data: dict[str, Any]) -> None:
         if qs.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], name=data["name"]).exists():
             raise serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
@@ -494,14 +438,12 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_context(validated_data)
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
-        self.validate_auto_apply([instance], validated_data)
         self.set_auto_apply(validated_data, instance)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_context(validated_data)
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
-        self.validate_auto_apply(None, validated_data)
         instance: StrategyTemplate = super().create(validated_data)
         if instance.is_auto_apply:
             StrategyTemplate.objects.filter(id=instance.pk).update(auto_applied_at=instance.create_time)

@@ -25,8 +25,10 @@ from kernel_api.rpc.functions.admin.common import (
     get_page_list_bk_tenant_id,
     get_scoped_map_value,
     instance_tenant_resource_key,
+    normalize_int_list_filter,
     normalize_ordering,
     normalize_pagination,
+    normalize_string_list_filter,
     paginate_queryset,
     serialize_model,
     serialize_value,
@@ -45,6 +47,8 @@ FUNC_VM_STORAGE_LIST = "admin.vm_storage.list"
 FUNC_VM_STORAGE_DETAIL = "admin.vm_storage.detail"
 FUNC_KAFKA_STORAGE_LIST = "admin.kafka_storage.list"
 FUNC_KAFKA_STORAGE_DETAIL = "admin.kafka_storage.detail"
+FUNC_SURREALDB_STORAGE_LIST = "admin.surrealdb_storage.list"
+FUNC_SURREALDB_STORAGE_DETAIL = "admin.surrealdb_storage.detail"
 FUNC_BKBASE_RESULT_TABLE_LIST = "admin.bkbase_result_table.list"
 FUNC_BKBASE_RESULT_TABLE_DETAIL = "admin.bkbase_result_table.detail"
 INSPECT_SAFETY_LEVEL = "inspect"
@@ -73,6 +77,14 @@ DORIS_STORAGE_FIELDS = [
     "storage_cluster_id",
 ]
 KAFKA_STORAGE_FIELDS = ["id", "table_id", "bk_tenant_id", "topic", "partition", "storage_cluster_id", "retention"]
+SURREALDB_STORAGE_FIELDS = [
+    "table_id",
+    "bk_tenant_id",
+    "table_type",
+    "vertices",
+    "relations",
+    "storage_cluster_id",
+]
 ACCESS_VM_RECORD_FIELDS = [
     "id",
     "data_type",
@@ -101,6 +113,7 @@ BKBASE_RESULT_TABLE_FIELDS = [
 ]
 DORIS_ORDERING_FIELDS = {"table_id", "storage_cluster_id"}
 KAFKA_ORDERING_FIELDS = {"table_id", "storage_cluster_id"}
+SURREALDB_ORDERING_FIELDS = {"table_id", "storage_cluster_id", "table_type"}
 VM_ORDERING_FIELDS = {"result_table_id", "storage_cluster_id", "vm_cluster_id"}
 BKBASE_ORDERING_FIELDS = {"monitor_table_id", "storage_cluster_id", "status", "create_time", "last_modify_time"}
 
@@ -178,13 +191,14 @@ def _table_ids_by_data_filters(
     params: dict[str, Any], bk_tenant_id: str | None
 ) -> set[str] | set[tuple[str | None, str]] | None:
     filters: dict[str, Any] = {}
-    if params.get("data_label") not in (None, ""):
-        filters["data_label"] = str(params["data_label"]).strip()
+    data_labels = normalize_string_list_filter(params, "data_label", "data_labels")
+    if data_labels:
+        filters["data_label__in"] = data_labels
     relation_pairs: set[tuple[str | None, str]] | None = None
-    if params.get("bk_data_id") not in (None, ""):
-        bk_data_id = _parse_int_param(params, "bk_data_id")
+    bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
+    if bk_data_ids:
         relation_queryset = filter_by_bk_tenant_id(
-            models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id), bk_tenant_id
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_ids), bk_tenant_id
         )
         relation_pairs = {
             (relation.bk_tenant_id, relation.table_id)
@@ -274,9 +288,9 @@ def _base_storage_queryset(
             queryset = filter_by_tenant_resource_pairs(queryset, table_field, table_ids)
         else:
             queryset = queryset.filter(**{f"{table_field}__in": table_ids})
-    storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
-    if storage_cluster_id is not None:
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
     return queryset
 
 
@@ -335,6 +349,20 @@ def _serialize_kafka_item(
 ) -> dict[str, Any]:
     return {
         "kafka_storage": serialize_model(storage, KAFKA_STORAGE_FIELDS),
+        "result_table": _serialize_result_table(
+            get_scoped_map_value(result_table_map, storage.bk_tenant_id, storage.table_id)
+        ),
+        "storage_cluster": _serialize_cluster(
+            get_scoped_map_value(cluster_map, storage.bk_tenant_id, storage.storage_cluster_id)
+        ),
+    }
+
+
+def _serialize_surrealdb_item(
+    storage: Any, result_table_map: dict[str, Any], cluster_map: dict[int, Any]
+) -> dict[str, Any]:
+    return {
+        "surrealdb_storage": serialize_model(storage, SURREALDB_STORAGE_FIELDS),
         "result_table": _serialize_result_table(
             get_scoped_map_value(result_table_map, storage.bk_tenant_id, storage.table_id)
         ),
@@ -405,13 +433,22 @@ def _paginate_list_response(
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 DorisStorage.table_id / origin_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，Doris 集群 ID",
+        "storage_cluster_ids": "可选，Doris 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -547,13 +584,24 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 result_table_id / vm_result_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，VM 接入存储集群 ID",
+        "storage_cluster_ids": "可选，VM 存储集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "vm_cluster_id": "可选，AccessVMRecord.vm_cluster_id，对应 VM ClusterInfo.cluster_id",
+        "vm_cluster_ids": "可选，VM ClusterInfo.cluster_id 正整数数组，最多 100 项；与 vm_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "2_bkmonitor_time_series.__default__"},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "vm_cluster_ids": [10, 11],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -574,12 +622,12 @@ def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
             queryset = filter_by_tenant_resource_pairs(queryset, "result_table_id", table_ids)
         else:
             queryset = queryset.filter(result_table_id__in=table_ids)
-    storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
-    if storage_cluster_id is not None:
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
-    vm_cluster_id = _parse_int_param(params, "vm_cluster_id")
-    if vm_cluster_id is not None:
-        queryset = queryset.filter(vm_cluster_id=vm_cluster_id)
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
+    vm_cluster_ids = normalize_int_list_filter(params, "vm_cluster_id", "vm_cluster_ids", positive=True)
+    if vm_cluster_ids:
+        queryset = queryset.filter(vm_cluster_id__in=vm_cluster_ids)
     return _paginate_list_response(
         params=params,
         queryset=queryset,
@@ -631,13 +679,22 @@ def get_vm_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，KafkaStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，Kafka 集群 ID",
+        "storage_cluster_ids": "可选，Kafka 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id",
     },
-    example_params={"bk_tenant_id": "system", "table_id": "system.cpu"},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_kafka_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -686,6 +743,77 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
 
 
 @KernelRPCRegistry.register(
+    FUNC_SURREALDB_STORAGE_LIST,
+    summary="Admin 查询 SurrealDBStorage 列表",
+    description="只读分页查询 SurrealDBStorage，返回图表类型、顶点、关系和精确关联的 ResultTable、ClusterInfo。",
+    params_schema={
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
+        "table_id": "可选，SurrealDBStorage.table_id",
+        "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
+        "storage_cluster_id": "可选，SurrealDB 集群 ID",
+        "storage_cluster_ids": "可选，SurrealDB 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
+        "page": "可选，默认 1",
+        "page_size": "可选，默认 20，最大 100",
+        "ordering": "可选，table_id / storage_cluster_id / table_type",
+    },
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "page": 1,
+        "page_size": 20,
+    },
+)
+def list_surrealdb_storages(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
+    queryset = _base_storage_queryset(models.SurrealDBStorage, params, bk_tenant_id)
+    return _paginate_list_response(
+        params=params,
+        queryset=queryset,
+        bk_tenant_id=bk_tenant_id,
+        operation="surrealdb_storage.list",
+        func_name=FUNC_SURREALDB_STORAGE_LIST,
+        table_id_getter=lambda row: row.table_id,
+        cluster_id_getter=lambda row: row.storage_cluster_id,
+        serializer=_serialize_surrealdb_item,
+        default_ordering="table_id",
+        ordering_fields=SURREALDB_ORDERING_FIELDS,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_SURREALDB_STORAGE_DETAIL,
+    summary="Admin 查询 SurrealDBStorage 详情",
+    description="只读查询 SurrealDBStorage 图定义及精确关联的 ResultTable、ClusterInfo。",
+    params_schema={"bk_tenant_id": "可选，租户 ID", "table_id": "必填，SurrealDBStorage.table_id"},
+    example_params={"bk_tenant_id": "system", "table_id": "system.graph"},
+)
+def get_surrealdb_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    table_id = str(params.get("table_id") or "").strip()
+    if not table_id:
+        raise CustomException(message="table_id 为必填项")
+    try:
+        storage = models.SurrealDBStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+    except models.SurrealDBStorage.DoesNotExist as error:
+        raise CustomException(message=f"未找到 SurrealDBStorage: table_id={table_id}") from error
+    data = _serialize_surrealdb_item(
+        storage,
+        _load_result_table_map(bk_tenant_id, [storage.table_id]),
+        _load_cluster_map(bk_tenant_id, [storage.storage_cluster_id]),
+    )
+    return build_response(
+        operation="surrealdb_storage.detail",
+        func_name=FUNC_SURREALDB_STORAGE_DETAIL,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+    )
+
+
+@KernelRPCRegistry.register(
     FUNC_BKBASE_RESULT_TABLE_LIST,
     summary="Admin 查询 BkBaseResultTable 列表",
     description="只读分页查询 BkBaseResultTable，字段按 BKBase 链路回填模型原样返回。",
@@ -693,14 +821,25 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 monitor_table_id / bkbase_table_id / data_link_name",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
+        "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，存储集群 ID",
+        "storage_cluster_ids": "可选，存储集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "status": "可选，BkBaseResultTable.status",
+        "statuses": "可选，BkBaseResultTable.status 数组，最多 100 项；与 status 合并去重",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": "可选，table_id / storage_cluster_id / status / create_time / last_modify_time",
     },
-    example_params={"bk_tenant_id": "system", "status": "Ok", "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_ids": [50010, 50011],
+        "storage_cluster_ids": [3, 4],
+        "statuses": ["Ok", "Failed"],
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_bkbase_result_tables(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -724,11 +863,12 @@ def list_bkbase_result_tables(params: dict[str, Any]) -> dict[str, Any]:
             queryset = filter_by_tenant_resource_pairs(queryset, "monitor_table_id", table_ids)
         else:
             queryset = queryset.filter(monitor_table_id__in=table_ids)
-    storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
-    if storage_cluster_id is not None:
-        queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
-    if params.get("status") not in (None, ""):
-        queryset = queryset.filter(status=str(params["status"]).strip())
+    storage_cluster_ids = normalize_int_list_filter(params, "storage_cluster_id", "storage_cluster_ids", positive=True)
+    if storage_cluster_ids:
+        queryset = queryset.filter(storage_cluster_id__in=storage_cluster_ids)
+    statuses = normalize_string_list_filter(params, "status", "statuses")
+    if statuses:
+        queryset = queryset.filter(status__in=statuses)
     ordering = params.get("ordering")
     if ordering in ("table_id", "-table_id"):
         params = {**params, "ordering": str(ordering).replace("table_id", "monitor_table_id")}

@@ -623,6 +623,11 @@ class ConcurrentExportLimitException(BaseException):
     MESSAGE = _("当前有多个导出任务正在下载中，同时可进行的任务数不得超过 {limit_count} 个，请稍后重试")
 
 
+class AsyncExportRequestBusyException(BaseException):
+    ERROR_CODE = "512"
+    MESSAGE = _("当前有导出任务正在创建中，请稍后重试")
+
+
 # =================================================
 # Scene Search Fields Config
 # =================================================

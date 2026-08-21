@@ -1516,8 +1516,12 @@ class IncidentAlertViewResource(IncidentBaseResource):
             )
             alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             alert_doc = AlertDocument(**alert)
+            if not alert_doc.event.bk_biz_id:
+                alert_doc.event.bk_biz_id = incident.bk_biz_id
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
+            anomaly_ids = alert.get("extra_info", {}).get("origin_alarm", {}).get("trigger", {}).get("anomaly_ids", [])
+            alert["anomaly_timestamps"] = sorted(int(anomaly_id.split(".", 2)[1]) for anomaly_id in anomaly_ids)
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     alert["graph_panel"] = AIOPSManager.get_graph_panel(
@@ -1731,6 +1735,9 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                     "strategy_alerts_mapping": strategy_alerts_mapping,
                     "dimension_values": {k: [v] for k, v in drill_result.get("dimensions", {}).items()},
                 }
+                if drill_result.get("interaction"):
+                    # 异常维度仍由监控补充告警详情，但跳转协议必须保持 BKFara 生成的原始语义。
+                    content_item["interaction"] = drill_result["interaction"]
                 content.append(content_item)
         else:
             content = raw_content
@@ -1745,6 +1752,22 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         if individual_summary_content:
             diagnosis_result.update({"individual_summary": individual_summary_content})
         return diagnosis_result
+
+
+class IncidentPanelDetailResource(IncidentBaseResource):
+    """代理 BKFara 故障诊断侧滑详情，保持组件原生 payload 不变。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        incident_id = serializers.IntegerField(required=True, label="故障ID")
+        incident_task_id = serializers.IntegerField(required=False, allow_null=True, label="故障分析任务ID")
+        drawer_type = serializers.ChoiceField(required=True, choices=("event", "log", "trace"), label="侧滑类型")
+        detail_ref = serializers.DictField(required=True, label="详情引用")
+        page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
+        page_size = serializers.IntegerField(required=False, default=30, min_value=1, max_value=1000, label="每页数量")
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        return api.bk_incident.get_panel_detail(**validated_request_data)
 
 
 class IncidentDateHistogramResource(Resource):

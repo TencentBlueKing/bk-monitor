@@ -37,6 +37,7 @@ from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
+from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import (
@@ -709,6 +710,13 @@ class IndexSetHandler(APIModel):
         scenario_id = index_set_obj.scenario_id
         storage_cluster_id = index_set_obj.storage_cluster_id
         index_list: list = [x.get("result_table_id") for x in index_set_data]
+        if scenario_id == Scenario.LOG:
+            indices_for_index = {
+                table_id: indices
+                for table_id, indices in StorageHandler.get_result_tables_indices(index_list).items()
+                if indices
+            }
+            return self._indices_result(indices_for_index, index_list)
         if scenario_id == Scenario.ES:
             multi_execute_func = MultiExecuteFunc()
             for index in index_list:
@@ -824,7 +832,7 @@ class IndexSetHandler(APIModel):
                             "docs.count": self._get_sum("docs.count", indices_info),
                             "docs.deleted": self._get_sum("docs.deleted", indices_info),
                             "store.size": self._get_sum("store.size", indices_info),
-                            "pri.store.size": self._get_sum("store.size", indices_info),
+                            "pri.store.size": self._get_sum("pri.store.size", indices_info),
                         },
                         "details": indices_info,
                     }
@@ -1156,17 +1164,31 @@ class IndexSetHandler(APIModel):
 
     @staticmethod
     def _get_health(src: list):
-        has_red_health_list = [item.get("health", "") == EsHealthStatus.RED.value for item in src]
-        has_yellow_health_list = [item.get("health", "") == EsHealthStatus.YELLOW.value for item in src]
-        if any(has_red_health_list):
+        health_values = [item.get("health") for item in src]
+        if EsHealthStatus.RED.value in health_values:
             return EsHealthStatus.RED.value
-        if any(has_yellow_health_list):
+        if EsHealthStatus.YELLOW.value in health_values:
             return EsHealthStatus.YELLOW.value
-        return EsHealthStatus.GREEN.value
+        if health_values and all(health == EsHealthStatus.GREEN.value for health in health_values):
+            return EsHealthStatus.GREEN.value
+        return "--"
 
     @staticmethod
-    def _get_sum(key: str, src: list) -> int:
-        return sum([int(item.get(key, 0)) for item in src])
+    def _get_sum(key: str, src: list):
+        # Doris 物理存储行对无等价指标返回 "--"，这类占位值不参与求和；
+        # 整列都无可聚合值时继续返回 "--"，避免把「没有该指标」展示成 0
+        values = []
+        for item in src:
+            value = item.get(key)
+            if value in (None, "", "--"):
+                continue
+            try:
+                values.append(int(value))
+            except (TypeError, ValueError):
+                continue
+        if not values:
+            return "--"
+        return sum(values)
 
     def _get_data(self):
         try:
@@ -1585,6 +1607,17 @@ class IndexSetHandler(APIModel):
                     "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__analysis__",
                     "need_create_index": False,
                 }
+                # 首次创建路由时不带 cluster_id 会落到默认 Doris 集群；
+                # 集群解析不出来时仍要下发别名配置，此时 metadata 会沿用路由上已有的集群
+                cluster_id = DorisClusterHandler.get_cluster_id(bkbase_table_id=doris_result_table)
+                if cluster_id:
+                    analysis_params["cluster_id"] = cluster_id
+                else:
+                    logger.warning(
+                        "update doris router of index set(%s) without cluster id: storage cluster of %s is unknown",
+                        self.index_set_id,
+                        doris_result_table,
+                    )
                 # Doris图表分析路由接入
                 multi_execute_func.append(
                     result_key=self.data.index_set_id,
@@ -1942,16 +1975,29 @@ class BaseIndexSetHandler:
             if not is_manual_connect_doris:
                 return table_info_list
             for doris_table_id in db_doris_table_id.split(","):
+                bkbase_table_id = doris_table_id.rsplit(".", maxsplit=1)[0]
                 doris_table_info = {
                     "storage_type": "doris",
-                    "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],
-                    "table_id": f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__doris__",
+                    "bkbase_table_id": bkbase_table_id,
+                    "table_id": f"bklog_index_set_{effective_index_set_id}_{bkbase_table_id}.__doris__",
                     "source_type": "bkdata",
                     "need_create_index": False,
                 }
+                # 首次创建路由时不带 cluster_id 会落到默认 Doris 集群，查询会打到错误的集群；
+                # 集群解析不出来时也不能把这张表从下发列表里摘掉，否则 metadata 会清空它的 data_label，
+                # 已建好的路由反而失效，此时交给 metadata 沿用路由上已有的集群
+                cluster_id = DorisClusterHandler.get_cluster_id(bkbase_table_id=bkbase_table_id)
+                if cluster_id:
+                    doris_table_info["cluster_id"] = cluster_id
+                else:
+                    logger.warning(
+                        "create doris router of index set(%s) without cluster id: storage cluster of %s is unknown",
+                        index_set.index_set_id,
+                        bkbase_table_id,
+                    )
                 if is_analysis:
                     doris_table_info["table_id"] = (
-                        f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
+                        f"bklog_index_set_{effective_index_set_id}_{bkbase_table_id}.__analysis__"
                     )
                 if effective_alias_settings:
                     doris_table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings)

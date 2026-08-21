@@ -71,6 +71,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "delete apm application"
+  /app/apm/update_application/:
+    post:
+      operationId: apm_update_application
+      description: 更新APM应用信息（别名/描述/负责人）
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/application/update_application_simple/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "update apm application"
   /app/apm/detail_apm_application/:
     get:
       operationId: detail_apm_application
@@ -82,7 +100,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /apm_api/v1/application/detail_application/
+          path: /apm_api/v1/application/detail_application_simple/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
@@ -179,3 +197,39 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query trace view config"
+  /app/apm/service/service_list/:
+    post:
+      operationId: apm_service_list
+      description: 【APM】查询应用下服务列表（含语言、系统、日志关联、K8s 平台信息）
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/service_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm service list with language, system, log relations and k8s platform info"
+  /app/apm/calculate_by_range/:
+    post:
+      operationId: calculate_by_range
+      description: 调用分析表格统计
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_metric_web/calculate_by_range/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "calculate by range"

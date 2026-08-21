@@ -59,14 +59,22 @@ class CheckResult(Result):
 
     @classmethod
     def pipeline(cls):
-        """
-        外部可直接使用pipeline对象，同时对象内部也使用相同的pipeline对象
-        >>>redis_pipeline = CheckResult.pipeline()
+        """返回当前检测结果批次的 pipeline，对象内部共享同一实例。
+
+        后台批次入口必须先调用 begin_pipeline_batch()，避免复用上一批未执行的命令。
+
+        >>>redis_pipeline = CheckResult.begin_pipeline_batch()
         >>>assert redis_pipeline is CheckResult(
         ...    strategy_id=1, item_id=2, dimensions_md5="md5_str", level="1").CHECK_RESULT
         """
         if cls._pipeline is None:
             cls._pipeline = key.CHECK_RESULT_CACHE_KEY.client.pipeline(transaction=False)
+        return cls._pipeline
+
+    @classmethod
+    def begin_pipeline_batch(cls):
+        """开启新的检测结果批次，清理上一批未执行的 pipeline 命令。"""
+        cls._pipeline = key.CHECK_RESULT_CACHE_KEY.client.pipeline(transaction=False)
         return cls._pipeline
 
     @property

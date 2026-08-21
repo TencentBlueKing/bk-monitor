@@ -28,36 +28,19 @@ import { defineComponent, ref, computed, onBeforeUnmount } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import $http from '@/api';
 import BklogPopover from '@/components/bklog-popover';
+import { LOG_TYPE_ICON_MAP } from '../../utils';
 import axios from 'axios';
 import './add-existing-collect-dialog.scss';
 
 const CancelToken = axios.CancelToken;
-
-/** 日志类型图标映射（log_access_type -> icon） */
-const LOG_TYPE_ICON_MAP: Record<string, string> = {
-  // 主机日志
-  linux: 'bklog-icon bklog-zhujicaiji-zhujirizhi',
-  // windows events日志
-  winevent: 'bklog-icon bklog-zhujicaiji-windows-event-rizhi',
-  // 容器文件采集
-  container_file: 'bklog-icon bklog-k8s-wenjiancaiji',
-  // 容器标准输出
-  container_stdout: 'bklog-icon bklog-k8s-biaozhunshuchu',
-  // 计算平台
-  bkdata: 'bklog-icon bklog-3fang-jisuanpingtai',
-  // 第三方ES
-  es: 'bklog-icon bklog-3fang-es',
-  // 自定义上报
-  custom_report: 'bklog-icon bklog-3fang-zidingyishangbao',
-};
 
 interface IAvailableItem {
   index_set_id: number;
   name: string;
   /** 数据ID */
   bk_data_id?: number | string;
-  /** 数据名 */
-  bk_data_name?: string;
+  /** 数据名（采集项英文名） */
+  name_en?: string;
   /** 日志接入类型 */
   log_access_type?: string;
   /** 是否关联空间 */
@@ -445,10 +428,10 @@ export default defineComponent({
                           <span class='field-name-text'>{item.name}</span>
                         </div>
                         {/* 第二行：数据id和数据名 */}
-                        {(item.bk_data_id || item.bk_data_name) && (
+                        {(item.bk_data_id || item.name_en) && (
                           <div class='field-row-id'>
                             {item.bk_data_id && <span class='field-id-text'>[{item.bk_data_id}]</span>}
-                            {item.bk_data_name && <span class='field-table-id-text'>{item.bk_data_name}</span>}
+                            {item.name_en && <span class='field-table-id-text'>{item.name_en}</span>}
                           </div>
                         )}
                       </div>

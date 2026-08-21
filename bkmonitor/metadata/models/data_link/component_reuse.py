@@ -18,6 +18,7 @@ from django.conf import settings
 
 from metadata.models.data_link.data_link_configs import (
     BasereportSinkConfig,
+    ChannelBindingConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DataLinkResourceConfigBase,
@@ -36,6 +37,7 @@ logger = logging.getLogger("metadata")
 
 ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
     ResultTableConfig,
+    ChannelBindingConfig,
     VMStorageBindingConfig,
     ESStorageBindingConfig,
     DorisStorageBindingConfig,

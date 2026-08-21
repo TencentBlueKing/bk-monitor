@@ -27,18 +27,18 @@
 import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
-import { Loading, Radio } from 'bkui-vue';
+import { Button, Loading, Radio } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
+import { isEllipsisActiveLine } from '../../../../../utils/dom-helper';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
-import { isEllipsisActiveLine } from '../../../../trace-explore/components/trace-explore-table/utils/dom-helper';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
@@ -49,6 +49,7 @@ import {
   TrendRangeEnum,
 } from '../../constant';
 import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
+import { ALARM_CENTER_PANEL_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
@@ -87,6 +88,73 @@ export type IssuesColumnsRendererCtx = {
  */
 export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) => {
   const { t } = useI18n();
+
+  /**
+   * @description 构造 JSON 日志 Popover 内容（wrapper > header + content + footer 骨架）
+   * @param {IssueItem} row - 当前行 Issue 数据，内部提取并解析 log_content
+   * @returns {JSX.Element} Popover 内容 JSX
+   */
+  const createJsonLogPopoverContent = (row: IssueItem) => {
+    const text = row.log_content?.replace(DATETIME_PREFIX_REGEX, '') || row.anomaly_message || '--';
+    // biome-ignore lint/suspicious/noExplicitAny: VueJsonPretty third-party data prop
+    const data = JSON.parse(text) as any;
+    return (
+      <div class='issues-log-popover-wrapper'>
+        <div class='issues-log-popover-header' />
+        <div class='issues-log-popover-content'>
+          <VueJsonPretty
+            data={data}
+            showDoubleQuotes={false}
+            showLine={false}
+          />
+        </div>
+        <div class='issues-log-popover-footer'>
+          <Button
+            theme='primary'
+            text
+            onClick={() => {
+              rendererCtx.hoverPopoverTools.hidePopover();
+              rendererCtx.handleShowDetail(row, ALARM_CENTER_PANEL_TAB_MAP.LOG);
+            }}
+          >
+            {t('查看更多')}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * @description 构造字符串日志 Popover 内容（wrapper > header + content + footer 骨架）
+   * @param {IssueItem} row - 当前行 Issue 数据，内部提取 log_content 及日期前缀
+   * @returns {JSX.Element} Popover 内容 JSX
+   */
+  const createStringLogPopoverContent = (row: IssueItem) => {
+    const text = row.log_content?.replace(DATETIME_PREFIX_REGEX, '') || row.anomaly_message || '--';
+    const datetimePrefix = row.log_content?.match(DATETIME_PREFIX_REGEX)?.[0]?.trimEnd();
+    return (
+      <div class='issues-log-popover-wrapper'>
+        <div class='issues-log-popover-header'>
+          {datetimePrefix && <span class='issues-log-popover-header-text'>{datetimePrefix}</span>}
+        </div>
+        <div class='issues-log-popover-content'>
+          <pre class='issues-string-popover-pre'>{text}</pre>
+        </div>
+        <div class='issues-log-popover-footer'>
+          <Button
+            theme='primary'
+            text
+            onClick={() => {
+              rendererCtx.hoverPopoverTools.hidePopover();
+              rendererCtx.handleShowDetail(row, ALARM_CENTER_PANEL_TAB_MAP.LOG);
+            }}
+          >
+            {t('查看更多')}
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   /**
    * @description Issues 名称列渲染（三行结构：标题 + 异常消息 + 元信息行（回归类型图标 + 告警数量））
@@ -170,31 +238,16 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
                 };
 
                 if (row.log_content) {
+                  let logContent: Element;
                   try {
-                    const parsed = JSON.parse(content);
-                    popoverConfigs = {
-                      content: (
-                        <div class='issues-json-popover-content'>
-                          <VueJsonPretty
-                            data={parsed}
-                            showDoubleQuotes={false}
-                            showLine={false}
-                          />
-                        </div>
-                      ) as unknown as Element,
-                      theme: 'light',
-                    };
+                    logContent = createJsonLogPopoverContent(row) as unknown as Element;
                   } catch {
-                    // Not valid JSON, wrap in styled container to improve readability
-                    popoverConfigs = {
-                      content: (
-                        <div class='issues-json-popover-content'>
-                          <pre class='issues-string-popover-pre'>{content}</pre>
-                        </div>
-                      ) as unknown as Element,
-                      theme: 'light',
-                    };
+                    logContent = createStringLogPopoverContent(row) as unknown as Element;
                   }
+                  popoverConfigs = {
+                    content: logContent,
+                    theme: 'light padding-0',
+                  };
                 }
                 rendererCtx.hoverPopoverTools.showPopover(e, popoverConfigs.content, {
                   theme: `${popoverConfigs.theme} issues-json-popover max-width-50vw text-wrap`,

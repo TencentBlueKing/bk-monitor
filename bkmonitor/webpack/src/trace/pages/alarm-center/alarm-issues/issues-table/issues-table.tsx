@@ -37,6 +37,7 @@ import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-ta
 
 import type { ColumnResizeContext, TableColumnItem, TablePagination } from '../../typings';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from '../typing';
+import type { AlarmCenterPanelTabType } from '@/pages/alarm-center/utils/constant';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
@@ -127,7 +128,7 @@ export default defineComponent({
     selectionChange: (selectedRowKeys: string[], options: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && !!options,
     /** 显示详情 */
-    showDetail: (item: IssueItem) => !!item,
+    showDetail: (item: IssueItem, _defaultTab?: AlarmCenterPanelTabType) => !!item,
     /** 分配负责人点击 */
     assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
     /** 状态变更操作（标记已解决/重新打开/归档/恢复归档） */
@@ -180,7 +181,7 @@ export default defineComponent({
       handleSplitClick,
     } = useIssuesHandlers({
       clickPopoverTools,
-      showDetailEmit: item => emit('showDetail', item),
+      showDetailEmit: (item, defaultTab) => emit('showDetail', item, defaultTab),
       assignClickEmit: (id, data) => emit('assignClick', id, data),
       actionEmit: (type, id) => emit('action', type, id),
       priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),

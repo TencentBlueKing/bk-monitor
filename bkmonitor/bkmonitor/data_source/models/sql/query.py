@@ -78,6 +78,16 @@ DATA_SOURCE = {
             "backends": "bkmonitor.data_source.backends.elastic_search",
         },
     },
+    DataSourceLabel.BK_RUM: {
+        DataTypeLabel.TIME_SERIES: {
+            "query": api.metadata.get_es_data,
+            "backends": "bkmonitor.data_source.backends.elastic_search",
+        },
+        DataTypeLabel.LOG: {
+            "query": api.metadata.get_es_data,
+            "backends": "bkmonitor.data_source.backends.elastic_search",
+        },
+    },
 }
 
 

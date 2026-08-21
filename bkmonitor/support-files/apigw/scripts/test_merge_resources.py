@@ -23,8 +23,14 @@ check_unique_operation_ids = merge_resources.check_unique_operation_ids
 merge_resources_func = merge_resources.merge_resources
 
 _RESOURCES_DIR = _SCRIPT.parent.parent / "resources"
+_DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
+_INTERNAL_APM_FILE = _RESOURCES_DIR / "internal/app/apm.yaml"
+_EXTERNAL_APM_FILE = _RESOURCES_DIR / "external/app/apm.yaml"
+_METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
+_ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
+_LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -55,6 +61,9 @@ _ALERT_HANDLING_OPERATION_IDS = {
     "search_alarm_action_configs",
     "get_alarm_action_config",
     "update_alarm_action_config",
+    "search_alarm_assign_groups",
+    "save_alarm_assign_group",
+    "delete_alarm_assign_group",
 }
 
 
@@ -105,15 +114,231 @@ def test_alert_mcp_resource_groups_are_disjoint():
 
 
 def test_alert_handling_mcp_contract():
-    """告警处置 MCP 必须精确包含 14 个资源并使用独立标签。"""
+    """告警处置 MCP 必须精确包含 17 个资源并使用独立标签。"""
     paths = _load_paths(_ALERT_HANDLING_MCP_FILE)
 
-    assert len(paths) == 14
+    assert len(paths) == 17
     assert set(paths) == {f"/mcp/{operation_id}/" for operation_id in _ALERT_HANDLING_OPERATION_IDS}
     assert _operation_ids(paths) == _ALERT_HANDLING_OPERATION_IDS
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["alert_handling_mcp"]
+
+
+def test_log_collection_clean_config_mcp_contract():
+    """清洗修改必须保持单一高风险 Tool、完整存储参数和无模板边界。"""
+    clean_config_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_clean_config_mcp.yaml"
+    paths = _load_paths(clean_config_mcp_file)
+
+    assert set(paths) == {"/mcp/update_log_collector_clean_config/"}
+    method_data = paths["/mcp/update_log_collector_clean_config/"]["post"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert method_data["operationId"] == "update_log_collector_clean_config"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    assert method_data["x-bk-apigateway-resource"]["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_clean_config/update_clean_config/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert {
+        "storage_cluster_id",
+        "retention",
+        "allocation_min_days",
+        "storage_replies",
+        "es_shards",
+        "confirm",
+    }.issubset(schema["required"])
+    assert schema["properties"]["confirm"]["enum"] == [True]
+    assert schema["additionalProperties"] is False
+    assert "template_id" not in schema["properties"]
+    assert "template_name" not in schema["properties"]
+
+
+def test_log_collection_mcp_contract():
+    """日志采集 MCP 首期只暴露分页列表和详情查询。"""
+    paths = _load_paths(_LOG_COLLECTION_MCP_FILE)
+
+    assert set(paths) == {
+        "/mcp/list_log_collectors/",
+        "/mcp/get_log_collector/",
+    }
+    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector"}
+    for path_data in paths.values():
+        for method_data in path_data.values():
+            assert method_data["tags"] == ["log_collection_mcp"]
+            resource = method_data["x-bk-apigateway-resource"]
+            assert resource["backend"]["method"] == "get"
+            assert resource["authConfig"] == {
+                "userVerifiedRequired": True,
+                "appVerifiedRequired": False,
+                "resourcePermissionRequired": True,
+            }
+
+
+def test_log_collection_status_mcp_contract():
+    """采集状态 MCP 仅开放单采集项查询，并保持只读后端契约。"""
+    status_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_status_mcp.yaml"
+    paths = _load_paths(status_mcp_file)
+
+    assert set(paths) == {"/mcp/get_log_collector_status/"}
+    method_data = paths["/mcp/get_log_collector_status/"]["post"]
+    assert method_data["operationId"] == "get_log_collector_status"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["collector_config_id"]["minimum"] == 1
+    task_ids_schema = schema["properties"]["task_ids"]
+    assert task_ids_schema["minItems"] == 1
+    assert task_ids_schema["maxItems"] == 100
+    assert task_ids_schema["items"]["oneOf"] == [
+        {"type": "string", "maxLength": 20, "pattern": "^[1-9][0-9]{0,19}$"},
+        {"type": "integer", "minimum": 1, "maximum": 99999999999999999999},
+    ]
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_status/get_status/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
+def test_promql_query_config_apigw_contract():
+    """query_config 与 PromQL 互转接口必须保持外部应用态注册，并提供对应中文文档。"""
+    paths = _load_paths(_ALARM_STRATEGY_FILE)
+    expected = {
+        "/app/alarm_strategy/query_config_to_promql/": {
+            "operation_id": "query_config_to_promql",
+            "backend": "/api/v4/alarm_strategy_v3/query_config_to_promql/",
+        },
+        "/app/alarm_strategy/promql_to_query_config/": {
+            "operation_id": "promql_to_query_config",
+            "backend": "/api/v4/alarm_strategy_v3/promql_to_query_config/",
+        },
+    }
+
+    for path, expect in expected.items():
+        method_data = paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == expect["operation_id"]
+        assert gateway_resource["isPublic"] is True
+        assert gateway_resource["backend"]["method"] == "post"
+        assert gateway_resource["backend"]["path"] == expect["backend"]
+        assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
+
+
+def test_log_collection_create_mcp_contract():
+    """采集创建 MCP 只提供 Fast Create，并显式锁定写操作、权限和默认基础设施选择。"""
+    create_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_create_mcp.yaml"
+    paths = _load_paths(create_mcp_file)
+
+    assert set(paths) == {"/mcp/fast_create_log_collector/"}
+    method_data = paths["/mcp/fast_create_log_collector/"]["post"]
+    assert method_data["operationId"] == "fast_create_log_collector"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["environment"]["enum"] == ["linux", "windows", "container"]
+    assert schema["properties"]["confirm"]["enum"] == [True]
+    assert "storage_cluster_id" not in schema["properties"]
+    assert "data_link_id" not in schema["properties"]
+    assert "bk_username" not in schema["properties"]
+    assert schema["properties"]["target_nodes"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["properties"]["params"]["additionalProperties"] is False
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_create/fast_create/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
+def test_result_table_storage_status_apigw_contract():
+    """结果表存储状态接口必须保持内部应用态注册，并提供对应中文文档。"""
+    method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_result_table_storage_status/"]["get"]
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+
+    assert method_data["operationId"] == "metadata_get_result_table_storage_status"
+    assert gateway_resource["isPublic"] is False
+    assert gateway_resource["backend"]["method"] == "get"
+    assert gateway_resource["backend"]["path"] == "/api/v3/meta/get_result_table_storage_status/"
+    assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
+
+
+def test_log_collection_update_mcp_contract():
+    """采集更新 MCP 只提供 Fast Update，并使用写请求后端。"""
+    update_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_update_mcp.yaml"
+    paths = _load_paths(update_mcp_file)
+
+    assert set(paths) == {"/mcp/fast_update_log_collector/"}
+    method_data = paths["/mcp/fast_update_log_collector/"]["post"]
+    assert method_data["operationId"] == "fast_update_log_collector"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["collector_config_id"]["minimum"] == 1
+    assert "environment" not in schema["properties"]
+    assert "etl_config" not in schema["properties"]
+    assert schema["properties"]["target_nodes"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["additionalProperties"] is False
+    assert schema["properties"]["configs"]["items"]["properties"]["params"]["additionalProperties"] is False
+    assert schema["properties"]["extra_labels"]["items"]["additionalProperties"] is False
+    resource = method_data["x-bk-apigateway-resource"]
+    assert resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_update/fast_update/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+
+
+def test_apm_platform_integration_apigw_contract() -> None:
+    """平台对接依赖的服务列表与指标计算接口必须使用约定的网关配置。"""
+    internal_paths = _load_paths(_INTERNAL_APM_FILE)
+    external_paths = _load_paths(_EXTERNAL_APM_FILE)
+    expected_resources: dict[str, tuple[str, str]] = {
+        "/app/apm/service/service_list/": ("apm_service_list", "/api/v4/service_web/service_list/"),
+        "/app/apm/calculate_by_range/": ("calculate_by_range", "/api/v4/apm_metric_web/calculate_by_range/"),
+    }
+
+    for path, (operation_id, backend_path) in expected_resources.items():
+        assert path not in internal_paths
+
+        method_data = external_paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == operation_id
+        assert gateway_resource["isPublic"] is True
+        assert gateway_resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": backend_path,
+            "matchSubpath": False,
+        }
+        assert (_DOCS_DIR / f"{operation_id}.md").is_file()
 
 
 def test_repository_resources_have_unique_operation_ids():
@@ -128,6 +353,41 @@ def test_repository_resources_have_unique_operation_ids():
                     # 带上来源文件，避免同一路径被 dict.update 覆盖后漏检 operationId 冲突。
                     merged[f"{file.relative_to(_RESOURCES_DIR)}::{path}"] = path_data
     check_unique_operation_ids(merged)
+
+
+def test_log_collection_etl_preview_mcp_contract():
+    """清洗预览 MCP 仅暴露无确认参数的只读预览 Tool。"""
+    etl_preview_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_etl_preview_mcp.yaml"
+    paths = _load_paths(etl_preview_mcp_file)
+
+    assert set(paths) == {"/mcp/preview_log_etl/"}
+    method_data = paths["/mcp/preview_log_etl/"]["post"]
+    assert method_data["operationId"] == "preview_log_etl"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["properties"]["etl_config"]["enum"] == [
+        "bk_log_text",
+        "bk_log_json",
+        "bk_log_regexp",
+        "bk_log_delimiter",
+    ]
+    assert schema["properties"]["data"]["maxLength"] == 10_000
+    assert schema["properties"]["etl_params"]["additionalProperties"] is False
+    assert "confirm" not in schema["properties"]
+
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+    assert gateway_resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/log_collection_etl_preview/preview/",
+        "matchSubpath": False,
+        "timeout": 30,
+    }
+    assert gateway_resource["authConfig"] == {
+        "userVerifiedRequired": True,
+        "appVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
 
 
 if __name__ == "__main__":

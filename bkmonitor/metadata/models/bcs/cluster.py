@@ -276,6 +276,9 @@ class BCSClusterInfo(models.Model):
                 additional_options=additional_options,
                 data_label=register_info.get("data_label"),
                 bk_tenant_id=bk_tenant_id,
+                # 代理集群的内置指标由联邦拓扑 reconciliation 显式创建 Proxy DataLink，
+                # 避免 ResultTable 创建时先排队普通 VM 链路并与拓扑同步产生竞争。
+                is_sync_db=not (is_fed_cluster and usage == cls.DATA_TYPE_K8S_METRIC),
             )
 
             logger.info(
@@ -616,6 +619,7 @@ class BCSClusterInfo(models.Model):
 
 
 class BcsFederalClusterInfo(common.BaseModelWithTime):
+    bk_tenant_id = models.CharField("租户ID", max_length=256, default="system")
     fed_cluster_id = models.CharField("代理集群 ID", max_length=32)
     host_cluster_id = models.CharField("HOST 集群 ID", max_length=32)
     sub_cluster_id = models.CharField("子集群 ID", max_length=32)
@@ -627,8 +631,24 @@ class BcsFederalClusterInfo(common.BaseModelWithTime):
     class Meta:
         verbose_name = "BCS联邦集群拓扑信息"
         verbose_name_plural = "BCS联邦集群拓扑信息"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["bk_tenant_id", "fed_cluster_id", "sub_cluster_id"],
+                name="uniq_bcs_fed_tenant_cluster_sub",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["bk_tenant_id", "fed_cluster_id", "is_deleted"],
+                name="idx_bcs_fed_tenant_fed_active",
+            ),
+            models.Index(
+                fields=["bk_tenant_id", "sub_cluster_id", "is_deleted"],
+                name="idx_bcs_fed_tenant_sub_active",
+            ),
+        ]
 
     @classmethod
-    def is_federal_cluster(cls, cluster_id: str) -> bool:
+    def is_federal_cluster(cls, cluster_id: str, bk_tenant_id: str = "system") -> bool:
         """判断是否为联邦集群，这里对应的是集群入口，不包含子集群和host集群"""
-        return cls.objects.filter(host_cluster_id=cluster_id).exists()
+        return cls.objects.filter(bk_tenant_id=bk_tenant_id, host_cluster_id=cluster_id, is_deleted=False).exists()

@@ -6,7 +6,7 @@ import pytest
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.component_reuse import ExistingComponentContext
-from metadata.models.data_link.constants import DataLinkResourceStatus
+from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -105,6 +105,14 @@ def graph_relation_v4_records():
         bk_data_id=data_source.bk_data_id,
         table_ids=[table_id],
     )
+    models.DataIdConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="bkm_graph_relation_v4_metric",
+        bk_biz_id=2,
+        bk_data_id=data_source.bk_data_id,
+        status=DataLinkResourceStatus.OK.value,
+    )
     return {
         "table_id": table_id,
         "data_source": data_source,
@@ -201,6 +209,44 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
         )
         assert graph_databus["spec"]["transforms"] == []
         assert "autoOffsetReset" not in graph_databus["spec"]
+
+
+def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_relation_v4_records):
+    ctx = graph_relation_v4_records
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["vm", "surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    mocker.patch.object(DataLink, "merge_existing_component_configs", side_effect=lambda configs: configs)
+    mock_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    ctx["data_link"].apply_data_link(
+        2,
+        ctx["data_source"],
+        ctx["table_id"],
+        ctx["vm_cluster"].cluster_name,
+    )
+
+    configs = mock_apply.call_args.args[0]
+    databuses = [config for config in configs if config["kind"] == DataLinkKind.DATABUS.value]
+    assert len(databuses) == 2
+    expected_labels = {
+        "bk_biz_id": "2",
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "relation",
+        "bk-monitor/data-type": "graph",
+    }
+    assert all(databus["metadata"]["labels"] == expected_labels for databus in databuses)
+    assert all(
+        not any(key.startswith("bk-monitor/") for key in config["metadata"]["labels"])
+        for config in configs
+        if config["kind"] != DataLinkKind.DATABUS.value
+    )
 
 
 def test_graph_relation_v4_transfer_consumer_group_only_applies_to_vm(graph_relation_v4_records):
@@ -476,13 +522,15 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
-    models.DataIdConfig.objects.create(
+    models.DataIdConfig.objects.update_or_create(
         bk_tenant_id="system",
         namespace="bkmonitor",
         name="bkm_graph_relation_v4_metric",
-        bk_biz_id=2,
-        bk_data_id=ctx["data_source"].bk_data_id,
-        status=DataLinkResourceStatus.OK.value,
+        defaults={
+            "bk_biz_id": 2,
+            "bk_data_id": ctx["data_source"].bk_data_id,
+            "status": DataLinkResourceStatus.OK.value,
+        },
     )
     mock_apply = mocker.patch.object(DataLink, "apply_data_link")
     mock_sync = mocker.patch.object(DataLink, "sync_metadata")
@@ -504,6 +552,32 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
     ).exists()
 
 
+def test_apply_graph_relation_v4_fails_when_data_id_config_missing(mocker, graph_relation_v4_records):
+    """BKData 数据源缺少 DataIdConfig 时，Graph DataLink 必须在 apply 前直接失败。"""
+    from metadata.task.datalink import apply_graph_relation_v4_datalink
+
+    ctx = graph_relation_v4_records
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    models.DataIdConfig.objects.filter(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        bk_data_id=ctx["data_source"].bk_data_id,
+    ).delete()
+    apply_mock = mocker.patch.object(DataLink, "apply_data_link")
+
+    with pytest.raises(models.DataIdConfig.DoesNotExist, match="bk_data_id=65001"):
+        apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+
+    apply_mock.assert_not_called()
+
+
 def test_apply_graph_relation_v4_surrealdb_only_preserves_existing_vm_record(
     mocker,
     graph_relation_v4_records,
@@ -519,13 +593,15 @@ def test_apply_graph_relation_v4_surrealdb_only_preserves_existing_vm_record(
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
-    models.DataIdConfig.objects.create(
+    models.DataIdConfig.objects.update_or_create(
         bk_tenant_id="system",
         namespace="bkmonitor",
         name="bkm_graph_relation_v4_metric",
-        bk_biz_id=2,
-        bk_data_id=ctx["data_source"].bk_data_id,
-        status=DataLinkResourceStatus.OK.value,
+        defaults={
+            "bk_biz_id": 2,
+            "bk_data_id": ctx["data_source"].bk_data_id,
+            "status": DataLinkResourceStatus.OK.value,
+        },
     )
     vm_record = models.AccessVMRecord.objects.create(
         bk_tenant_id="system",
@@ -584,13 +660,15 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
-    models.DataIdConfig.objects.create(
+    models.DataIdConfig.objects.update_or_create(
         bk_tenant_id="system",
         namespace="bkmonitor",
         name="bkm_graph_relation_v4_metric",
-        bk_biz_id=2,
-        bk_data_id=ctx["data_source"].bk_data_id,
-        status=DataLinkResourceStatus.OK.value,
+        defaults={
+            "bk_biz_id": 2,
+            "bk_data_id": ctx["data_source"].bk_data_id,
+            "status": DataLinkResourceStatus.OK.value,
+        },
     )
     mock_apply = mocker.patch.object(DataLink, "apply_data_link", autospec=True)
     mock_sync = mocker.patch.object(DataLink, "sync_metadata", autospec=True)

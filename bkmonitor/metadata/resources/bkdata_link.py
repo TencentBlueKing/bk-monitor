@@ -807,7 +807,7 @@ class QueryDataLinkMetadataResource(Resource):
         return targets
 
     def _resolve_by_component_name(self, bk_tenant_id: str, component_name: str) -> list[DataLinkMetadataTarget]:
-        """V4 BKBase 资源名反查 (DataLink-first + 7 ``*Config`` fallback).
+        """V4 BKBase 资源名反查 (DataLink-first + ``*Config`` fallback).
 
         格式 ``{namespace}-{name}``:
             - ``bklog-bklog_301_xxx``   → ns=bklog, name=bklog_301_xxx
@@ -834,6 +834,7 @@ class QueryDataLinkMetadataResource(Resource):
         config_models = (
             models.DataIdConfig,
             models.ResultTableConfig,
+            models.ChannelBindingConfig,
             models.VMStorageBindingConfig,
             models.ESStorageBindingConfig,
             models.DorisStorageBindingConfig,
@@ -956,23 +957,22 @@ class QueryDataLinkMetadataResource(Resource):
             if data_link_names
             else {}
         )
-        databus_configs = (
-            {
-                dc.data_link_name: dc
-                for dc in models.DataBusConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names
-                )
-            }
-            if data_link_names
-            else {}
-        )
+        databus_configs = {}
+        if data_link_names:
+            for dc in models.DataBusConfig.objects.filter(
+                bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names
+            ).order_by("data_link_name", "id"):
+                # VM 自定义格式包含 clean/shipper 两条 Databus，链路入口应展示 clean。
+                if dc.data_link_name not in databus_configs or dc.role == "clean":
+                    databus_configs[dc.data_link_name] = dc
 
-        # 组件清单: 扫 7 个 *Config, 按 data_link_name group
+        # 组件清单: 扫全部受管 *Config, 按 data_link_name group
         components_by_link: dict[str, list[dict[str, Any]]] = {}
         if data_link_names:
             v4_config_models = (
                 (models.DataIdConfig, "DataId"),
                 (models.ResultTableConfig, "ResultTable"),
+                (models.ChannelBindingConfig, "ChannelBinding"),
                 (models.VMStorageBindingConfig, "VmStorageBinding"),
                 (models.ESStorageBindingConfig, "ElasticSearchBinding"),
                 (models.DorisStorageBindingConfig, "DorisBinding"),
@@ -1058,25 +1058,27 @@ class QueryDataLinkMetadataResource(Resource):
                 if bid:
                     candidate_sub_clusters.add(bid)
 
-        fed_by_table_id: dict[str, Any] = {}
-        fed_by_sub_cluster_id: dict[str, Any] = {}
+        fed_by_table_id: dict[str, list[Any]] = {}
+        fed_by_sub_cluster_id: dict[str, list[Any]] = {}
         if table_ids or candidate_sub_clusters:
             try:
-                fed_q = Q(is_deleted=False)
+                fed_q = Q(bk_tenant_id=bk_tenant_id, is_deleted=False)
                 fed_or = Q()
                 if table_ids:
                     fed_or |= Q(fed_builtin_metric_table_id__in=table_ids)
                     fed_or |= Q(fed_builtin_event_table_id__in=table_ids)
                 if candidate_sub_clusters:
                     fed_or |= Q(sub_cluster_id__in=list(candidate_sub_clusters))
-                qs = models.BcsFederalClusterInfo.objects.filter(fed_q & fed_or)
+                qs = models.BcsFederalClusterInfo.objects.filter(fed_q & fed_or).order_by(
+                    "fed_cluster_id", "sub_cluster_id"
+                )
                 for fed in qs:
                     if fed.fed_builtin_metric_table_id:
-                        fed_by_table_id[fed.fed_builtin_metric_table_id] = fed
+                        fed_by_table_id.setdefault(fed.fed_builtin_metric_table_id, []).append(fed)
                     if fed.fed_builtin_event_table_id:
-                        fed_by_table_id[fed.fed_builtin_event_table_id] = fed
+                        fed_by_table_id.setdefault(fed.fed_builtin_event_table_id, []).append(fed)
                     if fed.sub_cluster_id:
-                        fed_by_sub_cluster_id[fed.sub_cluster_id] = fed
+                        fed_by_sub_cluster_id.setdefault(fed.sub_cluster_id, []).append(fed)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("prefetch BcsFederalClusterInfo failed: %s", e)
 
@@ -1438,14 +1440,31 @@ class QueryDataLinkMetadataResource(Resource):
 
         if not matched:
             return None
-        return {
-            "fed_cluster_id": getattr(matched, "fed_cluster_id", None),
-            "host_cluster_id": getattr(matched, "host_cluster_id", None),
-            "sub_cluster_id": getattr(matched, "sub_cluster_id", None),
-            "fed_namespaces": list(getattr(matched, "fed_namespaces", None) or []),
-            "fed_builtin_metric_table_id": getattr(matched, "fed_builtin_metric_table_id", None) or None,
-            "fed_builtin_event_table_id": getattr(matched, "fed_builtin_event_table_id", None) or None,
-        }
+
+        # 兼容历史测试和潜在调用方传入单个模型对象；新预取结构始终使用列表，
+        # 以完整表达同一子集群按不同 namespace 分属多个联邦的关系。
+        matched_records = list(matched) if isinstance(matched, list | tuple | set) else [matched]
+        matched_records.sort(
+            key=lambda record: (
+                getattr(record, "fed_cluster_id", ""),
+                getattr(record, "sub_cluster_id", ""),
+            )
+        )
+
+        def _serialize(record: Any) -> dict[str, Any]:
+            return {
+                "bk_tenant_id": getattr(record, "bk_tenant_id", None),
+                "fed_cluster_id": getattr(record, "fed_cluster_id", None),
+                "host_cluster_id": getattr(record, "host_cluster_id", None),
+                "sub_cluster_id": getattr(record, "sub_cluster_id", None),
+                "fed_namespaces": sorted(set(getattr(record, "fed_namespaces", None) or [])),
+                "fed_builtin_metric_table_id": getattr(record, "fed_builtin_metric_table_id", None) or None,
+                "fed_builtin_event_table_id": getattr(record, "fed_builtin_event_table_id", None) or None,
+            }
+
+        primary = _serialize(matched_records[0])
+        primary["federation_routes"] = [_serialize(record) for record in matched_records]
+        return primary
 
     def _build_placeholder_block(self) -> dict[str, Any]:
         return {

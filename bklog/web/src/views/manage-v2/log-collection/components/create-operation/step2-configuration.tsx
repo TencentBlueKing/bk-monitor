@@ -521,7 +521,7 @@ export default defineComponent({
         workload_type,
         container_name_exclude,
         match_annotations,
-        namespaces_exclude,
+        namespaces_exclude: namespacesExcludeList,
         params: itemParams,
       } = configItem;
 
@@ -543,8 +543,14 @@ export default defineComponent({
       const containerNameList = getContainerNameList(container_name || container_name_exclude);
 
       // 处理命名空间：优先使用 namespaces，如果为空则使用 namespaces_exclude
-      const effectiveNamespaces = namespaces?.length ? namespaces : namespaces_exclude;
-      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
+      let effectiveNamespaces = namespaces || [];
+      if (!effectiveNamespaces.length) {
+        effectiveNamespaces = namespacesExcludeList || [];
+      }
+      if (!effectiveNamespaces.length && configItem.collector_type !== 'node_log_config') {
+        effectiveNamespaces = ['*'];
+      }
+      const namespacesExclude = namespacesExcludeList?.length ? '!=' : '=';
       // 处理命名空间字符串（如果是 '*' 则返回空字符串）
       const namespaceStr = effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
 
@@ -1042,22 +1048,36 @@ export default defineComponent({
             </div>
             <div class='label-form-box'>
               <span class='label-title'>{t('采集范围')}</span>
-              <bk-radio-group
-                class='form-box'
-                value={formData.value.params.tail_files}
-                on-change={val => {
-                  isConfigChange.value = true;
-                  formData.value.params.tail_files = val;
+              <span
+                class='form-box tail-files-radio-wrap'
+                v-bk-tooltips={{
+                  content: t('仅新创建采集项支持选择采集范围'),
+                  placement: 'top',
+                  disabled: !isUpdate.value,
                 }}
               >
-                <bk-radio
-                  class='mr-24'
-                  value={true}
+                <bk-radio-group
+                  value={formData.value.params.tail_files}
+                  on-change={val => {
+                    isConfigChange.value = true;
+                    formData.value.params.tail_files = val;
+                  }}
                 >
-                  {t('仅采集下发后的日志')}
-                </bk-radio>
-                <bk-radio value={false}>{t('采集全量日志')}</bk-radio>
-              </bk-radio-group>
+                  <bk-radio
+                    class='mr-24'
+                    value={true}
+                    disabled={isUpdate.value}
+                  >
+                    {t('仅采集下发后的日志')}
+                  </bk-radio>
+                  <bk-radio
+                    value={false}
+                    disabled={isUpdate.value}
+                  >
+                    {t('采集全量日志')}
+                  </bk-radio>
+                </bk-radio-group>
+              </span>
             </div>
             <div class='label-form-box large-width'>
               <span class='label-title no-require'>{t('日志过滤')}</span>
@@ -1082,6 +1102,7 @@ export default defineComponent({
                   data={formData.value.configs}
                   scenarioId={props.scenarioId}
                   logType={logType.value}
+                  isEdit={isUpdate.value}
                   on-change={(data: IContainerConfigItem[]) => {
                     isConfigChange.value = true;
                     formData.value.configs = data;

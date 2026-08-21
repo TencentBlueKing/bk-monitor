@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+import uuid
 
 from django.conf import settings
 
@@ -114,6 +115,154 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
         NewSeries.bootstrap_empty_batch(item)
 
+    def prepare_alarmd_detection_batches(self):
+        from alarm_backends.core.alarmd.config import shadow_flag
+
+        if not shadow_flag(settings.ALARMD_DETECTION_SHADOW_ENABLED):
+            return []
+
+        from alarm_backends.core.alarmd.reference import parse_alarmd_shadow_strategy_ids
+
+        allowed_strategy_ids = parse_alarmd_shadow_strategy_ids(
+            settings.ALARMD_DETECTION_SHADOW_STRATEGY_IDS
+        )
+        if allowed_strategy_ids is None:
+            logger.warning("[alarmd shadow] configured strategy selector is invalid")
+            return []
+        if int(self.strategy_id) not in allowed_strategy_ids:
+            return []
+
+        finalized = int(self.strategy_id) not in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS
+        if not finalized:
+            return []
+
+        legacy_json = key.STRATEGY_SNAPSHOT_KEY.client.get(self.strategy.snapshot_key)
+        if isinstance(legacy_json, str):
+            legacy_json = legacy_json.encode()
+        if not isinstance(legacy_json, bytes) or not legacy_json:
+            logger.warning(f"[alarmd shadow] strategy({self.strategy_id}) snapshot is unavailable")
+            return []
+
+        from alarm_backends.core.alarmd.contract import ContractValidationError, json_values_equal
+        from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
+
+        batch_id = uuid.uuid4().hex
+        batches = []
+        for item in self.strategy.items:
+            input_points = self.inputs.get(item.id, [])
+            if not input_points:
+                continue
+            source_strategy = input_points[0].item.strategy
+            if (
+                any(data_point.item.strategy is not source_strategy for data_point in input_points)
+                or int(source_strategy.id) != int(self.strategy_id)
+                or not json_values_equal(source_strategy.config, self.strategy.config)
+            ):
+                logger.warning(
+                    f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) input snapshot is stale"
+                )
+                continue
+            data_points = [data_point.as_dict() for data_point in input_points]
+            if not data_points:
+                continue
+            try:
+                batch = prepare_finalized_threshold_batch(
+                    tenant_id=self.strategy.bk_tenant_id,
+                    strategy=self.strategy.config,
+                    item_id=item.id,
+                    legacy_json=legacy_json,
+                    batch_id=batch_id,
+                    data_points=data_points,
+                    anomaly_outputs=self.outputs.get(item.id, []),
+                    finalized=finalized,
+                )
+            except ContractValidationError as error:
+                logger.debug(
+                    f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) is ineligible: {error}"
+                )
+                continue
+            batches.append(batch)
+        return batches
+
+    @staticmethod
+    def publish_alarmd_detection_batches(batches):
+        if not batches:
+            return 0
+
+        from alarm_backends.core.alarmd.config import shadow_flag, shadow_kafka_config, shadow_topics
+        from alarm_backends.core.alarmd.publisher import get_cached_kafka_detection_publisher
+        from alarm_backends.core.alarmd.reference import build_terminal_reference_decision_batches
+        from alarm_backends.core.alarmd.reference_publisher import (
+            get_cached_kafka_reference_decision_publisher,
+        )
+        from alarm_backends.core.alarmd.telemetry import (
+            STAGE_DETECTION,
+            STAGE_REFERENCE,
+            observe_shadow_publish,
+            record_shadow_published_records,
+        )
+
+        config_json = json.dumps(
+            shadow_kafka_config(settings.ALARMD_DETECTION_SHADOW_KAFKA_CONFIG),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        allowed_topics = shadow_topics(settings.ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS)
+        publisher = get_cached_kafka_detection_publisher(config_json, allowed_topics)
+        reference_publisher = None
+        reference_initialization_failed = False
+        reference_enabled = shadow_flag(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED)
+
+        published = 0
+        for batch in batches:
+            with observe_shadow_publish(STAGE_DETECTION):
+                acknowledged = publisher.publish_batch(batch)
+            record_shadow_published_records(STAGE_DETECTION, acknowledged)
+            published += acknowledged
+            if not reference_enabled:
+                continue
+            try:
+                reference_batches = build_terminal_reference_decision_batches(
+                    strategy_ir=batch["strategy_ir"],
+                    detection_outcomes=batch["outcomes"],
+                )
+            except Exception:
+                logger.exception("[alarmd shadow] failed to project terminal reference decision")
+                continue
+            if not reference_batches or reference_initialization_failed:
+                continue
+            if reference_publisher is None:
+                try:
+                    from alarm_backends.core.alert.adapter import MonitorEventAdapter
+
+                    reference_config_json = json.dumps(
+                        shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    reference_allowed_topics = shadow_topics(
+                        settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS
+                    )
+                    forbidden_topics = tuple(sorted(set(allowed_topics) | {MonitorEventAdapter.get_output_topic()}))
+                    reference_publisher = get_cached_kafka_reference_decision_publisher(
+                        reference_config_json,
+                        reference_allowed_topics,
+                        forbidden_topics,
+                    )
+                except Exception:
+                    logger.exception("[alarmd shadow] failed to initialize terminal reference publisher")
+                    reference_initialization_failed = True
+                    continue
+            try:
+                acknowledged_references = 0
+                with observe_shadow_publish(STAGE_REFERENCE):
+                    for reference_batch in reference_batches:
+                        acknowledged_references += reference_publisher.publish_batch(reference_batch)
+                record_shadow_published_records(STAGE_REFERENCE, acknowledged_references)
+            except Exception:
+                logger.exception("[alarmd shadow] failed to publish terminal reference decision")
+        return published
+
     def push_data(self):
         current_time = time.time()
         max_latency = 0
@@ -143,6 +292,15 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
+        try:
+            alarmd_batches = self.prepare_alarmd_detection_batches()
+        except Exception:
+            logger.exception(f"[alarmd shadow] strategy({self.strategy_id}) failed to prepare detection batch")
+            alarmd_batches = []
+        try:
+            self.publish_alarmd_detection_batches(alarmd_batches)
+        except Exception:
+            logger.exception(f"[alarmd shadow] strategy({self.strategy_id}) failed to publish detection batch")
         if anomaly_count > 1000:
             # 获取 Redis 节点信息（带异常处理）
             try:

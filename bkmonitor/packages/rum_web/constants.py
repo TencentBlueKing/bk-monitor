@@ -8,7 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import cached_property
+
 from django.utils.translation import gettext_lazy as _
+
+from constants.apm import CachedEnum
 
 
 # 告警级别常量
@@ -135,3 +139,228 @@ RUM_APPLICATION_DEFAULT_METRIC = {
 
 # RUM 应用列表页, 应用相关指标 key -> BKMONITOR_{PLATFORM}_{ENVIRONMENT}_RUM_APPLICATION_METRIC_{bk_biz_id}_{application_id}
 RUM_APPLICATION_METRIC = "BKMONITOR_{}_{}_RUM_APPLICATION_METRIC_{}_{}"
+
+
+class RumQueryMode(CachedEnum):
+    """RUM 查询层级模式"""
+
+    SPAN = "span"
+    VIEW = "view"
+    SESSION = "session"
+
+    @cached_property
+    def label(self) -> str:
+        return self.value
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+# RUM 检索页分组配置（新协议：每个分组含 name、alias、fields 列表）
+# fields 列表中每项为字段名，view_config 构建时会从 query_fields 结果中填充完整字段信息
+RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
+    "span": [
+        {
+            "name": "COMMON",
+            "alias": _("公共字段"),
+            "field_names": [
+                "kind",
+                "span_name",
+                "attributes.span_type",
+                "elapsed_time",
+                "status.code",
+                "status.message",
+            ],
+        },
+        {
+            "name": "APP_VERSION",
+            "alias": _("应用 & 版本"),
+            "field_names": [
+                "resource.service.name",
+                "resource.service.version",
+                "resource.deployment.environment.name",
+                "resource.telemetry.sdk.version",
+                "resource.telemetry.sdk.language",
+                "resource.telemetry.sdk.name",
+            ],
+        },
+        {
+            "name": "DEVICE_BROWSER",
+            "alias": _("终端 & 浏览器"),
+            "field_names": [
+                "resource.device.type",
+                "resource.user_agent.name",
+                "resource.user_agent.version",
+                "resource.user_agent.os.name",
+            ],
+        },
+        {
+            "name": "NETWORK_GEO",
+            "alias": _("网络 & 地域"),
+            "field_names": [
+                "attributes.network.connection.type",
+                "attributes.network.effective_type",
+            ],
+        },
+        {
+            "name": "USER",
+            "alias": _("用户"),
+            "field_names": [
+                "attributes.user.id",
+            ],
+        },
+        {
+            "name": "RESOURCE",
+            "alias": _("资源加载"),
+            "field_names": [
+                "attributes.resource.type",
+                "attributes.url.template",
+                "attributes.http.request.method",
+                "attributes.http.response.status_code",
+                "attributes.resource.size",
+                "attributes.resource.protocol",
+            ],
+        },
+        {
+            "name": "VIEW",
+            "alias": _("视图"),
+            "field_names": [
+                "attributes.view.referrer",
+                "attributes.view.url_template",
+            ],
+        },
+        {
+            "name": "ACTION",
+            "alias": _("用户交互"),
+            "field_names": [
+                "attributes.action.type",
+                "attributes.action.target.name",
+            ],
+        },
+        {
+            "name": "WEB_VITALS",
+            "alias": _("网页指标（Web Vitals）"),
+            "field_names": [
+                "CLS",
+                "INP",
+                "LCP",
+                "FCP",
+                "TTFB",
+            ],
+        },
+    ],
+    "view": [],
+    "session": [],
+}
+
+# RUM 字段别名
+RUM_FIELD_ALIAS = {}
+
+
+class RumSpanType(CachedEnum):
+    """RUM Span 数据类型"""
+
+    SESSION = "session"
+    VIEW = "view"
+    RESOURCE = "resource"
+    ERROR = "error"
+    VITAL = "vital"
+    LONG_TASK = "long_task"
+    ACTION = "action"
+    WEBSOCKET = "websocket"
+    CUSTOM = "custom"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.SESSION: _("会话"),
+                self.VIEW: _("视图"),
+                self.RESOURCE: _("资源"),
+                self.ERROR: _("错误"),
+                self.VITAL: _("网页指标"),
+                self.LONG_TASK: _("长任务"),
+                self.ACTION: _("用户交互"),
+                self.WEBSOCKET: "WebSocket",
+                self.CUSTOM: _("自定义事件"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RumSpanKind(CachedEnum):
+    """RUM Span 类型"""
+
+    UNSPECIFIED = 0
+    INTERNAL = 1
+    SERVER = 2
+    CLIENT = 3
+    PRODUCER = 4
+    CONSUMER = 5
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.UNSPECIFIED: _("未定义"),
+                self.INTERNAL: _("内部调用"),
+                self.SERVER: _("同步被调"),
+                self.CLIENT: _("同步主调"),
+                self.PRODUCER: _("异步主调"),
+                self.CONSUMER: _("异步被调"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RumSpanStatusCode(CachedEnum):
+    """RUM Span 状态码"""
+
+    UNSET = 0
+    OK = 1
+    ERROR = 2
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.UNSET: _("未设置"),
+                self.OK: _("正常"),
+                self.ERROR: _("异常"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RumDeviceType(CachedEnum):
+    """RUM 设备类型"""
+
+    DESKTOP = "desktop"
+    MOBILE = "mobile"
+    TABLET = "tablet"
+    OTHER = "other"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.DESKTOP: _("桌面设备"),
+                self.MOBILE: _("移动设备"),
+                self.TABLET: _("平板设备"),
+                self.OTHER: _("其他设备"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]

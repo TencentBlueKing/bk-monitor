@@ -164,7 +164,8 @@ export default defineComponent({
      * 如果列表为空或第一个分组没有子项，则不执行任何操作
      */
     const setDefaultItem = (): void => {
-      if (showList.value.length === 0) {
+      // 等待最新任务状态加载完成后再选择默认主机。
+      if (props.loading || showList.value.length === 0) {
         return;
       }
       const firstGroup = showList.value[0];
@@ -282,11 +283,16 @@ export default defineComponent({
     watch(
       () => props.loading,
       (val: boolean) => {
-        if (!val) {
-          setDefaultItem();
-          const keys = showList.value.map(item => item.bk_obj_id);
-          activeName.value = keys;
+        if (val) {
+          currentItem.value = null;
+          log.value = '';
+          detail.value = {};
+          return;
         }
+
+        setDefaultItem();
+        const keys = showList.value.map(item => item.bk_obj_id);
+        activeName.value = keys;
       },
     );
 

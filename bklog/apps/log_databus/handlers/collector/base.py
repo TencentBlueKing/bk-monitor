@@ -52,8 +52,6 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
-    COLLECTOR_SCENARIO_TO_SCENE,
-    DORIS_CLUSTER_TYPE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
@@ -63,8 +61,9 @@ from apps.log_databus.constants import (
     RunStatus,
     RETRIEVE_CHAIN,
     Environment,
-    build_scene_labels,
     STORAGE_CLUSTER_TYPE,
+    build_collector_scene_labels,
+    detect_container_stream,
 )
 from apps.log_databus.exceptions import (
     CollectNotSuccess,
@@ -95,7 +94,7 @@ from apps.log_databus.models import (
     DataLinkConfig,
 )
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
-from apps.log_esquery.utils.es_route import EsRoute
+from apps.log_databus.utils.storage_config import get_storage_retention
 from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.constants import (
     CollectorScenarioEnum,
@@ -112,7 +111,6 @@ from apps.log_search.models import (
     IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
-    Scenario,
     Space,
 )
 from apps.models import model_to_dict
@@ -553,6 +551,7 @@ class CollectorHandler:
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        owners=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -656,6 +655,8 @@ class CollectorHandler:
             etl_handler.update_or_create(**etl_params)
             self._sync_scene_tags_to_index_set(etl_params["labels"])
 
+        self._authorization_owners(self.data, owners)
+
         custom_config.after_hook(self.data)
 
         # add user_operation_record
@@ -726,7 +727,7 @@ class CollectorHandler:
         return True
 
     @abc.abstractmethod
-    def get_task_status(self, id_list):
+    def get_task_status(self, id_list, read_only=False):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -734,7 +735,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_subscription_status(self):
+    def get_subscription_status(self, include_plugin_status=True):
         raise NotImplementedError
 
     @staticmethod
@@ -959,7 +960,7 @@ class CollectorHandler:
             _data["storage_display_name"] = (
                 cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
             )
-            _data["retention"] = cluster_info["storage_config"].get("retention", 0)
+            _data["retention"] = get_storage_retention(cluster_info["storage_config"], default=0)
             # table_id
             if _data.get("table_id"):
                 table_id_prefix, table_id = _data["table_id"].split(".")
@@ -1129,6 +1130,38 @@ class CollectorHandler:
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
                 f"collector_config->({collector_config.collector_config_id}) grant creator action failed, reason: {e}"
+            )
+
+    @staticmethod
+    def _authorization_owners(collector_config: CollectorConfig, owners: list = None):
+        """
+        将采集项及其索引集的新建关联权限授予指定用户，仅新增授权，不回收历史权限
+        """
+        if not owners:
+            return
+
+        try:
+            permission = Permission()
+            permission.grant_creator_action_batch(
+                resource=ResourceEnum.COLLECTION.create_simple_instance(
+                    collector_config.collector_config_id, attribute={"name": collector_config.collector_config_name}
+                ),
+                creators=owners,
+            )
+
+            # 按采集项反查索引集，避免内存中的 collector_config.index_set_id 尚未刷新
+            index_set = LogIndexSet.objects.filter(collector_config_id=collector_config.collector_config_id).first()
+            if index_set:
+                permission.grant_creator_action_batch(
+                    resource=ResourceEnum.INDICES.create_simple_instance(
+                        index_set.index_set_id, attribute={"name": index_set.index_set_name}
+                    ),
+                    creators=owners,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                f"collector_config->({collector_config.collector_config_id}) grant creator action to owners "
+                f"{owners} failed, reason: {e}"
             )
 
     def _itsm_start_judge(self):
@@ -1347,14 +1380,9 @@ class CollectorHandler:
 
     def indices_info(self):
         result_table_id = self.data.table_id
-        storage_cluster_type = self.data.storage_cluster_type
-        # doris 集群无索引相关信息
-        if storage_cluster_type == DORIS_CLUSTER_TYPE:
-            return []
         if not result_table_id:
             raise CollectNotSuccess
-        result = EsRoute(scenario_id=Scenario.LOG, indices=result_table_id).cat_indices()
-        return StorageHandler.sort_indices(result)
+        return StorageHandler.get_result_table_indices(result_table_id)
 
     def get_clean_stash(self):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
@@ -1442,6 +1470,7 @@ class CollectorHandler:
         platform_index_visibility=None,
         platform_index_filter=None,
         ignore_exists=False,
+        owners=None,
     ):
         data_link_id = self.get_data_link_id(bk_biz_id=bk_biz_id, data_link_id=int(data_link_id or 0))
         collector_config_params = {
@@ -1464,6 +1493,8 @@ class CollectorHandler:
                 existing = CollectorConfig.objects.get(
                     collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
                 )
+                # 幂等创建同样要保证 owners 拿到权限
+                self._authorization_owners(existing, owners)
                 return {
                     "collector_config_id": existing.collector_config_id,
                     "index_set_id": existing.index_set_id,
@@ -1577,6 +1608,9 @@ class CollectorHandler:
             self.data.save(update_fields=["index_set_id"])
             self._sync_scene_tags_to_index_set(params["labels"])
 
+        # 索引集ID在清洗创建后才最终确定，因此在此处再对 owners 授权
+        self._authorization_owners(self.data, owners)
+
         custom_config.after_hook(self.data)
 
         ret = {
@@ -1656,37 +1690,34 @@ class CollectorHandler:
     def _build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment.
 
-        判定优先级：
-        1. OTLP 日志上报（custom + otlp_log）→ trpc（tRPC 服务通过 OTLP 上报，
-           按场景化检索设计方案归 trpc 场景；独立于容器判定，即使部署在 k8s）
-        2. 容器日志（is_container_collector = is_container_environment OR
-           is_custom_container）→ k8s（同时覆盖 BCS 容器采集和 custom + custom_type=log）
-        3. 兜底按 COLLECTOR_SCENARIO_TO_SCENE 映射（默认 host）
+        场景优先级由无模型依赖的共享函数统一维护，在线路径仅负责补充
+        ContainerCollectorConfig 中的 stream 信息。
         """
-        if (
-            self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
-            and self.data.custom_type == CustomTypeEnum.OTLP_LOG.value
-        ):
-            return build_scene_labels("trpc")
-        if self.data.is_container_collector:
-            stream = self._detect_container_stream()
-            return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "", stream=stream)
-        scene = COLLECTOR_SCENARIO_TO_SCENE.get(self.data.collector_scenario_id, "host")
-        return build_scene_labels(scene)
+        scene_params = {
+            "collector_scenario_id": self.data.collector_scenario_id,
+            "custom_type": self.data.custom_type,
+            "environment": self.data.environment,
+            "is_container_collector": self.data.is_container_collector,
+            "bcs_cluster_id": self.data.bcs_cluster_id,
+            "bk_app_code": self.data.bk_app_code,
+            "table_id": self.data.table_id,
+            "collector_config_name_en": self.data.collector_config_name_en,
+        }
+        labels = build_collector_scene_labels(**scene_params)
+        if labels["scene"] != "k8s":
+            return labels
+
+        return build_collector_scene_labels(
+            **scene_params,
+            container_stream=self._detect_container_stream(),
+        )
 
     def _detect_container_stream(self) -> str:
         """Determine stream type (stdout / file) from ContainerCollectorConfig.collector_type."""
-        from apps.log_databus.constants import ContainerCollectorType
-
         container_configs = ContainerCollectorConfig.objects.filter(
             collector_config_id=self.data.collector_config_id
         ).values_list("collector_type", flat=True)
-        collector_types = set(container_configs)
-        if ContainerCollectorType.STDOUT in collector_types:
-            return "stdout"
-        if ContainerCollectorType.CONTAINER in collector_types:
-            return "file"
-        return ""
+        return detect_container_stream(container_configs)
 
     def _sync_scene_tags_to_index_set(self, labels: dict):
         """
@@ -1697,22 +1728,24 @@ class CollectorHandler:
         if not self.data.index_set_id:
             return
 
-        tag_ids = []
-        for key, value in labels.items():
-            if value:
-                tag_ids.append(str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE)))
-
-        if not tag_ids:
-            return
-
         try:
             index_set = LogIndexSet.objects.get(index_set_id=self.data.index_set_id)
         except LogIndexSet.DoesNotExist:
             return
 
+        tag_ids = [
+            str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE))
+            for key, value in labels.items()
+            if value
+        ]
         existing = set(str(t) for t in (index_set.tag_ids or []) if t)
-        merged = existing | set(tag_ids)
-        index_set.tag_ids = list(merged)
+        old_scene_tag_ids = set(
+            str(tag_id)
+            for tag_id in IndexSetTag.objects.filter(tag_id__in=existing, tag_type=TAG_TYPE_SCENE).values_list(
+                "tag_id", flat=True
+            )
+        )
+        index_set.tag_ids = list((existing - old_scene_tag_ids) | set(tag_ids))
         index_set.save(update_fields=["tag_ids"])
 
     def create_or_update_clean_config(self, is_update, params):
@@ -1732,7 +1765,7 @@ class CollectorHandler:
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
-                "retention": result_table["storage_config"].get("retention", 0),
+                "retention": get_storage_retention(result_table["storage_config"], default=0),
                 "allocation_min_days": params.get("allocation_min_days", 0),
                 "etl_config": self.data.etl_config,
             }
@@ -1875,9 +1908,7 @@ class CollectorHandler:
 
     @staticmethod
     def get_or_create_parent_index_set_ids_by_parent_index_set_names(
-        parent_index_set_names,
-        bk_biz_id: int | None = None,
-        space_uid: str | None = None
+        parent_index_set_names, bk_biz_id: int | None = None, space_uid: str | None = None
     ) -> list | None:
         if parent_index_set_names is None:
             return None

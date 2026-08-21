@@ -75,6 +75,16 @@ class ActionAlreadyFinishedError(BaseException):
         pass
 
 
+def get_action_timeout_setting(action, current_action_config=None):
+    snapshot_execute_config = (action.action_config or {}).get("execute_config", {})
+    if "timeout" in snapshot_execute_config:
+        return snapshot_execute_config["timeout"]
+
+    if current_action_config is None:
+        current_action_config = ActionConfigCacheManager.get_action_config_by_id(action.action_config_id)
+    return (current_action_config or {}).get("execute_config", {}).get("timeout")
+
+
 class BaseActionProcessor:
     """
     Action 处理器
@@ -117,7 +127,7 @@ class BaseActionProcessor:
         if self.action.strategy:
             self.notify_config = self.action.strategy.get("notice")
         self.execute_config = self.action_config.get("execute_config", {})
-        self.timeout_setting = self.execute_config.get("timeout")
+        self.timeout_setting = get_action_timeout_setting(self.action, self.action_config)
         self.failed_retry = self.execute_config.get("failed_retry", {})
         self.max_retry_times = int(self.failed_retry.get("max_retry_times", -1))
         self.retry_interval = int(self.failed_retry.get("retry_interval", 0))

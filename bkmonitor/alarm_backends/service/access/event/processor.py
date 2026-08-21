@@ -82,10 +82,9 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
 
                 timestamp = event_record.event_time
                 md5_dimension = event_record.md5_dimension
-                check_result = CheckResult(strategy_id, item_id, event_record.md5_dimension, event_record.level)
-
                 if redis_pipeline is None:
-                    redis_pipeline = check_result.CHECK_RESULT
+                    redis_pipeline = CheckResult.begin_pipeline_batch()
+                check_result = CheckResult(strategy_id, item_id, event_record.md5_dimension, event_record.level)
 
                 try:
                     # 1. 缓存数据（检测结果缓存）

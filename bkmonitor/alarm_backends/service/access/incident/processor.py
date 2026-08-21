@@ -32,10 +32,10 @@ from constants.incident import (
     IncidentSyncType,
 )
 from core.drf_resource import api
-from core.errors.alert import AlertNotFoundError
 from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("access.incident")
+SLOW_STAGE_THRESHOLD_SECONDS = 10
 
 
 class BaseAccessIncidentProcess(BaseAccessProcess):
@@ -67,10 +67,42 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
     def process(self) -> None:
         def callback(ch: BlockingChannel, method: Basic.Deliver, properties: dict, body: str):
             sync_info = json.loads(body)
-            self.handle_sync_info(sync_info)
-            ch.basic_ack(method.delivery_tag)
+            started_at = time.monotonic()
+            try:
+                self.handle_sync_info(sync_info)
+                ch.basic_ack(method.delivery_tag)
+            finally:
+                logger.info(
+                    "[PERF] incident_id=%s sync_type=%s alert_count=%s stage=callback cost_ms=%s",
+                    sync_info.get("incident_id"),
+                    sync_info.get("sync_type"),
+                    len(sync_info.get("scope", {}).get("alerts", [])),
+                    int((time.monotonic() - started_at) * 1000),
+                )
 
         self.client.start_consuming(self.queue_name, callback=callback)
+
+    @staticmethod
+    def log_slow_stage(sync_info: dict, stage: str, started_at: float, **extra) -> None:
+        cost_ms = int((time.monotonic() - started_at) * 1000)
+        if cost_ms < SLOW_STAGE_THRESHOLD_SECONDS * 1000:
+            return
+        logger.warning(
+            "[PERF] incident_id=%s sync_type=%s alert_count=%s stage=%s cost_ms=%s extra=%s",
+            sync_info.get("incident_id"),
+            sync_info.get("sync_type"),
+            len(sync_info.get("scope", {}).get("alerts", [])),
+            stage,
+            cost_ms,
+            extra,
+        )
+
+    def measure_stage(self, sync_info: dict, stage: str, callback, *args, log_extra: dict = None, **kwargs):
+        started_at = time.monotonic()
+        try:
+            return callback(*args, **kwargs)
+        finally:
+            self.log_slow_stage(sync_info, stage, started_at, **(log_extra or {}))
 
     def check_incident_actions(self, sync_info):
         if sync_info.get("incident_stage") == "stage_exp" and sync_info.get("incident_actions"):
@@ -237,8 +269,13 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     "rca_summary": {"bk_biz_ids": [incident_info["bk_biz_id"]]},
                 }
             else:
-                snapshot_info = self.get_incident_api(sync_info).get_incident_snapshot(
-                    snapshot_id=sync_info["fpp_snapshot_id"]
+                incident_api = self.get_incident_api(sync_info)
+                snapshot_info = self.measure_stage(
+                    sync_info,
+                    "incident_snapshot_request",
+                    incident_api.get_incident_snapshot,
+                    snapshot_id=sync_info["fpp_snapshot_id"],
+                    log_extra={"timeout_seconds": incident_api.get_incident_snapshot.TIMEOUT},
                 )
 
             snapshot = IncidentSnapshotDocument(
@@ -260,32 +297,69 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         version_id = self.generate_version_id()
 
         # 更新告警所属故障
-        snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot, version_id)
+        snapshot_alerts = self.measure_stage(
+            sync_info,
+            "alert_document_relations",
+            self.update_alert_incident_relations,
+            incident_document,
+            snapshot,
+            version_id,
+        )
 
         # 生成故障快照记录
         try:
-            IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
+            self.measure_stage(
+                sync_info,
+                "incident_snapshot_bulk_create",
+                IncidentSnapshotDocument.bulk_create,
+                [snapshot],
+                action=BulkActionType.CREATE,
+            )
 
             # 补充快照记录并写入ES
             incident_document.snapshot = snapshot
             incident_document.status_order = IncidentStatus(incident_document.status).order
             incident_document.alert_count = len(snapshot.alerts)
             snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
-            self.generate_incident_labels(incident_document, snapshot_model)
-            incident_document.generate_handlers(snapshot_model)
-            incident_document.generate_assignees(snapshot_model)
+            self.measure_stage(
+                sync_info, "incident_label_generation", self.generate_incident_labels, incident_document, snapshot_model
+            )
+            self.measure_stage(
+                sync_info,
+                "incident_handler_generation",
+                incident_document.generate_handlers,
+                snapshot_model,
+                alert_docs=snapshot_alerts,
+            )
+            self.measure_stage(
+                sync_info,
+                "incident_assignee_generation",
+                incident_document.generate_assignees,
+                snapshot_model,
+                alert_docs=snapshot_alerts,
+            )
 
             # 设置故障的版本信息
             if not incident_document.extra_info:
                 incident_document.extra_info = {}
             incident_document.extra_info["version_id"] = version_id
 
-            self.update_remote_incident_detail(
+            self.measure_stage(
+                sync_info,
+                "remote_incident_update",
+                self.update_remote_incident_detail,
                 sync_info,
                 incident_document,
                 mark_received=True,
+                log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
             )
-            IncidentDocument.bulk_create([incident_document], action=BulkActionType.CREATE)
+            self.measure_stage(
+                sync_info,
+                "incident_document_bulk_create",
+                IncidentDocument.bulk_create,
+                [incident_document],
+                action=BulkActionType.CREATE,
+            )
             logger.info(
                 f"[CREATE]Success to access incident[{sync_info['incident_id']}] as document with version_id: {version_id}"
             )
@@ -315,8 +389,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             return
 
     def update_alert_incident_relations(
-        self, incident_document: IncidentDocument, snapshot: IncidentSnapshotDocument, version_id: str = None
-    ) -> dict[int, AlertDocument]:
+        self,
+        incident_document: IncidentDocument,
+        snapshot: IncidentSnapshotDocument,
+        version_id: str = None,
+        alert_documents: dict[str, AlertDocument] = None,
+    ) -> dict[str, AlertDocument]:
         """更新告警所属故障.
 
         :param incident_document: 故障实例
@@ -324,12 +402,14 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         :param version_id: 版本ID，用于标识同一批次的更新
         :return: 告警字典，用于复用告警的内容
         """
-        snapshot_alerts = {}
+        snapshot_alerts = (
+            alert_documents if alert_documents is not None else self.get_snapshot_alert_documents(snapshot)
+        )
         update_alerts = []
         for item in snapshot.content.incident_alerts:
+            alert_id = str(item["id"])
             try:
-                alert_doc = AlertDocument.get(item["id"])
-                snapshot_alerts[item["id"]] = alert_doc
+                alert_doc = snapshot_alerts[alert_id]
                 if alert_doc.incident_id == incident_document.id and not version_id:
                     continue
 
@@ -342,17 +422,22 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     alert_doc.extra_info["incident_version_id"] = version_id
 
                 update_alerts.append(alert_doc)
-            except AlertNotFoundError:
-                logger.warning(f"Alert document not found: {item['id']}, skip updating incident relation")
+            except KeyError:
+                logger.warning(f"Alert document not found: {alert_id}, skip updating incident relation")
                 continue
             except Exception as e:
-                logger.error(f"Failed to get alert document {item['id']}: {e}")
+                logger.error(f"Failed to get alert document {alert_id}: {e}")
                 continue
 
         if update_alerts:
             AlertDocument.bulk_create(update_alerts, action=BulkActionType.UPSERT)
 
         return snapshot_alerts
+
+    @staticmethod
+    def get_snapshot_alert_documents(snapshot: IncidentSnapshotDocument) -> dict[str, AlertDocument]:
+        alert_ids = list(dict.fromkeys(str(item["id"]) for item in snapshot.content.incident_alerts))
+        return {str(alert_document.id): alert_document for alert_document in AlertDocument.mget(alert_ids)}
 
     def update_incident(self, sync_info: dict) -> None:
         """根据同步信息，从AIOPS接口获取故障详情，并更新到监控的ES中.
@@ -379,8 +464,13 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             if status_update.get("to") == IncidentStatus.MERGED.value:
                 self.set_incident_merge_info(incident_document, merge_info)
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"] != "fpp:None":
-                snapshot_info = self.get_incident_api(sync_info).get_incident_snapshot(
-                    snapshot_id=sync_info["fpp_snapshot_id"]
+                incident_api = self.get_incident_api(sync_info)
+                snapshot_info = self.measure_stage(
+                    sync_info,
+                    "incident_snapshot_request",
+                    incident_api.get_incident_snapshot,
+                    snapshot_id=sync_info["fpp_snapshot_id"],
+                    log_extra={"timeout_seconds": incident_api.get_incident_snapshot.TIMEOUT},
                 )
             else:
                 snapshot_info = {
@@ -444,12 +534,28 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 version_id = self.generate_version_id()
 
                 # 更新告警所属故障
-                snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot, version_id)
+                snapshot_alerts = self.measure_stage(
+                    sync_info,
+                    "alert_document_relations",
+                    self.update_alert_incident_relations,
+                    incident_document,
+                    snapshot,
+                    version_id,
+                )
 
-                IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
+                self.measure_stage(
+                    sync_info,
+                    "incident_snapshot_bulk_create",
+                    IncidentSnapshotDocument.bulk_create,
+                    [snapshot],
+                    action=BulkActionType.CREATE,
+                )
 
                 # 补充快照记录并写入ES
-                self.generate_alert_operations(
+                self.measure_stage(
+                    sync_info,
+                    "incident_alert_operation_generation",
+                    self.generate_alert_operations,
                     snapshot_alerts,
                     incident_status=IncidentStatus(snapshot.status),
                     last_snapshot=incident_document.snapshot,
@@ -457,18 +563,49 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 incident_document.snapshot = snapshot
                 incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
-                self.generate_incident_labels(incident_document, snapshot_model)
-                incident_document.generate_handlers(snapshot_model)
-                incident_document.generate_assignees(snapshot_model)
+                self.measure_stage(
+                    sync_info,
+                    "incident_label_generation",
+                    self.generate_incident_labels,
+                    incident_document,
+                    snapshot_model,
+                )
+                self.measure_stage(
+                    sync_info,
+                    "incident_handler_generation",
+                    incident_document.generate_handlers,
+                    snapshot_model,
+                    alert_docs=snapshot_alerts,
+                )
+                self.measure_stage(
+                    sync_info,
+                    "incident_assignee_generation",
+                    incident_document.generate_assignees,
+                    snapshot_model,
+                    alert_docs=snapshot_alerts,
+                )
 
                 # 设置故障的版本信息
                 if not incident_document.extra_info:
                     incident_document.extra_info = {}
                 incident_document.extra_info["version_id"] = version_id
 
-                self.update_remote_incident_detail(sync_info, incident_document)
+                self.measure_stage(
+                    sync_info,
+                    "remote_incident_update",
+                    self.update_remote_incident_detail,
+                    sync_info,
+                    incident_document,
+                    log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
+                )
 
-            IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
+            self.measure_stage(
+                sync_info,
+                "incident_document_bulk_update",
+                IncidentDocument.bulk_create,
+                [incident_document],
+                action=BulkActionType.UPDATE,
+            )
             logger.info(
                 f"[UPDATE]Success to access incident[{sync_info['incident_id']}] as document with version_id: {version_id if snapshot else 'N/A'}"
             )
@@ -507,9 +644,23 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 setattr(incident_document, incident_key, update_info["to"])
 
             incident_document.status_order = IncidentStatus(incident_document.status).order
-            IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
+            self.measure_stage(
+                sync_info,
+                "incident_document_bulk_update",
+                IncidentDocument.bulk_create,
+                [incident_document],
+                action=BulkActionType.UPDATE,
+            )
             if remote_status_update:
-                self.update_remote_incident_detail(sync_info, incident_document, **remote_status_update)
+                self.measure_stage(
+                    sync_info,
+                    "remote_incident_status_update",
+                    self.update_remote_incident_detail,
+                    sync_info,
+                    incident_document,
+                    log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
+                    **remote_status_update,
+                )
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
             return

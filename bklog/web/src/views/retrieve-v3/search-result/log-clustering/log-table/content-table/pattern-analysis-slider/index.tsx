@@ -620,7 +620,7 @@ export default defineComponent({
           additionList.push({
             field,
             operator: 'is',
-            value,
+            value: [value ?? ''],
             isLink: true,
           });
         });
@@ -631,7 +631,7 @@ export default defineComponent({
         additionList.push({
           field: `__dist_${pattern_level}`,
           operator: 'is',
-          value: signature.toString(),
+          value: [signature.toString()],
           isLink: true,
         });
       }
@@ -640,7 +640,7 @@ export default defineComponent({
       additionList.push({
         field: props.clusteringConfigData?.clustering_fields || '',
         operator: 'is',
-        value: item.value,
+        value: [item.value ?? ''],
         isLink: true,
       });
 

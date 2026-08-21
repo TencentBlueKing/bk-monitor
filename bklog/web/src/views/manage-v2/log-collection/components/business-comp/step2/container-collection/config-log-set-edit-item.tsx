@@ -116,6 +116,16 @@ export default defineComponent({
 
     // 缓存配置数据（初始化时即进行规范化处理）
     const cacheConfig = ref(normalizeSelector({ ...props.config[props.editType] }) || {});
+    const itemKeyMap = new WeakMap<object, number>();
+    let itemKeySeed = 0;
+    const getItemKey = (item: IValueItem): string => {
+      if (!itemKeyMap.has(item)) {
+        itemKeyMap.set(item, itemKeySeed);
+        itemKeySeed += 1;
+      }
+      return `${props.editType}_${itemKeyMap.get(item)}`;
+    };
+
 
     // 计算属性：是否为标签编辑
     const isLabelEdit = computed(() => props.editType === 'label_selector');
@@ -157,7 +167,7 @@ export default defineComponent({
       if (cacheConfig.value[keys]) {
         // 创建新数组以确保响应式更新
         const newArray = [...cacheConfig.value[keys]];
-        newArray[index] = { ...newValue };
+        Object.assign(newArray[index], newValue);
         cacheConfig.value = {
           ...cacheConfig.value,
           [keys]: newArray,
@@ -259,7 +269,7 @@ export default defineComponent({
             {/* 手动输入标签 */}
             {list.map((item, ind) => (
               <LabelItemChoose
-                key={`${props.editType}_${ind}`}
+                key={getItemKey(item)}
                 matchItem={item}
                 on-change={val => handleItemChange(ind, val)}
                 on-delete={_item => handleItemDelete(ind)}

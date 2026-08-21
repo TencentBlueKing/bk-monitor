@@ -32,7 +32,7 @@ from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.exceptions import IndexSetDorisQueryException
-from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
@@ -1413,6 +1413,18 @@ class TestSyncRouter(TestCase):
          —— 默认路由走 Doris（__doris__），analysis 路由走 Doris（__analysis__）
     """
 
+    DORIS_CLUSTER_ID = 77
+
+    def setUp(self):
+        super().setUp()
+        # Doris 路由要带上结果表实际所在的存储集群，单测里固定返回，不依赖 BkBase 与 metadata 接口
+        patcher = patch(
+            "apps.log_search.handlers.index_set.DorisClusterHandler.get_cluster_id",
+            return_value=self.DORIS_CLUSTER_ID,
+        )
+        self.mock_get_doris_cluster_id = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _ensure_doris_tag(self) -> str:
         """确保 Doris 标签存在，返回其 tag_id 字符串。
         Doris 标签的 tag_type 默认为 TAG_TYPE_USER。
@@ -1633,6 +1645,7 @@ class TestSyncRouter(TestCase):
         info = result[0]
         self.assertEqual(info["storage_type"], "doris")
         self.assertEqual(info["source_type"], "bkdata")
+        self.assertEqual(info["cluster_id"], self.DORIS_CLUSTER_ID)
         self.assertTrue(info["table_id"].endswith(".__analysis__"))
 
     def test_es_doris_sync_router_both(self):
@@ -1694,7 +1707,10 @@ class TestSyncRouter(TestCase):
         for info in result:
             self.assertEqual(info["storage_type"], "doris")
             self.assertEqual(info["source_type"], "bkdata")
+            self.assertEqual(info["cluster_id"], self.DORIS_CLUSTER_ID)
             self.assertTrue(info["table_id"].endswith(".__doris__"))
+        # 每个 BkBase 结果表单独解析集群
+        self.assertEqual(self.mock_get_doris_cluster_id.call_count, 2)
 
     def test_manual_doris_analysis(self):
         """
@@ -1707,6 +1723,7 @@ class TestSyncRouter(TestCase):
         for info in result:
             self.assertEqual(info["storage_type"], "doris")
             self.assertEqual(info["source_type"], "bkdata")
+            self.assertEqual(info["cluster_id"], self.DORIS_CLUSTER_ID)
             self.assertTrue(info["table_id"].endswith(".__analysis__"))
 
     def test_manual_doris_sync_router_both(self):
@@ -1733,6 +1750,7 @@ class TestSyncRouter(TestCase):
         for info in params0["table_info"]:
             self.assertTrue(info["table_id"].endswith(".__doris__"))
             self.assertEqual(info["storage_type"], "doris")
+            self.assertEqual(info["cluster_id"], self.DORIS_CLUSTER_ID)
             self.assertTrue(info["is_enable"])
 
         # Analysis 路由 → Doris（__analysis__）
@@ -1743,6 +1761,47 @@ class TestSyncRouter(TestCase):
             self.assertEqual(info["storage_type"], "doris")
             self.assertEqual(info["source_type"], "bkdata")
             self.assertTrue(info["is_enable"])
+
+    # ==================================================================
+    # 更新别名配置时的 Doris 路由
+    # ==================================================================
+
+    def _capture_alias_settings_routers(self, index_set: LogIndexSet) -> list:
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append(params)
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                IndexSetHandler(index_set.index_set_id).update_alias_settings([])
+
+        return append_calls
+
+    def test_update_alias_settings_doris_router_with_cluster_id(self):
+        """更新别名配置时下发的 Doris 路由同样要带上真实集群"""
+        index_set = self._build_manual_doris_index_set()
+
+        routers = self._capture_alias_settings_routers(index_set)
+
+        # 两个结果表分别下发图表分析路由和 Doris 存储路由
+        self.assertEqual(len(routers), 4)
+        for params in routers:
+            self.assertEqual(params["cluster_id"], self.DORIS_CLUSTER_ID)
+
+    def test_update_alias_settings_doris_router_without_cluster_id(self):
+        """
+        解析不出集群时仍要下发别名配置
+        期望：不带 cluster_id，metadata 会沿用路由上已有的集群，别名更新不受影响
+        """
+        index_set = self._build_manual_doris_index_set()
+        self.mock_get_doris_cluster_id.return_value = None
+
+        routers = self._capture_alias_settings_routers(index_set)
+
+        self.assertEqual(len(routers), 4)
+        for params in routers:
+            self.assertNotIn("cluster_id", params)
 
     # ==================================================================
     # 边界情况
@@ -1764,6 +1823,34 @@ class TestSyncRouter(TestCase):
 
         self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False), [])
         self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True), [])
+
+    def test_doris_table_info_without_cluster_id(self):
+        """
+        解析不出结果表所在的存储集群
+        期望：仍然下发路由，只是不带 cluster_id，由 metadata 沿用路由上已有的集群
+        """
+        index_set = self._build_manual_doris_index_set()
+        self.mock_get_doris_cluster_id.return_value = None
+
+        for is_analysis in (False, True):
+            result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=is_analysis)
+            self.assertEqual(len(result), 2)
+            for info in result:
+                self.assertNotIn("cluster_id", info)
+
+    def test_doris_table_info_partially_without_cluster_id(self):
+        """
+        多个结果表中只有一部分能解析出存储集群
+        期望：两条都要下发，否则 metadata 会清掉被摘掉那张表的 data_label，已建好的路由反而失效
+        """
+        index_set = self._build_manual_doris_index_set()
+        self.mock_get_doris_cluster_id.side_effect = [self.DORIS_CLUSTER_ID, None]
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["cluster_id"], self.DORIS_CLUSTER_ID)
+        self.assertNotIn("cluster_id", result[1])
 
 
 class TestSqlAndGrepApi(TestCase):

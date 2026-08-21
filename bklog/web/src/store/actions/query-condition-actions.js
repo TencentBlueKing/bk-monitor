@@ -31,6 +31,16 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     ?? state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
   const getFieldType = (field, fallbackType) => getTargetField(field)?.field_type ?? fallbackType ?? '';
 
+  const normalizeAdditionValue = (value) => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (value === undefined || value === null) {
+      return [''];
+    }
+    return [value];
+  };
+
   const getAdditionMappingOperator = ({ operator, field, value }) => {
     let mappingKey = {
       is: '=',
@@ -47,11 +57,6 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
       'is not': 'not contains',
     };
 
-    const boolMapping = {
-      is: `is ${value[0]}`,
-      'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
-    };
-
     const targetField = getTargetField(field);
     const textType = targetField?.field_type ?? '';
     const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
@@ -65,7 +70,11 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     }
 
     if (textType === 'boolean') {
-      mappingKey = boolMapping;
+      const firstValue = value?.[0];
+      mappingKey = {
+        is: `is ${firstValue}`,
+        'is not': `is ${/true/i.test(firstValue) ? 'false' : 'true'}`,
+      };
       if (value.length) {
         value.splice(0, value.length);
       }
@@ -123,7 +132,8 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     .map((item) => {
       const isNewSearchPageItem = item.operator === 'new-search-page-is';
       item.operator = isNewSearchPageItem ? 'is' : item.operator;
-      const { field, operator, value } = item;
+      const { field, operator } = item;
+      const value = normalizeAdditionValue(item.value);
       const targetField = getTargetField(field);
 
       let newSearchValue = null;

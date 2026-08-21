@@ -25,6 +25,7 @@ from apps.generic import APIViewSet
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.drf import BusinessActionPermission
 from apps.log_search.constants import (
+    ASYNC_EXPORT_SCENE_ID,
     ExportFileType,
     ExportStatus,
     ExportType,
@@ -602,7 +603,7 @@ class SceneSearchViewSet(APIViewSet):
             - 不传 bk_biz_id 时返回全部场景（向后兼容）；
             - 传 bk_biz_id 时按 IndexSetTag(scene 路由) 主路径判定 + PaaS 兜底，容器/主机始终返回。
         """
-        from apps.log_databus.constants import SCENE_SEARCH_DIMENSIONS
+        from apps.log_databus.constants import PAAS_APP_CODES, SCENE_SEARCH_DIMENSIONS
         from apps.log_databus.models import CollectorConfig
         from apps.log_search.constants import SceneLabelEnum
         from apps.log_search.models import (
@@ -611,8 +612,6 @@ class SceneSearchViewSet(APIViewSet):
             LogIndexSet,
         )
         from bkm_space.utils import bk_biz_id_to_space_uid
-
-        PAAS_APP_CODES = {"bk_paas", "bk_paas3"}
 
         data = self.params_valid(SceneListSerializer)
         bk_biz_id = data.get("bk_biz_id")
@@ -1129,7 +1128,7 @@ class SceneSearchViewSet(APIViewSet):
 
         AsyncTask.objects.create(
             request_param=data,
-            scenario_id="scene",
+            scenario_id=ASYNC_EXPORT_SCENE_ID,
             index_set_id=0,
             result=True,
             completed_at=timezone.now(),

@@ -45,6 +45,7 @@ import type {
   TableColumnItem,
   TablePagination,
 } from '../../typings';
+import type { AlarmCenterPanelTabType } from '../../utils/constant';
 import type { AlertSavePromiseEvent } from './components/alert-content-detail/alert-content-detail';
 import type { ActionScenario } from './scenarios/action-scenario';
 import type { AlertScenario } from './scenarios/alert-scenario';
@@ -121,7 +122,7 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    showAlertDetail: (row: AlertTableItem, _defaultTab?: string) => row,
+    showAlertDetail: (row: AlertTableItem, _defaultTab?: AlarmCenterPanelTabType) => row,
     showActionDetail: (row: ActionTableItem) => row,
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,

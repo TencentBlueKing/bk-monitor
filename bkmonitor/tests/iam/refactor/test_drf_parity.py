@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.drf import (
     BusinessActionPermission,
     IAMPermission,
@@ -67,6 +68,13 @@ def _make_view(**kwargs):
     # 导致 drf._get_look_url_kwarg 的 lookup_url_kwarg or lookup_field 取到 mock 而断言失败
     view.lookup_url_kwarg = None
     return view
+
+
+@pytest.fixture(autouse=True)
+def allow_business_in_test_tenant():
+    """隔离 BusinessActionPermission 的租户归属判断，个别拒绝用例自行覆盖。"""
+    with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True):
+        yield
 
 
 class _ScriptedProvider:
@@ -186,6 +194,15 @@ class TestBusinessActionPermission:
         assert perm.has_permission(_make_request(biz_id=2), view=None) is True
         assert scripted.calls[0].resource.type == "space"
         assert scripted.calls[0].resource.id == "2"
+
+    def test_cross_tenant_biz_is_denied_without_framework(self, fake_framework):
+        fw, provider = fake_framework
+        perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
+
+        with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=False):
+            assert perm.has_permission(_make_request(biz_id=2), view=None) is False
+
+        assert provider.is_allowed_calls == []
 
     def test_object_permission_uses_obj_bk_biz_id(self, fake_framework):
         """新旧版一致的行为：obj.bk_biz_id 分支设置的 resources 会被多态覆盖。
@@ -407,6 +424,23 @@ class TestInsertPermissionField:
         )(view_func)
         response = wrapped(_make_request())
         assert response.data["list"][0]["permission"]["view_event"] is True
+
+    def test_sorts_allowed_records_first_with_framework_action(self, fake_framework):
+        fw, provider = fake_framework
+        wrapped = self._decorated_view(
+            fw,
+            provider,
+            [("2", False), ("3", True)],
+            [Actions.VIEW_EVENT],
+            ResourceEnum.BUSINESS,
+            id_field=lambda d: d["id"],
+            sort_allowed_first=True,
+        )
+
+        response = wrapped(_make_request())
+
+        # 有权限项在前；无权限项保持输入时的相对顺序。
+        assert [item["id"] for item in response.data] == ["3", "2", None]
 
 
 class TestFilterDataByPermission:

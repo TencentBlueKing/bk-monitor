@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from .application import *  # noqa
 from .config import *  # noqa
 from .datasource import *  # noqa
+from .meta import *  # noqa
 from .profile import *  # noqa
 from .shared_datasource import *  # noqa
 from .subscription_config import *  # noqa

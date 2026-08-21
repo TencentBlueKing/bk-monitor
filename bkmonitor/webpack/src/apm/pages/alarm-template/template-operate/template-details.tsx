@@ -285,6 +285,7 @@ export default class TemplateDetails extends tsc<IProps> {
           this.handleShowChange(false);
         }}
         isShow={this.show}
+        zIndex={3100}
         quick-close
       >
         <div

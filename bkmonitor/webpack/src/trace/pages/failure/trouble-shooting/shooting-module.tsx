@@ -26,6 +26,7 @@
 import { Collapse, Message, Popover } from 'bkui-vue';
 import base64Svg from 'monitor-common/svg/base64';
 import { copyText } from 'monitor-common/utils/utils';
+import VueJsonPretty from 'vue-json-pretty';
 
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
 import { EVENTS_TYPE_MAP } from '../constant';
@@ -180,6 +181,10 @@ export function createShootingModule(
     handleMouseEnter: (e: MouseEvent, index: number, type: OverflowPopType) => void;
     handlePopoverClose: (item: { isShow: boolean }) => void;
     incidentDetailData: Record<string, any>;
+    /** 查看全部子事件的回调函数，用于打开侧滑展示完整事件列表 */
+    onViewAllEvents?: (item: IEventsAnalysis) => void;
+    /** 查看完整 JSON 的回调函数，用于打开侧滑 */
+    onViewFullJson?: (data: any, dataIndex: number) => void;
     popoverState: {
       currentPopover: null | { index: number; type: OverflowPopType };
       overflowMap: Record<string, boolean>;
@@ -247,7 +252,7 @@ export function createShootingModule(
           content: () => (
             <div class='overflow-popover-content'>
               <i
-                class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
+                class='icon-monitor icon-mc-copy copy-icon'
                 onClick={() => handleCopy(content, $t)}
               />
               <div class={contentCls}>{renderContent ? renderContent(content) : content}</div>
@@ -420,7 +425,8 @@ export function createShootingModule(
   const eventTitle = (item: IEventsAnalysis, subContent = null) => {
     // 判断是否为子级标题
     const isChild = !!subContent;
-    const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP] ?? EVENTS_TYPE_MAP['default'];
+    // 根据类型获取配置，不在EVENTS_TYPE_MAP中，则默认使用general通用配置
+    const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP] ?? EVENTS_TYPE_MAP.general;
 
     const renderTitleInfo = () => {
       // 父级Collapse title
@@ -432,22 +438,33 @@ export function createShootingModule(
               style={{ fontWeight: '700' }}
               class='mr-2'
             >
-              {item.title}
+              {item.title || $t('通用事件')}
             </span>
             <span style={{ fontWeight: 'normal' }}>
               <i18n-t keypath={keypath}>
-                <span style={{ fontWeight: '700' }}>{item.total}</span>
-                <span>{item.unit}</span>
+                <span
+                  style={{ fontWeight: '700' }}
+                  class={item.total > 3 && 'cursor-link'}
+                  onClick={(e: MouseEvent) => {
+                    if (item.total <= 3) return;
+                    e.stopPropagation();
+                    options.onViewAllEvents?.(item);
+                  }}
+                >
+                  {item.total}
+                </span>
+                {item.unit && <span>{item.unit}</span>}
                 {item.total > 3 && <span style={{ fontWeight: '700' }}>Top{item.top}</span>}
               </i18n-t>
             </span>
           </>
         );
       }
-      // 子项Collapse根据类型返回title
+      // 子项Collapse——tmp事件title
       if (item.type === 'tmp_events') {
         return <span style={{ fontWeight: '600' }}>{subContent.event_name}</span>;
       }
+      // 子项Collapse——k8s、host事件title
       if (['k8s_warning_events', 'alert_system_events'].includes(item.type)) {
         return (
           <>
@@ -464,6 +481,22 @@ export function createShootingModule(
               </i18n-t>
             </span>
           </>
+        );
+      }
+      // 子项Collapse——通用事件title
+      if (item.isGeneral) {
+        return (
+          <span class='sub-event-title_general'>
+            <span style={{ fontWeight: '600' }}>{`${$t('示例事件')} ${subContent.$index + 1}`}</span>
+            <i
+              class='icon-monitor icon-mc-copy cursor-link'
+              v-bk-tooltips={{ content: $t('复制') }}
+              onClick={e => {
+                e.stopPropagation();
+                handleCopy(subContent, $t, true);
+              }}
+            />
+          </span>
         );
       }
       // 默认子项标题
@@ -484,7 +517,9 @@ export function createShootingModule(
               class='event-icon'
             />
           ) : (
-            <i class='icon-monitor icon-shijianjiansuo event-icon' />
+            <span class='general-icon-wrapper event-icon'>
+              <i class='icon-monitor icon-shijianjiansuo general-icon' />
+            </span>
           ))}
         {/* 渲染标题内容 */}
         {renderTitleInfo()}
@@ -512,29 +547,96 @@ export function createShootingModule(
     );
   };
   // 事件分析子Collapse内容
-  const eventChildContent = (item: IEventsAnalysis, subContent: IEventsContentsData) => (
-    <span class='table-content'>
-      {Object.entries(item.fields).map(([key, value]) => {
-        // tmp告警事件需要特殊处理，event_name已经作为子标题展示
-        if (
-          (item.type === 'tmp_events' && key === 'event_name') ||
-          (['k8s_warning_events', 'alert_system_events'].includes(item.type) &&
-            ['event_name', '_sub_unit', '_sub_count'].includes(key))
-        ) {
-          return null;
+  const eventChildContent = (item: IEventsAnalysis, subContent: IEventsContentsData) => {
+    // 如果是通用事件，则渲染JSON
+    if (item.isGeneral) {
+      const rawData = subContent || {};
+      const jsonData: Record<string, any> = rawData && typeof rawData === 'object' ? { ...rawData } : rawData;
+      if (jsonData) {
+        delete jsonData.$index;
+        // interaction 是前端行为元数据，不属于事件原始内容
+        delete jsonData.interaction;
+      }
+      const hasOnViewFullJson = typeof options.onViewFullJson === 'function';
+
+      // 判断是否被截断（原始数据比限制后的多）
+      const isTruncated = jsonData !== null && Object.keys(jsonData).length > 7;
+
+      // 只取前7个key，减少DOM节点，提升性能
+      const limitedData = (() => {
+        if (typeof jsonData !== 'object' || jsonData === null) {
+          return jsonData;
         }
-        return (
-          <TableContentItem
-            key={key}
-            label={value}
-            needTitle={false}
-            showLabel={item.type !== 'tencent_cloud_notice_events'} // 特殊类型不显示label
-            value={subContent[key]}
+        const entries = Object.entries(jsonData).slice(0, 7);
+        // 当需要显示"查看完整"时，添加一个特殊key作为第8行
+        if (isTruncated && hasOnViewFullJson) {
+          entries.push(['__viewMore__', '__VIEW_MORE_PLACEHOLDER__']);
+        }
+        return Object.fromEntries(entries);
+      })();
+
+      return (
+        <div class='general-event-content'>
+          <VueJsonPretty
+            renderNodeKey={({ node, defaultKey }) => {
+              // 伪造的"查看完整"行
+              if (node.key === '__viewMore__') {
+                return (
+                  <span
+                    class='view-full-action cursor-link'
+                    onClick={(e: MouseEvent) => {
+                      e.stopPropagation();
+                      options.onViewFullJson?.(jsonData, Number(subContent.$index));
+                    }}
+                  >
+                    ... {$t('查看完整')}
+                  </span>
+                );
+              }
+              return defaultKey;
+            }}
+            renderNodeValue={({ node, defaultValue }) => {
+              // 伪造的"查看完整"行，隐藏value部分
+              if (node.key === '__viewMore__') {
+                return null;
+              }
+              return defaultValue; // 使用默认渲染
+            }}
+            collapsedOnClickBrackets={false}
+            data={limitedData}
+            deep={1}
+            showIcon={true}
+            showKeyValueSpace={true}
+            showLine={false}
           />
-        );
-      })}
-    </span>
-  );
+        </div>
+      );
+    }
+    // 否则渲染表格
+    return (
+      <span class='table-content'>
+        {Object.entries(item.fields).map(([key, value]) => {
+          // tmp告警事件需要特殊处理，event_name已经作为子标题展示
+          if (
+            (item.type === 'tmp_events' && key === 'event_name') ||
+            (['k8s_warning_events', 'alert_system_events'].includes(item.type) &&
+              ['event_name', '_sub_unit', '_sub_count'].includes(key))
+          ) {
+            return null;
+          }
+          return (
+            <TableContentItem
+              key={key}
+              label={value}
+              needTitle={false}
+              showLabel={item.type !== 'tencent_cloud_notice_events'} // 特殊类型不显示label
+              value={subContent[key]}
+            />
+          );
+        })}
+      </span>
+    );
+  };
   /**
    * 事件分析模块
    * @returns {JSX.Element} 配置内容元素
@@ -753,14 +855,28 @@ export function createShootingModule(
 
   return {
     slots,
+    eventTitle,
+    eventChildContent,
   };
 }
 
 /** 拷贝操作 */
-function handleCopy(text: string, $t) {
-  copyText(text);
+function handleCopy(data, $t, isGeneralEvent = false) {
+  if (isGeneralEvent) {
+    const { $index, interaction, ...rest } = data;
+    copyText(JSON.stringify(rest, null, 4), msg => {
+      Message({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+  } else {
+    copyText(data);
+  }
+
   Message({
-    theme: 'success',
     message: $t('复制成功'),
+    theme: 'success',
   });
 }

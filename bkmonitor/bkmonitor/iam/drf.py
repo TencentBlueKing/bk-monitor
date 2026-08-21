@@ -28,6 +28,7 @@ from rest_framework import permissions
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
     AuthRequest,
@@ -145,12 +146,16 @@ class BusinessActionPermission(IAMPermission):
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
+        if not is_biz_in_tenant(request.biz_id, getattr(request.user, "tenant_id", None)):
+            return False
         self.resources = [FwResource(type=ResourceTypes.SPACE.id, id=str(request.biz_id))]
         return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
         bk_biz_id = getattr(obj, "bk_biz_id", None)
         if bk_biz_id:
+            if not is_biz_in_tenant(bk_biz_id, getattr(request.user, "tenant_id", None)):
+                return False
             self.resources = [FwResource(type=ResourceTypes.SPACE.id, id=str(bk_biz_id))]
             return super().has_object_permission(request, view, obj)
         return self.has_permission(request, view)
@@ -260,6 +265,45 @@ class InstanceActionForDataPermission(InstanceActionPermission):
 # ============================================================================
 
 
+def _is_read_action(action) -> bool:
+    """兼容旧 ActionMeta 与框架 ActionDef 的读取动作判定。"""
+    if hasattr(action, "is_read_action"):
+        return action.is_read_action()
+
+    extensions = getattr(action, "extensions", {})
+    v3_extensions = extensions.get("v3", {}) if hasattr(extensions, "get") else {}
+    return v3_extensions.get("type") == "view"
+
+
+def _resolve_sort_action(actions: list, sort_action=None):
+    """解析用于「有权限前置」排序的动作。"""
+    if sort_action is not None:
+        return sort_action
+    for action in actions:
+        if _is_read_action(action):
+            return action
+    return actions[-1] if actions else None
+
+
+def sort_result_list_allowed_first(
+    result_list: list[dict],
+    actions: list,
+    sort_action=None,
+) -> None:
+    """将有权限的记录稳定排到列表前面，保持同组内原有相对顺序。
+
+    :param result_list: 已写入 permission 字段的结果列表，原地排序
+    :param actions: 本次批量鉴权的动作列表
+    :param sort_action: 用于判断「有权限」的动作；未指定时优先使用查看类动作
+    """
+    action = _resolve_sort_action(actions, sort_action)
+    if action is None:
+        return
+
+    action_id = to_action_id(action)
+    result_list.sort(key=lambda item: not bool((item.get("permission") or {}).get(action_id, False)))
+
+
 def insert_permission_field(
     actions: list,
     resource_meta,
@@ -269,6 +313,8 @@ def insert_permission_field(
     many: bool = True,
     instance_create_func: Callable | None = None,
     batch_create: bool = False,
+    sort_allowed_first: bool = False,
+    sort_action=None,
 ):
     """数据返回后，注入权限字段（内部委托 IAMFramework）。
 
@@ -276,6 +322,10 @@ def insert_permission_field(
 
     兼容说明：instance_create_func / batch_create 参数仅为兼容旧调用方签名保留，
     当前实现不再使用（实例统一构造为 FwResource）。
+
+    Args:
+        sort_allowed_first: 是否将有权限记录稳定排到列表前面。
+        sort_action: 排序依据的动作；未指定时优先使用查看类动作。
     """
     action_ids = _to_action_ids(actions)
     resource_type = resource_meta.id if hasattr(resource_meta, "id") else resource_meta
@@ -344,6 +394,9 @@ def insert_permission_field(
                 if always_allowed(result_list[idx]):
                     for k in permission_dict:
                         permission_dict[k] = True
+
+            if sort_allowed_first and many:
+                sort_result_list_allowed_first(result_list, actions, sort_action)
 
             return response
 

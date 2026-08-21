@@ -45,7 +45,9 @@
 
 .issue-name-cell-editing {
   display: flex;
+  flex: 1;
   align-items: center;
+  min-width: 0;
   height: 24px;
 
   .issue-name-cell-input {

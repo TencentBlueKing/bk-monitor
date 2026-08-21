@@ -16,6 +16,12 @@
       href="./src/images/new-logo.svg"
     />
     <title>日志平台 | 蓝鲸智云</title>
+    <!--
+      静态壳层：仅负责文档元信息、#app 挂载点与 JS 就绪前的 bootstrap-loading。
+      退出由 src/main.js 的 fadeOutBootstrapLoading（App.mounted）触发。
+      阶段文案对应：静态资源 → runtime/preload → 检索页准备；壳层早于 i18n，故保持英文。
+      分层关系见 .docs/架构图.md 与 diagrams/B|K|I。
+    -->
   </head>
   <body>
     <style>

@@ -53,6 +53,7 @@ export default defineComponent({
           <span class='biz-permission-tips__text'>{t('当前选择的业务部分无权限，相关数据可能展示不全。')}</span>
           <Button
             class='biz-permission-tips__apply'
+            v-authority={{ active: true }}
             theme='primary'
             text
             onClick={() => emit('apply')}

@@ -65,6 +65,7 @@ from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
 from metadata.models.data_link.data_link_configs import DataIdConfig
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
+    find_registered_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
 )
@@ -76,6 +77,12 @@ from metadata.service.data_source import (
     stop_or_enable_datasource,
 )
 from metadata.service.storage_details import ResultTableAndDataSource
+from metadata.service.result_table_storage_status import (
+    DEFAULT_BATCH_TOTAL_TIMEOUT,
+    MAX_BATCH_TOTAL_TIMEOUT,
+    MIN_BATCH_TOTAL_TIMEOUT,
+    ResultTableStorageStatusBatchService,
+)
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.bkbase import sync_bkbase_result_table_meta
@@ -926,6 +933,41 @@ class GetResultTableStorageResult(Resource):
 
         # 返回
         return result
+
+
+class GetResultTableStorageStatus(Resource):
+    """批量查询结果表关联 ES/Doris 存储的配置、历史分段和运行时状态。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(
+            required=True,
+            min_length=1,
+            max_length=50,
+            child=serializers.CharField(label="结果表ID"),
+            label="结果表ID列表",
+        )
+        timeout = serializers.IntegerField(required=False, default=15, min_value=1, max_value=30, label="超时时间")
+        total_timeout = serializers.IntegerField(
+            required=False,
+            default=DEFAULT_BATCH_TOTAL_TIMEOUT,
+            min_value=MIN_BATCH_TOTAL_TIMEOUT,
+            max_value=MAX_BATCH_TOTAL_TIMEOUT,
+            label="批量查询总超时时间",
+        )
+
+        def validate_table_ids(self, value):
+            if len(value) != len(set(value)):
+                raise serializers.ValidationError("结果表ID不能重复")
+            return value
+
+    def perform_request(self, validated_request_data):
+        return ResultTableStorageStatusBatchService(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            table_ids=validated_request_data["table_ids"],
+            timeout=validated_request_data["timeout"],
+            total_timeout=validated_request_data["total_timeout"],
+        ).query()
 
 
 class QueryEventGroupResource(Resource):
@@ -2861,9 +2903,9 @@ class KafkaTailResource(Resource):
                 result = self._consume_with_gse_config_by_bk_data_id(bk_data_id, size)
                 result.reverse()
                 return result
-            dsrt = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first()
+            dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).first()
             if dsrt:
-                result_table = models.ResultTable.objects.get(table_id=dsrt.table_id)
+                result_table = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=dsrt.table_id)
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
@@ -2886,7 +2928,26 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+            if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+                namespace = validated_request_data["namespace"]
+                data_id_name = find_registered_bkdata_data_id_name(datasource, namespace=namespace)
+                if not data_id_name:
+                    logger.warning(
+                        "KafkaTailResource: custom format DataIdConfig not found, "
+                        "bk_tenant_id->[%s], namespace->[%s], bk_data_id->[%s]",
+                        bk_tenant_id,
+                        namespace,
+                        datasource.bk_data_id,
+                    )
+                    return []
+                res = api.bkdata.tail_kafka_data(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    name=data_id_name,
+                    limit=size,
+                )
+                result = [json.loads(data) for data in res]
+            elif result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 data_id_config_name = compose_bkdata_data_id_name(datasource.data_name)
                 try:
                     data_id_config = DataIdConfig.objects.get(
@@ -3022,6 +3083,7 @@ class KafkaTailResource(Resource):
         logger.info(
             "KafkaTailResource: using kafka-python to tail,bk_data_id->[%s],topic->[%s]", datasource.bk_data_id, topic
         )
+        timeout_ms = settings.KAFKA_TAIL_API_TIMEOUT_SECONDS
 
         if mq_ins.is_ssl_verify:  # SSL验证是否强验证
             server = mq_ins.extranet_domain_name if mq_ins.extranet_domain_name else mq_ins.domain_name
@@ -3059,8 +3121,8 @@ class KafkaTailResource(Resource):
                 sasl_mechanism=sasl_mechanism,
                 sasl_plain_username=mq_ins.username,
                 sasl_plain_password=mq_ins.password,
-                request_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
-                consumer_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                request_timeout_ms=timeout_ms,
+                consumer_timeout_ms=timeout_ms,
                 ssl_cafile=ssl_cafile,
                 ssl_certfile=ssl_certfile,
                 ssl_keyfile=ssl_keyfile,
@@ -3069,8 +3131,8 @@ class KafkaTailResource(Resource):
         else:
             param = {
                 "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-                "request_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
-                "consumer_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                "request_timeout_ms": timeout_ms,
+                "consumer_timeout_ms": timeout_ms,
             }
             if datasource.mq_cluster.username:
                 param["sasl_plain_username"] = datasource.mq_cluster.username
@@ -3079,42 +3141,50 @@ class KafkaTailResource(Resource):
                 param["sasl_mechanism"] = "PLAIN"
             consumer = KafkaConsumer(topic, **param)
 
-        max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
-        retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
-        for attempt in range(max_retries):  # 边缘存查集群存在首次连接拉取时异常问题，添加重试机制
-            consumer.poll(size)
-            topic_partitions = consumer.partitions_for_topic(topic)
-            if topic_partitions:
-                break
-            logger.warning(
-                "KafkaTailResource: Failed to get partitions for topic->[%s],attempt->[%s],retrying.", topic, attempt
-            )
-            time.sleep(retry_delay)
-        else:
-            raise ValueError("failed to get partitions")
-        result = []
-        for partition in topic_partitions:
-            # 获取该分区最大偏移量
-            tp = TopicPartition(topic=datasource.mq_config.topic, partition=partition)
-            low_offset = consumer.beginning_offsets([tp])[tp]
-            high_offset = consumer.end_offsets([tp])[tp]
-            if size <= 0 or high_offset <= low_offset:
-                continue
-            start_offset = max(low_offset, high_offset - size)
-
-            # 设置消息消费偏移量
-            consumer.seek(tp, start_offset)
-            for msg in consumer:
-                try:
-                    result.append(json.loads(msg.value.decode()))
-                except Exception:  # pylint: disable=broad-except
-                    pass
-                if len(result) >= size:
-                    return result
-                if msg.offset >= high_offset - 1:
+        try:
+            max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
+            retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
+            for attempt in range(1, max_retries + 1):  # 等待 topic 元数据就绪，并兼容首次连接失败
+                consumer.poll(timeout_ms=timeout_ms)
+                topic_partitions = consumer.partitions_for_topic(topic)
+                if topic_partitions:
                     break
+                logger.warning(
+                    "KafkaTailResource: Failed to get partitions for topic->[%s],attempt->[%s/%s].",
+                    topic,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+            else:
+                raise ValueError("failed to get partitions")
 
-        return result
+            result = []
+            for partition in topic_partitions:
+                # 获取该分区最大偏移量
+                tp = TopicPartition(topic=topic, partition=partition)
+                low_offset = consumer.beginning_offsets([tp])[tp]
+                high_offset = consumer.end_offsets([tp])[tp]
+                if size <= 0 or high_offset <= low_offset:
+                    continue
+                start_offset = max(low_offset, high_offset - size)
+
+                # 设置消息消费偏移量
+                consumer.seek(tp, start_offset)
+                for msg in consumer:
+                    try:
+                        result.append(json.loads(msg.value.decode()))
+                    except Exception:  # pylint: disable=broad-except
+                        pass
+                    if len(result) >= size:
+                        return result
+                    if msg.offset >= high_offset - 1:
+                        break
+
+            return result
+        finally:
+            consumer.close()
 
     def _consume_with_gse_config(self, datasource, size):
         """
@@ -3226,43 +3296,60 @@ class KafkaTailResource(Resource):
                 raise KafkaException(errors)
             return result
 
+        timeout_ms = settings.KAFKA_TAIL_API_TIMEOUT_SECONDS
         consumer_config = {
             "bootstrap_servers": kafka_servers,
-            "request_timeout_ms": 1000,
-            "consumer_timeout_ms": 1000,
+            "request_timeout_ms": timeout_ms,
+            "consumer_timeout_ms": timeout_ms,
         }
 
         consumer = KafkaConsumer(topic, **consumer_config)
-        consumer.poll(size)
-        topic_partitions = consumer.partitions_for_topic(topic)
-        if not topic_partitions:
-            consumer.close()
-            raise ValueError(_("partition获取失败"))
-        result = []
-        for partition in topic_partitions:
-            # 获取该分区最大偏移量
-            tp = TopicPartition(topic=topic, partition=partition)
-            low_offset = consumer.beginning_offsets([tp])[tp]
-            high_offset = consumer.end_offsets([tp])[tp]
-            if size <= 0 or high_offset <= low_offset:
-                continue
-            start_offset = max(low_offset, high_offset - size)
-
-            # 设置消息消费偏移量
-            consumer.seek(tp, start_offset)
-            for msg in consumer:
-                try:
-                    result.append(json.loads(msg.value.decode()))
-                except Exception:  # pylint: disable=broad-except
-                    pass
-                if len(result) >= size:
-                    consumer.close()
-                    return result
-                if msg.offset >= high_offset - 1:
+        try:
+            max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
+            retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
+            for attempt in range(1, max_retries + 1):
+                consumer.poll(timeout_ms=timeout_ms)
+                topic_partitions = consumer.partitions_for_topic(topic)
+                if topic_partitions:
                     break
+                logger.warning(
+                    "KafkaTailResource: Failed to get partitions from GSE config,bk_data_id->[%s],"
+                    "topic->[%s],attempt->[%s/%s].",
+                    bk_data_id,
+                    topic,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+            else:
+                raise ValueError(_("partition获取失败"))
 
-        consumer.close()
-        return result
+            result = []
+            for partition in topic_partitions:
+                # 获取该分区最大偏移量
+                tp = TopicPartition(topic=topic, partition=partition)
+                low_offset = consumer.beginning_offsets([tp])[tp]
+                high_offset = consumer.end_offsets([tp])[tp]
+                if size <= 0 or high_offset <= low_offset:
+                    continue
+                start_offset = max(low_offset, high_offset - size)
+
+                # 设置消息消费偏移量
+                consumer.seek(tp, start_offset)
+                for msg in consumer:
+                    try:
+                        result.append(json.loads(msg.value.decode()))
+                    except Exception:  # pylint: disable=broad-except
+                        pass
+                    if len(result) >= size:
+                        return result
+                    if msg.offset >= high_offset - 1:
+                        break
+
+            return result
+        finally:
+            consumer.close()
 
 
 class GetBCSClusterRelatedDataLinkResource(Resource):

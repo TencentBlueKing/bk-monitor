@@ -8,7 +8,42 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
+from monitor_web.strategies.metric_list_cache import BaseMetricCacheManager, BkmonitorMetricCacheManager
+from monitor_web.strategies.metric_cache.built_in_metrics import PROCESS_METRICS, SYSTEM_HOST_METRICS
+
+
+def test_process_cpu_time_metrics_use_millisecond_unit():
+    cpu_time_fields = {"cpu_system", "cpu_total_ticks", "cpu_user"}
+    system_proc_metrics = next(
+        table["metrics"] for table in SYSTEM_HOST_METRICS if table["result_table_id"] == "system.proc"
+    )
+
+    assert {
+        metric["metric_field"]: metric["unit"]
+        for metric in system_proc_metrics
+        if metric["metric_field"] in cpu_time_fields
+    } == {field: "ms" for field in cpu_time_fields}
+    assert {
+        metric["metric_field"]: metric["unit"]
+        for metric in PROCESS_METRICS
+        if metric["metric_field"] in cpu_time_fields
+    } == {field: "ms" for field in cpu_time_fields}
+
+
+def test_truncate_metric_fields_by_model_field_length():
+    metric = {
+        "result_table_id": "a" * 257,
+        "result_table_name": "索引表" * 100,
+        "readable_name": "a" * 256,
+        "metric_field": "count",
+    }
+
+    BaseMetricCacheManager.truncate_metric_fields(metric)
+
+    assert metric["result_table_id"] == "a" * 256
+    assert metric["result_table_name"] == ("索引表" * 100)[:256]
+    assert metric["readable_name"] == "a" * 255
+    assert metric["metric_field"] == "count"
 
 
 class TestBkmonitorMetricCacheManager:

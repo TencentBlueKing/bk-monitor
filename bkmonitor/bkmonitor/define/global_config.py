@@ -682,6 +682,10 @@ STANDARD_CONFIGS = OrderedDict(
             slz.DictField(label=_("APM logs维度补充功能应用白名单"), default={}),
         ),
         (
+            "APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST",
+            slz.ListField(label=_("APM 跨应用 Trace 检索数据源域白名单"), default=[]),
+        ),
+        (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
         ),

@@ -120,24 +120,6 @@ class SpaceTableIDRedis:
             RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [space_redis_key])
         logger.info("push space table_id data successfully, space_type: %s, space_id: %s", space_type, space_id)
 
-    def push_multi_space_table_ids(self, spaces: list[models.Space], is_publish: bool | None = False) -> None:
-        """
-        批量推送空间数据
-        """
-        # 推送数据
-        for space in spaces:
-            self.push_space_table_ids(space.space_type_id, space.space_id, is_publish=False)
-
-        # 通知使用方
-        if is_publish:
-            push_redis_keys = []
-            for space in spaces:
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
-                else:
-                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
-            RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
-
     def push_data_label_table_ids(
         self,
         data_label_list: list | None = None,
@@ -668,6 +650,10 @@ class SpaceTableIDRedis:
             table_id__in=selected_table_ids,
         ).values("table_id", "name", "value", "value_type")
         for option in options:
+            # 只保留查询选项
+            if option["name"] not in models.ResultTableOption.QUERY_OPTION_NAME_LIST:
+                continue
+
             try:
                 value = (
                     option["value"]
@@ -711,6 +697,10 @@ class SpaceTableIDRedis:
         cluster_ids = {record["cluster_id"] for record in storage_records}
         cluster_ids.update(row["storage_cluster_id"] for row in es_rows)
         cluster_ids.update(row["storage_cluster_id"] for row in doris_rows)
+        # 虚拟表当前 Storage 指向的 cluster 缺失时，顶层路由会回退到实体表的
+        # 同类型 Storage；因此实体表 Storage 的 cluster 也必须在本次批量查询中加载。
+        cluster_ids.update(row["storage_cluster_id"] for row in origin_es_map.values())
+        cluster_ids.update(row["storage_cluster_id"] for row in origin_doris_map.values())
         cluster_map = {
             row["cluster_id"]: row
             for row in models.ClusterInfo.objects.filter(
@@ -801,6 +791,11 @@ class SpaceTableIDRedis:
                 storage = target_es or origin_es
                 storage_id = storage.get("storage_cluster_id", 0)
                 cluster = cluster_map.get(storage_id)
+                # 仅在虚拟表 cluster 不存在时回退实体表；若 cluster 存在但类型错误，
+                # 保持严格校验失败，避免掩盖虚拟表指向错误类型集群的配置问题。
+                if not cluster:
+                    storage_id = origin_es.get("storage_cluster_id", 0)
+                    cluster = cluster_map.get(storage_id)
                 if (
                     not cluster
                     or cluster["cluster_type"] != models.ClusterInfo.TYPE_ES
@@ -832,6 +827,9 @@ class SpaceTableIDRedis:
                 storage = target_doris or origin_doris
                 storage_id = storage.get("storage_cluster_id", 0)
                 cluster = cluster_map.get(storage_id)
+                if not cluster:
+                    storage_id = origin_doris.get("storage_cluster_id", 0)
+                    cluster = cluster_map.get(storage_id)
                 if not cluster or cluster["cluster_type"] != models.ClusterInfo.TYPE_DORIS or not doris_db:
                     logger.error(
                         "compose log detail: Doris config incomplete, tenant->[%s], table_id->[%s], cluster_id->[%s]",
@@ -1025,6 +1023,7 @@ class SpaceTableIDRedis:
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
+        _values.update(self._compose_log_global_table_ids(space))
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -1088,6 +1087,7 @@ class SpaceTableIDRedis:
             )
         )
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
+        _values.update(self._compose_log_global_table_ids(space))
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -1136,7 +1136,80 @@ class SpaceTableIDRedis:
             )
         )
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
+        _values.update(self._compose_log_global_table_ids(space))
         return _values
+
+    def _compose_log_global_table_ids(self, space: models.Space) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        """按 query_router_config 组装 ES/Doris 日志全局表。"""
+
+        options = list(
+            models.ResultTableOption.objects.filter(
+                bk_tenant_id=space.bk_tenant_id,
+                name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
+            ).values("table_id", "value", "value_type")
+        )
+        if not options:
+            return {}
+
+        result_tables = {
+            result_table.table_id: result_table
+            for result_table in models.ResultTable.objects.filter(
+                bk_tenant_id=space.bk_tenant_id,
+                table_id__in={option["table_id"] for option in options},
+                default_storage__in=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+                is_deleted=False,
+                is_enable=True,
+            )
+        }
+        if not result_tables:
+            return {}
+
+        current_bk_biz_id = space.get_bk_biz_id()
+        supported_space_types = self.SUPPORT_SPACE_TYPES | {SpaceTypes.ALL.value}
+        values: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for option in options:
+            table_id = option["table_id"]
+            result_table = result_tables.get(table_id)
+            # 归属业务通过原有 ES/Doris 路由查询全量数据，不追加特殊过滤条件。
+            if not result_table or result_table.bk_biz_id == current_bk_biz_id:
+                continue
+
+            try:
+                if option["value_type"] != models.ResultTableOption.TYPE_DICT:
+                    raise ValueError(f"value_type {option['value_type']} is not dict")
+                config = json.loads(option["value"])
+                if not isinstance(config, dict):
+                    raise ValueError("query_router_config is not a dict")
+
+                config = models.VMShortLinkRecord.normalize_query_router_config(
+                    config,
+                    default_space_type=SpaceTypes.ALL.value,
+                )
+                router_space_type = config[models.VMShortLinkRecord.QUERY_ROUTER_SPACE_TYPE]
+                if router_space_type not in supported_space_types:
+                    raise ValueError(f"query_router_config.space_type {router_space_type} is not supported")
+            except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as err:
+                logger.warning(
+                    "_compose_log_global_table_ids: invalid query_router_config, "
+                    "table_id->[%s], bk_tenant_id->[%s], error->[%s]",
+                    table_id,
+                    space.bk_tenant_id,
+                    err,
+                )
+                continue
+
+            if router_space_type not in [SpaceTypes.ALL.value, space.space_type_id]:
+                continue
+
+            filter_value_type = config[models.VMShortLinkRecord.QUERY_ROUTER_FILTER_VALUE]
+            filter_value = (
+                space.space_id
+                if filter_value_type == models.VMShortLinkRecord.FILTER_VALUE_SPACE_ID
+                else current_bk_biz_id
+            )
+            values[table_id] = {"filters": [{config[models.VMShortLinkRecord.QUERY_ROUTER_FILTER_KEY]: filter_value}]}
+
+        return values
 
     def _compose_vm_short_link_table_ids(
         self, space_type: str, space_id: str, bk_tenant_id: str = DEFAULT_TENANT_ID
@@ -1561,15 +1634,24 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias", "default_storage"],
+            value_field_list=[
+                "bk_biz_id",
+                "table_id",
+                "schema_type",
+                "data_label",
+                "bk_biz_id_alias",
+                "default_storage",
+                "is_deleted",
+            ],
             other_filter={"bk_tenant_id": bk_tenant_id},
         )  # 新增bk_biz_id_alias,部分业务存在自定义过滤规则别名需求，如bk_biz_id -> appid
 
-        # ES / Doris 路由由后续独立流程处理，这里仅按 default_storage 排除，不再根据 RT 启用或删除状态过滤。
+        # 除了vm表外，保留es/doris全局表
         _table_list = [
             data
             for data in _table_list
             if data["default_storage"] not in [models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS]
+            or (data["bk_biz_id"] == 0 and not data["is_deleted"])
         ]
         table_ids = {data["table_id"] for data in _table_list}
         table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}

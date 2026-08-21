@@ -90,6 +90,7 @@
   import { retrieveRowCacheService } from '@/storage';
   import { copyMessage } from '@/common/util';
   import { collectPageHighlightRanges, escapeHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
+  import { parseMarkedJson } from '@/views/retrieve-core/marked-json';
 
   const MAX_SEARCH_MATCHES = 2000;
   const FIELD_CHUNK_SIZE = 16 * 1024;
@@ -105,7 +106,8 @@
     if (Array.isArray(value)) return value.map(item => stripMarkFromCopyValue(item));
     if (value && Object.prototype.toString.call(value) === '[object Object]') {
       return Object.keys(value).reduce((output, key) => {
-        output[key] = stripMarkFromCopyValue(value[key]);
+        // KEY 命中时键名同样带 mark，复制内容必须还原为纯文本
+        output[stripMarkTags(key)] = stripMarkFromCopyValue(value[key]);
         return output;
       }, {});
     }
@@ -134,20 +136,11 @@
     return { plainText, markRanges };
   };
 
+  // 与表格列同源：跨结构的检索高亮收敛进 KEY/VALUE 内部后再解析，侧栏同样不丢高亮
   const tryParseJsonString = (value) => {
     if (typeof value !== 'string') return value;
-    const text = value.trim();
-    if (!/^(\{|\[)/.test(text)) return value;
-
-    try {
-      return JSON.parse(text);
-    } catch {
-      try {
-        return JSON.parse(stripMarkTags(text));
-      } catch {
-        return value;
-      }
-    }
+    const parsed = parseMarkedJson(value.trim());
+    return parsed.isJson ? parsed.value : value;
   };
 
   const normalizeJsonValue = (value, depth = 0) => {
@@ -200,7 +193,9 @@
       return { plainText, markRanges, wrapQuotes: true };
     }
 
-    return { plainText: stringifyContentValue(value, false), markRanges: [], wrapQuotes: false };
+    // 对象 / 数组序列化后内部仍可能带 mark（含 KEY 命中），同样转成高亮区间而不是原样输出标签
+    const { plainText, markRanges } = parseMarkedText(stringifyContentValue(value, false));
+    return { plainText, markRanges, wrapQuotes: false };
   };
 
   const escapeRegExp = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

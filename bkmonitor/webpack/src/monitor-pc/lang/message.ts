@@ -70,6 +70,7 @@ export default {
   获取服务分类失败: 'Get service classification  failed',
   获取通知设置失败: 'Get notification settings failed',
   获取更多数据失败: 'Get more data failed',
+  获取监控目标失败: 'Failed to get monitoring targets',
   屏蔽详情获取失败: 'Get muted details failed',
   获取节点拓扑树失败: 'Get node topology tree failed',
   数据对象分类请求失败: 'Data object classification request failed',
@@ -422,6 +423,7 @@ export default {
   '确认删除该查询模板？': 'Delete this query template?',
   '确认删除该告警模板？': 'Delete this alarm template?',
   '确认取消关联吗？': 'Are you sure you want to disassociate?',
+  '确认删除该分组？': 'Are you sure you want to delete this group?',
 
   '你确认要启用？': 'Are you sure you want to enable ?',
   '你确认要停用？': 'Are you sure you want to disable ?',
@@ -486,7 +488,8 @@ export default {
   分派成功: 'Dispatched successfully',
 
   取消反馈成功: 'Feedback canceled successfully',
-  最新一次分析中使用的告警: 'Latest Analysis Alerts',
+  最新排障记录中新增的告警: 'New alerts in the latest troubleshooting record',
+  仅看最新排障记录中新增的告警: 'Only view new alerts in the latest troubleshooting record',
   '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
     'There are no available handling packages under the current business, please go to the {0} page for configuration',
   '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时':

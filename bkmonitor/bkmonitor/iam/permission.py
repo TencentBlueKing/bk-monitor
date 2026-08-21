@@ -58,9 +58,8 @@ from core.errors.share import TokenValidatedError
 
 logger = logging.getLogger(__name__)
 
-# ActionIdMap 使用 ActionEnum 而非 definitions.Actions：
-# 外部调用方（通过 Permission 的 token 机制）传入的是 ActionEnum 成员，
-# 这里的 in 检查需要和外部传入值做 identity 匹配，因此必须用相同的 ActionEnum 成员。
+# ActionIdMap 保留旧 Token 类型到动作的映射，值使用 ActionEnum 以兼容既有配置。
+# 调用方可以传入 ActionEnum、ActionDef 或 action ID 字符串，因此匹配时统一按 action ID 比较。
 ActionIdMap = {
     # 场景视图
     "host": [ActionEnum.VIEW_HOST],
@@ -100,13 +99,13 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
 
     复刻旧版 Permission.is_allowed 的豁免顺序，命中任一即放行（返回 True），
     否则返回 False 进入真实鉴权：
-      1. token 临时分享豁免（ApiAuthToken + ActionIdMap + api_paths；
-         含历史遗留的 generator 恒真行为，与旧版逐字一致，不做修改）
+      1. token 临时分享豁免（ApiAuthToken + ActionIdMap + api_paths）；
+         仅命中明确豁免条件时放行，修复历史 generator 恒真问题
       2. skip_check 豁免（request 级覆盖 settings 级）
 
     Args:
         request: Django request；None 表示后台/无请求上下文（只认 settings 级）
-        action_ref: ActionDef 成员或 action_id 字符串（token 分支的 ActionIdMap 判定需要成员引用）
+        action_ref: ActionDef、ActionEnum 成员或 action_id 字符串
         skip_check: 调用方已解析好的 skip 值（如 Permission 实例的 self.skip_check）；
                     为 None 时按 request 级覆盖 settings 级自动解析。
     """
@@ -122,10 +121,10 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
         except ApiAuthToken.DoesNotExist:
             record = None
 
-        action_id = action_ref.id if hasattr(action_ref, "id") else action_ref
+        action_id = to_action_id(action_ref)
         if (
             action_id == ActionEnum.VIEW_BUSINESS.id
-            or (record and action_ref in ActionIdMap.get(record.type, []))
+            or (record and any(action_id == allowed_action.id for allowed_action in ActionIdMap.get(record.type, [])))
             or any(path in request.path for path in api_paths)
         ):
             return True
@@ -155,8 +154,10 @@ def check_iam_batch_preflight(request, actions) -> dict | None:
 
         result = {}
         for action in actions:
-            action_id = action.id if hasattr(action, "id") else str(action)
-            result[action_id] = action_id == "view_business" or (record and action in ActionIdMap.get(record.type, []))
+            action_id = to_action_id(action)
+            result[action_id] = action_id == "view_business" or (
+                record and any(action_id == allowed_action.id for allowed_action in ActionIdMap.get(record.type, []))
+            )
         return result
 
     if _skip_check_enabled(request):
@@ -426,9 +427,15 @@ class Permission:
     # ================================================================
 
     def filter_space_list_by_action(self, action, using_cache=True) -> list[dict]:
+        """获取有对应 action 权限的空间列表。"""
+        space_list, _ = self.filter_space_list_by_action_with_scope(action, using_cache)
+        return space_list
+
+    def filter_space_list_by_action_with_scope(self, action, using_cache=True) -> tuple[list[dict], bool]:
+        """获取有对应 action 权限的空间列表，并标识是否拥有全量空间权限。"""
         space_list = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
         if self.skip_check:
-            return space_list
+            return space_list, True
 
         action_id_biz = to_action_id(action)
         subject = FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id)
@@ -438,13 +445,13 @@ class Permission:
             result = self._fw.filter_visible_resources(subject, action_id_biz, candidates)
         except ProviderError as e:
             logger.exception("[IAM Policy Query Error]: %s", e)
-            return []
+            return [], False
 
         if result.all_granted:
-            return space_list
+            return space_list, True
 
         visible_ids = set(result.visible_ids)
-        return [s for s in space_list if str(s["bk_biz_id"]) in visible_ids]
+        return [s for s in space_list if str(s["bk_biz_id"]) in visible_ids], False
 
     # ================================================================
     # Resource 构造 — 保留（monitor_web/iam/ 回调使用）

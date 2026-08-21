@@ -20,7 +20,6 @@ from django.db.transaction import atomic
 from alarm_backends.core.lock.service_lock import share_lock
 from api.cmdb.define import Business
 from bkmonitor.utils.new_env import is_biz_id_need_managed
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import config, models
@@ -28,7 +27,6 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
-    SPACE_TO_RESULT_TABLE_CHANNEL,
     SYSTEM_USERNAME,
     BCSClusterTypes,
     SpaceStatus,
@@ -38,7 +36,6 @@ from metadata.models.space.space_data_source import (
     get_biz_data_id,
     get_real_zero_biz_data_id,
 )
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.space.utils import (
     cached_cluster_k8s_data_id,
     create_bcs_spaces,
@@ -54,7 +51,6 @@ from metadata.models.vm.constants import (
     QUERY_VM_SPACE_UID_LIST_KEY,
 )
 from metadata.task.tasks import check_bkcc_space_builtin_datalink
-from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
@@ -334,23 +330,6 @@ def sync_bkcc_space_data_source():
     create_bkcc_space_data_source(biz_data_id_dict)
     create_bkcc_space_data_source(real_biz_data_id_dict)
 
-    biz_id_list = list(biz_data_id_dict.keys())
-    biz_id_list.extend(real_biz_data_id_dict.keys())
-
-    # 组装数据，推送 redis 功能
-    space_id_list = [str(biz_id) for biz_id in biz_id_list if str(biz_id) != "0"]
-    # 按租户分组推送，避免 push_and_publish_space_router 默认仅过滤 system 租户导致多租户漏推
-    tenant_space_id_map: dict[str, list[str]] = {}
-    for space in models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=space_id_list).values(
-        "space_id", "bk_tenant_id"
-    ):
-        tenant_space_id_map.setdefault(space["bk_tenant_id"], []).append(space["space_id"])
-    for bk_tenant_id, tenant_space_id_list in tenant_space_id_map.items():
-        push_and_publish_space_router(
-            space_type=SpaceTypes.BKCC.value,
-            space_id_list=tenant_space_id_list,
-            bk_tenant_id=bk_tenant_id,
-        )
     cost_time = time.time() - start_time
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -361,7 +340,7 @@ def sync_bkcc_space_data_source():
         task_name="sync_bkcc_space_data_source", process_target=None
     ).observe(cost_time)
     metrics.report_all()
-    logger.info("push bkcc type space to redis successfully, space: %s,cost: %s", json.dumps(space_id_list), cost_time)
+    logger.info("sync bkcc space data source successfully, cost: %s", cost_time)
 
 
 @share_lock(identify="metadata__sync_bcs_space")
@@ -689,18 +668,6 @@ def refresh_cluster_resource():
 
         logger.info(f"bulk create {bk_tenant_id} space data_id record")
 
-        if space_id_list:
-            # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
-            push_and_publish_space_router(
-                bk_tenant_id=bk_tenant_id, space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list
-            )
-
-            logger.info(
-                "push updated bcs space resource to redis successfully, tenant: %s, space: %s",
-                bk_tenant_id,
-                json.dumps(space_id_list),
-            )
-
     cost_time = time.time() - start_time
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -745,94 +712,6 @@ def refresh_bkci_space_name():
         )
 
     logger.info("refresh only bkci space successfully")
-
-
-def push_and_publish_space_router(
-    space_type: str | None = None,
-    space_id: str | None = None,
-    space_id_list: list[str] | None = None,
-    is_publish: bool | None = True,
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
-):
-    """推送数据和通知"""
-    from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
-    from metadata.models.space.ds_rt import get_space_table_id_data_id
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-    # 过滤数据
-    spaces = models.Space.objects.values("space_type_id", "space_id", "bk_tenant_id")
-    if space_type:
-        spaces = spaces.filter(space_type_id=space_type)
-    if space_id:
-        spaces = spaces.filter(space_id=space_id)
-    if bk_tenant_id:
-        logger.info("push and publish space router with bk_tenant_id->[%s]", bk_tenant_id)
-        spaces = spaces.filter(bk_tenant_id=bk_tenant_id)
-    # 这里不应该会有太多空间 ID 的输入
-    if space_id_list:
-        spaces = spaces.filter(space_id__in=space_id_list)
-
-    # 拼装数据
-    space_list = [
-        {"space_type": space["space_type_id"], "space_id": space["space_id"], "bk_tenant_id": space["bk_tenant_id"]}
-        for space in spaces
-    ]
-
-    # 批量处理 -- SPACE_TO_RESULT_TABLE 路由
-    bulk_handle(
-        lambda batch_spaces: SpaceTableIDRedis().push_multi_space_table_ids(batch_spaces, is_publish=False),
-        list(spaces),
-    )
-
-    # 通知到使用方
-    if is_publish:
-        space_uid_list = []
-        for space in spaces:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}|{space['bk_tenant_id']}")
-            else:
-                space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}")
-        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
-
-    # 仅存在空间 id 时，可以直接按照结果表进行处理
-    # 非多租户环境: 所有table_id的路由一并推送
-    # 多租户环境: 按空间逐个推送路由,因为table_id不再唯一
-
-    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户模式，则以空间粒度推送路由
-        for space in space_list:
-            tid_ds = get_space_table_id_data_id(
-                space["space_type"], space["space_id"], bk_tenant_id=space["bk_tenant_id"]
-            )
-            space_tid_list = list(tid_ds.keys())
-            space_client = SpaceTableIDRedis()
-            space_client.push_table_id_detail(
-                bk_tenant_id=space["bk_tenant_id"],
-                table_id_list=space_tid_list,
-                is_publish=is_publish,
-            )
-            space_client.push_data_label_table_ids(
-                table_id_list=space_tid_list,
-                is_publish=is_publish,
-                bk_tenant_id=space["bk_tenant_id"],
-            )
-    else:
-        table_id_list = []
-        if space_id:
-            for space in space_list:
-                tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
-                table_id_list.extend(tid_ds.keys())
-
-        space_client = SpaceTableIDRedis()
-        space_client.push_data_label_table_ids(
-            bk_tenant_id=DEFAULT_TENANT_ID,
-            table_id_list=table_id_list,
-            is_publish=is_publish,
-        )
-        space_client.push_table_id_detail(
-            bk_tenant_id=DEFAULT_TENANT_ID,
-            table_id_list=table_id_list,
-            is_publish=is_publish,
-        )
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
@@ -1046,19 +925,5 @@ def refresh_bksaas_space_resouce():
     create_and_update_paas_space_resource(space_cluster_namespaces)
     # 重新授权
     authorize_paas_space_cluster_data_source(space_cluster)
-
-    # 批量进行推送数据
-    # NOTE: 此时集群或者公共插件相关的信息已经存在了，不需要再进行指标或 data_label 的映射
-    space_client = SpaceTableIDRedis()
-    bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list), spaces)
-
-    # 通知到使用方
-    push_redis_keys = []
-    for space in spaces:
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
-        else:
-            push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
-    RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     logger.info("refresh bksaas space resource successfully")

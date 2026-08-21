@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mermaid · F-Vuex-Store状态流转图 - Knowledge Web</title><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#101828;color:#fff;padding:25px 34px}header h1{margin:0 0 6px}header p{margin:0;color:#b8c4d6}.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 104px)}aside{background:#fff;border-right:1px solid #e5eaf1;padding:20px 14px}aside a{display:block;color:#475467;text-decoration:none;padding:10px 12px;border-radius:7px}aside a:hover{background:#eef4ff;color:#175cd3}main{padding:28px 36px;max-width:1500px}.crumb,.muted{color:#667085;font-size:13px}section{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:20px;margin-top:20px}.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px}.card{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:18px}.card strong{display:block;font-size:28px;color:#175cd3}.card span{color:#667085;font-size:13px}table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f5;vertical-align:top}th{color:#667085;background:#f8fafc}code{font-family:ui-monospace,SFMono-Regular,monospace;color:#344054}.sources li{margin:0 0 14px}.button{display:inline-block;background:#175cd3;color:#fff;padding:9px 13px;border-radius:7px;text-decoration:none}.diagram{white-space:pre;overflow:auto;background:#101828;color:#d1e9ff;border-radius:10px;padding:18px;line-height:1.5}@media(max-width:850px){.layout{display:block}aside{border-right:0;border-bottom:1px solid #e5eaf1}.cards{grid-template-columns:repeat(2,1fr)}main{padding:20px}}</style></head><body><header><h1>Knowledge Web</h1><p>blueking-log · Mermaid · F-Vuex-Store状态流转图</p></header><div class="layout"><aside><a href="index.html">总览</a><a href="modules.html">模块关系</a><a href="routes.html">路由与页面</a><a href="components.html">组件关系</a><a href="sources.html">架构来源</a><a href="impact.html">影响与测试</a></aside><main><div class="crumb">Knowledge Web / Mermaid · F-Vuex-Store状态流转图</div><h2>F-Vuex-Store状态流转图</h2><p><code>.docs/diagrams/F-Vuex-Store状态流转图.mmd</code></p><p><a class="button" target="_blank" href="https://mermaid.live/edit#eyJjb2RlIjoiJSV7aW5pdDogeyd0aGVtZSc6ICdiYXNlJywgJ3RoZW1lVmFyaWFibGVzJzogeydwcmltYXJ5Q29sb3InOiAnI2YzZTVmNScsICdwcmltYXJ5VGV4dENvbG9yJzogJyM3YjFmYTInLCAncHJpbWFyeUJvcmRlckNvbG9yJzogJyM5YzI3YjAnLCAnbGluZUNvbG9yJzogJyNiYTY4YzgnfX19JSVcbmZsb3djaGFydCBMUlxuICBVSVtyZXRyaWV2ZS12MyAvIOe7k-aenOe7hOS7tl1cbiAgQUNUSU9OW3JldHJpZXZlLXNlYXJjaC1hY3Rpb25zXVxuICBGSUVMRFvlrZfmrrXnvJPlrZjmnI3liqFdXG4gIFdPUktFUltyZXRyaWV2ZS1zZWFyY2gtd29ya2VyLnNlcnZpY2VdXG4gIFdXW1dlYldvcmtlcjxici8-ZmV0Y2ggKyBOREpTT04vSlNPTl1cbiAgUkVQT1tyZXRyaWV2ZS1yb3cucmVwb3NpdG9yeV1cbiAgSURCWyhJbmRleGVkREI8YnIvPnJldHJpZXZlUm93cyldXG4gIENBQ0hFW3JldHJpZXZlLXJvdy1jYWNoZS5zZXJ2aWNlXVxuICBTVEFURVsoVnVleCldXG4gIEFQSVsvc2VhcmNoLyogQVBJXVxuXG4gIFVJIC0tPnxkaXNwYXRjaCDlrZfmrrUv5p-l6K-ifCBBQ1RJT05cbiAgQUNUSU9OIC0tPnxjb21taXQg5Y-C5pWw44CB5a2X5q6144CBbG9hZGluZ3wgU1RBVEVcbiAgQUNUSU9OIC0tPiBGSUVMRFxuICBGSUVMRCAtLT585a2X5q615YWD5pWw5o2ufCBTVEFURVxuICBGSUVMRCAtLT4gSURCXG4gIEFDVElPTiAtLT58c2VhcmNoU3RyZWFtfCBXT1JLRVJcbiAgV09SS0VSIC0tPnxwb3N0TWVzc2FnZSBib2R5L3F1ZXJ5S2V5L3N0YXJ0U2VxfCBXV1xuICBXVyAtLT4gQVBJXG4gIEFQSSAtLT58bWV0YS9yb3cvZG9uZXwgV1dcbiAgV1cgLS0-fOaJuemHj-WGmeWFpXwgUkVQT1xuICBSRVBPIC0tPiBJREJcbiAgV1cgLS0-fHByb2dyZXNzIG1ldGEvcm93S2V5cy9yZXN1bHR8IFdPUktFUlxuICBXT1JLRVIgLS0-fOWFg-aVsOaNruOAgXJvd19rZXlz44CBdG90YWzjgIHplJnor698IEFDVElPTlxuICBBQ1RJT04gLS0-fGNvbW1pdCDnu5PmnpzlhYPmlbDmja7kuI4gcm93X2tleXN8IFNUQVRFXG4gIFNUQVRFIC0tPiBVSVxuICBVSSAtLT585oyJIHJvd19rZXlzIOivu-WPlnwgQ0FDSEVcbiAgQ0FDSEUgLS0-IElEQlxuICBDQUNIRSAtLT585riy5p-T6KGMIC8gb3ZlcmxheSAvIOWOn-Wni-ihjHwgVUlcbiJ9">在线打开 Mermaid Live Editor</a></p><pre class="diagram">%%{init: {&#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: {&#39;primaryColor&#39;: &#39;#f3e5f5&#39;, &#39;primaryTextColor&#39;: &#39;#7b1fa2&#39;, &#39;primaryBorderColor&#39;: &#39;#9c27b0&#39;, &#39;lineColor&#39;: &#39;#ba68c8&#39;}}}%%
+flowchart LR
+  UI[retrieve-v3 / 结果组件]
+  ACTION[retrieve-search-actions]
+  FIELD[字段缓存服务]
+  WORKER[retrieve-search-worker.service]
+  WW[WebWorker&lt;br/&gt;fetch + NDJSON/JSON]
+  REPO[retrieve-row.repository]
+  IDB[(IndexedDB&lt;br/&gt;retrieveRows)]
+  CACHE[retrieve-row-cache.service]
+  STATE[(Vuex)]
+  API[/search/* API]
+
+  UI --&gt;|dispatch 字段/查询| ACTION
+  ACTION --&gt;|commit 参数、字段、loading| STATE
+  ACTION --&gt; FIELD
+  FIELD --&gt;|字段元数据| STATE
+  FIELD --&gt; IDB
+  ACTION --&gt;|searchStream| WORKER
+  WORKER --&gt;|postMessage body/queryKey/startSeq| WW
+  WW --&gt; API
+  API --&gt;|meta/row/done| WW
+  WW --&gt;|批量写入| REPO
+  REPO --&gt; IDB
+  WW --&gt;|progress meta/rowKeys/result| WORKER
+  WORKER --&gt;|元数据、row_keys、total、错误| ACTION
+  ACTION --&gt;|commit 结果元数据与 row_keys| STATE
+  STATE --&gt; UI
+  UI --&gt;|按 row_keys 读取| CACHE
+  CACHE --&gt; IDB
+  CACHE --&gt;|渲染行 / overlay / 原始行| UI
+</pre></main></div></body></html>

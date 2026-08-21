@@ -8,10 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import operator
 import time
 from collections import defaultdict
-from functools import reduce
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -251,7 +249,7 @@ class ActionQueryHandler(BaseBizQueryHandler):
 
     def add_biz_condition(self, search_object):
         queries = []
-        if self.authorized_bizs is not None and self.bk_biz_ids:
+        if self.authorized_bizs is not None and self.bk_biz_ids and not self.is_tenant_wide_authorized():
             # 进行我有权限的告警过滤
             authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
             if authorized_query is not None:
@@ -265,9 +263,8 @@ class ActionQueryHandler(BaseBizQueryHandler):
             unauthorized_query = self.build_es_terms_query("bk_biz_id", self.unauthorized_bizs)
             if unauthorized_query is not None:
                 queries.append(unauthorized_query & Q("term", operator=self.request_username))
-        if queries:
-            return search_object.filter(reduce(operator.or_, queries))
-        return search_object
+
+        return self.finalize_biz_condition(search_object, queries)
 
     @classmethod
     def handle_hit_list(cls, hits=None):

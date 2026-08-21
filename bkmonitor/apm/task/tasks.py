@@ -31,6 +31,7 @@ from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHan
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
+from apm.core.handlers.trace_index_set import TraceScopeIndexSetHandler
 from apm.core.platform_config import PlatformConfig
 from apm.models import (
     ApmApplication,
@@ -41,7 +42,7 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
-from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from constants.apm import TelemetryDataType
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -292,6 +293,36 @@ def k8s_bk_collector_discover_cron():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
+def sync_trace_scope_index_set(bk_biz_id: int) -> None:
+    """同步单个白名单 Trace 数据源域的 BKLog 索引集。"""
+    if bk_biz_id not in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
+        logger.info("[sync_trace_scope_index_set] skipped non-whitelisted scope: bk_biz_id=%s", bk_biz_id)
+        return
+
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    set_local_tenant_id(bk_tenant_id)
+    with ApmCacheHandler().distributed_lock(
+        "trace_scope_index_set",
+        wait_time=20,
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=bk_biz_id,
+    ):
+        TraceScopeIndexSetHandler.sync(bk_tenant_id, bk_biz_id)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def sync_trace_scope_index_sets() -> None:
+    """扫描白名单并投递单 Trace 数据源域同步任务。"""
+    for bk_biz_id in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
+        sync_trace_scope_index_set.delay(bk_biz_id)
+
+
+def _schedule_trace_scope_index_set_sync(bk_biz_id: int) -> None:
+    if bk_biz_id in settings.APM_CROSS_APP_TRACE_SEARCH_SCOPE_WHITE_LIST:
+        sync_trace_scope_index_set.delay(bk_biz_id)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
 def create_application_async(application_id, storage_config, options, cur_retry_times=0):
     """后台创建应用"""
 
@@ -315,6 +346,8 @@ def create_application_async(application_id, storage_config, options, cur_retry_
                 countdown=next_retry_times * 60,
             )
         return
+
+    _schedule_trace_scope_index_set_sync(application.bk_biz_id)
 
     # 创建成功后立即下发一次配置
     application = ApmApplication.objects.get(id=application_id)  # 这里从 DB 重新获取一次
@@ -379,3 +412,4 @@ def delete_application_async(bk_biz_id, app_name, operator=None):
         get_current_span().record_exception(e)
         EventReportHelper.report(f"删除应用: ({bk_biz_id}){app_name} 失败，操作人: {operator}")
     application.delete()
+    _schedule_trace_scope_index_set_sync(bk_biz_id)

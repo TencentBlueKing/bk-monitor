@@ -137,6 +137,7 @@ DEFAULT_CRONTAB = [
     # 策略增量更新
     ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
+    ("alarm_backends.core.cache.models.custom_ts_group", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
@@ -174,6 +175,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
+    # apm Trace 数据源域索引集兜底同步 每 3 小时触发
+    ("apm.task.tasks.sync_trace_scope_index_sets", "0 */3 * * *", "global"),
     # apm_ebpf 定时检查业务集群是否安装DeepFlow 每15分钟触发
     ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/15 * * * *", "global"),
     # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
@@ -319,12 +322,10 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.bkbase.sync_bkbase_metadata_all", "0 */2 * * *", "global"),
     # BkBase RT 路由同步任务，6h一次
     ("metadata.task.bkbase.sync_bkbase_rt_meta_info_all", "0 */6 * * *", "global"),
-    # BkBase V4 链路组件与关系同步任务，30min
-    # ("metadata.task.bkbase.sync_bkbase_v4_datalink_components", "*/30 * * * *", "global"),
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
-    # 新版链路状态自动兜底刷新,15min 一次
-    ("metadata.task.refresh_data_link.refresh_data_link_status", "0 */4 * * *", "global"),
+    # BkBase V4 链路组件同步与状态自动兜底刷新，30min 一次
+    ("metadata.task.refresh_data_link.refresh_data_link_status", "*/30 * * * *", "global"),
 ]
 
 # 排除特定的定时任务
@@ -596,3 +597,4 @@ AIOPS_INCIDENT_SYNC_QUEUE = os.environ.get("AIOPS_INCIDENT_SYNC_QUEUE", "")
 # AIOPS SDK批量预测并行度
 AIOPS_SDK_PREDICT_CONCURRENCY = int(os.environ.get("AIOPS_SDK_PREDICT_CONCURRENCY", 20))
 AIOPS_SDK_INIT_CONCURRENCY = int(os.environ.get("AIOPS_SDK_INIT_CONCURRENCY", 20))
+AIOPS_SAS_PREDICT_CONCURRENCY = max(1, int(os.environ.get("AIOPS_SAS_PREDICT_CONCURRENCY", 20)))

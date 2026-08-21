@@ -27,6 +27,7 @@ from fta_web.alert.serializers import AlertIDField
 from kernel_api.resource.alert import (
     CreateAlarmShieldResource,
     CreateAlarmStrategyResource,
+    DeleteAlarmAssignGroupResource,
     DisableAlarmShieldResource,
     GetAlarmShieldResource,
     GetAlarmStrategyResource,
@@ -41,7 +42,9 @@ from kernel_api.resource.alert import (
     ListAlertTopNResource,
     ListAlertTracesResource,
     ListStrategySnapshotResource,
+    SaveAlarmAssignGroupResource,
     SearchActionConfigsResource,
+    SearchAlarmAssignGroupsResource,
     SearchAlarmShieldsResource,
     SearchAlarmStrategiesResource,
     SearchNoticeGroupsResource,
@@ -107,6 +110,10 @@ class SearchAlertViewSet(ResourceViewSet):
         ResourceRoute("GET", SearchActionConfigsResource, endpoint="search_action_configs"),
         ResourceRoute("GET", GetMCPActionConfigResource, endpoint="get_action_config"),
         ResourceRoute("POST", UpdateMCPActionConfigResource, endpoint="update_action_config"),
+        # 告警分派组管理 MCP
+        ResourceRoute("POST", SearchAlarmAssignGroupsResource, endpoint="search_assign_groups"),
+        ResourceRoute("POST", SaveAlarmAssignGroupResource, endpoint="save_assign_group"),
+        ResourceRoute("POST", DeleteAlarmAssignGroupResource, endpoint="delete_assign_group"),
     ]
 
 
@@ -164,7 +171,10 @@ class CloseAlertResource(Resource):
                     if lock.is_locked(lock_key):
                         # 加锁成功，执行关闭操作
                         try:
-                            CloseStatusChecker.close(alert, validated_request_data["message"] or "close by api")
+                            close_checker = CloseStatusChecker([alert])
+                            # 请求取数后 builder 可能已创建后继告警；锁内复核，避免旧告警清掉后继 lifecycle。
+                            if not close_checker.check_event_expired(alert):
+                                close_checker.close(alert, validated_request_data["message"] or "close by api")
                             AlertManager.save_alerts([alert])
                             AlertManager.save_alert_logs([alert])
                             AlertManager.update_alert_cache([alert])

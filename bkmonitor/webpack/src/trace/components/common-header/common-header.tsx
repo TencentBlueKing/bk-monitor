@@ -67,6 +67,10 @@ export default defineComponent({
       type: Array as PropType<ISelectMenuOption[]>,
       default: () => [],
     },
+    timeRangeDisabledTip: {
+      type: String,
+      default: '',
+    },
   },
   emits: [
     'timeRangeChange',
@@ -76,7 +80,7 @@ export default defineComponent({
     'menuSelect',
     'gotoOld',
   ],
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
 
     const handleTimeRangeChange = (value: TimeRangeType) => {
@@ -122,6 +126,7 @@ export default defineComponent({
           {this.$slots.accessGuide?.()}
           {!this.hideFeature.includes('timeRange') && (
             <TimeRange
+              disabledTip={this.timeRangeDisabledTip}
               modelValue={this.timeRange}
               timezone={this.timezone}
               onUpdate:modelValue={this.handleTimeRangeChange}

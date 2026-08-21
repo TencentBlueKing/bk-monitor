@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, type PropType, ref, set } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, type PropType, ref, set } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash-es';
@@ -33,6 +33,7 @@ import * as authorityMap from '../../../../common/authority-map';
 import BklogPopover from '../../../../components/bklog-popover';
 import type { IndexSetItem } from './use-choice';
 import useIndexSetList from './use-index-set-list';
+import { buildTagNameMap, resolveTagSearchSync } from './tag-search-sync';
 
 import './index-set-list.scss';
 
@@ -89,6 +90,12 @@ export default defineComponent({
       name: undefined,
       color: undefined,
     });
+    /** 标签是否由搜索完整匹配回填（用于区分手动点击，避免回退时误清） */
+    const tagAppliedBySearch = ref(false);
+    const refTagScrollContainer = ref<HTMLElement | null>(null);
+
+    /** 标签名小写 → 标签，供 O(1) 完整匹配 */
+    const tagNameMap = computed(() => buildTagNameMap(indexSetTagList.value));
 
     const selectedUniqueIdSet = computed(() => new Set((props.value ?? []).map(v => v.unique_id)));
 
@@ -121,7 +128,10 @@ export default defineComponent({
        * 节点是否展示：
        * - 非检索时：已选中节点始终展示；其余按展开状态 / Tag / 隐藏无数据
        * - 检索时：仅按关键字命中，并与 Tag、隐藏无数据条件取交集（精确过滤）
+       * - 搜索完整匹配标签回填时：仅按 Tag 过滤，关键字不参与列表匹配
        */
+      const skipKeywordFilter = isSearching && tagAppliedBySearch.value && isTagFiltering;
+
       const checkNodeShouldShow = (node: IndexSetItem, defaultIsShown = true) => {
         if (!isSearching && isSelected(node)) {
           return true;
@@ -138,7 +148,7 @@ export default defineComponent({
           isShownNode = !hasNoDataTag(node);
         }
 
-        if (isSearching) {
+        if (isSearching && !skipKeywordFilter) {
           isShownNode = isShownNode && matchSearchKeyword(node, keyword);
         }
 
@@ -324,6 +334,7 @@ export default defineComponent({
     };
 
     const handleTagItemClick = (tag: { tag_id: number; name: string; color: string }) => {
+      tagAppliedBySearch.value = false;
       if (tagItem.value.tag_id === tag.tag_id) {
         Object.assign(tagItem.value, { tag_id: undefined, name: undefined, color: '' });
         return;
@@ -652,6 +663,37 @@ export default defineComponent({
       }
     };
 
+    /** 将命中标签滚入横向可视区域（已在视口内则不滚） */
+    const scrollTagIntoView = (tagId: number) => {
+      const container = refTagScrollContainer.value;
+      if (!container) {
+        return;
+      }
+      const tagEl = container.querySelector(`[data-tag-id="${tagId}"]`) as HTMLElement | null;
+      if (!tagEl) {
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const tagRect = tagEl.getBoundingClientRect();
+
+      if (tagRect.left >= containerRect.left && tagRect.right <= containerRect.right) {
+        return;
+      }
+
+      let nextLeft = container.scrollLeft;
+      if (tagRect.left < containerRect.left) {
+        nextLeft += tagRect.left - containerRect.left;
+      } else if (tagRect.right > containerRect.right) {
+        nextLeft += tagRect.right - containerRect.right;
+      }
+
+      container.scrollTo({
+        left: Math.max(0, nextLeft),
+        behavior: 'smooth',
+      });
+    };
+
     const applySearchKeyword = (val: string) => {
       searchKeyword.value = val;
       if (val.length > 0) {
@@ -660,6 +702,19 @@ export default defineComponent({
             delete listNodeOpenManager.value[key];
           }
         }
+      }
+
+      const synced = resolveTagSearchSync({
+        keyword: val,
+        tagNameMap: tagNameMap.value,
+        tagItem: tagItem.value,
+        tagAppliedBySearch: tagAppliedBySearch.value,
+      });
+      // 直接写 tagItem，禁止走点击回调，避免 toggle / 重复过滤
+      Object.assign(tagItem.value, synced.tagItem);
+      tagAppliedBySearch.value = synced.tagAppliedBySearch;
+      if (synced.scrollToTagId != null) {
+        nextTick(() => scrollTagIntoView(synced.scrollToTagId));
       }
     };
 
@@ -715,10 +770,14 @@ export default defineComponent({
             >
               <i class='bk-icon icon-angle-right-line' />
             </div>
-            <div class='tag-scroll-container'>
+            <div
+              ref={refTagScrollContainer}
+              class='tag-scroll-container'
+            >
               {indexSetTagList.value.map(item => (
                 <span
                   key={item.tag_id}
+                  data-tag-id={item.tag_id}
                   class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
                   onClick={() => handleTagItemClick(item)}
                 >

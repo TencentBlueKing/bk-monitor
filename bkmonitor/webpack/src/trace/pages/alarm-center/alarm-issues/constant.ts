@@ -365,6 +365,14 @@ export const TapdTypeMap = [
   // { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
 ];
 
+// ===================== 错误码枚举 =====================
+
+/** Issue 操作业务错误码枚举 */
+export const IssueErrorCodeEnum = {
+  /** 重命名 Issue 失败：该名称已被其他 Issue 占用 */
+  RENAME_NAME_EXISTS: 3327001,
+} as const;
+
 // ===================== 趋势范围 =====================
 
 /** Issues 趋势时间范围枚举 */

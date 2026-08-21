@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import inspect
 import json
 import logging
 from copy import deepcopy
@@ -18,6 +19,7 @@ from django.conf import settings
 from django.db import models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.config import DATABASE_CONNECTION_NAME
@@ -44,6 +46,7 @@ from metadata.models.data_link.constants import (
 )
 from metadata.models.data_link.data_link_configs import (
     BasereportSinkConfig,
+    ChannelBindingConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DorisStorageBindingConfig,
@@ -53,17 +56,242 @@ from metadata.models.data_link.data_link_configs import (
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
+from metadata.models.space.constants import EtlConfigs, SpaceTypes, SYSTEM_BASE_DATA_ETL_CONFIGS
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
 from metadata.models.vm.record import AccessVMRecord
 
 if TYPE_CHECKING:
-    from metadata.models import DataSource
+    from metadata.models import DataSource, ResultTable
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
 
 _MISSING_CONFIG_FIELD = object()
 SURREALDB_RT_SUFFIX = "_graph"
+DATABUS_MONITOR_LABEL_PREFIX = "bk-monitor/"
+DATABUS_MONITOR_LABEL_SPACE_TYPE = f"{DATABUS_MONITOR_LABEL_PREFIX}space-type"
+DATABUS_MONITOR_LABEL_DATA_SCENE = f"{DATABUS_MONITOR_LABEL_PREFIX}data-scene"
+DATABUS_MONITOR_LABEL_DATA_TYPE = f"{DATABUS_MONITOR_LABEL_PREFIX}data-type"
+DATABUS_MONITOR_LABEL_OTHER = "other"
+
+DATABUS_MONITOR_SPACE_TYPES = {
+    SpaceTypes.BKCC.value,
+    SpaceTypes.BKCI.value,
+    SpaceTypes.BKSAAS.value,
+}
+DATABUS_MONITOR_METRIC_STRATEGIES = {
+    "bk_standard_v2_time_series",
+    "bk_exporter_time_series",
+    "bk_standard_time_series",
+    "bcs_federal_proxy_time_series",
+    "bcs_federal_subset_time_series",
+    "basereport_time_series_v1",
+    "system_proc_perf",
+    "system_proc_port",
+}
+DATABUS_MONITOR_GRAPH_STRATEGIES = {"graph_relation_time_series"}
+DATABUS_MONITOR_EVENT_STRATEGIES = {"bk_standard_v2_event", "base_event_v1"}
+DATABUS_MONITOR_LOG_STRATEGIES = {"bk_log"}
+DATABUS_MONITOR_K8S_STRATEGIES = {
+    "bcs_federal_proxy_time_series",
+    "bcs_federal_subset_time_series",
+}
+DATABUS_MONITOR_PLUGIN_STRATEGIES = {"bk_exporter_time_series", "bk_standard_time_series"}
+DATABUS_MONITOR_SYSTEM_STRATEGIES = {
+    "basereport_time_series_v1",
+    "base_event_v1",
+    "system_proc_perf",
+    "system_proc_port",
+}
+DATABUS_MONITOR_UPTIMECHECK_ETL_CONFIGS = {
+    EtlConfigs.BK_UPTIMECHECK_HEARTBEAT.value,
+    EtlConfigs.BK_UPTIMECHECK_HTTP.value,
+    EtlConfigs.BK_UPTIMECHECK_TCP.value,
+    EtlConfigs.BK_UPTIMECHECK_UDP.value,
+}
+DATABUS_MONITOR_PLUGIN_ETL_CONFIGS = {
+    EtlConfigs.BK_EXPORTER.value,
+    EtlConfigs.BK_STANDARD.value,
+}
+DATABUS_MONITOR_CUSTOM_ETL_CONFIGS = {
+    EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+    EtlConfigs.BK_STANDARD_V2_EVENT.value,
+}
+DATABUS_MONITOR_SYSTEM_DATA_LABELS = {
+    "pingserver.base,pingserver",
+    "bkmonitorbeat_gather_up",
+    "system_base",
+}
+DATABUS_MONITOR_BCS_DATA_NAME_FIELD_MAP = {
+    "k8s_metric": "K8sMetricDataID",
+    "custom_metric": "CustomMetricDataID",
+    "k8s_event": "K8sEventDataID",
+    "custom_event": "CustomEventDataID",
+    "system_log": "SystemLogDataID",
+    "custom_log": "CustomLogDataID",
+}
+
+
+def _resolve_databus_monitor_space_type(table: "ResultTable | None", data_source: "DataSource") -> str:
+    """推导 Databus 数据归属的空间类型。"""
+
+    space_uid = getattr(data_source, "space_uid", "") or ""
+    space_type = space_uid.partition("__")[0] if "__" in space_uid else ""
+    if space_type in DATABUS_MONITOR_SPACE_TYPES:
+        return space_type
+
+    bk_biz_id = getattr(table, "bk_biz_id", 0) if table is not None else 0
+    if bk_biz_id > 0:
+        return SpaceTypes.BKCC.value
+    if bk_biz_id < 0:
+        from metadata.models.space import Space
+
+        bk_tenant_id = getattr(data_source, "bk_tenant_id", None) or getattr(table, "bk_tenant_id", None)
+        spaces = Space.objects.filter(id=abs(bk_biz_id))
+        if bk_tenant_id:
+            spaces = spaces.filter(bk_tenant_id=bk_tenant_id)
+        space_type = spaces.values_list("space_type_id", flat=True).first() or ""
+        if space_type in DATABUS_MONITOR_SPACE_TYPES:
+            return space_type
+
+    space_type = getattr(data_source, "space_type_id", "") or ""
+    return space_type if space_type in DATABUS_MONITOR_SPACE_TYPES else DATABUS_MONITOR_LABEL_OTHER
+
+
+def _resolve_databus_monitor_data_type(strategy: str, data_source: "DataSource") -> str:
+    """推导 Databus 承载的数据类型。"""
+
+    if strategy in DATABUS_MONITOR_GRAPH_STRATEGIES:
+        return "graph"
+
+    source_label = getattr(data_source, "source_label", "") or ""
+    type_label = getattr(data_source, "type_label", "") or ""
+    if source_label == DataSourceLabel.BK_APM and type_label == DataTypeLabel.LOG:
+        return "trace"
+
+    type_mapping = {
+        DataTypeLabel.TIME_SERIES: "metric",
+        DataTypeLabel.EVENT: "event",
+        DataTypeLabel.TRACE: "trace",
+        DataTypeLabel.LOG: "log",
+    }
+    if type_label in type_mapping:
+        return type_mapping[type_label]
+    if strategy in DATABUS_MONITOR_METRIC_STRATEGIES:
+        return "metric"
+    if strategy in DATABUS_MONITOR_EVENT_STRATEGIES:
+        return "event"
+    if strategy in DATABUS_MONITOR_LOG_STRATEGIES:
+        return "log"
+    return DATABUS_MONITOR_LABEL_OTHER
+
+
+def _is_bcs_cluster_data_source(data_source: "DataSource") -> bool:
+    """判断 DataSource 是否属于当前租户的 BCS 集群。"""
+
+    bk_tenant_id = getattr(data_source, "bk_tenant_id", None)
+    bk_data_id = getattr(data_source, "bk_data_id", None)
+    data_name = getattr(data_source, "data_name", "") or ""
+    if not bk_tenant_id or not bk_data_id or not data_name.startswith("bcs_"):
+        return False
+
+    from metadata.models.bcs import BCSClusterInfo
+
+    for usage, field_name in DATABUS_MONITOR_BCS_DATA_NAME_FIELD_MAP.items():
+        suffix = f"_{usage}"
+        if not data_name.endswith(suffix):
+            continue
+        cluster_id = data_name[len("bcs_") : -len(suffix)]
+        if cluster_id:
+            return BCSClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                cluster_id=cluster_id,
+                **{field_name: bk_data_id},
+            ).exists()
+        break
+
+    # 仅对命名不符合当前规范的存量 BCS DataSource 使用兼容查询，避免普通链路扫描集群表。
+    return (
+        BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id)
+        .filter(
+            models.Q(K8sMetricDataID=bk_data_id)
+            | models.Q(CustomMetricDataID=bk_data_id)
+            | models.Q(K8sEventDataID=bk_data_id)
+            | models.Q(CustomEventDataID=bk_data_id)
+            | models.Q(SystemLogDataID=bk_data_id)
+            | models.Q(CustomLogDataID=bk_data_id)
+        )
+        .exists()
+    )
+
+
+def _resolve_databus_monitor_data_scene(
+    strategy: str,
+    table: "ResultTable | None",
+    data_source: "DataSource",
+) -> str:
+    """按领域优先、接入方式次之的顺序推导数据场景。"""
+
+    source_label = getattr(data_source, "source_label", "") or ""
+    type_label = getattr(data_source, "type_label", "") or ""
+    etl_config = getattr(data_source, "etl_config", "") or ""
+    table_label = getattr(table, "label", "") if table is not None else ""
+    data_label = getattr(table, "data_label", "") if table is not None else ""
+
+    if strategy in DATABUS_MONITOR_GRAPH_STRATEGIES:
+        return "relation"
+    if source_label == DataSourceLabel.BK_APM or table_label == "apm":
+        return "apm"
+    if (
+        strategy in DATABUS_MONITOR_K8S_STRATEGIES
+        or table_label == "kubernetes"
+        or _is_bcs_cluster_data_source(data_source)
+    ):
+        return "k8s"
+    if table_label == "uptimecheck" or etl_config in DATABUS_MONITOR_UPTIMECHECK_ETL_CONFIGS:
+        return "uptimecheck"
+    if strategy in DATABUS_MONITOR_PLUGIN_STRATEGIES or etl_config in DATABUS_MONITOR_PLUGIN_ETL_CONFIGS:
+        return "plugin"
+    if (
+        strategy in DATABUS_MONITOR_SYSTEM_STRATEGIES
+        or etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS
+        or data_label in DATABUS_MONITOR_SYSTEM_DATA_LABELS
+        or (
+            table is not None
+            and getattr(table, "is_builtin", False)
+            and source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+        )
+    ):
+        return "system"
+    if strategy in DATABUS_MONITOR_LOG_STRATEGIES or source_label == DataSourceLabel.BK_LOG_SEARCH:
+        return "log"
+    if type_label == DataTypeLabel.LOG:
+        return "log"
+    if (
+        source_label == DataSourceLabel.CUSTOM
+        or getattr(data_source, "is_custom_source", False)
+        or etl_config in DATABUS_MONITOR_CUSTOM_ETL_CONFIGS
+        or strategy in DATABUS_MONITOR_EVENT_STRATEGIES
+        or strategy == "bk_standard_v2_time_series"
+        or (table is not None and getattr(table, "is_custom_table", False))
+    ):
+        return "custom"
+    return DATABUS_MONITOR_LABEL_OTHER
+
+
+def compose_databus_monitor_labels(
+    strategy: str,
+    table: "ResultTable | None",
+    data_source: "DataSource",
+) -> dict[str, str]:
+    """基于监控侧链路上下文生成 Databus metadata labels。"""
+
+    label_values = {
+        DATABUS_MONITOR_LABEL_SPACE_TYPE: _resolve_databus_monitor_space_type(table, data_source),
+        DATABUS_MONITOR_LABEL_DATA_SCENE: _resolve_databus_monitor_data_scene(strategy, table, data_source),
+        DATABUS_MONITOR_LABEL_DATA_TYPE: _resolve_databus_monitor_data_type(strategy, data_source),
+    }
+    return {key: str(value or DATABUS_MONITOR_LABEL_OTHER) for key, value in label_values.items()}
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -147,6 +375,9 @@ class DataLink(models.Model):
     SYSTEM_PROC_PORT = "system_proc_port"  # 系统进程端口链路
     BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
     BK_LOG = "bk_log"  # 日志链路
+    CUSTOM_FORMAT_VM = "custom_format_vm"
+    CUSTOM_FORMAT_ES = "custom_format_es"
+    CUSTOM_FORMAT_DORIS = "custom_format_doris"
     DATA_LINK_STRATEGY_CHOICES = (
         (BK_STANDARD_V2_EVENT, "标准自定义事件链路"),
         (BK_STANDARD_V2_TIME_SERIES, "标准单指标单表时序数据链路"),
@@ -160,6 +391,9 @@ class DataLink(models.Model):
         (SYSTEM_PROC_PERF, "系统进程性能链路"),
         (SYSTEM_PROC_PORT, "系统进程端口链路"),
         (BK_LOG, "日志链路"),
+        (CUSTOM_FORMAT_VM, "自定义格式 VM 链路"),
+        (CUSTOM_FORMAT_ES, "自定义格式 Elasticsearch 链路"),
+        (CUSTOM_FORMAT_DORIS, "自定义格式 Doris 链路"),
     )
 
     # 各个套餐所需要的链路资源
@@ -192,6 +426,9 @@ class DataLink(models.Model):
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+        CUSTOM_FORMAT_VM: [ResultTableConfig, ChannelBindingConfig, VMStorageBindingConfig, DataBusConfig],
+        CUSTOM_FORMAT_ES: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+        CUSTOM_FORMAT_DORIS: [ResultTableConfig, DorisStorageBindingConfig, DataBusConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -207,6 +444,9 @@ class DataLink(models.Model):
         SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
         BK_LOG: ClusterInfo.TYPE_ES,
         BK_STANDARD_V2_EVENT: ClusterInfo.TYPE_ES,
+        CUSTOM_FORMAT_VM: ClusterInfo.TYPE_VM,
+        CUSTOM_FORMAT_ES: ClusterInfo.TYPE_ES,
+        CUSTOM_FORMAT_DORIS: ClusterInfo.TYPE_DORIS,
     }
 
     DATABUS_TRANSFORMER_FORMAT = {
@@ -252,7 +492,11 @@ class DataLink(models.Model):
         logger.info("delete_data_link: data_link_name->[%s]", self.data_link_name)
         component_classes = self.get_delete_component_classes()
         for component_class in reversed(component_classes):
-            components = component_class.objects.filter(data_link_name=self.data_link_name)
+            components = component_class.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+            )
             for component in components:
                 logger.info(
                     "delete_data_link: delete data_link_name->[%s] kind->[%s] component->[%s]",
@@ -287,22 +531,9 @@ class DataLink(models.Model):
     def get_delete_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
         return self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
 
-    def compose_configs(
-        self,
-        *args,
-        existing_context: "ExistingComponentContext | None" = None,
-        consumer_group: str | None = None,
-        **kwargs,
-    ):
-        """
-        生成对应套餐的链路完整配置
+    def _get_compose_method(self):
+        """获取当前 strategy 对应的配置组装方法。"""
 
-        ``existing_context`` 由上层根据 strategy 灰度开关或 RT option 单表开关决定是否构造。
-        本层只负责确认当前 compose 分支已经接入 ``existing_context`` 形参，避免把该参数
-        透传给尚未改造的 strategy。
-        """
-
-        # 类似switch的形式，选择对应的组装方式
         switcher = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs,
             DataLink.BK_STANDARD_TIME_SERIES: self.compose_bk_plugin_time_series_config,
@@ -320,12 +551,300 @@ class DataLink(models.Model):
             ),
             DataLink.BK_LOG: self.compose_log_configs,
             DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
+            DataLink.CUSTOM_FORMAT_VM: self.compose_custom_format_configs,
+            DataLink.CUSTOM_FORMAT_ES: self.compose_custom_format_configs,
+            DataLink.CUSTOM_FORMAT_DORIS: self.compose_custom_format_configs,
         }
-        method = switcher[self.data_link_strategy]
+        return switcher[self.data_link_strategy]
+
+    def compose_configs(
+        self,
+        *args,
+        existing_context: "ExistingComponentContext | None" = None,
+        consumer_group: str | None = None,
+        **kwargs,
+    ):
+        """
+        生成对应套餐的链路完整配置
+
+        ``existing_context`` 由上层根据 strategy 灰度开关或 RT option 单表开关决定是否构造。
+        本层只负责确认当前 compose 分支已经接入 ``existing_context`` 形参，避免把该参数
+        透传给尚未改造的 strategy。
+        """
+
+        method = self._get_compose_method()
         kwargs["consumer_group"] = consumer_group
         if existing_context is not None and is_reuse_supported_for(self.data_link_strategy):
             return method(*args, existing_context=existing_context, **kwargs)
         return method(*args, **kwargs)
+
+    @staticmethod
+    def _validate_custom_format_contract(
+        fields: list[dict[str, Any]], clean_rules: list[dict[str, Any]], *, require_vm_contract: bool
+    ) -> None:
+        """静态校验 ResultTable 字段与 Clean 规则的最终输出契约。"""
+        builtin_fields = {"dteventtime", "dteventtimestamp"}
+        rule_outputs: dict[str, str | None] = {}
+        time_rules: list[tuple[str | None, dict[str, Any]]] = []
+        for rule in clean_rules:
+            output_id = rule.get("output_id")
+            operator = rule.get("operator") or {}
+            if output_id:
+                rule_outputs[output_id] = operator.get("output_type")
+            if operator.get("is_time_field"):
+                time_rules.append((output_id, operator))
+
+        type_aliases = {
+            "string": {"string"},
+            "text": {"text"},
+            "double": {"double", "float"},
+            "float": {"double", "float"},
+            "long": {"long", "int", "integer", "timestamp"},
+            "int": {"long", "int", "integer"},
+            "timestamp": {"long", "timestamp"},
+            "object": {"dict", "object"},
+        }
+        errors: list[str] = []
+        field_types = {field["field_name"]: field["field_type"] for field in fields}
+        for field_name, field_type in field_types.items():
+            if field_name.lower() in builtin_fields:
+                continue
+            if field_name not in rule_outputs:
+                errors.append(f"字段 {field_name} 没有对应的 Clean 输出")
+                continue
+            output_type = rule_outputs[field_name]
+            if not output_type:
+                errors.append(f"字段 {field_name} 的 Clean 输出缺少 output_type")
+            elif output_type not in type_aliases.get(field_type, {field_type}):
+                errors.append(f"字段 {field_name} 类型不匹配: ResultTable={field_type}, Clean={output_type}")
+
+        if require_vm_contract:
+            required = {"metric": "string", "value": "double", "dimensions": "text"}
+            for field_name, required_type in required.items():
+                if field_name not in field_types:
+                    errors.append(f"VM ResultTable 缺少字段 {field_name}")
+                elif field_types[field_name] != required_type:
+                    errors.append(f"VM 字段 {field_name} 类型必须为 {required_type}")
+            if not time_rules:
+                errors.append("VM Clean 规则必须包含 is_time_field=true 的时间字段")
+            elif not any(
+                output_id in field_types and operator.get("time_format") for output_id, operator in time_rules
+            ):
+                errors.append("VM 时间字段必须属于 ResultTable 且配置有效的 time_format")
+
+        if errors:
+            raise ValueError("自定义格式字段契约校验失败: " + "; ".join(errors))
+
+    def compose_custom_format_configs(
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str = "",
+        inner_kafka_channel_name: str = "",
+        consumer_group: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """组装自定义格式的 VM、Elasticsearch 或 Doris 单目标链路。"""
+        from metadata.models import ResultTableOption
+        from metadata.models.result_table import CustomFormatV4DataLinkOption
+
+        option_record = ResultTableOption.objects.get(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=table_id,
+            name=ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+        )
+        option = CustomFormatV4DataLinkOption.from_option_value(option_record.get_value())
+        expected_strategy = {
+            ClusterInfo.TYPE_VM: self.CUSTOM_FORMAT_VM,
+            ClusterInfo.TYPE_ES: self.CUSTOM_FORMAT_ES,
+            ClusterInfo.TYPE_DORIS: self.CUSTOM_FORMAT_DORIS,
+        }[option.target_storage_type]
+        if self.data_link_strategy != expected_strategy:
+            raise ValueError(
+                f"自定义格式目标存储与链路策略不一致: target={option.target_storage_type}, "
+                f"strategy={self.data_link_strategy}"
+            )
+
+        fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+        clean_rules = [rule.model_dump() for rule in option.clean_rules]
+        self._validate_custom_format_contract(
+            fields,
+            clean_rules,
+            require_vm_contract=option.target_storage_type == ClusterInfo.TYPE_VM,
+        )
+        data_id_name = utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+        clean_name = f"{self.data_link_name}_clean"
+        clean_consumer_group = consumer_group or f"bkmonitor_{self.data_link_name}_clean"
+        clean_transform = {
+            "kind": "Clean",
+            "rules": clean_rules,
+            "filter_rules": option.filter_rules,
+            "context_map": {"use_default_value": "__parse_failure"},
+        }
+
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            result_table, _ = ResultTableConfig.objects.update_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                name=self.data_link_name,
+                defaults={"table_id": table_id, "data_type": "log"},
+            )
+            configs: list[dict[str, Any]] = [result_table.compose_config(fields=fields)]
+
+            if option.target_storage_type == ClusterInfo.TYPE_ES:
+                storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+                if storage is None:
+                    raise ValueError(f"自定义格式 ResultTable({table_id}) 缺少 ESStorage")
+                storage_option = option.es_storage_config
+                assert storage_option is not None
+                binding, _ = ESStorageBindingConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=self.data_link_name,
+                    defaults={
+                        "table_id": table_id,
+                        "bkbase_result_table_name": result_table.name,
+                        "es_cluster_name": storage.storage_cluster.cluster_name,
+                        "timezone": storage_option.timezone,
+                    },
+                )
+                sink = {"kind": DataLinkKind.ESSTORAGEBINDING.value, "name": binding.name, "namespace": self.namespace}
+                configs.append(
+                    binding.compose_config(
+                        storage_cluster_name=storage.storage_cluster.cluster_name,
+                        write_alias_format=f"write_%Y%m%d_{table_id.replace('.', '_')}",
+                        unique_field_list=storage_option.unique_field_list,
+                        json_field_list=storage_option.json_field_list,
+                        rt_name=result_table.name,
+                    )
+                )
+            elif option.target_storage_type == ClusterInfo.TYPE_DORIS:
+                storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+                if storage is None:
+                    raise ValueError(f"自定义格式 ResultTable({table_id}) 缺少 DorisStorage")
+                storage_option = option.doris_storage_config
+                assert storage_option is not None
+                binding, _ = DorisStorageBindingConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=self.data_link_name,
+                    defaults={
+                        "table_id": table_id,
+                        "bkbase_result_table_name": result_table.name,
+                        "doris_cluster_name": storage.storage_cluster.cluster_name,
+                    },
+                )
+                sink = {"kind": DataLinkKind.DORISBINDING.value, "name": binding.name, "namespace": self.namespace}
+                configs.append(
+                    binding.compose_config(
+                        storage_cluster_name=storage.storage_cluster.cluster_name,
+                        storage_keys=storage_option.storage_keys,
+                        json_fields=storage_option.json_fields,
+                        field_config_group=storage_option.field_config_group,
+                        original_json_fields=storage_option.original_json_fields,
+                        expires=f"{storage.expire_days}d",
+                        flush_timeout=storage_option.flush_timeout,
+                        rt_name=result_table.name,
+                    )
+                )
+            else:
+                if not storage_cluster_name:
+                    raise ValueError("自定义格式 VM 链路缺少 VM 集群")
+                if not inner_kafka_channel_name:
+                    raise ValueError("自定义格式 VM 链路缺少 inner KafkaChannel")
+                channel_binding, _ = ChannelBindingConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=self.data_link_name,
+                    defaults={
+                        "bkbase_result_table_name": result_table.name,
+                        "channel_name": inner_kafka_channel_name,
+                    },
+                )
+                vm_binding, _ = VMStorageBindingConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=self.data_link_name,
+                    defaults={
+                        "table_id": table_id,
+                        "bkbase_result_table_name": result_table.name,
+                        "vm_cluster_name": storage_cluster_name,
+                    },
+                )
+                sink = {
+                    "kind": DataLinkKind.CHANNELBINDING.value,
+                    "name": channel_binding.name,
+                    "namespace": self.namespace,
+                }
+                configs.extend([channel_binding.compose_config(), vm_binding.compose_config(rt_name=result_table.name)])
+
+                shipper_name = f"{self.data_link_name}_shipper"
+                shipper, _ = DataBusConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=shipper_name,
+                    defaults={
+                        "data_id_name": result_table.name,
+                        "bk_data_id": data_source.bk_data_id,
+                        "source_kind": DataLinkKind.RESULTTABLE.value,
+                        "source_name": result_table.name,
+                        "role": "vm_shipper",
+                        "consumer_group": f"bkmonitor_{self.data_link_name}_shipper",
+                        "sink_names": [f"{DataLinkKind.VMSTORAGEBINDING.value}:{vm_binding.name}"],
+                    },
+                )
+                vm_sink = {
+                    "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                    "name": vm_binding.name,
+                    "namespace": self.namespace,
+                }
+                configs.append(
+                    shipper.compose_config(
+                        sinks=[vm_sink],
+                        transforms=[
+                            {
+                                "kind": "PreDefinedLogic",
+                                "name": "avro_to_metric",
+                                "tags": [],
+                                "fields": [],
+                                "schemaless": True,
+                            }
+                        ],
+                    )
+                )
+
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sink["tenant"] = self.bk_tenant_id
+            clean_databus, _ = DataBusConfig.objects.update_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                name=clean_name,
+                defaults={
+                    "data_id_name": data_id_name,
+                    "bk_data_id": data_source.bk_data_id,
+                    "source_kind": DataLinkKind.DATAID.value,
+                    "source_name": data_id_name,
+                    "role": "clean",
+                    "consumer_group": clean_consumer_group,
+                    "sink_names": [f"{sink['kind']}:{sink['name']}"],
+                },
+            )
+            configs.append(clean_databus.compose_config(sinks=[sink], transforms=[clean_transform]))
+            return configs
 
     def compose_custom_event_configs(
         self,
@@ -354,7 +873,6 @@ class DataLink(models.Model):
             table_id,
         )
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
         if not es_storage:
             raise ValueError("compose_custom_event_configs: lack storage config")
@@ -375,7 +893,11 @@ class DataLink(models.Model):
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
             )
             databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
-            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+            databus_data_id_name = (
+                existing_databus.data_id_name
+                if existing_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            )
 
             es_table_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
@@ -413,8 +935,8 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                data_id_name=databus_data_id_name,
                 defaults={
+                    "data_id_name": databus_data_id_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
                 },
@@ -501,7 +1023,6 @@ class DataLink(models.Model):
             name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
         )
         option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         default_vm_name = self.resolve_graph_relation_vm_result_table_name(
             bk_tenant_id=self.bk_tenant_id,
             table_id=table_id,
@@ -550,7 +1071,11 @@ class DataLink(models.Model):
             vm_rt_name = existing_vm_rt.name if existing_vm_rt is not None else default_vm_name
             vm_binding_name = existing_vm_binding.name if existing_vm_binding is not None else vm_rt_name
             vm_databus_name = existing_vm_databus.name if existing_vm_databus is not None else vm_rt_name
-            vm_data_id_name = existing_vm_databus.data_id_name if existing_vm_databus is not None else bkbase_data_name
+            vm_data_id_name = (
+                existing_vm_databus.data_id_name
+                if existing_vm_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            )
 
             result_table_option = ResultTableOption.objects.filter(
                 table_id=table_id,
@@ -612,9 +1137,10 @@ class DataLink(models.Model):
                 existing_surrealdb_databus.name if existing_surrealdb_databus is not None else graph_rt_name
             )
             graph_data_id_name = (
-                existing_surrealdb_databus.data_id_name if existing_surrealdb_databus is not None else bkbase_data_name
+                existing_surrealdb_databus.data_id_name
+                if existing_surrealdb_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
             )
-
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 graph_rt, _ = ResultTableConfig.objects.update_or_create(
                     name=graph_rt_name,
@@ -648,12 +1174,12 @@ class DataLink(models.Model):
                     graph_sink["tenant"] = self.bk_tenant_id
                 graph_databus, _ = DataBusConfig.objects.update_or_create(
                     name=graph_databus_name,
-                    data_id_name=graph_data_id_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
                     defaults={
+                        "data_id_name": graph_data_id_name,
                         "bk_data_id": data_source.bk_data_id,
                         "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
                         # Transfer consumer group 只用于 VM 分支承接原消费位点。
@@ -701,7 +1227,6 @@ class DataLink(models.Model):
             data_source,
             table_id,
         )
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
         doris_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
 
@@ -834,15 +1359,19 @@ class DataLink(models.Model):
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
             )
             databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
-            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+            databus_data_id_name = (
+                existing_databus.data_id_name
+                if existing_databus is not None
+                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            )
             databus, _ = DataBusConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=databus_name,
-                data_id_name=databus_data_id_name,
                 defaults={
+                    "data_id_name": databus_data_id_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],
                 },
@@ -1445,16 +1974,16 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
-        bcs_cluster_id: str,
         storage_cluster_name: str,
+        federation_routes: list[dict[str, Any]],
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成联邦子集群时序数据链路配置
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID
-        @param bcs_cluster_id: 联邦子集群ID
         @param storage_cluster_name: 存储集群名称
+        @param federation_routes: 已由联邦领域服务完成租户过滤、冲突检查和排序的路由列表
         @return: config_list 配置列表
         """
         logger.info(
@@ -1466,8 +1995,6 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-
-        from metadata.models.bcs import BcsFederalClusterInfo
 
         # 联邦子集群场景下，这里的bkbase_data_name会有一个fed_的前缀
         bkbase_raw_data_name = get_bkbase_raw_data_id_name(data_source=data_source, table_id=table_id)
@@ -1483,31 +2010,22 @@ class DataLink(models.Model):
             bkbase_vmrt_name,
         )
 
-        federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
-        if not federal_records:
-            logger.warning(
-                "compose_federal_sub_configs: bcs_cluster_id->[%s],data_link_name->[%s],data_id->[%s] does "
-                "not belong to any federal topo.return",
-                bcs_cluster_id,
-                self.data_link_name,
-                data_source.bk_data_id,
+        if not federation_routes:
+            raise ValueError(
+                f"compose_federal_sub_configs: data_link_name({self.data_link_name}) federation_routes is empty"
             )
-            return []
 
         config_list, conditions = [], []
-        for record in federal_records:
-            if not record.fed_builtin_metric_table_id:
-                continue
-
+        for route in federation_routes:
             # 联邦代理集群的RT名
-            proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
-            relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
+            proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(route["target_metric_table_id"])
+            relabels = [{"name": "bcs_cluster_id", "value": route["fed_cluster_id"]}]
             logger.info(
                 "compose_federal_sub_configs: data_link_name->[%s] start to compose for fed_cluster_id->[%s],"
                 "match_labels ->[%s]",
                 self.data_link_name,
-                record.fed_cluster_id,
-                record.fed_namespaces,
+                route["fed_cluster_id"],
+                route["namespaces"],
             )
             # 联邦集群链路格式调整,由原先的每一个Namespace一个Condition变更为每一个联邦拓扑一个Condition，通过any方式进行匹配
             sinks = [
@@ -1521,17 +2039,15 @@ class DataLink(models.Model):
                 sinks[0]["tenant"] = self.bk_tenant_id
 
             condition = {
-                "match_labels": [{"name": "namespace", "any": record.fed_namespaces}],
+                "match_labels": [{"name": "namespace", "any": route["namespaces"]}],
                 "relabels": relabels,
                 "sinks": sinks,
             }
             conditions.append(condition)
 
         logger.info(
-            "compose_federal_sub_configs: data_link_name->[%s],bcs_cluster_id->[%s] will use conditions->[%s]to "
-            "compose configs",
+            "compose_federal_sub_configs: data_link_name->[%s] will use conditions->[%s]to compose configs",
             self.data_link_name,
-            bcs_cluster_id,
             conditions,
         )
 
@@ -1621,12 +2137,12 @@ class DataLink(models.Model):
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=databus_name,
-                data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
+                    "data_id_name": bkbase_data_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
@@ -1678,15 +2194,7 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
-        logger.info(
-            "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
-            "compose configs",
-            self.data_link_name,
-            bkbase_data_name,
-            bkbase_vmrt_name,
-        )
 
         # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
         # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
@@ -1731,7 +2239,18 @@ class DataLink(models.Model):
         )
 
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
-        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+        bkbase_data_name = (
+            existing_databus.data_id_name
+            if existing_databus is not None
+            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+        )
+        logger.info(
+            "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
+            "compose configs",
+            self.data_link_name,
+            bkbase_data_name,
+            bkbase_vmrt_name,
+        )
 
         # 获取指标组维度配置
         result_table_option = ResultTableOption.objects.filter(
@@ -1857,7 +2376,6 @@ class DataLink(models.Model):
         注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
         # 白名单配置
@@ -1893,7 +2411,11 @@ class DataLink(models.Model):
             existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
         )
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
-        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+        bkbase_data_name = (
+            existing_databus.data_id_name
+            if existing_databus is not None
+            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+        )
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 渲染所需的资源配置
@@ -1937,12 +2459,12 @@ class DataLink(models.Model):
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=databus_name,
-                data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
+                    "data_id_name": bkbase_data_name,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
@@ -1961,6 +2483,45 @@ class DataLink(models.Model):
         ]
         return configs
 
+    def _get_databus_monitor_label_table(self) -> "ResultTable | None":
+        """仅在链路唯一关联一张结果表时返回对应的监控侧 ResultTable。"""
+
+        from metadata.models import ResultTable
+
+        table_ids = {table_id for table_id in self.table_ids if table_id}
+        if len(table_ids) != 1:
+            return None
+
+        table_id = table_ids.pop()
+        table = ResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+        if table is None:
+            logger.warning(
+                "get_databus_monitor_label_table: result table not found, omit table label, "
+                "data_link_name->[%s],bk_tenant_id->[%s],table_id->[%s]",
+                self.data_link_name,
+                self.bk_tenant_id,
+                table_id,
+            )
+        return table
+
+    @staticmethod
+    def _inject_databus_monitor_labels(
+        configs: list[dict[str, Any]],
+        monitor_labels: dict[str, str],
+    ) -> None:
+        """替换 Databus 中由监控侧统一托管的 metadata labels。"""
+
+        for config in configs:
+            if config.get("kind") != DataLinkKind.DATABUS.value:
+                continue
+
+            metadata = config["metadata"]
+            labels = metadata.setdefault("labels", {})
+            metadata["labels"] = {
+                key: value for key, value in labels.items() if not key.startswith(DATABUS_MONITOR_LABEL_PREFIX)
+            }
+            metadata["labels"].update(monitor_labels)
+
     def apply_data_link(self, *args, **kwargs):
         """
         组装配置并下发数据链路
@@ -1970,24 +2531,28 @@ class DataLink(models.Model):
 
         consumer_group: str | None = kwargs.pop("consumer_group", None)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
+        storage_type = kwargs.pop("storage_type", None)
+        compose_arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **kwargs).arguments
+        data_source = compose_arguments.get("data_source")
+        table_id = compose_arguments.get("table_id")
+
         graph_relation_option = None
         if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
             from metadata.models.result_table import GraphRelationV4DataLinkOption, ResultTableOption
 
             option_record = ResultTableOption.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                table_id=kwargs.get("table_id"),
+                table_id=table_id,
                 name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
             ).first()
             if option_record is None:
                 raise ValueError(
                     "apply_data_link: legacy graph relation entry is disabled, "
-                    f"table_id({kwargs.get('table_id')}) requires "
+                    f"table_id({table_id}) requires "
                     f"{ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK} option"
                 )
             graph_relation_option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
 
-        storage_type = kwargs.pop("storage_type", None)
         if storage_type is None:
             storage_type = self.STORAGE_TYPE_MAP[self.data_link_strategy]
             if graph_relation_option is not None:
@@ -1998,9 +2563,7 @@ class DataLink(models.Model):
         try:
             # NOTE:新链路下，data_link_name和bkbase_data_name一致
             monitor_table_id: str | None = (
-                kwargs.get("table_id")
-                if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1
-                else self.data_link_name
+                table_id if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1 else self.data_link_name
             )
             bkbase_rt_record, _ = BkBaseResultTable.objects.get_or_create(
                 bk_tenant_id=self.bk_tenant_id,
@@ -2026,7 +2589,7 @@ class DataLink(models.Model):
         # 才会构造 existing_context 并交给 compose 分支；table_id 为空时不查 RT option。
         enable_reuse = is_reuse_enabled_for(
             self.data_link_strategy,
-            table_id=kwargs.get("table_id"),
+            table_id=table_id,
             bk_tenant_id=self.bk_tenant_id,
         )
         existing_context: ExistingComponentContext | None = (
@@ -2075,6 +2638,25 @@ class DataLink(models.Model):
             raise e
 
         configs = self.merge_existing_component_configs(configs)
+        if data_source is None and self.bk_data_id:
+            from metadata.models.data_source import DataSource
+
+            data_source = DataSource.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_data_id=self.bk_data_id,
+            ).first()
+        if data_source is None:
+            logger.warning(
+                "apply_data_link: data_source missing, skip databus monitor labels, data_link_name->[%s]",
+                self.data_link_name,
+            )
+        else:
+            monitor_labels = compose_databus_monitor_labels(
+                strategy=self.data_link_strategy,
+                table=self._get_databus_monitor_label_table(),
+                data_source=data_source,
+            )
+            self._inject_databus_monitor_labels(configs, monitor_labels)
         components_to_delete = self._get_absent_components_to_delete(
             configs,
             force_delete=force_cleanup_absent_components,
@@ -2219,7 +2801,12 @@ class DataLink(models.Model):
         except BKAPIError as error:
             # 这里必须直接区分 not found 与其它 API 异常：资源不存在可以继续 apply，
             # 权限、网关或服务异常则要抛出，避免误判为“无旧配置”后覆盖 BKBase 侧真实状态。
-            if f"resource {name} of kind {kind} not found".lower() in error.message.lower():
+            error_data = error.data if isinstance(error.data, dict) else {}
+            is_bkbase_v4_not_found = (
+                str(error_data.get("code")) == "1558025" and error_data.get("data") == "resource not found"
+            )
+            is_legacy_not_found = f"resource {name} of kind {kind} not found".lower() in error.message.lower()
+            if is_bkbase_v4_not_found or is_legacy_not_found:
                 return None
             logger.error(
                 "get_existing_component_config: bkbase api error,kind->[%s],name->[%s],namespace->[%s],error->[%s]",
@@ -2346,6 +2933,7 @@ class DataLink(models.Model):
 
         delete_priority = {
             DataLinkKind.DATABUS.value: 0,
+            DataLinkKind.CHANNELBINDING.value: 1,
             DataLinkKind.VMSTORAGEBINDING.value: 1,
             DataLinkKind.SURREALDBBINDING.value: 1,
             DataLinkKind.ESSTORAGEBINDING.value: 1,
@@ -2419,6 +3007,7 @@ class DataLink(models.Model):
         不变式：
         - ``bkbase_rt_name == ResultTableConfig.name``
         - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
+        - 联邦子集链路不声明独立 ResultTable，兼容使用 ``ConditionalSinkConfig.name`` 回填上述两个字段
         - ``bkbase_data_name == DataBusConfig.data_id_name``
         - ``storage_type`` / ``storage_cluster_id`` 与 ``ClusterInfo`` 实际记录保持一致。
         """
@@ -2481,6 +3070,12 @@ class DataLink(models.Model):
             namespace=self.namespace,
             data_link_name=self.data_link_name,
         )
+        if self.data_link_strategy in {
+            self.CUSTOM_FORMAT_VM,
+            self.CUSTOM_FORMAT_ES,
+            self.CUSTOM_FORMAT_DORIS,
+        }:
+            databus_queryset = databus_queryset.filter(role="clean")
         if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
             sink_kind = (
                 DataLinkKind.SURREALDBBINDING.value
@@ -2521,6 +3116,24 @@ class DataLink(models.Model):
                     else f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
                 }
             )
+        elif self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
+            conditional_sink = (
+                ConditionalSinkConfig.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                )
+                .order_by("-last_modify_time", "-id")
+                .first()
+            )
+            if conditional_sink:
+                bkbase_rt_name = conditional_sink.name
+                defaults.update(
+                    {
+                        "bkbase_rt_name": bkbase_rt_name,
+                        "bkbase_table_id": f"{conditional_sink.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
+                    }
+                )
         if databus:
             defaults["bkbase_data_name"] = databus.data_id_name
 

@@ -16,6 +16,7 @@ class DataLinkKind(Enum):
 
     DATAID = "DataId"
     RESULTTABLE = "ResultTable"
+    CHANNELBINDING = "ChannelBinding"
     VMSTORAGEBINDING = "VmStorageBinding"
     GRAPHRELATIONBINDING = "GraphRelationBinding"
     ESSTORAGEBINDING = "ElasticSearchBinding"
@@ -34,6 +35,7 @@ class DataLinkKind(Enum):
     choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
+        (CHANNELBINDING, "channelbindings"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DORISBINDING, "dorisbindings"),
@@ -67,15 +69,17 @@ class DataLinkResourceStatus(Enum):
     Terminating: The resource is terminating    计算平台状态
     Failed: The resource has failed 计算平台状态
     Ok: The resource has been scheduled and is ready for use 计算平台状态
+    Terminated: The resource no longer exists in BKBase 监控侧批量刷新状态
     """
 
-    # INITIALIZING -> CREATING -> PENDING -> OK
+    # INITIALIZING -> CREATING -> PENDING -> OK；资源不存在时记录为 TERMINATED
     INITIALIZING = "Initializing"
     CREATING = "Creating"
     PENDING = "Pending"
     FAILED = "Failed"
     OK = "Ok"
     TERMINATING = "Terminating"
+    TERMINATED = "Terminated"
 
     RECONCILING = "Reconciling"
 
@@ -87,6 +91,7 @@ class DataLinkResourceStatus(Enum):
         (OK, 1),
         (RECONCILING, 5),
         (TERMINATING, 6),
+        (TERMINATED, 7),
     )
 
     @classmethod

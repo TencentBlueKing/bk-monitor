@@ -997,4 +997,13 @@ export default {
   个人设置: 'Personal Settings',
   来源采集项: 'Source Collection Item',
   未启动: 'Not Started',
+  '采集名 / 数据名': 'Collection Name / Data Name',
+  '日用量 / 总用量': 'Daily Usage / Total Usage',
+  '存储集群 / 过期时间': 'Storage Cluster / Expiration Time',
+  最近更新: 'Last Updated',
+  归属: 'Ownership',
+  '大-小': 'Large to Small',
+  '小-大': 'Small to Large',
+  '新-旧': 'New to Old',
+  '旧-新': 'Old to New',
 };

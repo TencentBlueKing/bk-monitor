@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,136 +8,233 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock, patch
 
-import arrow
-from django.test import TestCase
+import pytest
+from django.conf import settings
+from django.test import override_settings
 
-from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
 from alarm_backends.core.cache import key
-from alarm_backends.core.detect_result import CheckResult
-from alarm_backends.tests.core.detect_result.mock import *  # noqa
-from alarm_backends.tests.core.detect_result.mock_settings import *  # noqa
-from bkmonitor.models import CacheNode
-
-STRATEGIES = [
-    {
-        "id": 1,
-        "name": "test_strategy1",
-        "items": [
-            {
-                "id": 11,
-                "name": "test_item11",
-                "algorithms": [
-                    {"id": 111, "level": "1", "dimensions_md5": "dummy_dimensions_md5_111"},
-                    {"id": 112, "level": "2", "dimensions_md5": "dummy_dimensions_md5_112"},
-                ],
-                "no_data_config": {"is_enabled": False, "continuous": 5},
-            },
-            {
-                "id": 12,
-                "name": "test_item12",
-                "algorithms": [
-                    {"id": 121, "algorithm_id": 121, "level": "1", "dimensions_md5": "dummy_dimensions_md5_121"},
-                    {"id": 122, "algorithm_id": 122, "level": "2", "dimensions_md5": "dummy_dimensions_md5_122"},
-                ],
-                "no_data_config": {"is_enabled": True, "continuous": 5},
-            },
-        ],
-    },
-    {
-        "id": 2,
-        "name": "test_strategy2",
-        "items": [
-            {
-                "id": 21,
-                "name": "test_item21",
-                "algorithms": [
-                    {"id": 211, "level": "1", "dimensions_md5": "dummy_dimensions_md5_211"},
-                    {"id": 212, "level": "2", "dimensions_md5": "dummy_dimensions_md5_212"},
-                ],
-                "no_data_config": {"is_enabled": False, "continuous": 5},
-            },
-            {
-                "id": 22,
-                "name": "test_item22",
-                "algorithms": [
-                    {"id": 221, "level": "1", "dimensions_md5": "dummy_dimensions_md5_221"},
-                    {"id": 222, "level": "2", "dimensions_md5": "dummy_dimensions_md5_222"},
-                ],
-                "no_data_config": {"is_enabled": True, "continuous": 5},
-            },
-        ],
-    },
-]
+from alarm_backends.core.detect_result import tasks as detect_result_tasks
+from alarm_backends.core.detect_result.clean import CleanResult
 
 
-class TestCleanResult(TestCase):
-    databases = {"monitor_api", "default"}
+HSCAN_SETTINGS = {
+    "ENABLE_CHECK_RESULT_CLEAN_HSCAN": True,
+    "CHECK_RESULT_CLEAN_HSCAN_COUNT": 256,
+    "CHECK_RESULT_CLEAN_HSCAN_MAX_FIELDS": 2048,
+    "CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT": 2,
+}
 
-    def setUp(self):
-        CacheNode.refresh_from_settings()
-        redis_pipeline = CheckResult.pipeline()
 
-        self.strategy_cache_patcher = patch(
-            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategies",
-            MagicMock(return_value=STRATEGIES),
-        )
-        self.strategy_cache_patcher.start()
+def test_clean_expired_detect_result_executes_existing_cleanup_commands():
+    client = MagicMock()
+    pipeline = client.pipeline.return_value
+    client.hkeys.return_value = ["checkpoint.dimension-md5.1"]
+    pipeline.execute.side_effect = [[], [1], []]
+    strategy = {"id": 1, "items": [{"id": 11}]}
 
-        self.strategies = STRATEGIES
-        self.now_timestamp = arrow.utcnow().timestamp
-        self.three_hours_ago = arrow.utcnow().replace(hours=-3).timestamp
-        self.two_hours_ago = arrow.utcnow().replace(hours=-2).timestamp
-        check_result_data = {
-            "{}|{}".format(self.three_hours_ago, "ANOMALY"): self.three_hours_ago,
-            "{}|{}".format(self.now_timestamp, "ANOMALY"): self.now_timestamp,
-        }
-        timestamps = [self.now_timestamp, self.three_hours_ago]
-        for strategy in self.strategies:
-            for item in strategy["items"]:
-                last_checkpoints = {}
-                level_list = set()
-                for index, algorithm in enumerate(item["algorithms"]):
-                    level_list.add(algorithm["level"])
-                    cr = CheckResult(
-                        strategy_id=strategy["id"],
-                        item_id=item["id"],
-                        dimensions_md5=algorithm["dimensions_md5"],
-                        level=algorithm["level"],
-                    )
-                    # clean old data
-                    key.CHECK_RESULT_CACHE_KEY.client.zremrangebyscore(cr.check_result_cache_key, 0, float("inf"))
-                    cr.add_check_result_cache(**check_result_data)
-                    cr.update_key_to_dimension(dimensions={})
-                    last_checkpoints[(algorithm["dimensions_md5"], algorithm["level"])] = timestamps[index]
-                for level in level_list:
-                    last_checkpoints[(LATEST_POINT_WITH_ALL_KEY, level)] = self.now_timestamp
+    with (
+        patch.object(key.LAST_CHECKPOINTS_CACHE_KEY, "_cache", client),
+        patch.object(key.CHECK_RESULT_CACHE_KEY, "get_key", return_value="check-result-key"),
+        patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[1]),
+        patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+        patch("alarm_backends.core.detect_result.clean.detect_result_point_required", return_value=2),
+    ):
+        CleanResult.clean_expired_detect_result()
 
-                for check_point_key_tuple, point_timestamp in list(last_checkpoints.items()):
-                    _dimensions_md5, level = check_point_key_tuple
-                    CheckResult.update_last_checkpoint_by_d_md5(
-                        strategy["id"], item["id"], _dimensions_md5, point_timestamp, level
-                    )
-                CheckResult.expire_last_checkpoint_cache(strategy_id=strategy["id"], item_id=item["id"])
+    client.hkeys.assert_called_once()
+    client.hscan.assert_not_called()
+    pipeline.zremrangebyrank.assert_called_once_with("check-result-key", 0, -2)
+    pipeline.zcard.assert_called_once_with("check-result-key")
+    pipeline.hdel.assert_not_called()
 
-        redis_pipeline.execute()
 
-    def tearDown(self):
-        self.strategy_cache_patcher.stop()
+def test_hscan_clean_is_disabled_by_default():
+    assert settings.ENABLE_CHECK_RESULT_CLEAN_HSCAN is False
+    assert settings.CHECK_RESULT_CLEAN_HSCAN_COUNT == 256
+    assert settings.CHECK_RESULT_CLEAN_HSCAN_MAX_FIELDS == 2048
+    assert settings.CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT == 256
 
-    @patch(ALARM_BACKENDS_CLEAN_STRATEGY_CACHE_MANAGER_REFRESH, MagicMock(return_value=True))
-    @patch(
-        "alarm_backends.core.detect_result.clean.detect_result_point_required", MagicMock(return_value={"1.11.1": 1})
+
+@override_settings(**HSCAN_SETTINGS)
+def test_clean_expired_detect_result_scans_all_pages_after_each_page_is_complete():
+    operations = []
+    client = MagicMock()
+    pipeline = client.pipeline.return_value
+    strategy = {"id": 1, "items": [{"id": 11}]}
+
+    def hscan(_key, *, cursor, count):
+        operations.append(("hscan", cursor, count))
+        if cursor == 0:
+            return 17, [
+                "detect.result.dimension-a.1",
+                "detect.result.dimension-b.2",
+                "detect.result.dimension-c.3",
+            ]
+        return 0, ["detect.result.dimension-d.4"]
+
+    def execute():
+        operations.append(("execute",))
+        execute_count = sum(operation == ("execute",) for operation in operations)
+        return {1: [], 2: [], 3: [0, 0], 4: [0], 5: [], 6: [], 7: [], 8: [1]}[execute_count]
+
+    client.hscan.side_effect = hscan
+    pipeline.execute.side_effect = execute
+    pipeline.zremrangebyrank.side_effect = lambda cache_key, start, end: operations.append(
+        ("zremrangebyrank", cache_key, start, end)
     )
-    def test_clean_expired_detect_result(self):
-        check_result_cache_key = key.CHECK_RESULT_CACHE_KEY.get_key(
-            strategy_id=self.strategies[0]["id"],
-            item_id=self.strategies[0]["items"][0]["id"],
-            dimensions_md5=self.strategies[0]["items"][0]["algorithms"][0]["dimensions_md5"],
-            level=self.strategies[0]["items"][0]["algorithms"][0]["level"],
+    pipeline.zcard.side_effect = lambda cache_key: operations.append(("zcard", cache_key))
+    pipeline.hdel.side_effect = lambda cache_key, field: operations.append(("hdel", cache_key, field))
+
+    with (
+        patch.object(key.LAST_CHECKPOINTS_CACHE_KEY, "_cache", client),
+        patch.object(
+            key.CHECK_RESULT_CACHE_KEY,
+            "get_key",
+            side_effect=lambda **kwargs: f"check.{kwargs['dimensions_md5']}.{kwargs['level']}",
+        ),
+        patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[1]),
+        patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+        patch("alarm_backends.core.detect_result.clean.detect_result_point_required", return_value=2),
+    ):
+        CleanResult.clean_expired_detect_result()
+
+    client.hkeys.assert_not_called()
+    assert operations == [
+        ("hscan", 0, 256),
+        ("zremrangebyrank", "check.dimension-a.1", 0, -2),
+        ("zremrangebyrank", "check.dimension-b.2", 0, -2),
+        ("execute",),
+        ("zremrangebyrank", "check.dimension-c.3", 0, -2),
+        ("execute",),
+        ("zcard", "check.dimension-a.1"),
+        ("zcard", "check.dimension-b.2"),
+        ("execute",),
+        ("zcard", "check.dimension-c.3"),
+        ("execute",),
+        ("hdel", key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11), "detect.result.dimension-a.1"),
+        ("hdel", key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11), "detect.result.dimension-b.2"),
+        ("execute",),
+        ("hdel", key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11), "detect.result.dimension-c.3"),
+        ("execute",),
+        ("hscan", 17, 256),
+        ("zremrangebyrank", "check.dimension-d.4", 0, -2),
+        ("execute",),
+        ("zcard", "check.dimension-d.4"),
+        ("execute",),
+    ]
+
+
+@override_settings(
+    ENABLE_CHECK_RESULT_CLEAN_HSCAN=True,
+    CHECK_RESULT_CLEAN_HSCAN_COUNT=1,
+    CHECK_RESULT_CLEAN_HSCAN_MAX_FIELDS=2,
+    CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT=2,
+)
+def test_clean_expired_detect_result_rejects_page_before_cleanup_commands():
+    client = MagicMock()
+    pipeline = client.pipeline.return_value
+    client.hscan.return_value = (0, ["field-1", "field-1", "field-2"])
+    strategy = {"id": 1, "items": [{"id": 11}]}
+
+    with (
+        patch.object(key.LAST_CHECKPOINTS_CACHE_KEY, "_cache", client),
+        patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[1]),
+        patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+        patch("alarm_backends.core.detect_result.clean.detect_result_point_required", return_value=2),
+        pytest.raises(ValueError, match="3 fields exceeds hard limit 2"),
+    ):
+        CleanResult.clean_expired_detect_result()
+
+    client.hkeys.assert_not_called()
+    pipeline.zremrangebyrank.assert_not_called()
+    pipeline.zcard.assert_not_called()
+    pipeline.hdel.assert_not_called()
+
+
+@override_settings(**HSCAN_SETTINGS)
+def test_hscan_clean_task_stops_without_sleep_or_second_attempt():
+    error = RuntimeError("hscan failed")
+    client = MagicMock()
+    client.hscan.side_effect = error
+    strategy = {"id": 1, "items": [{"id": 11}]}
+
+    with (
+        patch.object(key.LAST_CHECKPOINTS_CACHE_KEY, "_cache", client),
+        patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[1]),
+        patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+        patch("alarm_backends.core.detect_result.clean.detect_result_point_required", return_value=2),
+        patch("alarm_backends.core.detect_result.tasks.time.sleep") as sleep,
+        pytest.raises(RuntimeError, match="hscan failed"),
+    ):
+        detect_result_tasks.async_clean_expired_detect_result((0, 10))
+
+    client.hscan.assert_called_once_with(
+        key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11), cursor=0, count=256
+    )
+    client.hkeys.assert_not_called()
+    sleep.assert_not_called()
+
+
+@override_settings(ENABLE_CHECK_RESULT_CLEAN_HSCAN=False)
+def test_legacy_clean_task_keeps_sleep_and_second_attempt():
+    error = RuntimeError("hkeys failed")
+
+    with (
+        patch.object(CleanResult, "clean_expired_detect_result", side_effect=[error, None]) as clean,
+        patch("alarm_backends.core.detect_result.tasks.time.sleep") as sleep,
+    ):
+        detect_result_tasks.async_clean_expired_detect_result((0, 10))
+
+    assert clean.call_count == 2
+    sleep.assert_called_once_with(60)
+
+
+def test_scan_last_checkpoint_page_returns_cursor_and_deduplicated_fields():
+    client = MagicMock()
+    client.hscan.return_value = (17, ["field-1", "field-1", "field-2"])
+
+    next_cursor, fields = CleanResult.scan_last_checkpoint_page(
+        client,
+        "last-checkpoints-key",
+        cursor=0,
+        count=256,
+        max_fields=2048,
+    )
+
+    assert next_cursor == 17
+    assert fields == ("field-1", "field-2")
+    client.hscan.assert_called_once_with("last-checkpoints-key", cursor=0, count=256)
+
+
+def test_scan_last_checkpoint_page_rejects_actual_page_over_hard_limit():
+    client = MagicMock()
+    client.hscan.return_value = (0, ["field-1", "field-1", "field-2"])
+
+    with pytest.raises(ValueError, match="3 fields exceeds hard limit 2"):
+        CleanResult.scan_last_checkpoint_page(
+            client,
+            "last-checkpoints-key",
+            cursor=9,
+            count=1,
+            max_fields=2,
         )
-        all_members = key.CHECK_RESULT_CACHE_KEY.client.zrangebyscore(check_result_cache_key, 0, float("inf"))
-        self.assertEqual(
-            all_members,
-            ["{}|{}".format(self.three_hours_ago, "ANOMALY"), "{}|{}".format(self.now_timestamp, "ANOMALY")],
-        )
+
+
+def test_chunk_fields_never_exceeds_command_limit():
+    chunks = list(CleanResult.chunk_fields(["a", "b", "c", "d", "e"], command_limit=2))
+
+    assert chunks == [("a", "b"), ("c", "d"), ("e",)]

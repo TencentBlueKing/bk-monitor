@@ -276,6 +276,496 @@ def test_datasource_and_resulttable_in_allowlist_with_token_excluded():
     assert {"table_id", "bk_biz_id", "default_storage", "data_label", "is_builtin"} <= rt.fields
 
 
+def test_graph_relation_v4_control_models_registered_with_minimal_fields():
+    from django.utils.module_loading import import_string
+
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    expected_fields = {
+        "metadata.models.result_table.ResultTableOption": {
+            "bk_tenant_id",
+            "table_id",
+            "name",
+            "value_type",
+            "value",
+            "create_time",
+        },
+        "metadata.models.storage.SurrealDBStorage": {
+            "bk_tenant_id",
+            "table_id",
+            "table_type",
+            "vertices",
+            "relations",
+            "storage_cluster_id",
+        },
+        "metadata.models.bkdata.result_table.BkBaseResultTable": {
+            "bk_tenant_id",
+            "data_link_name",
+            "bkbase_data_name",
+            "storage_type",
+            "monitor_table_id",
+            "storage_cluster_id",
+            "status",
+            "bkbase_table_id",
+            "bkbase_rt_name",
+            "create_time",
+            "last_modify_time",
+        },
+        "metadata.models.data_link.data_link.DataLink": {
+            "bk_tenant_id",
+            "data_link_name",
+            "namespace",
+            "data_link_strategy",
+            "bk_data_id",
+            "table_ids",
+            "create_time",
+            "last_modify_time",
+        },
+        "metadata.models.data_link.data_link_configs.ResultTableConfig": {
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "data_type",
+            "table_id",
+            "bkbase_table_id",
+            "create_time",
+            "last_modify_time",
+        },
+        "metadata.models.data_link.data_link_configs.VMStorageBindingConfig": {
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "vm_cluster_name",
+            "bkbase_result_table_name",
+            "table_id",
+            "create_time",
+            "last_modify_time",
+        },
+        "metadata.models.data_link.data_link_configs.SurrealDBBindingConfig": {
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "surrealdb_cluster_name",
+            "table_id",
+            "bkbase_result_table_name",
+            "table_type",
+            "vertices",
+            "relations",
+            "create_time",
+            "last_modify_time",
+        },
+        "metadata.models.data_link.data_link_configs.DataBusConfig": {
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "data_id_name",
+            "bk_data_id",
+            "sink_names",
+            "create_time",
+            "last_modify_time",
+        },
+        "metadata.models.data_source.DataSourceResultTable": {
+            "bk_tenant_id",
+            "bk_data_id",
+            "table_id",
+            "create_time",
+        },
+        "metadata.models.space.space.SpaceDataSource": {
+            "bk_tenant_id",
+            "space_type_id",
+            "space_id",
+            "bk_data_id",
+            "from_authorization",
+            "create_time",
+            "update_time",
+        },
+    }
+    forbidden_fields = {
+        "password",
+        "secret",
+        "token",
+        "username",
+        "host",
+        "port",
+        "domain_name",
+        "dsn",
+        "url",
+        "consumer_group",
+    }
+
+    for model_path, fields in expected_fields.items():
+        spec = db.ALLOWED_MODEL_SPECS[model_path]
+        concrete_fields = {field.name for field in import_string(model_path)._meta.concrete_fields}
+
+        assert spec.model_path == model_path
+        assert spec.fields == fields
+        assert spec.fields <= concrete_fields
+        assert "bk_tenant_id" in spec.default_fields
+        assert spec.default_fields <= spec.fields
+        assert forbidden_fields.isdisjoint(spec.fields)
+        assert spec.note
+        assert spec.examples
+        assert all("bk_tenant_id" in example["filter"] for example in spec.examples)
+
+    fixed_filter_models = {
+        "metadata.models.result_table.ResultTableOption",
+        "metadata.models.data_link.data_link.DataLink",
+    }
+    for model_path in expected_fields.keys() - fixed_filter_models:
+        spec = db.ALLOWED_MODEL_SPECS[model_path]
+        assert spec.queryset_scope is not None
+        assert spec.server_scope
+        assert db._serialize_model_spec(model_path, spec)["server_scope"] == spec.server_scope
+
+
+def test_result_table_option_is_fixed_to_graph_relation_v4_option():
+    from kernel_api.rpc.functions.bkm_cli import db
+    from metadata.models.result_table import ResultTableOption
+
+    model_path = "metadata.models.result_table.ResultTableOption"
+    spec = db.ALLOWED_MODEL_SPECS[model_path]
+
+    assert spec.fixed_filters == {"name": ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK}
+    assert db._serialize_model_spec(model_path, spec)["fixed_filters"] == spec.fixed_filters
+
+
+def test_data_link_is_fixed_to_graph_relation_strategy():
+    from kernel_api.rpc.functions.bkm_cli import db
+    from metadata.models.data_link.data_link import DataLink
+
+    model_path = "metadata.models.data_link.data_link.DataLink"
+    spec = db.ALLOWED_MODEL_SPECS[model_path]
+
+    assert spec.fixed_filters == {"data_link_strategy": DataLink.GRAPH_RELATION_TIME_SERIES}
+    assert db._serialize_model_spec(model_path, spec)["fixed_filters"] == spec.fixed_filters
+
+
+@pytest.mark.parametrize("requested_filter", [{}, {"name": "graph_relation_v4_data_link"}])
+def test_read_db_model_applies_omitted_or_matching_fixed_filters(monkeypatch, requested_filter):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    class FilteringQuerySet(FakeQuerySet):
+        def filter(self, **kwargs):
+            super().filter(**kwargs)
+            self.rows = [
+                row
+                for row in self.rows
+                if all(getattr(row, field_name) == value for field_name, value in kwargs.items())
+            ]
+            return self
+
+    graph_option_name = "graph_relation_v4_data_link"
+    queryset = FilteringQuerySet(
+        [
+            SimpleNamespace(name=graph_option_name, value='{"write_targets":["vm"]}'),
+            SimpleNamespace(name="unrelated_option", value="must-not-be-readable"),
+        ]
+    )
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS,
+        "demo.FixedModel",
+        db.ModelSpec(
+            model_path="demo.FixedModel",
+            fields={"name", "value"},
+            fixed_filters={"name": graph_option_name},
+        ),
+    )
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "read-db-model",
+            "params": {
+                "model": "demo.FixedModel",
+                "filter": requested_filter,
+                "fields": ["name", "value"],
+            },
+        }
+    )
+
+    assert queryset.filter_kwargs == {"name": graph_option_name}
+    assert result["result"]["items"] == [{"name": graph_option_name, "value": '{"write_targets":["vm"]}'}]
+
+
+@pytest.mark.parametrize("conflicting_filter", [{"name": "unrelated_option"}, {"name__in": ["unrelated_option"]}])
+def test_read_db_model_rejects_conflicting_fixed_filters(monkeypatch, conflicting_filter):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    graph_option_name = "graph_relation_v4_data_link"
+    queryset = FakeQuerySet([SimpleNamespace(name="unrelated_option", value="must-not-be-readable")])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS,
+        "demo.FixedModel",
+        db.ModelSpec(
+            model_path="demo.FixedModel",
+            fields={"name", "value"},
+            fixed_filters={"name": graph_option_name},
+        ),
+    )
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    with pytest.raises(CustomException) as exc:
+        BkmCliOpCallResource().perform_request(
+            {
+                "op_id": "read-db-model",
+                "params": {
+                    "model": "demo.FixedModel",
+                    "filter": conflicting_filter,
+                    "fields": ["name", "value"],
+                },
+            }
+        )
+
+    assert "filter 与模型固定条件冲突" in str(exc.value)
+    assert exc.value.data == {
+        "next_actions": ["调用 list-db-models 获取当前环境可读模型、字段、filter、排序和 limit 上限。"]
+    }
+    assert queryset.filter_kwargs is None
+
+
+@pytest.mark.parametrize(
+    "filter_items",
+    [
+        [("name", "graph_relation_v4_data_link"), ("name__exact", "unrelated_option")],
+        [("name__exact", "unrelated_option"), ("name", "graph_relation_v4_data_link")],
+    ],
+)
+def test_read_db_model_rejects_duplicate_canonical_filter_key_in_both_orders(monkeypatch, filter_items):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    queryset = FakeQuerySet([SimpleNamespace(name="unrelated_option", value="must-not-be-readable")])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS,
+        "demo.FixedModel",
+        db.ModelSpec(
+            model_path="demo.FixedModel",
+            fields={"name", "value"},
+            fixed_filters={"name": "graph_relation_v4_data_link"},
+        ),
+    )
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    with pytest.raises(CustomException) as exc:
+        BkmCliOpCallResource().perform_request(
+            {
+                "op_id": "read-db-model",
+                "params": {
+                    "model": "demo.FixedModel",
+                    "filter": dict(filter_items),
+                    "fields": ["name", "value"],
+                },
+            }
+        )
+
+    assert "filter 包含重复条件" in str(exc.value)
+    assert queryset.filter_kwargs is None
+
+
+def test_model_spec_scope_is_described_without_being_called():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    def fail_if_called(_queryset):
+        raise AssertionError("queryset scope must not run during discovery")
+
+    spec = db.ModelSpec(
+        model_path="demo.ScopedModel",
+        fields={"id"},
+        queryset_scope=fail_if_called,
+        server_scope="仅返回服务端限定范围内的记录。",
+    )
+
+    assert db._serialize_model_spec("demo.ScopedModel", spec)["server_scope"] == spec.server_scope
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_graph_server_scopes_make_non_graph_rows_unreachable():
+    from kernel_api.rpc.functions.bkm_cli import db
+    from metadata.models.bkdata.result_table import BkBaseResultTable
+    from metadata.models.data_link.data_link import DataLink
+    from metadata.models.data_link.data_link_configs import (
+        DataBusConfig,
+        ResultTableConfig,
+        SurrealDBBindingConfig,
+        VMStorageBindingConfig,
+    )
+    from metadata.models.data_source import DataSourceResultTable
+    from metadata.models.space.space import SpaceDataSource
+    from metadata.models.storage import SurrealDBStorage
+
+    tenant = "bkm_cli_graph_scope"
+    graph_link_name = "bkm_cli_graph_link"
+    normal_link_name = "bkm_cli_normal_link"
+    graph_table_id = "bkm_cli_graph.metric"
+    normal_table_id = "bkm_cli_normal.metric"
+    graph_data_id = 910001
+    normal_data_id = 910002
+
+    DataLink.objects.create(
+        data_link_name=graph_link_name,
+        bk_tenant_id=tenant,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=graph_data_id,
+        table_ids=[graph_table_id],
+    )
+    DataLink.objects.create(
+        data_link_name=normal_link_name,
+        bk_tenant_id=tenant,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=normal_data_id,
+        table_ids=[normal_table_id],
+    )
+
+    for data_link_name, table_id in [
+        (graph_link_name, graph_table_id),
+        (normal_link_name, normal_table_id),
+    ]:
+        BkBaseResultTable.objects.create(
+            data_link_name=data_link_name,
+            bk_tenant_id=tenant,
+            monitor_table_id=table_id,
+        )
+        ResultTableConfig.objects.create(
+            name=f"{data_link_name}_rt",
+            data_link_name=data_link_name,
+            namespace="bkmonitor",
+            bk_biz_id=2,
+            bk_tenant_id=tenant,
+            status="OK",
+            table_id=table_id,
+        )
+        VMStorageBindingConfig.objects.create(
+            name=f"{data_link_name}_vm",
+            data_link_name=data_link_name,
+            namespace="bkmonitor",
+            bk_biz_id=2,
+            bk_tenant_id=tenant,
+            status="OK",
+            table_id=table_id,
+            vm_cluster_name=f"{data_link_name}_vm_cluster",
+        )
+        SurrealDBBindingConfig.objects.create(
+            name=f"{data_link_name}_surrealdb",
+            data_link_name=data_link_name,
+            namespace="bkmonitor",
+            bk_biz_id=2,
+            bk_tenant_id=tenant,
+            status="OK",
+            table_id=table_id,
+            surrealdb_cluster_name=f"{data_link_name}_surrealdb_cluster",
+        )
+        DataBusConfig.objects.create(
+            name=f"{data_link_name}_databus",
+            data_link_name=data_link_name,
+            namespace="bkmonitor",
+            bk_biz_id=2,
+            bk_tenant_id=tenant,
+            status="OK",
+            data_id_name=f"{data_link_name}_dataid",
+        )
+
+    SurrealDBStorage.objects.create(
+        bk_tenant_id=tenant,
+        table_id=graph_table_id,
+        storage_cluster_id=1,
+    )
+    SurrealDBStorage.objects.create(
+        bk_tenant_id=tenant,
+        table_id=normal_table_id,
+        storage_cluster_id=2,
+    )
+
+    for bk_data_id, table_id in [
+        (graph_data_id, graph_table_id),
+        (normal_data_id, normal_table_id),
+        (graph_data_id, normal_table_id),
+        (normal_data_id, graph_table_id),
+    ]:
+        DataSourceResultTable.objects.create(
+            bk_tenant_id=tenant,
+            bk_data_id=bk_data_id,
+            table_id=table_id,
+            creator="system",
+        )
+
+    for bk_data_id in [graph_data_id, normal_data_id]:
+        SpaceDataSource.objects.create(
+            bk_tenant_id=tenant,
+            space_type_id="bkcc",
+            space_id=str(bk_data_id),
+            bk_data_id=bk_data_id,
+            from_authorization=False,
+            creator="system",
+            updater="system",
+        )
+
+    cases = [
+        ("metadata.models.bkdata.result_table.BkBaseResultTable", "data_link_name", graph_link_name, normal_link_name),
+        (
+            "metadata.models.data_link.data_link_configs.ResultTableConfig",
+            "data_link_name",
+            graph_link_name,
+            normal_link_name,
+        ),
+        (
+            "metadata.models.data_link.data_link_configs.VMStorageBindingConfig",
+            "data_link_name",
+            graph_link_name,
+            normal_link_name,
+        ),
+        (
+            "metadata.models.data_link.data_link_configs.SurrealDBBindingConfig",
+            "data_link_name",
+            graph_link_name,
+            normal_link_name,
+        ),
+        (
+            "metadata.models.data_link.data_link_configs.DataBusConfig",
+            "data_link_name",
+            graph_link_name,
+            normal_link_name,
+        ),
+        ("metadata.models.storage.SurrealDBStorage", "table_id", graph_table_id, normal_table_id),
+        ("metadata.models.data_source.DataSourceResultTable", "table_id", graph_table_id, normal_table_id),
+        ("metadata.models.space.space.SpaceDataSource", "bk_data_id", graph_data_id, normal_data_id),
+    ]
+
+    for model_path, identity_field, graph_value, normal_value in cases:
+        result = db.read_db_model(
+            {
+                "model": model_path,
+                "filter": {"bk_tenant_id": tenant},
+                "fields": [identity_field],
+            }
+        )
+        assert result["items"] == [{identity_field: graph_value}]
+
+        forbidden_result = db.read_db_model(
+            {
+                "model": model_path,
+                "filter": {"bk_tenant_id": tenant, identity_field: normal_value},
+                "fields": [identity_field],
+            }
+        )
+        assert forbidden_result["items"] == []
+
+
 def test_list_db_models_surfaces_model_note():
     result = BkmCliOpCallResource().perform_request({"op_id": "list-db-models", "params": {}})
 
