@@ -23,6 +23,7 @@ from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
@@ -1259,6 +1260,29 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+NODEMAN_INTEGRATION_MODE = os.getenv("BKAPP_NODEMAN_INTEGRATION_MODE", "v2")
+if NODEMAN_INTEGRATION_MODE not in {"v2", "v3_fresh"}:
+    raise ImproperlyConfigured(
+        "BKAPP_NODEMAN_INTEGRATION_MODE must be one of: v2, v3_fresh; "
+        f"got {NODEMAN_INTEGRATION_MODE!r}"
+    )
+NODEMAN_INTEGRATION_DEPLOYMENT_ID = os.getenv("BKAPP_NODEMAN_INTEGRATION_DEPLOYMENT_ID", "")
+NODEMAN_INTEGRATION_PROCESS_ID = os.getenv("BKAPP_NODEMAN_INTEGRATION_PROCESS_ID", os.getenv("HOSTNAME", ""))
+NODEMAN_INTEGRATION_PROCESS_ROLE = os.getenv("BKAPP_NODEMAN_INTEGRATION_PROCESS_ROLE", ROLE)
+NODEMAN_V3_DELIVERY_SCOPE = os.getenv("BKAPP_NODEMAN_V3_DELIVERY_SCOPE", "prepublished_release")
+NODEMAN_V3_CONFIRMED_CAPABILITIES = tuple(
+    capability.strip().upper()
+    for capability in os.getenv("BKAPP_NODEMAN_V3_CONFIRMED_CAPABILITIES", "").split(",")
+    if capability.strip()
+)
+NODEMAN_V3_CAPABILITY_EVIDENCE_DIGEST = os.getenv("BKAPP_NODEMAN_V3_CAPABILITY_EVIDENCE_DIGEST", "")
+NODEMAN_V3_EXPECTED_PROCESS_IDS = tuple(
+    process_id.strip()
+    for process_id in os.getenv("BKAPP_NODEMAN_V3_EXPECTED_PROCESS_IDS", "").split(",")
+    if process_id.strip()
+)
+NODEMAN_V3_RUNTIME_ATTESTATION_PATH = os.getenv("BKAPP_NODEMAN_V3_RUNTIME_ATTESTATION_PATH", "")
+NODEMAN_V3_RUNTIME_ATTESTATION_DIGEST = os.getenv("BKAPP_NODEMAN_V3_RUNTIME_ATTESTATION_DIGEST", "")
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")

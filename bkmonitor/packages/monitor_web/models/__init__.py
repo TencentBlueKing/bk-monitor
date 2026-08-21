@@ -19,4 +19,5 @@ from monitor_web.models.data_explorer import *  # noqa
 from monitor_web.models.data_target import *  # noqa
 from monitor_web.models.export_import import *  # noqa
 from monitor_web.models.file import *  # noqa
+from monitor_web.models.node_man import *  # noqa
 from monitor_web.models.plugin import *  # noqa

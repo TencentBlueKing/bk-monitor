@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from celery.schedules import crontab
 from django.conf import settings
 
+from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
 from config.tools.rabbitmq import get_rabbitmq_settings
 
 *_, celery_broker_url = get_rabbitmq_settings(settings.APP_CODE)
@@ -156,3 +157,27 @@ class Config:
             "options": {"queue": "celery_resource"},
         },
     }
+
+    if get_nodeman_integration_mode() == "v3_fresh":
+        imports = ("monitor_web.nodeman_integration.v3.tasks",)
+        task_routes = {
+            "monitor_web.nodeman_integration.v3.tasks.poll_operation": {"queue": "celery"},
+            "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations": {"queue": "celery"},
+            "monitor_web.nodeman_integration.v3.tasks.reconcile_binding": {"queue": "celery"},
+            "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings": {"queue": "celery"},
+        }
+        beat_schedule = {
+            **beat_schedule,
+            "nodeman_v3_poll_pending_operations": {
+                "task": "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations",
+                "schedule": crontab(minute="*/1"),
+                "enabled": True,
+                "options": {"queue": "celery"},
+            },
+            "nodeman_v3_reconcile_active_bindings": {
+                "task": "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings",
+                "schedule": crontab(minute="*/1"),
+                "enabled": True,
+                "options": {"queue": "celery"},
+            },
+        }

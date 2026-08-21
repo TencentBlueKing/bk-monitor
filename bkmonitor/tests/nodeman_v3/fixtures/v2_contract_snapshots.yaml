@@ -1,0 +1,2212 @@
+schema_version: 1
+baseline_commit: e4a29134be1c61c3b7a96b57aefdc555b48c7eb7
+static_contract:
+  source_sha256:
+    api/node_man/default.py: c6ff71a8fab1ce73b8a6de8e0a8a6347fecea1d737f611f9b264aad5644f11bc
+    packages/monitor_web/collecting/deploy/node_man.py: ef30e56ef1247c316d8c5a8fc314cd1651092e4b8a6e4159de5fadd786c8fc2f
+  node_man_resource_names:
+  - validate_bk_biz_id
+  - batch_request
+  - get_request_username
+  - render_config_template
+  - start_debug
+  - query_debug
+  - stop_debug
+  - upload
+  - upload_cos
+  - register_package
+  - query_register_task
+  - plugin_info
+  - create_config_template
+  - release_plugin
+  - release_config
+  - export_raw_package
+  - export_query_task
+  - delete_plugin
+  - create_subscription
+  - subscription_info
+  - update_subscription
+  - delete_subscription
+  - run_subscription
+  - retry_subscription
+  - revoke_subscription
+  - task_result
+  - switch_subscription
+  - subscription_instance_status
+  - task_result_detail
+  - get_process_info
+  - get_package_info
+  - get_control_info
+  - tasks
+  - get_proxies
+  - get_proxies_by_biz
+  - plugin_operate
+  - plugin_search
+  - job_detail
+  - adapter_nodeman_bk_cloud_id
+  - check_task_ready
+  - fetch_subscription_statistic
+  - batch_task_result
+  - ipchooser_host_detail
+  node_man_resources:
+    render_config_template:
+      class: RenderConfigTemplateResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_render_config_template/
+      apigw_action: system/backend/api/plugin/render_config_template/
+      request:
+        id:
+          type: IntegerField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        plugin_name:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        plugin_version:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: '*'
+          allow_blank: false
+        name:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        version:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        data:
+          type: DictField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response:
+        id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        md5:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+    start_debug:
+      class: StartDebugResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_start_debug/
+      apigw_action: system/backend/api/plugin/start_debug/
+      request:
+        plugin_id:
+          type: IntegerField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        plugin_name:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        version:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        config_ids:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        host_info:
+          type: DictField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response:
+        task_id:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+    query_debug:
+      class: QueryDebugResource
+      method: GET
+      timeout: 300
+      esb_action: plugin_query_debug/
+      apigw_action: system/backend/api/plugin/query_debug/
+      request:
+        task_id:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response:
+        status:
+          type: ChoiceField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+          choices:
+          - QUEUE
+          - RUNNING
+          - SUCCESS
+          - FAILED
+        step:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        message:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: true
+    stop_debug:
+      class: StopDebugResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_stop_debug/
+      apigw_action: system/backend/api/plugin/stop_debug/
+      request:
+        task_id:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    upload:
+      class: UploadResource
+      method: POST
+      timeout: 300
+      esb_action: /backend/package/upload/
+      apigw_action: /backend/package/upload/
+      request: null
+      response: null
+    upload_cos:
+      class: UploadCosResource
+      method: POST
+      timeout: 300
+      esb_action: /backend/api/plugin/upload/
+      apigw_action: system/backend/api/plugin/upload/
+      request:
+        file_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        download_url:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        md5:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    register_package:
+      class: RegisterPackageResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_create_register_task/
+      apigw_action: system/backend/api/plugin/create_register_task/
+      request:
+        file_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        is_release:
+          type: BooleanField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response:
+        job_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+    query_register_task:
+      class: QueryRegisterTaskResource
+      method: GET
+      timeout: 300
+      esb_action: plugin_query_register_task/
+      apigw_action: system/backend/api/plugin/query_register_task/
+      request:
+        job_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response:
+        is_finish:
+          type: BooleanField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        message:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: true
+    plugin_info:
+      class: PluginInfoResource
+      method: GET
+      timeout: 300
+      esb_action: plugin_info/
+      apigw_action: system/backend/api/plugin/info/
+      request:
+        name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        version:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    create_config_template:
+      class: CreateConfigTemplateResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_create_config_template/
+      apigw_action: system/backend/api/plugin/create_config_template/
+      request:
+        plugin_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        plugin_version:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        file_path:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: true
+        format:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        content:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: true
+        md5:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        version:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        is_release_version:
+          type: BooleanField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    release_plugin:
+      class: ReleasePluginResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_release/
+      apigw_action: system/backend/api/plugin/release/
+      request:
+        name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        version:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        md5_list:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    release_config:
+      class: ReleaseConfigResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_release_config_template/
+      apigw_action: system/backend/api/plugin/release_config_template/
+      request:
+        plugin_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        plugin_version:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        version:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    export_raw_package:
+      class: ExportRawPackageResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_create_export_task/
+      apigw_action: system/backend/api/plugin/create_export_task/
+      request:
+        category:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        query_params:
+          type: QueryParams
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          fields:
+            project:
+              type: CharField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+            version:
+              type: CharField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+        creator:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        bk_app_code:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: bk_monitorv3
+          allow_blank: false
+      response: null
+    export_query_task:
+      class: ExportQueryTaskResource
+      method: GET
+      timeout: 300
+      esb_action: plugin_query_export_task/
+      apigw_action: system/backend/api/plugin/query_export_task/
+      request:
+        job_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    delete_plugin:
+      class: DeletePluginResource
+      method: POST
+      timeout: 300
+      esb_action: plugin_delete/
+      apigw_action: system/backend/api/plugin/delete/
+      request:
+        name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    create_subscription:
+      class: CreateSubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_create/
+      apigw_action: system/backend/api/subscription/create/
+      request:
+        scope:
+          type: ScopeParams
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          fields:
+            bk_biz_id:
+              type: IntegerField
+              required: false
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            object_type:
+              type: ChoiceField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+              choices:
+              - SERVICE
+              - HOST
+            node_type:
+              type: ChoiceField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+              choices:
+              - TOPO
+              - INSTANCE
+              - SET_TEMPLATE
+              - SERVICE_TEMPLATE
+              - DYNAMIC_GROUP
+            nodes:
+              type: ListField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              child:
+                type: _UnvalidatedField
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: true
+                default: <empty>
+                allow_blank: true
+        steps:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        target_hosts:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        run_immediately:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    subscription_info:
+      class: SubscriptionInfoResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_info/
+      apigw_action: system/backend/api/subscription/info/
+      request:
+        subscription_id_list:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    update_subscription:
+      class: UpdateSubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_update/
+      apigw_action: system/backend/api/subscription/update/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        scope:
+          type: ScopeParams
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          fields:
+            bk_biz_id:
+              type: IntegerField
+              required: false
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            node_type:
+              type: ChoiceField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+              choices:
+              - INSTANCE
+              - TOPO
+              - SET_TEMPLATE
+              - SERVICE_TEMPLATE
+              - DYNAMIC_GROUP
+            nodes:
+              type: ListField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              child:
+                type: _UnvalidatedField
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: true
+                default: <empty>
+                allow_blank: true
+        steps:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        run_immediately:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    delete_subscription:
+      class: DeleteSubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_delete/
+      apigw_action: system/backend/api/subscription/delete/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    run_subscription:
+      class: RunSubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_run/
+      apigw_action: system/backend/api/subscription/run/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        scope:
+          type: ScopeParams
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          fields:
+            bk_biz_id:
+              type: IntegerField
+              required: false
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            node_type:
+              type: ChoiceField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+              choices:
+              - TOPO
+              - INSTANCE
+            nodes:
+              type: ListField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              child:
+                type: _UnvalidatedField
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: true
+                default: <empty>
+                allow_blank: true
+        actions:
+          type: JSONField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    retry_subscription:
+      class: RetrySubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: backend/api/subscription/retry/
+      apigw_action: system/backend/api/subscription/retry/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        instance_id_list:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    revoke_subscription:
+      class: RevokeSubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: backend/api/subscription/revoke/
+      apigw_action: system/backend/api/subscription/revoke/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        instance_id_list:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    task_result:
+      class: TaskResultResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_task_result/
+      apigw_action: system/backend/api/subscription/task_result/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        task_id_list:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        need_detail:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: false
+        need_aggregate_all_tasks:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: true
+        need_out_of_scope_snapshots:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: false
+        page:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        pagesize:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    switch_subscription:
+      class: SwitchSubscriptionResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_switch/
+      apigw_action: system/backend/api/subscription/switch/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        action:
+          type: ChoiceField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+          choices:
+          - enable
+          - disable
+      response: null
+    subscription_instance_status:
+      class: SubscriptionInstanceStatusResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_instance_status/
+      apigw_action: system/backend/api/subscription/instance_status/
+      request:
+        subscription_id_list:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        show_task_detail:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: false
+      response: null
+    task_result_detail:
+      class: TaskResultDetailResource
+      method: POST
+      timeout: 300
+      esb_action: subscription_task_result_detail/
+      apigw_action: system/backend/api/subscription/task_result_detail/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        instance_id:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        task_id:
+          type: IntegerField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    get_process_info:
+      class: GetProcessInfoResource
+      method: GET
+      timeout: 300
+      esb_action: process/{process_name}/
+      apigw_action: process/{process_name}/
+      request:
+        process_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    get_package_info:
+      class: GetPackageInfoResource
+      method: GET
+      timeout: 300
+      esb_action: '{process_name}/package/'
+      apigw_action: '{process_name}/package/'
+      request:
+        process_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+      response: null
+    get_control_info:
+      class: GetControlInfoResource
+      method: GET
+      timeout: 300
+      esb_action: process_info/{process_name}/
+      apigw_action: process_info/{process_name}/
+      request:
+        process_name:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        plugin_package_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    tasks:
+      class: TasksResource
+      method: POST
+      timeout: 300
+      esb_action: '{bk_biz_id}/tasks'
+      apigw_action: '{bk_biz_id}/tasks'
+      request:
+        creator:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        bk_biz_id:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        bk_cloud_id:
+          type: CharField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+        op_type:
+          type: ChoiceField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+          choices:
+          - UPGRADE
+        node_type:
+          type: ChoiceField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+          choices:
+          - PLUGIN
+        hosts:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        global_params:
+          type: GlobalParams
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          fields:
+            option:
+              type: JSONField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            upgrade_type:
+              type: CharField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+            plugin:
+              type: JSONField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            package:
+              type: JSONField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            control:
+              type: JSONField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+      response: null
+    get_proxies:
+      class: GetProxiesResource
+      method: GET
+      timeout: 300
+      esb_action: api/host/proxies/
+      apigw_action: system/api/host/proxies/
+      request:
+        bk_cloud_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    get_proxies_by_biz:
+      class: GetProxiesByBizResource
+      method: GET
+      timeout: 300
+      esb_action: api/host/biz_proxies/
+      apigw_action: system/api/host/biz_proxies/
+      request:
+        bk_biz_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    plugin_operate:
+      class: PluginOperate
+      method: POST
+      timeout: 300
+      esb_action: api/plugin/operate/
+      apigw_action: system/api/plugin/operate/
+      request:
+        job_type:
+          type: ChoiceField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: false
+          choices:
+          - MAIN_START_PLUGIN
+          - MAIN_STOP_PLUGIN
+          - MAIN_RESTART_PLUGIN
+          - MAIN_RELOAD_PLUGIN
+          - MAIN_DELEGATE_PLUGIN
+          - MAIN_UNDELEGATE_PLUGIN
+          - MAIN_INSTALL_PLUGIN
+        bk_biz_id:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        bk_cloud_id:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        version:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        plugin_params:
+          type: PluginInfoSerializer
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          fields:
+            name:
+              type: CharField
+              required: true
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+              allow_blank: false
+            version:
+              type: CharField
+              required: false
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: latest
+              allow_blank: false
+            keep_config:
+              type: BooleanField
+              required: false
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+            no_restart:
+              type: BooleanField
+              required: false
+              read_only: false
+              write_only: false
+              allow_null: false
+              default: <empty>
+        conditions:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        bk_host_id:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        exclude_hosts:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    plugin_search:
+      class: PluginSearch
+      method: POST
+      timeout: 300
+      esb_action: api/plugin/search/
+      apigw_action: system/api/plugin/search/
+      request:
+        bk_biz_id:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        conditions:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        bk_host_id:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        exclude_hosts:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        only_ip:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        detail:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        page:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        pagesize:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+      response: null
+    job_detail:
+      class: JobDetailResource
+      method: POST
+      timeout: 300
+      esb_action: api/job/{id}/details/
+      apigw_action: system/api/job/{id}/details/
+      request:
+        id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        page:
+          type: IntegerField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: 1
+        pagesize:
+          type: IntegerField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: 100
+        conditions:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    check_task_ready:
+      class: CheckTaskReady
+      method: POST
+      timeout: 300
+      esb_action: backend/api/subscription/check_task_ready/
+      apigw_action: system/backend/api/subscription/check_task_ready/
+      request:
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        task_id_list:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+      response: null
+    fetch_subscription_statistic:
+      class: FetchSubscriptionStatistic
+      method: POST
+      timeout: 300
+      esb_action: backend/api/subscription/statistic/
+      apigw_action: system/backend/api/subscription/statistic/
+      request:
+        subscription_id_list:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        plugin_name:
+          type: CharField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: bkmonitorbeat
+          allow_blank: false
+      response: null
+    batch_task_result:
+      class: BatchTaskResultResource
+      method: null
+      timeout: null
+      esb_action: null
+      apigw_action: null
+      request:
+        bk_tenant_id:
+          type: TenantIdField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          allow_blank: true
+        subscription_id:
+          type: IntegerField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+        task_id_list:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: _UnvalidatedField
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: true
+            default: <empty>
+            allow_blank: true
+        need_detail:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: false
+        need_aggregate_all_tasks:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: true
+        need_out_of_scope_snapshots:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: false
+      response: null
+    ipchooser_host_detail:
+      class: IpchooserHostDetailResource
+      method: POST
+      timeout: 300
+      esb_action: core/api/ipchooser_host/details/
+      apigw_action: system/core/api/ipchooser_host/details/
+      request:
+        host_list:
+          type: ListField
+          required: true
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: HostSerializer
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: false
+            default: <empty>
+            fields:
+              host_id:
+                type: IntegerField
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: false
+                default: <empty>
+              meta:
+                type: MetaSerializer
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: false
+                default: <empty>
+                fields:
+                  scope_type:
+                    type: CharField
+                    required: true
+                    read_only: false
+                    write_only: false
+                    allow_null: false
+                    default: <empty>
+                    allow_blank: false
+                  scope_id:
+                    type: CharField
+                    required: true
+                    read_only: false
+                    write_only: false
+                    allow_null: false
+                    default: <empty>
+                    allow_blank: false
+                  bk_biz_id:
+                    type: IntegerField
+                    required: true
+                    read_only: false
+                    write_only: false
+                    allow_null: false
+                    default: <empty>
+        all_scope:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: false
+        scope_list:
+          type: ListField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: <empty>
+          child:
+            type: ScopeListSerializer
+            required: true
+            read_only: false
+            write_only: false
+            allow_null: false
+            default: <empty>
+            fields:
+              scope_type:
+                type: CharField
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: false
+                default: <empty>
+                allow_blank: false
+              scope_id:
+                type: CharField
+                required: true
+                read_only: false
+                write_only: false
+                allow_null: false
+                default: <empty>
+                allow_blank: false
+        agent_realtime_state:
+          type: BooleanField
+          required: false
+          read_only: false
+          write_only: false
+          allow_null: false
+          default: true
+      response: null
+  celery_task_names:
+  - apm_web.models.application.authorization_to_maintainers
+  - bk_monitor_base.infras.declaratives.controller.task_manager.tasks.async_task_define.celery_task
+  - celery.accumulate
+  - celery.backend_cleanup
+  - celery.chain
+  - celery.chord
+  - celery.chord_unlock
+  - celery.chunks
+  - celery.group
+  - celery.map
+  - celery.starmap
+  - config.celery.celery.debug_task
+  - core.drf_resource.tasks.run_perform_request
+  - django_elasticsearch_dsl.signals.registry_delete_task
+  - django_elasticsearch_dsl.signals.registry_update_related_task
+  - django_elasticsearch_dsl.signals.registry_update_task
+  - fta_web.tasks.run_init_builtin_action_config
+  - fta_web.tasks.sync_tapd_issue_status
+  - fta_web.tasks.update_home_statistics
+  - monitor_web.tasks.access_aiops_by_strategy_id
+  - monitor_web.tasks.access_aiops_multivariate_anomaly_detection_by_bk_biz_id
+  - monitor_web.tasks.access_biz_metric_recommend_flow
+  - monitor_web.tasks.access_host_anomaly_detect_by_strategy_id
+  - monitor_web.tasks.access_pending_aiops_strategy
+  - monitor_web.tasks.active_business
+  - monitor_web.tasks.append_event_metric_list_cache
+  - monitor_web.tasks.append_metric_list_cache
+  - monitor_web.tasks.clean_bkrepo_temp_file
+  - monitor_web.tasks.collect_metric
+  - monitor_web.tasks.import_config
+  - monitor_web.tasks.maintain_aiops_strategies
+  - monitor_web.tasks.migrate_all_panels_task
+  - monitor_web.tasks.polling_aiops_strategy_status
+  - monitor_web.tasks.record_login_user
+  - monitor_web.tasks.refresh_dashboard_strategy_snapshot
+  - monitor_web.tasks.remove_file
+  - monitor_web.tasks.run_init_builtin
+  - monitor_web.tasks.run_metric_manager_async
+  - monitor_web.tasks.soft_delete_expired_shields
+  - monitor_web.tasks.stop_aiops_multivariate_anomaly_detection_flow
+  - monitor_web.tasks.update_cmdb_util_info
+  - monitor_web.tasks.update_external_approval_status
+  - monitor_web.tasks.update_failure_shield_content
+  - monitor_web.tasks.update_metric_json_from_ts_group
+  - monitor_web.tasks.update_metric_list
+  - monitor_web.tasks.update_metric_list_by_biz
+  - monitor_web.tasks.update_report_receivers
+  - monitor_web.tasks.update_statistics_data
+  - monitor_web.tasks.update_target_detail
+  - monitor_web.tasks.update_task_running_status
+  - monitor_web.tasks.update_uptime_check_task_status
+  - poll_task.check_status_until_finished
+  celery_config:
+    imports_defined: false
+    task_routes_defined: false
+    task_queues_defined: false
+    beat_schedule:
+      apm_web.tasks.application_create_check:
+        task: apm_web.tasks.application_create_check
+        schedule:
+          minute: '*/1'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.auto_apply_strategy_template:
+        task: apm_web.tasks.auto_apply_strategy_template
+        schedule:
+          minute: '*/30'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.auto_register_apm_builtin_strategy_template:
+        task: apm_web.tasks.auto_register_apm_builtin_strategy_template
+        schedule:
+          minute: '*/30'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.cache_application_k8s_related_indexes:
+        task: apm_web.tasks.cache_application_k8s_related_indexes
+        schedule:
+          minute: 0
+          hour: '*/2'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.cache_application_scope_name:
+        task: apm_web.tasks.cache_application_scope_name
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.refresh_apm_app_state_snapshot:
+        task: apm_web.tasks.refresh_apm_app_state_snapshot
+        schedule:
+          minute: 0
+          hour: 0
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.refresh_apm_application_metric:
+        task: apm_web.tasks.refresh_apm_application_metric
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      apm_web.tasks.refresh_application:
+        task: apm_web.tasks.refresh_application
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      fta_web.tasks.sync_tapd_issue_status:
+        task: fta_web.tasks.sync_tapd_issue_status
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options:
+          queue: celery_resource
+      fta_web.tasks.update_home_statistics:
+        task: fta_web.tasks.update_home_statistics
+        schedule:
+          minute: '*/5'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.access_pending_aiops_strategy:
+        task: monitor_web.tasks.access_pending_aiops_strategy
+        schedule:
+          minute: '*/5'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.clean_bkrepo_temp_file:
+        task: monitor_web.tasks.clean_bkrepo_temp_file
+        schedule:
+          minute: '*'
+          hour: '*/1'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options:
+          queue: celery_resource
+      monitor_web.tasks.maintain_aiops_strategies:
+        task: monitor_web.tasks.maintain_aiops_strategies
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: false
+        options: {}
+      monitor_web.tasks.refresh_dashboard_strategy_snapshot:
+        task: monitor_web.tasks.refresh_dashboard_strategy_snapshot
+        schedule:
+          minute: '*/60'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options:
+          queue: celery_resource
+      monitor_web.tasks.soft_delete_expired_shields:
+        task: monitor_web.tasks.soft_delete_expired_shields
+        schedule:
+          minute: 0
+          hour: 2
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.update_external_approval_status:
+        task: monitor_web.tasks.update_external_approval_status
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.update_metric_json_from_ts_group:
+        task: monitor_web.tasks.update_metric_json_from_ts_group
+        schedule:
+          minute: '*/50'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.update_metric_list:
+        task: monitor_web.tasks.update_metric_list
+        schedule:
+          minute: '*'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options:
+          queue: celery_resource
+      monitor_web.tasks.update_report_receivers:
+        task: monitor_web.tasks.update_report_receivers
+        schedule:
+          minute: 27
+          hour: 2
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.update_statistics_data:
+        task: monitor_web.tasks.update_statistics_data
+        schedule:
+          minute: '*'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.update_target_detail:
+        task: monitor_web.tasks.update_target_detail
+        schedule:
+          minute: '*/15'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      monitor_web.tasks.update_uptime_check_task_status:
+        task: monitor_web.tasks.update_uptime_check_task_status
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      rum_web.tasks.application_create_check:
+        task: rum_web.tasks.application_create_check
+        schedule:
+          minute: '*/1'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+      rum_web.tasks.refresh_application:
+        task: rum_web.tasks.refresh_application
+        schedule:
+          minute: '*/10'
+          hour: '*'
+          day_of_week: '*'
+          day_of_month: '*'
+          month_of_year: '*'
+        enabled: true
+        options: {}
+  authentication:
+    identity: tenant_admin
+    origin_user_forwarding: _origin_user_when_request_user_is_empty
+    base_url_selection: BKNODEMAN_API_BASE_URL_then_APIGW_or_ESB
+representative_runtime:
+  collecting_stop:
+    outbound_calls:
+    - action: switch_subscription
+      parameters:
+        bk_tenant_id: tenant-a
+        subscription_id: 123
+        action: disable
+    - action: subscription_info
+      parameters:
+        bk_tenant_id: tenant-a
+        subscription_id_list:
+        - 123
+    - action: run_subscription
+      parameters:
+        bk_tenant_id: tenant-a
+        subscription_id: 123
+        actions:
+          plugin_step: STOP
+          bkmonitorbeat: STOP
+    normalized_response:
+      task_id: 456
+      step_ids:
+      - plugin_step
+      - bkmonitorbeat
+    state:
+      operation_result: PREPARING
+      last_operation: STOP
+      task_ids:
+      - 456
+      collect_config_save_count: 1
+      deployment_config_save_count: 1
+    sql:
+      count: 0
+      tables: []
+    celery_calls: []
+performance_acceptance:
+  warmup_iterations: 100
+  sample_iterations: 1000
+  confidence_level: 0.95
+  metrics:
+  - p50
+  - p95
+  relative_regression_floor_percent: 1
+  threshold: max(baseline_noise_upper_bound, relative_regression_floor_percent)
+  exact_gates:
+  - normalized_sql
+  - accessed_tables
+  - remote_actions_and_parameters
+  - celery_messages
+  - imported_v3_modules
+  v2_hot_path:
+    mode_environment_reads_per_request: 0
+    mode_file_reads_per_request: 0
+    mode_database_queries_per_request: 0
+    mode_remote_calls_per_request: 0

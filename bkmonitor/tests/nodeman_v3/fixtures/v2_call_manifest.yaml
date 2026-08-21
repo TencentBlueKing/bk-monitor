@@ -1,0 +1,1863 @@
+schema_version: 1
+baseline_commit: e4a29134be1c61c3b7a96b57aefdc555b48c7eb7
+call_sites:
+- path: api/cmdb/ipchooser.py
+  line: 54
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.ipchooser_host_detail
+  action: ipchooser_host_detail
+  parameters:
+    args:
+    - $params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: apm/core/application_config.py
+  line: 929
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args:
+    - $subscription_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: apm/core/application_config.py
+  line: 938
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args:
+    - $subscription_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: apm/core/application_config.py
+  line: 951
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: '{$self.PLUGIN_NAME:''INSTALL''}'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: apm/core/platform_config.py
+  line: 476
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args:
+    - $subscription_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: apm/core/platform_config.py
+  line: 485
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args:
+    - $subscription_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: apm/core/platform_config.py
+  line: 498
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: '{$cls.PLUGIN_NAME:''INSTALL''}'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: bkm_ipchooser/tools/gse_tool.py
+  line: 31
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.ipchooser_host_detail
+  action: ipchooser_host_detail
+  parameters:
+    args:
+    - $request_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: bkmonitor/utils/bk_collector_config.py
+  line: 65
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies
+  action: get_proxies
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: bk_cloud_id
+      value: $bk_cloud_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: bkmonitor/utils/bk_collector_config.py
+  line: 100
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies_by_biz
+  action: get_proxies_by_biz
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: bk_biz_id
+      value: $bk_biz_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: kernel_api/rpc/functions/admin/config_delivery.py
+  line: 626
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: page
+      value: '1'
+    - name: pagesize
+      value: $call:len($bk_host_ids)
+    - name: conditions
+      value: '[]'
+    - name: bk_host_id
+      value: $bk_host_ids
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/admin/config_delivery.py
+  line: 910
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.get_proxies_by_biz
+  action: get_proxies_by_biz
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: bk_biz_id
+      value: $bk_biz_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/admin/uptime_check.py
+  line: 400
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: page
+      value: '1'
+    - name: pagesize
+      value: $call:len($bk_host_ids)
+    - name: conditions
+      value: '[]'
+    - name: bk_host_id
+      value: $bk_host_ids
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/admin/uptime_check.py
+  line: 641
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id_list
+      value: $subscription_ids
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/admin/uptime_check.py
+  line: 825
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.subscription_instance_status
+  action: subscription_instance_status
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id_list
+      value: '[$subscription_id]'
+    - name: show_task_detail
+      value: 'True'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/bkm_cli/platform_catalog/nodeman.py
+  line: 361
+  category: management_command_or_ops_tool
+  kind: resource_reference
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/bkm_cli/platform_catalog/nodeman.py
+  line: 387
+  category: management_command_or_ops_tool
+  kind: resource_reference
+  symbol: api.node_man.fetch_subscription_statistic
+  action: fetch_subscription_statistic
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/bkm_cli/platform_catalog/nodeman.py
+  line: 412
+  category: management_command_or_ops_tool
+  kind: resource_reference
+  symbol: api.node_man.subscription_instance_status
+  action: subscription_instance_status
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/bkm_cli/platform_catalog/nodeman.py
+  line: 444
+  category: management_command_or_ops_tool
+  kind: resource_reference
+  symbol: api.node_man.task_result
+  action: task_result
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: kernel_api/rpc/functions/bkm_cli/platform_catalog/nodeman.py
+  line: 479
+  category: management_command_or_ops_tool
+  kind: resource_reference
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: metadata/management/commands/deploy_official_plugin.py
+  line: 104
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.plugin_operate
+  action: plugin_operate
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: metadata/management/commands/deploy_official_plugin.py
+  line: 113
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.get_process_info
+  action: get_process_info
+  parameters:
+    args: []
+    keywords:
+    - name: process_name
+      value: $plugin_name
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: metadata/management/commands/deploy_official_plugin.py
+  line: 114
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.get_package_info
+  action: get_package_info
+  parameters:
+    args: []
+    keywords:
+    - name: process_name
+      value: $plugin_name
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: metadata/management/commands/deploy_official_plugin.py
+  line: 126
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.get_control_info
+  action: get_control_info
+  parameters:
+    args: []
+    keywords:
+    - name: process_name
+      value: $plugin_name
+    - name: plugin_package_id
+      value: Subscript(value=Name(id='package_info', ctx=Load()), slice=Constant(value='id'),
+        ctx=Load())
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: metadata/management/commands/deploy_official_plugin.py
+  line: 150
+  category: management_command_or_ops_tool
+  kind: call
+  symbol: api.node_man.tasks
+  action: tasks
+  parameters:
+    args:
+    - $params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 410
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies_by_biz
+  action: get_proxies_by_biz
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: bk_biz_id
+      value: $bk_biz_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 675
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $sub_config_obj.subscription_id
+    - name: action
+      value: '''enable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 690
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 697
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 709
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''enable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 710
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: '{''bk-collector'':''INSTALL''}'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 934
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 940
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/custom_report/subscription_config.py
+  line: 953
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: '{$cls.PLUGIN_NAME:''INSTALL''}'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 157
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 161
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $config.subscription_id
+    - name: action
+      value: '''enable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 169
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 185
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: '{$plugin_name:''INSTALL''}'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 188
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''enable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 200
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $config.subscription_id
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/models/ping_server.py
+  line: 203
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: subscription_id
+      value: $config.subscription_id
+    - name: actions
+      value: '{$plugin_name:''STOP''}'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/task/auto_deploy_proxy.py
+  line: 53
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/task/auto_deploy_proxy.py
+  line: 82
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_operate
+  action: plugin_operate
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/task/auto_deploy_proxy.py
+  line: 99
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies
+  action: get_proxies
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: bk_cloud_id
+      value: $bk_cloud_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/task/auto_deploy_proxy.py
+  line: 168
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_info
+  action: plugin_info
+  parameters:
+    args: []
+    keywords:
+    - name: name
+      value: $plugin_name
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/task/custom_report.py
+  line: 145
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_info
+  action: plugin_info
+  parameters:
+    args: []
+    keywords:
+    - name: name
+      value: '''bk-collector'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: metadata/task/ping_server.py
+  line: 216
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies
+  action: get_proxies
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: bk_cloud_id
+      value: $bk_cloud_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/meta/plugin/log_trace_plugin_config.py
+  line: 92
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args:
+    - $subscription_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/meta/plugin/log_trace_plugin_config.py
+  line: 96
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args:
+    - $subscription_params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/meta/plugin/log_trace_plugin_config.py
+  line: 97
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args:
+    - '{''subscription_id'':Subscript(value=Name(id=''plugin_config'', ctx=Load()),
+      slice=Constant(value=''subscription_id''), ctx=Load()),''action'':''enable''}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/meta/plugin/log_trace_plugin_config.py
+  line: 106
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args:
+    - $params
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/meta/resources.py
+  line: 1698
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies_by_biz
+  action: get_proxies_by_biz
+  parameters:
+    args: []
+    keywords:
+    - name: bk_biz_id
+      value: $bk_biz_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/models/application.py
+  line: 595
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args:
+    - '{''subscription_id'':Subscript(value=Attribute(value=Name(id=''app'', ctx=Load()),
+      attr=''plugin_config'', ctx=Load()), slice=Constant(value=''subscription_id''),
+      ctx=Load()),''action'':''disable''}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/models/application.py
+  line: 605
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args:
+    - '{''subscription_id'':Subscript(value=Attribute(value=Name(id=''app'', ctx=Load()),
+      attr=''plugin_config'', ctx=Load()), slice=Constant(value=''subscription_id''),
+      ctx=Load()),''action'':''enable''}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/apm_web/models/application.py
+  line: 615
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args:
+    - '{''subscription_id'':Subscript(value=Attribute(value=Name(id=''app'', ctx=Load()),
+      attr=''plugin_config'', ctx=Load()), slice=Constant(value=''subscription_id''),
+      ctx=Load()),''action'':''disable''}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor/migrations/0092_migrate_subscription_id.py
+  line: 27
+  category: historical_migration
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id
+      value: $task.subscription_id
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor/migrations/0092_migrate_subscription_id.py
+  line: 28
+  category: historical_migration
+  kind: call
+  symbol: api.node_man.delete_subscription
+  action: delete_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id
+      value: $task.subscription_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/cc/resources/cmdb.py
+  line: 161
+  category: production_request_or_async_task
+  kind: resource_reference
+  symbol: api.node_man.ipchooser_host_detail
+  action: ipchooser_host_detail
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/deploy/__init__.py
+  line: 22
+  category: production_request_or_async_task
+  kind: import
+  symbol: NodeManInstaller
+  action: installer_import
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_factory_body_matches_baseline
+- path: packages/monitor_web/collecting/deploy/__init__.py
+  line: 31
+  category: production_request_or_async_task
+  kind: constructor_call
+  symbol: NodeManInstaller
+  action: installer_construct
+  parameters:
+    args:
+    - $collect_config
+    - Starred(value=Name(id='args', ctx=Load()), ctx=Load())
+    keywords:
+    - name: '**'
+      value: $kwargs
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_factory_body_matches_baseline
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 48
+  category: production_request_or_async_task
+  kind: class_definition
+  symbol: NodeManInstaller
+  action: installer_definition
+  parameters:
+    args: []
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 261
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 277
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.update_subscription
+  action: update_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $update_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 282
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_subscription
+  action: create_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $subscription_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 287
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $last_version.subscription_id
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 290
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $last_version.subscription_id
+    - name: actions
+      value: DictComp(key=Subscript(value=Name(id='step', ctx=Load()), slice=Constant(value='id'),
+        ctx=Load()), value=Constant(value='UNINSTALL_AND_DELETE'), generators=[comprehension(target=Name(id='step',
+        ctx=Store()), iter=Subscript(value=Name(id='subscription_params', ctx=Load()),
+        slice=Constant(value='steps'), ctx=Load()), ifs=[], is_async=0)])
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 298
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''enable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 302
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 460
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 464
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: DictComp(key=Subscript(value=Name(id='step', ctx=Load()), slice=Constant(value='id'),
+        ctx=Load()), value=Constant(value='UNINSTALL_AND_DELETE'), generators=[comprehension(target=Name(id='step',
+        ctx=Store()), iter=Subscript(value=Name(id='subscription_params', ctx=Load()),
+        slice=Constant(value='steps'), ctx=Load()), ifs=[], is_async=0)])
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 519
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 524
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id_list
+      value: '[$subscription_id]'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 529
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: DictComp(key=Subscript(value=Name(id='step', ctx=Load()), slice=Constant(value='id'),
+        ctx=Load()), value=Constant(value='STOP'), generators=[comprehension(target=Name(id='step',
+        ctx=Store()), iter=Subscript(value=Subscript(value=Name(id='subscription_infos',
+        ctx=Load()), slice=Constant(value=0), ctx=Load()), slice=Constant(value='steps'),
+        ctx=Load()), ifs=[], is_async=0)])
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 562
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: action
+      value: '''enable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 568
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: DictComp(key=Subscript(value=Name(id='step', ctx=Load()), slice=Constant(value='id'),
+        ctx=Load()), value=Constant(value='START'), generators=[comprehension(target=Name(id='step',
+        ctx=Store()), iter=Subscript(value=Name(id='subscription_params', ctx=Load()),
+        slice=Constant(value='steps'), ctx=Load()), ifs=[], is_async=0)])
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 614
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 631
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.batch_task_result
+  action: batch_task_result
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $current_version.subscription_id
+    - name: task_id_list
+      value: $current_version.task_ids
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 651
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.retry_subscription
+  action: retry_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 671
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.revoke_subscription
+  action: revoke_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 815
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.batch_task_result
+  action: batch_task_result
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $subscription_id
+    - name: need_detail
+      value: 'True'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 1038
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.task_result_detail
+  action: task_result_detail
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/deploy/node_man.py
+  line: 1061
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.batch_task_result
+  action: batch_task_result
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $self.bk_tenant_id
+    - name: subscription_id
+      value: $current_version.subscription_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+  - packages/monitor_web/tests/collecting/test_node_man_installer.py::test_stop_uses_existing_subscription_steps_without_deploy_params
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 163
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id_list
+      value: '[$subscription_id]'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 175
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id_list
+      value: '[$subscription_id]'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 186
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.run_subscription
+  action: run_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id
+      value: $subscription_id
+    - name: actions
+      value: $action_params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 352
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.check_task_ready
+  action: check_task_ready
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 412
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id_list
+      value: $call:list($call:dcvs.keys())
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 426
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id
+      value: Subscript(value=Name(id='i', ctx=Load()), slice=Constant(value='subscription_id'),
+        ctx=Load())
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/resources/toolkit.py
+  line: 558
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args:
+    - '{''page'':1,''pagesize'':$call:len($bk_host_ids),''conditions'':[],''bk_host_id'':$bk_host_ids}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/collecting/utils.py
+  line: 32
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.fetch_subscription_statistic.bulk_request
+  action: fetch_subscription_statistic
+  parameters:
+    args:
+    - ListComp(elt=Dict(keys=[Constant(value='subscription_id_list')], values=[Name(id='subscription_id_group',
+      ctx=Load())]), generators=[comprehension(target=Name(id='subscription_id_group',
+      ctx=Store()), iter=Call(func=Name(id='chunks', ctx=Load()), args=[Call(func=Name(id='list',
+      ctx=Load()), args=[Call(func=Attribute(value=Name(id='subscription_id_config_map',
+      ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[])], keywords=[]),
+      Constant(value=20)], keywords=[]), ifs=[], is_async=0)])
+    keywords:
+    - name: ignore_exceptions
+      value: 'True'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/commons/job/__init__.py
+  line: 157
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args:
+    - '{''page'':1,''pagesize'':$call:len($bk_host_ids),''conditions'':[],''bk_host_id'':$bk_host_ids}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/custom_report/resources/metric.py
+  line: 176
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.get_proxies_by_biz
+  action: get_proxies_by_biz
+  parameters:
+    args: []
+    keywords:
+    - name: bk_biz_id
+      value: $bk_biz_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 708
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.retry_subscription
+  action: retry_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: Subscript(value=Name(id='record', ctx=Load()), slice=Constant(value='bk_tenant_id'),
+        ctx=Load())
+    - name: subscription_id
+      value: Subscript(value=Name(id='record', ctx=Load()), slice=Constant(value='subscription_id'),
+        ctx=Load())
+    - name: instance_id_list
+      value: $instance_id_list
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 908
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.switch_subscription
+  action: switch_subscription
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: Subscript(value=Name(id='subscription', ctx=Load()), slice=Constant(value='bk_tenant_id'),
+        ctx=Load())
+    - name: subscription_id
+      value: Subscript(value=Name(id='subscription', ctx=Load()), slice=Constant(value='subscription_id'),
+        ctx=Load())
+    - name: action
+      value: '''disable'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 1260
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.batch_task_result
+  action: batch_task_result
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: Subscript(value=Name(id='subscription', ctx=Load()), slice=Constant(value='bk_tenant_id'),
+        ctx=Load())
+    - name: subscription_id
+      value: Subscript(value=Name(id='subscription', ctx=Load()), slice=Constant(value='subscription_id'),
+        ctx=Load())
+    - name: need_detail
+      value: 'True'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 1605
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.plugin_operate
+  action: plugin_operate
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: plugin_params
+      value: $call:_build_plugin_params(plugin_version=$plugin_version)
+    - name: job_type
+      value: $job_type
+    - name: bk_host_id
+      value: $operation_host_ids
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 1848
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.job_detail
+  action: job_detail
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: id
+      value: $job_id
+    - name: page
+      value: '1'
+    - name: pagesize
+      value: $call:max($call:len($target_host_ids),100)
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 2301
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args: []
+    keywords:
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/bk_collector.py
+  line: 2317
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.plugin_info
+  action: plugin_info
+  parameters:
+    args: []
+    keywords:
+    - name: name
+      value: $plugin_name
+    - name: bk_tenant_id
+      value: $bk_tenant_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/data_migrate/migration_status_check.py
+  line: 1180
+  category: first_phase_prohibited_v2_migration_tool
+  kind: call
+  symbol: api.node_man.batch_task_result
+  action: batch_task_result
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id
+      value: $subscription_id
+    - name: need_detail
+      value: 'True'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 474
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.render_config_template
+  action: render_config_template
+  parameters:
+    args:
+    - $param
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 485
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.start_debug
+  action: start_debug
+  parameters:
+    args:
+    - $param
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 670
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.release_config
+  action: release_config
+  parameters:
+    args:
+    - $param
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 680
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.delete_plugin
+  action: delete_plugin
+  parameters:
+    args: []
+    keywords:
+    - name: name
+      value: $version.plugin.plugin_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 889
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.stop_debug
+  action: stop_debug
+  parameters:
+    args: []
+    keywords:
+    - name: task_id
+      value: $task_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 895
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.query_debug
+  action: query_debug
+  parameters:
+    args: []
+    keywords:
+    - name: task_id
+      value: $task_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 955
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.release_plugin
+  action: release_plugin
+  parameters:
+    args:
+    - '{''name'':$self.plugin.plugin_id,''version'':JoinedStr(values=[FormattedValue(value=Attribute(value=Name(id=''release_version'',
+      ctx=Load()), attr=''config_version'', ctx=Load()), conversion=-1), Constant(value=''.''),
+      FormattedValue(value=Attribute(value=Name(id=''release_version'', ctx=Load()),
+      attr=''info_version'', ctx=Load()), conversion=-1)]),''md5_list'':$token}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 1100
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.export_raw_package
+  action: export_raw_package
+  parameters:
+    args:
+    - $param
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/base.py
+  line: 1105
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.export_query_task
+  action: export_query_task
+  parameters:
+    args:
+    - '{''job_id'':$job_id}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/manager/log.py
+  line: 230
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.subscription_info
+  action: subscription_info
+  parameters:
+    args: []
+    keywords:
+    - name: subscription_id_list
+      value: '[$subscription_id]'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 306
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_info
+  action: plugin_info
+  parameters:
+    args: []
+    keywords:
+    - name: name
+      value: $self.plugin_id
+    - name: version
+      value: $version.version
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 366
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.upload_cos
+  action: upload_cos
+  parameters:
+    args: []
+    keywords:
+    - name: file_name
+      value: $call:os.path.basename($tar_name)
+    - name: download_url
+      value: $call:default_storage.url($relative_path)
+    - name: md5
+      value: $md5
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 372
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.upload
+  action: upload
+  parameters:
+    args: []
+    keywords:
+    - name: package_file
+      value: $tf
+    - name: md5
+      value: $md5
+    - name: module
+      value: '''bkmonitor'''
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 383
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.register_package
+  action: register_package
+  parameters:
+    args: []
+    keywords:
+    - name: file_name
+      value: $file_name
+    - name: is_release
+      value: 'False'
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 389
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.query_register_task
+  action: query_register_task
+  parameters:
+    args: []
+    keywords:
+    - name: job_id
+      value: $job_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 434
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.create_config_template
+  action: create_config_template
+  parameters:
+    args: []
+    keywords:
+    - name: '**'
+      value: $params
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/resources.py
+  line: 672
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_info
+  action: plugin_info
+  parameters:
+    args:
+    - '{''name'':$plugin_id}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/plugin/views.py
+  line: 458
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.delete_plugin
+  action: delete_plugin
+  parameters:
+    args: []
+    keywords:
+    - name: name
+      value: $plugin.plugin_id
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
+- path: packages/monitor_web/uptime_check/views.py
+  line: 326
+  category: production_request_or_async_task
+  kind: call
+  symbol: api.node_man.plugin_search
+  action: plugin_search
+  parameters:
+    args:
+    - '{''page'':1,''pagesize'':$call:len($bk_host_ids),''conditions'':[],''bk_host_id'':$bk_host_ids}'
+    keywords: []
+  coverage:
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline
+  - tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline
