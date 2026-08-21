@@ -156,11 +156,11 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - Group
 
-| 参数名称        | 类型            | 描述                          |
-|-------------|---------------|-----------------------------|
-| name        | String        | 分组标识                        |
-| alias       | String        | 分组别名                        |
-| field_names | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields` |
+| 参数名称        | 类型            | 描述                                                                                                                                                 |
+|-------------|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| name        | String        | 分组标识，枚举值：<br/>- COMMON<br/>- APP_VERSION<br/>- DEVICE_BROWSER<br/>- NETWORK_GEO<br/>- USER<br/>- RESOURCE<br/>- VIEW<br/>- ACTION<br/>- WEB_VITALS |
+| alias       | String        | 分组别名                                                                                                                                               |
+| field_names | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields`                                                                                                                        |
 
 ```json
 {
@@ -727,10 +727,10 @@ POST /rum/meta/application/list_application/
 
 - Permission
 
-| 参数名称                      | 类型      | 描述         |
-|---------------------------|---------|------------|
-| manage_rum_application_v2 | Boolean | 是否有管理应用权限  |
-| view_rum_application_v2   | Boolean | 是否有查看应用权限  |
+| 参数名称                      | 类型      | 描述        |
+|---------------------------|---------|-----------|
+| manage_rum_application_v2 | Boolean | 是否有管理应用权限 |
+| view_rum_application_v2   | Boolean | 是否有查看应用权限 |
 
 ```json
 {
