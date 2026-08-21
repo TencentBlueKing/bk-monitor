@@ -808,6 +808,9 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
 
+# Detect 完成后是否同步执行 Trigger；Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = False
+
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
 

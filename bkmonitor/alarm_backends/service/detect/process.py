@@ -37,6 +37,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
         self.strategy_id = strategy_id
         self.inputs = {}
         self.outputs = {}
+        self.inline_trigger_items = []
         self.strategy = Strategy(strategy_id)
         i18n.set_biz(self.strategy.bk_biz_id)
         self.is_busy = False
@@ -395,7 +396,16 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 bk_biz_id=self.strategy.bk_biz_id,
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
-        anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
+        inline_trigger_enabled = settings.ENABLE_DETECT_INLINE_TRIGGER
+        self.inline_trigger_items = (
+            [item.id for item in self.strategy.items if self.outputs.get(item.id)] if inline_trigger_enabled else []
+        )
+        # 内联路径先只写异常详情；抢 Trigger 锁失败时再由 run_inline_trigger() 补写信号。
+        anomaly_count = self.push_abnormal_data(
+            self.outputs,
+            self.strategy_id,
+            publish_signal=not inline_trigger_enabled,
+        )
         try:
             alarmd_batches = self.prepare_alarmd_detection_batches()
         except Exception:
@@ -447,6 +457,21 @@ class DetectProcess(BaseAbnormalPushProcessor):
         logger.info(f"[detect] strategy({self.strategy_id}) item({item.id}) 开始异常二次确认流程")
         item.double_check(outputs=self.outputs[item.id])
 
+    def run_inline_trigger(self):
+        from alarm_backends.service.trigger.runner import run_trigger_item
+        from core.errors.alarm_backends import LockError
+
+        for item_id in self.inline_trigger_items:
+            try:
+                run_trigger_item(self.strategy_id, item_id, executor="detect_inline")
+            except LockError:
+                self.publish_anomaly_signals([f"{self.strategy_id}.{item_id}"])
+                logger.info(
+                    "[detect inline trigger] strategy(%s), item(%s) is locked; signal published for trigger worker",
+                    self.strategy_id,
+                    item_id,
+                )
+
     def process(self):
         with service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id):
             start_at = time.time()
@@ -464,3 +489,4 @@ class DetectProcess(BaseAbnormalPushProcessor):
             end_at = time.time()
             logger.info(f"[detect][latency] strategy({self.strategy_id}) processing end in {end_at - start_at}")
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)
+        self.run_inline_trigger()
