@@ -317,9 +317,6 @@ class AccessDataProcess(BaseAccessDataProcess):
         return f"{self.__class__.__name__}:strategy_group_key({self.strategy_group_key})"
 
     def run_inline_trigger(self):
-        if not settings.ENABLE_DETECT_INLINE_TRIGGER:
-            return
-
         from alarm_backends.service.trigger.runner import run_trigger_item
         from core.errors.alarm_backends import LockError
 
@@ -327,8 +324,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             try:
                 run_trigger_item(strategy_id, item_id, executor="detect_inline")
             except LockError:
+                self.publish_anomaly_signals([f"{strategy_id}.{item_id}"])
                 logger.info(
-                    "[access inline trigger] strategy(%s), item(%s) is locked; existing signal will process it later",
+                    "[access inline trigger] strategy(%s), item(%s) is locked; signal published for trigger worker",
                     strategy_id,
                     item_id,
                 )
@@ -973,8 +971,9 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
             detect_process.push_data()
-            if detect_process.outputs.get(item.id):
-                self.inline_trigger_items.append((strategy_id, item.id))
+            self.inline_trigger_items.extend(
+                (strategy_id, inline_item_id) for inline_item_id in detect_process.inline_trigger_items
+            )
             # 上报 detect 模块指标，保持监控连续性
             # 即使合并处理跳过了 detect 异步任务，也需要上报这些指标
             detect_end_time = time.time()

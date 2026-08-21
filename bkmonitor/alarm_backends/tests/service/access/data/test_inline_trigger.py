@@ -32,6 +32,7 @@ def test_access_merge_records_item_pair_after_anomaly_is_pushed(mocker):
 
     inline_candidate = mocker.MagicMock()
     inline_candidate.outputs = {1: ["anomaly"]}
+    inline_candidate.inline_trigger_items = [1]
     detect_process_class = mocker.patch.object(
         detect_process,
         "DetectProcess",
@@ -50,7 +51,9 @@ def test_access_merge_records_item_pair_after_anomaly_is_pushed(mocker):
 def test_access_data_process_runs_recorded_items_and_continues_after_lock_error(mocker):
     processor = object.__new__(AccessDataProcess)
     processor.inline_trigger_items = [(10, 1), (10, 2)]
-    mocker.patch.object(access_processor.settings, "ENABLE_DETECT_INLINE_TRIGGER", True)
+    publish_anomaly_signals = mocker.MagicMock()
+    processor.publish_anomaly_signals = publish_anomaly_signals
+    mocker.patch.object(access_processor.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
     run_trigger_item = mocker.patch.object(
         runner,
         "run_trigger_item",
@@ -63,17 +66,28 @@ def test_access_data_process_runs_recorded_items_and_continues_after_lock_error(
         mocker.call(10, 1, executor="detect_inline"),
         mocker.call(10, 2, executor="detect_inline"),
     ]
+    publish_anomaly_signals.assert_called_once_with(["10.1"])
 
 
-def test_access_data_process_skips_recorded_items_when_disabled(mocker):
+def test_access_merge_records_no_inline_item_when_detect_publishes_signal(mocker):
     processor = object.__new__(AccessDataProcess)
-    processor.inline_trigger_items = [(10, 1)]
-    mocker.patch.object(access_processor.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
-    run_trigger_item = mocker.patch.object(runner, "run_trigger_item")
+    processor.strategy_group_key = "group"
+    processor.record_list = []
+    processor.inline_trigger_items = []
+    item = mocker.MagicMock(id=1, no_data_config={"is_enabled": False})
+    item.strategy.id = 10
+    processor.items = [item]
 
-    processor.run_inline_trigger()
+    inline_candidate = mocker.MagicMock()
+    inline_candidate.outputs = {1: ["anomaly"]}
+    inline_candidate.inline_trigger_items = []
+    mocker.patch.object(detect_process, "DetectProcess", return_value=inline_candidate)
+    mocker.patch.object(access_processor, "PriorityChecker")
+    mocker.patch.object(access_processor, "metrics")
 
-    run_trigger_item.assert_not_called()
+    processor._detect_and_push_abnormal()
+
+    assert processor.inline_trigger_items == []
 
 
 def test_access_batch_result_returns_inline_trigger_items(mocker):

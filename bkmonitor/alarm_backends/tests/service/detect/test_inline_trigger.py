@@ -31,11 +31,8 @@ def test_inline_trigger_switch_is_registered_as_dynamic_setting():
 def test_detect_process_runs_trigger_only_for_items_with_anomalies(mocker):
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "10"
-    processor.outputs = {1: ["anomaly"], 2: [], 3: ["anomaly"]}
-    processor.strategy = mocker.MagicMock(
-        items=[mocker.MagicMock(id=3), mocker.MagicMock(id=1), mocker.MagicMock(id=2)]
-    )
-    mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", True)
+    processor.inline_trigger_items = [3, 1]
+    mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
     run_trigger_item = mocker.patch.object(runner, "run_trigger_item")
 
     processor.run_inline_trigger()
@@ -46,24 +43,54 @@ def test_detect_process_runs_trigger_only_for_items_with_anomalies(mocker):
     ]
 
 
-def test_detect_process_skips_inline_trigger_when_disabled(mocker):
+def test_detect_push_data_defers_signal_and_records_items_when_enabled(mocker):
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "10"
-    processor.outputs = {1: ["anomaly"]}
+    processor.inputs = {}
+    processor.outputs = {
+        1: [{"data": {"value": 1}}],
+        2: [],
+        3: [{"data": {"value": 3}}],
+    }
+    processor.strategy = mocker.MagicMock(
+        items=[mocker.MagicMock(id=3), mocker.MagicMock(id=1), mocker.MagicMock(id=2)]
+    )
+    mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", True)
+    push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=2)
+    mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
+    mocker.patch.object(processor, "publish_alarmd_detection_batches")
+    mocker.patch.object(detect_process, "metrics")
+
+    processor.push_data()
+
+    push_abnormal_data.assert_called_once_with(processor.outputs, "10", publish_signal=False)
+    assert processor.inline_trigger_items == [3, 1]
+
+
+def test_detect_push_data_publishes_signal_and_records_no_inline_items_when_disabled(mocker):
+    processor = object.__new__(DetectProcess)
+    processor.strategy_id = "10"
+    processor.inputs = {}
+    processor.outputs = {1: [{"data": {"value": 1}}]}
+    processor.strategy = mocker.MagicMock(items=[mocker.MagicMock(id=1)])
     mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
-    run_trigger_item = mocker.patch.object(runner, "run_trigger_item")
+    push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=1)
+    mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
+    mocker.patch.object(processor, "publish_alarmd_detection_batches")
+    mocker.patch.object(detect_process, "metrics")
 
-    processor.run_inline_trigger()
+    processor.push_data()
 
-    run_trigger_item.assert_not_called()
+    push_abnormal_data.assert_called_once_with(processor.outputs, "10", publish_signal=True)
+    assert processor.inline_trigger_items == []
 
 
 def test_detect_process_continues_after_inline_trigger_lock_error(mocker):
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "10"
-    processor.outputs = {1: ["anomaly"], 2: ["anomaly"]}
-    processor.strategy = mocker.MagicMock(items=[mocker.MagicMock(id=1), mocker.MagicMock(id=2)])
-    mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", True)
+    processor.inline_trigger_items = [1, 2]
+    publish_anomaly_signals = mocker.MagicMock()
+    processor.publish_anomaly_signals = publish_anomaly_signals
     run_trigger_item = mocker.patch.object(
         runner,
         "run_trigger_item",
@@ -76,6 +103,7 @@ def test_detect_process_continues_after_inline_trigger_lock_error(mocker):
         mocker.call("10", 1, executor="detect_inline"),
         mocker.call("10", 2, executor="detect_inline"),
     ]
+    publish_anomaly_signals.assert_called_once_with(["10.1"])
 
 
 def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker):

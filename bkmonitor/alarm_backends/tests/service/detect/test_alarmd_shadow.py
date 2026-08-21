@@ -139,7 +139,7 @@ def test_detect_push_keeps_legacy_delivery_before_shadow_publish():
     processor.outputs = {}
     calls = []
     processor.prepare_alarmd_detection_batches = lambda: calls.append("prepare") or ["batch"]
-    processor.push_abnormal_data = lambda *_args: calls.append("legacy") or 0
+    processor.push_abnormal_data = lambda *_args, **_kwargs: calls.append("legacy") or 0
     processor.publish_alarmd_detection_batches = lambda batches: calls.append(("shadow", batches))
 
     processor.push_data()
