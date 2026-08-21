@@ -15,21 +15,21 @@ from pathlib import Path
 
 import pytest
 
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     ContractValidationError,
     build_detection_outcome,
     build_trigger_strategy_ir_from_legacy_config,
 )
-from alarm_backends.core.alarm_engine.encoder import decode_json_document
-from alarm_backends.core.alarm_engine.publisher import _trigger_input_envelope
-from alarm_backends.core.alarm_engine.reference import (
+from alarm_backends.core.alarmd.encoder import decode_json_document
+from alarm_backends.core.alarmd.publisher import _trigger_input_envelope
+from alarm_backends.core.alarmd.reference import (
     build_reference_trigger_decision_batch,
     build_reference_trigger_decision_candidate,
     build_terminal_reference_decision_batches,
-    is_alarm_engine_shadow_strategy_selected,
+    is_alarmd_shadow_strategy_selected,
 )
-from alarm_backends.core.alarm_engine.runtime import prepare_finalized_threshold_batch
-from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY, TRIGGER_POINT, TRIGGER_STRATEGY
+from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
+from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY, TRIGGER_POINT, TRIGGER_STRATEGY
 
 
 def legacy_bytes(strategy):
@@ -365,13 +365,13 @@ def test_unconfirmed_reference_candidate_preserves_the_same_trigger_identity():
 
 
 @pytest.mark.parametrize("selector", [(True,), (1.9,), ("01",), (" 1 ",), "1,", None])
-def test_alarm_engine_shadow_strategy_selector_rejects_noncanonical_values(selector):
-    assert not is_alarm_engine_shadow_strategy_selected(selector, 1)
+def test_alarmd_shadow_strategy_selector_rejects_noncanonical_values(selector):
+    assert not is_alarmd_shadow_strategy_selected(selector, 1)
 
 
 @pytest.mark.parametrize("selector", [(1,), ("1",), "1", ("2", 1)])
-def test_alarm_engine_shadow_strategy_selector_accepts_exact_positive_ids(selector):
-    assert is_alarm_engine_shadow_strategy_selected(selector, 1)
+def test_alarmd_shadow_strategy_selector_accepts_exact_positive_ids(selector):
+    assert is_alarmd_shadow_strategy_selected(selector, 1)
 
 
 def test_terminal_reference_projects_only_detection_terminal_outcomes_after_ack():

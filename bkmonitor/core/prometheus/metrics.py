@@ -261,24 +261,24 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id",),
 )
 
-# Alarm Engine Trigger-only Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
+# alarmd Trigger-only Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
 # 因此发布结果、耗时和已确认条数本身就是能力闭环的一部分。
 # stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
-ALARM_ENGINE_SHADOW_PUBLISH_COUNT = Counter(
-    name="bkmonitor_alarm_engine_shadow_publish_count",
-    documentation="Alarm Engine Shadow 发布次数(stage: detection/reference; status: success/failed)",
+ALARMD_SHADOW_PUBLISH_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_publish_count",
+    documentation="alarmd Shadow 发布次数(stage: detection/reference; status: success/failed)",
     labelnames=("stage", "status"),
 )
 
-ALARM_ENGINE_SHADOW_PUBLISH_RECORD_COUNT = Counter(
-    name="bkmonitor_alarm_engine_shadow_publish_record_count",
-    documentation="Alarm Engine Shadow 已获 broker 确认的记录条数(stage: detection/reference)",
+ALARMD_SHADOW_PUBLISH_RECORD_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_publish_record_count",
+    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detection/reference)",
     labelnames=("stage",),
 )
 
-ALARM_ENGINE_SHADOW_PUBLISH_TIME = Histogram(
-    name="bkmonitor_alarm_engine_shadow_publish_time",
-    documentation="Alarm Engine Shadow 发布耗时，含等待 broker 确认；首期该等待发生在模块处理锁内",
+ALARMD_SHADOW_PUBLISH_TIME = Histogram(
+    name="bkmonitor_alarmd_shadow_publish_time",
+    documentation="alarmd Shadow 发布耗时，含等待 broker 确认；首期该等待发生在模块处理锁内",
     labelnames=("stage", "status"),
     buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, INF),
 )

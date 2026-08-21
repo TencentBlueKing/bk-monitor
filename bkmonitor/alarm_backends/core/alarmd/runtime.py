@@ -11,13 +11,13 @@ specific language governing permissions and limitations under the License.
 import copy
 from collections.abc import Mapping, Sequence
 
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     ContractValidationError,
     build_detection_outcome,
     build_trigger_strategy_ir_from_legacy_config,
     validate_trigger_strategy_ir,
 )
-from alarm_backends.core.alarm_engine.encoder import encode_json_document
+from alarm_backends.core.alarmd.encoder import encode_json_document
 
 
 class DetectionNotFinalized(ContractValidationError):

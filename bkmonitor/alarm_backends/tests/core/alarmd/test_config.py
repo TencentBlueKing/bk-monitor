@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from alarm_backends.core.alarm_engine.config import shadow_flag, shadow_kafka_config, shadow_topics
+from alarm_backends.core.alarmd.config import shadow_flag, shadow_kafka_config, shadow_topics
 
 
 @pytest.mark.parametrize("value", [True, "true", "True", " TRUE "])
@@ -40,11 +40,11 @@ def test_shadow_flag_fails_closed_for_every_other_value(value):
 
 
 def test_shadow_kafka_config_accepts_a_mapping_and_copies_it():
-    source = {"topic": "alarm-engine-trigger-input-shadow", "bootstrap.servers": "kafka:9092"}
+    source = {"topic": "alarmd-trigger-input-shadow", "bootstrap.servers": "kafka:9092"}
     resolved = shadow_kafka_config(source)
     assert resolved == source
     resolved["topic"] = "mutated"
-    assert source["topic"] == "alarm-engine-trigger-input-shadow"
+    assert source["topic"] == "alarmd-trigger-input-shadow"
 
 
 def test_shadow_kafka_config_decodes_an_environment_json_document():

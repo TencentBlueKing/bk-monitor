@@ -25,8 +25,8 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.processor import TriggerProcessor
-from alarm_backends.tests.alarm_engine_fixtures import TRIGGER_POINT as POINT
-from alarm_backends.tests.alarm_engine_fixtures import TRIGGER_STRATEGY as STRATEGY
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT as POINT
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_STRATEGY as STRATEGY
 from bkmonitor.models import AnomalyRecord, CacheNode, time_tools
 from core.errors.alarm_backends import StrategyNotFound
 

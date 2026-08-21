@@ -13,17 +13,17 @@ import json
 
 import pytest
 
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     ContractValidationError,
     build_trigger_strategy_ir,
     derive_input_id,
 )
-from alarm_backends.core.alarm_engine.runtime import (
+from alarm_backends.core.alarmd.runtime import (
     DetectionNotFinalized,
     prepare_finalized_threshold_batch,
     project_detection_outcomes,
 )
-from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY
+from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 
 
 def test_project_detection_outcomes_covers_every_record_and_required_level():

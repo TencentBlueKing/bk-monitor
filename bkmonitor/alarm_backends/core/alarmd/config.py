@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from collections.abc import Iterable, Mapping
 
-from alarm_backends.core.alarm_engine.contract import ContractValidationError
-from alarm_backends.core.alarm_engine.encoder import decode_json_document
+from alarm_backends.core.alarmd.contract import ContractValidationError
+from alarm_backends.core.alarmd.encoder import decode_json_document
 
 
 def shadow_flag(value) -> bool:
