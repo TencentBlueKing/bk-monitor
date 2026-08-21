@@ -13,11 +13,15 @@ from constants.issue import (
     SourceAnalysisStage,
     SourceAnalysisStatus,
 )
-from core.errors.issue import SourceAnalysisResourceNotFoundError
+from core.drf_resource import api
+from core.errors.issue import SourceAnalysisRepositoryInvalidError, SourceAnalysisResourceNotFoundError
 from fta_web.issue.resources import (
+    ListSourceAnalysisBkciProjectsResource,
+    ListSourceAnalysisBkciRepositoriesResource,
     ListSourceAnalysisAgentsResource,
     ListSourceAnalysisKnowledgeBasesResource,
     ListSourceAnalysisSkillsResource,
+    SaveSourceAnalysisConfigResource,
     SourceAnalysisBaseResource,
     SourceAnalysisExecutionBaseResource,
 )
@@ -36,6 +40,10 @@ class SourceAnalysisMockTestMixin:
 
 class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase):
     def test_mock_resources_use_final_option_contract(self):
+        projects = ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
+        repositories = ListSourceAnalysisBkciRepositoriesResource().perform_request(
+            {"bk_biz_id": 2, "project_id": SourceAnalysisUpstreamMock.BKCI_PROJECT_ID}
+        )
         agents = ListSourceAnalysisAgentsResource().perform_request(
             {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
         )
@@ -46,6 +54,20 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
             {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
         )
 
+        self.assertEqual(
+            projects,
+            [{"id": "mock-source-analysis-project", "name": "[Mock] 源码分析联调项目"}],
+        )
+        self.assertEqual(
+            repositories,
+            [
+                {
+                    "id": "mock-source-analysis-repository",
+                    "name": "mock-source-analysis-repository",
+                    "scm_type": "GIT",
+                }
+            ],
+        )
         self.assertEqual(agents["total"], 4)
         self.assertEqual(
             {item["id"] for item in agents["list"]},
@@ -61,6 +83,30 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
         self.assertEqual(set(agents["list"][0]), {"id", "name"})
         self.assertEqual(set(skills["list"][0]), {"id", "name"})
         self.assertEqual(set(knowledge_bases["list"][0]), {"id", "name"})
+
+    def test_mock_bkci_options_do_not_call_devops_api(self):
+        with (
+            patch.object(api.devops, "list_user_project", side_effect=AssertionError("unexpected DevOps request")),
+            patch.object(api.devops, "list_user_repository", side_effect=AssertionError("unexpected DevOps request")),
+        ):
+            ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
+            ListSourceAnalysisBkciRepositoriesResource().perform_request(
+                {"bk_biz_id": 2, "project_id": SourceAnalysisUpstreamMock.BKCI_PROJECT_ID}
+            )
+
+    def test_mock_repository_uses_the_same_config_validation(self):
+        SaveSourceAnalysisConfigResource.validate_repository(
+            2,
+            SourceAnalysisUpstreamMock.BKCI_PROJECT_ID,
+            SourceAnalysisUpstreamMock.BKCI_REPOSITORY_ALIAS,
+        )
+
+        with self.assertRaises(SourceAnalysisRepositoryInvalidError):
+            SaveSourceAnalysisConfigResource.validate_repository(
+                2,
+                SourceAnalysisUpstreamMock.BKCI_PROJECT_ID,
+                "unknown-repository",
+            )
 
     def test_mock_options_support_keyword_and_pagination(self):
         result = ListSourceAnalysisAgentsResource().perform_request(

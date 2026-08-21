@@ -1,8 +1,8 @@
 """Issue 源码分析临时上游 Mock。
 
-该模块只用于 AIDEV、BKFara 尚未就绪时的前后端联调。Mock 复用正式接口协议，
+该模块只用于 DevOps、AIDEV、BKFara 尚未就绪时的前后端联调。Mock 复用正式接口协议，
 不绕过 BKM 的规则校验、Celery 调度、状态机、结果校验和持久化。联调结束后应
-删除本文件、配置开关、两个 API 适配层调用钩子、知识库 Mock 分支和对应测试。
+删除本文件、配置开关、两个 API 适配层调用钩子、蓝盾/知识库 Mock 分支和对应测试。
 """
 
 import hashlib
@@ -26,7 +26,25 @@ class SourceAnalysisMockError(Exception):
 
 
 class SourceAnalysisUpstreamMock:
-    """集中模拟源码分析依赖的 AIDEV 资源和 BKFara 四接口。"""
+    """集中模拟源码分析依赖的蓝盾、AIDEV 资源和 BKFara 四接口。"""
+
+    BKCI_PROJECT_ID = "mock-source-analysis-project"
+    BKCI_REPOSITORY_ALIAS = "mock-source-analysis-repository"
+    BKCI_PROJECTS = (
+        {
+            "id": BKCI_PROJECT_ID,
+            "name": _("[Mock] 源码分析联调项目"),
+        },
+    )
+    BKCI_REPOSITORIES = {
+        BKCI_PROJECT_ID: (
+            {
+                "id": BKCI_REPOSITORY_ALIAS,
+                "name": BKCI_REPOSITORY_ALIAS,
+                "scm_type": "GIT",
+            },
+        ),
+    }
 
     AIDEV_AGENT_ACTION = "/openapi/aidev/private/v1/agents/"
     AIDEV_SKILL_ACTION = "/openapi/aidev/private/v1/skills/"
@@ -84,6 +102,18 @@ class SourceAnalysisUpstreamMock:
     @staticmethod
     def duration_seconds() -> int:
         return max(0, settings.ISSUE_SOURCE_ANALYSIS_MOCK_DURATION_SECONDS)
+
+    @classmethod
+    def list_bkci_project_options(cls) -> list[dict]:
+        """返回源码分析专用的蓝盾项目，避免 Mock 影响其他蓝盾调用方。"""
+
+        return [{"id": str(item["id"]), "name": str(item["name"])} for item in cls.BKCI_PROJECTS]
+
+    @classmethod
+    def list_bkci_repository_options(cls, project_id: str) -> list[dict]:
+        """按 Mock 项目返回 Git 代码库，供配置保存复用同一校验链路。"""
+
+        return [dict(item) for item in cls.BKCI_REPOSITORIES.get(str(project_id), ())]
 
     @classmethod
     def supports_aidev_action(cls, action: str) -> bool:
