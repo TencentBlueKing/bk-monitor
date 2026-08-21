@@ -5,6 +5,7 @@
 """
 from unittest import TestCase
 
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE
 from apps.tests.log_databus.v4_clean.helpers import (
     ALL_ETL_CLASSES,
     find_rules_by_output,
@@ -52,6 +53,7 @@ class TestCommonNanosTime(TestCase):
                     self.assertEqual(rule["output_id"], "dtEventTimeStampNanos")
                     self.assertEqual(rule["input_id"], "bk_separator_object")
                     self.assertEqual(rule["operator"]["output_type"], "string")
+                    self.assertIsNone(rule["operator"]["time_format"])
                     itp = rule["operator"]["in_place_time_parsing"]
                     self.assertIsNotNone(itp)
                     self.assertEqual(itp["to"], "strict_date_optional_time_nanos")
@@ -67,6 +69,22 @@ class TestCommonNanosTime(TestCase):
                     rules = storage._build_nanos_time_field_v4(config)
                     self.assertEqual(len(rules), 0,
                                      f"[{etl_name}/{fmt}] should NOT generate nanos rule")
+
+    def test_doris_nanos_rule_uses_time_format_without_es_only_keys(self):
+        """doris 的 nanos 规则走 time_format，不能掺入 in_place_time_parsing 专有的 to 键"""
+        for nanos_fmt in NANOS_FORMATS:
+            for etl_name, etl_cls in ALL_ETL_CLASSES:
+                with self.subTest(format=nanos_fmt, etl=etl_name):
+                    storage = etl_cls()
+                    config = make_nanos_config(nanos_fmt)
+                    storage._build_built_in_fields_v4(config, storage_cluster_type=DORIS_CLUSTER_TYPE)
+                    rules = storage._build_nanos_time_field_v4(config, storage_cluster_type=DORIS_CLUSTER_TYPE)
+                    self.assertEqual(len(rules), 1, f"[{etl_name}/{nanos_fmt}] should generate 1 nanos rule")
+                    operator = rules[0]["operator"]
+                    self.assertIsNone(operator["in_place_time_parsing"])
+                    time_format = operator["time_format"]
+                    self.assertIsNotNone(time_format)
+                    self.assertEqual(sorted(time_format.keys()), ["format", "zone"])
 
     def test_nanos_key_index_matches_time_alias(self):
         """nanos 规则的 key_index 应为 time_field 的 alias_name"""
