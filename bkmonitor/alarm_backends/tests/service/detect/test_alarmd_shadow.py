@@ -172,6 +172,59 @@ def test_alarmd_shadow_publishes_with_process_cached_producer():
     assert published == batches
 
 
+def test_alarmd_detect_input_failure_does_not_change_detection_ack(caplog):
+    from alarm_backends.core.alarmd.runtime import prepare_detect_input_batch
+
+    caplog.set_level(logging.ERROR, logger="detect")
+    batch = _prepared_detection_batch()
+    batch["detect_input"] = prepare_detect_input_batch(
+        strategy_ir=batch["strategy_ir"],
+        batch_id="batch-1",
+        data_points=copy.deepcopy(DETECT_RECORDS),
+    )
+    detection_publisher = SimpleNamespace(publish_batch=lambda value: len(value["outcomes"]))
+    detect_input_publisher = SimpleNamespace(publish_batch=mock.Mock(side_effect=RuntimeError("shadow failed")))
+
+    with (
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
+            create=True,
+        ),
+        mock.patch.object(settings, "ALARMD_DETECT_INPUT_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECT_INPUT_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detect-input-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detect-input-shadow",),
+            create=True,
+        ),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", False, create=True),
+        mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=detection_publisher),
+        mock.patch.object(
+            publisher_module,
+            "get_cached_kafka_detect_input_publisher",
+            return_value=detect_input_publisher,
+        ),
+    ):
+        assert DetectProcess.publish_alarmd_detection_batches([batch]) == 2
+
+    assert detect_input_publisher.publish_batch.call_count == 1
+    assert any("stage=detect_input result=fail_open" in record.getMessage() for record in caplog.records)
+
+
 def test_alarmd_shadow_publishes_terminal_reference_only_after_detection_ack(caplog):
     caplog.set_level(logging.INFO, logger="detect")
     calls = []

@@ -24,6 +24,41 @@ class DetectionNotFinalized(ContractValidationError):
     """Raised when a record batch cannot safely be projected as a business outcome."""
 
 
+def prepare_detect_input_batch(
+    *,
+    strategy_ir: Mapping,
+    batch_id: str,
+    data_points: Sequence[Mapping],
+) -> dict:
+    """Build the raw record batch consumed by the Go Detect→Trigger Shadow path."""
+
+    validate_trigger_strategy_ir(strategy_ir)
+    if not isinstance(batch_id, str) or not batch_id:
+        raise ContractValidationError("batch_id must be a non-empty string")
+    records = []
+    record_ids = set()
+    for data_point in data_points:
+        if not isinstance(data_point, Mapping):
+            raise ContractValidationError("data point must be an object")
+        record_id = data_point.get("record_id")
+        if not isinstance(record_id, str) or not record_id:
+            raise ContractValidationError("data point record_id must be a non-empty string")
+        if record_id in record_ids:
+            raise ContractValidationError(f"duplicate accepted record: {record_id}")
+        record_ids.add(record_id)
+        records.append(copy.deepcopy(dict(data_point)))
+    if not records:
+        raise ContractValidationError("detect input records must not be empty")
+    return {
+        "schema": {"name": "detect-input", "major": 1, "minor": 0},
+        "required_features": [],
+        "partition_hash_version": "trigger-input-partition-v1",
+        "strategy_ir": copy.deepcopy(dict(strategy_ir)),
+        "batch_id": batch_id,
+        "records": records,
+    }
+
+
 def prepare_finalized_threshold_batch(
     *,
     tenant_id: str,

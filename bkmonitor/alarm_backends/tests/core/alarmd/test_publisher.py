@@ -17,11 +17,12 @@ import pytest
 from alarm_backends.core.alarmd import publisher as publisher_module
 from alarm_backends.core.alarmd.encoder import decode_json_document, encode_json_document
 from alarm_backends.core.alarmd.publisher import (
+    KafkaDetectInputPublisher,
     DetectionPublishError,
     KafkaDetectionPublisher,
     build_kafka_detection_publisher,
 )
-from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
+from alarm_backends.core.alarmd.runtime import prepare_detect_input_batch, prepare_finalized_threshold_batch
 from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 
 
@@ -39,6 +40,24 @@ class FakeProducer:
         for message in self.messages:
             message["on_delivery"](self.delivery_error, None)
         return self.remaining
+
+
+def test_kafka_detect_input_publisher_emits_raw_records_for_go_detect():
+    producer = FakeProducer()
+    publisher = KafkaDetectInputPublisher(producer=producer, topic="alarmd-detect-input-shadow", flush_timeout=4)
+    source = _batch(include_normal=True)
+    batch = prepare_detect_input_batch(
+        strategy_ir=source["strategy_ir"],
+        batch_id="batch-1",
+        data_points=copy.deepcopy(DETECT_RECORDS),
+    )
+
+    assert publisher.publish_batch(batch) == 2
+    assert len(producer.messages) == 1
+    message = producer.messages[0]
+    assert message["topic"] == "alarmd-detect-input-shadow"
+    assert isinstance(message["key"], bytes)
+    assert decode_json_document(message["value"]) == batch
 
 
 def test_kafka_detection_publisher_waits_for_delivery_and_emits_self_contained_microbatch():
