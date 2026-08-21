@@ -1482,11 +1482,11 @@ IAM_FRAMEWORK = {
     "COMPOSITION": {"policy": "single"},
     "MIGRATION": {
         # 迁移模式 manual ｜ semi_auto
-        "mode": "manual",
+        "mode": "semi_auto",
         # 迁移文件存放目录
         "directory": "bkmonitor/iam/iam_migrations",
         # 破坏性变更（DELETE / id变更重建）全局开关，默认 False：
-        "allow_destructive": False,
+        "allow_destructive": True,
     },
 }
 
