@@ -33,7 +33,7 @@ from metadata.task.tasks import (
     clean_disable_es_storage,
     manage_es_storage,
 )
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")

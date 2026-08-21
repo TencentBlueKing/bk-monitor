@@ -14,6 +14,8 @@ import os
 from blueapps.conf.log import get_logging_config_dict
 from blueapps.patch.log import get_paas_v2_logging_config_dict
 
+from config.tools.consul import get_consul_settings
+
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
     ENVIRONMENT,
@@ -41,6 +43,16 @@ except ImportError as e:
 for _setting in dir(_module):
     if _setting == _setting.upper():
         locals()[_setting] = getattr(_module, _setting)
+
+# Consul
+(
+    CONSUL_CLIENT_HOST,
+    CONSUL_CLIENT_PORT,
+    CONSUL_HTTPS_PORT,
+    CONSUL_CLIENT_CERT_FILE,
+    CONSUL_CLIENT_KEY_FILE,
+    CONSUL_SERVER_CA_CERT,
+) = get_consul_settings()
 
 ROOT_URLCONF = "urls"
 
