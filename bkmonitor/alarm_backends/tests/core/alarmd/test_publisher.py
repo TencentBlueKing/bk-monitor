@@ -194,7 +194,7 @@ def test_kafka_detection_publisher_fails_when_broker_does_not_ack(producer, erro
         publisher.publish_batch(_batch())
 
 
-def test_build_kafka_detection_publisher_enables_idempotence_and_bounded_delivery():
+def test_build_kafka_detection_publisher_uses_all_acks_without_idempotence():
     producer = FakeProducer()
     captured = {}
 
@@ -218,7 +218,8 @@ def test_build_kafka_detection_publisher_enables_idempotence_and_bounded_deliver
     assert captured == {
         "bootstrap.servers": "kafka:9092",
         "message.timeout.ms": 2500,
-        "enable.idempotence": True,
+        "enable.idempotence": False,
+        "acks": "all",
     }
 
 
@@ -231,13 +232,13 @@ def test_build_kafka_detection_publisher_rejects_production_topic():
         )
 
 
-def test_build_kafka_detection_publisher_rejects_disabled_idempotence():
+def test_build_kafka_detection_publisher_rejects_enabled_idempotence():
     with pytest.raises(ValueError, match="idempotence"):
         build_kafka_detection_publisher(
             {
                 "topic": "alarmd-detection-shadow",
                 "bootstrap.servers": "kafka:9092",
-                "enable.idempotence": False,
+                "enable.idempotence": True,
             },
             producer_factory=lambda _config: FakeProducer(),
             allowed_topics={"alarmd-detection-shadow"},

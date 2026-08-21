@@ -253,9 +253,10 @@ def build_kafka_detection_publisher(config: Mapping, *, allowed_topics, producer
         "alarm.engine.max.outcomes.per.message", DEFAULT_MAX_OUTCOMES_PER_MESSAGE
     )
     max_envelope_bytes = producer_config.pop("alarm.engine.max.envelope.bytes", DEFAULT_MAX_ENVELOPE_BYTES)
-    if producer_config.get("enable.idempotence", True) is not True:
-        raise ValueError("detection Kafka producer idempotence must be enabled")
-    producer_config["enable.idempotence"] = True
+    if producer_config.get("enable.idempotence", False) is not False:
+        raise ValueError("detection Kafka producer idempotence must be disabled")
+    producer_config["enable.idempotence"] = False
+    producer_config["acks"] = "all"
     if producer_factory is None:
         from confluent_kafka import Producer
 

@@ -178,7 +178,7 @@ def test_reference_publisher_requires_broker_ack(producer, error):
         publisher.publish_batch(_normal_reference_batch())
 
 
-def test_reference_publisher_config_is_fail_closed_and_idempotent():
+def test_reference_publisher_config_uses_all_acks_without_idempotence():
     producer = FakeProducer()
     captured = {}
 
@@ -201,7 +201,8 @@ def test_reference_publisher_config_is_fail_closed_and_idempotent():
     assert captured == {
         "bootstrap.servers": "kafka:9092",
         "message.timeout.ms": 2500,
-        "enable.idempotence": True,
+        "enable.idempotence": False,
+        "acks": "all",
     }
 
 
@@ -212,7 +213,7 @@ def test_reference_publisher_config_is_fail_closed_and_idempotent():
         {
             "topic": "alarmd-reference-shadow",
             "bootstrap.servers": "kafka:9092",
-            "enable.idempotence": False,
+            "enable.idempotence": True,
         },
     ],
 )
