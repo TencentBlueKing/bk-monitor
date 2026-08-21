@@ -274,7 +274,12 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         except HTTPError as err:
             logger.exception(f"【模块：{self.module_name}】请求APIGW错误：{err}，请求url: {request_url} ")
             self.report_api_failure_metric(error_code=getattr(err, "code", 0), exception_type=type(err).__name__)
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=str(err.response.content),
+                status_code=err.response.status_code,
+            )
 
         if is_stream:
             return self.handle_stream_response(result)
