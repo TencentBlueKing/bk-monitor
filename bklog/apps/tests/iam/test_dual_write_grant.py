@@ -37,7 +37,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
             writers=(("v3", self.v3_writer), ("v4", self.v4_writer)),
             tenant_id="tenant-1",
             operator="operator",
-            dispatch_v4_grant=self.dispatch,
+            dispatch_retry_grant=self.dispatch,
             grant_observer=self.grant_observer,
         )
 
@@ -154,14 +154,14 @@ class DualWriteGrantOrchestratorTest(TestCase):
         # 提交后回调抛错会打断同批次其他回调，投递失败只能靠日志发现。
         self.assertEqual(result, (True, "success"))
         exception_log.assert_called_once()
-        self.assertIn("v4 dispatch failed", exception_log.call_args.args[0])
+        self.assertIn("retry dispatch failed", exception_log.call_args.args[0])
 
     def test_orchestrator_without_v4_writer_only_grants_v3(self):
         orchestrator = DualWriteGrantOrchestrator(
             writers=(("v3", self.v3_writer),),
             tenant_id="tenant-1",
             operator="operator",
-            dispatch_v4_grant=self.dispatch,
+            dispatch_retry_grant=self.dispatch,
             grant_observer=self.grant_observer,
         )
 
@@ -185,6 +185,27 @@ class DualWriteGrantOrchestratorTest(TestCase):
             self.dispatch.call_args.args[0]["payload"],
             [{"resources": [{"type": "collection", "id": 28}], "expired_at": 1893456000}],
         )
+
+    def test_retry_target_not_named_v4_still_falls_back_after_sync_failure(self):
+        current_writer = Mock()
+        current_writer.prepare_resource_creator_actions.return_value = self.v4_prepared
+        current_writer.grant_prepared.side_effect = RuntimeError("iam current timeout")
+        orchestrator = DualWriteGrantOrchestrator(
+            writers=(("v3", self.v3_writer), ("v5", current_writer)),
+            tenant_id="tenant-1",
+            operator="operator",
+            dispatch_retry_grant=self.dispatch,
+            grant_observer=self.grant_observer,
+            retry_target="v5",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            result = orchestrator.grant_creator_action(self.application)
+
+        self.assertEqual(result, (True, "success"))
+        self.dispatch.assert_called_once_with(self.expected_task_kwargs)
+        self.grant_observer.assert_any_call("v5", "collection", "sync_failed")
+        self.grant_observer.assert_any_call("v5", "collection", "fallback_dispatched")
 
 
 class ErrorSummaryTest(SimpleTestCase):

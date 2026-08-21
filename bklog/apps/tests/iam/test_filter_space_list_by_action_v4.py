@@ -37,6 +37,20 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
         self.assertEqual(error.provider, "v4")
         self.assertIsNone(error.data)
 
+    def test_provider_bundles_wire_scope_separately_from_auth(self):
+        v3 = make_scope_provider(requires_candidate_ids=True)
+        v4 = make_scope_provider()
+        self.permission._v3_provider = v3
+        self.permission._v4_provider = v4
+        self.permission._provider_bundles = None
+
+        bundles = self.permission.provider_bundles
+
+        self.assertIs(bundles[AuthMode.V3].scope, v3)
+        self.assertIs(bundles[AuthMode.V4].scope, v4)
+        self.assertIs(bundles[AuthMode.V3].auth, v3)
+        self.assertIs(bundles[AuthMode.V4].auth, v4)
+
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_v4_intersects_authorized_ids_with_local_spaces(self):
         mode_provider = MagicMock()

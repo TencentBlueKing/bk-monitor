@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -123,8 +124,16 @@ class V3PermissionProvider(PermissionProvider):
         resources: list[Resource] | None = None,
         system_id: str = "",
     ) -> str:
-        """V3 原生的申请链接入口，参数保持 V3 SDK 类型。"""
+        """Deprecated: 引擎路径请用 ``get_apply_data``。
 
+        参数仍是 V3 SDK 资源，不能转发到 ``get_apply_data``（那边要 ResourceInstance）。
+        """
+
+        warnings.warn(
+            "V3PermissionProvider.get_apply_url is deprecated; use get_apply_data for engine resources",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.application_builder.get_apply_url(action_ids, resources, system_id)
 
     def _batch_error_result(self, request: BatchAuthRequest, error: AuthAPIError) -> BatchAuthResult:

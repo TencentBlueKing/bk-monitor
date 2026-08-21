@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+# ---------------------------------------------------------------------------
+# 运行时结果对象
+#
+# AuthResult 是单个 Provider 的原始输出，必须保留 ALLOW / DENY / ERROR 三态，
+# 不能在方言层先压成 bool——union 需要区分「明确拒绝」和「依赖故障」。
+# AuthDecision 才是 ModeRouter 合并后的最终决策，业务门面通常只读 allowed。
+#
+# 全部 frozen：一次决策在观测、申请回退、日志之间传递时不能被改写。
+# ---------------------------------------------------------------------------
+
 from dataclasses import dataclass
 from enum import Enum
 
 
 class AuthStatus(str, Enum):
-    """Provider 返回的原始鉴权结果。"""
+    """Provider 返回的原始鉴权结果，禁止在 Provider 内部再合并。"""
 
     ALLOW = "allow"
     DENY = "deny"
@@ -14,7 +24,11 @@ class AuthStatus(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class AuthResult:
-    """单个权限 Provider 返回的鉴权结果。"""
+    """单个权限 Provider 返回的鉴权结果。
+
+    ERROR 必须带 reason；error_type 只给指标/日志分类，不要拿去拼前端文案。
+    allowed 只在 ALLOW 时为 True，DENY 与 ERROR 都是 False，避免调用方漏看 degraded。
+    """
 
     status: AuthStatus
     provider_name: str
@@ -53,7 +67,12 @@ class AuthResult:
 
 @dataclass(frozen=True, slots=True)
 class AuthDecision:
-    """最终鉴权决策及其对应的 Provider 结果明细。"""
+    """ModeRouter 合并后的最终决策。
+
+    hit_provider_names 只包含明确 ALLOW 的一侧，供 union 分歧指标使用。
+    degraded 表示至少一侧 ERROR；allowed 仍可能为 True（另一侧放行）。
+    mode 可能是非法 Toggle 原值，观测时要先归一，不能直接当 Prometheus label。
+    """
 
     allowed: bool
     provider_results: tuple[AuthResult, ...]
@@ -97,7 +116,11 @@ class BatchAuthDecision:
 
 @dataclass(frozen=True, slots=True)
 class AuthorizedResourceScope:
-    """顶层资源范围查询结果。is_wildcard=True 时 ids 为空集合，表示覆盖全部本地候选。"""
+    """顶层资源范围查询结果，供「我的空间」列表使用。
+
+    is_wildcard=True 时 ids 必须为空：表示覆盖全部本地候选，而不是「一个都没有」。
+    空范围请用 empty()，错误请用 error()，不要把失败伪装成空拒绝。
+    """
 
     resource_type: str
     ids: frozenset[str] = frozenset()
