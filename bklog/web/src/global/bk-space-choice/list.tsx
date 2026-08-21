@@ -67,6 +67,9 @@ export interface IListItem {
 
 export type ThemeType = 'dark' | 'light';
 
+// 骨架屏行数，按列表可视高度 240px / 行高 32px 铺满
+const SKELETON_ROW_COUNT = 7;
+
 // const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 
 export default defineComponent({
@@ -101,6 +104,10 @@ export default defineComponent({
     selectableItems: {
       type: Array as () => IListItem[],
       default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
@@ -139,10 +146,26 @@ export default defineComponent({
       return selectableIndex === props.selectedIndex;
     };
 
+    // 空间列表加载中的骨架占位，避免只渲染首屏预加载的单个空间造成误解
+    const renderSkeleton = () => (
+      <div class='list-skeleton'>
+        {Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
+          <div
+            key={index}
+            class='list-skeleton-item'
+          >
+            <span class='list-skeleton-bar' />
+          </div>
+        ))}
+      </div>
+    );
+
     // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
-        {props.list.length > 0 ? (
+        {props.loading ? (
+          renderSkeleton()
+        ) : props.list.length > 0 ? (
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
