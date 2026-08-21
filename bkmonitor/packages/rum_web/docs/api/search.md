@@ -297,7 +297,6 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "name": "DEVICE_BROWSER",
       "alias": "终端 & 浏览器",
       "supported_span_types": [
-        "common",
         "resource",
         "action"
       ],
