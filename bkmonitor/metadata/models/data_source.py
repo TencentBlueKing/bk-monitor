@@ -782,6 +782,9 @@ class DataSource(models.Model):
         except Exception:
             logger.exception("save the relationship for space and datasource error")
 
+        # 目前所有类型的数据源在创建时都要主动刷新到gse
+        data_source.refresh_gse_config_to_gse()
+
         # 5. 触发consul刷新, 只有提交了事务后，其他人才可以看到DB记录
         if is_refresh_config:
             try:
