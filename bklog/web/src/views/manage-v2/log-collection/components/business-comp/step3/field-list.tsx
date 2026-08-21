@@ -901,19 +901,12 @@ export default defineComponent({
       // 执行所有校验（校验逻辑是同步的，会立即设置错误状态）
       const promises = [checkAliasName(), checkFieldName(), checkType()];
 
-      // 使用 nextTick 确保在所有校验方法执行完成后再触发更新
-      // 这样可以让错误样式正确显示
-      nextTick(() => {
-        // 触发更新，确保 UI 反映最新的错误状态
-        emit('change', [...props.data]);
-      });
-
-      // 在所有 Promise 完成后也触发一次更新（处理异步情况）
-      Promise.allSettled(promises).then(() => {
-        nextTick(() => {
-          emit('change', [...props.data]);
-        });
-      });
+      // 校验同步执行完毕后立即触发一次更新，让错误样式正确显示。
+      // 禁止在 nextTick / Promise 异步回调里 emit props.data 快照：
+      // 异步回写时 props.data 可能仍是父组件更新前的旧数组，
+      // 会覆盖父组件在提交校验阶段写入的 is_time / option 等状态，
+      // 导致「指定日志时间」切换为「日志上报时间」后提交数据未变更。
+      emit('change', [...props.data]);
 
       return promises;
     };
