@@ -35,6 +35,7 @@ import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 
+import type { IGetValueFnParams, IWhereValueOptionsItem } from '../../../../components/retrieval-filter/utils';
 import type { AggCondition, AggFunction, MetricDetailV2, QueryConfig } from '../../typings';
 import type { IGetMetricListData, IGetMetricListParams } from '../metric/components/types';
 import type {
@@ -47,11 +48,13 @@ import type {
 import './query-config-creator.scss';
 
 interface IProps {
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   hasVariableOperate?: boolean;
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: IVariablesItem[];
   getMetricList: (params: IGetMetricListParams) => Promise<IGetMetricListData>;
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChangeCondition?: (val: AggCondition[]) => void;
   onChangeDimension?: (val: string[]) => void;
   onChangeFunction?: (val: AggFunction[]) => void;
@@ -70,6 +73,13 @@ export default class QueryConfigCreator extends tsc<IProps> {
     params: IGetMetricListParams
   ) => Promise<IGetMetricListData>;
   @Prop({ default: false }) hasVariableOperate: boolean;
+  /* 过滤条件维度值获取方法，透传给条件组件以支持外部数据源 */
+  @Prop({ default: null, type: Function }) getValueFn: (
+    params: IGetValueFnParams
+  ) => Promise<IWhereValueOptionsItem>;
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
+
   get getMethodVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }
@@ -175,6 +185,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 <MethodCreator
                   key={'method'}
                   allVariables={this.allVariables}
+                  createVariableFn={this.createVariableFn}
                   options={this.getAggMethodList}
                   showVariables={this.hasVariableOperate}
                   value={this.queryConfig.agg_method}
@@ -197,6 +208,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 <DimensionCreator
                   key={'dimension'}
                   allVariables={this.allVariables}
+                  createVariableFn={this.createVariableFn}
                   options={this.getDimensionList as IDimensionOptionsItem[]}
                   showVariables={true}
                   value={this.queryConfig.agg_dimension}
@@ -207,6 +219,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 <FunctionCreator
                   key={'function'}
                   allVariables={this.allVariables}
+                  createVariableFn={this.createVariableFn}
                   options={this.metricFunctions}
                   showVariables={true}
                   value={this.queryConfig.functions}
@@ -223,7 +236,9 @@ export default class QueryConfigCreator extends tsc<IProps> {
               >
                 <ConditionCreator
                   allVariables={this.allVariables}
+                  createVariableFn={this.createVariableFn}
                   dimensionValueVariables={this.getDimensionValueVariables as { name: string }[]}
+                  getValueFn={this.getValueFn}
                   hasVariableOperate={true}
                   metricDetail={this.queryConfig.metricDetail}
                   options={this.getWhereDimensionList as IConditionOptionsItem[]}
