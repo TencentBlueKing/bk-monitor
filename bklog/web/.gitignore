@@ -99,3 +99,4 @@ output
 .session_tmps
 .aafe/
 .aafe*.*.json
+tests

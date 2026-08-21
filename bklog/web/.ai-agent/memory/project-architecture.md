@@ -1,6 +1,6 @@
 # Project Architecture Index
 
-Generated: 2026-08-21T06:33:08.700Z
+Generated: 2026-08-21T07:15:50.295Z
 Project: blueking-log
 
 Primary knowledge: `.aafe/`
