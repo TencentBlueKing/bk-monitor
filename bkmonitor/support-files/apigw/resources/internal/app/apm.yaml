@@ -431,24 +431,6 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm host instance
-  /app/apm/query_apm_es_mapping/:
-    post:
-      operationId: query_apm_es_mapping
-      description: 查询apm应用es映射
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /apm_api/v1/application/query_es_mapping/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: query apm es mapping
   /app/apm/query_apm_trace_list/:
     post:
       operationId: query_apm_trace_list

@@ -1449,19 +1449,6 @@ class UpdateMetricFieldsResource(Resource):
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
 
 
-class QueryEsMappingResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField()
-
-    def perform_request(self, data):
-        datasource = TraceDataSource.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        if not datasource:
-            return None
-
-        return datasource.es_client.indices.get_mapping(datasource.index_name)
-
-
 class ListEsClusterInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")

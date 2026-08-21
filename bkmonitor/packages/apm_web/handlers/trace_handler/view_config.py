@@ -16,40 +16,40 @@ to the current version of the project delivered to anyone in the future.
 """
 
 import copy
+from typing import Any
 
 from django.utils.functional import cached_property
 
 from apm.constants import KindCategory
 from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
-from apm_web.handlers.es_handler import ESMappingHandler
+from apm_web.handlers.query.span import SpanQuery
 from apm_web.handlers.trace_handler.query import TraceQueryTransformer
+from apm_web.models import Application
 from apm_web.trace.constants import TRACE_FIELD_ALIAS
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
 from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS, EnabledStatisticsDimension
-from core.drf_resource import api
 
 
 class TraceFieldsInfoHandler:
     """trace 检索页面不同视角下的所有字段信息"""
 
-    ES_MAPPING_API = api.apm_api.query_es_mapping
-
     # 预计算对象字段扩展信息
     TRACE_PRE_OBJECTS_FIELDS_EXTEND = {
         PreCalculateSpecificField.KIND_STATISTICS.value: {
-            KindCategory.ASYNC: {"type": "integer"},
-            KindCategory.SYNC: {"type": "integer"},
-            KindCategory.INTERNAL: {"type": "integer"},
-            KindCategory.UNSPECIFIED: {"type": "integer"},
+            KindCategory.ASYNC: {"field_type": "integer"},
+            KindCategory.SYNC: {"field_type": "integer"},
+            KindCategory.INTERNAL: {"field_type": "integer"},
+            KindCategory.UNSPECIFIED: {"field_type": "integer"},
         },
         PreCalculateSpecificField.CATEGORY_STATISTICS.value: {
-            CategoryEnum.DB: {"type": "integer"},
-            CategoryEnum.RPC: {"type": "integer"},
-            CategoryEnum.HTTP: {"type": "integer"},
-            CategoryEnum.OTHER: {"type": "integer"},
-            CategoryEnum.MESSAGING: {"type": "integer"},
-            CategoryEnum.ASYNC_BACKEND: {"type": "integer"},
+            CategoryEnum.DB: {"field_type": "integer"},
+            CategoryEnum.RPC: {"field_type": "integer"},
+            CategoryEnum.HTTP: {"field_type": "integer"},
+            CategoryEnum.OTHER: {"field_type": "integer"},
+            CategoryEnum.MESSAGING: {"field_type": "integer"},
+            CategoryEnum.ASYNC_BACKEND: {"field_type": "integer"},
         },
     }
 
@@ -58,30 +58,34 @@ class TraceFieldsInfoHandler:
         self.app_name = app_name
         self.username = username or get_request_username()
 
-    @property
-    def es_mapping(self) -> dict:
-        """获取 span 原始表的 es_mapping 的原始数据"""
-
-        return self.ES_MAPPING_API(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+    @cached_property
+    def application(self) -> Application:
+        return Application.objects.get(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
 
     @cached_property
-    def es_mapping_fields_info(self) -> dict[str, dict]:
-        """获取 es_mapping 展开后的字典信息"""
+    def span_fields_info(self) -> dict[str, dict[str, Any]]:
+        """通过 unify-query 获取 Span 原始表的字段信息。"""
 
-        es_mapping_handler = ESMappingHandler(self.es_mapping)
-        return es_mapping_handler.flatten_all_index_mapping_properties()
+        application: Application = self.application
+        start_time: int
+        end_time: int
+        start_time, end_time = application.list_retention_time_range()
+        data_source: TraceDatasourceTarget = TraceDatasourceTarget.build(
+            application.bk_biz_id, application.app_name, application.trace_result_table_id
+        )
+        return SpanQuery([data_source]).query_fields(start_time, end_time)
 
     @cached_property
     def pre_calculate_fields_info(self) -> dict[str, dict]:
         """获取预计算字段信息
 
-        保持和 es_mapping_fields_info 一样的结构{field_name: {"type": ""}}
+        保持和 span_fields_info 一样的字段类型结构。
         """
 
         # 预计算的所有字段信息
         pre_storage_dict = {}
         for field_info in PrecalculateStorageConfig.TABLE_SCHEMA:
-            pre_storage_dict[field_info["field_name"]] = dict(type=field_info.get("option", {}).get("es_type", ""))
+            pre_storage_dict[field_info["field_name"]] = {"field_type": field_info.get("option", {}).get("es_type", "")}
 
         # 返回 search_fields 中的字段信息
         pre_calculate_fields_info = {}
@@ -97,17 +101,17 @@ class TraceFieldsInfoHandler:
     def trace_collections_fields_info(self) -> dict[str, dict]:
         """获取 trace collections 中可能存在的字段
 
-        保持和 es_mapping_fields_info 一样的结构{field_name: {"type": ""}}
+        保持和 span_fields_info 一样的字段类型结构。
         """
 
         # 获取所有的标准字段名
         field_names = [standard_field.field for standard_field in SpanStandardField.COMMON_STANDARD_FIELDS]
         standard_fields_info = {}
         for field_name in field_names:
-            if field_name in self.es_mapping_fields_info:
-                standard_fields_info.setdefault(TraceQueryTransformer.to_pre_cal_field(field_name), {}).update(
-                    self.es_mapping_fields_info[field_name]
-                )
+            if field_name in self.span_fields_info:
+                standard_fields_info[TraceQueryTransformer.to_pre_cal_field(field_name)] = {
+                    "field_type": self.span_fields_info[field_name]["field_type"]
+                }
         return standard_fields_info
 
     def get_fields_info_by_mode(self, mode: QueryMode) -> dict[str, dict]:
@@ -118,7 +122,7 @@ class TraceFieldsInfoHandler:
             fields_info.update(copy.deepcopy(self.pre_calculate_fields_info))
             fields_info.update(copy.deepcopy(self.trace_collections_fields_info))
         elif mode == QueryMode.SPAN:
-            fields_info.update(copy.deepcopy(self.es_mapping_fields_info))
+            fields_info.update(copy.deepcopy(self.span_fields_info))
         return fields_info
 
 
@@ -191,7 +195,7 @@ class TraceFieldsHandler:
         else:
             fields_info = self.span_fields_info
 
-        return fields_info.get(field_name, {}).get("type", "")
+        return fields_info.get(field_name, {}).get("field_type", "")
 
     def get_fields_info(self, mode: QueryMode, field_names: list[str]) -> list[dict]:
         """获取字段信息"""
@@ -221,9 +225,12 @@ class TraceFieldsHandler:
             # 尽可能顶层字段排前面，同层级按原有定义顺序不变
             field_names.sort(key=lambda field_name: "." in field_name)
         elif mode == QueryMode.SPAN:
-            field_names = list(self.span_fields_info)
-            # 去除 Span 协议中没有的字段（比如：监控内置字段、bkbase 内置字段等）
-            field_names = [f for f in field_names if f.split(".")[0] in SPAN_SORTED_FIELD]
+            # 去除 Span 协议外的字段，以及旧 ES mapping 展开逻辑不会返回的 object / nested 字段。
+            field_names = [
+                field_name
+                for field_name, field_info in self.span_fields_info.items()
+                if field_name.split(".")[0] in SPAN_SORTED_FIELD and self.is_searched(field_info["field_type"])
+            ]
             field_names.sort(
                 key=lambda field_name: (
                     # 顶层字段优先

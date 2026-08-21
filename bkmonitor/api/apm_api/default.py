@@ -288,15 +288,6 @@ class QueryTraceByHostInstance(ApmAPIGWResource):
     method = "POST"
 
 
-class QueryEsMapping(ApmAPIGWResource):
-    """
-    获取es mapping信息
-    """
-
-    action = "/app/apm/query_apm_es_mapping/"
-    method = "POST"
-
-
 class QueryHostInstance(ApmAPIGWResource):
     """
     查询apm主机实例
