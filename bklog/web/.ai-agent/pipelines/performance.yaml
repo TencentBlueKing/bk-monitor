@@ -1,7 +1,7 @@
 pipeline:
   - skill: memory-recaller
   - skill: architect
-  - skill: pattern-selector
+  - skill: module-decomposer
   - skill: evolution-predictor
   - gate: architecture_gate
   - skill: refactor-critic

@@ -97,3 +97,5 @@ local.cookie
 test
 output
 .session_tmps
+.aafe/
+.aafe*.*.json

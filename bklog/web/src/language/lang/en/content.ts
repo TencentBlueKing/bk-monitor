@@ -1418,4 +1418,17 @@ export default {
     'Sorting by usage requires a real-time request for cluster usage and may take a while. Click Confirm to proceed.',
   '搜索 数据 ID、采集名、数据名、存储集群、存储名': 'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
   仅新创建采集项支持选择采集范围: 'Collection range can only be selected when creating a new collection item',
+  '您当前登录的企业空间是【{current}】，无法访问【{target}】企业空间的资源。请返回登录页或切换企业空间后重试。':
+    'You are currently logged in to enterprise space [{current}] and cannot access resources in enterprise space [{target}]. Please return to the login page or switch enterprise space and try again.',
+  '无法跨企业空间访问该业务（当前登录：{current}，目标：{target}，空间UID: {spaceUid}，业务ID: {bizId}）。请返回登录页或切换企业空间。':
+    'Cannot access this business across enterprise spaces (currently logged in: {current}, target: {target}, space UID: {spaceUid}, business ID: {bizId}). Please return to the login page or switch enterprise space.',
+  返回登录页: 'Return to login page',
+  访问当前企业空间: 'Access current enterprise space',
+  '当前无可用业务信息，请联系管理员申请（空间UID：{spaceUid}，业务ID：{bizId}）':
+    'No available business information. Please contact the administrator to apply (space UID: {spaceUid}, business ID: {bizId})',
+  或者移除业务参数重试: 'Or remove the business parameters and retry',
+  业务下无采集项，请按照指引完成接入，或联系管理员申请:
+    'No collection items under this business. Please follow the guide to onboard, or contact the administrator to apply',
+  API无权限，请联系管理员申请: 'No API permission. Please contact the administrator to apply',
+  无权限，请联系管理员: 'No permission. Please contact the administrator',
 };

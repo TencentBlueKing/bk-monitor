@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+import logging
 
 import pytest
 
@@ -224,8 +225,9 @@ def test_build_kafka_detection_publisher_rejects_disabled_idempotence():
         )
 
 
-def test_cached_kafka_detection_publisher_reuses_process_producer(monkeypatch):
+def test_cached_kafka_detection_publisher_reuses_process_producer(monkeypatch, caplog):
     publisher_module.get_cached_kafka_detection_publisher.cache_clear()
+    caplog.set_level(logging.INFO, logger=publisher_module.__name__)
     expected = object()
     calls = []
 
@@ -251,6 +253,11 @@ def test_cached_kafka_detection_publisher_reuses_process_producer(monkeypatch):
             {"alarmd-detection-shadow"},
         )
     ]
+    enabled_logs = [record.getMessage() for record in caplog.records if "result=enabled" in record.getMessage()]
+    assert len(enabled_logs) == 1
+    assert "component=alarmd-python stage=detection result=enabled records=0 duration_ms=" in enabled_logs[0]
+    assert "bootstrap.servers" not in enabled_logs[0]
+    assert "kafka:9092" not in enabled_logs[0]
     publisher_module.get_cached_kafka_detection_publisher.cache_clear()
 
 

@@ -1,0 +1,148 @@
+---
+description: 新增文件加蓝鲸 License；修改时用 aafe license 本地检查/更新（禁止 AI 读 memory）。
+alwaysApply: true
+---
+
+# File License Header（BlueKing / 蓝鲸）
+
+## 触发
+
+### A. 新增文件
+
+**Create / Write 新路径**时：必须按文件类型添加标准 License 头（`skip` 类型除外）。
+写完后执行本地命令标记 memory（不要让 AI 手改 memory 文件）：
+
+```bash
+aafe license mark <path>
+```
+
+### B. 修改已有文件（更新策略）
+
+仅当目标文件**已经包含 License 头**时，才检查/更新。**无 License 头**：不要为了补头而改历史文件（除非用户明确要求）。
+
+二进制 / 生成物 / 锁文件：跳过。
+
+## Memory + 本地快速检查（强制，禁止 AI 反馈）
+
+合规 cache 在 `bklog/web/.ai-agent/memory/file-license-ok.jsonl`（append-only JSONL）。**随着文件变大，AI 读取会爆炸 tokens，因此：**
+
+### Hard（必须遵守）
+
+1. **禁止**用 Read / Grep / 把 `bklog/web/.ai-agent/memory/file-license-ok.jsonl` 内容读进模型上下文
+2. **禁止**在对话里全文对比 License 正文与源文件
+3. **必须**用本地 CLI 完成检查 / 更新 / 标记（Node 本地执行，只回一行短状态）
+
+```bash
+# 修改文件前/中：本地 ensure（memory 命中则秒回；miss 则本地探针头并按需改文件）
+aafe license ensure <path> [path...]
+
+# 只检查不改文件
+aafe license check <path> --no-write
+
+# 新增文件写完标准头后标记
+aafe license mark <path>
+```
+
+### CLI 输出（唯一允许进入上下文的结果）
+
+每文件一行，例如：
+
+- `action=memory-ok path=src/a.ts style=block-star` → 已合规，直接改业务代码
+- `action=ok path=src/a.ts` → 本地校验通过并已写入 memory
+- `action=updated path=src/a.ts` → 已本地重写 License 头
+- `action=no-license path=src/a.ts` → 无头，跳过（不补头）
+- `action=skip-type path=package.json` → 跳过类型
+
+### Memory 文件格式（仅供 CLI；AI 勿读）
+
+JSONL，每行一条（last-write-wins）：
+
+```jsonl
+{"path":"src/example.ts","ok":true,"fp":"blueking-mit-v1","style":"block-star","at":"ISO-8601"}
+```
+
+- `fp` 必须等于 `blueking-mit-v1`；模板变更后旧行失效
+- 路径为相对仓库根的 posix 路径
+
+### 执行顺序（修改文件时）
+
+1. **会话内**：本会话已对某 path 拿到过 CLI 结果 → 不再重复跑
+2. 否则跑 `aafe license ensure <path>`，只根据一行 `action=` 决策
+3. **禁止**打开 memory 文件或本 Rule 的 License 全文去做人工/AI 对比
+
+## License 正文（固定）
+
+```text
+Tencent is pleased to support the open source community by making
+蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+---------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+```
+
+## 按文件类型选择注释标签
+
+| 风格 | 扩展名 / 文件 | 写法 |
+| --- | --- | --- |
+| `block-star` | `.js` `.jsx` `.ts` `.tsx` `.mjs` `.cjs` `.css` `.scss` `.less` `.java` `.go` `.rs` `.kt` `.c` `.h` `.cpp` `.swift` 等 | `/*` + 每行 ` * ` + ` */` |
+| `html` | `.html` `.vue` `.svelte` `.xml` `.svg` `.md` `.mdx` | `<!--` … `-->` |
+| `line-hash` | `.py` `.sh` `.yaml` `.yml` `.toml` `.rb` `Dockerfile` `Makefile` 等 | 每行 `# ` |
+| `line-dash` | `.sql` | 每行 `-- ` |
+| `skip` | `.json` 锁文件、图片、字体、`*.min.js` 等 | **不添加** |
+
+### 示例：`block-star`（TS/JS/CSS…）
+
+```ts
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * ...
+ */
+```
+
+### 示例：`html`（Vue/HTML/MD…）
+
+```vue
+<!--
+  Tencent is pleased to support the open source community by making
+  蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+  ...
+-->
+```
+
+### 示例：`line-hash`（Python/Shell/YAML…）
+
+```py
+# Tencent is pleased to support the open source community by making
+# 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+# ...
+```
+
+## 放置位置
+
+1. 文件最顶部（第 1 行起）
+2. 若存在 shebang（`#!/usr/bin/env ...`）：License 放在 shebang **下一行**
+3. Vue SFC：放在文件最顶部（`<template>` / `<script>` 之前）的 HTML 注释
+4. License 头与正文之间空一行
+
+## 禁止
+
+- 新增源码文件却省略 License 头（`skip` 类型除外）
+- 用错误注释语法导致语法错误（例如 JSON 内写 `/* */`）
+- 改写 License 法律正文（年份替换除外，若项目约定可更新 Copyright 年份）
+- **AI Read/Grep memory 文件或全文对比 License**（必须用 `aafe license`）
+- 修改无 License 的历史文件时主动批量补头
+
+规则详情与实现辅助见 AAFE runtime；项目约定以 `bklog/web/.ai-agent/rules/new-file-license.mdc` 为准。
