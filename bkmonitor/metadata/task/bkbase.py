@@ -39,8 +39,14 @@ from metadata.models.data_link.constants import (
     DataLinkKind,
     DataLinkResourceStatus,
 )
-from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig, ResultTableConfig
+from metadata.models.data_link.data_link_configs import (
+    COMPONENT_CLASS_MAP,
+    ClusterConfig,
+    ResultTableConfig,
+    SurrealDBBindingConfig,
+)
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
+from metadata.service.surrealdb_materialized_view import reconcile_materialized_views
 from metadata.models.vm.utils import report_metadata_data_link_status_info
 from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
@@ -1481,6 +1487,8 @@ def _reconcile_data_link_components() -> tuple[
                 stats.untrusted_batch_count += 1
                 continue
 
+            remote_configs_by_name = {config["metadata"]["name"]: config for config in configs}
+
             if component_kind in STORAGE_BINDING_KIND_MAP:
                 reference_issues = _check_storage_binding_references(
                     configs,
@@ -1552,6 +1560,27 @@ def _reconcile_data_link_components() -> tuple[
                 _mark_component_links_untrusted(components, untrusted_links)
                 stats.untrusted_batch_count += 1
                 continue
+
+            if component_kind == DataLinkKind.SURREALDBBINDING.value and settings.ENABLE_SURREALDB_MATERIALIZED_VIEW:
+                materialized_view_components = {
+                    component.name: component for component in [*components, *created_components]
+                }
+                for name, (_, extra_config) in parsed_configs.items():
+                    component = materialized_view_components.get(name)
+                    if not isinstance(component, SurrealDBBindingConfig):
+                        continue
+                    component.status = extra_config["status"]
+                    try:
+                        reconcile_materialized_views(component, remote_configs_by_name[name])
+                    except Exception as error:  # pylint: disable=broad-except
+                        logger.exception(
+                            "bulk_refresh_data_link_status: reconcile surrealdb materialized views failed, "
+                            "tenant->[%s], namespace->[%s], name->[%s], error->[%s]",
+                            bk_tenant_id,
+                            namespace,
+                            name,
+                            error,
+                        )
 
             stats.created_count += len(created_components)
             stats.updated_count += len(changed_components) - terminated_count

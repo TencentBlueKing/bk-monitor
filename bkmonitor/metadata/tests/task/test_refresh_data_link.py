@@ -861,6 +861,45 @@ def test_refresh_updates_empty_surrealdb_definitions(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_refresh_reconciles_surrealdb_materialized_views_when_enabled(mocker, settings):
+    settings.ENABLE_SURREALDB_MATERIALIZED_VIEW = True
+    component = models.SurrealDBBindingConfig.objects.create(
+        name="graph_rt",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="graph_link",
+        bk_biz_id=2,
+        status=DataLinkResourceStatus.PENDING.value,
+        surrealdb_cluster_name="surreal-default",
+        bkbase_result_table_name="graph_rt",
+        table_type="normal",
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_with_pod", "from": "pod", "to": "pod"}],
+    )
+    remote_config = _remote_component_for_kind(DataLinkKind.SURREALDBBINDING.value, "graph_rt")
+    remote_config["spec"].update(
+        {
+            "storage": {"name": "surreal-default"},
+            "data": {"name": "graph_rt"},
+            "vertices": component.vertices,
+            "relations": component.relations,
+        }
+    )
+    remote_config["metadata"]["annotations"] = {
+        "SurrealDBNamespace": "bkmonitor",
+        "SurrealDBDatabase": "biz_2",
+    }
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
+    reconcile = mocker.patch("metadata.task.bkbase.reconcile_materialized_views")
+
+    _reconcile_data_link_components()
+
+    component.refresh_from_db()
+    assert component.status == DataLinkResourceStatus.OK.value
+    reconcile.assert_called_once_with(component, remote_config)
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_refresh_keeps_falsy_non_surrealdb_fields(mocker):
     component = models.DataIdConfig.objects.create(
         name="metric_data",
