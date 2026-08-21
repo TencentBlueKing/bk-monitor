@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aafe.dev/ddd/ddd-gate.schema.json",
+  "title": "DDD Gate Decision",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled",
+        "ambiguous"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "full",
+        "partial",
+        "none"
+      ]
+    },
+    "requestedCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "clarification": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "enabled",
+    "decision",
+    "reason",
+    "scope",
+    "requestedCapabilities"
+  ]
+}
