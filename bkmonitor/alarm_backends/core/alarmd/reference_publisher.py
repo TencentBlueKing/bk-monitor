@@ -145,9 +145,10 @@ def build_kafka_reference_decision_publisher(
         producer_config["message.timeout.ms"] = timeout_ms
 
     flush_timeout = producer_config.pop("alarm.engine.flush.timeout.seconds", timeout_ms / 1000 + 1)
-    if producer_config.get("enable.idempotence", True) is not True:
-        raise ValueError("reference decision Kafka producer idempotence must be enabled")
-    producer_config["enable.idempotence"] = True
+    if producer_config.get("enable.idempotence", False) is not False:
+        raise ValueError("reference decision Kafka producer idempotence must be disabled")
+    producer_config["enable.idempotence"] = False
+    producer_config["acks"] = "all"
     if producer_factory is None:
         from confluent_kafka import Producer
 
