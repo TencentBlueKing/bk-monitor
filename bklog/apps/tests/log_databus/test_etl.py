@@ -638,6 +638,8 @@ FIELDS = [
         "is_delete": True,
     },
 ]
+FIELDS_NANOS = copy.deepcopy(FIELDS)
+FIELDS_NANOS[3]["option"]["time_format"] = "yyyy-MM-dd HH:mm:ss.SSSSSS"
 # 时间字段的来源直接设为非维度
 FIELDS_NOT_ES_DOC_VALUES_KEYS = ["key1", "time1"]
 FIELDS_TIME_FIELD_ALIAS_NAME = "time1"
@@ -781,6 +783,50 @@ class TestEtl(TestCase):
         self.assertIsInstance(etl_config["etl_params"]["es_unique_field_list"], list)
         self.assertEqual(etl_config["etl_params"]["separator_node_action"], "")
         return True
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_is_nanos_can_fall_back_to_false(self, mock_modify_delay, mock_index_set):
+        """切换回非纳秒时间字段时，应清除采集项的纳秒标记。"""
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        mock_index_set.return_value = LOG_INDEX_DATA
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG_JSON)
+        nanos_fields = copy.deepcopy(FIELDS_NANOS)
+        non_nanos_fields = copy.deepcopy(FIELDS_NANOS)
+        non_nanos_fields[3]["option"]["time_format"] = "yyyy-MM-DD hh:mm:ss"
+
+        etl_storage.update_or_create_result_table(
+            collector_config,
+            table_id=TABLE_ID,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            retention=RETENTION_TIME,
+            allocation_min_days=ALLOCATION_MIN_DAYS,
+            storage_replies=1,
+            fields=nanos_fields,
+            etl_params=ETL_PARAMS_JSON,
+            hot_warm_config=HOT_WARM_CONFIG,
+        )
+        collector_config.refresh_from_db()
+        self.assertTrue(collector_config.is_nanos)
+
+        etl_storage.update_or_create_result_table(
+            collector_config,
+            table_id=TABLE_ID,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            retention=RETENTION_TIME,
+            allocation_min_days=ALLOCATION_MIN_DAYS,
+            storage_replies=1,
+            fields=non_nanos_fields,
+            etl_params=ETL_PARAMS_JSON,
+            hot_warm_config=HOT_WARM_CONFIG,
+        )
+        collector_config.refresh_from_db()
+        self.assertFalse(collector_config.is_nanos)
 
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})

@@ -1471,7 +1471,7 @@ class TestSyncRouter(TestCase):
         )
         return index_set
 
-    def _build_es_doris_index_set(self, **extra) -> LogIndexSet:
+    def _build_es_doris_index_set(self, collector_is_nanos=False, **extra) -> LogIndexSet:
         """创建一个存量 ES + Doris 采集项（开启了 sql/grep）：
         - 无 Doris 标签
         - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
@@ -1494,6 +1494,7 @@ class TestSyncRouter(TestCase):
             collector_scenario_id="log",
             category_id="other_rt",
             storage_cluster_type=STORAGE_CLUSTER_TYPE,
+            is_nanos=collector_is_nanos,
         )
         params["collector_config_id"] = collector_config.collector_config_id
         index_set = LogIndexSet.objects.create(**params)
@@ -1633,6 +1634,76 @@ class TestSyncRouter(TestCase):
             f"bklog_index_set_{index_set.index_set_id}_591_xx.__default__",
         )
         self.assertEqual(info["source_type"], Scenario.LOG)
+
+    def test_route_sync_sends_empty_alias_settings_to_clear_stale_aliases(self):
+        """路由同步必须用空数组通知 metadata 清理已删除的别名。"""
+        index_set = self._build_es_doris_index_set(query_alias_settings=[])
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_clears_unconfigured_alias_settings_for_non_nanos_rt(self):
+        """普通日志结果表未配置用户别名时，应清理 metadata 中的历史自动别名。"""
+        index_set = self._build_es_doris_index_set()
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_clears_auto_nanos_alias_after_switching_to_non_nanos(self):
+        """纳秒时间切换为普通时间后，最终路由 payload 不应保留自动纳秒别名。"""
+        index_set = self._build_es_doris_index_set(collector_is_nanos=True)
+
+        nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(
+            nanos_result[0]["query_alias_settings"],
+            [{"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}],
+        )
+
+        collector_config = CollectorConfig.objects.get(table_id="591_xx")
+        collector_config.is_nanos = False
+        collector_config.save(update_fields=["is_nanos"])
+
+        non_nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(non_nanos_result[0]["query_alias_settings"], [])
+
+    def test_route_sync_keeps_user_alias_without_auto_nanos_alias(self):
+        """普通时间字段仍应保留用户别名，但不能重新下发自动纳秒别名。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(
+            query_alias_settings=[user_alias],
+        )
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set,
+            is_analysis=False,
+            rt_alias_mappings={"591_xx": [user_alias]},
+        )
+
+        self.assertEqual(result[0]["query_alias_settings"], [user_alias])
+
+    def test_doris_route_sync_clears_unconfigured_alias_settings(self):
+        """Doris 路由未配置查询别名时下发空数组，清理 metadata 中的历史别名。"""
+        index_set = self._build_manual_doris_index_set()
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_sends_empty_rt_alias_settings(self):
+        """RT 粒度别名配置为空时也必须传空数组，而不是省略参数。"""
+        index_set = self._build_es_doris_index_set(
+            query_alias_settings=[{"field_name": "missing_field", "query_alias": "stale_alias"}]
+        )
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set,
+            is_analysis=False,
+            rt_alias_mappings={"591_xx": []},
+        )
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
 
     def test_es_doris_analysis(self):
         """
