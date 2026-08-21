@@ -3,10 +3,57 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: #f5f7fa;
 
-  .rum-explore-placeholder {
-    margin: auto;
-    font-size: 14px;
-    color: #979ba5;
+  .favorite-panel {
+    flex-shrink: 0;
+    width: 240px;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .main-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+  }
+
+  .rum-explore-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .vue3_retrieval-filter__component {
+    flex-shrink: 0;
+    margin-bottom: 8px;
+  }
+
+  .trace-explore-layout-comp {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .result-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  .rum-explore-mode-placeholder {
+    flex: 1;
+    min-height: 0;
+    background: #fff;
+    border-radius: 2px;
   }
 }
