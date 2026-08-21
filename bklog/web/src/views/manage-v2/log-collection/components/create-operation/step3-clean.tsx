@@ -599,16 +599,28 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       return etlParams;
     };
 
-    /** 剔除字段顶层的调试值，避免刷新样例导致模板核心配置被误判为变更 */
-    const omitEtlFieldValues = (fields: EtlField[]): EtlField[] => (
-      fields.map(({ value: _value, ...field }) => field)
-    );
+    /** 提取实际生效的字段配置，排除日志样例值及表格 UI 状态 */
+    const buildTemplateEtlFieldsSnapshot = (fields: EtlField[]): EtlField[] => fields.map(field => ({
+      field_index: field.field_index,
+      field_name: field.field_name,
+      alias_name: field.alias_name,
+      field_type: field.field_type,
+      description: field.description,
+      is_analyzed: field.is_analyzed,
+      is_dimension: field.is_dimension,
+      is_time: field.is_time,
+      is_delete: field.is_delete,
+      is_built_in: field.is_built_in,
+      option: structuredClone(field.option ?? {}),
+      is_case_sensitive: field.is_case_sensitive,
+      tokenize_on_chars: field.tokenize_on_chars,
+    }));
 
     /** 提取会影响清洗结果的模板核心配置 */
     const getTemplateConfigSnapshot = (): TemplateConfigSnapshot => ({
       clean_type: cleaningMode.value,
       etl_params: buildTemplateEtlParams(),
-      etl_fields: omitEtlFieldValues(formData.value.etl_fields),
+      etl_fields: buildTemplateEtlFieldsSnapshot(formData.value.etl_fields),
     });
 
     const saveInitialTemplateConfigSnapshot = () => {
@@ -1670,7 +1682,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                         </span>
                         <span class='template-card-tag'>
                           <i class='bklog-icon bklog-feature-tezheng' />
-                          {(currentSelectedTemplate.value.etl_fields ?? []).length} | {getCleanTypeLabel(currentSelectedTemplate.value.clean_type)}
+                          {(currentSelectedTemplate.value.etl_fields ?? []).filter(field => !field.is_delete).length} | {getCleanTypeLabel(currentSelectedTemplate.value.clean_type)}
                         </span>
                       </div>
                       {currentSelectedTemplate.value.description && (
