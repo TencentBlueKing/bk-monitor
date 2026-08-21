@@ -12,6 +12,7 @@ from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.urls import include, re_path
 
+from bkmonitor.iam.iam_v4.callback.views import IAMV4ResourceCallbackView
 from bkmonitor.iam.permission import Permission
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.routers import ResourceRouter
@@ -25,4 +26,8 @@ dispatcher.register("apm_application", views.ApmApplicationProvider())
 dispatcher.register("space", views.SpaceProvider())
 dispatcher.register("grafana_dashboard", views.GrafanaDashboardProvider())
 
-urlpatterns = [re_path(r"^", include(router.urls)), re_path(r"^iam/resource/$", dispatcher.as_view([login_exempt]))]
+urlpatterns = [
+    re_path(r"^", include(router.urls)),
+    re_path(r"^iam/resource/$", dispatcher.as_view([login_exempt])),
+    re_path(r"^iam/v4/callback/$", login_exempt(IAMV4ResourceCallbackView.as_view())),
+]

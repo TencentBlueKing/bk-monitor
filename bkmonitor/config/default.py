@@ -1423,52 +1423,52 @@ IAM_FRAMEWORK = {
     # 角色定义
     "ROLES": "bkmonitor.iam.definitions.roles.Roles",
     "PROVIDERS": [
-        {
-            "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
-            "options": {
-                "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
-                "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-                "base_url": BK_IAM_V3_API_BASE_URL,
-                "bk_tenant_id": "system",
-                "provider_config_path": BK_IAM_V3_RESOURCE_PATH,
-                "credentials": {
-                    "app_code": BK_IAM_V3_CLIENT_APP_CODE,
-                    "app_secret": BK_IAM_V3_CLIENT_APP_SECRET,
-                },
-                "system": {
-                    "id": BK_IAM_V3_SYSTEM_ID,
-                    "name": "监控平台",
-                    "description": "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。",
-                    "name_en": BK_IAM_V3_SYSTEM_NAME_EN,
-                    "description_en": BK_IAM_V3_SYSTEM_DESCRIPTION_EN,
-                    "clients": BK_IAM_V3_SYSTEM_CLIENTS_LIST,
-                },
-            },
-        },
         # {
-        #     "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+        #     "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
         #     "options": {
-        #         "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
-        #         "callback_module": "bkmonitor.iam.adapters.v4.callbacks",
+        #         "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
         #         "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-        #         "base_url": BK_IAM_V4_API_BASE_URL,
+        #         "base_url": BK_IAM_V3_API_BASE_URL,
         #         "bk_tenant_id": "system",
+        #         "provider_config_path": BK_IAM_V3_RESOURCE_PATH,
         #         "credentials": {
-        #             "app_code": BK_IAM_V4_CLIENT_APP_CODE,
-        #             "app_secret": BK_IAM_V4_CLIENT_APP_SECRET,
+        #             "app_code": BK_IAM_V3_CLIENT_APP_CODE,
+        #             "app_secret": BK_IAM_V3_CLIENT_APP_SECRET,
         #         },
         #         "system": {
-        #             "id": BK_IAM_V4_SYSTEM_ID,
-        #             "name": BK_IAM_V4_SYSTEM_NAME,
-        #             "description": BK_IAM_V4_SYSTEM_DESCRIPTION,
-        #             "callback_url": BK_IAM_V4_CALLBACK_URL,
-        #             "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
-        #             "clients": [BK_IAM_V4_CLIENT_APP_CODE],
+        #             "id": BK_IAM_V3_SYSTEM_ID,
+        #             "name": "监控平台",
+        #             "description": "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。",
+        #             "name_en": BK_IAM_V3_SYSTEM_NAME_EN,
+        #             "description_en": BK_IAM_V3_SYSTEM_DESCRIPTION_EN,
+        #             "clients": BK_IAM_V3_SYSTEM_CLIENTS_LIST,
         #         },
-        #         "chunk_size": 20,
-        #         "max_workers": 4,
         #     },
         # },
+        {
+            "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+            "options": {
+                "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
+                "callback_module": "bkmonitor.iam.adapters.v4.callbacks",
+                "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
+                "base_url": BK_IAM_V4_API_BASE_URL,
+                "bk_tenant_id": "system",
+                "credentials": {
+                    "app_code": BK_IAM_V4_CLIENT_APP_CODE,
+                    "app_secret": BK_IAM_V4_CLIENT_APP_SECRET,
+                },
+                "system": {
+                    "id": BK_IAM_V4_SYSTEM_ID,
+                    "name": BK_IAM_V4_SYSTEM_NAME,
+                    "description": BK_IAM_V4_SYSTEM_DESCRIPTION,
+                    "callback_url": BK_IAM_V4_CALLBACK_URL,
+                    "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
+                    "clients": [BK_IAM_V4_CLIENT_APP_CODE],
+                },
+                "chunk_size": 20,
+                "max_workers": 4,
+            },
+        },
     ],
     # Provider 组合策略：
     #   single  —— 单 Provider 直通；要求 PROVIDERS 恰好配置 1 个 Provider（默认）。
