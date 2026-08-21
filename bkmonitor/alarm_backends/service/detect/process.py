@@ -447,6 +447,25 @@ class DetectProcess(BaseAbnormalPushProcessor):
         logger.info(f"[detect] strategy({self.strategy_id}) item({item.id}) 开始异常二次确认流程")
         item.double_check(outputs=self.outputs[item.id])
 
+    def run_inline_trigger(self):
+        if not settings.ENABLE_DETECT_INLINE_TRIGGER:
+            return
+
+        from alarm_backends.service.trigger.runner import run_trigger_item
+        from core.errors.alarm_backends import LockError
+
+        for item in self.strategy.items:
+            if not self.outputs.get(item.id):
+                continue
+            try:
+                run_trigger_item(self.strategy_id, item.id, executor="detect_inline")
+            except LockError:
+                logger.info(
+                    "[detect inline trigger] strategy(%s), item(%s) is locked; existing signal will process it later",
+                    self.strategy_id,
+                    item.id,
+                )
+
     def process(self):
         with service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id):
             start_at = time.time()
@@ -464,3 +483,4 @@ class DetectProcess(BaseAbnormalPushProcessor):
             end_at = time.time()
             logger.info(f"[detect][latency] strategy({self.strategy_id}) processing end in {end_at - start_at}")
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)
+        self.run_inline_trigger()

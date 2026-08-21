@@ -251,6 +251,7 @@ class TriggerProcessor:
                 f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
                 f"pull {len(self.anomaly_points)} record"
             )
+        return len(self.anomaly_points)
 
     def _filter_by_rate_limit(self, event_records):
         """
@@ -447,7 +448,7 @@ class TriggerProcessor:
         self.reference_candidates = []
 
     def process(self):
-        self.pull()
+        pulled_count = self.pull()
 
         in_alarm_time, message = self.strategy.in_alarm_time()
         if not in_alarm_time:
@@ -461,6 +462,7 @@ class TriggerProcessor:
                     logger.exception(error_message)
 
         self.push()
+        return pulled_count
 
     def process_point(self, point):
         point = json.loads(point)
