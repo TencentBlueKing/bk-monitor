@@ -13,7 +13,7 @@ import copy
 
 import pytest
 
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     ContractValidationError,
     build_detection_outcome,
     build_trigger_decision_batch,
@@ -26,7 +26,7 @@ from alarm_backends.core.alarm_engine.contract import (
     validate_trigger_decision_batch,
     validate_trigger_strategy_ir,
 )
-from alarm_backends.core.alarm_engine.encoder import (
+from alarm_backends.core.alarmd.encoder import (
     MAX_TRIGGER_DECISION_BATCH_BYTES,
     decode_json_document,
     decode_trigger_decision_batch,

@@ -13,7 +13,7 @@ from contextlib import contextmanager
 
 from core.prometheus import metrics
 
-# This module is the only Django-facing seam of the Alarm Engine package: the
+# This module is the only Django-facing seam of the alarmd package: the
 # contract, encoder, publisher and reference modules stay importable without a
 # settings module so their cross-language Golden runs standalone.
 
@@ -46,9 +46,9 @@ def record_shadow_published_records(stage: str, count: int) -> None:
     """Record acknowledged records, the numerator Comparator coverage is measured against."""
 
     if count > 0:
-        metrics.ALARM_ENGINE_SHADOW_PUBLISH_RECORD_COUNT.labels(stage=stage).inc(count)
+        metrics.ALARMD_SHADOW_PUBLISH_RECORD_COUNT.labels(stage=stage).inc(count)
 
 
 def _observe(stage: str, status: str, elapsed: float) -> None:
-    metrics.ALARM_ENGINE_SHADOW_PUBLISH_COUNT.labels(stage=stage, status=status).inc()
-    metrics.ALARM_ENGINE_SHADOW_PUBLISH_TIME.labels(stage=stage, status=status).observe(elapsed)
+    metrics.ALARMD_SHADOW_PUBLISH_COUNT.labels(stage=stage, status=status).inc()
+    metrics.ALARMD_SHADOW_PUBLISH_TIME.labels(stage=stage, status=status).observe(elapsed)

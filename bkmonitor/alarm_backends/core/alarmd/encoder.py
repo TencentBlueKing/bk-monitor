@@ -13,7 +13,7 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from alarm_backends.core.alarm_engine.contract import ContractValidationError
+from alarm_backends.core.alarmd.contract import ContractValidationError
 
 
 MAX_TRIGGER_DECISION_BATCH_BYTES = 512 * 1024
@@ -99,7 +99,7 @@ def decode_json_document(payload: bytes | str) -> dict:
 
 
 def encode_trigger_decision_batch(document: Mapping) -> bytes:
-    from alarm_backends.core.alarm_engine.contract import validate_trigger_decision_batch
+    from alarm_backends.core.alarmd.contract import validate_trigger_decision_batch
 
     validate_trigger_decision_batch(document)
     payload = encode_json_document(document)
@@ -113,7 +113,7 @@ def decode_trigger_decision_batch(payload: bytes | str) -> dict:
         raise ContractValidationError("trigger decision batch exceeds encoded byte limit")
     document = decode_json_document(payload)
 
-    from alarm_backends.core.alarm_engine.contract import validate_trigger_decision_batch
+    from alarm_backends.core.alarmd.contract import validate_trigger_decision_batch
 
     validate_trigger_decision_batch(document)
     return document

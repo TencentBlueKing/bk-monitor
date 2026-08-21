@@ -17,44 +17,44 @@ import pytest
 from django.conf import settings
 
 from alarm_backends.core.cache import key
-from alarm_backends.core.alarm_engine import publisher as publisher_module
-from alarm_backends.core.alarm_engine import reference_publisher as reference_publisher_module
+from alarm_backends.core.alarmd import publisher as publisher_module
+from alarm_backends.core.alarmd import reference_publisher as reference_publisher_module
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.service.detect.process import DetectProcess
-from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY
+from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 
 
-def test_alarm_engine_shadow_is_inert_when_disabled():
+def test_alarmd_shadow_is_inert_when_disabled():
     processor = object.__new__(DetectProcess)
 
-    with mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", False, create=True):
-        assert processor.prepare_alarm_engine_detection_batches() == []
+    with mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", False, create=True):
+        assert processor.prepare_alarmd_detection_batches() == []
 
 
-def test_alarm_engine_shadow_requires_an_explicit_strategy_selector():
+def test_alarmd_shadow_requires_an_explicit_strategy_selector():
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "1"
 
     with (
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS", (), create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (), create=True),
     ):
-        assert processor.prepare_alarm_engine_detection_batches() == []
+        assert processor.prepare_alarmd_detection_batches() == []
 
 
 @pytest.mark.parametrize("selector", [(True,), (1.9,), ("01",), (" 1 ",), "1,"])
-def test_alarm_engine_shadow_rejects_noncanonical_strategy_selectors(selector):
+def test_alarmd_shadow_rejects_noncanonical_strategy_selectors(selector):
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "1"
 
     with (
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS", selector, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", selector, create=True),
     ):
-        assert processor.prepare_alarm_engine_detection_batches() == []
+        assert processor.prepare_alarmd_detection_batches() == []
 
 
-def test_alarm_engine_shadow_projects_finalized_threshold_records():
+def test_alarmd_shadow_projects_finalized_threshold_records():
     strategy = copy.deepcopy(DETECT_STRATEGY)
     anomalous_record, normal_record = copy.deepcopy(DETECT_RECORDS)
     processor = object.__new__(DetectProcess)
@@ -83,20 +83,20 @@ def test_alarm_engine_shadow_projects_finalized_threshold_records():
     }
 
     with (
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
         mock.patch.object(key.STRATEGY_SNAPSHOT_KEY.client, "get", return_value=json.dumps(strategy).encode()),
     ):
-        batches = processor.prepare_alarm_engine_detection_batches()
+        batches = processor.prepare_alarmd_detection_batches()
 
     assert len(batches) == 1
     assert [outcome["outcome"] for outcome in batches[0]["outcomes"]] == ["ANOMALOUS", "NORMAL"]
-    assert "_alarm_engine" not in processor.outputs[2][0]
+    assert "_alarmd" not in processor.outputs[2][0]
 
 
 @pytest.mark.parametrize("stale_update_time", ["stale", True, 1.0])
-def test_alarm_engine_shadow_rejects_inputs_from_a_stale_strategy_snapshot(stale_update_time):
+def test_alarmd_shadow_rejects_inputs_from_a_stale_strategy_snapshot(stale_update_time):
     strategy = copy.deepcopy(DETECT_STRATEGY)
     stale_strategy = copy.deepcopy(strategy)
     strategy["update_time"] = 1
@@ -122,12 +122,12 @@ def test_alarm_engine_shadow_rejects_inputs_from_a_stale_strategy_snapshot(stale
     processor.outputs = {2: []}
 
     with (
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
         mock.patch.object(key.STRATEGY_SNAPSHOT_KEY.client, "get", return_value=json.dumps(strategy).encode()),
     ):
-        assert processor.prepare_alarm_engine_detection_batches() == []
+        assert processor.prepare_alarmd_detection_batches() == []
 
 
 def test_detect_push_keeps_legacy_delivery_before_shadow_publish():
@@ -137,16 +137,16 @@ def test_detect_push_keeps_legacy_delivery_before_shadow_publish():
     processor.inputs = {}
     processor.outputs = {}
     calls = []
-    processor.prepare_alarm_engine_detection_batches = lambda: calls.append("prepare") or ["batch"]
+    processor.prepare_alarmd_detection_batches = lambda: calls.append("prepare") or ["batch"]
     processor.push_abnormal_data = lambda *_args: calls.append("legacy") or 0
-    processor.publish_alarm_engine_detection_batches = lambda batches: calls.append(("shadow", batches))
+    processor.publish_alarmd_detection_batches = lambda batches: calls.append(("shadow", batches))
 
     processor.push_data()
 
     assert calls == ["legacy", "prepare", ("shadow", ["batch"])]
 
 
-def test_alarm_engine_shadow_publishes_with_process_cached_producer():
+def test_alarmd_shadow_publishes_with_process_cached_producer():
     published = []
     fake_publisher = SimpleNamespace(publish_batch=lambda batch: published.append(batch) or len(batch["outcomes"]))
     batches = [{"strategy_ir": {}, "outcomes": [{"input_id": "one"}]}]
@@ -154,24 +154,24 @@ def test_alarm_engine_shadow_publishes_with_process_cached_producer():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=fake_publisher),
     ):
-        assert DetectProcess.publish_alarm_engine_detection_batches(batches) == 1
+        assert DetectProcess.publish_alarmd_detection_batches(batches) == 1
 
     assert published == batches
 
 
-def test_alarm_engine_shadow_publishes_terminal_reference_only_after_detection_ack():
+def test_alarmd_shadow_publishes_terminal_reference_only_after_detection_ack():
     calls = []
     batch = _prepared_detection_batch()
     detection_publisher = SimpleNamespace(
@@ -182,27 +182,27 @@ def test_alarm_engine_shadow_publishes_terminal_reference_only_after_detection_a
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
@@ -213,15 +213,15 @@ def test_alarm_engine_shadow_publishes_terminal_reference_only_after_detection_a
             side_effect=lambda *_args: calls.append(("reference-factory", None)) or reference_publisher,
         ) as reference_factory,
     ):
-        assert DetectProcess.publish_alarm_engine_detection_batches([batch]) == 2
+        assert DetectProcess.publish_alarmd_detection_batches([batch]) == 2
 
     assert [name for name, _value in calls] == ["detection", "reference-factory", "reference"]
     assert calls[2][1]["decisions"][0]["reason_code"] == "INPUT_NORMAL"
     factory_args = reference_factory.call_args.args
-    assert factory_args[2] == ("alarm-engine-detection-shadow", "monitor-event-nondefault")
+    assert factory_args[2] == ("alarmd-detection-shadow", "monitor-event-nondefault")
 
 
-def test_alarm_engine_reference_failure_does_not_change_acknowledged_detection_result():
+def test_alarmd_reference_failure_does_not_change_acknowledged_detection_result():
     batch = _prepared_detection_batch()
     detection_publisher = SimpleNamespace(publish_batch=lambda value: len(value["outcomes"]))
     reference_publisher = SimpleNamespace(publish_batch=mock.Mock(side_effect=RuntimeError("reference failed")))
@@ -229,27 +229,27 @@ def test_alarm_engine_reference_failure_does_not_change_acknowledged_detection_r
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
@@ -260,7 +260,7 @@ def test_alarm_engine_reference_failure_does_not_change_acknowledged_detection_r
             return_value=reference_publisher,
         ),
     ):
-        assert DetectProcess.publish_alarm_engine_detection_batches([batch]) == 2
+        assert DetectProcess.publish_alarmd_detection_batches([batch]) == 2
 
     reference_publisher.publish_batch.assert_called_once()
 
@@ -268,8 +268,8 @@ def test_alarm_engine_reference_failure_does_not_change_acknowledged_detection_r
 @pytest.mark.parametrize(
     ("reference_config", "reference_allowed_topics"),
     [
-        ({"topic": object()}, ("alarm-engine-reference-shadow",)),
-        ({"topic": "alarm-engine-reference-shadow"}, (["not-hashable"],)),
+        ({"topic": object()}, ("alarmd-reference-shadow",)),
+        ({"topic": "alarmd-reference-shadow"}, (["not-hashable"],)),
     ],
 )
 def test_invalid_reference_config_does_not_block_detection_ack(reference_config, reference_allowed_topics):
@@ -279,26 +279,26 @@ def test_invalid_reference_config_does_not_block_detection_ack(reference_config,
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
             reference_config,
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
             reference_allowed_topics,
             create=True,
         ),
@@ -309,7 +309,7 @@ def test_invalid_reference_config_does_not_block_detection_ack(reference_config,
             "get_cached_kafka_reference_decision_publisher",
         ) as reference_factory,
     ):
-        assert DetectProcess.publish_alarm_engine_detection_batches([batch]) == len(batch["outcomes"])
+        assert DetectProcess.publish_alarmd_detection_batches([batch]) == len(batch["outcomes"])
 
     detection_publisher.publish_batch.assert_called_once_with(batch)
     reference_factory.assert_not_called()
@@ -322,17 +322,17 @@ def test_detection_publish_failure_never_initializes_or_sends_reference():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
         mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=detection_publisher),
         mock.patch.object(
             reference_publisher_module,
@@ -340,7 +340,7 @@ def test_detection_publish_failure_never_initializes_or_sends_reference():
         ) as reference_factory,
     ):
         with pytest.raises(RuntimeError, match="detection failed"):
-            DetectProcess.publish_alarm_engine_detection_batches([batch])
+            DetectProcess.publish_alarmd_detection_batches([batch])
 
     reference_factory.assert_not_called()
 
@@ -353,24 +353,24 @@ def test_all_anomalous_detection_batch_does_not_initialize_terminal_reference():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
         mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=detection_publisher),
         mock.patch.object(
             reference_publisher_module,
             "get_cached_kafka_reference_decision_publisher",
         ) as reference_factory,
     ):
-        assert DetectProcess.publish_alarm_engine_detection_batches([batch]) == 1
+        assert DetectProcess.publish_alarmd_detection_batches([batch]) == 1
 
     reference_factory.assert_not_called()
 
@@ -386,33 +386,33 @@ def test_reference_projection_failure_does_not_disable_later_batches():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
         mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=detection_publisher),
         mock.patch(
-            "alarm_backends.core.alarm_engine.reference.build_terminal_reference_decision_batches",
+            "alarm_backends.core.alarmd.reference.build_terminal_reference_decision_batches",
             side_effect=[RuntimeError("projection failed"), [{"decisions": [{"input_id": "second"}]}]],
         ),
         mock.patch.object(
@@ -421,7 +421,7 @@ def test_reference_projection_failure_does_not_disable_later_batches():
             return_value=reference_publisher,
         ),
     ):
-        assert DetectProcess.publish_alarm_engine_detection_batches([first_batch, second_batch]) == 3
+        assert DetectProcess.publish_alarmd_detection_batches([first_batch, second_batch]) == 3
 
     assert calls == [{"decisions": [{"input_id": "second"}]}]
 
@@ -429,7 +429,7 @@ def test_reference_projection_failure_does_not_disable_later_batches():
 def _prepared_detection_batch():
     strategy = copy.deepcopy(DETECT_STRATEGY)
     anomalous_record, normal_record = copy.deepcopy(DETECT_RECORDS)
-    from alarm_backends.core.alarm_engine.runtime import prepare_finalized_threshold_batch
+    from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
 
     return prepare_finalized_threshold_batch(
         tenant_id="default",

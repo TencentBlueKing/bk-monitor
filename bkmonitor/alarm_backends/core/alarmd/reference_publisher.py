@@ -11,12 +11,12 @@ specific language governing permissions and limitations under the License.
 from collections.abc import Iterable, Mapping
 from functools import lru_cache
 
-from alarm_backends.core.alarm_engine.encoder import (
+from alarm_backends.core.alarmd.encoder import (
     MAX_TRIGGER_DECISION_BATCH_BYTES,
     decode_json_document,
     encode_trigger_decision_batch,
 )
-from alarm_backends.core.alarm_engine.publisher import DEFAULT_DELIVERY_TIMEOUT_MS, trigger_partition_key
+from alarm_backends.core.alarmd.publisher import DEFAULT_DELIVERY_TIMEOUT_MS, trigger_partition_key
 
 
 class ReferenceDecisionPublishError(RuntimeError):

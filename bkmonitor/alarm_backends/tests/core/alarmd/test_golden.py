@@ -13,12 +13,12 @@ import hashlib
 import json
 from pathlib import Path
 
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     build_detection_outcome,
     build_trigger_strategy_ir_from_legacy_config,
 )
-from alarm_backends.core.alarm_engine.encoder import decode_json_document, encode_json_document
-from alarm_backends.tests.alarm_engine_fixtures import (
+from alarm_backends.core.alarmd.encoder import decode_json_document, encode_json_document
+from alarm_backends.tests.alarmd_fixtures import (
     DETECT_RECORDS,
     DETECT_STRATEGY,
     TRIGGER_POINT,

@@ -13,15 +13,15 @@ import json
 
 import pytest
 
-from alarm_backends.core.alarm_engine.encoder import decode_trigger_decision_batch
-from alarm_backends.core.alarm_engine.reference import build_terminal_reference_decision_batches
-from alarm_backends.core.alarm_engine.reference_publisher import (
+from alarm_backends.core.alarmd.encoder import decode_trigger_decision_batch
+from alarm_backends.core.alarmd.reference import build_terminal_reference_decision_batches
+from alarm_backends.core.alarmd.reference_publisher import (
     KafkaReferenceDecisionPublisher,
     ReferenceDecisionPublishError,
     build_kafka_reference_decision_publisher,
 )
-from alarm_backends.core.alarm_engine.runtime import prepare_finalized_threshold_batch
-from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY
+from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
+from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 
 
 class FakeProducer:
@@ -51,7 +51,7 @@ def test_reference_publisher_uses_official_codec_partition_key_and_broker_ack():
     producer = FakeProducer()
     publisher = KafkaReferenceDecisionPublisher(
         producer=producer,
-        topic="alarm-engine-reference-shadow",
+        topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
     batch = _normal_reference_batch()
@@ -60,7 +60,7 @@ def test_reference_publisher_uses_official_codec_partition_key_and_broker_ack():
     assert producer.flush_timeout == 4
     assert len(producer.messages) == 1
     message = producer.messages[0]
-    assert message["topic"] == "alarm-engine-reference-shadow"
+    assert message["topic"] == "alarmd-reference-shadow"
     assert message["key"].hex() == "76822eff60b83ab18de1ec5ecf6c194f6e933f12af8b28e199f2a43f8a730c27"
     assert decode_trigger_decision_batch(message["value"]) == batch
 
@@ -69,7 +69,7 @@ def test_reference_publisher_batches_share_one_broker_ack_barrier():
     producer = FakeProducer()
     publisher = KafkaReferenceDecisionPublisher(
         producer=producer,
-        topic="alarm-engine-reference-shadow",
+        topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
     first = _normal_reference_batch()
@@ -85,7 +85,7 @@ def test_reference_publisher_bounds_each_ack_group_by_encoded_bytes():
     producer = FakeProducer()
     publisher = KafkaReferenceDecisionPublisher(
         producer=producer,
-        topic="alarm-engine-reference-shadow",
+        topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
     first = _normal_reference_batch()
@@ -104,7 +104,7 @@ def test_reference_publisher_does_not_consume_past_one_size_lookahead_after_ack_
     producer = FakeProducer(remaining=1)
     publisher = KafkaReferenceDecisionPublisher(
         producer=producer,
-        topic="alarm-engine-reference-shadow",
+        topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
     batches = []
@@ -138,7 +138,7 @@ def test_reference_publisher_does_not_consume_past_one_size_lookahead_after_ack_
 def test_reference_publisher_requires_broker_ack(producer, error):
     publisher = KafkaReferenceDecisionPublisher(
         producer=producer,
-        topic="alarm-engine-reference-shadow",
+        topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
 
@@ -156,12 +156,12 @@ def test_reference_publisher_config_is_fail_closed_and_idempotent():
 
     publisher = build_kafka_reference_decision_publisher(
         {
-            "topic": "alarm-engine-reference-shadow",
+            "topic": "alarmd-reference-shadow",
             "bootstrap.servers": "kafka:9092",
             "message.timeout.ms": 2500,
         },
         producer_factory=producer_factory,
-        allowed_topics={"alarm-engine-reference-shadow"},
+        allowed_topics={"alarmd-reference-shadow"},
     )
 
     assert publisher.producer is producer
@@ -178,7 +178,7 @@ def test_reference_publisher_config_is_fail_closed_and_idempotent():
     [
         {"topic": "monitor-event", "bootstrap.servers": "kafka:9092"},
         {
-            "topic": "alarm-engine-reference-shadow",
+            "topic": "alarmd-reference-shadow",
             "bootstrap.servers": "kafka:9092",
             "enable.idempotence": False,
         },
@@ -189,11 +189,11 @@ def test_reference_publisher_rejects_unsafe_config(config):
         build_kafka_reference_decision_publisher(
             config,
             producer_factory=lambda _config: FakeProducer(),
-            allowed_topics={"alarm-engine-reference-shadow"},
+            allowed_topics={"alarmd-reference-shadow"},
         )
 
 
-@pytest.mark.parametrize("forbidden_topic", ["alarm-engine-detection-shadow", "monitor-event-nondefault"])
+@pytest.mark.parametrize("forbidden_topic", ["alarmd-detection-shadow", "monitor-event-nondefault"])
 def test_reference_publisher_rejects_topics_that_are_explicitly_forbidden(forbidden_topic):
     with pytest.raises(ValueError, match="allowlist must not contain forbidden"):
         build_kafka_reference_decision_publisher(

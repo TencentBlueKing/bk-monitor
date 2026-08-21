@@ -13,8 +13,8 @@ import struct
 from collections.abc import Mapping
 from functools import lru_cache
 
-from alarm_backends.core.alarm_engine.contract import validate_detection_outcome, validate_trigger_strategy_ir
-from alarm_backends.core.alarm_engine.encoder import decode_json_document, encode_json_document
+from alarm_backends.core.alarmd.contract import validate_detection_outcome, validate_trigger_strategy_ir
+from alarm_backends.core.alarmd.encoder import decode_json_document, encode_json_document
 
 DEFAULT_DELIVERY_TIMEOUT_MS = 3000
 DEFAULT_MAX_ENVELOPE_BYTES = 512 * 1024

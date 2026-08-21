@@ -27,7 +27,7 @@ from core.prometheus import metrics
 
 # 每个（策略, 数据时间戳）计数器的最大 event 数，超过则丢弃
 TRIGGER_EVENT_RATE_LIMIT_THRESHOLD = 5000
-ALARM_ENGINE_REFERENCE_BATCHES_PER_FLUSH = 500
+ALARMD_REFERENCE_BATCHES_PER_FLUSH = 500
 
 logger = logging.getLogger("trigger")
 
@@ -80,12 +80,12 @@ class TriggerProcessor:
             self._strategy_snapshot_legacy_json[snapshot_key] = legacy_json
             return legacy_json
 
-    def is_alarm_engine_reference_selected(self):
-        from alarm_backends.core.alarm_engine.config import shadow_flag
+    def is_alarmd_reference_selected(self):
+        from alarm_backends.core.alarmd.config import shadow_flag
 
-        if not shadow_flag(settings.ALARM_ENGINE_DETECTION_SHADOW_ENABLED):
+        if not shadow_flag(settings.ALARMD_DETECTION_SHADOW_ENABLED):
             return False
-        if not shadow_flag(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED):
+        if not shadow_flag(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED):
             return False
         try:
             if self.strategy_id in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
@@ -93,14 +93,14 @@ class TriggerProcessor:
         except TypeError:
             return False
 
-        from alarm_backends.core.alarm_engine.reference import is_alarm_engine_shadow_strategy_selected
+        from alarm_backends.core.alarmd.reference import is_alarmd_shadow_strategy_selected
 
-        return is_alarm_engine_shadow_strategy_selected(
-            settings.ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS,
+        return is_alarmd_shadow_strategy_selected(
+            settings.ALARMD_DETECTION_SHADOW_STRATEGY_IDS,
             self.strategy_id,
         )
 
-    def capture_alarm_engine_reference_candidate(self, *, point, event_record):
+    def capture_alarmd_reference_candidate(self, *, point, event_record):
         try:
             self.reference_candidates.append(
                 {
@@ -111,21 +111,21 @@ class TriggerProcessor:
             )
         except Exception:
             logger.exception(
-                "[alarm engine shadow] failed to capture Trigger reference candidate for strategy(%s) item(%s)",
+                "[alarmd shadow] failed to capture Trigger reference candidate for strategy(%s) item(%s)",
                 self.strategy_id,
                 self.item_id,
             )
 
-    def publish_alarm_engine_reference_candidates(self):
+    def publish_alarmd_reference_candidates(self):
         if not self.reference_candidates:
             return 0
 
-        from alarm_backends.core.alarm_engine.config import shadow_kafka_config, shadow_topics
-        from alarm_backends.core.alarm_engine.reference import build_reference_trigger_decision_candidate
-        from alarm_backends.core.alarm_engine.reference_publisher import (
+        from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
+        from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
+        from alarm_backends.core.alarmd.reference_publisher import (
             get_cached_kafka_reference_decision_publisher,
         )
-        from alarm_backends.core.alarm_engine.telemetry import (
+        from alarm_backends.core.alarmd.telemetry import (
             STAGE_REFERENCE,
             observe_shadow_publish,
             record_shadow_published_records,
@@ -133,10 +133,10 @@ class TriggerProcessor:
 
         publisher = None
         published = 0
-        for start in range(0, len(self.reference_candidates), ALARM_ENGINE_REFERENCE_BATCHES_PER_FLUSH):
+        for start in range(0, len(self.reference_candidates), ALARMD_REFERENCE_BATCHES_PER_FLUSH):
 
             def iter_batches():
-                for candidate in self.reference_candidates[start : start + ALARM_ENGINE_REFERENCE_BATCHES_PER_FLUSH]:
+                for candidate in self.reference_candidates[start : start + ALARMD_REFERENCE_BATCHES_PER_FLUSH]:
                     try:
                         strategy_snapshot_key = candidate["strategy_snapshot_key"]
                         yield build_reference_trigger_decision_candidate(
@@ -150,7 +150,7 @@ class TriggerProcessor:
                         )
                     except Exception:
                         logger.exception(
-                            "[alarm engine shadow] failed to project Trigger reference for strategy(%s) item(%s)",
+                            "[alarmd shadow] failed to project Trigger reference for strategy(%s) item(%s)",
                             self.strategy_id,
                             self.item_id,
                         )
@@ -163,14 +163,14 @@ class TriggerProcessor:
             if publisher is None:
                 try:
                     config_json = json.dumps(
-                        shadow_kafka_config(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
+                        shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
                         sort_keys=True,
                         separators=(",", ":"),
                     )
-                    allowed_topics = shadow_topics(settings.ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
+                    allowed_topics = shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
                     forbidden_topics = tuple(
                         sorted(
-                            set(shadow_topics(settings.ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS))
+                            set(shadow_topics(settings.ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS))
                             | {MonitorEventAdapter.get_output_topic()}
                         )
                     )
@@ -180,7 +180,7 @@ class TriggerProcessor:
                         forbidden_topics,
                     )
                 except Exception:
-                    logger.exception("[alarm engine shadow] failed to initialize Trigger reference publisher")
+                    logger.exception("[alarmd shadow] failed to initialize Trigger reference publisher")
                     break
             try:
                 with observe_shadow_publish(STAGE_REFERENCE):
@@ -189,7 +189,7 @@ class TriggerProcessor:
                 published += acknowledged
             except Exception:
                 logger.exception(
-                    "[alarm engine shadow] failed to publish Trigger reference for strategy(%s) item(%s)",
+                    "[alarmd shadow] failed to publish Trigger reference for strategy(%s) item(%s)",
                     self.strategy_id,
                     self.item_id,
                 )
@@ -410,10 +410,10 @@ class TriggerProcessor:
             metrics.TRIGGER_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.event_records))
 
         try:
-            self.publish_alarm_engine_reference_candidates()
+            self.publish_alarmd_reference_candidates()
         except Exception:
             logger.exception(
-                "[alarm engine shadow] unexpected Trigger reference failure for strategy(%s) item(%s)",
+                "[alarmd shadow] unexpected Trigger reference failure for strategy(%s) item(%s)",
                 self.strategy_id,
                 self.item_id,
             )
@@ -445,8 +445,8 @@ class TriggerProcessor:
         checker = AnomalyChecker(point, strategy, self.item_id)
         anomaly_records, event_record = checker.check()
 
-        if self.is_alarm_engine_reference_selected() and not checker.is_no_data_point(point):
-            self.capture_alarm_engine_reference_candidate(
+        if self.is_alarmd_reference_selected() and not checker.is_no_data_point(point):
+            self.capture_alarmd_reference_candidate(
                 point=point,
                 event_record=event_record,
             )

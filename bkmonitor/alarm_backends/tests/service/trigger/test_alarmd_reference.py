@@ -16,10 +16,10 @@ from unittest import mock
 import pytest
 from django.conf import settings
 
-from alarm_backends.core.alarm_engine import reference_publisher as reference_publisher_module
+from alarm_backends.core.alarmd import reference_publisher as reference_publisher_module
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.service.trigger.processor import TriggerProcessor
-from alarm_backends.tests.alarm_engine_fixtures import TRIGGER_POINT, TRIGGER_STRATEGY
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT, TRIGGER_STRATEGY
 
 
 def test_trigger_reference_capture_is_lightweight_and_follows_real_checker_result():
@@ -35,7 +35,7 @@ def test_trigger_reference_capture_is_lightweight_and_follows_real_checker_resul
     checker.is_no_data_point.return_value = False
     with (
         mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
-        mock.patch.object(processor, "is_alarm_engine_reference_selected", return_value=True),
+        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
     ):
         processor.process_point(json.dumps(point))
 
@@ -58,7 +58,7 @@ def test_trigger_reference_is_not_captured_outside_the_detection_selector():
 
     with (
         mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
-        mock.patch.object(processor, "is_alarm_engine_reference_selected", return_value=False),
+        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=False),
     ):
         processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
 
@@ -69,38 +69,38 @@ def test_trigger_reference_is_not_captured_outside_the_detection_selector():
 def test_trigger_reference_does_not_capture_nodata_points():
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
-    processor.capture_alarm_engine_reference_candidate = mock.Mock()
+    processor.capture_alarmd_reference_candidate = mock.Mock()
     checker = mock.Mock()
     checker.check.return_value = ([], None)
     checker.is_no_data_point.return_value = True
 
     with (
         mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
-        mock.patch.object(processor, "is_alarm_engine_reference_selected", return_value=True),
+        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
     ):
         processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
 
-    processor.capture_alarm_engine_reference_candidate.assert_not_called()
+    processor.capture_alarmd_reference_candidate.assert_not_called()
 
 
 def test_trigger_reference_reuses_detection_selector_and_excludes_double_check():
     processor = _processor()
 
     with (
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
     ):
-        assert processor.is_alarm_engine_reference_selected()
+        assert processor.is_alarmd_reference_selected()
 
     with (
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [1], create=True),
     ):
-        assert not processor.is_alarm_engine_reference_selected()
+        assert not processor.is_alarmd_reference_selected()
 
 
 def test_trigger_push_completes_monitor_event_before_reference_publish():
@@ -109,7 +109,7 @@ def test_trigger_push_completes_monitor_event_before_reference_publish():
     processor.reference_candidates = [{"input_id": "candidate"}]
     calls = []
     processor.push_event_to_kafka = lambda records: calls.append(("monitor-event", records))
-    processor.publish_alarm_engine_reference_candidates = lambda: calls.append(("reference", None))
+    processor.publish_alarmd_reference_candidates = lambda: calls.append(("reference", None))
 
     processor.push()
 
@@ -121,18 +121,18 @@ def test_trigger_monitor_event_failure_prevents_reference_publish():
     processor.event_records = [{"event_record": {"data": {}}, "anomaly_records": []}]
     processor.reference_candidates = [{"input_id": "candidate"}]
     processor.push_event_to_kafka = mock.Mock(side_effect=RuntimeError("monitor event failed"))
-    processor.publish_alarm_engine_reference_candidates = mock.Mock()
+    processor.publish_alarmd_reference_candidates = mock.Mock()
 
     with pytest.raises(RuntimeError, match="monitor event failed"):
         processor.push()
 
-    processor.publish_alarm_engine_reference_candidates.assert_not_called()
+    processor.publish_alarmd_reference_candidates.assert_not_called()
 
 
 def test_trigger_reference_unexpected_failure_does_not_change_legacy_push_result():
     processor = _processor()
     processor.reference_candidates = [{"input_id": "candidate"}]
-    processor.publish_alarm_engine_reference_candidates = mock.Mock(side_effect=RuntimeError("reference failed"))
+    processor.publish_alarmd_reference_candidates = mock.Mock(side_effect=RuntimeError("reference failed"))
 
     processor.push()
 
@@ -162,25 +162,25 @@ def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
         mock.patch(
-            "alarm_backends.core.alarm_engine.reference.build_reference_trigger_decision_candidate",
+            "alarm_backends.core.alarmd.reference.build_reference_trigger_decision_candidate",
             side_effect=batches,
         ) as candidate_builder,
         mock.patch.object(
@@ -189,12 +189,12 @@ def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
             return_value=publisher,
         ) as factory,
     ):
-        assert processor.publish_alarm_engine_reference_candidates() == 1
+        assert processor.publish_alarmd_reference_candidates() == 1
 
     assert published_groups == [batches]
     assert processor.get_strategy_snapshot_legacy_json.call_args_list == [mock.call("first"), mock.call("second")]
     assert [call.kwargs["legacy_json"] for call in candidate_builder.call_args_list] == [b"strategy", b"strategy"]
-    assert factory.call_args.args[2] == ("alarm-engine-detection-shadow", "monitor-event-nondefault")
+    assert factory.call_args.args[2] == ("alarmd-detection-shadow", "monitor-event-nondefault")
 
 
 def test_trigger_reference_publisher_flushes_candidates_in_bounded_groups():
@@ -215,25 +215,25 @@ def test_trigger_reference_publisher_flushes_candidates_in_bounded_groups():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
         mock.patch(
-            "alarm_backends.core.alarm_engine.reference.build_reference_trigger_decision_candidate",
+            "alarm_backends.core.alarmd.reference.build_reference_trigger_decision_candidate",
             side_effect=lambda **kwargs: {"decisions": [{"input_id": str(kwargs["point"])}]},
         ),
         mock.patch.object(
@@ -242,7 +242,7 @@ def test_trigger_reference_publisher_flushes_candidates_in_bounded_groups():
             return_value=publisher,
         ),
     ):
-        assert processor.publish_alarm_engine_reference_candidates() == 501
+        assert processor.publish_alarmd_reference_candidates() == 501
 
     assert [len(group) for group in published_groups] == [500, 1]
 
@@ -263,25 +263,25 @@ def test_trigger_reference_stops_projecting_when_the_publisher_stops_consuming()
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
         mock.patch(
-            "alarm_backends.core.alarm_engine.reference.build_reference_trigger_decision_candidate",
+            "alarm_backends.core.alarmd.reference.build_reference_trigger_decision_candidate",
             return_value={"decisions": [{"input_id": "one"}]},
         ) as candidate_builder,
         mock.patch.object(
@@ -290,7 +290,7 @@ def test_trigger_reference_stops_projecting_when_the_publisher_stops_consuming()
             return_value=publisher,
         ),
     ):
-        assert processor.publish_alarm_engine_reference_candidates() == 0
+        assert processor.publish_alarmd_reference_candidates() == 0
 
     candidate_builder.assert_called_once()
 
@@ -306,25 +306,25 @@ def test_trigger_reference_stops_after_publisher_initialization_failure():
     with (
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
-            {"topic": "alarm-engine-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-reference-shadow",),
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
             create=True,
         ),
         mock.patch.object(
             settings,
-            "ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS",
-            ("alarm-engine-detection-shadow",),
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
         mock.patch(
-            "alarm_backends.core.alarm_engine.reference.build_reference_trigger_decision_candidate",
+            "alarm_backends.core.alarmd.reference.build_reference_trigger_decision_candidate",
             return_value={"decisions": [{"input_id": "one"}]},
         ) as candidate_builder,
         mock.patch.object(
@@ -333,7 +333,7 @@ def test_trigger_reference_stops_after_publisher_initialization_failure():
             side_effect=RuntimeError("publisher initialization failed"),
         ),
     ):
-        assert processor.publish_alarm_engine_reference_candidates() == 0
+        assert processor.publish_alarmd_reference_candidates() == 0
 
     candidate_builder.assert_called_once()
 

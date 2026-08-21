@@ -12,7 +12,7 @@ import copy
 from collections.abc import Mapping
 from collections.abc import Callable
 
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     ContractValidationError,
     build_detection_outcome,
     build_trigger_decision_batch,
@@ -166,7 +166,7 @@ def _build_reference_trigger_decision_batch(
     )
 
 
-def parse_alarm_engine_shadow_strategy_ids(configured_strategy_ids) -> set[int] | None:
+def parse_alarmd_shadow_strategy_ids(configured_strategy_ids) -> set[int] | None:
     """Parse the shared canonical selector, returning None for invalid configuration."""
 
     if isinstance(configured_strategy_ids, str):
@@ -194,10 +194,10 @@ def parse_alarm_engine_shadow_strategy_ids(configured_strategy_ids) -> set[int] 
     return allowed_strategy_ids
 
 
-def is_alarm_engine_shadow_strategy_selected(configured_strategy_ids, strategy_id: int) -> bool:
+def is_alarmd_shadow_strategy_selected(configured_strategy_ids, strategy_id: int) -> bool:
     """Return whether a canonical positive strategy ID is explicitly selected."""
 
-    allowed_strategy_ids = parse_alarm_engine_shadow_strategy_ids(configured_strategy_ids)
+    allowed_strategy_ids = parse_alarmd_shadow_strategy_ids(configured_strategy_ids)
     return allowed_strategy_ids is not None and strategy_id in allowed_strategy_ids
 
 
