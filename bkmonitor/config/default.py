@@ -369,6 +369,7 @@ ACTIVE_VIEWS = {
     "rum_web": {
         "rum_meta": "rum_web.meta.views",
         "rum_metric": "rum_web.metric.views",
+        "rum_query": "rum_web.query.views",
     },
 }
 
