@@ -117,12 +117,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 顶层结构：
 
-| 参数名称           | 类型            | 描述                                         |
-|----------------|---------------|--------------------------------------------|
-| default_sort   | Array[String] | 默认排序条件，字段名前加 `-` 表示降序                      |
-| fields         | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                       |
-| groups         | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段 |
-| display_fields | Array[String] | 列表页默认展示的字段名列表                              |
+| 参数名称                     | 类型            | 描述                                                                      |
+|--------------------------|---------------|-------------------------------------------------------------------------|
+| default_sort             | Array[String] | 默认排序条件，字段名前加 `-` 表示降序                                                   |
+| fields                   | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                                                    |
+| groups                   | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段                              |
+| display_fields           | Array[String] | 列表页默认展示的字段名列表                                                           |
+| span_type_display_fields | Object        | 各 Span 类型的默认展示字段，key 为 Span 类型，value 为字段名列表；前端切换类型时使用此配置（只在 span 视图下返回） |
 
 - Field
 
@@ -156,11 +157,12 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - Group
 
-| 参数名称        | 类型            | 描述                          |
-|-------------|---------------|-----------------------------|
-| name[1]     | String        | 分组标识                        |
-| alias       | String        | 分组别名                        |
-| field_names | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields` |
+| 参数名称                 | 类型            | 描述                                                       |
+|----------------------|---------------|----------------------------------------------------------|
+| name[1]              | String        | 分组标识                                                     |
+| alias                | String        | 分组别名                                                     |
+| supported_span_types | Array[String] | 该分组适用的 Span 类型列表；前端切换类型时，若当前类型不在列表中则折叠该分组（只在 span 视图下返回） |
+| field_names          | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields`                              |
 
 [1]`name`: 分组标识
 
@@ -181,6 +183,89 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
   "default_sort": [
     "-end_time"
   ],
+  "span_type_display_fields": {
+    "view": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id"
+    ],
+    "resource": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.resource.type",
+      "attributes.http.request.method"
+    ],
+    "error": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.error.source"
+    ],
+    "vital": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.vital.metric",
+      "attributes.vital.value"
+    ],
+    "long_task": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.long_task.name",
+      "attributes.long_task.entry_type"
+    ],
+    "action": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.action.id",
+      "attributes.action.type"
+    ],
+    "websocket": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id"
+    ],
+    "custom": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id"
+    ]
+  },
   "fields": [
     {
       "field_name": "span_name",
@@ -249,6 +334,10 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     {
       "name": "DEVICE_BROWSER",
       "alias": "终端 & 浏览器",
+      "supported_span_types": [
+        "resource",
+        "action"
+      ],
       "field_names": [
         "resource.user_agent.name"
       ]
@@ -256,6 +345,9 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     {
       "name": "WEB_VITALS",
       "alias": "网页指标（Web Vitals）",
+      "supported_span_types": [
+        "vital"
+      ],
       "field_names": [
         "LCP"
       ]
