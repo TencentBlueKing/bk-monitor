@@ -1,6 +1,6 @@
 # Skill: Project Architecture Locator
 
-Generated: 2026-08-21T06:33:08.700Z
+Generated: 2026-08-21T07:15:50.295Z
 Project: blueking-log
 
 ## Purpose
@@ -30,7 +30,7 @@ Global knowledge (on demand only): `.aafe/knowledge/`
 - `route-retrieve-v2` (142 files, 142 routes) → `modules/route-retrieve-v2/index.json`
 - `route-retrieve-v3` (115 files, 115 routes) → `modules/route-retrieve-v3/index.json`
 - `route-manage-v2` (113 files, 113 routes) → `modules/route-manage-v2/index.json`
-- `src-views-manage-v2` (98 files, 0 routes) → `modules/src-views-manage-v2/index.json`
+- `src-views-manage-v2` (97 files, 0 routes) → `modules/src-views-manage-v2/index.json`
 - `route-manage` (56 files, 56 routes) → `modules/route-manage/index.json`
 - `src-views-manage` (36 files, 0 routes) → `modules/src-views-manage/index.json`
 - `src-services` (35 files, 0 routes) → `modules/src-services/index.json`

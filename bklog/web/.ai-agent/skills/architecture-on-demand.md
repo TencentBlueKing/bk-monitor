@@ -1,6 +1,6 @@
 # Skill: Architecture On-Demand
 
-Generated: 2026-08-21T06:33:08.700Z
+Generated: 2026-08-21T07:15:50.295Z
 Project: blueking-log
 
 ## Purpose
@@ -22,7 +22,7 @@ Load architecture facts **per module** without scanning the whole tree.
 - `route-retrieve-v2` (142 files)
 - `route-retrieve-v3` (115 files)
 - `route-manage-v2` (113 files)
-- `src-views-manage-v2` (98 files)
+- `src-views-manage-v2` (97 files)
 - `route-manage` (56 files)
 - `src-views-manage` (36 files)
 - `src-services` (35 files)
