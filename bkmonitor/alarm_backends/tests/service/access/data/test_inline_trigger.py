@@ -116,6 +116,7 @@ def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
     processor.process_counts = {}
     processor.inline_trigger_items = [(10, 1)]
     processor.batch_log = mocker.MagicMock()
+    processor.publish_anomaly_signals = mocker.MagicMock()
 
     batch_result_key = mocker.patch.object(access_processor.key, "ACCESS_BATCH_DATA_RESULT_KEY")
     batch_result_key.get_key.return_value = "batch-result"
@@ -151,3 +152,35 @@ def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
     processor.process()
 
     assert processor.inline_trigger_items == [(10, 1), (10, 2), (11, 3)]
+    processor.publish_anomaly_signals.assert_not_called()
+
+
+def test_access_main_publishes_all_strategy_item_signals_when_batch_result_times_out(mocker):
+    processor = object.__new__(AccessDataProcess)
+    processor.strategy_group_key = "group"
+    processor.batch_timestamp = 100
+    processor.batch_count = 2
+    processor.sub_task_id = "100.1"
+    processor.process_counts = {}
+    processor.inline_trigger_items = [(10, 1)]
+    processor.batch_log = mocker.MagicMock()
+    item_1 = mocker.MagicMock(id=1)
+    item_1.strategy.id = 10
+    item_2 = mocker.MagicMock(id=2)
+    item_2.strategy.id = 10
+    item_3 = mocker.MagicMock(id=3)
+    item_3.strategy.id = 11
+    processor._items = [item_1, item_2, item_3]
+    publish_anomaly_signals = mocker.MagicMock()
+    processor.publish_anomaly_signals = publish_anomaly_signals
+
+    batch_result_key = mocker.patch.object(access_processor.key, "ACCESS_BATCH_DATA_RESULT_KEY")
+    batch_result_key.get_key.return_value = "batch-result"
+    batch_result_key.client.brpop.return_value = None
+    mocker.patch.object(access_processor.base.BaseAccessProcess, "process", return_value=None)
+    mocker.patch.object(access_processor, "metrics")
+    mocker.patch.object(access_processor.constants, "CONST_MINUTES", 0)
+
+    processor.process()
+
+    publish_anomaly_signals.assert_called_once_with(["10.1", "10.2", "11.3"])

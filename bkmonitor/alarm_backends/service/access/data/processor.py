@@ -1165,6 +1165,14 @@ class AccessDataProcess(BaseAccessDataProcess):
                     batch_results=[result["sub_task_id"] for result in batch_results],
                 )
             )
+            fallback_signals = [f"{item.strategy.id}.{item.id}" for item in self.items]
+            self.publish_anomaly_signals(fallback_signals)
+            logger.warning(
+                "[access inline trigger] strategy_group_key(%s) batch result timeout; "
+                "published %s fallback signals for trigger worker",
+                self.strategy_group_key,
+                len(fallback_signals),
+            )
 
         inline_trigger_items = []
         seen_inline_trigger_items = set()
