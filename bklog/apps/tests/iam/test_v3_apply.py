@@ -1,3 +1,4 @@
+import warnings
 from unittest.mock import Mock
 
 from django.test import SimpleTestCase, override_settings
@@ -128,9 +129,12 @@ class V3PermissionProviderApplyTest(SimpleTestCase):
         provider = V3PermissionProvider(client, "bk_log_search", action_resolver=get_action_by_id)
         collection = Resource("bk_log_search", "collection", "28", {"name": "collection-28"})
 
-        url = provider.get_apply_url([ActionEnum.VIEW_COLLECTION], [collection], "bk_log_search")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            url = provider.get_apply_url([ActionEnum.VIEW_COLLECTION], [collection], "bk_log_search")
 
         self.assertEqual(url, "https://iam.example/apply?tab_key=independent")
         application = client.get_apply_url.call_args.args[0].to_dict()
         related = application["actions"][0]["related_resource_types"]
         self.assertEqual(related[0]["instances"], [[{"type": "collection", "id": "28", "name": "collection-28"}]])
+        self.assertTrue(any(item.category is DeprecationWarning for item in caught))

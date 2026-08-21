@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+# ---------------------------------------------------------------------------
+# 引擎入参（普通话）
+#
+# 方言编码发生在 backends/v3|v4 的 codec，不在本模块。
+# Mapping 字段用 MappingProxyType 冻住，避免请求在并发两侧被原地改属性。
+# ---------------------------------------------------------------------------
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -22,6 +29,8 @@ DefinitionRef = IdentifiedDefinition | str
 
 
 def to_definition_id(definition: DefinitionRef) -> str:
+    """把 ActionEnum / ResourceMeta / 字符串统一成 id，供指标 label 和 codec 使用。"""
+
     if isinstance(definition, str):
         return definition
     return definition.id
@@ -33,6 +42,8 @@ def _empty_mapping() -> Mapping[str, Any]:
 
 @dataclass(frozen=True, slots=True)
 class Subject:
+    """鉴权主体。V4 网关目前主要认 id + tenant；type 留给 V3 SDK 和未来 ABAC。"""
+
     id: str
     type: str = "user"
     tenant_id: str = ""
@@ -44,6 +55,8 @@ class Subject:
 
 @dataclass(frozen=True, slots=True)
 class ResourceInstance:
+    """资源实例。type/id 用业务命名；V4 的 neg_ 编码、V3 的 _v2 后缀都在 codec 里做。"""
+
     type: DefinitionRef
     id: str
     system: str = ""
@@ -57,6 +70,8 @@ class ResourceInstance:
 
 @dataclass(frozen=True, slots=True)
 class AuthRequest:
+    """单次鉴权入参：一个主体 + 一个动作 + 一组关联资源。"""
+
     subject: Subject
     action_id: DefinitionRef
     resources: tuple[ResourceInstance, ...] = ()
@@ -68,6 +83,11 @@ class AuthRequest:
 
 @dataclass(frozen=True, slots=True)
 class BatchAuthRequest:
+    """批量鉴权入参。每个 resource_group 非空，第一项的 id 作为结果字典的资源键。
+
+    当前按「同一业务下的一批资源 × 一批动作」使用；ModeRouter 整批只解析一次鉴权模式。
+    """
+
     subject: Subject
     action_ids: tuple[DefinitionRef, ...]
     resource_groups: tuple[tuple[ResourceInstance, ...], ...]

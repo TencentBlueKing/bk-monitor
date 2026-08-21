@@ -19,7 +19,20 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from typing import Any
+# ---------------------------------------------------------------------------
+# Permission —— 业务侧 IAM 门面
+#
+# 鉴权 / 批量 / 申请 / 空间列表 / 创建者授权都从这里进出。业务模块不要直接
+# 调 backends.v3|v4 或 ModeRouter。本类负责：
+#   1. 解析 username / tenant
+#   2. 按 DualStackSpec 装配 ProviderBundle
+#   3. 把 iam.Resource 转成引擎 ResourceInstance
+#   4. demo 业务豁免、指标、申请失败兜底
+#
+# 反向回调仍走 views/resources.py 与 views/resources_v4.py，不经过本门面。
+# ---------------------------------------------------------------------------
+
+import warnings
 
 from django.conf import settings
 from iam import Resource
@@ -30,13 +43,13 @@ from apps.iam.backends.v3.client import build_v3_client
 from apps.iam.backends.v3.meta import get_system_info as get_v3_system_info
 from apps.iam.backends.v4 import V4AuthorizationWriter, V4PermissionProvider
 from apps.iam.backends.v4.callback_client import V4CallbackIAM
-from apps.iam.backends.v4.concurrency import run_pair_concurrently
+from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.backends.v4.config import resolve_v4_gateway_url
 from apps.iam.exceptions import IAMDependencyError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, get_resource_by_id
-from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import (
     AuthRequest as EngineAuthRequest,
@@ -49,8 +62,11 @@ from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, AuthorizedR
 from apps.iam.iam_engine.migration.policy import ApplicationResolution, MigrationPolicy
 from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
-from apps.iam.iam_engine.provider.capabilities import AuthorizationWriter, PermissionApplicationProvider
-from apps.iam.iam_engine.provider.composition.union import UnionScopePolicy
+from apps.iam.iam_engine.provider.capabilities import (
+    AuthorizationWriter,
+    AuthorizedScopeProvider,
+    PermissionApplicationProvider,
+)
 from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.iam.mode import get_mode_provider
 from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
@@ -58,9 +74,7 @@ from apps.utils.log import logger
 
 
 class Permission:
-    """
-    权限中心鉴权封装
-    """
+    """权限中心鉴权封装：对外保持 bool / (apply_data, apply_url)，对内走双栈编排。"""
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
         if username and bk_tenant_id:
@@ -99,15 +113,26 @@ class Permission:
         self._v4_provider = None
         self._v4_authorization_writer = None
 
+    # ================================================================
+    # 平台客户端（仅回调 / V3 SDK 集成点，不是业务鉴权入口）
+    # ================================================================
+
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
+        """V3 IAM SDK 客户端。业务鉴权请走 is_allowed，不要新增直接调用。"""
+
         return build_v3_client(bk_tenant_id)
 
     @classmethod
     def get_v4_callback_iam_client(cls, bk_tenant_id: str):
+        """V4 反向回调验签客户端，只给 views/resources_v4.py 用。"""
         return V4CallbackIAM(
             settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
         )
+
+    # ================================================================
+    # 双栈装配 —— Bundle + ModeRouter + DualStackSpec
+    # ================================================================
 
     @property
     def provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
@@ -122,20 +147,35 @@ class Permission:
                 mode_provider=get_mode_provider(),
                 bundles=self.provider_bundles,
                 pair_executor=run_pair_concurrently,
+                stack=DEFAULT_DUAL_STACK,
             )
         return self._mode_router
 
+    def _dual_stack(self) -> DualStackSpec:
+        """读取 Router 上的拓扑；测试把 mode_router 换成 MagicMock 时回退默认拓扑。"""
+
+        stack = getattr(self.mode_router, "stack", None)
+        if isinstance(stack, DualStackSpec):
+            return stack
+        return DEFAULT_DUAL_STACK
+
     def _build_provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+        """按协议版本注入能力。换代时在这里加新 key，拓扑的 current 指向它即可。"""
+
+        v3_provider = self.get_v3_provider()
+        v4_provider = self.get_v4_provider()
         return {
             AuthMode.V3: ProviderBundle(
-                auth=self.get_v3_provider(),
-                application=self.get_v3_provider(),
+                auth=v3_provider,
+                application=v3_provider,
                 writer=V3AuthorizationWriter(self.iam_client),
+                scope=v3_provider,
             ),
             AuthMode.V4: ProviderBundle(
-                auth=self.get_v4_provider(),
+                auth=v4_provider,
                 application=self.get_v4_permission_application_provider(),
                 writer=self.get_v4_authorization_writer(),
+                scope=v4_provider,
             ),
         }
 
@@ -170,6 +210,10 @@ class Permission:
             )
         return self._v4_authorization_writer
 
+    # ================================================================
+    # 请求转换 —— iam.Resource → 引擎 ResourceInstance
+    # ================================================================
+
     def make_engine_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> EngineAuthRequest:
         action = get_action_by_id(action)
         return EngineAuthRequest(
@@ -202,13 +246,28 @@ class Permission:
             attributes=attributes,
         )
 
+    # ================================================================
+    # 无权限申请 —— MigrationPolicy 选边，生产只走 get_apply_data
+    # ================================================================
+
     def get_apply_url(
         self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ):
+        """Deprecated: 仓库外脚本请改用 ``get_apply_data``，取返回值的第二个元素。
+
+        本方法有意收缩：生产路径已经由 ``get_apply_data`` 带出 URL。
+        仍保留转发，避免仓库外直接调用变成 AttributeError。
+        ``system_id`` 已忽略，申请选边走 DualStackSpec / Toggle，不再写死 V3。
         """
-        处理无权限 - 跳转申请列表
-        """
-        return self.get_v3_provider().get_apply_url(action_ids, resources, system_id)
+
+        warnings.warn(
+            "Permission.get_apply_url is deprecated; use get_apply_data and take the URL from the second return value",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        del system_id
+        _data, url = self.get_apply_data(action_ids, resources)
+        return url
 
     def get_apply_data(
         self,
@@ -222,27 +281,33 @@ class Permission:
         """
         resources = resources or []
         resolved_mode = self._resolve_safe_apply_mode(resources, mode)
-        application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles)
+        stack = self._dual_stack()
+        application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles, stack=stack)
         try:
             return self._call_application_provider(application, actions, resources)
         except Exception as error:  # pylint: disable=broad-except
-            if application.source_mode is not AuthMode.V4:
+            if application.source_mode is not stack.current:
                 raise
 
             if resolved_mode is AuthMode.UNION:
                 logger.warning(
-                    "[IAM Apply] mode=%s v4 provider failed, fallback to v3: %s",
+                    "[IAM Apply] mode=%s %s provider failed, fallback to %s: %s",
                     resolved_mode.value,
+                    stack.current.value,
+                    stack.legacy.value,
                     error,
                 )
-                v3_application = MigrationPolicy.resolve_application(AuthMode.V3, self.provider_bundles)
-                return self._call_application_provider(v3_application, actions, resources)
+                legacy_application = MigrationPolicy.resolve_application(
+                    stack.legacy, self.provider_bundles, stack=stack
+                )
+                return self._call_application_provider(legacy_application, actions, resources)
 
-            # 纯 V4 模式最终会不再保留 V3，这里不做“回退 V3”的迁移期兼容，
+            # 纯 current 模式最终会不再保留 legacy，这里不做“回退旧栈”的迁移期兼容，
             # 只记录错误并返回退化的申请数据，保证鉴权拒绝流程不会因为申请数据生成失败而变成 500。
             logger.error(
-                "[IAM Apply] mode=%s v4 apply data generation failed: %s",
+                "[IAM Apply] mode=%s %s apply data generation failed: %s",
                 resolved_mode.value,
+                stack.current.value,
                 error,
             )
             return {}, settings.BK_IAM_SAAS_HOST
@@ -259,14 +324,15 @@ class Permission:
         )
 
     def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
-        """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 V3。
+        """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 legacy。
 
         调用方既可能显式传入 mode（例如 is_allowed 把 decision.mode 原样传回，可能是非法字符串），
         也可能不传 mode 走 FeatureToggle 自动解析（可能因配置非法抛出 InvalidAuthModeError）。
         这里统一兜底，避免任何一条路径把异常/非法值泄漏给直接调用 get_apply_data 的业务代码。
         """
+        fallback_mode = self._dual_stack().legacy
         if mode is not None:
-            resolved_mode = AuthMode.safe_coerce(mode)
+            resolved_mode = AuthMode.safe_coerce(mode, default=fallback_mode)
             if resolved_mode.value != mode:
                 logger.warning(
                     "[IAM Apply] invalid auth mode=%r is not a valid AuthMode, falling back to %s apply",
@@ -281,9 +347,9 @@ class Permission:
             logger.warning(
                 "[IAM Apply] failed to resolve auth mode (%s), falling back to %s apply",
                 error.reason,
-                AuthMode.V3.value,
+                fallback_mode.value,
             )
-            return AuthMode.V3
+            return fallback_mode
 
     def _resolve_auth_mode(self, resources: list[Resource]) -> AuthMode:
         engine_resources = tuple(self._to_engine_resource(resource) for resource in resources)
@@ -313,6 +379,10 @@ class Permission:
             # 其他类型资源，判断路径
             return True
         return False
+
+    # ================================================================
+    # 鉴权 —— ModeRouter；对外仍返回 bool
+    # ================================================================
 
     def is_allowed(self, action: ActionMeta | str, resources: list[Resource] = None, raise_exception: bool = False):
         """
@@ -506,6 +576,10 @@ class Permission:
             errors,
         )
 
+    # ================================================================
+    # Resource 构造 / V3 系统信息（回调与旧接口）
+    # ================================================================
+
     @classmethod
     def make_resource(cls, resource_type: str, instance_id: str) -> Resource:
         """
@@ -528,6 +602,10 @@ class Permission:
         获取权限中心注册的动作列表
         """
         return get_v3_system_info(self.iam_client, settings.BK_IAM_SYSTEM_ID)
+
+    # ================================================================
+    # 空间列表 —— GET /meta/spaces/mine/；union 并集，双侧失败才 fail-closed
+    # ================================================================
 
     def filter_space_list_by_action(
         self, action: ActionMeta | str, bk_tenant_id: str = "", space_list: list = None
@@ -565,28 +643,26 @@ class Permission:
         except InvalidAuthModeError as error:
             raise IAMDependencyError(error.reason, provider="mode") from error
 
-        scope_providers = self._authorized_scope_providers(mode)
+        scope_providers = self._space_mode_router().scope_providers_for(mode)
 
         # 所有 Provider 都能独立给出授权范围且调用方未预加载列表：
         # IAM 先查 → 定向查库，避免先扫全量 Space。
         if space_list is None and not self._requires_candidate_ids(scope_providers):
-            return self._filter_spaces_by_scope_targeted(action, bk_tenant_id, scope_providers)
+            return self._filter_spaces_by_scope_targeted(action, bk_tenant_id, mode)
 
         if space_list is None:
             space_list = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
 
         local_ids = {str(space["bk_biz_id"]) for space in space_list}
-        scope = self._resolve_authorized_scope(action, scope_providers, candidate_ids=frozenset(local_ids))
+        scope = self._resolve_authorized_scope(action, mode, candidate_ids=frozenset(local_ids))
         allowed_ids = self._merge_authorized_scope_with_local(scope, local_ids)
         return self._keep_spaces_by_allowed_ids(space_list, allowed_ids)
 
-    def _filter_spaces_by_scope_targeted(
-        self, action: ActionMeta, bk_tenant_id: str, scope_providers: tuple[tuple[str, Any], ...]
-    ) -> list:
+    def _filter_spaces_by_scope_targeted(self, action: ActionMeta, bk_tenant_id: str, mode: AuthMode) -> list:
         """先查顶层授权范围，再按 bk_biz_id 定向加载本地 Space。"""
         from apps.log_search.models import Space
 
-        scope = self._resolve_authorized_scope(action, scope_providers, candidate_ids=None)
+        scope = self._resolve_authorized_scope(action, mode, candidate_ids=None)
         if not scope.ok:
             raise IAMDependencyError(scope.reason or "IAM authorized-resources failed", provider=scope.provider_name)
         if scope.is_wildcard:
@@ -622,58 +698,54 @@ class Permission:
         return results
 
     @staticmethod
-    def _requires_candidate_ids(scope_providers: tuple[tuple[str, Any], ...]) -> bool:
+    def _requires_candidate_ids(
+        scope_providers: tuple[tuple[str, AuthorizedScopeProvider | None], ...],
+    ) -> bool:
         """未配置的 Provider 不需要本地候选：查询阶段会返回错误范围并 fail-closed，没必要先扫全量 Space。"""
         return any(provider is not None and provider.requires_candidate_ids for _, provider in scope_providers)
 
-    def _authorized_scope_providers(self, mode: AuthMode) -> tuple[tuple[str, Any], ...]:
-        """按模式取出参与授权范围查询的 Provider，UNION 下同时保留 V3 与 V4。"""
+    def _space_mode_router(self) -> ModeRouter:
+        """空间范围始终走 ModeRouter，避免门面再手写拓扑、并发和并集。
 
-        provider_getters = {
-            AuthMode.V3: self.get_v3_provider,
-            AuthMode.V4: self.get_v4_provider,
-        }
-        modes = (AuthMode.V3, AuthMode.V4) if mode is AuthMode.UNION else (mode,)
-        return tuple((provider_mode.value, provider_getters[provider_mode]()) for provider_mode in modes)
+        测试常把 ``_mode_router`` 换成只带 mode_provider 的桩；这里用当前 Bundle
+        现拼一个 Router，查询仍经过 ``list_authorized_scope``。已是 ModeRouter 时
+        直接复用，避免覆盖测试注入的 scope Bundle。
+        """
+
+        existing = self._mode_router
+        if isinstance(existing, ModeRouter):
+            return existing
+        mode_provider = existing.mode_provider if existing is not None else get_mode_provider()
+        return ModeRouter(
+            mode_provider=mode_provider,
+            bundles=self.provider_bundles,
+            pair_executor=run_pair_concurrently,
+            stack=self._dual_stack(),
+        )
 
     def _resolve_authorized_scope(
         self,
         action: ActionMeta,
-        scope_providers: tuple[tuple[str, Any], ...],
+        mode: AuthMode,
         *,
         candidate_ids: frozenset[str] | None,
     ) -> AuthorizedResourceScope:
-        def _query(provider_name: str, provider) -> AuthorizedResourceScope:
-            if provider is None:
-                return AuthorizedResourceScope.error(
-                    ResourceEnum.BUSINESS.id,
-                    provider_name=provider_name,
-                    reason=f"IAM {provider_name} provider is not configured",
-                    error_type="ProviderNotConfigured",
-                )
-            return provider.list_authorized_resources(
-                action_id=action.id,
-                resource_type=ResourceEnum.BUSINESS.id,
-                subject={"type": "user", "id": self.username},
-                candidate_ids=candidate_ids,
-            )
-
-        if len(scope_providers) == 1:
-            return _query(*scope_providers[0])
-
-        scopes = run_pair_concurrently(
-            lambda: _query(*scope_providers[0]),
-            lambda: _query(*scope_providers[1]),
+        resolution = self._space_mode_router().list_authorized_scope(
+            mode,
+            action_id=action.id,
+            resource_type=ResourceEnum.BUSINESS.id,
+            subject={"type": "user", "id": self.username},
+            candidate_ids=candidate_ids,
         )
-        failed = [scope for scope in scopes if not scope.ok]
+        failed = [scope for scope in resolution.provider_scopes if not scope.ok]
         if failed:
-            self._observe_scope_divergence(action.id, failed, total=len(scopes))
-        if failed and len(failed) < len(scopes):
+            self._observe_scope_divergence(action.id, failed, total=len(resolution.provider_scopes))
+        if failed and len(failed) < len(resolution.provider_scopes):
             logger.warning(
                 "[IAM Decision] union space scope degraded: %s",
                 "; ".join(f"{scope.provider_name or 'unknown'}_error={scope.reason}" for scope in failed),
             )
-        return UnionScopePolicy.merge(scopes)
+        return resolution.scope
 
     @staticmethod
     def _observe_scope_divergence(action_id: str, failed: list[AuthorizedResourceScope], *, total: int) -> None:
@@ -717,6 +789,10 @@ class Permission:
             missing_ids[:20],
         )
 
+    # ================================================================
+    # 创建者授权 —— 双写；current 同步失败才回落 Celery
+    # ================================================================
+
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
         """
         新建实例关联权限授权
@@ -737,10 +813,11 @@ class Permission:
         from apps.iam.tasks.grant import dispatch_v4_creator_grant
 
         orchestrator = DualWriteGrantOrchestrator(
-            writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles),
+            writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles, stack=self._dual_stack()),
             tenant_id=self.bk_tenant_id,
             operator=self.username,
-            dispatch_v4_grant=dispatch_v4_creator_grant,
+            dispatch_retry_grant=dispatch_v4_creator_grant,
+            retry_target=self._dual_stack().current.value,
             grant_observer=self._observe_grant,
         )
         return orchestrator.grant_creator_action(application, raise_exception=raise_exception)

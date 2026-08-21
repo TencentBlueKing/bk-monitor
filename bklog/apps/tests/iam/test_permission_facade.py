@@ -1,3 +1,4 @@
+import warnings
 from unittest.mock import Mock, patch
 
 from django.conf import settings
@@ -475,16 +476,17 @@ class PermissionDelegationTest(SimpleTestCase):
         self.addCleanup(patcher.stop)
         self.permission = Permission(username="admin", bk_tenant_id="tenant-1")
 
-    def test_get_apply_url_delegates_to_the_v3_provider(self):
-        provider = Mock()
-        provider.get_apply_url.return_value = "https://iam.example/apply"
-        self.permission._v3_provider = provider
+    def test_get_apply_url_forwards_to_get_apply_data(self):
         resources = [Resource("bk_log_search", "collection", "28", {})]
+        self.permission.get_apply_data = Mock(return_value=({"actions": []}, "https://iam.example/apply"))
 
-        url = self.permission.get_apply_url(["view_collection_v2"], resources, "bk_log_search")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            url = self.permission.get_apply_url(["view_collection_v2"], resources, "bk_log_search")
 
         self.assertEqual(url, "https://iam.example/apply")
-        provider.get_apply_url.assert_called_once_with(["view_collection_v2"], resources, "bk_log_search")
+        self.permission.get_apply_data.assert_called_once_with(["view_collection_v2"], resources)
+        self.assertTrue(any(item.category is DeprecationWarning for item in caught))
 
     def test_get_system_info_delegates_to_the_v3_meta_query(self):
         self.iam_client._client.query.return_value = (True, "ok", {"actions": []})

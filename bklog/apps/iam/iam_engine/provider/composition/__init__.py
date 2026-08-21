@@ -1,3 +1,5 @@
-from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy
+"""组合策略。当前迁移期只用 Union（任一 ALLOW 即过），没有 AllOf / Primary。"""
 
-__all__ = ["UnionDecisionPolicy"]
+from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy, UnionScopePolicy
+
+__all__ = ["UnionDecisionPolicy", "UnionScopePolicy"]

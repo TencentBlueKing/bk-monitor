@@ -6,7 +6,12 @@ from apps.iam.iam_engine.core.types import AuthDecision, AuthResult, AuthorizedR
 
 
 class UnionDecisionPolicy:
-    """只要至少一个 Provider 明确允许请求，Union 决策就允许请求。"""
+    """union 鉴权：只要一侧明确 ALLOW 就放行。
+
+    ERROR 不会单独否决请求，只会把 AuthDecision.degraded 置 True。
+    两侧都不是 ALLOW（DENY 或 ERROR）才拒绝。这是迁移期「旧权限或新权限任一即可」
+    的产品语义，不要改成 AllOf，否则灰度用户会被尚未同步的一侧卡住。
+    """
 
     @staticmethod
     def decide(results: Iterable[AuthResult], mode: str = "union") -> AuthDecision:
@@ -23,9 +28,9 @@ class UnionDecisionPolicy:
 
 
 class UnionScopePolicy:
-    """把多个 Provider 的授权范围合并为一个范围，与 UnionDecisionPolicy.decide 对称。
+    """空间范围的 union：与鉴权对称，并集可见；单侧失败用另一侧，双侧失败才 fail-closed。
 
-    单侧失败降级为使用另一侧的结果，全部失败才 fail-closed 返回错误范围。
+    一侧 wildcard 即视为全部可见。不要把 ERROR 范围并进 ids，否则超时会被当成「一个空间都没有」。
     """
 
     @staticmethod

@@ -17,7 +17,10 @@ from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
 from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult
 from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+from apps.iam.concurrency import run_pair_concurrently
+from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.utils.prometheus import REGISTRY
 
 
@@ -320,12 +323,19 @@ class SpaceScopeDivergenceMetricsTest(MetricPatchMixin, TestCase):
         self.permission = Permission(username="tester", bk_tenant_id="default")
 
     def _resolve(self, left: AuthorizedResourceScope, right: AuthorizedResourceScope):
+        v3 = Mock(list_authorized_resources=Mock(return_value=left), requires_candidate_ids=True)
+        v4 = Mock(list_authorized_resources=Mock(return_value=right), requires_candidate_ids=False)
+        self.permission._mode_router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=AuthMode.UNION)),
+            bundles={
+                AuthMode.V3: ProviderBundle(scope=v3),
+                AuthMode.V4: ProviderBundle(scope=v4),
+            },
+            pair_executor=run_pair_concurrently,
+        )
         return self.permission._resolve_authorized_scope(
             ActionEnum.VIEW_BUSINESS,
-            (
-                ("v3", Mock(list_authorized_resources=Mock(return_value=left))),
-                ("v4", Mock(list_authorized_resources=Mock(return_value=right))),
-            ),
+            AuthMode.UNION,
             candidate_ids=None,
         )
 
@@ -507,7 +517,7 @@ class GrantSyncMetricsTest(TestCase):
             tenant_id="tenant-1",
             operator="operator",
             grant_observer=Permission._observe_grant,
-            dispatch_v4_grant=self.dispatch,
+            dispatch_retry_grant=self.dispatch,
         )
 
     def _grant(self):
@@ -600,7 +610,7 @@ class GrantSyncMetricsTest(TestCase):
             tenant_id="tenant-1",
             operator="operator",
             grant_observer=observer,
-            dispatch_v4_grant=self.dispatch,
+            dispatch_retry_grant=self.dispatch,
         )
         self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
 
