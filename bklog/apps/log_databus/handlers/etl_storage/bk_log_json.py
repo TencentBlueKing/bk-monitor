@@ -322,12 +322,11 @@ class BkLogJsonEtlStorage(EtlStorage):
 
         # 5. JSON解析（解析iter_string中的JSON）
         # 保留清洗失败日志时使用"null"策略，解析失败不丢弃数据，将字段置空；否则直接丢弃
-        json_de_error_strategy = "null" if self.is_retain_content_enabled(etl_params) else "drop"
         rules.append(
             {
                 "input_id": "iter_string",
                 "output_id": "bk_separator_object",
-                "operator": {"type": "json_de", "error_strategy": json_de_error_strategy},
+                "operator": {"type": "json_de", "error_strategy": self.get_v4_parse_error_strategy(etl_params)},
             }
         )
 

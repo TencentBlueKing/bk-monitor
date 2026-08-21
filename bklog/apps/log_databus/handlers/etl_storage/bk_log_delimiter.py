@@ -266,11 +266,27 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         rules.extend(self._build_flat_built_in_fields_v4(built_in_config))
 
         # 5. 分隔符切分
+        required_parts = max(
+            (
+                int(field["field_index"])
+                for field in fields
+                if not field.get("is_delete") and field.get("field_index")
+            ),
+            default=0,
+        )
+        split_operator = {
+            "type": "split_str",
+            "delimiter": etl_params.get("separator", ""),
+            "max_parts": None,
+            "error_strategy": self.get_v4_parse_error_strategy(etl_params),
+        }
+        if required_parts:
+            split_operator["min_parts"] = required_parts
         rules.append(
             {
                 "input_id": "iter_string",
                 "output_id": "bk_separator_object",
-                "operator": {"type": "split_str", "delimiter": etl_params.get("separator", ""), "max_parts": None},
+                "operator": split_operator,
             }
         )
 
