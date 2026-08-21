@@ -27,6 +27,10 @@ from core.prometheus import metrics
 logger = logging.getLogger("detect")
 
 
+class _LoggedAlarmdDetectionPublishError(RuntimeError):
+    """Marks a detection publish error already logged at the batch boundary."""
+
+
 class DetectProcess(BaseAbnormalPushProcessor):
     def __init__(self, strategy_id: str):
         # note: 这里有个坑，进来的策略id是字符串
@@ -215,9 +219,35 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
         published = 0
         for batch in batches:
-            with observe_shadow_publish(STAGE_DETECTION):
-                acknowledged = publisher.publish_batch(batch)
+            outcomes = batch.get("outcomes") or []
+            strategy_ref = (batch.get("strategy_ir") or {}).get("strategy_ref") or {}
+            strategy_id = strategy_ref.get("strategy_id", "unknown")
+            batch_id = outcomes[0].get("batch_id", "unknown") if outcomes else "unknown"
+            started_at = time.monotonic()
+            try:
+                with observe_shadow_publish(STAGE_DETECTION):
+                    acknowledged = publisher.publish_batch(batch)
+            except Exception as error:
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=detection result=fail_open "
+                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    len(outcomes),
+                    duration_ms,
+                    strategy_id,
+                    batch_id,
+                )
+                raise _LoggedAlarmdDetectionPublishError(str(error)) from error
             record_shadow_published_records(STAGE_DETECTION, acknowledged)
+            duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+            logger.info(
+                "[alarmd shadow] component=alarmd-python stage=detection result=broker_ack "
+                "records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                acknowledged,
+                duration_ms,
+                strategy_id,
+                batch_id,
+            )
             published += acknowledged
             if not reference_enabled:
                 continue
@@ -255,12 +285,30 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     continue
             try:
                 acknowledged_references = 0
+                started_at = time.monotonic()
                 with observe_shadow_publish(STAGE_REFERENCE):
                     for reference_batch in reference_batches:
                         acknowledged_references += reference_publisher.publish_batch(reference_batch)
                 record_shadow_published_records(STAGE_REFERENCE, acknowledged_references)
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                logger.info(
+                    "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
+                    "records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    acknowledged_references,
+                    duration_ms,
+                    strategy_id,
+                    batch_id,
+                )
             except Exception:
-                logger.exception("[alarmd shadow] failed to publish terminal reference decision")
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    acknowledged_references,
+                    duration_ms,
+                    strategy_id,
+                    batch_id,
+                )
         return published
 
     def push_data(self):
@@ -297,10 +345,19 @@ class DetectProcess(BaseAbnormalPushProcessor):
         except Exception:
             logger.exception(f"[alarmd shadow] strategy({self.strategy_id}) failed to prepare detection batch")
             alarmd_batches = []
+        started_at = time.monotonic()
         try:
             self.publish_alarmd_detection_batches(alarmd_batches)
+        except _LoggedAlarmdDetectionPublishError:
+            pass
         except Exception:
-            logger.exception(f"[alarmd shadow] strategy({self.strategy_id}) failed to publish detection batch")
+            duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+            logger.exception(
+                "[alarmd shadow] component=alarmd-python stage=detection result=fail_open "
+                "operation=initialize records=0 duration_ms=%s strategy(%s) batch_id=unknown",
+                duration_ms,
+                self.strategy_id,
+            )
         if anomaly_count > 1000:
             # 获取 Redis 节点信息（带异常处理）
             try:

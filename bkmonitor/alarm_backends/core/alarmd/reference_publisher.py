@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
+import time
 from collections.abc import Iterable, Mapping
 from functools import lru_cache
 
@@ -18,9 +20,15 @@ from alarm_backends.core.alarmd.encoder import (
 )
 from alarm_backends.core.alarmd.publisher import DEFAULT_DELIVERY_TIMEOUT_MS, trigger_partition_key
 
+logger = logging.getLogger(__name__)
+
 
 class ReferenceDecisionPublishError(RuntimeError):
     """Raised when a reference decision batch is not acknowledged."""
+
+    def __init__(self, message: str, *, acknowledged_records: int = 0):
+        super().__init__(message)
+        self.acknowledged_records = acknowledged_records
 
 
 class KafkaReferenceDecisionPublisher:
@@ -80,10 +88,16 @@ class KafkaReferenceDecisionPublisher:
                 prepared_bytes += len(payload)
             if prepared:
                 published += publish_prepared(prepared)
-        except ReferenceDecisionPublishError:
-            raise
+        except ReferenceDecisionPublishError as error:
+            raise ReferenceDecisionPublishError(
+                str(error),
+                acknowledged_records=published + error.acknowledged_records,
+            ) from error
         except Exception as error:
-            raise ReferenceDecisionPublishError(f"reference decision publish failed: {error}") from error
+            raise ReferenceDecisionPublishError(
+                f"reference decision publish failed: {error}",
+                acknowledged_records=published,
+            ) from error
         return published
 
 
@@ -148,9 +162,16 @@ def get_cached_kafka_reference_decision_publisher(
     allowed_topics: tuple[str, ...],
     forbidden_topics: tuple[str, ...],
 ):
+    started_at = time.monotonic()
     config = decode_json_document(config_json)
-    return build_kafka_reference_decision_publisher(
+    publisher = build_kafka_reference_decision_publisher(
         config,
         allowed_topics=set(allowed_topics),
         forbidden_topics=set(forbidden_topics),
     )
+    duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+    logger.info(
+        "[alarmd shadow] component=alarmd-python stage=reference result=enabled records=0 duration_ms=%s",
+        duration_ms,
+    )
+    return publisher

@@ -123,6 +123,7 @@ class TriggerProcessor:
         from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
         from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
         from alarm_backends.core.alarmd.reference_publisher import (
+            ReferenceDecisionPublishError,
             get_cached_kafka_reference_decision_publisher,
         )
         from alarm_backends.core.alarmd.telemetry import (
@@ -134,12 +135,15 @@ class TriggerProcessor:
         publisher = None
         published = 0
         for start in range(0, len(self.reference_candidates), ALARMD_REFERENCE_BATCHES_PER_FLUSH):
+            started_at = time.monotonic()
+            projected_batches = 0
 
             def iter_batches():
+                nonlocal projected_batches
                 for candidate in self.reference_candidates[start : start + ALARMD_REFERENCE_BATCHES_PER_FLUSH]:
                     try:
                         strategy_snapshot_key = candidate["strategy_snapshot_key"]
-                        yield build_reference_trigger_decision_candidate(
+                        batch = build_reference_trigger_decision_candidate(
                             strategy=self.get_strategy_snapshot(strategy_snapshot_key),
                             legacy_json=self.get_strategy_snapshot_legacy_json(strategy_snapshot_key),
                             strategy_snapshot_key=strategy_snapshot_key,
@@ -148,6 +152,8 @@ class TriggerProcessor:
                             point=candidate["point"],
                             event_record=candidate["event_record"],
                         )
+                        projected_batches += 1
+                        yield batch
                     except Exception:
                         logger.exception(
                             "[alarmd shadow] failed to project Trigger reference for strategy(%s) item(%s)",
@@ -186,12 +192,29 @@ class TriggerProcessor:
                 with observe_shadow_publish(STAGE_REFERENCE):
                     acknowledged = publisher.publish_batches(chain((first_batch,), batches))
                 record_shadow_published_records(STAGE_REFERENCE, acknowledged)
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                batch_id = first_batch.get("batch_id", "unknown") if projected_batches == 1 else "mixed"
+                logger.info(
+                    "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
+                    "records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    acknowledged,
+                    duration_ms,
+                    self.strategy_id,
+                    batch_id,
+                )
                 published += acknowledged
-            except Exception:
+            except Exception as error:
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                acknowledged = error.acknowledged_records if isinstance(error, ReferenceDecisionPublishError) else 0
+                batch_id = first_batch.get("batch_id", "unknown") if projected_batches == 1 else "mixed"
                 logger.exception(
-                    "[alarmd shadow] failed to publish Trigger reference for strategy(%s) item(%s)",
+                    "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) item(%s) batch_id=%s",
+                    acknowledged,
+                    duration_ms,
                     self.strategy_id,
                     self.item_id,
+                    batch_id,
                 )
                 break
         return published
