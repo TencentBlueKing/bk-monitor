@@ -9,7 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import hashlib
+import logging
 import struct
+import time
 from collections.abc import Mapping
 from functools import lru_cache
 
@@ -20,6 +22,8 @@ DEFAULT_DELIVERY_TIMEOUT_MS = 3000
 DEFAULT_MAX_ENVELOPE_BYTES = 512 * 1024
 DEFAULT_MAX_OUTCOMES_PER_MESSAGE = 500
 PARTITION_HASH_VERSION = "trigger-input-partition-v1"
+
+logger = logging.getLogger(__name__)
 
 
 class DetectionPublishError(RuntimeError):
@@ -189,8 +193,15 @@ def build_kafka_detection_publisher(config: Mapping, *, allowed_topics, producer
 
 @lru_cache(maxsize=1)
 def get_cached_kafka_detection_publisher(config_json: str, allowed_topics: tuple[str, ...]):
+    started_at = time.monotonic()
     config = decode_json_document(config_json)
-    return build_kafka_detection_publisher(config, allowed_topics=set(allowed_topics))
+    publisher = build_kafka_detection_publisher(config, allowed_topics=set(allowed_topics))
+    duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+    logger.info(
+        "[alarmd shadow] component=alarmd-python stage=detection result=enabled records=0 duration_ms=%s",
+        duration_ms,
+    )
+    return publisher
 
 
 def trigger_partition_key(document: Mapping) -> bytes:

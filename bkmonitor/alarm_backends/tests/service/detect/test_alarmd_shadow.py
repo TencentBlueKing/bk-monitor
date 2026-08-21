@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+import logging
 from types import SimpleNamespace
 from unittest import mock
 
@@ -171,7 +172,8 @@ def test_alarmd_shadow_publishes_with_process_cached_producer():
     assert published == batches
 
 
-def test_alarmd_shadow_publishes_terminal_reference_only_after_detection_ack():
+def test_alarmd_shadow_publishes_terminal_reference_only_after_detection_ack(caplog):
+    caplog.set_level(logging.INFO, logger="detect")
     calls = []
     batch = _prepared_detection_batch()
     detection_publisher = SimpleNamespace(
@@ -219,9 +221,16 @@ def test_alarmd_shadow_publishes_terminal_reference_only_after_detection_ack():
     assert calls[2][1]["decisions"][0]["reason_code"] == "INPUT_NORMAL"
     factory_args = reference_factory.call_args.args
     assert factory_args[2] == ("alarmd-detection-shadow", "monitor-event-nondefault")
+    ack_logs = [record.getMessage() for record in caplog.records if "result=broker_ack" in record.getMessage()]
+    assert len(ack_logs) == 2
+    assert "component=alarmd-python stage=detection result=broker_ack records=2 duration_ms=" in ack_logs[0]
+    assert "component=alarmd-python stage=reference result=broker_ack records=1 duration_ms=" in ack_logs[1]
+    assert all("strategy(1) batch_id=batch-1" in message for message in ack_logs)
+    assert all("bootstrap.servers" not in message and "input_id" not in message for message in ack_logs)
 
 
-def test_alarmd_reference_failure_does_not_change_acknowledged_detection_result():
+def test_alarmd_reference_failure_does_not_change_acknowledged_detection_result(caplog):
+    caplog.set_level(logging.WARNING, logger="detect")
     batch = _prepared_detection_batch()
     detection_publisher = SimpleNamespace(publish_batch=lambda value: len(value["outcomes"]))
     reference_publisher = SimpleNamespace(publish_batch=mock.Mock(side_effect=RuntimeError("reference failed")))
@@ -263,6 +272,180 @@ def test_alarmd_reference_failure_does_not_change_acknowledged_detection_result(
         assert DetectProcess.publish_alarmd_detection_batches([batch]) == 2
 
     reference_publisher.publish_batch.assert_called_once()
+    fail_open_logs = [record.getMessage() for record in caplog.records if "result=fail_open" in record.getMessage()]
+    assert len(fail_open_logs) == 1
+    assert (
+        "component=alarmd-python stage=reference result=fail_open operation=broker_publish "
+        "records=0 duration_ms=" in fail_open_logs[0]
+    )
+    assert "strategy(1) batch_id=batch-1" in fail_open_logs[0]
+    assert "reference failed" in caplog.text
+
+
+def test_terminal_reference_failure_logs_records_from_prior_broker_acks(caplog):
+    caplog.set_level(logging.WARNING, logger="detect")
+    batch = _prepared_detection_batch()
+    detection_publisher = SimpleNamespace(publish_batch=lambda value: len(value["outcomes"]))
+    reference_publisher = SimpleNamespace(
+        publish_batch=mock.Mock(side_effect=[1, RuntimeError("later reference failed")])
+    )
+
+    with (
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
+            create=True,
+        ),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(
+            settings,
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
+            create=True,
+        ),
+        mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
+        mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=detection_publisher),
+        mock.patch(
+            "alarm_backends.core.alarmd.reference.build_terminal_reference_decision_batches",
+            return_value=[{"decisions": [{"input_id": "one"}]}, {"decisions": [{"input_id": "two"}]}],
+        ),
+        mock.patch.object(
+            reference_publisher_module,
+            "get_cached_kafka_reference_decision_publisher",
+            return_value=reference_publisher,
+        ),
+    ):
+        assert DetectProcess.publish_alarmd_detection_batches([batch]) == len(batch["outcomes"])
+
+    fail_open_logs = [record.getMessage() for record in caplog.records if "result=fail_open" in record.getMessage()]
+    assert len(fail_open_logs) == 1
+    assert "stage=reference result=fail_open operation=broker_publish records=1" in fail_open_logs[0]
+    assert "strategy(1) batch_id=batch-1" in fail_open_logs[0]
+
+
+def test_detection_multi_batch_failure_logs_only_the_failed_batch(caplog):
+    caplog.set_level(logging.INFO, logger="detect")
+    first_batch = _prepared_detection_batch()
+    second_batch = _prepared_detection_batch()
+    second_batch["outcomes"] = [second_batch["outcomes"][0]]
+    second_batch["outcomes"][0]["batch_id"] = "batch-2"
+    publisher = SimpleNamespace(
+        publish_batch=mock.Mock(side_effect=[len(first_batch["outcomes"]), RuntimeError("second batch failed")])
+    )
+
+    with (
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
+            create=True,
+        ),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", False, create=True),
+        mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=publisher),
+    ):
+        with pytest.raises(RuntimeError, match="second batch failed") as error:
+            DetectProcess.publish_alarmd_detection_batches([first_batch, second_batch])
+
+    assert type(error.value).__name__ == "_LoggedAlarmdDetectionPublishError"
+    assert isinstance(error.value.__cause__, RuntimeError)
+    assert str(error.value.__cause__) == "second batch failed"
+    ack_logs = [record.getMessage() for record in caplog.records if "result=broker_ack" in record.getMessage()]
+    assert len(ack_logs) == 1
+    assert "records=2" in ack_logs[0] and "batch_id=batch-1" in ack_logs[0]
+    fail_open_logs = [record.getMessage() for record in caplog.records if "result=fail_open" in record.getMessage()]
+    assert len(fail_open_logs) == 1
+    assert "stage=detection result=fail_open operation=broker_publish records=1" in fail_open_logs[0]
+    assert "strategy(1) batch_id=batch-2" in fail_open_logs[0]
+
+
+def test_detect_push_fails_open_without_duplicate_publish_failure_log(caplog):
+    caplog.set_level(logging.WARNING, logger="detect")
+    processor = object.__new__(DetectProcess)
+    processor.strategy_id = "1"
+    processor.strategy = SimpleNamespace(bk_biz_id=2, name="strategy")
+    processor.inputs = {}
+    processor.outputs = {}
+    processor.push_abnormal_data = mock.Mock(return_value=0)
+    processor.prepare_alarmd_detection_batches = mock.Mock(return_value=[_prepared_detection_batch()])
+    publisher = SimpleNamespace(publish_batch=mock.Mock(side_effect=RuntimeError("detection publish failed")))
+
+    with (
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
+            create=True,
+        ),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", False, create=True),
+        mock.patch.object(publisher_module, "get_cached_kafka_detection_publisher", return_value=publisher),
+    ):
+        processor.push_data()
+
+    fail_open_logs = [record.getMessage() for record in caplog.records if "result=fail_open" in record.getMessage()]
+    assert len(fail_open_logs) == 1
+    assert "operation=broker_publish" in fail_open_logs[0]
+
+
+def test_detect_push_logs_generic_publisher_initialization_failure_once(caplog):
+    caplog.set_level(logging.WARNING, logger="detect")
+    processor = object.__new__(DetectProcess)
+    processor.strategy_id = "1"
+    processor.strategy = SimpleNamespace(bk_biz_id=2, name="strategy")
+    processor.inputs = {}
+    processor.outputs = {}
+    processor.push_abnormal_data = mock.Mock(return_value=0)
+    processor.prepare_alarmd_detection_batches = mock.Mock(return_value=[_prepared_detection_batch()])
+
+    with (
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-detection-shadow",),
+            create=True,
+        ),
+        mock.patch.object(
+            publisher_module,
+            "get_cached_kafka_detection_publisher",
+            side_effect=RuntimeError("publisher initialization failed"),
+        ),
+    ):
+        processor.push_data()
+
+    fail_open_logs = [record.getMessage() for record in caplog.records if "result=fail_open" in record.getMessage()]
+    assert len(fail_open_logs) == 1
+    assert "stage=detection result=fail_open operation=initialize records=0" in fail_open_logs[0]
+    assert "strategy(1) batch_id=unknown" in fail_open_logs[0]
 
 
 @pytest.mark.parametrize(
