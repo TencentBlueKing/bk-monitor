@@ -23,19 +23,74 @@ Load only the domain skill that matches the current task. Common domain hints:
 - components / UI / Vue / React / TSX / global components / registration -> components skill
 - hooks / composables / stateful behavior / side effects -> hooks or composables skill
 - services / API / request / data access / client adapter -> api-services skill
-- routes / pages / module boundaries / architecture map -> architecture skill
+- routes / pages / module boundaries / architecture map -> architecture skill or `.ai-agent/skills/architecture-on-demand.md`
+- entry / build tool / AST module map -> `.ai-agent/skills/project-architecture-locator.md` then architecture-on-demand
+- dataflow / store / API flow / impact edges -> `.ai-agent/skills/dataflow-on-demand.md`
 - conventions / coding patterns / lint / tests -> coding-patterns or conventions skill
 - knowledge update / project skill maintenance / self-growing docs -> self-update skill
 
+## DDD is opt-in
+
+Load `.ai-agent/ddd/**` **only** when the user explicitly asks for Domain-Driven Design.
+Entity, Aggregate, Repository, Service, Domain or Clean Architecture appearing in the codebase
+is never enough. Start at `.ai-agent/ddd/rules/ddd-gate.md`, or run `aafe ddd gate "<request>"`;
+if the gate says disabled, do not read any other file under `.ai-agent/ddd/`.
+
+## Frontend design patterns are opt-in
+
+Load `.ai-agent/frontend-engineering/**` **only** when the user explicitly asks for design-pattern
+work. factory, adapter, observer, strategy, singleton, store or reducer appearing in the codebase
+is never enough. Start at `.ai-agent/frontend-engineering/rules/pattern-gate.md`, or run
+`aafe pattern gate "<request>"`; if the gate says disabled, do not read any other file under
+`.ai-agent/frontend-engineering/`.
+
+When enabled, identify problems first (`aafe pattern discover`), then compose — a project gets a
+minimum sufficient *composition* of patterns, never one pattern applied globally, and "no pattern
+needed" is a valid answer.
+
+Deep analyze docs live under the configured output (default `.aafe/`, set `analyze.output` or `--output=`). Read `manifest.json` first; load only matched JSON slices. Never eagerly read entire graph JSONL.
+
 The exact project domains are owned by the project and should be discovered from `.ai-agent/project.md`
 and `.ai-agent/project-skills/*/SKILL.md` descriptions.
+
+## Commands you may run yourself
+
+Run these directly when the situation below applies. Do not wait to be asked, and do not
+ask the user to run them for you. Resolve the binary as `node_modules/.bin/aafe` when it is
+not on `PATH`; if neither resolves, fall back to reading files and say so.
+
+| Situation | Command |
+| --- | --- |
+| Locating a module, route, component, feature or symbol | `aafe knowledge search "<terms>" [--kind=...]` |
+| `knowledge search` returns nothing and `.aafe/` is missing or stale | `aafe analyze` |
+| Assembling evidence for a requirement before editing | `aafe context --requirement="<text>"` |
+| Reporting blast radius after a change | `aafe impact --diff` or `aafe impact --requirement="<text>"` |
+| Deciding whether DDD applies | `aafe ddd gate "<request>"`, then `aafe ddd scope` |
+| Deciding whether design patterns apply | `aafe pattern gate "<request>"`, then `aafe pattern discover` |
+| Planning tests for a change | `aafe test --diff` or `aafe test --requirement="<text>"` |
+| Full functional coverage from analyze | `aafe test --coverage` |
+| Generate cases from a PR vs its target branch | `aafe test --pr=<url>` |
+| 分析此PR / 按 PR 补测试 / 贴 PR 链接生成用例 | `aafe test --pr=<url>` |
+| 生成用例并执行 E2E、出报告 | 先 `aafe test --pr=<url>`；缺测试地址则询问用户并等待，再 `--run --base-url=<url>`（含 `#` 须加引号；有路径/参数时确认 A/B/C 并加 `--url-role`） |
+| Enable Playwright E2E after init | `aafe e2e enable` |
+| 采集 SSO 登录态供 E2E 复用 | `aafe e2e auth --base-url=<url>`；`--run` 先探测地址，200 且非登录跳转则跳过 SSO，否则校验/续期登录 |
+| A test run failed and the cause is unclear | `aafe diagnose --failure=<report>` |
+| Runtime files look stale or inconsistent | `aafe doctor`, then `aafe migrate --dry-run` |
+
+Prefer `aafe knowledge search` over a blind repository grep: it ranks across modules, routes,
+components, features and symbols, and normalizes `userPhoneSearch`, `user-phone-search.js` and
+the equivalent Chinese phrase onto the same tokens.
+
+These commands mostly read and report. Writers: `aafe analyze` (refreshes analyze output), `aafe migrate` (moves legacy files), and `aafe test --write/--run` (YAML cases + `.aafe/e2e/reports`). Everything else leaves the project untouched, so running one to check an assumption is cheap.
 
 ## Forbidden
 
 - Do not copy project knowledge into .cursor, .codebuddy, .vscode, .codex, .trace, .windsurf, or other editor directories.
 - Do not eagerly read every `.ai-agent/project-skills/*/SKILL.md` file.
+- Do not eagerly read every analyze output module/graph file.
 - Do not treat editor `skills/ENTRY.md` files as full knowledge; they are pointers to this index.
 - Do not inject full runtime files into session hooks; read runtime files on demand.
+- Do not install or run `uitest` / `@aafe/ai-test` / `npx uitest`. PR and E2E belong to `aafe test`. Do not write `ai-ui-test` / `uitest-from-pr` back into `.cursor/`.
 
 ## Ownership and update policy
 
