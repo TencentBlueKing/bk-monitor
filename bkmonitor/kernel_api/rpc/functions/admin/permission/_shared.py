@@ -335,7 +335,7 @@ def action_categories(params: dict[str, Any]) -> dict[str, Any]:
 
     # backend → 对应 provider：可见性过滤与 id 口径全部由 provider 提供
     # （codec 编码方言 ID），本模块不硬编码任何版本分支。
-    backend = params.get("backend") or "v3"
+    backend = params.get("backend") or ""
     provider = None
     if backend:
         try:

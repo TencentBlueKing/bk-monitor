@@ -67,14 +67,16 @@ class DialectAuthRequest:
 class DialectBatchByResourceRequest:
     """编码后的批量鉴权（同 action、多 resource）请求。
 
-    resource_type 单独提取（同一批共享），resources 只承载方言 ID 列表；
-    方言层实现可以直接组装成"[{"id": rid}, ...]" 之类的平台 payload。
+    resource_type 单独提取（同一批共享），resource_ids 只承载方言 ID 列表，
+    供只认裸 ID 的平台（如 v3）使用；resources 承载完整方言资源（含祖先链），
+    供需要构造 _bk_iam_path_ 等完整路径的平台（如 v4）使用。
     """
 
     subject: Subject
     action_id: str
     resource_type: str
     resource_ids: tuple[str, ...] = ()
+    resources: tuple[DialectResource, ...] = ()
     environment: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
 
 

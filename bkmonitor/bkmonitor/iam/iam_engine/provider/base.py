@@ -188,16 +188,19 @@ class PermissionProvider(ABC):
         rt_biz = to_resource_type_id(resources[0].type)
         dialect_rt = self.codec.encode_resource_type(rt_biz)
 
-        # 出站 encode：业务 ID → 方言 ID（保留原业务 ID 用于 decode 回填）
-        pairs: list[tuple[str, str]] = [(r.id, self.codec.encode_resource_id(rt_biz, r.id)) for r in resources]
-        chunks = [list(c) for c in chunked(pairs, self.CHUNK_SIZE)]
+        # 出站 encode：完整编码资源（type / id / 方言祖先链）。
+        # resource_ids 供只认裸 ID 的方言实现（如 v3）使用；resources 供需要
+        # 构造 _bk_iam_path_ 等完整路径的方言实现（如 v4）使用。
+        encoded_resources = tuple(self._encode_resource(r) for r in resources)
+        chunks = [list(c) for c in chunked(encoded_resources, self.CHUNK_SIZE)]
 
-        def run_chunk(chunk: list[tuple[str, str]]) -> list[tuple[str, bool]]:
+        def run_chunk(chunk: list[DialectResource]) -> list[tuple[str, bool]]:
             page_req = DialectBatchByResourceRequest(
                 subject=request.subject,
                 action_id=dialect_action,
                 resource_type=dialect_rt,
-                resource_ids=tuple(d_rid for _, d_rid in chunk),
+                resource_ids=tuple(r.id for r in chunk),
+                resources=tuple(chunk),
                 environment=request.environment,
             )
             return self._batch_by_resource_dialect_page(page_req)

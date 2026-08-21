@@ -113,7 +113,16 @@ class V4Client:
     def get_authorized_resources(self, subject_id: str, action_id: str) -> list[dict]:
         """POST /relation/authorized-resources/ — 查询用户对某 action 有权限的资源列表。
 
-        仅建议用于顶层资源类型（第一层），否则平台会拒绝请求。
+        平台仅建议用于顶层资源类型（第一层）的反向列举；实测对子资源类型
+        action 同样可调用（平台不拒绝），返回结果按授权形态可能包含多种
+        条目（同一 action 可同时出现多个 type 条目）：
+          - 顶层资源 action（如 space）：返回 {"type": "space", "ids": [...]}，
+            ids 含 "*"（任意资源）或具体空间 ID；
+          - 子资源 action（如 grafana_dashboard）：可能同时返回
+            {"type": "<子资源类型>", "ids": [实例 ID 或 "*"]}（显式实例 / 通配授权）
+            与 {"type": "space", "ids": [父空间 ID]}（父级授权，表示该空间下
+            所有子资源均有权限）；
+          - 资源无关 action（无 resource_type）：返回空列表。
 
         Args:
             subject_id: 用户名
@@ -121,7 +130,7 @@ class V4Client:
 
         Returns:
             list[{"type": <方言 rt_id>, "ids": [<方言 rid> 或 "*"]}]
-            "*" 表示该资源类型下的任意资源都有权限；父资源 ids 表示"该父资源下所有子资源"都有权限。
+            "*" 表示该资源类型下任意资源都有权限；父资源 ids 表示该父资源下所有子资源都有权限。
         """
         path = f"/api/v1/open/rbac/authorization/systems/{self._system_id}/relation/authorized-resources/"
         body = {

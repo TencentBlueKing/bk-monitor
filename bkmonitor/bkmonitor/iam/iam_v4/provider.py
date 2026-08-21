@@ -38,6 +38,7 @@ from ..iam_engine.provider.dialect_types import (
     DialectAuthRequest,
     DialectBatchByActionRequest,
     DialectBatchByResourceRequest,
+    DialectResource,
 )
 from . import PROVIDER_NAME
 from .client import V4Client
@@ -49,6 +50,38 @@ if TYPE_CHECKING:
     from ..iam_engine.schema.registry import SchemaRegistry
 
 logger = logging.getLogger(__name__)
+
+
+logger = logging.getLogger(__name__)
+
+
+def _build_iam_path(resource: DialectResource) -> str | None:
+    """由方言祖先链构造 _bk_iam_path_（父链路径，各段 id 已是方言编码）。
+
+    ancestors=[DialectResource(type="space", id="space|2")] → "/space,space|2/"
+    空祖先链（顶级资源或未解析）→ None（不携带 attributes）。
+    """
+    if not resource.ancestors:
+        return None
+    return "/" + "/".join(f"{a.type},{a.id}" for a in resource.ancestors) + "/"
+
+
+def _build_v4_resource_payload(resource: DialectResource | None) -> dict:
+    """DialectResource → v4 平台鉴权 payload。
+
+    v4 平台对父级（空间级/"无限制"）授权的实例级命中依赖 attributes._bk_iam_path_
+    （方言编码祖先链路径；实测 /space,space|2/ 命中、/space,2/ 与裸 id 不命中），
+    必须携带，否则父级授权在实例级鉴权中全部判 False。
+    """
+    if resource is None:
+        return {}
+    payload = {"id": resource.id}
+    if resource.type:
+        payload["type"] = resource.type
+    path = _build_iam_path(resource)
+    if path:
+        payload["attributes"] = {"_bk_iam_path_": path}
+    return payload
 
 
 class V4PermissionProvider(PermissionProvider):
@@ -177,7 +210,12 @@ class V4PermissionProvider(PermissionProvider):
             list[(dialect_resource_id, allowed)]: 每个资源的鉴权结果，
             resource_id 为 v4 方言格式。
         """
-        v4_resources = [{"id": rid} for rid in request.resource_ids]
+        # 优先使用完整编码资源（含方言祖先链，用于构造 _bk_iam_path_）；
+        # 兼容只有 resource_ids 的旧构造（无祖先链 → 不带 attributes）
+        resources = request.resources or tuple(
+            DialectResource(type=request.resource_type, id=rid) for rid in request.resource_ids
+        )
+        v4_resources = [_build_v4_resource_payload(r) for r in resources]
         resp = self._get_client(request.subject.tenant_id).direct_auth_by_resources(
             subject_id=request.subject.id,
             action_id=request.action_id,
@@ -202,9 +240,7 @@ class V4PermissionProvider(PermissionProvider):
             list[(dialect_action_id, allowed)]: 每个 action 的鉴权结果，
             action_id 为 v4 方言格式。
         """
-        v4_resource = None
-        if request.resource:
-            v4_resource = {"id": request.resource.id}
+        v4_resource = _build_v4_resource_payload(request.resource) or None
         resp = self._get_client(request.subject.tenant_id).direct_auth_by_actions(
             subject_id=request.subject.id,
             action_ids=list(request.action_ids),
@@ -564,7 +600,8 @@ class V4PermissionProvider(PermissionProvider):
     def _to_v4_resource(request: DialectAuthRequest) -> dict:
         """DialectAuthRequest 里的单个 resource → v4 平台鉴权 payload。
 
-        v4 的鉴权 body 只需要 {"id": ...}；apply_url 才需要 type/ancestors。
+        携带 type 与 attributes._bk_iam_path_（方言祖先链路径），保证父级
+        （空间级）授权能在实例级鉴权中命中（实测必需，见 _build_v4_resource_payload）。
 
         Args:
             request: 已编码的方言鉴权请求。
@@ -572,7 +609,7 @@ class V4PermissionProvider(PermissionProvider):
         Returns:
             dict: v4 平台鉴权 API 的 resource 字段。
         """
-        return {"id": request.resource.id} if request.resource else {}
+        return _build_v4_resource_payload(request.resource)
 
     # ================================================================
     # health_check

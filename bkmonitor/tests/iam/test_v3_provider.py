@@ -233,6 +233,56 @@ class TestV3ProviderDialectMethods:
         assert result == [("3", True), ("4", False)]
         p._iam_client.batch_resource_multi_actions_allowed.assert_called_once()
 
+    def test_batch_by_resource_without_ancestors_uses_empty_path_guard(self):
+        """无祖先链的旧构造：attribute 带空串 _bk_iam_path_ 占位，避免 SDK 本地求值 KeyError。"""
+        p = _make_provider()
+        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
+            "390": {"manage_apm_application_v2": False},
+        }
+
+        result = p._batch_by_resource_dialect_page(
+            DialectBatchByResourceRequest(
+                subject=CoreSubject(id="alice"),
+                action_id="manage_apm_application_v2",
+                resource_type="apm_application",
+                resource_ids=("390",),
+            )
+        )
+        assert result == [("390", False)]
+        p._iam_client.make_resource.assert_called_once_with(
+            "apm_application", "390", ancestors=(), attribute={"_bk_iam_path_": ""}
+        )
+
+    def test_batch_by_resource_with_ancestors(self):
+        """携带祖先链的批量鉴权：SDK resource 通过 ancestors 构造 _bk_iam_path_。"""
+        p = _make_provider()
+        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
+            "14|f0ImroNIz": {"view_single_dashboard": True},
+        }
+
+        result = p._batch_by_resource_dialect_page(
+            DialectBatchByResourceRequest(
+                subject=CoreSubject(id="alice"),
+                action_id="view_single_dashboard",
+                resource_type="grafana_dashboard",
+                resource_ids=("14|f0ImroNIz",),
+                resources=(
+                    DialectResource(
+                        type="grafana_dashboard",
+                        id="14|f0ImroNIz",
+                        ancestors=(DialectResource(type="space", id="-6"),),
+                    ),
+                ),
+            )
+        )
+        assert result == [("14|f0ImroNIz", True)]
+        p._iam_client.make_resource.assert_called_once_with(
+            "grafana_dashboard",
+            "14|f0ImroNIz",
+            ancestors=(DialectResource(type="space", id="-6"),),
+            attribute=None,
+        )
+
     def test_batch_by_resource_auth_api_error(self):
         """SDK 异常时全部返回 False。"""
         p = _make_provider()
@@ -269,6 +319,29 @@ class TestV3ProviderDialectMethods:
         )
         assert result == [("view_business_v2", True), ("manage_synthetic_v2", False)]
         p._iam_client.batch_resource_multi_actions_allowed.assert_called_once()
+
+    def test_batch_by_action_with_ancestors(self):
+        """多 action 同 resource：SDK resource 携带祖先链（_bk_iam_path_ 依赖）。"""
+        p = _make_provider()
+        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
+            "390": {"manage_apm_application_v2": True},
+        }
+
+        result = p._batch_by_action_dialect_page(
+            DialectBatchByActionRequest(
+                subject=CoreSubject(id="alice"),
+                action_ids=("manage_apm_application_v2",),
+                resource=DialectResource(
+                    type="apm_application",
+                    id="390",
+                    ancestors=(DialectResource(type="space", id="2"),),
+                ),
+            )
+        )
+        assert result == [("manage_apm_application_v2", True)]
+        p._iam_client.make_resource.assert_called_once_with(
+            "apm_application", "390", ancestors=(DialectResource(type="space", id="2"),), attribute=None
+        )
 
     def test_batch_by_action_without_resource(self):
         """无资源的 resource-free action 批量鉴权。"""

@@ -940,9 +940,7 @@ class TestRealFrameworkQuery:
         assert summary["total_actions"] == len(actions)
 
         # ---- 将 query_user_permissions 的完整返回值落盘，供人工核对数据结构 ----
-        import json
 
         # diag_path = _os.path.join(_os.path.dirname(__file__), "new_version_v3.json")
-        diag_path = r"/Users/xuchaoshan/code-project/bk-monitor-admin/public/v3_permission.json"
-        with open(diag_path, "w") as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
+        # with open(diag_path, "w") as f:
+        #     json.dump(result, f, ensure_ascii=False, indent=2)

@@ -51,6 +51,7 @@ from ..iam_engine.provider.dialect_types import (
     DialectAuthRequest,
     DialectBatchByActionRequest,
     DialectBatchByResourceRequest,
+    DialectResource,
 )
 from . import PROVIDER_NAME
 from .config import V3Options, V3SystemInfo
@@ -195,9 +196,22 @@ class V3PermissionProvider(PermissionProvider):
         self,
         request: DialectBatchByResourceRequest,
     ) -> list[tuple[str, bool]]:
-        """同 action、多 resource 批量鉴权（方言层单页，≤ CHUNK_SIZE）。"""
+        """同 action、多 resource 批量鉴权（方言层单页，≤ CHUNK_SIZE）。
+
+        SDK 批量鉴权在本地做策略求值，依赖 resource.attribute 的 _bk_iam_path_
+        （由 ancestors 构造），因此必须携带祖先链；优先使用基类下发的完整
+        resources（含方言祖先链），兼容只有 resource_ids 的旧构造。
+        """
         client = self._get_client(request.subject.tenant_id)
-        sdk_resources_list = [[client.make_resource(request.resource_type, rid)] for rid in request.resource_ids]
+        resources = request.resources or tuple(
+            DialectResource(type=request.resource_type, id=rid) for rid in request.resource_ids
+        )
+        sdk_resources_list = []
+        for r in resources:
+            # SDK 本地求值对 _bk_iam_path_ 做直接索引（iam/eval/object.py），
+            # 无祖先链时给空串占位，避免 KeyError，并按"无路径不命中"求值
+            attribute = None if r.ancestors else {"_bk_iam_path_": ""}
+            sdk_resources_list.append([client.make_resource(r.type, r.id, ancestors=r.ancestors, attribute=attribute)])
 
         sdk_request = client.make_multi_action_request(
             request.subject.id,
@@ -223,7 +237,19 @@ class V3PermissionProvider(PermissionProvider):
         client = self._get_client(request.subject.tenant_id)
         sdk_resources_list: list[list] = []
         if request.resource:
-            sdk_resources_list.append([client.make_resource(request.resource.type, request.resource.id)])
+            # SDK 批量鉴权本地求值依赖 _bk_iam_path_，必须携带祖先链；
+            # 无祖先链时给空串占位，避免 iam/eval/object.py 直接索引 KeyError
+            attribute = None if request.resource.ancestors else {"_bk_iam_path_": ""}
+            sdk_resources_list.append(
+                [
+                    client.make_resource(
+                        request.resource.type,
+                        request.resource.id,
+                        ancestors=request.resource.ancestors,
+                        attribute=attribute,
+                    )
+                ]
+            )
         else:
             sdk_resources_list.append([])
 
