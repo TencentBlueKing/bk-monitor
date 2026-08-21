@@ -157,12 +157,12 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - Group
 
-| 参数名称                 | 类型            | 描述                                                                    |
-|----------------------|---------------|-----------------------------------------------------------------------|
-| name[1]              | String        | 分组标识                                                                  |
-| alias                | String        | 分组别名                                                                  |
-| supported_span_types | Array[String] | 该分组适用的 Span 类型列表；空列表表示适用于所有类型；前端切换类型时，若当前类型不在列表中则折叠该分组（只在 span 视图下返回） |
-| field_names          | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields`                                           |
+| 参数名称                 | 类型            | 描述                                                       |
+|----------------------|---------------|----------------------------------------------------------|
+| name[1]              | String        | 分组标识                                                     |
+| alias                | String        | 分组别名                                                     |
+| supported_span_types | Array[String] | 该分组适用的 Span 类型列表；前端切换类型时，若当前类型不在列表中则折叠该分组（只在 span 视图下返回） |
+| field_names          | Array[String] | 该分组下的字段名列表，字段详情见顶层 `fields`                              |
 
 [1]`name`: 分组标识
 
@@ -184,76 +184,49 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     "-end_time"
   ],
   "span_type_display_fields": {
-    "common": [
+    "view": [
       "span_name",
       "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
-    ],
-    "app_version": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "attributes.user.id",
-      "attributes.resource.type"
-    ],
-    "device_browser": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "status.message",
-      "attributes.view.url_template",
-      "attributes.user.id"
-    ],
-    "network_geo": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "attributes.view.url_template",
-      "attributes.user.id"
-    ],
-    "user": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
       "attributes.view.url_template",
       "attributes.user.id"
     ],
     "resource": [
       "span_name",
       "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "attributes.action.type",
-      "attributes.action.target.name",
-      "attributes.user.id"
+      "attributes.resource.type",
+      "attributes.http.request.method"
     ],
-    "view": [
+    "error": [
       "span_name",
       "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
+      "attributes.error.source"
+    ],
+    "vital": [
+      "span_name",
+      "attributes.span_type",
+      "attributes.vital.metric",
+      "attributes.vital.value"
+    ],
+    "long_task": [
+      "span_name",
+      "attributes.span_type",
+      "attributes.long_task.name",
+      "attributes.long_task.entry_type"
     ],
     "action": [
       "span_name",
       "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "attributes.view.url_template",
+      "attributes.action.id",
       "attributes.action.type"
     ],
-    "web_vitals": []
+    "websocket": [
+      "span_name",
+      "attributes.span_type"
+    ],
+    "custom": [
+      "span_name",
+      "attributes.span_type"
+    ]
   },
   "fields": [
     {
@@ -323,7 +296,11 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     {
       "name": "DEVICE_BROWSER",
       "alias": "终端 & 浏览器",
-      "supported_span_types": [],
+      "supported_span_types": [
+        "common",
+        "resource",
+        "action"
+      ],
       "field_names": [
         "resource.user_agent.name"
       ]
