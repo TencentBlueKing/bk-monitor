@@ -19,6 +19,7 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
 from kubernetes import dynamic as k8s_dynamic
+from kubernetes.dynamic.exceptions import ResourceNotFoundError
 
 from bkmonitor.utils.template import jinja_render
 from constants.cmdb import TargetNodeType
@@ -112,6 +113,12 @@ class K8sInstaller(BaseInstaller):
     3. 一个采集对应一个servicemonitor
     4. dataid资源可以对应namespace下的所有servicemonitor
     """
+
+    def _get_schema(self, target_version: DeploymentConfigVersion) -> str:
+        """
+        获取部署模式, 默认为 legacy_v1
+        """
+        return target_version.plugin_version.config.collector_json.get("schema", "legacy_v1")
 
     def _get_default_cluster(self) -> tuple[str, str]:
         """
@@ -247,8 +254,9 @@ class K8sInstaller(BaseInstaller):
         context = self._get_context(target_version)
         cluster_id = context["cluster_id"]
 
-        # 创建namespace和dataid资源
-        self._create_plugin_public_resource(context)
+        # 根据 schema 决定是否创建公共资源
+        if self._get_schema(target_version) == "legacy_v1":
+            self._create_plugin_public_resource(context)
 
         resources: set[tuple[str, str, str]] = set()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
@@ -291,17 +299,40 @@ class K8sInstaller(BaseInstaller):
         with k8s_client.ApiClient(configuration=self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
+            # 根据 schema 决定是否卸载公共资源
+            if self._get_schema(target_version) == "legacy_v1":
+                try:
+                    sm_client = client.resources.get(api_version="monitoring.coreos.com/v1", kind="ServiceMonitor")
+                    sm_client.delete(namespace=namespace, name=context["plugin_release_name"])
+                except k8s_client.exceptions.ApiException as e:
+                    if e.status != 404:
+                        logger.error(f"delete servicemonitor failed: {e}")
+                except ResourceNotFoundError:
+                    pass  # 如果 CRD 不存在，则忽略
+
+                try:
+                    dataid_client = client.resources.get(api_version="monitoring.bk.tencent.com/v1beta1", kind="DataID")
+                    dataid_client.delete(namespace=namespace, name=context["plugin_release_name"])
+                except k8s_client.exceptions.ApiException as e:
+                    if e.status != 404:
+                        logger.error(f"delete dataid failed: {e}")
+                except ResourceNotFoundError:
+                    pass  # 如果 CRD 不存在，则忽略
+
+            # 卸载主模板中的资源
             for config in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not config:
                     continue
                 api_version = config["apiVersion"]
                 kind = config["kind"]
-                resource_client = client.resources.get(api_version=api_version, kind=kind)
                 try:
+                    resource_client = client.resources.get(api_version=api_version, kind=kind)
                     resource_client.delete(namespace=namespace, name=config["metadata"]["name"])
                 except k8s_client.exceptions.ApiException as e:
                     if e.status != 404:
                         raise e
+                except ResourceNotFoundError:
+                    logger.warning(f"Resource {api_version}/{kind} not found, skipping deletion.")
 
     def _get_context(self, target_version: DeploymentConfigVersion) -> dict[str, Any]:
         """
@@ -313,7 +344,7 @@ class K8sInstaller(BaseInstaller):
         collect_params: dict[str, Any] = target_version.params
 
         # 获取插件默认配置
-        values: dict[str, Any] = collector_json.get("values") or {}
+        values: dict[str, Any] = collector_json.get("values", {})
 
         # 将采集配置参数合并到values中
         for key, value in collect_params.get("plugin", {}).items():
@@ -574,49 +605,71 @@ class K8sInstaller(BaseInstaller):
         context = self._get_context(target_version)
 
         cluster_id, namespace = self._get_default_cluster()
-        with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
-            client = k8s_dynamic.DynamicClient(api_client)
 
-            status, log = "SUCCESS", ""
-            for resource in yaml.safe_load_all(self._render_yaml(target_version, context)):
-                if not resource:
-                    continue
+        # 检查插件是否定义了 status_check
+        status_check_config = target_version.plugin_version.config.collector_json.get("status_check")
 
-                api_version = resource["apiVersion"]
-                kind = resource["kind"]
+        if status_check_config and isinstance(status_check_config, list):
+            overall_status = "SUCCESS"
+            logs = []
+            with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
+                client = k8s_dynamic.DynamicClient(api_client)
+                for check in status_check_config:
+                    resource_status, log = self._check_single_resource_status(client, check, context, namespace)
+                    logs.append(log)
 
-                resource_client = client.resources.get(api_version=api_version, kind=kind)
-                try:
-                    result = resource_client.get(namespace=namespace, name=resource["metadata"]["name"])
-                except k8s_client.exceptions.ApiException as e:
-                    status = "FAILED"
-                    log = f"query {kind}/{resource['metadata']['name']} status failed, {e}"
-                    break
+                    if resource_status == "FAILED":
+                        overall_status = "FAILED"
+                    elif resource_status == "RUNNING" and overall_status != "FAILED":
+                        overall_status = "RUNNING"
 
-                # 如果是Deployment或StatefulSet，进一步判断是否正常运行
-                if kind.lower() in ["deployment", "statefulset"]:
-                    replicas = result["status"]["replicas"]
-                    ready_replicas = result["status"]["readyReplicas"]
-                    if replicas == ready_replicas:
+            final_log = "\n".join(logs)
+            status, log = overall_status, final_log
+
+        # 旧模式：遍历所有资源，检查 Deployment/StatefulSet
+        else:
+            with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
+                client = k8s_dynamic.DynamicClient(api_client)
+
+                status, log = "SUCCESS", ""
+                for resource in yaml.safe_load_all(self._render_yaml(target_version, context)):
+                    if not resource:
                         continue
 
-                    # 增加 deployment 超时判断
-                    for condition in result["status"].get("conditions", []):
-                        if condition["type"] == "Progressing" and condition["status"] == "False":
-                            status = "FAILED"
-                            log = _("部署超时，请检查配置是否正确。如果确认配置无误，请联系管理员")
-                            break
-                    else:
-                        status = "RUNNING"
-                        log = (
-                            f"{kind}/{resource['metadata']['name']} is running, "
-                            f"replicas: {replicas}, readyReplicas: {ready_replicas}"
-                        )
+                    api_version = resource["apiVersion"]
+                    kind = resource["kind"]
 
-                    # 如果状态不正常，直接退出
-                    if status != "SUCCESS":
+                    resource_client = client.resources.get(api_version=api_version, kind=kind)
+                    try:
+                        result = resource_client.get(namespace=namespace, name=resource["metadata"]["name"])
+                    except k8s_client.exceptions.ApiException as e:
+                        status = "FAILED"
+                        log = f"query {kind}/{resource['metadata']['name']} status failed, {e}"
                         break
 
+                    # 如果是Deployment或StatefulSet，进一步判断是否正常运行
+                    if kind.lower() in ["deployment", "statefulset"]:
+                        replicas = result["status"]["replicas"]
+                        ready_replicas = result["status"]["readyReplicas"]
+                        if replicas == ready_replicas:
+                            continue
+
+                        # 增加 deployment 超时判断
+                        for condition in result["status"].get("conditions", []):
+                            if condition["type"] == "Progressing" and condition["status"] == "False":
+                                status = "FAILED"
+                                log = _("部署超时，请检查配置是否正确。如果确认配置无误，请联系管理员")
+                                break
+                        else:
+                            status = "RUNNING"
+                            log = (
+                                f"{kind}/{resource['metadata']['name']} is running, "
+                                f"replicas: {replicas}, readyReplicas: {ready_replicas}"
+                            )
+
+                        # 如果状态不正常，直接退出
+                        if status != "SUCCESS":
+                            break
         return [
             {
                 "child": [
@@ -635,6 +688,76 @@ class K8sInstaller(BaseInstaller):
                 "is_label": False,
             }
         ]
+
+    def _check_single_resource_status(self, client, check_config, context, namespace):
+        """
+        检查 status_check 列表中的单个资源状态
+        """
+        try:
+            api_version = check_config["apiVersion"]
+            kind = check_config["kind"]
+            name_template = check_config["name"]
+            name = jinja_render(name_template, context)
+
+            resource_client = client.resources.get(api_version=api_version, kind=kind)
+            result = resource_client.get(namespace=namespace, name=name)
+
+            # 检查已知的工作负载类型
+            if kind.lower() in ["deployment", "statefulset", "daemonset"]:
+                return self._get_workload_status(result)
+
+            # 对于其他自定义资源，检查 .status.conditions
+            crd_status = result.get("status", {})
+            conditions = crd_status.get("conditions", [])
+            if not conditions:
+                return "RUNNING", f"{kind}/{name}: " + _("Operator 正在处理中...")
+
+            for cond in conditions:
+                if cond.get("type") == "Ready":
+                    if cond.get("status") == "True":
+                        return "SUCCESS", f"{kind}/{name}: {cond.get('message', 'Ready')}"
+                    else:
+                        return "FAILED", f"{kind}/{name}: {cond.get('message', 'Not Ready')}"
+
+            return "RUNNING", f"{kind}/{name}: " + conditions[-1].get("message", _("状态未知"))
+
+        except k8s_client.exceptions.ApiException as e:
+            if e.status == 404:
+                return "RUNNING", f"{kind}/{name}: " + _("正在等待资源创建...")
+            return "FAILED", f"query {kind}/{name} status failed: {e}"
+        except Exception as e:
+            return "FAILED", f"query status for {check_config.get('name')} failed: {e}"
+
+    def _get_workload_status(self, resource_result: dict) -> tuple[str, str]:
+        """
+        从 Deployment, StatefulSet, DaemonSet 等工作负载资源中提取状态
+        """
+        kind = resource_result.get("kind", "Workload")
+        name = resource_result.get("metadata", {}).get("name", "unknown")
+        status_obj = resource_result.get("status", {})
+
+        # Deployment & StatefulSet
+        if kind.lower() in ["deployment", "statefulset"]:
+            replicas = status_obj.get("replicas")
+            ready_replicas = status_obj.get("readyReplicas")
+            if replicas is not None and replicas == ready_replicas:
+                return "SUCCESS", f"{kind}/{name}: Ready ({ready_replicas}/{replicas})"
+
+            for condition in status_obj.get("conditions", []):
+                if condition.get("type") == "Progressing" and condition.get("status") == "False":
+                    return "FAILED", f"{kind}/{name}: {condition.get('message', _('部署超时'))}"
+
+            return "RUNNING", f"{kind}/{name}: Not Ready ({ready_replicas or 0}/{replicas or 0})"
+
+        # DaemonSet
+        if kind.lower() == "daemonset":
+            desired = status_obj.get("desiredNumberScheduled")
+            ready = status_obj.get("numberReady")
+            if desired is not None and desired == ready:
+                return "SUCCESS", f"{kind}/{name}: Ready ({ready}/{desired})"
+            return "RUNNING", f"{kind}/{name}: Not Ready ({ready or 0}/{desired or 0})"
+
+        return "SUCCESS", f"{kind}/{name}: Status check not implemented for this kind, assuming success."
 
     def instance_status(self, instance_id: str):
         return {"log_detail": ""}
