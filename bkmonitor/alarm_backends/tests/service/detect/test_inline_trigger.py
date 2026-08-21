@@ -13,11 +13,19 @@ from contextlib import contextmanager
 from alarm_backends.service.detect import process as detect_process
 from alarm_backends.service.detect.process import DetectProcess
 from alarm_backends.service.trigger import runner
+from bkmonitor.define import global_config
 from core.errors.alarm_backends import LockError
 
 
 def test_detect_process_exposes_inline_trigger_entry():
     assert callable(getattr(DetectProcess, "run_inline_trigger", None))
+
+
+def test_inline_trigger_switch_is_registered_as_dynamic_setting():
+    field = global_config.ADVANCED_OPTIONS["ENABLE_DETECT_INLINE_TRIGGER"]
+
+    assert field.default is False
+    assert "ENABLE_DETECT_INLINE_TRIGGER" in global_config.GLOBAL_CONFIGS
 
 
 def test_detect_process_runs_trigger_only_for_items_with_anomalies(mocker):

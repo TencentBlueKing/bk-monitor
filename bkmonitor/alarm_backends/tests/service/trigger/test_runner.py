@@ -28,6 +28,7 @@ def test_run_trigger_item_records_success_for_nonempty_batch(mocker):
     lock.assert_called_once()
     processor_cls.assert_called_once_with("1", "2")
     fake_metrics.TRIGGER_PROCESS_TIME.labels.assert_called_once_with(strategy_id="__total__")
+    fake_metrics.TRIGGER_PROCESS_TIME.labels.return_value.observe.assert_called_once()
     fake_metrics.TRIGGER_PROCESS_COUNT.labels.assert_called_once_with(
         strategy_id="__total__", status="success", exception=None
     )
@@ -41,11 +42,44 @@ def test_run_trigger_item_does_not_record_success_for_empty_batch(mocker):
     mocker.patch.object(runner, "service_lock", return_value=nullcontext())
     fake_metrics = mocker.MagicMock(TOTAL_TAG="__total__")
     mocker.patch.object(runner, "metrics", fake_metrics)
+    mocker.patch.object(
+        runner,
+        "settings",
+        mocker.MagicMock(ENABLE_DETECT_INLINE_TRIGGER=True),
+        create=True,
+    )
 
     pulled_count = runner.run_trigger_item("1", "2")
 
     assert pulled_count == 0
+    fake_metrics.TRIGGER_PROCESS_TIME.labels.assert_not_called()
     fake_metrics.TRIGGER_PROCESS_COUNT.labels.assert_not_called()
+
+
+def test_run_trigger_item_preserves_empty_batch_metrics_when_inline_is_disabled(mocker):
+    processor = mocker.MagicMock()
+    processor.process.return_value = 0
+    mocker.patch.object(runner, "TriggerProcessor", return_value=processor)
+    mocker.patch.object(runner, "service_lock", return_value=nullcontext())
+    fake_metrics = mocker.MagicMock(TOTAL_TAG="__total__")
+    fake_metrics.StatusEnum.from_exc.return_value = "success"
+    mocker.patch.object(runner, "metrics", fake_metrics)
+    mocker.patch.object(
+        runner,
+        "settings",
+        mocker.MagicMock(ENABLE_DETECT_INLINE_TRIGGER=False),
+        create=True,
+    )
+
+    pulled_count = runner.run_trigger_item("1", "2")
+
+    assert pulled_count == 0
+    fake_metrics.TRIGGER_PROCESS_TIME.labels.assert_called_once_with(strategy_id="__total__")
+    fake_metrics.TRIGGER_PROCESS_TIME.labels.return_value.observe.assert_called_once()
+    fake_metrics.TRIGGER_PROCESS_COUNT.labels.assert_called_once_with(
+        strategy_id="__total__", status="success", exception=None
+    )
+    fake_metrics.TRIGGER_PROCESS_COUNT.labels.return_value.inc.assert_called_once_with()
 
 
 def test_run_trigger_item_records_and_swallows_processing_error(mocker):
@@ -61,6 +95,7 @@ def test_run_trigger_item_records_and_swallows_processing_error(mocker):
     pulled_count = runner.run_trigger_item("1", "2", executor="detect_inline")
 
     assert pulled_count == 0
+    fake_metrics.TRIGGER_PROCESS_TIME.labels.return_value.observe.assert_called_once()
     fake_metrics.TRIGGER_PROCESS_COUNT.labels.assert_called_once_with(
         strategy_id="__total__", status="failed", exception=error
     )
@@ -77,6 +112,7 @@ def test_run_trigger_item_propagates_lock_error_without_recording_result(mocker)
         runner.run_trigger_item("1", "2", executor="detect_inline")
 
     assert raised.value is error
+    fake_metrics.TRIGGER_PROCESS_TIME.labels.assert_not_called()
     fake_metrics.TRIGGER_PROCESS_COUNT.labels.assert_not_called()
 
 

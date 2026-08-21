@@ -8,8 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
 from alarm_backends.service.access.data import processor as access_processor
-from alarm_backends.service.access.data.processor import AccessDataProcess
+from alarm_backends.service.access.data.processor import AccessBatchDataProcess, AccessDataProcess
 from alarm_backends.service.detect import process as detect_process
 from alarm_backends.service.trigger import runner
 from core.errors.alarm_backends import LockError
@@ -72,3 +74,66 @@ def test_access_data_process_skips_recorded_items_when_disabled(mocker):
     processor.run_inline_trigger()
 
     run_trigger_item.assert_not_called()
+
+
+def test_access_batch_result_returns_inline_trigger_items(mocker):
+    processor = object.__new__(AccessBatchDataProcess)
+    processor.strategy_group_key = "group"
+    processor.batch_timestamp = 1
+    processor.sub_task_id = "1.2"
+    processor.process_counts = {}
+    processor.inline_trigger_items = [(10, 1), (10, 2)]
+    mocker.patch.object(AccessDataProcess, "process", return_value=None)
+    batch_result_key = mocker.patch.object(access_processor.key, "ACCESS_BATCH_DATA_RESULT_KEY")
+    batch_result_key.get_key.return_value = "batch-result"
+
+    processor.process()
+
+    payload = json.loads(batch_result_key.client.lpush.call_args.args[1])
+    assert payload["inline_trigger_items"] == [[10, 1], [10, 2]]
+
+
+def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
+    processor = object.__new__(AccessDataProcess)
+    processor.strategy_group_key = "group"
+    processor.batch_timestamp = 1
+    processor.batch_count = 3
+    processor.sub_task_id = "1.1"
+    processor.process_counts = {}
+    processor.inline_trigger_items = [(10, 1)]
+    processor.batch_log = mocker.MagicMock()
+
+    batch_result_key = mocker.patch.object(access_processor.key, "ACCESS_BATCH_DATA_RESULT_KEY")
+    batch_result_key.get_key.return_value = "batch-result"
+    batch_result_key.client.brpop.side_effect = [
+        (
+            "batch-result",
+            json.dumps(
+                {
+                    "sub_task_id": "1.2",
+                    "result": True,
+                    "error": "",
+                    "process_counts": {},
+                    "inline_trigger_items": [[10, 1], [10, 2]],
+                }
+            ),
+        ),
+        (
+            "batch-result",
+            json.dumps(
+                {
+                    "sub_task_id": "1.3",
+                    "result": True,
+                    "error": "",
+                    "process_counts": {},
+                    "inline_trigger_items": [[10, 2], [11, 3]],
+                }
+            ),
+        ),
+    ]
+    mocker.patch.object(access_processor.base.BaseAccessProcess, "process", return_value=None)
+    mocker.patch.object(access_processor, "metrics")
+
+    processor.process()
+
+    assert processor.inline_trigger_items == [(10, 1), (10, 2), (11, 3)]

@@ -1146,6 +1146,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "result": not exc,
                 "error": str(exc),
                 "process_counts": self.process_counts,
+                "inline_trigger_items": self.inline_trigger_items,
             }
         ]
         wait_start_time = time.time()
@@ -1165,6 +1166,17 @@ class AccessDataProcess(BaseAccessDataProcess):
                     batch_results=[result["sub_task_id"] for result in batch_results],
                 )
             )
+
+        inline_trigger_items = []
+        seen_inline_trigger_items = set()
+        for result in batch_results:
+            for strategy_id, item_id in result.get("inline_trigger_items", []):
+                item = (strategy_id, item_id)
+                if item in seen_inline_trigger_items:
+                    continue
+                seen_inline_trigger_items.add(item)
+                inline_trigger_items.append(item)
+        self.inline_trigger_items = inline_trigger_items
 
         # 记录日志
         self.batch_log(batch_results)
@@ -1356,6 +1368,7 @@ class AccessBatchDataProcess(AccessDataProcess):
                     "result": not exc,  # True 表示成功，False 表示失败
                     "error": str(exc) if exc else "",
                     "process_counts": self.process_counts,  # 处理统计信息
+                    "inline_trigger_items": self.inline_trigger_items,
                 }
             ),
         )

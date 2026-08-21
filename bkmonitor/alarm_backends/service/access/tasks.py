@@ -106,9 +106,7 @@ def run_access_batch_data(strategy_group_key: str, sub_task_id: str):
         celery_service_batch - 批量数据处理任务队列
     """
     processor = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=sub_task_id)
-    result = processor.process()
-    processor.run_inline_trigger()
-    return result
+    return processor.process()
 
 
 @app.task(ignore_result=True, queue="celery_service")

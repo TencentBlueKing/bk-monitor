@@ -48,7 +48,7 @@ def test_run_access_data_runs_inline_trigger_after_access_lock(mocker):
     task_bucket.release.assert_called_once_with(0)
 
 
-def test_run_access_batch_data_runs_inline_trigger_before_reporting(mocker):
+def test_run_access_batch_data_leaves_inline_trigger_to_main_task(mocker):
     events = []
     processor = mocker.MagicMock()
 
@@ -57,12 +57,12 @@ def test_run_access_batch_data_runs_inline_trigger_before_reporting(mocker):
         return "result"
 
     processor.process.side_effect = process
-    processor.run_inline_trigger.side_effect = lambda: events.append("inline")
     mocker.patch.object(access_tasks, "AccessBatchDataProcess", return_value=processor)
     mocker.patch.object(access_tasks.metrics, "report_all", side_effect=lambda: events.append("report"))
 
     result = access_tasks.run_access_batch_data.run("group", "1.1")
 
     assert result == "result"
-    assert events[:2] == ["process", "inline"]
-    assert events[2:] and set(events[2:]) == {"report"}
+    assert events[0] == "process"
+    assert events[1:] and set(events[1:]) == {"report"}
+    processor.run_inline_trigger.assert_not_called()
