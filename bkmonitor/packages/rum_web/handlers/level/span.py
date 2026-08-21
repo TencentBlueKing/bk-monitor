@@ -17,7 +17,7 @@ from constants.apm import OperatorGroupRelation
 from constants.otel_query import OperatorEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RUM_SPAN_TYPE_DISPLAY_FIELDS
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -133,11 +133,13 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 {
                     "name": group["name"],
                     "alias": group["alias"],
+                    "supported_span_types": group["supported_span_types"],
                     "fields": [field_map[name] for name in group["field_names"] if name in field_map],
                 }
                 for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
             ],
             "display_fields": list(self.DISPLAY_FIELDS),
+            "span_type_display_fields": RUM_SPAN_TYPE_DISPLAY_FIELDS,
         }
 
     def get_fields_option_values(
