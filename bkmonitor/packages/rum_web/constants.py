@@ -157,111 +157,9 @@ class RumQueryMode(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
-# RUM 检索页分组配置（新协议：每个分组含 name、alias、fields 列表）
-# fields 列表中每项为字段名，view_config 构建时会从 query_fields 结果中填充完整字段信息
-RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
-    "span": [
-        {
-            "name": "COMMON",
-            "alias": _("公共字段"),
-            "field_names": [
-                "kind",
-                "span_name",
-                "attributes.span_type",
-                "elapsed_time",
-                "status.code",
-                "status.message",
-            ],
-        },
-        {
-            "name": "APP_VERSION",
-            "alias": _("应用 & 版本"),
-            "field_names": [
-                "resource.service.name",
-                "resource.service.version",
-                "resource.deployment.environment.name",
-                "resource.telemetry.sdk.version",
-                "resource.telemetry.sdk.language",
-                "resource.telemetry.sdk.name",
-            ],
-        },
-        {
-            "name": "DEVICE_BROWSER",
-            "alias": _("终端 & 浏览器"),
-            "field_names": [
-                "resource.device.type",
-                "resource.user_agent.name",
-                "resource.user_agent.version",
-                "resource.user_agent.os.name",
-            ],
-        },
-        {
-            "name": "NETWORK_GEO",
-            "alias": _("网络 & 地域"),
-            "field_names": [
-                "attributes.network.connection.type",
-                "attributes.network.effective_type",
-            ],
-        },
-        {
-            "name": "USER",
-            "alias": _("用户"),
-            "field_names": [
-                "attributes.user.id",
-            ],
-        },
-        {
-            "name": "RESOURCE",
-            "alias": _("资源加载"),
-            "field_names": [
-                "attributes.resource.type",
-                "attributes.url.template",
-                "attributes.http.request.method",
-                "attributes.http.response.status_code",
-                "attributes.resource.size",
-                "attributes.resource.protocol",
-            ],
-        },
-        {
-            "name": "VIEW",
-            "alias": _("视图"),
-            "field_names": [
-                "attributes.view.referrer",
-                "attributes.view.url_template",
-            ],
-        },
-        {
-            "name": "ACTION",
-            "alias": _("用户交互"),
-            "field_names": [
-                "attributes.action.type",
-                "attributes.action.target.name",
-            ],
-        },
-        {
-            "name": "WEB_VITALS",
-            "alias": _("网页指标（Web Vitals）"),
-            "field_names": [
-                "CLS",
-                "INP",
-                "LCP",
-                "FCP",
-                "TTFB",
-            ],
-        },
-    ],
-    "view": [],
-    "session": [],
-}
-
-# RUM 字段别名
-RUM_FIELD_ALIAS = {}
-
-
 class RumSpanType(CachedEnum):
     """RUM Span 数据类型"""
 
-    SESSION = "session"
     VIEW = "view"
     RESOURCE = "resource"
     ERROR = "error"
@@ -275,7 +173,6 @@ class RumSpanType(CachedEnum):
     def label(self) -> str:
         return str(
             {
-                self.SESSION: _("会话"),
                 self.VIEW: _("视图"),
                 self.RESOURCE: _("资源"),
                 self.ERROR: _("错误"),
@@ -364,3 +261,245 @@ class RumDeviceType(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
         return [(member.value, member.label) for member in cls]
+
+
+# 各 Span 类型的默认展示字段
+# 前端在切换 Span 类型时，使用对应类型的字段列表作为列表页默认展示列
+RUM_SPAN_TYPE_DISPLAY_FIELDS: dict[str, list[str]] = {
+    RumSpanType.VIEW.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+    ],
+    RumSpanType.RESOURCE.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+        "attributes.resource.type",
+        "attributes.http.request.method",
+    ],
+    RumSpanType.ERROR.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+        "attributes.error.source",
+    ],
+    RumSpanType.VITAL.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+        "attributes.vital.metric",
+        "attributes.vital.value",
+    ],
+    RumSpanType.LONG_TASK.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+        "attributes.long_task.name",
+        "attributes.long_task.entry_type",
+    ],
+    RumSpanType.ACTION.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+        "attributes.action.id",
+        "attributes.action.type",
+    ],
+    RumSpanType.WEBSOCKET.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+    ],
+    RumSpanType.CUSTOM.value: [
+        "span_name",
+        "attributes.span_type",
+        "end_time",
+        "elapsed_time",
+        "status.code",
+        "attributes.view.url_template",
+        "attributes.user.id",
+    ],
+}
+
+# RUM 检索页分组配置（新协议：每个分组含 name、alias、fields 列表）
+# fields 列表中每项为字段名，view_config 构建时会从 query_fields 结果中填充完整字段信息
+# supported_span_types：该分组适用的 Span 类型列表，前端据此在切换类型时折叠不相关分组
+RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
+    "span": [
+        {
+            "name": "COMMON",
+            "alias": _("公共字段"),
+            "supported_span_types": [
+                RumSpanType.VIEW.value,
+                RumSpanType.RESOURCE.value,
+                RumSpanType.ERROR.value,
+                RumSpanType.VITAL.value,
+                RumSpanType.LONG_TASK.value,
+                RumSpanType.ACTION.value,
+                RumSpanType.WEBSOCKET.value,
+                RumSpanType.CUSTOM.value,
+            ],
+            "field_names": [
+                "kind",
+                "span_name",
+                "attributes.span_type",
+                "elapsed_time",
+                "status.code",
+                "status.message",
+            ],
+        },
+        {
+            "name": "APP_VERSION",
+            "alias": _("应用 & 版本"),
+            "supported_span_types": [
+                RumSpanType.VIEW.value,
+                RumSpanType.RESOURCE.value,
+                RumSpanType.ERROR.value,
+                RumSpanType.VITAL.value,
+                RumSpanType.LONG_TASK.value,
+                RumSpanType.ACTION.value,
+                RumSpanType.WEBSOCKET.value,
+                RumSpanType.CUSTOM.value,
+            ],
+            "field_names": [
+                "resource.service.name",
+                "resource.service.version",
+                "resource.deployment.environment.name",
+                "resource.telemetry.sdk.version",
+                "resource.telemetry.sdk.language",
+                "resource.telemetry.sdk.name",
+            ],
+        },
+        {
+            "name": "DEVICE_BROWSER",
+            "alias": _("终端 & 浏览器"),
+            "supported_span_types": [
+                RumSpanType.VIEW.value,
+                RumSpanType.RESOURCE.value,
+                RumSpanType.ERROR.value,
+                RumSpanType.VITAL.value,
+                RumSpanType.LONG_TASK.value,
+                RumSpanType.ACTION.value,
+                RumSpanType.WEBSOCKET.value,
+                RumSpanType.CUSTOM.value,
+            ],
+            "field_names": [
+                "resource.device.type",
+                "resource.user_agent.name",
+                "resource.user_agent.version",
+                "resource.user_agent.os.name",
+            ],
+        },
+        {
+            "name": "NETWORK_GEO",
+            "alias": _("网络 & 地域"),
+            "supported_span_types": [
+                RumSpanType.VIEW.value,
+                RumSpanType.RESOURCE.value,
+                RumSpanType.ERROR.value,
+                RumSpanType.VITAL.value,
+                RumSpanType.LONG_TASK.value,
+                RumSpanType.ACTION.value,
+                RumSpanType.WEBSOCKET.value,
+                RumSpanType.CUSTOM.value,
+            ],
+            "field_names": [
+                "attributes.network.connection.type",
+                "attributes.network.effective_type",
+            ],
+        },
+        {
+            "name": "USER",
+            "alias": _("用户"),
+            "supported_span_types": [
+                RumSpanType.VIEW.value,
+                RumSpanType.RESOURCE.value,
+                RumSpanType.ERROR.value,
+                RumSpanType.VITAL.value,
+                RumSpanType.LONG_TASK.value,
+                RumSpanType.ACTION.value,
+                RumSpanType.WEBSOCKET.value,
+                RumSpanType.CUSTOM.value,
+            ],
+            "field_names": [
+                "attributes.user.id",
+            ],
+        },
+        {
+            "name": "RESOURCE",
+            "alias": _("资源加载"),
+            "supported_span_types": [RumSpanType.RESOURCE.value],
+            "field_names": [
+                "attributes.resource.type",
+                "attributes.url.template",
+                "attributes.http.request.method",
+                "attributes.http.response.status_code",
+                "attributes.resource.size",
+                "attributes.resource.protocol",
+            ],
+        },
+        {
+            "name": "VIEW",
+            "alias": _("视图"),
+            "supported_span_types": [RumSpanType.VIEW.value],
+            "field_names": [
+                "attributes.view.referrer",
+                "attributes.view.url_template",
+            ],
+        },
+        {
+            "name": "ACTION",
+            "alias": _("用户交互"),
+            "supported_span_types": [RumSpanType.ACTION.value],
+            "field_names": [
+                "attributes.action.type",
+                "attributes.action.target.name",
+            ],
+        },
+        {
+            "name": "WEB_VITALS",
+            "alias": _("网页指标（Web Vitals）"),
+            "supported_span_types": [RumSpanType.VITAL.value],
+            "field_names": [
+                "CLS",
+                "INP",
+                "LCP",
+                "FCP",
+                "TTFB",
+            ],
+        },
+    ],
+    "view": [],
+    "session": [],
+}
+
+# RUM 字段别名
+RUM_FIELD_ALIAS = {}
