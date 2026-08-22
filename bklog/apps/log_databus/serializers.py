@@ -334,16 +334,16 @@ class ContainerSerializer(serializers.Serializer):
 
 class LabelSelectorSerializer(serializers.Serializer):
     match_labels = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定标签"), required=False, allow_empty=True
+        child=LabelsSerializer(), label=_("指定标签"), required=False, allow_empty=True, default=[]
     )
     match_expressions = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定表达式"), required=False, allow_empty=True
+        child=LabelsSerializer(), label=_("指定表达式"), required=False, allow_empty=True, default=[]
     )
 
 
 class AnnotationSelectorSerializer(serializers.Serializer):
     match_annotations = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定注解"), required=False, allow_empty=True
+        child=LabelsSerializer(), label=_("指定注解"), required=False, allow_empty=True, default=[]
     )
 
 
@@ -355,7 +355,9 @@ class ContainerConfigSerializer(serializers.Serializer):
         child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
     )
     container = ContainerSerializer(required=False, label=_("指定容器"))
-    label_selector = LabelSelectorSerializer(required=False, label=_("标签"))
+    label_selector = LabelSelectorSerializer(
+        required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
+    )
     annotation_selector = AnnotationSelectorSerializer(
         required=False, label=_("注解"), default={"match_annotations": []}
     )
@@ -389,7 +391,9 @@ class BcsContainerConfigSerializer(serializers.Serializer):
         child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
     )
     container = ContainerSerializer(required=False, label=_("指定容器"), default={})
-    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default={})
+    label_selector = LabelSelectorSerializer(
+        required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
+    )
     annotation_selector = AnnotationSelectorSerializer(
         required=False, label=_("注解"), default={"match_annotations": []}
     )
