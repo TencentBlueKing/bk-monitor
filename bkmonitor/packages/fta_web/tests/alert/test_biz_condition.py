@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 from elasticsearch_dsl import Search
-from iam.eval.expression import OP
 
 from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.iam_engine.core.types import VisibleResult
 from fta_web.alert.handlers import base as base_handler_module
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
@@ -287,13 +287,15 @@ def test_add_biz_condition_without_biz_scope_keeps_existing_semantics(monkeypatc
 
 
 @pytest.mark.parametrize(
-    ("policy", "expected_biz_ids", "expected_tenant_wide"),
+    ("visible_result", "expected_biz_ids", "expected_tenant_wide"),
     [
-        ({"op": OP.ANY}, [1, 2], True),
-        ({"op": OP.IN, "value": ["1"]}, [1], False),
+        (VisibleResult(all_granted=True, visible_ids=("1", "2")), [1, 2], True),
+        (VisibleResult(all_granted=False, visible_ids=("1",)), [1], False),
     ],
 )
-def test_filter_space_list_by_action_reports_trusted_scope(monkeypatch, policy, expected_biz_ids, expected_tenant_wide):
+def test_filter_space_list_by_action_reports_trusted_scope(
+    monkeypatch, visible_result, expected_biz_ids, expected_tenant_wide
+):
     spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
     monkeypatch.setattr(
         "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
@@ -302,13 +304,9 @@ def test_filter_space_list_by_action_reports_trusted_scope(monkeypatch, policy, 
 
     permission = Permission.__new__(Permission)
     permission.bk_tenant_id = TENANT_ID
+    permission.username = "admin"
     permission.skip_check = False
-    permission.iam_client = SimpleNamespace(_do_policy_query=lambda request: policy)
-
-    def make_request(action):
-        return object()
-
-    permission.make_request = make_request
+    permission._fw = SimpleNamespace(filter_visible_resources=lambda subject, action_id, candidates: visible_result)
 
     authorized_spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(
         ActionEnum.VIEW_BUSINESS

@@ -1,0 +1,242 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
+# ==============================================================================
+# V4 Provider 配置契约的单元测试
+#
+# 覆盖：
+#   1. V4Credentials.from_dict 正常/缺字段
+#   2. V4SystemInfo.from_dict   正常/缺字段/managers/clients 类型转换
+#   3. V4Options.from_dict      正常/缺 base_url / credentials / system / 非法类型
+#   4. V4Options.from_dict      未知字段收纳到 extra
+#   5. V4PermissionProvider     构造后 self._cfg / self.schema / self.get_system_info() 正确
+# ==============================================================================
+
+import pytest
+
+from bkmonitor.iam.iam_engine.django.facade import get_framework
+from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.iam_v4.config import V4Credentials, V4Options, V4SystemInfo
+from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+
+
+# ==============================================================================
+# V4Credentials
+# ==============================================================================
+
+
+class TestV4Credentials:
+    def test_from_dict_ok(self):
+        c = V4Credentials.from_dict({"app_code": "abc", "app_secret": "xyz"})
+        assert c.app_code == "abc"
+        assert c.app_secret == "xyz"
+
+    def test_missing_app_code(self):
+        with pytest.raises(ValueError) as exc:
+            V4Credentials.from_dict({"app_secret": "xyz"})
+        assert "app_code" in str(exc.value)
+
+    def test_missing_app_secret(self):
+        with pytest.raises(ValueError) as exc:
+            V4Credentials.from_dict({"app_code": "abc"})
+        assert "app_secret" in str(exc.value)
+
+    def test_frozen(self):
+        c = V4Credentials.from_dict({"app_code": "abc", "app_secret": "xyz"})
+        with pytest.raises(Exception):
+            c.app_code = "changed"  # frozen dataclass
+
+
+# ==============================================================================
+# V4SystemInfo
+# ==============================================================================
+
+
+class TestV4SystemInfo:
+    def test_from_dict_minimal(self):
+        s = V4SystemInfo.from_dict({"id": "bk_monitor_v4", "name": "监控 V4"})
+        assert s.id == "bk_monitor_v4"
+        assert s.name == "监控 V4"
+        assert s.description == ""
+        assert s.callback_url == ""
+        assert s.managers == ()
+        assert s.clients == ()
+
+    def test_from_dict_full(self):
+        s = V4SystemInfo.from_dict(
+            {
+                "id": "bk_monitor_v4",
+                "name": "监控 V4",
+                "description": "V4 权限系统",
+                "callback_url": "https://cb/",
+                "managers": ["admin", "root"],
+                "clients": ["app1", "app2"],
+            }
+        )
+        assert s.description == "V4 权限系统"
+        assert s.callback_url == "https://cb/"
+        assert s.managers == ("admin", "root")  # list → tuple
+        assert s.clients == ("app1", "app2")
+
+    def test_missing_id(self):
+        with pytest.raises(ValueError) as exc:
+            V4SystemInfo.from_dict({"name": "监控"})
+        assert "id" in str(exc.value)
+
+    def test_missing_name(self):
+        with pytest.raises(ValueError) as exc:
+            V4SystemInfo.from_dict({"id": "bk_monitor_v4"})
+        assert "name" in str(exc.value)
+
+
+# ==============================================================================
+# V4Options
+# ==============================================================================
+
+
+def _valid_options(**overrides) -> dict:
+    """构造一份最小合法的 options，可覆盖任意字段。"""
+    opts = {
+        "base_url": "https://iam.example.com",
+        "credentials": {"app_code": "app1", "app_secret": "secret1"},
+        "system": {"id": "bk_monitor_v4", "name": "监控"},
+    }
+    opts.update(overrides)
+    return opts
+
+
+class TestV4Options:
+    def test_from_dict_minimal(self):
+        cfg = V4Options.from_dict(_valid_options())
+        assert cfg.base_url == "https://iam.example.com"
+        assert cfg.credentials.app_code == "app1"
+        assert cfg.credentials.app_secret == "secret1"
+        assert cfg.system.id == "bk_monitor_v4"
+        assert cfg.system.name == "监控"
+        # 默认值
+        assert cfg.timeout == 30
+        assert cfg.chunk_size == 20
+        assert cfg.max_workers == 1
+        assert cfg.extra == {}
+
+    def test_from_dict_all_optional_fields(self):
+        cfg = V4Options.from_dict(_valid_options(timeout=5, chunk_size=10, max_workers=4))
+        assert cfg.timeout == 5
+        assert cfg.chunk_size == 10
+        assert cfg.max_workers == 4
+
+    def test_missing_base_url(self):
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict(
+                {"credentials": {"app_code": "a", "app_secret": "b"}, "system": {"id": "i", "name": "n"}}
+            )
+        assert "base_url" in str(exc.value)
+
+    def test_missing_credentials(self):
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict({"base_url": "u", "system": {"id": "i", "name": "n"}})
+        assert "credentials" in str(exc.value)
+
+    def test_missing_system(self):
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict({"base_url": "u", "credentials": {"app_code": "a", "app_secret": "b"}})
+        assert "system" in str(exc.value)
+
+    def test_credentials_wrong_type(self):
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict(_valid_options(credentials="not-a-dict"))
+        assert "credentials must be a dict" in str(exc.value)
+
+    def test_system_wrong_type(self):
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict(_valid_options(system=["not", "a", "dict"]))
+        assert "system must be a dict" in str(exc.value)
+
+    def test_extra_fields_collected(self):
+        """未识别字段应收纳到 extra，不报错。"""
+        cfg = V4Options.from_dict(_valid_options(custom_field="hello", another=123))
+        assert cfg.extra == {"custom_field": "hello", "another": 123}
+
+    def test_frozen(self):
+        cfg = V4Options.from_dict(_valid_options())
+        with pytest.raises(Exception):
+            cfg.base_url = "changed"
+
+
+# ==============================================================================
+# V4PermissionProvider 构造行为
+# ==============================================================================
+
+
+class TestV4ProviderConstruction:
+    """验证 Provider 从 options 里读取所有配置，不依赖 ctx / Django settings。"""
+
+    @staticmethod
+    def _fresh_schema() -> SchemaRegistry:
+        """返回一个 freeze 好的最小 SchemaRegistry（复用框架已构建的即可）。"""
+        return get_framework().schema
+
+    def test_construct_from_options(self):
+        schema = self._fresh_schema()
+        provider = V4PermissionProvider(
+            schema,
+            **_valid_options(timeout=15, chunk_size=8, max_workers=2),
+        )
+        # schema 直接挂在 self.schema 上，非 ctx.schema
+        assert provider.schema is schema
+        # _cfg 存放解析后的强类型配置
+        assert provider._cfg.base_url == "https://iam.example.com"
+        assert provider._cfg.credentials.app_code == "app1"
+        assert provider._cfg.system.id == "bk_monitor_v4"
+        # 分片参数字段来自 options
+        assert provider.CHUNK_SIZE == 8
+        assert provider.MAX_WORKERS == 2
+
+    def test_get_system_info(self):
+        schema = self._fresh_schema()
+        provider = V4PermissionProvider(schema, **_valid_options())
+        info = provider.get_system_info()
+        assert isinstance(info, V4SystemInfo)
+        assert info.id == "bk_monitor_v4"
+        assert info.name == "监控"
+
+    def test_missing_required_field_fails_fast(self):
+        """缺少 credentials 应在 Provider 构造阶段就 fail，而不是等到运行时。"""
+        schema = self._fresh_schema()
+        with pytest.raises(ValueError):
+            V4PermissionProvider(schema, base_url="u", system={"id": "i", "name": "n"})
+
+    def test_no_ctx_attribute(self):
+        """确保重构后 Provider 上不再暴露 ctx 属性。"""
+        schema = self._fresh_schema()
+        provider = V4PermissionProvider(schema, **_valid_options())
+        assert not hasattr(provider, "ctx")
+
+
+# ==============================================================================
+# FrameworkConfig 层面回归：确认 credentials_provider 字段已删除
+# ==============================================================================
+
+
+class TestFrameworkConfigNoCredentialsProvider:
+    def test_from_dict_ignores_legacy_credentials_provider_key(self):
+        """settings 里即使残留 CREDENTIALS_PROVIDER，也不应影响解析（字段已删除）。"""
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+
+        raw = {
+            "ACTIONS": "",
+            "RESOURCE_TYPES": "",
+            "ROLES": "",
+            "CREDENTIALS_PROVIDER": "legacy.path.that.should.be.ignored",
+            "PROVIDERS": [],
+            "COMPOSITION": {"policy": "single"},
+        }
+        cfg = FrameworkConfig.from_dict(raw)
+        assert not hasattr(cfg, "credentials_provider")

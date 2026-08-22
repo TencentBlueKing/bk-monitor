@@ -64,6 +64,7 @@ INSTALLED_APPS = (
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
+    "bkmonitor.iam.iam_engine.django",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -1229,8 +1230,15 @@ HEADER_FOOTER_CONFIG = {
 BKDATA_DATA_TOKEN = os.getenv("BKAPP_BKDATA_DATA_TOKEN", "")
 
 # 权限中心 SaaS host
-BK_IAM_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")
-BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CODE, bk_paas_host=BK_PAAS_HOST)
+#
+# BK_IAM_V3_APP_CODE 是历史变量，实际含义是 IAM SaaS 的 app code（通常为
+# bk_iam），不是 V3 Provider 调 IAM API 时使用的客户端凭据。保留旧环境变量，
+# 但在 settings 中使用明确的 SaaS 命名，避免与 V3/V4 Provider 凭据混淆。
+BK_IAM_SAAS_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")
+BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(
+    BK_IAM_SAAS_APP_CODE,
+    bk_paas_host=BK_PAAS_HOST,
+)
 
 # 文档中心地址
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
@@ -1358,6 +1366,132 @@ OFFICIAL_PLUGINS_MANAGERS = []
 
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
+
+# ---- IAM Provider 客户端凭据 ----
+#
+# 新配置按 Provider 区分；BK_IAM_APP_CODE/BK_IAM_APP_SECRET 是当前新框架
+# 早期配置使用的共享变量，继续作为兼容回退。BK_IAM_V4_APP_CODE/SECRET
+_BK_IAM_COMPAT_APP_CODE = os.getenv("BK_IAM_APP_CODE", APP_CODE)
+_BK_IAM_COMPAT_APP_SECRET = os.getenv("BK_IAM_APP_SECRET", SECRET_KEY)
+
+# ---- IAM v4 鉴权 ----
+BK_IAM_V4_CLIENT_APP_CODE = os.getenv(
+    "BK_IAM_V4_CLIENT_APP_CODE",
+    os.getenv("BK_IAM_V4_APP_CODE", _BK_IAM_COMPAT_APP_CODE),
+)
+BK_IAM_V4_CLIENT_APP_SECRET = os.getenv(
+    "BK_IAM_V4_CLIENT_APP_SECRET",
+    os.getenv("BK_IAM_V4_APP_SECRET", _BK_IAM_COMPAT_APP_SECRET),
+)
+BK_IAM_V4_API_BASE_URL = os.getenv("BK_IAM_V4_API_BASE_URL", "")
+BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor_v4")
+BK_IAM_V4_SYSTEM_NAME = os.getenv("BK_IAM_V4_SYSTEM_NAME", "蓝鲸监控平台V4")
+BK_IAM_V4_SYSTEM_DESCRIPTION = os.getenv("BK_IAM_V4_SYSTEM_DESCRIPTION", "蓝鲸监控平台 IAM v4 权限系统")
+BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
+BK_IAM_APP_CODE = BK_IAM_V4_CLIENT_APP_CODE
+BK_IAM_APP_SECRET = BK_IAM_V4_CLIENT_APP_SECRET
+
+# ---- IAM v3 鉴权 ----
+BK_IAM_V3_CLIENT_APP_CODE = os.getenv("BK_IAM_V3_CLIENT_APP_CODE", _BK_IAM_COMPAT_APP_CODE)
+BK_IAM_V3_CLIENT_APP_SECRET = os.getenv("BK_IAM_V3_CLIENT_APP_SECRET", _BK_IAM_COMPAT_APP_SECRET)
+BK_IAM_V3_API_BASE_URL = (
+    os.getenv("BK_IAM_V3_API_BASE_URL") or os.getenv("BKAPP_IAM_API_BASE_URL") or BK_IAM_APIGATEWAY_URL
+)
+BK_IAM_V3_SYSTEM_ID = os.getenv("BK_IAM_V3_SYSTEM_ID", BK_IAM_SYSTEM_ID)
+BK_IAM_V3_RESOURCE_PATH = os.getenv(
+    "BK_IAM_V3_RESOURCE_PATH",
+    os.getenv("BKAPP_IAM_RESOURCE_PATH", "/rest/v2/iam/resource/"),
+)
+BKAPP_IAM_RESOURCE_PATH = BK_IAM_V3_RESOURCE_PATH
+BK_IAM_V3_SYSTEM_DESCRIPTION_EN = os.getenv(
+    "BK_IAM_V3_SYSTEM_DESCRIPTION_EN",
+    "BKMonitor is a product that monitors the host and Internet applications. "
+    "The monitoring service can be used to collect monitoring metrics of host "
+    "(system performance, component services, databases, logs, etc.), detect the "
+    "availability of Internet application services, and set alarms for metrics.",
+)
+BK_IAM_V3_SYSTEM_NAME_EN = os.getenv("BK_IAM_V3_SYSTEM_NAME_EN", "BKMonitor")
+BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
+    c.strip()
+    for c in os.getenv("BK_IAM_V3_SYSTEM_CLIENTS", "bk_monitorv3,bkci,bk_paas3,paasv3cli").split(",")
+    if c.strip()
+]
+
+
+IAM_FRAMEWORK = {
+    # 操作定义
+    "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
+    # 资源定义
+    "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
+    # 角色定义
+    "ROLES": "bkmonitor.iam.definitions.roles.Roles",
+    "PROVIDERS": [
+        # {
+        #     "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
+        #     "options": {
+        #         "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
+        #         "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
+        #         "base_url": BK_IAM_V3_API_BASE_URL,
+        #         "bk_tenant_id": "system",
+        #         "provider_config_path": BK_IAM_V3_RESOURCE_PATH,
+        #         "credentials": {
+        #             "app_code": BK_IAM_V3_CLIENT_APP_CODE,
+        #             "app_secret": BK_IAM_V3_CLIENT_APP_SECRET,
+        #         },
+        #         "system": {
+        #             "id": BK_IAM_V3_SYSTEM_ID,
+        #             "name": "监控平台",
+        #             "description": "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。",
+        #             "name_en": BK_IAM_V3_SYSTEM_NAME_EN,
+        #             "description_en": BK_IAM_V3_SYSTEM_DESCRIPTION_EN,
+        #             "clients": BK_IAM_V3_SYSTEM_CLIENTS_LIST,
+        #         },
+        #     },
+        # },
+        {
+            "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+            "options": {
+                "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
+                "callback_module": "bkmonitor.iam.adapters.v4.callbacks",
+                "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
+                "base_url": BK_IAM_V4_API_BASE_URL,
+                "bk_tenant_id": "system",
+                "credentials": {
+                    "app_code": BK_IAM_V4_CLIENT_APP_CODE,
+                    "app_secret": BK_IAM_V4_CLIENT_APP_SECRET,
+                },
+                "system": {
+                    "id": BK_IAM_V4_SYSTEM_ID,
+                    "name": BK_IAM_V4_SYSTEM_NAME,
+                    "description": BK_IAM_V4_SYSTEM_DESCRIPTION,
+                    "callback_url": BK_IAM_V4_CALLBACK_URL,
+                    "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
+                    "clients": [BK_IAM_V4_CLIENT_APP_CODE],
+                },
+                "chunk_size": 20,
+                "max_workers": 4,
+            },
+        },
+    ],
+    # Provider 组合策略：
+    #   single  —— 单 Provider 直通；要求 PROVIDERS 恰好配置 1 个 Provider（默认）。
+    #   any_of  —— 任一 Provider 允许即允许；批量结果取并集，适合 v3/v4 迁移过渡期。
+    #   all_of  —— 所有 Provider 都允许才允许；批量结果取交集，适合严格的多重校验。
+    #   primary —— 第一个 Provider 为主；主 Provider 发生 ProviderUnavailable 时按顺序 fallback。
+    # 可选 COMPOSITION.options：
+    #   max_workers      —— 多 Provider 调用的并发数（不是 Provider 内部分片并发数）。
+    #   strict_errors    —— any_of 默认 False、all_of 默认 True；是否立即上抛 Provider 异常。
+    #   fallback_on_error —— primary 默认 True；主 Provider 故障时是否切换备用 Provider。
+    "COMPOSITION": {"policy": "single"},
+    "MIGRATION": {
+        # 迁移模式 manual ｜ semi_auto
+        "mode": "semi_auto",
+        # 迁移文件存放目录
+        "directory": "bkmonitor/iam/iam_migrations",
+        # 破坏性变更（DELETE / id变更重建）全局开关，默认 False：
+        "allow_destructive": True,
+    },
+}
 
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
