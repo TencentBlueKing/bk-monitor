@@ -1546,6 +1546,9 @@ class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
 
     def perform_request(self, validated_request_data: dict) -> list[dict]:
+        if SourceAnalysisUpstreamMock.is_enabled():
+            return SourceAnalysisUpstreamMock.list_bkci_project_options()
+
         try:
             projects = api.devops.list_user_project()
             if not isinstance(projects, list) or any(not isinstance(project, dict) for project in projects):
@@ -1574,6 +1577,9 @@ class ListSourceAnalysisBkciRepositoriesResource(SourceAnalysisBaseResource):
         project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
 
     def perform_request(self, validated_request_data: dict) -> list[dict]:
+        if SourceAnalysisUpstreamMock.is_enabled():
+            return SourceAnalysisUpstreamMock.list_bkci_repository_options(validated_request_data["project_id"])
+
         try:
             repository_page = api.devops.list_user_repository(project_id=validated_request_data["project_id"])
             if not isinstance(repository_page, dict):
