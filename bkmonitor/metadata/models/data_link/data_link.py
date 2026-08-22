@@ -17,12 +17,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from django.conf import settings
 from django.db import models, transaction
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.config import DATABASE_CONNECTION_NAME
+from metadata.data_link_lifecycle import apply_after_terminating_resources_deleted
 from metadata.models.data_link import utils
 from metadata.models.data_link.component_reuse import (
     ALL_DATA_LINK_COMPONENT_KINDS,
@@ -2975,19 +2976,16 @@ class DataLink(models.Model):
                     error,
                 )
 
-    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def apply_data_link_with_retry(self, configs: list[dict[str, Any]]):
         """
-        根据指定配置，申请数据链路，具备重试机制，最多重试四次，最高等待10秒
+        根据指定配置申请数据链路；旧的同名资源正在删除时，等待删除完成后重试。
         @param configs: 链路资源配置
         """
-        try:
-            return api.bkdata.apply_data_link(bk_tenant_id=self.bk_tenant_id, config=configs)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "apply_data_link: data_link_name->[%s] apply error->[%s],configs->[%s]", self.data_link_name, e, configs
-            )
-            raise e
+        return apply_after_terminating_resources_deleted(
+            configs=configs,
+            apply_resource=lambda: api.bkdata.apply_data_link(bk_tenant_id=self.bk_tenant_id, config=configs),
+            get_resource=self.get_existing_component_config,
+        )
 
     def sync_metadata(
         self,
