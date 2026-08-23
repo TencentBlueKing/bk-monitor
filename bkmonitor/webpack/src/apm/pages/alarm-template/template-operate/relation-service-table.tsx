@@ -42,7 +42,7 @@ import VariableValueDetail from 'monitor-pc/pages/query-template/variables/compo
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
 
 import type { AlgorithmItemUnion, TemplateDetail } from '../components/template-form/typing';
-import type { IRelationService, TCompareData } from './typings';
+import type { IRelationService, ISameOriginStrategyTemplate, TCompareData } from './typings';
 import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
 import type { MetricDetailV2 } from 'monitor-pc/pages/query-template/typings/metric';
 
@@ -51,11 +51,16 @@ import './relation-service-table.scss';
 interface IProps {
   loading?: boolean;
   metricFunctions?: any[];
+  overwriteSameOrigin?: boolean;
   relationService: IRelationService[];
-  getCompareData?: (params: { service_name: string; strategy_template_id: number }) => Promise<TCompareData>;
-  // getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
+  getCompareData?: (params: {
+    applied_strategy_template_id?: number;
+    service_name: string;
+    strategy_template_id: number;
+  }) => Promise<TCompareData>;
   onChangeCheckKeys?: (selectKeys: string[]) => void;
   onGoStrategy?: (id: number) => void;
+  onOverwriteChange?: (value: boolean) => void;
   onShowDetails?: (id: number) => void;
 }
 
@@ -73,11 +78,13 @@ const RelationStatus = {
 export default class RelationServiceTable extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) relationService: IRelationService[];
   @Prop({ type: Function, default: () => Promise.resolve({ diff: [] }) }) getCompareData: (params: {
+    applied_strategy_template_id?: number;
     service_name: string;
     strategy_template_id: number;
   }) => Promise<TCompareData>;
   @Prop({ default: () => [] }) metricFunctions: any[];
   @Prop({ default: false }) loading: boolean;
+  @Prop({ type: Boolean, default: false }) overwriteSameOrigin: boolean;
 
   /* 搜索值 */
   searchValue = '';
@@ -132,9 +139,9 @@ export default class RelationServiceTable extends tsc<IProps> {
     {
       label: window.i18n.t('当前已关联其他模版'),
       prop: Columns.relation,
-      minWidth: 150,
+      minWidth: 260,
       width: null,
-      props: { 'show-overflow-tooltip': true },
+      props: { 'show-overflow-tooltip': false },
       formatter: (row: IRelationService) => {
         return this.tableFormatter(row, Columns.relation);
       },
@@ -386,9 +393,13 @@ export default class RelationServiceTable extends tsc<IProps> {
       }
       this.metricsDetailList.push(...metricsDetailList);
     };
+    const selectedTemplate = this.getSelectedSameOriginTemplate(row);
     const data = await this.getCompareData({
       service_name: row.service_name,
       strategy_template_id: row.strategy_template_id as number,
+      ...(this.isRelation || !selectedTemplate
+        ? {}
+        : { applied_strategy_template_id: Number(selectedTemplate.id) }),
     }).catch(() => ({ diff: [] }));
     if (data) {
       const diffData = data?.diff || [];
@@ -467,7 +478,34 @@ export default class RelationServiceTable extends tsc<IProps> {
   }
 
   handleShowDetails(row: IRelationService) {
-    this.$emit('showDetails', row.same_origin_strategy_template.id);
+    const selectedTemplate = this.getSelectedSameOriginTemplate(row);
+    if (selectedTemplate?.id) {
+      this.$emit('showDetails', selectedTemplate.id);
+    }
+  }
+
+  getSameOriginTemplates(row: IRelationService): ISameOriginStrategyTemplate[] {
+    if (row.same_origin_strategy_templates?.length) {
+      return row.same_origin_strategy_templates;
+    }
+    return row.same_origin_strategy_template ? [row.same_origin_strategy_template] : [];
+  }
+
+  getSelectedSameOriginTemplate(row: IRelationService): ISameOriginStrategyTemplate | undefined {
+    const templates = this.getSameOriginTemplates(row);
+    return templates.find(item => String(item.id) === String(row.selectedSameOriginId)) || templates[0];
+  }
+
+  handleSameOriginSelect(row: IRelationService, id: number | string) {
+    this.$set(row, 'selectedSameOriginId', id);
+    if (this.expandRowKeys.includes(row.key)) {
+      this.getDiffData(row);
+    }
+  }
+
+  handleOverwriteChange(value: boolean) {
+    this.$emit('overwriteChange', value);
+    this.tableKey = random(8);
   }
 
   tableFormatter(row: IRelationService, prop: string) {
@@ -505,38 +543,64 @@ export default class RelationServiceTable extends tsc<IProps> {
         ) : (
           <span>{row.service_name}</span>
         );
-      case Columns.relation:
+      case Columns.relation: {
+        const templates = this.getSameOriginTemplates(row);
+        const selectedTemplate = this.getSelectedSameOriginTemplate(row);
+        const selectedStrategyId = selectedTemplate?.strategy?.id || row.strategy?.id;
         return (
           <span class='relation-strategy-content'>
-            {[
-              row.same_origin_strategy_template ? (
+            {templates.length ? (
+              [
                 <span
-                  key={'01'}
-                  class='strategy-name'
+                  key='detail'
+                  class='relation-detail-btn'
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleShowDetails(row);
+                  }}
                 >
-                  <span onClick={() => this.handleShowDetails(row)}>{row.same_origin_strategy_template?.name}</span>
-                </span>
-              ) : (
+                  <span>{this.$t('详情')}</span>
+                  <span class='icon-monitor icon-mc-goto' />
+                </span>,
                 <span
-                  key={'01'}
-                  class='no-data'
+                  key='select'
+                  class='relation-strategy-select'
+                  onClick={e => e.stopPropagation()}
                 >
-                  {this.$t('暂无关联')}
-                </span>
-              ),
-              row?.strategy?.id ? (
-                <span
-                  key={'02'}
-                  class='strategy-link'
-                  onClick={() => this.handleGoStrategy(row.strategy.id as number)}
-                >
-                  {this.$t('查看策略')}
-                </span>
-              ) : undefined,
-              row.has_diff ? diffBtn() : undefined,
-            ]}
+                  <bk-select
+                    clearable={false}
+                    popover-min-width={200}
+                    searchable={templates.length > 5}
+                    size='small'
+                    value={selectedTemplate?.id}
+                    onChange={id => this.handleSameOriginSelect(row, id)}
+                  >
+                    {templates.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name || String(item.id)}
+                      />
+                    ))}
+                  </bk-select>
+                  <span class='relation-count'>{templates.length}</span>
+                </span>,
+              ]
+            ) : (
+              <span class='no-data'>{this.$t('暂无关联')}</span>
+            )}
+            {selectedStrategyId ? (
+              <span
+                class='strategy-link'
+                onClick={() => this.handleGoStrategy(selectedStrategyId as number)}
+              >
+                {this.$t('查看策略')}
+              </span>
+            ) : undefined}
+            {row.has_diff ? diffBtn() : undefined}
           </span>
         );
+      }
       default:
         return '';
     }
@@ -549,8 +613,12 @@ export default class RelationServiceTable extends tsc<IProps> {
         return (
           <span class='table-relation-header'>
             {this.$t('当前已关联其他模版')}
-            <span class='icon-monitor icon-hint' />
-            <span class='tips'>{this.$t('下发将被覆盖')}</span>
+            {this.overwriteSameOrigin ? (
+              <span class='overwrite-tip'>
+                <span class='icon-monitor icon-hint' />
+                <span class='tips'>{this.$t('下发将被覆盖')}</span>
+              </span>
+            ) : undefined}
           </span>
         );
       default:
@@ -703,14 +771,23 @@ export default class RelationServiceTable extends tsc<IProps> {
                 />
               </div>
             )}
-            <bk-input
-              class={['search-input', this.isRelation ? 'mt-12' : 'mt-16']}
-              v-model={this.searchValue}
-              placeholder={`${this.$t('搜索')} ${this.$t('服务名称')}`}
-              right-icon='bk-icon icon-search'
-              clearable
-              onChange={this.handleSearchChange}
-            />
+            <div class={['search-toolbar', this.isRelation ? 'mt-12' : 'mt-16']}>
+              <bk-input
+                class='search-input'
+                v-model={this.searchValue}
+                placeholder={`${this.$t('搜索')} ${this.$t('服务名称')}`}
+                right-icon='bk-icon icon-search'
+                clearable
+                onChange={this.handleSearchChange}
+              />
+              <bk-checkbox
+                class='overwrite-checkbox'
+                value={this.overwriteSameOrigin}
+                onChange={this.handleOverwriteChange}
+              >
+                {this.$t('覆盖同类模板策略')}
+              </bk-checkbox>
+            </div>
             {this.loading ? (
               <TableSkeleton type={4} />
             ) : (

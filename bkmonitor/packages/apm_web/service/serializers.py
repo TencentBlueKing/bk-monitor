@@ -77,10 +77,23 @@ class ServiceApdexConfigSerializer(serializers.Serializer):
     apdex_value = serializers.CharField()
 
 
+class IncrementalK8sRelationSerializer(serializers.Serializer):
+    bcs_cluster_id = serializers.CharField(label=_("BCS 集群 ID"), max_length=64)
+    namespace = serializers.CharField(label=_("命名空间"), max_length=63)
+    kind = serializers.CharField(label=_("Workload 类型"), max_length=64)
+    name = serializers.CharField(label=_("Workload 名称"), max_length=253)
+
+
+class IncrementalCICDRelationSerializer(serializers.Serializer):
+    project_id = serializers.CharField(label=_("项目 ID"), max_length=128)
+    pipeline_id = serializers.CharField(label=_("流水线 ID"), max_length=128)
+    pipeline_name = serializers.CharField(label=_("流水线名称"), max_length=255)
+
+
 class ServiceConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-    app_name = serializers.CharField(label=_("应用名"))
-    service_name = serializers.CharField(label=_("服务名"))
+    app_name = serializers.CharField(label=_("应用名"), max_length=50)
+    service_name = serializers.CharField(label=_("服务名"), max_length=512)
 
     app_relation = AppServiceRelationSerializer(allow_null=True, default=None)
     cmdb_relation = CMDBServiceRelationSerializer(allow_null=True, default=None)
@@ -88,9 +101,27 @@ class ServiceConfigSerializer(serializers.Serializer):
     apdex_relation = ServiceApdexConfigSerializer(allow_null=True, default=None)
     uri_relation = serializers.ListSerializer(default=[], child=serializers.CharField())
     event_relation = serializers.ListSerializer(default=[], child=EventServiceRelationSerializer())
+    incremental_cicd_relations = serializers.ListSerializer(required=False, child=IncrementalCICDRelationSerializer())
+    incremental_k8s_relations = serializers.ListSerializer(required=False, child=IncrementalK8sRelationSerializer())
     labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        request_fields: set[str] = set(self.initial_data)
+        incremental_fields: set[str] = request_fields & {
+            "incremental_cicd_relations",
+            "incremental_k8s_relations",
+        }
+        full_relation_fields: set[str] = request_fields & {
+            "app_relation",
+            "cmdb_relation",
+            "log_relation_list",
+            "apdex_relation",
+            "uri_relation",
+            "event_relation",
+        }
+        if incremental_fields and (full_relation_fields or "labels" in request_fields):
+            raise serializers.ValidationError(_("增量事件关联字段不能与其他服务配置字段同时提交"))
+
         uri_relations: list[str] = attrs["uri_relation"]
         if len(set(uri_relations)) != len(uri_relations):
             raise serializers.ValidationError(_("uri 含有重复配置项"))
@@ -99,6 +130,11 @@ class ServiceConfigSerializer(serializers.Serializer):
             attrs["apdex_relation"]["apdex_key"] = ServiceHandler.get_service_apdex_key(
                 attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
             )
+
+        if incremental_fields or not full_relation_fields:
+            # 增量、空请求和仅标签请求只处理显式字段，避免完整保存协议的默认值清空其他配置。
+            for field in set(attrs) - request_fields:
+                attrs.pop(field)
 
         return super().validate(attrs)
 

@@ -253,6 +253,18 @@ export const useHostList = (options: IUseHostListOptions) => {
     refreshList(true);
   };
 
+  const getMetricQueryParams = (hostList: Awaited<ReturnType<typeof getHostInfoList>>) => {
+    const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
+    const scope = getRequestScope();
+    const hasScopedTarget = scope.bk_host_id != null || (Boolean(scope.bk_obj_id) && scope.bk_inst_id != null);
+    return {
+      ...scope,
+      ...(hasScopedTarget ? { bk_host_ids: hostList.map(row => row.bk_host_id) } : {}),
+      start_time,
+      end_time,
+    };
+  };
+
   /** 加载数据：基础数据先渲染，指标数据后补充 */
   const loadData = async () => {
     const requestGeneration = ++dataRequestGeneration;
@@ -319,14 +331,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     }
     const metricGeneration = ++metricRequestGeneration;
     try {
-      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
-      const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
-      const metricListMap = await getHostMetricInfoList({
-        ...getRequestScope(),
-        bk_host_ids,
-        start_time,
-        end_time,
-      });
+      const metricListMap = await getHostMetricInfoList(getMetricQueryParams(requestBaseList));
       if (requestGeneration !== dataRequestGeneration || metricGeneration !== metricRequestGeneration) {
         return;
       }
@@ -356,15 +361,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     metricLoading.value = true;
     metricLoadError.value = false;
     try {
-      const requestBaseList = baseList;
-      const bk_host_ids = requestBaseList.map(row => row.bk_host_id);
-      const [start_time, end_time] = handleTransformToTimestamp(timeRange.value);
-      const metricListMap = await getHostMetricInfoList({
-        ...getRequestScope(),
-        bk_host_ids,
-        start_time,
-        end_time,
-      });
+      const metricListMap = await getHostMetricInfoList(getMetricQueryParams(baseList));
       if (requestGeneration !== metricRequestGeneration) {
         return;
       }

@@ -1,6 +1,8 @@
 # Skill: Pattern Implementation Planner
 
-Turn the selected design pattern into an implementation plan.
+Turn the selected pattern composition into an implementation plan. Plan the
+composition as a whole: the relations between patterns are part of the design,
+not an afterthought.
 
 Output:
 - interfaces/contracts to introduce

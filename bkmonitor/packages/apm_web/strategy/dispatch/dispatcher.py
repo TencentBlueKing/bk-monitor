@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import logging
+from collections import defaultdict
 from threading import Lock
 from typing import Any
 
@@ -21,6 +23,8 @@ from django.utils.translation import gettext_lazy as _
 from core.drf_resource import resource
 from . import entity, enricher, builder, base
 from .. import helper, serializers
+
+logger = logging.getLogger(__name__)
 
 
 class StrategyDispatcher:
@@ -60,12 +64,60 @@ class StrategyDispatcher:
         # 仅保留通过校验的服务
         return {service_name: service_config_map[service_name] for service_name in validated_service_names}
 
-    def _is_same_origin_instance(self, instance: dict[str, Any]) -> bool:
-        """判断是否为同源模板的下发实例
-        :param instance: 下发实例
-        :return:
-        """
-        return instance["strategy_template_id"] != self.strategy_template.id
+    def _list_same_origin_instances(self, service_names: list[str]) -> dict[str, list[dict[str, Any]]]:
+        """按服务收集已下发的同源实例。"""
+        service_instances_map: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        qs: models.QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
+            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=service_names
+        )
+        for strategy_instance in StrategyInstance.filter_same_origin_instances(
+            qs, self.strategy_template.id, self.strategy_template.root_id
+        ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id", "md5"):
+            service_instances_map[strategy_instance["service_name"]].append(strategy_instance)
+        return service_instances_map
+
+    def _split_own_and_others(
+        self, instances: list[dict[str, Any]]
+    ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+        """拆分当前模板实例与其他同源实例。"""
+        own_instance: dict[str, Any] | None = None
+        other_instances: list[dict[str, Any]] = []
+        for instance in instances:
+            if instance["strategy_template_id"] == self.strategy_template.id:
+                own_instance = instance
+            else:
+                other_instances.append(instance)
+        return own_instance, other_instances
+
+    def _build_created_instance(
+        self, service_name: str, service_config: base.DispatchConfig, strategy_id: int = 0
+    ) -> StrategyInstance:
+        return StrategyInstance(
+            bk_biz_id=self.bk_biz_id,
+            app_name=self.app_name,
+            service_name=service_name,
+            strategy_id=strategy_id,
+            strategy_template_id=self.strategy_template.id,
+            root_strategy_template_id=self.strategy_template.root_id,
+            detect=service_config.detect,
+            algorithms=service_config.algorithms,
+            user_group_ids=service_config.user_group_ids,
+            context=service_config.context,
+            md5=base.calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+        )
+
+    def _build_updated_instance(
+        self, instance_id: int, service_name: str, service_config: base.DispatchConfig
+    ) -> StrategyInstance:
+        return StrategyInstance(
+            id=instance_id,
+            service_name=service_name,
+            detect=service_config.detect,
+            algorithms=service_config.algorithms,
+            user_group_ids=service_config.user_group_ids,
+            context=service_config.context,
+            md5=base.calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+        )
 
     def dispatch(
         self,
@@ -73,12 +125,17 @@ class StrategyDispatcher:
         global_config: base.DispatchGlobalConfig | None = None,
         extra_configs: list[base.DispatchExtraConfig] | None = None,
         raise_exception: bool = True,
+        *,
+        overwrite_same_origin: bool = True,
+        keep_strategy_template_ids: list[int] | None = None,
     ) -> dict[str, int]:
         """批量下发策略到服务
         :param entity_set: 实体集
         :param global_config: 全局下发配置
         :param extra_configs: 额外的下发配置
         :param raise_exception: 是否在服务校验过程中抛出异
+        :param overwrite_same_origin: 是否覆盖同类模板策略
+        :param keep_strategy_template_ids: 本次一并下发、不可覆盖的模板 ID
         :return: {service_name: strategy_id}
         """
         # 组装告警策略参数
@@ -94,76 +151,59 @@ class StrategyDispatcher:
                 query_template_wrapper=self.query_template_wrapper,
             ).build()
 
-        # 获取已下发的同源实例
-        service_strategy_instance_map: dict[str, dict[str, Any]] = {}
-        qs: models.QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
-            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=entity_set.service_names
+        keep_ids: set[int] = set(keep_strategy_template_ids or [])
+        keep_ids.add(self.strategy_template.id)
+        service_instances_map: dict[str, list[dict[str, Any]]] = self._list_same_origin_instances(
+            entity_set.service_names
         )
-        for strategy_instance in StrategyInstance.filter_same_origin_instances(
-            qs, self.strategy_template.id, self.strategy_template.root_id
-        ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id"):
-            service_strategy_instance_map[strategy_instance["service_name"]] = strategy_instance
-
         id_strategy_map: dict[int, dict[str, Any]] = helper.get_id_strategy_map(
-            self.bk_biz_id, [instance["strategy_id"] for instance in service_strategy_instance_map.values()]
+            self.bk_biz_id,
+            [instance["strategy_id"] for instances in service_instances_map.values() for instance in instances],
         )
 
         to_be_created_strategies: list[dict[str, Any]] = []
         to_be_updated_strategies: list[dict[str, Any]] = []
-        to_be_deleted_strategy_instance_ids: list[int] = []
         to_be_created_strategy_instance_objs: list[StrategyInstance] = []
         to_be_updated_strategy_instance_objs: list[StrategyInstance] = []
+        service_delete_instance_ids: dict[str, list[int]] = defaultdict(list)
+        service_delete_strategy_ids: dict[str, list[int]] = defaultdict(list)
+
         for service_name, strategy_params in service_strategy_params_map.items():
             service_config: base.DispatchConfig = service_config_map[service_name]
-            strategy_instance: dict[str, Any] | None = service_strategy_instance_map.get(service_name)
-            if strategy_instance is None:
-                # 没有已下发实例直接新增。
-                to_be_created_strategies.append(strategy_params)
-            else:
-                # 记录 ID，用于更新。
-                if strategy_instance["strategy_id"] in id_strategy_map:
-                    # 已下发实例对应的策略存在，更新策略。
-                    strategy_params["id"] = strategy_instance["strategy_id"]
+            own_instance, other_instances = self._split_own_and_others(service_instances_map.get(service_name, []))
+            overwrite_instances: list[dict[str, Any]] = [
+                instance
+                for instance in other_instances
+                if overwrite_same_origin and instance["strategy_template_id"] not in keep_ids
+            ]
+
+            if own_instance is not None:
+                if own_instance["strategy_id"] in id_strategy_map:
+                    strategy_params["id"] = own_instance["strategy_id"]
                     to_be_updated_strategies.append(strategy_params)
                 else:
-                    # 已下发实例对应的策略不存在，视为未下发，新增策略。
                     to_be_created_strategies.append(strategy_params)
-
-                if self._is_same_origin_instance(strategy_instance):
-                    # 当前模板的同源模板已下发，需删除实例记录。
-                    to_be_deleted_strategy_instance_ids.append(strategy_instance["id"])
-                else:
-                    # 当前模板已下发，更新实例记录。
-                    to_be_updated_strategy_instance_objs.append(
-                        StrategyInstance(
-                            id=strategy_instance["id"],
-                            service_name=service_name,
-                            detect=service_config.detect,
-                            algorithms=service_config.algorithms,
-                            user_group_ids=service_config.user_group_ids,
-                            context=service_config.context,
-                            md5=base.calculate_strategy_md5_by_dispatch_config(
-                                service_config, self.query_template_wrapper
-                            ),
-                        )
-                    )
-                    continue
-
-            to_be_created_strategy_instance_objs.append(
-                StrategyInstance(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    service_name=service_name,
-                    strategy_id=strategy_params.get("id", 0),
-                    strategy_template_id=self.strategy_template.id,
-                    root_strategy_template_id=self.strategy_template.root_id,
-                    detect=service_config.detect,
-                    algorithms=service_config.algorithms,
-                    user_group_ids=service_config.user_group_ids,
-                    context=service_config.context,
-                    md5=base.calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+                to_be_updated_strategy_instance_objs.append(
+                    self._build_updated_instance(own_instance["id"], service_name, service_config)
                 )
-            )
+            elif overwrite_instances and overwrite_instances[0]["strategy_id"] in id_strategy_map:
+                # 当前模板尚未下发：复用一条可覆盖实例，保持原策略 ID 的覆盖语义。
+                reused_instance: dict[str, Any] = overwrite_instances[0]
+                strategy_params["id"] = reused_instance["strategy_id"]
+                to_be_updated_strategies.append(strategy_params)
+                service_delete_instance_ids[service_name].append(reused_instance["id"])
+                to_be_created_strategy_instance_objs.append(
+                    self._build_created_instance(service_name, service_config, reused_instance["strategy_id"])
+                )
+                overwrite_instances = overwrite_instances[1:]
+            else:
+                to_be_created_strategies.append(strategy_params)
+                to_be_created_strategy_instance_objs.append(self._build_created_instance(service_name, service_config))
+
+            for instance in overwrite_instances:
+                service_delete_instance_ids[service_name].append(instance["id"])
+                if instance["strategy_id"] in id_strategy_map:
+                    service_delete_strategy_ids[service_name].append(instance["strategy_id"])
 
         def _save_strategy(_params: dict[str, Any]):
             _strategy_id: int = resource.strategies.save_strategy_v2(**_params)["id"]
@@ -190,12 +230,27 @@ class StrategyDispatcher:
                 invalid_service_names.append(strategy_instance_obj.service_name)
 
         # 仅对策略下发成功的服务进行实例记录的创建或更新，尽可能记录成功下发的策略，而不是遇到异常即刻抛出，减少脏数据的产生。
+        invalid_service_name_set: set[str] = set(invalid_service_names)
         to_be_created_strategy_instance_objs = [
-            obj for obj in to_be_created_strategy_instance_objs if obj.service_name not in invalid_service_names
+            obj for obj in to_be_created_strategy_instance_objs if obj.service_name not in invalid_service_name_set
         ]
         to_be_updated_strategy_instance_objs = [
-            obj for obj in to_be_updated_strategy_instance_objs if obj.service_name not in invalid_service_names
+            obj for obj in to_be_updated_strategy_instance_objs if obj.service_name not in invalid_service_name_set
         ]
+        to_be_deleted_strategy_instance_ids: list[int] = [
+            instance_id
+            for service_name, instance_ids in service_delete_instance_ids.items()
+            if service_name not in invalid_service_name_set
+            for instance_id in instance_ids
+        ]
+        to_be_deleted_strategy_ids: list[int] = list(
+            {
+                strategy_id
+                for service_name, strategy_ids in service_delete_strategy_ids.items()
+                if service_name not in invalid_service_name_set
+                for strategy_id in strategy_ids
+            }
+        )
         with transaction.atomic():
             StrategyInstance.objects.filter(
                 bk_biz_id=self.bk_biz_id, app_name=self.app_name, id__in=to_be_deleted_strategy_instance_ids
@@ -209,6 +264,19 @@ class StrategyDispatcher:
                     batch_size=500,
                 )
 
+        if to_be_deleted_strategy_ids:
+            try:
+                resource.strategies.delete_strategy_v2({"bk_biz_id": self.bk_biz_id, "ids": to_be_deleted_strategy_ids})
+            except Exception as exc:  # pylint: disable=broad-except
+                # 同源模板并行下发时，可能同时删除同一条重复策略。
+                logger.warning(
+                    "failed to delete overwritten strategies: bk_biz_id=%s, app_name=%s, ids=%s, error=%s",
+                    self.bk_biz_id,
+                    self.app_name,
+                    to_be_deleted_strategy_ids,
+                    exc,
+                )
+
         if invalid_service_names:
             raise ValueError(_("创建部分服务策略失败：{}").format("，".join(invalid_service_names)))
 
@@ -216,48 +284,56 @@ class StrategyDispatcher:
 
     def check(self, entity_set: entity.EntitySet, is_check_diff: bool = False) -> list[dict[str, Any]]:
         """检查某个服务的策略下发结果"""
-
-        # 获取已下发的同源实例
-        service_strategy_instance_map: dict[str, dict[str, Any]] = {}
-        qs: models.QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
-            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=entity_set.service_names
+        service_instances_map: dict[str, list[dict[str, Any]]] = self._list_same_origin_instances(
+            entity_set.service_names
         )
-        for strategy_instance in StrategyInstance.filter_same_origin_instances(
-            qs, self.strategy_template.id, self.strategy_template.root_id
-        ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id", "md5"):
-            service_strategy_instance_map[strategy_instance["service_name"]] = strategy_instance
-
         id_strategy_map: dict[int, dict[str, Any]] = helper.get_id_strategy_map(
-            self.bk_biz_id, [instance["strategy_id"] for instance in service_strategy_instance_map.values()]
+            self.bk_biz_id,
+            [instance["strategy_id"] for instances in service_instances_map.values() for instance in instances],
         )
 
         results: list[dict[str, Any]] = []
+        diff_instance_map: dict[str, dict[str, Any]] = {}
         for service_name in entity_set.service_names:
+            own_instance, other_instances = self._split_own_and_others(service_instances_map.get(service_name, []))
+            live_own: dict[str, Any] | None = (
+                own_instance if own_instance and own_instance["strategy_id"] in id_strategy_map else None
+            )
+            live_others: list[dict[str, Any]] = [
+                instance for instance in other_instances if instance["strategy_id"] in id_strategy_map
+            ]
+            same_origin_strategy_templates: list[dict[str, Any]] = [
+                {
+                    "id": instance["strategy_template_id"],
+                    "strategy": {
+                        "id": instance["strategy_id"],
+                        "name": id_strategy_map[instance["strategy_id"]]["name"],
+                    },
+                }
+                for instance in live_others
+            ]
             result: dict[str, Any] = {
                 "service_name": service_name,
                 "strategy_template_id": self.strategy_template.id,
-                "same_origin_strategy_template": None,
+                "same_origin_strategy_template": (
+                    {"id": same_origin_strategy_templates[0]["id"]} if same_origin_strategy_templates else None
+                ),
+                "same_origin_strategy_templates": same_origin_strategy_templates,
                 "strategy": None,
                 "has_been_applied": False,
             }
-            strategy_instance: dict[str, Any] | None = service_strategy_instance_map.get(service_name)
-            if strategy_instance is None:
-                results.append(result)
-                continue
-
-            try:
-                strategy_id: int = strategy_instance["strategy_id"]
-                result["strategy"] = {"id": strategy_id, "name": id_strategy_map[strategy_id]["name"]}
-            except KeyError:
-                # 已下发策略被删除，视为未下发。
-                results.append(result)
-                continue
-
-            if self._is_same_origin_instance(strategy_instance):
-                result["same_origin_strategy_template"] = {"id": strategy_instance["strategy_template_id"]}
-            else:
+            diff_instance: dict[str, Any] | None = live_own or (live_others[0] if live_others else None)
+            if live_own is not None:
                 result["has_been_applied"] = True
+                result["strategy"] = {
+                    "id": live_own["strategy_id"],
+                    "name": id_strategy_map[live_own["strategy_id"]]["name"],
+                }
+            elif live_others:
+                result["strategy"] = same_origin_strategy_templates[0]["strategy"]
 
+            if diff_instance is not None:
+                diff_instance_map[service_name] = diff_instance
             results.append(result)
 
         if not is_check_diff:
@@ -270,13 +346,13 @@ class StrategyDispatcher:
         service_result_map: dict[str, dict[str, Any]] = {result["service_name"]: result for result in results}
         for service_name, dispatch_config in service_config_map.items():
             result: dict[str, Any] = service_result_map[service_name]
-            if result.get("strategy") is None:
-                # 没有下发实例，无需对比。
+            diff_instance = diff_instance_map.get(service_name)
+            if diff_instance is None:
                 result["has_diff"] = False
                 continue
 
             md5: str = base.calculate_strategy_md5_by_dispatch_config(dispatch_config, self.query_template_wrapper)
-            result["has_diff"] = service_strategy_instance_map[service_name]["md5"] != md5
+            result["has_diff"] = diff_instance["md5"] != md5
         return results
 
     def preview(self, entity_set: entity.EntitySet) -> dict[str, dict[str, Any]]:

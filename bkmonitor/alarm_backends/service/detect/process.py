@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+import uuid
 
 from django.conf import settings
 
@@ -26,12 +27,17 @@ from core.prometheus import metrics
 logger = logging.getLogger("detect")
 
 
+class _LoggedAlarmdDetectionPublishError(RuntimeError):
+    """Marks a detection publish error already logged at the batch boundary."""
+
+
 class DetectProcess(BaseAbnormalPushProcessor):
     def __init__(self, strategy_id: str):
         # note: 这里有个坑，进来的策略id是字符串
         self.strategy_id = strategy_id
         self.inputs = {}
         self.outputs = {}
+        self.inline_trigger_items = []
         self.strategy = Strategy(strategy_id)
         i18n.set_biz(self.strategy.bk_biz_id)
         self.is_busy = False
@@ -114,6 +120,254 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
         NewSeries.bootstrap_empty_batch(item)
 
+    def prepare_alarmd_detection_batches(self):
+        from alarm_backends.core.alarmd.config import shadow_flag
+
+        if not shadow_flag(settings.ALARMD_DETECTION_SHADOW_ENABLED):
+            return []
+
+        from alarm_backends.core.alarmd.reference import parse_alarmd_shadow_strategy_ids
+
+        allowed_strategy_ids = parse_alarmd_shadow_strategy_ids(
+            settings.ALARMD_DETECTION_SHADOW_STRATEGY_IDS
+        )
+        if allowed_strategy_ids is None:
+            logger.warning("[alarmd shadow] configured strategy selector is invalid")
+            return []
+        if int(self.strategy_id) not in allowed_strategy_ids:
+            return []
+
+        finalized = int(self.strategy_id) not in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS
+        if not finalized:
+            return []
+
+        legacy_json = key.STRATEGY_SNAPSHOT_KEY.client.get(self.strategy.snapshot_key)
+        if isinstance(legacy_json, str):
+            legacy_json = legacy_json.encode()
+        if not isinstance(legacy_json, bytes) or not legacy_json:
+            logger.warning(f"[alarmd shadow] strategy({self.strategy_id}) snapshot is unavailable")
+            return []
+
+        from alarm_backends.core.alarmd.contract import ContractValidationError, json_values_equal
+        from alarm_backends.core.alarmd.runtime import prepare_detect_input_batch, prepare_finalized_threshold_batch
+
+        batch_id = uuid.uuid4().hex
+        batches = []
+        for item in self.strategy.items:
+            input_points = self.inputs.get(item.id, [])
+            if not input_points:
+                continue
+            source_strategy = input_points[0].item.strategy
+            if (
+                any(data_point.item.strategy is not source_strategy for data_point in input_points)
+                or int(source_strategy.id) != int(self.strategy_id)
+                or not json_values_equal(source_strategy.config, self.strategy.config)
+            ):
+                logger.warning(
+                    f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) input snapshot is stale"
+                )
+                continue
+            data_points = [data_point.as_dict() for data_point in input_points]
+            if not data_points:
+                continue
+            try:
+                batch = prepare_finalized_threshold_batch(
+                    tenant_id=self.strategy.bk_tenant_id,
+                    strategy=self.strategy.config,
+                    item_id=item.id,
+                    legacy_json=legacy_json,
+                    batch_id=batch_id,
+                    data_points=data_points,
+                    anomaly_outputs=self.outputs.get(item.id, []),
+                    finalized=finalized,
+                )
+            except ContractValidationError as error:
+                logger.debug(
+                    f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) is ineligible: {error}"
+                )
+                continue
+            try:
+                batch["detect_input"] = prepare_detect_input_batch(
+                    strategy_ir=batch["strategy_ir"],
+                    batch_id=batch_id,
+                    data_points=data_points,
+                )
+            except ContractValidationError:
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=detect_input result=fail_open "
+                    "operation=prepare records=%s strategy(%s) batch_id=%s",
+                    len(data_points),
+                    self.strategy_id,
+                    batch_id,
+                )
+            batches.append(batch)
+        return batches
+
+    @staticmethod
+    def publish_alarmd_detection_batches(batches):
+        if not batches:
+            return 0
+
+        from alarm_backends.core.alarmd.config import shadow_flag, shadow_kafka_config, shadow_topics
+        from alarm_backends.core.alarmd.publisher import (
+            get_cached_kafka_detect_input_publisher,
+            get_cached_kafka_detection_publisher,
+        )
+        from alarm_backends.core.alarmd.reference import build_terminal_reference_decision_batches
+        from alarm_backends.core.alarmd.reference_publisher import (
+            get_cached_kafka_reference_decision_publisher,
+        )
+        from alarm_backends.core.alarmd.telemetry import (
+            STAGE_DETECTION,
+            STAGE_REFERENCE,
+            observe_shadow_publish,
+            record_shadow_published_records,
+        )
+
+        config_json = json.dumps(
+            shadow_kafka_config(settings.ALARMD_DETECTION_SHADOW_KAFKA_CONFIG),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        allowed_topics = shadow_topics(settings.ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS)
+        publisher = get_cached_kafka_detection_publisher(config_json, allowed_topics)
+        detect_input_publisher = None
+        detect_input_initialization_failed = False
+        detect_input_enabled = shadow_flag(settings.ALARMD_DETECT_INPUT_SHADOW_ENABLED)
+        reference_publisher = None
+        reference_initialization_failed = False
+        reference_enabled = shadow_flag(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED)
+
+        published = 0
+        for batch in batches:
+            outcomes = batch.get("outcomes") or []
+            strategy_ref = (batch.get("strategy_ir") or {}).get("strategy_ref") or {}
+            strategy_id = strategy_ref.get("strategy_id", "unknown")
+            batch_id = outcomes[0].get("batch_id", "unknown") if outcomes else "unknown"
+            started_at = time.monotonic()
+            try:
+                with observe_shadow_publish(STAGE_DETECTION):
+                    acknowledged = publisher.publish_batch(batch)
+            except Exception as error:
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=detection result=fail_open "
+                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    len(outcomes),
+                    duration_ms,
+                    strategy_id,
+                    batch_id,
+                )
+                raise _LoggedAlarmdDetectionPublishError(str(error)) from error
+            record_shadow_published_records(STAGE_DETECTION, acknowledged)
+            duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+            logger.info(
+                "[alarmd shadow] component=alarmd-python stage=detection result=broker_ack "
+                "records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                acknowledged,
+                duration_ms,
+                strategy_id,
+                batch_id,
+            )
+            published += acknowledged
+            detect_input = batch.get("detect_input")
+            if detect_input_enabled and detect_input and not detect_input_initialization_failed:
+                try:
+                    if detect_input_publisher is None:
+                        detect_input_config_json = json.dumps(
+                            shadow_kafka_config(settings.ALARMD_DETECT_INPUT_SHADOW_KAFKA_CONFIG),
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        )
+                        detect_input_allowed_topics = shadow_topics(
+                            settings.ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS
+                        )
+                        detect_input_publisher = get_cached_kafka_detect_input_publisher(
+                            detect_input_config_json,
+                            detect_input_allowed_topics,
+                        )
+                    detect_input_started_at = time.monotonic()
+                    acknowledged_inputs = detect_input_publisher.publish_batch(detect_input)
+                    duration_ms = max(0, round((time.monotonic() - detect_input_started_at) * 1000))
+                    logger.info(
+                        "[alarmd shadow] component=alarmd-python stage=detect_input result=broker_ack "
+                        "records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                        acknowledged_inputs,
+                        duration_ms,
+                        strategy_id,
+                        batch_id,
+                    )
+                except Exception:
+                    detect_input_initialization_failed = detect_input_publisher is None
+                    logger.exception(
+                        "[alarmd shadow] component=alarmd-python stage=detect_input result=fail_open "
+                        "operation=publish records=%s strategy(%s) batch_id=%s",
+                        len((detect_input or {}).get("records") or []),
+                        strategy_id,
+                        batch_id,
+                    )
+            if not reference_enabled:
+                continue
+            try:
+                reference_batches = build_terminal_reference_decision_batches(
+                    strategy_ir=batch["strategy_ir"],
+                    detection_outcomes=batch["outcomes"],
+                )
+            except Exception:
+                logger.exception("[alarmd shadow] failed to project terminal reference decision")
+                continue
+            if not reference_batches or reference_initialization_failed:
+                continue
+            if reference_publisher is None:
+                try:
+                    from alarm_backends.core.alert.adapter import MonitorEventAdapter
+
+                    reference_config_json = json.dumps(
+                        shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    reference_allowed_topics = shadow_topics(
+                        settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS
+                    )
+                    forbidden_topics = tuple(sorted(set(allowed_topics) | {MonitorEventAdapter.get_output_topic()}))
+                    reference_publisher = get_cached_kafka_reference_decision_publisher(
+                        reference_config_json,
+                        reference_allowed_topics,
+                        forbidden_topics,
+                    )
+                except Exception:
+                    logger.exception("[alarmd shadow] failed to initialize terminal reference publisher")
+                    reference_initialization_failed = True
+                    continue
+            try:
+                acknowledged_references = 0
+                started_at = time.monotonic()
+                with observe_shadow_publish(STAGE_REFERENCE):
+                    for reference_batch in reference_batches:
+                        acknowledged_references += reference_publisher.publish_batch(reference_batch)
+                record_shadow_published_records(STAGE_REFERENCE, acknowledged_references)
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                logger.info(
+                    "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
+                    "records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    acknowledged_references,
+                    duration_ms,
+                    strategy_id,
+                    batch_id,
+                )
+            except Exception:
+                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) batch_id=%s",
+                    acknowledged_references,
+                    duration_ms,
+                    strategy_id,
+                    batch_id,
+                )
+        return published
+
     def push_data(self):
         current_time = time.time()
         max_latency = 0
@@ -142,7 +396,34 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 bk_biz_id=self.strategy.bk_biz_id,
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
-        anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
+        inline_trigger_enabled = settings.ENABLE_DETECT_INLINE_TRIGGER
+        self.inline_trigger_items = (
+            [item.id for item in self.strategy.items if self.outputs.get(item.id)] if inline_trigger_enabled else []
+        )
+        # 内联路径先只写异常详情；抢 Trigger 锁失败时再由 run_inline_trigger() 补写信号。
+        anomaly_count = self.push_abnormal_data(
+            self.outputs,
+            self.strategy_id,
+            publish_signal=not inline_trigger_enabled,
+        )
+        try:
+            alarmd_batches = self.prepare_alarmd_detection_batches()
+        except Exception:
+            logger.exception(f"[alarmd shadow] strategy({self.strategy_id}) failed to prepare detection batch")
+            alarmd_batches = []
+        started_at = time.monotonic()
+        try:
+            self.publish_alarmd_detection_batches(alarmd_batches)
+        except _LoggedAlarmdDetectionPublishError:
+            pass
+        except Exception:
+            duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+            logger.exception(
+                "[alarmd shadow] component=alarmd-python stage=detection result=fail_open "
+                "operation=initialize records=0 duration_ms=%s strategy(%s) batch_id=unknown",
+                duration_ms,
+                self.strategy_id,
+            )
         if anomaly_count > 1000:
             # 获取 Redis 节点信息（带异常处理）
             try:
@@ -176,6 +457,21 @@ class DetectProcess(BaseAbnormalPushProcessor):
         logger.info(f"[detect] strategy({self.strategy_id}) item({item.id}) 开始异常二次确认流程")
         item.double_check(outputs=self.outputs[item.id])
 
+    def run_inline_trigger(self):
+        from alarm_backends.service.trigger.runner import run_trigger_item
+        from core.errors.alarm_backends import LockError
+
+        for item_id in self.inline_trigger_items:
+            try:
+                run_trigger_item(self.strategy_id, item_id, executor="detect_inline")
+            except LockError:
+                self.publish_anomaly_signals([f"{self.strategy_id}.{item_id}"])
+                logger.info(
+                    "[detect inline trigger] strategy(%s), item(%s) is locked; signal published for trigger worker",
+                    self.strategy_id,
+                    item_id,
+                )
+
     def process(self):
         with service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id):
             start_at = time.time()
@@ -193,3 +489,4 @@ class DetectProcess(BaseAbnormalPushProcessor):
             end_at = time.time()
             logger.info(f"[detect][latency] strategy({self.strategy_id}) processing end in {end_at - start_at}")
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)
+        self.run_inline_trigger()

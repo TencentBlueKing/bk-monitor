@@ -40,12 +40,12 @@ import { immediateRegister } from 'monitor-common/service-worker/service-worker'
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
+import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
-import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';

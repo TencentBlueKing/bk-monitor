@@ -25,38 +25,10 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.processor import TriggerProcessor
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT as POINT
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_STRATEGY as STRATEGY
 from bkmonitor.models import AnomalyRecord, CacheNode, time_tools
 from core.errors.alarm_backends import StrategyNotFound
-
-from .test_checker import STRATEGY
-
-POINT = {
-    "data": {
-        "record_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480",
-        "value": 1.38,
-        "values": {"timestamp": 1569246480, "load5": 1.38},
-        "dimensions": {"ip": "10.0.0.1"},
-        "time": 1569246480,
-    },
-    "anomaly": {
-        "1": {
-            "anomaly_message": "异常测试",
-            "anomaly_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.1",
-            "anomaly_time": "2019-10-10 10:10:00",
-        },
-        "2": {
-            "anomaly_message": "异常测试",
-            "anomaly_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.2",
-            "anomaly_time": "2019-10-10 10:10:00",
-        },
-        "3": {
-            "anomaly_message": "异常测试",
-            "anomaly_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.3",
-            "anomaly_time": "2019-10-10 10:10:00",
-        },
-    },
-    "strategy_snapshot_key": "xxx",
-}
 
 EVENT = {
     "data": {

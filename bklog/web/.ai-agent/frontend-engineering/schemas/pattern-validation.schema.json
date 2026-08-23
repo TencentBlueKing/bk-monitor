@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "pattern-validation.schema.json",
+  "title": "Validation of the composition against the problems",
+  "type": "object",
+  "properties": {
+    "answered": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unanswered": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "antiPatterns": {
+      "type": "array",
+      "items": {
+        "$ref": "anti-pattern.schema.json"
+      }
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "WARNING",
+        "FAIL"
+      ]
+    }
+  },
+  "required": [
+    "answered",
+    "unanswered"
+  ],
+  "additionalProperties": true
+}

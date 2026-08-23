@@ -36,9 +36,13 @@ def topo_tree(bk_biz_id):
     return to_dict(result)
 
 
-def _build_host_target_filter(bk_biz_id: int, hosts: list[Host]) -> dict:
-    """按主机身份构造 UQ 目标过滤条件。"""
-    if not hosts:
+def _build_host_target_filter(bk_biz_id: int, hosts: list[Host], push_host_target: bool = True) -> dict:
+    """按主机身份构造 UQ 目标过滤条件。
+
+    全量业务路径传 push_host_target=False，返回空 target，避免把上万 host 编进 statement。
+    hosts 仍由调用方用于身份映射和白名单，不能靠传空 hosts 来跳过 target。
+    """
+    if not push_host_target or not hosts:
         return {}
     if is_ipv6_biz(bk_biz_id):
         return {"targets": [{"bk_host_id": sorted(str(host.bk_host_id) for host in hosts)}]}
@@ -65,6 +69,7 @@ def get_agent_status(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    push_host_target: bool = True,
 ) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
@@ -74,6 +79,7 @@ def get_agent_status(
                       是否有数据上报来判定 Agent 状态，跳过 node_man 实时查询（历史场景无意义）。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"实时查询。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param push_host_target: 是否把 hosts 下推为 UQ target。全量业务路径传 False。
     :return {bk_host_id: AGENT_STATUS}
     """
     if not hosts:
@@ -95,7 +101,7 @@ def get_agent_status(
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
-        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts, push_host_target=push_host_target),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if is_historical:
@@ -108,6 +114,8 @@ def get_agent_status(
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
     if fail_on_incomplete and query.is_partial:
         raise RuntimeError("unify query returned partial data for agent status")
+    if query.is_partial:
+        logger.warning("unify query returned partial data for agent status, keep available records")
 
     # 统计已经存在数据的主机并设置状态为正常
     ip_to_host_id: dict[tuple, int] = {
@@ -132,10 +140,11 @@ def get_agent_status(
 
     if is_historical:
         # 历史查询：node_man 只提供实时 Agent 存活状态，对历史时间段无意义；
-        # 改为依赖 TSDB 数据上报推断：历史窗口内有数据 → ON；无数据 → NO_DATA
+        # 改为依赖 TSDB 数据上报推断：历史窗口内有数据 → ON；完整结果无数据 → NO_DATA。
+        # UQ partial 时无法证明缺失主机确实无数据，因此保留 UNKNOWN。
         for host in hosts:
             if host.bk_host_id not in status:
-                status[host.bk_host_id] = AGENT_STATUS.NO_DATA
+                status[host.bk_host_id] = AGENT_STATUS.UNKNOWN if query.is_partial else AGENT_STATUS.NO_DATA
         return status
 
     # 后续只查询没数据的主机
@@ -145,33 +154,44 @@ def get_agent_status(
     pool = ThreadPool()
     futures = []
     for index in range(0, len(host_list), 1000):
+        batch = host_list[index : index + 1000]
         futures.append(
-            pool.apply_async(
-                api.node_man.ipchooser_host_detail,
-                kwds={
-                    "host_list": host_list[index : index + 1000],
-                    "scope_list": scope_list,
-                    "agent_realtime_state": True,
-                },
+            (
+                pool.apply_async(
+                    api.node_man.ipchooser_host_detail,
+                    kwds={
+                        "host_list": batch,
+                        "scope_list": scope_list,
+                        "agent_realtime_state": True,
+                    },
+                ),
+                {item["host_id"] for item in batch},
             )
         )
     pool.close()
     pool.join()
     result = []
-    for future in futures:
+    failed_host_ids = set()
+    for future, batch_host_ids in futures:
         try:
             result.extend(future.get())
         except Exception as e:
             logger.error("get_agent_status error: %s", e)
+            failed_host_ids.update(batch_host_ids)
 
     for info in result:
         host_id = info["host_id"]
         if info["alive"] == 1:
-            status[host_id] = AGENT_STATUS.NO_DATA
+            # UQ partial 时只能确认 Agent 存活，不能据此断言该主机没有数据上报。
+            status[host_id] = AGENT_STATUS.UNKNOWN if query.is_partial else AGENT_STATUS.NO_DATA
+        else:
+            status[host_id] = AGENT_STATUS.NOT_EXIST
 
     for host in hosts:
         if host.bk_host_id not in status:
-            status[host.bk_host_id] = AGENT_STATUS.NOT_EXIST
+            status[host.bk_host_id] = (
+                AGENT_STATUS.UNKNOWN if host.bk_host_id in failed_host_ids else AGENT_STATUS.NOT_EXIST
+            )
 
     return status
 
@@ -202,6 +222,7 @@ def get_process_info(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    push_host_target: bool = True,
 ) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
@@ -211,6 +232,7 @@ def get_process_info(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选），用于限定进程存活状态的判定窗口
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param push_host_target: 是否把 hosts 下推为 UQ target。全量业务路径传 False。
     :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
         e.g.:
             {
@@ -231,6 +253,9 @@ def get_process_info(
             }
 
     """
+    if not hosts:
+        return {}
+
     pp_info = defaultdict(list)
 
     # 如果只有一台机器，可以直接使用bk_host_id参数进行检索
@@ -243,7 +268,12 @@ def get_process_info(
 
     # 查询进程状态数据
     statuses: dict[int, dict[str, int]] = get_process_status(
-        bk_biz_id, hosts, start_time, end_time, fail_on_incomplete=fail_on_incomplete
+        bk_biz_id,
+        hosts,
+        start_time,
+        end_time,
+        fail_on_incomplete=fail_on_incomplete,
+        push_host_target=push_host_target,
     )
 
     bk_host_ids = {host.bk_host_id for host in hosts}
@@ -286,6 +316,7 @@ def get_process_status(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    push_host_target: bool = True,
 ) -> dict[int, dict[str, int]]:
     """
     查询进程状态，1为存活
@@ -295,6 +326,7 @@ def get_process_status(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传时退化为默认"最近三分钟"。
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param push_host_target: 是否把 hosts 下推为 UQ target。全量业务路径传 False。
     """
     result = defaultdict(dict)
     for bk_host_id, display_name, value in _query_proc_metrics(
@@ -306,6 +338,7 @@ def get_process_status(
         start_time,
         end_time,
         fail_on_incomplete=fail_on_incomplete,
+        push_host_target=push_host_target,
     ):
         result[bk_host_id][display_name] = AGENT_STATUS.ON if value else AGENT_STATUS.OFF
     return result
@@ -320,6 +353,7 @@ def _query_proc_metrics(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    push_host_target: bool = True,
 ):
     """
     查询 system.proc / system.proc_port 指标的公共生成器。
@@ -335,6 +369,7 @@ def _query_proc_metrics(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
     :param fail_on_incomplete: UQ 返回部分结果时是否抛出异常
+    :param push_host_target: 是否把 hosts 下推为 UQ target。全量业务路径传 False。
     :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
     """
     ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
@@ -347,7 +382,7 @@ def _query_proc_metrics(
         metrics=[{"field": field, "method": method, "alias": "A"}],
         table=table,
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
-        filter_dict=_build_host_target_filter(bk_biz_id, hosts),
+        filter_dict=_build_host_target_filter(bk_biz_id, hosts, push_host_target=push_host_target),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     if start_time is not None and end_time is not None:
@@ -359,6 +394,8 @@ def _query_proc_metrics(
     records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
     if fail_on_incomplete and query.is_partial:
         raise RuntimeError(f"unify query returned partial data for {table}.{field}")
+    if query.is_partial:
+        logger.warning("unify query returned partial data for %s.%s, keep available records", table, field)
     for record in records:
         if record.get("_result_") is None:
             continue
@@ -562,6 +599,7 @@ def get_host_performance_data(
     start_time: int = None,
     end_time: int = None,
     fail_on_incomplete: bool = False,
+    push_host_target: bool = True,
 ) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
@@ -571,6 +609,7 @@ def get_host_performance_data(
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :param fail_on_incomplete: 查询异常或 UQ 返回部分结果时是否抛出异常。默认保持历史降级行为。
+    :param push_host_target: 是否把 hosts 下推为 UQ target。全量业务路径传 False。
     """
     if not hosts:
         return {}
@@ -592,7 +631,7 @@ def get_host_performance_data(
 
     # 与主机图表保持相同的目标维度：IPv4 使用 IP+云区域，IPv6 使用主机 ID。
     # IPv4 身份不完整时保留全量查询，避免过滤掉只能通过 bk_host_id 回填的兼容数据。
-    target_filter = _build_host_target_filter(bk_biz_id, hosts)
+    target_filter = _build_host_target_filter(bk_biz_id, hosts, push_host_target=push_host_target)
 
     def get_metric_data(metric):
         # 每个线程写入独立的临时 dict，避免多线程并发写同一 data 的竞态
@@ -616,6 +655,8 @@ def get_host_performance_data(
         records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
         if fail_on_incomplete and query.is_partial:
             raise RuntimeError(f"unify query returned partial data for metric {metric['field']}")
+        if query.is_partial:
+            logger.warning("unify query returned partial data for metric %s, keep available records", metric["field"])
         for record in records:
             if record["_result_"] is None:
                 continue

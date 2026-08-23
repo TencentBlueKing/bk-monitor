@@ -33,6 +33,7 @@ import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce'
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 // import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 // import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -66,6 +67,7 @@ export default class AppList extends tsc<undefined> {
   ];
   /** 时间范围 */
   timeRange: TimeRangeType = ['now-1h', 'now'];
+  timezone: string = getDefaultTimezone();
   refreshKey = 0;
   /** 显示引导页 */
   showGuidePage = false;
@@ -390,6 +392,10 @@ export default class AppList extends tsc<undefined> {
     }
   }
 
+  handleTimezoneChange(v: string) {
+    this.timezone = v;
+  }
+
   render() {
     return (
       <div class='apm-home-wrap-page'>
@@ -408,9 +414,11 @@ export default class AppList extends tsc<undefined> {
                 isSplitPanel={false}
                 showListMenu={false}
                 timeRange={this.timeRange}
+                timezone={this.timezone}
                 onImmediateRefresh={() => this.handleImmediateRefresh()}
                 onRefreshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
+                onTimezoneChange={this.handleTimezoneChange}
               />
               {/* <ListMenu
                 list={this.menuList}

@@ -261,6 +261,28 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id",),
 )
 
+# alarmd Trigger-only Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
+# 因此发布结果、耗时和已确认条数本身就是能力闭环的一部分。
+# stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
+ALARMD_SHADOW_PUBLISH_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_publish_count",
+    documentation="alarmd Shadow 发布次数(stage: detection/reference; status: success/failed)",
+    labelnames=("stage", "status"),
+)
+
+ALARMD_SHADOW_PUBLISH_RECORD_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_publish_record_count",
+    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detection/reference)",
+    labelnames=("stage",),
+)
+
+ALARMD_SHADOW_PUBLISH_TIME = Histogram(
+    name="bkmonitor_alarmd_shadow_publish_time",
+    documentation="alarmd Shadow 发布耗时，含等待 broker 确认；首期该等待发生在模块处理锁内",
+    labelnames=("stage", "status"),
+    buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, INF),
+)
+
 STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(
     name="bkmonitor_strategy_router_cache_refresh_fail",
     documentation="告警后台 CacheRouter 进程路由缓存刷新失败次数（stale-while-error 保旧快照）",
@@ -821,6 +843,20 @@ CONFIG_MAXCLIENTS = Gauge(
 CONFIG_MAXMEMORY = Gauge(
     name="redis_config_maxmemory",
     documentation="The value of the maxmemory configuration directive",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+# 聚合类型的紧凑编码阈值：成员数越过该阈值后 zset/hash 由 listpack 转为 skiplist/hashtable，
+# 单成员内存开销显著上升且转换不可逆。估算检测态内存成本时必须知道实际阈值，不能假定默认值。
+CONFIG_ZSET_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_zset_max_listpack_entries",
+    documentation="The value of the zset-max-listpack-entries configuration directive (-1 if unavailable)",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+CONFIG_HASH_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_hash_max_listpack_entries",
+    documentation="The value of the hash-max-listpack-entries configuration directive (-1 if unavailable)",
     labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 

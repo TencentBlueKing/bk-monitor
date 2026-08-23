@@ -59,12 +59,14 @@ export default class TemplatePush extends tsc<IProps> {
 
   selectKeys = [];
   submitLoading = false;
+  overwriteSameOrigin = false;
 
   @Watch('show')
   handleWatchShowChange(v: boolean) {
     this.loading = false;
     this.submitLoading = false;
     if (v) {
+      this.overwriteSameOrigin = false;
       this.getCheckStrategyTemplate();
     } else {
       this.relationService = [];
@@ -91,6 +93,7 @@ export default class TemplatePush extends tsc<IProps> {
         app_name: this.params?.app_name,
         service_names: Array.from(new Set(services)),
         strategy_template_ids: this.params?.strategy_template_ids,
+        overwrite_same_origin: this.overwriteSameOrigin,
       };
       applyStrategyTemplate(params)
         .then(() => {
@@ -120,18 +123,31 @@ export default class TemplatePush extends tsc<IProps> {
       app_name: this.params?.app_name,
     })
       .then(data => {
-        this.relationService = (data?.list || []).map(item => ({
-          ...item,
-          key: random(8),
-        }));
+        this.relationService = (data?.list || []).map(item => {
+          const templates = item.same_origin_strategy_templates?.length
+            ? item.same_origin_strategy_templates
+            : item.same_origin_strategy_template
+              ? [item.same_origin_strategy_template]
+              : [];
+          return {
+            ...item,
+            same_origin_strategy_templates: templates,
+            selectedSameOriginId: templates[0]?.id,
+            key: random(8),
+          };
+        });
       })
       .finally(() => {
         this.loading = false;
       });
   }
 
-  async getCompareStrategyTemplate(params: { service_name: string; strategy_template_id: number }) {
-    const key = `${params.service_name}_____${params.strategy_template_id}`;
+  async getCompareStrategyTemplate(params: {
+    applied_strategy_template_id?: number;
+    service_name: string;
+    strategy_template_id: number;
+  }) {
+    const key = `${params.service_name}_____${params.strategy_template_id}_____${params.applied_strategy_template_id || ''}`;
     if (this.compareDataMap.has(key)) {
       return this.compareDataMap.get(key);
     }
@@ -171,6 +187,7 @@ export default class TemplatePush extends tsc<IProps> {
           this.handleShowChange(false);
         }}
         isShow={this.show}
+        zIndex={3000}
         quick-close
       >
         <div
@@ -191,9 +208,13 @@ export default class TemplatePush extends tsc<IProps> {
             getCompareData={this.getCompareStrategyTemplate}
             loading={this.loading}
             metricFunctions={this.metricFunctions}
+            overwriteSameOrigin={this.overwriteSameOrigin}
             relationService={this.relationService}
             onChangeCheckKeys={this.handleChangeCheckKeys}
             onGoStrategy={this.handleGoStrategy}
+            onOverwriteChange={v => {
+              this.overwriteSameOrigin = v;
+            }}
             onShowDetails={this.handleShowDetails}
           />
         </div>

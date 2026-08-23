@@ -51,7 +51,7 @@ export interface IHostListRow extends IHostMetricInfo {
   /** 行唯一 id：优先 bk_host_id，回退 ip|cloud */
   rowId: string;
   /** 未恢复告警总数 */
-  totalAlarmCount: number;
+  totalAlarmCount: null | number;
 }
 
 /** 快捷过滤卡片配置 */

@@ -110,6 +110,7 @@ test('分享页数据请求携带 scope 且进程请求携带主机 ID', () => {
   assert.match(hostSource, /useHostTopoTree\(nodeId, readonly\)/);
   assert.match(listSource, /resolveHostRequestScope\(options\.readonly, route\.query, selectedNode\.value\)/);
   assert.match(listSource, /getHostInfoList\(getRequestScope\(\)\)/);
-  assert.match(listSource, /getHostMetricInfoList\(\{[\s\S]*\.\.\.getRequestScope\(\)/);
+  assert.match(listSource, /getHostMetricInfoList\(getMetricQueryParams\(/);
+  assert.match(listSource, /hasScopedTarget \? \{ bk_host_ids: hostList\.map\(row => row\.bk_host_id\) \}/);
   assert.match(processSource, /bk_host_id: host\.bk_host_id/);
 });
