@@ -645,7 +645,6 @@ class DataLink(models.Model):
             "kind": "Clean",
             "rules": clean_rules,
             "filter_rules": option.filter_rules,
-            "context_map": {"use_default_value": "__parse_failure"},
         }
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):

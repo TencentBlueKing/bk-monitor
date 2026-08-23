@@ -3150,7 +3150,7 @@ class CustomFormatV4DataLinkOption(pydantic.BaseModel):
 
     target_storage_type: Literal["victoria_metrics", "elasticsearch", "doris"]
     clean_rules: list[CleanRule] = pydantic.Field(min_length=1, description="清洗规则")
-    filter_rules: list[dict[str, Any]] = pydantic.Field(default_factory=list, description="过滤规则")
+    filter_rules: str | dict[str, Any] = pydantic.Field(default="True", description="BKBase RelExpr 过滤规则")
     es_storage_config: ESStorageConfig | None = None
     doris_storage_config: DorisStorageConfig | None = None
 

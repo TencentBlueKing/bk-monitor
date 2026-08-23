@@ -109,7 +109,7 @@ def custom_format_records():
             {
                 "target_storage_type": models.ClusterInfo.TYPE_VM,
                 "clean_rules": _clean_rules(),
-                "filter_rules": [],
+                "filter_rules": "True",
             }
         ),
         value_type=models.ResultTableOption.TYPE_STRING,
@@ -140,6 +140,36 @@ def test_custom_format_option_requires_target_storage_config():
         CustomFormatV4DataLinkOption(
             target_storage_type=models.ClusterInfo.TYPE_ES,
             clean_rules=_clean_rules(),
+        )
+
+
+def test_custom_format_option_uses_bkbase_filter_rule_format():
+    option = CustomFormatV4DataLinkOption(
+        target_storage_type=models.ClusterInfo.TYPE_VM,
+        clean_rules=_clean_rules(),
+    )
+    assert option.filter_rules == "True"
+
+    filter_rule = {
+        "BinOp": {
+            "Eq": {
+                "lval": {"Field": "env"},
+                "rval": {"Const": "prod"},
+            }
+        }
+    }
+    option = CustomFormatV4DataLinkOption(
+        target_storage_type=models.ClusterInfo.TYPE_VM,
+        clean_rules=_clean_rules(),
+        filter_rules=filter_rule,
+    )
+    assert option.filter_rules == filter_rule
+
+    with pytest.raises(pydantic.ValidationError, match="filter_rules"):
+        CustomFormatV4DataLinkOption(
+            target_storage_type=models.ClusterInfo.TYPE_VM,
+            clean_rules=_clean_rules(),
+            filter_rules=[],
         )
 
 
@@ -204,6 +234,8 @@ def test_compose_custom_format_vm_has_two_databuses(custom_format_records):
     assert clean["spec"]["sources"][0]["kind"] == "DataId"
     assert clean["spec"]["sinks"][0]["kind"] == "ChannelBinding"
     assert clean["spec"]["transforms"][0]["kind"] == "Clean"
+    assert clean["spec"]["transforms"][0]["filter_rules"] == "True"
+    assert "context_map" not in clean["spec"]["transforms"][0]
     assert shipper["spec"]["sources"][0]["kind"] == "ResultTable"
     assert shipper["spec"]["sinks"][0]["kind"] == "VmStorageBinding"
     assert shipper["spec"]["transforms"] == [
@@ -447,7 +479,7 @@ def test_compose_custom_format_log_storage_is_direct(custom_format_records, targ
         }
     ]
     option.value = json.dumps(
-        {"target_storage_type": target, "clean_rules": clean_rules, "filter_rules": [], **storage_config}
+        {"target_storage_type": target, "clean_rules": clean_rules, "filter_rules": "True", **storage_config}
     )
     option.save(update_fields=["value"])
 
@@ -638,7 +670,7 @@ def test_custom_format_influxdb_result_table_rejects_non_vm_target(custom_format
         {
             "target_storage_type": models.ClusterInfo.TYPE_ES,
             "clean_rules": _clean_rules(),
-            "filter_rules": [],
+            "filter_rules": "True",
             "es_storage_config": {"unique_field_list": [], "json_field_list": [], "timezone": 0},
         }
     )
@@ -683,7 +715,7 @@ def test_custom_format_time_series_group_uses_vm_and_preserves_fixed_tables(mock
             models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK: {
                 "target_storage_type": models.ClusterInfo.TYPE_VM,
                 "clean_rules": _clean_rules(),
-                "filter_rules": [],
+                "filter_rules": "True",
             },
         },
         is_sync_db=False,
@@ -819,7 +851,7 @@ def test_custom_format_time_series_group_rejects_non_vm_target(custom_format_rec
                 models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK: {
                     "target_storage_type": models.ClusterInfo.TYPE_ES,
                     "clean_rules": _clean_rules(),
-                    "filter_rules": [],
+                    "filter_rules": "True",
                     "es_storage_config": {
                         "unique_field_list": [],
                         "json_field_list": [],
@@ -941,7 +973,7 @@ def test_custom_format_apply_failure_records_component_error(mocker, custom_form
         {
             "target_storage_type": models.ClusterInfo.TYPE_ES,
             "clean_rules": _clean_rules(),
-            "filter_rules": [],
+            "filter_rules": "True",
             "es_storage_config": {"unique_field_list": [], "json_field_list": [], "timezone": 0},
         }
     )
@@ -986,7 +1018,7 @@ def test_custom_format_missing_storage_keeps_failed_expected_state(custom_format
         {
             "target_storage_type": models.ClusterInfo.TYPE_ES,
             "clean_rules": _clean_rules(),
-            "filter_rules": [],
+            "filter_rules": "True",
             "es_storage_config": {"unique_field_list": [], "json_field_list": [], "timezone": 0},
         }
     )
