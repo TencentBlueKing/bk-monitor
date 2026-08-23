@@ -89,6 +89,7 @@ def test_metric_migration_function_registered():
 
     assert detail is not None
     assert "pagination_mode" in detail["params_schema"]
+    assert "scene_category / scene_categories" in detail["params_schema"]
 
 
 def test_metric_migration_list_filters_scope_and_loads_overlapping_categories():
@@ -279,6 +280,39 @@ def test_metric_migration_maps_shared_process_and_missing_space():
     assert item["plugins"][0]["relation_kind"] == "shared_process"
     assert item["spaces"][0]["record_exists"] is False
     assert "SPACE_RECORD_MISSING" in {warning["code"] for warning in item["warnings"]}
+
+
+def test_metric_migration_maps_soft_deleted_script_plugin_case_insensitively():
+    _create_datasource(71109, data_name="script_uicheckfgd7")
+    _create_custom_group(71109, "script_uicheckfgd7.__default__", bk_biz_id=0)
+    plugin = CollectorPluginMeta.objects.create(
+        bk_tenant_id="system",
+        plugin_id="UICheckfgd7",
+        plugin_type="Script",
+        bk_biz_id=0,
+        tag="os",
+        label="other",
+    )
+    CollectorPluginMeta.origin_objects.filter(pk=plugin.pk).update(is_deleted=True)
+
+    response = list_metric_migration_datasources(
+        {
+            "bk_tenant_id": "system",
+            "plugin_id": "UICheckfgd7",
+            "scene_categories": ["plugin_metric"],
+            "page": 1,
+            "page_size": 20,
+            "include_summary": False,
+        }
+    )["data"]
+    item = response["items"][0]
+
+    assert response["total"] == 1
+    assert item["categories"] == ["custom_metric", "plugin_metric"]
+    assert item["plugins"][0]["plugin_id"] == "UICheckfgd7"
+    assert item["plugins"][0]["plugin_type"] == "Script"
+    assert item["plugins"][0]["is_deleted"] is True
+    assert "PLUGIN_DELETED" in {warning["code"] for warning in item["warnings"]}
 
 
 def test_metric_migration_cursor_honors_snapshot_upper_bound():
