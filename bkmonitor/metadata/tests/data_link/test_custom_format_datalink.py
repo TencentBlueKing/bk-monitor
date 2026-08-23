@@ -9,7 +9,6 @@ from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.result_table import CustomFormatV4DataLinkOption
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS, EtlConfigs
-from metadata.resources.custom_format_datalink import DebugCustomFormatDataLinkResource
 from metadata.task.datalink import apply_custom_format_datalink, compose_custom_format_data_link_name
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -440,8 +439,15 @@ def test_compose_custom_format_log_storage_is_direct(custom_format_records, targ
                 "flush_timeout": None,
             }
         }
+    clean_rules = [
+        {
+            "input_id": "item",
+            "output_id": "custom_output",
+            "operator": {"type": "assign", "output_type": "object"},
+        }
+    ]
     option.value = json.dumps(
-        {"target_storage_type": target, "clean_rules": _clean_rules(), "filter_rules": [], **storage_config}
+        {"target_storage_type": target, "clean_rules": clean_rules, "filter_rules": [], **storage_config}
     )
     option.save(update_fields=["value"])
 
@@ -456,9 +462,10 @@ def test_compose_custom_format_log_storage_is_direct(custom_format_records, targ
     assert databus["spec"]["sources"][0]["kind"] == "DataId"
     assert databus["spec"]["sinks"][0]["kind"] == binding_kind
     assert databus["spec"]["transforms"][0]["kind"] == "Clean"
+    assert databus["spec"]["transforms"][0]["rules"] == clean_rules
 
 
-def test_custom_format_vm_contract_rejects_missing_time_field(custom_format_records):
+def test_custom_format_vm_does_not_validate_clean_contract(custom_format_records):
     data_source, result_table, data_link = custom_format_records
     option = models.ResultTableOption.objects.get(
         bk_tenant_id="system",
@@ -466,85 +473,33 @@ def test_custom_format_vm_contract_rejects_missing_time_field(custom_format_reco
         name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
     )
     payload = json.loads(option.value)
-    payload["clean_rules"][-1]["operator"].pop("is_time_field")
+    payload["clean_rules"] = [
+        {
+            "input_id": "item",
+            "output_id": "custom_output",
+            "operator": {"type": "assign", "output_type": "object"},
+        }
+    ]
     option.value = json.dumps(payload)
     option.save(update_fields=["value"])
 
-    with pytest.raises(ValueError, match="is_time_field=true"):
-        data_link.compose_custom_format_configs(
-            bk_biz_id=2,
-            data_source=data_source,
-            table_id=result_table.table_id,
-            storage_cluster_name="vm-cluster",
-            inner_kafka_channel_name="kafka-inner",
-        )
-
-
-@pytest.mark.parametrize(
-    ("case", "error"),
-    [
-        ("missing", "缺少最终输出字段: value"),
-        ("wrong_type", "字段 value 类型必须为 double"),
-        ("extra", "包含额外最终输出字段: extra"),
-        ("missing_time_format", "time 字段必须配置有效的 time_format"),
-    ],
-)
-def test_custom_format_vm_contract_is_strict(custom_format_records, case, error):
-    data_source, result_table, data_link = custom_format_records
-    option = models.ResultTableOption.objects.get(
-        bk_tenant_id="system",
+    configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
         table_id=result_table.table_id,
-        name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
     )
-    payload = json.loads(option.value)
-    if case == "missing":
-        payload["clean_rules"] = [rule for rule in payload["clean_rules"] if rule["output_id"] != "value"]
-    elif case == "wrong_type":
-        payload["clean_rules"][1]["operator"]["output_type"] = "long"
-    elif case == "extra":
-        payload["clean_rules"].append(
-            {"input_id": "item", "output_id": "extra", "operator": {"type": "assign", "output_type": "string"}}
-        )
-    else:
-        payload["clean_rules"][-1]["operator"].pop("time_format")
-    option.value = json.dumps(payload)
-    option.save(update_fields=["value"])
 
-    with pytest.raises(ValueError, match=error):
-        data_link.compose_custom_format_configs(
-            bk_biz_id=2,
-            data_source=data_source,
-            table_id=result_table.table_id,
-            storage_cluster_name="vm-cluster",
-            inner_kafka_channel_name="kafka-inner",
-        )
-
-
-def test_custom_format_vm_validates_contract_before_whitelist(custom_format_records):
-    data_source, result_table, data_link = custom_format_records
-    models.ResultTableField.objects.filter(
-        bk_tenant_id="system",
-        table_id=result_table.table_id,
-        tag=models.ResultTableField.FIELD_TAG_METRIC,
-    ).delete()
-    option = models.ResultTableOption.objects.get(
-        bk_tenant_id="system",
-        table_id=result_table.table_id,
-        name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
-    )
-    payload = json.loads(option.value)
-    payload["clean_rules"] = [rule for rule in payload["clean_rules"] if rule["output_id"] != "value"]
-    option.value = json.dumps(payload)
-    option.save(update_fields=["value"])
-
-    with pytest.raises(ValueError, match="缺少最终输出字段: value"):
-        data_link.compose_custom_format_configs(
-            bk_biz_id=2,
-            data_source=data_source,
-            table_id=result_table.table_id,
-            storage_cluster_name="vm-cluster",
-            inner_kafka_channel_name="kafka-inner",
-        )
+    result_table_config = configs[0]
+    assert [field["field_name"] for field in result_table_config["spec"]["fields"]] == [
+        "metric",
+        "value",
+        "dimensions",
+        "time",
+    ]
+    clean = next(config for config in configs if config["metadata"]["name"] == f"{data_link.data_link_name}_clean")
+    assert clean["spec"]["transforms"][0]["rules"] == payload["clean_rules"]
 
 
 def test_custom_format_clean_rule_update_keeps_internal_resources_stable(custom_format_records):
@@ -1052,27 +1007,3 @@ def test_custom_format_missing_storage_keeps_failed_expected_state(custom_format
     assert models.DataLink.objects.filter(data_link_name=data_link_name).exists()
     record = models.BkBaseResultTable.objects.get(data_link_name=data_link_name)
     assert record.status == DataLinkResourceStatus.FAILED.value
-
-
-def test_custom_format_debug_returns_rule_and_contract_errors(mocker, custom_format_records):
-    _, result_table, _ = custom_format_records
-    rules = _clean_rules()
-    rules[-1]["operator"].pop("is_time_field")
-    debug = mocker.patch(
-        "metadata.resources.custom_format_datalink.api.bkdata.data_bus_clean_debug",
-        return_value={"rules_output": [{"status": "Failed", "error": "timestamp invalid"}]},
-    )
-
-    result = DebugCustomFormatDataLinkResource().perform_request(
-        {
-            "bk_tenant_id": "system",
-            "table_id": result_table.table_id,
-            "input": "{}",
-            "clean_rules": rules,
-            "filter_rules": [],
-        }
-    )
-
-    debug.assert_called_once_with(input="{}", rules=rules, filter_rules=[])
-    assert result["rule_errors"][0]["error"] == "timestamp invalid"
-    assert "is_time_field=true" in result["contract_errors"][0]

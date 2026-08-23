@@ -600,84 +600,6 @@ class DataLink(models.Model):
             for index, (field_name, field_type) in enumerate(CUSTOM_FORMAT_VM_INTERMEDIATE_FIELDS)
         ]
 
-    @staticmethod
-    def _validate_custom_format_contract(
-        fields: list[dict[str, Any]] | None,
-        clean_rules: list[dict[str, Any]],
-        *,
-        require_vm_contract: bool,
-    ) -> None:
-        """静态校验 ResultTable 字段与 Clean 规则的最终输出契约。"""
-        builtin_fields = {"dteventtime", "dteventtimestamp"}
-        rule_outputs: dict[str, str | None] = {}
-        for rule in clean_rules:
-            output_id = rule.get("output_id")
-            operator = rule.get("operator") or {}
-            if output_id:
-                rule_outputs[output_id] = operator.get("output_type")
-
-        if require_vm_contract:
-            expected_outputs = dict(CUSTOM_FORMAT_VM_INTERMEDIATE_FIELDS)
-            assign_outputs = {
-                rule.get("output_id"): (rule.get("operator") or {}).get("output_type")
-                for rule in clean_rules
-                if (rule.get("operator") or {}).get("type") == "assign" and rule.get("output_id")
-            }
-            errors: list[str] = []
-            missing_outputs = sorted(set(expected_outputs) - set(assign_outputs))
-            unexpected_outputs = sorted(set(assign_outputs) - set(expected_outputs))
-            if missing_outputs:
-                errors.append(f"VM Clean 缺少最终输出字段: {','.join(missing_outputs)}")
-            if unexpected_outputs:
-                errors.append(f"VM Clean 包含额外最终输出字段: {','.join(unexpected_outputs)}")
-            for field_name, expected_type in expected_outputs.items():
-                output_type = assign_outputs.get(field_name)
-                if output_type is not None and output_type != expected_type:
-                    errors.append(f"VM Clean 字段 {field_name} 类型必须为 {expected_type}, 实际为 {output_type}")
-
-            time_operator = next(
-                (
-                    rule.get("operator") or {}
-                    for rule in clean_rules
-                    if rule.get("output_id") == "time" and (rule.get("operator") or {}).get("type") == "assign"
-                ),
-                {},
-            )
-            if time_operator.get("is_time_field") is not True:
-                errors.append("VM Clean 的 time 字段必须配置 is_time_field=true")
-            if not time_operator.get("time_format"):
-                errors.append("VM Clean 的 time 字段必须配置有效的 time_format")
-            if errors:
-                raise ValueError("自定义格式字段契约校验失败: " + "; ".join(errors))
-            return
-
-        type_aliases = {
-            "string": {"string"},
-            "text": {"text"},
-            "double": {"double", "float"},
-            "float": {"double", "float"},
-            "long": {"long", "int", "integer", "timestamp"},
-            "int": {"long", "int", "integer"},
-            "timestamp": {"long", "timestamp"},
-            "object": {"dict", "object"},
-        }
-        errors: list[str] = []
-        field_types = {field["field_name"]: field["field_type"] for field in fields or []}
-        for field_name, field_type in field_types.items():
-            if field_name.lower() in builtin_fields:
-                continue
-            if field_name not in rule_outputs:
-                errors.append(f"字段 {field_name} 没有对应的 Clean 输出")
-                continue
-            output_type = rule_outputs[field_name]
-            if not output_type:
-                errors.append(f"字段 {field_name} 的 Clean 输出缺少 output_type")
-            elif output_type not in type_aliases.get(field_type, {field_type}):
-                errors.append(f"字段 {field_name} 类型不匹配: ResultTable={field_type}, Clean={output_type}")
-
-        if errors:
-            raise ValueError("自定义格式字段契约校验失败: " + "; ".join(errors))
-
     def compose_custom_format_configs(
         self,
         bk_biz_id: int,
@@ -713,11 +635,6 @@ class DataLink(models.Model):
             fields = self._compose_custom_format_vm_intermediate_fields()
         else:
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
-        self._validate_custom_format_contract(
-            fields,
-            clean_rules,
-            require_vm_contract=option.target_storage_type == ClusterInfo.TYPE_VM,
-        )
         vm_whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None
         if option.target_storage_type == ClusterInfo.TYPE_VM:
             vm_whitelist = self._compose_custom_format_vm_whitelist(table_id)
