@@ -657,6 +657,56 @@ def test_custom_format_influxdb_result_table_can_target_vm(mocker, custom_format
     apply_custom_format.assert_called_once_with(bk_tenant_id="system", table_id=result_table.table_id)
 
 
+def test_apply_custom_format_datalink_accepts_influxdb_vm_target(mocker, custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    result_table.default_storage = models.ClusterInfo.TYPE_INFLUXDB
+    result_table.save(update_fields=["default_storage"])
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK,
+        value=json.dumps(True),
+        value_type=models.ResultTableOption.TYPE_BOOL,
+        creator="system",
+    )
+    vm_cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=527772,
+        cluster_name="custom-vm",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+        port=8428,
+        description="",
+        is_default_cluster=False,
+    )
+    models.BkBaseResultTable.objects.create(
+        bk_tenant_id="system",
+        data_link_name=data_link.data_link_name,
+        monitor_table_id=result_table.table_id,
+        bkbase_data_name="bkm_custom_format_source",
+        bkbase_table_id=f"2_{data_link.data_link_name}",
+        bkbase_rt_name=data_link.data_link_name,
+        storage_type=models.ClusterInfo.TYPE_VM,
+        storage_cluster_id=vm_cluster.cluster_id,
+        status=DataLinkResourceStatus.OK.value,
+    )
+    mocker.patch(
+        "metadata.task.datalink._resolve_custom_format_vm_dependencies",
+        return_value=(vm_cluster, "kafka-inner"),
+    )
+    apply_data_link = mocker.patch.object(DataLink, "apply_data_link")
+    mocker.patch.object(DataLink, "sync_metadata")
+
+    apply_custom_format_datalink(bk_tenant_id="system", table_id=result_table.table_id)
+
+    apply_data_link.assert_called_once()
+    assert models.AccessVMRecord.objects.filter(
+        bk_tenant_id="system",
+        result_table_id=result_table.table_id,
+        vm_cluster_id=vm_cluster.cluster_id,
+    ).exists()
+
+
 def test_custom_format_influxdb_result_table_rejects_non_vm_target(custom_format_records):
     _, result_table, _ = custom_format_records
     result_table.default_storage = models.ClusterInfo.TYPE_INFLUXDB

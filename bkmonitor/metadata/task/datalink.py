@@ -119,7 +119,10 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
         name=ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
     )
     option = CustomFormatV4DataLinkOption.from_option_value(option_record.get_value())
-    if rt.default_storage != option.target_storage_type:
+    is_influxdb_vm_compatible = (
+        rt.default_storage == ClusterInfo.TYPE_INFLUXDB and option.target_storage_type == ClusterInfo.TYPE_VM
+    )
+    if rt.default_storage != option.target_storage_type and not is_influxdb_vm_compatible:
         raise ValueError(
             f"自定义格式 ResultTable({table_id}) default_storage({rt.default_storage}) "
             f"与 target_storage_type({option.target_storage_type}) 不一致"
