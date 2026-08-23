@@ -90,6 +90,7 @@ def test_metric_migration_function_registered():
     assert detail is not None
     assert "pagination_mode" in detail["params_schema"]
     assert "scene_category / scene_categories" in detail["params_schema"]
+    assert "metric_category / metric_categories" not in detail["params_schema"]
 
 
 def test_metric_migration_list_filters_scope_and_loads_overlapping_categories():

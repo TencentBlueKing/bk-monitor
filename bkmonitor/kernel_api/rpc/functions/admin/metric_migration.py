@@ -152,12 +152,7 @@ def _parse_optional_int(value: Any, field_name: str, *, minimum: int | None = No
 
 
 def _normalize_categories(params: dict[str, Any]) -> list[str]:
-    categories = list(
-        dict.fromkeys(
-            normalize_string_list_filter(params, "scene_category", "scene_categories")
-            + normalize_string_list_filter(params, "metric_category", "metric_categories")
-        )
-    )
+    categories = normalize_string_list_filter(params, "scene_category", "scene_categories")
     unsupported = set(categories) - METRIC_CATEGORIES
     if unsupported:
         raise CustomException(message=f"不支持的场景分类: {', '.join(sorted(unsupported))}")
@@ -780,7 +775,6 @@ def _build_summary(queryset: Any, bk_tenant_id: str | None) -> dict[str, int]:
         "plugin_id": "可选，插件 ID 包含匹配",
         "bcs_cluster_id": "可选，BCS 集群 ID 包含匹配",
         "scene_category / scene_categories": "可选，场景分类：custom_metric/plugin_metric/bcs_metric/other_metric",
-        "metric_category / metric_categories": "兼容旧参数，语义同 scene_category / scene_categories",
         "pagination_mode": "page 或 cursor；默认 page",
         "page / page_size": "page 模式分页；page_size 最大 100",
         "cursor": "cursor 模式上一批最后一个 bk_data_id，首次传 0",
