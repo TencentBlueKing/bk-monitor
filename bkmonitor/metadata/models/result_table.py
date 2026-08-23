@@ -649,7 +649,11 @@ class ResultTable(models.Model):
             custom_option = CustomFormatV4DataLinkOption.from_option_value(
                 options[ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK]
             )
-            if self.default_storage != custom_option.target_storage_type:
+            is_influxdb_vm_compatible = (
+                self.default_storage == ClusterInfo.TYPE_INFLUXDB
+                and custom_option.target_storage_type == ClusterInfo.TYPE_VM
+            )
+            if self.default_storage != custom_option.target_storage_type and not is_influxdb_vm_compatible:
                 raise ValueError(_("自定义格式 ResultTable 的 default_storage 必须与 target_storage_type 一致"))
             if delay:
                 on_commit(

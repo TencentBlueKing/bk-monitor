@@ -74,6 +74,13 @@ DATABUS_MONITOR_LABEL_DATA_SCENE = f"{DATABUS_MONITOR_LABEL_PREFIX}data-scene"
 DATABUS_MONITOR_LABEL_DATA_TYPE = f"{DATABUS_MONITOR_LABEL_PREFIX}data-type"
 DATABUS_MONITOR_LABEL_OTHER = "other"
 
+CUSTOM_FORMAT_VM_INTERMEDIATE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("metric", "string"),
+    ("value", "double"),
+    ("dimensions", "text"),
+    ("time", "long"),
+)
+
 DATABUS_MONITOR_SPACE_TYPES = {
     SpaceTypes.BKCC.value,
     SpaceTypes.BKCI.value,
@@ -579,61 +586,19 @@ class DataLink(models.Model):
         return method(*args, **kwargs)
 
     @staticmethod
-    def _validate_custom_format_contract(
-        fields: list[dict[str, Any]], clean_rules: list[dict[str, Any]], *, require_vm_contract: bool
-    ) -> None:
-        """静态校验 ResultTable 字段与 Clean 规则的最终输出契约。"""
-        builtin_fields = {"dteventtime", "dteventtimestamp"}
-        rule_outputs: dict[str, str | None] = {}
-        time_rules: list[tuple[str | None, dict[str, Any]]] = []
-        for rule in clean_rules:
-            output_id = rule.get("output_id")
-            operator = rule.get("operator") or {}
-            if output_id:
-                rule_outputs[output_id] = operator.get("output_type")
-            if operator.get("is_time_field"):
-                time_rules.append((output_id, operator))
+    def _compose_custom_format_vm_intermediate_fields() -> list[dict[str, Any]]:
+        """按固定四元组生成自定义指标内部 ResultTable 字段。"""
 
-        type_aliases = {
-            "string": {"string"},
-            "text": {"text"},
-            "double": {"double", "float"},
-            "float": {"double", "float"},
-            "long": {"long", "int", "integer", "timestamp"},
-            "int": {"long", "int", "integer"},
-            "timestamp": {"long", "timestamp"},
-            "object": {"dict", "object"},
-        }
-        errors: list[str] = []
-        field_types = {field["field_name"]: field["field_type"] for field in fields}
-        for field_name, field_type in field_types.items():
-            if field_name.lower() in builtin_fields:
-                continue
-            if field_name not in rule_outputs:
-                errors.append(f"字段 {field_name} 没有对应的 Clean 输出")
-                continue
-            output_type = rule_outputs[field_name]
-            if not output_type:
-                errors.append(f"字段 {field_name} 的 Clean 输出缺少 output_type")
-            elif output_type not in type_aliases.get(field_type, {field_type}):
-                errors.append(f"字段 {field_name} 类型不匹配: ResultTable={field_type}, Clean={output_type}")
-
-        if require_vm_contract:
-            required = {"metric": "string", "value": "double", "dimensions": "text"}
-            for field_name, required_type in required.items():
-                if field_name not in field_types:
-                    errors.append(f"VM ResultTable 缺少字段 {field_name}")
-                elif field_types[field_name] != required_type:
-                    errors.append(f"VM 字段 {field_name} 类型必须为 {required_type}")
-            if not time_rules:
-                errors.append("VM Clean 规则必须包含 is_time_field=true 的时间字段")
-            elif not any(
-                output_id in field_types and operator.get("time_format") for output_id, operator in time_rules
-            ):
-                errors.append("VM 时间字段必须属于 ResultTable 且配置有效的 time_format")
-
-        if errors:
-            raise ValueError("自定义格式字段契约校验失败: " + "; ".join(errors))
+        return [
+            {
+                "field_name": field_name,
+                "field_alias": field_name,
+                "field_type": field_type,
+                "is_dimension": False,
+                "field_index": index,
+            }
+            for index, (field_name, field_type) in enumerate(CUSTOM_FORMAT_VM_INTERMEDIATE_FIELDS)
+        ]
 
     def compose_custom_format_configs(
         self,
@@ -665,13 +630,14 @@ class DataLink(models.Model):
                 f"strategy={self.data_link_strategy}"
             )
 
-        fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
         clean_rules = [rule.model_dump() for rule in option.clean_rules]
-        self._validate_custom_format_contract(
-            fields,
-            clean_rules,
-            require_vm_contract=option.target_storage_type == ClusterInfo.TYPE_VM,
-        )
+        if option.target_storage_type == ClusterInfo.TYPE_VM:
+            fields = self._compose_custom_format_vm_intermediate_fields()
+        else:
+            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+        vm_whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None
+        if option.target_storage_type == ClusterInfo.TYPE_VM:
+            vm_whitelist = self._compose_custom_format_vm_whitelist(table_id)
         data_id_name = utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
         clean_name = f"{self.data_link_name}_clean"
         clean_consumer_group = consumer_group or f"bkmonitor_{self.data_link_name}_clean"
@@ -786,7 +752,12 @@ class DataLink(models.Model):
                     "name": channel_binding.name,
                     "namespace": self.namespace,
                 }
-                configs.extend([channel_binding.compose_config(), vm_binding.compose_config(rt_name=result_table.name)])
+                configs.extend(
+                    [
+                        channel_binding.compose_config(),
+                        vm_binding.compose_config(whitelist=vm_whitelist, rt_name=result_table.name),
+                    ]
+                )
 
                 shipper_name = f"{self.data_link_name}_shipper"
                 shipper, _ = DataBusConfig.objects.update_or_create(
@@ -2273,7 +2244,9 @@ class DataLink(models.Model):
             consumer_group=consumer_group,
         )
 
-    def _compose_time_series_field_whitelist(self, table_id: str) -> dict[Literal["metrics", "tags"], list[str]] | None:
+    def _compose_time_series_field_whitelist(
+        self, table_id: str, *, force: bool = False
+    ) -> dict[Literal["metrics", "tags"], list[str]] | None:
         """组装采集插件时序结果表的指标/维度白名单。
 
         仅当结果表显式关闭字段黑名单（``enable_field_black_list == "false"`` 即启用白名单模式）时
@@ -2289,6 +2262,7 @@ class DataLink(models.Model):
 
         Args:
             table_id: 监控侧结果表 ID。
+            force: 是否忽略结果表选项并强制生成白名单。
 
         Returns:
             白名单字典 ``{"metrics": [...], "tags": [...]}``；非白名单模式时返回 ``None``。
@@ -2298,7 +2272,7 @@ class DataLink(models.Model):
         option = ResultTableOption.objects.filter(
             table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
         ).first()
-        if not (option and option.value == "false"):
+        if not force and not (option and option.value == "false"):
             return None
 
         # 先汇总 TimeSeriesMetric 的活跃状态与维度信息。
@@ -2356,6 +2330,24 @@ class DataLink(models.Model):
                 tags.append(tag)
 
         return {"metrics": metrics, "tags": tags}
+
+    def _compose_custom_format_vm_whitelist(self, table_id: str) -> dict[Literal["metrics", "tags"], list[str]] | None:
+        """按最终指标配置决定自定义格式 VM 是否下发白名单。"""
+
+        from metadata.models import TimeSeriesGroup
+
+        time_series_group = TimeSeriesGroup.objects.filter(
+            table_id=table_id,
+            bk_tenant_id=self.bk_tenant_id,
+            is_delete=False,
+        ).first()
+        if time_series_group is not None and time_series_group.is_auto_discovery():
+            return None
+
+        whitelist = self._compose_time_series_field_whitelist(table_id, force=True)
+        if not whitelist or not whitelist["metrics"]:
+            raise ValueError(f"自定义格式固定指标 ResultTable({table_id}) 缺少有效指标字段")
+        return whitelist
 
     def compose_bk_plugin_time_series_config(
         self,
