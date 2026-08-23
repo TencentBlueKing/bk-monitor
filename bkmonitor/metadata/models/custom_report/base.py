@@ -13,12 +13,10 @@ import uuid
 
 from typing import Any, ClassVar, Self
 
-from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
-from bkmonitor.utils.request import get_request_username
 from metadata import config
 from metadata.models.common import Label
 from metadata.models.data_source import DataSourceOption, DataSourceResultTable
@@ -100,9 +98,10 @@ class CustomGroupBase(models.Model):
         """
         # 如果结果表存在，则先修改结果表的启用状态
         for table in ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id):
-            table.modify(operator=get_request_username(settings.COMMON_USERNAME), is_enable=False)
+            table.modify(operator=self.last_modify_user, is_enable=False)
+            table.is_enable = False
             table.is_deleted = True
-            table.save()
+            table.save(update_fields=["is_enable", "is_deleted", "last_modify_time"])
         logger.info("group->[%s] table->[%s] is disabled now.", self.custom_group_name, self.table_id)
 
     @classmethod
@@ -207,6 +206,8 @@ class CustomGroupBase(models.Model):
         is_split_measurement=False,
         is_need_deploy_collector_config: bool = True,
         default_storage_config=None,
+        result_table_storage: str | None = None,
+        preserve_datasource_result_tables: bool = False,
         additional_options: dict | None = None,
         data_label: str | None = None,
         bk_biz_id_alias: str | None = None,
@@ -226,6 +227,8 @@ class CustomGroupBase(models.Model):
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
         :param default_storage_config: 默认存储的配置
+        :param result_table_storage: 覆盖自定义组默认的结果表存储类型
+        :param preserve_datasource_result_tables: 是否保留 DataSource 已有关联结果表
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
@@ -284,20 +287,19 @@ class CustomGroupBase(models.Model):
         # 如果是自动分表逻辑，则该表为默认路由表，
         # 如果是旧版自定义上报逻辑，则该表作为该dataid的唯一写入表
 
-        if default_storage_config is not None:
+        result_table_storage = result_table_storage or cls.DEFAULT_STORAGE
+        default_storage_config = dict(default_storage_config or {})
+        if result_table_storage == cls.DEFAULT_STORAGE:
             default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
-        else:
-            default_storage_config = cls.DEFAULT_STORAGE_CONFIG
 
         cls.process_default_storage_config(custom_group, default_storage_config)
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})
 
-        # 4. 清除历史 DataSourceResultTable 数据
-        # 这里无需添加租户过滤条件,因为bk_data_id全局唯一,除1001外不存在跨租户场景
-        if DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).exists():
-            DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).delete()
+        # 4. 旧版自定义组保持 DataSource 单结果表语义；允许复用 DataSource 的场景由调用方显式保留历史关系。
+        if not preserve_datasource_result_tables:
+            DataSourceResultTable.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).delete()
 
         ResultTable.create_result_table(
             bk_data_id=custom_group.bk_data_id,
@@ -307,7 +309,7 @@ class CustomGroupBase(models.Model):
             is_custom_table=True,
             schema_type=ResultTable.SCHEMA_TYPE_FREE,
             operator=operator,
-            default_storage=cls.DEFAULT_STORAGE,
+            default_storage=result_table_storage,
             default_storage_config=default_storage_config,
             field_list=cls.STORAGE_FIELD_LIST,
             is_builtin=is_builtin,

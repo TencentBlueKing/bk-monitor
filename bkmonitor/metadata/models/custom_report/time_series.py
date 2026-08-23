@@ -40,10 +40,11 @@ from metadata.models.constants import (
 )
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import (
-    ResultTable,
+    CustomFormatV4DataLinkOption,
     ResultTableField,
     ResultTableOption,
 )
+from metadata.models.space.constants import EtlConfigs
 from metadata.models.storage import ClusterInfo
 from metadata.utils.db import filter_model_by_in_page
 from metadata.utils.redis_tools import RedisTools
@@ -794,11 +795,29 @@ class TimeSeriesGroup(CustomGroupBase):
         :param is_sync_db: 是否在创建 ResultTable 后立即下发数据链路
         :return: group object
         """
+        additional_options = dict(additional_options or {})
+
         # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
         if metric_group_dimensions is not None:
-            if additional_options is None:
-                additional_options = {}
             additional_options["metric_group_dimensions"] = metric_group_dimensions
+
+        data_source = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+        is_custom_format = data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
+        result_table_storage = None
+        preserve_datasource_result_tables = False
+        if is_custom_format:
+            if additional_options.get(ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK) is not True:
+                raise ValueError(_("自定义格式 TimeSeriesGroup 必须开启自定义格式 V4 数据链路"))
+            custom_format_config = additional_options.get(ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK)
+            if custom_format_config is None:
+                raise ValueError(_("自定义格式 TimeSeriesGroup 缺少 custom_format_v4_data_link 配置"))
+            custom_format_option = CustomFormatV4DataLinkOption.from_option_value(custom_format_config)
+            if custom_format_option.target_storage_type != ClusterInfo.TYPE_VM:
+                raise ValueError(_("自定义格式 TimeSeriesGroup 仅支持 victoria_metrics 目标存储"))
+
+            additional_options.setdefault(ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST, True)
+            result_table_storage = ClusterInfo.TYPE_VM
+            preserve_datasource_result_tables = True
 
         custom_group = super().create_custom_group(
             bk_data_id=bk_data_id,
@@ -812,6 +831,8 @@ class TimeSeriesGroup(CustomGroupBase):
             is_split_measurement=is_split_measurement,
             is_need_deploy_collector_config=is_need_deploy_collector_config,
             default_storage_config=default_storage_config,
+            result_table_storage=result_table_storage,
+            preserve_datasource_result_tables=preserve_datasource_result_tables,
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
@@ -823,10 +844,9 @@ class TimeSeriesGroup(CustomGroupBase):
             custom_group.metric_group_dimensions = metric_group_dimensions
             custom_group.save(update_fields=["metric_group_dimensions"])
 
-        # 需要刷新一次外部依赖的consul，触发transfer更新
-        from metadata.models import DataSource
-
-        DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
+        # 自定义格式由 BKBase V4 DataLink 消费，不重新写入旧 Transfer/Consul 配置。
+        if not is_custom_format:
+            data_source.refresh_consul_config()
 
         return custom_group
 
@@ -1185,54 +1205,6 @@ class TimeSeriesGroup(CustomGroupBase):
             metric_info_list.append(metric_info)
 
         return metric_info_list
-
-    def set_table_id_disable(self):
-        """
-        将相关的结果表都设置为已经废弃
-        1. 对于公共结果表的，直接设置公共结果表废弃使用
-        2. 对于拆分结果表的，需要遍历相关的所有metric，将每个结果表逐一设置为废弃使用
-        :return: True | False
-        """
-        # 1. 判断是否公共结果表
-        if not self.is_split_measurement:
-            # 公共结果表，直接设置即可
-            ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).update(
-                is_deleted=True, is_enable=False
-            )
-            logger.info(
-                "ts group->[%s] table_id->[%s] of bk_tenant_id->[%s] is set to disabled now.",
-                self.custom_group_name,
-                self.table_id,
-                self.bk_tenant_id,
-            )
-
-            return True
-
-        # 2. 拆分结果表的，先遍历所有的metric
-        # TODO 这里需要调整,因为实际拆分结果表也不会生成新的table_id了，对应的应该在TimeSeriesMetric上增加状态位
-
-        logger.info("ts group->[%s] is split measurement will disable all tables.", self.custom_group_name)
-        for metric_group in TimeSeriesMetric.objects.filter(group_id=self.custom_group_id):
-            # 2.1 每个metric拼接出结果表名
-            table_id = self.make_metric_table_id(metric_group.field_name)
-            # 2.2 设置该结果表启用
-            ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).update(
-                is_deleted=True, is_enable=False
-            )
-
-            logger.info(
-                "ts group->[%s] of bk_tenant_id->[%s]per table_id->[%s] is set to disabled now.",
-                self.custom_group_name,
-                self.bk_tenant_id,
-                table_id,
-            )
-
-        logger.info(
-            "ts group->[%s] of bk_tenant_id->[%s] all table_id is set to disabled now.",
-            self.custom_group_name,
-            self.bk_tenant_id,
-        )
-        return True
 
 
 class TimeSeriesScope(models.Model):

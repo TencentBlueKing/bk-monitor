@@ -37,6 +37,21 @@ def _clean_rules():
     ]
 
 
+def _replace_result_table_fields(table_id, fields):
+    models.ResultTableField.objects.filter(bk_tenant_id="system", table_id=table_id).delete()
+    for field_name, field_type, tag in fields:
+        models.ResultTableField.objects.create(
+            bk_tenant_id="system",
+            table_id=table_id,
+            field_name=field_name,
+            field_type=field_type,
+            tag=tag,
+            is_config_by_user=True,
+            creator="system",
+            last_modify_user="system",
+        )
+
+
 @pytest.fixture
 def custom_format_records():
     table_id = "custom_format.metric"
@@ -65,22 +80,13 @@ def custom_format_records():
         table_id=table_id,
         creator="system",
     )
-    for field_name, field_type, tag in (
-        ("metric", "string", "dimension"),
-        ("value", "double", "metric"),
-        ("dimensions", "text", "dimension"),
-        ("time", "long", "timestamp"),
-    ):
-        models.ResultTableField.objects.create(
-            bk_tenant_id="system",
-            table_id=table_id,
-            field_name=field_name,
-            field_type=field_type,
-            tag=tag,
-            is_config_by_user=True,
-            creator="system",
-            last_modify_user="system",
-        )
+    _replace_result_table_fields(
+        table_id,
+        (
+            ("cpu_usage", "double", "metric"),
+            ("host", "string", "dimension"),
+        ),
+    )
     models.DataIdConfig.objects.create(
         bk_tenant_id="system",
         namespace="bkmonitor",
@@ -101,6 +107,14 @@ def custom_format_records():
             }
         ),
         value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+        value=json.dumps(False),
+        value_type=models.ResultTableOption.TYPE_BOOL,
         creator="system",
     )
     data_link_name = compose_custom_format_data_link_name("system", data_source.bk_data_id, table_id)
@@ -165,6 +179,19 @@ def test_compose_custom_format_vm_has_two_databuses(custom_format_records):
         "Databus",
         "Databus",
     ]
+    result_table_config = configs[0]
+    assert [(field["field_name"], field["field_type"]) for field in result_table_config["spec"]["fields"]] == [
+        ("metric", "string"),
+        ("value", "double"),
+        ("dimensions", "text"),
+        ("time", "long"),
+    ]
+    vm_binding = next(config for config in configs if config["kind"] == "VmStorageBinding")
+    assert vm_binding["spec"]["filter"] == {
+        "kind": "Whitelist",
+        "metrics": ["cpu_usage"],
+        "tags": ["host"],
+    }
     databuses = {config["metadata"]["name"]: config for config in configs if config["kind"] == "Databus"}
     clean = databuses[f"{data_link.data_link_name}_clean"]
     shipper = databuses[f"{data_link.data_link_name}_shipper"]
@@ -181,6 +208,169 @@ def test_compose_custom_format_vm_has_two_databuses(custom_format_records):
     assert len(set(databus_records.values_list("consumer_group", flat=True))) == 2
 
 
+def test_compose_custom_format_vm_auto_discovery_has_no_whitelist(custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    models.TimeSeriesGroup.objects.create(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        bk_biz_id=result_table.bk_biz_id,
+        table_id=result_table.table_id,
+        time_series_group_name="custom_format_auto",
+        label=result_table.label,
+        token="auto-token",
+        is_split_measurement=True,
+        creator="system",
+        last_modify_user="system",
+    )
+    enable_option = models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+    )
+    enable_option.value = json.dumps(True)
+    enable_option.save(update_fields=["value"])
+
+    initial_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+    models.ResultTableField.objects.create(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        field_name="request_total",
+        field_type="double",
+        tag="metric",
+        is_config_by_user=True,
+        creator="system",
+        last_modify_user="system",
+    )
+
+    configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+
+    initial_result_table_config = initial_configs[0]
+    result_table_config = configs[0]
+    expected_field_names = [
+        "metric",
+        "value",
+        "dimensions",
+        "time",
+    ]
+    assert [field["field_name"] for field in initial_result_table_config["spec"]["fields"]] == expected_field_names
+    assert [field["field_name"] for field in result_table_config["spec"]["fields"]] == expected_field_names
+    vm_binding = next(config for config in configs if config["kind"] == "VmStorageBinding")
+    assert vm_binding["spec"]["filter"] is None
+
+
+def test_compose_custom_format_vm_fixed_fields_update_whitelist(custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    initial_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+    _replace_result_table_fields(
+        result_table.table_id,
+        (
+            ("request_total", "double", "metric"),
+            ("service", "string", "dimension"),
+        ),
+    )
+
+    updated_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+
+    initial_binding = next(config for config in initial_configs if config["kind"] == "VmStorageBinding")
+    updated_binding = next(config for config in updated_configs if config["kind"] == "VmStorageBinding")
+    assert initial_binding["spec"]["filter"]["metrics"] == ["cpu_usage"]
+    assert updated_binding["spec"]["filter"] == {
+        "kind": "Whitelist",
+        "metrics": ["request_total"],
+        "tags": ["service"],
+    }
+
+
+def test_compose_custom_format_vm_time_series_group_can_switch_to_whitelist(custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    models.TimeSeriesGroup.objects.create(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        bk_biz_id=result_table.bk_biz_id,
+        table_id=result_table.table_id,
+        time_series_group_name="custom_format_auto",
+        label=result_table.label,
+        token="auto-token",
+        creator="system",
+        last_modify_user="system",
+    )
+    enable_option = models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+    )
+    enable_option.value = json.dumps(True)
+    enable_option.save(update_fields=["value"])
+    auto_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+
+    enable_option.value = json.dumps(False)
+    enable_option.save(update_fields=["value"])
+    whitelist_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+
+    auto_binding = next(config for config in auto_configs if config["kind"] == "VmStorageBinding")
+    whitelist_binding = next(config for config in whitelist_configs if config["kind"] == "VmStorageBinding")
+    assert auto_binding["spec"]["filter"] is None
+    assert whitelist_binding["spec"]["filter"] == {
+        "kind": "Whitelist",
+        "metrics": ["cpu_usage"],
+        "tags": ["host"],
+    }
+
+
+def test_compose_custom_format_vm_fixed_mode_requires_metric(custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    models.ResultTableField.objects.filter(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        tag=models.ResultTableField.FIELD_TAG_METRIC,
+    ).delete()
+
+    with pytest.raises(ValueError, match="缺少有效指标字段"):
+        data_link.compose_custom_format_configs(
+            bk_biz_id=2,
+            data_source=data_source,
+            table_id=result_table.table_id,
+            storage_cluster_name="vm-cluster",
+            inner_kafka_channel_name="kafka-inner",
+        )
+
+
 @pytest.mark.parametrize(
     ("target", "strategy", "binding_kind"),
     [
@@ -190,6 +380,15 @@ def test_compose_custom_format_vm_has_two_databuses(custom_format_records):
 )
 def test_compose_custom_format_log_storage_is_direct(custom_format_records, target, strategy, binding_kind):
     data_source, result_table, data_link = custom_format_records
+    _replace_result_table_fields(
+        result_table.table_id,
+        (
+            ("metric", "string", "dimension"),
+            ("value", "double", "metric"),
+            ("dimensions", "text", "dimension"),
+            ("time", "long", "timestamp"),
+        ),
+    )
     data_link.namespace = "bklog"
     data_link.data_link_strategy = strategy
     data_link.save(update_fields=["namespace", "data_link_strategy"])
@@ -274,6 +473,111 @@ def test_custom_format_vm_contract_rejects_missing_time_field(custom_format_reco
         )
 
 
+@pytest.mark.parametrize(
+    ("case", "error"),
+    [
+        ("missing", "缺少最终输出字段: value"),
+        ("wrong_type", "字段 value 类型必须为 double"),
+        ("extra", "包含额外最终输出字段: extra"),
+        ("missing_time_format", "time 字段必须配置有效的 time_format"),
+    ],
+)
+def test_custom_format_vm_contract_is_strict(custom_format_records, case, error):
+    data_source, result_table, data_link = custom_format_records
+    option = models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+    )
+    payload = json.loads(option.value)
+    if case == "missing":
+        payload["clean_rules"] = [rule for rule in payload["clean_rules"] if rule["output_id"] != "value"]
+    elif case == "wrong_type":
+        payload["clean_rules"][1]["operator"]["output_type"] = "long"
+    elif case == "extra":
+        payload["clean_rules"].append(
+            {"input_id": "item", "output_id": "extra", "operator": {"type": "assign", "output_type": "string"}}
+        )
+    else:
+        payload["clean_rules"][-1]["operator"].pop("time_format")
+    option.value = json.dumps(payload)
+    option.save(update_fields=["value"])
+
+    with pytest.raises(ValueError, match=error):
+        data_link.compose_custom_format_configs(
+            bk_biz_id=2,
+            data_source=data_source,
+            table_id=result_table.table_id,
+            storage_cluster_name="vm-cluster",
+            inner_kafka_channel_name="kafka-inner",
+        )
+
+
+def test_custom_format_vm_validates_contract_before_whitelist(custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    models.ResultTableField.objects.filter(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        tag=models.ResultTableField.FIELD_TAG_METRIC,
+    ).delete()
+    option = models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+    )
+    payload = json.loads(option.value)
+    payload["clean_rules"] = [rule for rule in payload["clean_rules"] if rule["output_id"] != "value"]
+    option.value = json.dumps(payload)
+    option.save(update_fields=["value"])
+
+    with pytest.raises(ValueError, match="缺少最终输出字段: value"):
+        data_link.compose_custom_format_configs(
+            bk_biz_id=2,
+            data_source=data_source,
+            table_id=result_table.table_id,
+            storage_cluster_name="vm-cluster",
+            inner_kafka_channel_name="kafka-inner",
+        )
+
+
+def test_custom_format_clean_rule_update_keeps_internal_resources_stable(custom_format_records):
+    data_source, result_table, data_link = custom_format_records
+    initial_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+    option = models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+    )
+    payload = json.loads(option.value)
+    payload["clean_rules"][0]["input_id"] = "renamed_metric_input"
+    option.value = json.dumps(payload)
+    option.save(update_fields=["value"])
+
+    updated_configs = data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+
+    assert {(config["kind"], config["metadata"]["name"]) for config in updated_configs} == {
+        (config["kind"], config["metadata"]["name"]) for config in initial_configs
+    }
+    assert [(field["field_name"], field["field_type"]) for field in updated_configs[0]["spec"]["fields"]] == [
+        ("metric", "string"),
+        ("value", "double"),
+        ("dimensions", "text"),
+        ("time", "long"),
+    ]
+
+
 def test_custom_format_disable_deletes_managed_components_only(mocker, custom_format_records):
     data_source, result_table, data_link = custom_format_records
     data_link.compose_custom_format_configs(
@@ -338,6 +642,140 @@ def test_custom_format_datasource_can_link_multiple_result_tables(mocker, custom
             bk_tenant_id="system", bk_data_id=data_source.bk_data_id
         ).values_list("table_id", flat=True)
     ) == {"custom_format.metric", "custom_format.second_metric"}
+
+
+def test_custom_format_time_series_group_uses_vm_and_preserves_fixed_tables(mocker, custom_format_records):
+    data_source, result_table, _ = custom_format_records
+    mocker.patch.object(
+        models.TimeSeriesGroup,
+        "pre_check",
+        return_value={"time_series_group_name": "custom_format_auto"},
+    )
+    mocker.patch.object(models.TimeSeriesGroup, "update_metrics")
+    mocker.patch("metadata.task.tasks.refresh_custom_report_config.delay")
+    refresh_consul = mocker.patch.object(models.DataSource, "refresh_consul_config")
+    create_result_table = mocker.spy(models.ResultTable, "create_result_table")
+
+    group = models.TimeSeriesGroup.create_time_series_group(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        bk_biz_id=result_table.bk_biz_id,
+        table_id="custom_format.auto",
+        time_series_group_name="custom_format_auto",
+        label=result_table.label,
+        operator="system",
+        metric_info_list=[],
+        additional_options={
+            models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST: True,
+            models.ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK: True,
+            models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK: {
+                "target_storage_type": models.ClusterInfo.TYPE_VM,
+                "clean_rules": _clean_rules(),
+                "filter_rules": [],
+            },
+        },
+        is_sync_db=False,
+    )
+
+    assert group.table_id == "custom_format.auto"
+    assert create_result_table.call_args.kwargs["default_storage"] == models.ClusterInfo.TYPE_VM
+    assert create_result_table.call_args.kwargs["default_storage_config"] == {}
+    auto_result_table = models.ResultTable.objects.get(bk_tenant_id="system", table_id=group.table_id)
+    assert auto_result_table.default_storage == models.ClusterInfo.TYPE_VM
+    assert models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=group.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+    ).get_value()
+    assert set(
+        models.DataSourceResultTable.objects.filter(
+            bk_tenant_id="system",
+            bk_data_id=data_source.bk_data_id,
+        ).values_list("table_id", flat=True)
+    ) == {result_table.table_id, group.table_id}
+    refresh_consul.assert_not_called()
+
+
+def test_custom_format_time_series_group_rejects_non_vm_target(custom_format_records):
+    data_source, result_table, _ = custom_format_records
+
+    with pytest.raises(ValueError, match="仅支持 victoria_metrics"):
+        models.TimeSeriesGroup.create_time_series_group(
+            bk_tenant_id="system",
+            bk_data_id=data_source.bk_data_id,
+            bk_biz_id=result_table.bk_biz_id,
+            table_id="custom_format.auto",
+            time_series_group_name="custom_format_auto",
+            label=result_table.label,
+            operator="system",
+            additional_options={
+                models.ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK: True,
+                models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK: {
+                    "target_storage_type": models.ClusterInfo.TYPE_ES,
+                    "clean_rules": _clean_rules(),
+                    "filter_rules": [],
+                    "es_storage_config": {
+                        "unique_field_list": [],
+                        "json_field_list": [],
+                        "timezone": 0,
+                    },
+                },
+            },
+        )
+
+
+def test_delete_custom_format_time_series_group_keeps_fixed_result_table(mocker, custom_format_records):
+    data_source, fixed_result_table, _ = custom_format_records
+    auto_result_table = models.ResultTable.objects.create(
+        bk_tenant_id="system",
+        table_id="custom_format.auto",
+        table_name_zh="custom_format.auto",
+        is_custom_table=True,
+        default_storage=models.ClusterInfo.TYPE_VM,
+        creator="system",
+        bk_biz_id=2,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        table_id=auto_result_table.table_id,
+        creator="system",
+    )
+    group = models.TimeSeriesGroup.objects.create(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        bk_biz_id=2,
+        table_id=auto_result_table.table_id,
+        time_series_group_name="custom_format_auto",
+        label=auto_result_table.label,
+        token="auto-token",
+        is_split_measurement=True,
+        creator="system",
+        last_modify_user="system",
+    )
+    modify_result_table = mocker.patch.object(models.ResultTable, "modify")
+
+    group.delete_time_series_group("system")
+
+    assert modify_result_table.call_count == 1
+    assert modify_result_table.call_args.kwargs == {"operator": "system", "is_enable": False}
+    assert models.ResultTable.objects.filter(
+        bk_tenant_id="system",
+        table_id=auto_result_table.table_id,
+        is_enable=False,
+        is_deleted=True,
+    ).exists()
+    assert models.ResultTable.objects.filter(
+        bk_tenant_id="system",
+        table_id=fixed_result_table.table_id,
+        is_enable=True,
+        is_deleted=False,
+    ).exists()
+    assert models.DataSourceResultTable.objects.filter(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        table_id=fixed_result_table.table_id,
+    ).exists()
 
 
 def test_custom_format_result_table_cannot_switch_datasource(custom_format_records):

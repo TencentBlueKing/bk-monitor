@@ -63,8 +63,11 @@ class DebugCustomFormatDataLinkResource(Resource):
         clean_rules = validated_request_data["clean_rules"]
         contract_errors: list[str] = []
         try:
+            fields = None
+            if option.target_storage_type != ClusterInfo.TYPE_VM:
+                fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=bk_tenant_id)
             DataLink._validate_custom_format_contract(
-                generate_result_table_field_list(table_id=table_id, bk_tenant_id=bk_tenant_id),
+                fields,
                 clean_rules,
                 require_vm_contract=option.target_storage_type == ClusterInfo.TYPE_VM,
             )
