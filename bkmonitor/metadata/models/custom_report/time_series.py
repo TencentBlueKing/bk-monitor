@@ -803,8 +803,6 @@ class TimeSeriesGroup(CustomGroupBase):
 
         data_source = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
         is_custom_format = data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
-        result_table_storage = None
-        preserve_datasource_result_tables = False
         if is_custom_format:
             if additional_options.get(ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK) is not True:
                 raise ValueError(_("自定义格式 TimeSeriesGroup 必须开启自定义格式 V4 数据链路"))
@@ -816,8 +814,6 @@ class TimeSeriesGroup(CustomGroupBase):
                 raise ValueError(_("自定义格式 TimeSeriesGroup 仅支持 victoria_metrics 目标存储"))
 
             additional_options.setdefault(ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST, True)
-            result_table_storage = ClusterInfo.TYPE_VM
-            preserve_datasource_result_tables = True
 
         custom_group = super().create_custom_group(
             bk_data_id=bk_data_id,
@@ -831,8 +827,6 @@ class TimeSeriesGroup(CustomGroupBase):
             is_split_measurement=is_split_measurement,
             is_need_deploy_collector_config=is_need_deploy_collector_config,
             default_storage_config=default_storage_config,
-            result_table_storage=result_table_storage,
-            preserve_datasource_result_tables=preserve_datasource_result_tables,
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,

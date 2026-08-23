@@ -19,8 +19,9 @@ from django.utils.translation import gettext as _
 
 from metadata import config
 from metadata.models.common import Label
-from metadata.models.data_source import DataSourceOption, DataSourceResultTable
+from metadata.models.data_source import DataSource, DataSourceOption, DataSourceResultTable
 from metadata.models.result_table import ResultTable, ResultTableOption
+from metadata.models.space.constants import EtlConfigs
 
 """
 base is base class of:
@@ -143,6 +144,28 @@ class CustomGroupBase(models.Model):
         return filter_kwargs
 
     @classmethod
+    def _validate_datasource_result_table_relation(cls, bk_data_id: int, table_id: str, bk_tenant_id: str) -> None:
+        """校验自定义组待创建的 DataSourceResultTable 关系，不自动删除已有关系。"""
+
+        data_source = DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
+        table_relations = DataSourceResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        if table_relations.exists():
+            raise ValueError(_("结果表[{}]已经关联数据源，请更换结果表").format(table_id))
+
+        if data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+            return
+
+        existing_table_ids = list(
+            DataSourceResultTable.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
+                "table_id", flat=True
+            )
+        )
+        if existing_table_ids:
+            raise ValueError(
+                _("数据源[{}]已经关联结果表[{}]，不能创建新的自定义组").format(bk_data_id, ",".join(existing_table_ids))
+            )
+
+    @classmethod
     def _create(
         cls,
         table_id: str | None,
@@ -206,8 +229,6 @@ class CustomGroupBase(models.Model):
         is_split_measurement=False,
         is_need_deploy_collector_config: bool = True,
         default_storage_config=None,
-        result_table_storage: str | None = None,
-        preserve_datasource_result_tables: bool = False,
         additional_options: dict | None = None,
         data_label: str | None = None,
         bk_biz_id_alias: str | None = None,
@@ -227,8 +248,6 @@ class CustomGroupBase(models.Model):
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
         :param default_storage_config: 默认存储的配置
-        :param result_table_storage: 覆盖自定义组默认的结果表存储类型
-        :param preserve_datasource_result_tables: 是否保留 DataSource 已有关联结果表
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
@@ -256,6 +275,18 @@ class CustomGroupBase(models.Model):
             bk_data_id=bk_data_id,
             custom_group_name=custom_group_name,
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
+        )
+
+        table_id = table_id or cls.make_table_id(
+            bk_biz_id,
+            bk_data_id,
+            bk_tenant_id=bk_tenant_id,
+            table_name=custom_group_name,
+        )
+        cls._validate_datasource_result_table_relation(
+            bk_data_id=bk_data_id,
+            table_id=table_id,
             bk_tenant_id=bk_tenant_id,
         )
 
@@ -287,19 +318,13 @@ class CustomGroupBase(models.Model):
         # 如果是自动分表逻辑，则该表为默认路由表，
         # 如果是旧版自定义上报逻辑，则该表作为该dataid的唯一写入表
 
-        result_table_storage = result_table_storage or cls.DEFAULT_STORAGE
         default_storage_config = dict(default_storage_config or {})
-        if result_table_storage == cls.DEFAULT_STORAGE:
-            default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
+        default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
 
         cls.process_default_storage_config(custom_group, default_storage_config)
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})
-
-        # 4. 旧版自定义组保持 DataSource 单结果表语义；允许复用 DataSource 的场景由调用方显式保留历史关系。
-        if not preserve_datasource_result_tables:
-            DataSourceResultTable.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).delete()
 
         ResultTable.create_result_table(
             bk_data_id=custom_group.bk_data_id,
@@ -309,7 +334,7 @@ class CustomGroupBase(models.Model):
             is_custom_table=True,
             schema_type=ResultTable.SCHEMA_TYPE_FREE,
             operator=operator,
-            default_storage=result_table_storage,
+            default_storage=cls.DEFAULT_STORAGE,
             default_storage_config=default_storage_config,
             field_list=cls.STORAGE_FIELD_LIST,
             is_builtin=is_builtin,

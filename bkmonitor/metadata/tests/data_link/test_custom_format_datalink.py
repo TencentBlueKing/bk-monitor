@@ -54,6 +54,13 @@ def _replace_result_table_fields(table_id, fields):
 
 @pytest.fixture
 def custom_format_records():
+    models.Label.objects.get_or_create(
+        label_id=models.Label.RESULT_TABLE_LABEL_OTHER,
+        defaults={
+            "label_name": "其他",
+            "label_type": models.Label.LABEL_TYPE_RESULT_TABLE,
+        },
+    )
     table_id = "custom_format.metric"
     data_source = models.DataSource.objects.create(
         bk_data_id=527765,
@@ -644,6 +651,56 @@ def test_custom_format_datasource_can_link_multiple_result_tables(mocker, custom
     ) == {"custom_format.metric", "custom_format.second_metric"}
 
 
+def test_custom_format_influxdb_result_table_can_target_vm(mocker, custom_format_records):
+    _, result_table, _ = custom_format_records
+    result_table.default_storage = models.ClusterInfo.TYPE_INFLUXDB
+    result_table.save(update_fields=["default_storage"])
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK,
+        value=json.dumps(True),
+        value_type=models.ResultTableOption.TYPE_BOOL,
+        creator="system",
+    )
+    apply_custom_format = mocker.patch("metadata.task.datalink.apply_custom_format_datalink")
+
+    result_table.apply_datalink(delay=False)
+
+    apply_custom_format.assert_called_once_with(bk_tenant_id="system", table_id=result_table.table_id)
+
+
+def test_custom_format_influxdb_result_table_rejects_non_vm_target(custom_format_records):
+    _, result_table, _ = custom_format_records
+    result_table.default_storage = models.ClusterInfo.TYPE_INFLUXDB
+    result_table.save(update_fields=["default_storage"])
+    option = models.ResultTableOption.objects.get(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+    )
+    option.value = json.dumps(
+        {
+            "target_storage_type": models.ClusterInfo.TYPE_ES,
+            "clean_rules": _clean_rules(),
+            "filter_rules": [],
+            "es_storage_config": {"unique_field_list": [], "json_field_list": [], "timezone": 0},
+        }
+    )
+    option.save(update_fields=["value"])
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=result_table.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK,
+        value=json.dumps(True),
+        value_type=models.ResultTableOption.TYPE_BOOL,
+        creator="system",
+    )
+
+    with pytest.raises(ValueError, match="default_storage 必须与 target_storage_type 一致"):
+        result_table.apply_datalink(delay=False)
+
+
 def test_custom_format_time_series_group_uses_vm_and_preserves_fixed_tables(mocker, custom_format_records):
     data_source, result_table, _ = custom_format_records
     mocker.patch.object(
@@ -678,10 +735,10 @@ def test_custom_format_time_series_group_uses_vm_and_preserves_fixed_tables(mock
     )
 
     assert group.table_id == "custom_format.auto"
-    assert create_result_table.call_args.kwargs["default_storage"] == models.ClusterInfo.TYPE_VM
-    assert create_result_table.call_args.kwargs["default_storage_config"] == {}
+    assert create_result_table.call_args.kwargs["default_storage"] == models.ClusterInfo.TYPE_INFLUXDB
+    assert create_result_table.call_args.kwargs["default_storage_config"] == {"use_default_rp": True}
     auto_result_table = models.ResultTable.objects.get(bk_tenant_id="system", table_id=group.table_id)
-    assert auto_result_table.default_storage == models.ClusterInfo.TYPE_VM
+    assert auto_result_table.default_storage == models.ClusterInfo.TYPE_INFLUXDB
     assert models.ResultTableOption.objects.get(
         bk_tenant_id="system",
         table_id=group.table_id,
@@ -694,6 +751,100 @@ def test_custom_format_time_series_group_uses_vm_and_preserves_fixed_tables(mock
         ).values_list("table_id", flat=True)
     ) == {result_table.table_id, group.table_id}
     refresh_consul.assert_not_called()
+
+
+def test_standard_time_series_group_rejects_existing_result_table_without_deleting(mocker, custom_format_records):
+    _, result_table, _ = custom_format_records
+    data_source = models.DataSource.objects.create(
+        bk_data_id=527766,
+        data_name="standard_time_series_source",
+        bk_tenant_id="system",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+        is_custom_source=True,
+        created_from=DataIdCreatedFromSystem.BKDATA.value,
+    )
+    existing_result_table = models.ResultTable.objects.create(
+        bk_tenant_id="system",
+        table_id="standard.existing",
+        table_name_zh="standard.existing",
+        is_custom_table=True,
+        default_storage=models.ClusterInfo.TYPE_INFLUXDB,
+        creator="system",
+        bk_biz_id=2,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        table_id=existing_result_table.table_id,
+        creator="system",
+    )
+    mocker.patch.object(
+        models.TimeSeriesGroup,
+        "pre_check",
+        return_value={"time_series_group_name": "standard_new"},
+    )
+
+    with pytest.raises(ValueError, match="已经关联结果表.*不能创建新的自定义组"):
+        models.TimeSeriesGroup.create_time_series_group(
+            bk_tenant_id="system",
+            bk_data_id=data_source.bk_data_id,
+            bk_biz_id=2,
+            table_id="standard.new",
+            time_series_group_name="standard_new",
+            label=result_table.label,
+            operator="system",
+            is_sync_db=False,
+        )
+
+    assert models.DataSourceResultTable.objects.filter(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        table_id=existing_result_table.table_id,
+    ).exists()
+    assert not models.TimeSeriesGroup.objects.filter(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+    ).exists()
+
+
+def test_standard_time_series_group_without_result_table_still_creates(mocker, custom_format_records):
+    _, result_table, _ = custom_format_records
+    data_source = models.DataSource.objects.create(
+        bk_data_id=527767,
+        data_name="standard_new_time_series_source",
+        bk_tenant_id="system",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+        is_custom_source=True,
+        created_from=DataIdCreatedFromSystem.BKDATA.value,
+    )
+    mocker.patch.object(
+        models.TimeSeriesGroup,
+        "pre_check",
+        return_value={"time_series_group_name": "standard_new"},
+    )
+    mocker.patch.object(models.TimeSeriesGroup, "update_metrics")
+    create_result_table = mocker.patch.object(models.ResultTable, "create_result_table")
+    mocker.patch("metadata.task.tasks.refresh_custom_report_config.delay")
+    refresh_consul = mocker.patch.object(models.DataSource, "refresh_consul_config")
+
+    group = models.TimeSeriesGroup.create_time_series_group(
+        bk_tenant_id="system",
+        bk_data_id=data_source.bk_data_id,
+        bk_biz_id=2,
+        table_id="standard.new",
+        time_series_group_name="standard_new",
+        label=result_table.label,
+        operator="system",
+        is_sync_db=False,
+    )
+
+    assert group.table_id == "standard.new"
+    create_result_table.assert_called_once()
+    refresh_consul.assert_called_once()
 
 
 def test_custom_format_time_series_group_rejects_non_vm_target(custom_format_records):
