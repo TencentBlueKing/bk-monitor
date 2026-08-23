@@ -152,10 +152,15 @@ def _parse_optional_int(value: Any, field_name: str, *, minimum: int | None = No
 
 
 def _normalize_categories(params: dict[str, Any]) -> list[str]:
-    categories = normalize_string_list_filter(params, "metric_category", "metric_categories")
+    categories = list(
+        dict.fromkeys(
+            normalize_string_list_filter(params, "scene_category", "scene_categories")
+            + normalize_string_list_filter(params, "metric_category", "metric_categories")
+        )
+    )
     unsupported = set(categories) - METRIC_CATEGORIES
     if unsupported:
-        raise CustomException(message=f"不支持的指标分类: {', '.join(sorted(unsupported))}")
+        raise CustomException(message=f"不支持的场景分类: {', '.join(sorted(unsupported))}")
     return categories
 
 
@@ -248,7 +253,7 @@ def _biz_pairs(datasource_queryset: Any, bk_tenant_id: str | None, bk_biz_id: in
     result |= _bcs_pairs(
         filter_by_bk_tenant_id(models.BCSClusterInfo.objects.all(), bk_tenant_id).filter(bk_biz_id=bk_biz_id)
     )
-    plugins = filter_by_bk_tenant_id(CollectorPluginMeta.objects.all(), bk_tenant_id).filter(bk_biz_id=bk_biz_id)
+    plugins = filter_by_bk_tenant_id(CollectorPluginMeta.origin_objects.all(), bk_tenant_id).filter(bk_biz_id=bk_biz_id)
     result |= _plugin_pairs(plugins, datasource_queryset)
     result |= _process_pairs(datasource_queryset, bk_biz_id)
     result |= _pairs(
@@ -267,7 +272,7 @@ def _category_pairs(
     custom_pairs = _pairs(filter_by_bk_tenant_id(models.TimeSeriesGroup.objects.all(), bk_tenant_id))
     bcs_pairs = _bcs_pairs(filter_by_bk_tenant_id(models.BCSClusterInfo.objects.all(), bk_tenant_id))
     plugin_pairs = _plugin_pairs(
-        filter_by_bk_tenant_id(CollectorPluginMeta.objects.all(), bk_tenant_id), datasource_queryset
+        filter_by_bk_tenant_id(CollectorPluginMeta.origin_objects.all(), bk_tenant_id), datasource_queryset
     ) | _process_pairs(datasource_queryset)
     known_pairs = custom_pairs | bcs_pairs | plugin_pairs
     datasource_pairs = _pairs(datasource_queryset)
@@ -333,7 +338,7 @@ def _build_queryset(params: dict[str, Any], bk_tenant_id: str | None) -> Any:
 
     plugin_id = str(params.get("plugin_id") or "").strip()
     if plugin_id:
-        plugins = filter_by_bk_tenant_id(CollectorPluginMeta.objects.all(), bk_tenant_id).filter(
+        plugins = filter_by_bk_tenant_id(CollectorPluginMeta.origin_objects.all(), bk_tenant_id).filter(
             plugin_id__icontains=plugin_id
         )
         queryset = _filter_by_pairs(queryset, _plugin_pairs(plugins, queryset))
@@ -511,13 +516,18 @@ def _serialize_plugins(datasources: list[models.DataSource]) -> dict[tuple[str |
                 normal_candidates[key] = plugin_key
             break
 
-    plugin_query = filter_by_tenant_resource_pairs(CollectorPluginMeta.objects.all(), "plugin_id", candidate_pairs)
-    process_query = CollectorPluginMeta.objects.none()
+    plugin_query = CollectorPluginMeta.origin_objects.none()
+    plugin_filter = Q()
+    for tenant_id, plugin_id in candidate_pairs:
+        plugin_filter |= Q(bk_tenant_id=tenant_id, plugin_id__iexact=plugin_id)
+    if plugin_filter:
+        plugin_query = CollectorPluginMeta.origin_objects.filter(plugin_filter)
+    process_query = CollectorPluginMeta.origin_objects.none()
     process_filter = Q()
     for tenant_id, bk_biz_id in set((key[0], biz_id) for key, biz_id in process_candidates.items()):
         process_filter |= Q(bk_tenant_id=tenant_id, bk_biz_id=bk_biz_id, plugin_type="Process")
     if process_filter:
-        process_query = CollectorPluginMeta.objects.filter(process_filter)
+        process_query = CollectorPluginMeta.origin_objects.filter(process_filter)
     plugins = list(plugin_query) + list(process_query)
     plugin_pairs = {(plugin.bk_tenant_id, plugin.plugin_id) for plugin in plugins}
     versions_by_plugin = _load_versions_by_plugin_key(plugin_pairs)
@@ -529,9 +539,11 @@ def _serialize_plugins(datasources: list[models.DataSource]) -> dict[tuple[str |
         plugin_key = (plugin.bk_tenant_id, plugin.plugin_id)
         current_version = _select_current_version(versions_by_plugin.get(plugin_key, []))
         item = _serialize_plugin_summary(plugin, current_version, config_counts.get(plugin_key, 0))
+        item["is_deleted"] = bool(plugin.is_deleted)
         item["relation_kind"] = "normal"
-        serialized_plugins[plugin_key] = item
-        plugin_instances[plugin_key] = plugin
+        normalized_plugin_key = (plugin.bk_tenant_id, plugin.plugin_id.lower())
+        serialized_plugins[normalized_plugin_key] = item
+        plugin_instances[normalized_plugin_key] = plugin
         if plugin.plugin_type == "Process":
             process_item = dict(item)
             process_item["relation_kind"] = "shared_process"
@@ -557,6 +569,7 @@ def _serialize_plugins(datasources: list[models.DataSource]) -> dict[tuple[str |
                     "bk_biz_id": bk_biz_id,
                     "is_global": False,
                     "is_internal": True,
+                    "is_deleted": False,
                     "status": "shared",
                     "related_conf_count": 0,
                     "relation_kind": "shared_process",
@@ -625,6 +638,7 @@ def _build_warnings(
     datasource: models.DataSource,
     result_tables: list[dict[str, Any]],
     spaces: list[dict[str, Any]],
+    plugins: list[dict[str, Any]],
     categories: list[str],
     kafka: dict[str, Any],
 ) -> list[dict[str, str]]:
@@ -645,6 +659,14 @@ def _build_warnings(
         warnings.append({"code": "KAFKA_CLUSTER_MISSING", "message": "Kafka 集群记录不存在"})
     if (datasource.space_uid and not spaces) or any(not item["record_exists"] for item in spaces):
         warnings.append({"code": "SPACE_RECORD_MISSING", "message": "DataSource 归属空间记录不存在"})
+    for plugin in plugins:
+        if plugin.get("is_deleted"):
+            warnings.append(
+                {
+                    "code": "PLUGIN_DELETED",
+                    "message": f"插件已删除: {plugin['plugin_type']}_{plugin['plugin_id']}",
+                }
+            )
     if categories == ["other_metric"]:
         warnings.append({"code": "UNCLASSIFIED_METRIC", "message": "未关联自定义指标、插件或 BCS 集群"})
     return warnings
@@ -691,7 +713,7 @@ def _build_items(datasources: list[models.DataSource]) -> list[dict[str, Any]]:
             )
             if value is not None
         }
-        warnings = _build_warnings(datasource, result_tables, spaces, categories, kafka)
+        warnings = _build_warnings(datasource, result_tables, spaces, plugins, categories, kafka)
         items.append(
             {
                 "datasource": serialize_model(datasource, DATASOURCE_FIELDS),
@@ -757,7 +779,8 @@ def _build_summary(queryset: Any, bk_tenant_id: str | None) -> dict[str, int]:
         "space_uid": "可选，空间 UID 精确匹配",
         "plugin_id": "可选，插件 ID 包含匹配",
         "bcs_cluster_id": "可选，BCS 集群 ID 包含匹配",
-        "metric_category / metric_categories": "可选，custom_metric/plugin_metric/bcs_metric/other_metric",
+        "scene_category / scene_categories": "可选，场景分类：custom_metric/plugin_metric/bcs_metric/other_metric",
+        "metric_category / metric_categories": "兼容旧参数，语义同 scene_category / scene_categories",
         "pagination_mode": "page 或 cursor；默认 page",
         "page / page_size": "page 模式分页；page_size 最大 100",
         "cursor": "cursor 模式上一批最后一个 bk_data_id，首次传 0",
@@ -766,7 +789,7 @@ def _build_summary(queryset: Any, bk_tenant_id: str | None) -> dict[str, int]:
     },
     example_params={
         "bk_tenant_id": "system",
-        "metric_categories": ["custom_metric", "plugin_metric"],
+        "scene_categories": ["custom_metric", "plugin_metric"],
         "page": 1,
         "page_size": 20,
     },
