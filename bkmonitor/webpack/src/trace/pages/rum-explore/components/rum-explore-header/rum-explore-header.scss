@@ -1,0 +1,193 @@
+.rum-explore-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding-right: 16px;
+  background: #fff;
+  box-shadow: 0 2px 2px 0 rgb(25 25 41 / 5%);
+
+  .header-left {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .favorite-container {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-right: 1px solid #e4e9f2;
+  }
+
+  .favorite-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 4px;
+
+    .icon-shoucangjia {
+      font-size: 16px;
+      color: #4d4f56;
+    }
+
+    &:hover,
+    &.active {
+      background: #e1ecff;
+
+      .icon-shoucangjia {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .header-title {
+    margin: 0 16px;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+    white-space: nowrap;
+  }
+
+  .mode-tab {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 4px;
+    background: #f0f1f5;
+    border-radius: 4px;
+  }
+
+  .mode-tab-item {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 24px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #313238;
+    cursor: pointer;
+    border-radius: 2px;
+
+    /* 相邻项之间的分隔线，选中项自带白底所以隐藏两侧分隔线 */
+    & + .mode-tab-item {
+      box-shadow: inset 1px 0 0 0 #dcdee5;
+    }
+
+    .icon-monitor {
+      font-size: 14px;
+    }
+
+    &.active,
+    &.active + .mode-tab-item {
+      box-shadow: none;
+    }
+
+    &.active {
+      background: #fff;
+      box-shadow: 0 2px 2px 0 rgb(25 25 41 / 5%);
+    }
+  }
+
+  .application-select {
+    width: 403px;
+    margin-left: 16px;
+
+    .application-select-trigger {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 8px;
+      cursor: pointer;
+      background: #f0f1f5;
+      border-radius: 4px;
+
+      .data-prefix {
+        flex-shrink: 0;
+        font-size: 12px;
+        color: #4e5e7a;
+      }
+
+      .application-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        color: #313238;
+        white-space: nowrap;
+      }
+
+      .select-shortcut-keys {
+        flex-shrink: 0;
+        padding: 0 4px;
+        margin-left: auto;
+        font-family: Menlo, monospace;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 20px;
+        color: #8f9fbd;
+        background: #fff;
+        border-radius: 4px;
+      }
+
+      .icon-mc-arrow-down {
+        flex-shrink: 0;
+        margin-left: 8px;
+        font-size: 12px;
+        color: #8e9bb3;
+        transition: transform 0.2s;
+
+        &.expand {
+          transform: rotate(180deg);
+        }
+      }
+    }
+  }
+
+  .header-tools {
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+.rum-explore-application-select-popover {
+  .application-item-name {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    overflow: hidden;
+
+    .thumbtack {
+      visibility: hidden;
+      margin-right: 6px;
+      font-size: 14px;
+      color: #c4c6cc;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    &.is_top .thumbtack {
+      visibility: visible;
+      color: #3a84ff;
+    }
+
+    .name-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .bk-select-option:hover .application-item-name .thumbtack {
+    visibility: visible;
+  }
+}

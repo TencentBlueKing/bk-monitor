@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,22 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import type { IRumApplication } from '../../typings';
 
-export default [
-  {
-    path: '/rum',
-    name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
+const SEEDS: Array<[appName: string, appAlias: string, dataStatus: IRumApplication['data_status']]> = [
+  ['bkop', '运维环境 trace', 'normal'],
+  ['rum-demo', 'RUM 演示应用', 'normal'],
+  ['web-portal', '门户前端', 'normal'],
+  ['mobile-h5', '移动端 H5', 'no_data'],
+  ['aegisv2-demo', 'aegisv2-demo', 'no_data'],
+];
+
+export const mockApplicationList: IRumApplication[] = SEEDS.map(([appName, appAlias, dataStatus], index) => ({
+  application_id: 40 + index,
+  bk_biz_id: 2,
+  app_name: appName,
+  app_alias: appAlias,
+  description: appAlias,
+  client_type: 'web',
+  is_enabled: true,
+  data_status: dataStatus,
+  is_create_finished: true,
+  permission: {
+    manage_rum_application_v2: true,
+    view_rum_application_v2: true,
   },
-  {
-    path: '/rum/config/:appName',
-    name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
-  },
-  {
-    path: '/rum-explore',
-    name: 'rumExplore',
-    component: () => import(/* webpackChunkName: "rum-explore" */ '../../pages/rum-explore/rum-explore'),
-  },
-] as RouteRecordRaw[];
+}));

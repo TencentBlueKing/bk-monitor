@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,22 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import { listApplication } from 'monitor-api/modules/rum_meta';
 
-export default [
-  {
-    path: '/rum',
-    name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
-  },
-  {
-    path: '/rum/config/:appName',
-    name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
-  },
-  {
-    path: '/rum-explore',
-    name: 'rumExplore',
-    component: () => import(/* webpackChunkName: "rum-explore" */ '../../pages/rum-explore/rum-explore'),
-  },
-] as RouteRecordRaw[];
+import { mockApplicationList, mockDelay } from './mocks';
+
+import type { IRumApplication } from '../typings';
+
+/** 与 rum-search 保持一致，接口就绪后统一切换 */
+const USE_MOCK = true;
+
+/**
+ * 获取 RUM 应用列表。
+ * 接口已按数据状态排序：有数据的应用在前，其余按名称升序。
+ */
+export async function getApplicationList(): Promise<IRumApplication[]> {
+  if (USE_MOCK) {
+    return mockDelay(mockApplicationList, 200);
+  }
+  const res = await listApplication({}, { needMessage: false }).catch(() => null);
+  return res?.data || [];
+}
