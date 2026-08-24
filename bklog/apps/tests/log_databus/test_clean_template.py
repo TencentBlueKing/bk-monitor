@@ -313,6 +313,19 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertEqual(response.data["active_collector_count"], 0)
         self.assertEqual(response.data["related_index_set_count"], 0)
 
+    def test_list_uses_draft_fields_for_field_count(self):
+        template = self.create_template()
+        self.create_collector(clean_template_id=template["clean_template_id"])
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["etl_fields"].append({"field_name": "draft_field", "is_delete": False})
+        CleanTemplateHandler(template["clean_template_id"]).create_or_update(changed)
+
+        response = self.list_templates(bk_biz_id=706)
+
+        self.assertEqual(response.data[0]["status"], CleanTemplateStatus.DRAFT.value)
+        self.assertEqual(response.data[0]["field_count"], 2)
+
     def test_list_fills_all_template_stats_before_ordering_and_pagination(self):
         for index, field_count in enumerate((3, 1, 2)):
             fields = [{"field_name": f"field-{field_index}", "is_delete": False} for field_index in range(field_count)]

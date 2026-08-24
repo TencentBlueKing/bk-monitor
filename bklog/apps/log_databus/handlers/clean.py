@@ -231,9 +231,12 @@ class CleanTemplateHandler:
         )
 
         for clean_template in clean_templates:
+            etl_fields = clean_template.etl_fields
+            if clean_template.status == CleanTemplateStatus.DRAFT.value and clean_template.snapshot:
+                etl_fields = clean_template.snapshot.get("etl_fields", etl_fields)
             clean_template.field_count = sum(
                 not field.get("is_delete", False) and not field.get("is_built_in", False)
-                for field in (clean_template.etl_fields or [])
+                for field in (etl_fields or [])
             )
             clean_template.active_collector_count = active_collector_count_map[clean_template.clean_template_id]
             clean_template.related_index_set_count = len(
