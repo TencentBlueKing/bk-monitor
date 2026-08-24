@@ -41,7 +41,11 @@ import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
-import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
+import {
+  type TimeRangeType,
+  handleTransformTime,
+  handleTransformToTimestamp,
+} from '../../../components/time-range/utils';
 import { formatDuration, formatDurationWithUnit } from '../../../components/trace-view/utils/date';
 import { transformTableDataToCsvStr } from '../../../plugins/utls/menu';
 import { useAppStore } from '../../../store/modules/app';
@@ -53,6 +57,26 @@ import { transformFieldName } from './trace-explore-table/constants';
 import type { DimensionType, ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../typing';
 
 import './statistics-list.scss';
+
+/**
+ * 统计分析依赖的四个接口。
+ * 默认对接 apm_trace，其他检索场景（如 RUM 检索）通过 api prop 注入自己的实现即可复用本组件。
+ */
+export interface IStatisticsApi {
+  downloadTopK: (params: Record<string, unknown>) => Promise<{ data: string; filename: string }>;
+  /** 返回 { series }，结构与 field_statistics_graph 协议一致；失败时调用方兜底为 { series: [] } */
+  fieldStatisticsGraph: (params: Record<string, unknown>, config?: Record<string, unknown>) => Promise<any>;
+  /** 返回 IStatisticsInfo；失败时调用方有各自的兜底值，故此处不收紧类型 */
+  fieldStatisticsInfo: (params: Record<string, unknown>, config?: Record<string, unknown>) => Promise<any>;
+  fieldsTopK: (params: Record<string, unknown>, config?: Record<string, unknown>) => Promise<ITopKField[]>;
+}
+
+const DEFAULT_STATISTICS_API: IStatisticsApi = {
+  fieldsTopK: traceFieldsTopK,
+  fieldStatisticsInfo: traceFieldStatisticsInfo,
+  fieldStatisticsGraph: traceFieldStatisticsGraph,
+  downloadTopK: traceDownloadTopK,
+};
 
 export default defineComponent({
   name: 'StatisticsList',
@@ -73,6 +97,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 统计接口实现，不传则走 apm_trace */
+    api: {
+      type: Object as PropType<IStatisticsApi>,
+      default: () => DEFAULT_STATISTICS_API,
+    },
+    /** 查询时间范围，不传则取 trace 检索 store 中的时间 */
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: null,
+    },
   },
   emits: ['conditionChange', 'showMore', 'sliderShowChange'],
   setup(props, { emit }) {
@@ -80,6 +114,8 @@ export default defineComponent({
     const appStore = useAppStore();
     const store = useTraceExploreStore();
     const { tableList, filterTableList } = storeToRefs(store);
+
+    const currentTimeRange = computed<TimeRangeType>(() => props.timeRange || store.timeRange);
 
     /** 展示的范围文本 */
     const rangeText = shallowRef([]);
@@ -131,7 +167,7 @@ export default defineComponent({
           infoLoading.value = true;
           localField.value = props.selectField;
           if (!isDuration.value) {
-            rangeText.value = handleTransformTime(store.timeRange);
+            rangeText.value = handleTransformTime(currentTimeRange.value);
             getStatisticsList();
           } else {
             popoverLoading.value = true;
@@ -197,22 +233,24 @@ export default defineComponent({
       popoverLoading.value = true;
       getStatisticsListCount.value += 1;
       const count = getStatisticsListCount.value;
-      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
+      const [start_time, end_time] = handleTransformToTimestamp(currentTimeRange.value);
       topKCancelFn?.();
-      const data: ITopKField[] = await traceFieldsTopK(
-        {
-          ...props.commonParams,
-          start_time,
-          end_time,
-          limit: 5,
-          fields: [localField.value],
-        },
-        {
-          cancelToken: new CancelToken(c => {
-            topKCancelFn = c;
-          }),
-        }
-      ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
+      const data: ITopKField[] = await props.api
+        .fieldsTopK(
+          {
+            ...props.commonParams,
+            start_time,
+            end_time,
+            limit: 5,
+            fields: [localField.value],
+          },
+          {
+            cancelToken: new CancelToken(c => {
+              topKCancelFn = c;
+            }),
+          }
+        )
+        .catch(() => [{ distinct_count: 0, field: '', list: [] }]);
       if (count !== getStatisticsListCount.value) return;
       statisticsList.distinct_count = data[0].distinct_count || 0;
       statisticsList.field = data[0].field || '';
@@ -229,24 +267,26 @@ export default defineComponent({
     async function getStatisticsGraphData() {
       getStatisticsInfoCount.value += 1;
       const count = getStatisticsInfoCount.value;
-      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
+      const [start_time, end_time] = handleTransformToTimestamp(currentTimeRange.value);
       topKInfoCancelFn?.();
-      const info: IStatisticsInfo = await traceFieldStatisticsInfo(
-        {
-          ...props.commonParams,
-          start_time,
-          end_time,
-          field: {
-            field_name: localField.value,
-            field_type: props.fieldType,
+      const info: IStatisticsInfo = await props.api
+        .fieldStatisticsInfo(
+          {
+            ...props.commonParams,
+            start_time,
+            end_time,
+            field: {
+              field_name: localField.value,
+              field_type: props.fieldType,
+            },
           },
-        },
-        {
-          cancelToken: new CancelToken(c => {
-            topKInfoCancelFn = c;
-          }),
-        }
-      ).catch(() => []);
+          {
+            cancelToken: new CancelToken(c => {
+              topKInfoCancelFn = c;
+            }),
+          }
+        )
+        .catch(() => []);
       /** 如果是取消接口，不进行后续操作 */
       if (count !== getStatisticsInfoCount.value) return;
       /** topk没有数据且keyword类型不请求graph接口 */
@@ -260,23 +300,25 @@ export default defineComponent({
         ? [min, max, statisticsInfo.value.distinct_count, isDuration.value ? 15 : 10]
         : statisticsList.list.map(item => item.value);
       topKChartCancelFn?.();
-      const data = await traceFieldStatisticsGraph(
-        {
-          ...props.commonParams,
-          start_time,
-          end_time,
-          field: {
-            field_name: localField.value,
-            field_type: props.fieldType,
-            values,
+      const data = await props.api
+        .fieldStatisticsGraph(
+          {
+            ...props.commonParams,
+            start_time,
+            end_time,
+            field: {
+              field_name: localField.value,
+              field_type: props.fieldType,
+              values,
+            },
           },
-        },
-        {
-          cancelToken: new CancelToken(c => {
-            topKChartCancelFn = c;
-          }),
-        }
-      ).catch(() => ({ series: [] }));
+          {
+            cancelToken: new CancelToken(c => {
+              topKChartCancelFn = c;
+            }),
+          }
+        )
+        .catch(() => ({ series: [] }));
 
       const series = data.series || [];
       chartData.value = series.map(item => {
@@ -331,14 +373,16 @@ export default defineComponent({
     /** 加载更多 */
     async function loadMore() {
       sliderLoadMoreLoading.value = true;
-      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await traceFieldsTopK({
-        ...props.commonParams,
-        start_time,
-        end_time,
-        limit: sliderListPage.value * 100,
-        fields: [localField.value],
-      }).catch(() => []);
+      const [start_time, end_time] = handleTransformToTimestamp(currentTimeRange.value);
+      const data = await props.api
+        .fieldsTopK({
+          ...props.commonParams,
+          start_time,
+          end_time,
+          limit: sliderListPage.value * 100,
+          fields: [localField.value],
+        })
+        .catch(() => []);
       sliderDimensionList.distinct_count = data[0]?.distinct_count || 0;
       sliderDimensionList.field = data[0]?.field || '';
       const list = data[0]?.list || [];
@@ -378,16 +422,18 @@ export default defineComponent({
         );
       } else {
         downloadLoading.value = true;
-        const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-        const data = await traceDownloadTopK({
-          ...props.commonParams,
-          start_time,
-          end_time,
-          limit: sliderShow.value ? sliderDimensionList?.distinct_count : statisticsList?.distinct_count,
-          fields: [localField.value],
-        }).finally(() => {
-          downloadLoading.value = false;
-        });
+        const [start_time, end_time] = handleTransformToTimestamp(currentTimeRange.value);
+        const data = await props.api
+          .downloadTopK({
+            ...props.commonParams,
+            start_time,
+            end_time,
+            limit: sliderShow.value ? sliderDimensionList?.distinct_count : statisticsList?.distinct_count,
+            fields: [localField.value],
+          })
+          .finally(() => {
+            downloadLoading.value = false;
+          });
         try {
           downloadFile(data.data, 'txt', data.filename);
         } catch (err) {
