@@ -245,6 +245,8 @@ export default {
   腾讯云Cos区域: 'Tencent cloud cos region',
   是否批量开启告警: 'Batch enable alerts?',
   是否批量关闭告警: 'Batch close alerts?',
+  '确认开启告警策略？': 'Confirm to enable the alert strategy?',
+  '确认关闭告警策略？': 'Confirm to disable the alert strategy?',
   可去告警策略编辑: 'Can go to alert policy editor',
   '耗时优化指引 >': 'Optimizing time consumption >',
   最大自定义天数为: 'Maximum custom days is',
