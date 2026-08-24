@@ -58,7 +58,7 @@ class IsolatedSnapshotRedisClient:
                 )
                 for sentinel in manager.sentinels
             ]
-            data_kwargs = self._bounded_kwargs(manager.connection_kwargs, socket_timeout)
+            data_kwargs = self._bounded_kwargs(source_pool.connection_kwargs, socket_timeout)
             self._sentinel = Sentinel(
                 endpoints,
                 min_other_sentinels=manager.min_other_sentinels,
