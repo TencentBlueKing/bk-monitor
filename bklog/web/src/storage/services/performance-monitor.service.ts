@@ -1,7 +1,23 @@
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
+
 import type VueRouter from 'vue-router';
 
 import db from '../core/db';
@@ -25,9 +41,13 @@ const ACTIVE_TAB_TTL = 30 * 1000;
 const WINDOW_API_NAME = '__BKLOG_PERF_MONITOR__';
 const MAX_RESOURCE_SAMPLES = 80;
 const MAX_API_SAMPLES = 120;
-const MAX_EXPORT_RECORDS = 50000;
-const AI_EXPORT_MAX_RECORDS = 12000;
-const COMPACT_EXPORT_MAX_RECORDS = 20000;
+const MAX_EXPORT_RECORDS = 3000;
+const AI_EXPORT_MAX_RECORDS = 1500;
+const COMPACT_EXPORT_MAX_RECORDS = 2000;
+const HARD_MAX_EXPORT_RECORDS = 4000;
+const DEFAULT_EXPORT_WINDOW_MS = 30 * 60 * 1000;
+const HIGH_HEAP_BYTES = 1.2 * 1024 * 1024 * 1024;
+const nextIdle = () => new Promise<void>(resolve => window.setTimeout(resolve, 0));
 const MAX_AI_TIMELINE_POINTS = 120;
 const MAX_COMPACT_TIMELINE_POINTS = 300;
 
@@ -84,7 +104,7 @@ type PerformanceExportOptions = {
   mode?: ExportMode;
   /** full 模式默认保留堆栈；compact / ai 默认移除堆栈，显著降低体积 */
   includeStacks?: boolean;
-  /** full 模式默认保留 records；compact / ai 默认不保留原始 records */
+  /** 默认不带回原始 records，避免导出把页面打崩；需要 mark 明细时显式打开 */
   includeRecords?: boolean;
   /** 只导出指定 record type，适用于精准排查 */
   recordTypes?: string[];
@@ -92,8 +112,18 @@ type PerformanceExportOptions = {
   sampleEvery?: number;
   /** records 二次限制，优先级高于 limit */
   maxRecords?: number;
-  /** 是否格式化 JSON；compact / ai 默认 false */
+  /** 是否格式化 JSON；默认 false，pretty 会额外复制一份大字符串 */
   pretty?: boolean;
+  /** 只导出该时间之后的记录，默认近 30 分钟 */
+  since?: number;
+  /** 相对现在的时间窗，毫秒；与 since 二选一 */
+  sinceMs?: number;
+  /** 只导出指定 tab；默认当前 tab */
+  tabId?: string;
+  /** 默认 true：只导出当前 tab，避免把 7 天历史一次读进内存 */
+  currentTabOnly?: boolean;
+  /** 默认 false：控制台不要接住整包 payload，否则会再占一份堆 */
+  returnPayload?: boolean;
 };
 
 type ExportSanitizeOptions = {
@@ -293,6 +323,7 @@ class PerformanceMonitorService {
     this.updateActiveTab('enable');
     this.startSampling(options.sampleInterval || DEFAULT_SAMPLE_INTERVAL);
     this.record('monitor-start', { reason: options.reason || 'manual' });
+    void performanceRecordRepository.gc();
     console.info('[bklog-performance-monitor] enabled', this.status());
     return this.status();
   }
@@ -309,6 +340,10 @@ class PerformanceMonitorService {
     this.flush();
     console.info('[bklog-performance-monitor] disabled');
     return this.status();
+  }
+
+  isEnabled() {
+    return this.enabled;
   }
 
   status() {
@@ -351,27 +386,60 @@ class PerformanceMonitorService {
   }
 
   async export(options: PerformanceExportOptions = {}) {
-    const mode: ExportMode = options.mode || 'full';
+    const mode: ExportMode = options.mode || 'ai';
     const sessionId = options.sessionId || this.sessionId;
     const defaultLimit = mode === 'ai' ? AI_EXPORT_MAX_RECORDS : mode === 'compact' ? COMPACT_EXPORT_MAX_RECORDS : MAX_EXPORT_RECORDS;
-    const limit = Math.min(options.limit || defaultLimit, options.maxRecords || options.limit || defaultLimit);
-    const includeStacks = options.includeStacks ?? mode === 'full';
-    const includeRecords = options.includeRecords ?? mode === 'full';
-    const pretty = options.pretty ?? mode === 'full';
+    const limit = Math.min(
+      options.maxRecords || options.limit || defaultLimit,
+      HARD_MAX_EXPORT_RECORDS,
+    );
+    const includeStacks = options.includeStacks ?? false;
+    const includeRecords = options.includeRecords ?? false;
+    const pretty = options.pretty ?? false;
+    const sinceMs = options.sinceMs || DEFAULT_EXPORT_WINDOW_MS;
+    const since = options.since || Date.now() - sinceMs;
+    const currentTabOnly = options.currentTabOnly !== false;
+    const tabId = options.tabId || (currentTabOnly ? this.tabId : undefined);
+    const download = options.download !== false;
+    const returnPayload = options.returnPayload === true;
+    const usedHeap = (performance as any).memory?.usedJSHeapSize || 0;
     this.exportState = { exporting: true, startedAt: Date.now(), stage: 'collect-before-export' };
-    console.info('[bklog-performance-monitor] export started', { sessionId, limit, mode, download: options.download !== false });
-    this.record('export-start', { sessionId, limit, mode });
+    console.info('[bklog-performance-monitor] export started', {
+      sessionId,
+      tabId,
+      limit,
+      mode,
+      since,
+      currentTabOnly,
+      download,
+      returnPayload,
+    });
+    this.record('export-start', { sessionId, tabId, limit, mode, since });
     try {
-      await this.collectAsyncSample('before-export');
-      this.collectSample('before-export-sync');
+      if (usedHeap < HIGH_HEAP_BYTES) {
+        await this.collectAsyncSample('before-export');
+        this.collectSample('before-export-sync');
+      } else {
+        this.exportState.stage = 'skip-pre-export-sample:high-heap';
+      }
       this.exportState.stage = 'flush-records';
       await this.flush();
+      await nextIdle();
       this.exportState.stage = 'read-records';
-      const rawRecords = [
-        ...await performanceRecordRepository.list(sessionId, limit),
-        ...this.memoryFallbackRecords,
-      ];
-      const records = this.filterExportRecords(rawRecords, options);
+      const storedCount = await performanceRecordRepository.count(sessionId);
+      const recentRecords = await performanceRecordRepository.listRecent({
+        sessionId,
+        tabId,
+        since,
+        limit,
+        types: options.recordTypes,
+      });
+      const fallbackRecords = this.memoryFallbackRecords.filter((record) => {
+        if (record.timestamp < since) return false;
+        if (tabId && record.tabId !== tabId) return false;
+        return true;
+      });
+      const records = this.filterExportRecords([...recentRecords, ...fallbackRecords], options);
       this.exportState.stage = `build-payload:${mode}`;
       const payload = this.buildExportPayload(records, {
         ...options,
@@ -382,6 +450,15 @@ class PerformanceMonitorService {
         includeRecords,
         pretty,
       });
+      payload.exportScope = {
+        since,
+        sinceMs,
+        tabId,
+        currentTabOnly,
+        storedCount,
+        exportedCount: records.length,
+        truncated: storedCount > records.length,
+      };
       const filename = `bklog-performance-${mode}-${sessionId}-${Date.now()}.json`;
       this.exportState = {
         exporting: true,
@@ -390,16 +467,42 @@ class PerformanceMonitorService {
         records: records.length,
         filename,
       };
+      await nextIdle();
       const content = JSON.stringify(payload, null, pretty ? 2 : 0);
-      if (options.download !== false) {
+      if (download) {
         this.exportState.stage = 'download';
         this.downloadFile(content, filename);
       }
-      this.exportState = { exporting: false, startedAt: this.exportState.startedAt, finishedAt: Date.now(), stage: 'done', records: records.length, filename };
-      this.record('export-end', { sessionId, records: records.length, filename, mode, bytes: content.length, download: options.download !== false });
+      this.exportState = {
+        exporting: false,
+        startedAt: this.exportState.startedAt,
+        finishedAt: Date.now(),
+        stage: 'done',
+        records: records.length,
+        filename,
+      };
+      this.record('export-end', {
+        sessionId,
+        records: records.length,
+        storedCount,
+        filename,
+        mode,
+        bytes: content.length,
+        download,
+      });
       await this.flush();
-      console.info('[bklog-performance-monitor] export finished', { ...this.exportState, mode, bytes: content.length });
-      return payload;
+      const summary = {
+        filename,
+        bytes: content.length,
+        records: records.length,
+        storedCount,
+        mode,
+        since,
+        tabId,
+        downloaded: download,
+      };
+      console.info('[bklog-performance-monitor] export finished', { ...this.exportState, ...summary });
+      return returnPayload ? payload : summary;
     } catch (error) {
       this.exportState = { exporting: false, startedAt: this.exportState.startedAt, finishedAt: Date.now(), stage: 'failed', error: String(error) };
       this.record('export-failed', { sessionId, mode, error: String(error) });
@@ -498,7 +601,12 @@ class PerformanceMonitorService {
       errors: summaries.errors.slice(0, 50),
       longTasks: summaries.longTasks.slice(0, 50),
       latestSnapshots: summaries.latestSnapshots,
-      evidenceRecords: options.includeRecords ? this.compactRecords(records, { ...options, includeStacks: Boolean(options.includeStacks) }).slice(-300) : undefined,
+      evidenceRecords: this.compactRecords(
+        options.includeRecords
+          ? records
+          : records.filter(record => ['mark', 'api-request', 'long-task', 'window-open'].includes(record.type)),
+        { ...options, includeStacks: Boolean(options.includeStacks) },
+      ).slice(-300),
     };
   }
 
@@ -698,6 +806,7 @@ class PerformanceMonitorService {
     const api = {
       enable: (options?: { sampleInterval?: number }) => this.enable({ ...options, reason: 'manual' }),
       disable: () => this.disable(),
+      isEnabled: () => this.isEnabled(),
       status: () => this.status(),
       sample: (reason?: string) => this.sample(reason),
       mark: (name: string, data?: any) => this.mark(name, data),
@@ -709,6 +818,7 @@ class PerformanceMonitorService {
       work: () => workerManagerService.list(),
       help: () => ({
         enable: `${WINDOW_API_NAME}.enable({ sampleInterval: 1000 })`,
+        isEnabled: `${WINDOW_API_NAME}.isEnabled()`,
         worker: `${WINDOW_API_NAME}.worker() // ping 检索结果解析 WebWorker，检查 worker chunk 是否可加载`,
         workerStatus: `${WINDOW_API_NAME}.workerStatus() // 查看检索解析 WebWorker 状态`,
         workers: 'window.__BKLOG_WORKERS__.list() // 统一查看当前分支内所有 Work / Worker 状态',
@@ -717,10 +827,11 @@ class PerformanceMonitorService {
         status: `${WINDOW_API_NAME}.status()`,
         sample: `${WINDOW_API_NAME}.sample('manual')`,
         mark: `${WINDOW_API_NAME}.mark('before-search')`,
-        export: `${WINDOW_API_NAME}.export()`,
+        export: `${WINDOW_API_NAME}.export() // 默认 ai + 当前 tab + 近 30 分钟；控制台只回摘要，避免 stringify 整包把页面打崩`,
+        exportCluster: `${WINDOW_API_NAME}.export({ mode: 'ai', includeRecords: true, recordTypes: ['mark', 'sample', 'sample-detail', 'api-request', 'long-task'] })`,
         exportCompact: `${WINDOW_API_NAME}.export({ mode: 'compact' })`,
-        exportAI: `${WINDOW_API_NAME}.export({ mode: 'ai' })`,
-        exportNoDownload: `${WINDOW_API_NAME}.export({ mode: 'ai', download: false })`,
+        exportFull: `${WINDOW_API_NAME}.export({ mode: 'full', includeRecords: true, pretty: false, limit: 2000 })`,
+        exportReturnPayload: `${WINDOW_API_NAME}.export({ returnPayload: true }) // 会把整包 JSON 留在控制台，堆高时可能崩`,
         clear: `${WINDOW_API_NAME}.clear()`,
         legacyTimer: 'window.__BKLOG_LEGACY_PERF_MONITOR__',
       }),

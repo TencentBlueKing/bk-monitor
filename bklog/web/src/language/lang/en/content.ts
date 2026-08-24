@@ -1427,8 +1427,8 @@ export default {
   '当前无可用业务信息，请联系管理员申请（空间UID：{spaceUid}，业务ID：{bizId}）':
     'No available business information. Please contact the administrator to apply (space UID: {spaceUid}, business ID: {bizId})',
   或者移除业务参数重试: 'Or remove the business parameters and retry',
-  业务下无采集项，请按照指引完成接入，或联系管理员申请:
+  '业务下无采集项，请按照指引完成接入，或联系管理员申请':
     'No collection items under this business. Please follow the guide to onboard, or contact the administrator to apply',
-  API无权限，请联系管理员申请: 'No API permission. Please contact the administrator to apply',
-  无权限，请联系管理员: 'No permission. Please contact the administrator',
+  'API无权限，请联系管理员申请': 'No API permission. Please contact the administrator to apply',
+  '无权限，请联系管理员': 'No permission. Please contact the administrator',
 };

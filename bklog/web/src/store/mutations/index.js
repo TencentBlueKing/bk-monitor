@@ -1,13 +1,27 @@
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
+
 import Vue, { set } from 'vue';
 
 import { setDefaultTableWidth } from '@/common/util';
 import { retrieveFieldAliasCacheService, retrieveFieldCacheService, storeCacheService } from '@/storage';
-import * as pinyin from 'tiny-pinyin';
-import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 
 import { ConditionOperator } from '../condition-operator.ts';
 import {
@@ -29,10 +43,10 @@ import {
   resolveVisibleFields,
 } from '../services/field-metadata.service.js';
 import { storeRuntimeCacheService } from '../services/runtime-cache.service.js';
-
-if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
-  pinyin.patchDict(patcher56L);
-}
+import {
+  normalizeSpaceList,
+  patchNormalizedSpaceItem,
+} from '../services/space-list.service.ts';
 
 const SET_APP_STATE = 'SET_APP_STATE';
 
@@ -286,33 +300,19 @@ const mutations = {
       state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
     },
     updateMySpaceList(state, spaceList) {
-      state.mySpaceList = spaceList.map((item) => {
-        const defaultTag = {
-          id: item.space_type_id,
-          name: item.space_type_name,
-          type: item.space_type_id,
-        };
-        return {
-          ...item,
-          name: item.space_name.replace(/\[.*?\]/, ''),
-          py_text: pinyin.convertToPinyin(item.space_name, true).replace(/true/g, ''),
-          tags:
-            item.space_type_id === 'bkci' && item.space_code
-              ? [
-                defaultTag,
-                {
-                  id: 'bcs',
-                  name: window.mainComponent.$t('容器项目'),
-                  type: 'bcs',
-                },
-              ]
-              : [defaultTag],
-        };
-      });
-
+      state.mySpaceList = normalizeSpaceList(spaceList);
       const demoId = String(window.DEMO_BIZ_ID);
-      const demoProject = spaceList.find(item => `${item.bk_biz_id}` === demoId);
+      const demoProject = state.mySpaceList.find(item => `${item.bk_biz_id}` === demoId);
       state.demoUid = demoProject ? demoProject.space_uid : '';
+    },
+    patchMySpaceListItem(state, { bkBizId, spaceUid, patch } = {}) {
+      const bizId = bkBizId != null ? `${bkBizId}` : '';
+      const uid = spaceUid != null ? `${spaceUid}` : '';
+      state.mySpaceList = patchNormalizedSpaceItem(
+        state.mySpaceList,
+        item => (uid ? item.space_uid === uid : item.bk_biz_id === bizId),
+        patch ?? {},
+      );
     },
     updateUnionIndexList(state, unionIndexList) {
       const updateIndexItem = unionIndexList.updateIndexItem ?? true;

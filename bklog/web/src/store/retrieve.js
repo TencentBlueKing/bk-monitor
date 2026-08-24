@@ -38,28 +38,40 @@ const random = (length = 10) => {
 };
 
 
+const LIGHTEN_NAME_LIMIT = 3;
+
+const buildLightenName = (indices = []) => {
+  const tableIds = (indices ?? []).map(entry => entry.result_table_id).filter(Boolean);
+  if (!tableIds.length) return ' ()';
+  if (tableIds.length <= LIGHTEN_NAME_LIMIT) {
+    return ` (${tableIds.join(';')})`;
+  }
+  return ` (${tableIds.slice(0, LIGHTEN_NAME_LIMIT).join(';')}+${tableIds.length - LIGHTEN_NAME_LIMIT})`;
+};
+
 /**
  * 索引集列表初始化
  * @param {*} indexSetList 索引集列表
- * @param {*} pid 父节点id
+ * @param {*} parentId 父节点 index_set_id，根节点为 '#'
  */
-const resolveIndexItemAttr = (indexSetList = [], parentNode = null) => {
+const resolveIndexItemAttr = (indexSetList = [], parentId = '#') => {
   const s1 = [];
   const s2 = [];
   indexSetList?.forEach(item => {
-    const copyItem = structuredClone(item);
-    Object.assign(copyItem, {
-      index_set_id: `${item.index_set_id}`,
+    const indexSetId = `${item.index_set_id}`;
+    const copyItem = Object.assign({}, item, {
+      index_set_id: indexSetId,
       indexName: item.index_set_name,
-      lightenName: ` (${item.indices.map(item => item.result_table_id).join(';')})`,
-      unique_id: `${parentNode?.index_set_id ?? '#'}_${item.index_set_id}`,
-      is_child_node: parentNode !== null,
-      parent_node: parentNode,
+      lightenName: buildLightenName(item.indices),
+      unique_id: `${parentId}_${indexSetId}`,
+      is_child_node: parentId !== '#',
+      parent_id: parentId === '#' ? '' : parentId,
     });
+    delete copyItem.parent_node;
 
     // 这里只有两层，数据结构固定为 parent_id#child_id
-    // 如果是跟节点 数据结构为 #_child_id
-    copyItem.children = resolveIndexItemAttr(item.children ?? [], copyItem);
+    // 如果是根节点 数据结构为 #_child_id
+    copyItem.children = resolveIndexItemAttr(item.children ?? [], indexSetId);
 
     if (copyItem.auth_wieght === 1) {
       s1.push(copyItem);
