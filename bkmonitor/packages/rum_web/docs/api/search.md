@@ -127,18 +127,19 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - Field
 
-| 参数名称                 | 类型                 | 描述                                               |
-|----------------------|--------------------|--------------------------------------------------|
-| field_name           | String             | 字段名                                              |
-| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同                       |
-| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等）              |
-| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                             |
-| is_real              | Boolean            | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）   |
-| is_searchable        | Boolean            | 是否支持搜索                                           |
-| is_agg               | Boolean            | 是否支持聚合统计                                         |
-| is_list              | Boolean            | 是否支持在列表中展示                                       |
-| supported_operations | Array[Operation]   | 支持的操作符列表                                         |
-| option_values        | Array[OptionValue] | 预设枚举值列表（可选，有预设值时返回；有别名时 UI 展示格式为 `alias(value)`） |
+| 参数名称                 | 类型                 | 描述                                                  |
+|----------------------|--------------------|-----------------------------------------------------|
+| field_name           | String             | 字段名                                                 |
+| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同                          |
+| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等）                 |
+| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                                |
+| origin_field         | String             | 原始顶层字段名，嵌套字段时为顶层字段（如 `attributes.http.url` 对应 `attributes`） |
+| is_real              | Boolean            | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）      |
+| is_searchable        | Boolean            | 是否支持搜索                                              |
+| is_agg               | Boolean            | 是否支持聚合统计                                            |
+| is_list              | Boolean            | 是否支持在列表中展示                                          |
+| supported_operations | Array[Operation]   | 支持的操作符列表                                            |
+| option_values        | Array[OptionValue] | 预设枚举值列表（可选，分析/候选值显示 {alias}（{value}），列表只显示 {alias}） |
 
 - Operation
 
@@ -271,6 +272,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_name": "span_name",
       "field_alias": "Span 名称",
       "field_type": "keyword",
+      "origin_field": "span_name",
       "is_real": true,
       "is_searchable": true,
       "is_agg": true,
@@ -282,6 +284,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_alias": "耗时",
       "field_type": "long",
       "field_unit": "us",
+      "origin_field": "elapsed_time",
       "is_real": true,
       "is_searchable": true,
       "is_agg": true,
@@ -292,6 +295,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_name": "attributes.span_type",
       "field_alias": "Span 类型",
       "field_type": "keyword",
+      "origin_field": "attributes",
       "is_real": true,
       "is_searchable": true,
       "is_agg": true,
@@ -312,6 +316,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_name": "resource.user_agent.name",
       "field_alias": "代理名称",
       "field_type": "keyword",
+      "origin_field": "resource",
       "is_real": true,
       "is_searchable": true,
       "is_agg": true,
@@ -323,6 +328,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_alias": "最大内容绘制",
       "field_type": "double",
       "field_unit": "ms",
+      "origin_field": "LCP",
       "is_real": false,
       "is_searchable": true,
       "is_agg": true,
