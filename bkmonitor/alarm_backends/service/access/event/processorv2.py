@@ -77,10 +77,9 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         return exc
 
     def run_inline_trigger(self):
-        from alarm_backends.service.trigger.runner import run_event_trigger_item
+        from alarm_backends.service.trigger.runner import run_event_trigger_items
 
-        for strategy_id, item_id in self.inline_trigger_items:
-            run_event_trigger_item(strategy_id, item_id)
+        run_event_trigger_items(self.inline_trigger_items)
 
     def push_to_check_result(self):
         redis_pipeline = None

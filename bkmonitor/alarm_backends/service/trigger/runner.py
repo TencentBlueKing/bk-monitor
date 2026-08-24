@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 import uuid
+from collections import deque
 from contextlib import nullcontext
 
 from django.conf import settings
@@ -29,32 +30,13 @@ from core.prometheus import metrics
 
 logger = logging.getLogger("trigger")
 
-EVENT_TRIGGER_BATCH_SIZE = 1000
+EVENT_TRIGGER_BATCH_SIZE = TriggerProcessor.MAX_PROCESS_COUNT
 EVENT_TRIGGER_LEASE_TTL = 300
 EVENT_TRIGGER_LEASE_RENEW_INTERVAL = 60
 
 EVENT_TRIGGER_ACQUIRE_LEASE_SCRIPT = """
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
 if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[4]) then
-    return 0
-end
-redis.call('ZADD', KEYS[1], ARGV[2], ARGV[3])
-redis.call('EXPIRE', KEYS[1], ARGV[5])
-return 1
-"""
-
-EVENT_TRIGGER_FINISH_BATCH_SCRIPT = """
-redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
-if redis.call('LLEN', KEYS[2]) == 0 then
-    redis.call('ZREM', KEYS[1], ARGV[3])
-    if redis.call('ZCARD', KEYS[1]) == 0 then
-        redis.call('DEL', KEYS[1])
-    end
-    return 0
-end
-
-local owns_lease = redis.call('ZSCORE', KEYS[1], ARGV[3])
-if not owns_lease and redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[4]) then
     return 0
 end
 redis.call('ZADD', KEYS[1], ARGV[2], ARGV[3])
@@ -102,24 +84,6 @@ def _acquire_event_trigger_lease(strategy_id, item_id, token, max_concurrency):
             EVENT_TRIGGER_LEASE_TTL * 2,
         )
     return bool(acquired)
-
-
-def _finish_event_trigger_batch(strategy_id, item_id, token, max_concurrency):
-    lease_key, anomaly_list_key = _event_trigger_keys(strategy_id, item_id)
-    now = int(time.time())
-    with routed_client(EVENT_INLINE_TRIGGER_LEASE_KEY.client, lease_key) as client:
-        should_continue = client.eval(
-            EVENT_TRIGGER_FINISH_BATCH_SCRIPT,
-            2,
-            lease_key,
-            anomaly_list_key,
-            now,
-            now + EVENT_TRIGGER_LEASE_TTL,
-            token,
-            max_concurrency,
-            EVENT_TRIGGER_LEASE_TTL * 2,
-        )
-    return bool(should_continue)
 
 
 def _renew_event_trigger_lease(strategy_id, item_id, token):
@@ -239,7 +203,7 @@ def run_trigger_item(
 
 
 def run_event_trigger_item(strategy_id, item_id):
-    """在 Event Worker 内以有限并发持续领取同一策略项，直到详情列表为空。"""
+    """在 Event Worker 内取得租约并处理一个有限批次，返回当前策略项是否仍有待处理数据。"""
     max_concurrency = max(1, int(settings.EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM))
     token = uuid.uuid4().hex
     try:
@@ -258,7 +222,7 @@ def run_event_trigger_item(strategy_id, item_id):
                 strategy_id,
                 item_id,
             )
-        return 0
+        return False
 
     if not acquired:
         logger.debug(
@@ -266,9 +230,8 @@ def run_event_trigger_item(strategy_id, item_id):
             strategy_id,
             item_id,
         )
-        return 0
+        return False
 
-    pulled_total = 0
     last_renewed_at = time.monotonic()
     lease_active = True
 
@@ -298,20 +261,18 @@ def run_event_trigger_item(strategy_id, item_id):
             )
 
     try:
-        while True:
-            pulled_total += run_trigger_item(
-                strategy_id,
-                item_id,
-                executor="event_inline",
-                acquire_lock=False,
-                max_process_count=EVENT_TRIGGER_BATCH_SIZE,
-                requeue_on_full=False,
-                raise_process_error=True,
-                concurrent_rate_limit=True,
-                progress_callback=renew_lease_on_progress,
-            )
-            if not _finish_event_trigger_batch(strategy_id, item_id, token, max_concurrency):
-                return pulled_total
+        run_trigger_item(
+            strategy_id,
+            item_id,
+            executor="event_inline",
+            acquire_lock=False,
+            max_process_count=EVENT_TRIGGER_BATCH_SIZE,
+            requeue_on_full=False,
+            raise_process_error=True,
+            concurrent_rate_limit=True,
+            progress_callback=renew_lease_on_progress,
+        )
+        return _release_event_trigger_lease(strategy_id, item_id, token) > 0
     except Exception:
         logger.exception(
             "[event inline trigger] process failed for strategy(%s), item(%s)",
@@ -336,4 +297,13 @@ def run_event_trigger_item(strategy_id, item_id):
                     strategy_id,
                     item_id,
                 )
-        return pulled_total
+        return False
+
+
+def run_event_trigger_items(items):
+    """按有限批次轮转 Event 策略项，避免热点项持续非空时阻塞同批后续项。"""
+    pending_items = deque(items)
+    while pending_items:
+        strategy_id, item_id = pending_items.popleft()
+        if run_event_trigger_item(strategy_id, item_id):
+            pending_items.append((strategy_id, item_id))

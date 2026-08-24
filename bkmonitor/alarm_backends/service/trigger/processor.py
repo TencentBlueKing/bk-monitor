@@ -340,7 +340,7 @@ class TriggerProcessor:
         return len(self.anomaly_points)
 
     def _reserve_rate_limit(self, event_records):
-        """并发内联路径先原子预占额度，允许少放但不允许并发突破保护阈值。"""
+        """并发内联路径原子预占保护额度；Redis 异常时沿用 fail-open。"""
         client = TRIGGER_EVENT_RATE_LIMIT_KEY.client
         threshold = TRIGGER_EVENT_RATE_LIMIT_THRESHOLD
         ts_keys = {}

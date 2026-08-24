@@ -89,11 +89,11 @@ def test_event_push_keeps_signal_path_when_inline_is_disabled(mocker, module, pr
 def test_event_process_runs_recorded_inline_items(mocker, processor_cls):
     processor = processor_cls()
     processor.inline_trigger_items = [(1, 2), (3, 4)]
-    run_event_trigger_item = mocker.patch.object(runner, "run_event_trigger_item", create=True)
+    run_event_trigger_items = mocker.patch.object(runner, "run_event_trigger_items", create=True)
 
     processor.run_inline_trigger()
 
-    assert run_event_trigger_item.call_args_list == [mocker.call(1, 2), mocker.call(3, 4)]
+    run_event_trigger_items.assert_called_once_with([(1, 2), (3, 4)])
 
 
 def test_event_inline_trigger_settings_are_dynamic():
