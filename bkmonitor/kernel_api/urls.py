@@ -19,7 +19,7 @@ from django.urls import include, path, re_path
 from rest_framework.documentation import include_docs_urls
 
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
-from bkmonitor.iam.iam_v4.callback.views import IAMV4ResourceCallbackView
+from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView
 from bkmonitor.utils.common_utils import package_contents
 from core.drf_resource.routers import ResourceRouter
 from kernel_api import views
@@ -108,7 +108,7 @@ urlpatterns = [
     re_path(r"^query-api/rest/v2/", include(router.urls)),
     re_path(r"^o/bk_monitorv3/query-api/rest/v2/", include(router.urls)),
     re_path(r"^query-api/o/bk_monitorv3/rest/v2/", include(router.urls)),
-    re_path(r"^rest/v2/iam/v4/callback/$", login_exempt(IAMV4ResourceCallbackView.as_view())),
+    re_path(r"^rest/v2/iam/v4/callback/$", login_exempt(MonitorV4ResourceCallbackView.as_view())),
     re_path(r"^apm_api/v1/", include("apm.urls")),
     re_path(r"^rum_api/v1/", include("rum.urls")),
 ]

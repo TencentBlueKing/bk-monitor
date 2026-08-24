@@ -44,3 +44,27 @@ class TestIamGenerateConfigCommand:
         assert "view_dashboard" in ids
         # 未指定 provider 时不输出单数 system（多 provider 总览走 systems）
         assert "system" not in config
+
+    def test_provider_controls_system_serialization(self, monkeypatch):
+        from bkmonitor.iam.iam_engine.django.facade import get_framework
+
+        provider = get_framework().providers["v4"]
+        monkeypatch.setattr(
+            provider,
+            "serialize_system_info",
+            lambda: {
+                "id": "custom_system",
+                "name": "自定义系统",
+                "custom_metadata": {"region": "ap-guangzhou"},
+            },
+        )
+
+        out = StringIO()
+        call_command("iam_generate_config", provider="v4", stdout=out)
+        config = json.loads(out.getvalue())
+
+        assert config["system"] == {
+            "id": "custom_system",
+            "name": "自定义系统",
+            "custom_metadata": {"region": "ap-guangzhou"},
+        }

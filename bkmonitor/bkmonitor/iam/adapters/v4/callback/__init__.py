@@ -9,12 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# iam_engine.callback — IAM 资源回调基础设施
+# 监控平台 IAM V4 callback 适配层
 #
-# 提供与 IAM 版本无关的通用回调机制：
-#   registry.py — 全局 handler 注册表 + register_* 装饰器
-#   service.py  — CallbackService（codec 感知的 dispatch 层）
-#
-# 各 Provider 版本（v3/v4/...）各自实现 HTTP 协议层（View + Auth），
-# 共用本模块的注册表 + CallbackService。
+# 本包由 callback 项目持有：资源 handler、协议分发、HTTP 鉴权、配置和 URL View
+# 都在这里完成。它可以复用 V4Client 与 NameCodec，但不依赖 V4PermissionProvider、
+# IAM_FRAMEWORK 或 Provider 的生命周期。
 # ---------------------------------------------------------------------------

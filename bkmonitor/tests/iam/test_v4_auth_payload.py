@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import MagicMock
 
-from bkmonitor.iam.iam_engine.core.types import Subject
+from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject
 from bkmonitor.iam.iam_engine.provider.dialect_types import (
     DialectAuthRequest,
     DialectBatchByActionRequest,
@@ -57,6 +57,31 @@ class TestBuildIamPath:
     def test_no_ancestors(self):
         r = DialectResource(type="space", id="space|2")
         assert _build_iam_path(r) is None
+
+
+class TestProviderBoundary:
+    def test_apply_data_uses_resolver_without_callback_service(self):
+        provider, _ = _build_provider()
+
+        class Resolver:
+            def resolve(self, resource):
+                return ResourceInstance(
+                    type=resource.type,
+                    id=resource.id,
+                    name="业务 2",
+                    ancestor_chain=resource.ancestor_chain,
+                )
+
+        provider.resolver = Resolver()
+        data = provider.get_apply_data(
+            ["view_business"],
+            [ResourceInstance(type="space", id="2")],
+            _subject(),
+        )
+
+        instance = data["actions"][0]["related_resource_types"][0]["instances"][0][0]
+        assert instance == {"type": "space", "id": "space|2", "name": "业务 2"}
+        assert not hasattr(provider, "callback_service")
 
 
 class TestToV4Resource:

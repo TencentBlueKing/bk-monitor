@@ -136,7 +136,7 @@ class V3Migrator:
                         "id": rt.id,
                         "name": rt.name,
                         "name_en": v3_ext.get("name_en") or rt.id,
-                        "system_id": v3_ext.get("system_id", "bk_monitorv3"),
+                        "system_id": v3_ext.get("system_id", self._cfg.system.id),
                         "selection_mode": v3_ext.get("selection_mode", "instance"),
                         "related_instance_selections": v3_ext.get("related_instance_selections", []),
                         # v3 平台必填：资源实例回调 API 路径（老版本在迁移 json 配置，现从 options 读）
@@ -482,7 +482,7 @@ class V3Migrator:
         data.setdefault("name_en", v3_ext.get("name_en") or change.entity_id)
         data.setdefault("provider_config", {"path": self._cfg.provider_config_path})
         if rt_def is not None:
-            data.setdefault("system_id", v3_ext.get("system_id", "bk_monitorv3"))
+            data.setdefault("system_id", v3_ext.get("system_id", self._cfg.system.id))
             data.setdefault("selection_mode", v3_ext.get("selection_mode", "instance"))
             data.setdefault("related_instance_selections", v3_ext.get("related_instance_selections", []))
         self._apply_parents(change, data, rt_def)
@@ -497,7 +497,7 @@ class V3Migrator:
             ancestor_ids = [rt_def.ancestor]
         ancestor_ids = [a for a in ancestor_ids if a]
         if ancestor_ids:
-            data["parents"] = [{"id": a, "system_id": data.get("system_id", "bk_monitorv3")} for a in ancestor_ids]
+            data["parents"] = [{"id": a, "system_id": data.get("system_id", self._cfg.system.id)} for a in ancestor_ids]
 
     def _apply_system_change(self, client, change: Change) -> None:
         system_id = self._cfg.system.id
@@ -608,7 +608,7 @@ class V3Migrator:
             v3_ext = {}
         return [
             {
-                "system_id": v3_ext.get("system_id", "bk_monitorv3"),
+                "system_id": v3_ext.get("system_id", self._cfg.system.id),
                 "id": rt_id,
                 "selection_mode": v3_ext.get("selection_mode", "instance"),
                 "related_instance_selections": v3_ext.get("related_instance_selections", []),

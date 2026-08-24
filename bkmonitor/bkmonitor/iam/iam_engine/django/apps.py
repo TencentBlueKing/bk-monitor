@@ -22,11 +22,7 @@ logger = logging.getLogger("iam_engine.django")
 class IamEngineConfig(AppConfig):
     """iam_engine Django 集成入口。
 
-    注册到 INSTALLED_APPS：
-        INSTALLED_APPS = [
-            ...
-            "bkmonitor.iam.iam_engine.django",
-        ]
+    注册到 INSTALLED_APPS 时填写本包的 Django 路径。
 
     启动流程：
         1. AppConfig.ready() 触发 load_framework()
@@ -34,8 +30,8 @@ class IamEngineConfig(AppConfig):
         3. 根据 MIGRATION.MODE 决定是否自动执行 schema 迁移
     """
 
-    name = "bkmonitor.iam.iam_engine.django"
-    label = "iam_engine"
+    name = __package__
+    label = __package__.rsplit(".", 1)[0].replace(".", "_")
     verbose_name = "IAM Engine"
 
     _framework_loaded = False
@@ -91,8 +87,6 @@ class IamEngineConfig(AppConfig):
             return
         self._migration_done = True
 
-        # semi_auto 通过 post_migrate 信号触发，跟随 `manage.py migrate` 部署脚本执行，
-        # 部署时天然只有一个 Pod 跑 migrate，无需多副本互斥锁。
         self._do_auto_migration(fw, migration_cfg)
 
     def _do_auto_migration(self, fw, migration_cfg: dict) -> None:
@@ -103,55 +97,55 @@ class IamEngineConfig(AppConfig):
         from ..schema.diff import MigrationPlan
 
         directory = migration_cfg.get("directory", "")
-        recorder = None
+        from ..django.migration_recorder import DjangoMigrationRecorder
 
-        for provider in fw.providers.values():
-            try:
-                # ① 系统迁移：plan_migration(scope="system") → apply_migration
-                plan = provider.plan_migration(fw.schema, scope="system")
-                report = provider.apply_migration(plan, dry_run=False, allow_destructive=allow_destructive)
-                if report.applied:
-                    logger.info("iam_engine migration: %s system — %d applied", provider.name, len(report.applied))
+        recorder = DjangoMigrationRecorder(
+            database=migration_cfg.get("database", "default"),
+            table_name=migration_cfg.get("table_name", "iam_migration_state"),
+        )
+        with recorder.lock("iam_engine_auto_migration"):
+            for provider in fw.providers.values():
+                try:
+                    # ① 系统迁移：plan_migration(scope="system") → apply_migration
+                    plan = provider.plan_migration(fw.schema, scope="system")
+                    report = provider.apply_migration(plan, dry_run=False, allow_destructive=allow_destructive)
+                    if report.applied:
+                        logger.info("iam_engine migration: %s system — %d applied", provider.name, len(report.applied))
 
-                # ② 文件迁移：本地迁移文件 → apply_migration
-                if not directory:
-                    continue
+                    # ② 文件迁移：本地迁移文件 → apply_migration
+                    if not directory:
+                        continue
 
-                if recorder is None:
-                    from ..django.migration_recorder import DjangoMigrationRecorder
+                    loader = MigrationLoader(directory)
+                    planner = MigrationPlanner(loader, recorder, provider.name)
+                    pending = planner.get_pending()
 
-                    recorder = DjangoMigrationRecorder()
+                    if not pending:
+                        continue
 
-                loader = MigrationLoader(directory)
-                planner = MigrationPlanner(loader, recorder, provider.name)
-                pending = planner.get_pending()
-
-                if not pending:
-                    continue
-
-                logger.info("iam_engine migration: %s file — %d pending", provider.name, len(pending))
-                for migration in pending:
-                    file_plan = MigrationPlan(provider_name=provider.name, changes=list(migration.operations))
-                    report = provider.apply_migration(file_plan, dry_run=False, allow_destructive=allow_destructive)
-                    if report.success:
-                        recorder.record(provider.name, migration.name, changes_count=len(report.applied))
-                        logger.info(
-                            "iam_engine migration: %s %s — %d applied",
-                            provider.name,
-                            migration.name,
-                            len(report.applied),
-                        )
-                    else:
-                        logger.error(
-                            "iam_engine migration: %s %s — %d failed, skipped=%s",
-                            provider.name,
-                            migration.name,
-                            len(report.failed),
-                            report.skipped_reason,
-                        )
-                        break
-            except Exception:
-                logger.exception(
-                    "iam_engine auto migration failed for provider=%s",
-                    provider.name,
-                )
+                    logger.info("iam_engine migration: %s file — %d pending", provider.name, len(pending))
+                    for migration in pending:
+                        file_plan = MigrationPlan(provider_name=provider.name, changes=list(migration.operations))
+                        report = provider.apply_migration(file_plan, dry_run=False, allow_destructive=allow_destructive)
+                        if report.success:
+                            recorder.record(provider.name, migration.name, changes_count=len(report.applied))
+                            logger.info(
+                                "iam_engine migration: %s %s — %d applied",
+                                provider.name,
+                                migration.name,
+                                len(report.applied),
+                            )
+                        else:
+                            logger.error(
+                                "iam_engine migration: %s %s — %d failed, skipped=%s",
+                                provider.name,
+                                migration.name,
+                                len(report.failed),
+                                report.skipped_reason,
+                            )
+                            break
+                except Exception:
+                    logger.exception(
+                        "iam_engine auto migration failed for provider=%s",
+                        provider.name,
+                    )

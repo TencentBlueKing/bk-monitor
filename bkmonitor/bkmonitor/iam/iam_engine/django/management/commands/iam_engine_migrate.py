@@ -20,9 +20,12 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from ....core.config import FrameworkConfig
 from ....django.facade import get_framework
 from ....django.migration_recorder import DjangoMigrationRecorder
 from ....migration.loader import MigrationLoader
@@ -34,8 +37,6 @@ class Command(BaseCommand):
     help = "应用 IAM schema 迁移：系统注册 + 迁移文件。"
 
     def add_arguments(self, parser):
-        from django.conf import settings
-
         raw = getattr(settings, "IAM_FRAMEWORK", {})
         default_allow_destructive = bool(raw.get("MIGRATION", {}).get("allow_destructive", False))
 
@@ -64,10 +65,37 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         skip_system = options["skip_system"]
         allow_destructive = options["allow_destructive"]
-        recorder = DjangoMigrationRecorder()
+        raw = getattr(settings, "IAM_FRAMEWORK", {})
+        migration_config = FrameworkConfig.from_dict(raw).migration
+        recorder = DjangoMigrationRecorder(
+            database=migration_config.database,
+            table_name=migration_config.table_name,
+        )
 
         providers = [fw.get_provider(provider_filter)] if provider_filter else list(fw.providers.values())
+        lock = nullcontext() if dry_run else recorder.lock("iam_engine_migrate")
+        with lock:
+            self._migrate_providers(
+                providers,
+                fw=fw,
+                options=options,
+                recorder=recorder,
+                dry_run=dry_run,
+                skip_system=skip_system,
+                allow_destructive=allow_destructive,
+            )
 
+    def _migrate_providers(
+        self,
+        providers,
+        *,
+        fw,
+        options: dict,
+        recorder: DjangoMigrationRecorder,
+        dry_run: bool,
+        skip_system: bool,
+        allow_destructive: bool,
+    ) -> None:
         for provider in providers:
             # ── ① 系统迁移 ──
             if not skip_system:

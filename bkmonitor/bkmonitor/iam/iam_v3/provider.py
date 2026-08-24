@@ -143,8 +143,7 @@ class V3PermissionProvider(PermissionProvider):
     def get_system_info(self) -> V3SystemInfo:
         """返回 Provider 的系统信息对象。
 
-        命令行工具（如 iam_generate_config）以 duck typing 消费
-        .id / .name / .description / .managers / .clients 等字段。
+        iam_generate_config 会通过基类的 serialize_system_info 导出完整字段。
 
         Returns:
             V3SystemInfo: V3 平台的系统注册信息。

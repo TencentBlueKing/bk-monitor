@@ -31,7 +31,7 @@ class ProviderConfig:
     """单个 Provider 的配置。
 
     Attributes:
-        cls: Provider 类的 dotted path（如 "bkmonitor.iam.iam_v4.provider.V4PermissionProvider"）
+        cls: Provider 类的 dotted path（如 "your_project.iam.iam_v4.provider.V4PermissionProvider"）
         options: 实例化参数。完全由 Provider 自己定义结构，包含业务配置
             （如 base_url）、凭据（credentials 字子典）、系统信息（system
             子字典）等。框架不解析 options 内部结构，直接透传给 Provider。
@@ -55,6 +55,19 @@ class CompositionConfig:
 
 
 @dataclass(frozen=True)
+class BypassRuleConfig:
+    """单条鉴权豁免规则配置。
+
+    Attributes:
+        cls: BypassRule 类的 dotted path。
+        options: 原样透传给规则构造器的配置。
+    """
+
+    cls: str
+    options: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class MigrationConfig:
     """Schema 迁移配置。
 
@@ -71,12 +84,16 @@ class MigrationConfig:
             （命令行显式传入时优先）。默认 False，破坏性变更（DELETE / 方言 id 变更重建）
             会被 skip 并告警。
         auto_makemigrations: 保留字段（当前不使用）
+        database: 迁移状态记录使用的 Django database alias。
+        table_name: 迁移状态记录表名。
     """
 
     mode: str = "manual"
     directory: str = ""
     allow_destructive: bool = False
     auto_makemigrations: bool = False
+    database: str = "default"
+    table_name: str = "iam_migration_state"
 
 
 @dataclass(frozen=True)
@@ -93,7 +110,7 @@ class FrameworkConfig:
         providers: Provider 配置列表
         composition: 组合策略配置
         migration: 迁移配置
-        bypass_rules: BypassRule 类的 dotted path 列表
+        bypass_rules: BypassRule 配置列表
     """
 
     actions_module: str = ""
@@ -102,7 +119,7 @@ class FrameworkConfig:
     providers: tuple[ProviderConfig, ...] = ()
     composition: CompositionConfig = field(default_factory=CompositionConfig)
     migration: MigrationConfig = field(default_factory=MigrationConfig)
-    bypass_rules: tuple[str, ...] = ()
+    bypass_rules: tuple[BypassRuleConfig, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict) -> FrameworkConfig:
@@ -127,7 +144,20 @@ class FrameworkConfig:
             directory=migration_raw.get("directory", ""),
             allow_destructive=migration_raw.get("allow_destructive", False),
             auto_makemigrations=migration_raw.get("auto_makemigrations", False),
+            database=migration_raw.get("database", "default"),
+            table_name=migration_raw.get("table_name", "iam_migration_state"),
         )
+        bypass_rules: list[BypassRuleConfig] = []
+        for item in raw.get("BYPASS_RULES", []):
+            if isinstance(item, str):
+                bypass_rules.append(BypassRuleConfig(cls=item))
+                continue
+            if not isinstance(item, dict) or not item.get("class"):
+                raise ValueError("Each BYPASS_RULES item must be a dotted path or {'class': ..., 'options': {...}}")
+            options = item.get("options", {})
+            if not isinstance(options, dict):
+                raise ValueError("BYPASS_RULES item options must be a dict")
+            bypass_rules.append(BypassRuleConfig(cls=item["class"], options=options))
         return cls(
             actions_module=raw.get("ACTIONS", ""),
             resource_types_module=raw.get("RESOURCE_TYPES", ""),
@@ -135,5 +165,5 @@ class FrameworkConfig:
             providers=providers,
             composition=composition,
             migration=migration,
-            bypass_rules=tuple(raw.get("BYPASS_RULES", [])),
+            bypass_rules=tuple(bypass_rules),
         )

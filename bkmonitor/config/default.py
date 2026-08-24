@@ -1385,6 +1385,31 @@ BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor_v4")
 BK_IAM_V4_SYSTEM_NAME = os.getenv("BK_IAM_V4_SYSTEM_NAME", "蓝鲸监控平台V4")
 BK_IAM_V4_SYSTEM_DESCRIPTION = os.getenv("BK_IAM_V4_SYSTEM_DESCRIPTION", "蓝鲸监控平台 IAM v4 权限系统")
 BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
+
+# ---- IAM v4 资源 callback ----
+#
+# callback 可独立部署，因此它有自己的 IAM 客户端配置，绝不回退读取 Provider 的
+# BK_IAM_V4_CLIENT_* 或 IAM_FRAMEWORK.PROVIDERS[*].options.credentials。部署时若
+# 确有需要，可将两组环境变量指向同一份受管密钥；这种复用是部署决定而不是代码耦合。
+BK_IAM_V4_CALLBACK_API_BASE_URL = os.getenv("BK_IAM_V4_CALLBACK_API_BASE_URL", "")
+BK_IAM_V4_CALLBACK_SYSTEM_ID = os.getenv("BK_IAM_V4_CALLBACK_SYSTEM_ID", "")
+BK_IAM_V4_CALLBACK_CLIENT_APP_CODE = os.getenv("BK_IAM_V4_CALLBACK_CLIENT_APP_CODE", "")
+BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET = os.getenv("BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET", "")
+BK_IAM_V4_CALLBACK_TIMEOUT = int(os.getenv("BK_IAM_V4_CALLBACK_TIMEOUT", "30"))
+BK_IAM_V4_CALLBACK_TENANT_ID = os.getenv("BK_IAM_V4_CALLBACK_TENANT_ID", "system")
+
+IAM_V4_CALLBACK = {
+    "base_url": BK_IAM_V4_CALLBACK_API_BASE_URL,
+    "system_id": BK_IAM_V4_CALLBACK_SYSTEM_ID,
+    "credentials": {
+        "app_code": BK_IAM_V4_CALLBACK_CLIENT_APP_CODE,
+        "app_secret": BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET,
+    },
+    "timeout": BK_IAM_V4_CALLBACK_TIMEOUT,
+    "bk_tenant_id": BK_IAM_V4_CALLBACK_TENANT_ID,
+}
+
+# 以下仅用于旧 IAM 调用方的兼容，不是 V4 callback 的配置来源。
 BK_IAM_APP_CODE = BK_IAM_V4_CLIENT_APP_CODE
 BK_IAM_APP_SECRET = BK_IAM_V4_CLIENT_APP_SECRET
 
@@ -1449,7 +1474,6 @@ IAM_FRAMEWORK = {
             "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
             "options": {
                 "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
-                "callback_module": "bkmonitor.iam.adapters.v4.callbacks",
                 "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
                 "base_url": BK_IAM_V4_API_BASE_URL,
                 "bk_tenant_id": "system",

@@ -444,6 +444,43 @@ class TestV3ProviderDialectMethods:
         assert "ACTION" in kinds
         assert "RESOURCE_TYPE" in kinds
 
+    def test_plan_migration_uses_configured_system_as_v3_default(self):
+        """未显式声明跨系统资源时，V3 payload 应使用当前 Provider 的系统 ID。"""
+        schema = SchemaRegistry()
+        schema.register_resource_type(
+            ResourceTypeDef(
+                id="document",
+                name="文档",
+                extensions={"v3": {"selection_mode": "instance"}},
+            )
+        )
+        schema.register_action(
+            ActionDef(
+                id="view_document",
+                name="查看文档",
+                resource_type="document",
+                extensions={"v3": {"type": "view"}},
+            )
+        )
+        schema.freeze()
+        options = _valid_options()
+        options["system"] = {"id": "custom_v3_system", "name": "自定义系统"}
+        provider = V3PermissionProvider(schema, **options)
+
+        plan = provider.plan_migration(schema, scope="full")
+        resource_change = next(change for change in plan.changes if change.entity_id == "document")
+        action_change = next(change for change in plan.changes if change.entity_id == "view_document")
+
+        assert resource_change.after["system_id"] == "custom_v3_system"
+        assert action_change.after["related_resource_types"] == [
+            {
+                "system_id": "custom_v3_system",
+                "id": "document",
+                "selection_mode": "instance",
+                "related_instance_selections": [],
+            }
+        ]
+
     def test_apply_migration_system_only(self):
         """plan 只有 SYSTEM：不查远端 actions/RTs，直接执行系统注册。"""
         p = _make_provider()

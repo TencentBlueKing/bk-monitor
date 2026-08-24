@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import logging
 
-from ..core.config import FrameworkConfig
+from ..core.config import BypassRuleConfig, FrameworkConfig
 from ..core.framework import IAMFramework
 from ..core.utils import import_class
 from ..django.facade import _set_framework
+from ..provider.composition.all_of import AllOfPolicy
+from ..provider.composition.any_of import AnyOfPolicy
+from ..provider.composition.primary import PrimaryPolicy
+from ..provider.composition.single import SinglePolicy
 from ..schema.loaders import load_from_class as schema_load_from_class
 from ..schema.registry import SchemaRegistry
 
@@ -28,20 +32,20 @@ logger = logging.getLogger("iam_engine.django")
 # 用户配置 composition.policy = "any_of" 时，框架查此表定位具体类。
 # --------------------------------------------------------------------------
 
-_POLICY_CLASS_MAP: dict[str, str] = {
-    "single": "bkmonitor.iam.iam_engine.provider.composition.single.SinglePolicy",
-    "any_of": "bkmonitor.iam.iam_engine.provider.composition.any_of.AnyOfPolicy",
-    "all_of": "bkmonitor.iam.iam_engine.provider.composition.all_of.AllOfPolicy",
-    "primary": "bkmonitor.iam.iam_engine.provider.composition.primary.PrimaryPolicy",
+_POLICY_CLASS_MAP: dict[str, type] = {
+    "single": SinglePolicy,
+    "any_of": AnyOfPolicy,
+    "all_of": AllOfPolicy,
+    "primary": PrimaryPolicy,
 }
 
 
 def _resolve_policy_class(policy_name: str) -> type:
     """根据策略名（如 "any_of"）返回 CompositionPolicy 子类。"""
-    dotted = _POLICY_CLASS_MAP.get(policy_name)
-    if dotted is None:
+    policy_cls = _POLICY_CLASS_MAP.get(policy_name)
+    if policy_cls is None:
         raise ValueError(f"Unknown composition policy {policy_name!r}. Available: {sorted(_POLICY_CLASS_MAP)}")
-    return import_class(dotted)
+    return policy_cls
 
 
 def _build_provider(provider_cfg, schema: SchemaRegistry):
@@ -54,12 +58,12 @@ def _build_provider(provider_cfg, schema: SchemaRegistry):
     return cls(schema, **provider_cfg.options)
 
 
-def _build_bypass_rules(raw_rules: tuple[str, ...]):
-    """从 dotted path 列表实例化 bypass 规则。"""
+def _build_bypass_rules(raw_rules: tuple[BypassRuleConfig, ...]):
+    """从配置实例化 bypass 规则。"""
     rules = []
-    for dotted in raw_rules:
-        rule_cls = import_class(dotted)
-        rules.append(rule_cls())
+    for rule_config in raw_rules:
+        rule_cls = import_class(rule_config.cls)
+        rules.append(rule_cls(**rule_config.options))
     return rules
 
 

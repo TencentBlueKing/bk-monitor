@@ -31,7 +31,5 @@ def get_framework() -> IAMFramework:
         RuntimeError: 框架尚未初始化（IAMEngineConfig.ready() 未执行）
     """
     if _framework is None:
-        raise RuntimeError(
-            "IAMFramework has not been initialized. Ensure 'bkmonitor.iam.iam_engine.django' is in INSTALLED_APPS."
-        )
+        raise RuntimeError(f"IAMFramework has not been initialized. Ensure {__package__!r} is in INSTALLED_APPS.")
     return _framework

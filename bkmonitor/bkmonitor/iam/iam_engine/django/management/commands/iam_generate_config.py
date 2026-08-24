@@ -77,30 +77,18 @@ class Command(BaseCommand):
             "roles": [_role(r) for r in fw.schema.all_roles() if _is_visible(r)],
         }
 
-        # 系统信息是 per-Provider 的，通过 provider.get_system_info() 获取
-        # 返回对象结构由 Provider 自己定义，此处以 duck typing 消费其字段
-        def _dump_system(system_obj) -> dict:
-            return {
-                "id": getattr(system_obj, "id", ""),
-                "name": getattr(system_obj, "name", ""),
-                "description": getattr(system_obj, "description", ""),
-                "clients": list(getattr(system_obj, "clients", ()) or ()),
-                "managers": list(getattr(system_obj, "managers", ()) or ()),
-                "callback_url": getattr(system_obj, "callback_url", ""),
-            }
-
         if provider_name:
             provider = fw.providers.get(provider_name)
             if provider is not None:
-                system_info = provider.get_system_info()
+                system_info = provider.serialize_system_info()
                 if system_info is not None:
-                    config["system"] = _dump_system(system_info)
+                    config["system"] = system_info
         else:
             systems = {}
             for p in fw.providers.values():
-                system_info = p.get_system_info()
+                system_info = p.serialize_system_info()
                 if system_info is not None:
-                    systems[p.name] = _dump_system(system_info)
+                    systems[p.name] = system_info
             if systems:
                 config["systems"] = systems
 

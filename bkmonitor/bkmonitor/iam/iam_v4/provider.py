@@ -18,11 +18,9 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import importlib
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ..iam_engine.callback.service import CallbackService
 from ..iam_engine.core.types import (
     BatchByResourceRequest,
     ResourceInstance,
@@ -97,9 +95,6 @@ class V4PermissionProvider(PermissionProvider):
     配置：
         完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
         Provider 不读 Django settings；具体字段参见 V4Options。
-
-    回调：
-        每个 Provider 实例持有自己的 CallbackService，codec 由本 Provider 注入。
     """
 
     #: Provider 标识，用于日志/监控/命令行 --provider 参数。
@@ -108,7 +103,7 @@ class V4PermissionProvider(PermissionProvider):
     def __init__(self, schema: SchemaRegistry, **options: Any) -> None:
         """初始化 v4 Provider。
 
-        从 options 中解析 V4Options、实例化 V4Client 和 CallbackService。
+        从 options 中解析 V4Options 并实例化 V4Client。
         codec 由基类 PermissionProvider.__init__ 根据 options.codec_class 创建。
 
         Args:
@@ -129,12 +124,6 @@ class V4PermissionProvider(PermissionProvider):
         self._clients: dict[str, V4Client] = {}
         # 默认 client（系统级操作：health_check / 迁移 / 模型管理）
         self._client = self._get_client("")
-        # 导入 callback handler 模块，触发 @register_xxx 装饰器注册
-        callback_module: str = options.get("callback_module", "")
-        if callback_module:
-            importlib.import_module(callback_module)
-        # 回调服务：持有本 Provider 的 codec
-        self.callback_service = CallbackService(self.codec)
 
     def _get_client(self, tenant_id: str = "") -> V4Client:
         """按租户 ID 获取或创建 V4Client（空租户使用配置的默认租户）。"""
@@ -157,8 +146,7 @@ class V4PermissionProvider(PermissionProvider):
     def get_system_info(self) -> V4SystemInfo:
         """返回 Provider 的系统信息对象。
 
-        命令行工具（如 iam_generate_config）以 duck typing 消费
-        .id / .name / .description / .managers / .clients / .callback_url。
+        iam_generate_config 会通过基类的 serialize_system_info 导出完整字段。
 
         Returns:
             V4SystemInfo: v4 平台的系统注册信息。
@@ -282,8 +270,8 @@ class V4PermissionProvider(PermissionProvider):
     ) -> dict | None:
         """生成 IAM Application 格式的权限申请数据。
 
-        纯本地拼接，不调 V4 IAM 平台 API。资源展示名称通过 callback_service
-        分发到对应 handler 查询（数据库 / 缓存）。
+        纯本地拼接，不调 V4 IAM 平台 API。资源展示名称由 Provider 配置的
+        ResourceResolver 补全；没有 resolver 或未命中时回退为资源 ID。
 
         Args:
             action_ids: 业务 action_id 列表
@@ -310,24 +298,12 @@ class V4PermissionProvider(PermissionProvider):
             rt_id: str = action_def.resource_type if action_def else ""
 
             if rt_id and resolved_resources:
-                instance_ids = [r.id for r in resolved_resources]
-                # 通过回调服务补全展示名称
-                display_map: dict[str, str] = {}
-                try:
-                    info = self.callback_service.dispatch_fetch_instance_info(rt_id, instance_ids, ["display_name"])
-                    display_map = {
-                        self.codec.decode_resource_id(rt_id, item["id"]): item.get("display_name", item["id"])
-                        for item in info
-                    }
-                except Exception:
-                    display_map = {}
-                # 未命中回调服务时回退到 resource.id
                 instances: list[list[dict]] = [
                     [
                         {
                             "type": rt_id,
                             "id": self.codec.encode_resource_id(rt_id, r.id),
-                            "name": display_map.get(r.id, r.id),
+                            "name": r.name or r.id,
                         }
                     ]
                     for r in resolved_resources

@@ -47,8 +47,9 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..core.exceptions import ActionNotFound, ProviderUnavailable
@@ -154,11 +155,31 @@ class PermissionProvider(ABC):
     def get_system_info(self) -> Any | None:
         """返回 Provider 的系统信息对象（结构由 Provider 自己决定）。
 
-        命令行工具（如 iam_generate_config）以 duck typing 消费 ``.id`` / ``.name``
-        / ``.description`` / ``.managers`` / ``.clients`` / ``.callback_url`` 等字段。
-        Provider 若无系统概念可返回 None。
+        Provider 若无系统概念可返回 None。需要导出系统信息时，可覆盖
+        serialize_system_info 定义稳定的序列化结果。
         """
         return None
+
+    def serialize_system_info(self) -> dict[str, Any] | None:
+        """将系统信息序列化为 JSON 兼容的字典。
+
+        默认支持 mapping、dataclass 以及提供 to_dict() 的对象。Provider 可以覆盖
+        本方法，保留自身平台所需的全部字段；框架命令不会再猜测字段集合。
+        """
+        system_info = self.get_system_info()
+        if system_info is None:
+            return None
+        if isinstance(system_info, Mapping):
+            return dict(system_info)
+        if is_dataclass(system_info):
+            return asdict(system_info)
+        to_dict = getattr(system_info, "to_dict", None)
+        if callable(to_dict):
+            return dict(to_dict())
+        raise TypeError(
+            f"{self.__class__.__name__}.get_system_info() returned an unsupported "
+            f"{type(system_info).__name__}; override serialize_system_info()."
+        )
 
     # ==================== 接口层（业务命名，final）====================
 

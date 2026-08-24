@@ -202,8 +202,8 @@ class TestGetApplyData:
             assert rt["id"] == ResourceTypes.SPACE.id
         print(f"\n  ✓ {len(data['actions'])} actions")
 
-    def test_structure_no_callback_graceful(self):
-        """不存在的 resource_type 不抛异常，related_resource_types 为空。"""
+    def test_structure_unknown_action_graceful(self):
+        """不存在的 action 不抛异常，related_resource_types 为空。"""
         fw = get_framework()
         subject = Subject(id=TEST_USER)
         data = fw.get_apply_data(

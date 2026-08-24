@@ -17,8 +17,8 @@ specific language governing permissions and limitations under the License.
 #   - fetch_instance_info：按 ID 批量查询实例展示名 / 父链。
 #
 # 消费方（四方复用）：
-#   - adapters/v4/callbacks.py：IAM v4 平台反向回调 handler 的薄封装
-#     （codec 编解码由 CallbackService 在 dispatch 层统一完成）；
+#   - adapters/v4/callback/handlers.py：IAM v4 平台反向回调 handler 的薄封装
+#     （codec 编解码由 V4CallbackService 在 dispatch 层统一完成）；
 #   - adapters/resolver.py：鉴权路径单实例补全（name / ancestor_chain）；
 #   - kernel_api RPC（后续 PR）：权限树父路径 / 展示名批量补全。
 #

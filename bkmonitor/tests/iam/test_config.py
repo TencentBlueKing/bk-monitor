@@ -240,3 +240,40 @@ class TestFrameworkConfigNoCredentialsProvider:
         }
         cfg = FrameworkConfig.from_dict(raw)
         assert not hasattr(cfg, "credentials_provider")
+
+
+class TestFrameworkConfigExtensibility:
+    def test_migration_recorder_and_bypass_rule_options_are_parsed(self):
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+        from bkmonitor.iam.iam_engine.core.types import Subject
+        from bkmonitor.iam.iam_engine.django.conf import _build_bypass_rules
+
+        cfg = FrameworkConfig.from_dict(
+            {
+                "MIGRATION": {
+                    "database": "iam",
+                    "table_name": "project_iam_migration_state",
+                },
+                "BYPASS_RULES": [
+                    {
+                        "class": "bkmonitor.iam.iam_engine.crosscutting.bypass.SubjectBypassRule",
+                        "options": {"subject_ids": ["iam_admin"]},
+                    }
+                ],
+            }
+        )
+
+        assert cfg.migration.database == "iam"
+        assert cfg.migration.table_name == "project_iam_migration_state"
+        rules = _build_bypass_rules(cfg.bypass_rules)
+        assert rules[0].should_bypass(Subject(id="iam_admin"), (), ()) is True
+
+    def test_legacy_bypass_rule_path_is_still_supported(self):
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+
+        cfg = FrameworkConfig.from_dict(
+            {"BYPASS_RULES": ["bkmonitor.iam.iam_engine.crosscutting.bypass.SettingsSkipRule"]}
+        )
+
+        assert cfg.bypass_rules[0].cls == "bkmonitor.iam.iam_engine.crosscutting.bypass.SettingsSkipRule"
+        assert cfg.bypass_rules[0].options == {}

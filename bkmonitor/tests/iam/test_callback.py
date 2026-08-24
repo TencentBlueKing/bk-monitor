@@ -8,268 +8,322 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import base64
+import warnings
+
 import pytest
+from django.core.exceptions import ImproperlyConfigured
+from django.test import override_settings
+from django.urls import resolve
+from rest_framework import RemovedInDRF317Warning
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.test import APIRequestFactory
+
+from bkmonitor.iam.adapters.v4.callback import auth as callback_auth
+from bkmonitor.iam.adapters.v4.callback.auth import IamCallbackAuthentication, V4SystemTokenProvider
+from bkmonitor.iam.adapters.v4.callback.config import V4CallbackConfig, get_v4_callback_config
+from bkmonitor.iam.adapters.v4.callback.registry import V4CallbackRegistry
+from bkmonitor.iam.adapters.v4.callback.service import V4CallbackService
+from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView, V4ResourceCallbackView
 from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
-from bkmonitor.iam.iam_engine.callback.registry import (
-    _fetch_handlers,
-    _list_handlers,
-    register_fetch_instance_info,
-    register_list_instance,
-)
-from bkmonitor.iam.iam_engine.callback.service import CallbackService
 from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
 
 
-@pytest.fixture(autouse=True)
-def _clear_registry():
-    """每个测试前后清理全局 handler 注册表，避免测试间污染。"""
-    _list_handlers.clear()
-    _fetch_handlers.clear()
-    yield
-    _list_handlers.clear()
-    _fetch_handlers.clear()
+class PrefixTypeCodec(IdentityCodec):
+    """为回调回归测试提供资源类型和实例 ID 都非恒等的 codec。"""
+
+    def encode_resource_type(self, resource_type: str) -> str:
+        return f"v4_{resource_type}"
+
+    def decode_resource_type(self, resource_type: str) -> str:
+        return resource_type.removeprefix("v4_")
+
+    def encode_resource_id(self, resource_type: str, resource_id: str) -> str:
+        return f"{resource_type}:{resource_id}"
+
+    def decode_resource_id(self, resource_type: str, resource_id: str) -> str:
+        return resource_id.removeprefix(f"{resource_type}:")
 
 
-class TestCallbackServicesIdentityCodec:
-    """使用恒等 codec 验证注册/分发机制本身（不涉及方言）。"""
-
-    def test_register_and_list_instance(self):
-        svc = CallbackService(codec=IdentityCodec())
-
-        @register_list_instance("test_type_identity")
-        def _fake_list(filter_data, page):
-            return {
-                "count": 2,
-                "results": [
-                    {"id": "1", "display_name": "space-1"},
-                    {"id": "2", "display_name": "space-2"},
-                ],
-            }
-
-        @register_fetch_instance_info("test_type_identity")
-        def _fake_fetch(ids, requires):
-            return [{"id": i, "display_name": f"name-{i}"} for i in ids]
-
-        result = svc.dispatch_list_instance("test_type_identity", {}, {"page": 1, "page_size": 10})
-        assert result["count"] == 2
-        assert len(result["results"]) == 2
-        assert result["results"][0]["id"] == "1"
-
-        result = svc.dispatch_fetch_instance_info("test_type_identity", ["1", "2"], ["display_name"])
-        assert len(result) == 2
-        assert {r["id"] for r in result} == {"1", "2"}
-
-    def test_unregistered_type(self):
-        svc = CallbackService(codec=IdentityCodec())
-        assert svc.dispatch_list_instance("unknown_type", {}, {}) == {"count": 0, "results": []}
-        assert svc.dispatch_fetch_instance_info("unknown_type", ["1"], []) == []
+def _service(codec=None) -> V4CallbackService:
+    return V4CallbackService(codec=codec, registry=V4CallbackRegistry())
 
 
-class TestCallbackServicesWithMonitorV4Codec:
-    """使用 MonitorV4Codec 验证 codec 编解码在 dispatch 层的正确性。
+class TestV4CallbackService:
+    def test_register_and_dispatch_identity_codec(self):
+        service = _service(IdentityCodec())
 
-    MonitorV4Codec 规则：
-      - space: 出参 encode 加 "space|" 前缀；入参 decode 去前缀
-      - 其他资源类型: 恒等
-    """
+        @service.registry.register_list_instance("test_type")
+        def list_instances(filter_data, page):
+            return {"count": 1, "results": [{"id": "1", "display_name": "one"}]}
 
-    def test_space_list_encodes_id(self):
-        svc = CallbackService(codec=MonitorV4Codec())
+        @service.registry.register_fetch_instance_info("test_type")
+        def fetch_instances(ids, requires):
+            return [{"id": resource_id, "display_name": f"name-{resource_id}"} for resource_id in ids]
 
-        @register_list_instance("space")
-        def _fake_list(filter_data, page):
-            return {
-                "count": 2,
-                "results": [
-                    {"id": "3", "display_name": "biz-3"},
-                    {"id": "-42", "display_name": "biz--42"},
-                ],
-            }
+        assert service.dispatch_list_instance("test_type", {}, {"page": 1}) == {
+            "count": 1,
+            "results": [{"id": "1", "display_name": "one"}],
+        }
+        assert service.dispatch_fetch_instance_info("test_type", ["1"], ["display_name"]) == [
+            {"id": "1", "display_name": "name-1"}
+        ]
 
-        result = svc.dispatch_list_instance("space", {}, {"page": 1, "page_size": 10})
-        assert result["results"][0]["id"] == "space|3"
-        assert result["results"][1]["id"] == "space|-42"
+    def test_registry_is_project_scoped_and_rejects_implicit_overwrite(self):
+        first = _service()
+        second = _service()
 
-    def test_space_fetch_decodes_input_and_encodes_output(self):
-        svc = CallbackService(codec=MonitorV4Codec())
+        @first.registry.register_list_instance("space")
+        def list_spaces(filter_data, page):
+            return {"count": 1, "results": [{"id": "3"}]}
 
-        received_ids: list[str] = []
+        assert second.dispatch_list_instance("space", {}, {}) == {"count": 0, "results": []}
+        with pytest.raises(ValueError, match="already registered"):
 
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
-            received_ids.extend(ids)
-            return [{"id": i, "display_name": f"biz-{i}"} for i in ids]
+            @first.registry.register_list_instance("space")
+            def replacement(filter_data, page):
+                return {"count": 0, "results": []}
 
-        result = svc.dispatch_fetch_instance_info("space", ["space|3", "space|-42"], [])
-        assert received_ids == ["3", "-42"]
-        assert [r["id"] for r in result] == ["space|3", "space|-42"]
+    def test_monitor_codec_decodes_parent_and_encodes_iam_path(self):
+        service = _service(MonitorV4Codec())
+        received_filter = {}
 
-    def test_space_fetch_tolerates_no_prefix(self):
-        svc = CallbackService(codec=MonitorV4Codec())
+        @service.registry.register_fetch_instance_info("apm_application")
+        def fetch_applications(ids, requires):
+            assert ids == ["42"]
+            return [{"id": "42", "_bk_iam_path_": "/space,3/apm_application,42/"}]
 
-        received_ids: list[str] = []
-
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
-            received_ids.extend(ids)
-            return [{"id": i, "display_name": f"biz-{i}"} for i in ids]
-
-        result = svc.dispatch_fetch_instance_info("space", ["3"], [])
-        assert received_ids == ["3"]
-        assert result[0]["id"] == "space|3"
-
-    def test_non_space_resource_is_identity(self):
-        svc = CallbackService(codec=MonitorV4Codec())
-
-        @register_list_instance("apm_application_test")
-        def _fake_list_apm(filter_data, page):
-            return {"count": 1, "results": [{"id": "42", "display_name": "apm-42"}]}
-
-        @register_fetch_instance_info("grafana_dashboard_test")
-        def _fake_fetch_grafana(ids, requires):
-            return [{"id": i, "display_name": f"dash-{i}"} for i in ids]
-
-        r1 = svc.dispatch_list_instance("apm_application_test", {}, {})
-        assert r1["results"][0]["id"] == "42"
-
-        r2 = svc.dispatch_fetch_instance_info("grafana_dashboard_test", ["1|abc-uid"], [])
-        assert r2[0]["id"] == "1|abc-uid"
-
-    def test_list_instance_decodes_parent_id(self):
-        svc = CallbackService(codec=MonitorV4Codec())
-
-        received_filter: dict = {}
-
-        @register_list_instance("apm_parent_test")
-        def _fake_list(filter_data, page):
+        @service.registry.register_list_instance("apm_application")
+        def list_applications(filter_data, page):
             received_filter.update(filter_data)
             return {"count": 0, "results": []}
 
-        svc.dispatch_list_instance(
-            "apm_parent_test",
+        service.dispatch_list_instance(
+            "apm_application",
             {"parent": {"type": "space", "id": "space|3"}},
             {},
         )
-        assert received_filter["parent"]["id"] == "3"
+        result = service.dispatch_fetch_instance_info("apm_application", ["42"], ["_bk_iam_path_"])
 
-    def test_different_codec_instances_share_registry(self):
-        """同一个 registry 可以被不同 codec 的 CallbackService 使用。"""
-        svc_id = CallbackService(codec=IdentityCodec())
-        svc_v4 = CallbackService(codec=MonitorV4Codec())
+        assert received_filter["parent"] == {"type": "space", "id": "3"}
+        assert result == [{"id": "42", "_bk_iam_path_": "/space,space|3/apm_application,42/"}]
 
-        @register_list_instance("space")
-        def _fake_list(filter_data, page):
-            return {"count": 1, "results": [{"id": "3", "display_name": "x"}]}
+    def test_monitor_codec_encodes_space_results_and_accepts_legacy_ids(self):
+        """保留迁移前的 space ID 编解码与无前缀兼容行为。"""
+        service = _service(MonitorV4Codec())
+        received_ids = []
 
-        r1 = svc_id.dispatch_list_instance("space", {}, {})
-        assert r1["results"][0]["id"] == "3"  # 恒等
+        @service.registry.register_list_instance("space")
+        def list_spaces(filter_data, page):
+            return {"count": 2, "results": [{"id": "3"}, {"id": "-42"}]}
 
-        r2 = svc_v4.dispatch_list_instance("space", {}, {})
-        assert r2["results"][0]["id"] == "space|3"  # MonitorV4Codec 加前缀
+        @service.registry.register_fetch_instance_info("space")
+        def fetch_spaces(ids, requires):
+            received_ids.extend(ids)
+            return [{"id": resource_id} for resource_id in ids]
 
+        assert service.dispatch_list_instance("space", {}, {})["results"] == [
+            {"id": "space|3"},
+            {"id": "space|-42"},
+        ]
+        assert service.dispatch_fetch_instance_info("space", ["space|3", "-42"], []) == [
+            {"id": "space|3"},
+            {"id": "space|-42"},
+        ]
+        assert received_ids == ["3", "-42"]
 
-class TestBkIamPathEncoding:
-    """验证 _bk_iam_path_ 的 codec 编解码。"""
+    def test_monitor_codec_keeps_non_space_ids_and_path_segments_unchanged(self):
+        service = _service(MonitorV4Codec())
 
-    def test_space_single_segment_encoded(self):
-        """space 单段路径中的 id 应被 encode。"""
-        svc = CallbackService(codec=MonitorV4Codec())
+        @service.registry.register_fetch_instance_info("grafana_dashboard")
+        def fetch_dashboards(ids, requires):
+            assert ids == ["1|dashboard-uid"]
+            return [
+                {
+                    "id": "1|dashboard-uid",
+                    "_bk_iam_path_": "/space,3/grafana_dashboard,1|dashboard-uid/",
+                }
+            ]
 
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
-            return [{"id": "3", "_bk_iam_path_": "/space,3/"}]
+        assert service.dispatch_fetch_instance_info("grafana_dashboard", ["1|dashboard-uid"], []) == [
+            {
+                "id": "1|dashboard-uid",
+                "_bk_iam_path_": "/space,space|3/grafana_dashboard,1|dashboard-uid/",
+            }
+        ]
 
-        result = svc.dispatch_fetch_instance_info("space", ["space|3"], ["_bk_iam_path_"])
-        assert result[0]["id"] == "space|3"
-        assert result[0]["_bk_iam_path_"] == "/space,space|3/"
+    def test_callback_path_edge_cases_keep_protocol_compatibility(self):
+        """覆盖无尾斜杠、畸形段、非字符串路径和未返回路径的旧行为。"""
+        service = _service(MonitorV4Codec())
 
-    def test_space_multi_segment_encoded(self):
-        """多段路径中，每段的 id 都被 encode。"""
-        svc = CallbackService(codec=MonitorV4Codec())
+        @service.registry.register_fetch_instance_info("space")
+        def fetch_spaces(ids, requires):
+            return [
+                {"id": "3", "_bk_iam_path_": "/space,3"},
+                {"id": "4", "_bk_iam_path_": "/top/"},
+                {"id": "5", "_bk_iam_path_": None},
+                {"id": "6"},
+            ]
 
-        @register_fetch_instance_info("apm_application")
-        def _fake_fetch(ids, requires):
-            return [{"id": "42", "_bk_iam_path_": "/space,3/apm_application,42/"}]
+        assert service.dispatch_fetch_instance_info("space", ["space|3", "space|4", "space|5", "space|6"], []) == [
+            {"id": "space|3", "_bk_iam_path_": "/space,space|3"},
+            {"id": "space|4", "_bk_iam_path_": "/top/"},
+            {"id": "space|5", "_bk_iam_path_": None},
+            {"id": "space|6"},
+        ]
 
-        result = svc.dispatch_fetch_instance_info("apm_application", ["42"], ["_bk_iam_path_"])
-        assert result[0]["_bk_iam_path_"] == "/space,space|3/apm_application,42/"
+    def test_identity_codec_keeps_callback_path_unchanged(self):
+        service = _service(IdentityCodec())
 
-    def test_non_space_path_identity(self):
-        """非 space 段落的 id 保持恒等。"""
-        svc = CallbackService(codec=MonitorV4Codec())
-
-        @register_fetch_instance_info("grafana_dashboard")
-        def _fake_fetch(ids, requires):
-            return [{"id": "1|abc", "_bk_iam_path_": "/space,3/grafana_dashboard,1|abc/"}]
-
-        result = svc.dispatch_fetch_instance_info("grafana_dashboard", ["1|abc"], ["_bk_iam_path_"])
-        # space 段 encode，grafana_dashboard 段恒等
-        assert result[0]["_bk_iam_path_"] == "/space,space|3/grafana_dashboard,1|abc/"
-
-    def test_no_trailing_slash(self):
-        """无尾部斜杠的路径也正确处理。"""
-        svc = CallbackService(codec=MonitorV4Codec())
-
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
-            return [{"id": "3", "_bk_iam_path_": "/space,3"}]
-
-        result = svc.dispatch_fetch_instance_info("space", ["space|3"], ["_bk_iam_path_"])
-        assert result[0]["_bk_iam_path_"] == "/space,space|3"
-
-    def test_no_bk_iam_path_unchanged(self):
-        """不带 _bk_iam_path_ 的 item 不应报错，id 正常 encode。"""
-        svc = CallbackService(codec=MonitorV4Codec())
-
-        @register_list_instance("space")
-        def _fake_list(filter_data, page):
-            return {"count": 1, "results": [{"id": "3", "display_name": "x"}]}
-
-        result = svc.dispatch_list_instance("space", {}, {})
-        assert result["results"][0]["id"] == "space|3"
-        assert "_bk_iam_path_" not in result["results"][0]
-
-    def test_bk_iam_path_non_string_skipped(self):
-        """_bk_iam_path_ 不是字符串时跳过，不抛异常。"""
-        svc = CallbackService(codec=MonitorV4Codec())
-
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
-            return [{"id": "3", "_bk_iam_path_": None}]
-
-        result = svc.dispatch_fetch_instance_info("space", ["space|3"], [])
-        assert result[0]["id"] == "space|3"
-        assert result[0]["_bk_iam_path_"] is None
-
-    def test_identity_codec_path_unchanged(self):
-        """恒等 codec 下 _bk_iam_path_ 保持不变。"""
-        svc = CallbackService(codec=IdentityCodec())
-
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
+        @service.registry.register_fetch_instance_info("space")
+        def fetch_spaces(ids, requires):
             return [{"id": "3", "_bk_iam_path_": "/space,3/apm_application,42/"}]
 
-        result = svc.dispatch_fetch_instance_info("space", ["3"], ["_bk_iam_path_"])
-        assert result[0]["_bk_iam_path_"] == "/space,3/apm_application,42/"
+        assert service.dispatch_fetch_instance_info("space", ["3"], []) == [
+            {"id": "3", "_bk_iam_path_": "/space,3/apm_application,42/"}
+        ]
 
-    def test_path_single_segment_no_comma(self):
-        """路径段不含逗号时原样保留（畸形输入防御）。"""
-        svc = CallbackService(codec=MonitorV4Codec())
+    def test_monitor_handlers_are_registered_on_the_project_service(self, monkeypatch):
+        """确保移动后的 handlers 仍由项目侧 service 持有并委托 catalog。"""
+        from bkmonitor.iam.adapters.v4.callback import handlers
 
-        @register_fetch_instance_info("space")
-        def _fake_fetch(ids, requires):
-            return [{"id": "3", "_bk_iam_path_": "/top/"}]
+        calls = []
 
-        result = svc.dispatch_fetch_instance_info("space", ["space|3"], [])
-        assert result[0]["_bk_iam_path_"] == "/top/"
+        def list_instances(resource_type, filter_data, page):
+            calls.append(("list", resource_type, filter_data, page))
+            return {"count": 1, "results": [{"id": "3"}]}
+
+        def fetch_instance_info(resource_type, ids, requires):
+            calls.append(("fetch", resource_type, ids, requires))
+            return [{"id": resource_id} for resource_id in ids]
+
+        monkeypatch.setattr(handlers.catalog, "list_instances", list_instances)
+        monkeypatch.setattr(handlers.catalog, "fetch_instance_info", fetch_instance_info)
+
+        service = handlers.get_callback_service()
+        assert service.dispatch_list_instance("space", {"keyword": "demo"}, {"page": 1})["results"] == [
+            {"id": "space|3"}
+        ]
+        assert service.dispatch_fetch_instance_info("space", ["space|3"], ["display_name"]) == [{"id": "space|3"}]
+        assert calls == [
+            ("list", "space", {"keyword": "demo"}, {"page": 1}),
+            ("fetch", "space", ["3"], ["display_name"]),
+        ]
+
+    def test_unregistered_resource_type_returns_empty_result(self):
+        service = _service()
+        assert service.dispatch_list_instance("unknown", {}, {}) == {"count": 0, "results": []}
+        assert service.dispatch_fetch_instance_info("unknown", ["1"], []) == []
+
+
+class TestV4CallbackView:
+    def test_monitor_project_view_owns_its_service(self):
+        service = MonitorV4ResourceCallbackView().get_callback_service()
+
+        assert isinstance(service, V4CallbackService)
+
+    def test_project_injected_service_handles_type_codec_without_provider(self):
+        service = _service(PrefixTypeCodec())
+        received_filter = {}
+
+        @service.registry.register_list_instance("document")
+        def list_documents(filter_data, page):
+            received_filter.update(filter_data)
+            return {
+                "count": 1,
+                "results": [{"id": "42", "_bk_iam_path_": "/space,3/document,42/"}],
+            }
+
+        class ProjectCallbackView(V4ResourceCallbackView):
+            callback_service = service
+
+        factory = APIRequestFactory()
+        view = ProjectCallbackView()
+        request = view.initialize_request(
+            factory.post(
+                "/",
+                {
+                    "method": "list_instance",
+                    "type": "v4_document",
+                    "filter": {"parent": {"type": "v4_space", "id": "space:3"}},
+                    "page": {"page": 1, "page_size": 20},
+                },
+                format="json",
+            )
+        )
+
+        response = view.post(request)
+
+        assert response.status_code == 200
+        assert received_filter["parent"] == {"type": "space", "id": "3"}
+        assert response.data["data"] == {
+            "count": 1,
+            "results": [
+                {
+                    "id": "document:42",
+                    "_bk_iam_path_": "/v4_space,space:3/v4_document,document:42/",
+                }
+            ],
+        }
+
+    def test_base_view_requires_project_service(self):
+        with pytest.raises(ImproperlyConfigured, match="project-provided callback_service"):
+            V4ResourceCallbackView().get_callback_service()
+
+    def test_monitor_view_uses_project_token_provider(self, monkeypatch):
+        class StaticTokenProvider:
+            def get_system_token(self) -> str:
+                return "callback-token"
+
+        monkeypatch.setattr(callback_auth, "get_callback_token_provider", lambda: StaticTokenProvider())
+        factory = APIRequestFactory()
+        credential = base64.b64encode(b"bk_iam:callback-token").decode()
+
+        response = MonitorV4ResourceCallbackView.as_view()(
+            factory.post(
+                "/",
+                {"method": "list_instance", "type": "unknown", "filter": {}, "page": {}},
+                format="json",
+                HTTP_AUTHORIZATION=f"Basic {credential}",
+            )
+        )
+
+        assert response.status_code == 200
+        assert response.data == {"code": 0, "data": {"count": 0, "results": []}}
+
+
+class TestV4CallbackRouting:
+    def test_both_project_urls_mount_monitor_callback_view(self):
+        # kernel_api URLConf 仍会触发 DRF CoreAPI 的弃用告警；该告警与
+        # callback 路由无关，测试只验证实际挂载的 View。
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInDRF317Warning)
+            from kernel_api import urls as kernel_urls
+
+        from monitor_web.iam import urls as monitor_iam_urls
+
+        kernel_match = resolve("/rest/v2/iam/v4/callback/", urlconf=kernel_urls)
+        monitor_match = resolve("/iam/v4/callback/", urlconf=monitor_iam_urls)
+
+        assert kernel_match.func.view_class is MonitorV4ResourceCallbackView
+        assert monitor_match.func.view_class is MonitorV4ResourceCallbackView
 
 
 class TestCallbackAuth:
-    """验证回调鉴权 token 缓存机制。"""
+    """验证 callback 使用独立 token provider，不读取 Provider 配置。"""
 
-    def test_token_cache_hit(self, monkeypatch):
-        from bkmonitor.iam.iam_v4.callback import auth
+    @staticmethod
+    def _config() -> V4CallbackConfig:
+        return V4CallbackConfig.from_dict(
+            {
+                "base_url": "https://callback-iam.example.com",
+                "system_id": "callback-system",
+                "credentials": {"app_code": "callback-app", "app_secret": "callback-secret"},
+                "bk_tenant_id": "callback-tenant",
+            }
+        )
 
+    def test_token_cache_hit(self):
         call_count = 0
 
         class FakeClient:
@@ -278,14 +332,74 @@ class TestCallbackAuth:
                 call_count += 1
                 return "test-token-123"
 
-        monkeypatch.setattr(auth, "_CACHED_TOKEN", None)
-        monkeypatch.setattr(auth, "_CACHED_TOKEN_EXPIRE_AT", 0)
-        monkeypatch.setattr(auth, "_get_client", lambda: FakeClient())
+        token_provider = V4SystemTokenProvider(self._config(), client_factory=lambda config: FakeClient())
 
-        t1 = auth._get_system_token()
-        assert t1 == "test-token-123"
+        assert token_provider.get_system_token() == "test-token-123"
+        assert token_provider.get_system_token() == "test-token-123"
         assert call_count == 1
 
-        t2 = auth._get_system_token()
-        assert t2 == "test-token-123"
-        assert call_count == 1
+    def test_basic_auth_uses_injected_token_provider(self):
+        class StaticTokenProvider:
+            def get_system_token(self) -> str:
+                return "callback-token"
+
+        factory = APIRequestFactory()
+        credential = base64.b64encode(b"bk_iam:callback-token").decode()
+        request = factory.get("/", HTTP_AUTHORIZATION=f"Basic {credential}")
+
+        assert IamCallbackAuthentication(StaticTokenProvider()).authenticate(request) == (None, None)
+
+    def test_basic_auth_rejects_invalid_callback_credentials(self):
+        class StaticTokenProvider:
+            def get_system_token(self) -> str:
+                return "callback-token"
+
+        factory = APIRequestFactory()
+        wrong_user = base64.b64encode(b"not_iam:callback-token").decode()
+        wrong_token = base64.b64encode(b"bk_iam:wrong-token").decode()
+
+        with pytest.raises(AuthenticationFailed, match="Missing or invalid"):
+            IamCallbackAuthentication(StaticTokenProvider()).authenticate(factory.get("/"))
+        with pytest.raises(AuthenticationFailed, match="Invalid callback username"):
+            IamCallbackAuthentication(StaticTokenProvider()).authenticate(
+                factory.get("/", HTTP_AUTHORIZATION=f"Basic {wrong_user}")
+            )
+        with pytest.raises(AuthenticationFailed, match="Invalid callback token"):
+            IamCallbackAuthentication(StaticTokenProvider()).authenticate(
+                factory.get("/", HTTP_AUTHORIZATION=f"Basic {wrong_token}")
+            )
+
+    @override_settings(
+        IAM_V4_CALLBACK={
+            "base_url": "https://callback-iam.example.com",
+            "system_id": "callback-system",
+            "credentials": {"app_code": "callback-app", "app_secret": "callback-secret"},
+            "bk_tenant_id": "callback-tenant",
+        }
+    )
+    def test_callback_config_is_independent_from_provider_options(self):
+        config = get_v4_callback_config()
+
+        assert config.base_url == "https://callback-iam.example.com"
+        assert config.system_id == "callback-system"
+        assert config.credentials.app_code == "callback-app"
+        assert config.credentials.app_secret == "callback-secret"
+
+    @override_settings(
+        IAM_V4_CALLBACK={},
+        IAM_FRAMEWORK={
+            "PROVIDERS": [
+                {
+                    "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+                    "options": {
+                        "base_url": "https://provider-iam.example.com",
+                        "system": {"id": "provider-system", "name": "Provider"},
+                        "credentials": {"app_code": "provider-app", "app_secret": "provider-secret"},
+                    },
+                }
+            ]
+        },
+    )
+    def test_callback_config_never_falls_back_to_provider_options(self):
+        with pytest.raises(ImproperlyConfigured, match="Invalid IAM_V4_CALLBACK configuration"):
+            get_v4_callback_config()
