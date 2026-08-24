@@ -7,6 +7,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from monitor_web.permissions import PlatformAdministratorPermission
 from monitor_web.redis_management.resources import (
     GetRedisManagementOverviewResource,
+    _query_metric,
     _read_latest_snapshot,
     build_cost_evidence,
     build_memory_view,
@@ -292,6 +293,20 @@ def test_overview_resource_aggregates_routing_metrics_and_existing_snapshots(moc
     assert all("host" not in node and "password" not in node for node in result["nodes"])
     assert all(call.kwargs["start_time"] == 1200 - 3 * 60 * 60 for call in query.call_args_list)
     assert snapshot_reader.call_count == 2
+
+
+def test_query_metric_uses_custom_report_namespace_and_cluster_job(mocker):
+    query = mocker.patch(
+        "monitor_web.redis_management.resources.resource.grafana.graph_promql_query",
+        return_value={"series": []},
+    )
+
+    _query_metric("redis_memory_used_bytes", "alarm", 1000, 1180)
+
+    assert (
+        query.call_args.kwargs["promql"]
+        == 'custom:custom_report_aggate:redis_memory_used_bytes{job="alarm"}'
+    )
 
 
 def test_read_latest_snapshot_uses_bounded_isolated_client_and_closes(mocker):

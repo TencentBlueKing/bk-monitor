@@ -396,7 +396,7 @@ def build_cost_evidence(
 
 
 def _query_metric(metric: str, cluster_name: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
-    promql = f"{metric}{{cluster_name={json.dumps(cluster_name)}}}"
+    promql = f"custom:custom_report_aggate:{metric}{{job={json.dumps(cluster_name)}}}"
     try:
         result = resource.grafana.graph_promql_query(
             bk_biz_id=settings.DEFAULT_BK_BIZ_ID,
