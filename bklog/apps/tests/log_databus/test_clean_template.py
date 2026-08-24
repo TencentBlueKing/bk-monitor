@@ -357,11 +357,41 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         updated = CleanTemplateHandler(result["clean_template_id"]).create_or_update(changed)
 
         self.assertEqual(updated["status"], CleanTemplateStatus.DRAFT.value)
-        self.assertEqual(updated["name"], CREATE_PARAMS["name"])
+        self.assertEqual(updated["name"], "draft-name")
+        self.assertEqual(updated["description"], "draft-description")
         self.assertEqual(updated["etl_params"], CREATE_PARAMS["etl_params"])
-        self.assertEqual(updated["snapshot"]["name"], "draft-name")
-        self.assertEqual(updated["snapshot"]["description"], "draft-description")
+        self.assertEqual(set(updated["snapshot"]), {"clean_type", "etl_params", "etl_fields"})
         self.assertEqual(updated["snapshot"]["etl_params"]["separator"], "|")
+
+    def test_update_metadata_with_collectors_is_published_immediately(self):
+        result = self.create_template()
+        self.create_collector(clean_template_id=result["clean_template_id"])
+        metadata_only = copy.deepcopy(CREATE_PARAMS)
+        metadata_only.pop("bk_biz_id")
+        metadata_only.update(name="renamed", description="new description")
+
+        updated = CleanTemplateHandler(result["clean_template_id"]).create_or_update(metadata_only)
+
+        self.assertEqual(updated["status"], CleanTemplateStatus.PUBLISHED.value)
+        self.assertIsNone(updated["snapshot"])
+        self.assertEqual(updated["name"], "renamed")
+        self.assertEqual(updated["description"], "new description")
+
+    def test_reverting_clean_config_clears_draft(self):
+        result = self.create_template()
+        self.create_collector(clean_template_id=result["clean_template_id"])
+        handler = CleanTemplateHandler(result["clean_template_id"])
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["etl_params"]["separator"] = "|"
+        self.assertEqual(handler.create_or_update(changed)["status"], CleanTemplateStatus.DRAFT.value)
+
+        reverted = copy.deepcopy(CREATE_PARAMS)
+        reverted.pop("bk_biz_id")
+        updated = handler.create_or_update(reverted)
+
+        self.assertEqual(updated["status"], CleanTemplateStatus.PUBLISHED.value)
+        self.assertIsNone(updated["snapshot"])
 
     def test_list_collectors_returns_active_collectors_with_related_index_sets(self):
         template = self.create_template()

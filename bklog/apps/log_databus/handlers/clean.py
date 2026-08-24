@@ -150,7 +150,7 @@ class CleanHandler:
 
 class CleanTemplateHandler:
     SYNC_MAX_WORKERS = 20
-    SNAPSHOT_FIELDS = ("name", "clean_type", "etl_params", "etl_fields", "description")
+    SNAPSHOT_FIELDS = ("clean_type", "etl_params", "etl_fields")
 
     def __init__(self, clean_template_id=None):
         self.clean_template_id = clean_template_id
@@ -283,15 +283,20 @@ class CleanTemplateHandler:
             logger.info(f"create clean template {clean_template.clean_template_id}")
             return model_to_dict(clean_template)
 
-        if "description" not in model_fields:
-            model_fields["description"] = (self.data.snapshot or {}).get("description", self.data.description)
+        self.data.name = model_fields["name"]
+        if "description" in model_fields:
+            self.data.description = model_fields["description"]
 
-        if CollectorConfig.objects.filter(clean_template_id=self.data.clean_template_id).exists():
+        clean_config_changed = any(getattr(self.data, field) != model_fields[field] for field in self.SNAPSHOT_FIELDS)
+        if (
+            clean_config_changed
+            and CollectorConfig.objects.filter(clean_template_id=self.data.clean_template_id).exists()
+        ):
             self.data.snapshot = {field: copy.deepcopy(model_fields[field]) for field in self.SNAPSHOT_FIELDS}
             self.data.status = CleanTemplateStatus.DRAFT.value
         else:
-            for key, value in model_fields.items():
-                setattr(self.data, key, value)
+            for field in self.SNAPSHOT_FIELDS:
+                setattr(self.data, field, model_fields[field])
             self.data.snapshot = None
             self.data.status = CleanTemplateStatus.PUBLISHED.value
         self.data.save()
