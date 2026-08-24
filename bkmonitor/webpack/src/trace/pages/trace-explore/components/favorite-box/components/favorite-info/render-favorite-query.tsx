@@ -57,8 +57,7 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
     const sourceItem = sourceMap.get(item.key);
     if (
       !(
-        sourceItem &&
-        sourceItem.key === item.key &&
+        sourceItem?.key === item.key &&
         sourceItem.method === item.method &&
         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
         sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
@@ -138,8 +137,9 @@ export default defineComponent({
       return '*';
     };
 
+    // RUM 检索的收藏配置与 trace 同构，共用一套预览渲染
     const renderTrace = () => {
-      if (favoriteType.value !== 'trace') {
+      if (!['rum', 'trace'].includes(favoriteType.value)) {
         return null;
       }
       const queryParams = (props.data?.config?.queryParams ||

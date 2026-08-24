@@ -41,6 +41,7 @@ const TraceRetrieval = () =>
   import(/* webpackChunkName: 'TraceRetrieval'*/ '../../pages/trace-retrieval/trace-retrieval');
 const Profiling = () => import(/* webpackChunkName: 'Profiling'*/ '../../pages/profiling/profiling');
 const Rum = () => import(/* webpackChunkName: 'Rum'*/ '../../pages/rum/rum');
+const RumExplore = () => import(/* webpackChunkName: 'RumExplore'*/ '../../pages/rum-explore/rum-explore');
 export default [
   {
     path: '/data-retrieval',
@@ -180,6 +181,28 @@ export default [
       title: 'Profiling 检索',
       navId: 'profiling',
       navClass: 'profiling-retrieval-nav',
+      noChangeLoading: true,
+      noNavBar: true,
+      needClearQuery: true, // 需要清空query搜索条件
+      route: {
+        parent: 'data',
+      },
+      authority: {
+        map: traceAuth,
+        page: traceAuth.VIEW_AUTH,
+      },
+    },
+  },
+  {
+    path: '/trace/rum-explore',
+    name: 'rum-explore',
+    components: {
+      noCache: RumExplore,
+    },
+    meta: {
+      title: 'RUM 检索',
+      navId: 'rum-explore',
+      navClass: 'rum-explore-nav',
       noChangeLoading: true,
       noNavBar: true,
       needClearQuery: true, // 需要清空query搜索条件

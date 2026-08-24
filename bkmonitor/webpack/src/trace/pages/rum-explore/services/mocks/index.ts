@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,22 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+export * from './application.mock';
+export * from './records.mock';
+export * from './statistics.mock';
+export * from './view-config.mock';
 
-export default [
-  {
-    path: '/rum',
-    name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
-  },
-  {
-    path: '/rum/config/:appName',
-    name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
-  },
-  {
-    path: '/rum-explore',
-    name: 'rumExplore',
-    component: () => import(/* webpackChunkName: "rum-explore" */ '../../pages/rum-explore/rum-explore'),
-  },
-] as RouteRecordRaw[];
+/** 模拟接口耗时，让 loading / 骨架屏等状态能被真实观察到 */
+export function mockDelay<T>(data: T, delay = 320): Promise<T> {
+  return new Promise(resolve => {
+    setTimeout(() => resolve(data), delay);
+  });
+}
