@@ -247,6 +247,30 @@ ANOMALY_LIST_KEY = register_key_with_config(
     }
 )
 
+CHECK_RESULT_PRODUCER_INFLIGHT_KEY = register_key_with_config(
+    {
+        "label": "[detect]CHECK_RESULT在途生产标记",
+        "key_type": "hash",
+        "key_tpl": "detect.check_result.producer.inflight.{strategy_id}",
+        "field_tpl": "{token}",
+        # 生产进程崩溃后保留标记，使热裁剪回退到原周期任务。
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+TRIGGER_CHECK_RESULT_INFLIGHT_KEY = register_key_with_config(
+    {
+        "label": "[trigger]CHECK_RESULT在途消费标记",
+        "key_type": "hash",
+        "key_tpl": "trigger.check_result.inflight.{strategy_id}.{item_id}",
+        "field_tpl": "{token}",
+        # 在途进程崩溃后宁可保留标记、回退周期清理，也不能因 TTL 失效冒险热裁剪。
+        "ttl": TTL_NOT_SET,
+        "backend": "queue",
+    }
+)
+
 ANOMALY_SIGNAL_KEY = register_key_with_config(
     {
         "label": "[detect]异常信号队列",
@@ -606,6 +630,16 @@ SERVICE_LOCK_NODATA = register_key_with_config(
         "key_type": "string",
         "key_tpl": "detect.lock.{strategy_id}",
         "ttl": 3 * CONST_MINUTES,  # 从1分钟改为3分钟,防御大策略处理超时
+        "backend": "service",
+    }
+)
+
+SERVICE_LOCK_CHECK_RESULT_PRODUCER_GATE = register_key_with_config(
+    {
+        "label": "[detect]CHECK_RESULT生产者入场门禁",
+        "key_type": "string",
+        "key_tpl": "detect.check_result.producer.gate.{strategy_id}",
+        "ttl": CONST_MINUTES,
         "backend": "service",
     }
 )

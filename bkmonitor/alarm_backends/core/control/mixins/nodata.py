@@ -290,6 +290,7 @@ class CheckMixin:
         :return:
         """
         redis_pipeline = None
+        rank_trim_eligible = getattr(self, "is_detect_result_rank_trim_eligible", lambda: False)()
         processed = set()
         all_dimensions_md5 = target_dimensions_md5 + data_dimensions_md5
         loop = 0
@@ -338,6 +339,8 @@ class CheckMixin:
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
                 check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
+                if rank_trim_eligible:
+                    self.register_check_result_trim_cache_key(check_result.check_result_cache_key)
 
                 if self.no_data_config.get("is_enabled"):
                     # 2. 缓存数据(维度缓存) type:Hash

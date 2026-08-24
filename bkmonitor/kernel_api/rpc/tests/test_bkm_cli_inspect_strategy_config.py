@@ -779,9 +779,7 @@ def test_list_enabled_can_omit_item_ids(monkeypatch):
 
 
 def test_list_enabled_detect_profile_is_off_by_default(monkeypatch):
-    calls = _patch_strategy_cache(
-        monkeypatch, strategy_ids=[1], groups={}, configs=[_detect_config(1, 60)]
-    )
+    calls = _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={}, configs=[_detect_config(1, 60)])
 
     result = _call_list_enabled({})
 
@@ -792,13 +790,8 @@ def test_list_enabled_detect_profile_is_off_by_default(monkeypatch):
     assert calls["configs"] == 0
 
 
-def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
-    """峰值上界必须是 point_required + 一个清理周期内的新增，不是两者取大。
-
-    热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，所以峰值出现在
-    紧接清理前，等于"保留基线 + 周期内新增"。取大写法给出的上界会低于实测峰值
-    （策略 8361 实测 261，而 max(30, 7200/30)=240），上界被实测突破即不成立。
-    """
+def test_list_enabled_detect_profile_keeps_legacy_periodic_reference(monkeypatch):
+    """历史公式继续用于成本参考，但必须明确它不是写后裁剪的安全上界。"""
     calls = _patch_strategy_cache(
         monkeypatch,
         strategy_ids=[1, 2, 3],
@@ -810,6 +803,8 @@ def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
     profiles = {item["strategy_id"]: item["detect_profile"] for item in result["strategies"]}
 
     assert profiles[1]["point_required"] == 30
+    assert profiles[1]["model_scope"] == "legacy_periodic_reference"
+    assert profiles[1]["is_safe_upper_bound"] is False
     assert profiles[1]["interval"] == 30
     assert profiles[1]["clean_interval_seconds"] == 7200
     assert profiles[1]["growth_per_clean_cycle"] == 240
@@ -823,17 +818,18 @@ def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
     assert calls["configs"] == 1
 
 
-def test_list_enabled_detect_profile_upper_bound_covers_measured_peak(monkeypatch):
-    """回归锚点：bkop 策略 8361 实测峰值 261，配置推导上界不得低于它。"""
+def test_list_enabled_detect_profile_preserves_measured_legacy_reference(monkeypatch):
+    """历史样本只保留为旧周期口径参考，不再声明为当前安全上界。"""
     _patch_strategy_cache(monkeypatch, strategy_ids=[8361], groups={}, configs=[_detect_config(8361, 30)])
 
     profile = _call_list_enabled({"include_detect_profile": True})["strategies"][0]["detect_profile"]
 
     assert profile["check_result_peak_per_series"] >= 261
+    assert profile["is_safe_upper_bound"] is False
 
 
-def test_list_enabled_detect_profile_uses_production_point_required(monkeypatch):
-    """point_required 取自生产函数：窗口放大后 P 应随之变大，而不是恒等于下限 30。"""
+def test_list_enabled_detect_profile_uses_legacy_strategy_point_required(monkeypatch):
+    """旧策略级参考值仍随窗口放大，不恒等于下限 30。"""
     _patch_strategy_cache(
         monkeypatch,
         strategy_ids=[1],
