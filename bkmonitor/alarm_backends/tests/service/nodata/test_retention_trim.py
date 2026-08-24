@@ -8,7 +8,6 @@ def test_nodata_push_data_trims_items_only_after_anomaly_list_publish(mocker):
     processor.inputs = {}
     processor.outputs = {1: [{"data": {"value": 1}}]}
     processor.check_result_producer_token = "producer-token"
-    processor.check_result_producer_lock = mocker.sentinel.producer_lock
     processor.strategy = mocker.MagicMock(items=[mocker.MagicMock(id=1), mocker.MagicMock(id=2)])
     push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=1)
     trim_item = mocker.patch.object(nodata_processor, "trim_item_check_results_if_trigger_idle")
@@ -21,6 +20,6 @@ def test_nodata_push_data_trims_items_only_after_anomaly_list_publish(mocker):
 
     assert operation_order.method_calls == [
         mocker.call.push(processor.outputs, "10", []),
-        mocker.call.trim(processor.strategy.items[0], "producer-token", mocker.sentinel.producer_lock),
-        mocker.call.trim(processor.strategy.items[1], "producer-token", mocker.sentinel.producer_lock),
+        mocker.call.trim(processor.strategy.items[0], "producer-token"),
+        mocker.call.trim(processor.strategy.items[1], "producer-token"),
     ]
