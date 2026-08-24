@@ -565,6 +565,15 @@ class ModeRouterTest(SimpleTestCase):
             (("v4", v4_scope), ("v3", v3_scope)),
         )
 
+    def test_map_providers_rejects_unexpected_arity(self):
+        router = self._make_router(AuthMode.V3)
+
+        with self.assertRaises(ValueError) as ctx:
+            router._map_providers((), lambda mode: mode)
+
+        self.assertIn("exactly two provider modes", str(ctx.exception))
+        self.pair_executor.assert_not_called()
+
     def _make_router(self, mode: AuthMode) -> ModeRouter:
         return ModeRouter(
             mode_provider=Mock(get_mode=Mock(return_value=mode)),

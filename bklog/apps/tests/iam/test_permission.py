@@ -4,10 +4,12 @@ from django.test import SimpleTestCase, override_settings
 from iam import ObjectSet, make_expression
 
 from apps.iam.backends.v3.scope import try_flatten_space_policy
+from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
 from apps.iam.handlers.resources import ResourceEnum
 from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.provider.router import ModeRouter
 
 
 @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=0)
@@ -16,7 +18,11 @@ class PermissionPolicyFlattenTest(SimpleTestCase):
         self.permission = Permission(username="tester", bk_tenant_id="default")
         mode_provider = MagicMock()
         mode_provider.get_mode.return_value = AuthMode.V3
-        self.permission._mode_router = MagicMock(mode_provider=mode_provider)
+        self.permission._mode_router = ModeRouter(
+            mode_provider=mode_provider,
+            bundles=self.permission.provider_bundles,
+            pair_executor=run_pair_concurrently,
+        )
         self.sdk_eval_expr = self.permission.iam_client._eval_expr
         self.spaces = [
             {"bk_biz_id": 3, "space_uid": "bkcc__3"},

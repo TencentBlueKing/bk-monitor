@@ -49,7 +49,7 @@ from apps.iam.exceptions import IAMDependencyError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, get_resource_by_id
-from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
+from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import (
     AuthRequest as EngineAuthRequest,
@@ -151,14 +151,6 @@ class Permission:
             )
         return self._mode_router
 
-    def _dual_stack(self) -> DualStackSpec:
-        """读取 Router 上的拓扑；测试把 mode_router 换成 MagicMock 时回退默认拓扑。"""
-
-        stack = getattr(self.mode_router, "stack", None)
-        if isinstance(stack, DualStackSpec):
-            return stack
-        return DEFAULT_DUAL_STACK
-
     def _build_provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
         """按协议版本注入能力。换代时在这里加新 key，拓扑的 current 指向它即可。"""
 
@@ -257,15 +249,20 @@ class Permission:
 
         本方法有意收缩：生产路径已经由 ``get_apply_data`` 带出 URL。
         仍保留转发，避免仓库外直接调用变成 AttributeError。
-        ``system_id`` 已忽略，申请选边走 DualStackSpec / Toggle，不再写死 V3。
+        ``system_id`` 不再透传；与 ``BK_IAM_SYSTEM_ID`` 不一致时打 warning。
         """
 
-        warnings.warn(
-            "Permission.get_apply_url is deprecated; use get_apply_data and take the URL from the second return value",
-            DeprecationWarning,
-            stacklevel=2,
+        message = (
+            "Permission.get_apply_url is deprecated; use get_apply_data and take the URL from the second return value"
         )
-        del system_id
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        logger.warning(message)
+        if system_id != settings.BK_IAM_SYSTEM_ID:
+            logger.warning(
+                "Permission.get_apply_url ignores system_id=%s; apply URL is generated for %s",
+                system_id,
+                settings.BK_IAM_SYSTEM_ID,
+            )
         _data, url = self.get_apply_data(action_ids, resources)
         return url
 
@@ -281,7 +278,7 @@ class Permission:
         """
         resources = resources or []
         resolved_mode = self._resolve_safe_apply_mode(resources, mode)
-        stack = self._dual_stack()
+        stack = self.mode_router.stack
         application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles, stack=stack)
         try:
             return self._call_application_provider(application, actions, resources)
@@ -330,7 +327,7 @@ class Permission:
         也可能不传 mode 走 FeatureToggle 自动解析（可能因配置非法抛出 InvalidAuthModeError）。
         这里统一兜底，避免任何一条路径把异常/非法值泄漏给直接调用 get_apply_data 的业务代码。
         """
-        fallback_mode = self._dual_stack().legacy
+        fallback_mode = self.mode_router.stack.legacy
         if mode is not None:
             resolved_mode = AuthMode.safe_coerce(mode, default=fallback_mode)
             if resolved_mode.value != mode:
@@ -643,7 +640,7 @@ class Permission:
         except InvalidAuthModeError as error:
             raise IAMDependencyError(error.reason, provider="mode") from error
 
-        scope_providers = self._space_mode_router().scope_providers_for(mode)
+        scope_providers = self.mode_router.scope_providers_for(mode)
 
         # 所有 Provider 都能独立给出授权范围且调用方未预加载列表：
         # IAM 先查 → 定向查库，避免先扫全量 Space。
@@ -704,25 +701,6 @@ class Permission:
         """未配置的 Provider 不需要本地候选：查询阶段会返回错误范围并 fail-closed，没必要先扫全量 Space。"""
         return any(provider is not None and provider.requires_candidate_ids for _, provider in scope_providers)
 
-    def _space_mode_router(self) -> ModeRouter:
-        """空间范围始终走 ModeRouter，避免门面再手写拓扑、并发和并集。
-
-        测试常把 ``_mode_router`` 换成只带 mode_provider 的桩；这里用当前 Bundle
-        现拼一个 Router，查询仍经过 ``list_authorized_scope``。已是 ModeRouter 时
-        直接复用，避免覆盖测试注入的 scope Bundle。
-        """
-
-        existing = self._mode_router
-        if isinstance(existing, ModeRouter):
-            return existing
-        mode_provider = existing.mode_provider if existing is not None else get_mode_provider()
-        return ModeRouter(
-            mode_provider=mode_provider,
-            bundles=self.provider_bundles,
-            pair_executor=run_pair_concurrently,
-            stack=self._dual_stack(),
-        )
-
     def _resolve_authorized_scope(
         self,
         action: ActionMeta,
@@ -730,13 +708,16 @@ class Permission:
         *,
         candidate_ids: frozenset[str] | None,
     ) -> AuthorizedResourceScope:
-        resolution = self._space_mode_router().list_authorized_scope(
+        resolution = self.mode_router.list_authorized_scope(
             mode,
             action_id=action.id,
             resource_type=ResourceEnum.BUSINESS.id,
             subject={"type": "user", "id": self.username},
             candidate_ids=candidate_ids,
         )
+        # 与 _union_divergence_patterns 对齐：单栈没有可比对的另一侧，不能打 union 分歧。
+        if len(resolution.provider_scopes) < 2:
+            return resolution.scope
         failed = [scope for scope in resolution.provider_scopes if not scope.ok]
         if failed:
             self._observe_scope_divergence(action.id, failed, total=len(resolution.provider_scopes))
@@ -812,12 +793,17 @@ class Permission:
         # 任务模块会加载 Celery app，延迟到实际授权入口再导入，避免和权限模块相互引用。
         from apps.iam.tasks.grant import dispatch_v4_creator_grant
 
+        stack = self.mode_router.stack
+        retry_target = stack.current
+        if retry_target is not AuthMode.V4:
+            raise NotImplementedError(f"retry dispatcher is still V4-only, got {retry_target.value}")
+
         orchestrator = DualWriteGrantOrchestrator(
-            writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles, stack=self._dual_stack()),
+            writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles, stack=stack),
             tenant_id=self.bk_tenant_id,
             operator=self.username,
             dispatch_retry_grant=dispatch_v4_creator_grant,
-            retry_target=self._dual_stack().current.value,
+            retry_target=retry_target.value,
             grant_observer=self._observe_grant,
         )
         return orchestrator.grant_creator_action(application, raise_exception=raise_exception)

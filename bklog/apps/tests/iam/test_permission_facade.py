@@ -6,14 +6,16 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from iam import Resource
 from iam.exceptions import AuthAPIError
 
+from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.exceptions import GetSystemInfoError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.permission import Permission
-from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.config import AuthMode, DualStackSpec
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
 from apps.iam.iam_engine.core.types import AuthResult
 from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from apps.iam.iam_engine.provider.router import ModeRouter
 
 
 @override_settings(
@@ -452,6 +454,22 @@ class PermissionFacadeTest(TestCase):
 
         apply_async.assert_not_called()
 
+    def test_creator_grant_rejects_non_v4_retry_target(self):
+        permission = self._make_permission()
+        permission._mode_router = ModeRouter(
+            mode_provider=self.mode_provider,
+            bundles=permission.provider_bundles,
+            pair_executor=run_pair_concurrently,
+            stack=DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3),
+        )
+        resource = Resource("bk_log_search", "collection", "1", {})
+
+        with self.assertRaises(NotImplementedError) as ctx:
+            permission.grant_creator_action(resource)
+
+        self.assertIn("v3", str(ctx.exception))
+        self.iam_client.grant_resource_creator_actions.assert_not_called()
+
     @staticmethod
     def _make_permission() -> Permission:
         return Permission(username="admin", bk_tenant_id="tenant-1")
@@ -482,11 +500,32 @@ class PermissionDelegationTest(SimpleTestCase):
 
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            url = self.permission.get_apply_url(["view_collection_v2"], resources, "bk_log_search")
+            with patch("apps.iam.handlers.permission.logger.warning") as warning:
+                url = self.permission.get_apply_url(["view_collection_v2"], resources, "bk_log_search")
 
         self.assertEqual(url, "https://iam.example/apply")
         self.permission.get_apply_data.assert_called_once_with(["view_collection_v2"], resources)
         self.assertTrue(any(item.category is DeprecationWarning for item in caught))
+        warning.assert_called_once_with(
+            "Permission.get_apply_url is deprecated; use get_apply_data and take the URL from the second return value"
+        )
+
+    def test_get_apply_url_warns_when_system_id_is_ignored(self):
+        resources = [Resource("bk_log_search", "collection", "28", {})]
+        self.permission.get_apply_data = Mock(return_value=({"actions": []}, "https://iam.example/apply"))
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            with patch("apps.iam.handlers.permission.logger.warning") as warning:
+                url = self.permission.get_apply_url(["view_collection_v2"], resources, "bk_monitorv3")
+
+        self.assertEqual(url, "https://iam.example/apply")
+        self.permission.get_apply_data.assert_called_once_with(["view_collection_v2"], resources)
+        warning.assert_any_call(
+            "Permission.get_apply_url ignores system_id=%s; apply URL is generated for %s",
+            "bk_monitorv3",
+            "bk_log_search",
+        )
 
     def test_get_system_info_delegates_to_the_v3_meta_query(self):
         self.iam_client._client.query.return_value = (True, "ok", {"actions": []})
