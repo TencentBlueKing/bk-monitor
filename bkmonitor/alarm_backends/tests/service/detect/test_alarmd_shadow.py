@@ -236,7 +236,7 @@ def test_alarmd_detect_input_failure_does_not_change_detection_ack(caplog):
 
 
 def test_alarmd_shadow_publishes_terminal_reference_only_after_detection_ack(caplog):
-    caplog.set_level(logging.INFO, logger="detect")
+    caplog.set_level(logging.DEBUG, logger="detect")
     calls = []
     batch = _prepared_detection_batch()
     detection_publisher = SimpleNamespace(
@@ -400,7 +400,7 @@ def test_terminal_reference_failure_logs_records_from_prior_broker_acks(caplog):
 
 
 def test_detection_multi_batch_failure_logs_only_the_failed_batch(caplog):
-    caplog.set_level(logging.INFO, logger="detect")
+    caplog.set_level(logging.DEBUG, logger="detect")
     first_batch = _prepared_detection_batch()
     second_batch = _prepared_detection_batch()
     second_batch["outcomes"] = [second_batch["outcomes"][0]]

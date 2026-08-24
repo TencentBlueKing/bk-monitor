@@ -266,13 +266,13 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
 # stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
 ALARMD_SHADOW_PUBLISH_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_publish_count",
-    documentation="alarmd Shadow 发布次数(stage: detection/reference; status: success/failed)",
+    documentation="alarmd Shadow 发布次数(stage: detection/detect_input/reference; status: success/failed)",
     labelnames=("stage", "status"),
 )
 
 ALARMD_SHADOW_PUBLISH_RECORD_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_publish_record_count",
-    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detection/reference)",
+    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detection/detect_input/reference)",
     labelnames=("stage",),
 )
 

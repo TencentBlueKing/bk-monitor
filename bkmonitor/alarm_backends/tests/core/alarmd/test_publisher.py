@@ -37,8 +37,9 @@ class FakeProducer:
 
     def flush(self, timeout):
         self.flush_timeout = timeout
-        for message in self.messages:
-            message["on_delivery"](self.delivery_error, None)
+        if not self.remaining:
+            for message in self.messages:
+                message["on_delivery"](self.delivery_error, None)
         return self.remaining
 
 

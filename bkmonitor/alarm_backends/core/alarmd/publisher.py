@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import logging
 import struct
+import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
@@ -22,12 +23,69 @@ DEFAULT_DELIVERY_TIMEOUT_MS = 3000
 DEFAULT_MAX_ENVELOPE_BYTES = 512 * 1024
 DEFAULT_MAX_OUTCOMES_PER_MESSAGE = 500
 PARTITION_HASH_VERSION = "trigger-input-partition-v1"
+PRODUCER_SCOPE_DETECTION = "detection"
+PRODUCER_SCOPE_POST_DETECTION = "post_detection"
 
 logger = logging.getLogger(__name__)
 
 
 class DetectionPublishError(RuntimeError):
     """Raised when an outcome batch is not acknowledged within the configured bound."""
+
+
+class KafkaPublishReceipt:
+    """Track delivery callbacks for one stage on a process-shared producer."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._pending_messages = 0
+        self._acknowledged_records = 0
+        self._delivery_errors = []
+        self.enqueue_error = None
+
+    def reserve(self, record_count: int):
+        state = {"pending": True}
+        with self._lock:
+            self._pending_messages += 1
+
+        def on_delivery(error, _message):
+            with self._lock:
+                if not state["pending"]:
+                    return
+                state["pending"] = False
+                self._pending_messages -= 1
+                if error is None:
+                    self._acknowledged_records += record_count
+                else:
+                    self._delivery_errors.append(error)
+
+        def cancel():
+            with self._lock:
+                if state["pending"]:
+                    state["pending"] = False
+                    self._pending_messages -= 1
+
+        return on_delivery, cancel
+
+    def fail_enqueue(self, error: Exception) -> None:
+        with self._lock:
+            if self.enqueue_error is None:
+                self.enqueue_error = error
+
+    @property
+    def pending_messages(self) -> int:
+        with self._lock:
+            return self._pending_messages
+
+    @property
+    def acknowledged_records(self) -> int:
+        with self._lock:
+            return self._acknowledged_records
+
+    @property
+    def first_delivery_error(self):
+        with self._lock:
+            return self._delivery_errors[0] if self._delivery_errors else None
 
 
 class KafkaDetectionPublisher:
@@ -142,6 +200,14 @@ class KafkaDetectInputPublisher(KafkaDetectionPublisher):
     """Publish accepted raw records for the isolated Go Detect→Trigger path."""
 
     def publish_batch(self, batch: Mapping) -> int:
+        receipt = self.enqueue_batch(batch)
+        try:
+            remaining = self.producer.flush(timeout=self.flush_timeout)
+        except Exception as error:
+            raise DetectionPublishError(f"detect input publish failed: {error}") from error
+        return self.resolve_receipt(receipt, remaining=remaining)
+
+    def prepare_batch(self, batch: Mapping):
         if not isinstance(batch, Mapping):
             raise DetectionPublishError("detect input batch must be an object")
         strategy_ir = batch.get("strategy_ir")
@@ -155,30 +221,50 @@ class KafkaDetectInputPublisher(KafkaDetectionPublisher):
 
         partition_key = trigger_partition_key(strategy_ir)
         microbatches = self._plan_detect_input_microbatches(strategy_ir, batch_id, records)
-        delivery_errors = []
+        return [
+            (
+                partition_key,
+                encode_json_document(_detect_input_envelope(strategy_ir, batch_id, records[start:end])),
+                end - start,
+            )
+            for start, end in microbatches
+        ]
 
-        def on_delivery(error, _message):
-            if error is not None:
-                delivery_errors.append(error)
+    def enqueue_batch(self, batch: Mapping) -> KafkaPublishReceipt:
+        return self.enqueue_prepared(self.prepare_batch(batch))
 
-        try:
-            for start, end in microbatches:
+    def enqueue_prepared(self, prepared) -> KafkaPublishReceipt:
+        receipt = KafkaPublishReceipt()
+        for partition_key, payload, record_count in prepared:
+            on_delivery, cancel = receipt.reserve(record_count)
+            try:
                 self.producer.produce(
                     topic=self.topic,
                     key=partition_key,
-                    value=encode_json_document(_detect_input_envelope(strategy_ir, batch_id, records[start:end])),
+                    value=payload,
                     on_delivery=on_delivery,
                 )
                 if hasattr(self.producer, "poll"):
                     self.producer.poll(0)
-            remaining = self.producer.flush(timeout=self.flush_timeout)
-        except Exception as error:
-            raise DetectionPublishError(f"detect input publish failed: {error}") from error
-        if remaining:
+            except Exception as error:
+                cancel()
+                receipt.fail_enqueue(error)
+                break
+        return receipt
+
+    @staticmethod
+    def resolve_receipt(receipt: KafkaPublishReceipt, *, remaining=None) -> int:
+        if receipt.enqueue_error is not None:
+            raise DetectionPublishError(f"detect input publish failed: {receipt.enqueue_error}")
+        if remaining and receipt.pending_messages:
             raise DetectionPublishError(f"detect input publish flush timeout: {remaining} message(s) unacknowledged")
-        if delivery_errors:
-            raise DetectionPublishError(f"detect input publish broker rejected message: {delivery_errors[0]}")
-        return len(records)
+        if receipt.first_delivery_error is not None:
+            raise DetectionPublishError(f"detect input publish broker rejected message: {receipt.first_delivery_error}")
+        if receipt.pending_messages:
+            raise DetectionPublishError(
+                f"detect input publish flush timeout: {receipt.pending_messages} message(s) unacknowledged"
+            )
+        return receipt.acknowledged_records
 
     def _plan_detect_input_microbatches(
         self, strategy_ir: Mapping, batch_id: str, records: list[Mapping]
@@ -217,7 +303,13 @@ class KafkaDetectInputPublisher(KafkaDetectionPublisher):
         return microbatches
 
 
-def build_kafka_detection_publisher(config: Mapping, *, allowed_topics, producer_factory=None):
+def build_kafka_detection_publisher(
+    config: Mapping,
+    *,
+    allowed_topics,
+    producer_factory=None,
+    producer_scope=PRODUCER_SCOPE_DETECTION,
+):
     if not isinstance(config, Mapping):
         raise ValueError("detection Kafka config must be an object")
     if (
@@ -257,11 +349,11 @@ def build_kafka_detection_publisher(config: Mapping, *, allowed_topics, producer
         raise ValueError("detection Kafka producer idempotence must be disabled")
     producer_config["enable.idempotence"] = False
     producer_config["acks"] = "all"
-    if producer_factory is None:
-        from confluent_kafka import Producer
-
-        producer_factory = Producer
-    producer = producer_factory(producer_config)
+    producer = _build_kafka_producer(
+        producer_config,
+        producer_factory=producer_factory,
+        producer_scope=producer_scope,
+    )
     return KafkaDetectionPublisher(
         producer=producer,
         topic=topic,
@@ -276,6 +368,7 @@ def build_kafka_detect_input_publisher(config: Mapping, *, allowed_topics, produ
         config,
         allowed_topics=allowed_topics,
         producer_factory=producer_factory,
+        producer_scope=PRODUCER_SCOPE_POST_DETECTION,
     )
     return KafkaDetectInputPublisher(
         producer=publisher.producer,
@@ -303,6 +396,20 @@ def get_cached_kafka_detection_publisher(config_json: str, allowed_topics: tuple
 def get_cached_kafka_detect_input_publisher(config_json: str, allowed_topics: tuple[str, ...]):
     config = decode_json_document(config_json)
     return build_kafka_detect_input_publisher(config, allowed_topics=set(allowed_topics))
+
+
+def _build_kafka_producer(producer_config: Mapping, *, producer_factory=None, producer_scope: str):
+    if producer_factory is not None:
+        return producer_factory(dict(producer_config))
+    config_json = encode_json_document(dict(producer_config)).decode("utf-8")
+    return _get_cached_default_kafka_producer(producer_scope, config_json)
+
+
+@lru_cache(maxsize=8)
+def _get_cached_default_kafka_producer(_producer_scope: str, config_json: str):
+    from confluent_kafka import Producer
+
+    return Producer(decode_json_document(config_json))
 
 
 def trigger_partition_key(document: Mapping) -> bytes:
