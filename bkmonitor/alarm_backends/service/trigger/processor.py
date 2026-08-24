@@ -47,6 +47,7 @@ class TriggerProcessor:
         # 策略快照数据
         self._strategy_snapshots = {}
         self._strategy_snapshot_legacy_json = {}
+        self._alarmd_reference_eligibility = {}
         self.strategy = Strategy(self.strategy_id)
 
     def get_strategy_snapshot(self, key):
@@ -80,7 +81,7 @@ class TriggerProcessor:
             self._strategy_snapshot_legacy_json[snapshot_key] = legacy_json
             return legacy_json
 
-    def is_alarmd_reference_selected(self):
+    def is_alarmd_reference_selected(self, *, strategy, strategy_snapshot_key):
         from alarm_backends.core.alarmd.config import shadow_flag
 
         if not shadow_flag(settings.ALARMD_DETECTION_SHADOW_ENABLED):
@@ -93,12 +94,44 @@ class TriggerProcessor:
         except TypeError:
             return False
 
-        from alarm_backends.core.alarmd.reference import is_alarmd_shadow_strategy_selected
+        if strategy_snapshot_key in self._alarmd_reference_eligibility:
+            return self._alarmd_reference_eligibility[strategy_snapshot_key]
 
-        return is_alarmd_shadow_strategy_selected(
-            settings.ALARMD_DETECTION_SHADOW_STRATEGY_IDS,
-            self.strategy_id,
+        from alarm_backends.core.alarmd.contract import (
+            ContractValidationError,
+            build_trigger_strategy_ir_from_legacy_config,
         )
+
+        try:
+            build_trigger_strategy_ir_from_legacy_config(
+                tenant_id=bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"]),
+                purpose="DETECT",
+                strategy=strategy,
+                item_id=self.item_id,
+                legacy_json=self.get_strategy_snapshot_legacy_json(strategy_snapshot_key),
+            )
+        except ContractValidationError as error:
+            logger.info(
+                "[alarmd shadow] component=alarmd-python stage=reference result=skipped "
+                "operation=eligibility records=0 strategy(%s) item(%s) reason=%s",
+                self.strategy_id,
+                self.item_id,
+                error,
+            )
+            selected = False
+        except Exception:
+            logger.exception(
+                "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                "operation=eligibility records=0 strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
+            selected = False
+        else:
+            selected = True
+
+        self._alarmd_reference_eligibility[strategy_snapshot_key] = selected
+        return selected
 
     def capture_alarmd_reference_candidate(self, *, point, event_record):
         try:
@@ -470,7 +503,10 @@ class TriggerProcessor:
         checker = AnomalyChecker(point, strategy, self.item_id)
         anomaly_records, event_record = checker.check()
 
-        if self.is_alarmd_reference_selected() and not checker.is_no_data_point(point):
+        if not checker.is_no_data_point(point) and self.is_alarmd_reference_selected(
+            strategy=strategy,
+            strategy_snapshot_key=point["strategy_snapshot_key"],
+        ):
             self.capture_alarmd_reference_candidate(
                 point=point,
                 event_record=event_record,

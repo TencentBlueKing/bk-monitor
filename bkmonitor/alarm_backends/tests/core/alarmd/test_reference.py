@@ -26,7 +26,6 @@ from alarm_backends.core.alarmd.reference import (
     build_reference_trigger_decision_batch,
     build_reference_trigger_decision_candidate,
     build_terminal_reference_decision_batches,
-    is_alarmd_shadow_strategy_selected,
 )
 from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
 from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY, TRIGGER_POINT, TRIGGER_STRATEGY
@@ -362,16 +361,6 @@ def test_unconfirmed_reference_candidate_preserves_the_same_trigger_identity():
     )
 
     assert candidate == acknowledged
-
-
-@pytest.mark.parametrize("selector", [(True,), (1.9,), ("01",), (" 1 ",), "1,", None])
-def test_alarmd_shadow_strategy_selector_rejects_noncanonical_values(selector):
-    assert not is_alarmd_shadow_strategy_selected(selector, 1)
-
-
-@pytest.mark.parametrize("selector", [(1,), ("1",), "1", ("2", 1)])
-def test_alarmd_shadow_strategy_selector_accepts_exact_positive_ids(selector):
-    assert is_alarmd_shadow_strategy_selected(selector, 1)
 
 
 def test_terminal_reference_projects_only_detection_terminal_outcomes_after_ack():

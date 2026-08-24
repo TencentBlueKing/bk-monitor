@@ -32,30 +32,7 @@ def test_alarmd_shadow_is_inert_when_disabled():
         assert processor.prepare_alarmd_detection_batches() == []
 
 
-def test_alarmd_shadow_requires_an_explicit_strategy_selector():
-    processor = object.__new__(DetectProcess)
-    processor.strategy_id = "1"
-
-    with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (), create=True),
-    ):
-        assert processor.prepare_alarmd_detection_batches() == []
-
-
-@pytest.mark.parametrize("selector", [(True,), (1.9,), ("01",), (" 1 ",), "1,"])
-def test_alarmd_shadow_rejects_noncanonical_strategy_selectors(selector):
-    processor = object.__new__(DetectProcess)
-    processor.strategy_id = "1"
-
-    with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", selector, create=True),
-    ):
-        assert processor.prepare_alarmd_detection_batches() == []
-
-
-def test_alarmd_shadow_projects_finalized_threshold_records():
+def test_alarmd_shadow_projects_all_eligible_threshold_records_when_enabled():
     strategy = copy.deepcopy(DETECT_STRATEGY)
     anomalous_record, normal_record = copy.deepcopy(DETECT_RECORDS)
     processor = object.__new__(DetectProcess)
@@ -85,7 +62,6 @@ def test_alarmd_shadow_projects_finalized_threshold_records():
 
     with (
         mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
         mock.patch.object(key.STRATEGY_SNAPSHOT_KEY.client, "get", return_value=json.dumps(strategy).encode()),
     ):
@@ -116,7 +92,6 @@ def test_alarmd_shadow_uses_frozen_snapshot_after_runtime_target_injection():
 
     with (
         mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
         mock.patch.object(
             key.STRATEGY_SNAPSHOT_KEY.client,
@@ -160,7 +135,6 @@ def test_alarmd_shadow_rejects_inputs_from_a_stale_strategy_snapshot(stale_updat
 
     with (
         mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
         mock.patch.object(key.STRATEGY_SNAPSHOT_KEY.client, "get", return_value=json.dumps(strategy).encode()),
     ):
@@ -538,13 +512,15 @@ def test_detect_push_logs_generic_publisher_initialization_failure_once(caplog):
 
 
 @pytest.mark.parametrize(
-    ("reference_config", "reference_allowed_topics"),
+    ("reference_config", "reference_allowed_topics", "expected_factory_calls"),
     [
-        ({"topic": object()}, ("alarmd-reference-shadow",)),
-        ({"topic": "alarmd-reference-shadow"}, (["not-hashable"],)),
+        ({"topic": object()}, ("alarmd-reference-shadow",), 0),
+        ({"topic": "alarmd-reference-shadow"}, (["not-hashable"],), 1),
     ],
 )
-def test_invalid_reference_config_does_not_block_detection_ack(reference_config, reference_allowed_topics):
+def test_invalid_reference_config_does_not_block_detection_ack(
+    reference_config, reference_allowed_topics, expected_factory_calls
+):
     batch = _prepared_detection_batch()
     detection_publisher = SimpleNamespace(publish_batch=mock.Mock(return_value=len(batch["outcomes"])))
 
@@ -579,12 +555,13 @@ def test_invalid_reference_config_does_not_block_detection_ack(reference_config,
         mock.patch.object(
             reference_publisher_module,
             "get_cached_kafka_reference_decision_publisher",
+            side_effect=RuntimeError("invalid reference publisher config"),
         ) as reference_factory,
     ):
         assert DetectProcess.publish_alarmd_detection_batches([batch]) == len(batch["outcomes"])
 
     detection_publisher.publish_batch.assert_called_once_with(batch)
-    reference_factory.assert_not_called()
+    assert reference_factory.call_count == expected_factory_calls
 
 
 def test_detection_publish_failure_never_initializes_or_sends_reference():

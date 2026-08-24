@@ -78,31 +78,75 @@ def test_trigger_reference_does_not_capture_nodata_points():
 
     with (
         mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
-        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
+        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True) as is_selected,
     ):
         processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
 
     processor.capture_alarmd_reference_candidate.assert_not_called()
+    is_selected.assert_not_called()
 
 
-def test_trigger_reference_reuses_detection_selector_and_excludes_double_check():
+def test_trigger_reference_uses_shadow_switches_and_excludes_double_check():
     processor = _processor()
+    strategy = copy.deepcopy(TRIGGER_STRATEGY)
+    strategy["update_time"] = 1569246480
+    processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=json.dumps(strategy).encode())
 
     with (
         mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
         mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
     ):
-        assert processor.is_alarmd_reference_selected()
+        assert processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
 
     with (
         mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
         mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [1], create=True),
     ):
-        assert not processor.is_alarmd_reference_selected()
+        assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
+
+
+def test_trigger_reference_skips_non_threshold_strategy_once_per_snapshot(caplog):
+    caplog.set_level(logging.INFO, logger="trigger")
+    processor = _processor()
+    strategy = copy.deepcopy(TRIGGER_STRATEGY)
+    strategy["items"][0]["algorithms"][0]["type"] = "NewSeries"
+    processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=json.dumps(strategy).encode())
+
+    with (
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
+    ):
+        assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
+        assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
+
+    processor.get_strategy_snapshot_legacy_json.assert_called_once_with("snapshot")
+    skipped_logs = [record.getMessage() for record in caplog.records if "result=skipped" in record.getMessage()]
+    assert len(skipped_logs) == 1
+    assert "stage=reference result=skipped operation=eligibility" in skipped_logs[0]
+    assert "reason=unsupported non-Threshold algorithm" in skipped_logs[0]
+
+
+def test_trigger_reference_eligibility_failure_is_fail_open_and_cached(caplog):
+    caplog.set_level(logging.ERROR, logger="trigger")
+    processor = _processor()
+    strategy = copy.deepcopy(TRIGGER_STRATEGY)
+    processor.get_strategy_snapshot_legacy_json = mock.Mock(side_effect=RuntimeError("snapshot unavailable"))
+
+    with (
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
+    ):
+        assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
+        assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
+
+    processor.get_strategy_snapshot_legacy_json.assert_called_once_with("snapshot")
+    fail_open_logs = [record.getMessage() for record in caplog.records if "result=fail_open" in record.getMessage()]
+    assert len(fail_open_logs) == 1
+    assert "stage=reference result=fail_open operation=eligibility" in fail_open_logs[0]
 
 
 def test_trigger_push_completes_monitor_event_before_reference_publish():
@@ -191,7 +235,7 @@ def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
             return_value=publisher,
         ) as factory,
     ):
-        assert processor.publish_alarmd_reference_candidates() == 1
+        assert processor.publish_alarmd_reference_candidates() == 2
 
     assert published_groups == [batches]
     assert processor.get_strategy_snapshot_legacy_json.call_args_list == [mock.call("first"), mock.call("second")]
@@ -425,6 +469,7 @@ def _processor():
     processor.event_records = []
     processor.reference_candidates = []
     processor._strategy_snapshot_legacy_json = {}
+    processor._alarmd_reference_eligibility = {}
     return processor
 
 
