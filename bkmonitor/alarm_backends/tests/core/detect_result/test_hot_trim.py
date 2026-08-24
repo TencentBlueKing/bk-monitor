@@ -198,14 +198,17 @@ def test_pending_anomaly_prevents_subsequent_detect_batch_from_trimming():
         patch("alarm_backends.core.detect_result.trim.TRIGGER_CHECK_RESULT_INFLIGHT_KEY", inflight_key),
         patch("alarm_backends.core.detect_result.trim.CHECK_RESULT_PRODUCER_INFLIGHT_KEY", producer_key),
         patch("alarm_backends.core.detect_result.trim.routing_snapshot", return_value=nullcontext()),
-        patch("alarm_backends.core.detect_result.trim.service_lock") as service_lock,
+        patch(
+            "alarm_backends.core.detect_result.trim.service_lock",
+            side_effect=[nullcontext(_producer_lock()), nullcontext(_producer_lock())],
+        ) as service_lock,
         patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
     ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", _producer_lock())
+        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token")
 
     assert trimmed is False
     item.get_detect_result_retention_point_required.assert_called_once_with()
-    service_lock.assert_not_called()
+    assert service_lock.call_count == 2
     check_result.trim_check_result_caches.assert_not_called()
 
 
@@ -230,7 +233,7 @@ def test_trigger_inflight_lock_prevents_detect_batch_from_trimming():
         ),
         patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
     ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", _producer_lock())
+        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token")
 
     assert trimmed is False
     check_result.trim_check_result_caches.assert_not_called()
@@ -251,13 +254,16 @@ def test_trigger_inflight_marker_blocks_trim_after_lock_ttl_expires():
         patch("alarm_backends.core.detect_result.trim.TRIGGER_CHECK_RESULT_INFLIGHT_KEY", inflight_key),
         patch("alarm_backends.core.detect_result.trim.CHECK_RESULT_PRODUCER_INFLIGHT_KEY", producer_key),
         patch("alarm_backends.core.detect_result.trim.routing_snapshot", return_value=nullcontext()),
-        patch("alarm_backends.core.detect_result.trim.service_lock") as service_lock,
+        patch(
+            "alarm_backends.core.detect_result.trim.service_lock",
+            side_effect=[nullcontext(_producer_lock()), nullcontext(_producer_lock())],
+        ) as service_lock,
         patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
     ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", _producer_lock())
+        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token")
 
     assert trimmed is False
-    service_lock.assert_not_called()
+    assert service_lock.call_count == 2
     check_result.trim_check_result_caches.assert_not_called()
 
 
@@ -270,7 +276,6 @@ def test_idle_trigger_allows_detect_batch_to_trim_exact_registered_keys():
     inflight_key.get_key.return_value = "inflight-key"
     inflight_key.client.hlen.return_value = 0
     producer_key = _producer_key()
-    producer_lock = _producer_lock()
     trigger_lock = _producer_lock()
     producer_gate_lock = _producer_lock()
 
@@ -285,7 +290,7 @@ def test_idle_trigger_allows_detect_batch_to_trim_exact_registered_keys():
         ),
         patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
     ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", producer_lock)
+        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token")
         args, kwargs = check_result.trim_check_result_caches.call_args
         before_chunk_result = kwargs["before_chunk"]()
 
@@ -294,6 +299,10 @@ def test_idle_trigger_allows_detect_batch_to_trim_exact_registered_keys():
     assert before_chunk_result is True
     trigger_lock.refresh.assert_called_once_with()
     producer_gate_lock.refresh.assert_called_once_with()
+    assert producer_key.client.hlen.call_count == 1
+    assert producer_key.client.hexists.call_count == 1
+    assert anomaly_list_key.client.llen.call_count == 1
+    assert inflight_key.client.hlen.call_count == 1
 
 
 def test_explicit_invalid_config_skips_hot_trim_and_logs(caplog):
@@ -314,7 +323,7 @@ def test_explicit_invalid_config_skips_hot_trim_and_logs(caplog):
         patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
         caplog.at_level("WARNING", logger="core.detect_result"),
     ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", _producer_lock())
+        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token")
 
     assert trimmed is False
     assert "invalid trigger window" in caplog.text
@@ -337,40 +346,14 @@ def test_other_check_result_producer_prevents_hot_trim():
         patch("alarm_backends.core.detect_result.trim.TRIGGER_CHECK_RESULT_INFLIGHT_KEY", inflight_key),
         patch("alarm_backends.core.detect_result.trim.CHECK_RESULT_PRODUCER_INFLIGHT_KEY", producer_key),
         patch("alarm_backends.core.detect_result.trim.routing_snapshot", return_value=nullcontext()),
-        patch("alarm_backends.core.detect_result.trim.service_lock") as service_lock,
+        patch(
+            "alarm_backends.core.detect_result.trim.service_lock",
+            side_effect=[nullcontext(_producer_lock()), nullcontext(_producer_lock())],
+        ) as service_lock,
         patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
     ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", _producer_lock())
+        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token")
 
     assert trimmed is False
-    service_lock.assert_not_called()
-    check_result.trim_check_result_caches.assert_not_called()
-
-
-def test_lost_detect_lock_prevents_hot_trim():
-    item = _trim_item()
-    anomaly_list_key = MagicMock()
-    anomaly_list_key.get_key.return_value = "anomaly-list-key"
-    anomaly_list_key.client.llen.return_value = 0
-    inflight_key = MagicMock()
-    inflight_key.get_key.return_value = "inflight-key"
-    inflight_key.client.hlen.return_value = 0
-    producer_key = _producer_key()
-    producer_lock = _producer_lock()
-    producer_lock.refresh.return_value = False
-    producer_lock.acquire.return_value = False
-
-    with (
-        patch("alarm_backends.core.detect_result.trim.ANOMALY_LIST_KEY", anomaly_list_key),
-        patch("alarm_backends.core.detect_result.trim.TRIGGER_CHECK_RESULT_INFLIGHT_KEY", inflight_key),
-        patch("alarm_backends.core.detect_result.trim.CHECK_RESULT_PRODUCER_INFLIGHT_KEY", producer_key),
-        patch("alarm_backends.core.detect_result.trim.routing_snapshot", return_value=nullcontext()),
-        patch("alarm_backends.core.detect_result.trim.service_lock", return_value=nullcontext()),
-        patch("alarm_backends.core.detect_result.trim.CheckResult") as check_result,
-    ):
-        trimmed = trim_item_check_results_if_trigger_idle(item, "producer-token", producer_lock)
-
-    assert trimmed is False
-    producer_lock.refresh.assert_called_once_with()
-    producer_lock.acquire.assert_called_once_with(0.1)
+    assert service_lock.call_count == 2
     check_result.trim_check_result_caches.assert_not_called()

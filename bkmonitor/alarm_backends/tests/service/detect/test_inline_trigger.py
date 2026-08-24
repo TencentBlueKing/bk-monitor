@@ -149,10 +149,9 @@ def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker
         return_value=nullcontext("producer-token"),
     )
 
-    def assert_trim_under_detect_lock(_item, producer_token, producer_lock):
+    def assert_trim_under_detect_lock(_item, producer_token):
         assert lock_state["active"] is True
         assert producer_token == "producer-token"
-        assert producer_lock is mocker.sentinel.detect_lock
 
     trim_item = mocker.patch.object(
         detect_process,
@@ -169,5 +168,5 @@ def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker
 
     assert processor.collect_check_result_trim_keys is True
     producer_context.assert_called_once_with("10")
-    trim_item.assert_called_once_with(item, "producer-token", mocker.sentinel.detect_lock)
+    trim_item.assert_called_once_with(item, "producer-token")
     processor.run_inline_trigger.assert_called_once_with()

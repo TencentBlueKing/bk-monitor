@@ -38,7 +38,6 @@ class CheckProcessor(BaseAbnormalPushProcessor):
         self.inputs = {}
         self.outputs = {}
         self.check_result_producer_token = None
-        self.check_result_producer_lock = None
         self.strategy = Strategy(strategy_id)
         i18n.set_biz(self.strategy.bk_biz_id)
 
@@ -170,7 +169,6 @@ class CheckProcessor(BaseAbnormalPushProcessor):
             trim_item_check_results_if_trigger_idle(
                 item,
                 self.check_result_producer_token,
-                self.check_result_producer_lock,
             )
         metrics.NODATA_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(anomaly_signal_list))
         if any(self.inputs.values()):
@@ -178,10 +176,9 @@ class CheckProcessor(BaseAbnormalPushProcessor):
 
     def process(self, now_timestamp):
         with (
-            service_lock(key.SERVICE_LOCK_NODATA, strategy_id=self.strategy_id) as producer_lock,
+            service_lock(key.SERVICE_LOCK_NODATA, strategy_id=self.strategy_id),
             check_result_producer(self.strategy_id) as producer_token,
         ):
-            self.check_result_producer_lock = producer_lock
             self.check_result_producer_token = producer_token
             self.strategy.gen_strategy_snapshot()
 

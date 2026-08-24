@@ -75,51 +75,21 @@ def _is_trigger_idle(anomaly_list_key, inflight_key) -> bool:
     )
 
 
-def _ensure_producer_lock(producer_lock) -> bool:
-    if producer_lock is None:
-        return False
-    return producer_lock.refresh() or producer_lock.acquire(0.1)
-
-
-def _can_trim_next_chunk(
-    *,
-    producer_key,
-    producer_token,
-    anomaly_list_key,
-    inflight_key,
-    producer_lock,
-    trigger_lock,
-    producer_gate_lock,
-) -> bool:
-    if not (producer_lock.refresh() and trigger_lock.refresh() and producer_gate_lock.refresh()):
-        return False
-    with routing_snapshot():
-        return _is_only_check_result_producer(producer_key, producer_token) and _is_trigger_idle(
-            anomaly_list_key,
-            inflight_key,
-        )
-
-
-def trim_item_check_results_if_trigger_idle(item, producer_token, producer_lock) -> bool:
+def trim_item_check_results_if_trigger_idle(item, producer_token) -> bool:
     """Trim a completed Detect/NoData batch only when producers and Trigger are idle.
 
-    Standard Detect/NoData register a strategy producer token before writing and may trim.
-    Access-Detect merge registers the same blocker token but never calls this function.
+    The caller still holds the Detect/NoData service lock. Standard Detect/NoData register a
+    strategy producer token before writing and may trim. Access-Detect merge registers the same
+    blocker token but never calls this function.
     """
     cache_keys = item.pop_check_result_trim_cache_keys()
     if not cache_keys or not item.is_detect_result_rank_trim_eligible():
         return False
-
     anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=item.strategy.id, item_id=item.id)
     inflight_key = TRIGGER_CHECK_RESULT_INFLIGHT_KEY.get_key(strategy_id=item.strategy.id, item_id=item.id)
     producer_key = CHECK_RESULT_PRODUCER_INFLIGHT_KEY.get_key(strategy_id=item.strategy.id)
     try:
         point_remain = item.get_detect_result_retention_point_required()
-        with routing_snapshot():
-            if not _is_only_check_result_producer(producer_key, producer_token) or not _is_trigger_idle(
-                anomaly_list_key, inflight_key
-            ):
-                return False
     except InvalidRetentionConfig as error:
         logger.warning(
             "skip check result rank trim for strategy(%s) item(%s): %s",
@@ -141,8 +111,6 @@ def trim_item_check_results_if_trigger_idle(item, producer_token, producer_lock)
             service_lock(SERVICE_LOCK_TRIGGER, strategy_id=item.strategy.id, item_id=item.id) as trigger_lock,
             service_lock(SERVICE_LOCK_CHECK_RESULT_PRODUCER_GATE, strategy_id=item.strategy.id) as producer_gate_lock,
         ):
-            if not _ensure_producer_lock(producer_lock):
-                return False
             with routing_snapshot():
                 if not _is_only_check_result_producer(producer_key, producer_token) or not _is_trigger_idle(
                     anomaly_list_key, inflight_key
@@ -150,15 +118,9 @@ def trim_item_check_results_if_trigger_idle(item, producer_token, producer_lock)
                     return False
 
                 def before_chunk():
-                    return _can_trim_next_chunk(
-                        producer_key=producer_key,
-                        producer_token=producer_token,
-                        anomaly_list_key=anomaly_list_key,
-                        inflight_key=inflight_key,
-                        producer_lock=producer_lock,
-                        trigger_lock=trigger_lock,
-                        producer_gate_lock=producer_gate_lock,
-                    )
+                    # The gate blocks new CHECK_RESULT writes and the Trigger lock blocks state transitions;
+                    # after the locked check only these two owners need to remain valid between chunks.
+                    return trigger_lock.refresh() and producer_gate_lock.refresh()
 
                 CheckResult.trim_check_result_caches(
                     cache_keys,

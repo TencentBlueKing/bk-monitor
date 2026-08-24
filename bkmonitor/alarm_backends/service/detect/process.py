@@ -488,7 +488,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
     def process(self):
         with (
-            service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id) as producer_lock,
+            service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id),
             check_result_producer(self.strategy_id) as producer_token,
         ):
             self.collect_check_result_trim_keys = True
@@ -505,7 +505,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
             self.push_data()
             for item in self.strategy.items:
-                trim_item_check_results_if_trigger_idle(item, producer_token, producer_lock)
+                trim_item_check_results_if_trigger_idle(item, producer_token)
             end_at = time.time()
             logger.info(f"[detect][latency] strategy({self.strategy_id}) processing end in {end_at - start_at}")
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)
