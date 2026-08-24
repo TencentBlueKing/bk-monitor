@@ -24,33 +24,30 @@ def _history_limit(params: dict[str, Any], operation: str) -> int:
     if operation == OPERATION_LATEST:
         return 1
     value = params.get("limit", SNAPSHOT_HISTORY_LIMIT)
-    try:
-        limit = int(value)
-    except (TypeError, ValueError) as error:
-        raise CustomException(message="limit must be an integer") from error
-    if limit < 1 or limit > SNAPSHOT_HISTORY_LIMIT:
+    if type(value) is not int:
+        raise CustomException(message="limit must be a JSON integer")
+    if value < 1 or value > SNAPSHOT_HISTORY_LIMIT:
         raise CustomException(message=f"limit must be between 1 and {SNAPSHOT_HISTORY_LIMIT}")
-    return limit
+    return value
 
 
 def _node_id(params: dict[str, Any]) -> int | None:
-    value = params.get("node_id")
-    if value in (None, ""):
+    if "node_id" not in params:
         return None
-    if isinstance(value, bool):
-        raise CustomException(message="node_id must be an integer")
-    try:
-        return int(value)
-    except (TypeError, ValueError) as error:
-        raise CustomException(message="node_id must be an integer") from error
+    value = params["node_id"]
+    if type(value) is not int:
+        raise CustomException(message="node_id must be a JSON integer")
+    return value
 
 
 def read_redis_strategy_cost_snapshots(params: dict[str, Any]) -> dict[str, Any]:
     unknown_fields = set(params) - ALLOWED_FIELDS
     if unknown_fields:
         raise CustomException(message=f"unsupported params: {', '.join(sorted(unknown_fields))}")
-    operation = str(params.get("operation") or OPERATION_LATEST).strip()
-    if operation not in {OPERATION_LATEST, OPERATION_HISTORY}:
+    if "operation" not in params:
+        raise CustomException(message="operation is required")
+    operation = params["operation"]
+    if type(operation) is not str or operation not in {OPERATION_LATEST, OPERATION_HISTORY}:
         raise CustomException(message=f"unsupported operation: {operation}")
     requested_node_id = _node_id(params)
     if operation == OPERATION_HISTORY and requested_node_id is None:
@@ -80,9 +77,9 @@ def read_redis_strategy_cost_snapshots(params: dict[str, Any]) -> dict[str, Any]
 
 
 _PARAMS_SCHEMA = {
-    "operation": "latest | history, default latest",
-    "node_id": "optional enabled CacheNode id in the current cluster",
-    "limit": f"history only, 1..{SNAPSHOT_HISTORY_LIMIT}, default {SNAPSHOT_HISTORY_LIMIT}",
+    "operation": "required: latest | history",
+    "node_id": "optional JSON integer CacheNode id in the current cluster; required for history",
+    "limit": f"history only, JSON integer 1..{SNAPSHOT_HISTORY_LIMIT}, default {SNAPSHOT_HISTORY_LIMIT}",
 }
 
 KernelRPCRegistry.register_function(
