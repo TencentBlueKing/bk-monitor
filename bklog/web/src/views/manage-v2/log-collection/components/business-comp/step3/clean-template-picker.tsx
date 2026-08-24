@@ -27,6 +27,11 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import http from '@/api';
+import {
+  CleanTemplateSnapshot,
+  CleanTemplateStatus,
+  resolveCleanTemplateDraft,
+} from '@/views/manage-v2/utils/clean-template';
 import useLocale from '@/hooks/use-locale';
 
 import { CLEAN_TYPE_MAP, getCleanTypeIcon } from './clean-type';
@@ -57,6 +62,8 @@ export interface CleanTemplate {
   visible_type?: string;
   visible_bk_biz_id?: number[];
   is_deleted?: boolean;
+  snapshot?: CleanTemplateSnapshot<CleanType, Record<string, unknown>, CleanTemplateField> | null;
+  status: CleanTemplateStatus;
   [key: string]: unknown;
 }
 
@@ -78,6 +85,10 @@ export default defineComponent({
       default: false,
     },
     selectFirstOnLoad: {
+      type: Boolean,
+      default: false,
+    },
+    useDraftConfig: {
       type: Boolean,
       default: false,
     },
@@ -141,7 +152,8 @@ export default defineComponent({
 
       try {
         const res = await http.request('clean/cleanTemplate', { query });
-        const list: CleanTemplate[] = Array.isArray(res.data) ? res.data : (res.data?.list ?? []);
+        const sourceList: CleanTemplate[] = Array.isArray(res.data) ? res.data : (res.data?.list ?? []);
+        const list = props.useDraftConfig ? sourceList.map(resolveCleanTemplateDraft) : sourceList;
         if (isLoadMore) {
           templateList.value = [...templateList.value, ...list];
         } else {

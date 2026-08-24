@@ -27,6 +27,11 @@
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
 
 import http from '@/api';
+import {
+  CleanTemplateSnapshot,
+  CleanTemplateStatus,
+  resolveCleanTemplateDraft,
+} from '@/views/manage-v2/utils/clean-template';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
@@ -68,9 +73,11 @@ export interface CleanTemplateDetail {
   clean_template_id: number;
   clean_type: string;
   description?: string;
-  etl_fields?: DetailField[];
-  etl_params?: DetailParams;
+  etl_fields: DetailField[];
+  etl_params: DetailParams;
   name: string;
+  snapshot?: CleanTemplateSnapshot<string, DetailParams, DetailField> | null;
+  status: CleanTemplateStatus;
 }
 
 interface DetailTemplateSummary {
@@ -78,8 +85,8 @@ interface DetailTemplateSummary {
   clean_type: string;
   description?: string;
   name: string;
-  pending_sync_collector_count: number;
   related_index_set_count: number;
+  status: CleanTemplateStatus;
 }
 
 interface SettingValuePart {
@@ -129,7 +136,7 @@ export default defineComponent({
     const globalsData = computed(() => store.getters['globals/globalsData'] ?? {});
     const canSync = computed(() => (
       collectors.value.length > 0
-      && (props.template?.pending_sync_collector_count ?? 0) > 0
+      && props.template?.status === 'DRAFT'
       && !isCollectorsLoading.value
     ));
     const timeField = computed(() => fields.value.find(item => item.is_time));
@@ -164,7 +171,7 @@ export default defineComponent({
         const res = await http.request('clean/templateDetail', {
           params: { clean_template_id: props.template.clean_template_id },
         });
-        detail.value = res.data || null;
+        detail.value = res.data ? resolveCleanTemplateDraft(res.data as CleanTemplateDetail) : null;
       } catch (error) {
         console.warn(error);
       } finally {

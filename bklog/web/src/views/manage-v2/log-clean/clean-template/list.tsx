@@ -27,6 +27,11 @@
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import http from '@/api';
+import {
+  CleanTemplateSnapshot,
+  CleanTemplateStatus,
+  resolveCleanTemplateDraft,
+} from '@/views/manage-v2/utils/clean-template';
 import LogImport from '@/components/log-import/log-import';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserver from '@/hooks/use-resize-observe';
@@ -87,8 +92,9 @@ interface CleanTemplateItem {
   etl_params: CleanTemplateEtlParams;
   field_count: number;
   name: string;
-  pending_sync_collector_count: number;
   related_index_set_count: number;
+  snapshot?: CleanTemplateSnapshot<CleanType, CleanTemplateEtlParams, CleanTemplateField> | null;
+  status: CleanTemplateStatus;
   updated_at: string;
   updated_by: string;
 }
@@ -341,7 +347,7 @@ export default defineComponent({
         });
         pagination.count = res.data.total;
         const formattedList = formatResponseListTimeZoneString(res.data.list || []) as CleanTemplateItem[];
-        templateList.value = formattedList;
+        templateList.value = formattedList.map(resolveCleanTemplateDraft);
 
         // 批量获取用户信息，更新显示名称映射
         const userIds = new Set<string>();
@@ -711,11 +717,11 @@ export default defineComponent({
             <span
               v-bk-tooltips={{
                 content: t('该模板已同步至关联采集项，无需同步'),
-                disabled: Boolean(row.pending_sync_collector_count),
+                disabled: row.status === 'DRAFT',
               }}
             >
               <bk-button
-                disabled={!row.pending_sync_collector_count}
+                disabled={row.status !== 'DRAFT'}
                 theme='primary'
                 text
                 onClick={() => handleOpenSyncSlider(row)}

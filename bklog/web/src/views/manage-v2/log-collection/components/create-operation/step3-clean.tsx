@@ -35,6 +35,7 @@ import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
 import { deepClone, deepEqual } from '@/common/util';
+import { resolveCleanTemplateDraft } from '@/views/manage-v2/utils/clean-template';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import CleanTemplateDialog from '../business-comp/step3/clean-template-dialog';
@@ -59,6 +60,7 @@ import {
   type ExpandDepthSelect,
 } from '@/components/collection-access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
+import { isCollectionEditRoute } from './route-utils';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -286,7 +288,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => ['collectEdit', 'collectField'].includes(String(route.name ?? '')) && props.isEdit);
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
     const isEditTemp = computed(() => route.name === 'clean-template-edit');
 
     const createDefaultEtlParams = () => ({
@@ -719,7 +721,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         })
         .then(res => {
           if (res.data) {
-            setTempDetail(res.data);
+            setTempDetail(resolveCleanTemplateDraft(res.data));
             saveInitialTemplateConfigSnapshot();
           }
         })

@@ -27,6 +27,7 @@
 import { defineComponent, ref } from 'vue';
 
 import http from '@/api';
+import { resolveCleanTemplateDraft } from '@/views/manage-v2/utils/clean-template';
 import { downJsonFile } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import CleanTemplatePicker from '@/views/manage-v2/log-collection/components/business-comp/step3/clean-template-picker';
@@ -78,7 +79,7 @@ export default defineComponent({
         if (!res.result || !res.data) {
           return;
         }
-        const template = res.data as CleanTemplate;
+        const template = resolveCleanTemplateDraft(res.data as CleanTemplate);
         const exportData = {
           name: template.name,
           description: template.description || '',
@@ -129,6 +130,7 @@ export default defineComponent({
         <div class='clean-template-export-dialog'>
           <CleanTemplatePicker
             bkBizId={props.bkBizId}
+            useDraftConfig={true}
             visible={props.visible}
             on-select={(template: CleanTemplate | null) => (selectedTemplate.value = template)}
           />

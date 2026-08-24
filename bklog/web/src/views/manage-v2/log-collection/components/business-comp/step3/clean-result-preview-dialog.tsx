@@ -267,9 +267,9 @@ export default defineComponent({
       { immediate: true },
     );
 
-    // 表格数据变化时，重新初始化 tippy 弹窗
+    // 表格数据或展示模式变化时，重新初始化 tippy 弹窗。
     watch(
-      () => tableData.value.length,
+      () => [tableData.value, previewMode.value],
       () => {
         nextTick(() => {
           scheduleInitMenuPop(600);
