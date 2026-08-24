@@ -96,6 +96,42 @@ def test_alarmd_shadow_projects_finalized_threshold_records():
     assert "_alarmd" not in processor.outputs[2][0]
 
 
+def test_alarmd_shadow_uses_frozen_snapshot_after_runtime_target_injection():
+    snapshot_strategy = copy.deepcopy(DETECT_STRATEGY)
+    runtime_strategy = copy.deepcopy(snapshot_strategy)
+    runtime_strategy["items"][0]["query_configs"][0]["target"] = runtime_strategy["items"][0]["target"]
+    record = copy.deepcopy(DETECT_RECORDS[0])
+    processor = object.__new__(DetectProcess)
+    processor.strategy_id = "1"
+    source_strategy = SimpleNamespace(id=1, config=runtime_strategy)
+    processor.strategy = SimpleNamespace(
+        id=1,
+        bk_tenant_id="default",
+        config=runtime_strategy,
+        items=[SimpleNamespace(id=2)],
+        snapshot_key="snapshot-key",
+    )
+    processor.inputs = {2: [SimpleNamespace(item=SimpleNamespace(strategy=source_strategy), as_dict=lambda: record)]}
+    processor.outputs = {2: []}
+
+    with (
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_STRATEGY_IDS", (1,), create=True),
+        mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
+        mock.patch.object(
+            key.STRATEGY_SNAPSHOT_KEY.client,
+            "get",
+            return_value=json.dumps(snapshot_strategy).encode(),
+        ),
+    ):
+        batches = processor.prepare_alarmd_detection_batches()
+
+    assert len(batches) == 1
+    assert batches[0]["outcomes"][0]["outcome"] == "NORMAL"
+    assert "target" not in snapshot_strategy["items"][0]["query_configs"][0]
+    assert runtime_strategy["items"][0]["query_configs"][0]["target"] == runtime_strategy["items"][0]["target"]
+
+
 @pytest.mark.parametrize("stale_update_time", ["stale", True, 1.0])
 def test_alarmd_shadow_rejects_inputs_from_a_stale_strategy_snapshot(stale_update_time):
     strategy = copy.deepcopy(DETECT_STRATEGY)

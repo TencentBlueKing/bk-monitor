@@ -147,6 +147,15 @@ class DetectProcess(BaseAbnormalPushProcessor):
         if not isinstance(legacy_json, bytes) or not legacy_json:
             logger.warning(f"[alarmd shadow] strategy({self.strategy_id}) snapshot is unavailable")
             return []
+        try:
+            snapshot_strategy = json.loads(legacy_json)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            logger.warning(
+                "[alarmd shadow] component=alarmd-python stage=detection result=skipped "
+                "operation=load_snapshot records=0 strategy(%s) reason=invalid_json",
+                self.strategy_id,
+            )
+            return []
 
         from alarm_backends.core.alarmd.contract import ContractValidationError, json_values_equal
         from alarm_backends.core.alarmd.runtime import prepare_detect_input_batch, prepare_finalized_threshold_batch
@@ -173,7 +182,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
             try:
                 batch = prepare_finalized_threshold_batch(
                     tenant_id=self.strategy.bk_tenant_id,
-                    strategy=self.strategy.config,
+                    strategy=snapshot_strategy,
                     item_id=item.id,
                     legacy_json=legacy_json,
                     batch_id=batch_id,
@@ -182,8 +191,14 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     finalized=finalized,
                 )
             except ContractValidationError as error:
-                logger.debug(
-                    f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) is ineligible: {error}"
+                logger.info(
+                    "[alarmd shadow] component=alarmd-python stage=detection result=skipped "
+                    "operation=prepare records=%s strategy(%s) item(%s) batch_id=%s reason=%s",
+                    len(data_points),
+                    self.strategy_id,
+                    item.id,
+                    batch_id,
+                    error,
                 )
                 continue
             try:
