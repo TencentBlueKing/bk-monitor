@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
-from apps.exceptions import ApiResultError
+from apps.exceptions import ApiResultError, ValidationError
 from apps.iam import ActionEnum
 from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.drf import ViewBusinessPermission
@@ -891,6 +891,8 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
 
 
 class TestCleanTemplatePreview(CleanTemplateTestCase):
+    PREVIEW_ERROR_MESSAGE = "字段提取预览失败，模版与日志样例格式不匹配，请切换模版或手动清洗"
+
     @patch("apps.log_databus.handlers.etl.EtlHandler.etl_preview", return_value={"fields": "raw log"})
     def test_text_preview_has_no_template_fields(self, mock_etl_preview):
         template = self.create_template(clean_type="bk_log_text", etl_fields=[])
@@ -908,25 +910,33 @@ class TestCleanTemplatePreview(CleanTemplateTestCase):
         )
         mock_etl_preview.assert_called_once()
 
-    def test_preview_marks_all_fields_abnormal_when_etl_preview_fails(self):
-        fields = [
-            {"field_name": "msg", "field_type": "string", "is_delete": False},
-            {"field_name": "count", "field_type": "int", "is_delete": False},
-            {"field_name": "ignored", "field_type": "string", "is_delete": True},
-        ]
-        template = self.create_template(clean_type="bk_log_json", etl_fields=fields)
+    def test_preview_raises_user_friendly_error_when_etl_preview_fails(self):
+        template = self.create_template(clean_type="bk_log_json", etl_fields=[])
 
         with patch(
             "apps.log_databus.handlers.etl.EtlHandler.etl_preview",
             side_effect=EtlPreviewException(),
         ):
-            result = CleanTemplateHandler(template["clean_template_id"]).preview(data="not-json")
+            with self.assertRaises(EtlPreviewException) as context:
+                CleanTemplateHandler(template["clean_template_id"]).preview(data="not-json")
 
-        self.assertEqual(result["normal_count"], 0)
-        self.assertEqual(result["abnormal_count"], 2)
-        self.assertEqual(result["match_rate"], 0.0)
-        self.assertEqual([item["error_type"] for item in result["fields"]], ["EMPTY_VALUE", "EMPTY_VALUE"])
-        self.assertTrue(all(item["error_message"] for item in result["fields"]))
+        self.assertEqual(context.exception.message, self.PREVIEW_ERROR_MESSAGE)
+        self.assertEqual(
+            EtlPreviewException().message,
+            "字段提取预览失败，请检查提取规则与数据是否匹配",
+        )
+
+    def test_preview_converts_validation_error_to_user_friendly_error(self):
+        template = self.create_template(clean_type="bk_log_regexp", etl_fields=[])
+
+        with patch(
+            "apps.log_databus.handlers.etl.EtlHandler.etl_preview",
+            side_effect=ValidationError("无法匹配正则表达式"),
+        ):
+            with self.assertRaises(EtlPreviewException) as context:
+                CleanTemplateHandler(template["clean_template_id"]).preview(data="not-matched")
+
+        self.assertEqual(context.exception.message, self.PREVIEW_ERROR_MESSAGE)
 
     def test_preview_propagates_unexpected_etl_preview_errors(self):
         # 非预期异常（如数据平台 API 故障）不应被当作样例解析失败吞掉，
