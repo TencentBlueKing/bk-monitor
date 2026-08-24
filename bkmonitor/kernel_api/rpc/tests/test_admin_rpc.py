@@ -132,7 +132,6 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
 
     assert {
         "admin.datasource.list",
-        "admin.datasource.metric_migration_list",
         "admin.datasource.detail",
         "admin.space.list",
         "admin.space.detail",
