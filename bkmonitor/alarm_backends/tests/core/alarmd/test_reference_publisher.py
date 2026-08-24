@@ -44,8 +44,9 @@ class FakeProducer:
         self.flush_timeout = timeout
         self.flushed_payload_bytes.append(self.pending_payload_bytes)
         self.pending_payload_bytes = 0
-        for message in self.messages:
-            message["on_delivery"](self.delivery_error, None)
+        if not self.remaining:
+            for message in self.messages:
+                message["on_delivery"](self.delivery_error, None)
         return self.remaining
 
 
@@ -135,9 +136,11 @@ def test_reference_publisher_reports_records_from_complete_ack_groups_before_lat
         def flush(self, timeout):
             self.flush_calls += 1
             self.flush_timeout = timeout
-            for message in self.messages:
-                message["on_delivery"](None, None)
-            return 0 if self.flush_calls == 1 else 1
+            if self.flush_calls == 1:
+                for message in self.messages:
+                    message["on_delivery"](None, None)
+                return 0
+            return 1
 
     producer = FailSecondFlushProducer()
     publisher = KafkaReferenceDecisionPublisher(

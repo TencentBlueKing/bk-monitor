@@ -171,9 +171,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 or int(source_strategy.id) != int(self.strategy_id)
                 or not json_values_equal(source_strategy.config, self.strategy.config)
             ):
-                logger.warning(
-                    f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) input snapshot is stale"
-                )
+                logger.warning(f"[alarmd shadow] strategy({self.strategy_id}) item({item.id}) input snapshot is stale")
                 continue
             data_points = [data_point.as_dict() for data_point in input_points]
             if not data_points:
@@ -227,14 +225,17 @@ class DetectProcess(BaseAbnormalPushProcessor):
             get_cached_kafka_detect_input_publisher,
             get_cached_kafka_detection_publisher,
         )
+        from alarm_backends.core.alarmd.publish_session import publish_post_detection_shadow
         from alarm_backends.core.alarmd.reference import build_terminal_reference_decision_batches
         from alarm_backends.core.alarmd.reference_publisher import (
             get_cached_kafka_reference_decision_publisher,
         )
         from alarm_backends.core.alarmd.telemetry import (
             STAGE_DETECTION,
+            STAGE_DETECT_INPUT,
             STAGE_REFERENCE,
             observe_shadow_publish,
+            record_shadow_publish_result,
             record_shadow_published_records,
         )
 
@@ -275,7 +276,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 raise _LoggedAlarmdDetectionPublishError(str(error)) from error
             record_shadow_published_records(STAGE_DETECTION, acknowledged)
             duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
-            logger.info(
+            logger.debug(
                 "[alarmd shadow] component=alarmd-python stage=detection result=broker_ack "
                 "records=%s duration_ms=%s strategy(%s) batch_id=%s",
                 acknowledged,
@@ -285,6 +286,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
             )
             published += acknowledged
             detect_input = batch.get("detect_input")
+            detect_input_for_publish = None
             if detect_input_enabled and detect_input and not detect_input_initialization_failed:
                 try:
                     if detect_input_publisher is None:
@@ -293,46 +295,31 @@ class DetectProcess(BaseAbnormalPushProcessor):
                             sort_keys=True,
                             separators=(",", ":"),
                         )
-                        detect_input_allowed_topics = shadow_topics(
-                            settings.ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS
-                        )
+                        detect_input_allowed_topics = shadow_topics(settings.ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS)
                         detect_input_publisher = get_cached_kafka_detect_input_publisher(
                             detect_input_config_json,
                             detect_input_allowed_topics,
                         )
-                    detect_input_started_at = time.monotonic()
-                    acknowledged_inputs = detect_input_publisher.publish_batch(detect_input)
-                    duration_ms = max(0, round((time.monotonic() - detect_input_started_at) * 1000))
-                    logger.info(
-                        "[alarmd shadow] component=alarmd-python stage=detect_input result=broker_ack "
-                        "records=%s duration_ms=%s strategy(%s) batch_id=%s",
-                        acknowledged_inputs,
-                        duration_ms,
-                        strategy_id,
-                        batch_id,
-                    )
+                    detect_input_for_publish = detect_input
                 except Exception:
                     detect_input_initialization_failed = detect_input_publisher is None
                     logger.exception(
                         "[alarmd shadow] component=alarmd-python stage=detect_input result=fail_open "
-                        "operation=publish records=%s strategy(%s) batch_id=%s",
-                        len((detect_input or {}).get("records") or []),
+                        "operation=initialize records=0 strategy(%s) batch_id=%s",
                         strategy_id,
                         batch_id,
                     )
-            if not reference_enabled:
-                continue
-            try:
-                reference_batches = build_terminal_reference_decision_batches(
-                    strategy_ir=batch["strategy_ir"],
-                    detection_outcomes=batch["outcomes"],
-                )
-            except Exception:
-                logger.exception("[alarmd shadow] failed to project terminal reference decision")
-                continue
-            if not reference_batches or reference_initialization_failed:
-                continue
-            if reference_publisher is None:
+            reference_batches = []
+            if reference_enabled:
+                try:
+                    reference_batches = build_terminal_reference_decision_batches(
+                        strategy_ir=batch["strategy_ir"],
+                        detection_outcomes=batch["outcomes"],
+                    )
+                except Exception:
+                    logger.exception("[alarmd shadow] failed to project terminal reference decision")
+                    reference_batches = []
+            if reference_batches and not reference_initialization_failed and reference_publisher is None:
                 try:
                     from alarm_backends.core.alert.adapter import MonitorEventAdapter
 
@@ -341,9 +328,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
                         sort_keys=True,
                         separators=(",", ":"),
                     )
-                    reference_allowed_topics = shadow_topics(
-                        settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS
-                    )
+                    reference_allowed_topics = shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
                     forbidden_topics = tuple(sorted(set(allowed_topics) | {MonitorEventAdapter.get_output_topic()}))
                     reference_publisher = get_cached_kafka_reference_decision_publisher(
                         reference_config_json,
@@ -353,32 +338,44 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 except Exception:
                     logger.exception("[alarmd shadow] failed to initialize terminal reference publisher")
                     reference_initialization_failed = True
+            detect_input_result, reference_result = publish_post_detection_shadow(
+                detect_input_publisher=detect_input_publisher,
+                detect_input=detect_input_for_publish,
+                reference_publisher=reference_publisher,
+                reference_batches=reference_batches if not reference_initialization_failed else (),
+            )
+            for stage, result in (
+                (STAGE_DETECT_INPUT, detect_input_result),
+                (STAGE_REFERENCE, reference_result),
+            ):
+                if result is None:
                     continue
-            try:
-                acknowledged_references = 0
-                started_at = time.monotonic()
-                with observe_shadow_publish(STAGE_REFERENCE):
-                    for reference_batch in reference_batches:
-                        acknowledged_references += reference_publisher.publish_batch(reference_batch)
-                record_shadow_published_records(STAGE_REFERENCE, acknowledged_references)
-                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
-                logger.info(
-                    "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
-                    "records=%s duration_ms=%s strategy(%s) batch_id=%s",
-                    acknowledged_references,
+                record_shadow_publish_result(stage, success=result.error is None, elapsed=result.elapsed)
+                record_shadow_published_records(stage, result.acknowledged_records)
+                duration_ms = max(0, round(result.elapsed * 1000))
+                if result.error is None:
+                    logger.debug(
+                        "[alarmd shadow] component=alarmd-python stage=%s result=broker_ack "
+                        "records=%s duration_ms=%s shared_flush=%s strategy(%s) batch_id=%s",
+                        stage,
+                        result.acknowledged_records,
+                        duration_ms,
+                        str(result.shared_flush).lower(),
+                        strategy_id,
+                        batch_id,
+                    )
+                    continue
+                logger.error(
+                    "[alarmd shadow] component=alarmd-python stage=%s result=fail_open "
+                    "operation=broker_publish records=%s duration_ms=%s shared_flush=%s "
+                    "strategy(%s) batch_id=%s",
+                    stage,
+                    result.acknowledged_records,
                     duration_ms,
+                    str(result.shared_flush).lower(),
                     strategy_id,
                     batch_id,
-                )
-            except Exception:
-                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
-                logger.exception(
-                    "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
-                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) batch_id=%s",
-                    acknowledged_references,
-                    duration_ms,
-                    strategy_id,
-                    batch_id,
+                    exc_info=(type(result.error), result.error, result.error.__traceback__),
                 )
         return published
 

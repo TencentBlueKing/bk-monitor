@@ -18,6 +18,7 @@ from core.prometheus import metrics
 # settings module so their cross-language Golden runs standalone.
 
 STAGE_DETECTION = "detection"
+STAGE_DETECT_INPUT = "detect_input"
 STAGE_REFERENCE = "reference"
 
 STATUS_SUCCESS = "success"
@@ -47,6 +48,12 @@ def record_shadow_published_records(stage: str, count: int) -> None:
 
     if count > 0:
         metrics.ALARMD_SHADOW_PUBLISH_RECORD_COUNT.labels(stage=stage).inc(count)
+
+
+def record_shadow_publish_result(stage: str, *, success: bool, elapsed: float) -> None:
+    """Record a stage result when multiple topics share one physical flush."""
+
+    _observe(stage, STATUS_SUCCESS if success else STATUS_FAILED, elapsed)
 
 
 def _observe(stage: str, status: str, elapsed: float) -> None:
