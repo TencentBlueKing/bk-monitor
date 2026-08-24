@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest import mock
 
+from alarm_backends.core.cache import strategy_cost_snapshot as snapshot_module
 from alarm_backends.core.cache.strategy_cost_snapshot import (
     SNAPSHOT_HISTORY_LIMIT,
     RedisStrategyCostSnapshotCollector,
@@ -134,7 +135,9 @@ def test_collector_loads_population_once_and_uses_each_strategy_target_node(mock
         "alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes",
         return_value=[{"strategy_score": 2, "node_id": 1}, {"strategy_score": 3, "node_id": 2}],
     )
-    collector = RedisStrategyCostSnapshotCollector(client_factory=lambda node: clients[node.id])
+    collector = RedisStrategyCostSnapshotCollector(
+        client_factory=lambda node: clients[node.id], catalog_client_factory=lambda: None
+    )
 
     result = collector.collect([(node_1, {}), (node_2, {})])
 
@@ -176,7 +179,9 @@ def test_collector_preserves_measured_no_group_config_missing_and_failed_coverag
         "alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes",
         return_value=[{"strategy_score": 10, "node_id": 1}],
     )
-    collector = RedisStrategyCostSnapshotCollector(client_factory=lambda _node: client)
+    collector = RedisStrategyCostSnapshotCollector(
+        client_factory=lambda _node: client, catalog_client_factory=lambda: None
+    )
 
     collector.collect([(node, {"used_memory": 123, "config_maxmemory": 456})])
 
@@ -246,7 +251,8 @@ def test_collector_node_failure_is_fail_open_for_later_nodes(mocker):
     strategy_manager.get_strategy_by_ids.return_value = []
     mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes", return_value=[])
     collector = RedisStrategyCostSnapshotCollector(
-        client_factory=lambda node: failed_client if node.id == 1 else healthy_client
+        client_factory=lambda node: failed_client if node.id == 1 else healthy_client,
+        catalog_client_factory=lambda: None,
     )
 
     result = collector.collect([(failed_node, {}), (healthy_node, {})])
@@ -282,6 +288,7 @@ def test_collector_budget_expiry_during_hlen_does_not_write_partial_snapshot(moc
     )
     collector = RedisStrategyCostSnapshotCollector(
         client_factory=lambda _node: client,
+        catalog_client_factory=lambda: None,
         total_budget_seconds=20,
         monotonic_fn=lambda: clock[0],
     )
@@ -291,3 +298,152 @@ def test_collector_budget_expiry_during_hlen_does_not_write_partial_snapshot(moc
     assert result["budget_exhausted"] is True
     assert result["succeeded"] == 0
     client.pipeline.assert_not_called()
+
+
+def test_isolated_client_bounds_io_without_mutating_shared_pool(mocker):
+    source_pool = SimpleNamespace(connection_kwargs={"host": "127.0.0.1", "port": 6379, "db": 10, "socket_timeout": 10})
+    shared_raw_client = SimpleNamespace(connection_pool=source_pool)
+    shared_client = SimpleNamespace(_instance=shared_raw_client)
+    original_kwargs = source_pool.connection_kwargs.copy()
+    isolated_pool = SimpleNamespace(connection_kwargs={})
+    isolated_raw_client = SimpleNamespace(connection_pool=isolated_pool, close=mock.Mock())
+    redis_cls = mocker.patch.object(snapshot_module.redis, "Redis", return_value=isolated_raw_client)
+
+    isolated = snapshot_module.IsolatedSnapshotRedisClient(shared_client, remaining_seconds=20)
+
+    assert isolated.connection_pool is isolated_pool
+    assert redis_cls.call_args.kwargs["socket_timeout"] <= 1
+    assert redis_cls.call_args.kwargs["socket_connect_timeout"] <= 1
+    assert isolated.snapshot_max_io_seconds <= 20
+    assert source_pool.connection_kwargs == original_kwargs
+    isolated.close()
+    isolated_raw_client.close.assert_called_once_with()
+
+
+def test_isolated_sentinel_client_copies_endpoints_and_bounds_both_pools(mocker):
+    source_pool = object.__new__(snapshot_module.SentinelConnectionPool)
+    sentinel_nodes = [
+        SimpleNamespace(connection_pool=SimpleNamespace(connection_kwargs={"host": "s1", "port": 26379})),
+        SimpleNamespace(connection_pool=SimpleNamespace(connection_kwargs={"host": "s2", "port": 26379})),
+    ]
+    manager = SimpleNamespace(
+        sentinels=sentinel_nodes,
+        sentinel_kwargs={"password": "sentinel-secret", "socket_connect_timeout": 3},
+        connection_kwargs={"password": "redis-secret", "db": 10, "decode_responses": True},
+        min_other_sentinels=0,
+    )
+    source_pool.sentinel_manager = manager
+    source_pool.service_name = "mymaster"
+    source_client = SimpleNamespace(_instance=SimpleNamespace(connection_pool=source_pool))
+    original_sentinel_kwargs = manager.sentinel_kwargs.copy()
+    original_data_kwargs = manager.connection_kwargs.copy()
+    isolated_raw_client = SimpleNamespace(connection_pool=object(), close=mock.Mock())
+    isolated_sentinel_clients = [SimpleNamespace(close=mock.Mock()), SimpleNamespace(close=mock.Mock())]
+    isolated_sentinel = SimpleNamespace(
+        master_for=mock.Mock(return_value=isolated_raw_client), sentinels=isolated_sentinel_clients
+    )
+    sentinel_cls = mocker.patch.object(snapshot_module, "Sentinel", return_value=isolated_sentinel)
+
+    isolated = snapshot_module.IsolatedSnapshotRedisClient(source_client, remaining_seconds=20)
+
+    assert sentinel_cls.call_args.args[0] == [("s1", 26379), ("s2", 26379)]
+    assert sentinel_cls.call_args.kwargs["sentinel_kwargs"]["socket_timeout"] <= 1
+    assert sentinel_cls.call_args.kwargs["socket_timeout"] <= 1
+    isolated_sentinel.master_for.assert_called_once_with("mymaster")
+    assert isolated.snapshot_max_io_seconds <= 20
+    assert manager.sentinel_kwargs == original_sentinel_kwargs
+    assert manager.connection_kwargs == original_data_kwargs
+    isolated.close()
+    for sentinel_client in isolated_sentinel_clients:
+        sentinel_client.close.assert_called_once_with()
+
+
+def test_collector_budget_covers_catalog_before_first_db8_read(mocker):
+    node = _node()
+    clock = [0.0]
+    node_client = mock.Mock(snapshot_max_io_seconds=1)
+    node_client.set.return_value = True
+
+    precheck_count = 0
+
+    def finish_precheck(_key, _start, _end):
+        nonlocal precheck_count
+        precheck_count += 1
+        if precheck_count == 2:
+            clock[0] = 19.5
+        return []
+
+    node_client.lrange.side_effect = finish_precheck
+    catalog_client = mock.Mock(snapshot_max_io_seconds=1)
+    collector = RedisStrategyCostSnapshotCollector(
+        client_factory=lambda _node: node_client,
+        catalog_client_factory=lambda: catalog_client,
+        total_budget_seconds=20,
+        monotonic_fn=lambda: clock[0],
+    )
+
+    result = collector.collect([(node, {})])
+
+    assert result["budget_exhausted"] is True
+    catalog_client.get.assert_not_called()
+    node_client.pipeline.assert_not_called()
+
+
+def test_collector_budget_covers_precheck_before_lock_write():
+    node = _node()
+    clock = [0.0]
+    node_client = mock.Mock(snapshot_max_io_seconds=1)
+
+    def finish_first_read(_key, _start, _end):
+        clock[0] = 19.5
+        return []
+
+    node_client.lrange.side_effect = finish_first_read
+    collector = RedisStrategyCostSnapshotCollector(
+        client_factory=lambda _node: node_client,
+        total_budget_seconds=20,
+        monotonic_fn=lambda: clock[0],
+    )
+
+    result = collector.collect([(node, {})])
+
+    assert result["budget_exhausted"] is True
+    node_client.set.assert_not_called()
+
+
+def test_collector_budget_covers_save_before_pipeline_execute(mocker):
+    node = _node()
+    clock = [0.0]
+    node_client = mock.Mock(snapshot_max_io_seconds=1)
+    node_client.lrange.return_value = []
+    node_client.set.return_value = True
+
+    def finish_hlen(_key):
+        clock[0] = 19.5
+        return 10
+
+    node_client.hlen.side_effect = finish_hlen
+    catalog_client = mock.Mock(snapshot_max_io_seconds=1)
+    catalog_client.get.return_value = json.dumps([1])
+    catalog_client.hgetall.return_value = {"group": json.dumps({"bk_biz_id": 7, "1": [101]})}
+    catalog_client.mget.return_value = [json.dumps({"id": 1})]
+    mocker.patch(
+        "alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes",
+        return_value=[{"strategy_score": 2, "node_id": 1}],
+    )
+    mocker.patch(
+        "alarm_backends.core.cache.strategy_cost_snapshot.build_strategy_cost_profile",
+        return_value={"peak_members_per_series": 100},
+    )
+    collector = RedisStrategyCostSnapshotCollector(
+        client_factory=lambda _node: node_client,
+        catalog_client_factory=lambda: catalog_client,
+        total_budget_seconds=20,
+        monotonic_fn=lambda: clock[0],
+    )
+
+    result = collector.collect([(node, {})])
+
+    assert result["budget_exhausted"] is True
+    assert result["succeeded"] == 0
+    node_client.pipeline.return_value.execute.assert_not_called()
