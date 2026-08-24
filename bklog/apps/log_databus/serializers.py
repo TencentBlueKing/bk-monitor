@@ -26,7 +26,6 @@ from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as SlzValidationError
-from rest_framework.fields import empty
 
 from apps.api import TransferApi
 from apps.exceptions import ValidationError
@@ -202,7 +201,7 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("日志路径排除"),
         child=serializers.CharField(max_length=255, allow_blank=True),
         required=False,
-        default=list,
+        default=[],
     )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
@@ -242,7 +241,7 @@ class PluginParamSerializer(serializers.Serializer):
 
     # Redis慢日志相关参数
     redis_hosts = serializers.ListField(
-        label=_("redis目标"), child=serializers.CharField(max_length=255), required=False, default=list
+        label=_("redis目标"), child=serializers.CharField(max_length=255), required=False, default=[]
     )
     redis_password = serializers.CharField(label=_("redis密码"), required=False, allow_blank=True)
     redis_password_file = serializers.CharField(label=_("redis密码文件"), required=False, allow_blank=True)
@@ -258,18 +257,18 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_port = serializers.IntegerField(label=_("端口"), required=False)
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
     syslog_conditions = serializers.ListSerializer(
-        label=_("syslog过滤条件"), required=False, default=list, child=SyslogPluginConditionFiltersSerializer()
+        label=_("syslog过滤条件"), required=False, default=[], child=SyslogPluginConditionFiltersSerializer()
     )
 
     # kafka 采集配置相关参数
     kafka_hosts = serializers.ListField(
-        label=_("kafka地址"), required=False, default=list, child=serializers.CharField(max_length=255)
+        label=_("kafka地址"), required=False, default=[], child=serializers.CharField(max_length=255)
     )
     kafka_username = serializers.CharField(label=_("kafka用户名"), required=False, allow_blank=True)
     kafka_password = serializers.CharField(label=_("kafka密码"), required=False, allow_blank=True)
     kafka_ssl_params = serializers.DictField(label=_("kafka ssl配置"), required=False, default=dict)
     kafka_topics = serializers.ListField(
-        label=_("kafka topic"), required=False, default=list, child=serializers.CharField()
+        label=_("kafka topic"), required=False, default=[], child=serializers.CharField()
     )
     kafka_group_id = serializers.CharField(label=_("kafka 消费组"), required=False, allow_blank=True, default="")
     kafka_initial_offset = serializers.ChoiceField(
@@ -333,38 +332,11 @@ class ContainerSerializer(serializers.Serializer):
         return attrs
 
 
-# 容器采集配置的空默认值。
-# 嵌套 Serializer 的 default 会被原样返回、不再经过子字段校验，所以必须把键写全，
-# 否则下游 config["container"]["workload_type"] 这类直接取值仍会 KeyError。
-# 用可调用形式返回新对象，避免同一请求内多个 config 共享同一份可变默认值。
-def default_container():
-    return {
-        "workload_type": "",
-        "workload_name": "",
-        "container_name": "",
-        "container_name_exclude": "",
-    }
-
-
 def default_label_selector():
+    # 嵌套 Serializer 的 default 会被原样返回、不再经过子字段校验，所以键要写全，
+    # 否则 create_container_config 里 config["label_selector"]["match_labels"] 仍会 KeyError。
+    # 用可调用形式返回新对象，避免同一请求内多个 config 共享同一份可变默认值。
     return {"match_labels": [], "match_expressions": []}
-
-
-def default_annotation_selector():
-    return {"match_annotations": []}
-
-
-def default_container_config_fields():
-    """config 级可选字段的空默认值，供更新链路新增配置时回落使用。"""
-    return {
-        "namespaces": [],
-        "namespaces_exclude": [],
-        "container": default_container(),
-        "label_selector": default_label_selector(),
-        "annotation_selector": default_annotation_selector(),
-        "paths": [],
-        "data_encoding": EncodingsEnum.UTF.value,
-    }
 
 
 class LabelSelectorSerializer(serializers.Serializer):
@@ -384,18 +356,18 @@ class AnnotationSelectorSerializer(serializers.Serializer):
 
 class ContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("命名空间"), default=list
+        child=serializers.CharField(), required=False, label=_("命名空间"), default=[]
     )
     namespaces_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=list
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
     )
-    container = ContainerSerializer(required=False, label=_("指定容器"), default=default_container)
+    container = ContainerSerializer(required=False, label=_("指定容器"))
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
     annotation_selector = AnnotationSelectorSerializer(
-        required=False, label=_("注解"), default=default_annotation_selector
+        required=False, label=_("注解"), default={"match_annotations": []}
     )
-    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=list)
-    data_encoding = serializers.CharField(required=False, label=_("日志字符集"), default=EncodingsEnum.UTF.value)
+    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"))
+    data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     params = PluginParamSerializer(required=True, label=_("插件参数"))
     collector_type = serializers.CharField(label=_("容器采集类型"))
 
@@ -408,37 +380,6 @@ class ContainerConfigSerializer(serializers.Serializer):
         return attrs
 
 
-class PartialContainerConfigSerializer(ContainerConfigSerializer):
-    """更新语义下的容器采集配置。
-
-    父类的默认值服务于创建语义：字段缺省时补空值，避免下游下标取值 KeyError。
-    但更新走 compare_config 覆盖存量记录，补默认值会把调用方没打算改的
-    workload 过滤条件、字符集静默重置，并把 all_container 抬成 True、
-    把采集范围扩大到命名空间内全量容器。这里摘掉 config 级字段的默认值，
-    未提交的字段由 compare_config 沿用存量值。
-
-    注意只摘 config 级默认值，label_selector 等内部的子字段默认值保留：
-    提交了 label_selector 即视为整体替换，缺 match_expressions 仍补 []。
-    """
-
-    # 与父类共用字段定义，仅摘掉 default，避免两处定义漂移
-    PARTIAL_FIELDS = (
-        "namespaces",
-        "namespaces_exclude",
-        "container",
-        "label_selector",
-        "annotation_selector",
-        "paths",
-        "data_encoding",
-    )
-
-    def get_fields(self):
-        fields = super().get_fields()
-        for field_name in self.PARTIAL_FIELDS:
-            fields[field_name].default = empty
-        return fields
-
-
 class MultilineSerializer(serializers.Serializer):
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
     multiline_max_lines = serializers.IntegerField(
@@ -449,18 +390,18 @@ class MultilineSerializer(serializers.Serializer):
 
 class BcsContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("命名空间"), default=list
+        child=serializers.CharField(), required=False, label=_("命名空间"), default=[]
     )
     namespaces_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=list
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
     )
-    container = ContainerSerializer(required=False, label=_("指定容器"), default=default_container)
-    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
+    container = ContainerSerializer(required=False, label=_("指定容器"), default={})
+    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default={})
     annotation_selector = AnnotationSelectorSerializer(
-        required=False, label=_("注解"), default=default_annotation_selector
+        required=False, label=_("注解"), default={"match_annotations": []}
     )
-    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=list)
-    data_encoding = serializers.CharField(required=False, label=_("日志字符集"), default=EncodingsEnum.UTF.value)
+    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=[])
+    data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     enable_stdout = serializers.BooleanField(required=False, label=_("是否采集标准输出"), default=False)
     conditions = PluginConditionSerializer(label=_("过滤条件"), required=False)
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)
@@ -584,9 +525,7 @@ class CreateContainerCollectorSerializer(ParentIndexSetFieldsSerializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"), default=False)
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), default=False)
-    extra_labels = serializers.ListSerializer(
-        label=_("额外标签"), required=False, child=LabelsSerializer(), default=list
-    )
+    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
@@ -630,11 +569,10 @@ class UpdateContainerCollectorSerializer(ParentIndexSetFieldsSerializer):
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    configs = serializers.ListSerializer(label=_("容器日志配置"), child=PartialContainerConfigSerializer())
+    configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer())
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"))
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), default=False)
-    # 更新走 CONTAINER_CONFIG_FIELDS 的 "field in data" 判断，不设 default，否则未传时会把存量标签清空
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
@@ -1561,17 +1499,19 @@ class PreviewContainersSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"))
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     type = serializers.ChoiceField(label=_("类型"), choices=TopoType.get_choices())
-    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
+    label_selector = LabelSelectorSerializer(
+        required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
+    )
     annotation_selector = AnnotationSelectorSerializer(
-        required=False, label=_("注解"), default=default_annotation_selector
+        required=False, label=_("注解"), default={"match_annotations": []}
     )
     namespaces = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("命名空间"), default=list
+        child=serializers.CharField(), required=False, label=_("命名空间"), default=[]
     )
     namespaces_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=list
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
     )
-    container = ContainerSerializer(required=False, label=_("指定容器"), default=default_container)
+    container = ContainerSerializer(required=False, label=_("指定容器"))
 
 
 class ValidateContainerCollectorYamlSerializer(serializers.Serializer):
@@ -1889,12 +1829,9 @@ class FastContainerCollectorUpdateSerializer(
     collector_scenario_id = serializers.ChoiceField(
         label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
     )
-    configs = serializers.ListSerializer(
-        label=_("容器日志配置"), child=PartialContainerConfigSerializer(), required=False
-    )
+    configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer(), required=False)
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"), required=False)
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), required=False)
-    # 同 UpdateContainerCollectorSerializer：不设 default，避免未传时覆盖存量标签
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), required=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), allow_blank=True, required=False)
@@ -1988,9 +1925,7 @@ class ContainerCollectorConfigToYamlSerializer(serializers.Serializer):
     configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer())
     add_pod_label = serializers.BooleanField(label=_("上报时是否把标签带上"), default=False)
     add_pod_annotation = serializers.BooleanField(label=_("上报时是否把注解带上"), default=False)
-    extra_labels = serializers.ListSerializer(
-        label=_("额外标签"), required=False, child=LabelsSerializer(), default=list
-    )
+    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
 
 
 class CheckCollectorSerializer(serializers.Serializer):
