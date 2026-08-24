@@ -70,6 +70,7 @@ class Command(BaseCommand):
         recorder = DjangoMigrationRecorder(
             database=migration_config.database,
             table_name=migration_config.table_name,
+            read_only=dry_run,
         )
 
         providers = [fw.get_provider(provider_filter)] if provider_filter else list(fw.providers.values())

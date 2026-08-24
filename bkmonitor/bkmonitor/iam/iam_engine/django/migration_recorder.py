@@ -31,14 +31,21 @@ class DjangoMigrationRecorder:
     """基于数据库的迁移状态记录器。
 
     每个 Provider 独立追踪各自的迁移进度。
-    状态表与锁表在首次访问时由 Django schema editor 创建，因此不依赖
+    状态表与锁表在真实迁移时由 Django schema editor 创建，因此不依赖
     MySQL 专属 DDL，也可以通过 database/table_name 隔离不同 IAM 实例。
+    ``read_only=True`` 供 dry-run 使用：只读取已有状态表，绝不创建表或锁。
     """
 
     _models: dict[str, tuple[type[models.Model], type[models.Model]]] = {}
     _ensured_tables: set[tuple[str, str]] = set()
 
-    def __init__(self, *, database: str = "default", table_name: str = "iam_migration_state") -> None:
+    def __init__(
+        self,
+        *,
+        database: str = "default",
+        table_name: str = "iam_migration_state",
+        read_only: bool = False,
+    ) -> None:
         if not isinstance(database, str) or not database:
             raise ValueError("database must be a non-empty Django database alias")
         if not isinstance(table_name, str) or not _TABLE_NAME_RE.fullmatch(table_name):
@@ -53,11 +60,16 @@ class DjangoMigrationRecorder:
 
         self.database = database
         self.table_name = table_name
+        self.read_only = read_only
         self._state_model, self._lock_model = self._get_models(table_name)
 
     def get_applied(self, provider: str) -> list[str]:
         """查询某 provider 已应用的迁移名列表（按应用时间升序）。"""
-        self._ensure_tables()
+        if self.read_only:
+            if not self._table_exists(self._state_model):
+                return []
+        else:
+            self._ensure_state_table()
         return list(
             self._state_model.objects.using(self.database)
             .filter(provider=provider)
@@ -67,7 +79,8 @@ class DjangoMigrationRecorder:
 
     def record(self, provider: str, migration: str, changes_count: int) -> None:
         """记录一条迁移已应用；重复记录同一迁移时保持幂等。"""
-        self._ensure_tables()
+        self._ensure_writable()
+        self._ensure_state_table()
         self._state_model.objects.using(self.database).get_or_create(
             provider=provider,
             migration=migration,
@@ -77,7 +90,9 @@ class DjangoMigrationRecorder:
     @contextmanager
     def lock(self, name: str = "iam_engine_migration") -> Iterator[None]:
         """在整个迁移执行期间持有数据库锁，避免多进程并发写远端模型。"""
-        self._ensure_tables()
+        self._ensure_writable()
+        self._ensure_state_table()
+        self._ensure_lock_table()
         if not name or len(name) > 128:
             raise ValueError("lock name must contain 1 to 128 characters")
 
@@ -148,23 +163,33 @@ class DjangoMigrationRecorder:
         cls._models[table_name] = (state_model, lock_model)
         return state_model, lock_model
 
-    def _ensure_tables(self) -> None:
-        for model in (self._state_model, self._lock_model):
-            cache_key = (self.database, model._meta.db_table)
-            if cache_key in self._ensured_tables:
-                continue
-            self._ensure_model_table(model)
-            self._ensured_tables.add(cache_key)
+    def _ensure_writable(self) -> None:
+        if self.read_only:
+            raise RuntimeError("Cannot write IAM migration state with a read-only recorder")
+
+    def _ensure_state_table(self) -> None:
+        self._ensure_model_table(self._state_model)
+
+    def _ensure_lock_table(self) -> None:
+        self._ensure_model_table(self._lock_model)
+
+    def _table_exists(self, model: type[models.Model]) -> bool:
+        connection = connections[self.database]
+        return model._meta.db_table in connection.introspection.table_names()
 
     def _ensure_model_table(self, model: type[models.Model]) -> None:
-        connection = connections[self.database]
-        table_name = model._meta.db_table
-        if table_name in connection.introspection.table_names():
+        cache_key = (self.database, model._meta.db_table)
+        if cache_key in self._ensured_tables:
+            return
+        if self._table_exists(model):
+            self._ensured_tables.add(cache_key)
             return
         try:
+            connection = connections[self.database]
             with connection.schema_editor() as schema_editor:
                 schema_editor.create_model(model)
         except DatabaseError:
             # 并发启动时其他进程可能刚刚建好表；重新检查后仅在仍缺表时抛出。
-            if table_name not in connection.introspection.table_names():
+            if not self._table_exists(model):
                 raise
+        self._ensured_tables.add(cache_key)
