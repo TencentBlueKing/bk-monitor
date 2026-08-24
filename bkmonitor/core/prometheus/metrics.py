@@ -982,6 +982,19 @@ EXPORTER_SCRAPE_DURATION_SECONDS_COUNT = Gauge(
     labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
+REDIS_STRATEGY_COST_SNAPSHOT_EXECUTE_COUNT = Counter(
+    name="redis_strategy_cost_snapshot_execute_count",
+    documentation="Redis strategy cost snapshot execution count",
+    labelnames=("cluster_name", "node_id", "status"),
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_DURATION_SECONDS = Histogram(
+    name="redis_strategy_cost_snapshot_duration_seconds",
+    documentation="Redis strategy cost snapshot execution duration in seconds",
+    labelnames=("cluster_name", "node_id", "status"),
+    buckets=(0.1, 0.5, 1, 2, 5, 10, 15, 20, 30, 60, INF),
+)
+
 EXPORTER_SCRAPES_TOTAL = Gauge(
     name="redis_exporter_scrapes_total",
     documentation="Current total redis scrapes",

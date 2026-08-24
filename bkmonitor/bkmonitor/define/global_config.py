@@ -46,6 +46,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("COMPATIBLE_ALARM_FORMAT", slz.BooleanField(label="是否兼容老版本数据字段格式", default=False)),
         ("ENABLE_RESOURCE_DATA_COLLECT", slz.BooleanField(label="是否开启Resource数据收集", default=False)),
         ("RESOURCE_DATA_COLLECT_RATIO", slz.IntegerField(label="Resource数据采样率", default=0)),
+        (
+            "ENABLE_REDIS_STRATEGY_COST_SNAPSHOT",
+            slz.BooleanField(label="是否开启Redis策略成本周期快照", default=False),
+        ),
         ("DIMENSION_COLLECT_THRESHOLD", slz.IntegerField(label="同维度汇总阈值", default=2)),
         ("DIMENSION_COLLECT_WINDOW", slz.IntegerField(label="同维度汇总时间窗口", default=120)),
         ("MULTI_STRATEGY_COLLECT_THRESHOLD", slz.IntegerField(label="多策略汇总阈值", default=3)),
