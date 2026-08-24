@@ -332,37 +332,56 @@ class ContainerSerializer(serializers.Serializer):
         return attrs
 
 
+# 容器采集配置的空默认值。
+# 嵌套 Serializer 的 default 会被原样返回、不再经过子字段校验，所以必须把键写全，
+# 否则下游 config["container"]["workload_type"] 这类直接取值仍会 KeyError。
+# 用可调用形式返回新对象，避免同一请求内多个 config 共享同一份可变默认值。
+def default_container():
+    return {
+        "workload_type": "",
+        "workload_name": "",
+        "container_name": "",
+        "container_name_exclude": "",
+    }
+
+
+def default_label_selector():
+    return {"match_labels": [], "match_expressions": []}
+
+
+def default_annotation_selector():
+    return {"match_annotations": []}
+
+
 class LabelSelectorSerializer(serializers.Serializer):
     match_labels = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定标签"), required=False, allow_empty=True, default=[]
+        child=LabelsSerializer(), label=_("指定标签"), required=False, allow_empty=True, default=list
     )
     match_expressions = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定表达式"), required=False, allow_empty=True, default=[]
+        child=LabelsSerializer(), label=_("指定表达式"), required=False, allow_empty=True, default=list
     )
 
 
 class AnnotationSelectorSerializer(serializers.Serializer):
     match_annotations = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定注解"), required=False, allow_empty=True, default=[]
+        child=LabelsSerializer(), label=_("指定注解"), required=False, allow_empty=True, default=list
     )
 
 
 class ContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("命名空间"), default=[]
+        child=serializers.CharField(), required=False, label=_("命名空间"), default=list
     )
     namespaces_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=list
     )
-    container = ContainerSerializer(required=False, label=_("指定容器"))
-    label_selector = LabelSelectorSerializer(
-        required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
-    )
+    container = ContainerSerializer(required=False, label=_("指定容器"), default=default_container)
+    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
     annotation_selector = AnnotationSelectorSerializer(
-        required=False, label=_("注解"), default={"match_annotations": []}
+        required=False, label=_("注解"), default=default_annotation_selector
     )
-    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"))
-    data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
+    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=list)
+    data_encoding = serializers.CharField(required=False, label=_("日志字符集"), default=EncodingsEnum.UTF.value)
     params = PluginParamSerializer(required=True, label=_("插件参数"))
     collector_type = serializers.CharField(label=_("容器采集类型"))
 
@@ -385,20 +404,18 @@ class MultilineSerializer(serializers.Serializer):
 
 class BcsContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("命名空间"), default=[]
+        child=serializers.CharField(), required=False, label=_("命名空间"), default=list
     )
     namespaces_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=list
     )
-    container = ContainerSerializer(required=False, label=_("指定容器"), default={})
-    label_selector = LabelSelectorSerializer(
-        required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
-    )
+    container = ContainerSerializer(required=False, label=_("指定容器"), default=default_container)
+    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
     annotation_selector = AnnotationSelectorSerializer(
-        required=False, label=_("注解"), default={"match_annotations": []}
+        required=False, label=_("注解"), default=default_annotation_selector
     )
-    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=[])
-    data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
+    paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=list)
+    data_encoding = serializers.CharField(required=False, label=_("日志字符集"), default=EncodingsEnum.UTF.value)
     enable_stdout = serializers.BooleanField(required=False, label=_("是否采集标准输出"), default=False)
     conditions = PluginConditionSerializer(label=_("过滤条件"), required=False)
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)
@@ -522,7 +539,9 @@ class CreateContainerCollectorSerializer(ParentIndexSetFieldsSerializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"), default=False)
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), default=False)
-    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
+    extra_labels = serializers.ListSerializer(
+        label=_("额外标签"), required=False, child=LabelsSerializer(), default=list
+    )
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
@@ -570,6 +589,7 @@ class UpdateContainerCollectorSerializer(ParentIndexSetFieldsSerializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"))
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), default=False)
+    # 更新走 CONTAINER_CONFIG_FIELDS 的 "field in data" 判断，不设 default，否则未传时会把存量标签清空
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
@@ -640,9 +660,7 @@ class TaskStatusSerializer(serializers.Serializer):
 
 
 class SubscriptionStatusSerializer(serializers.Serializer):
-    include_plugin_status = serializers.BooleanField(
-        label=_("是否查询插件版本信息"), required=False, default=True
-    )
+    include_plugin_status = serializers.BooleanField(label=_("是否查询插件版本信息"), required=False, default=True)
 
 
 class TaskDetailSerializer(serializers.Serializer):
@@ -1498,19 +1516,17 @@ class PreviewContainersSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"))
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     type = serializers.ChoiceField(label=_("类型"), choices=TopoType.get_choices())
-    label_selector = LabelSelectorSerializer(
-        required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
-    )
+    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
     annotation_selector = AnnotationSelectorSerializer(
-        required=False, label=_("注解"), default={"match_annotations": []}
+        required=False, label=_("注解"), default=default_annotation_selector
     )
     namespaces = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("命名空间"), default=[]
+        child=serializers.CharField(), required=False, label=_("命名空间"), default=list
     )
     namespaces_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=list
     )
-    container = ContainerSerializer(required=False, label=_("指定容器"))
+    container = ContainerSerializer(required=False, label=_("指定容器"), default=default_container)
 
 
 class ValidateContainerCollectorYamlSerializer(serializers.Serializer):
@@ -1831,6 +1847,7 @@ class FastContainerCollectorUpdateSerializer(
     configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer(), required=False)
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"), required=False)
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), required=False)
+    # 同 UpdateContainerCollectorSerializer：不设 default，避免未传时覆盖存量标签
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), required=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), allow_blank=True, required=False)
@@ -1874,9 +1891,7 @@ class FastCollectorUpdateSerializer(
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
     params = PartialPluginParamSerializer(required=False)
-    data_encoding = serializers.ChoiceField(
-        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False
-    )
+    data_encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
@@ -1926,7 +1941,9 @@ class ContainerCollectorConfigToYamlSerializer(serializers.Serializer):
     configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer())
     add_pod_label = serializers.BooleanField(label=_("上报时是否把标签带上"), default=False)
     add_pod_annotation = serializers.BooleanField(label=_("上报时是否把注解带上"), default=False)
-    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
+    extra_labels = serializers.ListSerializer(
+        label=_("额外标签"), required=False, child=LabelsSerializer(), default=list
+    )
 
 
 class CheckCollectorSerializer(serializers.Serializer):
