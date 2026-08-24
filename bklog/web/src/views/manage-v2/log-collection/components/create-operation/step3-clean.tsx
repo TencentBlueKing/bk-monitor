@@ -35,6 +35,7 @@ import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
 import { deepClone, deepEqual } from '@/common/util';
+import { resolveCleanTemplateDraft } from '@/views/manage-v2/utils/clean-template';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import CleanTemplateDialog from '../business-comp/step3/clean-template-dialog';
@@ -720,7 +721,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         })
         .then(res => {
           if (res.data) {
-            setTempDetail(res.data);
+            setTempDetail(resolveCleanTemplateDraft(res.data));
             saveInitialTemplateConfigSnapshot();
           }
         })

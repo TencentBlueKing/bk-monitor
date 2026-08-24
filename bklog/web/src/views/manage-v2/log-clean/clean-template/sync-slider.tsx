@@ -27,6 +27,7 @@
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
 
 import http from '@/api';
+import type { CleanTemplateStatus } from '@/views/manage-v2/utils/clean-template';
 import useLocale from '@/hooks/use-locale';
 
 import CollectorTable, { CleanTemplateCollectorTableRow } from './collector-table';
@@ -40,8 +41,8 @@ export type SyncCollectorItem = CleanTemplateCollectorTableRow;
 export interface SyncTemplateItem {
   clean_template_id: number;
   name: string;
-  pending_sync_collector_count: number;
   related_index_set_count: number;
+  status: CleanTemplateStatus;
 }
 
 export default defineComponent({
@@ -72,7 +73,7 @@ export default defineComponent({
     const collectorCount = computed(() => collectors.value.length);
     const canSync = computed(() => (
       collectorCount.value > 0
-      && (props.template?.pending_sync_collector_count ?? 0) > 0
+      && props.template?.status === 'DRAFT'
       && !isCollectorsLoading.value
       && !isSyncing.value
     ));
@@ -130,7 +131,7 @@ export default defineComponent({
       return [
         { label: t('生效采集项'), value: collectorCount.value },
         { label: t('关联索引集'), value: props.template?.related_index_set_count ?? 0 },
-        { label: t('本次同步对象'), value: props.template?.pending_sync_collector_count ?? 0 },
+        { label: t('本次同步对象'), value: collectorCount.value },
       ];
     });
 
