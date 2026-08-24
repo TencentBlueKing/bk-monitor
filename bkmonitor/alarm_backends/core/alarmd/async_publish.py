@@ -33,6 +33,13 @@ def shadow_job_encoded_size(operation: str, payload: tuple[dict, ...]) -> int:
     return len(encode_json_document({"operation": operation, "payload": list(payload)}))
 
 
+def shadow_job_encoded_size_from_payload_sizes(operation: str, payload_sizes: tuple[int, ...]) -> int:
+    from alarm_backends.core.alarmd.encoder import encode_json_document
+
+    empty_job_size = len(encode_json_document({"operation": operation, "payload": []}))
+    return empty_job_size + sum(payload_sizes) + max(0, len(payload_sizes) - 1)
+
+
 def shadow_job_fits(operation: str, payload: tuple[dict, ...]) -> bool:
     return shadow_job_encoded_size(operation, payload) <= MAX_ASYNC_JOB_BYTES
 

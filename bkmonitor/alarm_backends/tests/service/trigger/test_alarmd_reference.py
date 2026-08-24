@@ -214,7 +214,7 @@ def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
     with (
         mock.patch(
             "alarm_backends.core.alarmd.encoder.encode_trigger_decision_batch",
-            side_effect=[b"valid", b"valid", b"valid"],
+            side_effect=lambda batch: json.dumps(batch, separators=(",", ":")).encode(),
         ),
         mock.patch("alarm_backends.core.alarmd.async_publish.submit_shadow_job", side_effect=submit),
         mock.patch.object(settings, "ALARMD_SHADOW_ASYNC_QUEUE_SIZE", 16, create=True),

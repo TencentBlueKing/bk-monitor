@@ -3,6 +3,16 @@ import threading
 from unittest import mock
 
 from alarm_backends.core.alarmd import async_publish
+from alarm_backends.core.alarmd.encoder import encode_json_document
+
+
+def test_shadow_job_size_from_payload_sizes_is_exact():
+    payload = ({"batch_id": "one"}, {"batch_id": "two", "value": "三"})
+    payload_sizes = tuple(len(encode_json_document(item)) for item in payload)
+
+    assert async_publish.shadow_job_encoded_size_from_payload_sizes("reference", payload_sizes) == (
+        async_publish.shadow_job_encoded_size("reference", payload)
+    )
 
 
 def test_async_publisher_is_bounded_and_fail_open():
