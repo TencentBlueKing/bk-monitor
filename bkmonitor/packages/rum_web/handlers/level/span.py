@@ -134,7 +134,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
                     "name": group["name"],
                     "alias": group["alias"],
                     "supported_span_types": group["supported_span_types"],
-                    "fields": [field_map[name] for name in group["field_names"] if name in field_map],
+                    "field_names": [name for name in group["field_names"] if name in field_map],
                 }
                 for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
             ],
