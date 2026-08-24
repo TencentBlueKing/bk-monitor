@@ -807,7 +807,7 @@ class QueryDataLinkMetadataResource(Resource):
         return targets
 
     def _resolve_by_component_name(self, bk_tenant_id: str, component_name: str) -> list[DataLinkMetadataTarget]:
-        """V4 BKBase 资源名反查 (DataLink-first + 7 ``*Config`` fallback).
+        """V4 BKBase 资源名反查 (DataLink-first + ``*Config`` fallback).
 
         格式 ``{namespace}-{name}``:
             - ``bklog-bklog_301_xxx``   → ns=bklog, name=bklog_301_xxx
@@ -834,6 +834,7 @@ class QueryDataLinkMetadataResource(Resource):
         config_models = (
             models.DataIdConfig,
             models.ResultTableConfig,
+            models.ChannelBindingConfig,
             models.VMStorageBindingConfig,
             models.ESStorageBindingConfig,
             models.DorisStorageBindingConfig,
@@ -956,23 +957,22 @@ class QueryDataLinkMetadataResource(Resource):
             if data_link_names
             else {}
         )
-        databus_configs = (
-            {
-                dc.data_link_name: dc
-                for dc in models.DataBusConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names
-                )
-            }
-            if data_link_names
-            else {}
-        )
+        databus_configs = {}
+        if data_link_names:
+            for dc in models.DataBusConfig.objects.filter(
+                bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names
+            ).order_by("data_link_name", "id"):
+                # VM 自定义格式包含 clean/shipper 两条 Databus，链路入口应展示 clean。
+                if dc.data_link_name not in databus_configs or dc.role == "clean":
+                    databus_configs[dc.data_link_name] = dc
 
-        # 组件清单: 扫 7 个 *Config, 按 data_link_name group
+        # 组件清单: 扫全部受管 *Config, 按 data_link_name group
         components_by_link: dict[str, list[dict[str, Any]]] = {}
         if data_link_names:
             v4_config_models = (
                 (models.DataIdConfig, "DataId"),
                 (models.ResultTableConfig, "ResultTable"),
+                (models.ChannelBindingConfig, "ChannelBinding"),
                 (models.VMStorageBindingConfig, "VmStorageBinding"),
                 (models.ESStorageBindingConfig, "ElasticSearchBinding"),
                 (models.DorisStorageBindingConfig, "DorisBinding"),

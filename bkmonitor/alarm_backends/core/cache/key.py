@@ -379,6 +379,28 @@ LAST_CHECKPOINTS_CACHE_KEY = register_key_with_config(
     }
 )
 
+# Redis 自监控按节点生成的策略成本快照。快照和锁都显式带 node_id，且由调用方使用
+# 对应节点的 service(DB10) 原生客户端读写，避免 RedisProxy 按 strategy_id 再次路由。
+REDIS_STRATEGY_COST_SNAPSHOT_KEY = register_key_with_config(
+    {
+        "label": "[selfmonitor]Redis节点策略成本快照(type:List, newest first)",
+        "key_type": "list",
+        "key_tpl": "selfmonitor.redis.strategy_cost.snapshot.node_{node_id}.v1",
+        "ttl": 8 * CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_LOCK_KEY = register_key_with_config(
+    {
+        "label": "[selfmonitor]Redis节点策略成本快照采集锁",
+        "key_type": "string",
+        "key_tpl": "selfmonitor.redis.strategy_cost.snapshot.lock.node_{node_id}.v1",
+        "ttl": 5 * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
 NO_DATA_LAST_ANOMALY_CHECKPOINTS_CACHE_KEY = register_key_with_config(
     {
         "label": "[nodata]最后检测异常点(type:Hash)(key: (strategy_id, item_id, dimensions_md5), value: 最后异常点时间戳(int))",

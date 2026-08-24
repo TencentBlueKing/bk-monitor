@@ -799,3 +799,174 @@ def test_search_alarm_shields_filters_source_without_changing_backend_serializer
     assert result["count"] == 2
     assert "source" not in captured
     assert {"key": "id", "value": [11, 12]} in captured["conditions"]
+
+
+def _fake_user_group_queryset(existing_ids):
+    class FakeQuerySet:
+        def filter(self, **_kwargs):
+            return self
+
+        def values_list(self, *_args, **_kwargs):
+            return existing_ids
+
+    return SimpleNamespace(objects=FakeQuerySet())
+
+
+def test_save_assign_group_requires_confirm():
+    serializer = alert.SaveAlarmAssignGroupResource.RequestSerializer(
+        data={"bk_biz_id": 2, "name": "CPU 分派", "priority": 10, "confirm": False}
+    )
+
+    assert not serializer.is_valid()
+    assert "confirm" in serializer.errors
+
+
+def test_save_assign_group_create_requires_name_and_priority():
+    with pytest.raises(ValidationError) as create_without_name:
+        alert.SaveAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "priority": 10, "confirm": True})
+    assert "name" in create_without_name.value.detail
+
+    with pytest.raises(ValidationError) as create_without_priority:
+        alert.SaveAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "name": "CPU 分派", "confirm": True})
+    assert "priority" in create_without_priority.value.detail
+
+
+def test_save_assign_group_fills_omitted_fields_on_update(monkeypatch):
+    captured = {}
+    current_group = {
+        "id": 8,
+        "name": "CPU 分派",
+        "priority": 10,
+        "source": "bkmonitorv3",
+        "rules": [
+            {
+                "id": 1,
+                "user_groups": [29],
+                "conditions": [{"field": "alert.name", "value": ["CPU"], "method": "eq"}],
+            }
+        ],
+    }
+
+    class FakeSearch:
+        def request(self, **kwargs):
+            if kwargs.get("group_ids") == [8]:
+                return [current_group]
+            return []
+
+    class FakeSave:
+        def request(self, **kwargs):
+            captured.update(kwargs)
+            return {"assign_group_id": 8, "rules": [1], "aborted_rules": []}
+
+    fake_module = ModuleType("kernel_api.views.v4.assign")
+    fake_module.SearchRuleGroupResource = FakeSearch
+    fake_module.SaveRuleGroupResource = FakeSave
+    monkeypatch.setitem(sys.modules, "kernel_api.views.v4.assign", fake_module)
+    monkeypatch.setattr(alert, "UserGroup", _fake_user_group_queryset([29]))
+
+    result = alert.SaveAlarmAssignGroupResource().perform_request(
+        {"bk_biz_id": 2, "assign_group_id": 8, "confirm": True}
+    )
+
+    assert result["assign_group_id"] == 8
+    assert captured["name"] == "CPU 分派"
+    assert captured["priority"] == 10
+    assert captured["rules"] == current_group["rules"]
+    assert "confirm" not in captured
+
+
+def test_save_assign_group_rejects_missing_and_builtin_groups(monkeypatch):
+    class FakeSearch:
+        def request(self, **kwargs):
+            if kwargs.get("group_ids") == [9]:
+                return [{"id": 9, "name": "内置", "priority": 1, "source": "__datalink_collecting__", "rules": []}]
+            return []
+
+    fake_module = ModuleType("kernel_api.views.v4.assign")
+    fake_module.SearchRuleGroupResource = FakeSearch
+    fake_module.SaveRuleGroupResource = SimpleNamespace
+    monkeypatch.setitem(sys.modules, "kernel_api.views.v4.assign", fake_module)
+
+    with pytest.raises(ValidationError) as missing:
+        alert.SaveAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "assign_group_id": 8, "confirm": True})
+    assert "assign_group_id" in missing.value.detail
+
+    with pytest.raises(ValidationError) as builtin:
+        alert.SaveAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "assign_group_id": 9, "confirm": True})
+    assert "assign_group_id" in builtin.value.detail
+
+
+def test_save_assign_group_rejects_foreign_user_groups(monkeypatch):
+    class FakeSearch:
+        def request(self, **_kwargs):
+            return [{"id": 8, "name": "CPU 分派", "priority": 10, "source": "bkmonitorv3", "rules": []}]
+
+    fake_module = ModuleType("kernel_api.views.v4.assign")
+    fake_module.SearchRuleGroupResource = FakeSearch
+    fake_module.SaveRuleGroupResource = SimpleNamespace
+    monkeypatch.setitem(sys.modules, "kernel_api.views.v4.assign", fake_module)
+    monkeypatch.setattr(alert, "UserGroup", _fake_user_group_queryset([]))
+
+    with pytest.raises(ValidationError) as exc:
+        alert.SaveAlarmAssignGroupResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "assign_group_id": 8,
+                "rules": [
+                    {
+                        "user_groups": [29],
+                        "conditions": [{"field": "alert.name", "value": ["CPU"]}],
+                    }
+                ],
+                "confirm": True,
+            }
+        )
+    assert "user_groups" in exc.value.detail
+
+
+def test_delete_assign_group_rejects_missing_and_builtin_groups(monkeypatch):
+    class FakeSearch:
+        def request(self, **kwargs):
+            group_ids = set(kwargs.get("group_ids") or [])
+            groups = []
+            if 8 in group_ids:
+                groups.append({"id": 8, "source": "bkmonitorv3"})
+            if 9 in group_ids:
+                groups.append({"id": 9, "source": "__datalink_collecting__"})
+            return groups
+
+    fake_module = ModuleType("kernel_api.views.v4.assign")
+    fake_module.SearchRuleGroupResource = FakeSearch
+    fake_module.DeleteRuleGroupResource = SimpleNamespace
+    monkeypatch.setitem(sys.modules, "kernel_api.views.v4.assign", fake_module)
+
+    with pytest.raises(ValidationError) as missing:
+        alert.DeleteAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "group_ids": [8, 10], "confirm": True})
+    assert "group_ids" in missing.value.detail
+
+    with pytest.raises(ValidationError) as builtin:
+        alert.DeleteAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "group_ids": [9], "confirm": True})
+    assert "group_ids" in builtin.value.detail
+
+
+def test_delete_assign_group_calls_backend_after_biz_check(monkeypatch):
+    captured = {}
+
+    class FakeSearch:
+        def request(self, **_kwargs):
+            return [{"id": 8, "source": "bkmonitorv3"}]
+
+    class FakeDelete:
+        def request(self, **kwargs):
+            captured.update(kwargs)
+            return {"deleted_group_ids": [8]}
+
+    fake_module = ModuleType("kernel_api.views.v4.assign")
+    fake_module.SearchRuleGroupResource = FakeSearch
+    fake_module.DeleteRuleGroupResource = FakeDelete
+    monkeypatch.setitem(sys.modules, "kernel_api.views.v4.assign", fake_module)
+
+    result = alert.DeleteAlarmAssignGroupResource().perform_request({"bk_biz_id": 2, "group_ids": [8], "confirm": True})
+
+    assert result == {"deleted_group_ids": [8]}
+    assert captured == {"bk_biz_id": 2, "group_ids": [8]}

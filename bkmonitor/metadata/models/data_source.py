@@ -387,6 +387,7 @@ class DataSource(models.Model):
         bk_biz_id: int,
         is_base: bool = False,
         event_type: str = "metric",
+        namespace: str | None = None,
         prefer_kafka_cluster_name: str | None = None,
     ) -> int:
         """
@@ -403,7 +404,7 @@ class DataSource(models.Model):
         from metadata.models.data_link.service import apply_data_id_v2, get_data_id_v2
 
         # 根据数据类型确定命名空间
-        namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
+        namespace = namespace or (BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR)
 
         try:
             apply_data_id_v2(
@@ -612,7 +613,7 @@ class DataSource(models.Model):
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
-            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS, EtlConfigs
 
             # 开启V4链路后，特定 etl_config 的 data_id 先由 GSE 分配，再注册到计算平台
             if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
@@ -626,7 +627,11 @@ class DataSource(models.Model):
                         f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register"
                     )
 
-                if etl_config in LOG_EVENT_ETL_CONFIGS:
+                # 自定义格式会按目标存储在 bkmonitor/bklog 各自保证 DataId；
+                # 首次注册统一落 bkmonitor，避免 eventType=log 强绑定 bklog。
+                if etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+                    bkbase_namespace = BKBASE_NAMESPACE_BK_MONITOR
+                elif etl_config in LOG_EVENT_ETL_CONFIGS:
                     bkbase_namespace = BKBASE_NAMESPACE_BK_LOG
                 else:
                     bkbase_namespace = BKBASE_NAMESPACE_BK_MONITOR
@@ -777,6 +782,9 @@ class DataSource(models.Model):
         except Exception:
             logger.exception("save the relationship for space and datasource error")
 
+        # 目前所有类型的数据源在创建时都要主动刷新到gse
+        data_source.refresh_gse_config_to_gse()
+
         # 5. 触发consul刷新, 只有提交了事务后，其他人才可以看到DB记录
         if is_refresh_config:
             try:
@@ -868,6 +876,11 @@ class DataSource(models.Model):
         # 2. 判断和修改请求内容，注意判断修改的内容是否合理
         # 2.1 etl_config的配置是否符合要求
         if etl_config is not None:
+            from metadata.models.space.constants import EtlConfigs
+
+            custom_format = EtlConfigs.BK_CUSTOM_FORMAT.value
+            if etl_config != self.etl_config and custom_format in {etl_config, self.etl_config}:
+                raise ValueError(_("bk_custom_format 清洗类型仅允许在创建 DataSource 时指定，不能原地切换"))
             self.etl_config = etl_config
             logger.info(f"data_id->[{self.bk_data_id}] got new etl_config->[{etl_config}]")
             is_change = True
@@ -1432,11 +1445,31 @@ class DataSourceResultTable(models.Model):
 
     @classmethod
     def modify_table_id_datasource(cls, bk_tenant_id: str, table_id=None, bk_data_id=None):
-        if cls.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
-            raise ValueError(_("数据源有跟结果表关联"))
+        from metadata.models.space.constants import EtlConfigs
 
-        if not DataSource.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
+        try:
+            new_data_source = DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
+        except DataSource.DoesNotExist:
             raise ValueError(_("数据源不存在"))
+
+        target = cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+        if target and target.bk_data_id == bk_data_id:
+            return
+        old_data_source = (
+            DataSource.objects.filter(bk_data_id=target.bk_data_id, bk_tenant_id=bk_tenant_id).first()
+            if target
+            else None
+        )
+        custom_format = EtlConfigs.BK_CUSTOM_FORMAT.value
+        if target and custom_format in {new_data_source.etl_config, getattr(old_data_source, "etl_config", None)}:
+            raise ValueError(_("bk_custom_format ResultTable 创建后不能切换关联 DataSource"))
+
+        # 历史类型仍保持一个 DataSource 只绑定一个 ResultTable；自定义格式允许一对多。
+        if (
+            new_data_source.etl_config != custom_format
+            and cls.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists()
+        ):
+            raise ValueError(_("数据源有跟结果表关联"))
 
         refresh_consul_config_data_ids = [bk_data_id]
 
@@ -1453,9 +1486,11 @@ class DataSourceResultTable(models.Model):
                 target.delete()
                 refresh_consul_config_data_ids.append(target.bk_data_id)
 
-            cls.objects.create(table_id=table_id, bk_data_id=bk_data_id)
+            cls.objects.create(table_id=table_id, bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
 
-        for datasource in DataSource.objects.filter(bk_data_id__in=refresh_consul_config_data_ids, is_enable=True):
+        for datasource in DataSource.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_data_id__in=refresh_consul_config_data_ids, is_enable=True
+        ):
             datasource.refresh_consul_config()
 
     @classmethod

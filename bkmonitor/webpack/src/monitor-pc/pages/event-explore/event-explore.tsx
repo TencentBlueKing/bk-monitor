@@ -50,8 +50,8 @@ import {
   type ExploreEntitiesMap,
   type ExploreFieldMap,
   type HideFeatures,
-  type IFormData,
   type IDataIdItem,
+  type IFormData,
   ExploreSourceTypeEnum,
 } from './typing';
 
@@ -179,7 +179,7 @@ export default class EventExplore extends tsc<
   localEventSourceType = [];
   retrievalFilterCandidateValue: RetrievalFilterCandidateValue = null;
 
-  interval: IntervalType  = 'auto';
+  interval: IntervalType = 'auto';
 
   /** 常驻筛选唯一ID */
   get residentSettingOnlyId() {
@@ -333,6 +333,7 @@ export default class EventExplore extends tsc<
   }
 
   @Watch('timeRange')
+  @Watch('timezone')
   handleTimeRangeChange() {
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
     this.getViewConfig();
@@ -568,7 +569,7 @@ export default class EventExplore extends tsc<
       name: 'strategy-config-add',
       query: {
         data: JSON.stringify(queryData),
-      }
+      },
     });
     window.open(href, '_blank');
   }
@@ -689,11 +690,14 @@ export default class EventExplore extends tsc<
 
             {this.source === APIType.MONITOR && (
               <div class='btn-alert-policy__wrap'>
-              <div class='btn-alert-policy' onClick={this.handleAddAlertPolicy}>
-                <i class='icon-monitor icon-a-celve' />
-                <span class='btn-alert-policy-text'>{this.$t('添加告警策略')}</span>
+                <div
+                  class='btn-alert-policy'
+                  onClick={this.handleAddAlertPolicy}
+                >
+                  <i class='icon-monitor icon-a-celve' />
+                  <span class='btn-alert-policy-text'>{this.$t('添加告警策略')}</span>
+                </div>
               </div>
-            </div>
             )}
 
             <EventRetrievalLayout
@@ -729,10 +733,10 @@ export default class EventExplore extends tsc<
                   timeRange={this.timeRange}
                   onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}
+                  onIntervalChange={this.handleIntervalChange}
                   onSearch={this.updateQueryConfig}
                   onSetRouteParams={this.setRouteParams}
                   onShowEventSourcePopover={this.handleShowEventSourcePopover}
-                  onIntervalChange={this.handleIntervalChange}
                 />
               </div>
             </EventRetrievalLayout>

@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "performance-model.schema.json",
+  "title": "Measured constraints the composition must meet",
+  "type": "object",
+  "properties": {
+    "budgets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "bottlenecks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "appliedPatterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "measurement": {
+      "type": "string",
+      "description": "How the benefit will be verified. Unmeasured performance work is speculation."
+    }
+  },
+  "required": [
+    "measurement"
+  ],
+  "additionalProperties": true
+}

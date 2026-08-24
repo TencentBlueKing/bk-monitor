@@ -21,7 +21,7 @@ from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.detect.process import DetectProcess
-from alarm_backends.tests.alarm_engine_fixtures import DETECT_RECORDS, DETECT_STRATEGY
+from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 from bkmonitor.models import CacheNode
 
 pytestmark = pytest.mark.django_db

@@ -46,7 +46,7 @@ export const getHostInfoList = async (scope: HostScopeParams = {}) => {
  */
 export const getHostMetricInfoList = async (
   params: HostScopeParams & {
-    bk_host_ids: number[];
+    bk_host_ids?: number[];
     end_time: number;
     start_time: number;
   }

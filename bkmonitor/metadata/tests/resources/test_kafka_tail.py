@@ -3,6 +3,8 @@ from unittest.mock import call
 
 import pytest
 
+from constants.data_source import DATA_LINK_V4_VERSION_NAME
+from metadata.models.space.constants import EtlConfigs
 from metadata.resources.resources import KafkaTailResource
 
 
@@ -124,3 +126,87 @@ def test_kafka_python_tail_does_not_use_sample_size_as_poll_timeout(mocker, kafk
     )
     consumer.poll.assert_called_once_with(timeout_ms=1000)
     consumer.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("namespace", ["bkmonitor", "bklog"])
+def test_custom_format_tail_uses_registered_data_id_config(mocker, namespace):
+    datasource = SimpleNamespace(
+        bk_data_id=BK_DATA_ID,
+        mq_cluster_id=1,
+        datalink_version=DATA_LINK_V4_VERSION_NAME,
+        etl_config=EtlConfigs.BK_CUSTOM_FORMAT.value,
+    )
+    result_table = SimpleNamespace(table_id="custom_format.result_table")
+    dsrt_queryset = mocker.MagicMock()
+    dsrt_queryset.first.return_value = SimpleNamespace(table_id=result_table.table_id)
+    mocker.patch("metadata.resources.resources.models.DataSource.objects.get", return_value=datasource)
+    dsrt_filter = mocker.patch(
+        "metadata.resources.resources.models.DataSourceResultTable.objects.filter", return_value=dsrt_queryset
+    )
+    result_table_get = mocker.patch(
+        "metadata.resources.resources.models.ResultTable.objects.get", return_value=result_table
+    )
+    mocker.patch(
+        "metadata.resources.resources.models.ClusterInfo.objects.get", return_value=SimpleNamespace(is_auth=False)
+    )
+    find_data_id_name = mocker.patch(
+        "metadata.resources.resources.find_registered_bkdata_data_id_name",
+        return_value="bkm_custom_format_source",
+    )
+    access_vm_record_get = mocker.patch("metadata.resources.resources.models.AccessVMRecord.objects.get")
+    tail_kafka_data = mocker.patch(
+        "metadata.resources.resources.api.bkdata.tail_kafka_data",
+        return_value=['{"value": 1}', '{"value": 2}'],
+    )
+
+    result = KafkaTailResource().perform_request(
+        {
+            "bk_tenant_id": "system",
+            "bk_data_id": BK_DATA_ID,
+            "size": 2,
+            "namespace": namespace,
+            "use_gse_config": False,
+        }
+    )
+
+    assert result == [{"value": 2}, {"value": 1}]
+    dsrt_filter.assert_called_once_with(bk_tenant_id="system", bk_data_id=BK_DATA_ID)
+    result_table_get.assert_called_once_with(bk_tenant_id="system", table_id=result_table.table_id)
+    find_data_id_name.assert_called_once_with(datasource, namespace=namespace)
+    tail_kafka_data.assert_called_once_with(
+        bk_tenant_id="system", namespace=namespace, name="bkm_custom_format_source", limit=2
+    )
+    access_vm_record_get.assert_not_called()
+
+
+def test_custom_format_tail_returns_empty_when_data_id_config_is_missing(mocker):
+    datasource = SimpleNamespace(
+        bk_data_id=BK_DATA_ID,
+        mq_cluster_id=1,
+        datalink_version=DATA_LINK_V4_VERSION_NAME,
+        etl_config=EtlConfigs.BK_CUSTOM_FORMAT.value,
+    )
+    mocker.patch("metadata.resources.resources.models.DataSource.objects.get", return_value=datasource)
+    dsrt_queryset = mocker.MagicMock()
+    dsrt_queryset.first.return_value = None
+    mocker.patch("metadata.resources.resources.models.DataSourceResultTable.objects.filter", return_value=dsrt_queryset)
+    mocker.patch(
+        "metadata.resources.resources.models.ClusterInfo.objects.get", return_value=SimpleNamespace(is_auth=False)
+    )
+    mocker.patch("metadata.resources.resources.find_registered_bkdata_data_id_name", return_value=None)
+    tail_kafka_data = mocker.patch("metadata.resources.resources.api.bkdata.tail_kafka_data")
+    access_vm_record_get = mocker.patch("metadata.resources.resources.models.AccessVMRecord.objects.get")
+
+    result = KafkaTailResource().perform_request(
+        {
+            "bk_tenant_id": "system",
+            "bk_data_id": BK_DATA_ID,
+            "size": 2,
+            "namespace": "bklog",
+            "use_gse_config": False,
+        }
+    )
+
+    assert result == []
+    tail_kafka_data.assert_not_called()
+    access_vm_record_get.assert_not_called()

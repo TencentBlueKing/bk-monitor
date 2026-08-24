@@ -17,16 +17,16 @@ import pytest
 from django.test import TestCase
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
-from alarm_backends.core.alarm_engine.contract import (
+from alarm_backends.core.alarmd.contract import (
     build_detection_outcome,
     build_trigger_strategy_ir_from_legacy_config,
 )
-from alarm_backends.core.alarm_engine.reference import build_reference_trigger_decision_batch
+from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_batch
 from alarm_backends.core.cache.key import CHECK_RESULT_CACHE_KEY
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.checker import AnomalyChecker
-from alarm_backends.tests.alarm_engine_fixtures import TRIGGER_POINT as POINT
-from alarm_backends.tests.alarm_engine_fixtures import TRIGGER_STRATEGY as STRATEGY
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT as POINT
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_STRATEGY as STRATEGY
 from bkmonitor.models import CacheNode
 from bkmonitor.utils import time_tools
 from core.errors.alarm_backends import StrategyItemNotFound
@@ -107,7 +107,7 @@ class TestChecker(TestCase):
         with self.assertRaises(StrategyItemNotFound):
             AnomalyChecker(POINT, STRATEGY, 23)
 
-    def test_alarm_engine_reference_uses_real_checker_event_shape(self):
+    def test_alarmd_reference_uses_real_checker_event_shape(self):
         self.insert_check_result(3)
         point = copy.deepcopy(POINT)
         strategy = copy.deepcopy(STRATEGY)

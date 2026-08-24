@@ -64,11 +64,13 @@ export type IHostComponent = {
 
 /** 带指标数据的主机列表项 */
 export interface IHostMetricInfo extends IHostBaseInfo {
-  alarm_count: IHostAlarmCount[];
+  /** null 表示告警分区查询失败；空数组表示查询成功且没有告警。 */
+  alarm_count: IHostAlarmCount[] | null;
   bk_host_innerip_v6: string;
   bk_host_outerip_v6: string;
   bk_state: string;
-  component: IHostComponent[];
+  /** null 表示进程分区查询失败；空数组表示查询成功且没有进程配置。 */
+  component: IHostComponent[] | null;
   cpu_load: number;
   cpu_usage: number;
   disk_in_use: number;

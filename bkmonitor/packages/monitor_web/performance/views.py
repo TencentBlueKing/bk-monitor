@@ -70,5 +70,5 @@ class SearchHostMetricViewSet(PermissionMixin, ResourceViewSet):
     """
 
     resource_routes = [
-        ResourceRoute("POST", resource.performance.search_host_metric),
+        ResourceRoute("POST", resource.performance.search_host_metric, content_encoding="gzip"),
     ]

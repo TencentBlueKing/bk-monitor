@@ -36,12 +36,12 @@ class BkBaseResultTable(models.Model):
         (DataLinkResourceStatus.OK.value, "已就绪"),
     )
 
-    # 在V3->V4迁移场景中，data_link_name和bkbase_data_name不一定相同，故需设计为分别全局唯一
+    # 一个自定义格式 DataSource 可为多个 ResultTable 派生独立 DataLink，故 DataId 名称允许复用。
     data_link_name = models.CharField(
         verbose_name="链路名称", max_length=255, primary_key=True, db_index=True, unique=True
     )
     bkbase_data_name = models.CharField(
-        verbose_name="计算平台数据源名称", max_length=128, unique=True, null=True, blank=True
+        verbose_name="计算平台数据源名称", max_length=128, null=True, blank=True, db_index=True
     )
     storage_type = models.CharField(
         "存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES, default=ClusterInfo.TYPE_VM

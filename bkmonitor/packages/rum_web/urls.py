@@ -18,4 +18,5 @@ urlpatterns = [
     re_path(r"^$", rum_home),
     re_path(r"meta/", include("rum_web.meta.urls")),
     re_path(r"^metric/", include("rum_web.metric.urls")),
+    re_path(r"^", include("rum_web.query.urls")),
 ]

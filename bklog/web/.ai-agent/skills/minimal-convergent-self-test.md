@@ -6,8 +6,7 @@ Companion: `.ai-agent/skills/architecture-impact-test-forecast.md` (impact) → 
 
 ## Goal
 
-按**本次变更影响范围**做最小收敛自测：能 Mock 则 Mock；只有 UI 真需要时才问浏览器 MCP。  
-含 UI 时：**先代码分析生成完整测试路径，再按路径执行**，禁止自测过程中反复大范围读代码。
+按**本次变更影响范围**做最小收敛自测：能 Mock 则 Mock；UI/路由变更在最后测试环节走 `aafe test --diff`（Playwright YAML）。浏览器 MCP 仅作 E2E blocked 时的兜底。
 
 ## Step 0 — Decide test mode from impact
 
@@ -16,13 +15,27 @@ Companion: `.ai-agent/skills/architecture-impact-test-forecast.md` (impact) → 
 | Pure function / data transform / computed / cache / percent calc | **unit**（Mock 输入 → 断言输出） | `test/` under install root |
 | Component logic with props/emit, no visual claim | **unit/component**（Mock Props） | `test/` |
 | Store getter/action contract | **unit**（Mock state） | `test/` |
-| Visible layout / CSS / popover / chart render / interaction | **ui-optional** | **仅代码变更任务且已进入本 Skill 时**条件询问浏览器 MCP |
+| Visible layout / CSS / popover / chart render / interaction | **e2e** | `aafe test --diff` → `tests/ui-ai/cases/` + `.aafe/e2e/reports/` |
 
 Rules:
 
 - Prefer the narrowest mode that can fail if the bug regresses.
 - Example: 组件内数据处理逻辑变更 → 只测函数/方法 I/O，**不要**默认开浏览器。
 - Do not invent E2E for logic-only diffs.
+- 任务收尾**禁止**默认跑 `aafe test --coverage`（全量铺底是显式命令）。
+
+## Step 0.5 — E2E via `aafe test --diff`
+
+当 Step 0 判定为 e2e / ui 时：
+
+1. 执行 `aafe test --diff`（`aafe` 不在 PATH 时用 `node_modules/.bin/aafe`）。
+2. 要 `--run` 但没有本次 URL：在对话里询问完整被测地址并**等待用户输入**。测试地址每次可能不同，不要写入 `.aafe.config.json` `e2e.baseUrl`，不要用环境变量凑合，**禁止**填 `http://localhost:8080`。
+3. 用户给出地址后：若含 `#` 或查询参数，先确认 A（目标页）/ B（仅 origin）/ C（提取参数拼到变更路由），再 `aafe test --diff --run --base-url=<用户输入的 URL> --url-role=target|origin|template`。
+4. CLI 若返回 `needInput: "baseUrl"` 或 `needInput: "urlRole"`：必须停下来问用户，禁止自行编造 URL 或改去装 uitest。
+5. 只引用统一报告 `.aafe/e2e/reports/<runId>/{report.json,index.html}`。
+6. `layers.primary: unit` 时 E2E 标 `NOT_APPLICABLE`。
+
+浏览器 MCP 仅当 E2E blocked（无 Playwright）且用户仍要看 UI。缺测试地址时先问 URL，不要改走 MCP。
 
 ## Step 1 — Ensure test directory
 
@@ -108,7 +121,7 @@ Converge:
 4. fill | （输入目标）| value=... | （期望）
 5. hover | （行/节点） | （期望浮层/按钮）
 6. assert | （可观察结果）
-7. screenshot | test/ui/xxx.png
+7. screenshot | .aafe/e2e/reports/<runId>/artifacts/xxx.png
 ```
 
 要求：
@@ -120,9 +133,9 @@ Converge:
 
 若影响分析阶段已产出同等质量路径，本步校验补全即可，勿重复劳动。
 
-## Step 3 — UI tests (conditional ask, never auto)
+## Step 3 — Browser MCP fallback (only when E2E blocked)
 
-**前置**：任务评估为代码变更 + 影响分类含 UI（`mode=ui` / ui-optional）。纯文档/需求分析任务**不得**进入本 Step。
+**前置**：已走 Step 0.5 的 `aafe test --diff`，且结果为 blocked（无 Playwright），用户仍要看 UI。缺测试地址时先问 URL 再 `--run --base-url`，不要改走 MCP。纯文档/需求分析任务**不得**进入本 Step。
 
 When all preconditions met:
 
@@ -137,7 +150,7 @@ When all preconditions met:
 
 4. URL 到手后：执行 **Step 2.5** 生成/补全 `ui_test_paths`，再严格按路径操作：
    - navigate → snapshot 定位 → click/switch/fill/hover → assert → screenshot
-   - save under `test/ui/` when useful
+   - 截图与 trace 只写入 `.aafe/e2e/reports/<runId>/artifacts/`，不要散落到 `test/ui/`
    - do **not** guess hosts, retry random envs, or burn tokens re-analyzing code mid-run
 5. 路径某步失效：允许**一次**局部重读该步相关模板修正路径，记录 `path_amended`；禁止借机全模块再分析。
 

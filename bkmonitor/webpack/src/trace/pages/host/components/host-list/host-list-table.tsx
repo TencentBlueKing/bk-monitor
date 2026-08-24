@@ -494,6 +494,9 @@ export default defineComponent({
       if (props.metricLoading && !row.alarm_count) {
         return <div class='host-table-skeleton' />;
       }
+      if (row.alarm_count == null) {
+        return <span>--</span>;
+      }
       const hasAlarm = !!row.totalAlarmCount;
       return (
         <span
@@ -503,7 +506,7 @@ export default defineComponent({
           onMouseenter={props.readonly ? undefined : e => hasAlarm && handleUnresolveEnter(row, e)}
           onMouseleave={props.readonly ? undefined : () => hasAlarm && handleUnresolveLeave()}
         >
-          {row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--'}
+          {row.totalAlarmCount ?? '--'}
         </span>
       );
     };
@@ -530,6 +533,9 @@ export default defineComponent({
     };
 
     const renderProcessCell = (row: IHostListRow) => {
+      if (row.component == null) {
+        return <span class='host-table-process__empty'>--</span>;
+      }
       const components = row.component || [];
       return (
         <TagOverflow

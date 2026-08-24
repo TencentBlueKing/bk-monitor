@@ -46,7 +46,7 @@ Classification hints:
 
 - 组件内数据处理 / 百分比 / 缓存 / 排序 → **unit**，Mock Props 或纯函数 I/O
 - Store/API 契约 → **unit**，Mock state/response
-- 布局、样式、图表真实渲染、交互可见性 → 标记 **ui**；**仅当任务为代码变更且进入自测流程时**，交给自测 Skill 条件询问浏览器 MCP
+- 布局、样式、图表真实渲染、交互可见性 → 标记 **ui**；交给自测 Skill 走 `aafe test --diff`。浏览器 MCP 仅作 E2E blocked 兜底，本 Skill 不自动开浏览器
 
 Required artifact: `test_cases`
 
@@ -66,10 +66,10 @@ Required artifact when UI: `ui_test_paths`（草案可在自测 Skill 用 URL �
 
 Read and follow `.ai-agent/skills/minimal-convergent-self-test.md` to:
 
-1. Create/update files under install-root `test/`
+1. Create/update files under install-root `test/` for unit cases
 2. Run unit tests with Mock
-3. Ask before any browser MCP; require user-provided URL for UI
-4. 执行 UI 前补全并锁定 `ui_test_paths`，再按路径操作
+3. UI/路由变更：执行 `aafe test --diff`；要 `--run` 则询问并等待本次测试 URL（含 `#` 须加引号；有路径/参数时确认 A/B/C 并加 `--url-role`），再用 `--base-url=<url>`（不要写死配置），报告只读 `.aafe/e2e/reports/`
+4. 浏览器 MCP 仅当 E2E blocked 且用户仍要看 UI；禁止猜环境地址
 5. 自测结束后：若任务过程中**有关联 TAPD 单** → `tapd-submit-backfill.md`（按 submit.cli 执行 Commit/PR → 条件回填）；无 TAPD 关联则跳过 TAPD 回填
 
 Collect `test_results`（及 UI 时的 `ui_test_paths`）from that skill.

@@ -854,18 +854,20 @@ class IndexSetViewSet(ModelViewSet):
         @api {post} /index_set/$index_set_id/indices/ 索引集物理索引信息
         @apiName indices
         @apiGroup 05_AccessIndexSet
+        @apiDescription 行结构与存储类型无关：ES 返回物理索引，Doris 返回物理表分区，
+        调用方无需区分 storage_type。Doris 无等价指标的字段返回 --，整列均为 -- 时聚合值同样为 --。
         @apiSuccess {Int} total 索引集数量
         @apiSuccess {String} result_table_id rt_id
         @apiSuccess {Dict} item key为索引集名称
-        @apiSuccess {String} health 索引健康状态 red green yellow
-        @apiSuccess {String} status 索引状态
-        @apiSuccess {String} pri 主分片数量
-        @apiSuccess {String} rep 副本数量
-        @apiSuccess {String} index 索引名称
-        @apiSuccess {String} docs.count 文档数量
-        @apiSuccess {String} docs.deleted 删除文档数量
+        @apiSuccess {String} health 健康状态 red green yellow --
+        @apiSuccess {String} status 状态 open unavailable unknown
+        @apiSuccess {String} pri 主分片数量，Doris 无等价字段返回 --
+        @apiSuccess {String} rep 副本数量，Doris 无等价字段返回 --
+        @apiSuccess {String} index 物理存储单元名称，ES 为索引名，Doris 为分区名或物理表名
+        @apiSuccess {String} docs.count 文档数量，Doris 为分区行数
+        @apiSuccess {String} docs.deleted 删除文档数量，Doris 无等价字段返回 --
         @apiSuccess {String} store.size 储存大小 Byte
-        @apiSuccess {String} pri.store.size 主分片储存大小 Byte
+        @apiSuccess {String} pri.store.size 主分片储存大小 Byte，Doris 无等价字段返回 --
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,

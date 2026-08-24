@@ -71,7 +71,10 @@ const extractClusters = modules => {
   return [...map.values()];
 };
 
-const mergeHostComponents = (components = []) => {
+const mergeHostComponents = components => {
+  if (!components) {
+    return components;
+  }
   const componentMap = new Map();
   for (const component of components) {
     const current = componentMap.get(component.display_name);
@@ -91,14 +94,16 @@ const createHostListRow = (row, metric = {}) => {
   const bkClusters = extractClusters(modules);
   const components = mergeHostComponents(metric.component);
   const rowId = String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`);
-  const totalAlarmCount = (metric.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
+  const totalAlarmCount = Array.isArray(metric.alarm_count)
+    ? metric.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
+    : null;
   return Object.assign({}, row || {}, metric || {}, {
     id: rowId,
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
     component: components,
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
-    processNames: components.map(c => c.display_name).join(','),
+    processNames: components?.map(c => c.display_name).join(',') || '',
     rowId,
     totalAlarmCount,
   });
@@ -117,7 +122,7 @@ const matchTopoNode = (row, node) => {
 const matchQuickCategory = (row, category) => {
   switch (category) {
     case 'alarm':
-      return row.totalAlarmCount > 0;
+      return (row.totalAlarmCount ?? 0) > 0;
     case 'cpu':
       return (row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD;
     case 'mem':
@@ -267,7 +272,7 @@ const matchWhere = (row, where) => {
 const computeCategoryStats = rows => {
   const stats = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
   for (const row of rows) {
-    if (row.totalAlarmCount > 0) stats.alarm += 1;
+    if ((row.totalAlarmCount ?? 0) > 0) stats.alarm += 1;
     if ((row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.cpu += 1;
     if ((row.mem_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.mem += 1;
     if ((row.disk_in_use || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.disk += 1;
