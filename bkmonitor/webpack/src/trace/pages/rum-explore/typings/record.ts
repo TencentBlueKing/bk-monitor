@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,22 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
 
-export default [
-  {
-    path: '/rum',
-    name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
-  },
-  {
-    path: '/rum/config/:appName',
-    name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
-  },
-  {
-    path: '/rum-explore',
-    name: 'rumExplore',
-    component: () => import(/* webpackChunkName: "rum-explore" */ '../../pages/rum-explore/rum-explore'),
-  },
-] as RouteRecordRaw[];
+/** list_records 分页响应 */
+export interface IRumRecordListResponse {
+  list: IRumSpanRecord[];
+}
+
+/** 表格排序状态，与 tdesign SortInfo 对齐 */
+export interface IRumSortInfo {
+  descending: boolean | null;
+  sortBy: string;
+}
+/**
+ * list_records 返回的单条记录。
+ *
+ * 表格列由 view_config 的 display_fields 动态决定，且字段名带 `.`（如 `status.code`），
+ * 所以这里只显式声明各 span 类型都会返回的固定字段，其余走索引签名。
+ */
+export interface IRumSpanRecord {
+  [key: string]: unknown;
+  'attributes.span_type'?: string;
+  /** 耗时，单位由字段的 field_unit 决定（通常为 us） */
+  elapsed_time?: number;
+  /** 微秒级时间戳 */
+  end_time?: number;
+  span_id?: string;
+  span_name?: string;
+  /** 微秒级时间戳 */
+  start_time?: number;
+  'status.code'?: number;
+  trace_id?: string;
+}
