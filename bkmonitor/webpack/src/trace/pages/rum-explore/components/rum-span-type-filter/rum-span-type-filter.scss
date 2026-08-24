@@ -1,0 +1,65 @@
+.rum-span-type-filter {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 12px;
+  background: #fff;
+
+  .filter-label {
+    flex-shrink: 0;
+    height: 32px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #4e5e7a;
+  }
+
+  .filter-chips {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .type-chip {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 999px;
+
+    &:hover {
+      background: #e1e6ee;
+    }
+
+    &.active {
+      background: #3a84ff;
+
+      .chip-label {
+        color: #fff;
+      }
+
+      /* 选中态底色为主蓝，图标自带的彩色不再适用，统一提亮为白 */
+      .chip-icon {
+        filter: brightness(0) invert(1);
+      }
+    }
+  }
+
+  .chip-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .chip-label {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #313238;
+    white-space: nowrap;
+  }
+}
