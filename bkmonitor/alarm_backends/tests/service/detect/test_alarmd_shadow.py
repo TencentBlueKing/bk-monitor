@@ -94,6 +94,42 @@ def test_alarmd_shadow_splits_retained_async_jobs_at_500_records():
     assert sum(len(batch["outcomes"]) for batch in batches) == len(records)
 
 
+def test_alarmd_shadow_splits_on_the_complete_async_job_byte_limit():
+    from alarm_backends.core.alarmd.async_publish import shadow_job_fits
+
+    strategy = copy.deepcopy(DETECT_STRATEGY)
+    records = copy.deepcopy(DETECT_RECORDS)
+    for record in records:
+        record["values"]["payload"] = "x" * 140_000
+    source_strategy = SimpleNamespace(id=1, config=strategy)
+    processor = object.__new__(DetectProcess)
+    processor.strategy_id = "1"
+    processor.strategy = SimpleNamespace(
+        id=1,
+        bk_tenant_id="default",
+        config=strategy,
+        items=[SimpleNamespace(id=2)],
+        snapshot_key="snapshot-key",
+    )
+    processor.inputs = {
+        2: [
+            SimpleNamespace(item=SimpleNamespace(strategy=source_strategy), as_dict=lambda record=record: record)
+            for record in records
+        ]
+    }
+    processor.outputs = {2: []}
+
+    with (
+        mock.patch.object(settings, "ALARMD_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", []),
+        mock.patch.object(key.STRATEGY_SNAPSHOT_KEY.client, "get", return_value=json.dumps(strategy).encode()),
+    ):
+        batches = processor.prepare_alarmd_detection_batches()
+
+    assert [len(batch["detect_input"]["records"]) for batch in batches] == [1, 1]
+    assert all(shadow_job_fits("detect_input", (batch,)) for batch in batches)
+
+
 def test_detect_push_enqueues_one_bounded_job_per_batch_after_legacy_delivery():
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "1"

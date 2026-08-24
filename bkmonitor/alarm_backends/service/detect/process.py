@@ -157,6 +157,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
             return []
 
         from alarm_backends.core.alarmd.contract import ContractValidationError, json_values_equal
+        from alarm_backends.core.alarmd.async_publish import shadow_job_fits
         from alarm_backends.core.alarmd.publisher import DetectionPublishError, plan_detect_input_microbatches
         from alarm_backends.core.alarmd.runtime import prepare_detect_input_batch, prepare_finalized_threshold_batch
 
@@ -203,7 +204,9 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 ranges = plan_detect_input_microbatches(batch["strategy_ir"], batch_id, data_points)
                 if len(batch["outcomes"]) != len(data_points):
                     raise ContractValidationError("detection outcomes must align with accepted records")
-                for start, end in ranges:
+                pending_ranges = list(reversed(ranges))
+                while pending_ranges:
+                    start, end = pending_ranges.pop()
                     chunk = {
                         "strategy_ir": batch["strategy_ir"],
                         "outcomes": batch["outcomes"][start:end],
@@ -213,6 +216,12 @@ class DetectProcess(BaseAbnormalPushProcessor):
                             data_points=data_points[start:end],
                         ),
                     }
+                    if not shadow_job_fits("detect_input", (chunk,)):
+                        if end - start <= 1:
+                            raise DetectionPublishError("single detect input Shadow job exceeds the byte limit")
+                        middle = start + (end - start) // 2
+                        pending_ranges.extend(((middle, end), (start, middle)))
+                        continue
                     batches.append(chunk)
             except (ContractValidationError, DetectionPublishError):
                 logger.exception(

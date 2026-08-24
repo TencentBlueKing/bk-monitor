@@ -307,25 +307,25 @@ class TriggerProcessor:
         return list(self.iter_alarmd_reference_batches())
 
     def enqueue_alarmd_reference_candidates(self):
-        from alarm_backends.core.alarmd.async_publish import submit_shadow_job
-        from alarm_backends.core.alarmd.encoder import MAX_TRIGGER_DECISION_BATCH_BYTES, encode_trigger_decision_batch
+        from alarm_backends.core.alarmd.async_publish import shadow_job_fits, submit_shadow_job
+        from alarm_backends.core.alarmd.encoder import encode_trigger_decision_batch
 
         enqueued = 0
         chunk = []
-        chunk_bytes = 0
         for batch in self.iter_alarmd_reference_batches():
-            encoded_bytes = len(encode_trigger_decision_batch(batch))
+            encode_trigger_decision_batch(batch)
+            candidate = tuple([*chunk, batch])
             if chunk and (
-                len(chunk) >= ALARMD_REFERENCE_BATCHES_PER_FLUSH
-                or chunk_bytes + encoded_bytes > MAX_TRIGGER_DECISION_BATCH_BYTES
+                len(chunk) >= ALARMD_REFERENCE_BATCHES_PER_FLUSH or not shadow_job_fits("reference", candidate)
             ):
                 payload = tuple(chunk)
                 if submit_shadow_job("reference", payload, max_jobs=settings.ALARMD_SHADOW_ASYNC_QUEUE_SIZE):
                     enqueued += len(payload)
                 chunk = []
-                chunk_bytes = 0
+                candidate = (batch,)
+            if not shadow_job_fits("reference", candidate):
+                raise ValueError("single reference Shadow job exceeds the byte limit")
             chunk.append(batch)
-            chunk_bytes += encoded_bytes
         if chunk:
             chunk = tuple(chunk)
             if submit_shadow_job("reference", chunk, max_jobs=settings.ALARMD_SHADOW_ASYNC_QUEUE_SIZE):

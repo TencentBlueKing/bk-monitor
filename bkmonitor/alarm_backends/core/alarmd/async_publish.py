@@ -1,6 +1,5 @@
 """Process-local bounded publisher for fail-open alarmd Shadow jobs."""
 
-import atexit
 import logging
 import os
 import queue
@@ -10,6 +9,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 logger = logging.getLogger("alarmd.shadow")
+
+MAX_ASYNC_JOB_BYTES = 512 * 1024
 
 ASYNC_STATUS_ENQUEUED = "enqueued"
 ASYNC_STATUS_DROPPED = "dropped"
@@ -24,6 +25,16 @@ _STOP = object()
 class ShadowPublishJob:
     operation: str
     payload: tuple[dict, ...]
+
+
+def shadow_job_encoded_size(operation: str, payload: tuple[dict, ...]) -> int:
+    from alarm_backends.core.alarmd.encoder import encode_json_document
+
+    return len(encode_json_document({"operation": operation, "payload": list(payload)}))
+
+
+def shadow_job_fits(operation: str, payload: tuple[dict, ...]) -> bool:
+    return shadow_job_encoded_size(operation, payload) <= MAX_ASYNC_JOB_BYTES
 
 
 def record_shadow_async_job(stage: str, status: str) -> None:
@@ -63,13 +74,23 @@ class AsyncShadowPublisher:
     def submit(self, operation: str, payload: tuple[dict, ...]) -> bool:
         if operation not in {"detect_input", "reference"} or not payload:
             return False
+        try:
+            fits = shadow_job_fits(operation, payload)
+        except Exception:
+            record_shadow_async_job(operation, ASYNC_STATUS_DROPPED)
+            self._log_drop(operation, "payload_encode_failed")
+            return False
+        if not fits:
+            record_shadow_async_job(operation, ASYNC_STATUS_DROPPED)
+            self._log_drop(operation, "payload_too_large")
+            return False
         self._ensure_started()
         job = ShadowPublishJob(operation=operation, payload=payload)
         try:
             self._queue.put_nowait(job)
         except queue.Full:
             record_shadow_async_job(operation, ASYNC_STATUS_DROPPED)
-            self._log_drop(operation)
+            self._log_drop(operation, "queue_full")
             return False
         record_shadow_async_job(operation, ASYNC_STATUS_ENQUEUED)
         return True
@@ -123,15 +144,15 @@ class AsyncShadowPublisher:
             finally:
                 self._queue.task_done()
 
-    def _log_drop(self, operation: str) -> None:
+    def _log_drop(self, operation: str, reason: str) -> None:
         now = time.monotonic()
         if now - self._last_drop_log < _DROP_LOG_INTERVAL_SECONDS:
             return
         self._last_drop_log = now
         logger.warning(
-            "[alarmd shadow] component=alarmd-python stage=%s result=fail_open "
-            "operation=async_enqueue reason=queue_full",
+            "[alarmd shadow] component=alarmd-python stage=%s result=fail_open operation=async_enqueue reason=%s",
             operation,
+            reason,
         )
 
 
@@ -140,7 +161,7 @@ _publisher = None
 _publisher_pid = None
 
 
-def _report_pending_jobs_at_exit(publisher: AsyncShadowPublisher, process_id: int) -> None:
+def _report_pending_jobs_on_shutdown(publisher: AsyncShadowPublisher, process_id: int) -> None:
     if os.getpid() != process_id:
         return
     pending = publisher.pending_jobs()
@@ -150,6 +171,14 @@ def _report_pending_jobs_at_exit(publisher: AsyncShadowPublisher, process_id: in
             "operation=process_exit pending_jobs=%s",
             pending,
         )
+
+
+def _report_current_process_pending_jobs(**_kwargs) -> None:
+    with _publisher_lock:
+        publisher = _publisher
+        process_id = _publisher_pid
+    if publisher is not None and process_id is not None:
+        _report_pending_jobs_on_shutdown(publisher, process_id)
 
 
 def submit_shadow_job(operation: str, payload: tuple[dict, ...], *, max_jobs: int) -> bool:
@@ -167,6 +196,16 @@ def submit_shadow_job(operation: str, payload: tuple[dict, ...], *, max_jobs: in
                 )
                 return False
             _publisher_pid = process_id
-            atexit.register(_report_pending_jobs_at_exit, _publisher, process_id)
         publisher = _publisher
     return publisher.submit(operation, payload)
+
+
+try:
+    from celery.signals import worker_process_shutdown
+
+    worker_process_shutdown.connect(_report_current_process_pending_jobs, weak=False)
+except ImportError:
+    logger.warning(
+        "[alarmd shadow] component=alarmd-python stage=async_publish result=coverage_gap "
+        "operation=install_shutdown_signal reason=celery_unavailable"
+    )

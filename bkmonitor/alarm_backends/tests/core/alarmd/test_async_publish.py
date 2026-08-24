@@ -66,6 +66,42 @@ def test_async_publisher_logs_terminal_ack(caplog):
     assert "stage=detect_input result=broker_ack operation=async_worker records=3" in caplog.text
 
 
+def test_async_publisher_rejects_a_job_over_the_full_payload_limit():
+    run_job = mock.Mock()
+    publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=run_job)
+    with mock.patch.object(async_publish, "record_shadow_async_job") as record:
+        assert not publisher.submit(
+            "detect_input",
+            ({"payload": "x" * async_publish.MAX_ASYNC_JOB_BYTES},),
+        )
+
+    run_job.assert_not_called()
+    record.assert_called_once_with("detect_input", async_publish.ASYNC_STATUS_DROPPED)
+
+
+def test_async_publisher_fails_open_when_payload_cannot_be_encoded():
+    run_job = mock.Mock()
+    publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=run_job)
+    with mock.patch.object(async_publish, "record_shadow_async_job") as record:
+        assert not publisher.submit("detect_input", ({"payload": object()},))
+
+    run_job.assert_not_called()
+    record.assert_called_once_with("detect_input", async_publish.ASYNC_STATUS_DROPPED)
+
+
+def test_celery_process_shutdown_reports_pending_jobs(monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="alarmd.shadow")
+    publisher = mock.Mock()
+    publisher.pending_jobs.return_value = 2
+    monkeypatch.setattr(async_publish, "_publisher", publisher)
+    monkeypatch.setattr(async_publish, "_publisher_pid", 100)
+    monkeypatch.setattr(async_publish.os, "getpid", mock.Mock(return_value=100))
+
+    async_publish._report_current_process_pending_jobs()
+
+    assert "operation=process_exit pending_jobs=2" in caplog.text
+
+
 def test_global_publisher_is_recreated_after_fork(monkeypatch):
     created = []
 
@@ -80,8 +116,6 @@ def test_global_publisher_is_recreated_after_fork(monkeypatch):
     monkeypatch.setattr(async_publish, "_publisher", None)
     monkeypatch.setattr(async_publish, "_publisher_pid", None)
     monkeypatch.setattr(async_publish.os, "getpid", mock.Mock(side_effect=[100, 101]))
-    monkeypatch.setattr(async_publish.atexit, "register", mock.Mock())
-
     assert async_publish.submit_shadow_job("detect_input", ({"batch_id": "one"},), max_jobs=3)
     assert async_publish.submit_shadow_job("detect_input", ({"batch_id": "two"},), max_jobs=3)
     assert created == [3, 3]

@@ -199,7 +199,11 @@ def test_trigger_reference_unexpected_failure_does_not_change_legacy_push_result
 
 def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
     processor = _processor()
-    batches = [{"batch_id": "one"}, {"batch_id": "two"}, {"batch_id": "three"}]
+    batches = [
+        {"batch_id": "one", "payload": "a" * 300_000},
+        {"batch_id": "two", "payload": "b" * 300_000},
+        {"batch_id": "three"},
+    ]
     processor.iter_alarmd_reference_batches = lambda: iter(batches)
     submitted = []
 
@@ -210,7 +214,7 @@ def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
     with (
         mock.patch(
             "alarm_backends.core.alarmd.encoder.encode_trigger_decision_batch",
-            side_effect=[b"a" * 300_000, b"b" * 300_000, b"c"],
+            side_effect=[b"valid", b"valid", b"valid"],
         ),
         mock.patch("alarm_backends.core.alarmd.async_publish.submit_shadow_job", side_effect=submit),
         mock.patch.object(settings, "ALARMD_SHADOW_ASYNC_QUEUE_SIZE", 16, create=True),
