@@ -257,6 +257,17 @@ ANOMALY_SIGNAL_KEY = register_key_with_config(
     }
 )
 
+EVENT_INLINE_TRIGGER_LEASE_KEY = register_key_with_config(
+    {
+        "label": "[trigger]Event内联处理租约",
+        "key_type": "sorted_set",
+        "key_tpl": "trigger.event.inline.lease.{strategy_id}.{item_id}",
+        "ttl": 10 * CONST_MINUTES,
+        # 租约释放脚本需要与 ANOMALY_LIST_KEY 原子检查，因此必须使用同一 backend。
+        "backend": "queue",
+    }
+)
+
 TRIGGER_EVENT_LIST_KEY = register_key_with_config(
     {
         "label": "[trigger]异常触发信号队列",

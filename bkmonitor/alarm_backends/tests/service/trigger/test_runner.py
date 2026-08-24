@@ -102,6 +102,39 @@ def test_run_trigger_item_records_and_swallows_processing_error(mocker):
     fake_metrics.TRIGGER_PROCESS_COUNT.labels.return_value.inc.assert_called_once_with()
 
 
+def test_run_trigger_item_event_inline_skips_lock_and_propagates_processing_error(mocker):
+    error = ValueError("boom")
+    processor = mocker.MagicMock()
+    processor.process.side_effect = error
+    processor_cls = mocker.patch.object(runner, "TriggerProcessor", return_value=processor)
+    lock = mocker.patch.object(runner, "service_lock")
+    fake_metrics = mocker.MagicMock(TOTAL_TAG="__total__")
+    fake_metrics.StatusEnum.from_exc.return_value = "failed"
+    mocker.patch.object(runner, "metrics", fake_metrics)
+
+    with pytest.raises(ValueError) as raised:
+        runner.run_trigger_item(
+            "1",
+            "2",
+            executor="event_inline",
+            acquire_lock=False,
+            max_process_count=1000,
+            requeue_on_full=False,
+            raise_process_error=True,
+            concurrent_rate_limit=True,
+        )
+
+    assert raised.value is error
+    lock.assert_not_called()
+    processor_cls.assert_called_once_with(
+        "1",
+        "2",
+        max_process_count=1000,
+        requeue_on_full=False,
+        concurrent_rate_limit=True,
+    )
+
+
 def test_run_trigger_item_propagates_lock_error_without_recording_result(mocker):
     error = LockError(msg="locked")
     mocker.patch.object(runner, "service_lock", side_effect=error)
@@ -137,18 +170,25 @@ def test_trigger_processor_pull_returns_actual_count(mocker):
     processor.strategy_id = "1"
     processor.item_id = "2"
     processor.anomaly_list_key = "anomaly.list.1.2"
-    processor.MAX_PROCESS_COUNT = 100
+    processor.max_process_count = 100
+    processor.requeue_on_full = True
 
-    anomaly_list_key = mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
-    anomaly_list_key.client.lrange.return_value = ["new", "old"]
-    mocker.patch.object(trigger_processor, "routing_snapshot", return_value=nullcontext())
+    mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = ["new", "old"]
+    mocker.patch.object(trigger_processor, "routed_client", return_value=nullcontext(native_client))
     mocker.patch.object(trigger_processor, "metrics")
 
     pulled_count = processor.pull()
 
     assert pulled_count == 2
     assert processor.anomaly_points == ["old", "new"]
-    anomaly_list_key.client.ltrim.assert_called_once_with("anomaly.list.1.2", 0, -3)
+    native_client.eval.assert_called_once_with(
+        trigger_processor.ANOMALY_LIST_PULL_SCRIPT,
+        1,
+        "anomaly.list.1.2",
+        100,
+    )
 
 
 def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, caplog):
@@ -156,18 +196,19 @@ def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, capl
     processor.strategy_id = "1"
     processor.item_id = "2"
     processor.anomaly_list_key = "anomaly.list.1.2"
-    processor.MAX_PROCESS_COUNT = 100
+    processor.max_process_count = 100
+    processor.requeue_on_full = True
 
-    anomaly_list_key = mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
-    anomaly_list_key.client.lrange.return_value = []
+    mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = []
     anomaly_signal_key = mocker.patch.object(trigger_processor, "ANOMALY_SIGNAL_KEY")
-    mocker.patch.object(trigger_processor, "routing_snapshot", return_value=nullcontext())
+    mocker.patch.object(trigger_processor, "routed_client", return_value=nullcontext(native_client))
     mocker.patch.object(trigger_processor, "metrics")
 
     with caplog.at_level(logging.WARNING, logger="trigger"):
         pulled_count = processor.pull()
 
     assert pulled_count == 0
-    anomaly_list_key.client.ltrim.assert_not_called()
     anomaly_signal_key.client.delay.assert_not_called()
     assert "pull 0 record" in caplog.text

@@ -814,6 +814,12 @@ ACCESS_DETECT_MERGE_STRATEGY_IDS = []
 # Detect 完成后是否同步执行 Trigger；Access-Detect 合并路径共用此开关
 ENABLE_DETECT_INLINE_TRIGGER = False
 
+# Event 完成后是否同步执行 Trigger；开启前需要先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = False
+
+# 单个 Event 策略项最多占用的内联 Trigger 并发数
+EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
+
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
 

@@ -52,6 +52,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
     def __init__(self):
         super().__init__()
         self.strategies = {}
+        self.inline_trigger_items = []
 
         self.add_filter(ExpireFilter())
         self.add_filter(HostStatusFilter())
@@ -69,6 +70,18 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         Pull raw data and generate record.
         """
         raise NotImplementedError("pull must be implemented by BaseAccessEventProcess subclasses")
+
+    def process(self):
+        exc = super().process()
+        if exc is None:
+            self.run_inline_trigger()
+        return exc
+
+    def run_inline_trigger(self):
+        from alarm_backends.service.trigger.runner import run_event_trigger_item
+
+        for strategy_id, item_id in self.inline_trigger_items:
+            run_event_trigger_item(strategy_id, item_id)
 
     def push_to_check_result(self):
         redis_pipeline = None
@@ -153,6 +166,8 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                     pending_to_push.setdefault(strategy_id, {}).setdefault(item_id, []).append(data_str)
 
         # 2. push to the queue by strategy_id
+        inline_trigger_enabled = settings.ENABLE_EVENT_INLINE_TRIGGER
+        self.inline_trigger_items = []
         anomaly_signal_list = []
         client = output_client or key.ANOMALY_LIST_KEY.client
         pipeline = client.pipeline()
@@ -162,7 +177,10 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
             for item_id, event_list in list(item_to_event_record.items()):
                 queue_key = key.ANOMALY_LIST_KEY.get_key(strategy_id=strategy_id, item_id=item_id)
                 pipeline.lpush(queue_key, *event_list)
-                anomaly_signal_list.append(f"{strategy_id}.{item_id}")
+                if inline_trigger_enabled:
+                    self.inline_trigger_items.append((strategy_id, item_id))
+                else:
+                    anomaly_signal_list.append(f"{strategy_id}.{item_id}")
                 pipeline.expire(queue_key, key.ANOMALY_LIST_KEY.ttl)
         pipeline.execute()
 

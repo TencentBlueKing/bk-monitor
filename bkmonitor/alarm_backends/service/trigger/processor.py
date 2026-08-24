@@ -19,7 +19,7 @@ from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.core.cache import key as cache_key
 from alarm_backends.core.cache.key import ANOMALY_LIST_KEY, ANOMALY_SIGNAL_KEY, TRIGGER_EVENT_RATE_LIMIT_KEY
 from alarm_backends.core.control.strategy import Strategy
-from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routing_snapshot
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routed_client
 from alarm_backends.service.trigger.checker import AnomalyChecker
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.alarm_backends import StrategyNotFound
@@ -29,6 +29,20 @@ from core.prometheus import metrics
 TRIGGER_EVENT_RATE_LIMIT_THRESHOLD = 5000
 ALARMD_REFERENCE_BATCHES_PER_FLUSH = 500
 
+ANOMALY_LIST_PULL_SCRIPT = """
+local batch_size = tonumber(ARGV[1])
+local start_index = 0
+if batch_size > 0 then
+    start_index = -batch_size
+end
+
+local records = redis.call('LRANGE', KEYS[1], start_index, -1)
+if #records > 0 then
+    redis.call('LTRIM', KEYS[1], 0, -#records - 1)
+end
+return records
+"""
+
 logger = logging.getLogger("trigger")
 
 
@@ -36,10 +50,22 @@ class TriggerProcessor:
     # 单次处理量(默认为全量处理)
     MAX_PROCESS_COUNT = 0
 
-    def __init__(self, strategy_id, item_id):
+    def __init__(
+        self,
+        strategy_id,
+        item_id,
+        max_process_count=None,
+        requeue_on_full=True,
+        concurrent_rate_limit=None,
+    ):
         self.strategy_id = int(strategy_id)
         self.item_id = int(item_id)
         self.anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=self.strategy_id, item_id=self.item_id)
+        self.max_process_count = self.MAX_PROCESS_COUNT if max_process_count is None else int(max_process_count)
+        self.requeue_on_full = requeue_on_full
+        self.concurrent_rate_limit = (
+            settings.ENABLE_EVENT_INLINE_TRIGGER if concurrent_rate_limit is None else bool(concurrent_rate_limit)
+        )
         self.anomaly_points = []
         self.anomaly_records = []
         self.event_records = []
@@ -253,19 +279,25 @@ class TriggerProcessor:
         return published
 
     def pull(self):
-        # lrange + ltrim 必须落在同一路由快照：列表长度依赖首读结果，无法无脑打进一个 pipeline，
-        # 用 routing_snapshot 避免 TTL 边界把读/裁切拆到不同 Redis 节点。
-        with routing_snapshot():
-            self.anomaly_points = ANOMALY_LIST_KEY.client.lrange(self.anomaly_list_key, -self.MAX_PROCESS_COUNT, -1)
-            # 对列表做翻转，按数据从旧到新的顺序处理
-            self.anomaly_points.reverse()
-            if self.anomaly_points:
-                metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(
-                    len(self.anomaly_points)
-                )
-                ANOMALY_LIST_KEY.client.ltrim(self.anomaly_list_key, 0, -len(self.anomaly_points) - 1)
+        # RedisProxy.eval() 会把脚本文本误当成路由 key，因此先按异常列表取得原生客户端。
+        # Lua 内部原子完成 LRANGE + LTRIM，使 Event 内联与 Trigger worker 可以领取互不重叠的批次。
+        with routed_client(ANOMALY_LIST_KEY.client, self.anomaly_list_key) as client:
+            self.anomaly_points = client.eval(
+                ANOMALY_LIST_PULL_SCRIPT,
+                1,
+                self.anomaly_list_key,
+                self.max_process_count,
+            )
+        # Redis List 头部是新数据，尾部是旧数据；翻转后保持原有的旧到新批内顺序。
+        self.anomaly_points.reverse()
         if self.anomaly_points:
-            if len(self.anomaly_points) == self.MAX_PROCESS_COUNT:
+            metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.anomaly_points))
+        if self.anomaly_points:
+            if (
+                self.requeue_on_full
+                and self.max_process_count > 0
+                and len(self.anomaly_points) == self.max_process_count
+            ):
                 # 拉取到的数量若等于最大数量，说明还没拉取完，下次需要再次拉取处理
                 signal_key = f"{self.strategy_id}.{self.item_id}"
                 ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), signal_key, delay=1)
@@ -285,6 +317,76 @@ class TriggerProcessor:
                 f"pull {len(self.anomaly_points)} record"
             )
         return len(self.anomaly_points)
+
+    def _reserve_rate_limit(self, event_records):
+        """并发内联路径先原子预占额度，允许少放但不允许并发突破保护阈值。"""
+        client = TRIGGER_EVENT_RATE_LIMIT_KEY.client
+        threshold = TRIGGER_EVENT_RATE_LIMIT_THRESHOLD
+        ts_keys = {}
+        request_counts = {}
+
+        for record in event_records:
+            source_time = record["event_record"].get("data", {}).get("time")
+            if source_time is None:
+                continue
+            source_time = int(source_time)
+            if source_time not in ts_keys:
+                ts_keys[source_time] = TRIGGER_EVENT_RATE_LIMIT_KEY.get_key(
+                    strategy_id=self.strategy_id,
+                    item_id=self.item_id,
+                    source_time=source_time,
+                )
+                request_counts[source_time] = 0
+            request_counts[source_time] += 1
+
+        if not ts_keys:
+            return event_records, {}, {}, {}
+
+        ordered_ts = list(ts_keys)
+        pipe = client.pipeline(transaction=False)
+        for source_time in ordered_ts:
+            pipe.incrby(ts_keys[source_time], request_counts[source_time])
+            pipe.expire(ts_keys[source_time], TRIGGER_EVENT_RATE_LIMIT_KEY.ttl)
+        try:
+            results = pipe.execute()
+        except Exception as error:
+            logger.warning("[trigger rate limit] redis reservation failed, fail-open. reason: %s", error)
+            return event_records, {}, {}, {}
+
+        new_counts = {source_time: int(results[index * 2]) for index, source_time in enumerate(ordered_ts)}
+        allowed_counts = {source_time: 0 for source_time in ordered_ts}
+        drop_counts = {}
+        allowed_records = []
+
+        for record in event_records:
+            event_record = record["event_record"]
+            event_data = event_record.get("data", {})
+            source_time = event_data.get("time")
+            if source_time is None:
+                allowed_records.append(record)
+                continue
+            source_time = int(source_time)
+            reserved_before_batch = new_counts[source_time] - request_counts[source_time]
+            already = reserved_before_batch + allowed_counts[source_time]
+            if already >= threshold:
+                drop_counts[source_time] = drop_counts.get(source_time, 0) + 1
+                logger.warning(
+                    "[trigger rate limit] drop event: strategy(%s) item(%s) source_time(%s) "
+                    "record_id(%s) dimensions(%s) count(%s) threshold(%s)",
+                    self.strategy_id,
+                    self.item_id,
+                    source_time,
+                    event_data.get("record_id"),
+                    event_data.get("dimensions"),
+                    already + 1,
+                    threshold,
+                )
+            else:
+                allowed_counts[source_time] += 1
+                allowed_records.append(record)
+
+        # 已在 Redis 中预占全部请求数；丢弃记录和 Kafka 失败都不回滚额度。
+        return allowed_records, {}, {}, drop_counts
 
     def _filter_by_rate_limit(self, event_records):
         """
@@ -392,8 +494,11 @@ class TriggerProcessor:
         except Exception:
             redis_node = "unknown"
 
-        # step1: 限流判定（只读 Redis，不写）
-        allowed_records, batch_counts, ts_keys, drop_counts = self._filter_by_rate_limit(event_records)
+        # Event 并发内联时必须先原子预占额度；开关关闭时保留原有 Kafka 成功后记账语义。
+        if self.concurrent_rate_limit:
+            allowed_records, batch_counts, ts_keys, drop_counts = self._reserve_rate_limit(event_records)
+        else:
+            allowed_records, batch_counts, ts_keys, drop_counts = self._filter_by_rate_limit(event_records)
         total_drop = sum(drop_counts.values())
         if total_drop > 0:
             metrics.TRIGGER_EVENT_RATE_LIMIT_DROP.labels(
@@ -436,9 +541,10 @@ class TriggerProcessor:
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
 
-        # step3: 发送到 Kafka；成功后再提交计数，避免失败时额度被静默消耗
+        # step3: 发送到 Kafka；串行旧路径成功后再提交计数，并发路径已经提前预占。
         MonitorEventAdapter.push_to_kafka(events=events)
-        self._commit_rate_limit_counts(batch_counts, ts_keys)
+        if not self.concurrent_rate_limit:
+            self._commit_rate_limit_counts(batch_counts, ts_keys)
 
         if len(events) > 1000:
             # 获取 Redis 节点信息（带异常处理）
