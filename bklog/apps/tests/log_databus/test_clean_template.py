@@ -377,7 +377,7 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertEqual(updated["name"], "renamed")
         self.assertEqual(updated["description"], "new description")
 
-    def test_reverting_clean_config_clears_draft(self):
+    def test_reverting_clean_config_keeps_draft_until_sync(self):
         result = self.create_template()
         self.create_collector(clean_template_id=result["clean_template_id"])
         handler = CleanTemplateHandler(result["clean_template_id"])
@@ -390,8 +390,45 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         reverted.pop("bk_biz_id")
         updated = handler.create_or_update(reverted)
 
-        self.assertEqual(updated["status"], CleanTemplateStatus.PUBLISHED.value)
-        self.assertIsNone(updated["snapshot"])
+        self.assertEqual(updated["status"], CleanTemplateStatus.DRAFT.value)
+        self.assertEqual(updated["snapshot"]["etl_params"], CREATE_PARAMS["etl_params"])
+
+        handler.sync_collectors([])
+        handler.data.refresh_from_db()
+        self.assertEqual(handler.data.status, CleanTemplateStatus.PUBLISHED.value)
+        self.assertIsNone(handler.data.snapshot)
+
+    def test_update_metadata_keeps_existing_draft(self):
+        result = self.create_template()
+        self.create_collector(clean_template_id=result["clean_template_id"])
+        handler = CleanTemplateHandler(result["clean_template_id"])
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["etl_params"]["separator"] = "|"
+        handler.create_or_update(changed)
+
+        changed.update(name="renamed", description="new description")
+        updated = handler.create_or_update(changed)
+
+        self.assertEqual(updated["status"], CleanTemplateStatus.DRAFT.value)
+        self.assertEqual(updated["snapshot"]["etl_params"]["separator"], "|")
+        self.assertEqual(updated["etl_params"], CREATE_PARAMS["etl_params"])
+        self.assertEqual(updated["name"], "renamed")
+        self.assertEqual(updated["description"], "new description")
+
+    def test_update_does_not_restore_deleted_template(self):
+        result = self.create_template()
+        template_id = result["clean_template_id"]
+        stale_handler = CleanTemplateHandler(template_id)
+        CleanTemplateHandler(template_id).destroy()
+
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["name"] = "renamed"
+        with self.assertRaises(CleanTemplateNotExistException):
+            stale_handler.create_or_update(changed)
+
+        self.assertFalse(CleanTemplate.objects.filter(clean_template_id=template_id).exists())
 
     def test_list_collectors_returns_active_collectors_with_related_index_sets(self):
         template = self.create_template()

@@ -254,7 +254,19 @@ class CleanTemplateHandler:
             is_active=True,
         )
 
+    @transaction.atomic
     def create_or_update(self, params: dict):
+        if self.data:
+            try:
+                self.data = CleanTemplate.objects.select_for_update().get(
+                    clean_template_id=self.clean_template_id,
+                    is_deleted=False,
+                )
+            except CleanTemplate.DoesNotExist:
+                raise CleanTemplateNotExistException(
+                    CleanTemplateNotExistException.MESSAGE.format(clean_template_id=self.clean_template_id)
+                )
+
         bk_biz_id = self.data.bk_biz_id if self.data else params["bk_biz_id"]
         model_fields = {
             "name": params["name"],
@@ -288,10 +300,11 @@ class CleanTemplateHandler:
             self.data.description = model_fields["description"]
 
         clean_config_changed = any(getattr(self.data, field) != model_fields[field] for field in self.SNAPSHOT_FIELDS)
-        if (
+        should_save_draft = self.data.status == CleanTemplateStatus.DRAFT.value or (
             clean_config_changed
             and CollectorConfig.objects.filter(clean_template_id=self.data.clean_template_id).exists()
-        ):
+        )
+        if should_save_draft:
             self.data.snapshot = {field: copy.deepcopy(model_fields[field]) for field in self.SNAPSHOT_FIELDS}
             self.data.status = CleanTemplateStatus.DRAFT.value
         else:
