@@ -47,8 +47,8 @@ logger = logging.getLogger("trigger")
 
 
 class TriggerProcessor:
-    # 单次处理量(默认为全量处理)
-    MAX_PROCESS_COUNT = 0
+    # 单次最多原子领取 1000 条，避免热点列表在 Redis Lua 中全量读取和删除。
+    MAX_PROCESS_COUNT = 1000
 
     def __init__(
         self,
@@ -57,6 +57,7 @@ class TriggerProcessor:
         max_process_count=None,
         requeue_on_full=True,
         concurrent_rate_limit=None,
+        progress_callback=None,
     ):
         self.strategy_id = int(strategy_id)
         self.item_id = int(item_id)
@@ -66,6 +67,7 @@ class TriggerProcessor:
         self.concurrent_rate_limit = (
             settings.ENABLE_EVENT_INLINE_TRIGGER if concurrent_rate_limit is None else bool(concurrent_rate_limit)
         )
+        self.progress_callback = progress_callback
         self.anomaly_points = []
         self.anomaly_records = []
         self.event_records = []
@@ -300,7 +302,7 @@ class TriggerProcessor:
             ):
                 # 拉取到的数量若等于最大数量，说明还没拉取完，下次需要再次拉取处理
                 signal_key = f"{self.strategy_id}.{self.item_id}"
-                ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), signal_key, delay=1)
+                ANOMALY_SIGNAL_KEY.client.delay("lpush", ANOMALY_SIGNAL_KEY.get_key(), signal_key, delay=1)
                 logger.info(
                     f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
                     f"pull {len(self.anomaly_points)} record."
@@ -599,6 +601,8 @@ class TriggerProcessor:
                 except Exception as e:
                     error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
                     logger.exception(error_message)
+                if self.progress_callback is not None:
+                    self.progress_callback()
 
         self.push()
         return pulled_count

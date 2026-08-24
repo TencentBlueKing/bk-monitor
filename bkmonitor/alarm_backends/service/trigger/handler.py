@@ -47,7 +47,7 @@ class TriggerHandler(base.BaseHandler):
             logger.info(
                 "[get service lock fail] strategy({}), item({}). will process later".format(strategy_id, item_id)
             )
-            ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), anomaly_key, delay=1)
+            ANOMALY_SIGNAL_KEY.client.delay("lpush", ANOMALY_SIGNAL_KEY.get_key(), anomaly_key, delay=1)
             # 如果是获取锁失败，不需要上报指标，直接可以返回
             return
         metrics.report_all()

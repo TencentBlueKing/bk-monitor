@@ -33,6 +33,33 @@ def test_event_trigger_lease_uses_routed_native_client(mocker):
     )
 
 
+def test_event_trigger_lease_renew_uses_routed_native_client(mocker):
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = 1
+
+    @contextmanager
+    def fake_routed_client(*args, **kwargs):
+        yield native_client
+
+    lease_key = mocker.patch.object(runner, "EVENT_INLINE_TRIGGER_LEASE_KEY", create=True)
+    lease_key.get_key.return_value = "event-trigger-lease"
+    mocker.patch.object(runner, "routed_client", side_effect=fake_routed_client, create=True)
+    mocker.patch.object(runner.time, "time", return_value=100)
+
+    renewed = runner._renew_event_trigger_lease(1, 2, "token")
+
+    assert renewed is True
+    native_client.eval.assert_called_once_with(
+        runner.EVENT_TRIGGER_RENEW_LEASE_SCRIPT,
+        1,
+        "event-trigger-lease",
+        100,
+        100 + runner.EVENT_TRIGGER_LEASE_TTL,
+        "token",
+        runner.EVENT_TRIGGER_LEASE_TTL * 2,
+    )
+
+
 def test_event_inline_trigger_drains_batches_until_list_is_empty(mocker):
     mocker.patch.object(runner.settings, "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM", 2, create=True)
     mocker.patch.object(runner, "_acquire_event_trigger_lease", return_value=True, create=True)
@@ -57,8 +84,26 @@ def test_event_inline_trigger_drains_batches_until_list_is_empty(mocker):
         requeue_on_full=False,
         raise_process_error=True,
         concurrent_rate_limit=True,
+        progress_callback=mocker.ANY,
     )
     assert finish_batch.call_count == 2
+
+
+def test_event_inline_trigger_renews_lease_while_batch_makes_progress(mocker):
+    mocker.patch.object(runner.settings, "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM", 2, create=True)
+    mocker.patch.object(runner, "_acquire_event_trigger_lease", return_value=True, create=True)
+    renew_lease = mocker.patch.object(runner, "_renew_event_trigger_lease", return_value=True, create=True)
+    mocker.patch.object(runner, "_finish_event_trigger_batch", return_value=False, create=True)
+    mocker.patch.object(runner.time, "monotonic", side_effect=[100, 161])
+
+    def process_one_batch(*args, **kwargs):
+        kwargs["progress_callback"]()
+        return 1
+
+    mocker.patch.object(runner, "run_trigger_item", side_effect=process_one_batch)
+
+    assert runner.run_event_trigger_item(1, 2) == 1
+    renew_lease.assert_called_once_with(1, 2, mocker.ANY)
 
 
 def test_event_inline_trigger_returns_when_item_concurrency_is_full(mocker):

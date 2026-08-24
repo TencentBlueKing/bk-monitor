@@ -31,6 +31,7 @@ logger = logging.getLogger("trigger")
 
 EVENT_TRIGGER_BATCH_SIZE = 1000
 EVENT_TRIGGER_LEASE_TTL = 300
+EVENT_TRIGGER_LEASE_RENEW_INTERVAL = 60
 
 EVENT_TRIGGER_ACQUIRE_LEASE_SCRIPT = """
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
@@ -58,6 +59,16 @@ if not owns_lease and redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[4]) then
 end
 redis.call('ZADD', KEYS[1], ARGV[2], ARGV[3])
 redis.call('EXPIRE', KEYS[1], ARGV[5])
+return 1
+"""
+
+EVENT_TRIGGER_RENEW_LEASE_SCRIPT = """
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+if not redis.call('ZSCORE', KEYS[1], ARGV[3]) then
+    return 0
+end
+redis.call('ZADD', KEYS[1], ARGV[2], ARGV[3])
+redis.call('EXPIRE', KEYS[1], ARGV[4])
 return 1
 """
 
@@ -111,6 +122,22 @@ def _finish_event_trigger_batch(strategy_id, item_id, token, max_concurrency):
     return bool(should_continue)
 
 
+def _renew_event_trigger_lease(strategy_id, item_id, token):
+    lease_key, _ = _event_trigger_keys(strategy_id, item_id)
+    now = int(time.time())
+    with routed_client(EVENT_INLINE_TRIGGER_LEASE_KEY.client, lease_key) as client:
+        renewed = client.eval(
+            EVENT_TRIGGER_RENEW_LEASE_SCRIPT,
+            1,
+            lease_key,
+            now,
+            now + EVENT_TRIGGER_LEASE_TTL,
+            token,
+            EVENT_TRIGGER_LEASE_TTL * 2,
+        )
+    return bool(renewed)
+
+
 def _release_event_trigger_lease(strategy_id, item_id, token):
     lease_key, anomaly_list_key = _event_trigger_keys(strategy_id, item_id)
     with routed_client(EVENT_INLINE_TRIGGER_LEASE_KEY.client, lease_key) as client:
@@ -134,6 +161,7 @@ def run_trigger_item(
     requeue_on_full=True,
     raise_process_error=False,
     concurrent_rate_limit=None,
+    progress_callback=None,
 ):
     logger.info(
         "[start][latency] strategy(%s), item(%s), executor(%s)",
@@ -155,16 +183,22 @@ def run_trigger_item(
         )
         with lock_context:
             process_started_at = time.monotonic()
-            if max_process_count is None and requeue_on_full and concurrent_rate_limit is None:
+            if (
+                max_process_count is None
+                and requeue_on_full
+                and concurrent_rate_limit is None
+                and progress_callback is None
+            ):
                 processor = TriggerProcessor(strategy_id, item_id)
             else:
-                processor = TriggerProcessor(
-                    strategy_id,
-                    item_id,
-                    max_process_count=max_process_count,
-                    requeue_on_full=requeue_on_full,
-                    concurrent_rate_limit=concurrent_rate_limit,
-                )
+                processor_kwargs = {
+                    "max_process_count": max_process_count,
+                    "requeue_on_full": requeue_on_full,
+                    "concurrent_rate_limit": concurrent_rate_limit,
+                }
+                if progress_callback is not None:
+                    processor_kwargs["progress_callback"] = progress_callback
+                processor = TriggerProcessor(strategy_id, item_id, **processor_kwargs)
             pulled_count = processor.process()
     except LockError:
         if process_started_at is not None:
@@ -235,6 +269,30 @@ def run_event_trigger_item(strategy_id, item_id):
         return 0
 
     pulled_total = 0
+    last_renewed_at = time.monotonic()
+
+    def renew_lease_on_progress():
+        nonlocal last_renewed_at
+        now = time.monotonic()
+        if now - last_renewed_at < EVENT_TRIGGER_LEASE_RENEW_INTERVAL:
+            return
+        last_renewed_at = now
+        try:
+            renewed = _renew_event_trigger_lease(strategy_id, item_id, token)
+        except Exception:
+            logger.exception(
+                "[event inline trigger] renew lease failed for strategy(%s), item(%s)",
+                strategy_id,
+                item_id,
+            )
+            return
+        if not renewed:
+            logger.warning(
+                "[event inline trigger] lease expired for strategy(%s), item(%s); finish current claimed batch",
+                strategy_id,
+                item_id,
+            )
+
     try:
         while True:
             pulled_total += run_trigger_item(
@@ -246,6 +304,7 @@ def run_event_trigger_item(strategy_id, item_id):
                 requeue_on_full=False,
                 raise_process_error=True,
                 concurrent_rate_limit=True,
+                progress_callback=renew_lease_on_progress,
             )
             if not _finish_event_trigger_batch(strategy_id, item_id, token, max_concurrency):
                 return pulled_total
