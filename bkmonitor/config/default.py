@@ -1366,9 +1366,8 @@ AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 PUSH_MONITOR_EVENT_TO_FTA = True
 # 监控推送事件数据给自愈的 kafka topic
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
-# alarmd Trigger-only Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
+# alarmd Detect→Trigger Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
 ALARMD_DETECTION_SHADOW_ENABLED = False
-ALARMD_DETECTION_SHADOW_STRATEGY_IDS = ()
 ALARMD_DETECTION_SHADOW_KAFKA_CONFIG = {}
 ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS = ()
 ALARMD_DETECT_INPUT_SHADOW_ENABLED = False

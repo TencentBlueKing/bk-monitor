@@ -126,17 +126,6 @@ class DetectProcess(BaseAbnormalPushProcessor):
         if not shadow_flag(settings.ALARMD_DETECTION_SHADOW_ENABLED):
             return []
 
-        from alarm_backends.core.alarmd.reference import parse_alarmd_shadow_strategy_ids
-
-        allowed_strategy_ids = parse_alarmd_shadow_strategy_ids(
-            settings.ALARMD_DETECTION_SHADOW_STRATEGY_IDS
-        )
-        if allowed_strategy_ids is None:
-            logger.warning("[alarmd shadow] configured strategy selector is invalid")
-            return []
-        if int(self.strategy_id) not in allowed_strategy_ids:
-            return []
-
         finalized = int(self.strategy_id) not in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS
         if not finalized:
             return []
