@@ -329,14 +329,20 @@ def test_isolated_sentinel_client_copies_endpoints_and_bounds_both_pools(mocker)
     manager = SimpleNamespace(
         sentinels=sentinel_nodes,
         sentinel_kwargs={"password": "sentinel-secret", "socket_connect_timeout": 3},
-        connection_kwargs={"password": "redis-secret", "db": 10, "decode_responses": True},
+        connection_kwargs={},
         min_other_sentinels=0,
     )
     source_pool.sentinel_manager = manager
     source_pool.service_name = "mymaster"
+    source_pool.connection_kwargs = {
+        "password": "redis-secret",
+        "db": 10,
+        "decode_responses": True,
+        "connection_pool": source_pool,
+    }
     source_client = SimpleNamespace(_instance=SimpleNamespace(connection_pool=source_pool))
     original_sentinel_kwargs = manager.sentinel_kwargs.copy()
-    original_data_kwargs = manager.connection_kwargs.copy()
+    original_data_kwargs = source_pool.connection_kwargs.copy()
     master_pool = SimpleNamespace(disconnect=mock.Mock())
     isolated_raw_client = SimpleNamespace(connection_pool=master_pool, close=mock.Mock())
     isolated_sentinel_clients = [
@@ -353,10 +359,14 @@ def test_isolated_sentinel_client_copies_endpoints_and_bounds_both_pools(mocker)
     assert sentinel_cls.call_args.args[0] == [("s1", 26379), ("s2", 26379)]
     assert sentinel_cls.call_args.kwargs["sentinel_kwargs"]["socket_timeout"] <= 1
     assert sentinel_cls.call_args.kwargs["socket_timeout"] <= 1
+    assert sentinel_cls.call_args.kwargs["password"] == "redis-secret"
+    assert sentinel_cls.call_args.kwargs["db"] == 10
+    assert "connection_pool" not in sentinel_cls.call_args.kwargs
     isolated_sentinel.master_for.assert_called_once_with("mymaster")
     assert isolated.snapshot_max_io_seconds <= 20
     assert manager.sentinel_kwargs == original_sentinel_kwargs
-    assert manager.connection_kwargs == original_data_kwargs
+    assert manager.connection_kwargs == {}
+    assert source_pool.connection_kwargs == original_data_kwargs
     isolated.close()
     master_pool.disconnect.assert_called_once_with()
     for sentinel_client in isolated_sentinel_clients:
