@@ -207,25 +207,31 @@ class CleanTemplateViewSet(ModelViewSet):
     lookup_field = "clean_template_id"
     lookup_value_regex = r"\d+"
     model = CleanTemplate
-    filter_fields_exclude = ["etl_params", "etl_fields", "visible_type", "visible_bk_biz_id", "alias_settings"]
+    filter_fields_exclude = [
+        "etl_params",
+        "etl_fields",
+        "visible_type",
+        "visible_bk_biz_id",
+        "alias_settings",
+        "snapshot",
+    ]
     search_fields = ("name",)
     permission_classes = (ViewBusinessPermission,)
 
     @staticmethod
     def _get_authorized_sync_collector_ids(request, clean_template):
-        """返回本批次已通过采集管理权限校验的采集项 ID。"""
+        """返回已通过采集管理权限校验的关联采集项 ID。"""
         collectors = list(
-            CleanTemplateHandler.get_collectors_to_sync_queryset(
+            CleanTemplateHandler.get_active_collectors_queryset(
                 clean_template.clean_template_id,
                 clean_template.bk_biz_id,
-                clean_template.config_version,
             )
             .values(
                 "collector_config_id",
                 "collector_config_name",
                 "bk_biz_id",
             )
-            .order_by("collector_config_id")[: settings.CLEAN_TEMPLATE_SYNC_BATCH_SIZE]
+            .order_by("collector_config_id")
         )
         collector_ids = [collector["collector_config_id"] for collector in collectors]
         if settings.IGNORE_IAM_PERMISSION or not collectors:
@@ -330,10 +336,10 @@ class CleanTemplateViewSet(ModelViewSet):
                             }
                         ],
                         "alias_settings": [],
-                        "config_version": 1,
+                        "status": "PUBLISHED",
+                        "snapshot": null,
                         "field_count": 2,
                         "active_collector_count": 2,
-                        "pending_sync_collector_count": 1,
                         "related_index_set_count": 1,
                         "created_at": "2026-07-30 10:00:00",
                         "created_by": "admin",
@@ -444,10 +450,10 @@ class CleanTemplateViewSet(ModelViewSet):
                 "visible_bk_biz_id": [],
                 "visible_type": "current_biz",
                 "alias_settings": [],
-                "config_version": 1,
+                "status": "PUBLISHED",
+                "snapshot": null,
                 "field_count": 2,
                 "active_collector_count": 2,
-                "pending_sync_collector_count": 1,
                 "related_index_set_count": 1,
                 "created_at": "2026-07-30 10:00:00",
                 "created_by": "admin",
@@ -634,11 +640,11 @@ class CleanTemplateViewSet(ModelViewSet):
         @api {post} /databus/clean_template/$clean_template_id/sync/ 7_清洗模板-同步关联采集项
         @apiName sync_clean_template_collectors
         @apiGroup 23_clean_template
-        @apiDescription 仅将模板配置同步到当前业务中失败、未同步或版本落后的关联采集项
+        @apiDescription 发布模板草稿，并异步将模板配置同步到当前业务的关联采集项
         @apiSuccess {Int} id 采集项ID
         @apiSuccess {String} name 采集项名称
-        @apiSuccess {String="SUCCESS","FAILED"} status 单项同步结果
-        @apiSuccess {String} message 同步结果或错误信息
+        @apiSuccess {String="SUCCESS","FAILED"} status 异步同步提交结果
+        @apiSuccess {String} message 异步同步提交结果或错误信息
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -649,12 +655,6 @@ class CleanTemplateViewSet(ModelViewSet):
                     "name": "collector_name",
                     "status": "SUCCESS",
                     "message": "清洗模板同步成功"
-                },
-                {
-                    "id": 2,
-                    "name": "collector_name_2",
-                    "status": "FAILED",
-                    "message": "同步期间清洗模板关联关系发生变化，实际 RT 配置可能与当前配置不一致，请确认并重新保存采集项配置"
                 }
             ],
             "result": true

@@ -24,18 +24,21 @@ from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
 from math import isfinite
 
-from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, F, Q
-from django.utils import timezone
+from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import ValidationError
-from apps.log_databus.constants import AsyncStatus, CleanTemplateSyncMessage, CleanTemplateSyncStatus, EtlConfig
+from apps.log_databus.constants import (
+    AsyncStatus,
+    CleanTemplateStatus,
+    CleanTemplateSyncMessage,
+    CleanTemplateSyncStatus,
+    EtlConfig,
+)
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
     CleanTemplateRepeatException,
-    CleanTemplateSyncingException,
     CollectorConfigNotExistException,
     EtlPreviewException,
 )
@@ -47,7 +50,6 @@ from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
 from apps.log_search.constants import IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Space
 from apps.models import model_to_dict
-from apps.utils.lock import RedisLock
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 
@@ -148,7 +150,7 @@ class CleanHandler:
 
 class CleanTemplateHandler:
     SYNC_MAX_WORKERS = 20
-    SYNC_LOCK_TTL = 5 * 60
+    SNAPSHOT_FIELDS = ("name", "clean_type", "etl_params", "etl_fields", "description")
 
     def __init__(self, clean_template_id=None):
         self.clean_template_id = clean_template_id
@@ -212,28 +214,17 @@ class CleanTemplateHandler:
                 bk_biz_id__in=bk_biz_ids,
                 is_active=True,
             )
-            .values("clean_template_id", "clean_template_version", "clean_template_sync_status", "index_set_id")
+            .values("clean_template_id", "index_set_id")
             .annotate(total=Count("collector_config_id"))
         )
         active_collector_count_map = {clean_template_id: 0 for clean_template_id in clean_template_ids}
-        pending_sync_collector_count_map = {clean_template_id: 0 for clean_template_id in clean_template_ids}
         template_index_set_ids_map = {clean_template_id: set() for clean_template_id in clean_template_ids}
-        template_version_map = {
-            clean_template.clean_template_id: clean_template.config_version for clean_template in clean_templates
-        }
         for stat in collector_stats:
             clean_template_id = stat["clean_template_id"]
             total = stat["total"]
             active_collector_count_map[clean_template_id] += total
             if stat["index_set_id"] is not None:
                 template_index_set_ids_map[clean_template_id].add(stat["index_set_id"])
-            if (
-                stat["clean_template_sync_status"]
-                in (CleanTemplateSyncStatus.FAILED.value, CleanTemplateSyncStatus.RUNNING.value)
-                or stat["clean_template_version"] is None
-                or stat["clean_template_version"] < template_version_map[clean_template_id]
-            ):
-                pending_sync_collector_count_map[clean_template_id] += total
 
         related_index_set_map = CleanTemplateHandler.get_related_index_set_map(
             {index_set_id for index_set_ids in template_index_set_ids_map.values() for index_set_id in index_set_ids}
@@ -245,9 +236,6 @@ class CleanTemplateHandler:
                 for field in (clean_template.etl_fields or [])
             )
             clean_template.active_collector_count = active_collector_count_map[clean_template.clean_template_id]
-            clean_template.pending_sync_collector_count = pending_sync_collector_count_map[
-                clean_template.clean_template_id
-            ]
             clean_template.related_index_set_count = len(
                 {
                     related_index_set["index_set_id"]
@@ -265,36 +253,6 @@ class CleanTemplateHandler:
             bk_biz_id=bk_biz_id,
             is_active=True,
         )
-
-    @classmethod
-    def get_collectors_to_sync_queryset(cls, clean_template_id: int, bk_biz_id: int, config_version: int):
-        """查询同步失败、同步中断、未同步或模板版本落后的采集项。"""
-        return cls.get_active_collectors_queryset(clean_template_id, bk_biz_id).filter(
-            Q(
-                clean_template_sync_status__in=(
-                    CleanTemplateSyncStatus.FAILED.value,
-                    CleanTemplateSyncStatus.RUNNING.value,
-                )
-            )
-            | Q(clean_template_version__isnull=True)
-            | Q(clean_template_version__lt=config_version)
-        )
-
-    def _refresh_template(self):
-        try:
-            self.data = CleanTemplate.objects.get(clean_template_id=self.clean_template_id)
-        except CleanTemplate.DoesNotExist:
-            raise CleanTemplateNotExistException(
-                CleanTemplateNotExistException.MESSAGE.format(clean_template_id=self.clean_template_id)
-            )
-
-    def _acquire_operation_lock(self):
-        lock = RedisLock(f"clean_template_sync_{self.clean_template_id}", ttl=self.SYNC_LOCK_TTL)
-        if not lock.acquire(_wait=0.1):
-            raise CleanTemplateSyncingException(
-                CleanTemplateSyncingException.MESSAGE.format(clean_template_id=self.clean_template_id)
-            )
-        return lock
 
     def create_or_update(self, params: dict):
         bk_biz_id = self.data.bk_biz_id if self.data else params["bk_biz_id"]
@@ -318,27 +276,27 @@ class CleanTemplateHandler:
             )
 
         if not self.data:
-            clean_template = CleanTemplate.objects.create(**model_fields)
+            clean_template = CleanTemplate.objects.create(
+                **model_fields,
+                status=CleanTemplateStatus.PUBLISHED.value,
+            )
             logger.info(f"create clean template {clean_template.clean_template_id}")
             return model_to_dict(clean_template)
 
-        lock = self._acquire_operation_lock()
-        try:
-            self._refresh_template()
-            clean_config_changed = any(
-                getattr(self.data, field) != model_fields[field] for field in ("clean_type", "etl_params", "etl_fields")
-            )
+        if "description" not in model_fields:
+            model_fields["description"] = (self.data.snapshot or {}).get("description", self.data.description)
+
+        if CollectorConfig.objects.filter(clean_template_id=self.data.clean_template_id).exists():
+            self.data.snapshot = {field: copy.deepcopy(model_fields[field]) for field in self.SNAPSHOT_FIELDS}
+            self.data.status = CleanTemplateStatus.DRAFT.value
+        else:
             for key, value in model_fields.items():
                 setattr(self.data, key, value)
-            if clean_config_changed:
-                self.data.config_version = F("config_version") + 1
-            self.data.save()
-            if clean_config_changed:
-                self.data.refresh_from_db()
-            logger.info(f"update clean template {self.data.clean_template_id}")
-            return model_to_dict(self.data)
-        finally:
-            lock.release()
+            self.data.snapshot = None
+            self.data.status = CleanTemplateStatus.PUBLISHED.value
+        self.data.save()
+        logger.info(f"update clean template {self.data.clean_template_id}, status: {self.data.status}")
+        return model_to_dict(self.data)
 
     def list_collectors(self):
         bk_biz_id = self.data.bk_biz_id
@@ -373,49 +331,43 @@ class CleanTemplateHandler:
         ]
 
     def destroy(self):
-        lock = self._acquire_operation_lock()
-        try:
-            self._refresh_template()
-            clean_template_id = self.data.clean_template_id
-            with transaction.atomic():
-                self.data.delete()
-                CollectorConfig.objects.filter(clean_template_id=clean_template_id).update(
-                    clean_template_id=None,
-                    clean_template_version=None,
-                    clean_template_sync_status=None,
-                    clean_template_sync_at=None,
-                    clean_template_sync_message="",
-                )
-                CleanStash.objects.filter(clean_template_id=clean_template_id).update(clean_template_id=None)
-            logger.info(f"delete clean template {clean_template_id}")
-            return clean_template_id
-        finally:
-            lock.release()
+        clean_template_id = self.data.clean_template_id
+        with transaction.atomic():
+            self.data.delete()
+            CollectorConfig.objects.filter(clean_template_id=clean_template_id).update(clean_template_id=None)
+            CleanStash.objects.filter(clean_template_id=clean_template_id).update(clean_template_id=None)
+        logger.info(f"delete clean template {clean_template_id}")
+        return clean_template_id
 
     def sync_collectors(self, collector_config_ids=None):
-        lock = self._acquire_operation_lock()
-        try:
-            self._refresh_template()
-            return self._sync_collectors(collector_config_ids=collector_config_ids)
-        finally:
-            lock.release()
+        """发布模板草稿，并将正式配置同步到关联采集项。"""
+        with transaction.atomic():
+            try:
+                self.data = CleanTemplate.objects.select_for_update().get(clean_template_id=self.clean_template_id)
+            except CleanTemplate.DoesNotExist:
+                raise CleanTemplateNotExistException(
+                    CleanTemplateNotExistException.MESSAGE.format(clean_template_id=self.clean_template_id)
+                )
+            for field, value in (self.data.snapshot or {}).items():
+                if field in self.SNAPSHOT_FIELDS:
+                    setattr(self.data, field, copy.deepcopy(value))
+            self.data.snapshot = None
+            self.data.status = CleanTemplateStatus.PUBLISHED.value
+            self.data.save()
 
-    def _sync_collectors(self, collector_config_ids=None):
-        template_version = self.data.config_version
         clean_config = {
             "etl_config": self.data.clean_type,
             "etl_params": copy.deepcopy(self.data.etl_params),
             "fields": copy.deepcopy(self.data.etl_fields),
             "clean_template_id": self.data.clean_template_id,
         }
-        collectors = self.get_collectors_to_sync_queryset(
+        collectors = self.get_active_collectors_queryset(
             self.data.clean_template_id,
             self.data.bk_biz_id,
-            template_version,
         )
         if collector_config_ids is not None:
             collectors = collectors.filter(collector_config_id__in=collector_config_ids)
-        collectors = list(collectors.order_by("collector_config_id")[: settings.CLEAN_TEMPLATE_SYNC_BATCH_SIZE])
+        collectors = list(collectors.order_by("collector_config_id"))
 
         multi_execute_func = MultiExecuteFunc(max_workers=self.SYNC_MAX_WORKERS)
         for collector in collectors:
@@ -424,7 +376,6 @@ class CleanTemplateHandler:
                 func=self._sync_collector,
                 params={
                     "collector": collector,
-                    "template_version": template_version,
                     "clean_config": clean_config,
                 },
                 multi_func_params=True,
@@ -432,59 +383,29 @@ class CleanTemplateHandler:
         sync_results = multi_execute_func.run()
         return [sync_results[collector.collector_config_id] for collector in collectors]
 
-    def _sync_collector(self, collector: CollectorConfig, template_version: int, clean_config: dict):
+    def _sync_collector(self, collector: CollectorConfig, clean_config: dict):
         result = {
             "id": collector.collector_config_id,
             "name": collector.collector_config_name,
             "status": CleanTemplateSyncStatus.SUCCESS.value,
             "message": str(CleanTemplateSyncMessage.SUCCESS.value),
         }
+        if not CollectorConfig.objects.filter(
+            collector_config_id=collector.collector_config_id,
+            clean_template_id=self.data.clean_template_id,
+            is_active=True,
+        ).exists():
+            result.update(
+                status=CleanTemplateSyncStatus.FAILED.value,
+                message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED.value),
+            )
+            return result
         try:
-            updated = CollectorConfig.objects.filter(
-                collector_config_id=collector.collector_config_id,
-                clean_template_id=self.data.clean_template_id,
-            ).update(
-                clean_template_sync_status=CleanTemplateSyncStatus.RUNNING.value,
-                clean_template_sync_message="",
-            )
-            if not updated:
-                result.update(
-                    status=CleanTemplateSyncStatus.FAILED.value,
-                    message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_BEFORE_SYNC.value),
-                )
-                return result
             handler = CollectorHandler.get_instance(collector_config_id=collector.collector_config_id)
-            handler.create_or_update_clean_config(
-                is_update=True,
-                params=copy.deepcopy(clean_config),
-                sync_modify_result_table=True,
-            )
-            # 仅提交仍属于本次同步的状态；并发手动解除关联时不再写回。
-            updated = CollectorConfig.objects.filter(
-                collector_config_id=collector.collector_config_id,
-                clean_template_id=self.data.clean_template_id,
-                clean_template_sync_status=CleanTemplateSyncStatus.RUNNING.value,
-            ).update(
-                clean_template_version=template_version,
-                clean_template_sync_status=CleanTemplateSyncStatus.SUCCESS.value,
-                clean_template_sync_at=timezone.now(),
-                clean_template_sync_message="",
-            )
-            if not updated:
-                logger.warning(
-                    "clean template association changed during metadata synchronization, clean_template_id: %s, "
-                    "collector_config_id: %s",
-                    self.data.clean_template_id,
-                    collector.collector_config_id,
-                )
-                result.update(
-                    status=CleanTemplateSyncStatus.FAILED.value,
-                    message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value),
-                )
-                return result
+            handler.create_or_update_clean_config(is_update=True, params=copy.deepcopy(clean_config))
         except Exception:  # pylint: disable=broad-except
             logger.exception(
-                "sync clean template failed, clean_template_id: %s, collector_config_id: %s",
+                "submit clean template synchronization failed, clean_template_id: %s, collector_config_id: %s",
                 self.data.clean_template_id,
                 collector.collector_config_id,
             )
@@ -492,17 +413,6 @@ class CleanTemplateHandler:
                 status=CleanTemplateSyncStatus.FAILED.value,
                 message=str(CleanTemplateSyncMessage.FAILED.value),
             )
-            updated = CollectorConfig.objects.filter(
-                collector_config_id=collector.collector_config_id,
-                clean_template_id=self.data.clean_template_id,
-                clean_template_sync_status=CleanTemplateSyncStatus.RUNNING.value,
-            ).update(
-                clean_template_sync_status=CleanTemplateSyncStatus.FAILED.value,
-                clean_template_sync_at=timezone.now(),
-                clean_template_sync_message="",
-            )
-            if not updated:
-                result["message"] = str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED_DURING_SYNC.value)
         return result
 
     def preview(self, data: str):

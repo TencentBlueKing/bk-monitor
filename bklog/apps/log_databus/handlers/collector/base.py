@@ -1727,7 +1727,7 @@ class CollectorHandler:
         hot_warm_enabled = cluster_config.get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled", False)
         return allocation_min_days if hot_warm_enabled else 0
 
-    def create_or_update_clean_config(self, is_update, params, sync_modify_result_table=False):
+    def create_or_update_clean_config(self, is_update, params):
         if is_update:
             table_id = self.data.table_id
             # 更新场景，需要把之前的存储设置拿出来，和更新的配置合并一下
@@ -1763,10 +1763,7 @@ class CollectorHandler:
         from apps.log_databus.handlers.etl import EtlHandler
 
         etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        result = etl_handler.update_or_create(
-            **params,
-            sync_modify_result_table=sync_modify_result_table,
-        )
+        result = etl_handler.update_or_create(**params)
         self._sync_scene_tags_to_index_set(params["labels"])
         return result
 

@@ -1194,7 +1194,6 @@ class CleanStashSerializer(serializers.Serializer):
 class CleanTemplateListSerializer(DataModelSerializer):
     field_count = serializers.IntegerField(label=_("字段数"), read_only=True)
     active_collector_count = serializers.IntegerField(label=_("生效采集项数"), read_only=True)
-    pending_sync_collector_count = serializers.IntegerField(label=_("待同步采集项数"), read_only=True)
     related_index_set_count = serializers.IntegerField(label=_("关联索引集数"), read_only=True)
 
     class Meta:

@@ -16,43 +16,27 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="cleantemplate",
-            name="config_version",
-            field=models.PositiveIntegerField(default=1, verbose_name="模板配置版本"),
+            name="description",
+            field=models.TextField(blank=True, default="", verbose_name="模板描述"),
         ),
         migrations.AddField(
             model_name="cleantemplate",
-            name="description",
-            field=models.TextField(blank=True, default="", verbose_name="模板描述"),
+            name="snapshot",
+            field=models.JSONField(blank=True, default=None, null=True, verbose_name="模板草稿快照"),
+        ),
+        migrations.AddField(
+            model_name="cleantemplate",
+            name="status",
+            field=models.CharField(
+                choices=[("DRAFT", "草稿"), ("PUBLISHED", "已发布")],
+                default="PUBLISHED",
+                max_length=32,
+                verbose_name="模板状态",
+            ),
         ),
         migrations.AddField(
             model_name="collectorconfig",
             name="clean_template_id",
             field=models.IntegerField(blank=True, db_index=True, null=True, verbose_name="清洗模板ID"),
-        ),
-        migrations.AddField(
-            model_name="collectorconfig",
-            name="clean_template_sync_at",
-            field=models.DateTimeField(blank=True, null=True, verbose_name="清洗模板同步时间"),
-        ),
-        migrations.AddField(
-            model_name="collectorconfig",
-            name="clean_template_sync_message",
-            field=models.TextField(blank=True, default="", verbose_name="清洗模板同步信息"),
-        ),
-        migrations.AddField(
-            model_name="collectorconfig",
-            name="clean_template_sync_status",
-            field=models.CharField(
-                blank=True,
-                choices=[("RUNNING", "同步中"), ("SUCCESS", "同步成功"), ("FAILED", "同步失败")],
-                max_length=32,
-                null=True,
-                verbose_name="清洗模板同步状态",
-            ),
-        ),
-        migrations.AddField(
-            model_name="collectorconfig",
-            name="clean_template_version",
-            field=models.PositiveIntegerField(blank=True, null=True, verbose_name="已应用清洗模板版本"),
         ),
     ]

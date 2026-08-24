@@ -23,13 +23,12 @@ import copy
 
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, CleanTemplateSyncStatus
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import CleanTemplateNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
@@ -107,13 +106,7 @@ class TransferEtlHandler(EtlHandler):
         self._save_clean_template_association(clean_template)
 
     def _save_clean_template_association(self, clean_template):
-        update_fields = {
-            "clean_template_id": clean_template.clean_template_id if clean_template else None,
-            "clean_template_version": clean_template.config_version if clean_template else None,
-            "clean_template_sync_status": CleanTemplateSyncStatus.SUCCESS.value if clean_template else None,
-            "clean_template_sync_at": timezone.now() if clean_template else None,
-            "clean_template_sync_message": "",
-        }
+        update_fields = {"clean_template_id": clean_template.clean_template_id if clean_template else None}
         CollectorConfig.objects.filter(collector_config_id=self.collector_config_id).update(**update_fields)
         for field, value in update_fields.items():
             setattr(self.data, field, value)
@@ -140,7 +133,6 @@ class TransferEtlHandler(EtlHandler):
         platform_index_visibility=None,
         platform_index_filter=None,
         clean_template_id=_CLEAN_TEMPLATE_ID_NOT_PROVIDED,
-        sync_modify_result_table=False,
         *args,
         **kwargs,
     ):
@@ -258,7 +250,6 @@ class TransferEtlHandler(EtlHandler):
             target_fields=target_fields,
             total_shards_per_node=total_shards_per_node,
             labels=labels,
-            sync_modify_result_table=sync_modify_result_table,
         )
 
         if not view_roles:
@@ -319,10 +310,7 @@ class TransferEtlHandler(EtlHandler):
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )
-        # 模板批量同步由调用方基于 RUNNING 状态完成最终写回，
-        # 避免覆盖并发的手动解除关联。
-        if not sync_modify_result_table:
-            self._update_clean_template(clean_template)
+        self._update_clean_template(clean_template)
 
         return {
             "collector_config_id": self.data.collector_config_id,
