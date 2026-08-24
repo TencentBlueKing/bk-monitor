@@ -270,9 +270,12 @@ def run_event_trigger_item(strategy_id, item_id):
 
     pulled_total = 0
     last_renewed_at = time.monotonic()
+    lease_active = True
 
     def renew_lease_on_progress():
-        nonlocal last_renewed_at
+        nonlocal last_renewed_at, lease_active
+        if not lease_active:
+            return
         now = time.monotonic()
         if now - last_renewed_at < EVENT_TRIGGER_LEASE_RENEW_INTERVAL:
             return
@@ -287,6 +290,7 @@ def run_event_trigger_item(strategy_id, item_id):
             )
             return
         if not renewed:
+            lease_active = False
             logger.warning(
                 "[event inline trigger] lease expired for strategy(%s), item(%s); finish current claimed batch",
                 strategy_id,

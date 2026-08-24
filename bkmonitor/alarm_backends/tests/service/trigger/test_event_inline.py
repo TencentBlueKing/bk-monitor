@@ -106,6 +106,24 @@ def test_event_inline_trigger_renews_lease_while_batch_makes_progress(mocker):
     renew_lease.assert_called_once_with(1, 2, mocker.ANY)
 
 
+def test_event_inline_trigger_stops_renewing_after_lease_expired(mocker):
+    mocker.patch.object(runner.settings, "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM", 2, create=True)
+    mocker.patch.object(runner, "_acquire_event_trigger_lease", return_value=True, create=True)
+    renew_lease = mocker.patch.object(runner, "_renew_event_trigger_lease", return_value=False, create=True)
+    mocker.patch.object(runner, "_finish_event_trigger_batch", return_value=False, create=True)
+    mocker.patch.object(runner.time, "monotonic", side_effect=[100, 161, 222])
+
+    def process_one_batch(*args, **kwargs):
+        kwargs["progress_callback"]()
+        kwargs["progress_callback"]()
+        return 1
+
+    mocker.patch.object(runner, "run_trigger_item", side_effect=process_one_batch)
+
+    assert runner.run_event_trigger_item(1, 2) == 1
+    renew_lease.assert_called_once_with(1, 2, mocker.ANY)
+
+
 def test_event_inline_trigger_returns_when_item_concurrency_is_full(mocker):
     mocker.patch.object(runner.settings, "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM", 2, create=True)
     mocker.patch.object(runner, "_acquire_event_trigger_lease", return_value=False, create=True)
