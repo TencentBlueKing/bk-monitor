@@ -1,3 +1,4 @@
+import json
 from contextlib import contextmanager
 
 from alarm_backends.service.trigger import processor as trigger_processor
@@ -58,6 +59,39 @@ def test_event_trigger_lease_renew_uses_routed_native_client(mocker):
         "token",
         runner.EVENT_TRIGGER_LEASE_TTL * 2,
     )
+
+
+def test_event_trigger_retry_signal_is_scheduled_once_on_default_node(mocker):
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = 1
+
+    @contextmanager
+    def fake_routed_client(*args, **kwargs):
+        yield native_client
+
+    mocker.patch.object(runner.ANOMALY_SIGNAL_KEY, "get_key", return_value="anomaly-signal")
+    mocker.patch.object(runner, "routed_client", side_effect=fake_routed_client, create=True)
+    mocker.patch.object(runner.time, "time", return_value=100)
+
+    scheduled = runner._schedule_event_trigger_retry_signal(1, 2)
+
+    assert scheduled is True
+    args = native_client.eval.call_args.args
+    assert args[:5] == (
+        runner.EVENT_TRIGGER_SCHEDULE_RETRY_SCRIPT,
+        2,
+        runner.DelayQueueManager.TASK_STORAGE_QUEUE,
+        runner.DelayQueueManager.TASK_DELAY_QUEUE,
+        "event-inline-trigger-retry:1.2",
+    )
+    assert json.loads(args[5]) == [
+        "event-inline-trigger-retry:1.2",
+        "lpush",
+        "anomaly-signal",
+        ["1.2"],
+        100 + runner.EVENT_TRIGGER_LEASE_TTL,
+    ]
+    assert args[6] == 100 + runner.EVENT_TRIGGER_LEASE_TTL
 
 
 def test_event_inline_trigger_yields_after_one_batch_when_list_still_has_data(mocker):
@@ -137,13 +171,30 @@ def test_event_inline_trigger_stops_renewing_after_lease_expired(mocker):
     renew_lease.assert_called_once_with(1, 2, mocker.ANY)
 
 
-def test_event_inline_trigger_returns_when_item_concurrency_is_full(mocker):
+def test_event_inline_trigger_schedules_retry_when_item_concurrency_is_full(mocker):
     mocker.patch.object(runner.settings, "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM", 2, create=True)
     mocker.patch.object(runner, "_acquire_event_trigger_lease", return_value=False, create=True)
+    schedule_retry = mocker.patch.object(runner, "_schedule_event_trigger_retry_signal", return_value=True, create=True)
     run_trigger_item = mocker.patch.object(runner, "run_trigger_item")
 
     assert runner.run_event_trigger_item(1, 2) is False
+    schedule_retry.assert_called_once_with(1, 2)
     run_trigger_item.assert_not_called()
+
+
+def test_event_inline_trigger_publishes_immediate_signal_when_retry_schedule_fails(mocker):
+    mocker.patch.object(runner.settings, "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM", 2, create=True)
+    mocker.patch.object(runner, "_acquire_event_trigger_lease", return_value=False, create=True)
+    mocker.patch.object(
+        runner,
+        "_schedule_event_trigger_retry_signal",
+        side_effect=RuntimeError("redis unavailable"),
+        create=True,
+    )
+    publish_signals = mocker.patch.object(runner.BaseAbnormalPushProcessor, "publish_anomaly_signals", create=True)
+
+    assert runner.run_event_trigger_item(1, 2) is False
+    publish_signals.assert_called_once_with(["1.2"])
 
 
 def test_event_inline_trigger_releases_lease_and_publishes_fallback_signal_on_error(mocker):

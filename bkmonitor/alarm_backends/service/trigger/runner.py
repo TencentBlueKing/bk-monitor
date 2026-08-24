@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import time
 import uuid
@@ -18,9 +19,11 @@ from django.conf import settings
 
 from alarm_backends.core.cache.key import (
     ANOMALY_LIST_KEY,
+    ANOMALY_SIGNAL_KEY,
     EVENT_INLINE_TRIGGER_LEASE_KEY,
     SERVICE_LOCK_TRIGGER,
 )
+from alarm_backends.core.cache.delay_queue import DelayQueueManager
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.core.processor.base import BaseAbnormalPushProcessor
 from alarm_backends.core.storage.redis_cluster import routed_client
@@ -60,6 +63,15 @@ if redis.call('ZCARD', KEYS[1]) == 0 then
     redis.call('DEL', KEYS[1])
 end
 return redis.call('LLEN', KEYS[2])
+"""
+
+EVENT_TRIGGER_SCHEDULE_RETRY_SCRIPT = """
+if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 1 then
+    return 0
+end
+redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+redis.call('ZADD', KEYS[2], ARGV[3], ARGV[1])
+return 1
 """
 
 
@@ -114,6 +126,26 @@ def _release_event_trigger_lease(strategy_id, item_id, token):
                 token,
             )
         )
+
+
+def _schedule_event_trigger_retry_signal(strategy_id, item_id):
+    """租约占满时原子登记一次延迟 Signal，避免持有者退出后没有后续输入唤醒。"""
+    signal_queue_key = ANOMALY_SIGNAL_KEY.get_key()
+    signal = f"{strategy_id}.{item_id}"
+    task_id = f"event-inline-trigger-retry:{signal}"
+    scheduled_at = time.time() + EVENT_TRIGGER_LEASE_TTL
+    message = json.dumps([task_id, "lpush", signal_queue_key, [signal], scheduled_at])
+    with routed_client(ANOMALY_SIGNAL_KEY.client, signal_queue_key) as client:
+        scheduled = client.eval(
+            EVENT_TRIGGER_SCHEDULE_RETRY_SCRIPT,
+            2,
+            DelayQueueManager.TASK_STORAGE_QUEUE,
+            DelayQueueManager.TASK_DELAY_QUEUE,
+            task_id,
+            message,
+            scheduled_at,
+        )
+    return bool(scheduled)
 
 
 def run_trigger_item(
@@ -225,11 +257,28 @@ def run_event_trigger_item(strategy_id, item_id):
         return False
 
     if not acquired:
-        logger.debug(
-            "[event inline trigger] concurrency full for strategy(%s), item(%s)",
-            strategy_id,
-            item_id,
-        )
+        try:
+            scheduled = _schedule_event_trigger_retry_signal(strategy_id, item_id)
+            logger.debug(
+                "[event inline trigger] concurrency full for strategy(%s), item(%s), retry_scheduled(%s)",
+                strategy_id,
+                item_id,
+                scheduled,
+            )
+        except Exception:
+            logger.exception(
+                "[event inline trigger] schedule retry failed for strategy(%s), item(%s); publish fallback signal",
+                strategy_id,
+                item_id,
+            )
+            try:
+                BaseAbnormalPushProcessor.publish_anomaly_signals([f"{strategy_id}.{item_id}"])
+            except Exception:
+                logger.exception(
+                    "[event inline trigger] fallback signal failed for strategy(%s), item(%s)",
+                    strategy_id,
+                    item_id,
+                )
         return False
 
     last_renewed_at = time.monotonic()
