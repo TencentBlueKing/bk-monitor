@@ -137,7 +137,8 @@ class TransferEtlHandler(EtlHandler):
         **kwargs,
     ):
         # 未显式传入模板 ID 时沿用采集项当前关联，避免请求中的清洗参数与模板关联产生偏差。
-        if clean_template_id is _CLEAN_TEMPLATE_ID_NOT_PROVIDED:
+        clean_template_id_provided = clean_template_id is not _CLEAN_TEMPLATE_ID_NOT_PROVIDED
+        if not clean_template_id_provided:
             clean_template_id = self.data.clean_template_id
         # 模板配置是关联关系的唯一可信来源，并在外部调用前固定本次应用的配置和版本快照。
         clean_template, etl_config, etl_params, fields = self._prepare_clean_template_config(
@@ -301,16 +302,24 @@ class TransferEtlHandler(EtlHandler):
             custom_config = get_custom(self.data.custom_type)
             custom_config.after_etl_hook(self.data)
 
+        clean_stash_template_id = clean_template.clean_template_id if clean_template else None
+        if not clean_template_id_provided:
+            clean_stash_template_id = (
+                CollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
+                .values_list("clean_template_id", flat=True)
+                .first()
+            )
         CollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash(
             {
-                "clean_template_id": clean_template.clean_template_id if clean_template else None,
+                "clean_template_id": clean_stash_template_id,
                 "clean_type": etl_config,
                 "etl_params": etl_params,
                 "etl_fields": user_fields,
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )
-        self._update_clean_template(clean_template)
+        if clean_template_id_provided:
+            self._update_clean_template(clean_template)
 
         return {
             "collector_config_id": self.data.collector_config_id,

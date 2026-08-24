@@ -386,7 +386,23 @@ class CleanTemplateHandler:
                 multi_func_params=True,
             )
         sync_results = multi_execute_func.run()
-        return [sync_results[collector.collector_config_id] for collector in collectors]
+        results = []
+        for collector in collectors:
+            result = sync_results.get(collector.collector_config_id)
+            if result is None:
+                logger.error(
+                    "clean template synchronization result is missing, clean_template_id: %s, collector_config_id: %s",
+                    self.data.clean_template_id,
+                    collector.collector_config_id,
+                )
+                result = {
+                    "id": collector.collector_config_id,
+                    "name": collector.collector_config_name,
+                    "status": CleanTemplateSyncStatus.FAILED.value,
+                    "message": str(CleanTemplateSyncMessage.FAILED.value),
+                }
+            results.append(result)
+        return results
 
     def _sync_collector(self, collector: CollectorConfig, clean_config: dict):
         result = {
@@ -395,19 +411,31 @@ class CleanTemplateHandler:
             "status": CleanTemplateSyncStatus.SUCCESS.value,
             "message": str(CleanTemplateSyncMessage.SUCCESS.value),
         }
-        if not CollectorConfig.objects.filter(
-            collector_config_id=collector.collector_config_id,
-            clean_template_id=self.data.clean_template_id,
-            is_active=True,
-        ).exists():
-            result.update(
-                status=CleanTemplateSyncStatus.FAILED.value,
-                message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED.value),
-            )
-            return result
         try:
+            if not CollectorConfig.objects.filter(
+                collector_config_id=collector.collector_config_id,
+                clean_template_id=self.data.clean_template_id,
+                is_active=True,
+            ).exists():
+                result.update(
+                    status=CleanTemplateSyncStatus.FAILED.value,
+                    message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED.value),
+                )
+                return result
             handler = CollectorHandler.get_instance(collector_config_id=collector.collector_config_id)
-            handler.create_or_update_clean_config(is_update=True, params=copy.deepcopy(clean_config))
+            params = copy.deepcopy(clean_config)
+            # 模板批量同步只下发配置，不参与采集项关联关系维护。
+            params.pop("clean_template_id", None)
+            handler.create_or_update_clean_config(is_update=True, params=params)
+            if not CollectorConfig.objects.filter(
+                collector_config_id=collector.collector_config_id,
+                clean_template_id=self.data.clean_template_id,
+                is_active=True,
+            ).exists():
+                result.update(
+                    status=CleanTemplateSyncStatus.FAILED.value,
+                    message=str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED.value),
+                )
         except Exception:  # pylint: disable=broad-except
             logger.exception(
                 "submit clean template synchronization failed, clean_template_id: %s, collector_config_id: %s",

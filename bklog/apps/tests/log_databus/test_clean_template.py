@@ -682,8 +682,58 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         )
         collector_handler.create_or_update_clean_config.assert_called_once_with(
             is_update=True,
-            params=clean_config,
+            params={key: value for key, value in clean_config.items() if key != "clean_template_id"},
         )
+
+    def test_sync_collector_does_not_restore_changed_association(self):
+        template = self.create_template()
+        template_id = template["clean_template_id"]
+        handler = CleanTemplateHandler(template_id)
+        collector = self.create_collector(clean_template_id=template_id)
+        clean_config = {
+            "etl_config": "bk_log_text",
+            "etl_params": {},
+            "fields": [],
+            "clean_template_id": template_id,
+        }
+
+        collector_handler = MagicMock()
+
+        def unbind_collector(*args, **kwargs):
+            CollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).update(
+                clean_template_id=None
+            )
+
+        collector_handler.create_or_update_clean_config.side_effect = unbind_collector
+        with patch("apps.log_databus.handlers.clean.CollectorHandler.get_instance", return_value=collector_handler):
+            result = handler._sync_collector(collector, clean_config=clean_config)
+
+        collector.refresh_from_db()
+        self.assertIsNone(collector.clean_template_id)
+        self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(result["message"], str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED.value))
+        collector_handler.create_or_update_clean_config.assert_called_once_with(
+            is_update=True,
+            params={key: value for key, value in clean_config.items() if key != "clean_template_id"},
+        )
+
+    def test_sync_collector_returns_failed_when_association_check_raises(self):
+        template = self.create_template()
+        handler = CleanTemplateHandler(template["clean_template_id"])
+        collector = self.create_collector(clean_template_id=template["clean_template_id"])
+
+        with (
+            patch(
+                "apps.log_databus.handlers.clean.CollectorConfig.objects.filter",
+                side_effect=RuntimeError("database unavailable"),
+            ),
+            patch("apps.log_databus.handlers.clean.CollectorHandler.get_instance") as get_instance,
+        ):
+            result = handler._sync_collector(collector, clean_config={})
+
+        self.assertEqual(result["status"], CleanTemplateSyncStatus.FAILED.value)
+        self.assertEqual(result["message"], str(CleanTemplateSyncMessage.FAILED.value))
+        get_instance.assert_not_called()
 
     def test_sync_collector_skips_changed_association(self):
         template = self.create_template()
@@ -767,6 +817,29 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         self.assertEqual(result, [executor.run.return_value[allowed.collector_config_id]])
         self.assertEqual(executor.append.call_count, 1)
         self.assertEqual(executor.append.call_args.kwargs["result_key"], allowed.collector_config_id)
+
+    def test_sync_collectors_returns_failed_when_executor_result_is_missing(self):
+        template = self.create_template()
+        collector = self.create_collector(clean_template_id=template["clean_template_id"])
+        executor = MagicMock()
+        executor.run.return_value = {}
+
+        with patch("apps.log_databus.handlers.clean.MultiExecuteFunc", return_value=executor):
+            result = CleanTemplateHandler(template["clean_template_id"]).sync_collectors(
+                [collector.collector_config_id]
+            )
+
+        self.assertEqual(
+            result,
+            [
+                {
+                    "id": collector.collector_config_id,
+                    "name": collector.collector_config_name,
+                    "status": CleanTemplateSyncStatus.FAILED.value,
+                    "message": str(CleanTemplateSyncMessage.FAILED.value),
+                }
+            ],
+        )
 
 
 class TestCleanTemplatePreview(CleanTemplateTestCase):
@@ -1028,6 +1101,12 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
                 "_update_or_create_index_set",
                 return_value={"index_set_id": 1, "scenario_id": "log"},
             ),
+            patch.object(
+                TransferEtlHandler,
+                "_update_clean_template",
+                autospec=True,
+                side_effect=TransferEtlHandler._update_clean_template,
+            ) as update_clean_template,
             patch("apps.log_databus.handlers.etl.transfer.CollectorHandler.create_clean_stash") as create_clean_stash,
             patch("apps.log_databus.handlers.etl.transfer.user_operation_record.delay"),
         ):
@@ -1069,9 +1148,14 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
                         create_clean_stash.call_args.args[0]["clean_template_id"],
                         expected_id,
                     )
+                    if include_template_id:
+                        update_clean_template.assert_called_once()
+                    else:
+                        update_clean_template.assert_not_called()
                     get_etl_storage.assert_called_once_with(etl_config=etl_config)
                     get_etl_storage.reset_mock()
                     etl_storage.reset_mock()
+                    update_clean_template.reset_mock()
 
     def test_etl_does_not_associate_deleted_template(self):
         template = self.create_template()
