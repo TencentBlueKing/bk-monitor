@@ -90,6 +90,7 @@ from apps.log_databus.serializers import (
     FastContainerCollectorUpdateSerializer,
     CreateContainerCollectorSerializer,
     UpdateContainerCollectorSerializer,
+    default_container_config_fields,
 )
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_search.constants import (
@@ -1606,76 +1607,108 @@ class K8sCollectorHandler(CollectorHandler):
             )
         return {"rule_id": rule_id}
 
+    @staticmethod
+    def merge_container_config(data_config, existed_config):
+        """把调用方提交的单个容器配置与存量记录合并。
+
+        更新链路用 PartialContainerConfigSerializer，config 级字段缺省时不补默认值，
+        这里让它们沿用存量值：否则调用方只想改日志路径、省略了 container 或
+        data_encoding，会把 workload 过滤条件清空（all_container 被抬成 True，
+        采集范围扩大到命名空间内全量容器）、把存量字符集重置成 UTF-8。
+        新增配置没有存量可沿用，回落到与创建语义一致的空默认值。
+        """
+        if existed_config is None:
+            fallback = default_container_config_fields()
+        else:
+            fallback = {
+                "namespaces": existed_config.namespaces,
+                "namespaces_exclude": existed_config.namespaces_exclude,
+                "container": {
+                    "workload_type": existed_config.workload_type,
+                    "workload_name": existed_config.workload_name,
+                    "container_name": existed_config.container_name,
+                    "container_name_exclude": existed_config.container_name_exclude,
+                },
+                "label_selector": {
+                    "match_labels": existed_config.match_labels,
+                    "match_expressions": existed_config.match_expressions,
+                },
+                "annotation_selector": {"match_annotations": existed_config.match_annotations},
+                "paths": (existed_config.params or {}).get("paths", []),
+                "data_encoding": existed_config.data_encoding,
+            }
+        return {**fallback, **data_config}
+
     def compare_config(self, data_configs, collector_config_id, **kwargs):
         container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=collector_config_id)
         container_configs = list(container_configs)
         config_length = len(data_configs)
         for x in range(config_length):
+            existed_config = container_configs[x] if x < len(container_configs) else None
+            data_config = self.merge_container_config(data_configs[x], existed_config)
             is_all_container = not any(
                 [
-                    data_configs[x]["container"]["workload_type"],
-                    data_configs[x]["container"]["workload_name"],
-                    data_configs[x]["container"]["container_name"],
-                    data_configs[x]["container"]["container_name_exclude"],
-                    data_configs[x]["label_selector"]["match_labels"],
-                    data_configs[x]["label_selector"]["match_expressions"],
-                    data_configs[x]["annotation_selector"]["match_annotations"],
+                    data_config["container"]["workload_type"],
+                    data_config["container"]["workload_name"],
+                    data_config["container"]["container_name"],
+                    data_config["container"]["container_name_exclude"],
+                    data_config["label_selector"]["match_labels"],
+                    data_config["label_selector"]["match_expressions"],
+                    data_config["annotation_selector"]["match_annotations"],
                 ]
             )
-            if x < len(container_configs):
-                container_configs[x].namespaces = data_configs[x]["namespaces"]
-                container_configs[x].namespaces_exclude = data_configs[x]["namespaces_exclude"]
-                container_configs[x].any_namespace = not any(
-                    [data_configs[x]["namespaces"], data_configs[x]["namespaces_exclude"]]
-                )
-                container_configs[x].data_encoding = data_configs[x]["data_encoding"]
-                container_configs[x].params = (
+            if existed_config is not None:
+                existed_config.namespaces = data_config["namespaces"]
+                existed_config.namespaces_exclude = data_config["namespaces_exclude"]
+                existed_config.any_namespace = not any([data_config["namespaces"], data_config["namespaces_exclude"]])
+                existed_config.data_encoding = data_config["data_encoding"]
+                existed_config.params = (
                     {
-                        "paths": data_configs[x]["paths"],
+                        "paths": data_config["paths"],
                         "conditions": {"type": "match", "match_type": "include", "match_content": ""},
                     }
-                    if not data_configs[x]["params"]
-                    else data_configs[x]["params"]
+                    if not data_config["params"]
+                    else data_config["params"]
                 )
-                container_configs[x].workload_type = data_configs[x]["container"]["workload_type"]
-                container_configs[x].workload_name = data_configs[x]["container"]["workload_name"]
-                container_configs[x].container_name = data_configs[x]["container"]["container_name"]
-                container_configs[x].container_name_exclude = data_configs[x]["container"]["container_name_exclude"]
-                container_configs[x].match_labels = data_configs[x]["label_selector"]["match_labels"]
-                container_configs[x].match_expressions = data_configs[x]["label_selector"]["match_expressions"]
-                container_configs[x].match_annotations = data_configs[x]["annotation_selector"]["match_annotations"]
-                container_configs[x].collector_type = data_configs[x]["collector_type"]
-                container_configs[x].all_container = is_all_container
-                container_configs[x].raw_config = data_configs[x].get("raw_config")
-                container_configs[x].parent_container_config_id = data_configs[x].get("parent_container_config_id", 0)
-                container_configs[x].rule_id = data_configs[x].get("rule_id", 0)
-                container_configs[x].save()
-                container_config = container_configs[x]
+                existed_config.workload_type = data_config["container"]["workload_type"]
+                existed_config.workload_name = data_config["container"]["workload_name"]
+                existed_config.container_name = data_config["container"]["container_name"]
+                existed_config.container_name_exclude = data_config["container"]["container_name_exclude"]
+                existed_config.match_labels = data_config["label_selector"]["match_labels"]
+                existed_config.match_expressions = data_config["label_selector"]["match_expressions"]
+                existed_config.match_annotations = data_config["annotation_selector"]["match_annotations"]
+                existed_config.collector_type = data_config["collector_type"]
+                existed_config.all_container = is_all_container
+                existed_config.raw_config = data_config.get("raw_config")
+                existed_config.parent_container_config_id = data_config.get("parent_container_config_id", 0)
+                existed_config.rule_id = data_config.get("rule_id", 0)
+                existed_config.save()
+                container_config = existed_config
             else:
                 container_config = ContainerCollectorConfig(
                     collector_config_id=collector_config_id,
-                    namespaces=data_configs[x]["namespaces"],
-                    namespaces_exclude=data_configs[x]["namespaces_exclude"],
-                    any_namespace=not any([data_configs[x]["namespaces"], data_configs[x]["namespaces_exclude"]]),
-                    data_encoding=data_configs[x]["data_encoding"],
+                    namespaces=data_config["namespaces"],
+                    namespaces_exclude=data_config["namespaces_exclude"],
+                    any_namespace=not any([data_config["namespaces"], data_config["namespaces_exclude"]]),
+                    data_encoding=data_config["data_encoding"],
                     params={
-                        "paths": data_configs[x]["paths"],
+                        "paths": data_config["paths"],
                         "conditions": {"type": "match", "match_type": "include", "match_content": ""},
                     }
-                    if not data_configs[x]["params"]
-                    else data_configs[x]["params"],
-                    workload_type=data_configs[x]["container"]["workload_type"],
-                    workload_name=data_configs[x]["container"]["workload_name"],
-                    container_name=data_configs[x]["container"]["container_name"],
-                    container_name_exclude=data_configs[x]["container"]["container_name_exclude"],
-                    match_labels=data_configs[x]["label_selector"]["match_labels"],
-                    match_expressions=data_configs[x]["label_selector"]["match_expressions"],
-                    match_annotations=data_configs[x]["annotation_selector"]["match_annotations"],
-                    collector_type=data_configs[x]["collector_type"],
+                    if not data_config["params"]
+                    else data_config["params"],
+                    workload_type=data_config["container"]["workload_type"],
+                    workload_name=data_config["container"]["workload_name"],
+                    container_name=data_config["container"]["container_name"],
+                    container_name_exclude=data_config["container"]["container_name_exclude"],
+                    match_labels=data_config["label_selector"]["match_labels"],
+                    match_expressions=data_config["label_selector"]["match_expressions"],
+                    match_annotations=data_config["annotation_selector"]["match_annotations"],
+                    collector_type=data_config["collector_type"],
                     all_container=is_all_container,
-                    raw_config=data_configs[x].get("raw_config"),
-                    parent_container_config_id=data_configs[x].get("parent_container_config_id", 0),
-                    rule_id=data_configs[x].get("rule_id", 0),
+                    raw_config=data_config.get("raw_config"),
+                    parent_container_config_id=data_config.get("parent_container_config_id", 0),
+                    rule_id=data_config.get("rule_id", 0),
                 )
                 container_config.save()
                 container_configs.append(container_config)
@@ -1964,9 +1997,7 @@ class K8sCollectorHandler(CollectorHandler):
         raw_config.update(
             {
                 "dataId": collector_config.bk_data_id,
-                "extMeta": {
-                    label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label
-                },
+                "extMeta": {label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label},
                 "addPodLabel": collector_config.add_pod_label,
                 "addPodAnnotation": collector_config.add_pod_annotation,
             }
