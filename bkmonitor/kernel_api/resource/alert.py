@@ -21,6 +21,7 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ActionConfig, DutyRule, Shield, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
 from constants.action import MAX_ACTION_EXECUTE_TIMEOUT
+from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
 from fta_web.alert.resources import ListAlertTagsResource  # noqa
@@ -185,6 +186,56 @@ def ensure_strategy_relations_belong_to_biz(bk_biz_id: int, request_data: dict[s
         raise ValidationError(
             {"action_configs": f"业务 {bk_biz_id} 下不存在处理套餐: {sorted(missing_action_config_ids)}"}
         )
+
+
+def ensure_assign_group_belongs_to_biz(bk_biz_id: int, group_id: int) -> dict[str, Any]:
+    from kernel_api.views.v4.assign import SearchRuleGroupResource
+
+    groups = SearchRuleGroupResource().request(bk_biz_id=bk_biz_id, group_ids=[group_id])
+    if not groups:
+        raise ValidationError({"assign_group_id": f"业务 {bk_biz_id} 下不存在分派组: {group_id}"})
+    return groups[0]
+
+
+def ensure_assign_rule_relations_belong_to_biz(bk_biz_id: int, rules: list[Any]) -> None:
+    user_group_ids: set[int] = set()
+
+    def add_ids(values: list[Any], field: str) -> None:
+        if not isinstance(values, list | tuple | set):
+            raise ValidationError({field: "必须为 ID 数组"})
+        try:
+            user_group_ids.update(int(value) for value in values)
+        except (TypeError, ValueError):
+            raise ValidationError({field: "ID 必须为整数"})
+
+    if not isinstance(rules, list):
+        raise ValidationError({"rules": "必须为数组"})
+    for index, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            raise ValidationError({"rules": "每条分派规则必须为对象"})
+        add_ids(rule.get("user_groups") or [], f"rules[{index}].user_groups")
+        actions = rule.get("actions") or []
+        if actions and not isinstance(actions, list):
+            raise ValidationError({f"rules[{index}].actions": "必须为数组"})
+        for action in actions:
+            if not isinstance(action, dict):
+                raise ValidationError({f"rules[{index}].actions": "每个分派动作必须为对象"})
+            upgrade_config = action.get("upgrade_config") or {}
+            if upgrade_config and not isinstance(upgrade_config, dict):
+                raise ValidationError({f"rules[{index}].actions.upgrade_config": "必须为对象"})
+            add_ids(
+                upgrade_config.get("user_groups") or [],
+                f"rules[{index}].actions.upgrade_config.user_groups",
+            )
+
+    if not user_group_ids:
+        return
+    existing_user_group_ids = set(
+        UserGroup.objects.filter(bk_biz_id=bk_biz_id, id__in=user_group_ids).values_list("id", flat=True)
+    )
+    missing_user_group_ids = user_group_ids - existing_user_group_ids
+    if missing_user_group_ids:
+        raise ValidationError({"user_groups": f"业务 {bk_biz_id} 下不存在告警组: {sorted(missing_user_group_ids)}"})
 
 
 def ensure_duty_rules_belong_to_biz(bk_biz_id: int, duty_rule_ids: list[int]) -> None:
@@ -983,3 +1034,84 @@ class UpdateMCPActionConfigResource(Resource):
         )
         # EditActionConfigResource 本身已支持写入 is_enabled，这里只是透传，不改其响应契约。
         return attach_action_config_is_enabled(EditActionConfigResource().request(**request_data))
+
+
+class SearchAlarmAssignGroupsResource(Resource):
+    """查询告警分派组（用于 AI MCP 请求）。"""
+
+    class RequestSerializer(BusinessScopedSerializer):
+        group_ids = serializers.ListField(
+            required=False,
+            allow_empty=False,
+            child=serializers.IntegerField(),
+            label="分派组ID列表",
+        )
+
+    def perform_request(self, validated_request_data):
+        from kernel_api.views.v4.assign import SearchRuleGroupResource
+
+        return SearchRuleGroupResource().request(**validated_request_data)
+
+
+class SaveAlarmAssignGroupResource(Resource):
+    """保存告警分派组（创建或更新，用于 AI MCP 请求）。"""
+
+    class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        assign_group_id = serializers.IntegerField(required=False, label="分派组ID")
+        name = serializers.CharField(required=False, label="规则组名称")
+        priority = serializers.IntegerField(required=False, label="优先级")
+        rules = serializers.ListField(required=False, child=serializers.DictField(), label="分派规则")
+
+    def perform_request(self, validated_request_data):
+        request_data = remove_confirm(validated_request_data)
+        assign_group_id = request_data.get("assign_group_id")
+        if assign_group_id:
+            current_group = ensure_assign_group_belongs_to_biz(request_data["bk_biz_id"], assign_group_id)
+            if current_group.get("source") == DATALINK_SOURCE:
+                raise ValidationError({"assign_group_id": "不能修改数据链路内置分派组"})
+            request_data.setdefault("name", current_group["name"])
+            request_data.setdefault("priority", current_group["priority"])
+            if "rules" not in request_data:
+                request_data["rules"] = current_group.get("rules") or []
+        else:
+            if not request_data.get("name"):
+                raise ValidationError({"name": "创建分派组必须提供名称"})
+            if request_data.get("priority") is None:
+                raise ValidationError({"priority": "创建分派组必须提供优先级"})
+            request_data.setdefault("rules", [])
+
+        ensure_assign_rule_relations_belong_to_biz(request_data["bk_biz_id"], request_data.get("rules") or [])
+        from kernel_api.views.v4.assign import SaveRuleGroupResource
+
+        return SaveRuleGroupResource().request(**request_data)
+
+
+class DeleteAlarmAssignGroupResource(Resource):
+    """删除告警分派组（用于 AI MCP 请求）。"""
+
+    class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        group_ids = serializers.ListField(
+            required=True,
+            allow_empty=False,
+            child=serializers.IntegerField(),
+            label="分派组ID列表",
+        )
+
+    def perform_request(self, validated_request_data):
+        from kernel_api.views.v4.assign import DeleteRuleGroupResource, SearchRuleGroupResource
+
+        request_data = remove_confirm(validated_request_data)
+        groups = SearchRuleGroupResource().request(
+            bk_biz_id=request_data["bk_biz_id"],
+            group_ids=request_data["group_ids"],
+        )
+        found_ids = {group["id"] for group in groups}
+        missing_ids = set(request_data["group_ids"]) - found_ids
+        if missing_ids:
+            raise ValidationError(
+                {"group_ids": f"业务 {request_data['bk_biz_id']} 下不存在分派组: {sorted(missing_ids)}"}
+            )
+        builtin_ids = [group["id"] for group in groups if group.get("source") == DATALINK_SOURCE]
+        if builtin_ids:
+            raise ValidationError({"group_ids": f"不能删除数据链路内置分派组: {builtin_ids}"})
+        return DeleteRuleGroupResource().request(**request_data)

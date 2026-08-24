@@ -31,6 +31,7 @@ from .custom_report import (
 from .data_link import (  # noqa
     BasereportSinkConfig,
     ConditionalSinkConfig,
+    ChannelBindingConfig,
     DataBusConfig,
     DataIdConfig,
     DataLink,

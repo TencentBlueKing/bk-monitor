@@ -21,91 +21,13 @@ from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.detect.process import DetectProcess
+from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 from bkmonitor.models import CacheNode
 
 pytestmark = pytest.mark.django_db
 
 
-strategy_config = {
-    "bk_biz_id": 2,
-    "items": [
-        {
-            "query_configs": [
-                {
-                    "metric_field": "idle",
-                    "agg_dimension": ["ip", "bk_cloud_id"],
-                    "id": 2,
-                    "agg_method": "AVG",
-                    "agg_condition": [],
-                    "agg_interval": 60,
-                    "result_table_id": "system.cpu_detail",
-                    "unit": "%",
-                    "data_type_label": "time_series",
-                    "metric_id": "bk_monitor.system.cpu_detail.idle",
-                    "data_source_label": "bk_monitor",
-                }
-            ],
-            "algorithms": [
-                {
-                    "config": [[{"threshold": 51.0, "method": "gte"}]],
-                    "level": 3,
-                    "type": "Threshold",
-                    "id": 2,
-                },
-                {
-                    "config": [[{"threshold": 100, "method": "lte"}]],
-                    "level": 3,
-                    "type": "Threshold",
-                    "id": 3,
-                },
-            ],
-            "no_data_config": {"is_enabled": False, "continuous": 5},
-            "id": 2,
-            "name": "\u7a7a\u95f2\u7387",
-            "target": [
-                [{"field": "ip", "method": "eq", "value": [{"ip": "127.0.0.1", "bk_cloud_id": 0, "bk_supplier_id": 0}]}]
-            ],
-        }
-    ],
-    "scenario": "os",
-    "actions": [
-        {
-            "notice_template": {"action_id": 2, "anomaly_template": "aa", "recovery_template": ""},
-            "id": 2,
-            "notice_group_list": [
-                {
-                    "notice_receiver": ["user#test"],
-                    "name": "test",
-                    "notice_way": {"1": ["weixin"], "3": ["weixin"], "2": ["weixin"]},
-                    "notice_group_id": 1,
-                    "message": "",
-                    "notice_group_name": "test",
-                    "id": 1,
-                }
-            ],
-            "type": "notice",
-            "config": {
-                "alarm_end_time": "23:59:59",
-                "send_recovery_alarm": False,
-                "alarm_start_time": "00:00:00",
-                "alarm_interval": 120,
-            },
-        }
-    ],
-    "detects": [
-        {
-            "level": 3,
-            "expression": "",
-            "connector": "and",
-            "trigger_config": {"count": 1, "check_window": 5},
-            "recovery_config": {"check_window": 5},
-        }
-    ],
-    "update_time": 1569246480,
-    "source_type": "BKMONITOR",
-    "id": 1,
-    "name": "test",
-}
+strategy_config = DETECT_STRATEGY
 
 
 class TestProcessorViews(TestCase):
@@ -141,23 +63,7 @@ class TestProcessorViews(TestCase):
             "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id",
             return_value=copy.deepcopy(strategy_config),
         ):
-            records = [
-                {
-                    "record_id": "342a08e0f85f169a7e099c18db3708ed.1569246480",
-                    "value": 99,
-                    "values": {"timestamp": 1569246480, "load5": 99},
-                    "dimensions": {"ip": "127.0.0.1"},
-                    "time": 1569246480,
-                },
-                {
-                    "record_id": "2a1850513fa6018c435f9b6359b3fa7d.1569246481",
-                    "value": 50.1,
-                    "values": {"timestamp": 1569246481, "load5": 50.1},
-                    "dimensions": {"ip": "10.0.0.1"},
-                    # 数据点时间戳错开，避免检测记录断言不准确
-                    "time": 1569246481,
-                },
-            ]
+            records = copy.deepcopy(DETECT_RECORDS)
             dumped_records = list(map(json.dumps, records))
 
             # 环境定义，和mock的strategy_config保持一致

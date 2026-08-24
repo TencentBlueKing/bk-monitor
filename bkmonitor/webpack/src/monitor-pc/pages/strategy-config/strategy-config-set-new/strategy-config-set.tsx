@@ -2158,11 +2158,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const [metricItem] = this.metricData;
     if (!metricItem) return [];
     if ((this.isEditMode || metricItem.canSetTarget) && this.target?.length) {
+      // Only SERVICE uses service-instance topology. NONE / HOST / empty persist as host targets.
       let field = '';
-      if (metricItem.objectType === 'HOST') {
-        field = hostTargetFieldType[metricItem.targetType];
-      } else {
+      if (metricItem.objectType === 'SERVICE') {
         field = serviceTargetFieldType[metricItem.targetType];
+      } else {
+        field = hostTargetFieldType[metricItem.targetType];
       }
       return this.target?.length
         ? [

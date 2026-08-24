@@ -1,17 +1,27 @@
 pipeline:
+  - skill: ddd-gate
+  - skill: ddd-scope
+  - gate: ddd_enablement_gate
   - skill: memory-recaller
-  - skill: ddd-discovery
-  - skill: bounded-context-mapper
-  - skill: aggregate-designer
-  - skill: domain-event-designer
+  - skill: ddd-project-discovery
+  - skill: ddd-domain-discovery
   - gate: ddd_gate
+  - skill: ddd-strategic-design
+  - skill: ddd-bounded-context
+  - skill: ddd-context-map
+  - skill: ddd-tactical-design
+  - skill: ddd-aggregate
+  - skill: ddd-domain-event
+  - skill: ddd-application-design
+  - skill: ddd-architecture
+  - skill: ddd-code-mapping
   - skill: architect
   - skill: module-decomposer
-  - skill: pattern-interviewer
-  - skill: pattern-selector
-  - skill: module-pattern-selector
-  - gate: pattern_gate
-  - skill: ddd-implementation-planner
+  - skill: ddd-pattern-bridge
+  - skill: evolution-predictor
+  - skill: ddd-refactoring
+  - skill: ddd-validation
+  - skill: ddd-documentation
   - gate: implementation_gate
   - skill: adr-generator
   - skill: refactor-critic

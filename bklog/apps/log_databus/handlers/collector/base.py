@@ -52,7 +52,6 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
-    DORIS_CLUSTER_TYPE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
@@ -95,6 +94,7 @@ from apps.log_databus.models import (
     DataLinkConfig,
 )
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
+from apps.log_databus.utils.storage_config import get_storage_retention
 from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.constants import (
     CollectorScenarioEnum,
@@ -960,7 +960,7 @@ class CollectorHandler:
             _data["storage_display_name"] = (
                 cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
             )
-            _data["retention"] = cluster_info["storage_config"].get("retention", 0)
+            _data["retention"] = get_storage_retention(cluster_info["storage_config"], default=0)
             # table_id
             if _data.get("table_id"):
                 table_id_prefix, table_id = _data["table_id"].split(".")
@@ -1380,10 +1380,6 @@ class CollectorHandler:
 
     def indices_info(self):
         result_table_id = self.data.table_id
-        storage_cluster_type = self.data.storage_cluster_type
-        # doris 集群无索引相关信息
-        if storage_cluster_type == DORIS_CLUSTER_TYPE:
-            return []
         if not result_table_id:
             raise CollectNotSuccess
         return StorageHandler.get_result_table_indices(result_table_id)
@@ -1769,7 +1765,7 @@ class CollectorHandler:
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
-                "retention": result_table["storage_config"].get("retention", 0),
+                "retention": get_storage_retention(result_table["storage_config"], default=0),
                 "allocation_min_days": params.get("allocation_min_days", 0),
                 "etl_config": self.data.etl_config,
             }

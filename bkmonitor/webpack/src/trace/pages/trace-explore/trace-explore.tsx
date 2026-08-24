@@ -387,7 +387,7 @@ export default defineComponent({
       }
     );
 
-    watch([() => store.timeRange, () => store.refreshImmediate], () => {
+    watch([() => store.timeRange, () => store.timezone, () => store.refreshImmediate], () => {
       handleQuery();
     });
 
