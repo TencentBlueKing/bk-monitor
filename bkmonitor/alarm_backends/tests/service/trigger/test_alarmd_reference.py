@@ -51,7 +51,7 @@ def test_trigger_reference_capture_is_lightweight_and_follows_real_checker_resul
     processor.get_strategy_snapshot_legacy_json.assert_not_called()
 
 
-def test_trigger_reference_is_not_captured_outside_the_detection_selector():
+def test_trigger_reference_is_not_captured_outside_shadow_eligibility():
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock()
@@ -105,6 +105,27 @@ def test_trigger_reference_uses_shadow_switches_and_excludes_double_check():
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [1], create=True),
     ):
         assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
+
+
+@pytest.mark.parametrize(
+    ("detection_enabled", "reference_enabled"),
+    [(False, False), (False, True), (True, False)],
+)
+def test_trigger_reference_switches_fail_closed_without_snapshot(detection_enabled, reference_enabled):
+    processor = _processor()
+    processor.get_strategy_snapshot_legacy_json = mock.Mock()
+
+    with (
+        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", detection_enabled, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", reference_enabled, create=True),
+        mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
+    ):
+        assert not processor.is_alarmd_reference_selected(
+            strategy=copy.deepcopy(TRIGGER_STRATEGY),
+            strategy_snapshot_key="snapshot",
+        )
+
+    processor.get_strategy_snapshot_legacy_json.assert_not_called()
 
 
 def test_trigger_reference_skips_non_threshold_strategy_once_per_snapshot(caplog):
