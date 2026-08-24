@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
-from itertools import chain
+from itertools import chain, islice
 
 from django.conf import settings
 
@@ -51,6 +51,95 @@ return records
 """
 
 logger = logging.getLogger("trigger")
+
+
+def publish_alarmd_reference_batches(batches, *, strategy_id=None, item_id=None):
+    from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
+    from alarm_backends.core.alarmd.reference_publisher import (
+        ReferenceDecisionPublishError,
+        get_cached_kafka_reference_decision_publisher,
+    )
+    from alarm_backends.core.alarmd.telemetry import (
+        STAGE_REFERENCE,
+        observe_shadow_publish,
+        record_shadow_published_records,
+    )
+
+    source = iter(batches)
+    try:
+        first = next(source)
+    except StopIteration:
+        return 0
+
+    strategy_ref = first.get("strategy_ref") if isinstance(first, dict) else None
+    if isinstance(strategy_ref, dict):
+        strategy_id = strategy_id or strategy_ref.get("strategy_id")
+        item_id = item_id or strategy_ref.get("item_id")
+
+    started_at = time.monotonic()
+    config_json = json.dumps(
+        shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    allowed_topics = shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
+    forbidden_topics = tuple(
+        sorted(
+            set(shadow_topics(settings.ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS))
+            | {MonitorEventAdapter.get_output_topic()}
+        )
+    )
+    publisher = get_cached_kafka_reference_decision_publisher(config_json, allowed_topics, forbidden_topics)
+    acknowledged = 0
+    while True:
+        consumed = []
+
+        def group():
+            for batch in chain((first,), islice(source, ALARMD_REFERENCE_BATCHES_PER_FLUSH - 1)):
+                consumed.append(batch)
+                yield batch
+
+        group_started_at = time.monotonic()
+        try:
+            with observe_shadow_publish(STAGE_REFERENCE):
+                group_acknowledged = publisher.publish_batches(group())
+        except Exception as error:
+            if isinstance(error, ReferenceDecisionPublishError):
+                acknowledged += error.acknowledged_records
+            if acknowledged:
+                record_shadow_published_records(STAGE_REFERENCE, acknowledged)
+            logger.exception(
+                "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                "operation=broker_publish records=%s duration_ms=%s strategy(%s) item(%s) batch_id=%s",
+                acknowledged,
+                max(0, round((time.monotonic() - started_at) * 1000)),
+                strategy_id,
+                item_id,
+                _reference_batch_id(consumed),
+            )
+            raise
+        acknowledged += group_acknowledged
+        record_shadow_published_records(STAGE_REFERENCE, group_acknowledged)
+        logger.info(
+            "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
+            "records=%s duration_ms=%s strategy(%s) batch_id=%s item(%s)",
+            group_acknowledged,
+            max(0, round((time.monotonic() - group_started_at) * 1000)),
+            strategy_id,
+            _reference_batch_id(consumed),
+            item_id,
+        )
+        if len(consumed) < ALARMD_REFERENCE_BATCHES_PER_FLUSH:
+            return acknowledged
+        try:
+            first = next(source)
+        except StopIteration:
+            return acknowledged
+
+
+def _reference_batch_id(batches):
+    batch_ids = {batch.get("batch_id") for batch in batches if isinstance(batch, dict)}
+    return next(iter(batch_ids)) if len(batch_ids) == 1 else "mixed"
 
 
 class TriggerProcessor:
@@ -125,9 +214,7 @@ class TriggerProcessor:
     def is_alarmd_reference_selected(self, *, strategy, strategy_snapshot_key):
         from alarm_backends.core.alarmd.config import shadow_flag
 
-        if not shadow_flag(settings.ALARMD_DETECTION_SHADOW_ENABLED):
-            return False
-        if not shadow_flag(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED):
+        if not shadow_flag(settings.ALARMD_SHADOW_ENABLED):
             return False
         try:
             if self.strategy_id in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
@@ -190,108 +277,75 @@ class TriggerProcessor:
                 self.item_id,
             )
 
-    def publish_alarmd_reference_candidates(self):
+    def iter_alarmd_reference_batches(self):
         if not self.reference_candidates:
-            return 0
+            return
 
-        from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
         from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
-        from alarm_backends.core.alarmd.reference_publisher import (
-            ReferenceDecisionPublishError,
-            get_cached_kafka_reference_decision_publisher,
-        )
-        from alarm_backends.core.alarmd.telemetry import (
-            STAGE_REFERENCE,
-            observe_shadow_publish,
-            record_shadow_published_records,
-        )
 
-        publisher = None
-        published = 0
-        for start in range(0, len(self.reference_candidates), ALARMD_REFERENCE_BATCHES_PER_FLUSH):
-            started_at = time.monotonic()
-            projected_batches = 0
-
-            def iter_batches():
-                nonlocal projected_batches
-                for candidate in self.reference_candidates[start : start + ALARMD_REFERENCE_BATCHES_PER_FLUSH]:
-                    try:
-                        strategy_snapshot_key = candidate["strategy_snapshot_key"]
-                        batch = build_reference_trigger_decision_candidate(
-                            strategy=self.get_strategy_snapshot(strategy_snapshot_key),
-                            legacy_json=self.get_strategy_snapshot_legacy_json(strategy_snapshot_key),
-                            strategy_snapshot_key=strategy_snapshot_key,
-                            tenant_id_resolver=bk_biz_id_to_bk_tenant_id,
-                            item_id=self.item_id,
-                            point=candidate["point"],
-                            event_record=candidate["event_record"],
-                        )
-                        projected_batches += 1
-                        yield batch
-                    except Exception:
-                        logger.exception(
-                            "[alarmd shadow] failed to project Trigger reference for strategy(%s) item(%s)",
-                            self.strategy_id,
-                            self.item_id,
-                        )
-
-            batches = iter_batches()
+        for candidate in self.reference_candidates:
             try:
-                first_batch = next(batches)
-            except StopIteration:
-                continue
-            if publisher is None:
-                try:
-                    config_json = json.dumps(
-                        shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
-                        sort_keys=True,
-                        separators=(",", ":"),
-                    )
-                    allowed_topics = shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
-                    forbidden_topics = tuple(
-                        sorted(
-                            set(shadow_topics(settings.ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS))
-                            | {MonitorEventAdapter.get_output_topic()}
-                        )
-                    )
-                    publisher = get_cached_kafka_reference_decision_publisher(
-                        config_json,
-                        allowed_topics,
-                        forbidden_topics,
-                    )
-                except Exception:
-                    logger.exception("[alarmd shadow] failed to initialize Trigger reference publisher")
-                    break
-            try:
-                with observe_shadow_publish(STAGE_REFERENCE):
-                    acknowledged = publisher.publish_batches(chain((first_batch,), batches))
-                record_shadow_published_records(STAGE_REFERENCE, acknowledged)
-                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
-                batch_id = first_batch.get("batch_id", "unknown") if projected_batches == 1 else "mixed"
-                logger.info(
-                    "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
-                    "records=%s duration_ms=%s strategy(%s) batch_id=%s",
-                    acknowledged,
-                    duration_ms,
-                    self.strategy_id,
-                    batch_id,
+                strategy_snapshot_key = candidate["strategy_snapshot_key"]
+                yield build_reference_trigger_decision_candidate(
+                    strategy=self.get_strategy_snapshot(strategy_snapshot_key),
+                    legacy_json=self.get_strategy_snapshot_legacy_json(strategy_snapshot_key),
+                    strategy_snapshot_key=strategy_snapshot_key,
+                    tenant_id_resolver=bk_biz_id_to_bk_tenant_id,
+                    item_id=self.item_id,
+                    point=candidate["point"],
+                    event_record=candidate["event_record"],
                 )
-                published += acknowledged
-            except Exception as error:
-                duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
-                acknowledged = error.acknowledged_records if isinstance(error, ReferenceDecisionPublishError) else 0
-                batch_id = first_batch.get("batch_id", "unknown") if projected_batches == 1 else "mixed"
+            except Exception:
                 logger.exception(
                     "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
-                    "operation=broker_publish records=%s duration_ms=%s strategy(%s) item(%s) batch_id=%s",
-                    acknowledged,
-                    duration_ms,
+                    "operation=project strategy(%s) item(%s)",
                     self.strategy_id,
                     self.item_id,
-                    batch_id,
                 )
-                break
-        return published
+
+    def prepare_alarmd_reference_batches(self):
+        return list(self.iter_alarmd_reference_batches())
+
+    def enqueue_alarmd_reference_candidates(self):
+        from alarm_backends.core.alarmd.async_publish import submit_shadow_job
+        from alarm_backends.core.alarmd.encoder import MAX_TRIGGER_DECISION_BATCH_BYTES, encode_trigger_decision_batch
+
+        enqueued = 0
+        chunk = []
+        chunk_bytes = 0
+        for batch in self.iter_alarmd_reference_batches():
+            encoded_bytes = len(encode_trigger_decision_batch(batch))
+            if chunk and (
+                len(chunk) >= ALARMD_REFERENCE_BATCHES_PER_FLUSH
+                or chunk_bytes + encoded_bytes > MAX_TRIGGER_DECISION_BATCH_BYTES
+            ):
+                payload = tuple(chunk)
+                if submit_shadow_job("reference", payload, max_jobs=settings.ALARMD_SHADOW_ASYNC_QUEUE_SIZE):
+                    enqueued += len(payload)
+                chunk = []
+                chunk_bytes = 0
+            chunk.append(batch)
+            chunk_bytes += encoded_bytes
+        if chunk:
+            chunk = tuple(chunk)
+            if submit_shadow_job("reference", chunk, max_jobs=settings.ALARMD_SHADOW_ASYNC_QUEUE_SIZE):
+                enqueued += len(chunk)
+        return enqueued
+
+    def publish_alarmd_reference_candidates(self):
+        try:
+            return publish_alarmd_reference_batches(
+                self.iter_alarmd_reference_batches(),
+                strategy_id=self.strategy_id,
+                item_id=self.item_id,
+            )
+        except Exception:
+            logger.exception(
+                "[alarmd shadow] failed to publish Trigger reference for strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
+            return 0
 
     def pull(self):
         # RedisProxy.eval() 会把脚本文本误当成路由 key，因此先按异常列表取得原生客户端。
@@ -594,7 +648,7 @@ class TriggerProcessor:
             metrics.TRIGGER_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.event_records))
 
         try:
-            self.publish_alarmd_reference_candidates()
+            self.enqueue_alarmd_reference_candidates()
         except Exception:
             logger.exception(
                 "[alarmd shadow] unexpected Trigger reference failure for strategy(%s) item(%s)",

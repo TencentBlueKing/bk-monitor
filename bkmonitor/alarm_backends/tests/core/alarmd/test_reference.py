@@ -21,7 +21,6 @@ from alarm_backends.core.alarmd.contract import (
     build_trigger_strategy_ir_from_legacy_config,
 )
 from alarm_backends.core.alarmd.encoder import decode_json_document
-from alarm_backends.core.alarmd.publisher import _trigger_input_envelope
 from alarm_backends.core.alarmd.reference import (
     build_reference_trigger_decision_batch,
     build_reference_trigger_decision_candidate,
@@ -37,6 +36,16 @@ def legacy_bytes(strategy):
 
 GOLDEN_FILE = Path(__file__).parent / "testdata" / "python-v1" / "trigger_decision_v1.json"
 CHECKSUM_FILE = GOLDEN_FILE.parent / "SHA256SUMS"
+
+
+def _trigger_input_envelope(strategy_ir, outcomes):
+    return {
+        "schema": {"name": "trigger-input", "major": 1, "minor": 0},
+        "required_features": [],
+        "partition_hash_version": "trigger-input-partition-v1",
+        "strategy_ir": strategy_ir,
+        "detection_outcomes": outcomes,
+    }
 
 
 def read_checksums(path: Path) -> dict[str, str]:

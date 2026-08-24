@@ -9,24 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import hashlib
-import logging
 import struct
 import threading
-import time
 from collections.abc import Mapping
 from functools import lru_cache
 
-from alarm_backends.core.alarmd.contract import validate_detection_outcome, validate_trigger_strategy_ir
+from alarm_backends.core.alarmd.contract import validate_trigger_strategy_ir
 from alarm_backends.core.alarmd.encoder import decode_json_document, encode_json_document
 
 DEFAULT_DELIVERY_TIMEOUT_MS = 3000
 DEFAULT_MAX_ENVELOPE_BYTES = 512 * 1024
 DEFAULT_MAX_OUTCOMES_PER_MESSAGE = 500
 PARTITION_HASH_VERSION = "trigger-input-partition-v1"
-PRODUCER_SCOPE_DETECTION = "detection"
 PRODUCER_SCOPE_POST_DETECTION = "post_detection"
-
-logger = logging.getLogger(__name__)
 
 
 class DetectionPublishError(RuntimeError):
@@ -88,7 +83,7 @@ class KafkaPublishReceipt:
             return self._delivery_errors[0] if self._delivery_errors else None
 
 
-class KafkaDetectionPublisher:
+class _KafkaBoundedPublisher:
     def __init__(
         self,
         *,
@@ -122,81 +117,8 @@ class KafkaDetectionPublisher:
         self.max_outcomes_per_message = max_outcomes_per_message
         self.max_envelope_bytes = max_envelope_bytes
 
-    def publish_batch(self, batch: Mapping) -> int:
-        if not isinstance(batch, Mapping):
-            raise DetectionPublishError("detection batch must be an object")
-        strategy_ir = batch.get("strategy_ir")
-        outcomes = batch.get("outcomes")
-        validate_trigger_strategy_ir(strategy_ir)
-        if not isinstance(outcomes, list):
-            raise DetectionPublishError("detection batch outcomes must be an array")
-        if not outcomes:
-            return 0
 
-        partition_key = trigger_partition_key(strategy_ir)
-        microbatches = self._plan_microbatches(strategy_ir, outcomes)
-        delivery_errors = []
-
-        def on_delivery(error, _message):
-            if error is not None:
-                delivery_errors.append(error)
-
-        try:
-            for start, end in microbatches:
-                self.producer.produce(
-                    topic=self.topic,
-                    key=partition_key,
-                    value=encode_json_document(_trigger_input_envelope(strategy_ir, outcomes[start:end])),
-                    on_delivery=on_delivery,
-                )
-                if hasattr(self.producer, "poll"):
-                    self.producer.poll(0)
-            remaining = self.producer.flush(timeout=self.flush_timeout)
-        except Exception as error:
-            raise DetectionPublishError(f"detection publish failed: {error}") from error
-        if remaining:
-            raise DetectionPublishError(f"detection publish flush timeout: {remaining} message(s) unacknowledged")
-        if delivery_errors:
-            raise DetectionPublishError(f"detection publish broker rejected message: {delivery_errors[0]}")
-        return len(outcomes)
-
-    def _plan_microbatches(self, strategy_ir: Mapping, outcomes: list[Mapping]) -> list[tuple[int, int]]:
-        base_size = len(encode_json_document(_trigger_input_envelope(strategy_ir, [])))
-        current_start = 0
-        current_count = 0
-        current_size = base_size
-        microbatches = []
-        batch_id = None
-        input_ids = set()
-        for index, outcome in enumerate(outcomes):
-            validate_detection_outcome(outcome, strategy_ir)
-            if batch_id is None:
-                batch_id = outcome["batch_id"]
-            elif outcome["batch_id"] != batch_id:
-                raise DetectionPublishError("detection outcomes must share one batch_id")
-            if outcome["input_id"] in input_ids:
-                raise DetectionPublishError("detection outcomes must not contain duplicate input_id")
-            input_ids.add(outcome["input_id"])
-            outcome_size = len(encode_json_document(outcome))
-            added_size = outcome_size + (1 if current_count else 0)
-            if current_count and (
-                current_count >= self.max_outcomes_per_message or current_size + added_size > self.max_envelope_bytes
-            ):
-                microbatches.append((current_start, index))
-                current_start = index
-                current_count = 0
-                current_size = base_size
-                added_size = outcome_size
-            if current_size + added_size > self.max_envelope_bytes:
-                raise DetectionPublishError("single detection outcome exceeds the envelope byte limit")
-            current_count += 1
-            current_size += added_size
-        if current_count:
-            microbatches.append((current_start, len(outcomes)))
-        return microbatches
-
-
-class KafkaDetectInputPublisher(KafkaDetectionPublisher):
+class KafkaDetectInputPublisher(_KafkaBoundedPublisher):
     """Publish accepted raw records for the isolated Go Detect→Trigger path."""
 
     def publish_batch(self, batch: Mapping) -> int:
@@ -269,46 +191,21 @@ class KafkaDetectInputPublisher(KafkaDetectionPublisher):
     def _plan_detect_input_microbatches(
         self, strategy_ir: Mapping, batch_id: str, records: list[Mapping]
     ) -> list[tuple[int, int]]:
-        base_size = len(encode_json_document(_detect_input_envelope(strategy_ir, batch_id, [])))
-        current_start = 0
-        current_count = 0
-        current_size = base_size
-        microbatches = []
-        record_ids = set()
-        for index, record in enumerate(records):
-            if not isinstance(record, Mapping):
-                raise DetectionPublishError("detect input record must be an object")
-            record_id = record.get("record_id")
-            if not isinstance(record_id, str) or not record_id:
-                raise DetectionPublishError("detect input record_id must be non-empty")
-            if record_id in record_ids:
-                raise DetectionPublishError("detect input records must not contain duplicate record_id")
-            record_ids.add(record_id)
-            record_size = len(encode_json_document(record))
-            added_size = record_size + (1 if current_count else 0)
-            if current_count and (
-                current_count >= self.max_outcomes_per_message or current_size + added_size > self.max_envelope_bytes
-            ):
-                microbatches.append((current_start, index))
-                current_start = index
-                current_count = 0
-                current_size = base_size
-                added_size = record_size
-            if current_size + added_size > self.max_envelope_bytes:
-                raise DetectionPublishError("single detect input record exceeds the envelope byte limit")
-            current_count += 1
-            current_size += added_size
-        if current_count:
-            microbatches.append((current_start, len(records)))
-        return microbatches
+        return plan_detect_input_microbatches(
+            strategy_ir,
+            batch_id,
+            records,
+            max_records=self.max_outcomes_per_message,
+            max_envelope_bytes=self.max_envelope_bytes,
+        )
 
 
-def build_kafka_detection_publisher(
+def _build_kafka_bounded_publisher(
     config: Mapping,
     *,
     allowed_topics,
     producer_factory=None,
-    producer_scope=PRODUCER_SCOPE_DETECTION,
+    producer_scope=PRODUCER_SCOPE_POST_DETECTION,
 ):
     if not isinstance(config, Mapping):
         raise ValueError("detection Kafka config must be an object")
@@ -354,7 +251,7 @@ def build_kafka_detection_publisher(
         producer_factory=producer_factory,
         producer_scope=producer_scope,
     )
-    return KafkaDetectionPublisher(
+    return _KafkaBoundedPublisher(
         producer=producer,
         topic=topic,
         flush_timeout=flush_timeout,
@@ -364,7 +261,7 @@ def build_kafka_detection_publisher(
 
 
 def build_kafka_detect_input_publisher(config: Mapping, *, allowed_topics, producer_factory=None):
-    publisher = build_kafka_detection_publisher(
+    publisher = _build_kafka_bounded_publisher(
         config,
         allowed_topics=allowed_topics,
         producer_factory=producer_factory,
@@ -377,19 +274,6 @@ def build_kafka_detect_input_publisher(config: Mapping, *, allowed_topics, produ
         max_outcomes_per_message=publisher.max_outcomes_per_message,
         max_envelope_bytes=publisher.max_envelope_bytes,
     )
-
-
-@lru_cache(maxsize=1)
-def get_cached_kafka_detection_publisher(config_json: str, allowed_topics: tuple[str, ...]):
-    started_at = time.monotonic()
-    config = decode_json_document(config_json)
-    publisher = build_kafka_detection_publisher(config, allowed_topics=set(allowed_topics))
-    duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
-    logger.info(
-        "[alarmd shadow] component=alarmd-python stage=detection result=enabled records=0 duration_ms=%s",
-        duration_ms,
-    )
-    return publisher
 
 
 @lru_cache(maxsize=1)
@@ -429,16 +313,6 @@ def trigger_partition_key(document: Mapping) -> bytes:
     return hashlib.sha256(payload).digest()
 
 
-def _trigger_input_envelope(strategy_ir: Mapping, outcomes: list[Mapping]) -> dict:
-    return {
-        "schema": {"name": "trigger-input", "major": 1, "minor": 0},
-        "required_features": [],
-        "partition_hash_version": PARTITION_HASH_VERSION,
-        "strategy_ir": strategy_ir,
-        "detection_outcomes": outcomes,
-    }
-
-
 def _detect_input_envelope(strategy_ir: Mapping, batch_id: str, records: list[Mapping]) -> dict:
     return {
         "schema": {"name": "detect-input", "major": 1, "minor": 0},
@@ -448,3 +322,45 @@ def _detect_input_envelope(strategy_ir: Mapping, batch_id: str, records: list[Ma
         "batch_id": batch_id,
         "records": records,
     }
+
+
+def plan_detect_input_microbatches(
+    strategy_ir: Mapping,
+    batch_id: str,
+    records: list[Mapping],
+    *,
+    max_records: int = DEFAULT_MAX_OUTCOMES_PER_MESSAGE,
+    max_envelope_bytes: int = DEFAULT_MAX_ENVELOPE_BYTES,
+) -> list[tuple[int, int]]:
+    """Return record ranges that are independently safe to retain and publish."""
+
+    base_size = len(encode_json_document(_detect_input_envelope(strategy_ir, batch_id, [])))
+    current_start = 0
+    current_count = 0
+    current_size = base_size
+    microbatches = []
+    record_ids = set()
+    for index, record in enumerate(records):
+        if not isinstance(record, Mapping):
+            raise DetectionPublishError("detect input record must be an object")
+        record_id = record.get("record_id")
+        if not isinstance(record_id, str) or not record_id:
+            raise DetectionPublishError("detect input record_id must be non-empty")
+        if record_id in record_ids:
+            raise DetectionPublishError("detect input records must not contain duplicate record_id")
+        record_ids.add(record_id)
+        record_size = len(encode_json_document(record))
+        added_size = record_size + (1 if current_count else 0)
+        if current_count and (current_count >= max_records or current_size + added_size > max_envelope_bytes):
+            microbatches.append((current_start, index))
+            current_start = index
+            current_count = 0
+            current_size = base_size
+            added_size = record_size
+        if current_size + added_size > max_envelope_bytes:
+            raise DetectionPublishError("single detect input record exceeds the envelope byte limit")
+        current_count += 1
+        current_size += added_size
+    if current_count:
+        microbatches.append((current_start, len(records)))
+    return microbatches

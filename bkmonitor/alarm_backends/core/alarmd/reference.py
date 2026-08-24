@@ -59,7 +59,7 @@ def build_reference_trigger_decision_candidate(
     point: Mapping,
     event_record: Mapping | None,
 ) -> dict:
-    """Project an unconfirmed Trigger result for later TriggerInput correlation."""
+    """Project an unconfirmed Trigger result for later DetectInput correlation."""
 
     return _build_reference_trigger_decision_batch(
         strategy=strategy,
