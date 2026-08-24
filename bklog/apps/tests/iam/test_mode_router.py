@@ -4,10 +4,16 @@ from django.test import SimpleTestCase
 
 from apps.feature_toggle.handlers.toggle import Toggle
 from apps.feature_toggle.plugins.constants import IAM_PERMISSION_MODE
-from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
-from apps.iam.iam_engine.core.types import AuthResult, AuthStatus, BatchAuthResult, BatchAuthResultItem
+from apps.iam.iam_engine.core.types import (
+    AuthResult,
+    AuthStatus,
+    AuthorizedResourceScope,
+    BatchAuthResult,
+    BatchAuthResultItem,
+)
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.iam.mode import FeatureToggleModeProvider, InvalidIAMPermissionModeError, get_mode_provider
@@ -93,7 +99,43 @@ class FeatureToggleModeProviderTest(SimpleTestCase):
         )
 
         self.assertEqual(provider.get_mode(), AuthMode.V3)
-        logger.exception.assert_called_once_with("failed to load IAM permission mode toggle, fallback to v3")
+        logger.exception.assert_called_once_with("failed to load IAM permission mode toggle, fallback to %s", "v3")
+
+    def test_injected_stack_fallback_uses_legacy(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+        toggle = Toggle(name=IAM_PERMISSION_MODE, status="on", feature_config=None)
+        logger = Mock()
+        provider = FeatureToggleModeProvider(
+            toggle_loader=Mock(
+                side_effect=(
+                    None,
+                    RuntimeError("db unavailable"),
+                    toggle,
+                )
+            ),
+            logger=logger,
+            stack=stack,
+        )
+
+        self.assertEqual(provider.get_mode(), AuthMode.V4)
+        self.assertEqual(provider.get_mode(), AuthMode.V4)
+        self.assertEqual(provider.get_mode(), AuthMode.V4)
+        logger.exception.assert_called_once_with("failed to load IAM permission mode toggle, fallback to %s", "v4")
+
+    def test_injected_stack_still_accepts_both_protocol_modes(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+        for mode_value, expected_mode in (
+            ("v3", AuthMode.V3),
+            ("v4", AuthMode.V4),
+            ("union", AuthMode.UNION),
+        ):
+            with self.subTest(mode_value=mode_value):
+                toggle = Toggle(name=IAM_PERMISSION_MODE, status="on", feature_config={"mode": mode_value})
+                provider = FeatureToggleModeProvider(
+                    toggle_loader=Mock(return_value=toggle),
+                    stack=stack,
+                )
+                self.assertEqual(provider.get_mode(), expected_mode)
 
     def test_mode_reads_toggle_for_each_request(self):
         toggle_loader = Mock(
@@ -136,6 +178,36 @@ class FeatureToggleModeProviderTest(SimpleTestCase):
             )
 
 
+class DualStackSpecTest(SimpleTestCase):
+    def test_default_topology_is_v3_legacy_and_v4_current(self):
+        self.assertEqual(DEFAULT_DUAL_STACK.legacy, AuthMode.V3)
+        self.assertEqual(DEFAULT_DUAL_STACK.current, AuthMode.V4)
+        self.assertEqual(DEFAULT_DUAL_STACK.modes_for(AuthMode.UNION), (AuthMode.V3, AuthMode.V4))
+        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.UNION), (AuthMode.V4, AuthMode.V3))
+        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.V4), (AuthMode.V4, AuthMode.V3))
+        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.V3), (AuthMode.V3,))
+        self.assertEqual(DEFAULT_DUAL_STACK.fallback_mode, AuthMode.V3)
+        self.assertEqual(
+            DEFAULT_DUAL_STACK.valid_mode_values,
+            frozenset({AuthMode.V3.value, AuthMode.V4.value, AuthMode.UNION.value}),
+        )
+
+    def test_fallback_and_valid_modes_follow_injected_topology(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+
+        self.assertEqual(stack.fallback_mode, AuthMode.V4)
+        self.assertEqual(
+            stack.valid_mode_values,
+            frozenset({AuthMode.V3.value, AuthMode.V4.value, AuthMode.UNION.value}),
+        )
+
+    def test_rejects_union_or_identical_stacks(self):
+        with self.assertRaises(ValueError):
+            DualStackSpec(legacy=AuthMode.UNION, current=AuthMode.V4)
+        with self.assertRaises(ValueError):
+            DualStackSpec(legacy=AuthMode.V3, current=AuthMode.V3)
+
+
 class AuthModeSafeCoerceTest(SimpleTestCase):
     def test_valid_string_is_converted(self):
         self.assertEqual(AuthMode.safe_coerce("v4"), AuthMode.V4)
@@ -143,9 +215,9 @@ class AuthModeSafeCoerceTest(SimpleTestCase):
     def test_existing_auth_mode_instance_passes_through(self):
         self.assertEqual(AuthMode.safe_coerce(AuthMode.UNION), AuthMode.UNION)
 
-    def test_invalid_string_falls_back_to_v3_by_default(self):
-        self.assertEqual(AuthMode.safe_coerce("bad"), AuthMode.V3)
-        self.assertEqual(AuthMode.safe_coerce("off"), AuthMode.V3)
+    def test_invalid_string_falls_back_to_default_stack_legacy(self):
+        self.assertEqual(AuthMode.safe_coerce("bad"), DEFAULT_DUAL_STACK.legacy)
+        self.assertEqual(AuthMode.safe_coerce("off"), DEFAULT_DUAL_STACK.legacy)
 
     def test_invalid_string_falls_back_to_custom_default(self):
         self.assertEqual(AuthMode.safe_coerce("bad", default=AuthMode.V4), AuthMode.V4)
@@ -195,6 +267,25 @@ class ModeRouterTest(SimpleTestCase):
         self.assertEqual(decision.hit_provider_names, ("v4",))
         self.v3.is_allowed.assert_called_once_with(self.request)
         self.v4.is_allowed.assert_called_once_with(self.request)
+
+    def test_union_follows_injected_stack_order(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+        call_order = []
+        self.v3.is_allowed.side_effect = lambda _request: call_order.append("v3") or AuthResult.allow("v3")
+        self.v4.is_allowed.side_effect = lambda _request: call_order.append("v4") or AuthResult.deny("v4")
+        router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=AuthMode.UNION)),
+            bundles=self._bundles(),
+            pair_executor=self.pair_executor,
+            stack=stack,
+        )
+
+        decision = router.is_allowed(self.request)
+
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.hit_provider_names, ("v3",))
+        self.assertEqual(call_order, ["v4", "v3"])
+        self.pair_executor.assert_called_once()
 
     def test_union_mode_delegates_provider_calls_to_pair_executor(self):
         self.v3.is_allowed.return_value = AuthResult.deny("v3")
@@ -377,6 +468,111 @@ class ModeRouterTest(SimpleTestCase):
         )
         self.v3.batch_is_allowed.assert_called_once_with(request)
         self.v4.batch_is_allowed.assert_called_once_with(request)
+
+    def test_list_authorized_scope_uses_bundle_scope_not_auth(self):
+        auth = Mock(name="auth")
+        scope = Mock(name="scope")
+        scope.list_authorized_resources.return_value = AuthorizedResourceScope.concrete(
+            "space", {"2"}, provider_name="v4"
+        )
+        router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=AuthMode.V4)),
+            bundles={AuthMode.V4: ProviderBundle(auth=auth, scope=scope)},
+            pair_executor=self.pair_executor,
+        )
+
+        resolution = router.list_authorized_scope(
+            AuthMode.V4,
+            action_id="view_business_v2",
+            resource_type="space",
+            subject={"type": "user", "id": "admin"},
+            candidate_ids=None,
+        )
+
+        self.assertEqual(resolution.scope.ids, frozenset({"2"}))
+        self.assertEqual(resolution.provider_scopes, (resolution.scope,))
+        scope.list_authorized_resources.assert_called_once_with(
+            action_id="view_business_v2",
+            resource_type="space",
+            subject={"type": "user", "id": "admin"},
+            candidate_ids=None,
+        )
+        auth.list_authorized_resources.assert_not_called()
+
+    def test_missing_scope_is_error_even_when_auth_exists(self):
+        router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=AuthMode.V4)),
+            bundles={AuthMode.V4: ProviderBundle(auth=self.v4, scope=None)},
+            pair_executor=self.pair_executor,
+        )
+
+        resolution = router.list_authorized_scope(
+            AuthMode.V4,
+            action_id="view_business_v2",
+            resource_type="space",
+        )
+
+        self.assertFalse(resolution.scope.ok)
+        self.assertEqual(resolution.scope.error_type, "ProviderNotConfigured")
+        self.assertEqual(resolution.scope.reason, "IAM v4 provider is not configured")
+        self.v4.list_authorized_resources.assert_not_called()
+
+    def test_union_scope_merges_and_uses_pair_executor(self):
+        v3_scope = Mock(name="v3-scope")
+        v3_scope.list_authorized_resources.return_value = AuthorizedResourceScope.concrete(
+            "space", {"2"}, provider_name="v3"
+        )
+        v4_scope = Mock(name="v4-scope")
+        v4_scope.list_authorized_resources.return_value = AuthorizedResourceScope.concrete(
+            "space", {"4"}, provider_name="v4"
+        )
+        router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=AuthMode.UNION)),
+            bundles={
+                AuthMode.V3: ProviderBundle(scope=v3_scope),
+                AuthMode.V4: ProviderBundle(scope=v4_scope),
+            },
+            pair_executor=self.pair_executor,
+        )
+
+        resolution = router.list_authorized_scope(
+            AuthMode.UNION,
+            action_id="view_business_v2",
+            resource_type="space",
+        )
+
+        self.assertEqual(resolution.scope.ids, frozenset({"2", "4"}))
+        self.assertEqual(resolution.scope.provider_name, "union")
+        self.assertEqual(len(resolution.provider_scopes), 2)
+        self.pair_executor.assert_called_once()
+
+    def test_scope_providers_for_follows_injected_stack(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+        v3_scope = Mock(name="v3-scope")
+        v4_scope = Mock(name="v4-scope")
+        router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=AuthMode.UNION)),
+            bundles={
+                AuthMode.V3: ProviderBundle(scope=v3_scope),
+                AuthMode.V4: ProviderBundle(scope=v4_scope),
+            },
+            pair_executor=self.pair_executor,
+            stack=stack,
+        )
+
+        self.assertEqual(
+            router.scope_providers_for(AuthMode.UNION),
+            (("v4", v4_scope), ("v3", v3_scope)),
+        )
+
+    def test_map_providers_rejects_unexpected_arity(self):
+        router = self._make_router(AuthMode.V3)
+
+        with self.assertRaises(ValueError) as ctx:
+            router._map_providers((), lambda mode: mode)
+
+        self.assertIn("exactly two provider modes", str(ctx.exception))
+        self.pair_executor.assert_not_called()
 
     def _make_router(self, mode: AuthMode) -> ModeRouter:
         return ModeRouter(

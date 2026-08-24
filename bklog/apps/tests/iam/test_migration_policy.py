@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 from django.test import SimpleTestCase
 
-from apps.iam.iam_engine.core.config import AuthMode
+from apps.iam.iam_engine.core.config import AuthMode, DualStackSpec
 from apps.iam.iam_engine.migration.policy import ApplicationProviderNotConfiguredError, MigrationPolicy
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 
@@ -91,3 +91,19 @@ class MigrationPolicyTest(SimpleTestCase):
     def test_raises_when_no_application_provider_configured(self):
         with self.assertRaises(ApplicationProviderNotConfiguredError):
             MigrationPolicy.resolve_application(AuthMode.V3, {})
+
+    def test_swapped_stack_prefers_current_and_writes_legacy_first(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+
+        resolution = MigrationPolicy.resolve_application(AuthMode.UNION, self.bundles, stack=stack)
+        writers = MigrationPolicy.resolve_authorization_writers(self.bundles, stack=stack)
+
+        self.assertEqual(resolution.source_mode, AuthMode.V3)
+        self.assertIs(resolution.provider, self.v3_application)
+        self.assertEqual(
+            writers,
+            (
+                (AuthMode.V4.value, self.v4_writer),
+                (AuthMode.V3.value, self.v3_writer),
+            ),
+        )

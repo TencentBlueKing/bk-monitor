@@ -109,6 +109,8 @@ class V4Client:
         - {"type": "<resource_type>", "ids": ["*"]} 表示通配全部顶层资源
         - {"type": "<resource_type>", "ids": ["1", "2"]} 表示显式 ID 列表
         - {"type": "<resource_type>", "ids": []} 表示有效空权限
+
+        IAM V4 对无限制授权可能同时返回 ``*`` 和具体实例 ID；``*`` 是超集，解析后仍收成 ``["*"]``。
         """
         body = {
             "subject": subject,
@@ -348,8 +350,8 @@ class V4Client:
             normalized_ids.append(resource_id)
 
         if has_wildcard:
-            if normalized_ids:
-                raise V4ResponseError("IAM V4 authorized-resources cannot mix wildcard and concrete ids")
+            # 无限制是具体 ID 的超集。IAM V4 会把 ``*`` 和实例 ID 放在同一份 ids 里，
+            # 不能当成协议错误，否则「无限制空间」用户进不了页面。
             return {"type": resource_type, "ids": ["*"]}
 
         # 协议层仍返回列表并先去重，授权范围会在 Provider 层按集合语义消费。

@@ -8,7 +8,9 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 from opentelemetry.context import attach, detach, get_value, set_value
 
-from apps.iam.backends.v4.concurrency import _bind_current_context, map_chunks_concurrently, run_pair_concurrently
+from apps.iam.backends.v4.concurrency import map_chunks_concurrently
+from apps.iam.concurrency import bind_current_context, run_pair_concurrently
+from apps.iam.handlers.permission import Permission
 from apps.utils.local import activate_request, del_local_param, get_local_param, get_request, set_local_param
 from apps.utils.thread import generate_request
 
@@ -35,6 +37,13 @@ class MapChunksConcurrentlyTest(SimpleTestCase):
             max_workers=4,
         )
         self.assertEqual(results, [10, 20, 30, 40])
+
+
+class SharedPairExecutorWiringTest(SimpleTestCase):
+    def test_permission_wires_shared_pair_executor(self):
+        permission = Permission(username="tester", bk_tenant_id="default")
+
+        self.assertIs(permission.mode_router.pair_executor, run_pair_concurrently)
 
 
 class RunPairConcurrentlyTest(SimpleTestCase):
@@ -167,7 +176,7 @@ class ContextPropagationTest(SimpleTestCase):
 
         with ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(seed_worker_context).result()
-            bound_context = executor.submit(_bind_current_context(read_context)).result()
+            bound_context = executor.submit(bind_current_context(read_context)).result()
             restored_context = executor.submit(read_context).result()
 
         self.assertEqual(bound_context, ("caller-id", "Europe/Amsterdam", "Europe/Amsterdam", "caller"))
@@ -196,7 +205,7 @@ class ContextPropagationTest(SimpleTestCase):
         with ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(seed_worker_context).result()
             with self.assertRaisesRegex(ValueError, "worker failed"):
-                executor.submit(_bind_current_context(raise_error)).result()
+                executor.submit(bind_current_context(raise_error)).result()
             restored_context = executor.submit(read_context).result()
 
         self.assertEqual(restored_context, ("worker-id", "Asia/Tokyo", "Asia/Tokyo"))

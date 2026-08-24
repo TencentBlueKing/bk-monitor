@@ -17,7 +17,10 @@ from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
 from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult
 from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+from apps.iam.concurrency import run_pair_concurrently
+from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.utils.prometheus import REGISTRY
 
 
@@ -319,13 +322,26 @@ class SpaceScopeDivergenceMetricsTest(MetricPatchMixin, TestCase):
         self.divergence_count = self.patch_metric("IAM_UNION_DIVERGENCE_COUNT")
         self.permission = Permission(username="tester", bk_tenant_id="default")
 
-    def _resolve(self, left: AuthorizedResourceScope, right: AuthorizedResourceScope):
+    def _resolve(
+        self,
+        left: AuthorizedResourceScope,
+        right: AuthorizedResourceScope,
+        *,
+        mode: AuthMode = AuthMode.UNION,
+    ):
+        v3 = Mock(list_authorized_resources=Mock(return_value=left), requires_candidate_ids=True)
+        v4 = Mock(list_authorized_resources=Mock(return_value=right), requires_candidate_ids=False)
+        self.permission._mode_router = ModeRouter(
+            mode_provider=Mock(get_mode=Mock(return_value=mode)),
+            bundles={
+                AuthMode.V3: ProviderBundle(scope=v3),
+                AuthMode.V4: ProviderBundle(scope=v4),
+            },
+            pair_executor=run_pair_concurrently,
+        )
         return self.permission._resolve_authorized_scope(
             ActionEnum.VIEW_BUSINESS,
-            (
-                ("v3", Mock(list_authorized_resources=Mock(return_value=left))),
-                ("v4", Mock(list_authorized_resources=Mock(return_value=right))),
-            ),
+            mode,
             candidate_ids=None,
         )
 
@@ -364,6 +380,19 @@ class SpaceScopeDivergenceMetricsTest(MetricPatchMixin, TestCase):
 
         self.assertFalse(scope.ok)
         self.assertEqual([call["pattern"] for call in label_kwargs(self.divergence_count)], ["both_error"])
+
+    def test_single_stack_failure_is_not_a_union_divergence(self):
+        """生产默认 v3 / 纯 v4 只有一侧，失败不能打 both_error，否则灰度基线被 IAM 抖动污染。"""
+        unused = AuthorizedResourceScope.concrete("space", {"2"}, provider_name="unused")
+        for mode, left, right in (
+            (AuthMode.V3, self._failed_scope("v3"), unused),
+            (AuthMode.V4, unused, self._failed_scope("v4")),
+        ):
+            with self.subTest(mode=mode.value):
+                self.divergence_count.reset_mock()
+                scope = self._resolve(left, right, mode=mode)
+                self.assertFalse(scope.ok)
+                self.divergence_count.labels.assert_not_called()
 
 
 @override_settings(BK_IAM_SYSTEM_ID="bk_log_search")
@@ -507,7 +536,7 @@ class GrantSyncMetricsTest(TestCase):
             tenant_id="tenant-1",
             operator="operator",
             grant_observer=Permission._observe_grant,
-            dispatch_v4_grant=self.dispatch,
+            dispatch_retry_grant=self.dispatch,
         )
 
     def _grant(self):
@@ -600,7 +629,7 @@ class GrantSyncMetricsTest(TestCase):
             tenant_id="tenant-1",
             operator="operator",
             grant_observer=observer,
-            dispatch_v4_grant=self.dispatch,
+            dispatch_retry_grant=self.dispatch,
         )
         self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
 
