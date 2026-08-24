@@ -1,0 +1,144 @@
+.rum-dimension-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    line-height: 20px;
+
+    .icon-gongneng-shouqi {
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .panel-title {
+      margin-left: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #313238;
+    }
+
+    .panel-mode-tag {
+      padding: 0 6px;
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #3a84ff;
+      background: #e1ecff;
+      border-radius: 2px;
+    }
+  }
+
+  .panel-search {
+    padding: 0 12px;
+    margin-bottom: 8px;
+
+    .bk-form-control .bk-form-input {
+      cursor: pointer;
+      background-color: #f0f1f5;
+      border-color: transparent;
+
+      &:hover {
+        background-color: #eaebf0;
+      }
+
+      &:focus {
+        border-width: 1px;
+      }
+    }
+  }
+
+  .panel-groups {
+    flex: 1;
+    margin-right: 1px;
+    overflow: hidden;
+
+    &:hover {
+      overflow-y: auto;
+    }
+  }
+
+  .dimension-group {
+    & + .dimension-group {
+      border-top: 1px solid #eaebf0;
+    }
+  }
+
+  .group-title {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+
+    .group-icon {
+      flex-shrink: 0;
+      font-size: 14px;
+      color: #4d4f56;
+    }
+
+    .group-name {
+      margin-left: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      font-weight: 700;
+      color: #313238;
+      white-space: nowrap;
+    }
+
+    .group-count {
+      min-width: 20px;
+      height: 16px;
+      padding: 0 4px;
+      margin-left: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 16px;
+      color: #3a84ff;
+      text-align: center;
+      background: #e1ecff;
+      border-radius: 8px;
+    }
+
+    .group-arrow {
+      margin-left: auto;
+      font-size: 16px;
+      color: #979ba5;
+      transition: transform 0.1s;
+
+      &.collapsed {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+}
+
+.rum-dimension-panel-skeleton {
+  padding: 8px 12px;
+
+  .title {
+    height: 20px;
+  }
+
+  .search-input {
+    height: 32px;
+    margin: 8px 0;
+  }
+
+  .list-item {
+    height: 14px;
+    margin-bottom: 14px;
+  }
+}

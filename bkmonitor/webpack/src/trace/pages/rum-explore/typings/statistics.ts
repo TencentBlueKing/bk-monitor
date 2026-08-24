@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,22 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
 
-export default [
-  {
-    path: '/rum',
-    name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
-  },
-  {
-    path: '/rum/config/:appName',
-    name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
-  },
-  {
-    path: '/rum-explore',
-    name: 'rumExplore',
-    component: () => import(/* webpackChunkName: "rum-explore" */ '../../pages/rum-explore/rum-explore'),
-  },
-] as RouteRecordRaw[];
+import type { IStatisticsInfo, ITopKField } from '../../trace-explore/typing';
+
+/** 统计信息与 TopK 的结构与 trace 检索完全一致，直接复用以便共享 StatisticsList */
+export type { IStatisticsInfo, ITopKField };
+
+export interface IRumStatisticsGraph {
+  series: IRumStatisticsSeries[];
+}
+
+/** field_statistics_graph 的 field 入参：字符类传 topk 值，数值类传 [min, max, distinctCount, intervalNum] */
+export interface IRumStatisticsGraphField {
+  field_name: string;
+  field_type: 'keyword' | 'numeric';
+  values?: Array<number | string>;
+}
+
+/** field_statistics_graph 返回的单条序列 */
+export interface IRumStatisticsSeries {
+  alias: string;
+  /** 数据点，每项为 [值, 毫秒时间戳] */
+  datapoints: Array<[number | string, number]>;
+  dimensions: Record<string, string>;
+  dimensions_translation?: Record<string, string>;
+  metric_field: string;
+  stat?: Record<string, unknown>;
+  target: string;
+  type: string;
+  unit?: string;
+}
