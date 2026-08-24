@@ -16,9 +16,11 @@ const {
   calculateMarkerHeight,
   calculateMemoryScale,
   canAccessRedisManagement,
+  buildRedisManagementForbiddenQuery,
   canEditBoundary,
   coverageBetween,
   costBetween,
+  resolveRedisManagementAccess,
 } = require('../src/monitor-pc/pages/redis-management/route-model.ts');
 
 test('累计成本前缀支持任意策略范围的常数次查询', () => {
@@ -125,7 +127,10 @@ test('拖动边界分别计算切换期双占峰值与稳定态', () => {
 test('热策略内存刻度根据当前数据上调而不是写死 256 MiB', () => {
   const mib = 1024 * 1024;
   assert.equal(calculateMemoryScale([80 * mib, 300 * mib, 620 * mib]), 1024 * mib);
-  assert.equal(calculateMemoryScale([...Array.from({ length: 95 }, (_, index) => (index + 1) * mib), 800 * mib]), 1024 * mib);
+  assert.equal(
+    calculateMemoryScale([...Array.from({ length: 95 }, (_, index) => (index + 1) * mib), 800 * mib]),
+    1024 * mib
+  );
   assert.equal(calculateMarkerHeight(200 * mib, 400 * mib), calculateMarkerHeight(100 * mib, 400 * mib) * 2);
 });
 
@@ -170,4 +175,67 @@ test('正式页面不包含 Demo 和特定环境取证话术', () => {
 test('Redis 管理入口不进入绕过权限过滤的全局收藏列表', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/monitor-pc/router/router-config.ts'), 'utf8');
   assert.doesNotMatch(source, /GLOBAL_FEATURE_LIST[\s\S]*redis-management/);
+});
+
+test('Redis 管理入口跳转独立路由且不再渲染到设置弹层', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/monitor-pc/pages/nav-tools.tsx'), 'utf8');
+  assert.match(source, /this\.\$router\.push\(\{\s*name:\s*'redis-management'\s*\}\)/);
+  assert.doesNotMatch(source, /RedisManagement:\s*\(\)\s*=>/);
+  assert.doesNotMatch(source, /activeSetting\s*===\s*'redis-management'/);
+  assert.match(source, /menuList=\{this\.settingModalList\}/);
+});
+
+test('Redis 管理独立路由同时要求平台管理员和全局管理权限', () => {
+  const routeSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/router/platform-setting/index.ts'),
+    'utf8'
+  );
+  const routerSource = fs.readFileSync(path.resolve(__dirname, '../src/monitor-pc/router/router.ts'), 'utf8');
+  assert.match(routeSource, /path:\s*'\/redis-management'/);
+  assert.match(routeSource, /page:\s*platformSettingAuth\.MANAGE_GLOBAL_SETTING/);
+  assert.match(routeSource, /beforeEnter[\s\S]*resolveRedisManagementAccess/);
+  assert.match(routeSource, /checkAllowedByActionIds/);
+  assert.match(routeSource, /noNavBar:\s*true/);
+  assert.match(routerSource, /'no-business'[\s\S]*'redis-management'[\s\S]*\.includes\(to\.name\)/);
+});
+
+test('Redis 管理独立路由的双权限查询失败时拒绝访问', async () => {
+  let requests = 0;
+  const allowed = async () => {
+    requests += 1;
+    return [{ isAllowed: true }];
+  };
+  assert.equal(await resolveRedisManagementAccess(false, allowed), false);
+  assert.equal(requests, 0);
+  assert.equal(await resolveRedisManagementAccess(true, allowed), true);
+  assert.equal(requests, 1);
+  assert.equal(await resolveRedisManagementAccess(true, async () => [{ isAllowed: false }]), false);
+  assert.equal(
+    await resolveRedisManagementAccess(true, async () => {
+      throw new Error('permission unavailable');
+    }),
+    false
+  );
+});
+
+test('非平台管理员拒绝访问时不携带会触发 IAM 自动恢复的参数', () => {
+  assert.equal(buildRedisManagementForbiddenQuery(false, 'manage_global_setting', '/redis-management'), undefined);
+  assert.deepEqual(buildRedisManagementForbiddenQuery(true, 'manage_global_setting', '/redis-management'), {
+    actionId: 'manage_global_setting',
+    fromUrl: 'redis-management',
+  });
+});
+
+test('Redis 管理独立页面使用完整宽度', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.scss'),
+    'utf8'
+  );
+  assert.match(source, /\.redis-management\s*\{[\s\S]*?width:\s*100%/);
+  assert.match(source, /box-sizing:\s*border-box/);
+});
+
+test('Redis 管理菜单具备正式路由翻译', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/monitor-pc/lang/route.ts'), 'utf8');
+  assert.match(source, /'route-Redis 节点管理':\s*'Redis Node Management'/);
 });

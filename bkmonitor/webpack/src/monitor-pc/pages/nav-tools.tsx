@@ -41,7 +41,7 @@ import { GLOBAL_FEATURE_LIST, setLocalStoreRoute } from '../router/router-config
 import enIcon from '../static/images/svg/en.svg';
 import zhIcon from '../static/images/svg/zh.svg';
 import type { IMenuItem } from '../types';
-import { canAccessRedisManagement } from './redis-management/route-model';
+import { resolveRedisManagementAccess } from './redis-management/route-model';
 
 const REDIS_MANAGEMENT_MENU = {
   id: 'redis-management',
@@ -81,8 +81,6 @@ interface INavToolsProps {
       import(/* webpackChunkName: 'MigrateDashboard' */ '../pages/migrate-dashboard/migrate-dashboard.vue'),
     ResourceRegister: () =>
       import(/* webpackChunkName: 'ResourceRegister' */ '../pages/resource-register/resource-register'),
-    RedisManagement: () =>
-      import(/* webpackChunkName: 'RedisManagement' */ '../pages/redis-management/redis-management'),
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage'),
     GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar'),
     MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply'),
@@ -108,6 +106,10 @@ class NavTools extends DocumentLinkMixin {
 
   get isHomePage() {
     return this.$route.name && this.$route.name === 'home';
+  }
+
+  get settingModalList() {
+    return this.setList.filter(item => item.id !== 'redis-management');
   }
 
   /** 上云环境（内部版），该环境下不展示「个人设置」 */
@@ -217,11 +219,10 @@ class NavTools extends DocumentLinkMixin {
   }
 
   async loadRedisManagementPermission() {
-    if (!window.is_superuser) return;
-    const permission = await authorityStore
-      .checkAllowedByActionIds({ action_ids: ['manage_global_setting'] })
-      .catch(() => []);
-    if (canAccessRedisManagement(window.is_superuser, permission)) {
+    const allowed = await resolveRedisManagementAccess(window.is_superuser, () =>
+      authorityStore.checkAllowedByActionIds({ action_ids: ['manage_global_setting'] })
+    );
+    if (allowed) {
       this.redisManagementAllowed = true;
       this.setList = this.buildSettingList(true);
     }
@@ -298,8 +299,15 @@ class NavTools extends DocumentLinkMixin {
    */
   handleSet(item: IMenuItem) {
     if (!this.setList.some(setting => setting.id === item.id)) return;
-    setLocalStoreRoute(item.id);
     this.hidePopoverSetOrHelp();
+    if (item.id === 'redis-management') {
+      if (this.show) this.handleSettingShowChange(false);
+      if (this.$route.name !== item.id) {
+        this.$router.push({ name: 'redis-management' });
+      }
+      return;
+    }
+    setLocalStoreRoute(item.id);
     this.activeSetting = item.id;
     this.settingTitle = item.name;
     this.handleSettingShowChange(true);
@@ -361,7 +369,7 @@ class NavTools extends DocumentLinkMixin {
     location.reload();
   }
   handleMenuChange(item: IMenuItem) {
-    if (!this.setList.some(setting => setting.id === item.id)) return;
+    if (!this.settingModalList.some(setting => setting.id === item.id)) return;
     this.activeSetting = item.id;
     this.settingTitle = item.name;
   }
@@ -377,9 +385,6 @@ class NavTools extends DocumentLinkMixin {
     }
     if (this.activeSetting === 'space-manage') {
       return <space-manage />;
-    }
-    if (this.activeSetting === 'redis-management' && this.redisManagementAllowed) {
-      return <redis-management />;
     }
     if (this.activeSetting === 'resource-register') {
       return <resource-register />;
@@ -598,7 +603,7 @@ class NavTools extends DocumentLinkMixin {
             <SettingModal
               key='setting-modal'
               activeMenu={this.activeSetting}
-              menuList={this.setList}
+              menuList={this.settingModalList}
               show={this.show}
               title={this.settingTitle}
               zIndex={2000}
