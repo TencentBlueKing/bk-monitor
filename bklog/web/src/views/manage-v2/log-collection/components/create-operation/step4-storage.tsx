@@ -38,6 +38,7 @@ import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
 import $http from '@/api';
+import { isCollectionEditRoute } from './route-utils';
 
 import type { ISubmitOptions } from '../../type';
 
@@ -293,7 +294,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
 
     /**
      * 保存初始表单数据快照
@@ -310,9 +311,7 @@ export default defineComponent({
     };
 
     /** 是否为编辑模式 */
-    const isEditMode = computed(() =>
-      ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')),
-    );
+    const isEditMode = computed(() => isCollectionEditRoute(route.name));
 
     /**
      * 异步获取存储列表并按权限排序

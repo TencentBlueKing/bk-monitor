@@ -59,6 +59,7 @@ import {
   type ExpandDepthSelect,
 } from '@/components/collection-access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
+import { isCollectionEditRoute } from './route-utils';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -286,7 +287,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => ['collectEdit', 'collectField'].includes(String(route.name ?? '')) && props.isEdit);
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
     const isEditTemp = computed(() => route.name === 'clean-template-edit');
 
     const createDefaultEtlParams = () => ({
