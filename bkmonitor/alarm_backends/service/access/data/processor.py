@@ -35,6 +35,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.checkpoint import Checkpoint
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
+from alarm_backends.core.detect_result.trim import check_result_producer
 from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
@@ -949,28 +950,32 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 使用 DetectProcess 复用检测逻辑
             # pull_data 支持直接传入数据，不需要从 Redis 拉取
             detect_process.pull_data(item, inputs=data_points)
-            detect_process.handle_data(item)
+            # Access 合并不执行热裁剪，但必须参加 producer 门禁，阻断并发标准 Detect 的热裁剪。
+            with check_result_producer(strategy_id):
+                detect_process.handle_data(item)
 
-            # 二次确认（自动获得）
-            try:
-                detect_process.double_check(item)
-            except Exception:
-                logger.exception("[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id)
-
-            # 推送无数据检测数据（如果启用）
-            # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
-            if item.no_data_config.get("is_enabled"):
-                self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
-
-            # 推送降噪数据
-            if valid_records:
+                # 二次确认（自动获得）
                 try:
-                    self._push_noise_data(item, valid_records)
-                except Exception as e:
-                    logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
+                    detect_process.double_check(item)
+                except Exception:
+                    logger.exception(
+                        "[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id
+                    )
 
-            # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
-            detect_process.push_data()
+                # 推送无数据检测数据（如果启用）
+                # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
+                if item.no_data_config.get("is_enabled"):
+                    self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
+
+                # 推送降噪数据
+                if valid_records:
+                    try:
+                        self._push_noise_data(item, valid_records)
+                    except Exception as e:
+                        logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
+
+                # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
+                detect_process.push_data()
             self.inline_trigger_items.extend(
                 (strategy_id, inline_item_id) for inline_item_id in detect_process.inline_trigger_items
             )

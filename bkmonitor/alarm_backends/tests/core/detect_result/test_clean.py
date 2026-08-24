@@ -8,13 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
+import fakeredis
 import pytest
 from django.conf import settings
 from django.test import override_settings
 
 from alarm_backends.core.cache import key
+from alarm_backends.core.control.item import detect_result_item_point_required, detect_result_point_required
+from alarm_backends.core.detect_result import CheckResult, CheckResultTrimAborted
 from alarm_backends.core.detect_result import tasks as detect_result_tasks
 from alarm_backends.core.detect_result.clean import CleanResult
 
@@ -48,7 +51,7 @@ def test_clean_expired_detect_result_executes_existing_cleanup_commands():
 
     client.hkeys.assert_called_once()
     client.hscan.assert_not_called()
-    pipeline.zremrangebyrank.assert_called_once_with("check-result-key", 0, -2)
+    pipeline.zremrangebyrank.assert_called_once_with("check-result-key", 0, -3)
     pipeline.zcard.assert_called_once_with("check-result-key")
     pipeline.hdel.assert_not_called()
 
@@ -109,10 +112,10 @@ def test_clean_expired_detect_result_scans_all_pages_after_each_page_is_complete
     client.hkeys.assert_not_called()
     assert operations == [
         ("hscan", 0, 256),
-        ("zremrangebyrank", "check.dimension-a.1", 0, -2),
-        ("zremrangebyrank", "check.dimension-b.2", 0, -2),
+        ("zremrangebyrank", "check.dimension-a.1", 0, -3),
+        ("zremrangebyrank", "check.dimension-b.2", 0, -3),
         ("execute",),
-        ("zremrangebyrank", "check.dimension-c.3", 0, -2),
+        ("zremrangebyrank", "check.dimension-c.3", 0, -3),
         ("execute",),
         ("zcard", "check.dimension-a.1"),
         ("zcard", "check.dimension-b.2"),
@@ -125,7 +128,7 @@ def test_clean_expired_detect_result_scans_all_pages_after_each_page_is_complete
         ("hdel", key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11), "detect.result.dimension-c.3"),
         ("execute",),
         ("hscan", 17, 256),
-        ("zremrangebyrank", "check.dimension-d.4", 0, -2),
+        ("zremrangebyrank", "check.dimension-d.4", 0, -3),
         ("execute",),
         ("zcard", "check.dimension-d.4"),
         ("execute",),
@@ -238,3 +241,162 @@ def test_chunk_fields_never_exceeds_command_limit():
     chunks = list(CleanResult.chunk_fields(["a", "b", "c", "d", "e"], command_limit=2))
 
     assert chunks == [("a", "b"), ("c", "d"), ("e",)]
+
+
+def test_trim_check_result_caches_deduplicates_keys_and_keeps_exact_count():
+    client = MagicMock()
+    pipeline = client.pipeline.return_value
+    pipeline.execute.return_value = [1, 2]
+
+    with patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client):
+        result = CheckResult.trim_check_result_caches(["key-1", "key-1", "key-2"], 12)
+
+    assert result == [1, 2]
+    client.pipeline.assert_called_once_with(transaction=False)
+    assert pipeline.zremrangebyrank.call_args_list == [call("key-1", 0, -13), call("key-2", 0, -13)]
+
+
+@override_settings(CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT=2)
+def test_trim_check_result_caches_bounds_pipeline_commands():
+    client = MagicMock()
+    first_pipeline = MagicMock()
+    first_pipeline.execute.return_value = [1, 1]
+    second_pipeline = MagicMock()
+    second_pipeline.execute.return_value = [1]
+    client.pipeline.side_effect = [first_pipeline, second_pipeline]
+
+    with patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client):
+        result = CheckResult.trim_check_result_caches(["key-1", "key-2", "key-3"], 12)
+
+    assert result == [1, 1, 1]
+    assert first_pipeline.zremrangebyrank.call_args_list == [call("key-1", 0, -13), call("key-2", 0, -13)]
+    second_pipeline.zremrangebyrank.assert_called_once_with("key-3", 0, -13)
+
+
+@override_settings(CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT=2)
+def test_trim_check_result_caches_refreshes_producer_lock_before_each_chunk():
+    client = MagicMock()
+    first_pipeline = MagicMock()
+    first_pipeline.execute.return_value = [1, 1]
+    second_pipeline = MagicMock()
+    second_pipeline.execute.return_value = [1]
+    client.pipeline.side_effect = [first_pipeline, second_pipeline]
+    refresh_lock = MagicMock(return_value=True)
+
+    with patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client):
+        result = CheckResult.trim_check_result_caches(
+            ["key-1", "key-2", "key-3"],
+            12,
+            before_chunk=refresh_lock,
+        )
+
+    assert result == [1, 1, 1]
+    assert refresh_lock.call_count == 2
+
+
+@override_settings(CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT=2)
+def test_trim_check_result_caches_stops_when_safety_guard_changes():
+    client = MagicMock()
+    first_pipeline = MagicMock()
+    first_pipeline.execute.return_value = [1, 1]
+    client.pipeline.return_value = first_pipeline
+    safety_guard = MagicMock(side_effect=[True, False])
+
+    with (
+        patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client),
+        pytest.raises(CheckResultTrimAborted),
+    ):
+        CheckResult.trim_check_result_caches(
+            ["key-1", "key-2", "key-3"],
+            12,
+            before_chunk=safety_guard,
+        )
+
+    first_pipeline.execute.assert_called_once_with()
+    assert safety_guard.call_count == 2
+
+
+def test_event_cleanup_keeps_legacy_formula_while_time_series_uses_item_formula():
+    detects = [
+        {
+            "level": 1,
+            "trigger_config": {"check_window": 5, "count": 1},
+            "recovery_config": {"check_window": 5},
+        }
+    ]
+    event_item = {
+        "id": 11,
+        "algorithms": [{"level": 1, "type": "Threshold"}],
+        "query_configs": [{"data_type_label": "event"}],
+    }
+    time_series_item = {
+        "id": 12,
+        "algorithms": [{"level": 1, "type": "Threshold"}],
+        "query_configs": [{"data_type_label": "time_series"}],
+    }
+    strategy = {"detects": detects, "items": [event_item, time_series_item]}
+
+    assert detect_result_point_required(strategy) == 30
+    assert detect_result_item_point_required(strategy, time_series_item) == 12
+
+
+@override_settings(ENABLE_CHECK_RESULT_CLEAN_HSCAN=False)
+def test_periodic_cleanup_keeps_legacy_fallback_for_invalid_hot_trim_config():
+    client = MagicMock()
+    client.hkeys.return_value = []
+    strategy = {
+        "id": 1,
+        "items": [
+            {
+                "id": 11,
+                "algorithms": [{"level": 1, "type": "Threshold"}],
+                "query_configs": [{"data_type_label": "time_series"}],
+                "no_data_config": {"is_enabled": True, "continuous": True},
+            }
+        ],
+    }
+
+    with (
+        patch.object(key.LAST_CHECKPOINTS_CACHE_KEY, "_cache", client),
+        patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[1]),
+        patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+        patch("alarm_backends.core.detect_result.clean.detect_result_point_required", return_value=30),
+    ):
+        CleanResult.clean_expired_detect_result()
+
+    client.hkeys.assert_called_once_with(key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11))
+
+
+def test_item_cleanup_matches_aiops_effective_trigger_window():
+    item = {
+        "id": 12,
+        "algorithms": [{"level": 1, "type": "IntelligentDetect"}],
+        "query_configs": [{"data_type_label": "time_series"}],
+    }
+    strategy = {
+        "detects": [
+            {
+                "level": 1,
+                "trigger_config": {"check_window": "ignored"},
+                "recovery_config": {"check_window": 7},
+            }
+        ],
+        "items": [item],
+    }
+
+    assert detect_result_item_point_required(strategy, item) == 14
+
+
+@pytest.mark.parametrize("member_count", [12, 13, 20])
+def test_trim_check_result_caches_leaves_exact_member_count(member_count):
+    client = fakeredis.FakeRedis(decode_responses=True)
+    cache_key = "check-result-key"
+    client.zadd(cache_key, {f"member-{index}": index for index in range(member_count)})
+
+    with patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client):
+        CheckResult.trim_check_result_caches([cache_key], 12)
+
+    assert client.zcard(cache_key) == 12

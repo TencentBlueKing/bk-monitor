@@ -124,12 +124,30 @@ def test_trigger_processor_returns_pulled_count(mocker):
     processor.anomaly_points = ["first", "second"]
     processor.process_point = mocker.MagicMock()
     processor.push = mocker.MagicMock()
+    processor.clear_check_result_inflight = mocker.MagicMock()
 
     pulled_count = processor.process()
 
     assert pulled_count == 2
     assert processor.process_point.call_args_list == [mocker.call("first"), mocker.call("second")]
     processor.push.assert_called_once_with()
+    processor.clear_check_result_inflight.assert_called_once_with()
+
+
+def test_trigger_processor_clears_inflight_when_push_fails(mocker):
+    processor = object.__new__(TriggerProcessor)
+    processor.pull = mocker.MagicMock(return_value=1)
+    processor.strategy = mocker.MagicMock()
+    processor.strategy.in_alarm_time.return_value = (True, None)
+    processor.anomaly_points = ["point"]
+    processor.process_point = mocker.MagicMock()
+    processor.push = mocker.MagicMock(side_effect=RuntimeError("push failed"))
+    processor.clear_check_result_inflight = mocker.MagicMock()
+
+    with pytest.raises(RuntimeError, match="push failed"):
+        processor.process()
+
+    processor.clear_check_result_inflight.assert_called_once_with()
 
 
 def test_trigger_processor_pull_returns_actual_count(mocker):
@@ -137,10 +155,17 @@ def test_trigger_processor_pull_returns_actual_count(mocker):
     processor.strategy_id = "1"
     processor.item_id = "2"
     processor.anomaly_list_key = "anomaly.list.1.2"
+    processor.check_result_inflight_key = "trigger.inflight.1.2"
+    processor.check_result_inflight_token = "token"
+    processor.check_result_inflight_registered = False
     processor.MAX_PROCESS_COUNT = 100
 
     anomaly_list_key = mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
     anomaly_list_key.client.lrange.return_value = ["new", "old"]
+    inflight_key = mocker.patch.object(trigger_processor, "TRIGGER_CHECK_RESULT_INFLIGHT_KEY")
+    operation_order = mocker.MagicMock()
+    operation_order.attach_mock(inflight_key.client.hset, "mark")
+    operation_order.attach_mock(anomaly_list_key.client.ltrim, "trim_list")
     mocker.patch.object(trigger_processor, "routing_snapshot", return_value=nullcontext())
     mocker.patch.object(trigger_processor, "metrics")
 
@@ -148,7 +173,26 @@ def test_trigger_processor_pull_returns_actual_count(mocker):
 
     assert pulled_count == 2
     assert processor.anomaly_points == ["old", "new"]
+    assert operation_order.method_calls[:2] == [
+        mocker.call.mark("trigger.inflight.1.2", "token", mocker.ANY),
+        mocker.call.trim_list("anomaly.list.1.2", 0, -3),
+    ]
+    assert processor.check_result_inflight_registered is True
     anomaly_list_key.client.ltrim.assert_called_once_with("anomaly.list.1.2", 0, -3)
+
+
+def test_trigger_processor_clears_only_registered_inflight_token(mocker):
+    processor = object.__new__(TriggerProcessor)
+    processor.strategy_id = "1"
+    processor.item_id = "2"
+    processor.check_result_inflight_key = "trigger.inflight.1.2"
+    processor.check_result_inflight_token = "token"
+    processor.check_result_inflight_registered = True
+    inflight_key = mocker.patch.object(trigger_processor, "TRIGGER_CHECK_RESULT_INFLIGHT_KEY")
+
+    processor.clear_check_result_inflight()
+
+    inflight_key.client.hdel.assert_called_once_with("trigger.inflight.1.2", "token")
 
 
 def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, caplog):

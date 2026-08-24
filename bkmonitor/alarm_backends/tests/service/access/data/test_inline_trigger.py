@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from contextlib import contextmanager, nullcontext
 
 from alarm_backends.service.access.data import processor as access_processor
 from alarm_backends.service.access.data.processor import AccessBatchDataProcess, AccessDataProcess
@@ -40,9 +41,25 @@ def test_access_merge_records_item_pair_after_anomaly_is_pushed(mocker):
     )
     mocker.patch.object(access_processor, "PriorityChecker")
     mocker.patch.object(access_processor, "metrics")
+    producer_active = {"value": False}
+
+    @contextmanager
+    def producer_guard(strategy_id):
+        assert strategy_id == 10
+        producer_active["value"] = True
+        try:
+            yield "producer-token"
+        finally:
+            producer_active["value"] = False
+
+    producer_context = mocker.patch.object(access_processor, "check_result_producer", side_effect=producer_guard)
+    inline_candidate.handle_data.side_effect = lambda *_: assert_producer_active(producer_active)
+    inline_candidate.push_data.side_effect = lambda: assert_producer_active(producer_active)
 
     processor._detect_and_push_abnormal()
 
+    producer_context.assert_called_once_with(10)
+    assert producer_active["value"] is False
     detect_process_class.assert_called_once_with(10)
     inline_candidate.push_data.assert_called_once_with()
     assert processor.inline_trigger_items == [(10, 1)]
@@ -84,10 +101,15 @@ def test_access_merge_records_no_inline_item_when_detect_publishes_signal(mocker
     mocker.patch.object(detect_process, "DetectProcess", return_value=inline_candidate)
     mocker.patch.object(access_processor, "PriorityChecker")
     mocker.patch.object(access_processor, "metrics")
+    mocker.patch.object(access_processor, "check_result_producer", return_value=nullcontext("producer-token"))
 
     processor._detect_and_push_abnormal()
 
     assert processor.inline_trigger_items == []
+
+
+def assert_producer_active(state):
+    assert state["value"] is True
 
 
 def test_access_batch_result_returns_inline_trigger_items(mocker):
