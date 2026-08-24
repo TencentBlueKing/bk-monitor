@@ -17,10 +17,16 @@ from django.conf import settings
 
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.core.cache import key as cache_key
-from alarm_backends.core.cache.key import ANOMALY_LIST_KEY, ANOMALY_SIGNAL_KEY, TRIGGER_EVENT_RATE_LIMIT_KEY
+from alarm_backends.core.cache.key import (
+    ANOMALY_LIST_KEY,
+    ANOMALY_SIGNAL_KEY,
+    TRIGGER_CHECK_RESULT_INFLIGHT_KEY,
+    TRIGGER_EVENT_RATE_LIMIT_KEY,
+)
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routing_snapshot
 from alarm_backends.service.trigger.checker import AnomalyChecker
+from bkmonitor.utils.common_utils import uniqid4
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.alarm_backends import StrategyNotFound
 from core.prometheus import metrics
@@ -40,6 +46,12 @@ class TriggerProcessor:
         self.strategy_id = int(strategy_id)
         self.item_id = int(item_id)
         self.anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=self.strategy_id, item_id=self.item_id)
+        self.check_result_inflight_key = TRIGGER_CHECK_RESULT_INFLIGHT_KEY.get_key(
+            strategy_id=self.strategy_id,
+            item_id=self.item_id,
+        )
+        self.check_result_inflight_token = uniqid4()
+        self.check_result_inflight_registered = False
         self.anomaly_points = []
         self.anomaly_records = []
         self.event_records = []
@@ -260,6 +272,12 @@ class TriggerProcessor:
             # 对列表做翻转，按数据从旧到新的顺序处理
             self.anomaly_points.reverse()
             if self.anomaly_points:
+                TRIGGER_CHECK_RESULT_INFLIGHT_KEY.client.hset(
+                    self.check_result_inflight_key,
+                    self.check_result_inflight_token,
+                    int(time.time()),
+                )
+                self.check_result_inflight_registered = True
                 metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(
                     len(self.anomaly_points)
                 )
@@ -481,21 +499,39 @@ class TriggerProcessor:
         self.reference_candidates = []
 
     def process(self):
-        pulled_count = self.pull()
+        try:
+            pulled_count = self.pull()
 
-        in_alarm_time, message = self.strategy.in_alarm_time()
-        if not in_alarm_time:
-            logger.info("[trigger] strategy(%s) not in alarm time: %s, skipped", self.strategy_id, message)
-        else:
-            for point in self.anomaly_points:
-                try:
-                    self.process_point(point)
-                except Exception as e:
-                    error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
-                    logger.exception(error_message)
+            in_alarm_time, message = self.strategy.in_alarm_time()
+            if not in_alarm_time:
+                logger.info("[trigger] strategy(%s) not in alarm time: %s, skipped", self.strategy_id, message)
+            else:
+                for point in self.anomaly_points:
+                    try:
+                        self.process_point(point)
+                    except Exception as e:
+                        error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
+                        logger.exception(error_message)
 
-        self.push()
-        return pulled_count
+            self.push()
+            return pulled_count
+        finally:
+            self.clear_check_result_inflight()
+
+    def clear_check_result_inflight(self):
+        if not getattr(self, "check_result_inflight_registered", False):
+            return
+        try:
+            TRIGGER_CHECK_RESULT_INFLIGHT_KEY.client.hdel(
+                self.check_result_inflight_key,
+                self.check_result_inflight_token,
+            )
+        except Exception:
+            logger.exception(
+                "clear check result inflight marker failed for strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
 
     def process_point(self, point):
         point = json.loads(point)

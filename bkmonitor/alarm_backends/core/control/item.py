@@ -18,8 +18,10 @@ from django.utils.functional import cached_property
 
 from alarm_backends.core.control.mixins import CheckMixin, DetectMixin, DoubleCheckMixin
 from alarm_backends.core.detect_result import CONST_MAX_LEN_CHECK_RESULT
+from alarm_backends.core.detect_result_retention import calculate_item_retention, is_item_rank_trim_eligible
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.unify_query.query import UnifyQuery
+from bkmonitor.models import AlgorithmModel
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.range import load_condition_instance
 from bkmonitor.utils.range.target import TargetCondition
@@ -72,6 +74,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         self.query_configs = item_config.get("query_configs", [])
         self.no_data_config = item_config.get("no_data_config", {})
         self.target = item_config.get("target", [[]])
+        self.check_result_trim_cache_keys = set()
 
         self.item_config = item_config
         self.strategy: Strategy = strategy
@@ -107,6 +110,23 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         interval = self.strategy.get_interval()
         point_remain = detect_result_point_required(self.strategy.config)
         return point_remain * interval
+
+    def is_detect_result_rank_trim_eligible(self):
+        return is_item_rank_trim_eligible(self.item_config)
+
+    def get_detect_result_retention_point_required(self):
+        return detect_result_item_point_required(self.strategy.config, self.item_config)
+
+    def begin_check_result_trim_batch(self):
+        self.check_result_trim_cache_keys = set()
+
+    def register_check_result_trim_cache_key(self, cache_key):
+        self.check_result_trim_cache_keys.add(cache_key)
+
+    def pop_check_result_trim_cache_keys(self):
+        cache_keys = self.check_result_trim_cache_keys
+        self.check_result_trim_cache_keys = set()
+        return cache_keys
 
     def query_record(self, start_time: int, end_time: int) -> list:
         records = self.query.query_data(start_time * 1000, end_time * 1000)
@@ -274,3 +294,17 @@ def detect_result_point_required(strategy) -> int:
         recovery_window_size = recovery_configs[level].get("check_window_size", 5)
         point_remind = max([point_remind, (trigger_window_size + recovery_window_size) * 2])
     return point_remind
+
+
+def detect_result_item_point_required(strategy: dict, item: dict) -> int:
+    """Calculate the item-level retention used by non-event rank trimming."""
+    algorithm_types = [
+        algorithm.get("type")
+        for strategy_item in strategy.get("items") or []
+        for algorithm in strategy_item.get("algorithms") or []
+        if isinstance(algorithm, dict)
+    ]
+    aiops_only = bool(algorithm_types) and all(
+        algorithm_type in AlgorithmModel.AIOPS_ALGORITHMS for algorithm_type in algorithm_types
+    )
+    return calculate_item_retention(strategy, item, aiops_only=aiops_only)
