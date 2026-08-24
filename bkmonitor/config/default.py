@@ -391,6 +391,9 @@ TS_DATA_SAVED_DAYS = 30
 ENABLE_RESOURCE_DATA_COLLECT = False
 RESOURCE_DATA_COLLECT_RATIO = 0
 
+# Redis 自监控收尾阶段的策略成本周期快照，按环境通过 GlobalConfig 显式开启。
+ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
+
 # 告警汇总配置
 DIMENSION_COLLECT_THRESHOLD = 2
 DIMENSION_COLLECT_WINDOW = 120
@@ -1366,9 +1369,8 @@ AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 PUSH_MONITOR_EVENT_TO_FTA = True
 # 监控推送事件数据给自愈的 kafka topic
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
-# alarmd Trigger-only Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
+# alarmd Detect→Trigger Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
 ALARMD_DETECTION_SHADOW_ENABLED = False
-ALARMD_DETECTION_SHADOW_STRATEGY_IDS = ()
 ALARMD_DETECTION_SHADOW_KAFKA_CONFIG = {}
 ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS = ()
 ALARMD_DETECT_INPUT_SHADOW_ENABLED = False

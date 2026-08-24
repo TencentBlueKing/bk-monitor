@@ -332,18 +332,25 @@ class ContainerSerializer(serializers.Serializer):
         return attrs
 
 
+def default_label_selector():
+    # 嵌套 Serializer 的 default 会被原样返回、不再经过子字段校验，所以键要写全，
+    # 否则 create_container_config 里 config["label_selector"]["match_labels"] 仍会 KeyError。
+    # 用可调用形式返回新对象，避免同一请求内多个 config 共享同一份可变默认值。
+    return {"match_labels": [], "match_expressions": []}
+
+
 class LabelSelectorSerializer(serializers.Serializer):
     match_labels = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定标签"), required=False, allow_empty=True
+        child=LabelsSerializer(), label=_("指定标签"), required=False, allow_empty=True, default=list
     )
     match_expressions = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定表达式"), required=False, allow_empty=True
+        child=LabelsSerializer(), label=_("指定表达式"), required=False, allow_empty=True, default=list
     )
 
 
 class AnnotationSelectorSerializer(serializers.Serializer):
     match_annotations = serializers.ListSerializer(
-        child=LabelsSerializer(), label=_("指定注解"), required=False, allow_empty=True
+        child=LabelsSerializer(), label=_("指定注解"), required=False, allow_empty=True, default=list
     )
 
 
@@ -355,7 +362,7 @@ class ContainerConfigSerializer(serializers.Serializer):
         child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
     )
     container = ContainerSerializer(required=False, label=_("指定容器"))
-    label_selector = LabelSelectorSerializer(required=False, label=_("标签"))
+    label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default=default_label_selector)
     annotation_selector = AnnotationSelectorSerializer(
         required=False, label=_("注解"), default={"match_annotations": []}
     )
@@ -636,9 +643,7 @@ class TaskStatusSerializer(serializers.Serializer):
 
 
 class SubscriptionStatusSerializer(serializers.Serializer):
-    include_plugin_status = serializers.BooleanField(
-        label=_("是否查询插件版本信息"), required=False, default=True
-    )
+    include_plugin_status = serializers.BooleanField(label=_("是否查询插件版本信息"), required=False, default=True)
 
 
 class TaskDetailSerializer(serializers.Serializer):
@@ -1886,9 +1891,7 @@ class FastCollectorUpdateSerializer(
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
     params = PartialPluginParamSerializer(required=False)
-    data_encoding = serializers.ChoiceField(
-        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False
-    )
+    data_encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
