@@ -103,10 +103,10 @@ class IsolatedSnapshotRedisClient:
         return getattr(self._client, name)
 
     def close(self) -> None:
-        self._client.close()
+        self._client.connection_pool.disconnect()
         if self._sentinel is not None:
             for sentinel in self._sentinel.sentinels:
-                sentinel.close()
+                sentinel.connection_pool.disconnect()
 
 
 class StrategyCostSnapshotStore:

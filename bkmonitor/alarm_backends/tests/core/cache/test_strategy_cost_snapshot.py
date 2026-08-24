@@ -305,7 +305,7 @@ def test_isolated_client_bounds_io_without_mutating_shared_pool(mocker):
     shared_raw_client = SimpleNamespace(connection_pool=source_pool)
     shared_client = SimpleNamespace(_instance=shared_raw_client)
     original_kwargs = source_pool.connection_kwargs.copy()
-    isolated_pool = SimpleNamespace(connection_kwargs={})
+    isolated_pool = SimpleNamespace(connection_kwargs={}, disconnect=mock.Mock())
     isolated_raw_client = SimpleNamespace(connection_pool=isolated_pool, close=mock.Mock())
     redis_cls = mocker.patch.object(snapshot_module.redis, "Redis", return_value=isolated_raw_client)
 
@@ -317,7 +317,7 @@ def test_isolated_client_bounds_io_without_mutating_shared_pool(mocker):
     assert isolated.snapshot_max_io_seconds <= 20
     assert source_pool.connection_kwargs == original_kwargs
     isolated.close()
-    isolated_raw_client.close.assert_called_once_with()
+    isolated_pool.disconnect.assert_called_once_with()
 
 
 def test_isolated_sentinel_client_copies_endpoints_and_bounds_both_pools(mocker):
@@ -337,8 +337,12 @@ def test_isolated_sentinel_client_copies_endpoints_and_bounds_both_pools(mocker)
     source_client = SimpleNamespace(_instance=SimpleNamespace(connection_pool=source_pool))
     original_sentinel_kwargs = manager.sentinel_kwargs.copy()
     original_data_kwargs = manager.connection_kwargs.copy()
-    isolated_raw_client = SimpleNamespace(connection_pool=object(), close=mock.Mock())
-    isolated_sentinel_clients = [SimpleNamespace(close=mock.Mock()), SimpleNamespace(close=mock.Mock())]
+    master_pool = SimpleNamespace(disconnect=mock.Mock())
+    isolated_raw_client = SimpleNamespace(connection_pool=master_pool, close=mock.Mock())
+    isolated_sentinel_clients = [
+        SimpleNamespace(connection_pool=SimpleNamespace(disconnect=mock.Mock()), close=mock.Mock()),
+        SimpleNamespace(connection_pool=SimpleNamespace(disconnect=mock.Mock()), close=mock.Mock()),
+    ]
     isolated_sentinel = SimpleNamespace(
         master_for=mock.Mock(return_value=isolated_raw_client), sentinels=isolated_sentinel_clients
     )
@@ -354,8 +358,9 @@ def test_isolated_sentinel_client_copies_endpoints_and_bounds_both_pools(mocker)
     assert manager.sentinel_kwargs == original_sentinel_kwargs
     assert manager.connection_kwargs == original_data_kwargs
     isolated.close()
+    master_pool.disconnect.assert_called_once_with()
     for sentinel_client in isolated_sentinel_clients:
-        sentinel_client.close.assert_called_once_with()
+        sentinel_client.connection_pool.disconnect.assert_called_once_with()
 
 
 def test_collector_budget_covers_catalog_before_first_db8_read(mocker):
