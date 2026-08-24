@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from time import monotonic
 from typing import Any
 
+from alarm_backends.core.cache.key import REDIS_STRATEGY_COST_SNAPSHOT_KEY
 from alarm_backends.core.cache.strategy_cost_snapshot import (
+    IsolatedSnapshotRedisClient,
     SNAPSHOT_HISTORY_LIMIT,
+    SnapshotBudgetExceeded,
     StrategyCostSnapshotStore,
     serialize_cache_node,
 )
@@ -18,6 +22,8 @@ from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 OPERATION_LATEST = "latest"
 OPERATION_HISTORY = "history"
 ALLOWED_FIELDS = {"operation", "node_id", "limit"}
+SNAPSHOT_READ_TOTAL_BUDGET_SECONDS = 3.0
+SNAPSHOT_READ_NODE_BUDGET_SECONDS = 1.0
 
 
 def _history_limit(params: dict[str, Any], operation: str) -> int:
@@ -38,6 +44,15 @@ def _node_id(params: dict[str, Any]) -> int | None:
     if type(value) is not int:
         raise CustomException(message="node_id must be a JSON integer")
     return value
+
+
+def _read_node_snapshots(node, limit: int, remaining_seconds: float) -> list[dict[str, Any]]:
+    source_client = REDIS_STRATEGY_COST_SNAPSHOT_KEY.client.get_client(node)
+    client = IsolatedSnapshotRedisClient(source_client, min(remaining_seconds, SNAPSHOT_READ_NODE_BUDGET_SECONDS))
+    try:
+        return StrategyCostSnapshotStore(node, client=client).read(limit)
+    finally:
+        client.close()
 
 
 def read_redis_strategy_cost_snapshots(params: dict[str, Any]) -> dict[str, Any]:
@@ -63,10 +78,18 @@ def read_redis_strategy_cost_snapshots(params: dict[str, Any]) -> dict[str, Any]
             raise CustomException(message=f"enabled CacheNode not found in current cluster: {requested_node_id}")
 
     results = []
+    deadline = monotonic() + SNAPSHOT_READ_TOTAL_BUDGET_SECONDS
     for node in nodes:
         entry = {"node": serialize_cache_node(node), "snapshot_count": 0, "snapshots": []}
+        remaining_seconds = deadline - monotonic()
+        if remaining_seconds <= 0:
+            entry["error"] = "snapshot_read_budget_exhausted"
+            results.append(entry)
+            continue
         try:
-            snapshots = StrategyCostSnapshotStore(node).read(limit)
+            snapshots = _read_node_snapshots(node, limit, remaining_seconds)
+        except SnapshotBudgetExceeded:
+            entry["error"] = "snapshot_read_budget_exhausted"
         except Exception:
             entry["error"] = "snapshot_read_failed"
         else:

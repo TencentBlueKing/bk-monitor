@@ -7,8 +7,8 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from monitor_web.permissions import PlatformAdministratorPermission
 from monitor_web.redis_management.resources import (
     GetRedisManagementOverviewResource,
+    _load_latest_snapshots,
     _query_metric,
-    _read_latest_snapshot,
     build_cost_evidence,
     build_memory_view,
 )
@@ -100,9 +100,7 @@ def test_build_memory_view_returns_trend_current_peak_and_usage():
             "datapoints": [[100.0, 1000], [None, 1060], [240.0, 1120], [200.0, 1180]],
         }
     ]
-    capacity_series = [
-        {"dimensions": {"node": "node-1"}, "datapoints": [[400.0, 1000], [400.0, 1180]]}
-    ]
+    capacity_series = [{"dimensions": {"node": "node-1"}, "datapoints": [[400.0, 1000], [400.0, 1180]]}]
 
     result = build_memory_view("node-1", used_series, capacity_series)
 
@@ -228,9 +226,7 @@ def test_redis_management_view_requires_both_administrator_permissions():
     ("is_superuser", "global_allowed", "expected_status"),
     [(True, True, 200), (True, False, 403), (False, True, 403), (False, False, 403)],
 )
-def test_redis_management_endpoint_permission_matrix(
-    mocker, is_superuser, global_allowed, expected_status
-):
+def test_redis_management_endpoint_permission_matrix(mocker, is_superuser, global_allowed, expected_status):
     mocker.patch.object(GlobalSettingPermission, "has_permission", return_value=global_allowed)
     mocker.patch.object(GetRedisManagementOverviewResource, "perform_request", return_value={})
     request = APIRequestFactory().get("/rest/v2/redis_management/overview/")
@@ -259,8 +255,9 @@ def test_overview_resource_aggregates_routing_metrics_and_existing_snapshots(moc
     }
     mocker.patch("monitor_web.redis_management.resources.load_routing_observation", return_value=(routing, node_models))
 
-    snapshot_reader = mocker.patch("monitor_web.redis_management.resources._read_latest_snapshot")
-    snapshot_reader.side_effect = lambda node, remaining_seconds: snapshots[node.id]
+    snapshot_loader = mocker.patch(
+        "monitor_web.redis_management.resources._load_latest_snapshots", return_value=snapshots
+    )
 
     def query_metric(**kwargs):
         if "used" in kwargs["promql"]:
@@ -292,7 +289,38 @@ def test_overview_resource_aggregates_routing_metrics_and_existing_snapshots(moc
     assert result["cost_evidence"]["valid_strategy_count"] == 2
     assert all("host" not in node and "password" not in node for node in result["nodes"])
     assert all(call.kwargs["start_time"] == 1200 - 3 * 60 * 60 for call in query.call_args_list)
-    assert snapshot_reader.call_count == 2
+    snapshot_loader.assert_called_once_with()
+
+
+def test_overview_keeps_routing_and_memory_when_service_bridge_fails(mocker):
+    class FakeNode:
+        id = 1
+
+        def __str__(self):
+            return "node-1"
+
+    routing = _routing_snapshot()
+    routing["nodes"] = routing["nodes"][:1]
+    routing["routers"] = routing["routers"][:1]
+    mocker.patch(
+        "monitor_web.redis_management.resources.load_routing_observation",
+        return_value=(routing, [FakeNode()]),
+    )
+    mocker.patch(
+        "monitor_web.redis_management.resources._load_latest_snapshots",
+        side_effect=RuntimeError("monitor-api unavailable"),
+    )
+    mocker.patch(
+        "monitor_web.redis_management.resources.resource.grafana.graph_promql_query",
+        return_value={"series": []},
+    )
+    mocker.patch("monitor_web.redis_management.resources.time", return_value=1200)
+
+    result = GetRedisManagementOverviewResource().perform_request({})
+
+    assert result["routing"]["snapshot_id"] == "route-snapshot"
+    assert [node["id"] for node in result["nodes"]] == [1]
+    assert result["cost_evidence"]["status"] == "unavailable"
 
 
 def test_query_metric_uses_custom_report_namespace_and_cluster_job(mocker):
@@ -303,29 +331,26 @@ def test_query_metric_uses_custom_report_namespace_and_cluster_job(mocker):
 
     _query_metric("redis_memory_used_bytes", "alarm", 1000, 1180)
 
-    assert (
-        query.call_args.kwargs["promql"]
-        == 'custom:custom_report_aggate:redis_memory_used_bytes{job="alarm"}'
+    assert query.call_args.kwargs["promql"] == 'custom:custom_report_aggate:redis_memory_used_bytes{job="alarm"}'
+
+
+def test_load_latest_snapshots_uses_existing_monitor_api_service_bridge(mocker):
+    bridge = mocker.patch(
+        "monitor_web.redis_management.resources.api.monitor.bkm_cli_op_call",
+        return_value={
+            "result": {
+                "nodes": [
+                    {"node": {"id": 1}, "snapshots": [{"snapshot_id": "s1"}]},
+                    {"node": {"id": 2}, "snapshots": []},
+                ]
+            }
+        },
     )
 
+    result = _load_latest_snapshots()
 
-def test_read_latest_snapshot_uses_bounded_isolated_client_and_closes(mocker):
-    node = SimpleNamespace(id=1)
-    source_client = object()
-    isolated_client = mocker.MagicMock()
-    mocker.patch(
-        "monitor_web.redis_management.resources.REDIS_STRATEGY_COST_SNAPSHOT_KEY.client.get_client",
-        return_value=source_client,
+    assert result == {1: {"snapshot_id": "s1"}, 2: None}
+    bridge.assert_called_once_with(
+        op_id="read-redis-strategy-cost-snapshots",
+        params={"operation": "latest"},
     )
-    isolated = mocker.patch(
-        "monitor_web.redis_management.resources.IsolatedSnapshotRedisClient", return_value=isolated_client
-    )
-    store = mocker.patch("monitor_web.redis_management.resources.StrategyCostSnapshotStore")
-    store.return_value.read.return_value = [{"snapshot_id": "latest"}]
-
-    result = _read_latest_snapshot(node, 10)
-
-    assert result == {"snapshot_id": "latest"}
-    isolated.assert_called_once_with(source_client, 1.0)
-    store.assert_called_once_with(node, client=isolated_client)
-    isolated_client.close.assert_called_once_with()

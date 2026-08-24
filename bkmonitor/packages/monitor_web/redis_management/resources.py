@@ -16,32 +16,36 @@ import json
 import logging
 from hashlib import sha256
 from math import isfinite
-from time import monotonic, time
+from time import time
 from typing import Any
 
 from django.conf import settings
 from django.db import router as db_router
 from django.db.models import Max
 
-from alarm_backends.core.cache.key import REDIS_STRATEGY_COST_SNAPSHOT_KEY
-from alarm_backends.core.cache.strategy_cost_snapshot import (
-    IsolatedSnapshotRedisClient,
-    StrategyCostSnapshotStore,
-    serialize_cache_node,
-)
-from alarm_backends.core.cluster import get_cluster
 from bkmonitor.models import CacheNode, CacheRouter, StrategyModel
-from core.drf_resource import Resource, resource
+from core.drf_resource import Resource, api, resource
 
 MEMBER_COST_LOWER_BYTES = 100
 MEMBER_COST_UPPER_BYTES = 150
 HOT_STRATEGY_LIMIT = 100
 THREE_HOURS_SECONDS = 3 * 60 * 60
 CURRENT_POINT_MAX_AGE_SECONDS = 5 * 60
-SNAPSHOT_READ_TOTAL_BUDGET_SECONDS = 3.0
-SNAPSHOT_READ_NODE_BUDGET_SECONDS = 1.0
 
 logger = logging.getLogger("monitor_web")
+
+
+def serialize_cache_node(node) -> dict[str, Any]:
+    """返回页面所需且不含连接信息的 CacheNode 身份。"""
+
+    return {
+        "id": node.id,
+        "node_alias": getattr(node, "node_alias", "") or "",
+        "cluster_name": getattr(node, "cluster_name", "") or "",
+        "cache_type": getattr(node, "cache_type", "") or "",
+        "is_default": bool(getattr(node, "is_default", False)),
+        "is_enable": bool(getattr(node, "is_enable", True)),
+    }
 
 
 def _canonical_digest(payload: dict[str, Any]) -> str:
@@ -77,10 +81,7 @@ def build_routing_observation(
 ) -> dict[str, Any]:
     nodes = sorted((serialize_cache_node(node) for node in node_models), key=lambda item: item["id"])
     routes = sorted(
-        (
-            {"strategy_score": int(route["strategy_score"]), "node_id": int(route["node_id"])}
-            for route in routes
-        ),
+        ({"strategy_score": int(route["strategy_score"]), "node_id": int(route["node_id"])} for route in routes),
         key=lambda item: (item["strategy_score"], item["node_id"]),
     )
     node_by_id = {node["id"]: node for node in nodes}
@@ -115,7 +116,7 @@ def build_routing_observation(
 
 
 def load_routing_observation() -> tuple[dict[str, Any], list[Any]]:
-    cluster_name = get_cluster().name
+    cluster_name = settings.ALARM_BACKEND_CLUSTER_NAME
     using = db_router.db_for_read(CacheRouter) or "default"
     node_models = list(CacheNode.objects.using(using).filter(cluster_name=cluster_name).order_by("id"))
     routes = list(
@@ -224,7 +225,9 @@ def build_memory_view(
         ),
         None,
     )
-    if reference_time is not None and (observed_at is None or observed_at < reference_time - CURRENT_POINT_MAX_AGE_SECONDS):
+    if reference_time is not None and (
+        observed_at is None or observed_at < reference_time - CURRENT_POINT_MAX_AGE_SECONDS
+    ):
         current = None
     current_capacity_candidates = [
         capacity
@@ -411,14 +414,27 @@ def _query_metric(metric: str, cluster_name: str, start_time: int, end_time: int
     return result.get("series") or []
 
 
-def _read_latest_snapshot(node, remaining_seconds: float) -> dict[str, Any] | None:
-    source_client = REDIS_STRATEGY_COST_SNAPSHOT_KEY.client.get_client(node)
-    client = IsolatedSnapshotRedisClient(source_client, min(remaining_seconds, SNAPSHOT_READ_NODE_BUDGET_SECONDS))
-    try:
-        history = StrategyCostSnapshotStore(node, client=client).read(limit=1)
-        return history[0] if history else None
-    finally:
-        client.close()
+def _load_latest_snapshots() -> dict[int, dict[str, Any] | None]:
+    """通过 monitor-api 服务桥读取已有快照，Web 不直接连接告警后台 Redis。"""
+
+    response = api.monitor.bkm_cli_op_call(
+        op_id="read-redis-strategy-cost-snapshots",
+        params={"operation": "latest"},
+    )
+    result = response.get("result") if isinstance(response, dict) else None
+    entries = result.get("nodes") if isinstance(result, dict) else None
+    snapshots: dict[int, dict[str, Any] | None] = {}
+    for entry in entries or []:
+        if not isinstance(entry, dict):
+            continue
+        node = entry.get("node")
+        node_id = node.get("id") if isinstance(node, dict) else None
+        if isinstance(node_id, bool) or not isinstance(node_id, int):
+            continue
+        history = entry.get("snapshots")
+        latest = history[0] if isinstance(history, list) and history and isinstance(history[0], dict) else None
+        snapshots[node_id] = latest
+    return snapshots
 
 
 class GetRedisManagementOverviewResource(Resource):
@@ -431,24 +447,12 @@ class GetRedisManagementOverviewResource(Resource):
         used_series = _query_metric("redis_memory_used_bytes", routing["cluster_name"], start_time, generated_at)
         capacity_series = _query_metric("redis_memory_max_bytes", routing["cluster_name"], start_time, generated_at)
 
-        node_snapshots = {}
         node_model_by_id = {node.id: node for node in node_models}
-        snapshot_deadline = monotonic() + SNAPSHOT_READ_TOTAL_BUDGET_SECONDS
-        for node in routing["nodes"]:
-            node_model = node_model_by_id.get(node["id"])
-            if node_model is None or not node["is_enable"]:
-                node_snapshots[node["id"]] = None
-                continue
-            remaining_seconds = snapshot_deadline - monotonic()
-            if remaining_seconds <= 0:
-                node_snapshots[node["id"]] = None
-                continue
-            try:
-                snapshot = _read_latest_snapshot(node_model, remaining_seconds)
-            except Exception:
-                logger.exception("read Redis strategy cost snapshot failed: node_id=%s", node["id"])
-                snapshot = None
-            node_snapshots[node["id"]] = snapshot
+        try:
+            node_snapshots = _load_latest_snapshots()
+        except Exception:
+            logger.exception("read Redis strategy cost snapshots through monitor-api failed")
+            node_snapshots = {}
 
         cost_evidence = build_cost_evidence(routing, node_snapshots)
         snapshot_evidence_by_node = {item["node_id"]: item for item in cost_evidence["nodes"]}
