@@ -434,6 +434,15 @@ class CollectorHandler:
     def _pre_start(self):
         raise NotImplementedError
 
+    def _apply_clean_template_before_start(self):
+        """重新提交停用期间可能发生变化的模板正式配置。"""
+        if not self.data.clean_template_id or not self.data.table_id:
+            return
+
+        # 不显式传 clean_template_id，让清洗更新链路按采集项当前关联读取模板最新正式配置。
+        # 结果表修改仍由原有异步任务执行，这里只保证任务在采集项启用前完成提交。
+        self.create_or_update_clean_config(is_update=True, params={})
+
     @transaction.atomic
     def start(self, **kwargs):
         """
@@ -441,6 +450,8 @@ class CollectorHandler:
         :return: task_id
         """
         self._itsm_start_judge()
+
+        self._apply_clean_template_before_start()
 
         self.data.is_active = True
         self.data.save()
@@ -1727,7 +1738,7 @@ class CollectorHandler:
         hot_warm_enabled = cluster_config.get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled", False)
         return allocation_min_days if hot_warm_enabled else 0
 
-    def create_or_update_clean_config(self, is_update, params, sync_modify_result_table=False):
+    def create_or_update_clean_config(self, is_update, params):
         if is_update:
             table_id = self.data.table_id
             # 更新场景，需要把之前的存储设置拿出来，和更新的配置合并一下
@@ -1763,10 +1774,7 @@ class CollectorHandler:
         from apps.log_databus.handlers.etl import EtlHandler
 
         etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        result = etl_handler.update_or_create(
-            **params,
-            sync_modify_result_table=sync_modify_result_table,
-        )
+        result = etl_handler.update_or_create(**params)
         self._sync_scene_tags_to_index_set(params["labels"])
         return result
 

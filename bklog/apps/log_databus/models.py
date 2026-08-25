@@ -53,7 +53,7 @@ from apps.api import CmsiApi, TransferApi  # noqa
 from apps.log_databus.constants import (  # noqa
     DORIS_CLUSTER_TYPE,
     STORAGE_CLUSTER_TYPE,
-    CleanTemplateSyncStatus,
+    CleanTemplateStatus,
     CollectItsmStatus,
 )
 from apps.log_databus.constants import EtlConfig  # noqa
@@ -200,16 +200,6 @@ class CollectorConfig(CollectorBase):
     enable_v4 = models.BooleanField(_("采集项是否为v4链路"), default=False)
     storage_cluster_type = models.CharField(_("存储集群类型"), max_length=32, default=STORAGE_CLUSTER_TYPE)
     clean_template_id = models.IntegerField(_("清洗模板ID"), null=True, blank=True, db_index=True)
-    clean_template_version = models.PositiveIntegerField(_("已应用清洗模板版本"), null=True, blank=True)
-    clean_template_sync_status = models.CharField(
-        _("清洗模板同步状态"),
-        max_length=32,
-        choices=CleanTemplateSyncStatus.get_choices(),
-        null=True,
-        blank=True,
-    )
-    clean_template_sync_at = models.DateTimeField(_("清洗模板同步时间"), null=True, blank=True)
-    clean_template_sync_message = models.TextField(_("清洗模板同步信息"), blank=True, default="")
 
     def get_name(self):
         return self.collector_config_name
@@ -597,7 +587,13 @@ class CleanTemplate(SoftDeleteModel):
     visible_bk_biz_id = MultiStrSplitByCommaFieldText(_("可见业务ID"), default="")
     alias_settings = models.JSONField(_("别名配置"), null=True, blank=True)
     description = models.TextField(_("模板描述"), blank=True, default="")
-    config_version = models.PositiveIntegerField(_("模板配置版本"), default=1)
+    status = models.CharField(
+        _("模板状态"),
+        max_length=32,
+        choices=CleanTemplateStatus.get_choices(),
+        default=CleanTemplateStatus.PUBLISHED.value,
+    )
+    snapshot = models.JSONField(_("模板草稿快照"), null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = _("清洗模板")

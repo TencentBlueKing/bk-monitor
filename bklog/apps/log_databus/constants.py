@@ -312,13 +312,21 @@ class AsyncStatus:
     DONE = "DONE"
 
 
+class CleanTemplateStatus(ChoicesEnum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+
+    _choices_labels = (
+        (DRAFT, _("草稿")),
+        (PUBLISHED, _("已发布")),
+    )
+
+
 class CleanTemplateSyncStatus(ChoicesEnum):
-    RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
 
     _choices_labels = (
-        (RUNNING, _("同步中")),
         (SUCCESS, _("同步成功")),
         (FAILED, _("同步失败")),
     )
@@ -327,10 +335,7 @@ class CleanTemplateSyncStatus(ChoicesEnum):
 class CleanTemplateSyncMessage(Enum):
     SUCCESS = _("清洗模板同步成功")
     FAILED = _("清洗模板同步失败，请稍后重试")
-    ASSOCIATION_CHANGED_BEFORE_SYNC = _("同步前清洗模板关联关系已发生变化，本次同步已跳过")
-    ASSOCIATION_CHANGED_DURING_SYNC = _(
-        "同步期间清洗模板关联关系发生变化，实际 RT 配置可能与当前配置不一致，请确认并重新保存采集项配置"
-    )
+    ASSOCIATION_CHANGED = _("同步前清洗模板关联关系已发生变化，本次同步已跳过")
 
 
 FIELD_TEMPLATE = {
