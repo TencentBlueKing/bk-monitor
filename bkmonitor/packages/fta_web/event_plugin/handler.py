@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import base64
+import logging
 import os
 import tarfile
 from uuid import uuid4
@@ -19,6 +20,9 @@ from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
 from core.errors.event_plugin import PluginParseError
+
+
+logger = logging.getLogger(__name__)
 
 
 class PackageHandler:
@@ -99,16 +103,34 @@ class PackageHandler:
         从压缩包提取出来
         """
         package_dir = str(uuid4())
+        base_path = os.path.join(cls.get_media_root(), package_dir)
+        real_base_path = os.path.realpath(base_path)
+        base_path_prefix = real_base_path + os.sep
         with tarfile.open(fileobj=tar_file, mode="r:gz") as tar:
             _fileobj = tar.fileobj
             # 这里不能使用getmenbers，如果使用就无法获取到子目录下的文件，因此需要使用迭代器，利用self.next依次获取文件
             for tarinfo in tar:
-                if tarinfo.isdir():
+                if not tarinfo.isfile():
+                    continue
+                member_name = os.path.normpath(tarinfo.name)
+                if os.path.isabs(member_name):
+                    logger.warning("zip/tar member outside destination: %s", tarinfo.name)
+                    continue
+                data_filter = getattr(tarfile, "data_filter", None)
+                if data_filter is not None:
+                    try:
+                        data_filter(tarinfo, real_base_path)
+                    except tarfile.FilterError:
+                        logger.warning("zip/tar member outside destination: %s", tarinfo.name)
+                        continue
+                member_path = os.path.realpath(os.path.join(base_path, member_name))
+                if not member_path.startswith(base_path_prefix):
+                    logger.warning("zip/tar member outside destination: %s", tarinfo.name)
                     continue
                 _fileobj.seek(tarinfo.offset_data)
                 try:
                     default_storage.save(
-                        os.path.join(cls.get_media_root(), package_dir, tarinfo.name),
+                        os.path.join(base_path, member_name),
                         ContentFile(_fileobj.read(tarinfo.size)),
                     )
                 except Exception as e:
