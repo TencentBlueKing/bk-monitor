@@ -1613,6 +1613,7 @@ export default defineComponent({
             showDialog={showMultilineRegDialog.value}
             on-cancel={handleCancelMultilineReg}
             on-update={(val: string) => {
+              isConfigChange.value = true;
               formData.value.params.multiline_pattern = val;
             }}
           />
