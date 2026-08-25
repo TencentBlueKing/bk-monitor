@@ -30,6 +30,7 @@ import { CancelToken } from 'monitor-api/index';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
+import { splitNumberHighlightFragments } from '../../../../../text-display-utils';
 import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
 import { FormItem, type IFormDataItem } from '../form/utils';
@@ -305,8 +306,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
       failed: 'error',
     };
     this.tipsData.status = statusMap[resData.status];
-    this.tipsData.message =
-      resData.status_detail?.replace?.(/(([1-9]\d*\.?\d*)|(0\.\d*))/g, '<span class="hl">$1</span>') || '';
+    this.tipsData.message = resData.status_detail || '';
   }
 
   /** 校验方法 */
@@ -340,8 +340,20 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
             <div
               class='ai-ops-tips'
               slot='title'
-              domPropsInnerHTML={this.tipsData.message}
-            />
+            >
+              {splitNumberHighlightFragments(this.tipsData.message).map(fragment =>
+                fragment.highlight ? (
+                  <span
+                    key={fragment.start}
+                    class='hl'
+                  >
+                    {fragment.text}
+                  </span>
+                ) : (
+                  fragment.text
+                )
+              )}
+            </div>
           </bk-alert>
         )}
         <Form

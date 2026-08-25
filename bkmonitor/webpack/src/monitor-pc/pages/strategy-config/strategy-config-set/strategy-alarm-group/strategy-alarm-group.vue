@@ -64,7 +64,7 @@ export default class StrategyAlarmGroup extends Vue<MonitorVue> {
     );
   }
 
-  renderAlarmGroupList(node, ctx, highlightKeyword) {
+  renderAlarmGroupList(node) {
     return this.$createElement(
       'div',
       {
@@ -80,11 +80,8 @@ export default class StrategyAlarmGroup extends Vue<MonitorVue> {
             class: {
               text: true,
             },
-            domProps: {
-              domPropsInnerHTML: `${highlightKeyword(node.name)}`,
-            },
           },
-          `${highlightKeyword(node.name)}`
+          node.name
         ),
       ]
     );

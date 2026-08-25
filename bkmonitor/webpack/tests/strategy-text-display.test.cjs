@@ -75,3 +75,84 @@ test('仪表盘搜索结果标题使用纯文本片段展示', () => {
   assert.match(source, /splitHighlightFragments\(item\.title,\s*this\.keywork\)/);
   assert.match(source, /\{fragment\.text\}/);
 });
+
+test('标签搜索结果使用纯文本片段展示', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/components/multi-label-select/multi-label-select.tsx'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(source, /domPropsInnerHTML/);
+  assert.match(source, /splitHighlightFragments\(id,\s*this\.removeSpacesInputValue\)/);
+  assert.match(source, /class='hl'/);
+});
+
+test('维度下拉与告警组下拉使用纯文本名称', () => {
+  const dimensionSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../src/monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/monitor-data-input.tsx'
+    ),
+    'utf8'
+  );
+  const alarmGroupSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../src/monitor-pc/pages/strategy-config/strategy-config-set/strategy-alarm-group/strategy-alarm-group.vue'
+    ),
+    'utf8'
+  );
+
+  assert.doesNotMatch(dimensionSource, /domPropsInnerHTML/);
+  assert.match(dimensionSource, /\{node\.name\}/);
+  assert.doesNotMatch(alarmGroupSource, /domPropsInnerHTML|highlightKeyword/);
+  assert.match(alarmGroupSource, /node\.name/);
+});
+
+test('事件维度提示使用纯文本并保留多行内容', () => {
+  assert.equal(typeof textDisplayUtils.getKeyValueTooltip, 'function', '缺少键值提示配置');
+
+  const tooltip = textDisplayUtils.getKeyValueTooltip([
+    { key: 'host', value: '<img src=x onerror=alert(1)>' },
+    { key: 'disk', value: 'sda' },
+  ]);
+
+  assert.deepEqual(tooltip, {
+    allowHTML: false,
+    content: 'host：<img src=x onerror=alert(1)>\ndisk：sda',
+    extCls: 'event-tags-text-tooltips',
+  });
+
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/fta-solutions/pages/event/event-detail/related-events.tsx'),
+    'utf8'
+  );
+  assert.doesNotMatch(source, /allowHTML:\s*true/);
+  assert.match(source, /getKeyValueTooltip/);
+});
+
+test('智能检测状态文案按数字拆分为纯文本片段', () => {
+  assert.equal(typeof textDisplayUtils.splitNumberHighlightFragments, 'function', '缺少数字高亮拆分方法');
+
+  const fragments = textDisplayUtils.splitNumberHighlightFragments('模型准备中，预计 3.5 分钟 <script>');
+
+  assert.deepEqual(fragments, [
+    { text: '模型准备中，预计 ', highlight: false, start: 0 },
+    { text: '3.5', highlight: true, start: 9 },
+    { text: ' 分钟 <script>', highlight: false, start: 12 },
+  ]);
+});
+
+test('智能检测状态条不再使用 innerHTML', () => {
+  const files = [
+    '../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect.tsx',
+    '../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast.tsx',
+    '../src/monitor-pc/pages/strategy-config/strategy-config-set-new/detection-rules/components/abnormal-cluster/abnormal-cluster.tsx',
+  ];
+
+  files.forEach(relativePath => {
+    const source = fs.readFileSync(path.resolve(__dirname, relativePath), 'utf8');
+    assert.doesNotMatch(source, /domPropsInnerHTML/);
+    assert.match(source, /splitNumberHighlightFragments\(this\.tipsData\.message\)/);
+  });
+});

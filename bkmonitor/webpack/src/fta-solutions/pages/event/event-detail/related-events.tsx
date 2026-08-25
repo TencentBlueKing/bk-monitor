@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { eventTopN, searchEvent } from 'monitor-api/modules/alert';
-import { xssFilter } from 'monitor-common/utils/xss';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { getKeyValueTooltip } from 'monitor-pc/pages/text-display-utils';
 import { getEventPaths } from 'monitor-pc/utils/index';
 
 import { commonAlertFieldMap } from '../event';
@@ -227,10 +227,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
               <span
                 class='tags-items'
                 v-bk-tooltips={{
-                  content: tags
-                    .map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
-                    .join(''),
-                  allowHTML: true,
+                  ...getKeyValueTooltip(tags),
                 }}
               >
                 {tags.slice(0, 2).map(item => [<span class='tags-item'>{`${item.key}: ${item.value}`}</span>, <br />])}
@@ -541,11 +538,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                 <div
                   class='item-content-kv-tip'
                   v-bk-tooltips={{
-                    content:
-                      child.tags
-                        ?.map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
-                        ?.join('') || '',
-                    allowHTML: true,
+                    ...getKeyValueTooltip(child.tags || []),
                     disabled: (child.tags?.length || 0) <= 4,
                   }}
                 >
