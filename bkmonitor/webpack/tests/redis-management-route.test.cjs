@@ -17,7 +17,7 @@ const {
   calculateMarkerHeight,
   calculateMemoryScale,
   calculateUsageScale,
-  estimateMax3hMemoryRange,
+  estimateNormalizedRedistribution,
   canAccessRedisManagement,
   buildRedisManagementForbiddenQuery,
   canEditBoundary,
@@ -123,10 +123,22 @@ test('拖动边界只返回单次调整所需的范围、方向和迁移成本',
   assert.equal('steady' in draft, false);
 });
 
-test('源节点和目标节点使用同一套 3 小时最大内存区间估算', () => {
-  assert.deepEqual(estimateMax3hMemoryRange(4800, 4300, 6400, true), { lower: 0, upper: 500 });
-  assert.deepEqual(estimateMax3hMemoryRange(773, 4300, 6400, false), { lower: 5073, upper: 7173 });
-  assert.deepEqual(estimateMax3hMemoryRange(null, 4300, 6400, false), { lower: null, upper: null });
+test('迁移成本按源节点策略成本占比归一到真实 3 小时峰值', () => {
+  const estimate = estimateNormalizedRedistribution(4900, 730, 80, 100);
+
+  assert.deepEqual(estimate, {
+    movedBytes: 3920,
+    sourceAfter: 980,
+    targetAfter: 4650,
+  });
+  assert.equal(4900 - estimate.sourceAfter, estimate.targetAfter - 730);
+});
+
+test('成本证据无法形成有效占比时不返回虚假的零内存结果', () => {
+  assert.equal(estimateNormalizedRedistribution(4900, 730, 100, 100), null);
+  assert.equal(estimateNormalizedRedistribution(4900, 730, 101, 100), null);
+  assert.equal(estimateNormalizedRedistribution(4900, 730, 80, 0), null);
+  assert.equal(estimateNormalizedRedistribution(null, 730, 80, 100), null);
 });
 
 test('热策略内存刻度根据当前数据上调而不是写死 256 MiB', () => {
@@ -288,7 +300,8 @@ test('拖动后只展示单一且可理解的内存变更预览', () => {
   assert.match(source, /redis-route-live-preview/);
   const memoryPreview = source.match(/renderMemoryChange\(\)\s*\{([\s\S]*?)\n\s*renderDraft\(\)/)?.[1] ?? '';
   assert.match(memoryPreview, /3 小时采样峰值/);
-  assert.match(memoryPreview, /estimateMax3hMemoryRange/);
+  assert.match(memoryPreview, /draftMemoryEstimate/);
+  assert.doesNotMatch(memoryPreview, /estimateMax3hMemoryRange/);
   assert.doesNotMatch(memoryPreview, /当前\s|调整后观测/);
   assert.doesNotMatch(source, /切换期|稳定后|不能作为容量安全结论/);
 });

@@ -38,7 +38,8 @@ import {
   calculateMemoryScale,
   calculateUsageScale,
   canEditBoundary,
-  estimateMax3hMemoryRange,
+  costBetween,
+  estimateNormalizedRedistribution,
 } from './route-model';
 
 import './redis-management.scss';
@@ -229,6 +230,19 @@ export default class RedisManagement extends Vue {
 
   get draftHasKnownCost() {
     return !!this.draft && (this.draftEvidenceComplete || this.draft.measuredCount > 0);
+  }
+
+  get draftMemoryEstimate() {
+    if (!this.draft || !this.draftHasKnownCost) return null;
+    const sourcePeakMembers = this.committedRoutes
+      .filter(route => route.nodeId === this.draft.sourceNodeId)
+      .reduce((total, route) => total + costBetween(this.costPrefix, route.from, route.to).peakMembers, 0);
+    return estimateNormalizedRedistribution(
+      this.nodeById(this.draft.sourceNodeId)?.memory.max_3h_bytes ?? null,
+      this.nodeById(this.draft.targetNodeId)?.memory.max_3h_bytes ?? null,
+      this.draft.peakMembers,
+      sourcePeakMembers
+    );
   }
 
   get evidenceLabel() {
@@ -488,18 +502,8 @@ export default class RedisManagement extends Vue {
 
   renderRouteLivePreview() {
     if (!this.draft) return null;
-    const target = this.nodeById(this.draft.targetNodeId);
-    const estimated = this.draftHasKnownCost
-      ? estimateMax3hMemoryRange(
-          target?.memory.max_3h_bytes ?? null,
-          this.draft.lowerBytes,
-          this.draft.upperBytes,
-          false
-        )
-      : { lower: null, upper: null };
-    const cost = this.draftHasKnownCost
-      ? `${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
-      : '--';
+    const estimated = this.draftMemoryEstimate;
+    const cost = estimated ? `约 ${formatBytes(estimated.movedBytes)}` : '--';
     return (
       <div class='redis-route-live-preview'>
         <strong>实时预估</strong>
@@ -509,10 +513,8 @@ export default class RedisManagement extends Vue {
         <span>
           策略 ID {formatInteger(this.draft.range.from)}–{formatInteger(this.draft.range.to)}
         </span>
-        <span>已知迁移成本 {cost}</span>
-        <span>
-          目标节点峰值 {this.formatNodeMemoryRange(estimated.lower, estimated.upper, this.draft.targetNodeId)}
-        </span>
+        <span>预计迁移峰值 {cost}</span>
+        <span>目标节点峰值 {this.formatNodeMemory(estimated?.targetAfter ?? null, this.draft.targetNodeId)}</span>
         <span>
           本次范围已估算 {formatInteger(this.draft.measuredCount)} 条，未估算{' '}
           {formatInteger(this.draft.unmeasuredCount)} 条
@@ -627,30 +629,16 @@ export default class RedisManagement extends Vue {
     );
   }
 
-  formatNodeMemoryRange(lower: null | number, upper: null | number, nodeId: number) {
-    if (lower === null || upper === null) return '--';
-    if (lower === upper) return this.formatNodeMemory(lower, nodeId);
-    return `${this.formatNodeMemory(lower, nodeId)}–${this.formatNodeMemory(upper, nodeId)}`;
-  }
-
   renderMemoryChange() {
-    const costLabel = this.draftHasKnownCost
-      ? `${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
-      : '--';
+    const estimated = this.draftMemoryEstimate;
+    const costLabel = estimated ? `约 ${formatBytes(estimated.movedBytes)}` : '--';
     return (
       <div class='redis-draft-state'>
         <h4>3 小时采样峰值预估</h4>
         {[this.draft.sourceNodeId, this.draft.targetNodeId].map(nodeId => {
           const node = this.nodeById(nodeId);
           const isSource = nodeId === this.draft.sourceNodeId;
-          const estimated = this.draftHasKnownCost
-            ? estimateMax3hMemoryRange(
-                node?.memory.max_3h_bytes ?? null,
-                this.draft.lowerBytes,
-                this.draft.upperBytes,
-                isSource
-              )
-            : { lower: null, upper: null };
+          const after = isSource ? estimated?.sourceAfter : estimated?.targetAfter;
           return (
             <div
               key={nodeId}
@@ -664,8 +652,7 @@ export default class RedisManagement extends Vue {
               </strong>
               <span>
                 3 小时采样峰值 {this.formatNodeMemory(node?.memory.max_3h_bytes ?? null, nodeId)} →{' '}
-                {isSource ? '清理后预计回落至' : '预计上升至'}{' '}
-                {this.formatNodeMemoryRange(estimated.lower, estimated.upper, nodeId)}
+                {isSource ? '清理后预计回落至' : '预计上升至'} {this.formatNodeMemory(after ?? null, nodeId)}
               </span>
             </div>
           );
@@ -679,11 +666,12 @@ export default class RedisManagement extends Vue {
     const impacted = this.hotStrategies.filter(
       strategy => strategy.strategy_id >= this.draft.range.from && strategy.strategy_id <= this.draft.range.to
     );
-    const costSummary = this.draftEvidenceComplete
-      ? `预估迁移内存 ${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
-      : this.draft.measuredCount > 0
-        ? `已覆盖部分迁移内存 ${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
-        : '迁移内存证据不足';
+    const estimated = this.draftMemoryEstimate;
+    const costSummary = estimated
+      ? this.draftEvidenceComplete
+        ? `预计迁移峰值约 ${formatBytes(estimated.movedBytes)}`
+        : `已覆盖部分预计迁移峰值约 ${formatBytes(estimated.movedBytes)}`
+      : '迁移内存证据不足';
     return (
       <section class='redis-draft-panel'>
         <div class='redis-section-head'>

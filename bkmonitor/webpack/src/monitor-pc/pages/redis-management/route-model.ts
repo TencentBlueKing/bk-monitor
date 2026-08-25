@@ -50,6 +50,12 @@ export interface IRangeCost {
   upperBytes: number;
 }
 
+export interface IRedistributionEstimate {
+  movedBytes: number;
+  sourceAfter: number;
+  targetAfter: null | number;
+}
+
 export interface IRouteSegment {
   from: number;
   nodeId: number;
@@ -149,20 +155,32 @@ export const calculateUsageScale = (values: number[]): number => {
   return Math.max(0.1, Math.ceil(maximum * 10) / 10);
 };
 
-export const estimateMax3hMemoryRange = (
-  before: null | number,
-  costLower: number,
-  costUpper: number,
-  isSource: boolean
-): { lower: null | number; upper: null | number } => {
-  if (before === null) return { lower: null, upper: null };
-  if (isSource) {
-    return {
-      lower: Math.max(0, before - costUpper),
-      upper: Math.max(0, before - costLower),
-    };
+export const estimateNormalizedRedistribution = (
+  sourceBefore: null | number,
+  targetBefore: null | number,
+  movedPeakMembers: number,
+  sourcePeakMembers: number
+): IRedistributionEstimate | null => {
+  if (
+    sourceBefore === null ||
+    !Number.isFinite(sourceBefore) ||
+    sourceBefore <= 0 ||
+    !Number.isFinite(movedPeakMembers) ||
+    !Number.isFinite(sourcePeakMembers) ||
+    movedPeakMembers <= 0 ||
+    sourcePeakMembers <= 0
+  ) {
+    return null;
   }
-  return { lower: before + costLower, upper: before + costUpper };
+  const movedRatio = movedPeakMembers / sourcePeakMembers;
+  if (movedRatio <= 0 || movedRatio >= 1) return null;
+  const movedBytes = sourceBefore * movedRatio;
+  return {
+    movedBytes,
+    sourceAfter: sourceBefore - movedBytes,
+    targetAfter:
+      targetBefore !== null && Number.isFinite(targetBefore) && targetBefore >= 0 ? targetBefore + movedBytes : null,
+  };
 };
 
 export const canEditBoundary = (
