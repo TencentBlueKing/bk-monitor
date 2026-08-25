@@ -73,6 +73,15 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 class MetaInfoViewSet(ResourceViewSet):
     def get_permissions(self):
+        if self.action == "meta_instrument_guides":
+            return [
+                InstanceActionForDataPermission(
+                    "app_name",
+                    [ActionEnum.MANAGE_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
         return [ViewBusinessPermission()]
 
     resource_routes = [
