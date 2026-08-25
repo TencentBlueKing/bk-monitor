@@ -30,9 +30,7 @@ export interface IBoundaryDraft extends IRangeCost {
   range: { from: number; to: number };
   routes: IRouteSegment[];
   sourceNodeId: number;
-  steady: Record<number, INodeMemory>;
   targetNodeId: number;
-  transition: Record<number, INodeMemory>;
 }
 
 export interface ICostPrefix {
@@ -42,11 +40,6 @@ export interface ICostPrefix {
   strategyId: number;
   unmeasuredCount: number;
   upperBytes: number;
-}
-
-export interface INodeMemory {
-  currentBytes: null | number;
-  max3hBytes: null | number;
 }
 
 export interface IRangeCost {
@@ -109,17 +102,11 @@ export const coverageBetween = (prefix: ICostPrefix[], from: number, to: number)
   return { measuredCount: cost.measuredCount, unmeasuredCount: cost.unmeasuredCount };
 };
 
-const add = (value: null | number, delta: number) => (value === null ? null : Math.max(0, value + delta));
-
-const copyMemories = (nodes: Record<number, INodeMemory>) =>
-  Object.fromEntries(Object.entries(nodes).map(([nodeId, memory]) => [nodeId, { ...memory }]));
-
 export const buildBoundaryDraft = (
   routes: IRouteSegment[],
   boundaryIndex: number,
   boundary: number,
-  prefix: ICostPrefix[],
-  nodes: Record<number, INodeMemory>
+  prefix: ICostPrefix[]
 ): IBoundaryDraft => {
   const nextRoutes = routes.map(route => ({ ...route }));
   const left = nextRoutes[boundaryIndex];
@@ -135,18 +122,6 @@ export const buildBoundaryDraft = (
   const sourceNodeId = movingRight ? right.nodeId : left.nodeId;
   const targetNodeId = movingRight ? left.nodeId : right.nodeId;
   const cost = costBetween(prefix, range.from, range.to);
-  const transition = copyMemories(nodes);
-  const steady = copyMemories(nodes);
-
-  transition[targetNodeId] = {
-    currentBytes: add(transition[targetNodeId]?.currentBytes ?? null, cost.upperBytes),
-    max3hBytes: add(transition[targetNodeId]?.max3hBytes ?? null, cost.upperBytes),
-  };
-  steady[targetNodeId] = { ...transition[targetNodeId] };
-  steady[sourceNodeId] = {
-    currentBytes: add(steady[sourceNodeId]?.currentBytes ?? null, -cost.upperBytes),
-    max3hBytes: add(steady[sourceNodeId]?.max3hBytes ?? null, -cost.upperBytes),
-  };
 
   return {
     boundary: bounded,
@@ -155,8 +130,6 @@ export const buildBoundaryDraft = (
     routes: nextRoutes,
     sourceNodeId,
     targetNodeId,
-    transition,
-    steady,
     ...cost,
   };
 };

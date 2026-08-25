@@ -150,7 +150,8 @@
 }
 
 .redis-route-scale,
-.redis-route-context {
+.redis-route-context,
+.redis-route-snapshot {
   font-size: 12px;
   color: #979ba5;
 }
@@ -159,6 +160,11 @@
   display: flex;
   justify-content: space-between;
   margin-top: 24px;
+}
+
+.redis-route-snapshot {
+  margin-top: 8px;
+  text-align: right;
 }
 
 .redis-route-layout {
@@ -171,7 +177,7 @@
 
 .redis-route-visual {
   position: relative;
-  height: 156px;
+  height: 174px;
 }
 
 .redis-memory-line {
@@ -191,7 +197,7 @@
 
 .redis-hot-layer {
   position: absolute;
-  inset: 12px 0 48px;
+  inset: 12px 0 66px;
 }
 
 .redis-hot-marker {
@@ -326,8 +332,7 @@
   }
 }
 
-.redis-route-warning,
-.redis-draft-warning {
+.redis-route-warning {
   padding: 8px 12px;
   margin-top: 12px;
   color: #ff9c01;
@@ -347,7 +352,7 @@
 
 .redis-draft-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-top: 12px;
 }
@@ -370,6 +375,19 @@
   border-top: 1px solid #eaebf0;
 
   span {
+    color: #63656e;
+  }
+
+  strong {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  em {
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
     color: #63656e;
   }
 }
