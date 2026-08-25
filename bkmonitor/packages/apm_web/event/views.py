@@ -26,10 +26,15 @@ class EventViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        action = (
+            ActionEnum.MANAGE_APM_APPLICATION
+            if self.action == "update_tag_config"
+            else ActionEnum.VIEW_APM_APPLICATION
+        )
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
-                [ActionEnum.VIEW_APM_APPLICATION],
+                [action],
                 ResourceEnum.APM_APPLICATION,
                 get_instance_id=Application.get_application_id_by_app_name,
             )
