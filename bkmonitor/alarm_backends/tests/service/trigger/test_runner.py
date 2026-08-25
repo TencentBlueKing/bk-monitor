@@ -188,8 +188,12 @@ def test_trigger_processor_progress_callback_failure_is_not_swallowed(mocker):
     processor.push.assert_not_called()
 
 
-def test_trigger_processor_default_pull_batch_is_bounded():
-    assert TriggerProcessor.MAX_PROCESS_COUNT == 1000
+def test_trigger_processor_default_pull_batch_is_unbounded():
+    assert TriggerProcessor.MAX_PROCESS_COUNT == 0
+
+
+def test_event_trigger_pull_batch_remains_bounded():
+    assert runner.EVENT_TRIGGER_BATCH_SIZE == 1000
 
 
 def test_anomaly_list_pull_script_does_not_register_trim_inflight():

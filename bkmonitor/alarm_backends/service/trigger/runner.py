@@ -33,7 +33,7 @@ from core.prometheus import metrics
 
 logger = logging.getLogger("trigger")
 
-EVENT_TRIGGER_BATCH_SIZE = TriggerProcessor.MAX_PROCESS_COUNT
+EVENT_TRIGGER_BATCH_SIZE = 1000
 EVENT_TRIGGER_LEASE_TTL = 300
 EVENT_TRIGGER_LEASE_RENEW_INTERVAL = 60
 
