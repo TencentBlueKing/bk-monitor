@@ -57,15 +57,10 @@ class MetricViewSet(ResourceViewSet):
         if self.action in ["host_instance_detail"]:
             return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
-        action = (
-            ActionEnum.MANAGE_APM_APPLICATION
-            if self.action == "collect_service"
-            else ActionEnum.VIEW_APM_APPLICATION
-        )
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
-                [action],
+                [ActionEnum.VIEW_APM_APPLICATION],
                 ResourceEnum.APM_APPLICATION,
                 get_instance_id=Application.get_application_id_by_app_name,
             )
