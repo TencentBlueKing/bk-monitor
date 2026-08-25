@@ -213,3 +213,20 @@ export const buildSparklineSegments = (trend: Array<[null | number, number]>) =>
 
 export const canAccessRedisManagement = (isSuperuser: boolean, actionResults: Array<{ isAllowed?: boolean }>) =>
   isSuperuser && actionResults.some(item => item.isAllowed === true);
+
+export const resolveRedisManagementAccess = async (
+  isSuperuser: boolean,
+  loadActionResults: () => Promise<Array<{ isAllowed?: boolean }>>
+) => {
+  if (!isSuperuser) return false;
+  const actionResults = await loadActionResults().catch(() => []);
+  return canAccessRedisManagement(isSuperuser, actionResults);
+};
+
+export const buildRedisManagementForbiddenQuery = (isSuperuser: boolean, actionId: string, fullPath: string) =>
+  isSuperuser
+    ? {
+        actionId,
+        fromUrl: fullPath.replace(/^\//, ''),
+      }
+    : undefined;
