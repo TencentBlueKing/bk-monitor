@@ -9,10 +9,11 @@ Module dimensions:
 - presentation: UI composition, interaction state and view contracts
 
 Selection rules:
-1. Each module must choose the simplest sufficient pattern for its responsibility.
+1. Each module gets its own problem set and its own minimum sufficient composition.
 2. Different modules may use different patterns when business behavior differs.
 3. Pattern landing must include contract, implementation boundary and verification.
 4. Do not leak infrastructure or presentation pattern choices into domain logic.
+5. A module with no identified problem gets no pattern.
 
 Required artifacts:
 - module_pattern_selection

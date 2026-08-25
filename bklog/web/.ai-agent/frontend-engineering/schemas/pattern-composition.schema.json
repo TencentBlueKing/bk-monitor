@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "pattern-composition.schema.json",
+  "title": "The composition, §12",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "problem": {
+      "type": "array",
+      "items": {
+        "$ref": "problem.schema.json"
+      }
+    },
+    "patterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "responsibility": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "responsibility"
+        ]
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "delegates-to",
+              "depends-on"
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "between": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2
+          },
+          "reason": {
+            "type": "string"
+          },
+          "resolution": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "between",
+          "reason",
+          "resolution"
+        ]
+      }
+    },
+    "redundantPatterns": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "rationale": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "complexity": {
+      "type": "string",
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "problem",
+    "patterns",
+    "relations",
+    "complexity"
+  ],
+  "additionalProperties": true
+}
