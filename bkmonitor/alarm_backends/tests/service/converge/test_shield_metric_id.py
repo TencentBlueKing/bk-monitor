@@ -24,6 +24,13 @@ DISK_IO_PROMQL = (
     "(avg_over_time(bkmonitor:system:io:util[1m])))*100>=80"
 )
 
+# 聚合维度更多时表达式超过 QueryConfig.metric_id 的字段长度（128），指标名会整个落在截断之外
+LONG_DISK_IO_PROMQL = (
+    "(avg by (bk_target_ip, bk_target_cloud_id, device_name, hostname, bk_target_service_instance_id) "
+    "(avg_over_time(bkmonitor:system:io:util[1m])))*100>=80"
+)
+TRUNCATED_LONG_METRIC_ID = LONG_DISK_IO_PROMQL[:125] + "..."
+
 
 def match_metric_id(shield_metric_ids, alert_metric_ids) -> bool:
     """按屏蔽配置的 metric_id 判断告警侧 metric_id 是否命中。"""
@@ -88,6 +95,16 @@ class TestPromqlAwareMetricIdCondition:
     def test_multi_metric_promql_any_match(self):
         promql = "bkmonitor:system:disk:total - bkmonitor:system:io:util"
         assert match_metric_id([DISK_IO_METRIC_ID], [promql]) is True
+
+    def test_truncated_metric_id_alone_cannot_match(self):
+        """字段长度截断会切掉指标名，仅凭 metric_id 无法命中——这是补充原始表达式的原因。"""
+        assert len(LONG_DISK_IO_PROMQL) > 128
+        assert "bkmonitor:system:io:util" not in TRUNCATED_LONG_METRIC_ID
+        assert match_metric_id([DISK_IO_METRIC_ID], [TRUNCATED_LONG_METRIC_ID]) is False
+
+    def test_untruncated_promql_restores_match(self):
+        """_calculate_alert_dimension 会同时给出截断后的 metric_id 与未截断表达式，应命中。"""
+        assert match_metric_id([DISK_IO_METRIC_ID], [TRUNCATED_LONG_METRIC_ID, LONG_DISK_IO_PROMQL]) is True
 
     def test_unconvertible_config_does_not_widen(self):
         """配置的 metric_id 无法换算时维持不命中，不扩大屏蔽范围。"""

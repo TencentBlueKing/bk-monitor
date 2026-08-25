@@ -525,7 +525,15 @@ class AlertShieldObj(ShieldObj):
                 raise StrategyNotFound(key=alert.strategy_id)
 
             for query_config in strategy.config["items"][0]["query_configs"]:
-                metric_ids.append(query_config["metric_id"])
+                metric_id = query_config["metric_id"]
+                metric_ids.append(metric_id)
+
+                # PromQL 策略的 metric_id 受 QueryConfig.metric_id 字段长度（128）限制，超长时被
+                # 截断成 promql[:125] + "..."，指标名可能整个落在截断之外。补充未截断的查询表达式
+                # （存在 config JSONField 中，无长度限制），使按指标屏蔽不依赖截断结果。
+                promql = query_config.get("promql")
+                if promql and promql != metric_id:
+                    metric_ids.append(promql)
 
         dimension["metric_id"] = metric_ids
 
