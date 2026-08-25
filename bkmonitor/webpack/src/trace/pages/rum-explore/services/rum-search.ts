@@ -62,7 +62,7 @@ import type { AxiosRequestConfig } from 'axios';
  * 后端接口尚未就绪，当前统一走本地 mock 数据。
  * 联调时把这里改成 false 即可切换到真实接口，无需改动上层 composable 与组件。
  */
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 /** 请求失败时不弹全局错误提示，由调用方决定降级展示 */
 const SILENT: AxiosRequestConfig & { needMessage: boolean } = { needMessage: false };
@@ -208,7 +208,9 @@ export async function getRecordList(
 }
 
 /** 获取页面视图配置：字段全集、字段分组、默认列与默认排序 */
-export async function getViewConfig(params: IRumQueryParams): Promise<IRumViewConfig> {
+export async function getViewConfig(
+  params: Omit<IRumQueryParams, 'filters' | 'query_string'>
+): Promise<IRumViewConfig> {
   if (USE_MOCK) {
     return normalizeViewConfig(await mockDelay(mockViewConfig));
   }

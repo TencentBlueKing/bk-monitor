@@ -111,8 +111,6 @@ export function useRumViewConfig() {
     viewConfig.value = await getViewConfig({
       app_name: store.appName,
       mode: store.mode,
-      filters: [],
-      query_string: '',
       start_time: startTime,
       end_time: endTime,
     });
@@ -120,7 +118,7 @@ export function useRumViewConfig() {
   }
 
   // 字段配置只跟应用和视角有关，时间变化不重新拉取，避免每次改时间都把左侧栏重置
-  watch(() => [store.appName, store.mode], fetchViewConfig, { immediate: true });
+  watch(() => [store.appName, store.mode], fetchViewConfig);
 
   return {
     loading,

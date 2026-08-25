@@ -30,7 +30,7 @@ import { mockApplicationList, mockDelay } from './mocks';
 import type { IRumApplication } from '../typings';
 
 /** 与 rum-search 保持一致，接口就绪后统一切换 */
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 /**
  * 获取 RUM 应用列表。
