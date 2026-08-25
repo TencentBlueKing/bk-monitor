@@ -138,9 +138,7 @@ def _last_number(datapoints: list[list[Any]]) -> float | None:
 
 def _series_identity(series: dict[str, Any]) -> tuple[tuple[str, str], ...]:
     dimensions = series.get("dimensions") or {}
-    return tuple(
-        sorted((str(key), str(value)) for key, value in dimensions.items() if key not in {"node", "cluster_name"})
-    )
+    return tuple(sorted((str(key), str(value)) for key, value in dimensions.items() if key != "__name__"))
 
 
 def _timestamp_seconds(value: Any) -> int | float | None:
@@ -235,17 +233,13 @@ def build_memory_view(
         if timestamp == observed_at and value == current and capacity
     ]
     current_capacity = min(current_capacity_candidates) if current_capacity_candidates else None
-    capacity_value = current_capacity
-    if capacity_value is None:
-        capacity_points = _merge_datapoints(node_capacity_series)
-        capacity_value = _last_number(capacity_points)
     current_ratio = current / current_capacity if current is not None and current_capacity else None
     maximum_ratio = max(usage_values) if usage_values else None
     return {
         "trend": trend,
         "current_bytes": current,
         "max_3h_bytes": maximum,
-        "capacity_bytes": capacity_value,
+        "capacity_bytes": current_capacity,
         "current_usage_ratio": current_ratio,
         "max_3h_usage_ratio": maximum_ratio,
         "observed_at": observed_at,

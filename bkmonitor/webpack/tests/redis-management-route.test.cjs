@@ -83,15 +83,11 @@ test('范围覆盖前缀不会把未测量策略当成零成本', () => {
   assert.deepEqual(coverageBetween(prefix, 101, 500), { measuredCount: 0, unmeasuredCount: 1 });
 });
 
-test('拖动边界分别计算切换期双占峰值与稳定态', () => {
+test('拖动边界只返回单次调整所需的范围、方向和迁移成本', () => {
   const routes = [
     { from: 1, to: 999, nodeId: 1 },
     { from: 1000, to: 1999, nodeId: 2 },
   ];
-  const nodes = {
-    1: { currentBytes: 10000, max3hBytes: 12000 },
-    2: { currentBytes: 20000, max3hBytes: 23000 },
-  };
   const prefix = [
     {
       strategyId: 1000,
@@ -111,17 +107,17 @@ test('拖动边界分别计算切换期双占峰值与稳定态', () => {
     },
   ];
 
-  const draft = buildBoundaryDraft(routes, 0, 1099, prefix, nodes);
+  const draft = buildBoundaryDraft(routes, 0, 1099, prefix);
 
   assert.equal(draft.sourceNodeId, 2);
   assert.equal(draft.targetNodeId, 1);
   assert.deepEqual(draft.range, { from: 1000, to: 1099 });
-  assert.deepEqual(draft.transition[1], { currentBytes: 14500, max3hBytes: 16500 });
-  assert.deepEqual(draft.transition[2], { currentBytes: 20000, max3hBytes: 23000 });
-  assert.deepEqual(draft.steady[1], { currentBytes: 14500, max3hBytes: 16500 });
-  assert.deepEqual(draft.steady[2], { currentBytes: 15500, max3hBytes: 18500 });
+  assert.equal(draft.lowerBytes, 3000);
+  assert.equal(draft.upperBytes, 4500);
   assert.equal(draft.measuredCount, 2);
   assert.equal(draft.unmeasuredCount, 0);
+  assert.equal('transition' in draft, false);
+  assert.equal('steady' in draft, false);
 });
 
 test('热策略内存刻度根据当前数据上调而不是写死 256 MiB', () => {
@@ -233,6 +229,37 @@ test('Redis 管理独立页面使用完整宽度', () => {
   );
   assert.match(source, /\.redis-management\s*\{[\s\S]*?width:\s*100%/);
   assert.match(source, /box-sizing:\s*border-box/);
+});
+
+test('成本快照时间在节点卡片和路由区域都有明确标签', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
+    'utf8'
+  );
+  assert.match(source, /成本快照\s*\{evidenceTime\}/);
+  assert.match(source, /成本快照时间/);
+});
+
+test('热策略图层与路由条之间保留完整点位净空', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.scss'),
+    'utf8'
+  );
+  assert.match(source, /\.redis-route-visual\s*\{[\s\S]*?height:\s*174px/);
+  assert.match(source, /\.redis-hot-layer\s*\{[\s\S]*?inset:\s*12px 0 66px/);
+  assert.match(source, /\.redis-route-track\s*\{[\s\S]*?height:\s*48px/);
+});
+
+test('拖动后只展示单一且可理解的内存变更预览', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
+    'utf8'
+  );
+  assert.match(source, /调整后内存预估/);
+  assert.match(source, /预计迁出/);
+  assert.match(source, /预计迁入/);
+  assert.match(source, /调整后观测/);
+  assert.doesNotMatch(source, /切换期|稳定后|不能作为容量安全结论/);
 });
 
 test('Redis 管理菜单具备正式路由翻译', () => {

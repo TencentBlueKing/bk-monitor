@@ -96,11 +96,24 @@ def test_platform_administrator_permission_checks_all_methods():
 def test_build_memory_view_returns_trend_current_peak_and_usage():
     used_series = [
         {
-            "dimensions": {"node": "node-1"},
+            "dimensions": {
+                "node": "node-1",
+                "__name__": "redis_memory_used_bytes_value",
+                "host": "127.0.0.1",
+            },
             "datapoints": [[100.0, 1000], [None, 1060], [240.0, 1120], [200.0, 1180]],
         }
     ]
-    capacity_series = [{"dimensions": {"node": "node-1"}, "datapoints": [[400.0, 1000], [400.0, 1180]]}]
+    capacity_series = [
+        {
+            "dimensions": {
+                "node": "node-1",
+                "__name__": "redis_memory_max_bytes_value",
+                "host": "127.0.0.1",
+            },
+            "datapoints": [[400.0, 1000], [400.0, 1180]],
+        }
+    ]
 
     result = build_memory_view("node-1", used_series, capacity_series)
 
@@ -147,6 +160,36 @@ def test_build_memory_view_merges_node_series_split_by_runtime_labels():
     assert result["current_usage_ratio"] == 0.44
     assert result["max_3h_usage_ratio"] == 0.45
     assert result["observed_at"] == 1180
+
+
+def test_build_memory_view_does_not_pair_capacity_from_another_runtime_identity():
+    result = build_memory_view(
+        "node-1",
+        [
+            {
+                "dimensions": {
+                    "node": "node-1",
+                    "__name__": "redis_memory_used_bytes_value",
+                    "host": "used-host",
+                },
+                "datapoints": [[200.0, 1180]],
+            }
+        ],
+        [
+            {
+                "dimensions": {
+                    "node": "node-1",
+                    "__name__": "redis_memory_max_bytes_value",
+                    "host": "another-host",
+                },
+                "datapoints": [[400.0, 1180]],
+            }
+        ],
+    )
+
+    assert result["capacity_bytes"] is None
+    assert result["current_usage_ratio"] is None
+    assert result["max_3h_usage_ratio"] is None
 
 
 def test_build_memory_view_marks_stale_current_value_unknown():
