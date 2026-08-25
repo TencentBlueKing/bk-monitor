@@ -266,6 +266,7 @@ export default defineComponent({
               <RetrievalFilter
                 changeWhereFormatter={traceWhereChangeFormatter}
                 commonWhere={queryCtx.commonWhere.value}
+                copyLoading={queryCtx.generateQueryStringLoading.value}
                 defaultShowResidentBtn={queryCtx.showResidentBtn.value}
                 favoriteList={this.favoriteList}
                 fields={viewConfigCtx.retrievalFields.value}
@@ -277,6 +278,7 @@ export default defineComponent({
                 isShowCopy={true}
                 isShowFavorite={true}
                 isShowResident={true}
+                modeChangeLoading={queryCtx.generateQueryStringLoading.value}
                 queryString={queryCtx.queryString.value}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={favoriteCtx.selectedFavorite.value}
@@ -286,11 +288,9 @@ export default defineComponent({
                   queryCtx.commonWhere.value = value;
                   queryCtx.handleQuery();
                 }}
+                onCopyWhere={queryCtx.copyWhere}
                 onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
-                onModeChange={mode => {
-                  queryCtx.filterMode.value = mode;
-                  queryCtx.handleQuery();
-                }}
+                onModeChange={queryCtx.modeChange}
                 onQueryStringChange={value => {
                   queryCtx.queryString.value = value;
                 }}
@@ -298,9 +298,7 @@ export default defineComponent({
                 onShowResidentBtnChange={value => {
                   queryCtx.showResidentBtn.value = value;
                 }}
-                onWhereChange={value => {
-                  queryCtx.where.value = value;
-                }}
+                onWhereChange={queryCtx.whereChange}
               />
             )}
 
