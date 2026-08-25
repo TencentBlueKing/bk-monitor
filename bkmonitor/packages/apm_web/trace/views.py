@@ -54,26 +54,19 @@ class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        if self.action in [
-            "trace_option_value",
-            "trace_charts",
-            "list_traces",
-            "trace_detail",
-            "span_detail",
-            "list_flatten_traces",
-            "list_flatten_spans",
-            "list_spans",
-            "list_links",
-        ]:
-            return [
-                InstanceActionForDataPermission(
-                    self.INSTANCE_ID,
-                    [ActionEnum.VIEW_APM_APPLICATION],
-                    ResourceEnum.APM_APPLICATION,
-                    get_instance_id=Application.get_application_id_by_app_name,
-                )
-            ]
-        return []
+        action = (
+            ActionEnum.MANAGE_APM_APPLICATION
+            if self.action in ["apply_trace_comparison", "delete_trace_comparison"]
+            else ActionEnum.VIEW_APM_APPLICATION
+        )
+        return [
+            InstanceActionForDataPermission(
+                self.INSTANCE_ID,
+                [action],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
 
     resource_routes = [
         ResourceRoute(
