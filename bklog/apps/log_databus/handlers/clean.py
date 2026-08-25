@@ -305,7 +305,10 @@ class CleanTemplateHandler:
         clean_config_changed = any(getattr(self.data, field) != model_fields[field] for field in self.SNAPSHOT_FIELDS)
         should_save_draft = self.data.status == CleanTemplateStatus.DRAFT.value or (
             clean_config_changed
-            and CollectorConfig.objects.filter(clean_template_id=self.data.clean_template_id).exists()
+            and CollectorConfig.objects.filter(
+                clean_template_id=self.data.clean_template_id,
+                is_active=True,
+            ).exists()
         )
         if should_save_draft:
             self.data.snapshot = {field: copy.deepcopy(model_fields[field]) for field in self.SNAPSHOT_FIELDS}
@@ -354,6 +357,15 @@ class CleanTemplateHandler:
     def destroy(self):
         clean_template_id = self.data.clean_template_id
         with transaction.atomic():
+            try:
+                self.data = CleanTemplate.objects.select_for_update().get(
+                    clean_template_id=clean_template_id,
+                    is_deleted=False,
+                )
+            except CleanTemplate.DoesNotExist:
+                raise CleanTemplateNotExistException(
+                    CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
+                )
             self.data.delete()
             CollectorConfig.objects.filter(clean_template_id=clean_template_id).update(clean_template_id=None)
             CleanStash.objects.filter(clean_template_id=clean_template_id).update(clean_template_id=None)
@@ -364,7 +376,10 @@ class CleanTemplateHandler:
         """发布模板草稿，并将正式配置同步到关联采集项。"""
         with transaction.atomic():
             try:
-                self.data = CleanTemplate.objects.select_for_update().get(clean_template_id=self.clean_template_id)
+                self.data = CleanTemplate.objects.select_for_update().get(
+                    clean_template_id=self.clean_template_id,
+                    is_deleted=False,
+                )
             except CleanTemplate.DoesNotExist:
                 raise CleanTemplateNotExistException(
                     CleanTemplateNotExistException.MESSAGE.format(clean_template_id=self.clean_template_id)
@@ -478,7 +493,7 @@ class CleanTemplateHandler:
             )
         except (EtlPreviewException, ValidationError) as error:
             # 样例与清洗类型不匹配时，统一返回面向用户的提示；其他异常保持原样抛出。
-            raise EtlPreviewException(_("字段提取预览失败，模版与日志样例格式不匹配，请切换模版或手动清洗")) from error
+            raise EtlPreviewException(_("字段提取预览失败，模板与日志样例格式不匹配，请切换模板或手动清洗")) from error
 
         fields = self._build_preview_fields(preview.get("fields", []))
         normal_count = sum(not field["error_type"] for field in fields)

@@ -376,6 +376,19 @@ class TestCleanTemplateCrudAndList(CleanTemplateTestCase):
         self.assertEqual(set(updated["snapshot"]), {"clean_type", "etl_params", "etl_fields"})
         self.assertEqual(updated["snapshot"]["etl_params"]["separator"], "|")
 
+    def test_update_with_only_inactive_collectors_is_published_immediately(self):
+        result = self.create_template()
+        self.create_collector(clean_template_id=result["clean_template_id"], is_active=False)
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["etl_params"]["separator"] = "|"
+
+        updated = CleanTemplateHandler(result["clean_template_id"]).create_or_update(changed)
+
+        self.assertEqual(updated["status"], CleanTemplateStatus.PUBLISHED.value)
+        self.assertIsNone(updated["snapshot"])
+        self.assertEqual(updated["etl_params"]["separator"], "|")
+
     def test_update_metadata_with_collectors_is_published_immediately(self):
         result = self.create_template()
         self.create_collector(clean_template_id=result["clean_template_id"])
@@ -845,6 +858,15 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         self.assertEqual([item["id"] for item in result], [collector.collector_config_id for collector in collectors])
         self.assertTrue(all(item["status"] == CleanTemplateSyncStatus.FAILED.value for item in result))
 
+    def test_sync_collectors_does_not_publish_deleted_template(self):
+        template = self.create_template()
+        template_id = template["clean_template_id"]
+        stale_handler = CleanTemplateHandler(template_id)
+        CleanTemplateHandler(template_id).destroy()
+
+        with self.assertRaises(CleanTemplateNotExistException):
+            stale_handler.sync_collectors([])
+
     def test_sync_collectors_only_schedules_active_authorized_collectors(self):
         template = self.create_template()
         template_id = template["clean_template_id"]
@@ -893,7 +915,7 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
 
 
 class TestCleanTemplatePreview(CleanTemplateTestCase):
-    PREVIEW_ERROR_MESSAGE = "字段提取预览失败，模版与日志样例格式不匹配，请切换模版或手动清洗"
+    PREVIEW_ERROR_MESSAGE = "字段提取预览失败，模板与日志样例格式不匹配，请切换模板或手动清洗"
 
     @patch("apps.log_databus.handlers.etl.EtlHandler.etl_preview", return_value={"fields": "raw log"})
     def test_text_preview_has_no_template_fields(self, mock_etl_preview):
@@ -1030,6 +1052,21 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         self.assertIsNone(collector.clean_template_id)
         clean_stash.refresh_from_db()
         self.assertIsNone(clean_stash.clean_template_id)
+
+    def test_destroy_refreshes_stale_template_before_soft_delete(self):
+        template = self.create_template()
+        template_id = template["clean_template_id"]
+        stale_handler = CleanTemplateHandler(template_id)
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["etl_params"]["separator"] = "|"
+        CleanTemplateHandler(template_id).create_or_update(changed)
+
+        stale_handler.destroy()
+
+        deleted_template = CleanTemplate.origin_objects.get(clean_template_id=template_id)
+        self.assertTrue(deleted_template.is_deleted)
+        self.assertEqual(deleted_template.etl_params["separator"], "|")
 
     def test_prepare_clean_template_config_normalizes_legacy_fields(self):
         template = self.create_template(
