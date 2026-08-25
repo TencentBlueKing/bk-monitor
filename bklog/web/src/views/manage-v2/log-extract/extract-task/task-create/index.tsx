@@ -103,7 +103,7 @@ export default defineComponent({
       }
       const firstFile = String(downloadFiles.value[0] ?? '');
       const separatorIndex = firstFile.lastIndexOf('/');
-      return separatorIndex > 0 ? firstFile.slice(0, separatorIndex + 1) : firstFile;
+      return separatorIndex >= 0 ? firstFile.slice(0, separatorIndex + 1) : firstFile;
     });
 
     const notifyExceedLimit = () => {
@@ -317,6 +317,11 @@ export default defineComponent({
     // 处理IP选择器确认选择，支持 INSTANCE / TOPO / SERVICE_TEMPLATE
     const handleConfirm = async (value: any) => {
       const { host_list: hostList, node_list: nodeList, service_template_list: serviceTemplateList } = value;
+
+      // 重新选择服务器后可用目录策略会变化，已选文件不再可靠，需要重新挑选
+      downloadFiles.value = [];
+      manualPath.value = '';
+      manualPathError.value = '';
 
       let nodeType: string = 'INSTANCE';
       let rawNodes: any[] = [];

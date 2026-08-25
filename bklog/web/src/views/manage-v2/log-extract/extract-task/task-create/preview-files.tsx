@@ -171,8 +171,7 @@ export default defineComponent({
         if (val.length) {
           previewIp.value.push(getIpListID(val[0]));
         }
-        setSelectedFilePaths([]);
-        emitSelectedFiles();
+        // 已选列表由父组件持有，重新选择服务器时由父组件清空，避免克隆回填被这里清掉
         explorerList.value.splice(0); // 选择服务器后清空表格
         historyStack.value.splice(0); // 选择服务器后清空历史堆栈
       },
