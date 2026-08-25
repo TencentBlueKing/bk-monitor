@@ -102,7 +102,6 @@ class ApplicationViewSet(ResourceViewSet):
             "setup",
             "start",
             "stop",
-            "query_bk_data_token",
             "nodata_strategy_info",
             "nodata_strategy_enable",
             "nodata_strategy_disable",
@@ -110,6 +109,12 @@ class ApplicationViewSet(ResourceViewSet):
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID, [ActionEnum.MANAGE_APM_APPLICATION], ResourceEnum.APM_APPLICATION
+                )
+            ]
+        if self.action in ["query_bk_data_token"]:
+            return [
+                InstanceActionForDataPermission(
+                    self.INSTANCE_ID, [ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION
                 )
             ]
         if self.action in ["application_info_by_app_name", "service_detail", "simple_service_list"]:
