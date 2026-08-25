@@ -15,6 +15,7 @@ const {
   buildSparklineSegments,
   calculateMarkerHeight,
   calculateMemoryScale,
+  estimateMax3hMemoryRange,
   canAccessRedisManagement,
   buildRedisManagementForbiddenQuery,
   canEditBoundary,
@@ -118,6 +119,12 @@ test('拖动边界只返回单次调整所需的范围、方向和迁移成本',
   assert.equal(draft.unmeasuredCount, 0);
   assert.equal('transition' in draft, false);
   assert.equal('steady' in draft, false);
+});
+
+test('源节点和目标节点使用同一套 3 小时最大内存区间估算', () => {
+  assert.deepEqual(estimateMax3hMemoryRange(4800, 4300, 6400, true), { lower: 0, upper: 500 });
+  assert.deepEqual(estimateMax3hMemoryRange(773, 4300, 6400, false), { lower: 5073, upper: 7173 });
+  assert.deepEqual(estimateMax3hMemoryRange(null, 4300, 6400, false), { lower: null, upper: null });
 });
 
 test('热策略内存刻度根据当前数据上调而不是写死 256 MiB', () => {
@@ -250,15 +257,28 @@ test('热策略图层与路由条之间保留完整点位净空', () => {
   assert.match(source, /\.redis-route-track\s*\{[\s\S]*?height:\s*48px/);
 });
 
+test('热策略使用无延迟的框架 Tooltip', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
+    'utf8'
+  );
+  assert.match(source, /v-bk-tooltips=\{\{[\s\S]*?content:\s*title[\s\S]*?delay:\s*\[0,\s*0\]/);
+  assert.match(source, /aria-label=\{title\}/);
+  assert.doesNotMatch(source, /title=\{title\}/);
+});
+
 test('拖动后只展示单一且可理解的内存变更预览', () => {
   const source = fs.readFileSync(
     path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
     'utf8'
   );
-  assert.match(source, /调整后内存预估/);
+  assert.match(source, /调整后 3 小时最大内存预估/);
   assert.match(source, /预计迁出/);
   assert.match(source, /预计迁入/);
-  assert.match(source, /调整后观测/);
+  const memoryPreview = source.match(/renderMemoryChange\(\)\s*\{([\s\S]*?)\n\s*renderDraft\(\)/)?.[1] ?? '';
+  assert.match(memoryPreview, /3 小时最大/);
+  assert.match(memoryPreview, /estimateMax3hMemoryRange/);
+  assert.doesNotMatch(memoryPreview, /当前\s|调整后观测/);
   assert.doesNotMatch(source, /切换期|稳定后|不能作为容量安全结论/);
 });
 

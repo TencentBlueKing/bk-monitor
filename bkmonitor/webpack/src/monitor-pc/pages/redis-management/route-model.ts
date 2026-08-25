@@ -144,6 +144,22 @@ export const calculateMemoryScale = (values: number[]): number => {
 
 export const calculateMarkerHeight = (value: number, scale: number) => (value / scale) * 110;
 
+export const estimateMax3hMemoryRange = (
+  before: null | number,
+  costLower: number,
+  costUpper: number,
+  isSource: boolean
+): { lower: null | number; upper: null | number } => {
+  if (before === null) return { lower: null, upper: null };
+  if (isSource) {
+    return {
+      lower: Math.max(0, before - costUpper),
+      upper: Math.max(0, before - costLower),
+    };
+  }
+  return { lower: before + costLower, upper: before + costUpper };
+};
+
 export const canEditBoundary = (
   routes: IRouteSegment[],
   boundaryIndex: number,
