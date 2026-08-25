@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 
 from alarm_backends.service.detect import process as detect_process
 from alarm_backends.service.detect.process import DetectProcess
@@ -57,7 +57,11 @@ def test_detect_push_data_defers_signal_and_records_items_when_enabled(mocker):
     )
     mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", True)
     push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=2)
-    trim_item = mocker.patch.object(detect_process, "trim_item_check_results_if_trigger_idle")
+    trim_item = mocker.patch.object(
+        detect_process,
+        "trim_item_check_results_if_trigger_idle",
+        create=True,
+    )
     mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
     mocker.patch.object(processor, "publish_alarmd_detection_batches")
     mocker.patch.object(detect_process, "metrics")
@@ -87,18 +91,17 @@ def test_detect_push_data_publishes_signal_and_records_no_inline_items_when_disa
     assert processor.inline_trigger_items == []
 
 
-def test_access_detect_merge_does_not_collect_hot_trim_keys(mocker):
+def test_detect_handle_data_does_not_collect_hot_trim_keys(mocker):
     processor = object.__new__(DetectProcess)
     processor.inputs = {1: ["point"]}
     processor.outputs = {}
-    processor.collect_check_result_trim_keys = False
     item = mocker.MagicMock(id=1)
     item.detect.return_value = []
 
     processor.handle_data(item)
 
-    item.begin_check_result_trim_batch.assert_called_once_with()
-    item.detect.assert_called_once_with(["point"], collect_check_result_trim_keys=False)
+    item.begin_check_result_trim_batch.assert_not_called()
+    item.detect.assert_called_once_with(["point"])
 
 
 def test_detect_process_continues_after_inline_trigger_lock_error(mocker):
@@ -143,22 +146,6 @@ def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker
 
     mocker.patch.object(detect_process, "service_lock", side_effect=detect_lock)
     mocker.patch.object(detect_process.metrics, "DETECT_PROCESS_TIME")
-    producer_context = mocker.patch.object(
-        detect_process,
-        "check_result_producer",
-        return_value=nullcontext("producer-token"),
-    )
-
-    def assert_trim_under_detect_lock(_item, producer_token):
-        assert lock_state["active"] is True
-        assert producer_token == "producer-token"
-
-    trim_item = mocker.patch.object(
-        detect_process,
-        "trim_item_check_results_if_trigger_idle",
-        side_effect=assert_trim_under_detect_lock,
-    )
-
     def assert_lock_released():
         assert lock_state["active"] is False
 
@@ -166,7 +153,4 @@ def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker
 
     processor.process()
 
-    assert processor.collect_check_result_trim_keys is True
-    producer_context.assert_called_once_with("10")
-    trim_item.assert_called_once_with(item, "producer-token")
     processor.run_inline_trigger.assert_called_once_with()
