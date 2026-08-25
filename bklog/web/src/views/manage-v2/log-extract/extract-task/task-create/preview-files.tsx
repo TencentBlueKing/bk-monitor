@@ -33,6 +33,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import FileDatePicker from './file-date-picker.tsx';
+import { MAX_SELECTED_FILES } from './file-path-validate';
 import http from '@/api';
 
 import './preview-files.scss';
@@ -62,7 +63,7 @@ export default defineComponent({
     },
     maxCount: {
       type: Number,
-      default: 0,
+      default: MAX_SELECTED_FILES,
     },
   },
 

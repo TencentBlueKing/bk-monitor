@@ -40,7 +40,7 @@ import http from '@/api';
 // #code const LogIpSelector = () => null;
 // #endif
 
-import { MAX_SELECTED_FILES, validateFilePath } from './file-path-validate';
+import { type ExtractStrategy, MAX_SELECTED_FILES, validateFilePath } from './file-path-validate';
 import FilesInput from './files-input.tsx';
 import PreviewFiles from './preview-files.tsx';
 import TextFilter from './text-filter.tsx';
@@ -66,7 +66,7 @@ export default defineComponent({
     const targetNodeType = ref<string>('INSTANCE'); // INSTANCE | TOPO | SERVICE_TEMPLATE
     const targetNodes = ref<any[]>([]); // TOPO/SERVICE_TEMPLATE 选中的节点
     const fileOrPath = ref(''); // 当前浏览目录
-    const availablePaths = ref<string[]>([]); // 目录可选列表
+    const availableStrategies = ref<ExtractStrategy[]>([]); // 可提取的目录策略，含目录与文件类型白名单
     const downloadFiles = ref<any[]>([]); // 已选列表，跨路径累积
     const fileSourceTab = ref<'manual' | 'search'>('search'); // 选择日志文件的方式
     const manualPath = ref(''); // 手动输入的路径
@@ -113,15 +113,22 @@ export default defineComponent({
       });
     };
 
+    // 未选主机时拿不到可提取目录策略，无法判断路径是否越权，此时不允许手动添加
+    const isManualDisabled = computed(() => !availableStrategies.value.length);
+
     // 手动输入路径添加到已选列表
     const handleAddManualPath = () => {
       const path = manualPath.value.trim();
-      manualPathError.value = validateFilePath(path, availablePaths.value);
-      if (manualPathError.value) {
+      const validateResult = validateFilePath(path, availableStrategies.value);
+      if (validateResult.message) {
+        manualPathError.value = validateResult.params
+          ? t(validateResult.message, validateResult.params)
+          : t(validateResult.message);
         return;
       }
+      manualPathError.value = '';
       if (downloadFiles.value.includes(path)) {
-        manualPathError.value = '该路径已在已选列表中';
+        manualPathError.value = t('该路径已在已选列表中');
         return;
       }
       if (downloadFiles.value.length >= MAX_SELECTED_FILES) {
@@ -185,7 +192,12 @@ export default defineComponent({
         }
 
         fileOrPath.value = cloneData.preview_directory; // 克隆目录
-        downloadFiles.value = cloneData.file_path ?? []; // 克隆已选列表，含跨路径文件
+        // 克隆已选列表，含跨路径文件；被克隆的任务可能是上限调整前创建的，超出部分需截断
+        const cloneFilePath: string[] = cloneData.file_path ?? [];
+        downloadFiles.value = cloneFilePath.slice(0, MAX_SELECTED_FILES);
+        if (cloneFilePath.length > MAX_SELECTED_FILES) {
+          notifyExceedLimit();
+        }
         textFilterRef.value?.handleClone(cloneData); // 克隆文本过滤
         remark.value = cloneData.remark; // 克隆备注
         // 获取目录下拉列表和预览地址
@@ -269,7 +281,7 @@ export default defineComponent({
           data: requestData,
         })
         .then(res => {
-          availablePaths.value = (res.data.strategies ?? []).map((item: any) => item.file_path);
+          availableStrategies.value = res.data.strategies ?? [];
           if (cloneNodeType !== 'INSTANCE' && res.data.ip_list?.length) {
             ipList.value = res.data.ip_list;
           }
@@ -359,7 +371,7 @@ export default defineComponent({
             bk_obj_id: 'host',
             bk_inst_id: item.bk_host_id,
           }));
-          availablePaths.value = (strategies.data.strategies ?? []).map((item: any) => item.file_path);
+          availableStrategies.value = strategies.data.strategies ?? [];
         } else {
           const newTargetNodes = toTransformNode(rawNodes, nodeType as any);
           const strategies = await http.request('extract/getAvailableExplorerPath', {
@@ -371,7 +383,7 @@ export default defineComponent({
           });
           targetNodes.value = newTargetNodes;
           ipList.value = strategies.data.ip_list ?? [];
-          availablePaths.value = (strategies.data.strategies ?? []).map((item: any) => item.file_path);
+          availableStrategies.value = strategies.data.strategies ?? [];
           initDisplayNameFromIpList(ipList.value);
         }
       } catch (error) {
@@ -539,7 +551,7 @@ export default defineComponent({
                 class='selector-panel'
               >
                 <FilesInput
-                  availablePaths={availablePaths.value}
+                  strategies={availableStrategies.value}
                   value={fileOrPath.value}
                   {...{
                     on: {
@@ -571,11 +583,16 @@ export default defineComponent({
               >
                 <div class='manual-tips'>
                   <i class='bklog-icon bklog-info-fill' />
-                  <span>{t('支持手动输入完整的日志文件路径，添加后进入右侧已选列表')}</span>
+                  <span>
+                    {isManualDisabled.value
+                      ? t('请先选择文件来源主机，再手动输入日志文件路径')
+                      : t('支持手动输入完整的日志文件路径，添加后进入右侧已选列表')}
+                  </span>
                 </div>
                 <div class='manual-operate'>
                   <bk-input
                     class={manualPathError.value ? 'is-error' : ''}
+                    disabled={isManualDisabled.value}
                     placeholder={t('请输入完整的日志文件路径，如 /data/logs/app.log')}
                     value={manualPath.value}
                     {...{
@@ -586,14 +603,14 @@ export default defineComponent({
                     }}
                   />
                   <bk-button
-                    disabled={!manualPath.value.trim()}
+                    disabled={isManualDisabled.value || !manualPath.value.trim()}
                     theme='primary'
                     onClick={handleAddManualPath}
                   >
                     {t('添加到已选列表')}
                   </bk-button>
                 </div>
-                {!!manualPathError.value && <div class='manual-error'>{t(manualPathError.value)}</div>}
+                {!!manualPathError.value && <div class='manual-error'>{manualPathError.value}</div>}
               </div>
             </div>
 

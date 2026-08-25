@@ -1449,4 +1449,7 @@ export default {
   "不支持以 '.' 开头的目录或文件": "Directories or files starting with '.' are not supported",
   路径包含不支持的字符: 'The path contains unsupported characters',
   路径不在可提取的目录范围内: 'The path is outside the extractable directories',
+  请先选择文件来源主机: 'Please select the source hosts first',
+  '请先选择文件来源主机，再手动输入日志文件路径': 'Select the source hosts before entering a log file path',
+  '仅支持提取以下类型的文件：{0}': 'Only the following file types can be extracted: {0}',
 };
